@@ -3220,6 +3220,11 @@ note, and all report `unreadBytes=0`.
   - `LoadCharacter`, `DrawShowing`, `StartFrame`, `EndFrame`, `SetBpm`, and
     `RecenterAll` are ported as deterministic decision helpers. They do not
     execute editor-only loading or promote clip playback runtime.
+  - `CharClipSet.h` still declares `SyncObjects`, `SetFrame`, `OnListClips`,
+    and `SyncProperty`, but the checked `CharClipSet.cpp` snapshot does not
+    expose those bodies. This is why `CharClipSet.cpp` remains
+    `fenced-runtime-gap` in the implementation inventory even though every
+    visible body in the checked `.cpp` file has a deterministic native helper.
 - `rb3-latest/src/system/char/CharClipGroup.cpp` and
   `rb3-latest/src/system/char/CharClipGroup.h`
   - `CharClipGroup::Load` reads the object prefix through

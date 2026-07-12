@@ -22550,6 +22550,30 @@ int run_contract() {
   ok &= contains(rb3_latest_char_clip_set_h,
                  "ObjPtr<CharClip,ObjectDir>mStillClip;",
                  "latest CharClipSet header exposes still clip");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "virtualvoidSyncObjects();",
+                 "latest CharClipSet header declares SyncObjects");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "virtualvoidSetFrame(float,float);",
+                 "latest CharClipSet header declares SetFrame");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "DataNodeOnListClips(DataArray*);",
+                 "latest CharClipSet header declares OnListClips");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "virtualboolSyncProperty(DataNode&,DataArray*,int,PropOp);",
+                 "latest CharClipSet header declares SyncProperty");
+  ok &= missing(rb3_latest_char_clip_set_cpp,
+                "voidCharClipSet::SyncObjects(",
+                "checked CharClipSet source lacks SyncObjects body");
+  ok &= missing(rb3_latest_char_clip_set_cpp,
+                "voidCharClipSet::SetFrame(",
+                "checked CharClipSet source lacks SetFrame body");
+  ok &= missing(rb3_latest_char_clip_set_cpp,
+                "DataNodeCharClipSet::OnListClips(",
+                "checked CharClipSet source lacks OnListClips body");
+  ok &= missing(rb3_latest_char_clip_set_cpp,
+                "boolCharClipSet::SyncProperty(",
+                "checked CharClipSet source lacks SyncProperty body");
   ok &= contains(rb3_latest_char_clip_set_cpp,
                  "CharClipSet::CharClipSet():mCharFilePath(),"
                  "mPreviewChar(this,0),mPreviewClip(this,0),"
@@ -22744,6 +22768,14 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_set_handler_plan`",
                  "document records native CharClipSet handler helper");
+  ok &= contains(doc,
+                 "`CharClipSet.h` still declares `SyncObjects`, `SetFrame`, "
+                 "`OnListClips`,",
+                 "document records CharClipSet header-only body gap");
+  ok &= contains(doc,
+                 "This is why `CharClipSet.cpp` remains\n    "
+                 "`fenced-runtime-gap`",
+                 "document keeps CharClipSet status fenced");
   ok &= contains(rb3_latest_char_clip_display_h,
                  "classCharClipDisplay{public:MsgSource*FindSource("
                  "Hmx::Object*);voidSetClip(CharClip*,bool);voidSetText("
