@@ -233,6 +233,9 @@ void read_drawable_block(Reader& r, int32_t parent_dir_revision) {
   const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
   const SourceRndDrawableLoadPlan plan =
       source_rnddrawable_load_plan(ver, parent_dir_revision);
+  if (!plan.accepted_revision) {
+    throw std::runtime_error("milo_scene: RndDrawable revision outside source range");
+  }
   if (plan.reads_showing) (void)r.u8();
   if (plan.reads_old_drawable_list) {
     const uint32_t drawable_count = r.u32();
@@ -1606,6 +1609,11 @@ SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
   SourceRndDrawableLoadPlan plan;
   plan.revision = revision;
   plan.parent_revision = parent_revision;
+  plan.accepted_revision = revision >= 0 && revision <= 3;
+  if (!plan.accepted_revision) {
+    plan.reads_showing = false;
+    return plan;
+  }
   plan.reads_old_drawable_list = revision < 2;
   plan.old_list_is_null_terminated_strings =
       plan.reads_old_drawable_list && parent_revision <= 6;
@@ -1613,7 +1621,90 @@ SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
       plan.reads_old_drawable_list && parent_revision > 6;
   plan.reads_sphere = revision > 0;
   plan.reads_draw_order = revision > 2;
-  plan.reads_clip_planes = revision >= 4;
+  return plan;
+}
+
+SourceRndDrawableDefaultState source_rnddrawable_default_state() {
+  return SourceRndDrawableDefaultState{};
+}
+
+SourceRndDrawableDrawPlan source_rnddrawable_draw_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_culled) {
+  SourceRndDrawableDrawPlan plan;
+  plan.showing = showing;
+  plan.has_world_sphere = has_world_sphere;
+  plan.sphere_culled = sphere_culled;
+  if (!showing) return plan;
+  plan.calls_make_world_sphere = true;
+  plan.calls_draw_showing = !has_world_sphere || !sphere_culled;
+  return plan;
+}
+
+SourceRndDrawableBudgetPlan source_rnddrawable_budget_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_culled) {
+  SourceRndDrawableBudgetPlan plan;
+  if (!showing) return plan;
+  plan.calls_make_world_sphere = true;
+  plan.calls_draw_showing_budget = !has_world_sphere || !sphere_culled;
+  return plan;
+}
+
+SourceRndDrawableCopyPlan source_rnddrawable_copy_plan(
+    bool copy_from_max,
+    bool dest_sphere_nonzero,
+    bool source_sphere_nonzero) {
+  SourceRndDrawableCopyPlan plan;
+  if (!copy_from_max) {
+    plan.normal_members = {"mShowing", "mOrder", "mSphere"};
+    return plan;
+  }
+  if (dest_sphere_nonzero && source_sphere_nonzero) {
+    plan.from_max_members = {"mSphere"};
+  }
+  return plan;
+}
+
+SourceRndDrawableCollidePlan source_rnddrawable_collide_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_intersects,
+    float plane_dot,
+    float sphere_radius) {
+  SourceRndDrawableCollidePlan plan;
+  plan.showing = showing;
+  plan.has_world_sphere = has_world_sphere;
+  plan.sphere_intersects = sphere_intersects;
+  if (showing) {
+    plan.collide_sphere_result = !has_world_sphere || sphere_intersects;
+    plan.collide_calls_showing = plan.collide_sphere_result;
+  }
+  if (!showing || !has_world_sphere) {
+    plan.collide_plane_result = -1;
+  } else if (plane_dot >= sphere_radius) {
+    plan.collide_plane_result = 1;
+  } else {
+    plan.collide_plane_result = sphere_radius < -plane_dot ? -1 : 0;
+  }
+  return plan;
+}
+
+SourceRndDrawableHandlerPlan source_rnddrawable_handler_plan() {
+  SourceRndDrawableHandlerPlan plan;
+  plan.handlers = {"set_showing", "showing", "zero_sphere", "update_sphere",
+                   "get_sphere",  "copy_sphere"};
+  plan.check = 0x168;
+  return plan;
+}
+
+SourceRndDrawablePropSyncPlan source_rnddrawable_prop_sync_plan() {
+  SourceRndDrawablePropSyncPlan plan;
+  plan.properties = {"draw_order", "showing", "sphere"};
+  plan.showing_ops = {"set:mShowing=_val.Int(0)!=0",
+                      "get:_val=DataNode(mShowing)"};
   return plan;
 }
 

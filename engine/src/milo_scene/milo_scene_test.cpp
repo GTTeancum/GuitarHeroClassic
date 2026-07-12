@@ -1132,6 +1132,7 @@ void test_group() {
 
   const SourceRndDrawableLoadPlan drawable_v3 =
       source_rnddrawable_load_plan(3, 24);
+  CHECK(drawable_v3.accepted_revision);
   CHECK(drawable_v3.reads_showing);
   CHECK(!drawable_v3.reads_old_drawable_list);
   CHECK(drawable_v3.reads_sphere);
@@ -1153,7 +1154,65 @@ void test_group() {
 
   const SourceRndDrawableLoadPlan drawable_v4 =
       source_rnddrawable_load_plan(4, 24);
-  CHECK(drawable_v4.reads_clip_planes);
+  CHECK(!drawable_v4.accepted_revision);
+  CHECK(!drawable_v4.reads_showing);
+  CHECK(!drawable_v4.reads_clip_planes);
+
+  const SourceRndDrawableDefaultState drawable_defaults =
+      source_rnddrawable_default_state();
+  CHECK(drawable_defaults.showing);
+  CHECK(drawable_defaults.sphere_zeroed);
+  CHECK(approx(drawable_defaults.order, 0.0f));
+  CHECK(drawable_defaults.draw_revision == 3);
+  CHECK(drawable_defaults.highlight_style_count == 5);
+  CHECK(approx(drawable_defaults.normal_display_length, 1.0f));
+
+  const SourceRndDrawableDrawPlan draw_visible =
+      source_rnddrawable_draw_plan(true, true, false);
+  CHECK(draw_visible.calls_make_world_sphere);
+  CHECK(draw_visible.calls_draw_showing);
+  CHECK(!source_rnddrawable_draw_plan(true, true, true).calls_draw_showing);
+  CHECK(!source_rnddrawable_draw_plan(false, true, false)
+             .calls_make_world_sphere);
+
+  const SourceRndDrawableBudgetPlan budget_culled =
+      source_rnddrawable_budget_plan(true, true, true);
+  CHECK(budget_culled.calls_make_world_sphere);
+  CHECK(!budget_culled.calls_draw_showing_budget);
+  CHECK(source_rnddrawable_budget_plan(true, false, false)
+            .calls_draw_showing_budget);
+
+  const SourceRndDrawableCopyPlan drawable_copy =
+      source_rnddrawable_copy_plan(false, false, false);
+  CHECK(drawable_copy.normal_members.size() == 3);
+  CHECK(drawable_copy.normal_members[0] == "mShowing");
+  CHECK(drawable_copy.normal_members[2] == "mSphere");
+  CHECK(source_rnddrawable_copy_plan(true, true, true)
+            .from_max_members.size() == 1);
+  CHECK(source_rnddrawable_copy_plan(true, true, false)
+            .from_max_members.empty());
+
+  const SourceRndDrawableCollidePlan collide_inside =
+      source_rnddrawable_collide_plan(true, true, true, 0.25f, 1.0f);
+  CHECK(collide_inside.collide_sphere_result);
+  CHECK(collide_inside.collide_calls_showing);
+  CHECK(collide_inside.collide_plane_result == 0);
+  CHECK(source_rnddrawable_collide_plan(true, true, false, 2.0f, 1.0f)
+            .collide_plane_result == 1);
+  CHECK(source_rnddrawable_collide_plan(true, true, true, -2.0f, 1.0f)
+            .collide_plane_result == -1);
+
+  const SourceRndDrawableHandlerPlan drawable_handlers =
+      source_rnddrawable_handler_plan();
+  CHECK(drawable_handlers.handlers.size() == 6);
+  CHECK(drawable_handlers.handlers[0] == "set_showing");
+  CHECK(drawable_handlers.handlers[5] == "copy_sphere");
+  CHECK(drawable_handlers.check == 0x168);
+  const SourceRndDrawablePropSyncPlan drawable_props =
+      source_rnddrawable_prop_sync_plan();
+  CHECK(drawable_props.properties.size() == 3);
+  CHECK(drawable_props.properties[1] == "showing");
+  CHECK(drawable_props.showing_ops.size() == 2);
 
   const SourceRndGroupLoadPlan group_v15 = source_rndgroup_load_plan(15);
   CHECK(group_v15.reads_object_fields);

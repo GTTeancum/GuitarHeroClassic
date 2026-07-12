@@ -1003,6 +1003,7 @@ struct GroupObj {
 struct SourceRndDrawableLoadPlan {
   int32_t revision = 0;
   int32_t parent_revision = 0;
+  bool accepted_revision = false;
   bool reads_showing = true;
   bool reads_old_drawable_list = false;
   bool old_list_is_null_terminated_strings = false;
@@ -1015,6 +1016,82 @@ struct SourceRndDrawableLoadPlan {
 SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
     int32_t revision,
     int32_t parent_revision);
+
+struct SourceRndDrawableDefaultState {
+  bool showing = true;
+  bool sphere_zeroed = true;
+  float order = 0.0f;
+  int32_t draw_revision = 3;
+  int32_t highlight_style_count = 5;
+  float normal_display_length = 1.0f;
+};
+
+SourceRndDrawableDefaultState source_rnddrawable_default_state();
+
+struct SourceRndDrawableDrawPlan {
+  bool showing = false;
+  bool has_world_sphere = false;
+  bool sphere_culled = false;
+  bool calls_make_world_sphere = false;
+  bool calls_draw_showing = false;
+};
+
+SourceRndDrawableDrawPlan source_rnddrawable_draw_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_culled);
+
+struct SourceRndDrawableBudgetPlan {
+  bool returns_true = true;
+  bool calls_make_world_sphere = false;
+  bool calls_draw_showing_budget = false;
+};
+
+SourceRndDrawableBudgetPlan source_rnddrawable_budget_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_culled);
+
+struct SourceRndDrawableCopyPlan {
+  std::vector<std::string> normal_members;
+  std::vector<std::string> from_max_members;
+  bool from_max_copies_sphere_only_when_both_radii_nonzero = true;
+};
+
+SourceRndDrawableCopyPlan source_rnddrawable_copy_plan(
+    bool copy_from_max,
+    bool dest_sphere_nonzero,
+    bool source_sphere_nonzero);
+
+struct SourceRndDrawableCollidePlan {
+  bool showing = false;
+  bool has_world_sphere = false;
+  bool sphere_intersects = false;
+  bool collide_sphere_result = false;
+  int32_t collide_plane_result = -1;
+  bool collide_calls_showing = false;
+};
+
+SourceRndDrawableCollidePlan source_rnddrawable_collide_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_intersects,
+    float plane_dot,
+    float sphere_radius);
+
+struct SourceRndDrawableHandlerPlan {
+  std::vector<std::string> handlers;
+  int32_t check = 0;
+};
+
+SourceRndDrawableHandlerPlan source_rnddrawable_handler_plan();
+
+struct SourceRndDrawablePropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> showing_ops;
+};
+
+SourceRndDrawablePropSyncPlan source_rnddrawable_prop_sync_plan();
 
 struct SourceRndGroupLoadPlan {
   int32_t revision = 0;

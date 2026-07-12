@@ -53,12 +53,12 @@ snapshot, document it here before treating its behavior as understood.
 
 The same contract also guards the selected `rb3-latest/src/system/rndobj`
 source files that make up the character-model assembly boundary:
-`Group.cpp`, `Group.h`, `Mat.cpp`, `Mat.h`, `Mesh.cpp`, `Mesh.h`,
-`MeshAnim.cpp`, `MeshAnim.h`, `MeshDeform.cpp`, `MeshDeform.h`,
-`MultiMesh.cpp`, `MultiMesh.h`, `MultiMeshProxy.cpp`, `MultiMeshProxy.h`,
-`Poll.cpp`, `Poll.h`, `PollAnim.cpp`, `PollAnim.h`, `Trans.cpp`, `Trans.h`,
-`TransAnim.cpp`, `TransAnim.h`, `TransProxy.cpp`, `TransProxy.h`, and
-`TransRemover.h`. Listing a file here keeps it inside the
+`Draw.cpp`, `Draw.h`, `Group.cpp`, `Group.h`, `Mat.cpp`, `Mat.h`,
+`Mesh.cpp`, `Mesh.h`, `MeshAnim.cpp`, `MeshAnim.h`, `MeshDeform.cpp`,
+`MeshDeform.h`, `MultiMesh.cpp`, `MultiMesh.h`, `MultiMeshProxy.cpp`,
+`MultiMeshProxy.h`, `Poll.cpp`, `Poll.h`, `PollAnim.cpp`, `PollAnim.h`,
+`Trans.cpp`, `Trans.h`, `TransAnim.cpp`, `TransAnim.h`, `TransProxy.cpp`,
+`TransProxy.h`, and `TransRemover.h`. Listing a file here keeps it inside the
 source-truth map; it is not a claim that every body in that file is promoted to
 native runtime behavior.
 
@@ -159,6 +159,7 @@ source proves there is no usable runtime class/body to port from that file.
 | Mesh vertex animation rows | `rb3-latest/src/system/rndobj/MeshAnim.cpp` / `MeshAnim.h` | Native helper ports source defaults, key-count sizing, load/copy/replace, SetFrame interpolation/sync gates, shrink helpers, handlers, and prop rows; it does not enable live vertex animation in the character renderer. |
 | Poll animation cadence | `rb3-latest/src/system/rndobj/Poll.cpp` / `Poll.h`, `PollAnim.cpp` / `PollAnim.h` | Native helper ports source poll message rows, poll-animation child lifecycle, rate-to-frame mapping, load/copy/handler/prop rows; it does not change runtime scheduling. |
 | Property animation rows | `rb3-latest/src/system/rndobj/PropAnim.cpp` / `PropAnim.h`, `PropKeys.cpp` / `PropKeys.h` | Native helper ports source property-key load/copy/frame/key/path/value/handler/property-sync contracts; it does not enable live property animation playback. |
+| Drawable visibility, bounds, and draw gates | `rb3-latest/src/system/rndobj/Draw.cpp` / `Draw.h`, `MiloEditor` `RndDrawable.cs` | Native helper ports source defaults, revision ceiling, load gates, draw/budget culling, copy, collision, handler, and property rows; no material sort/depth override is inferred from drawable state. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
@@ -813,14 +814,29 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     and check `0x207`. `BEGIN_PROPSYNCS` exposes `mesh` and `RndAnimatable`.
     Native `source_rndmeshanim_handler_plan` and
     `source_rndmeshanim_prop_sync_plan` record those rows.
-- `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
-  - `RndDrawable.Read` reads combined revision, showing, optional sphere, and
-    draw order for revisions greater than 2.
-  - Shared native `source_rnddrawable_load_plan` records the same gates:
-    revision `< 2` reads the old drawable list, parent directories `<= 6` use
-    null-terminated strings for that list, later parents use symbols, revision
-    `> 0` reads the sphere, revision `> 2` reads draw order, and revision
-    `>= 4` reads clip planes.
+- `rb3-latest/src/system/rndobj/Draw.cpp`, `Draw.h`, and
+  `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
+  - `RndDrawable::RndDrawable` defaults `mShowing` true, zeroes `mSphere`, and
+    clears `mOrder`; the source revision ceiling is `DRAW_REV = 3`.
+    Native `source_rnddrawable_default_state` records these defaults.
+  - `RndDrawable.Read` / `RndDrawable::Load` read combined revision, showing,
+    optional old drawable list, optional sphere, and draw order for revisions
+    greater than 2. Native `source_rnddrawable_load_plan` records the same
+    gates and rejects revisions outside `0..3`; the older local rev4
+    clip-plane interpretation is not source-backed by `Draw.cpp`.
+  - Native `source_rnddrawable_draw_plan` and
+    `source_rnddrawable_budget_plan` port the visible source culling gates:
+    hidden drawables stop before sphere work, and visible drawables call
+    `DrawShowing` / `DrawShowingBudget` only when there is no world sphere or
+    the current camera does not cull it.
+  - Native `source_rnddrawable_copy_plan` records the source copy split:
+    normal copies include `mShowing`, `mOrder`, and `mSphere`; `kCopyFromMax`
+    copies only the sphere and only when both source and destination radii are
+    non-zero.
+  - Native `source_rnddrawable_collide_plan` records the visible
+    `CollideSphere` and `CollidePlane` gates, while
+    `source_rnddrawable_handler_plan` and `source_rnddrawable_prop_sync_plan`
+    record the source handler/property rows.
   - The shared `RndGroup` decoder now passes the actual parent directory
     revision into embedded `RndDrawable` rows and uses the source
     `ReadUTF8`/Symbol split for old drawable lists. GH2 PS2 character groups

@@ -275,6 +275,10 @@ int run_contract() {
       extra_dir / "re-notes";
   const std::string rb3_latest_mesh_h = compact(read_file(
       rb3_latest_rndobj_dir / "Mesh.h"));
+  const std::string rb3_latest_draw_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Draw.cpp"));
+  const std::string rb3_latest_draw_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Draw.h"));
   const std::string rb3_latest_group_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Group.cpp"));
   const std::string rb3_latest_group_h = compact(read_file(
@@ -653,8 +657,9 @@ int run_contract() {
       "source-truth map must cite every copied ihatecompvir character source");
   ok &= selected_source_files_cited(
       doc, extra_dir / "rb3-latest/src/system/rndobj",
-      {"Group.cpp",          "Group.h",          "Mat.cpp",
-       "Mat.h",              "Mesh.cpp",         "Mesh.h",
+      {"Draw.cpp",           "Draw.h",           "Group.cpp",
+       "Group.h",            "Mat.cpp",          "Mat.h",
+       "Mesh.cpp",           "Mesh.h",
        "MeshAnim.cpp",       "MeshAnim.h",       "MeshDeform.cpp",
        "MeshDeform.h",       "MultiMesh.cpp",    "MultiMesh.h",
        "MultiMeshProxy.cpp", "MultiMeshProxy.h", "Poll.cpp",
@@ -2760,27 +2765,87 @@ int run_contract() {
   ok &= contains(drawable_cs,
                  "showing=reader.ReadBoolean();if(revision<2)",
                  "RndDrawable source starts with showing flag");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "intDRAW_REV=3;",
+                 "latest RndDrawable source revision ceiling");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "RndDrawable::RndDrawable():mShowing(1),mSphere(),"
+                 "mOrder(0.0f){mSphere.Zero();}",
+                 "latest RndDrawable source constructor defaults");
+  ok &= contains(rb3_latest_draw_h,
+                 "classRndDrawable:publicvirtualRndHighlightable",
+                 "latest RndDrawable header exposes source class");
   ok &= contains(drawable_cs,
                  "if(parent.revision<=6){for(inti=0;i<drawableCount;i++){"
                  "drawablesNullTerminated.Add(reader.ReadUTF8());}}else{"
                  "for(inti=0;i<drawableCount;i++){drawables.Add(Symbol.Read(reader));}}",
                  "RndDrawable source old drawable-list parent gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "voidRndDrawable::Load(BinStream&bs){intrev;bs>>rev;"
+                 "ASSERT_GLOBAL_REV(rev,DRAW_REV);",
+                 "latest RndDrawable source load asserts source revision");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "bs>>bs_showing;mShowing=bs_showing;",
+                 "latest RndDrawable source load reads showing");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "if(rev<2){intcount;bs>>count;",
+                 "latest RndDrawable source old list gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "if(rev>0)bs>>mSphere;if(rev>2){",
+                 "latest RndDrawable source sphere and draw-order gates");
   ok &= contains(drawable_cs,
                  "if(revision>2){drawOrder=reader.ReadFloat();}",
                  "RndDrawable source draw-order gate");
-  ok &= contains(drawable_cs,
-                 "if(revision>=4){",
-                 "RndDrawable source starts clip-plane revision gate");
-  ok &= contains(drawable_cs,
-                 "clipPlaneCount=reader.ReadUInt32();for(inti=0;i<clipPlaneCount;i++){"
-                 "Symbolsym=Symbol.Read(reader);clipPlanes.Add(sym);}",
-                 "RndDrawable source clip-plane gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "voidRndDrawable::Draw(){if(mShowing){Spheresphere;"
+                 "intworldSphere=MakeWorldSphere(sphere,false);"
+                 "if(worldSphere==0||!RndCam::sCurrent->CompareSphereToWorld"
+                 "(sphere)){DrawShowing();}}}",
+                 "latest RndDrawable source draw culling gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "boolRndDrawable::DrawBudget(floatf){if(!mShowing)returntrue;",
+                 "latest RndDrawable source budget hidden gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "if(ty!=kCopyFromMax){COPY_MEMBER(mShowing)COPY_MEMBER(mOrder)"
+                 "COPY_MEMBER(mSphere)",
+                 "latest RndDrawable source normal copy members");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "if(mSphere.GetRadius()&&c->mSphere.GetRadius()){"
+                 "COPY_MEMBER(mSphere);}",
+                 "latest RndDrawable source CopyFromMax sphere gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "boolRndDrawable::CollideSphere(constSegment&seg){if(!"
+                 "mShowing)returnfalse;",
+                 "latest RndDrawable source CollideSphere hidden gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "intRndDrawable::CollidePlane(constPlane&plane){if(!"
+                 "mShowing)return-1;",
+                 "latest RndDrawable source CollidePlane hidden gate");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "BEGIN_HANDLERS(RndDrawable)HANDLE(set_showing,OnSetShowing)",
+                 "latest RndDrawable source handler rows");
+  ok &= contains(rb3_latest_draw_cpp,
+                 "BEGIN_PROPSYNCS(RndDrawable)SYNC_PROP(draw_order,mOrder)",
+                 "latest RndDrawable source prop-sync rows");
   ok &= contains(scene_h,
                  "structSourceRndDrawableLoadPlan{",
                  "shared milo_scene exposes source RndDrawable load plan");
+  ok &= contains(scene_h,
+                 "structSourceRndDrawableDefaultState{",
+                 "shared milo_scene exposes RndDrawable default state plan");
+  ok &= contains(scene_h,
+                 "structSourceRndDrawableCollidePlan{",
+                 "shared milo_scene exposes RndDrawable collide plan");
   ok &= contains(scene,
                  "SourceRndDrawableLoadPlansource_rnddrawable_load_plan(",
                  "shared milo_scene implements source RndDrawable load plan");
+  ok &= contains(scene,
+                 "plan.accepted_revision=revision>=0&&revision<=3;",
+                 "shared RndDrawable load plan mirrors source revision ceiling");
+  ok &= contains(scene,
+                 "throwstd::runtime_error(\"milo_scene:RndDrawablerevisionoutside"
+                 "sourcerange\");",
+                 "shared RndDrawable reader rejects unsupported source revision");
   ok &= contains(scene,
                  "plan.reads_old_drawable_list=revision<2;",
                  "shared RndDrawable load plan mirrors old-list gate");
@@ -2791,6 +2856,22 @@ int run_contract() {
   ok &= contains(scene,
                  "plan.reads_draw_order=revision>2;",
                  "shared RndDrawable load plan mirrors draw-order gate");
+  ok &= contains(scene,
+                 "SourceRndDrawableDefaultStatesource_rnddrawable_default_state()",
+                 "shared RndDrawable helper records defaults");
+  ok &= contains(scene,
+                 "plan.calls_draw_showing=!has_world_sphere||!sphere_culled;",
+                 "shared RndDrawable helper mirrors Draw culling gate");
+  ok &= contains(scene,
+                 "plan.from_max_members={\"mSphere\"};",
+                 "shared RndDrawable helper mirrors CopyFromMax sphere gate");
+  ok &= contains(scene,
+                 "plan.collide_plane_result=sphere_radius<-plane_dot?-1:0;",
+                 "shared RndDrawable helper mirrors CollidePlane side gate");
+  ok &= contains(scene,
+                 "plan.handlers={\"set_showing\",\"showing\",\"zero_sphere\","
+                 "\"update_sphere\",\"get_sphere\",\"copy_sphere\"};",
+                 "shared RndDrawable helper records handlers");
   ok &= contains(scene,
                  "source_rnddrawable_load_plan(ver,parent_dir_revision)",
                  "shared RndDrawable reader uses source plan with parent revision");
@@ -2806,12 +2887,28 @@ int run_contract() {
                  "source_rnddrawable_load_plan(3,24);",
                  "milo_scene test covers modern RndDrawable plan");
   ok &= contains(scene_test,
+                 "CHECK(!drawable_v4.accepted_revision);",
+                 "milo_scene test rejects source-unsupported RndDrawable revision");
+  ok &= contains(scene_test,
+                 "source_rnddrawable_draw_plan(true,true,false)",
+                 "milo_scene test covers RndDrawable Draw gate");
+  ok &= contains(scene_test,
+                 "source_rnddrawable_collide_plan(true,true,true,0.25f,1.0f)",
+                 "milo_scene test covers RndDrawable collide gate");
+  ok &= contains(scene_test,
                  "put_utf8_z(legacy_drawable,\"legacy_draw_child\");",
                  "milo_scene test covers legacy RndDrawable UTF-8 child row");
   ok &= contains(doc,
                  "passes the actual parent directory\n"
                  "    revision into embedded `RndDrawable` rows",
                  "document records RndDrawable parent-revision plumbing");
+  ok &= contains(doc,
+                 "the source revision ceiling is `DRAW_REV = 3`",
+                 "document records RndDrawable source revision ceiling");
+  ok &= contains(doc,
+                 "older local rev4\n    clip-plane interpretation is not "
+                 "source-backed by `Draw.cpp`",
+                 "document records RndDrawable rev4 correction");
 
   ok &= contains(mat_cs,
                  "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"
