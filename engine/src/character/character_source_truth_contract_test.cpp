@@ -1435,6 +1435,26 @@ int run_contract() {
                  "mBones.resize(i);break;}}",
                  "RB3 RndMesh runtime trims active bones at first null slot");
   ok &= contains(rb3_mesh_cpp,
+                 "if(gRev>0x1C){bs>>mBones;intmax=MaxBones();if(mBones.size()"
+                 ">max)mBones.resize(MaxBones());}",
+                 "RB3 RndMesh PostLoad newer bone-vector branch clamps to MaxBones");
+  ok &= contains(rb3_mesh_cpp,
+                 "elseif(gRev>0xD){ObjPtr<RndTransformable,ObjectDir>tPtr(this,0);"
+                 "bs>>tPtr;if(tPtr){mBones.resize(4);if(gRev>0x16){"
+                 "mBones[0].mBone=tPtr;bs>>mBones[1].mBone>>mBones[2].mBone>>"
+                 "mBones[3].mBone;bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
+                 "mBones[2].mOffset>>mBones[3].mOffset;",
+                 "RB3 RndMesh PostLoad GH2-era old four-slot bone branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(gRev<0x19){for(Vert*it=mVerts.begin();it!=mVerts.end();"
+                 "++it){it->boneWeights.Set(((1.0f-it->boneWeights.GetX())-"
+                 "it->boneWeights.GetY())-it->boneWeights.GetZ(),it->boneWeights."
+                 "GetX(),it->boneWeights.GetY(),it->boneWeights.GetZ());}}",
+                 "RB3 RndMesh PostLoad pre-25 old-weight reorder branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "}elsemBones.clear();}",
+                 "RB3 RndMesh PostLoad clears old bone list when first pointer is null");
+  ok &= contains(rb3_mesh_cpp,
                  "RemoveInvalidBones();",
                  "RB3 RndMesh runtime removes invalid active bones");
   ok &= contains(rb3_mesh_cpp,
@@ -1503,6 +1523,9 @@ int run_contract() {
                  "structSourceRndMeshVertLoadPlan{",
                  "native exposes RndMesh vertex-load source plan");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshBoneTailPlan{",
+                 "native exposes RndMesh bone-tail source plan");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshSkinIndexPlan{",
                  "native exposes RndMesh skin-index source plan");
   ok &= contains(char_mesh_h,
@@ -1541,6 +1564,30 @@ int run_contract() {
                  "mesh_revision==28",
                  "native records GH2 rev28 no serialized bone-index rows");
   ok &= contains(char_mesh,
+                 "plan.reads_new_bone_vector=mesh_revision>0x1c;"
+                 "plan.clamps_new_bone_vector_to_max=plan.reads_new_bone_vector;",
+                 "native bone-tail plan mirrors new vector branch");
+  ok &= contains(char_mesh,
+                 "plan.reads_old_first_bone=mesh_revision>0x0d&&mesh_revision<=0x1c;",
+                 "native bone-tail plan mirrors old first-bone branch");
+  ok &= contains(char_mesh,
+                 "if(resolved_slots.empty()||!resolved_slots[0]){"
+                 "plan.clears_when_first_bone_null=true;returnplan;}",
+                 "native bone-tail plan mirrors first-null clear");
+  ok &= contains(char_mesh,
+                 "plan.resizes_old_bones_to_four=true;if(mesh_revision>0x16){"
+                 "plan.reads_old_slots_1_to_3=true;plan.reads_four_old_offsets=true;"
+                 "plan.recomputes_pre25_legacy_weights=mesh_revision<0x19;",
+                 "native bone-tail plan mirrors GH2-era four-slot branch");
+  ok &= contains(char_mesh,
+                 "if(!resolved_slots[i])break;++plan.active_bone_count;",
+                 "native bone-tail plan trims old slots at first null");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_old_four_slot_tail=mesh_revision==28&&"
+                 "plan.reads_old_slots_1_to_3&&plan.reads_four_old_offsets&&"
+                 "plan.trims_old_slots_at_first_null;",
+                 "native bone-tail plan records GH2 rev28 old four-slot tail");
+  ok &= contains(char_mesh,
                  "plan.reads_separate_weights=mesh_revision>=0x25;",
                  "native vertex-load plan mirrors separate weight gate");
   ok &= contains(char_mesh,
@@ -1568,6 +1615,9 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_vert_load_plan(28,true)",
                  "focused mesh decode test covers GH2 rev28 vertex load plan");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_bone_tail_plan(",
+                 "focused mesh decode test covers RndMesh bone-tail helper");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_zero_weight_bones(",
                  "focused mesh decode test covers RndMesh zero-weight helper");

@@ -280,6 +280,46 @@ int main() {
   CHECK(rev10_vert_plan.reads_legacy_extra_vec2);
   CHECK(!rev10_vert_plan.postload_color_to_weights);
 
+  const auto rev28_bone_tail =
+      ghogx::character::source_rndmesh_bone_tail_plan(
+          28, {true, true, false, true});
+  CHECK(!rev28_bone_tail.reads_new_bone_vector);
+  CHECK(rev28_bone_tail.reads_old_first_bone);
+  CHECK(!rev28_bone_tail.clears_when_first_bone_null);
+  CHECK(rev28_bone_tail.resizes_old_bones_to_four);
+  CHECK(rev28_bone_tail.reads_old_slots_1_to_3);
+  CHECK(rev28_bone_tail.reads_four_old_offsets);
+  CHECK(!rev28_bone_tail.recomputes_pre25_legacy_weights);
+  CHECK(rev28_bone_tail.trims_old_slots_at_first_null);
+  CHECK(rev28_bone_tail.calls_remove_invalid_bones);
+  CHECK(rev28_bone_tail.calls_zero_weight_fixup);
+  CHECK(rev28_bone_tail.gh2_rev28_old_four_slot_tail);
+  CHECK(rev28_bone_tail.active_bone_count == 2);
+
+  const auto rev28_no_first_bone =
+      ghogx::character::source_rndmesh_bone_tail_plan(
+          28, {false, true, true, true});
+  CHECK(rev28_no_first_bone.reads_old_first_bone);
+  CHECK(rev28_no_first_bone.clears_when_first_bone_null);
+  CHECK(!rev28_no_first_bone.resizes_old_bones_to_four);
+  CHECK(rev28_no_first_bone.active_bone_count == 0);
+
+  const auto rev29_bone_tail =
+      ghogx::character::source_rndmesh_bone_tail_plan(
+          29, {true, false, true, true, true});
+  CHECK(rev29_bone_tail.reads_new_bone_vector);
+  CHECK(rev29_bone_tail.clamps_new_bone_vector_to_max);
+  CHECK(!rev29_bone_tail.reads_old_first_bone);
+  CHECK(!rev29_bone_tail.trims_old_slots_at_first_null);
+  CHECK(rev29_bone_tail.calls_zero_weight_fixup);
+  CHECK(rev29_bone_tail.active_bone_count == 4);
+
+  const auto rev24_bone_tail =
+      ghogx::character::source_rndmesh_bone_tail_plan(
+          24, {true, true, true, true});
+  CHECK(rev24_bone_tail.recomputes_pre25_legacy_weights);
+  CHECK(rev24_bone_tail.active_bone_count == 4);
+
   const auto rev28_skin_index_plan =
       ghogx::character::source_rndmesh_skin_index_plan(28);
   CHECK(!rev28_skin_index_plan.rb3_stream_reads_bone_indices);

@@ -288,6 +288,48 @@ SourceRndMeshVertLoadPlan source_rndmesh_vert_load_plan(
   return plan;
 }
 
+SourceRndMeshBoneTailPlan source_rndmesh_bone_tail_plan(
+    int32_t mesh_revision,
+    const std::vector<bool>& resolved_slots) {
+  SourceRndMeshBoneTailPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.reads_new_bone_vector = mesh_revision > 0x1c;
+  plan.clamps_new_bone_vector_to_max = plan.reads_new_bone_vector;
+  plan.reads_old_first_bone =
+      mesh_revision > 0x0d && mesh_revision <= 0x1c;
+  plan.calls_zero_weight_fixup = mesh_revision < 0x1f;
+  if (plan.reads_new_bone_vector) {
+    const size_t max_slots = std::min<size_t>(resolved_slots.size(), 40);
+    for (size_t i = 0; i < max_slots; ++i) {
+      if (resolved_slots[i]) ++plan.active_bone_count;
+    }
+    return plan;
+  }
+  if (!plan.reads_old_first_bone) return plan;
+  if (resolved_slots.empty() || !resolved_slots[0]) {
+    plan.clears_when_first_bone_null = true;
+    return plan;
+  }
+  plan.resizes_old_bones_to_four = true;
+  if (mesh_revision > 0x16) {
+    plan.reads_old_slots_1_to_3 = true;
+    plan.reads_four_old_offsets = true;
+    plan.recomputes_pre25_legacy_weights = mesh_revision < 0x19;
+  } else {
+    plan.older_parent_or_self_slot0_path = true;
+  }
+  plan.trims_old_slots_at_first_null = true;
+  const size_t old_slot_count = std::min<size_t>(resolved_slots.size(), 4);
+  for (size_t i = 0; i < old_slot_count; ++i) {
+    if (!resolved_slots[i]) break;
+    ++plan.active_bone_count;
+  }
+  plan.gh2_rev28_old_four_slot_tail =
+      mesh_revision == 28 && plan.reads_old_slots_1_to_3 &&
+      plan.reads_four_old_offsets && plan.trims_old_slots_at_first_null;
+  return plan;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

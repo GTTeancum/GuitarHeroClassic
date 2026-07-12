@@ -479,6 +479,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `RemoveInvalidBones`. Native therefore keeps `raw_bone_palette` /
     `raw_bind` for row proof, while `bone_palette` / `bind` follow the
     runtime-active source list used for skinning.
+  - Native `source_rndmesh_bone_tail_plan` records that split explicitly:
+    revisions above `0x1c` read a newer bone vector and clamp it to
+    `MaxBones()`, while GH2 rev28 takes the older `gRev > 0xd` / `gRev > 0x16`
+    path: read the first bone pointer, resize to four slots, read slots 1-3,
+    read four offsets, trim at the first null slot, then call
+    `RemoveInvalidBones`. If the first old pointer is null, source clears the
+    bone list. Rev28 still runs the old `SetZeroWeightBones` gate, but that
+    does not create serialized per-vertex bone indices.
   - ihatecompvir's RB3 `operator>>(BinStream&, RndMesh::Vert&)` reads explicit
     `boneIndices[0..3]` only for mesh revisions above `0x1c`, while
     MiloEditor reads explicit vertex bone indices in older pre-GH2 layouts and

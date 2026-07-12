@@ -98,6 +98,28 @@ SourceRndMeshVertLoadPlan source_rndmesh_vert_load_plan(
     int32_t mesh_revision,
     bool is_skinned);
 
+struct SourceRndMeshBoneTailPlan {
+  int32_t mesh_revision = 0;
+  bool reads_new_bone_vector = false;
+  bool clamps_new_bone_vector_to_max = false;
+  bool reads_old_first_bone = false;
+  bool clears_when_first_bone_null = false;
+  bool resizes_old_bones_to_four = false;
+  bool reads_old_slots_1_to_3 = false;
+  bool reads_four_old_offsets = false;
+  bool recomputes_pre25_legacy_weights = false;
+  bool older_parent_or_self_slot0_path = false;
+  bool trims_old_slots_at_first_null = false;
+  bool calls_remove_invalid_bones = true;
+  bool calls_zero_weight_fixup = false;
+  bool gh2_rev28_old_four_slot_tail = false;
+  int32_t active_bone_count = 0;
+};
+
+SourceRndMeshBoneTailPlan source_rndmesh_bone_tail_plan(
+    int32_t mesh_revision,
+    const std::vector<bool>& resolved_slots);
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;
