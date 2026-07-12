@@ -1,5 +1,6 @@
 #include "character/char_clip.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -91,11 +92,13 @@ int main() {
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
+  using ghogx::character::source_gltf_milo_export_hair_point;
   using ghogx::character::source_gltf_milo_hair_collide_name;
   using ghogx::character::source_gltf_milo_is_hair_bone_node;
   using ghogx::character::source_gltf_milo_process_empty_hair_collides;
   using ghogx::character::SourceCharHairCollisionInput;
   using ghogx::character::SourceGltfMiloHairNode;
+  using ghogx::character::SourceGltfMiloHairPointNode;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -290,6 +293,88 @@ int main() {
   ok &= expect_bool(hair_chains.warnings[0].find("bone_face") !=
                         std::string::npos,
                     true, "glTFMilo non-hair child warning names child");
+
+  const std::array<float, 16> parent_inverse = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+     -1.0f,-2.0f,-3.0f, 1.0f};
+  const std::vector<SourceGltfMiloHairPointNode> point_chain = {
+      {"bone_hair_root", {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+      {"bone_hair_mid", {0.0f, 3.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+      {"bone_hair_tip", {0.0f, 5.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},
+  };
+  const auto root_point =
+      source_gltf_milo_export_hair_point(point_chain, 0, parent_inverse);
+  ok &= expect_string(root_point.bone, "bone_hair_root",
+                      "glTFMilo point root bone");
+  ok &= expect_bool(root_point.used_next_bone_position, true,
+                    "glTFMilo point root uses next bone position");
+  ok &= expect_bool(root_point.length_from_next_bone, true,
+                    "glTFMilo point root length from next bone");
+  ok &= near(root_point.length, 3.0f, "glTFMilo point root length");
+  ok &= near(root_point.pos[1], 3.0f, "glTFMilo point root pos y");
+  ok &= near(root_point.reset_pos[0], -1.0f,
+             "glTFMilo point root reset x");
+  ok &= near(root_point.reset_pos[1], 1.0f,
+             "glTFMilo point root reset y");
+  ok &= near(root_point.radius, 0.75f,
+             "glTFMilo point root radius");
+  ok &= near(root_point.outer_radius, 2.0f,
+             "glTFMilo point root outer radius");
+
+  const auto mid_point =
+      source_gltf_milo_export_hair_point(point_chain, 1, parent_inverse);
+  ok &= near(mid_point.length, 2.0f, "glTFMilo point mid length");
+  ok &= near(mid_point.radius, 0.5625f, "glTFMilo point mid radius");
+  ok &= near(mid_point.outer_radius, 1.0f,
+             "glTFMilo point mid outer radius");
+
+  const auto tip_point =
+      source_gltf_milo_export_hair_point(point_chain, 2, parent_inverse);
+  ok &= expect_bool(tip_point.used_tip_direction, true,
+                    "glTFMilo tip uses local Y direction");
+  ok &= expect_bool(tip_point.used_unit_y_fallback, true,
+                    "glTFMilo tip falls back to UnitY for zero axis");
+  ok &= expect_bool(tip_point.length_from_previous_point, true,
+                    "glTFMilo tip length from previous point");
+  ok &= near(tip_point.length, 2.0f, "glTFMilo tip length");
+  ok &= near(tip_point.pos[1], 7.0f, "glTFMilo tip pos y");
+  ok &= near(tip_point.side_length, -1.0f,
+             "glTFMilo point side length default");
+
+  const std::vector<SourceGltfMiloHairPointNode> single_parent_chain = {
+      {"bone_hair_single", {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f},
+       true, {0.0f, 0.0f, -4.0f}},
+  };
+  const auto single_parent =
+      source_gltf_milo_export_hair_point(
+          single_parent_chain, 0,
+          {1.0f, 0.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f, 0.0f,
+           0.0f, 0.0f, 1.0f, 0.0f,
+           0.0f, 0.0f, 0.0f, 1.0f});
+  ok &= expect_bool(single_parent.length_from_parent, true,
+                    "glTFMilo single point length from parent");
+  ok &= near(single_parent.length, 5.0f,
+             "glTFMilo single point parent length");
+  ok &= near(single_parent.pos[2], 6.0f,
+             "glTFMilo single point tip pos");
+
+  const std::vector<SourceGltfMiloHairPointNode> single_default_chain = {
+      {"bone_hair_default", {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+  };
+  const auto single_default =
+      source_gltf_milo_export_hair_point(
+          single_default_chain, 0,
+          {1.0f, 0.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f, 0.0f,
+           0.0f, 0.0f, 1.0f, 0.0f,
+           0.0f, 0.0f, 0.0f, 1.0f});
+  ok &= expect_bool(single_default.length_defaulted_to_five, true,
+                    "glTFMilo single point default length");
+  ok &= near(single_default.length, 5.0f,
+             "glTFMilo default single length");
 
   ok &= expect_string(source_gltf_milo_hair_collide_name("bang.mesh"),
                       "bang.coll", "glTFMilo hair collide strips mesh");

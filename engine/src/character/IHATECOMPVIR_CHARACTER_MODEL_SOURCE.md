@@ -1213,6 +1213,16 @@ note, and all report `unreadBytes=0`.
     weighted hair bones climb to their top `bone_hair_` ancestor, non-hair bone
     children under hair bones are warnings, branch points end the current
     segment, and weighted descendants keep child segments alive.
+  - The same `ProcessCharHair` row emits each point from visible exporter
+    rules: non-tip points use the next bone's world position, tip points extend
+    along the current bone's world Y axis with a UnitY fallback, point length
+    comes from next-bone distance, previous-point length, parent distance, then
+    `5.0f`, and non-tip radius/outer-radius taper by point index. Native
+    `source_gltf_milo_export_hair_point` ports those deterministic point rows,
+    including `sideLength = -1.0f` and `unk5c` as the generated point
+    transformed by the strand root parent's inverse world matrix. This is
+    exporter/format evidence for segment construction, not proof that GH2
+    runtime simulation or collision hookup is complete.
   - `ProcessEmptyHairCollides` can emit empty `CharCollide` objects for hair
     meshes, but its own source comment says this is inferred from decomp and
     "could be wrong". Treat those rows as exporter/format hints, not proof of

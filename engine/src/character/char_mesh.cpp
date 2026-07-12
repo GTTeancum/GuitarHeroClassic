@@ -5844,6 +5844,95 @@ source_gltf_milo_collect_hair_chains_split_at_branches(
   return result;
 }
 
+static float source_gltf_milo_hair_point_length(
+    const std::vector<SourceGltfMiloHairPointNode>& chain,
+    size_t point_index,
+    SourceGltfMiloHairPointExport& result) {
+  if (point_index >= chain.size()) return 0.0f;
+  if (point_index + 1 < chain.size()) {
+    result.length_from_next_bone = true;
+    return source_vec_length(
+        source_vec_sub(chain[point_index].world_pos,
+                       chain[point_index + 1].world_pos));
+  }
+  if (point_index > 0) {
+    result.length_from_previous_point = true;
+    SourceGltfMiloHairPointExport ignored;
+    return source_gltf_milo_hair_point_length(chain, point_index - 1, ignored);
+  }
+  if (chain[point_index].has_parent_world_pos) {
+    const float parent_distance = source_vec_length(
+        source_vec_sub(chain[point_index].parent_world_pos,
+                       chain[point_index].world_pos));
+    if (parent_distance > 0.0f) {
+      result.length_from_parent = true;
+      return parent_distance;
+    }
+  }
+  result.length_defaulted_to_five = true;
+  return 5.0f;
+}
+
+static SourceVec3 source_gltf_milo_transform_point(
+    SourceVec3 point,
+    const std::array<float, 16>& matrix) {
+  return {point[0] * matrix[0] + point[1] * matrix[4] +
+              point[2] * matrix[8] + matrix[12],
+          point[0] * matrix[1] + point[1] * matrix[5] +
+              point[2] * matrix[9] + matrix[13],
+          point[0] * matrix[2] + point[1] * matrix[6] +
+              point[2] * matrix[10] + matrix[14]};
+}
+
+SourceGltfMiloHairPointExport source_gltf_milo_export_hair_point(
+    const std::vector<SourceGltfMiloHairPointNode>& chain,
+    int point_index,
+    std::array<float, 16> strand_root_parent_world_inverse) {
+  SourceGltfMiloHairPointExport result;
+  if (point_index < 0 || static_cast<size_t>(point_index) >= chain.size()) {
+    return result;
+  }
+
+  const size_t index = static_cast<size_t>(point_index);
+  const SourceGltfMiloHairPointNode& node = chain[index];
+  result.bone = node.name;
+  result.length = source_gltf_milo_hair_point_length(chain, index, result);
+
+  if (index + 1 < chain.size()) {
+    result.used_next_bone_position = true;
+    result.pos = chain[index + 1].world_pos;
+  } else {
+    result.used_tip_direction = true;
+    SourceVec3 direction = node.world_y_axis;
+    const float direction_len_sq = source_vec_dot(direction, direction);
+    if (direction_len_sq <= 1.40129846e-45f) {
+      direction = {0.0f, 1.0f, 0.0f};
+      result.used_unit_y_fallback = true;
+    } else {
+      direction = source_vec_scale(direction, 1.0f / std::sqrt(direction_len_sq));
+      if (!std::isfinite(direction[0]) || !std::isfinite(direction[1]) ||
+          !std::isfinite(direction[2])) {
+        direction = {0.0f, 1.0f, 0.0f};
+        result.used_unit_y_fallback = true;
+      }
+    }
+    result.pos =
+        source_vec_add(node.world_pos, source_vec_scale(direction, result.length));
+  }
+
+  if (index + 1 < chain.size() && chain.size() > 1) {
+    const float t = static_cast<float>(index) /
+                    static_cast<float>(chain.size() - 1);
+    result.radius = std::max(0.0f, 0.75f * (1.0f - (t * 0.5f)));
+    result.outer_radius = std::max(0.0f, 2.0f * (1.0f - t));
+  }
+
+  result.reset_pos =
+      source_gltf_milo_transform_point(result.pos,
+                                       strand_root_parent_world_inverse);
+  return result;
+}
+
 std::string source_gltf_milo_hair_collide_name(
     const std::string& mesh_name) {
   if (source_case_ends_with(mesh_name, ".mesh")) {

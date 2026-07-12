@@ -3949,6 +3949,17 @@ int run_contract() {
                  "point.unk5c=ToMiloVector3(resetPosition);point.sideLength=-1.0f;",
                  "glTFMilo CharHair point fields");
   ok &= contains(gltf_node_processor_cs,
+                 "privatestaticfloatGetHairPointLength(IReadOnlyList<Node>chain,"
+                 "intpointIndex)",
+                 "glTFMilo CharHair point length helper is visible");
+  ok &= contains(gltf_node_processor_cs,
+                 "pointPosition=currentPosition+(direction*pointLength);",
+                 "glTFMilo CharHair tip point extends along local Y direction");
+  ok &= contains(gltf_node_processor_cs,
+                 "floatradius=0.0f;floatouterRadius=0.0f;if(pointIndex<"
+                 "chain.Count-1&&chain.Count>1)",
+                 "glTFMilo CharHair radius taper branch is visible");
+  ok &= contains(gltf_node_processor_cs,
                  "createaCharCollideforthehaireventhoughitisempty,"
                  "fromlookingatthedecompitseemedthattheremustbeoneorhairwon'tbesim,"
                  "couldbewrong",
@@ -3957,6 +3968,14 @@ int run_contract() {
                  "structSourceGltfMiloHairNode{std::stringname;intparent=-1;"
                  "boolis_bone=false;boolweighted=false;};",
                  "native declares glTFMilo hair graph node contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairPointNode{std::stringname;"
+                 "std::array<float,3>world_pos=",
+                 "native declares glTFMilo hair point node contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairPointExport{std::stringbone;"
+                 "std::array<float,3>pos=",
+                 "native declares glTFMilo hair point export contract");
   ok &= contains(char_mesh,
                  "boolsource_gltf_milo_is_hair_bone_node("
                  "constSourceGltfMiloHairNode&node)",
@@ -3966,6 +3985,18 @@ int run_contract() {
                  "source_gltf_milo_collect_hair_chains_split_at_branches("
                  "conststd::vector<SourceGltfMiloHairNode>&nodes)",
                  "native ports glTFMilo hair branch splitter");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloHairPointExportsource_gltf_milo_export_hair_point("
+                 "conststd::vector<SourceGltfMiloHairPointNode>&chain,",
+                 "native ports glTFMilo hair point export rows");
+  ok &= contains(char_mesh,
+                 "result.radius=std::max(0.0f,0.75f*(1.0f-(t*0.5f)));"
+                 "result.outer_radius=std::max(0.0f,2.0f*(1.0f-t));",
+                 "native glTFMilo hair point export ports radius taper");
+  ok &= contains(char_mesh,
+                 "source_gltf_milo_transform_point(result.pos,"
+                 "strand_root_parent_world_inverse)",
+                 "native glTFMilo hair point export ports parent-inverse reset");
   ok &= contains(char_mesh,
                  "std::stringsource_gltf_milo_hair_collide_name("
                  "conststd::string&mesh_name)",
@@ -3979,6 +4010,10 @@ int run_contract() {
                  "hair_nodes)",
                  "focused CharHair source test covers glTFMilo chain splitter");
   ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_export_hair_point(point_chain,0,"
+                 "parent_inverse)",
+                 "focused CharHair source test covers glTFMilo point export");
+  ok &= contains(char_hair_source_test,
                  "source_gltf_milo_process_empty_hair_collides(",
                  "focused CharHair source test covers glTFMilo empty collides");
   ok &= contains(doc,
@@ -3989,6 +4024,9 @@ int run_contract() {
                  "`source_gltf_milo_collect_hair_chains_split_at_branches` "
                  "ports that\n    root-climb and branch-split rule",
                  "document records glTFMilo native hair segment helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_export_hair_point` ports those deterministic point rows",
+                 "document records glTFMilo native hair point helper");
   ok &= contains(doc,
                  "Native\n    `source_gltf_milo_process_empty_hair_collides`",
                  "document records glTFMilo empty hair collide helper");

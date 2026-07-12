@@ -840,6 +840,32 @@ struct SourceGltfMiloHairNode {
   bool weighted = false;
 };
 
+struct SourceGltfMiloHairPointNode {
+  std::string name;
+  std::array<float, 3> world_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> world_y_axis = {0.0f, 1.0f, 0.0f};
+  bool has_parent_world_pos = false;
+  std::array<float, 3> parent_world_pos = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceGltfMiloHairPointExport {
+  std::string bone;
+  std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> reset_pos = {0.0f, 0.0f, 0.0f};
+  float length = 0.0f;
+  float radius = 0.0f;
+  float outer_radius = 0.0f;
+  float side_length = -1.0f;
+  bool used_next_bone_position = false;
+  bool used_tip_direction = false;
+  bool used_unit_y_fallback = false;
+  bool length_from_next_bone = false;
+  bool length_from_previous_point = false;
+  bool length_from_parent = false;
+  bool length_defaulted_to_five = false;
+  bool reset_in_strand_root_parent_space = true;
+};
+
 struct SourceGltfMiloHairChainsResult {
   bool has_weighted_hair_bones = false;
   std::vector<std::string> roots;
@@ -2639,6 +2665,10 @@ bool source_gltf_milo_is_hair_bone_node(
 SourceGltfMiloHairChainsResult
 source_gltf_milo_collect_hair_chains_split_at_branches(
     const std::vector<SourceGltfMiloHairNode>& nodes);
+SourceGltfMiloHairPointExport source_gltf_milo_export_hair_point(
+    const std::vector<SourceGltfMiloHairPointNode>& chain,
+    int point_index,
+    std::array<float, 16> strand_root_parent_world_inverse);
 std::string source_gltf_milo_hair_collide_name(
     const std::string& mesh_name);
 std::vector<SourceGltfMiloHairCollideExport>
