@@ -834,6 +834,16 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     normalized. Native `source_gltf_milo_validate_skin_influences` ports that
     deterministic pre-pack contract only; it does not alter stock GH2 mesh
     decode or synthesize per-vertex bone indices.
+  - `ValidateSkinAccessorSet` accepts only paired `JOINTS_n` / `WEIGHTS_n`
+    accessors whose counts match each other and the `POSITION` accessor. Missing
+    pairs, mismatched pairs, or wrong-position-count pairs are cleared before
+    influence extraction. Native `source_gltf_milo_validate_skin_accessor_set`
+    ports that gate.
+  - `BuildSourceTriangles` emits sequential triangles when no index accessor is
+    present, warns and drops trailing vertices/indices that cannot form a full
+    triangle, and ignores indexed triangles whose indices fall outside the
+    position accessor. Native `source_gltf_milo_build_source_triangles` ports
+    that pre-chunk triangle contract.
   - Native `source_rndmesh_vert_load_plan` records the visible vertex stream
     gates: position, normal, color, and UV are read for all revisions in this
     source path; revisions `>= 0x25` read a separate weight vector; revisions

@@ -352,6 +352,39 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
+    bool has_joints,
+    bool has_weights,
+    int32_t joints_count,
+    int32_t weights_count,
+    int32_t expected_position_count) {
+  SourceGltfMiloSkinAccessorSetPlan plan;
+  if (!has_joints && !has_weights) {
+    plan.ignored_empty_pair = true;
+    return plan;
+  }
+  if (!has_joints || !has_weights) {
+    plan.warned_missing_pair = true;
+    plan.cleared_joints = true;
+    plan.cleared_weights = true;
+    return plan;
+  }
+  if (joints_count != weights_count) {
+    plan.warned_mismatched_counts = true;
+    plan.cleared_joints = true;
+    plan.cleared_weights = true;
+    return plan;
+  }
+  if (joints_count != expected_position_count) {
+    plan.warned_position_count_mismatch = true;
+    plan.cleared_joints = true;
+    plan.cleared_weights = true;
+    return plan;
+  }
+  plan.valid = true;
+  return plan;
+}
+
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
     int32_t skin_joint_count,
@@ -467,6 +500,47 @@ SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
     }
   }
   return slots;
+}
+
+SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
+    const std::vector<uint32_t>& indices,
+    int32_t position_count,
+    bool has_index_buffer) {
+  SourceGltfMiloBuildTrianglesResult result;
+  if (position_count <= 0) return result;
+  if (!has_index_buffer || indices.empty()) {
+    if (position_count % 3 != 0) {
+      result.warned_unindexed_trailing_vertices = true;
+      result.ignored_trailing_vertices = position_count % 3;
+    }
+    for (int32_t i = 0; i + 2 < position_count; i += 3) {
+      result.triangles.push_back(
+          {static_cast<uint32_t>(i), static_cast<uint32_t>(i + 1),
+           static_cast<uint32_t>(i + 2)});
+    }
+    return result;
+  }
+
+  result.used_index_buffer = true;
+  if (indices.size() % 3 != 0) {
+    result.warned_index_count_not_multiple_of_three = true;
+    result.ignored_trailing_indices = static_cast<int32_t>(indices.size() % 3);
+  }
+
+  const uint32_t max_position_index = static_cast<uint32_t>(position_count);
+  for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+    const uint32_t idx0 = indices[i + 0];
+    const uint32_t idx1 = indices[i + 1];
+    const uint32_t idx2 = indices[i + 2];
+    if (idx0 >= max_position_index || idx1 >= max_position_index ||
+        idx2 >= max_position_index) {
+      result.warned_invalid_index = true;
+      ++result.ignored_invalid_triangles;
+      continue;
+    }
+    result.triangles.push_back({idx0, idx1, idx2});
+  }
+  return result;
 }
 
 SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(

@@ -338,6 +338,40 @@ int main() {
   CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
   CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
 
+  const auto accessor_empty =
+      ghogx::character::source_gltf_milo_validate_skin_accessor_set(
+          false, false, 0, 0, 4);
+  CHECK(!accessor_empty.valid);
+  CHECK(accessor_empty.ignored_empty_pair);
+  CHECK(!accessor_empty.cleared_joints);
+
+  const auto accessor_missing =
+      ghogx::character::source_gltf_milo_validate_skin_accessor_set(
+          true, false, 4, 0, 4);
+  CHECK(!accessor_missing.valid);
+  CHECK(accessor_missing.warned_missing_pair);
+  CHECK(accessor_missing.cleared_joints);
+  CHECK(accessor_missing.cleared_weights);
+
+  const auto accessor_mismatch =
+      ghogx::character::source_gltf_milo_validate_skin_accessor_set(
+          true, true, 4, 3, 4);
+  CHECK(!accessor_mismatch.valid);
+  CHECK(accessor_mismatch.warned_mismatched_counts);
+
+  const auto accessor_position_mismatch =
+      ghogx::character::source_gltf_milo_validate_skin_accessor_set(
+          true, true, 5, 5, 4);
+  CHECK(!accessor_position_mismatch.valid);
+  CHECK(accessor_position_mismatch.warned_position_count_mismatch);
+
+  const auto accessor_valid =
+      ghogx::character::source_gltf_milo_validate_skin_accessor_set(
+          true, true, 4, 4, 4);
+  CHECK(accessor_valid.valid);
+  CHECK(!accessor_valid.cleared_joints);
+  CHECK(!accessor_valid.cleared_weights);
+
   const std::vector<ghogx::character::SourceGltfMiloSkinInfluence>
       skin_influences = {{10, 0.40f}, {20, 0.30f}, {30, 0.20f}, {40, 0.10f}};
   const auto gltf_uncompressed_slots =
@@ -404,6 +438,28 @@ int main() {
   CHECK(gltf_validation_warnings.ignored_invalid_weights == 1);
   CHECK(gltf_validation_warnings.ignored_invalid_joint_indices == 2);
   CHECK(gltf_validation_warnings.ignored_excluded_joint_influences == 1);
+
+  const auto gltf_unindexed_triangles =
+      ghogx::character::source_gltf_milo_build_source_triangles({}, 5, false);
+  CHECK(!gltf_unindexed_triangles.used_index_buffer);
+  CHECK(gltf_unindexed_triangles.warned_unindexed_trailing_vertices);
+  CHECK(gltf_unindexed_triangles.ignored_trailing_vertices == 2);
+  CHECK(gltf_unindexed_triangles.triangles.size() == 1);
+  CHECK(gltf_unindexed_triangles.triangles[0].idx0 == 0);
+  CHECK(gltf_unindexed_triangles.triangles[0].idx2 == 2);
+
+  const auto gltf_indexed_triangles =
+      ghogx::character::source_gltf_milo_build_source_triangles(
+          {0, 1, 2, 2, 8, 3, 3}, 4, true);
+  CHECK(gltf_indexed_triangles.used_index_buffer);
+  CHECK(gltf_indexed_triangles.warned_index_count_not_multiple_of_three);
+  CHECK(gltf_indexed_triangles.warned_invalid_index);
+  CHECK(gltf_indexed_triangles.ignored_trailing_indices == 1);
+  CHECK(gltf_indexed_triangles.ignored_invalid_triangles == 1);
+  CHECK(gltf_indexed_triangles.triangles.size() == 1);
+  CHECK(gltf_indexed_triangles.triangles[0].idx0 == 0);
+  CHECK(gltf_indexed_triangles.triangles[0].idx1 == 1);
+  CHECK(gltf_indexed_triangles.triangles[0].idx2 == 2);
 
   ghogx::character::SourceRndMeshZeroWeightVertex weighted_vertex;
   weighted_vertex.weights[0] = 0.25f;

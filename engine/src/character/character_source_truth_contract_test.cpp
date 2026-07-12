@@ -3028,6 +3028,18 @@ int run_contract() {
                  "loggedInvalidWeights)",
                  "glTFMilo validates non-finite skin weights");
   ok &= contains(gltf_program_cs,
+                 "if(joints==null&&weights==null){returnfalse;}",
+                 "glTFMilo ignores absent skin accessor pairs");
+  ok &= contains(gltf_program_cs,
+                 "if(joints==null||weights==null){stringpresentAccessor=",
+                 "glTFMilo rejects missing skin accessor partner");
+  ok &= contains(gltf_program_cs,
+                 "if(joints.Count!=weights.Count){Logger.Warn",
+                 "glTFMilo rejects mismatched skin accessor counts");
+  ok &= contains(gltf_program_cs,
+                 "if(joints.Count!=expectedCount){Logger.Warn",
+                 "glTFMilo rejects skin accessors with wrong position count");
+  ok &= contains(gltf_program_cs,
                  "if(MathF.Abs(jointValue-jointIndex)>0.001f||jointIndex<0||"
                  "jointIndex>=skinJointCount)",
                  "glTFMilo validates skin joint indices");
@@ -3042,14 +3054,49 @@ int run_contract() {
                  "trimmedInfluences[i]=newSkinInfluence(influence.idx,"
                  "influence.weight/totalWeight);",
                  "glTFMilo normalizes retained skin weights");
+  ok &= contains(gltf_program_cs,
+                 "if(indices==null||indices.Value.Count==0){",
+                 "glTFMilo builds sequential triangles without index buffer");
+  ok &= contains(gltf_program_cs,
+                 "if(positionCount%3!=0){Logger.Warn",
+                 "glTFMilo warns for trailing unindexed vertices");
+  ok &= contains(gltf_program_cs,
+                 "if(indices.Value.Count%3!=0){Logger.Warn",
+                 "glTFMilo warns for trailing indexed values");
+  ok &= contains(gltf_program_cs,
+                 "if(index0>=maxPositionIndex||index1>=maxPositionIndex||"
+                 "index2>=maxPositionIndex)",
+                 "glTFMilo rejects out-of-range indexed triangles");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
                  "native declares glTFMilo skin influence contract");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloSkinAccessorSetPlan{boolvalid=false;",
+                 "native declares glTFMilo skin accessor validation plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloBuildTrianglesResult{std::vector<"
+                 "SourceGltfMiloTriangle>triangles;",
+                 "native declares glTFMilo triangle build result");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
+                 "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
+                 "int32_texpected_position_count);",
+                 "native exposes glTFMilo skin accessor helper");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_build_source_triangles(conststd::vector<"
+                 "uint32_t>&indices,int32_tposition_count,boolhas_index_buffer);",
+                 "native exposes glTFMilo triangle builder helper");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
                  "native declares glTFMilo skin validation result");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloSkinAccessorSetPlan"
+                 "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
+                 "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
+                 "int32_texpected_position_count)",
+                 "native ports glTFMilo skin accessor validation helper");
   ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_influences(conststd::vector<"
                  "SourceGltfMiloRawSkinInfluence>&raw_influences,"
@@ -3072,6 +3119,18 @@ int run_contract() {
                  "logged_trimmed_influences=true;",
                  "native trims glTFMilo skin influences to four slots");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloBuildTrianglesResult"
+                 "source_gltf_milo_build_source_triangles(conststd::vector<"
+                 "uint32_t>&indices,int32_tposition_count,boolhas_index_buffer)",
+                 "native ports glTFMilo triangle builder helper");
+  ok &= contains(char_mesh,
+                 "if(!has_index_buffer||indices.empty()){",
+                 "native mirrors glTFMilo unindexed triangle branch");
+  ok &= contains(char_mesh,
+                 "if(idx0>=max_position_index||idx1>=max_position_index||"
+                 "idx2>=max_position_index)",
+                 "native mirrors glTFMilo invalid triangle branch");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloPackedSkinSlotssource_gltf_milo_pack_skin_slots("
                  "conststd::vector<SourceGltfMiloSkinInfluence>&influences,"
                  "boolcompressed_vertex_layout)",
@@ -3086,12 +3145,24 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_validate_skin_influences(",
                  "focused mesh decode test covers glTFMilo skin validation");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_validate_skin_accessor_set(",
+                 "focused mesh decode test covers glTFMilo skin accessor gate");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_build_source_triangles(",
+                 "focused mesh decode test covers glTFMilo triangle builder");
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_validate_skin_accessor_set`",
+                 "document records glTFMilo skin accessor helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_build_source_triangles` ports",
+                 "document records glTFMilo triangle builder helper");
   ok &= contains(rb3_mesh_cpp,
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",

@@ -158,10 +158,44 @@ struct SourceGltfMiloSkinValidationResult {
   float dropped_weight = 0.0f;
 };
 
+struct SourceGltfMiloSkinAccessorSetPlan {
+  bool valid = false;
+  bool cleared_joints = false;
+  bool cleared_weights = false;
+  bool ignored_empty_pair = false;
+  bool warned_missing_pair = false;
+  bool warned_mismatched_counts = false;
+  bool warned_position_count_mismatch = false;
+};
+
+struct SourceGltfMiloTriangle {
+  uint32_t idx0 = 0;
+  uint32_t idx1 = 0;
+  uint32_t idx2 = 0;
+};
+
+struct SourceGltfMiloBuildTrianglesResult {
+  std::vector<SourceGltfMiloTriangle> triangles;
+  bool used_index_buffer = false;
+  bool warned_unindexed_trailing_vertices = false;
+  bool warned_index_count_not_multiple_of_three = false;
+  bool warned_invalid_index = false;
+  int32_t ignored_trailing_vertices = 0;
+  int32_t ignored_trailing_indices = 0;
+  int32_t ignored_invalid_triangles = 0;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
 };
+
+SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
+    bool has_joints,
+    bool has_weights,
+    int32_t joints_count,
+    int32_t weights_count,
+    int32_t expected_position_count);
 
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
@@ -171,6 +205,11 @@ SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
 SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
     const std::vector<SourceGltfMiloSkinInfluence>& influences,
     bool compressed_vertex_layout);
+
+SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
+    const std::vector<uint32_t>& indices,
+    int32_t position_count,
+    bool has_index_buffer);
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
