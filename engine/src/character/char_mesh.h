@@ -2082,6 +2082,27 @@ struct SourceCharIKScalePollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharIKScaleLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharIKScaleCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharIKScaleHandlerPlan {
+  std::vector<std::string> superclasses;
+  std::vector<std::string> actions;
+  int check = 0;
+};
+
+struct SourceCharIKScalePropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 enum class SourceCharacterDrawMode : int32_t {
   kNone = 0,
   kOpaque = 1,
@@ -3314,6 +3335,10 @@ void source_char_ik_scale_poll_deps(
     SourceCharIKScalePollDeps& deps,
     const std::string& dest,
     const std::vector<std::string>& secondary_targets);
+SourceCharIKScaleLoadPlan source_char_ik_scale_load_plan(int revision);
+SourceCharIKScaleCopyPlan source_char_ik_scale_copy_plan();
+SourceCharIKScaleHandlerPlan source_char_ik_scale_handler_plan();
+SourceCharIKScalePropSyncPlan source_char_ik_scale_prop_sync_plan();
 SourceCharacterState source_character_default_state();
 SourceCharacterLodState source_character_lod_default_state();
 SourceCharacterLodState source_character_lod_copy_state(

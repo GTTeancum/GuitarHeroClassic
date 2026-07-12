@@ -2144,6 +2144,16 @@ note, and all report `unreadBytes=0`.
     source zero guard beyond the missing-destination return.
   - `PollDeps` pushes `mDest` and each secondary target into the `change` list,
     then pushes `mDest` into `changedBy`.
+  - `Load` accepts revisions 0 through 3. It always reads `Hmx::Object`,
+    `CharWeightable`, `mDest`, and `mScale`; revision 2 and newer also read
+    `mSecondaryTargets`; revision 3 additionally reads `mAutoWeight`,
+    `mBottomHeight`, and `mTopHeight`.
+  - Copy rows are `Hmx::Object`, `CharWeightable`, then `mDest`, `mScale`,
+    `mSecondaryTargets`, `mAutoWeight`, `mBottomHeight`, and `mTopHeight`.
+    Handlers are `CharWeightable`, `capture_before`, `capture_after`,
+    `Hmx::Object`, then check `0xCC`. Prop rows are `dest`, `scale`,
+    `secondary_targets`, `auto_weight`, `bottom_height`, `top_height`, then
+    `CharWeightable`.
   - Native `source_char_ik_scale_*` helpers port those complete source-visible
     behaviors only. They do not invent the absent scale-write body.
 - `rb3-latest/src/system/char/CharTransDraw.cpp`,

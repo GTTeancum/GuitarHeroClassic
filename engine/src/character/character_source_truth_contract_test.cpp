@@ -10160,15 +10160,88 @@ int run_contract() {
                  "bs>>mSecondaryTargets;if(gRev>2){bs>>mAutoWeight>>"
                  "mBottomHeight>>mTopHeight;}}",
                  "CharIKScale source Load revision gates");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "BEGIN_COPYS(CharIKScale)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharIKScale)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mDest)COPY_MEMBER(mScale)"
+                 "COPY_MEMBER(mSecondaryTargets)COPY_MEMBER(mAutoWeight)"
+                 "COPY_MEMBER(mBottomHeight)COPY_MEMBER(mTopHeight)",
+                 "CharIKScale source Copy rows");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "BEGIN_HANDLERS(CharIKScale)HANDLE_SUPERCLASS(CharWeightable)"
+                 "HANDLE_ACTION(capture_before,CaptureBefore())"
+                 "HANDLE_ACTION(capture_after,CaptureAfter())"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0xCC)",
+                 "CharIKScale source handler rows");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "BEGIN_PROPSYNCS(CharIKScale)SYNC_PROP(dest,mDest)"
+                 "SYNC_PROP(scale,mScale)SYNC_PROP(secondary_targets,"
+                 "mSecondaryTargets)SYNC_PROP(auto_weight,mAutoWeight)"
+                 "SYNC_PROP(bottom_height,mBottomHeight)SYNC_PROP("
+                 "top_height,mTopHeight)SYNC_SUPERCLASS(CharWeightable)",
+                 "CharIKScale source prop-sync rows");
   ok &= contains(char_mesh_h,
                  "structSourceCharIKScaleDefaultState{floatscale=1.0f;"
                  "floatbottom_height=0.0f;floattop_height=0.0f;"
                  "boolauto_weight=false;};",
                  "native exposes CharIKScale default state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKScaleLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharIKScale Load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKScaleCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>"
+                 "copied_members;};",
+                 "native exposes CharIKScale Copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKScaleHandlerPlan{std::vector<std::string>"
+                 "superclasses;std::vector<std::string>actions;intcheck=0;};",
+                 "native exposes CharIKScale handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKScalePropSyncPlan{std::vector<std::string>"
+                 "properties;std::vector<std::string>superclasses;};",
+                 "native exposes CharIKScale prop-sync plan");
   ok &= contains(char_mesh,
                  "SourceCharIKScaleDefaultStatesource_char_ik_scale_default_state(){"
                  "returnSourceCharIKScaleDefaultState{};}",
                  "native ports CharIKScale defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharIKScaleLoadPlansource_char_ik_scale_load_plan("
+                 "intrevision){SourceCharIKScaleLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=3;",
+                 "native ports CharIKScale Load revision range");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"CharWeightable\","
+                 "\"mDest\",\"mScale\"};",
+                 "native ports CharIKScale Load core rows");
+  ok &= contains(char_mesh,
+                 "if(revision>1){plan.read_order.push_back("
+                 "\"mSecondaryTargets\");}if(revision>2){plan.read_order."
+                 "push_back(\"mAutoWeight\");",
+                 "native ports CharIKScale Load gated rows");
+  ok &= contains(char_mesh,
+                 "SourceCharIKScaleCopyPlansource_char_ik_scale_copy_plan(){"
+                 "SourceCharIKScaleCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"CharWeightable\"};",
+                 "native ports CharIKScale Copy superclasses");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mDest\",\"mScale\","
+                 "\"mSecondaryTargets\",\"mAutoWeight\",\"mBottomHeight\","
+                 "\"mTopHeight\"};",
+                 "native ports CharIKScale Copy members");
+  ok &= contains(char_mesh,
+                 "SourceCharIKScaleHandlerPlansource_char_ik_scale_handler_plan(){"
+                 "SourceCharIKScaleHandlerPlanplan;plan.superclasses={"
+                 "\"CharWeightable\",\"Hmx::Object\"};plan.actions={"
+                 "\"capture_before\",\"capture_after\"};plan.check=0xCC;",
+                 "native ports CharIKScale handler plan");
+  ok &= contains(char_mesh,
+                 "SourceCharIKScalePropSyncPlansource_char_ik_scale_prop_sync_plan(){"
+                 "SourceCharIKScalePropSyncPlanplan;plan.properties={"
+                 "\"dest\",\"scale\",\"secondary_targets\",\"auto_weight\","
+                 "\"bottom_height\",\"top_height\"};",
+                 "native ports CharIKScale prop-sync rows");
   ok &= contains(char_mesh,
                  "boolsource_char_ik_scale_poll_enters(boolhas_dest,floatweight){"
                  "returnhas_dest&&weight!=0.0f;}",
@@ -10201,9 +10274,28 @@ int run_contract() {
   ok &= contains(ik_scale_source_test,
                  "source_char_ik_scale_poll_deps(",
                  "focused CharIKScale test covers PollDeps");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_load_plan(3)",
+                 "focused CharIKScale test covers Load plan");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_copy_plan()",
+                 "focused CharIKScale test covers Copy plan");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_handler_plan()",
+                 "focused CharIKScale test covers handler plan");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_prop_sync_plan()",
+                 "focused CharIKScale test covers prop-sync plan");
   ok &= contains(doc,
                  "Native `source_char_ik_scale_*` helpers port",
                  "document records native CharIKScale helpers");
+  ok &= contains(doc,
+                 "`Load` accepts revisions 0 through 3",
+                 "document records CharIKScale Load revision range");
+  ok &= contains(doc,
+                 "Handlers are `CharWeightable`, `capture_before`, "
+                 "`capture_after`,",
+                 "document records CharIKScale handler rows");
   ok &= contains(char_mesh_h,
                  "enumclassSourceCharacterPollState:int32_t{kCreated=0,"
                  "kSyncObject=1,kEntered=2,kPolled=3,kExited=4,};",

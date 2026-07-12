@@ -4481,6 +4481,49 @@ SourceCharIKScaleDefaultState source_char_ik_scale_default_state() {
   return SourceCharIKScaleDefaultState{};
 }
 
+SourceCharIKScaleLoadPlan source_char_ik_scale_load_plan(int revision) {
+  SourceCharIKScaleLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 3;
+  if (!plan.known_revision) {
+    return plan;
+  }
+
+  plan.read_order = {"Hmx::Object", "CharWeightable", "mDest", "mScale"};
+  if (revision > 1) {
+    plan.read_order.push_back("mSecondaryTargets");
+  }
+  if (revision > 2) {
+    plan.read_order.push_back("mAutoWeight");
+    plan.read_order.push_back("mBottomHeight");
+    plan.read_order.push_back("mTopHeight");
+  }
+  return plan;
+}
+
+SourceCharIKScaleCopyPlan source_char_ik_scale_copy_plan() {
+  SourceCharIKScaleCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.copied_members = {"mDest",        "mScale",       "mSecondaryTargets",
+                         "mAutoWeight",  "mBottomHeight", "mTopHeight"};
+  return plan;
+}
+
+SourceCharIKScaleHandlerPlan source_char_ik_scale_handler_plan() {
+  SourceCharIKScaleHandlerPlan plan;
+  plan.superclasses = {"CharWeightable", "Hmx::Object"};
+  plan.actions = {"capture_before", "capture_after"};
+  plan.check = 0xCC;
+  return plan;
+}
+
+SourceCharIKScalePropSyncPlan source_char_ik_scale_prop_sync_plan() {
+  SourceCharIKScalePropSyncPlan plan;
+  plan.properties = {"dest",          "scale",         "secondary_targets",
+                     "auto_weight",   "bottom_height", "top_height"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
 bool source_char_ik_scale_poll_enters(bool has_dest, float weight) {
   return has_dest && weight != 0.0f;
 }
