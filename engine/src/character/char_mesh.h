@@ -142,6 +142,48 @@ struct SourceRndMeshCopyGeometryFromOwnerPlan {
 SourceRndMeshCopyGeometryFromOwnerPlan
 source_rndmesh_copy_geometry_from_owner(bool owner_is_self);
 
+struct SourceRndMeshSetGeomOwnerPlan {
+  bool asserts_owner_present = true;
+  bool owner_present = false;
+  bool assertion_would_fail = false;
+  bool assigned_geom_owner = false;
+};
+
+SourceRndMeshSetGeomOwnerPlan source_rndmesh_set_geom_owner_plan(
+    bool owner_present);
+
+struct SourceRndMeshCopyGeometryPlan {
+  bool geom_owner_becomes_self = true;
+  int32_t copied_vert_count = 0;
+  int32_t copied_face_count = 0;
+  int32_t copied_patch_count = 0;
+  bool copied_volume = false;
+  int32_t copied_volume_value = 0;
+  std::vector<std::string> copied_bones;
+  bool cleared_striper_results = true;
+};
+
+SourceRndMeshCopyGeometryPlan source_rndmesh_copy_geometry_plan(
+    int32_t owner_vert_count,
+    int32_t owner_face_count,
+    int32_t owner_patch_count,
+    int32_t owner_volume,
+    std::vector<std::string> mesh_bones,
+    bool copy_volume);
+
+struct SourceRndMeshReplacePlan {
+  bool calls_trans_replace = true;
+  bool geom_owner_matches_from = false;
+  bool changed_geom_owner = false;
+  bool to_is_mesh = false;
+  bool new_owner_from_to_geom_owner = false;
+  bool new_owner_is_self = false;
+};
+
+SourceRndMeshReplacePlan source_rndmesh_replace_plan(
+    bool geom_owner_matches_from,
+    bool to_is_mesh);
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;

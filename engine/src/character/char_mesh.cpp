@@ -5248,6 +5248,54 @@ source_rndmesh_copy_geometry_from_owner(bool owner_is_self) {
   return plan;
 }
 
+SourceRndMeshSetGeomOwnerPlan source_rndmesh_set_geom_owner_plan(
+    bool owner_present) {
+  SourceRndMeshSetGeomOwnerPlan plan;
+  plan.owner_present = owner_present;
+  if (owner_present) {
+    plan.assigned_geom_owner = true;
+  } else {
+    plan.assertion_would_fail = true;
+  }
+  return plan;
+}
+
+SourceRndMeshCopyGeometryPlan source_rndmesh_copy_geometry_plan(
+    int32_t owner_vert_count,
+    int32_t owner_face_count,
+    int32_t owner_patch_count,
+    int32_t owner_volume,
+    std::vector<std::string> mesh_bones,
+    bool copy_volume) {
+  SourceRndMeshCopyGeometryPlan plan;
+  plan.copied_vert_count = owner_vert_count;
+  plan.copied_face_count = owner_face_count;
+  plan.copied_patch_count = owner_patch_count;
+  plan.copied_bones = mesh_bones;
+  plan.copied_volume = copy_volume;
+  if (copy_volume) {
+    plan.copied_volume_value = owner_volume;
+  }
+  return plan;
+}
+
+SourceRndMeshReplacePlan source_rndmesh_replace_plan(
+    bool geom_owner_matches_from,
+    bool to_is_mesh) {
+  SourceRndMeshReplacePlan plan;
+  plan.geom_owner_matches_from = geom_owner_matches_from;
+  plan.to_is_mesh = to_is_mesh;
+  if (geom_owner_matches_from) {
+    plan.changed_geom_owner = true;
+    if (to_is_mesh) {
+      plan.new_owner_from_to_geom_owner = true;
+    } else {
+      plan.new_owner_is_self = true;
+    }
+  }
+  return plan;
+}
+
 std::vector<std::string> Character::texture_names() const {
   std::set<std::string> set;
   for (const milo_scene::MatObj& m : mats)

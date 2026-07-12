@@ -505,6 +505,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     helpers: `CopyBones(nullptr)` clears the source bone list, otherwise it
     copies the source mesh's bones; `CopyGeometryFromOwner` copies geometry with
     volume and calls `Sync(0x3f)` only when the geometry owner is not `this`.
+  - Native `source_rndmesh_set_geom_owner_plan`,
+    `source_rndmesh_copy_geometry_plan`, and `source_rndmesh_replace_plan`
+    preserve the adjacent source rules: `SetGeomOwner` asserts a non-null
+    owner before assignment; `CopyGeometry` makes the destination its own
+    geometry owner, copies verts/faces/patches from the source geometry owner,
+    optionally copies volume, copies bones from the source mesh, and clears
+    striper results; `Replace` rewires `mGeomOwner` only when it matched the
+    replaced object, taking the replacement mesh's geometry owner or falling
+    back to `this`.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

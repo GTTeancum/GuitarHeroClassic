@@ -1644,6 +1644,26 @@ int run_contract() {
                  "voidRndMesh::CopyBones(constRndMesh*mesh){if(mesh)mBones="
                  "mesh->mBones;elsemBones.clear();}",
                  "RB3 runtime CopyBones copies or clears source bones");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::SetGeomOwner(RndMesh*m){MILO_ASSERT(m,487);"
+                 "mGeomOwner=m;}",
+                 "RB3 runtime SetGeomOwner asserts and assigns owner");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::CopyGeometry(constRndMesh*mesh,boolb){"
+                 "mGeomOwner=this;mVerts=mesh->mGeomOwner->mVerts;"
+                 "mFaces=mesh->mGeomOwner->mFaces;"
+                 "mPatches=mesh->mGeomOwner->mPatches;if(b)SetVolume("
+                 "mesh->mGeomOwner->mVolume);mBones=mesh->mBones;",
+                 "RB3 runtime CopyGeometry copies owner geometry and mesh bones");
+  ok &= contains(rb3_mesh_cpp,
+                 "mStriperResults=std::vector<STRIPERRESULT>();",
+                 "RB3 runtime CopyGeometry clears striper results");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::Replace(Hmx::Object*from,Hmx::Object*to){"
+                 "RndTransformable::Replace(from,to);if(mGeomOwner==from){"
+                 "RndMesh*meshto=dynamic_cast<RndMesh*>(to);if(meshto)"
+                 "mGeomOwner=meshto->mGeomOwner;elsemGeomOwner=this;}}",
+                 "RB3 runtime Replace rewires geometry owner from replacement mesh");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
@@ -1656,6 +1676,15 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshCopyGeometryFromOwnerPlan{",
                  "native exposes RndMesh CopyGeometryFromOwner source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSetGeomOwnerPlan{",
+                 "native exposes RndMesh SetGeomOwner source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCopyGeometryPlan{",
+                 "native exposes RndMesh CopyGeometry source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshReplacePlan{",
+                 "native exposes RndMesh Replace source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
@@ -1668,6 +1697,15 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "source_rndmesh_copy_geometry_from_owner(boolowner_is_self)",
                  "native implements RndMesh CopyGeometryFromOwner source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshSetGeomOwnerPlansource_rndmesh_set_geom_owner_plan(",
+                 "native implements RndMesh SetGeomOwner source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshCopyGeometryPlansource_rndmesh_copy_geometry_plan(",
+                 "native implements RndMesh CopyGeometry source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshReplacePlansource_rndmesh_replace_plan(",
+                 "native implements RndMesh Replace source helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -1684,6 +1722,21 @@ int run_contract() {
                  "if(!owner_is_self){plan.copied_geometry=true;"
                  "plan.copy_with_volume=true;plan.sync=true;plan.sync_mask=0x3f;}",
                  "native CopyGeometryFromOwner helper mirrors source non-self branch");
+  ok &= contains(char_mesh,
+                 "if(owner_present){plan.assigned_geom_owner=true;}else{"
+                 "plan.assertion_would_fail=true;}",
+                 "native SetGeomOwner helper mirrors assert-or-assign branch");
+  ok &= contains(char_mesh,
+                 "plan.copied_vert_count=owner_vert_count;plan.copied_face_count="
+                 "owner_face_count;plan.copied_patch_count=owner_patch_count;"
+                 "plan.copied_bones=mesh_bones;plan.copied_volume=copy_volume;"
+                 "if(copy_volume){plan.copied_volume_value=owner_volume;}",
+                 "native CopyGeometry helper mirrors source geometry copy plan");
+  ok &= contains(char_mesh,
+                 "if(geom_owner_matches_from){plan.changed_geom_owner=true;"
+                 "if(to_is_mesh){plan.new_owner_from_to_geom_owner=true;}else{"
+                 "plan.new_owner_is_self=true;}}",
+                 "native Replace helper mirrors source geometry owner branch");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
@@ -1696,6 +1749,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_copy_geometry_from_owner(",
                  "focused mesh decode test covers RndMesh CopyGeometryFromOwner helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_set_geom_owner_plan(",
+                 "focused mesh decode test covers RndMesh SetGeomOwner helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_copy_geometry_plan(",
+                 "focused mesh decode test covers RndMesh CopyGeometry helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_replace_plan(",
+                 "focused mesh decode test covers RndMesh Replace helper");
   ok &= contains(rb3_mesh_cpp,
                  "bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
                  "mBones[2].mOffset>>mBones[3].mOffset;",

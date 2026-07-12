@@ -347,6 +347,52 @@ int main() {
   CHECK(copy_geom_owner.sync);
   CHECK(copy_geom_owner.sync_mask == 0x3f);
 
+  const auto set_geom_owner_ok =
+      ghogx::character::source_rndmesh_set_geom_owner_plan(true);
+  CHECK(set_geom_owner_ok.asserts_owner_present);
+  CHECK(set_geom_owner_ok.owner_present);
+  CHECK(!set_geom_owner_ok.assertion_would_fail);
+  CHECK(set_geom_owner_ok.assigned_geom_owner);
+  const auto set_geom_owner_null =
+      ghogx::character::source_rndmesh_set_geom_owner_plan(false);
+  CHECK(set_geom_owner_null.asserts_owner_present);
+  CHECK(!set_geom_owner_null.owner_present);
+  CHECK(set_geom_owner_null.assertion_would_fail);
+  CHECK(!set_geom_owner_null.assigned_geom_owner);
+
+  const auto copied_geometry =
+      ghogx::character::source_rndmesh_copy_geometry_plan(
+          12, 7, 3, 1, {"bone_head.mesh", "bone_neck.mesh"}, true);
+  CHECK(copied_geometry.geom_owner_becomes_self);
+  CHECK(copied_geometry.copied_vert_count == 12);
+  CHECK(copied_geometry.copied_face_count == 7);
+  CHECK(copied_geometry.copied_patch_count == 3);
+  CHECK(copied_geometry.copied_volume);
+  CHECK(copied_geometry.copied_volume_value == 1);
+  CHECK(copied_geometry.copied_bones.size() == 2);
+  CHECK(copied_geometry.copied_bones[1] == "bone_neck.mesh");
+  CHECK(copied_geometry.cleared_striper_results);
+  const auto copied_geometry_no_volume =
+      ghogx::character::source_rndmesh_copy_geometry_plan(
+          4, 2, 0, 9, {"bone_root.mesh"}, false);
+  CHECK(!copied_geometry_no_volume.copied_volume);
+  CHECK(copied_geometry_no_volume.copied_volume_value == 0);
+
+  const auto replace_no_match =
+      ghogx::character::source_rndmesh_replace_plan(false, true);
+  CHECK(replace_no_match.calls_trans_replace);
+  CHECK(!replace_no_match.changed_geom_owner);
+  const auto replace_to_mesh =
+      ghogx::character::source_rndmesh_replace_plan(true, true);
+  CHECK(replace_to_mesh.changed_geom_owner);
+  CHECK(replace_to_mesh.new_owner_from_to_geom_owner);
+  CHECK(!replace_to_mesh.new_owner_is_self);
+  const auto replace_to_non_mesh =
+      ghogx::character::source_rndmesh_replace_plan(true, false);
+  CHECK(replace_to_non_mesh.changed_geom_owner);
+  CHECK(!replace_to_non_mesh.new_owner_from_to_geom_owner);
+  CHECK(replace_to_non_mesh.new_owner_is_self);
+
   CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);
