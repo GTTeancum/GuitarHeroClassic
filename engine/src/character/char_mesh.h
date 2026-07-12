@@ -2085,6 +2085,7 @@ struct SourceCharEyesRuntimeDumpEvidence {
   std::vector<std::string> next_look_locals;
   bool rb2_dump_has_statement_body = false;
   bool latest_source_has_poll_body = false;
+  bool latest_source_has_get_target_body = false;
   bool safe_to_publish_eye_runtime_rows = false;
   bool safe_to_infer_facefx_rows = false;
 };

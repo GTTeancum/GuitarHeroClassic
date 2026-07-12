@@ -1737,6 +1737,11 @@ note, and all report `unreadBytes=0`.
     lower-priority focus requests are rejected, clearing focus resets priority
     to `-1`, and force blink stores the current task time while incrementing
     the blink count by one.
+    The checked source does not include a reviewable `CharEyes::GetTarget`
+    body. Native `source_char_eyes_runtime_dump_evidence` therefore marks
+    `latest_source_has_get_target_body=false`; the `PollDeps` target row is a
+    source-visible dependency edge, not evidence for a native target transform
+    resolver or an eye accessory placement fix.
   - Native `source_char_eyes_interest_*` helpers port the concrete
     `CharEyes::CharInterestState` refractory timer body: construction/reset set
     the start time to `-1`, beginning a refractory period stores the current

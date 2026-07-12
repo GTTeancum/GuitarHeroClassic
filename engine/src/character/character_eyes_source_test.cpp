@@ -207,6 +207,8 @@ int main() {
                     "CharEyes rb2 dump is not a statement body");
   ok &= expect_bool(runtime_dump.latest_source_has_poll_body, false,
                     "CharEyes latest source lacks poll body");
+  ok &= expect_bool(runtime_dump.latest_source_has_get_target_body, false,
+                    "CharEyes latest source lacks GetTarget body");
   ok &= expect_bool(runtime_dump.safe_to_publish_eye_runtime_rows, false,
                     "CharEyes runtime row publishing remains fenced");
   ok &= expect_bool(runtime_dump.safe_to_infer_facefx_rows, false,

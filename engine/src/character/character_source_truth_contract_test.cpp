@@ -13908,6 +13908,9 @@ int run_contract() {
                  "CharInterest*CharEyes::GetCurrentInterest(){if(unkd4)"
                  "returnunkd4;if(unkc8)returnunkc8;return0;}",
                  "RB3 CharEyes GetCurrentInterest focus fallback");
+  ok &= missing(rb3_char_eyes_cpp,
+                "CharEyes::GetTarget(",
+                "RB3 CharEyes source does not include GetTarget body");
   ok &= contains(rb3_char_eyes_cpp,
                  "voidCharEyes::ForceBlink(){unk13c=true;unk140="
                  "TheTaskMgr.Seconds(TaskMgr::b);unk144++;}",
@@ -14589,6 +14592,7 @@ int run_contract() {
                  "std::vector<std::string>next_look_locals;"
                  "boolrb2_dump_has_statement_body=false;"
                  "boollatest_source_has_poll_body=false;"
+                 "boollatest_source_has_get_target_body=false;"
                  "boolsafe_to_publish_eye_runtime_rows=false;"
                  "boolsafe_to_infer_facefx_rows=false;};",
                  "native exposes CharEyes runtime dump evidence");
@@ -15093,6 +15097,9 @@ int run_contract() {
                  "runtime_dump.safe_to_publish_eye_runtime_rows,false",
                  "focused CharEyes source test fences eye row publishing");
   ok &= contains(eyes_source_test,
+                 "runtime_dump.latest_source_has_get_target_body,false",
+                 "focused CharEyes source test fences GetTarget body");
+  ok &= contains(eyes_source_test,
                  "source_char_eyes_default_interest_categories_sync("
                  "0x24,0x20,true,false)",
                  "focused CharEyes source test covers default-interest get");
@@ -15227,6 +15234,13 @@ int run_contract() {
                  "plus the concrete `GetHead`, `GetCurrentInterest`, "
                  "`SetFocusInterest`, and\n    `ForceBlink` state bodies",
                  "document records native CharEyes state helper slice");
+  ok &= contains(doc,
+                 "The checked source does not include a reviewable "
+                 "`CharEyes::GetTarget`\n    body",
+                 "document fences CharEyes GetTarget body");
+  ok &= contains(doc,
+                 "`latest_source_has_get_target_body=false`",
+                 "document records native CharEyes GetTarget evidence flag");
   ok &= contains(doc,
                  "Native `source_char_eyes_interest_*` helpers port the concrete",
                  "document records native CharEyes refractory helper slice");
