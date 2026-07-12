@@ -23116,6 +23116,42 @@ int run_contract() {
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");
+  ok &= contains(rb3_latest_char_clip_group_h,
+                 "CharClip*GetClip(int);",
+                 "latest CharClipGroup header declares flagged GetClip");
+  ok &= contains(rb3_latest_char_clip_group_h,
+                 "boolHasClip(CharClip*)const;",
+                 "latest CharClipGroup header declares HasClip");
+  ok &= contains(rb3_latest_char_clip_group_h,
+                 "voidSetClipFlags(int);",
+                 "latest CharClipGroup header declares SetClipFlags");
+  ok &= contains(rb3_latest_char_clip_group_h,
+                 "voidRandomize();",
+                 "latest CharClipGroup header declares Randomize");
+  ok &= contains(rb3_latest_char_clip_group_h,
+                 "voidRandomizeIndex();",
+                 "latest CharClipGroup header declares RandomizeIndex");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "CharClip*CharClipGroup::GetClip(int",
+                "checked CharClipGroup source lacks flagged GetClip body");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "boolCharClipGroup::HasClip(",
+                "checked CharClipGroup source lacks HasClip body");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "voidCharClipGroup::SetClipFlags(",
+                "checked CharClipGroup source lacks SetClipFlags body");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "voidCharClipGroup::Randomize(){",
+                "checked CharClipGroup source lacks Randomize body");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "voidCharClipGroup::RandomizeIndex(",
+                "checked CharClipGroup source lacks RandomizeIndex body");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "BEGIN_COPYS(CharClipGroup)",
+                "checked CharClipGroup source lacks copy macro body");
+  ok &= missing(rb3_latest_char_clip_group_cpp,
+                "voidCharClipGroup::Replace(",
+                "checked CharClipGroup source lacks Replace body");
   ok &= contains(rb3_latest_char_clip_group_cpp,
                  "voidCharClipGroup::Load(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(2,0);Hmx::Object::Load(bs);bs>>mClips;"
@@ -23340,6 +23376,13 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_group_remove_clip` ports the visible",
                  "document records native CharClipGroup RemoveClip helper");
+  ok &= contains(doc,
+                 "`CharClipGroup.h` still declares `GetClip(int)`, `HasClip`,",
+                 "document records CharClipGroup bodyless declaration boundary");
+  ok &= contains(doc,
+                 "Source-backed runtime group selection is therefore limited "
+                 "to the concrete\n    zero-argument `GetClip()` cycling path",
+                 "document fences CharClipGroup runtime group selection");
   ok &= contains(doc,
                  "selected clip's flags with every other clip",
                  "document records source CharClipGroup duplicate behavior");

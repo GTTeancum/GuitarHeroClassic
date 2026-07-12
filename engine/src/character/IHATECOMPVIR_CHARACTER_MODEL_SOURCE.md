@@ -3262,6 +3262,11 @@ note, and all report `unreadBytes=0`.
     the `else` branch and once again by the loop. Deterministic coverage keeps
     that source skip behavior explicit instead of replacing it with a cleaner
     remove-all helper.
+  - `CharClipGroup.h` still declares `GetClip(int)`, `HasClip`,
+    `SetClipFlags`, `Randomize`, `RandomizeIndex`, `Copy`, and `Replace`, but
+    the checked `CharClipGroup.cpp` snapshot does not expose those bodies.
+    Source-backed runtime group selection is therefore limited to the concrete
+    zero-argument `GetClip()` cycling path and the visible helpers above.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.
