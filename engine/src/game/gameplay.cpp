@@ -21316,7 +21316,9 @@ void Gameplay::draw_worldcrowd_actor_runtime(
         !env_value("GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL") &&
         !(cam.result_frame.valid && cam.result_frame.has_custom_projection);
     const bool foreground_cull_enabled =
-        camera_cull_enabled && !cam.authored && diagnostic_camera_shot_.empty() &&
+        camera_cull_enabled && diagnostic_camera_shot_.empty() &&
+        !venue_camera_has_crowd_selection_ &&
+        !venue_camera_crowd_face_camera_ &&
         env_value("GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL") == nullptr;
     const float tan_y = std::tan(cam.fov * 0.5f) * 1.35f;
     const float tan_x = tan_y * kNativeValidationAspect;
@@ -21412,8 +21414,18 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                     ++placement_index;
                     continue;
                 }
-                if (foreground_cull_enabled && foreground_clear_depth > 0.0f &&
-                    depth > -radius && depth - radius < foreground_clear_depth) {
+                const float foreground_ndc_y =
+                    (depth > 0.001f && std::isfinite(vertical))
+                        ? camera_dot_axis(delta, camera_up) /
+                              (depth * tan_y)
+                        : 0.0f;
+                const bool lower_screen_foreground =
+                    depth > radius && std::isfinite(foreground_ndc_y) &&
+                    foreground_ndc_y < -0.52f;
+                if (foreground_cull_enabled &&
+                    ((foreground_clear_depth > 0.0f && depth > -radius &&
+                      depth - radius < foreground_clear_depth) ||
+                     lower_screen_foreground)) {
                     ++culled_foreground;
                     ++placement_index;
                     continue;
