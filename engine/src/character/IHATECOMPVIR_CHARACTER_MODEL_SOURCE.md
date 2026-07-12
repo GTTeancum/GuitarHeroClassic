@@ -64,6 +64,79 @@ missing runtime bodies are accounted for explicitly here: `CharBoneDir.h`,
 ownership only; they do not promote an undecompiled `Poll`, `Load`, or pose
 writer body.
 
+## ihatecompvir Character Implementation Inventory
+
+This inventory is the current ownership map for the copied
+`rb3-latest/src/system/char/*.cpp` source files. `ported-visible-source` means
+the checked concrete body is mirrored by native helpers or runtime code.
+`fenced-runtime-gap` means concrete source was ported where present, but the
+class still depends on a missing/declaration-only source body or an unresolved
+runtime publisher. `diagnostic-only` means the source is understood only as
+editor, audit, or row-shape evidence. `absence-evidence` means the checked
+source proves there is no usable runtime class/body to port from that file.
+
+| ihatecompvir file | Native owner | Status |
+| --- | --- | --- |
+| `Char.cpp` | `ghogx_character_character_source_test` | `ported-visible-source` |
+| `Character.cpp` | `ghogx_character_character_source_test` | `ported-visible-source` |
+| `CharacterTest.cpp` | `ghogx_character_character_test_source_test` | `diagnostic-only` |
+| `CharBlendBone.cpp` | `ghogx_character_blend_bone_source_test` | `fenced-runtime-gap` |
+| `CharBone.cpp` | `ghogx_character_char_bones_source_test` | `ported-visible-source` |
+| `CharBoneDir.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
+| `CharBoneOffset.cpp` | `ghogx_character_bone_offset_source_test` | `ported-visible-source` |
+| `CharBones.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
+| `CharBonesBlender.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
+| `CharBonesMeshes.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
+| `CharBonesSamples.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
+| `CharBoneTwist.cpp` | `ghogx_character_bone_twist_source_test` | `ported-visible-source` |
+| `CharClip.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
+| `CharClipDisplay.cpp` | `ghogx_character_clip_display_source_test` | `diagnostic-only` |
+| `CharClipDriver.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
+| `CharClipGroup.cpp` | `ghogx_character_clip_set_source_test` | `fenced-runtime-gap` |
+| `CharClipSet.cpp` | `ghogx_character_clip_set_source_test` | `diagnostic-only` |
+| `CharCollide.cpp` | `ghogx_character_char_collide_source_test` | `ported-visible-source` |
+| `CharCuff.cpp` | `ghogx_character_cuff_source_test` | `fenced-runtime-gap` |
+| `CharDriver.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
+| `CharDriverMidi.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
+| `CharEyeDartRuleset.cpp` | `ghogx_character_eye_dart_ruleset_source_test` | `diagnostic-only` |
+| `CharEyes.cpp` | `ghogx_character_eyes_source_test` | `fenced-runtime-gap` |
+| `CharFaceServo.cpp` | `ghogx_character_face_servo_source_test` | `fenced-runtime-gap` |
+| `CharForeTwist.cpp` | `ghogx_character_fore_upper_twist_source_test` | `ported-visible-source` |
+| `CharGuitarString.cpp` | `ghogx_character_guitar_string_source_test` | `ported-visible-source` |
+| `CharHair.cpp` | `ghogx_character_char_hair_source_test` | `fenced-runtime-gap` |
+| `CharIKFingers.cpp` | `ghogx_character_ik_fingers_source_test` | `diagnostic-only` |
+| `CharIKFoot.cpp` | `ghogx_character_ik_foot_source_test` | `fenced-runtime-gap` |
+| `CharIKHand.cpp` | `ghogx_character_ik_hand_source_test` | `ported-visible-source` |
+| `CharIKHead.cpp` | `ghogx_character_ik_head_source_test` | `fenced-runtime-gap` |
+| `CharIKMidi.cpp` | `ghogx_character_ik_midi_source_test` | `diagnostic-only` |
+| `CharIKRod.cpp` | `ghogx_character_ik_rod_source_test` | `fenced-runtime-gap` |
+| `CharIKScale.cpp` | `ghogx_character_ik_scale_source_test` | `fenced-runtime-gap` |
+| `CharIKSliderMidi.cpp` | `ghogx_character_ik_slider_midi_source_test` | `fenced-runtime-gap` |
+| `CharInterest.cpp` | `ghogx_character_interest_source_test` | `diagnostic-only` |
+| `CharLipSync.cpp` | `ghogx_character_lip_sync_source_test` | `diagnostic-only` |
+| `CharLipSyncDriver.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
+| `CharLookAt.cpp` | `ghogx_character_lookat_source_test` | `fenced-runtime-gap` |
+| `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `diagnostic-only` |
+| `CharMeshHide.cpp` | `ghogx_character_mesh_hide_source_test` | `ported-visible-source` |
+| `CharMirror.cpp` | `ghogx_character_mirror_source_test` | `fenced-runtime-gap` |
+| `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `diagnostic-only` |
+| `CharPollGroup.cpp` | `ghogx_character_poll_group_source_test` | `diagnostic-only` |
+| `CharPosConstraint.cpp` | `ghogx_character_pos_constraint_source_test` | `ported-visible-source` |
+| `CharServoBone.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
+| `CharSleeve.cpp` | `ghogx_character_sleeve_source_test` | `ported-visible-source` |
+| `CharTaskMgr.cpp` | `ghogx_character_clip_display_source_test` | `diagnostic-only` |
+| `CharTransCopy.cpp` | `ghogx_character_trans_copy_source_test` | `ported-visible-source` |
+| `CharTransDraw.cpp` | `ghogx_character_trans_draw_source_test` | `diagnostic-only` |
+| `CharUpperTwist.cpp` | `ghogx_character_fore_upper_twist_source_test` | `ported-visible-source` |
+| `CharUtl.cpp` | `ghogx_character_char_utl_source_test` | `ported-visible-source` |
+| `CharWeightable.cpp` | `ghogx_character_weight_setter_source_test` | `ported-visible-source` |
+| `CharWeightSetter.cpp` | `ghogx_character_weight_setter_source_test` | `fenced-runtime-gap` |
+| `ClipCollide.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
+| `ClipCompressor.cpp` | `ghogx_character_clip_editor_source_test` | `absence-evidence` |
+| `ClipGraphGen.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
+| `FileMerger.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
+| `Waypoint.cpp` | `ghogx_character_waypoint_source_test` | `diagnostic-only` |
+
 ## Source Coverage Matrix
 
 | Area | ihatecompvir evidence | Native status |

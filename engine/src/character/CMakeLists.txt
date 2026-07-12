@@ -370,6 +370,14 @@ set(GHOGX_IHATECOMPVIR_SOURCE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/ihatecompvir-public-milo-sources")
 set(GHOGX_IHATECOMPVIR_EXTRA_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/ihatecompvir-extra")
+add_executable(ghogx_character_ihatecompvir_inventory_test
+    character_ihatecompvir_inventory_test.cpp)
+target_compile_definitions(ghogx_character_ihatecompvir_inventory_test PRIVATE
+    GHOGX_CHARACTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    GHOGX_IHATECOMPVIR_EXTRA_DIR="${GHOGX_IHATECOMPVIR_EXTRA_DIR}")
+add_test(NAME ghogx_character_ihatecompvir_inventory_test
+         COMMAND ghogx_character_ihatecompvir_inventory_test)
+
 add_executable(ghogx_character_source_truth_contract_test
     character_source_truth_contract_test.cpp)
 target_compile_definitions(ghogx_character_source_truth_contract_test PRIVATE
@@ -432,6 +440,7 @@ target_compile_options(ghogx_character_mesh_cache_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_no_named_fix_test PRIVATE /W4)
 target_compile_options(ghogx_character_left_hand_contract_test PRIVATE /W4)
 target_compile_options(ghogx_character_eye_bridge_contract_test PRIVATE /W4)
+target_compile_options(ghogx_character_ihatecompvir_inventory_test PRIVATE /W4)
 target_compile_options(ghogx_character_source_truth_contract_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_character PRIVATE -Wall -Wextra)
@@ -531,6 +540,8 @@ else()
     target_compile_options(ghogx_character_left_hand_contract_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_eye_bridge_contract_test PRIVATE
+        -Wall -Wextra)
+    target_compile_options(ghogx_character_ihatecompvir_inventory_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_source_truth_contract_test PRIVATE
         -Wall -Wextra)
