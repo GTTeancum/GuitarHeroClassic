@@ -521,6 +521,21 @@ struct SourceCharLookAtNoRollAxesResult {
   bool invalid_xx = false;
 };
 
+struct SourceCharLookAtSmoothResult {
+  bool applied = false;
+  float factor = 0.0f;
+  std::array<float, 3> dir = {0.0f, 1.0f, 0.0f};
+};
+
+struct SourceCharLookAtRangeResult {
+  bool applied = false;
+  bool used_test_range = false;
+  bool used_show_range = false;
+  bool force_weight_one = false;
+  int show_range_case = -1;
+  std::array<float, 3> dir = {0.0f, 1.0f, 0.0f};
+};
+
 struct SourceCharLookAtLoadPlan {
   bool revision_supported = false;
   std::vector<std::string> read_order;
@@ -1740,6 +1755,19 @@ SourceCharLookAtNoRollAxesResult source_char_lookat_no_roll_axes(
     std::array<float, 3> current_local_y,
     std::array<float, 3> desired_parent_space_dir,
     float weight);
+SourceCharLookAtSmoothResult source_char_lookat_smooth_dir(
+    bool has_previous,
+    std::array<float, 3> previous_dir,
+    std::array<float, 3> current_dir,
+    float delta_seconds,
+    float half_time);
+SourceCharLookAtRangeResult source_char_lookat_range_dir(
+    const SourceCharLookAtBounds& bounds,
+    bool test_range,
+    float test_range_pitch,
+    float test_range_yaw,
+    bool show_range,
+    int seconds);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

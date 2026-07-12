@@ -9052,11 +9052,27 @@ int run_contract() {
                  "if(unk6c.x!=1e+29f&&mHalfTime!=0.0f){",
                  "RB3 CharLookAt Poll gates half-time smoothing");
   ok &= contains(rb3_char_lookat_cpp,
+                 "Interp(unk6c,ve4,deltasecs/(deltasecs+mHalfTime),ve4);",
+                 "RB3 CharLookAt Poll smooths direction by delta over delta plus half-time");
+  ok &= contains(rb3_char_lookat_cpp,
                  "if(mTestRange){",
                  "RB3 CharLookAt Poll gates test range before show range");
   ok &= contains(rb3_char_lookat_cpp,
+                 "floatloc140,loc144;Interp(mBounds.mMin.z,mBounds.mMax.z,"
+                 "mTestRangeYaw,loc140);Interp(mBounds.mMin.x,"
+                 "mBounds.mMax.x,mTestRangePitch,loc144);ve4.Set(loc144,"
+                 "mBounds.mMin.y,loc140);",
+                 "RB3 CharLookAt Poll test range overrides bounded direction");
+  ok &= contains(rb3_char_lookat_cpp,
                  "elseif(mShowRange){",
                  "RB3 CharLookAt Poll gates show range after test range");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "elseif(mShowRange){charweight=1.0f;switch(((int)"
+                 "TheTaskMgr.Seconds(TaskMgr::b))&7){",
+                 "RB3 CharLookAt Poll show range forces full weight");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "case1:ve4.Set(0.0f,mBounds.mMin.z,mBounds.mMax.x);break;",
+                 "RB3 CharLookAt Poll show range case one axis order is pinned");
   ok &= contains(rb3_char_lookat_cpp,
                  "if(mEnableJitter&&!sDisableJitter&&!disable&&deltasecs>0.0f){",
                  "RB3 CharLookAt Poll gates jitter");
@@ -9200,6 +9216,16 @@ int run_contract() {
                  "{0.0f,0.0f,1.0f};boolinvalid_xx=false;};",
                  "native header exposes CharLookAt no-roll axes result");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtSmoothResult{boolapplied=false;"
+                 "floatfactor=0.0f;std::array<float,3>dir="
+                 "{0.0f,1.0f,0.0f};};",
+                 "native header exposes CharLookAt smoothing result");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLookAtRangeResult{boolapplied=false;"
+                 "boolused_test_range=false;boolused_show_range=false;"
+                 "boolforce_weight_one=false;intshow_range_case=-1;",
+                 "native header exposes CharLookAt range result");
+  ok &= contains(char_clip_h,
                  "boolwrite_pivot_world_to_source=false;boolnormalize_dest_vector=false;",
                  "native header exposes CharLookAt source/pivot branch flags");
   ok &= contains(char_clip_h,
@@ -9269,6 +9295,18 @@ int run_contract() {
                  "std::array<float,3>current_local_y,"
                  "std::array<float,3>desired_parent_space_dir,floatweight);",
                  "native header exposes CharLookAt no-roll axes helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtSmoothResultsource_char_lookat_smooth_dir("
+                 "boolhas_previous,std::array<float,3>previous_dir,"
+                 "std::array<float,3>current_dir,floatdelta_seconds,"
+                 "floathalf_time);",
+                 "native header exposes CharLookAt smoothing helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtRangeResultsource_char_lookat_range_dir("
+                 "constSourceCharLookAtBounds&bounds,booltest_range,"
+                 "floattest_range_pitch,floattest_range_yaw,boolshow_range,"
+                 "intseconds);",
+                 "native header exposes CharLookAt range helper");
   ok &= contains(char_clip,
                  "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
                  "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
@@ -9436,6 +9474,34 @@ int run_contract() {
   ok &= contains(char_clip,
                  "result.invalid_xx=result.x[0]<-2.0f||result.x[0]>2.0f;",
                  "native CharLookAt no-roll helper keeps source invalid-axis guard");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtSmoothResultsource_char_lookat_smooth_dir("
+                 "boolhas_previous,std::array<float,3>previous_dir,"
+                 "std::array<float,3>current_dir,floatdelta_seconds,"
+                 "floathalf_time){",
+                 "native CharLookAt smoothing helper is implemented");
+  ok &= contains(char_clip,
+                 "if(!has_previous||half_time==0.0f)returnresult;"
+                 "result.applied=true;result.factor=delta_seconds/"
+                 "(delta_seconds+half_time);",
+                 "native CharLookAt smoothing helper ports source gate and factor");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtRangeResultsource_char_lookat_range_dir("
+                 "constSourceCharLookAtBounds&bounds,booltest_range,"
+                 "floattest_range_pitch,floattest_range_yaw,boolshow_range,"
+                 "intseconds){",
+                 "native CharLookAt range helper is implemented");
+  ok &= contains(char_clip,
+                 "if(test_range){result.applied=true;result.used_test_range=true;"
+                 "result.dir={bounds.min[0]+(bounds.max[0]-bounds.min[0])*"
+                 "test_range_pitch,bounds.min[1],bounds.min[2]+",
+                 "native CharLookAt range helper ports test range override");
+  ok &= contains(char_clip,
+                 "result.force_weight_one=true;result.show_range_case=seconds&7;",
+                 "native CharLookAt range helper ports show range weight and mask");
+  ok &= contains(char_clip,
+                 "case1:result.dir={0.0f,bounds.min[2],bounds.max[0]};break;",
+                 "native CharLookAt range helper preserves source case one axes");
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
                  "focused CharLookAt source test covers default source limits");
@@ -9503,6 +9569,15 @@ int run_contract() {
   ok &= contains(lookat_source_test,
                  "constfloatinv_sqrt2=0.70710677f;",
                  "focused CharLookAt source test covers partial no-roll interpolation");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_smooth_dir(",
+                 "focused CharLookAt source test covers smoothing helper");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_range_dir(",
+                 "focused CharLookAt source test covers range helper");
+  ok &= contains(lookat_source_test,
+                 "\"showrangecase1sourceyusesminz\"",
+                 "focused CharLookAt source test pins show range case one axes");
   ok &= contains(mesh_decode_test,
                  "ghogx::character::decode_lookat(\"l-eye.lookat\","
                  "make_lookat(2,2))",
@@ -9550,6 +9625,15 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_lookat_no_roll_axes` ports the concrete no-roll",
                  "document records CharLookAt no-roll axes helper");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_smooth_dir` ports the concrete half-time",
+                 "document records CharLookAt smoothing helper");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_range_dir` ports the following",
+                 "document records CharLookAt range helper");
+  ok &= contains(doc,
+                 "case-1 `Set(0, mBounds.mMin.z, mBounds.mMax.x)`",
+                 "document pins CharLookAt show range case one axes");
   ok &= contains(doc,
                  "it does not publish live eye/look-at\n    transforms",
                  "document fences CharLookAt no-roll helper from live publishing");

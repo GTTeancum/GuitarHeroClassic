@@ -887,6 +887,14 @@ note, and all report `unreadBytes=0`.
     This is deterministic math coverage only; it does not create a native eye
     destination or publish a pivot transform for GH2 rows whose `mDest` is
     `<none>`.
+  - Native `source_char_lookat_smooth_dir` ports the concrete half-time
+    smoothing branch: when the previous direction row is initialized and
+    `mHalfTime != 0`, interpolate by `delta / (delta + mHalfTime)` and store
+    the smoothed row. Native `source_char_lookat_range_dir` ports the following
+    source test/show range override: `mTestRange` wins over `mShowRange`,
+    interpolates pitch X and yaw Z from bounds, while `mShowRange` forces row
+    weight to one and selects one of the eight source switch vectors, including
+    the case-1 `Set(0, mBounds.mMin.z, mBounds.mMax.x)` assignment exactly.
   - Native `source_char_lookat_no_roll_axes` ports the concrete no-roll local
     write branch inside `CharLookAt::Poll`: interpolate the pivot local Y row
     toward the bounded parent-space direction by row weight, seed Z to

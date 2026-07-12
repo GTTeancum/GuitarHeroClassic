@@ -44,10 +44,12 @@ int main() {
   using ghogx::character::source_char_lookat_no_roll_axes;
   using ghogx::character::source_char_lookat_poll_deps;
   using ghogx::character::source_char_lookat_poll_plan;
+  using ghogx::character::source_char_lookat_range_dir;
   using ghogx::character::source_char_lookat_set_max_pitch;
   using ghogx::character::source_char_lookat_set_max_yaw;
   using ghogx::character::source_char_lookat_set_min_pitch;
   using ghogx::character::source_char_lookat_set_min_yaw;
+  using ghogx::character::source_char_lookat_smooth_dir;
   using ghogx::character::source_char_lookat_sync_limits;
 
   bool ok = true;
@@ -307,6 +309,51 @@ int main() {
   ok &= near(no_roll_half.z[0], -1.0f, "no-roll half z x");
   ok &= near(no_roll_half.z[1], 0.0f, "no-roll half z y");
   ok &= near(no_roll_half.z[2], 0.0f, "no-roll half z z");
+
+  const auto unsmoothed = source_char_lookat_smooth_dir(
+      false, {1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}, 0.25f, 0.5f);
+  ok &= expect_bool(unsmoothed.applied, false,
+                    "smooth missing previous stays inert");
+  ok &= near(unsmoothed.dir[0], 4.0f, "smooth inert x");
+  ok &= near(unsmoothed.dir[2], 6.0f, "smooth inert z");
+
+  const auto smoothed = source_char_lookat_smooth_dir(
+      true, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, 0.25f, 0.75f);
+  ok &= expect_bool(smoothed.applied, true, "smooth applies with previous");
+  ok &= near(smoothed.factor, 0.25f, "smooth source factor");
+  ok &= near(smoothed.dir[0], 0.0f, "smooth x");
+  ok &= near(smoothed.dir[1], 0.75f, "smooth y");
+  ok &= near(smoothed.dir[2], 0.25f, "smooth z");
+
+  const auto test_range = source_char_lookat_range_dir(
+      asymmetric, true, 0.25f, 0.75f, true, 99);
+  ok &= expect_bool(test_range.applied, true, "test range applied");
+  ok &= expect_bool(test_range.used_test_range, true, "test range wins");
+  ok &= expect_bool(test_range.used_show_range, false,
+                    "test range suppresses show range");
+  ok &= near(test_range.dir[0], -0.02917241f, "test range pitch x");
+  ok &= near(test_range.dir[1], asymmetric.min[1], "test range min y");
+  ok &= near(test_range.dir[2], 0.42826813f, "test range yaw z");
+
+  const auto show_case_1 = source_char_lookat_range_dir(
+      asymmetric, false, 0.5f, 0.5f, true, 9);
+  ok &= expect_bool(show_case_1.used_show_range, true,
+                    "show range case 1 applied");
+  ok &= expect_bool(show_case_1.force_weight_one, true,
+                    "show range forces weight one");
+  ok &= expect_size(static_cast<size_t>(show_case_1.show_range_case),
+                    static_cast<size_t>(1), "show range case mask");
+  ok &= near(show_case_1.dir[0], 0.0f, "show range case1 x");
+  ok &= near(show_case_1.dir[1], asymmetric.min[2],
+             "show range case1 source y uses min z");
+  ok &= near(show_case_1.dir[2], asymmetric.max[0],
+             "show range case1 source z uses max x");
+
+  const auto show_case_4 = source_char_lookat_range_dir(
+      asymmetric, false, 0.5f, 0.5f, true, 12);
+  ok &= near(show_case_4.dir[0], asymmetric.max[0], "show range case4 x");
+  ok &= near(show_case_4.dir[1], asymmetric.min[1], "show range case4 y");
+  ok &= near(show_case_4.dir[2], asymmetric.max[2], "show range case4 z");
 
   return ok ? 0 : 1;
 }

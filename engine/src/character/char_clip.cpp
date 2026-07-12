@@ -1379,6 +1379,79 @@ SourceCharLookAtNoRollAxesResult source_char_lookat_no_roll_axes(
   return result;
 }
 
+SourceCharLookAtSmoothResult source_char_lookat_smooth_dir(
+    bool has_previous,
+    std::array<float, 3> previous_dir,
+    std::array<float, 3> current_dir,
+    float delta_seconds,
+    float half_time) {
+  SourceCharLookAtSmoothResult result;
+  result.dir = current_dir;
+  if (!has_previous || half_time == 0.0f) return result;
+  result.applied = true;
+  result.factor = delta_seconds / (delta_seconds + half_time);
+  for (int axis = 0; axis < 3; ++axis) {
+    result.dir[axis] =
+        previous_dir[axis] +
+        (current_dir[axis] - previous_dir[axis]) * result.factor;
+  }
+  return result;
+}
+
+SourceCharLookAtRangeResult source_char_lookat_range_dir(
+    const SourceCharLookAtBounds& bounds,
+    bool test_range,
+    float test_range_pitch,
+    float test_range_yaw,
+    bool show_range,
+    int seconds) {
+  SourceCharLookAtRangeResult result;
+  if (test_range) {
+    result.applied = true;
+    result.used_test_range = true;
+    result.dir = {
+        bounds.min[0] + (bounds.max[0] - bounds.min[0]) * test_range_pitch,
+        bounds.min[1],
+        bounds.min[2] + (bounds.max[2] - bounds.min[2]) * test_range_yaw};
+    return result;
+  }
+  if (!show_range) return result;
+
+  result.applied = true;
+  result.used_show_range = true;
+  result.force_weight_one = true;
+  result.show_range_case = seconds & 7;
+  switch (result.show_range_case) {
+    case 0:
+      result.dir = {bounds.min[0], bounds.min[1], bounds.min[2]};
+      break;
+    case 1:
+      result.dir = {0.0f, bounds.min[2], bounds.max[0]};
+      break;
+    case 2:
+      result.dir = {bounds.max[0], bounds.min[1], bounds.min[2]};
+      break;
+    case 3:
+      result.dir = {bounds.max[0], bounds.min[1], 0.0f};
+      break;
+    case 4:
+      result.dir = {bounds.max[0], bounds.min[1], bounds.max[2]};
+      break;
+    case 5:
+      result.dir = {0.0f, bounds.min[1], bounds.max[2]};
+      break;
+    case 6:
+      result.dir = {bounds.min[0], bounds.min[1], bounds.max[2]};
+      break;
+    case 7:
+      result.dir = {bounds.min[0], bounds.min[1], 0.0f};
+      break;
+    default:
+      break;
+  }
+  return result;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
