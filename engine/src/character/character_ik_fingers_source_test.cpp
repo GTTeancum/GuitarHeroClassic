@@ -55,8 +55,10 @@ std::vector<std::string> finger_transforms(
 int main() {
   using ghogx::character::source_char_ik_fingers_defaults;
   using ghogx::character::source_char_ik_fingers_copy_plan;
+  using ghogx::character::source_char_ik_fingers_handler_plan;
   using ghogx::character::source_char_ik_fingers_load_plan;
   using ghogx::character::source_char_ik_fingers_load_revision_known;
+  using ghogx::character::source_char_ik_fingers_prop_sync_plan;
   using ghogx::character::source_char_ik_fingers_release_finger_plan;
   using ghogx::character::source_char_ik_fingers_set_name_refs;
   using ghogx::character::source_char_ik_fingers_set_finger_plan;
@@ -190,6 +192,30 @@ int main() {
                       "copy hand side first");
   ok &= expect_string(copy.copied_members.back(), "mHandDestOffset",
                       "copy hand destination last");
+
+  const auto handlers = source_char_ik_fingers_handler_plan();
+  ok &= expect_size(handlers.superclasses.size(), 2,
+                    "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "CharWeightable",
+                      "handler weightable superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "handler object superclass");
+  ok &= expect_int(handlers.check, 0x3ab, "handler check row");
+
+  const auto props = source_char_ik_fingers_prop_sync_plan();
+  ok &= expect_size(props.properties.size(), 8, "prop-sync row count");
+  ok &= expect_string(props.properties[0], "is_right_hand",
+                      "prop-sync hand side");
+  ok &= expect_string(props.properties[2], "keyboard_ref_bone",
+                      "prop-sync keyboard ref");
+  ok &= expect_string(props.properties[4], "hand_thumb_rotation",
+                      "prop-sync thumb rotation");
+  ok &= expect_string(props.properties.back(), "hand_dest_offset",
+                      "prop-sync destination offset");
+  ok &= expect_size(props.superclasses.size(), 1,
+                    "prop-sync superclass count");
+  ok &= expect_string(props.superclasses[0], "CharWeightable",
+                      "prop-sync superclass");
 
   return ok ? 0 : 1;
 }

@@ -8356,6 +8356,23 @@ int run_contract() {
                  "voidCharIKFingers::Poll(){Hmx::Matrix3m;Vector3v;"
                  "mCurHandTrans.Set(m,v);}",
                  "CharIKFingers available Poll body is incomplete");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "BEGIN_HANDLERS(CharIKFingers)HANDLE_SUPERCLASS("
+                 "CharWeightable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x3AB)END_HANDLERS",
+                 "CharIKFingers source exposes handler superclass rows");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "BEGIN_PROPSYNCS(CharIKFingers)SYNC_PROP(is_right_hand,"
+                 "mIsRightHand)SYNC_PROP(output_trans,mOutputTrans)"
+                 "SYNC_PROP(keyboard_ref_bone,mKeyboardRefBone)",
+                 "CharIKFingers source exposes prop-sync leading rows");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "SYNC_PROP(hand_thumb_rotation,mHandThumbRotation)"
+                 "SYNC_PROP(hand_pinky_rotation,mHandPinkyRotation)"
+                 "SYNC_PROP(hand_move_forward,mHandMoveForward)"
+                 "SYNC_PROP(hand_dest_offset,mHandDestOffset)"
+                 "SYNC_SUPERCLASS(CharWeightable)",
+                 "CharIKFingers source exposes prop-sync hand tuning rows");
   ok &= missing(rb3_latest_char_ik_fingers_cpp,
                 "voidCharIKFingers::MeasureLengths(){",
                 "available CharIKFingers source lacks MeasureLengths body");
@@ -8389,12 +8406,27 @@ int run_contract() {
                  "std::vector<std::string>read_order;};",
                  "native exposes CharIKFingers load plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersHandlerPlan{std::vector<"
+                 "std::string>superclasses;intcheck=0;};",
+                 "native exposes CharIKFingers handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersPropSyncPlan{std::vector<"
+                 "std::string>properties;std::vector<std::string>"
+                 "superclasses;};",
+                 "native exposes CharIKFingers prop-sync plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharIKFingersSetFingerPlansource_char_ik_fingers_set_finger_plan("
                  "intfinger);",
                  "native API exposes CharIKFingers SetFinger helper");
   ok &= contains(char_mesh_h,
                  "SourceCharIKFingersCopyPlansource_char_ik_fingers_copy_plan();",
                  "native API exposes CharIKFingers copy helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersHandlerPlansource_char_ik_fingers_handler_plan();",
+                 "native API exposes CharIKFingers handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersPropSyncPlansource_char_ik_fingers_prop_sync_plan();",
+                 "native API exposes CharIKFingers prop-sync helper");
   ok &= contains(char_mesh,
                  "SourceCharIKFingersStatesource_char_ik_fingers_defaults(){"
                  "returnSourceCharIKFingersState{};}",
@@ -8449,6 +8481,27 @@ int run_contract() {
                  "SourceCharIKFingersCopyPlansource_char_ik_fingers_copy_plan(){"
                  "SourceCharIKFingersCopyPlanplan;",
                  "native CharIKFingers copy plan helper exists");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersHandlerPlansource_char_ik_fingers_handler_plan(){"
+                 "SourceCharIKFingersHandlerPlanplan;",
+                 "native CharIKFingers handler helper exists");
+  ok &= contains(char_mesh,
+                 "plan.superclasses={\"CharWeightable\",\"Hmx::Object\"};"
+                 "plan.check=0x3ab;",
+                 "native CharIKFingers handler rows mirror source");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersPropSyncPlansource_char_ik_fingers_prop_sync_plan(){"
+                 "SourceCharIKFingersPropSyncPlanplan;",
+                 "native CharIKFingers prop-sync helper exists");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"is_right_hand\",\"output_trans\","
+                 "\"keyboard_ref_bone\",\"hand_keyboard_offset\","
+                 "\"hand_thumb_rotation\",\"hand_pinky_rotation\","
+                 "\"hand_move_forward\",\"hand_dest_offset\"};",
+                 "native CharIKFingers prop-sync rows mirror source");
+  ok &= contains(char_mesh,
+                 "plan.superclasses={\"CharWeightable\"};",
+                 "native CharIKFingers prop-sync superclass mirrors source");
   ok &= missing(char_mesh, "present(refs.hand)",
                 "native CharIKFingers setup helper must not require hand ref");
   ok &= contains(cmake,
@@ -8479,6 +8532,12 @@ int run_contract() {
   ok &= contains(ik_fingers_source_test,
                  "source_char_ik_fingers_copy_plan()",
                  "focused CharIKFingers test covers copy plan");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_handler_plan()",
+                 "focused CharIKFingers test covers handler plan");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_prop_sync_plan()",
+                 "focused CharIKFingers test covers prop-sync plan");
   ok &= contains(doc, "CharIKFingers.cpp",
                  "document cites CharIKFingers source");
   ok &= contains(doc,
@@ -8500,6 +8559,12 @@ int run_contract() {
   ok &= contains(doc,
                  "source_char_ik_fingers_set_finger_plan",
                  "document records CharIKFingers SetFinger helper");
+  ok &= contains(doc,
+                 "source_char_ik_fingers_handler_plan",
+                 "document records CharIKFingers handler helper");
+  ok &= contains(doc,
+                 "source_char_ik_fingers_prop_sync_plan",
+                 "document records CharIKFingers prop-sync helper");
   ok &= contains(doc,
                  "must\n    not be promoted into live fretting-finger behavior",
                  "document fences incomplete CharIKFingers runtime");

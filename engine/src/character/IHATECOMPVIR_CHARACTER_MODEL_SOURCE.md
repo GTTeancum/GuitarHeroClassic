@@ -2631,6 +2631,14 @@ note, and all report `unreadBytes=0`.
     current-hand transform step marker. `MeasureLengths`, the missing transform
     math inside `SetFinger`, and the real `Poll` solve remain fenced and must
     not be promoted into live fretting-finger behavior from this data slice.
+  - `BEGIN_HANDLERS(CharIKFingers)` delegates to `CharWeightable` then
+    `Hmx::Object` and checks `0x3AB`. `BEGIN_PROPSYNCS(CharIKFingers)` exposes
+    `is_right_hand`, `output_trans`, `keyboard_ref_bone`,
+    `hand_keyboard_offset`, `hand_thumb_rotation`, `hand_pinky_rotation`,
+    `hand_move_forward`, and `hand_dest_offset`, then delegates to
+    `CharWeightable`. Native `source_char_ik_fingers_handler_plan` and
+    `source_char_ik_fingers_prop_sync_plan` record those rows without adding
+    any new finger solver behavior.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,

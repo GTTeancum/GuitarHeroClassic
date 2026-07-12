@@ -6653,6 +6653,27 @@ SourceCharIKFingersCopyPlan source_char_ik_fingers_copy_plan() {
   return plan;
 }
 
+SourceCharIKFingersHandlerPlan source_char_ik_fingers_handler_plan() {
+  SourceCharIKFingersHandlerPlan plan;
+  plan.superclasses = {"CharWeightable", "Hmx::Object"};
+  plan.check = 0x3ab;
+  return plan;
+}
+
+SourceCharIKFingersPropSyncPlan source_char_ik_fingers_prop_sync_plan() {
+  SourceCharIKFingersPropSyncPlan plan;
+  plan.properties = {"is_right_hand",
+                     "output_trans",
+                     "keyboard_ref_bone",
+                     "hand_keyboard_offset",
+                     "hand_thumb_rotation",
+                     "hand_pinky_rotation",
+                     "hand_move_forward",
+                     "hand_dest_offset"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,

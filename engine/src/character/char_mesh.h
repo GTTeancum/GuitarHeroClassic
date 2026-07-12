@@ -2678,6 +2678,16 @@ struct SourceCharIKFingersCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharIKFingersHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharIKFingersPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -3250,6 +3260,8 @@ SourceCharIKFingersReleaseFingerPlan
 source_char_ik_fingers_release_finger_plan(int finger);
 SourceCharIKFingersLoadPlan source_char_ik_fingers_load_plan(int revision);
 SourceCharIKFingersCopyPlan source_char_ik_fingers_copy_plan();
+SourceCharIKFingersHandlerPlan source_char_ik_fingers_handler_plan();
+SourceCharIKFingersPropSyncPlan source_char_ik_fingers_prop_sync_plan();
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(
