@@ -58,6 +58,48 @@ void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
 bool approx(float a, float b) { return std::fabs(a - b) < 1e-4f; }
 
 void test_trans() {
+  const SourceRndTransLoadPlan rev9_standalone =
+      source_rndtrans_load_plan(9, 24, true);
+  CHECK(rev9_standalone.standalone);
+  CHECK(rev9_standalone.reads_object_fields);
+  CHECK(rev9_standalone.reads_local_xfm);
+  CHECK(rev9_standalone.reads_world_xfm);
+  CHECK(!rev9_standalone.reads_old_child_list);
+  CHECK(rev9_standalone.reads_constraint);
+  CHECK(rev9_standalone.reads_target);
+  CHECK(rev9_standalone.reads_preserve_scale);
+  CHECK(rev9_standalone.reads_parent);
+
+  const SourceRndTransLoadPlan rev9_embedded =
+      source_rndtrans_load_plan(9, 24, false);
+  CHECK(!rev9_embedded.standalone);
+  CHECK(!rev9_embedded.reads_object_fields);
+  CHECK(rev9_embedded.reads_constraint);
+
+  const SourceRndTransLoadPlan rev8_old_parent =
+      source_rndtrans_load_plan(8, 6, false);
+  CHECK(rev8_old_parent.reads_old_child_list);
+  CHECK(rev8_old_parent.old_child_list_is_null_terminated_strings);
+  CHECK(!rev8_old_parent.old_child_list_is_symbols);
+  CHECK(rev8_old_parent.reads_constraint);
+  CHECK(rev8_old_parent.reads_target);
+  CHECK(rev8_old_parent.reads_preserve_scale);
+
+  const SourceRndTransLoadPlan rev8_new_parent =
+      source_rndtrans_load_plan(8, 24, false);
+  CHECK(rev8_new_parent.old_child_list_is_symbols);
+  CHECK(!rev8_new_parent.old_child_list_is_null_terminated_strings);
+
+  const SourceRndTransLoadPlan rev6 = source_rndtrans_load_plan(6, 24, false);
+  CHECK(rev6.reads_target);
+  CHECK(!rev6.reads_constraint);
+  CHECK(!rev6.reads_preserve_scale);
+
+  const SourceRndTransLoadPlan rev5 = source_rndtrans_load_plan(5, 24, false);
+  CHECK(!rev5.reads_target);
+  CHECK(!rev5.reads_constraint);
+  CHECK(rev5.reads_parent);
+
   std::vector<uint8_t> b;
   put_u32(b, 9);                 // version
   put_zeros(b, 9);               // base metadata

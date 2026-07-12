@@ -101,6 +101,27 @@ struct Xfm {
   float pos[3] = {0, 0, 0};
 };
 
+struct SourceRndTransLoadPlan {
+  int32_t revision = 0;
+  int32_t parent_revision = 0;
+  bool standalone = false;
+  bool reads_object_fields = false;
+  bool reads_local_xfm = true;
+  bool reads_world_xfm = true;
+  bool reads_old_child_list = false;
+  bool old_child_list_is_null_terminated_strings = false;
+  bool old_child_list_is_symbols = false;
+  bool reads_constraint = false;
+  bool reads_target = false;
+  bool reads_preserve_scale = false;
+  bool reads_parent = true;
+};
+
+SourceRndTransLoadPlan source_rndtrans_load_plan(
+    int32_t revision,
+    int32_t parent_revision,
+    bool standalone);
+
 struct TransObj {
   std::string name;          // the entry name
   Xfm local;                 // local matrix (matrix 1)

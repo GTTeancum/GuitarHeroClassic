@@ -436,6 +436,12 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - `RndTrans.Read` reads combined revision, optional object fields for
     standalone objects, local matrix, world matrix, old child references for
     revisions below 9, constraint, target, preserve-scale, then parent.
+  - Shared native `source_rndtrans_load_plan` records the same gates: standalone
+    rows read Object fields while embedded bases do not; local/world matrices
+    are always read; revision `< 9` reads the old child list, using
+    null-terminated strings for parent directories `<= 6` and symbols
+    otherwise; revision `> 6` reads constraint and preserve-scale; revision
+    `> 5` reads target; parent is always read.
 - `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
   - `RndDrawable.Read` reads combined revision, showing, optional sphere, and
     draw order for revisions greater than 2.

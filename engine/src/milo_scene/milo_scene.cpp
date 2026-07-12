@@ -395,6 +395,26 @@ bool read_spotlight_default_state(const std::vector<uint8_t>& body,
 
 }  // namespace
 
+SourceRndTransLoadPlan source_rndtrans_load_plan(
+    int32_t revision,
+    int32_t parent_revision,
+    bool standalone) {
+  SourceRndTransLoadPlan plan;
+  plan.revision = revision;
+  plan.parent_revision = parent_revision;
+  plan.standalone = standalone;
+  plan.reads_object_fields = standalone;
+  plan.reads_old_child_list = revision < 9;
+  plan.old_child_list_is_null_terminated_strings =
+      plan.reads_old_child_list && parent_revision <= 6;
+  plan.old_child_list_is_symbols =
+      plan.reads_old_child_list && parent_revision > 6;
+  plan.reads_constraint = revision > 6;
+  plan.reads_target = revision > 5;
+  plan.reads_preserve_scale = revision > 6;
+  return plan;
+}
+
 TransObj decode_trans(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

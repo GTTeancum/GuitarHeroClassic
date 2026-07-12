@@ -1303,6 +1303,41 @@ int run_contract() {
                  "localXfm=localXfm.Read(reader);worldXfm=worldXfm.Read(reader);"
                  "if(revision<9)",
                  "RndTrans source local/world/legacy-child order");
+  ok &= contains(trans_cs,
+                 "if(parent.revision<=6){for(inti=0;i<transCount;i++){"
+                 "transObjectsNullTerminated.Add(reader.ReadUTF8());}}else{"
+                 "for(inti=0;i<transCount;i++){transObjects.Add(Symbol.Read(reader));}}",
+                 "RndTrans source old child-list parent gate");
+  ok &= contains(trans_cs,
+                 "if(revision>6)constraint=(Constraint)reader.ReadUInt32();"
+                 "if(revision>5)target=Symbol.Read(reader);if(revision>6)"
+                 "preserveScale=reader.ReadBoolean();parentObj=Symbol.Read(reader);",
+                 "RndTrans source constraint target preserve-scale parent order");
+  ok &= contains(scene_h,
+                 "structSourceRndTransLoadPlan{",
+                 "shared milo_scene exposes source RndTrans load plan");
+  ok &= contains(scene,
+                 "SourceRndTransLoadPlansource_rndtrans_load_plan(",
+                 "shared milo_scene implements source RndTrans load plan");
+  ok &= contains(scene,
+                 "plan.reads_old_child_list=revision<9;",
+                 "shared RndTrans plan mirrors old child-list gate");
+  ok &= contains(scene,
+                 "plan.old_child_list_is_null_terminated_strings=plan."
+                 "reads_old_child_list&&parent_revision<=6;",
+                 "shared RndTrans plan mirrors parent string-list gate");
+  ok &= contains(scene,
+                 "plan.reads_constraint=revision>6;plan.reads_target=revision>5;"
+                 "plan.reads_preserve_scale=revision>6;",
+                 "shared RndTrans plan mirrors constraint target gates");
+  ok &= contains(scene_test,
+                 "constSourceRndTransLoadPlanrev9_standalone="
+                 "source_rndtrans_load_plan(9,24,true);",
+                 "milo_scene test covers standalone RndTrans plan");
+  ok &= contains(scene_test,
+                 "constSourceRndTransLoadPlanrev8_old_parent="
+                 "source_rndtrans_load_plan(8,6,false);",
+                 "milo_scene test covers legacy RndTrans child-list plan");
   ok &= contains(char_mesh,
                  "out.local=r.matrix();out.world=r.matrix();if(ver<9)",
                  "character RndTrans local/world/legacy-child order");
