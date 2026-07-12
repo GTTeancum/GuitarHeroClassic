@@ -1095,6 +1095,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     branches. The source-visible box branch grows a box and allocates a
     `BSPNode`, but both box/BSP branch bodies are incomplete in the checked
     source and must not be treated as a native BSP implementation.
+  - Native `source_rndmesh_face_load_plan` and
+    `source_rndmesh_face_center` port the checked face-row support bodies:
+    `operator>>(RndMesh::Face&)` reads three face indices and reads one legacy
+    vector only when `RndMesh::gRev < 1`; `FaceCenter` sums the three indexed
+    vertex positions and multiplies by `0.33333333f`.
   - Native `source_rndmesh_vert_vector_resize_plan` and
     `source_rndmesh_vert_vector_reserve_plan` port the checked
     `RndMesh::VertVector` storage rules: `resize` stores the incoming `unka`

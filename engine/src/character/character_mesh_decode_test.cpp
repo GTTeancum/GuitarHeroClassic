@@ -1159,6 +1159,28 @@ int main() {
   CHECK(set_faces.resize_faces);
   CHECK(set_faces.on_sync_mask == 0x3f);
 
+  const auto face_rev0 = ghogx::character::source_rndmesh_face_load_plan(0);
+  CHECK(face_rev0.reads_three_indices);
+  CHECK(face_rev0.reads_legacy_vector);
+  const auto face_rev28 = ghogx::character::source_rndmesh_face_load_plan(28);
+  CHECK(face_rev28.reads_three_indices);
+  CHECK(!face_rev28.reads_legacy_vector);
+
+  const std::vector<std::array<float, 3>> face_vertices = {
+      {1.0f, 2.0f, 3.0f},
+      {4.0f, 8.0f, 12.0f},
+      {-2.0f, 5.0f, 0.0f},
+  };
+  const auto face_center = ghogx::character::source_rndmesh_face_center(
+      face_vertices, {0, 1, 2});
+  CHECK(!face_center.invalid_index);
+  CHECK(std::fabs(face_center.center[0] - 1.0f) < 0.0001f);
+  CHECK(std::fabs(face_center.center[1] - 5.0f) < 0.0001f);
+  CHECK(std::fabs(face_center.center[2] - 5.0f) < 0.0001f);
+  const auto face_center_bad = ghogx::character::source_rndmesh_face_center(
+      face_vertices, {0, 3, 2});
+  CHECK(face_center_bad.invalid_index);
+
   const auto resize_capacity =
       ghogx::character::source_rndmesh_vert_vector_resize_plan(8, 3, 5, true);
   CHECK(resize_capacity.stores_unka);

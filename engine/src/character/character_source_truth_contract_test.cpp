@@ -2991,6 +2991,16 @@ int run_contract() {
                  "Sync(0x3F);}",
                  "RB3 RndMesh SetNumFaces sync behavior");
   ok &= contains(rb3_mesh_cpp,
+                 "BinStream&operator>>(BinStream&bs,RndMesh::Face&f){"
+                 "bs>>f.idx0>>f.idx1>>f.idx2;if(RndMesh::gRev<1){"
+                 "Vector3v;bs>>v;}returnbs;}",
+                 "RB3 RndMesh Face stream load rows");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidFaceCenter(RndMesh*mesh,RndMesh::Face*face,Vector3&v){"
+                 "v.Set(0,0,0);for(inti=0;i<3;i++){v+=mesh->VertAt("
+                 "face->operator[](i)).pos;}v*=0.33333333f;}",
+                 "RB3 RndMesh FaceCenter average");
+  ok &= contains(rb3_mesh_cpp,
                  "voidRndMesh::VertVector::resize(intn,boolb){unka=b;"
                  "if(mCapacity){MILO_ASSERT(n<=mCapacity,0x26A);mNumVerts=n;}",
                  "RB3 RndMesh VertVector resize fixed-capacity branch");
@@ -4131,6 +4141,12 @@ int run_contract() {
                  "structSourceRndMeshSetVolumePlan{int32_trequested_volume=0;",
                  "native exposes RndMesh SetVolume source helper");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshFaceLoadPlan{int32_tmesh_revision=0;",
+                 "native exposes RndMesh Face load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshFaceCenterResult{boolinvalid_index=false;",
+                 "native exposes RndMesh FaceCenter result");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshVertVectorResizePlan{",
                  "native exposes RndMesh VertVector resize plan");
   ok &= contains(char_mesh_h,
@@ -4192,6 +4208,13 @@ int run_contract() {
                  "int32_trequested_volume,boolowner_is_self,boolhas_vertices,"
                  "boolhas_faces)",
                  "native implements RndMesh SetVolume source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshFaceLoadPlansource_rndmesh_face_load_plan("
+                 "int32_tmesh_revision)",
+                 "native implements RndMesh Face load helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshFaceCenterResultsource_rndmesh_face_center(",
+                 "native implements RndMesh FaceCenter helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshVertVectorResizePlan"
                  "source_rndmesh_vert_vector_resize_plan(",
@@ -4308,6 +4331,13 @@ int run_contract() {
                  "plan.enters_volume_bsp_branch=true;plan.volume_bsp_body_incomplete=true;}",
                  "native SetVolume helper fences incomplete volume branches");
   ok &= contains(char_mesh,
+                 "plan.reads_legacy_vector=mesh_revision<1;returnplan;",
+                 "native Face load helper mirrors legacy vector gate");
+  ok &= contains(char_mesh,
+                 "result.center[0]*=0.33333333f;result.center[1]*=0.33333333f;"
+                 "result.center[2]*=0.33333333f;",
+                 "native FaceCenter helper mirrors source scale");
+  ok &= contains(char_mesh,
                  "plan.capacity_path=true;plan.assertion_would_fail="
                  "requested_count>current_capacity;",
                  "native VertVector resize helper mirrors capacity assertion");
@@ -4400,6 +4430,12 @@ int run_contract() {
                  "source_rndmesh_set_volume_plan(",
                  "focused mesh decode test covers RndMesh SetVolume helper");
   ok &= contains(mesh_decode_test,
+                 "source_rndmesh_face_load_plan(0)",
+                 "focused mesh decode test covers legacy RndMesh Face load");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_face_center(",
+                 "focused mesh decode test covers RndMesh FaceCenter helper");
+  ok &= contains(mesh_decode_test,
                  "source_rndmesh_vert_vector_resize_plan(8,3,5,true)",
                  "focused mesh decode test covers VertVector capacity resize");
   ok &= contains(mesh_decode_test,
@@ -4444,6 +4480,9 @@ int run_contract() {
   ok &= contains(doc,
                  "both box/BSP branch bodies are incomplete in the checked",
                  "document fences incomplete RndMesh SetVolume branches");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_face_load_plan` and",
+                 "document records RndMesh face helpers");
   ok &= contains(doc,
                  "Native `source_rndmesh_vert_vector_resize_plan` and",
                  "document records RndMesh VertVector helpers");

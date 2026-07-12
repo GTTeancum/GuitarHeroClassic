@@ -666,6 +666,23 @@ struct SourceRndMeshCountPlan {
   int32_t on_sync_mask = 0x3f;
 };
 
+struct SourceRndMeshFaceLoadPlan {
+  int32_t mesh_revision = 0;
+  bool reads_three_indices = true;
+  bool reads_legacy_vector = false;
+};
+
+struct SourceRndMeshFace {
+  int32_t idx0 = 0;
+  int32_t idx1 = 0;
+  int32_t idx2 = 0;
+};
+
+struct SourceRndMeshFaceCenterResult {
+  bool invalid_index = false;
+  std::array<float, 3> center = {0.0f, 0.0f, 0.0f};
+};
+
 struct SourceRndMeshVertVectorResizePlan {
   int32_t requested_count = 0;
   bool requested_unka = false;
@@ -818,6 +835,11 @@ SourceRndMeshCountPlan source_rndmesh_set_num_verts_plan(
 SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
     int32_t count,
     bool keep_mesh_data);
+SourceRndMeshFaceLoadPlan source_rndmesh_face_load_plan(
+    int32_t mesh_revision);
+SourceRndMeshFaceCenterResult source_rndmesh_face_center(
+    const std::vector<std::array<float, 3>>& vertices,
+    const SourceRndMeshFace& face);
 SourceRndMeshVertVectorResizePlan source_rndmesh_vert_vector_resize_plan(
     int32_t current_capacity,
     int32_t current_count,

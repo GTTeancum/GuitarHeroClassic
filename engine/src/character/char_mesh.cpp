@@ -1223,6 +1223,34 @@ SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
   return plan;
 }
 
+SourceRndMeshFaceLoadPlan source_rndmesh_face_load_plan(
+    int32_t mesh_revision) {
+  SourceRndMeshFaceLoadPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.reads_legacy_vector = mesh_revision < 1;
+  return plan;
+}
+
+SourceRndMeshFaceCenterResult source_rndmesh_face_center(
+    const std::vector<std::array<float, 3>>& vertices,
+    const SourceRndMeshFace& face) {
+  SourceRndMeshFaceCenterResult result;
+  const std::array<int32_t, 3> indices = {face.idx0, face.idx1, face.idx2};
+  for (int32_t index : indices) {
+    if (index < 0 || static_cast<size_t>(index) >= vertices.size()) {
+      result.invalid_index = true;
+      return result;
+    }
+    result.center[0] += vertices[static_cast<size_t>(index)][0];
+    result.center[1] += vertices[static_cast<size_t>(index)][1];
+    result.center[2] += vertices[static_cast<size_t>(index)][2];
+  }
+  result.center[0] *= 0.33333333f;
+  result.center[1] *= 0.33333333f;
+  result.center[2] *= 0.33333333f;
+  return result;
+}
+
 SourceRndMeshVertVectorResizePlan source_rndmesh_vert_vector_resize_plan(
     int32_t current_capacity,
     int32_t current_count,
