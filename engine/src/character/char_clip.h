@@ -744,6 +744,14 @@ struct ClipChannel {
 struct CharClip {
   std::string name;
   std::vector<std::vector<ClipChannel>> frames;  // frames[f][ch]
+  struct RawChannelCounts {
+    int pos = 0;
+    int scale = 0;
+    int quat = 0;
+    int rotx = 0;
+    int roty = 0;
+    int rotz = 0;
+  };
   struct OutputBone {
     std::string name;    // CharBone entry name, normally bone_*.trans
     std::string parent;  // CharBone parent, normally another *.trans
@@ -776,6 +784,10 @@ struct CharClip {
   // The public ihatecompvir snapshot used by this worktree does not include
   // the runtime pose publisher, so broad output publishing remains diagnostic.
   std::vector<OutputBone> output_bones;
+  // Raw header channel counts are diagnostic evidence for the source-backed
+  // decode boundary. `.scale`, `.rotx`, and `.roty` are consumed but not
+  // published until the missing EvaluateChannel/pose body is sourced.
+  RawChannelCounts raw_channel_counts;
   int fps = 30;        // authored clip playback rate
   float start_frame = 0.0f;
   float end_frame = 0.0f;

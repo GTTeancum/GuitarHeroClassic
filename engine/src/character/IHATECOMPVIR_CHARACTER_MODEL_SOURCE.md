@@ -292,6 +292,10 @@ into final transform rows.
      and the complete pose application path. `rb3-latest` declares those
      functions, while the RB2 dump maps names/ranges and locals but does not
      expose a statement-level body.
+   - `ghogx_character_clip_audit` now reports raw `.pos`, `.scale`, `.quat`,
+     `.rotx`, `.roty`, and `.rotz` header counts plus `fencedRaw`, so stock
+     clips can prove which rows are consumed-only under the current source
+     boundary.
    - Port the missing source-backed bodies for `CharBones::ScaleAdd`,
      `RotateBy`, `RotateTo`, `Blend`, and any required identity/mesh
      application helpers.

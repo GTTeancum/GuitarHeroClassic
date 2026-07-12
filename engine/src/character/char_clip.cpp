@@ -2163,9 +2163,22 @@ void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
              3.14159265358979323846f;
 }
 
+void add_raw_channel_count(CharClip::RawChannelCounts& counts, int type) {
+  switch (type) {
+    case kSourceCharBonesTypePos: ++counts.pos; break;
+    case kSourceCharBonesTypeScale: ++counts.scale; break;
+    case kSourceCharBonesTypeQuat: ++counts.quat; break;
+    case kSourceCharBonesTypeRotX: ++counts.rotx; break;
+    case kSourceCharBonesTypeRotY: ++counts.roty; break;
+    case kSourceCharBonesTypeRotZ: ++counts.rotz; break;
+    default: break;
+  }
+}
+
 // Parse the whole clip entry into frames.
-std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
-                                                int& num_samples_out) {
+std::vector<std::vector<ClipChannel>> parse_all(
+    const uint8_t* d, size_t n, int& num_samples_out,
+    CharClip::RawChannelCounts* raw_channel_counts) {
   num_samples_out = 0;
   if (n < 4) return {};
   uint32_t samples_version = 0;
@@ -2216,6 +2229,15 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
     }
   }
   if (lists.empty() || p == SIZE_MAX) return {};
+
+  if (raw_channel_counts) {
+    *raw_channel_counts = CharClip::RawChannelCounts{};
+    for (const BoneList& bl : lists) {
+      for (int cat : bl.cats) {
+        add_raw_channel_count(*raw_channel_counts, cat);
+      }
+    }
+  }
 
   if (debug_clip_parse_enabled()) {
     for (size_t i = 0; i < lists.size(); ++i) {
@@ -2997,7 +3019,7 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
       const uint8_t* body = payload.data() + de.offset;
       size_t sz = (size_t)de.size;
       int ns = 0;
-      result.frames = parse_all(body, sz, ns);
+      result.frames = parse_all(body, sz, ns, &result.raw_channel_counts);
       result.fps = 30;  // CharClipSamples are authored at 30 fps; refine if needed.
       result.start_frame = 0.0f;
       result.end_frame = result.frames.empty()

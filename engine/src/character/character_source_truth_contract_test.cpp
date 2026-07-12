@@ -826,6 +826,11 @@ int run_contract() {
                  "re-notes GH2 notes show rotz rows in stock examples");
   ok &= contains(char_clip_h, "SourceReNotesCharBonesSamplesDecodePlan",
                  "native exposes re-notes decode boundary plan");
+  ok &= contains(char_clip_h, "structRawChannelCounts{intpos=0;intscale=0;",
+                 "native CharClip stores raw channel counts");
+  ok &= contains(char_clip,
+                 "add_raw_channel_count(*raw_channel_counts,cat);",
+                 "native parser records raw header channel counts");
   ok &= contains(char_clip,
                  "plan.active_sample_order={\".pos\",\".quat\",\".rotz\"};",
                  "native records re-notes active sample order");
@@ -1004,6 +1009,10 @@ int run_contract() {
                  "treats `.rotx` / `.roty` as requiring the still-missing\n"
                  "     `EvaluateChannel` / pose body",
                  "remaining import checklist fences rotx roty publish");
+  ok &= contains(doc,
+                 "`ghogx_character_clip_audit` now reports raw `.pos`, "
+                 "`.scale`, `.quat`,",
+                 "remaining import checklist records raw channel audit output");
   ok &= contains(doc,
                  "The remaining missing\n     source-backed bodies are "
                  "`CharBonesSamples::EvaluateChannel`,",
@@ -15622,8 +15631,14 @@ int run_contract() {
                  "\"[clip-audit-milo]milo=%sresolved=%sdir=%sclips=%d\"",
                  "clip audit emits MILO-level clip counts");
   ok &= contains(char_clip_audit,
-                 "\"accepted=%dframes=%zuchannels0=%zuoutputBones=%zu\\n\"",
+                 "\"accepted=%dframes=%zuchannels0=%zuoutputBones=%zu\"",
                  "clip audit emits accepted frame/channel/output-bone evidence");
+  ok &= contains(char_clip_audit,
+                 "\"rawPos=%drawScale=%drawQuat=%drawRotX=%drawRotY=%d\"",
+                 "clip audit emits raw channel type evidence");
+  ok &= contains(char_clip_audit,
+                 "\"rawRotZ=%dfencedRaw=%d\\n\"",
+                 "clip audit emits fenced raw channel evidence");
   ok &= missing(char_clip, "out.compression>3",
                 "native clip decoder no longer caps source compression at mode 3");
   ok &= contains(rb3_latest_char_bone_cpp,
