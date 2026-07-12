@@ -2020,6 +2020,26 @@ struct SourceWaypointState {
   std::vector<std::string> connections;
 };
 
+struct SourceWaypointRegistryState {
+  bool allocated = false;
+  std::vector<std::string> registered_functions;
+  bool exit_callback_registered = false;
+  std::vector<SourceWaypointState> waypoints;
+};
+
+struct SourceWaypointConstructorStep {
+  SourceWaypointState waypoint;
+  bool registry_push = false;
+  bool random_branch_is_noop = true;
+  size_t registry_size = 0;
+};
+
+struct SourceWaypointFindResult {
+  int index = -1;
+  bool found = false;
+  int mask = 0;
+};
+
 struct SourceWaypointLoadPlan {
   bool known_revision = false;
   std::vector<std::string> read_order;
@@ -3260,6 +3280,13 @@ SourceCharPollGroupHandlerPlan source_char_poll_group_handler_plan();
 SourceCharPollGroupPropSyncPlan source_char_poll_group_prop_sync_plan();
 SourceCharPollGroupSortPlan source_char_poll_group_sort_plan();
 SourceWaypointState source_waypoint_default_state();
+SourceWaypointRegistryState source_waypoint_init_registry();
+void source_waypoint_terminate_registry(SourceWaypointRegistryState& registry);
+SourceWaypointConstructorStep source_waypoint_construct(
+    SourceWaypointRegistryState& registry);
+SourceWaypointFindResult source_waypoint_find_by_flags(
+    const SourceWaypointRegistryState& registry,
+    int flags_mask);
 bool source_waypoint_load_revision_known(int revision);
 SourceWaypointLoadPlan source_waypoint_load_plan(int revision);
 SourceWaypointCopyPlan source_waypoint_copy_plan();

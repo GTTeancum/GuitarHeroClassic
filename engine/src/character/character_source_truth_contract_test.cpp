@@ -14841,6 +14841,21 @@ int run_contract() {
                  "floatstrict_ang_delta=0.0f;floatstrict_radius_delta=0.0f;",
                  "native stores Waypoint strict deltas");
   ok &= contains(char_mesh_h,
+                 "structSourceWaypointRegistryState{boolallocated=false;"
+                 "std::vector<std::string>registered_functions;"
+                 "boolexit_callback_registered=false;"
+                 "std::vector<SourceWaypointState>waypoints;};",
+                 "native exposes Waypoint registry source state");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointConstructorStep{"
+                 "SourceWaypointStatewaypoint;boolregistry_push=false;"
+                 "boolrandom_branch_is_noop=true;size_tregistry_size=0;};",
+                 "native exposes Waypoint constructor registry step");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointFindResult{intindex=-1;boolfound=false;"
+                 "intmask=0;};",
+                 "native exposes Waypoint find result");
+  ok &= contains(char_mesh_h,
                  "structSourceWaypointLoadPlan{boolknown_revision=false;"
                  "std::vector<std::string>read_order;"
                  "std::vector<std::string>revision_branches;};",
@@ -14862,6 +14877,12 @@ int run_contract() {
                  "SourceWaypointLoadPlansource_waypoint_load_plan(intrevision);",
                  "native exposes Waypoint load helper");
   ok &= contains(char_mesh_h,
+                 "SourceWaypointRegistryStatesource_waypoint_init_registry();",
+                 "native exposes Waypoint registry init helper");
+  ok &= contains(char_mesh_h,
+                 "SourceWaypointFindResultsource_waypoint_find_by_flags(",
+                 "native exposes Waypoint find helper");
+  ok &= contains(char_mesh_h,
                  "SourceWaypointHandlerPlansource_waypoint_handler_plan();",
                  "native exposes Waypoint handler helper");
   ok &= contains(char_mesh_h,
@@ -14871,6 +14892,18 @@ int run_contract() {
                  "boolsource_waypoint_load_revision_known(intrevision){"
                  "returnrevision>=0&&revision<=5;}",
                  "native Waypoint helper mirrors source revision gate");
+  ok &= contains(char_mesh,
+                 "registry.registered_functions={\"waypoint_find\","
+                 "\"waypoint_nearest\",\"waypoint_last\"};",
+                 "native Waypoint registry mirrors source registered funcs");
+  ok &= contains(char_mesh,
+                 "registry.waypoints.push_back(step.waypoint);"
+                 "step.registry_push=true;",
+                 "native Waypoint constructor mirrors registry push");
+  ok &= contains(char_mesh,
+                 "if((registry.waypoints[i].flags&flags_mask)!=0){"
+                 "result.index=static_cast<int>(i);result.found=true;",
+                 "native Waypoint find mirrors first flag match");
   ok &= contains(char_mesh,
                  "SourceWaypointLoadPlansource_waypoint_load_plan(intrevision){"
                  "SourceWaypointLoadPlanplan;plan.known_revision="
@@ -14939,6 +14972,12 @@ int run_contract() {
                  "source_waypoint_load_plan(",
                  "focused Waypoint test covers load plan");
   ok &= contains(waypoint_source_test,
+                 "source_waypoint_init_registry(",
+                 "focused Waypoint test covers registry init");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_find_by_flags(",
+                 "focused Waypoint test covers source Find flags");
+  ok &= contains(waypoint_source_test,
                  "source_waypoint_handler_plan()",
                  "focused Waypoint test covers handler plan");
   ok &= contains(waypoint_source_test,
@@ -14950,6 +14989,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native helpers are source-only deterministic diagnostics",
                  "document fences Waypoint helper from live path behavior");
+  ok &= contains(doc,
+                 "`Waypoint::Find(flags)` returns the first registered",
+                 "document records source Waypoint find behavior");
   ok &= contains(rb3_latest_char_bone_offset_h,
                  "ObjPtr<RndTransformable,ObjectDir>mDest;",
                  "latest CharBoneOffset header exposes destination pointer");

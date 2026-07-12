@@ -2473,6 +2473,16 @@ note, and all report `unreadBytes=0`.
   - `Waypoint` constructor defaults are `mFlags=0`, `mRadius=12`,
     `mYRadius=0`, `mAngRadius=0`, `mStrictAngDelta=0`,
     `mStrictRadiusDelta=0`, and an owned `mConnections` vector.
+  - `Waypoint::Init` registers `waypoint_find`, `waypoint_nearest`, and
+    `waypoint_last`, allocates the static waypoint list, and registers
+    `Terminate` as an exit callback. `Waypoint::Terminate` deletes the static
+    list and nulls it. `Waypoint` construction pushes the new waypoint into
+    that list; the visible random branch pushes either way, so native records
+    it as a no-op branch. `Waypoint::Find(flags)` returns the first registered
+    waypoint whose `mFlags` shares any requested bit, otherwise null. Native
+    `source_waypoint_init_registry`, `source_waypoint_construct`,
+    `source_waypoint_find_by_flags`, and `source_waypoint_terminate_registry`
+    port that registry lifecycle as deterministic source data.
   - `Waypoint::Load` accepts source revisions through 5. Native
     `source_waypoint_load_plan` records the same row order: `Hmx::Object`, a
     legacy drawable for revisions below 5, `RndTransformable`, `mFlags`,

@@ -5748,6 +5748,50 @@ SourceWaypointState source_waypoint_default_state() {
   return SourceWaypointState{};
 }
 
+SourceWaypointRegistryState source_waypoint_init_registry() {
+  SourceWaypointRegistryState registry;
+  registry.allocated = true;
+  registry.registered_functions = {"waypoint_find", "waypoint_nearest",
+                                   "waypoint_last"};
+  registry.exit_callback_registered = true;
+  return registry;
+}
+
+void source_waypoint_terminate_registry(SourceWaypointRegistryState& registry) {
+  registry.allocated = false;
+  registry.registered_functions.clear();
+  registry.exit_callback_registered = false;
+  registry.waypoints.clear();
+}
+
+SourceWaypointConstructorStep source_waypoint_construct(
+    SourceWaypointRegistryState& registry) {
+  SourceWaypointConstructorStep step;
+  step.waypoint = source_waypoint_default_state();
+  if (registry.allocated) {
+    registry.waypoints.push_back(step.waypoint);
+    step.registry_push = true;
+    step.registry_size = registry.waypoints.size();
+  }
+  return step;
+}
+
+SourceWaypointFindResult source_waypoint_find_by_flags(
+    const SourceWaypointRegistryState& registry,
+    int flags_mask) {
+  SourceWaypointFindResult result;
+  result.mask = flags_mask;
+  if (!registry.allocated) return result;
+  for (size_t i = 0; i < registry.waypoints.size(); ++i) {
+    if ((registry.waypoints[i].flags & flags_mask) != 0) {
+      result.index = static_cast<int>(i);
+      result.found = true;
+      return result;
+    }
+  }
+  return result;
+}
+
 bool source_waypoint_load_revision_known(int revision) {
   return revision >= 0 && revision <= 5;
 }

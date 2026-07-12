@@ -69,14 +69,18 @@ bool vec_near(const std::array<float, 3>& got,
 int main() {
   using ghogx::character::SourceWaypointState;
   using ghogx::character::source_waypoint_constrain;
+  using ghogx::character::source_waypoint_construct;
   using ghogx::character::source_waypoint_copy_plan;
   using ghogx::character::source_waypoint_default_state;
+  using ghogx::character::source_waypoint_find_by_flags;
   using ghogx::character::source_waypoint_handler_plan;
+  using ghogx::character::source_waypoint_init_registry;
   using ghogx::character::source_waypoint_load_plan;
   using ghogx::character::source_waypoint_load_revision_known;
   using ghogx::character::source_waypoint_prop_sync_plan;
   using ghogx::character::source_waypoint_shape_delta_ang;
   using ghogx::character::source_waypoint_shape_delta_box;
+  using ghogx::character::source_waypoint_terminate_registry;
 
   constexpr float kPi = 3.14159265358979323846f;
   bool ok = true;
@@ -85,6 +89,46 @@ int main() {
   ok &= near(defaults.radius, 12.0f, "Waypoint default radius");
   ok &= near(defaults.y_radius, 0.0f, "Waypoint default y radius");
   ok &= near(defaults.ang_radius, 0.0f, "Waypoint default angle radius");
+
+  auto registry = source_waypoint_init_registry();
+  ok &= expect_bool(registry.allocated, true, "Waypoint registry allocated");
+  ok &= expect_size(registry.registered_functions.size(), 3,
+                    "Waypoint registered function count");
+  ok &= expect_string(registry.registered_functions[0], "waypoint_find",
+                      "Waypoint registers find function");
+  ok &= expect_string(registry.registered_functions[2], "waypoint_last",
+                      "Waypoint registers last function");
+  ok &= expect_bool(registry.exit_callback_registered, true,
+                    "Waypoint registers terminate callback");
+  const auto constructed = source_waypoint_construct(registry);
+  ok &= expect_bool(constructed.registry_push, true,
+                    "Waypoint constructor pushes into registry");
+  ok &= expect_bool(constructed.random_branch_is_noop, true,
+                    "Waypoint constructor random branch is source no-op");
+  ok &= expect_size(constructed.registry_size, 1,
+                    "Waypoint constructor registry size");
+  ok &= near(constructed.waypoint.radius, 12.0f,
+             "Waypoint constructor default radius");
+  registry.waypoints.push_back(defaults);
+  registry.waypoints.push_back(defaults);
+  registry.waypoints[0].flags = 0x02;
+  registry.waypoints[1].flags = 0x04;
+  registry.waypoints[2].flags = 0x08;
+  auto found = source_waypoint_find_by_flags(registry, 0x0C);
+  ok &= expect_bool(found.found, true, "Waypoint find flags found");
+  ok &= near(static_cast<float>(found.index), 1.0f,
+             "Waypoint find flags first match");
+  ok &= near(static_cast<float>(found.mask), 12.0f,
+             "Waypoint find records mask");
+  found = source_waypoint_find_by_flags(registry, 0x10);
+  ok &= expect_bool(found.found, false, "Waypoint find flags missing");
+  ok &= near(static_cast<float>(found.index), -1.0f,
+             "Waypoint find missing index");
+  source_waypoint_terminate_registry(registry);
+  ok &= expect_bool(registry.allocated, false,
+                    "Waypoint terminate clears allocation");
+  ok &= expect_size(registry.waypoints.size(), 0,
+                    "Waypoint terminate clears waypoints");
 
   ok &= expect_bool(source_waypoint_load_revision_known(-1), false,
                     "Waypoint revision -1 rejected");
