@@ -849,6 +849,296 @@ float vec_len3(float x, float y, float z) {
   return std::sqrt(x * x + y * y + z * z);
 }
 
+struct DebugVenuePick {
+  bool hit = false;
+  std::string mesh;
+  std::string material;
+  float distance = 0.0f;
+  float point[3] = {0.0f, 0.0f, 0.0f};
+  bool backfacing = false;
+};
+
+struct DebugVenuePickAccumulator {
+  bool enabled = false;
+  float eye[3] = {0.0f, 0.0f, 0.0f};
+  float dir[3] = {0.0f, 1.0f, 0.0f};
+  DebugVenuePick best;
+};
+
+struct DebugVenueInspectorState {
+  bool initialized = false;
+  bool announced = false;
+  float dt = 1.0f / 60.0f;
+  OrbitCamera camera;
+  std::string highlight_mesh;
+  std::string last_title;
+  DebugVenuePick pick;
+};
+
+std::unordered_map<const MiloSceneRenderer*, DebugVenueInspectorState>&
+debug_venue_inspector_states() {
+  static std::unordered_map<const MiloSceneRenderer*, DebugVenueInspectorState>
+      states;
+  return states;
+}
+
+bool debug_venue_inspector_enabled() {
+  return env_enabled("GHOGX_VENUE_FREECAM") ||
+         env_enabled("GHOGX_DEBUG_VENUE_FREECAM");
+}
+
+bool scene_has_debug_venue_markers(const milo_scene::Scene& scene) {
+  for (const auto& mesh : scene.meshes) {
+    if (mesh.name == "main_hall.mesh" ||
+        mesh.name == "stage_floorm.mesh" ||
+        mesh.name == "bottomfloorrug.mesh" ||
+        mesh.name.find("audience") != std::string::npos) {
+      return true;
+    }
+  }
+  return scene.meshes.size() >= 120 && scene.groups.size() >= 20;
+}
+
+void direction_from_orbit_angles(const OrbitCamera& cam, float out[3]) {
+  const float cp = std::cos(cam.pitch);
+  out[0] = -std::sin(cam.yaw) * cp;
+  out[1] = std::cos(cam.yaw) * cp;
+  out[2] = -std::sin(cam.pitch);
+  normalize3(out);
+}
+
+void freecam_seed_from_current_camera(OrbitCamera& cam) {
+  float eye[3] = {0.0f, 0.0f, 0.0f};
+  cam.eye(eye);
+  float at[3] = {cam.target[0], cam.target[1], cam.target[2]};
+  if (cam.result_frame.valid) {
+    for (int k = 0; k < 3; ++k) {
+      at[k] = cam.result_frame.position[k] + cam.result_frame.forward[k] * 100.0f;
+    }
+  } else if (cam.authored) {
+    for (int k = 0; k < 3; ++k) at[k] = cam.authored_at[k];
+  }
+  float forward[3] = {at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]};
+  normalize3(forward);
+  const float xy = std::sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
+  if (xy > 0.000001f) {
+    cam.yaw = std::atan2(-forward[0], forward[1]);
+    cam.pitch = std::asin(std::clamp(-forward[2], -0.99f, 0.99f));
+  }
+  cam.authored = false;
+  cam.result_frame = {};
+  cam.distance = env_float_or("GHOGX_VENUE_FREECAM_LOOK_DIST", 45.0f, 1.0f,
+                              500.0f);
+  cam.near_z = std::min(cam.near_z, 1.0f);
+  cam.far_z = std::max(cam.far_z, 15000.0f);
+  direction_from_orbit_angles(cam, forward);
+  for (int k = 0; k < 3; ++k) cam.target[k] = eye[k] + forward[k] * cam.distance;
+}
+
+void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
+                               DebugVenueInspectorState& state) {
+  if (!win) return;
+  if (!state.initialized || win->key_down('C')) {
+    state.camera = cam;
+    freecam_seed_from_current_camera(state.camera);
+    state.initialized = true;
+    if (!state.announced) {
+      std::fprintf(stderr,
+                   "[venue-freecam] enabled: WASD move, R/F up/down, "
+                   "arrows look, Shift fast, Ctrl slow, C reseed\n");
+      state.announced = true;
+    }
+  }
+
+  OrbitCamera& freecam = state.camera;
+  float eye[3] = {0.0f, 0.0f, 0.0f};
+  freecam.eye(eye);
+  const float dt = std::clamp(state.dt, 0.001f, 0.1f);
+  const float turn_speed =
+      env_float_or("GHOGX_VENUE_FREECAM_TURN_SPEED", 1.35f, 0.05f, 8.0f);
+  const float move_speed =
+      env_float_or("GHOGX_VENUE_FREECAM_SPEED", 210.0f, 1.0f, 3000.0f);
+  const float turn = turn_speed * dt;
+  if (win->key_down(VK_LEFT)) freecam.yaw += turn;
+  if (win->key_down(VK_RIGHT)) freecam.yaw -= turn;
+  if (win->key_down(VK_UP)) freecam.pitch += turn;
+  if (win->key_down(VK_DOWN)) freecam.pitch -= turn;
+  freecam.pitch = std::clamp(freecam.pitch, -1.45f, 1.45f);
+
+  float forward[3] = {0.0f, 1.0f, 0.0f};
+  direction_from_orbit_angles(freecam, forward);
+  for (int k = 0; k < 3; ++k) {
+    freecam.target[k] = eye[k] + forward[k] * freecam.distance;
+  }
+
+  float right[3] = {forward[1], -forward[0], 0.0f};
+  normalize3(right);
+  const float fast = win->key_down(VK_SHIFT) ? 4.0f : 1.0f;
+  const float slow = win->key_down(VK_CONTROL) ? 0.25f : 1.0f;
+  const float step = move_speed * fast * slow * dt;
+  float delta[3] = {0.0f, 0.0f, 0.0f};
+  auto add_scaled = [&](const float axis[3], float scale) {
+    for (int k = 0; k < 3; ++k) delta[k] += axis[k] * scale;
+  };
+  if (win->key_down('W')) add_scaled(forward, step);
+  if (win->key_down('S')) add_scaled(forward, -step);
+  if (win->key_down('D')) add_scaled(right, step);
+  if (win->key_down('A')) add_scaled(right, -step);
+  if (win->key_down('R')) delta[2] += step;
+  if (win->key_down('F')) delta[2] -= step;
+  for (int k = 0; k < 3; ++k) freecam.target[k] += delta[k];
+  cam = freecam;
+}
+
+void transform_debug_point(const std::array<float, 16>& world,
+                           const milo_scene::Vertex& v, float out[3]) {
+  out[0] = v.px * world[0] + v.py * world[4] + v.pz * world[8] + world[12];
+  out[1] = v.px * world[1] + v.py * world[5] + v.pz * world[9] + world[13];
+  out[2] = v.px * world[2] + v.py * world[6] + v.pz * world[10] + world[14];
+}
+
+bool intersect_debug_triangle(const float eye[3], const float dir[3],
+                              const float a[3], const float b[3],
+                              const float c[3], float& out_t,
+                              bool& out_backfacing) {
+  const float e1[3] = {b[0] - a[0], b[1] - a[1], b[2] - a[2]};
+  const float e2[3] = {c[0] - a[0], c[1] - a[1], c[2] - a[2]};
+  const float h[3] = {
+      dir[1] * e2[2] - dir[2] * e2[1],
+      dir[2] * e2[0] - dir[0] * e2[2],
+      dir[0] * e2[1] - dir[1] * e2[0],
+  };
+  const float det = e1[0] * h[0] + e1[1] * h[1] + e1[2] * h[2];
+  if (std::fabs(det) <= 0.000001f) return false;
+  const float inv_det = 1.0f / det;
+  const float s[3] = {eye[0] - a[0], eye[1] - a[1], eye[2] - a[2]};
+  const float u = (s[0] * h[0] + s[1] * h[1] + s[2] * h[2]) * inv_det;
+  if (u < 0.0f || u > 1.0f) return false;
+  const float q[3] = {
+      s[1] * e1[2] - s[2] * e1[1],
+      s[2] * e1[0] - s[0] * e1[2],
+      s[0] * e1[1] - s[1] * e1[0],
+  };
+  const float v = (dir[0] * q[0] + dir[1] * q[1] + dir[2] * q[2]) * inv_det;
+  if (v < 0.0f || u + v > 1.0f) return false;
+  const float t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) * inv_det;
+  if (t <= 0.01f) return false;
+  const float normal[3] = {
+      e1[1] * e2[2] - e1[2] * e2[1],
+      e1[2] * e2[0] - e1[0] * e2[2],
+      e1[0] * e2[1] - e1[1] * e2[0],
+  };
+  out_t = t;
+  out_backfacing =
+      (normal[0] * dir[0] + normal[1] * dir[1] + normal[2] * dir[2]) > 0.0f;
+  return true;
+}
+
+void accumulate_debug_venue_pick(DebugVenuePickAccumulator& pick,
+                                 const milo_scene::MeshObj& mesh,
+                                 const std::array<float, 16>& world) {
+  if (!pick.enabled || !mesh.decoded || mesh.verts.empty() ||
+      mesh.indices.size() < 3) {
+    return;
+  }
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint16_t ia = mesh.indices[i + 0];
+    const uint16_t ib = mesh.indices[i + 1];
+    const uint16_t ic = mesh.indices[i + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    float a[3], b[3], c[3];
+    transform_debug_point(world, mesh.verts[ia], a);
+    transform_debug_point(world, mesh.verts[ib], b);
+    transform_debug_point(world, mesh.verts[ic], c);
+    float t = 0.0f;
+    bool backfacing = false;
+    if (!intersect_debug_triangle(pick.eye, pick.dir, a, b, c, t,
+                                  backfacing)) {
+      continue;
+    }
+    if (pick.best.hit && t >= pick.best.distance) continue;
+    pick.best.hit = true;
+    pick.best.mesh = mesh.name;
+    pick.best.material = mesh.material;
+    pick.best.distance = t;
+    pick.best.backfacing = backfacing;
+    for (int k = 0; k < 3; ++k) pick.best.point[k] = pick.eye[k] + pick.dir[k] * t;
+  }
+}
+
+void update_debug_venue_title(Window* win, DebugVenueInspectorState& state) {
+  if (!win) return;
+  char title[384];
+  char key[384];
+  if (state.pick.hit) {
+    std::snprintf(title, sizeof(title),
+                  "GuitarHeroOGX venue freecam - %s | %s | dist %.1f | backface %s",
+                  state.pick.mesh.c_str(), state.pick.material.c_str(),
+                  state.pick.distance, state.pick.backfacing ? "yes" : "no");
+    std::snprintf(key, sizeof(key), "%s|%s|%d", state.pick.mesh.c_str(),
+                  state.pick.material.c_str(), state.pick.backfacing ? 1 : 0);
+  } else {
+    std::snprintf(title, sizeof(title),
+                  "GuitarHeroOGX venue freecam - no mesh under crosshair");
+    std::snprintf(key, sizeof(key), "none");
+  }
+  if (state.last_title == key) return;
+  state.last_title = key;
+  win->set_title(title);
+  if (state.pick.hit) {
+    std::fprintf(stderr,
+                 "[venue-freecam] pick mesh=%s material=%s dist=%.2f "
+                 "point=(%.2f %.2f %.2f) backface=%d\n",
+                 state.pick.mesh.c_str(), state.pick.material.c_str(),
+                 state.pick.distance, state.pick.point[0], state.pick.point[1],
+                 state.pick.point[2], state.pick.backfacing ? 1 : 0);
+  } else {
+    std::fprintf(stderr, "[venue-freecam] pick none\n");
+  }
+}
+
+struct DebugLineVertex {
+  float x, y, z, rhw;
+  D3DCOLOR color;
+};
+
+void draw_debug_crosshair(IDirect3DDevice9* dev, int width, int height,
+                          bool hit) {
+  if (!dev || width <= 0 || height <= 0) return;
+  const float cx = static_cast<float>(width) * 0.5f;
+  const float cy = static_cast<float>(height) * 0.5f;
+  const float gap = 5.0f;
+  const float arm = 18.0f;
+  const D3DCOLOR color = hit ? D3DCOLOR_ARGB(235, 255, 232, 64)
+                             : D3DCOLOR_ARGB(235, 255, 80, 80);
+  DebugLineVertex verts[] = {
+      {cx - arm, cy, 0.0f, 1.0f, color},
+      {cx - gap, cy, 0.0f, 1.0f, color},
+      {cx + gap, cy, 0.0f, 1.0f, color},
+      {cx + arm, cy, 0.0f, 1.0f, color},
+      {cx, cy - arm, 0.0f, 1.0f, color},
+      {cx, cy - gap, 0.0f, 1.0f, color},
+      {cx, cy + gap, 0.0f, 1.0f, color},
+      {cx, cy + arm, 0.0f, 1.0f, color},
+  };
+  dev->SetTexture(0, nullptr);
+  dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+  dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+  dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+  dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+  dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+  dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+  dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+  dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+  dev->DrawPrimitiveUP(D3DPT_LINELIST, 4, verts, sizeof(DebugLineVertex));
+}
+
 }  // namespace
 
 MiloSceneRenderer::MaterialUvSamplerDecision choose_material_uv_sampler(
@@ -897,6 +1187,7 @@ MiloSceneRenderer::MiloSceneRenderer(Window& win) : win_(&win) {
 }
 
 MiloSceneRenderer::~MiloSceneRenderer() {
+  debug_venue_inspector_states().erase(this);
   for (auto& kv : tex_)
     if (kv.second) kv.second->Release();
   for (auto* t : text_tex_)
@@ -1160,6 +1451,9 @@ void MiloSceneRenderer::trigger_mesh_transform_anim(
 
 void MiloSceneRenderer::update(float dt_seconds) {
   if (dt_seconds <= 0.0f) return;
+  if (debug_venue_inspector_enabled() && scene_has_debug_venue_markers(scene_)) {
+    debug_venue_inspector_states()[this].dt = dt_seconds;
+  }
   particle_time_ += dt_seconds;
   if (!mesh_pulses_.empty()) {
     for (auto it = mesh_pulses_.begin(); it != mesh_pulses_.end();) {
@@ -1449,6 +1743,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   const float aspect =
       env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
 
+  DebugVenueInspectorState* debug_venue = nullptr;
+  if (draw_scene && debug_venue_inspector_enabled() &&
+      scene_has_debug_venue_markers(scene_)) {
+    debug_venue = &debug_venue_inspector_states()[this];
+    apply_debug_venue_freecam(win_, cam_, *debug_venue);
+  }
+
   float eye[3];
   cam_.eye(eye);
   float result_at[3] = {};
@@ -1605,6 +1906,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
 
   D3DMATRIX wm;
   std::vector<SVtx> vb;
+  const std::string debug_highlight_mesh =
+      debug_venue ? debug_venue->highlight_mesh : std::string{};
   const bool apply_environment_lighting =
       environment_lighting_enabled_ &&
       !env_enabled("GHOGX_DISABLE_ENVIRON_LIGHTING");
@@ -1769,6 +2072,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (is_authored_invisible_material(material)) return;
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
+    const bool debug_highlighted_mesh =
+        !debug_highlight_mesh.empty() && m.name == debug_highlight_mesh;
     const milo_scene::MatObj* mat_obj = scene_.find_mat(material);
     std::string diffuse_tex;
     if (mat_obj) {
@@ -1910,9 +2215,21 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       ma = 1.0f;
       material_blend = kBlendSrc;
     }
+    if (debug_highlighted_mesh) {
+      texture = nullptr;
+      mr = 1.0f;
+      mg = 0.08f;
+      mb = 0.95f;
+      ma = std::max(ma, 0.82f);
+      material_blend = kBlendSrcAlpha;
+      material_z_mode = kZModeForce;
+    }
     const BlendState blend_state = blend_state_for(material_blend);
     const DWORD mesh_cull_mode =
-        (mat_obj && !mat_obj->cull) ? D3DCULL_NONE : authored_cull_mode;
+        debug_highlighted_mesh
+            ? D3DCULL_NONE
+            : ((mat_obj && !mat_obj->cull) ? D3DCULL_NONE
+                                           : authored_cull_mode);
     dev_->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
     if (material_blend == kBlendAdd && ma < 0.999f) {
       // ONE/ONE additive blending ignores vertex alpha, so treat Mat alpha as
@@ -2376,6 +2693,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         !env_enabled("GHOGX_DISABLE_SPOTLIGHT_INSTANCES");
     const bool debug_camera_meshes =
         env_enabled("GHOGX_DEBUG_CAMERA_MESHES");
+    DebugVenuePickAccumulator venue_pick;
+    if (debug_venue) {
+      venue_pick.enabled = true;
+      for (int k = 0; k < 3; ++k) {
+        venue_pick.eye[k] = eye[k];
+        venue_pick.dir[k] = at[k] - eye[k];
+      }
+      normalize3(venue_pick.dir);
+    }
   struct CameraMeshHit {
     std::string name;
     std::string material;
@@ -2615,6 +2941,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             draw_world[10]);
       }
     }
+    if (venue_pick.enabled) {
+      accumulate_debug_venue_pick(venue_pick, m, draw_world);
+    }
     if (post_text_meshes_.find(m.name) != post_text_meshes_.end()) {
       if (const auto overlay_it = post_text_mesh_world_offsets_.find(m.name);
           overlay_it != post_text_mesh_world_offsets_.end()) {
@@ -2720,6 +3049,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     draw_mesh_with_world(m, draw_world);
+  }
+  if (debug_venue) {
+    debug_venue->pick = venue_pick.best;
+    debug_venue->highlight_mesh =
+        venue_pick.best.hit ? venue_pick.best.mesh : std::string{};
+    update_debug_venue_title(win_, *debug_venue);
   }
   disable_authored_fog();
   disable_authored_lights();
@@ -3053,6 +3388,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   // colour comes straight from the per-vertex tint modulated by the atlas alpha).
   if (draw_text && !text_.empty()) {
     draw_text_batches(text_split, text_.size());
+  }
+
+  if (debug_venue) {
+    draw_debug_crosshair(dev_, win_->bb_width(), win_->bb_height(),
+                         debug_venue->pick.hit);
   }
 
   dev_->EndScene();

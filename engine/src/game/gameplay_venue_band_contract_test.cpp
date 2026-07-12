@@ -4041,6 +4041,25 @@ int main() {
                  "apply_venue_event_visibility(\"start\",false);",
                  "venue reset restores authored start visibility from base state");
   ok &= contains(gameplay_c,
+                 "constautoshowing_meshes=mesh_names_in_group_set("
+                 "scene,std::move(showing_groups));",
+                 "source-hidden group filtering also collects showing draw paths");
+  ok &= contains(gameplay_c,
+                 "for(constauto&mesh:showing_meshes)hidden_meshes.erase(mesh);",
+                 "source-hidden groups do not globally hide meshes also drawn by showing groups");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_FREECAM",
+                 "venue inspector freecam is gated behind an explicit debug flag");
+  ok &= contains(renderer_c,
+                 "accumulate_debug_venue_pick(venue_pick,m,draw_world);",
+                 "venue inspector pick ray uses the rendered mesh draw world");
+  ok &= contains(renderer_c,
+                 "debug_highlighted_mesh?D3DCULL_NONE",
+                 "venue inspector highlight forces selected meshes two-sided");
+  ok &= contains(renderer_c,
+                 "venue-freecam]pickmesh=%smaterial=%sdist=%.2f",
+                 "venue inspector logs picked mesh/material/distance");
+  ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"
                  "world_->set_particle_intensities("

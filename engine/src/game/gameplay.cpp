@@ -2695,11 +2695,22 @@ std::unordered_set<std::string> mesh_names_in_groups(
 
 std::unordered_set<std::string> mesh_names_in_source_hidden_groups(
     const ghogx::milo_scene::Scene& scene) {
-    std::unordered_set<std::string> wanted_groups;
+    std::unordered_set<std::string> hidden_groups;
+    std::unordered_set<std::string> showing_groups;
     for (const auto& group : scene.groups) {
-        if (!group.showing) wanted_groups.insert(group.name);
+        if (group.showing) {
+            showing_groups.insert(group.name);
+        } else {
+            hidden_groups.insert(group.name);
+        }
     }
-    return mesh_names_in_group_set(scene, std::move(wanted_groups));
+    auto hidden_meshes =
+        mesh_names_in_group_set(scene, std::move(hidden_groups));
+    const auto showing_meshes =
+        mesh_names_in_group_set(scene, std::move(showing_groups));
+    // RndGroup showing hides that draw container, not every mesh identity.
+    for (const auto& mesh : showing_meshes) hidden_meshes.erase(mesh);
+    return hidden_meshes;
 }
 
 std::map<std::string, std::vector<std::string>> mesh_names_by_group(
