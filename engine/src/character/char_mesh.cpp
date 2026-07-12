@@ -648,65 +648,83 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input) {
   SourceGltfMiloMaterialPlan plan;
   plan.mat_entry_name = input.name + ".mat";
-  if (!input.has_base_color_texture) return plan;
 
-  plan.creates_diffuse_tex_entry = true;
-  plan.diffuse_tex = input.name + ".tex";
-  plan.diffuse_tex_entry_name = input.name + ".tex";
-  plan.texture_external_path = input.name + ".png";
-  plan.stencil_ignore = true;
-  plan.per_pixel_lit = true;
-  plan.pre_lit = !input.prelit_option_equals_false;
-  plan.point_lights = true;
-  plan.projected_lights = true;
-  plan.fog = false;
-  plan.cull = !input.double_sided;
+  if (input.has_base_color_texture) {
+    plan.creates_diffuse_tex_entry = true;
+    plan.diffuse_tex = input.name + ".tex";
+    plan.diffuse_tex_entry_name = input.name + ".tex";
+    plan.texture_external_path = input.name + ".png";
+    plan.stencil_ignore = true;
+    plan.per_pixel_lit = true;
+    plan.pre_lit = !input.prelit_option_equals_false;
+    plan.point_lights = true;
+    plan.projected_lights = true;
+    plan.fog = false;
+    plan.cull = !input.double_sided;
 
-  if (input.name.find("_skin") != std::string::npos) {
-    plan.shader_variation = 1;
-  } else if (input.name.find("_hair") != std::string::npos) {
-    plan.shader_variation = 2;
-  } else {
-    plan.shader_variation = 0;
-  }
+    if (input.name.find("_skin") != std::string::npos) {
+      plan.shader_variation = 1;
+    } else if (input.name.find("_hair") != std::string::npos) {
+      plan.shader_variation = 2;
+    } else {
+      plan.shader_variation = 0;
+    }
 
-  if (input.sampler_present) {
-    if (input.wrap_s == SourceGltfMiloTextureWrapMode::kClampToEdge ||
-        input.wrap_t == SourceGltfMiloTextureWrapMode::kClampToEdge) {
-      plan.tex_wrap = 0;
-    } else if (input.wrap_s ==
-                   SourceGltfMiloTextureWrapMode::kMirroredRepeat ||
-               input.wrap_t ==
-                   SourceGltfMiloTextureWrapMode::kMirroredRepeat) {
-      plan.tex_wrap = 4;
+    if (input.sampler_present) {
+      if (input.wrap_s == SourceGltfMiloTextureWrapMode::kClampToEdge ||
+          input.wrap_t == SourceGltfMiloTextureWrapMode::kClampToEdge) {
+        plan.tex_wrap = 0;
+      } else if (input.wrap_s ==
+                     SourceGltfMiloTextureWrapMode::kMirroredRepeat ||
+                 input.wrap_t ==
+                     SourceGltfMiloTextureWrapMode::kMirroredRepeat) {
+        plan.tex_wrap = 4;
+      } else {
+        plan.tex_wrap = 1;
+      }
     } else {
       plan.tex_wrap = 1;
     }
-  } else {
-    plan.tex_wrap = 1;
+
+    plan.z_mode = 1;
+    if (input.alpha_mode == SourceGltfMiloAlphaMode::kMask) {
+      plan.alpha_cut = true;
+      plan.alpha_threshold = static_cast<int>(input.alpha_cutoff * 255.0f);
+      plan.blend = 1;
+    } else if (input.image_has_alpha) {
+      plan.alpha_cut = false;
+      plan.alpha_write = true;
+      plan.blend = 3;
+    } else {
+      plan.alpha_cut = false;
+      plan.blend = 1;
+    }
+
+    plan.texture_compression = input.image_has_alpha ? 3 : 1;
+    plan.emissive_multiplier = 1.0f;
+    plan.normal_detail_tiling = 1.0f;
+    plan.rim_power = 4.0f;
+    plan.specular_power = 0.0f;
+    plan.specular2_power = 0.0f;
+    plan.obj_fields_revision2 = true;
   }
 
-  plan.z_mode = 1;
-  if (input.alpha_mode == SourceGltfMiloAlphaMode::kMask) {
-    plan.alpha_cut = true;
-    plan.alpha_threshold = static_cast<int>(input.alpha_cutoff * 255.0f);
-    plan.blend = 1;
-  } else if (input.image_has_alpha) {
-    plan.alpha_cut = false;
-    plan.alpha_write = true;
-    plan.blend = 3;
-  } else {
-    plan.alpha_cut = false;
-    plan.blend = 1;
+  if (input.extras.present) {
+    plan.extras_applied = true;
+    if (input.prelit_option_empty) plan.pre_lit = input.extras.prelit == 1;
+    plan.alpha_cut = input.extras.alpha_cut == 1;
+    plan.alpha_threshold = static_cast<int>(input.extras.alpha_threshold);
+    plan.alpha_write = input.extras.alpha_write == 1;
+    plan.z_mode = input.extras.z_mode;
+    plan.blend = input.extras.blend_mode;
+    plan.use_environment = input.extras.use_environment == 1;
+    plan.emissive_multiplier = input.extras.emissive_multiplier;
+    plan.cull = input.extras.cull == 1;
+    plan.point_lights = input.extras.point_lights == 1;
+    plan.normal_detail_map = input.extras.normal_detail_map;
+    plan.shader_variation = input.extras.shader_variation;
   }
 
-  plan.texture_compression = input.image_has_alpha ? 3 : 1;
-  plan.emissive_multiplier = 1.0f;
-  plan.normal_detail_tiling = 1.0f;
-  plan.rim_power = 4.0f;
-  plan.specular_power = 0.0f;
-  plan.specular2_power = 0.0f;
-  plan.obj_fields_revision2 = true;
   return plan;
 }
 

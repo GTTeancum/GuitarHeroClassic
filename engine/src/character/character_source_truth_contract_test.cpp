@@ -4517,6 +4517,9 @@ int run_contract() {
                  "false;",
                  "native declares glTFMilo AddVertex result row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMaterialExtras{boolpresent=false;",
+                 "native declares glTFMilo material extras row");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialInput{std::stringname;",
                  "native declares glTFMilo material input row");
   ok &= contains(char_mesh_h,
@@ -4810,6 +4813,20 @@ int run_contract() {
                  "plan.alpha_cut=true;",
                  "native preserves glTFMilo alpha-mask branch");
   ok &= contains(char_mesh,
+                 "if(input.extras.present){plan.extras_applied=true;",
+                 "native preserves glTFMilo material extras override block");
+  ok &= contains(char_mesh,
+                 "if(input.prelit_option_empty)plan.pre_lit=input.extras."
+                 "prelit==1;",
+                 "native preserves glTFMilo extras prelit option gate");
+  ok &= contains(char_mesh,
+                 "plan.alpha_threshold=static_cast<int>(input.extras."
+                 "alpha_threshold);",
+                 "native preserves glTFMilo extras alpha threshold cast");
+  ok &= contains(char_mesh,
+                 "plan.normal_detail_map=input.extras.normal_detail_map;",
+                 "native preserves glTFMilo extras normal detail map row");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native ports glTFMilo CreateBaseMesh helper");
   ok &= contains(char_mesh,
@@ -4945,6 +4962,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "gltf_hair_material.tex_wrap==0",
                  "focused mesh decode test covers glTFMilo wrap priority");
+  ok &= contains(mesh_decode_test,
+                 "gltf_extras_material.extras_applied",
+                 "focused mesh decode test covers glTFMilo material extras");
+  ok &= contains(mesh_decode_test,
+                 "gltf_no_texture_extras.extras_applied",
+                 "focused mesh decode test covers no-texture material extras");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_create_base_mesh_plan(base_mesh)",
                  "focused mesh decode test covers glTFMilo CreateBaseMesh helper");

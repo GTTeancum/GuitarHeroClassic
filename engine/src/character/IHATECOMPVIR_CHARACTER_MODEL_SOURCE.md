@@ -1028,6 +1028,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     those deterministic exporter rows for evidence only; live GH2 character
     material behavior still comes from decoded stock `RndMat` rows plus the
     separate project hair two-sided culling override.
+  - The same glTFMilo pass then applies `material.Extras` after the base-color
+    block. The mirrored source tree does not include a `MaterialExtras` class
+    definition, but `Program.cs` shows the consumed rows: optional prelit
+    override when the command-line prelit option is empty, alpha cut,
+    alpha-threshold cast, alpha write, z mode, blend mode, environment use,
+    emissive multiplier, cull, point lights, normal-detail map, and shader
+    variation. Native `SourceGltfMiloMaterialExtras` records only those
+    observed use-site fields and applies them after texture-backed material
+    rows, so no-texture materials can still carry the source extras override
+    just as the converter orders it.
   - `CreateBaseMesh` allocates `RndMesh.New(selectedGame.ModelRevision, 0, 0,
     0)`, sets object-fields revision 2, embeds a revision-9 `RndTrans` parented
     to the MILO filename, embeds revision-3 `RndDrawable` with radius `0`,

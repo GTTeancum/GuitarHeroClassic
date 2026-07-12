@@ -569,6 +569,69 @@ int main() {
   CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
   CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
 
+  ghogx::character::SourceGltfMiloMaterialInput material_extras_input;
+  material_extras_input.name = "override_hair";
+  material_extras_input.has_base_color_texture = true;
+  material_extras_input.double_sided = true;
+  material_extras_input.prelit_option_empty = true;
+  material_extras_input.image_has_alpha = true;
+  material_extras_input.alpha_mode =
+      ghogx::character::SourceGltfMiloAlphaMode::kMask;
+  material_extras_input.alpha_cutoff = 0.5f;
+  material_extras_input.extras.present = true;
+  material_extras_input.extras.prelit = 0;
+  material_extras_input.extras.alpha_cut = 0;
+  material_extras_input.extras.alpha_threshold = 0.25f;
+  material_extras_input.extras.alpha_write = 1;
+  material_extras_input.extras.z_mode = 4;
+  material_extras_input.extras.blend_mode = 5;
+  material_extras_input.extras.use_environment = 1;
+  material_extras_input.extras.emissive_multiplier = 2.5f;
+  material_extras_input.extras.cull = 1;
+  material_extras_input.extras.point_lights = 0;
+  material_extras_input.extras.normal_detail_map = "detail_hair.tex";
+  material_extras_input.extras.shader_variation = 7;
+  const auto gltf_extras_material =
+      ghogx::character::source_gltf_milo_material_base_plan(
+          material_extras_input);
+  CHECK(gltf_extras_material.creates_diffuse_tex_entry);
+  CHECK(gltf_extras_material.extras_applied);
+  CHECK(!gltf_extras_material.pre_lit);
+  CHECK(!gltf_extras_material.alpha_cut);
+  CHECK(gltf_extras_material.alpha_threshold == 0);
+  CHECK(gltf_extras_material.alpha_write);
+  CHECK(gltf_extras_material.z_mode == 4);
+  CHECK(gltf_extras_material.blend == 5);
+  CHECK(gltf_extras_material.use_environment);
+  CHECK(approx(gltf_extras_material.emissive_multiplier, 2.5f));
+  CHECK(gltf_extras_material.cull);
+  CHECK(!gltf_extras_material.point_lights);
+  CHECK(gltf_extras_material.normal_detail_map == "detail_hair.tex");
+  CHECK(gltf_extras_material.shader_variation == 7);
+
+  ghogx::character::SourceGltfMiloMaterialInput no_texture_extras_input;
+  no_texture_extras_input.name = "no_texture_override";
+  no_texture_extras_input.extras.present = true;
+  no_texture_extras_input.extras.alpha_cut = 1;
+  no_texture_extras_input.extras.alpha_threshold = 88.0f;
+  no_texture_extras_input.extras.z_mode = 2;
+  no_texture_extras_input.extras.blend_mode = 6;
+  no_texture_extras_input.extras.cull = 0;
+  no_texture_extras_input.extras.shader_variation = 3;
+  const auto gltf_no_texture_extras =
+      ghogx::character::source_gltf_milo_material_base_plan(
+          no_texture_extras_input);
+  CHECK(gltf_no_texture_extras.creates_mat_entry);
+  CHECK(!gltf_no_texture_extras.creates_diffuse_tex_entry);
+  CHECK(gltf_no_texture_extras.mat_entry_name == "no_texture_override.mat");
+  CHECK(gltf_no_texture_extras.extras_applied);
+  CHECK(gltf_no_texture_extras.alpha_cut);
+  CHECK(gltf_no_texture_extras.alpha_threshold == 88);
+  CHECK(gltf_no_texture_extras.z_mode == 2);
+  CHECK(gltf_no_texture_extras.blend == 6);
+  CHECK(!gltf_no_texture_extras.cull);
+  CHECK(gltf_no_texture_extras.shader_variation == 3);
+
   ghogx::character::SourceGltfMiloBaseMeshInput base_mesh;
   base_mesh.game = ghogx::character::SourceGltfMiloGame::kRockBand3;
   base_mesh.platform = "xbox";

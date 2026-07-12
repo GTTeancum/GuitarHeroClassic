@@ -415,11 +415,28 @@ struct SourceGltfMiloBaseMeshPlan {
   bool logs_missing_diffuse_or_maps = false;
 };
 
+struct SourceGltfMiloMaterialExtras {
+  bool present = false;
+  int prelit = 0;
+  int alpha_cut = 0;
+  float alpha_threshold = 0.0f;
+  int alpha_write = 0;
+  int z_mode = 0;
+  int blend_mode = 0;
+  int use_environment = 0;
+  float emissive_multiplier = 1.0f;
+  int cull = 0;
+  int point_lights = 0;
+  std::string normal_detail_map;
+  int shader_variation = 0;
+};
+
 struct SourceGltfMiloMaterialInput {
   std::string name;
   bool has_base_color_texture = false;
   bool double_sided = false;
   bool prelit_option_equals_false = false;
+  bool prelit_option_empty = false;
   bool sampler_present = false;
   SourceGltfMiloTextureWrapMode wrap_s =
       SourceGltfMiloTextureWrapMode::kRepeat;
@@ -428,6 +445,7 @@ struct SourceGltfMiloMaterialInput {
   bool image_has_alpha = false;
   SourceGltfMiloAlphaMode alpha_mode = SourceGltfMiloAlphaMode::kOpaque;
   float alpha_cutoff = 0.5f;
+  SourceGltfMiloMaterialExtras extras;
 };
 
 struct SourceGltfMiloMaterialPlan {
@@ -452,11 +470,14 @@ struct SourceGltfMiloMaterialPlan {
   int alpha_threshold = 0;
   bool alpha_write = false;
   int texture_compression = 1;
+  bool use_environment = false;
   float emissive_multiplier = 1.0f;
   float normal_detail_tiling = 1.0f;
   float rim_power = 4.0f;
   float specular_power = 0.0f;
   float specular2_power = 0.0f;
+  std::string normal_detail_map;
+  bool extras_applied = false;
   bool obj_fields_revision2 = false;
 };
 
