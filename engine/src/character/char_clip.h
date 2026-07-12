@@ -2459,6 +2459,17 @@ struct SourceCharIKMidiCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharIKMidiHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  std::string check;
+};
+
+struct SourceCharIKMidiPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+};
+
 struct SourceCharLipSyncGeneratorState {
   bool lip_sync_null = true;
   int last_count = 0;
@@ -2574,6 +2585,8 @@ void source_char_ik_midi_poll_deps(SourceCharIKMidiPollDeps& deps,
                                    const SourceCharIKMidiState& state);
 SourceCharIKMidiLoadSteps source_char_ik_midi_load_steps(int32_t revision);
 SourceCharIKMidiCopyPlan source_char_ik_midi_copy_plan();
+SourceCharIKMidiHandlerPlan source_char_ik_midi_handler_plan();
+SourceCharIKMidiPropSyncPlan source_char_ik_midi_prop_sync_plan();
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state();
 SourceCharLipSyncState source_char_lip_sync_default_state();
 SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision);

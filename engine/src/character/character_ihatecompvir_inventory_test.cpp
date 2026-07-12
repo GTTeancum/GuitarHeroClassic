@@ -87,7 +87,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharIKHead.cpp", "ghogx_character_ik_head_source_test",
      "fenced-runtime-gap"},
     {"CharIKMidi.cpp", "ghogx_character_ik_midi_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
     {"CharIKRod.cpp", "ghogx_character_ik_rod_source_test",
      "fenced-runtime-gap"},
     {"CharIKScale.cpp", "ghogx_character_ik_scale_source_test",
@@ -141,7 +141,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"FileMerger.cpp", "ghogx_character_clip_editor_source_test",
      "diagnostic-only"},
     {"Waypoint.cpp", "ghogx_character_waypoint_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
 };
 
 std::string read_file(const std::filesystem::path& path) {

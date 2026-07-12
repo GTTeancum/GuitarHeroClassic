@@ -71,7 +71,10 @@ int main() {
   using ghogx::character::source_waypoint_constrain;
   using ghogx::character::source_waypoint_copy_plan;
   using ghogx::character::source_waypoint_default_state;
+  using ghogx::character::source_waypoint_handler_plan;
+  using ghogx::character::source_waypoint_load_plan;
   using ghogx::character::source_waypoint_load_revision_known;
+  using ghogx::character::source_waypoint_prop_sync_plan;
   using ghogx::character::source_waypoint_shape_delta_ang;
   using ghogx::character::source_waypoint_shape_delta_box;
 
@@ -92,6 +95,24 @@ int main() {
   ok &= expect_bool(source_waypoint_load_revision_known(6), false,
                     "Waypoint revision 6 rejected");
 
+  auto load = source_waypoint_load_plan(1);
+  ok &= expect_bool(load.known_revision, true, "Waypoint load rev1 known");
+  ok &= expect_size(load.read_order.size(), 4, "Waypoint load rev1 rows");
+  ok &= expect_string(load.read_order[0], "Hmx::Object",
+                      "Waypoint load starts object");
+  ok &= expect_string(load.read_order[1], "RndTransformable",
+                      "Waypoint load transform");
+  ok &= expect_size(load.revision_branches.size(), 2,
+                    "Waypoint load rev1 branches");
+  ok &= expect_string(load.revision_branches[1], "default mRadius=12",
+                      "Waypoint load rev1 default radius");
+  load = source_waypoint_load_plan(5);
+  ok &= expect_size(load.read_order.size(), 9, "Waypoint load rev5 rows");
+  ok &= expect_string(load.read_order[8], "mStrictAngDelta",
+                      "Waypoint load rev5 strict angle");
+  ok &= expect_size(load.revision_branches.size(), 0,
+                    "Waypoint load rev5 no legacy branches");
+
   const auto copy = source_waypoint_copy_plan();
   ok &= expect_size(copy.copied_superclasses.size(), 2,
                     "Waypoint copy superclass count");
@@ -101,6 +122,29 @@ int main() {
                       "Waypoint copy first member");
   ok &= expect_string(copy.copied_members[6], "mStrictAngDelta",
                       "Waypoint copy strict angle member");
+
+  const auto handlers = source_waypoint_handler_plan();
+  ok &= expect_size(handlers.superclasses.size(), 2,
+                    "Waypoint handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "RndTransformable",
+                      "Waypoint handler transform superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "Waypoint handler object superclass");
+  ok &= near(static_cast<float>(handlers.check), 524.0f,
+             "Waypoint handler check");
+
+  const auto props = source_waypoint_prop_sync_plan();
+  ok &= expect_size(props.properties.size(), 5,
+                    "Waypoint direct prop count");
+  ok &= expect_string(props.properties[0], "flags", "Waypoint prop flags");
+  ok &= expect_string(props.properties[4], "connections",
+                      "Waypoint prop connections");
+  ok &= expect_size(props.set_properties.size(), 2,
+                    "Waypoint set prop count");
+  ok &= expect_string(props.set_properties[0], "ang_radius",
+                      "Waypoint set prop angle radius");
+  ok &= expect_string(props.superclasses[0], "RndTransformable",
+                      "Waypoint prop superclass");
 
   ok &= vec_near(source_waypoint_shape_delta_box(
                      identity(), {15.0f, 0.0f, 7.0f}, 10.0f, 0.0f),

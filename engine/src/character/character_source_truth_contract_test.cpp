@@ -6359,6 +6359,16 @@ int run_contract() {
                  "COPY_MEMBER(mBone)COPY_MEMBER(mAnimBlender)"
                  "COPY_MEMBER(mMaxAnimBlend)",
                  "CharIKMidi source Copy member list");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "HANDLE_ACTION(new_spot,NewSpot(Dir()->Find<"
+                 "RndTransformable>(_msg->Str(2),true),_msg->Float(3)))",
+                 "CharIKMidi source new_spot handler row");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "SYNC_PROP(bone,mBone)SYNC_PROP(anim_blend_weightable,"
+                 "mAnimBlender)SYNC_PROP(anim_blend_max,mMaxAnimBlend)"
+                 "SYNC_PROP_SET(cur_spot,mCurSpot,NewSpot(_val.Obj<"
+                 "RndTransformable>(0),0))",
+                 "CharIKMidi source prop sync rows");
   ok &= contains(char_mesh_h,
                  "structCharIKMidi{std::stringname;int32_tversion=0;"
                  "std::stringbone;",
@@ -6409,6 +6419,16 @@ int run_contract() {
                  "copied_members;};",
                  "native exposes CharIKMidi copy plan");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiHandlerPlan{std::vector<std::string>"
+                 "handlers;std::vector<std::string>superclasses;"
+                 "std::stringcheck;};",
+                 "native exposes CharIKMidi handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>set_properties;};",
+                 "native exposes CharIKMidi prop sync plan");
+  ok &= contains(char_clip_h,
                  "SourceCharIKMidiStatesource_char_ik_midi_default_state();",
                  "native exposes CharIKMidi default helper");
   ok &= contains(char_clip_h,
@@ -6427,6 +6447,12 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "SourceCharIKMidiCopyPlansource_char_ik_midi_copy_plan();",
                  "native exposes CharIKMidi copy helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiHandlerPlansource_char_ik_midi_handler_plan();",
+                 "native exposes CharIKMidi handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiPropSyncPlansource_char_ik_midi_prop_sync_plan();",
+                 "native exposes CharIKMidi prop sync helper");
   ok &= contains(char_clip,
                  "SourceCharIKMidiStatesource_char_ik_midi_default_state(){"
                  "SourceCharIKMidiStatestate;source_char_ik_midi_enter(state);"
@@ -6463,6 +6489,24 @@ int run_contract() {
                  "{\"Hmx::Object\"};plan.copied_members={\"mBone\","
                  "\"mAnimBlender\",\"mMaxAnimBlend\"};returnplan;}",
                  "native CharIKMidi copy helper mirrors source copy list");
+  ok &= contains(char_clip,
+                 "SourceCharIKMidiHandlerPlansource_char_ik_midi_handler_plan(){"
+                 "SourceCharIKMidiHandlerPlanplan;plan.handlers={"
+                 "\"new_spot\"};plan.superclasses={\"Hmx::Object\"};"
+                 "plan.check=\"0x11C\";returnplan;}",
+                 "native CharIKMidi handler helper mirrors source");
+  ok &= contains(char_clip,
+                 "SourceCharIKMidiPropSyncPlansource_char_ik_midi_prop_sync_plan(){"
+                 "SourceCharIKMidiPropSyncPlanplan;plan.properties={\"bone\","
+                 "\"anim_blend_weightable\",\"anim_blend_max\"};"
+                 "plan.set_properties={\"cur_spot\"};returnplan;}",
+                 "native CharIKMidi prop sync helper mirrors source");
+  ok &= contains(ik_midi_source_test,
+                 "source_char_ik_midi_handler_plan()",
+                 "focused CharIKMidi test covers handler plan");
+  ok &= contains(ik_midi_source_test,
+                 "source_char_ik_midi_prop_sync_plan()",
+                 "focused CharIKMidi test covers prop sync plan");
   ok &= contains(bind_audit,
                  "\"[controller-ik-midi]char=%sname=%sversion=%d",
                  "controller audit logs CharIKMidi source revision");
@@ -11752,6 +11796,15 @@ int run_contract() {
                  "ASSERT_REVS(5,0)",
                  "latest Waypoint source load accepts revisions through 5");
   ok &= contains(rb3_latest_waypoint_cpp,
+                 "Hmx::Object::Load(bs);",
+                 "latest Waypoint source load reads Hmx object");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "x->RndDrawable::Load(bs);deletex;",
+                 "latest Waypoint source load consumes legacy drawable payload");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "RndTransformable::Load(bs);",
+                 "latest Waypoint source load reads transformable");
+  ok &= contains(rb3_latest_waypoint_cpp,
                  "bs>>mFlags;bs>>mConnections;",
                  "latest Waypoint source load reads flags and connections");
   ok &= contains(rb3_latest_waypoint_cpp,
@@ -11772,6 +11825,22 @@ int run_contract() {
                  "COPY_MEMBER(mAngRadius)COPY_MEMBER(mStrictRadiusDelta)"
                  "COPY_MEMBER(mStrictAngDelta)",
                  "latest Waypoint source copy members");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "BEGIN_PROPSYNCS(Waypoint)SYNC_PROP(flags,mFlags)"
+                 "SYNC_PROP(radius,mRadius)SYNC_PROP(y_radius,mYRadius)",
+                 "latest Waypoint source prop sync starts with visible rows");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "SYNC_PROP_SET(ang_radius,mAngRadius*RAD2DEG,"
+                 "mAngRadius=_val.Float(0)*DEG2RAD)",
+                 "latest Waypoint source prop sync converts angle radius");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "SYNC_PROP_SET(strict_ang_delta,mStrictAngDelta*RAD2DEG,"
+                 "mStrictAngDelta=_val.Float(0)*DEG2RAD)",
+                 "latest Waypoint source prop sync converts strict angle");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "BEGIN_HANDLERS(Waypoint)HANDLE_SUPERCLASS(RndTransformable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(524)",
+                 "latest Waypoint source handler rows");
   ok &= contains(rb3_latest_waypoint_cpp,
                  "if(f2>0.0f){Subtract(v1,WorldXfm().v,res);",
                  "latest Waypoint ShapeDeltaBox rectangular branch");
@@ -11799,12 +11868,48 @@ int run_contract() {
                  "floatstrict_ang_delta=0.0f;floatstrict_radius_delta=0.0f;",
                  "native stores Waypoint strict deltas");
   ok &= contains(char_mesh_h,
+                 "structSourceWaypointLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;"
+                 "std::vector<std::string>revision_branches;};",
+                 "native exposes Waypoint load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointHandlerPlan{"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes Waypoint handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>set_properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes Waypoint prop sync plan");
+  ok &= contains(char_mesh_h,
                  "SourceWaypointConstrainResultsource_waypoint_constrain(",
                  "native exposes Waypoint constrain helper");
+  ok &= contains(char_mesh_h,
+                 "SourceWaypointLoadPlansource_waypoint_load_plan(intrevision);",
+                 "native exposes Waypoint load helper");
+  ok &= contains(char_mesh_h,
+                 "SourceWaypointHandlerPlansource_waypoint_handler_plan();",
+                 "native exposes Waypoint handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceWaypointPropSyncPlansource_waypoint_prop_sync_plan();",
+                 "native exposes Waypoint prop sync helper");
   ok &= contains(char_mesh,
                  "boolsource_waypoint_load_revision_known(intrevision){"
                  "returnrevision>=0&&revision<=5;}",
                  "native Waypoint helper mirrors source revision gate");
+  ok &= contains(char_mesh,
+                 "SourceWaypointLoadPlansource_waypoint_load_plan(intrevision){"
+                 "SourceWaypointLoadPlanplan;plan.known_revision="
+                 "source_waypoint_load_revision_known(revision);",
+                 "native Waypoint load helper mirrors source revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"RndTransformable\","
+                 "\"mFlags\",\"mConnections\"};",
+                 "native Waypoint load helper starts with source read order");
+  ok &= contains(char_mesh,
+                 "legacyRndMeshRndDrawablepayloadbeforeRndTransformable",
+                 "native Waypoint load helper records legacy drawable payload");
   ok &= contains(char_mesh,
                  "plan.copied_superclasses={\"Hmx::Object\","
                  "\"RndTransformable\"};",
@@ -11814,6 +11919,19 @@ int run_contract() {
                  "\"mRadius\",\"mYRadius\",\"mAngRadius\","
                  "\"mStrictRadiusDelta\",\"mStrictAngDelta\"};",
                  "native Waypoint helper mirrors copy members");
+  ok &= contains(char_mesh,
+                 "SourceWaypointHandlerPlansource_waypoint_handler_plan(){"
+                 "SourceWaypointHandlerPlanplan;plan.superclasses={"
+                 "\"RndTransformable\",\"Hmx::Object\"};plan.check=524;",
+                 "native Waypoint handler helper mirrors source");
+  ok &= contains(char_mesh,
+                 "SourceWaypointPropSyncPlansource_waypoint_prop_sync_plan(){"
+                 "SourceWaypointPropSyncPlanplan;plan.properties={\"flags\","
+                 "\"radius\",\"y_radius\",\"strict_radius_delta\","
+                 "\"connections\"};plan.set_properties={\"ang_radius\","
+                 "\"strict_ang_delta\"};plan.superclasses={"
+                 "\"RndTransformable\"};",
+                 "native Waypoint prop sync helper mirrors source");
   ok &= contains(char_mesh,
                  "if(y_radius>0.0f){constSourceVec3from_waypoint="
                  "source_vec_sub(p,waypoint_pos);",
@@ -11844,6 +11962,15 @@ int run_contract() {
   ok &= contains(waypoint_source_test,
                  "source_waypoint_constrain(",
                  "focused Waypoint test covers constrain helper");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_load_plan(",
+                 "focused Waypoint test covers load plan");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_handler_plan()",
+                 "focused Waypoint test covers handler plan");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_prop_sync_plan()",
+                 "focused Waypoint test covers prop sync plan");
   ok &= contains(doc,
                  "## Waypoint Clip/Path Diagnostic Authorities",
                  "document records Waypoint source authority section");

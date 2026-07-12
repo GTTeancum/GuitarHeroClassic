@@ -38,8 +38,10 @@ int main() {
   using ghogx::character::source_char_ik_midi_copy_plan;
   using ghogx::character::source_char_ik_midi_default_state;
   using ghogx::character::source_char_ik_midi_enter;
+  using ghogx::character::source_char_ik_midi_handler_plan;
   using ghogx::character::source_char_ik_midi_load_steps;
   using ghogx::character::source_char_ik_midi_poll_deps;
+  using ghogx::character::source_char_ik_midi_prop_sync_plan;
 
   bool ok = true;
 
@@ -123,6 +125,26 @@ int main() {
                       "Copy anim blender");
   ok &= expect_string(copy.copied_members[2], "mMaxAnimBlend",
                       "Copy max anim blend");
+
+  const auto handlers = source_char_ik_midi_handler_plan();
+  ok &= expect_size(handlers.handlers.size(), 1, "Handler count");
+  ok &= expect_string(handlers.handlers[0], "new_spot", "Handler new spot");
+  ok &= expect_size(handlers.superclasses.size(), 1,
+                    "Handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "Hmx::Object",
+                      "Handler superclass");
+  ok &= expect_string(handlers.check, "0x11C", "Handler check");
+
+  const auto props = source_char_ik_midi_prop_sync_plan();
+  ok &= expect_size(props.properties.size(), 3, "PropSync direct count");
+  ok &= expect_string(props.properties[0], "bone", "PropSync bone");
+  ok &= expect_string(props.properties[1], "anim_blend_weightable",
+                      "PropSync anim weightable");
+  ok &= expect_string(props.properties[2], "anim_blend_max",
+                      "PropSync anim max");
+  ok &= expect_size(props.set_properties.size(), 1, "PropSync set count");
+  ok &= expect_string(props.set_properties[0], "cur_spot",
+                      "PropSync cur spot setter");
 
   return ok ? 0 : 1;
 }

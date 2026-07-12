@@ -6814,6 +6814,21 @@ SourceCharIKMidiCopyPlan source_char_ik_midi_copy_plan() {
   return plan;
 }
 
+SourceCharIKMidiHandlerPlan source_char_ik_midi_handler_plan() {
+  SourceCharIKMidiHandlerPlan plan;
+  plan.handlers = {"new_spot"};
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = "0x11C";
+  return plan;
+}
+
+SourceCharIKMidiPropSyncPlan source_char_ik_midi_prop_sync_plan() {
+  SourceCharIKMidiPropSyncPlan plan;
+  plan.properties = {"bone", "anim_blend_weightable", "anim_blend_max"};
+  plan.set_properties = {"cur_spot"};
+  return plan;
+}
+
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state() {
   return SourceCharLipSyncGeneratorState{};
 }

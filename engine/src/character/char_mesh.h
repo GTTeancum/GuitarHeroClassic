@@ -1174,9 +1174,26 @@ struct SourceWaypointState {
   std::vector<std::string> connections;
 };
 
+struct SourceWaypointLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> revision_branches;
+};
+
 struct SourceWaypointCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
+};
+
+struct SourceWaypointHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceWaypointPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+  std::vector<std::string> superclasses;
 };
 
 struct SourceWaypointConstrainResult {
@@ -2243,7 +2260,10 @@ SourceCharPollGroupPropSyncPlan source_char_poll_group_prop_sync_plan();
 SourceCharPollGroupSortPlan source_char_poll_group_sort_plan();
 SourceWaypointState source_waypoint_default_state();
 bool source_waypoint_load_revision_known(int revision);
+SourceWaypointLoadPlan source_waypoint_load_plan(int revision);
 SourceWaypointCopyPlan source_waypoint_copy_plan();
+SourceWaypointHandlerPlan source_waypoint_handler_plan();
+SourceWaypointPropSyncPlan source_waypoint_prop_sync_plan();
 std::array<float, 3> source_waypoint_shape_delta_box(
     const milo_scene::Xfm& waypoint_world,
     const std::array<float, 3>& point,

@@ -108,7 +108,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharIKFoot.cpp` | `ghogx_character_ik_foot_source_test` | `fenced-runtime-gap` |
 | `CharIKHand.cpp` | `ghogx_character_ik_hand_source_test` | `ported-visible-source` |
 | `CharIKHead.cpp` | `ghogx_character_ik_head_source_test` | `fenced-runtime-gap` |
-| `CharIKMidi.cpp` | `ghogx_character_ik_midi_source_test` | `diagnostic-only` |
+| `CharIKMidi.cpp` | `ghogx_character_ik_midi_source_test` | `fenced-runtime-gap` |
 | `CharIKRod.cpp` | `ghogx_character_ik_rod_source_test` | `fenced-runtime-gap` |
 | `CharIKScale.cpp` | `ghogx_character_ik_scale_source_test` | `fenced-runtime-gap` |
 | `CharIKSliderMidi.cpp` | `ghogx_character_ik_slider_midi_source_test` | `fenced-runtime-gap` |
@@ -135,7 +135,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `ClipCompressor.cpp` | `ghogx_character_clip_editor_source_test` | `absence-evidence` |
 | `ClipGraphGen.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
 | `FileMerger.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
-| `Waypoint.cpp` | `ghogx_character_waypoint_source_test` | `diagnostic-only` |
+| `Waypoint.cpp` | `ghogx_character_waypoint_source_test` | `fenced-runtime-gap` |
 
 ## Source Coverage Matrix
 
@@ -172,10 +172,10 @@ source proves there is no usable runtime class/body to port from that file.
 | Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
 | FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
-| Waypoint clip/path diagnostics | `rb3-latest` `Waypoint.cpp` / `Waypoint.h` | Native helper ports source defaults/load/copy and `ShapeDeltaBox` / `ShapeDeltaAng` / `Constrain` math for diagnostics; no live camera/path behavior is invented. |
+| Waypoint clip/path diagnostics | `rb3-latest` `Waypoint.cpp` / `Waypoint.h` | Native helper ports source defaults/load/copy, prop sync, handlers, and `ShapeDeltaBox` / `ShapeDeltaAng` / `Constrain` math for diagnostics; no live camera/path behavior is invented. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
-| Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults, left/right finger transform names, setup completeness, visible SetFinger/ReleaseFinger state writes, load gates, and copy flow without promoting the incomplete `Poll` / `MeasureLengths` path. |
+| Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields and now expose source Enter/PollDeps/copy/handler/prop-sync plans while fencing the absent `Poll` / `NewSpot` bodies; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults, left/right finger transform names, setup completeness, visible SetFinger/ReleaseFinger state writes, load gates, and copy flow without promoting the incomplete `Poll` / `MeasureLengths` path. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Handler and prop-sync row plans now mirror the visible source rows. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
@@ -2064,13 +2064,19 @@ note, and all report `unreadBytes=0`.
   - `Waypoint` constructor defaults are `mFlags=0`, `mRadius=12`,
     `mYRadius=0`, `mAngRadius=0`, `mStrictAngDelta=0`,
     `mStrictRadiusDelta=0`, and an owned `mConnections` vector.
-  - `Waypoint::Load` accepts source revisions through 5. It reads
-    `Hmx::Object`, dumps a legacy drawable for revisions below 5, reads
-    `RndTransformable`, then reads `mFlags`, `mConnections`, optional radius,
-    optional `mYRadius`/`mAngRadius`, and optional strict radius/angle deltas.
+  - `Waypoint::Load` accepts source revisions through 5. Native
+    `source_waypoint_load_plan` records the same row order: `Hmx::Object`, a
+    legacy drawable for revisions below 5, `RndTransformable`, `mFlags`,
+    `mConnections`, optional radius, optional `mYRadius`/`mAngRadius`, and
+    optional strict radius/angle deltas.
   - `Waypoint::Copy` copies `Hmx::Object`, `RndTransformable`, `mFlags`,
     `mConnections`, `mRadius`, `mYRadius`, `mAngRadius`,
     `mStrictRadiusDelta`, and `mStrictAngDelta`.
+  - Native `source_waypoint_handler_plan` records the source handler
+    superclass order (`RndTransformable`, `Hmx::Object`) and check `524`.
+    Native `source_waypoint_prop_sync_plan` records direct props (`flags`,
+    `radius`, `y_radius`, `strict_radius_delta`, `connections`), set props
+    (`ang_radius`, `strict_ang_delta`), and the `RndTransformable` superclass.
   - `ShapeDeltaBox` has two source branches. With a positive Y radius it clamps
     local X and Y dot products against the waypoint world rows and returns only
     the clamped X/Y correction. Without a positive Y radius it pulls the
@@ -2288,11 +2294,12 @@ note, and all report `unreadBytes=0`.
   - Native GHOGX decodes/logs the same source-gated fields as passive row
     inventory and enforces the source revision range. The viewer/gameplay fret-target helper remains diagnostic application glue until `CharIKMidi::NewSpot` / `Poll` bodies are available from source or trace.
   - Native `source_char_ik_midi_*` helpers record the checked source
-    constructor/`Enter` state reset, load gates, `PollDeps`, and copy-member
-    list. `Enter` clears current/new spots, spot-changed state, interpolation
-    fractions, and both local transforms; `PollDeps` publishes `mBone` as both
-    changed-by and changed, plus `mCurSpot` as changed-by; `Copy` copies
-    `Hmx::Object`, `mBone`, `mAnimBlender`, and `mMaxAnimBlend`.
+    constructor/`Enter` state reset, load gates, `PollDeps`, copy-member list,
+    `new_spot` handler row, and prop sync rows. `Enter` clears current/new
+    spots, spot-changed state, interpolation fractions, and both local
+    transforms; `PollDeps` publishes `mBone` as both changed-by and changed,
+    plus `mCurSpot` as changed-by; `Copy` copies `Hmx::Object`, `mBone`,
+    `mAnimBlender`, and `mMaxAnimBlend`.
     `engine/out/source_ikmidi_20260711/ikmidi_source_decode_audit.log`
     rechecks Rock1, Rock2, Glam1, Funk1, and Rockabill2; each sampled row is
     `version=4`, `bone=bone_fret.mesh`, `legacySpots=0`,

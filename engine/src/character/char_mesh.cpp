@@ -4259,12 +4259,53 @@ bool source_waypoint_load_revision_known(int revision) {
   return revision >= 0 && revision <= 5;
 }
 
+SourceWaypointLoadPlan source_waypoint_load_plan(int revision) {
+  SourceWaypointLoadPlan plan;
+  plan.known_revision = source_waypoint_load_revision_known(revision);
+  plan.read_order = {"Hmx::Object", "RndTransformable", "mFlags",
+                     "mConnections"};
+  if (revision < 5) {
+    plan.revision_branches.push_back(
+        "legacy RndMesh RndDrawable payload before RndTransformable");
+  }
+  if (revision > 1) {
+    plan.read_order.push_back("mRadius");
+  } else {
+    plan.revision_branches.push_back("default mRadius=12");
+  }
+  if (revision > 2) {
+    plan.read_order.push_back("mYRadius");
+    plan.read_order.push_back("mAngRadius");
+  }
+  if (revision > 3) {
+    plan.read_order.push_back("mStrictRadiusDelta");
+    plan.read_order.push_back("mStrictAngDelta");
+  }
+  return plan;
+}
+
 SourceWaypointCopyPlan source_waypoint_copy_plan() {
   SourceWaypointCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object", "RndTransformable"};
   plan.copied_members = {"mFlags", "mConnections", "mRadius", "mYRadius",
                          "mAngRadius", "mStrictRadiusDelta",
                          "mStrictAngDelta"};
+  return plan;
+}
+
+SourceWaypointHandlerPlan source_waypoint_handler_plan() {
+  SourceWaypointHandlerPlan plan;
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  plan.check = 524;
+  return plan;
+}
+
+SourceWaypointPropSyncPlan source_waypoint_prop_sync_plan() {
+  SourceWaypointPropSyncPlan plan;
+  plan.properties = {"flags", "radius", "y_radius", "strict_radius_delta",
+                     "connections"};
+  plan.set_properties = {"ang_radius", "strict_ang_delta"};
+  plan.superclasses = {"RndTransformable"};
   return plan;
 }
 
