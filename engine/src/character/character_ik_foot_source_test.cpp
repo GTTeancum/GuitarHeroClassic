@@ -40,9 +40,11 @@ int main() {
   using ghogx::character::source_char_ik_foot_default_state;
   using ghogx::character::source_char_ik_foot_do_fsm;
   using ghogx::character::source_char_ik_foot_enter;
+  using ghogx::character::source_char_ik_foot_handler_plan;
   using ghogx::character::source_char_ik_foot_load_steps;
   using ghogx::character::source_char_ik_foot_poll_deps_plan;
   using ghogx::character::source_char_ik_foot_poll_plan;
+  using ghogx::character::source_char_ik_foot_prop_sync_plan;
   using ghogx::character::source_char_ik_foot_set_name;
 
   bool ok = true;
@@ -161,6 +163,23 @@ int main() {
   ok &= expect_bool(copy.copy_data_index, true, "Copy data index");
   ok &= expect_string(dest.data, "foot_data", "Copy data value");
   ok &= expect_int(dest.data_index, 2, "Copy data index value");
+
+  const auto handlers = source_char_ik_foot_handler_plan();
+  ok &= expect_int(static_cast<int>(handlers.superclasses.size()), 1,
+                   "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "CharIKHand",
+                      "handler superclass");
+  ok &= expect_int(handlers.check, 0x16E, "handler check");
+
+  const auto props = source_char_ik_foot_prop_sync_plan();
+  ok &= expect_int(static_cast<int>(props.properties.size()), 2,
+                   "prop-sync property count");
+  ok &= expect_string(props.properties[0], "data",
+                      "prop-sync first property");
+  ok &= expect_string(props.properties[1], "data_index",
+                      "prop-sync second property");
+  ok &= expect_string(props.superclasses[0], "CharIKHand",
+                      "prop-sync superclass");
 
   std::printf("character_ik_foot_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

@@ -2471,6 +2471,18 @@ struct SourceCharIKHeadCopyResult {
   bool set_update_points = false;
 };
 
+struct SourceCharIKHeadHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0;
+};
+
+struct SourceCharIKHeadPropSyncPlan {
+  std::vector<std::string> modify_alt_properties;
+  std::vector<std::string> modify_alt_actions;
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharIKSliderMidiState {
   SourceCharWeightableState weightable;
   std::string target;
@@ -2691,6 +2703,8 @@ SourceCharIKHeadCopyResult source_char_ik_head_copy(
     const SourceCharIKHeadState& source,
     bool shallow_copy,
     float source_owner_weight);
+SourceCharIKHeadHandlerPlan source_char_ik_head_handler_plan();
+SourceCharIKHeadPropSyncPlan source_char_ik_head_prop_sync_plan();
 SourceCharIKSliderMidiState source_char_ik_slider_midi_default_state(
     const std::string& name);
 SourceCharIKSliderMidiEnterResult source_char_ik_slider_midi_enter(
@@ -2900,6 +2914,16 @@ struct SourceCharIKFootCopyResult {
   bool copy_data_index = false;
 };
 
+struct SourceCharIKFootHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0;
+};
+
+struct SourceCharIKFootPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 // Source-backed CharIKHand::MeasureLengths / IKElbow scalar helper. The length
 // inputs correspond to mHand->mLocalXfm.v and mHand->TransParent()->mLocalXfm.v.
 SourceCharIKHandLoadPlan source_char_ik_hand_load_plan(int32_t revision);
@@ -2949,6 +2973,8 @@ SourceCharIKFootLoadSteps source_char_ik_foot_load_steps(int32_t revision);
 SourceCharIKFootCopyResult source_char_ik_foot_copy(
     SourceCharIKFootState& dest,
     const SourceCharIKFootState& source);
+SourceCharIKFootHandlerPlan source_char_ik_foot_handler_plan();
+SourceCharIKFootPropSyncPlan source_char_ik_foot_prop_sync_plan();
 
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.

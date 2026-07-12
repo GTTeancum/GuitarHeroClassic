@@ -2689,6 +2689,10 @@ note, and all report `unreadBytes=0`.
     for tests and future row wiring. The checked file does not include a
     reviewable `CharIKHead::Poll` body, so native does not invent head IK
     solving from these data helpers.
+  - Handler rows are `CharWeightable`, `Hmx::Object`, then check `0x138`.
+    Prop-sync rows modify-alt `head` and `spine` through
+    `UpdatePoints(true)`, then expose `mouth`, `target`, `target_radius`,
+    `head_mat`, `offset`, `offset_scale`, and `CharWeightable`.
 - `rb3-latest/src/system/char/CharIKFoot.cpp` and
   `rb3-latest/src/system/char/CharIKFoot.h`
   - `CharIKFoot` inherits `CharIKHand`. Its constructor creates a private
@@ -2714,6 +2718,8 @@ note, and all report `unreadBytes=0`.
     legacy ints below revision 5, and reads `mData` plus `mDataIndex` for
     revision 5 and newer. `Copy` copies the `CharIKHand` superclass, `mData`,
     and `mDataIndex`.
+  - Handler rows are `CharIKHand`, then check `0x16E`. Prop-sync rows are
+    `data`, `data_index`, and `CharIKHand`.
 - `rb3-latest/src/system/char/CharIKMidi.cpp` and
   `rb3-latest/src/system/char/CharIKMidi.h`
   - `CharIKMidi::Load` accepts source revisions through 5, reads

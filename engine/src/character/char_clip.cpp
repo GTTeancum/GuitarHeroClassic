@@ -5500,6 +5500,20 @@ SourceCharIKFootCopyResult source_char_ik_foot_copy(
   return result;
 }
 
+SourceCharIKFootHandlerPlan source_char_ik_foot_handler_plan() {
+  SourceCharIKFootHandlerPlan plan;
+  plan.superclasses = {"CharIKHand"};
+  plan.check = 0x16E;
+  return plan;
+}
+
+SourceCharIKFootPropSyncPlan source_char_ik_foot_prop_sync_plan() {
+  SourceCharIKFootPropSyncPlan plan;
+  plan.properties = {"data", "data_index"};
+  plan.superclasses = {"CharIKHand"};
+  return plan;
+}
+
 static std::array<float, 16> source_xfm_to_mat4(
     const milo_scene::Xfm& xfm) {
   return {xfm.rot[0][0], xfm.rot[0][1], xfm.rot[0][2], 0.0f,
@@ -6910,6 +6924,23 @@ SourceCharIKHeadCopyResult source_char_ik_head_copy(
   dest.update_points = true;
   result.set_update_points = true;
   return result;
+}
+
+SourceCharIKHeadHandlerPlan source_char_ik_head_handler_plan() {
+  SourceCharIKHeadHandlerPlan plan;
+  plan.superclasses = {"CharWeightable", "Hmx::Object"};
+  plan.check = 0x138;
+  return plan;
+}
+
+SourceCharIKHeadPropSyncPlan source_char_ik_head_prop_sync_plan() {
+  SourceCharIKHeadPropSyncPlan plan;
+  plan.modify_alt_properties = {"head", "spine"};
+  plan.modify_alt_actions = {"UpdatePoints(true)", "UpdatePoints(true)"};
+  plan.properties = {"mouth",         "target", "target_radius",
+                     "head_mat",      "offset", "offset_scale"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
 }
 
 SourceCharIKSliderMidiState source_char_ik_slider_midi_default_state(

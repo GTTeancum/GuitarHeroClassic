@@ -8488,6 +8488,19 @@ int run_contract() {
                  "COPY_MEMBER(mHeadMat)COPY_MEMBER(mOffset)"
                  "COPY_MEMBER(mOffsetScale)mUpdatePoints=true;",
                  "CharIKHead source copy mirrors member list");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "BEGIN_HANDLERS(CharIKHead)HANDLE_SUPERCLASS(CharWeightable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x138)",
+                 "CharIKHead source handler rows");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "BEGIN_PROPSYNCS(CharIKHead)SYNC_PROP_MODIFY_ALT(head,"
+                 "mHead,UpdatePoints(true))SYNC_PROP_MODIFY_ALT(spine,"
+                 "mSpine,UpdatePoints(true))SYNC_PROP(mouth,mMouth)"
+                 "SYNC_PROP(target,mTarget)SYNC_PROP(target_radius,"
+                 "mTargetRadius)SYNC_PROP(head_mat,mHeadMat)"
+                 "SYNC_PROP(offset,mOffset)SYNC_PROP(offset_scale,"
+                 "mOffsetScale)SYNC_SUPERCLASS(CharWeightable)",
+                 "CharIKHead source prop-sync rows");
   ok &= contains(char_clip_h,
                  "structSourceCharIKHeadState{SourceCharWeightableState"
                  "weightable;",
@@ -8514,6 +8527,23 @@ int run_contract() {
                  "SourceCharIKHeadLoadStepssource_char_ik_head_load_steps("
                  "int32_trevision);",
                  "native API exposes CharIKHead load gate helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHeadHandlerPlan{std::vector<std::string>"
+                 "superclasses;int32_tcheck=0;};",
+                 "native exposes CharIKHead handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHeadPropSyncPlan{"
+                 "std::vector<std::string>modify_alt_properties;"
+                 "std::vector<std::string>modify_alt_actions;"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharIKHead prop-sync plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHeadHandlerPlansource_char_ik_head_handler_plan();",
+                 "native API exposes CharIKHead handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHeadPropSyncPlansource_char_ik_head_prop_sync_plan();",
+                 "native API exposes CharIKHead prop-sync helper");
   ok &= contains(char_clip,
                  "state.weightable=source_char_weightable_default_state(name);"
                  "returnstate;",
@@ -8558,6 +8588,22 @@ int run_contract() {
                  "dest.offset_scale=source.offset_scale;result.copy_offset_scale"
                  "=true;dest.update_points=true;",
                  "native CharIKHead copy helper mirrors source member tail");
+  ok &= contains(char_clip,
+                 "SourceCharIKHeadHandlerPlansource_char_ik_head_handler_plan(){"
+                 "SourceCharIKHeadHandlerPlanplan;plan.superclasses={"
+                 "\"CharWeightable\",\"Hmx::Object\"};plan.check=0x138;",
+                 "native CharIKHead handler helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharIKHeadPropSyncPlansource_char_ik_head_prop_sync_plan(){"
+                 "SourceCharIKHeadPropSyncPlanplan;plan.modify_alt_properties={"
+                 "\"head\",\"spine\"};plan.modify_alt_actions={"
+                 "\"UpdatePoints(true)\",\"UpdatePoints(true)\"};",
+                 "native CharIKHead prop-sync helper mirrors modify-alt rows");
+  ok &= contains(char_clip,
+                 "plan.properties={\"mouth\",\"target\",\"target_radius\","
+                 "\"head_mat\",\"offset\",\"offset_scale\"};"
+                 "plan.superclasses={\"CharWeightable\"};",
+                 "native CharIKHead prop-sync helper mirrors property rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_ik_head_source_test"
                  "character_ik_head_source_test.cpp)",
@@ -8577,6 +8623,12 @@ int run_contract() {
   ok &= contains(ik_head_source_test,
                  "source_char_ik_head_copy(dest,source,false,0.66f)",
                  "focused CharIKHead test covers copy helper");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_handler_plan()",
+                 "focused CharIKHead test covers handler plan");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_prop_sync_plan()",
+                 "focused CharIKHead test covers prop-sync plan");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharIKHead.cpp`",
                  "document cites CharIKHead source");
@@ -8587,6 +8639,12 @@ int run_contract() {
   ok &= contains(doc,
                  "does not include a\n    reviewable `CharIKHead::Poll` body",
                  "document fences absent CharIKHead Poll body");
+  ok &= contains(doc,
+                 "Handler rows are `CharWeightable`, `Hmx::Object`, then check `0x138`",
+                 "document records CharIKHead handler rows");
+  ok &= contains(doc,
+                 "Prop-sync rows modify-alt `head` and `spine`",
+                 "document records CharIKHead prop-sync rows");
   ok &= contains(rb3_latest_char_ik_foot_h,
                  "classCharIKFoot:publicCharIKHand",
                  "CharIKFoot source header exposes CharIKHand inheritance");
@@ -8664,6 +8722,15 @@ int run_contract() {
   ok &= contains(rb3_latest_char_ik_foot_cpp,
                  "COPY_MEMBER(mData)COPY_MEMBER(mDataIndex)",
                  "CharIKFoot source copy mirrors member list");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "BEGIN_HANDLERS(CharIKFoot)HANDLE_SUPERCLASS(CharIKHand)"
+                 "HANDLE_CHECK(0x16E)",
+                 "CharIKFoot source handler rows");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "BEGIN_PROPSYNCS(CharIKFoot)SYNC_PROP(data,mData)"
+                 "SYNC_PROP(data_index,mDataIndex)"
+                 "SYNC_SUPERCLASS(CharIKHand)",
+                 "CharIKFoot source prop-sync rows");
   ok &= contains(char_clip_h,
                  "structSourceCharIKFootState{boolhelper_target_created=true;"
                  "boolhelper_target_local_reset=true;intfsm_state=0;",
@@ -8682,6 +8749,21 @@ int run_contract() {
                  "SourceCharIKFootLoadStepssource_char_ik_foot_load_steps("
                  "int32_trevision);",
                  "native API exposes CharIKFoot load helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKFootHandlerPlan{std::vector<std::string>"
+                 "superclasses;int32_tcheck=0;};",
+                 "native exposes CharIKFoot handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKFootPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharIKFoot prop-sync plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKFootHandlerPlansource_char_ik_foot_handler_plan();",
+                 "native API exposes CharIKFoot handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKFootPropSyncPlansource_char_ik_foot_prop_sync_plan();",
+                 "native API exposes CharIKFoot prop-sync helper");
   ok &= contains(char_clip,
                  "SourceCharIKFootStatesource_char_ik_foot_default_state(){"
                  "returnSourceCharIKFootState{};}",
@@ -8743,6 +8825,16 @@ int run_contract() {
                  "dest.data=source.data;result.copy_data=true;dest.data_index="
                  "source.data_index;",
                  "native CharIKFoot copy helper mirrors member copy");
+  ok &= contains(char_clip,
+                 "SourceCharIKFootHandlerPlansource_char_ik_foot_handler_plan(){"
+                 "SourceCharIKFootHandlerPlanplan;plan.superclasses={"
+                 "\"CharIKHand\"};plan.check=0x16E;",
+                 "native CharIKFoot handler helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharIKFootPropSyncPlansource_char_ik_foot_prop_sync_plan(){"
+                 "SourceCharIKFootPropSyncPlanplan;plan.properties={"
+                 "\"data\",\"data_index\"};plan.superclasses={\"CharIKHand\"};",
+                 "native CharIKFoot prop-sync helper mirrors source rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_ik_foot_source_test"
                  "character_ik_foot_source_test.cpp)",
@@ -8762,6 +8854,12 @@ int run_contract() {
   ok &= contains(ik_foot_source_test,
                  "source_char_ik_foot_copy(dest,source)",
                  "focused CharIKFoot test covers copy helper");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_handler_plan()",
+                 "focused CharIKFoot test covers handler plan");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_prop_sync_plan()",
+                 "focused CharIKFoot test covers prop-sync plan");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharIKFoot.cpp`",
                  "document cites CharIKFoot source");
@@ -8772,6 +8870,12 @@ int run_contract() {
   ok &= contains(doc,
                  "They do not add a decoded `CharIKFoot` row hookup",
                  "document fences CharIKFoot live row hookup");
+  ok &= contains(doc,
+                 "Handler rows are `CharIKHand`, then check `0x16E`",
+                 "document records CharIKFoot handler rows");
+  ok &= contains(doc,
+                 "Prop-sync rows are\n    `data`, `data_index`, and `CharIKHand`",
+                 "document records CharIKFoot prop-sync rows");
   ok &= contains(rb3_latest_char_ik_midi_h,
                  "ObjPtr<RndTransformable,ObjectDir>mBone;",
                  "latest CharIKMidi source header exposes driven bone");
