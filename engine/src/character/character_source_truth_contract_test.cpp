@@ -497,6 +497,8 @@ int run_contract() {
       rb2_dump_char_dir / "CharWeightSetter.cpp"));
   const std::string rb2_char_servo_bone_cpp = compact(read_file(
       rb2_dump_char_dir / "CharServoBone.cpp"));
+  const std::string rb2_char_bones_meshes_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharBonesMeshes.cpp"));
   const std::string rb2_char_walk_cpp = compact(read_file(
       rb2_dump_char_dir / "CharWalk.cpp"));
   const std::string rb2_outfit_loader_cpp = compact(read_file(
@@ -14453,6 +14455,15 @@ int run_contract() {
                  "missing_non_facing_bones;boolacquire_pose=false;};",
                  "native API exposes source CharBonesMeshes Reallocate row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesMeshesPoseDumpEvidence{"
+                 "std::stringpose_meshes_range;std::stringprop_sync_range;"
+                 "std::vector<std::string>pose_meshes_locals;"
+                 "boollatest_source_body_incomplete=true;"
+                 "boolrb2_dump_has_statement_body=false;"
+                 "boolsafe_to_pose_meshes=false;"
+                 "boolsafe_to_publish_mesh_transforms=false;};",
+                 "native API exposes CharBonesMeshes PoseMeshes dump evidence");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesMeshesReplaceStep"
                  "source_char_bones_meshes_replace_step("
                  "conststd::vector<std::string>&meshes,conststd::string&from,"
@@ -14471,6 +14482,10 @@ int run_contract() {
                  "conststd::vector<std::string>&existing_objects,"
                  "conststd::vector<std::string>&meshes);",
                  "native API exposes source CharBonesMeshes StuffMeshes helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesMeshesPoseDumpEvidence"
+                 "source_char_bones_meshes_pose_dump_evidence();",
+                 "native API exposes CharBonesMeshes PoseMeshes dump helper");
   ok &= contains(char_clip,
                  "out.char_bone_version=read_u32_at(body,size,pos,"
                  "\"CharBoneversion\");skip_bytes_at(body,size,pos,9,"
@@ -14775,6 +14790,22 @@ int run_contract() {
                  "objects.insert(objects.end(),meshes.begin(),meshes.end());",
                  "native CharBonesMeshes StuffMeshes helper appends source order");
   ok &= contains(char_clip,
+                 "SourceCharBonesMeshesPoseDumpEvidence"
+                 "source_char_bones_meshes_pose_dump_evidence(){"
+                 "SourceCharBonesMeshesPoseDumpEvidenceevidence;",
+                 "native CharBonesMeshes PoseMeshes dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.pose_meshes_range=\"0x80321520->0x80321A64\";",
+                 "native CharBonesMeshes PoseMeshes dump records range");
+  ok &= contains(char_clip,
+                 "evidence.pose_meshes_locals={\"bone\",\"pend\",\"p\","
+                 "\"qend\",\"q\",",
+                 "native CharBonesMeshes PoseMeshes dump records locals");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_pose_meshes=false;"
+                 "evidence.safe_to_publish_mesh_transforms=false;",
+                 "native CharBonesMeshes PoseMeshes dump fences live writes");
+  ok &= contains(char_clip,
                  "\"[clip-output]%-28ssourceCharBoneversion=%u\"",
                  "native clip debug log labels source CharBone rows");
   ok &= contains(doc,
@@ -14864,6 +14895,15 @@ int run_contract() {
                  "This still does\n"
                  "    not port broad `PoseMeshes` transform writes",
                  "document fences CharBonesMeshes PoseMeshes writes");
+  ok &= contains(doc,
+                 "Native `source_char_bones_meshes_pose_dump_evidence` records",
+                 "document records CharBonesMeshes PoseMeshes dump helper");
+  ok &= contains(doc,
+                 "`0x80321520 -> 0x80321A64`",
+                 "document records CharBonesMeshes PoseMeshes range");
+  ok &= contains(doc,
+                 "`safe_to_publish_mesh_transforms=false`",
+                 "document fences CharBonesMeshes mesh transform publishing");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_copy_members(output)",
                  "focused CharBones source test covers CharBone copy-member helper");
@@ -15002,6 +15042,12 @@ int run_contract() {
                  "source_char_bones_meshes_stuff_meshes({\"existing\"},"
                  "{\"mesh_a\",\"mesh_b\"})",
                  "focused CharBones source test covers CharBonesMeshes StuffMeshes");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_meshes_pose_dump_evidence()",
+                 "focused CharBones source test covers CharBonesMeshes PoseMeshes dump");
+  ok &= contains(char_bones_source_test,
+                 "pose_meshes_dump.safe_to_publish_mesh_transforms?1:0",
+                 "focused CharBones source test fences CharBonesMeshes transform publishing");
   ok &= contains(rb3_latest_char_bone_cpp,
                  "BEGIN_COPYS(CharBone)COPY_SUPERCLASS(Hmx::Object)"
                  "CREATE_COPY(CharBone)BEGIN_COPYING_MEMBERS",
@@ -15223,6 +15269,18 @@ int run_contract() {
                  "voidCharBonesMeshes::PoseMeshes(){floatangle;Hmx::Matrix3m;"
                  "m.RotateAboutY(angle);m.RotateAboutX(angle);}",
                  "latest CharBonesMeshes source exposes incomplete PoseMeshes body");
+  ok &= contains(rb2_char_bones_meshes_cpp,
+                 "//Range:0x80321520->0x80321A64",
+                 "RB2 dump maps CharBonesMeshes PoseMeshes range");
+  ok &= contains(rb2_char_bones_meshes_cpp,
+                 "voidCharBonesMeshes::PoseMeshes(classCharBonesMeshes*constthis",
+                 "RB2 dump maps CharBonesMeshes PoseMeshes signature");
+  ok &= contains(rb2_char_bones_meshes_cpp,
+                 "classObjOwnerPtr*bone;",
+                 "RB2 dump maps CharBonesMeshes PoseMeshes bone local");
+  ok &= contains(rb2_char_bones_meshes_cpp,
+                 "classVector3blendScale;",
+                 "RB2 dump maps CharBonesMeshes PoseMeshes blend scale local");
   ok &= contains(rb3_latest_char_bones_meshes_cpp,
                  "voidCharBonesMeshes::StuffMeshes(std::list<Hmx::Object*>&oList){"
                  "for(inti=0;i<mMeshes.size();i++){oList.push_back(mMeshes[i]);}}",

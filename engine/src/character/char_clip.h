@@ -331,6 +331,16 @@ struct SourceCharBonesMeshesReallocateStep {
   bool acquire_pose = false;
 };
 
+struct SourceCharBonesMeshesPoseDumpEvidence {
+  std::string pose_meshes_range;
+  std::string prop_sync_range;
+  std::vector<std::string> pose_meshes_locals;
+  bool latest_source_body_incomplete = true;
+  bool rb2_dump_has_statement_body = false;
+  bool safe_to_pose_meshes = false;
+  bool safe_to_publish_mesh_transforms = false;
+};
+
 struct SourceCharServoBoneDefaultState {
   bool pelvis_null = true;
   bool facing_rot_delta_null = true;
@@ -1807,6 +1817,8 @@ SourceCharBonesMeshesReallocateStep source_char_bones_meshes_reallocate_step(
 std::vector<std::string> source_char_bones_meshes_stuff_meshes(
     const std::vector<std::string>& existing_objects,
     const std::vector<std::string>& meshes);
+SourceCharBonesMeshesPoseDumpEvidence
+source_char_bones_meshes_pose_dump_evidence();
 
 // Source-backed CharServoBone movement helpers. These port the isolated math
 // bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.

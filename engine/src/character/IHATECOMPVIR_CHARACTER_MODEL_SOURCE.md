@@ -2218,6 +2218,15 @@ note, and all report `unreadBytes=0`.
     `bone_facing*`, and calls `AcquirePose` only when the mesh vector is
     non-empty; `StuffMeshes` appends mesh slots in source order. This still does
     not port broad `PoseMeshes` transform writes.
+  - Native `source_char_bones_meshes_pose_dump_evidence` records the checked
+    `PoseMeshes` boundary: latest source exposes only an incomplete body with
+    uninitialized `angle` rotations, while the RB2 dump maps `PoseMeshes`
+    `0x80321520 -> 0x80321A64` and property sync
+    `0x80321B48 -> 0x80321C20`. The RB2 local inventory names `bone`, `pend`,
+    `p`, `qend`, `q`, `a`, `xend`, `yend`, `end`, `send`, `s`, and
+    `blendScale`, but does not expose statements. Native therefore keeps
+    `safe_to_pose_meshes=false` and
+    `safe_to_publish_mesh_transforms=false`.
 - `rb3-latest/src/system/char/CharClipSet.cpp` and
   `rb3-latest/src/system/char/CharClipSet.h`
   - `CharClipSet` is an `ObjectDir`, `RndDrawable`, and `RndAnimatable`

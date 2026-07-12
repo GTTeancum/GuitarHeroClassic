@@ -1163,6 +1163,27 @@ int main() {
   ok &= expect_string(stuffed_meshes[2], "mesh_b",
                       "CharBonesMeshes StuffMeshes second mesh");
 
+  const SourceCharBonesMeshesPoseDumpEvidence pose_meshes_dump =
+      source_char_bones_meshes_pose_dump_evidence();
+  ok &= expect_string(pose_meshes_dump.pose_meshes_range,
+                      "0x80321520->0x80321A64",
+                      "CharBonesMeshes PoseMeshes range");
+  ok &= expect_string(pose_meshes_dump.prop_sync_range,
+                      "0x80321B48->0x80321C20",
+                      "CharBonesMeshes prop sync range");
+  ok &= expect_size(pose_meshes_dump.pose_meshes_locals.size(), 12,
+                    "CharBonesMeshes PoseMeshes locals");
+  ok &= expect_string(pose_meshes_dump.pose_meshes_locals[0], "bone",
+                      "CharBonesMeshes PoseMeshes first local");
+  ok &= expect_string(pose_meshes_dump.pose_meshes_locals[11], "blendScale",
+                      "CharBonesMeshes PoseMeshes blend scale local");
+  ok &= expect_int(pose_meshes_dump.latest_source_body_incomplete ? 1 : 0, 1,
+                   "CharBonesMeshes latest PoseMeshes incomplete");
+  ok &= expect_int(pose_meshes_dump.rb2_dump_has_statement_body ? 1 : 0, 0,
+                   "CharBonesMeshes dump is not statement body");
+  ok &= expect_int(pose_meshes_dump.safe_to_publish_mesh_transforms ? 1 : 0, 0,
+                   "CharBonesMeshes live transform publishing remains fenced");
+
   const SourceCharServoBoneDefaultState servo_defaults =
       source_char_servo_bone_default_state();
   ok &= expect_int(servo_defaults.pelvis_null ? 1 : 0, 1,

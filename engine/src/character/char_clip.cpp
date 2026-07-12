@@ -852,6 +852,21 @@ std::vector<std::string> source_char_bones_meshes_stuff_meshes(
   return objects;
 }
 
+SourceCharBonesMeshesPoseDumpEvidence
+source_char_bones_meshes_pose_dump_evidence() {
+  SourceCharBonesMeshesPoseDumpEvidence evidence;
+  evidence.pose_meshes_range = "0x80321520->0x80321A64";
+  evidence.prop_sync_range = "0x80321B48->0x80321C20";
+  evidence.pose_meshes_locals = {"bone", "pend", "p",    "qend", "q",
+                                 "a",    "xend", "yend", "end",  "send",
+                                 "s",    "blendScale"};
+  evidence.latest_source_body_incomplete = true;
+  evidence.rb2_dump_has_statement_body = false;
+  evidence.safe_to_pose_meshes = false;
+  evidence.safe_to_publish_mesh_transforms = false;
+  return evidence;
+}
+
 SourceCharBonesSamplesState source_char_bones_samples_empty_state() {
   return SourceCharBonesSamplesState{};
 }
