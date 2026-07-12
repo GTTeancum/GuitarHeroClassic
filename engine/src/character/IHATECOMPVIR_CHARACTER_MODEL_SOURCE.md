@@ -40,8 +40,9 @@ source files that make up the character-model assembly boundary:
 `Group.cpp`, `Group.h`, `Mat.cpp`, `Mat.h`, `Mesh.cpp`, `Mesh.h`,
 `MeshAnim.cpp`, `MeshAnim.h`, `MeshDeform.cpp`, `MeshDeform.h`,
 `MultiMesh.cpp`, `MultiMesh.h`, `MultiMeshProxy.cpp`, `MultiMeshProxy.h`,
-`Trans.cpp`, `Trans.h`, `TransAnim.cpp`, `TransAnim.h`, `TransProxy.cpp`,
-`TransProxy.h`, and `TransRemover.h`. Listing a file here keeps it inside the
+`Poll.cpp`, `Poll.h`, `PollAnim.cpp`, `PollAnim.h`, `Trans.cpp`, `Trans.h`,
+`TransAnim.cpp`, `TransAnim.h`, `TransProxy.cpp`, `TransProxy.h`, and
+`TransRemover.h`. Listing a file here keeps it inside the
 source-truth map; it is not a claim that every body in that file is promoted to
 native runtime behavior.
 
@@ -67,6 +68,7 @@ writer body.
 | Transform proxy attachment | `rb3-latest/src/system/rndobj/TransProxy.cpp` / `TransProxy.h` | Native helper ports source defaults, load gates, sync parent-resolution flow, setter/save/copy/handler/prop rows; it does not create live proxy attachments. |
 | Transform animation rows | `rb3-latest/src/system/rndobj/TransAnim.cpp` / `TransAnim.h` | Native helper ports source defaults, load gates, key-owner copy/replace decisions, SetFrame/SetKey call flow, handlers, and prop rows; `MakeTransform` remains fenced because the checked body is an assertion stub. |
 | Mesh vertex animation rows | `rb3-latest/src/system/rndobj/MeshAnim.cpp` / `MeshAnim.h` | Native helper ports source defaults, key-count sizing, load/copy/replace, SetFrame interpolation/sync gates, shrink helpers, handlers, and prop rows; it does not enable live vertex animation in the character renderer. |
+| Poll animation cadence | `rb3-latest/src/system/rndobj/Poll.cpp` / `Poll.h`, `PollAnim.cpp` / `PollAnim.h` | Native helper ports source poll message rows, poll-animation child lifecycle, rate-to-frame mapping, load/copy/handler/prop rows; it does not change runtime scheduling. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
@@ -565,6 +567,44 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - Shared native `source_rndanimatable_load_plan` records these gates for
     embedded `RndAnimatable` bases such as `RndGroup` without promoting the
     legacy revision-0 conversion branch into runtime behavior.
+- `rb3-latest/src/system/rndobj/Poll.cpp` and
+  `rb3-latest/src/system/rndobj/Poll.h`
+  - `RndPollable` derives virtually from `Hmx::Object`. `Poll` and
+    `ListPollChildren` are empty virtual defaults in the header.
+  - `BEGIN_HANDLERS(RndPollable)` exposes action rows `enter` and `poll`, a
+    static action row `exit`, and check `0x1A`. `Enter` handles `enter_msg`;
+    `Exit` handles `exit_msg`. Native `source_rndpollable_handler_plan` and
+    `source_rndpollable_base_plan` record those source rows.
+- `rb3-latest/src/system/rndobj/PollAnim.cpp` and
+  `rb3-latest/src/system/rndobj/PollAnim.h`
+  - `RndPollAnim` derives virtually from `RndAnimatable`, `RndPollable`, and
+    `Hmx::Object`; its constructor initializes `mAnims` with no-null list
+    ownership. `StartAnim`, `EndAnim`, and `SetFrame` are empty source bodies.
+    Native `source_rndpollanim_default_state` and
+    `source_rndpollanim_empty_body_plan` record these facts.
+  - `EndFrame` returns the maximum child `EndFrame`. `ListAnimChildren`
+    publishes every child in `mAnims`. `Enter` calls `StartAnim` on every child,
+    and `Exit` calls `EndAnim` on every child. Native
+    `source_rndpollanim_end_frame_plan`,
+    `source_rndpollanim_child_list_plan`,
+    `source_rndpollanim_enter_plan`, and `source_rndpollanim_exit_plan` record
+    those loops.
+  - `Poll` maps each child `RndAnimatable::Rate` to a frame before calling
+    `SetFrame(frame, 1.0f)`: `k30_fps` uses `30 * TheTaskMgr.Seconds`,
+    `k480_fpb` uses `480 * TheTaskMgr.Beat`, `k30_fps_ui` uses
+    `30 * TheTaskMgr.UISeconds`, `k1_fpb` uses `TheTaskMgr.Beat`, and
+    `k30_fps_tutorial` uses `30 * TheTaskMgr.TutorialSeconds`. Unknown/default
+    rate leaves the source local frame at `0.0`. Native
+    `source_rndpollanim_rate_frame_plan` and `source_rndpollanim_poll_plan`
+    record this mapping without changing runtime scheduling.
+  - `Load` accepts only revision `0`, reads `Hmx::Object`, `RndAnimatable`,
+    `RndPollable`, and `mAnims`. `Copy` copies the same superclasses plus
+    `mAnims`. `BEGIN_HANDLERS` delegates to `RndAnimatable`, `RndPollable`, and
+    `Hmx::Object` with check `0x8B`. `BEGIN_PROPSYNCS` syncs `anims`, then
+    returns `RndAnimatable::SyncProperty` if handled, otherwise falls back to
+    `RndPollable::SyncProperty`. Native `source_rndpollanim_load_plan`,
+    `source_rndpollanim_copy_plan`, `source_rndpollanim_handler_plan`, and
+    `source_rndpollanim_prop_sync_plan` record those rows.
 - `rb3-latest/src/system/rndobj/MeshAnim.cpp` and
   `rb3-latest/src/system/rndobj/MeshAnim.h`
   - `RndMeshAnim` derives from `RndAnimatable`. Its constructor nulls `mMesh`

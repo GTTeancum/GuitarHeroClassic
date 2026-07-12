@@ -279,6 +279,14 @@ int run_contract() {
       rb3_latest_rndobj_dir / "TransAnim.cpp"));
   const std::string rb3_latest_trans_anim_h = compact(read_file(
       rb3_latest_rndobj_dir / "TransAnim.h"));
+  const std::string rb3_latest_poll_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Poll.cpp"));
+  const std::string rb3_latest_poll_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Poll.h"));
+  const std::string rb3_latest_poll_anim_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "PollAnim.cpp"));
+  const std::string rb3_latest_poll_anim_h = compact(read_file(
+      rb3_latest_rndobj_dir / "PollAnim.h"));
   const std::string rb3_latest_mesh_anim_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "MeshAnim.cpp"));
   const std::string rb3_latest_mesh_anim_h = compact(read_file(
@@ -608,9 +616,11 @@ int run_contract() {
        "Mat.h",              "Mesh.cpp",         "Mesh.h",
        "MeshAnim.cpp",       "MeshAnim.h",       "MeshDeform.cpp",
        "MeshDeform.h",       "MultiMesh.cpp",    "MultiMesh.h",
-       "MultiMeshProxy.cpp", "MultiMeshProxy.h", "Trans.cpp",
-       "Trans.h",            "TransAnim.cpp",    "TransAnim.h",
-       "TransProxy.cpp",     "TransProxy.h",     "TransRemover.h"},
+       "MultiMeshProxy.cpp", "MultiMeshProxy.h", "Poll.cpp",
+       "Poll.h",             "PollAnim.cpp",     "PollAnim.h",
+       "Trans.cpp",          "Trans.h",          "TransAnim.cpp",
+       "TransAnim.h",        "TransProxy.cpp",   "TransProxy.h",
+       "TransRemover.h"},
       "source-truth map must cite selected ihatecompvir rndobj character-model sources");
   ok &= contains(doc,
                  "2026-07-12 upstream checks still match the local source "
@@ -1842,6 +1852,138 @@ int run_contract() {
                  "constSourceRndAnimatableLoadPlananim_v0="
                  "source_rndanimatable_load_plan(0);",
                  "milo_scene test covers legacy RndAnimatable plan");
+  ok &= contains(doc,
+                 "| Poll animation cadence | "
+                 "`rb3-latest/src/system/rndobj/Poll.cpp` / `Poll.h`, "
+                 "`PollAnim.cpp` / `PollAnim.h` |",
+                 "coverage matrix records RndPollable/RndPollAnim boundary");
+  ok &= contains(rb3_latest_poll_cpp,
+                 "BEGIN_HANDLERS(RndPollable);HANDLE_ACTION(enter,Enter());"
+                 "HANDLE_ACTION(poll,Poll());HANDLE_ACTION_STATIC(exit,"
+                 "Exit());HANDLE_CHECK(0x1A);END_HANDLERS;",
+                 "latest RndPollable source handler rows");
+  ok &= contains(rb3_latest_poll_cpp,
+                 "voidRndPollable::Enter(){HandleType(enter_msg);}",
+                 "latest RndPollable source Enter message");
+  ok &= contains(rb3_latest_poll_cpp,
+                 "voidRndPollable::Exit(){HandleType(exit_msg);}",
+                 "latest RndPollable source Exit message");
+  ok &= contains(rb3_latest_poll_h,
+                 "classRndPollable:publicvirtualHmx::Object{",
+                 "latest RndPollable header exposes inheritance");
+  ok &= contains(rb3_latest_poll_h,
+                 "virtualvoidPoll(){}virtualvoidEnter();virtualvoidExit();"
+                 "virtualvoidListPollChildren(std::list<RndPollable*>&)const{}",
+                 "latest RndPollable header exposes empty defaults");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "RndPollAnim::RndPollAnim():mAnims(this,kObjListNoNull){}",
+                 "latest RndPollAnim source constructor defaults");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "voidRndPollAnim::StartAnim(){}voidRndPollAnim::EndAnim(){}"
+                 "voidRndPollAnim::SetFrame(float,float){}",
+                 "latest RndPollAnim source empty bodies");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "floatRndPollAnim::EndFrame(){floatframe=0.0f;for("
+                 "ObjPtrList<RndAnimatable,classObjectDir>::iteratorit="
+                 "mAnims.begin();it!=mAnims.end();++it){floatthisendframe="
+                 "(*it)->EndFrame();if(frame<thisendframe)frame=thisendframe;}"
+                 "returnframe;}",
+                 "latest RndPollAnim source EndFrame max loop");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "voidRndPollAnim::ListAnimChildren(std::list<RndAnimatable*>&"
+                 "children)const{ObjPtrList<RndAnimatable,classObjectDir>::"
+                 "iteratorit=mAnims.begin();",
+                 "latest RndPollAnim source ListAnimChildren loop");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "voidRndPollAnim::Enter(){for(ObjPtrList<RndAnimatable,"
+                 "classObjectDir>::iteratorit=mAnims.begin();it!=mAnims.end();"
+                 "++it){(*it)->StartAnim();}}",
+                 "latest RndPollAnim source Enter child loop");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "voidRndPollAnim::Poll(){for(ObjPtrList<RndAnimatable,"
+                 "classObjectDir>::iteratorit=mAnims.begin();it!=mAnims.end();"
+                 "++it){RndAnimatable*thisAnim=*it;floatfoureighty=480.0f;"
+                 "floatf=0.0f;",
+                 "latest RndPollAnim source Poll loop prefix");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "casek30_fps:f=30.0f*TheTaskMgr.Seconds(TaskMgr::b);break;"
+                 "casek480_fpb:f=foureighty*TheTaskMgr.Beat();break;"
+                 "casek30_fps_ui:f=30.0f*TheTaskMgr.UISeconds();break;"
+                 "casek1_fpb:f=TheTaskMgr.Beat();break;"
+                 "casek30_fps_tutorial:f=30.0f*TheTaskMgr.TutorialSeconds();",
+                 "latest RndPollAnim source rate-to-frame mapping");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "default:break;}thisAnim->SetFrame(f,1.0f);}}",
+                 "latest RndPollAnim source SetFrame blend row");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "voidRndPollAnim::Exit(){for(ObjPtrList<RndAnimatable,"
+                 "classObjectDir>::iteratorit=mAnims.begin();it!=mAnims.end();"
+                 "++it){(*it)->EndAnim();}}",
+                 "latest RndPollAnim source Exit child loop");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "ASSERT_REVS(0,0);LOAD_SUPERCLASS(Hmx::Object)"
+                 "LOAD_SUPERCLASS(RndAnimatable)LOAD_SUPERCLASS(RndPollable)"
+                 "bs>>mAnims;",
+                 "latest RndPollAnim source load rows");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(RndAnimatable)"
+                 "COPY_SUPERCLASS(RndPollable)",
+                 "latest RndPollAnim source copy superclasses");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mAnims)"
+                 "END_COPYING_MEMBERS",
+                 "latest RndPollAnim source copies anim list");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "BEGIN_HANDLERS(RndPollAnim)HANDLE_SUPERCLASS(RndAnimatable)"
+                 "HANDLE_SUPERCLASS(RndPollable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x8B)",
+                 "latest RndPollAnim source handler rows");
+  ok &= contains(rb3_latest_poll_anim_cpp,
+                 "BEGIN_PROPSYNCS(RndPollAnim)SYNC_PROP(anims,mAnims)"
+                 "boolsuper=RndAnimatable::SyncProperty(_val,_prop,_i,_op);"
+                 "if(super)returntrue;elsereturnRndPollable::SyncProperty("
+                 "_val,_prop,_i,_op);",
+                 "latest RndPollAnim source prop-sync fallback");
+  ok &= contains(rb3_latest_poll_anim_h,
+                 "classRndPollAnim:publicvirtualRndAnimatable,publicvirtual"
+                 "RndPollable,publicvirtualHmx::Object{",
+                 "latest RndPollAnim header exposes inheritance");
+  ok &= contains(rb3_latest_poll_anim_h,
+                 "ObjPtrList<RndAnimatable,ObjectDir>mAnims;",
+                 "latest RndPollAnim header exposes anim list");
+  ok &= contains(scene_h,
+                 "structSourceRndPollAnimRateFramePlan{",
+                 "shared milo_scene exposes RndPollAnim rate plan");
+  ok &= contains(scene,
+                 "SourceRndPollAnimRateFramePlansource_rndpollanim_rate_frame_plan(",
+                 "shared milo_scene implements RndPollAnim rate plan");
+  ok &= contains(scene,
+                 "casekSourceRndAnimRate480Fpb:plan.recognized=true;"
+                 "plan.uses_beat=true;plan.multiplier=480.0f;"
+                 "plan.frame=480.0f*beat;",
+                 "shared RndPollAnim rate plan mirrors 480 fpb branch");
+  ok &= contains(scene,
+                 "casekSourceRndAnimRate30FpsTutorial:plan.recognized=true;"
+                 "plan.uses_tutorial_seconds=true;plan.multiplier=30.0f;"
+                 "plan.frame=30.0f*tutorial_seconds;",
+                 "shared RndPollAnim rate plan mirrors tutorial branch");
+  ok &= contains(scene,
+                 "plan.superclasses={\"Hmx::Object\",\"RndAnimatable\","
+                 "\"RndPollable\"};",
+                 "shared RndPollAnim load/copy plan mirrors superclass order");
+  ok &= contains(scene,
+                 "plan.superclass_order={\"RndAnimatable\",\"RndPollable\"};",
+                 "shared RndPollAnim prop-sync plan mirrors fallback order");
+  ok &= contains(scene_test,
+                 "voidtest_poll_anim(){",
+                 "milo_scene test covers RndPollAnim helper");
+  ok &= contains(scene_test,
+                 "source_rndpollanim_rate_frame_plan("
+                 "kSourceRndAnimRate480Fpb",
+                 "milo_scene test covers RndPollAnim 480-fpb rate path");
+  ok &= contains(doc,
+                 "record this mapping without changing runtime scheduling",
+                 "document fences RndPollAnim runtime scheduling");
   ok &= contains(char_mesh,
                  "out.local=r.matrix();out.world=r.matrix();if(ver<9)",
                  "character RndTrans local/world/legacy-child order");

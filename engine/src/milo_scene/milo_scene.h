@@ -310,6 +310,131 @@ struct SourceRndAnimatableLoadPlan {
 SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
     int32_t revision);
 
+struct SourceRndPollableHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> static_actions;
+  int32_t check = 0x1A;
+};
+
+SourceRndPollableHandlerPlan source_rndpollable_handler_plan();
+
+struct SourceRndPollableBasePlan {
+  bool poll_body_empty = true;
+  bool enter_handles_enter_msg = true;
+  bool exit_handles_exit_msg = true;
+  bool list_poll_children_empty = true;
+};
+
+SourceRndPollableBasePlan source_rndpollable_base_plan();
+
+enum SourceRndAnimRate {
+  kSourceRndAnimRate30Fps = 0,
+  kSourceRndAnimRate480Fpb = 1,
+  kSourceRndAnimRate30FpsUi = 2,
+  kSourceRndAnimRate1Fpb = 3,
+  kSourceRndAnimRate30FpsTutorial = 4,
+  kSourceRndAnimRateUnknown = 5,
+};
+
+struct SourceRndPollAnimDefaultState {
+  bool anims_no_null = true;
+};
+
+SourceRndPollAnimDefaultState source_rndpollanim_default_state();
+
+struct SourceRndPollAnimEndFramePlan {
+  std::vector<float> child_end_frames;
+  float result = 0.0f;
+};
+
+SourceRndPollAnimEndFramePlan source_rndpollanim_end_frame_plan(
+    const std::vector<float>& child_end_frames);
+
+struct SourceRndPollAnimChildListPlan {
+  int32_t child_count = 0;
+  int32_t published_children = 0;
+};
+
+SourceRndPollAnimChildListPlan source_rndpollanim_child_list_plan(
+    int32_t child_count);
+
+struct SourceRndPollAnimLifecyclePlan {
+  int32_t child_count = 0;
+  int32_t start_anim_calls = 0;
+  int32_t end_anim_calls = 0;
+};
+
+SourceRndPollAnimLifecyclePlan source_rndpollanim_enter_plan(
+    int32_t child_count);
+SourceRndPollAnimLifecyclePlan source_rndpollanim_exit_plan(
+    int32_t child_count);
+
+struct SourceRndPollAnimRateFramePlan {
+  SourceRndAnimRate rate = kSourceRndAnimRateUnknown;
+  bool recognized = false;
+  bool uses_seconds = false;
+  bool uses_ui_seconds = false;
+  bool uses_tutorial_seconds = false;
+  bool uses_beat = false;
+  float multiplier = 0.0f;
+  float frame = 0.0f;
+};
+
+SourceRndPollAnimRateFramePlan source_rndpollanim_rate_frame_plan(
+    SourceRndAnimRate rate,
+    float seconds,
+    float ui_seconds,
+    float tutorial_seconds,
+    float beat);
+
+struct SourceRndPollAnimPollPlan {
+  int32_t child_count = 0;
+  bool calls_set_frame = false;
+  float blend = 1.0f;
+};
+
+SourceRndPollAnimPollPlan source_rndpollanim_poll_plan(int32_t child_count);
+
+struct SourceRndPollAnimLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  std::vector<std::string> superclasses;
+  bool reads_anims = true;
+};
+
+SourceRndPollAnimLoadPlan source_rndpollanim_load_plan(int32_t revision);
+
+struct SourceRndPollAnimCopyPlan {
+  std::vector<std::string> superclasses;
+  bool copies_anims = true;
+};
+
+SourceRndPollAnimCopyPlan source_rndpollanim_copy_plan();
+
+struct SourceRndPollAnimEmptyBodyPlan {
+  bool start_anim_empty = true;
+  bool end_anim_empty = true;
+  bool set_frame_empty = true;
+};
+
+SourceRndPollAnimEmptyBodyPlan source_rndpollanim_empty_body_plan();
+
+struct SourceRndPollAnimHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0x8B;
+};
+
+SourceRndPollAnimHandlerPlan source_rndpollanim_handler_plan();
+
+struct SourceRndPollAnimPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> superclass_order;
+  bool returns_animatable_when_handled = true;
+  bool falls_back_to_pollable = true;
+};
+
+SourceRndPollAnimPropSyncPlan source_rndpollanim_prop_sync_plan();
+
 struct SourceRndMeshAnimDefaultState {
   bool mesh_null = true;
   bool keys_owner_self = true;

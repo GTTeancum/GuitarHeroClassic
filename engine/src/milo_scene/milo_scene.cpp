@@ -593,6 +593,139 @@ SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
   return plan;
 }
 
+SourceRndPollableHandlerPlan source_rndpollable_handler_plan() {
+  SourceRndPollableHandlerPlan plan;
+  plan.actions = {"enter", "poll"};
+  plan.static_actions = {"exit"};
+  return plan;
+}
+
+SourceRndPollableBasePlan source_rndpollable_base_plan() {
+  return SourceRndPollableBasePlan{};
+}
+
+SourceRndPollAnimDefaultState source_rndpollanim_default_state() {
+  return SourceRndPollAnimDefaultState{};
+}
+
+SourceRndPollAnimEndFramePlan source_rndpollanim_end_frame_plan(
+    const std::vector<float>& child_end_frames) {
+  SourceRndPollAnimEndFramePlan plan;
+  plan.child_end_frames = child_end_frames;
+  for (float child_frame : child_end_frames) {
+    if (plan.result < child_frame) plan.result = child_frame;
+  }
+  return plan;
+}
+
+SourceRndPollAnimChildListPlan source_rndpollanim_child_list_plan(
+    int32_t child_count) {
+  SourceRndPollAnimChildListPlan plan;
+  plan.child_count = child_count;
+  plan.published_children = std::max(0, child_count);
+  return plan;
+}
+
+SourceRndPollAnimLifecyclePlan source_rndpollanim_enter_plan(
+    int32_t child_count) {
+  SourceRndPollAnimLifecyclePlan plan;
+  plan.child_count = child_count;
+  plan.start_anim_calls = std::max(0, child_count);
+  return plan;
+}
+
+SourceRndPollAnimLifecyclePlan source_rndpollanim_exit_plan(
+    int32_t child_count) {
+  SourceRndPollAnimLifecyclePlan plan;
+  plan.child_count = child_count;
+  plan.end_anim_calls = std::max(0, child_count);
+  return plan;
+}
+
+SourceRndPollAnimRateFramePlan source_rndpollanim_rate_frame_plan(
+    SourceRndAnimRate rate,
+    float seconds,
+    float ui_seconds,
+    float tutorial_seconds,
+    float beat) {
+  SourceRndPollAnimRateFramePlan plan;
+  plan.rate = rate;
+  switch (rate) {
+    case kSourceRndAnimRate30Fps:
+      plan.recognized = true;
+      plan.uses_seconds = true;
+      plan.multiplier = 30.0f;
+      plan.frame = 30.0f * seconds;
+      break;
+    case kSourceRndAnimRate480Fpb:
+      plan.recognized = true;
+      plan.uses_beat = true;
+      plan.multiplier = 480.0f;
+      plan.frame = 480.0f * beat;
+      break;
+    case kSourceRndAnimRate30FpsUi:
+      plan.recognized = true;
+      plan.uses_ui_seconds = true;
+      plan.multiplier = 30.0f;
+      plan.frame = 30.0f * ui_seconds;
+      break;
+    case kSourceRndAnimRate1Fpb:
+      plan.recognized = true;
+      plan.uses_beat = true;
+      plan.multiplier = 1.0f;
+      plan.frame = beat;
+      break;
+    case kSourceRndAnimRate30FpsTutorial:
+      plan.recognized = true;
+      plan.uses_tutorial_seconds = true;
+      plan.multiplier = 30.0f;
+      plan.frame = 30.0f * tutorial_seconds;
+      break;
+    case kSourceRndAnimRateUnknown:
+    default:
+      break;
+  }
+  return plan;
+}
+
+SourceRndPollAnimPollPlan source_rndpollanim_poll_plan(int32_t child_count) {
+  SourceRndPollAnimPollPlan plan;
+  plan.child_count = child_count;
+  plan.calls_set_frame = child_count > 0;
+  return plan;
+}
+
+SourceRndPollAnimLoadPlan source_rndpollanim_load_plan(int32_t revision) {
+  SourceRndPollAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision == 0;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable", "RndPollable"};
+  return plan;
+}
+
+SourceRndPollAnimCopyPlan source_rndpollanim_copy_plan() {
+  SourceRndPollAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable", "RndPollable"};
+  return plan;
+}
+
+SourceRndPollAnimEmptyBodyPlan source_rndpollanim_empty_body_plan() {
+  return SourceRndPollAnimEmptyBodyPlan{};
+}
+
+SourceRndPollAnimHandlerPlan source_rndpollanim_handler_plan() {
+  SourceRndPollAnimHandlerPlan plan;
+  plan.superclasses = {"RndAnimatable", "RndPollable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndPollAnimPropSyncPlan source_rndpollanim_prop_sync_plan() {
+  SourceRndPollAnimPropSyncPlan plan;
+  plan.props = {"anims"};
+  plan.superclass_order = {"RndAnimatable", "RndPollable"};
+  return plan;
+}
+
 SourceRndMeshAnimDefaultState source_rndmeshanim_default_state() {
   return SourceRndMeshAnimDefaultState{};
 }

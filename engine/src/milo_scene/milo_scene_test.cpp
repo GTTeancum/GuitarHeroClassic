@@ -497,6 +497,145 @@ void test_mesh_anim() {
               handlers.actions.size());
 }
 
+void test_poll_anim() {
+  const SourceRndPollableHandlerPlan pollable_handlers =
+      source_rndpollable_handler_plan();
+  CHECK(pollable_handlers.actions.size() == 2);
+  CHECK(pollable_handlers.actions[0] == "enter");
+  CHECK(pollable_handlers.actions[1] == "poll");
+  CHECK(pollable_handlers.static_actions.size() == 1);
+  CHECK(pollable_handlers.static_actions[0] == "exit");
+  CHECK(pollable_handlers.check == 0x1A);
+
+  const SourceRndPollableBasePlan pollable_base =
+      source_rndpollable_base_plan();
+  CHECK(pollable_base.poll_body_empty);
+  CHECK(pollable_base.enter_handles_enter_msg);
+  CHECK(pollable_base.exit_handles_exit_msg);
+  CHECK(pollable_base.list_poll_children_empty);
+
+  const SourceRndPollAnimDefaultState defaults =
+      source_rndpollanim_default_state();
+  CHECK(defaults.anims_no_null);
+
+  const SourceRndPollAnimEndFramePlan end_frame =
+      source_rndpollanim_end_frame_plan({4.0f, 12.5f, 9.0f});
+  CHECK(end_frame.child_end_frames.size() == 3);
+  CHECK(approx(end_frame.result, 12.5f));
+  const SourceRndPollAnimEndFramePlan empty_end =
+      source_rndpollanim_end_frame_plan({});
+  CHECK(approx(empty_end.result, 0.0f));
+
+  const SourceRndPollAnimChildListPlan child_list =
+      source_rndpollanim_child_list_plan(3);
+  CHECK(child_list.child_count == 3);
+  CHECK(child_list.published_children == 3);
+
+  const SourceRndPollAnimLifecyclePlan enter =
+      source_rndpollanim_enter_plan(2);
+  CHECK(enter.child_count == 2);
+  CHECK(enter.start_anim_calls == 2);
+  CHECK(enter.end_anim_calls == 0);
+  const SourceRndPollAnimLifecyclePlan exit =
+      source_rndpollanim_exit_plan(2);
+  CHECK(exit.child_count == 2);
+  CHECK(exit.start_anim_calls == 0);
+  CHECK(exit.end_anim_calls == 2);
+
+  const SourceRndPollAnimRateFramePlan fps =
+      source_rndpollanim_rate_frame_plan(kSourceRndAnimRate30Fps, 1.5f,
+                                         2.0f, 3.0f, 4.0f);
+  CHECK(fps.recognized);
+  CHECK(fps.uses_seconds);
+  CHECK(!fps.uses_beat);
+  CHECK(approx(fps.multiplier, 30.0f));
+  CHECK(approx(fps.frame, 45.0f));
+
+  const SourceRndPollAnimRateFramePlan fpb =
+      source_rndpollanim_rate_frame_plan(kSourceRndAnimRate480Fpb, 1.5f,
+                                         2.0f, 3.0f, 0.25f);
+  CHECK(fpb.recognized);
+  CHECK(fpb.uses_beat);
+  CHECK(approx(fpb.multiplier, 480.0f));
+  CHECK(approx(fpb.frame, 120.0f));
+
+  const SourceRndPollAnimRateFramePlan ui =
+      source_rndpollanim_rate_frame_plan(kSourceRndAnimRate30FpsUi, 1.5f,
+                                         2.0f, 3.0f, 4.0f);
+  CHECK(ui.recognized);
+  CHECK(ui.uses_ui_seconds);
+  CHECK(approx(ui.frame, 60.0f));
+
+  const SourceRndPollAnimRateFramePlan one_fpb =
+      source_rndpollanim_rate_frame_plan(kSourceRndAnimRate1Fpb, 1.5f,
+                                         2.0f, 3.0f, 4.0f);
+  CHECK(one_fpb.recognized);
+  CHECK(one_fpb.uses_beat);
+  CHECK(approx(one_fpb.multiplier, 1.0f));
+  CHECK(approx(one_fpb.frame, 4.0f));
+
+  const SourceRndPollAnimRateFramePlan tutorial =
+      source_rndpollanim_rate_frame_plan(kSourceRndAnimRate30FpsTutorial,
+                                         1.5f, 2.0f, 3.0f, 4.0f);
+  CHECK(tutorial.recognized);
+  CHECK(tutorial.uses_tutorial_seconds);
+  CHECK(approx(tutorial.frame, 90.0f));
+
+  const SourceRndPollAnimRateFramePlan unknown =
+      source_rndpollanim_rate_frame_plan(kSourceRndAnimRateUnknown, 1.5f,
+                                         2.0f, 3.0f, 4.0f);
+  CHECK(!unknown.recognized);
+  CHECK(approx(unknown.frame, 0.0f));
+
+  const SourceRndPollAnimPollPlan poll =
+      source_rndpollanim_poll_plan(3);
+  CHECK(poll.child_count == 3);
+  CHECK(poll.calls_set_frame);
+  CHECK(approx(poll.blend, 1.0f));
+  CHECK(!source_rndpollanim_poll_plan(0).calls_set_frame);
+
+  const SourceRndPollAnimLoadPlan load0 =
+      source_rndpollanim_load_plan(0);
+  CHECK(load0.accepted_revision);
+  CHECK(load0.superclasses.size() == 3);
+  CHECK(load0.superclasses[0] == "Hmx::Object");
+  CHECK(load0.superclasses[1] == "RndAnimatable");
+  CHECK(load0.superclasses[2] == "RndPollable");
+  CHECK(load0.reads_anims);
+  CHECK(!source_rndpollanim_load_plan(1).accepted_revision);
+
+  const SourceRndPollAnimCopyPlan copy = source_rndpollanim_copy_plan();
+  CHECK(copy.superclasses.size() == 3);
+  CHECK(copy.copies_anims);
+
+  const SourceRndPollAnimEmptyBodyPlan empty =
+      source_rndpollanim_empty_body_plan();
+  CHECK(empty.start_anim_empty);
+  CHECK(empty.end_anim_empty);
+  CHECK(empty.set_frame_empty);
+
+  const SourceRndPollAnimHandlerPlan handlers =
+      source_rndpollanim_handler_plan();
+  CHECK(handlers.superclasses.size() == 3);
+  CHECK(handlers.superclasses[0] == "RndAnimatable");
+  CHECK(handlers.superclasses[1] == "RndPollable");
+  CHECK(handlers.superclasses[2] == "Hmx::Object");
+  CHECK(handlers.check == 0x8B);
+
+  const SourceRndPollAnimPropSyncPlan props =
+      source_rndpollanim_prop_sync_plan();
+  CHECK(props.props.size() == 1);
+  CHECK(props.props[0] == "anims");
+  CHECK(props.superclass_order.size() == 2);
+  CHECK(props.superclass_order[0] == "RndAnimatable");
+  CHECK(props.superclass_order[1] == "RndPollable");
+  CHECK(props.returns_animatable_when_handled);
+  CHECK(props.falls_back_to_pollable);
+
+  std::printf("  [ok] PollAnim: end=%.1f beat480=%.1f handlers=0x%x\n",
+              end_frame.result, fpb.frame, handlers.check);
+}
+
 void test_mat() {
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
@@ -1155,6 +1294,7 @@ int main() {
   test_trans_proxy();
   test_trans_anim();
   test_mesh_anim();
+  test_poll_anim();
   test_mat();
   test_group();
   test_mesh_deform();
