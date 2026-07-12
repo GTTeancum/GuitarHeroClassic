@@ -6032,8 +6032,17 @@ int main() {
                  "floatblend=1.0f;",
                  "renderer transform samples carry EventTrigger SetFrame blend strength");
   ok &= contains(renderer_c,
-                 "apply_mesh_transform_sample_full(target,sample);",
-                 "renderer blends venue transform samples toward the authored SetFrame target");
+                 "autoblended=sample;blended.blend=1.0f;",
+                 "renderer blends venue transform samples as SetFrame components");
+  ok &= contains(renderer_c,
+                 "fast_interp_quat_xyzw(base_quat,sample.rotation_xyzw,blend)",
+                 "renderer blends venue TransAnim rotations as source quaternions, not matrix rows");
+  ok &= contains(renderer_c,
+                 "base_scale[axis]+(sample.scale[axis]-base_scale[axis])*blend",
+                 "renderer blends venue TransAnim scale as a source scale channel");
+  ok &= absent(renderer_c,
+               "world[i]=base[i]+(target[i]-base[i])*blend;",
+               "venue TransAnim blend must not lerp whole matrix rows");
   ok &= contains(renderer_c,
                  "mesh_transform_offsets_.find(target)",
                  "persistent venue AnimFilter offsets also apply to animated parent transforms");

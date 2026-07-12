@@ -366,6 +366,40 @@ void local_normalized_rows(const std::array<float, 16>& local,
   }
 }
 
+std::array<float, 4> quat_xyzw_from_row_rot(const float rot[3][3]) {
+  std::array<float, 4> q{};
+  const float row0x = rot[0][0];
+  const float row1y = rot[1][1];
+  const float row2z = rot[2][2];
+  const float diag = row0x + row1y + row2z;
+  if (diag > 0.0f) {
+    q[3] = diag + 1.0f;
+    q[0] = rot[1][2] - rot[2][1];
+    q[1] = rot[2][0] - rot[0][2];
+    q[2] = rot[0][1] - rot[1][0];
+  } else if (row2z > row0x && row2z > row1y) {
+    q[2] = row2z - row0x - row1y + 1.0f;
+    q[3] = rot[0][1] - rot[1][0];
+    q[0] = rot[2][0] + rot[0][2];
+    q[1] = rot[2][1] + rot[1][2];
+  } else if (row1y > row0x) {
+    q[1] = row1y - row2z - row0x + 1.0f;
+    q[3] = rot[2][0] - rot[0][2];
+    q[2] = rot[1][2] + rot[2][1];
+    q[0] = rot[1][0] + rot[0][1];
+  } else {
+    q[0] = row0x - row1y - row2z + 1.0f;
+    q[3] = rot[1][2] - rot[2][1];
+    q[1] = rot[0][1] + rot[1][0];
+    q[2] = rot[0][2] + rot[2][0];
+  }
+  return normalize_quat_xyzw(q);
+}
+
+std::array<float, 4> fast_interp_quat_xyzw(std::array<float, 4> a,
+                                           std::array<float, 4> b,
+                                           float t);
+
 float finite_or(float value, float fallback) {
   return std::isfinite(value) ? value : fallback;
 }
@@ -428,12 +462,46 @@ void apply_mesh_transform_sample(
     return;
   }
 
-  const auto base = world;
-  auto target = world;
-  apply_mesh_transform_sample_full(target, sample);
-  for (size_t i = 0; i < world.size(); ++i) {
-    world[i] = base[i] + (target[i] - base[i]) * blend;
+  auto blended = sample;
+  blended.blend = 1.0f;
+  if (sample.has_translation) {
+    if (sample.translation_is_absolute) {
+      for (int axis = 0; axis < 3; ++axis) {
+        const float base = world[12 + axis];
+        blended.translation[axis] =
+            base + (sample.translation[axis] - base) * blend;
+      }
+    } else {
+      for (int axis = 0; axis < 3; ++axis)
+        blended.translation[axis] = sample.translation[axis] * blend;
+    }
   }
+  if (sample.has_rotation) {
+    if (sample.rotation_is_absolute) {
+      float base_rot[3][3];
+      local_normalized_rows(world, base_rot);
+      const auto base_quat = quat_xyzw_from_row_rot(base_rot);
+      blended.rotation_xyzw =
+          fast_interp_quat_xyzw(base_quat, sample.rotation_xyzw, blend);
+    } else {
+      blended.rotation_xyzw =
+          fast_interp_quat_xyzw({0.0f, 0.0f, 0.0f, 1.0f},
+                                sample.rotation_xyzw, blend);
+    }
+  }
+  if (sample.has_scale) {
+    if (sample.scale_is_absolute) {
+      const auto base_scale = local_row_scales(world);
+      for (int axis = 0; axis < 3; ++axis) {
+        blended.scale[axis] =
+            base_scale[axis] + (sample.scale[axis] - base_scale[axis]) * blend;
+      }
+    } else {
+      for (int axis = 0; axis < 3; ++axis)
+        blended.scale[axis] = 1.0f + (sample.scale[axis] - 1.0f) * blend;
+    }
+  }
+  apply_mesh_transform_sample_full(world, blended);
 }
 
 void apply_face_camera_yaw(std::array<float, 16>& world,
