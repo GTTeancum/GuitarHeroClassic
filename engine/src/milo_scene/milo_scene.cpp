@@ -228,17 +228,25 @@ void read_animatable_block(Reader& r) {
   }
 }
 
-void read_drawable_block(Reader& r) {
+void read_drawable_block(Reader& r, int32_t parent_dir_revision) {
   const uint32_t combined_revision = r.u32();
   const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
-  (void)r.u8();  // showing
-  if (ver < 2) {
+  const SourceRndDrawableLoadPlan plan =
+      source_rnddrawable_load_plan(ver, parent_dir_revision);
+  if (plan.reads_showing) (void)r.u8();
+  if (plan.reads_old_drawable_list) {
     const uint32_t drawable_count = r.u32();
-    for (uint32_t i = 0; i < drawable_count; ++i) r.str();
+    for (uint32_t i = 0; i < drawable_count; ++i) {
+      if (plan.old_list_is_null_terminated_strings) {
+        (void)r.utf8_z();
+      } else {
+        (void)r.str();
+      }
+    }
   }
-  if (ver > 0) r.skip(16);  // sphere
-  if (ver > 2) (void)r.f32();
-  if (ver >= 4) {
+  if (plan.reads_sphere) r.skip(16);
+  if (plan.reads_draw_order) (void)r.f32();
+  if (plan.reads_clip_planes) {
     const uint32_t clip_plane_count = r.u32();
     for (uint32_t i = 0; i < clip_plane_count; ++i) r.str();
   }
@@ -1463,7 +1471,7 @@ GroupObj decode_group(const std::string& entry_name,
     if (ver > 7) read_object_fields(r);
     read_animatable_block(r);
     (void)read_trans_block(r, false, parent_dir_revision);
-    read_drawable_block(r);
+    read_drawable_block(r, parent_dir_revision);
 
     if (ver > 10) {
       const uint32_t object_count = r.u32();

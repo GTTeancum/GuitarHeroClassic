@@ -2595,10 +2595,27 @@ int run_contract() {
   ok &= contains(scene,
                  "plan.reads_draw_order=revision>2;",
                  "shared RndDrawable load plan mirrors draw-order gate");
+  ok &= contains(scene,
+                 "source_rnddrawable_load_plan(ver,parent_dir_revision)",
+                 "shared RndDrawable reader uses source plan with parent revision");
+  ok &= contains(scene,
+                 "if(plan.old_list_is_null_terminated_strings){"
+                 "(void)r.utf8_z();}else{(void)r.str();}",
+                 "shared RndDrawable reader mirrors old drawable-list string gate");
+  ok &= contains(scene,
+                 "read_drawable_block(r,parent_dir_revision);",
+                 "shared RndGroup decoder passes parent revision into RndDrawable");
   ok &= contains(scene_test,
                  "constSourceRndDrawableLoadPlandrawable_v3="
                  "source_rnddrawable_load_plan(3,24);",
                  "milo_scene test covers modern RndDrawable plan");
+  ok &= contains(scene_test,
+                 "put_utf8_z(legacy_drawable,\"legacy_draw_child\");",
+                 "milo_scene test covers legacy RndDrawable UTF-8 child row");
+  ok &= contains(doc,
+                 "passes the actual parent directory\n"
+                 "    revision into embedded `RndDrawable` rows",
+                 "document records RndDrawable parent-revision plumbing");
 
   ok &= contains(mat_cs,
                  "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"

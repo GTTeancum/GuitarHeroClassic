@@ -1152,6 +1152,36 @@ void test_group() {
   CHECK(g.environment_ref == "stage.env");
   CHECK(g.draw_only == "hair-front1.mesh");
   CHECK(g.sort_in_world);
+
+  std::vector<uint8_t> legacy_drawable;
+  put_u32(legacy_drawable, 15);              // RndGroup revision
+  put_zeros(legacy_drawable, 9);             // Hmx::Object fields
+  put_u32(legacy_drawable, 4);               // RndAnimatable revision
+  put_f32(legacy_drawable, 0.0f);            // frame
+  put_u32(legacy_drawable, 0);               // rate
+  put_u32(legacy_drawable, 9);               // RndTrans revision
+  put_matrix(legacy_drawable, 0, 0, 0);
+  put_matrix(legacy_drawable, 0, 0, 0);
+  put_u32(legacy_drawable, 0);               // constraint
+  put_str(legacy_drawable, "");              // target
+  legacy_drawable.push_back(0);              // preserve_scale
+  put_str(legacy_drawable, "");              // parent
+  put_u32(legacy_drawable, 1);               // RndDrawable revision
+  legacy_drawable.push_back(1);              // showing
+  put_u32(legacy_drawable, 1);               // old drawable list count
+  put_utf8_z(legacy_drawable, "legacy_draw_child");
+  put_zeros(legacy_drawable, 16);            // sphere
+  put_u32(legacy_drawable, 0);               // objects
+  put_str(legacy_drawable, "");              // environ for rev < 16
+  put_str(legacy_drawable, "");              // drawOnly for rev > 12
+  put_str(legacy_drawable, "");              // legacy lod group
+  put_f32(legacy_drawable, 0.0f);            // lod screen size
+  legacy_drawable.push_back(0);              // sortInWorld
+
+  GroupObj old_draw = decode_group("legacy_draw.grp", legacy_drawable, 6);
+  CHECK(old_draw.decoded);
+  CHECK(old_draw.children.empty());
+  CHECK(!old_draw.sort_in_world);
   std::printf("  [ok] Group: children=%zu env=%s drawOnly=%s sort=%d\n",
               g.children.size(), g.environment_ref.c_str(),
               g.draw_only.c_str(), g.sort_in_world ? 1 : 0);

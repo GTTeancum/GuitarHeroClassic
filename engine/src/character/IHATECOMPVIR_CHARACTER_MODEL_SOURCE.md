@@ -814,6 +814,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     null-terminated strings for that list, later parents use symbols, revision
     `> 0` reads the sphere, revision `> 2` reads draw order, and revision
     `>= 4` reads clip planes.
+  - The shared `RndGroup` decoder now passes the actual parent directory
+    revision into embedded `RndDrawable` rows and uses the source
+    `ReadUTF8`/Symbol split for old drawable lists. GH2 PS2 character groups
+    still take the Symbol path, but the reader no longer assumes that for older
+    parent directories.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMat.cs`
   - For material revisions above 21, `RndMat.Read` reads `useEnviron`,
     `preLit`, `zMode`, `alphaCut`, optional `alphaThreshold`, `alphaWrite`,
