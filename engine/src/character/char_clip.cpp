@@ -2110,18 +2110,16 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
   return true;
 }
 
-// Decode one bone's quaternion from the data cursor (advances it).
-// VERIFIED against the game's decompression sub_8215D338: it reads the 4 int16
-// in order (offsets 0,2,4,6) and writes dst[0..3] = src[0..3] * (1/32767) — a
-// STRAIGHT copy, no reordering. Harmonix Hmx::Quat stores {x,y,z,w} (w last).
+// Decode one bone's quaternion from the data cursor (advances it). Grim and
+// re-notes decode short-packed sample components through the same clamped
+// signed-normalized helper used by scalar sample rows; Hmx::Quat stores x,y,z,w.
 void read_quat(Cur& c, bool comp, ClipChannel& ch) {
   ch.type = ClipChannel::kQuat;
-  const float k = 1.0f / 32767.0f;
   if (comp) {
-    ch.quat[0] = c.i16() * k;  // x
-    ch.quat[1] = c.i16() * k;  // y
-    ch.quat[2] = c.i16() * k;  // z
-    ch.quat[3] = c.i16() * k;  // w
+    ch.quat[0] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // x
+    ch.quat[1] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // y
+    ch.quat[2] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // z
+    ch.quat[3] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // w
   } else {
     ch.quat[0] = c.f32();      // x
     ch.quat[1] = c.f32();      // y

@@ -843,6 +843,17 @@ int run_contract() {
   ok &= contains(re_notes_char_bones_samples_bt,
                  "xx=Max((float)x/32767.0,-1);",
                  "re-notes scalar RotSample has no pi scale");
+  ok &= contains(re_notes_char_bones_samples_bt,
+                 "xx=Max((float)x/32767.0,-1);yy=Max((float)y/32767.0,"
+                 "-1);zz=Max((float)z/32767.0,-1);ww=Max((float)w/"
+                 "32767.0,-1);",
+                 "re-notes short QuatSample clamps packed components");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "letx=read_packed_f32([sample[i],sample[i+1]]);lety="
+                 "read_packed_f32([sample[i+2],sample[i+3]]);letz="
+                 "read_packed_f32([sample[i+4],sample[i+5]]);letw="
+                 "read_packed_f32([sample[i+6],sample[i+7]]);",
+                 "grim short quat uses packed f32 helper for components");
   ok &= contains(re_notes_gh2_charclipsamples,
                  "bone_L-foreArm.rotz",
                  "re-notes GH2 notes show rotz rows in stock examples");
@@ -895,6 +906,14 @@ int run_contract() {
   ok &= contains(char_clip,
                  "ch.angle=comp?read_snorm16(c):c.f32();",
                  "native scalar sample decode keeps grim raw angle value");
+  ok &= contains(char_clip,
+                 "ch.quat[0]=source_grim_char_bones_samples_decode_snorm16("
+                 "c.i16());",
+                 "native packed quat x uses grim snorm16 clamp");
+  ok &= contains(char_clip,
+                 "ch.quat[3]=source_grim_char_bones_samples_decode_snorm16("
+                 "c.i16());",
+                 "native packed quat w uses grim snorm16 clamp");
   ok &= contains(char_clip, "candidate.resize(2);",
                  "native keeps two runtime data lists after duplicate header");
   ok &= contains(char_clip,
