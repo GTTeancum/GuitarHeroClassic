@@ -9053,6 +9053,19 @@ int run_contract() {
                  "COPY_MEMBER(mTarget)COPY_MEMBER(mFirstSpot)"
                  "COPY_MEMBER(mSecondSpot)COPY_MEMBER(mTolerance)",
                  "CharIKSliderMidi source copy mirrors member list");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "BEGIN_HANDLERS(CharIKSliderMidi)HANDLE_ACTION(set_fraction,"
+                 "SetFraction(_msg->Float(2),_msg->Float(3)))HANDLE_ACTION("
+                 "reset,SetupTransforms())HANDLE_SUPERCLASS(CharWeightable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0xF8)",
+                 "CharIKSliderMidi source handler rows");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "BEGIN_PROPSYNCS(CharIKSliderMidi)SYNC_PROP_MODIFY(target,"
+                 "mTarget,SetupTransforms())SYNC_PROP_MODIFY(first_spot,"
+                 "mFirstSpot,SetupTransforms())SYNC_PROP_MODIFY(second_spot,"
+                 "mSecondSpot,SetupTransforms())SYNC_PROP(tolerance,"
+                 "mTolerance)SYNC_SUPERCLASS(CharWeightable)",
+                 "CharIKSliderMidi source prop-sync rows");
   ok &= missing(rb3_latest_char_ik_slider_midi_cpp,
                 "voidCharIKSliderMidi::Poll(",
                 "available CharIKSliderMidi source lacks Poll body");
@@ -9077,6 +9090,26 @@ int run_contract() {
                  "SourceCharIKSliderMidiLoadStepssource_char_ik_slider_midi_"
                  "load_steps(",
                  "native API exposes CharIKSliderMidi load helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKSliderMidiHandlerPlan{"
+                 "std::vector<std::string>actions;std::vector<std::string>"
+                 "superclasses;int32_tcheck=0;};",
+                 "native exposes CharIKSliderMidi handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKSliderMidiPropSyncPlan{"
+                 "std::vector<std::string>modify_properties;"
+                 "std::vector<std::string>modify_actions;"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharIKSliderMidi prop-sync plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKSliderMidiHandlerPlan"
+                 "source_char_ik_slider_midi_handler_plan();",
+                 "native API exposes CharIKSliderMidi handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKSliderMidiPropSyncPlan"
+                 "source_char_ik_slider_midi_prop_sync_plan();",
+                 "native API exposes CharIKSliderMidi prop-sync helper");
   ok &= contains(char_clip,
                  "SourceCharIKSliderMidiStatesource_char_ik_slider_midi_"
                  "default_state(conststd::string&name){SourceCharIKSliderMidi"
@@ -9114,6 +9147,24 @@ int run_contract() {
                  "dest.target=source.target;result.copy_target=true;"
                  "dest.first_spot=source.first_spot;",
                  "native CharIKSliderMidi copy helper mirrors member list");
+  ok &= contains(char_clip,
+                 "SourceCharIKSliderMidiHandlerPlan"
+                 "source_char_ik_slider_midi_handler_plan(){"
+                 "SourceCharIKSliderMidiHandlerPlanplan;plan.actions={"
+                 "\"set_fraction\",\"reset\"};plan.superclasses={"
+                 "\"CharWeightable\",\"Hmx::Object\"};plan.check=0xF8;",
+                 "native CharIKSliderMidi handler helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharIKSliderMidiPropSyncPlan"
+                 "source_char_ik_slider_midi_prop_sync_plan(){"
+                 "SourceCharIKSliderMidiPropSyncPlanplan;"
+                 "plan.modify_properties={\"target\",\"first_spot\","
+                 "\"second_spot\"};",
+                 "native CharIKSliderMidi prop-sync helper mirrors modify rows");
+  ok &= contains(char_clip,
+                 "plan.properties={\"tolerance\"};plan.superclasses={"
+                 "\"CharWeightable\"};",
+                 "native CharIKSliderMidi prop-sync helper mirrors property rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_ik_slider_midi_source_test"
                  "character_ik_slider_midi_source_test.cpp)",
@@ -9133,6 +9184,12 @@ int run_contract() {
   ok &= contains(ik_slider_midi_source_test,
                  "source_char_ik_slider_midi_copy(dest,source,false,0.66f)",
                  "focused CharIKSliderMidi test covers copy helper");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_handler_plan()",
+                 "focused CharIKSliderMidi test covers handler plan");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_prop_sync_plan()",
+                 "focused CharIKSliderMidi test covers prop-sync plan");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharIKSliderMidi.cpp`",
                  "document cites CharIKSliderMidi source");
@@ -9143,6 +9200,12 @@ int run_contract() {
   ok &= contains(doc,
                  "does\n    not include reviewable `Poll` or `SetFraction` bodies",
                  "document fences CharIKSliderMidi missing Poll and SetFraction");
+  ok &= contains(doc,
+                 "Handler rows are `set_fraction`, `reset`, `CharWeightable`,",
+                 "document records CharIKSliderMidi handler rows");
+  ok &= contains(doc,
+                 "Prop-sync rows modify `target`,",
+                 "document records CharIKSliderMidi prop-sync rows");
   ok &= contains(rb3_latest_char_ik_fingers_h,
                  "FingerDesc():unk0(0),unk8(0,0,0),unk14(0,0,0),"
                  "mFinger01(0),mFinger02(0),mFinger03(0),mFingertip(0),"

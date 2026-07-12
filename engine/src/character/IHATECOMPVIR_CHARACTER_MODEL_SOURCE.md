@@ -2756,6 +2756,10 @@ note, and all report `unreadBytes=0`.
     `CharWeightable` only for revisions above 1, then reads target, first spot,
     second spot, and tolerance. `Copy` copies `Hmx::Object`,
     `CharWeightable`, target, first spot, second spot, and tolerance.
+  - Handler rows are `set_fraction`, `reset`, `CharWeightable`,
+    `Hmx::Object`, then check `0xF8`. Prop-sync rows modify `target`,
+    `first_spot`, and `second_spot` through `SetupTransforms`, then expose
+    `tolerance` and `CharWeightable`.
   - Native `source_char_ik_slider_midi_*` helpers port these concrete source
     behaviors for deterministic coverage. The checked source declares but does
     not include reviewable `Poll` or `SetFraction` bodies, so native does not

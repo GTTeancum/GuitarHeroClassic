@@ -24,6 +24,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -38,8 +44,10 @@ int main() {
   using ghogx::character::source_char_ik_slider_midi_copy;
   using ghogx::character::source_char_ik_slider_midi_default_state;
   using ghogx::character::source_char_ik_slider_midi_enter;
+  using ghogx::character::source_char_ik_slider_midi_handler_plan;
   using ghogx::character::source_char_ik_slider_midi_load_steps;
   using ghogx::character::source_char_ik_slider_midi_poll_deps;
+  using ghogx::character::source_char_ik_slider_midi_prop_sync_plan;
   using ghogx::character::source_char_ik_slider_midi_set_name;
   using ghogx::character::source_char_ik_slider_midi_setup_transforms;
   using ghogx::character::source_char_weightable_set_weight_owner;
@@ -153,6 +161,35 @@ int main() {
   ok &= expect_string(dest.weightable.weight_owner, "dest.deep",
                       "Copy deep owns itself");
   ok &= near(dest.weightable.weight, 0.66f, "Copy deep owner weight");
+
+  const auto handlers = source_char_ik_slider_midi_handler_plan();
+  ok &= expect_size(handlers.actions.size(), 2, "handler action count");
+  ok &= expect_string(handlers.actions[0], "set_fraction",
+                      "handler set_fraction action");
+  ok &= expect_string(handlers.actions[1], "reset", "handler reset action");
+  ok &= expect_size(handlers.superclasses.size(), 2,
+                    "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "CharWeightable",
+                      "handler first superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "handler second superclass");
+  ok &= expect_int(handlers.check, 0xF8, "handler check");
+
+  const auto props = source_char_ik_slider_midi_prop_sync_plan();
+  ok &= expect_size(props.modify_properties.size(), 3,
+                    "prop-sync modify property count");
+  ok &= expect_string(props.modify_properties[0], "target",
+                      "prop-sync target modify");
+  ok &= expect_string(props.modify_properties[1], "first_spot",
+                      "prop-sync first spot modify");
+  ok &= expect_string(props.modify_properties[2], "second_spot",
+                      "prop-sync second spot modify");
+  ok &= expect_string(props.modify_actions[0], "SetupTransforms",
+                      "prop-sync target action");
+  ok &= expect_string(props.properties[0], "tolerance",
+                      "prop-sync tolerance property");
+  ok &= expect_string(props.superclasses[0], "CharWeightable",
+                      "prop-sync superclass");
 
   return ok ? 0 : 1;
 }

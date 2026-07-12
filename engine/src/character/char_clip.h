@@ -2530,6 +2530,19 @@ struct SourceCharIKSliderMidiCopyResult {
   bool copy_tolerance = false;
 };
 
+struct SourceCharIKSliderMidiHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int32_t check = 0;
+};
+
+struct SourceCharIKSliderMidiPropSyncPlan {
+  std::vector<std::string> modify_properties;
+  std::vector<std::string> modify_actions;
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharIKMidiState {
   std::string bone;
   std::string cur_spot;
@@ -2698,6 +2711,10 @@ SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
     const SourceCharIKSliderMidiState& source,
     bool shallow_copy,
     float source_owner_weight);
+SourceCharIKSliderMidiHandlerPlan
+source_char_ik_slider_midi_handler_plan();
+SourceCharIKSliderMidiPropSyncPlan
+source_char_ik_slider_midi_prop_sync_plan();
 SourceCharIKMidiState source_char_ik_midi_default_state();
 SourceCharIKMidiEnterResult source_char_ik_midi_enter(
     SourceCharIKMidiState& state);

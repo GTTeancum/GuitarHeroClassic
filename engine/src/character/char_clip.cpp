@@ -6995,6 +6995,26 @@ SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
   return result;
 }
 
+SourceCharIKSliderMidiHandlerPlan
+source_char_ik_slider_midi_handler_plan() {
+  SourceCharIKSliderMidiHandlerPlan plan;
+  plan.actions = {"set_fraction", "reset"};
+  plan.superclasses = {"CharWeightable", "Hmx::Object"};
+  plan.check = 0xF8;
+  return plan;
+}
+
+SourceCharIKSliderMidiPropSyncPlan
+source_char_ik_slider_midi_prop_sync_plan() {
+  SourceCharIKSliderMidiPropSyncPlan plan;
+  plan.modify_properties = {"target", "first_spot", "second_spot"};
+  plan.modify_actions = {"SetupTransforms", "SetupTransforms",
+                         "SetupTransforms"};
+  plan.properties = {"tolerance"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
 SourceCharIKMidiState source_char_ik_midi_default_state() {
   SourceCharIKMidiState state;
   source_char_ik_midi_enter(state);
