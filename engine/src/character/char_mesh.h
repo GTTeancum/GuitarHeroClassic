@@ -691,6 +691,34 @@ struct SourceRndMeshHandlerPlan {
   int32_t check = 2306;
 };
 
+struct SourceRndMeshPointCollidePlan {
+  bool has_bsp_tree = false;
+  bool reads_bsp_tree = true;
+  bool reads_message_xyz = true;
+  bool multiplies_world_xfm = true;
+  bool calls_intersect = false;
+  bool intersected = false;
+  bool returns_hit = false;
+};
+
+struct SourceRndMeshAttachMeshPlan {
+  bool reads_mesh_arg_2 = true;
+  bool calls_attach_mesh_this = true;
+  bool deletes_mesh_arg = true;
+  bool returns_zero = true;
+};
+
+struct SourceRndMeshConfigureMeshPlan {
+  bool type_is_configurable = false;
+  bool warns_nonconfigurable = false;
+  bool reads_left_right_height = false;
+  bool assigns_four_vertex_positions = false;
+  std::array<std::array<float, 3>, 4> positions = {};
+  bool syncs = false;
+  int32_t sync_mask = 0;
+  bool returns_zero = true;
+};
+
 struct SourceRndMeshIndexedEditPlan {
   std::string row;
   int32_t count = 0;
@@ -867,6 +895,15 @@ SourceRndMeshFaceCenterResult source_rndmesh_face_center(
     const std::vector<std::array<float, 3>>& vertices,
     const SourceRndMeshFace& face);
 SourceRndMeshHandlerPlan source_rndmesh_handler_plan();
+SourceRndMeshPointCollidePlan source_rndmesh_point_collide_plan(
+    bool has_bsp_tree,
+    bool intersected);
+SourceRndMeshAttachMeshPlan source_rndmesh_attach_mesh_plan();
+SourceRndMeshConfigureMeshPlan source_rndmesh_configure_mesh_plan(
+    bool type_is_configurable,
+    float left,
+    float right,
+    float height);
 SourceRndMeshIndexedEditPlan source_rndmesh_vertex_edit_plan(
     int32_t vertex_count,
     int32_t index,

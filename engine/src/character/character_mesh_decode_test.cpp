@@ -1190,6 +1190,51 @@ int main() {
   CHECK(mesh_handlers.superclasses[1] == "RndTransformable");
   CHECK(mesh_handlers.check == 2306);
 
+  const auto point_hit =
+      ghogx::character::source_rndmesh_point_collide_plan(true, true);
+  CHECK(point_hit.reads_bsp_tree);
+  CHECK(point_hit.reads_message_xyz);
+  CHECK(point_hit.multiplies_world_xfm);
+  CHECK(point_hit.calls_intersect);
+  CHECK(point_hit.intersected);
+  CHECK(point_hit.returns_hit);
+  const auto point_no_tree =
+      ghogx::character::source_rndmesh_point_collide_plan(false, true);
+  CHECK(!point_no_tree.calls_intersect);
+  CHECK(!point_no_tree.intersected);
+  CHECK(!point_no_tree.returns_hit);
+
+  const auto attach_mesh =
+      ghogx::character::source_rndmesh_attach_mesh_plan();
+  CHECK(attach_mesh.reads_mesh_arg_2);
+  CHECK(attach_mesh.calls_attach_mesh_this);
+  CHECK(attach_mesh.deletes_mesh_arg);
+  CHECK(attach_mesh.returns_zero);
+
+  const auto configure_mesh =
+      ghogx::character::source_rndmesh_configure_mesh_plan(
+          true, -1.0f, 2.0f, 3.5f);
+  CHECK(configure_mesh.type_is_configurable);
+  CHECK(!configure_mesh.warns_nonconfigurable);
+  CHECK(configure_mesh.reads_left_right_height);
+  CHECK(configure_mesh.assigns_four_vertex_positions);
+  CHECK(approx(configure_mesh.positions[0][0], -1.0f));
+  CHECK(approx(configure_mesh.positions[0][2], 3.5f));
+  CHECK(approx(configure_mesh.positions[2][0], 2.0f));
+  CHECK(approx(configure_mesh.positions[2][2], 0.0f));
+  CHECK(configure_mesh.syncs);
+  CHECK(configure_mesh.sync_mask == 0x3f);
+  CHECK(configure_mesh.returns_zero);
+  const auto configure_warn =
+      ghogx::character::source_rndmesh_configure_mesh_plan(
+          false, -1.0f, 2.0f, 3.5f);
+  CHECK(!configure_warn.type_is_configurable);
+  CHECK(configure_warn.warns_nonconfigurable);
+  CHECK(!configure_warn.reads_left_right_height);
+  CHECK(!configure_warn.assigns_four_vertex_positions);
+  CHECK(!configure_warn.syncs);
+  CHECK(configure_warn.returns_zero);
+
   const auto get_norm =
       ghogx::character::source_rndmesh_vertex_edit_plan(4, 2, "norm", false);
   CHECK(get_norm.valid_index);

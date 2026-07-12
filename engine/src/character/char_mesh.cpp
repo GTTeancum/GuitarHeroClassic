@@ -1265,6 +1265,44 @@ SourceRndMeshHandlerPlan source_rndmesh_handler_plan() {
   return plan;
 }
 
+SourceRndMeshPointCollidePlan source_rndmesh_point_collide_plan(
+    bool has_bsp_tree,
+    bool intersected) {
+  SourceRndMeshPointCollidePlan plan;
+  plan.has_bsp_tree = has_bsp_tree;
+  plan.calls_intersect = has_bsp_tree;
+  plan.intersected = has_bsp_tree && intersected;
+  plan.returns_hit = has_bsp_tree && intersected;
+  return plan;
+}
+
+SourceRndMeshAttachMeshPlan source_rndmesh_attach_mesh_plan() {
+  return SourceRndMeshAttachMeshPlan{};
+}
+
+SourceRndMeshConfigureMeshPlan source_rndmesh_configure_mesh_plan(
+    bool type_is_configurable,
+    float left,
+    float right,
+    float height) {
+  SourceRndMeshConfigureMeshPlan plan;
+  plan.type_is_configurable = type_is_configurable;
+  if (!type_is_configurable) {
+    plan.warns_nonconfigurable = true;
+    return plan;
+  }
+
+  plan.reads_left_right_height = true;
+  plan.assigns_four_vertex_positions = true;
+  plan.positions[0] = {left, 0.0f, height};
+  plan.positions[1] = {left, 0.0f, 0.0f};
+  plan.positions[2] = {right, 0.0f, 0.0f};
+  plan.positions[3] = {right, 0.0f, height};
+  plan.syncs = true;
+  plan.sync_mask = 0x3f;
+  return plan;
+}
+
 SourceRndMeshIndexedEditPlan source_rndmesh_vertex_edit_plan(
     int32_t vertex_count,
     int32_t index,

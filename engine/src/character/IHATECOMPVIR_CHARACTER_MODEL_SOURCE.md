@@ -1101,13 +1101,23 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     vector only when `RndMesh::gRev < 1`; `FaceCenter` sums the three indexed
     vertex positions and multiplies by `0.33333333f`.
   - Native `source_rndmesh_handler_plan`,
+    `source_rndmesh_point_collide_plan`,
+    `source_rndmesh_attach_mesh_plan`,
+    `source_rndmesh_configure_mesh_plan`,
     `source_rndmesh_vertex_edit_plan`, `source_rndmesh_face_edit_plan`, and
     `source_rndmesh_unitize_normals_plan` port the checked editor/accessor
-    surface: vertex `norm` / `pos` / `uv` getters and setters assert the index,
-    setters call `Sync(31)`, face getters/setters assert the face index,
+    surface: `OnPointCollide` gets the BSP tree, builds a vector from message
+    floats 2-4, multiplies by `WorldXfm()`, and returns
+    `tree && Intersect(v, tree)`; `OnAttachMesh` reads mesh arg 2, calls
+    `AttachMesh(this, m)`, deletes that temporary mesh pointer, and returns
+    zero; `OnConfigureMesh` warns for non-configurable meshes, otherwise reads
+    `left`, `right`, and `height`, assigns four vertex positions, and calls
+    `Sync(0x3f)`; vertex `norm` / `pos` / `uv` getters and setters assert the
+    index, setters call `Sync(31)`, face getters/setters assert the face index,
     `OnSetFace` calls `Sync(32)`, and `OnUnitizeNormals` normalizes every
     vertex normal. These helpers document the source row surface only; they do
-    not mutate live renderer geometry.
+    not mutate live renderer geometry or add a native collision/attachment
+    runtime path.
   - Native `source_rndmesh_vert_vector_resize_plan` and
     `source_rndmesh_vert_vector_reserve_plan` port the checked
     `RndMesh::VertVector` storage rules: `resize` stores the incoming `unka`

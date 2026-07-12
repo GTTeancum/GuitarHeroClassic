@@ -3006,6 +3006,29 @@ int run_contract() {
                  "OnSetVertXYZ)HANDLE(get_vert_norm,OnGetVertNorm)",
                  "RB3 RndMesh handler table exposes indexed mesh rows");
   ok &= contains(rb3_mesh_cpp,
+                 "DataNodeRndMesh::OnPointCollide(constDataArray*da){"
+                 "BSPNode*tree=GetBSPTree();Vector3v(da->Float(2),"
+                 "da->Float(3),da->Float(4));Multiply(WorldXfm(),v,v);"
+                 "returnDataNode(tree&&Intersect(v,tree));}",
+                 "RB3 RndMesh OnPointCollide source body");
+  ok &= contains(rb3_mesh_cpp,
+                 "DataNodeRndMesh::OnAttachMesh(constDataArray*da){"
+                 "RndMesh*m=da->Obj<RndMesh>(2);AttachMesh(this,m);"
+                 "deletem;returnDataNode(0);}",
+                 "RB3 RndMesh OnAttachMesh source body");
+  ok &= contains(rb3_mesh_cpp,
+                 "DataNodeRndMesh::OnConfigureMesh(constDataArray*da){"
+                 "if(Type()!=configurable_mesh)MILO_WARN("
+                 "\"Can'tconfigurenonconfigurablemesh%s\\n\",Name());else{"
+                 "floatfleft=Property(left,true)->Float(0);floatfright="
+                 "Property(right,true)->Float(0);floatfheight=Property("
+                 "height,true)->Float(0);Vector3v54(fleft,0,fheight);"
+                 "Vector3v60(fleft,0,0);Vector3v6c(fright,0,0);"
+                 "Vector3v78(fright,0,fheight);mVerts[0].pos=v54;"
+                 "mVerts[1].pos=v60;mVerts[2].pos=v6c;mVerts[3].pos=v78;"
+                 "Sync(0x3F);}returnDataNode(0);}",
+                 "RB3 RndMesh OnConfigureMesh source body");
+  ok &= contains(rb3_mesh_cpp,
                  "DataNodeRndMesh::OnSetVertXYZ(constDataArray*da){Vert*v;"
                  "s32index=da->Int(2);MILO_ASSERT(index>=0&&index<mVerts.size(),"
                  "2480);v=&mVerts[index];v->pos.x=da->Float(3);",
@@ -4170,6 +4193,16 @@ int run_contract() {
                  "structSourceRndMeshHandlerPlan{",
                  "native exposes RndMesh handler plan");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshPointCollidePlan{boolhas_bsp_tree=false;",
+                 "native exposes RndMesh point-collide plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshAttachMeshPlan{boolreads_mesh_arg_2=true;",
+                 "native exposes RndMesh attach-mesh plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshConfigureMeshPlan{"
+                 "booltype_is_configurable=false;",
+                 "native exposes RndMesh configure-mesh plan");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshIndexedEditPlan{",
                  "native exposes RndMesh indexed edit plan");
   ok &= contains(char_mesh_h,
@@ -4247,6 +4280,19 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceRndMeshHandlerPlansource_rndmesh_handler_plan()",
                  "native implements RndMesh handler plan");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshPointCollidePlan"
+                 "source_rndmesh_point_collide_plan(boolhas_bsp_tree,"
+                 "boolintersected)",
+                 "native implements RndMesh point-collide helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshAttachMeshPlansource_rndmesh_attach_mesh_plan()",
+                 "native implements RndMesh attach-mesh helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshConfigureMeshPlan"
+                 "source_rndmesh_configure_mesh_plan("
+                 "booltype_is_configurable,floatleft,floatright,floatheight)",
+                 "native implements RndMesh configure-mesh helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshIndexedEditPlansource_rndmesh_vertex_edit_plan(",
                  "native implements RndMesh vertex edit plan");
@@ -4383,6 +4429,26 @@ int run_contract() {
                  "\"get_face\",\"set_face\",\"get_vert_pos\",\"set_vert_pos\"",
                  "native handler plan mirrors RndMesh handler order");
   ok &= contains(char_mesh,
+                 "plan.calls_intersect=has_bsp_tree;plan.intersected="
+                 "has_bsp_tree&&intersected;plan.returns_hit=has_bsp_tree&&"
+                 "intersected;",
+                 "native point-collide helper mirrors tree short-circuit");
+  ok &= contains(char_mesh,
+                 "returnSourceRndMeshAttachMeshPlan{};",
+                 "native attach-mesh helper mirrors unconditional source calls");
+  ok &= contains(char_mesh,
+                 "if(!type_is_configurable){plan.warns_nonconfigurable=true;"
+                 "returnplan;}",
+                 "native configure-mesh helper mirrors nonconfigurable warning");
+  ok &= contains(char_mesh,
+                 "plan.positions[0]={left,0.0f,height};plan.positions[1]="
+                 "{left,0.0f,0.0f};plan.positions[2]={right,0.0f,0.0f};"
+                 "plan.positions[3]={right,0.0f,height};",
+                 "native configure-mesh helper mirrors source vertex positions");
+  ok &= contains(char_mesh,
+                 "plan.syncs=true;plan.sync_mask=0x3f;returnplan;",
+                 "native configure-mesh helper mirrors Sync(0x3F)");
+  ok &= contains(char_mesh,
                  "plan.assert_line=write?2457:2446;",
                  "native vertex edit helper mirrors norm assert lines");
   ok &= contains(char_mesh,
@@ -4505,6 +4571,15 @@ int run_contract() {
                  "source_rndmesh_handler_plan()",
                  "focused mesh decode test covers RndMesh handler plan");
   ok &= contains(mesh_decode_test,
+                 "source_rndmesh_point_collide_plan(true,true)",
+                 "focused mesh decode test covers RndMesh point-collide helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_attach_mesh_plan()",
+                 "focused mesh decode test covers RndMesh attach-mesh helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_configure_mesh_plan(",
+                 "focused mesh decode test covers RndMesh configure-mesh helper");
+  ok &= contains(mesh_decode_test,
                  "source_rndmesh_vertex_edit_plan(4,2,\"xyz\",true)",
                  "focused mesh decode test covers RndMesh vertex edit plan");
   ok &= contains(mesh_decode_test,
@@ -4564,6 +4639,16 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_rndmesh_handler_plan`,",
                  "document records RndMesh indexed accessor helpers");
+  ok &= contains(doc,
+                 "`source_rndmesh_point_collide_plan`,",
+                 "document records RndMesh point-collide helper");
+  ok &= contains(doc,
+                 "`OnConfigureMesh` warns for non-configurable meshes",
+                 "document records RndMesh configure-mesh helper");
+  ok &= contains(doc,
+                 "do\n    not mutate live renderer geometry or add a native "
+                 "collision/attachment\n    runtime path",
+                 "document fences RndMesh handler helpers");
   ok &= contains(doc,
                  "Native `source_rndmesh_vert_vector_resize_plan` and",
                  "document records RndMesh VertVector helpers");
