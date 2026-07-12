@@ -91,6 +91,7 @@ int main() {
   using ghogx::character::source_char_hair_simulate_internal_scalars;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
+  using ghogx::character::source_grim_char_hair_load_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
   using ghogx::character::source_gltf_milo_export_hair_point;
   using ghogx::character::source_gltf_milo_hair_collide_name;
@@ -222,6 +223,46 @@ int main() {
                     "hair v11 reads max slack");
   ok &= expect_bool(load_v11.read_order.back() == "mWind", true,
                     "hair v11 reads wind");
+
+  const auto grim_hair_v2 = source_grim_char_hair_load_plan(2);
+  ok &= expect_bool(grim_hair_v2.known_version, true,
+                    "grim GH2 CharHair v2 known");
+  ok &= expect_bool(grim_hair_v2.reads_object_meta, true,
+                    "grim GH2 CharHair reads object metadata");
+  ok &= expect_bool(grim_hair_v2.reads_min_slack, false,
+                    "grim GH2 CharHair omits slack rows");
+  ok &= expect_bool(grim_hair_v2.reads_wind, false,
+                    "grim GH2 CharHair omits wind row");
+  ok &= expect_string(grim_hair_v2.read_order[1], "Object::Load",
+                      "grim GH2 CharHair object metadata order");
+  ok &= expect_string(grim_hair_v2.read_order[8], "strand_count",
+                      "grim GH2 CharHair strand count order");
+  ok &= expect_string(grim_hair_v2.read_order.back(), "simulate",
+                      "grim GH2 CharHair simulate tail");
+  ok &= expect_size(grim_hair_v2.point.grim_read_order.size(), 7,
+                    "grim GH2 CharHair point row count");
+  ok &= expect_string(grim_hair_v2.point.grim_read_order[0],
+                      "unknown_floats",
+                      "grim GH2 CharHair point reads source vector");
+  ok &= expect_string(grim_hair_v2.point.grim_read_order[3],
+                      "collide_type",
+                      "grim GH2 CharHair point reads collide type");
+  ok &= expect_string(grim_hair_v2.point.grim_read_order[6],
+                      "align_dist",
+                      "grim GH2 CharHair point reads align distance");
+  ok &= expect_string(grim_hair_v2.point.rb3_rev2_equivalents[0],
+                      "unknown_floats->pos",
+                      "grim GH2 CharHair vector maps to RB3 pos");
+  ok &= expect_string(grim_hair_v2.point.rb3_rev2_equivalents[3],
+                      "collide_type->legacyCollideType",
+                      "grim GH2 CharHair collide type maps to RB3 legacy int");
+  ok &= expect_string(grim_hair_v2.point.rb3_rev2_equivalents[5],
+                      "distance->radius",
+                      "grim GH2 CharHair distance maps to radius");
+
+  const auto grim_hair_v11 = source_grim_char_hair_load_plan(11);
+  ok &= expect_bool(grim_hair_v11.known_version, false,
+                    "grim dev CharHair rejects unimplemented v11");
 
   const auto save = source_char_hair_save_plan();
   ok &= expect_int(save.save_id, 0x41b, "hair save id");

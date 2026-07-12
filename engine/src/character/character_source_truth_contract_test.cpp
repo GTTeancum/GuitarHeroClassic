@@ -269,6 +269,8 @@ int run_contract() {
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
   const std::filesystem::path grim_scene_dir =
       extra_dir / "grim/core/grim/src/scene";
+  const std::filesystem::path grim_dev_scene_dir =
+      extra_dir / "grim-dev/core/grim/src/scene";
   const std::filesystem::path re_notes_dir =
       extra_dir / "re-notes";
   const std::string rb3_latest_mesh_h = compact(read_file(
@@ -589,6 +591,14 @@ int run_contract() {
       grim_scene_dir / "char_clip/io.rs"));
   const std::string grim_char_clip_samples_io = compact(read_file(
       grim_scene_dir / "char_clip_samples/io.rs"));
+  const std::string grim_dev_readme = read_file(
+      extra_dir / "grim-dev/README.md");
+  const std::string grim_dev_char_hair_io = compact(read_file(
+      grim_dev_scene_dir / "char_hair/io.rs"));
+  const std::string grim_dev_char_hair_mod = compact(read_file(
+      grim_dev_scene_dir / "char_hair/mod.rs"));
+  const std::string grim_dev_char_clip_io = compact(read_file(
+      grim_dev_scene_dir / "char_clip/io.rs"));
   const std::string re_notes_char_bones_samples_bt = compact(read_file(
       re_notes_dir / "templates/milo/char_bones_samples.bt"));
   const std::string re_notes_char_clip_samples_bt = compact(read_file(
@@ -631,8 +641,13 @@ int run_contract() {
                  "This directory is a deliberately small, in-worktree "
                  "reference snapshot",
                  "snapshot README documents copied-source scope");
+  ok &= contains(grim_dev_readme,
+                 "40dd809e46390a3c2952affdcc19b5c48857fb03",
+                 "grim-dev snapshot README records upstream commit");
   ok &= contains(doc, "not a full mirror",
                  "document states copied source snapshot boundary");
+  ok &= contains(doc, "`ihatecompvir-extra/grim-dev`",
+                 "document records grim-dev source snapshot");
   ok &= all_source_files_cited(
       doc, extra_dir / "rb3-latest/src/system/char",
       "source-truth map must cite every copied ihatecompvir character source");
@@ -874,6 +889,51 @@ int run_contract() {
                  "matchversion{5=>true,//GH2/GH236012=>true,//TBRB/GDRB_=>"
                  "false",
                  "grim CharClip accepts GH2/GH2 360 version 5");
+  ok &= contains(grim_dev_char_hair_io,
+                 "2=>true,//GH2/GH2360",
+                 "grim-dev CharHair accepts GH2/GH2 360 version 2");
+  ok &= contains(grim_dev_char_hair_io,
+                 "load_object(self,&mutreader,info)?;",
+                 "grim-dev CharHair loads object metadata");
+  ok &= contains(grim_dev_char_hair_io,
+                 "self.stiffness=reader.read_float32()?;"
+                 "self.torsion=reader.read_float32()?;"
+                 "self.inertia=reader.read_float32()?;"
+                 "self.gravity=reader.read_float32()?;",
+                 "grim-dev CharHair reads core floats in GH2 order");
+  ok &= contains(grim_dev_char_hair_io,
+                 "letstrand_count=reader.read_uint32()?;",
+                 "grim-dev CharHair reads strand count");
+  ok &= contains(grim_dev_char_hair_io,
+                 "strand.root=reader.read_prefixed_string()?;"
+                 "strand.angle=reader.read_float32()?;",
+                 "grim-dev CharHair reads strand root and angle");
+  ok &= contains(grim_dev_char_hair_io,
+                 "load_vector3(&mutpoint.unknown_floats,&mutreader)?;"
+                 "point.bone=reader.read_prefixed_string()?;"
+                 "point.length=reader.read_float32()?;"
+                 "point.collide_type=reader.read_uint32()?.into();"
+                 "point.collision=reader.read_prefixed_string()?;"
+                 "point.distance=reader.read_float32()?;"
+                 "point.align_dist=reader.read_float32()?;",
+                 "grim-dev CharHair reads GH2 point rows");
+  ok &= contains(grim_dev_char_hair_io,
+                 "load_matrix3(&mutstrand.base_mat,&mutreader)?;"
+                 "load_matrix3(&mutstrand.root_mat,&mutreader)?;",
+                 "grim-dev CharHair reads strand matrices");
+  ok &= contains(grim_dev_char_hair_io,
+                 "self.simulate=reader.read_boolean()?;",
+                 "grim-dev CharHair reads simulate tail");
+  ok &= contains(grim_dev_char_hair_mod,
+                 "pubunknown_floats:Vector3,",
+                 "grim-dev CharHair point names source vector");
+  ok &= contains(grim_dev_char_hair_mod,
+                 "pubdistance:f32,pubalign_dist:f32,",
+                 "grim-dev CharHair point names distance rows");
+  ok &= contains(grim_dev_char_clip_io,
+                 "matchversion{5=>true,//GH2/GH236012=>true,//TBRB/GDRB_=>"
+                 "false",
+                 "grim-dev CharClip copy retains GH2 parser gate");
   ok &= contains(char_clip_h, "SourceGrimCharClipSamplesLoadPlan",
                  "native exposes grim CharClipSamples load plan");
   ok &= contains(char_clip_h,
@@ -5026,6 +5086,48 @@ int run_contract() {
                  "SourceCharHairLoadPlansource_char_hair_load_plan("
                  "intrevision);",
                  "native exposes CharHair load plan helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGrimCharHairLoadPlan{boolknown_version=false;"
+                 "boolreads_object_meta=false;boolreads_min_slack=false;"
+                 "boolreads_wind=false;",
+                 "native exposes grim-dev CharHair load plan row");
+  ok &= contains(char_mesh_h,
+                 "SourceGrimCharHairLoadPlansource_grim_char_hair_load_plan("
+                 "intversion);",
+                 "native exposes grim-dev CharHair load plan helper");
+  ok &= contains(char_mesh,
+                 "SourceGrimCharHairLoadPlansource_grim_char_hair_load_plan("
+                 "intversion){",
+                 "native implements grim-dev CharHair load plan helper");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"version\",\"Object::Load\",\"stiffness\","
+                 "\"torsion\",\"inertia\",\"gravity\",\"weight\",\"friction\","
+                 "\"strand_count\",\"strand.root\",\"strand.angle\","
+                 "\"point_count\",\"point\",\"strand.base_mat\","
+                 "\"strand.root_mat\",\"simulate\"};",
+                 "native grim-dev CharHair helper records GH2 row order");
+  ok &= contains(char_mesh,
+                 "plan.point.grim_read_order={\"unknown_floats\",\"bone\","
+                 "\"length\",\"collide_type\",\"collision\",\"distance\","
+                 "\"align_dist\"};",
+                 "native grim-dev CharHair helper records point rows");
+  ok &= contains(char_mesh,
+                 "plan.point.rb3_rev2_equivalents={\"unknown_floats->pos\","
+                 "\"bone->bone\",\"length->length\","
+                 "\"collide_type->legacyCollideType\","
+                 "\"collision->legacyCollisionName\",\"distance->radius\","
+                 "\"align_dist->outerRadius\"};",
+                 "native grim-dev CharHair helper maps point rows");
+  ok &= contains(char_hair_source_test,
+                 "source_grim_char_hair_load_plan(2)",
+                 "focused CharHair test covers grim-dev GH2 parser plan");
+  ok &= contains(doc,
+                 "Grim `dev` `char_hair/io.rs` independently records GH2/GH2 360",
+                 "document records grim-dev GH2 CharHair parser evidence");
+  ok &= contains(doc,
+                 "This is parser\n    evidence only; it does not promote "
+                 "collision hookup, physics, or\n    simulation writeback",
+                 "document fences grim-dev CharHair parser evidence");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairSetNamePlan{"
                  "boolcall_hmx_object_set_name=true;"

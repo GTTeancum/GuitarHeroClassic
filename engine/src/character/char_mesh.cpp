@@ -3139,6 +3139,34 @@ SourceCharHairLoadPlan source_char_hair_load_plan(int revision) {
   return plan;
 }
 
+SourceGrimCharHairLoadPlan source_grim_char_hair_load_plan(int version) {
+  SourceGrimCharHairLoadPlan plan;
+  if (version != 2) return plan;
+
+  plan.known_version = true;
+  plan.reads_object_meta = true;
+  plan.reads_min_slack = false;
+  plan.reads_wind = false;
+  plan.read_order = {"version",     "Object::Load", "stiffness",
+                     "torsion",     "inertia",      "gravity",
+                     "weight",      "friction",     "strand_count",
+                     "strand.root", "strand.angle", "point_count",
+                     "point",       "strand.base_mat",
+                     "strand.root_mat", "simulate"};
+  plan.branches = {"version 2 only", "min_slack/max_slack omitted",
+                   "wind omitted"};
+  plan.point.known_version = true;
+  plan.point.grim_read_order = {"unknown_floats", "bone",       "length",
+                                "collide_type",   "collision",  "distance",
+                                "align_dist"};
+  plan.point.rb3_rev2_equivalents = {
+      "unknown_floats->pos", "bone->bone", "length->length",
+      "collide_type->legacyCollideType",
+      "collision->legacyCollisionName", "distance->radius",
+      "align_dist->outerRadius"};
+  return plan;
+}
+
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
     bool owner_is_character,
     bool owner_is_world_dir) {

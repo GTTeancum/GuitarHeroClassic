@@ -1097,6 +1097,22 @@ struct SourceCharHairLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceGrimCharHairPointLoadPlan {
+  bool known_version = false;
+  std::vector<std::string> grim_read_order;
+  std::vector<std::string> rb3_rev2_equivalents;
+};
+
+struct SourceGrimCharHairLoadPlan {
+  bool known_version = false;
+  bool reads_object_meta = false;
+  bool reads_min_slack = false;
+  bool reads_wind = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  SourceGrimCharHairPointLoadPlan point;
+};
+
 struct SourceCharHairSavePlan {
   int32_t save_id = 0x41b;
 };
@@ -2440,6 +2456,7 @@ SourceCharHairDefaultState source_char_hair_default_state();
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
 SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
 SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
+SourceGrimCharHairLoadPlan source_grim_char_hair_load_plan(int version);
 SourceCharHairSavePlan source_char_hair_save_plan();
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
     bool owner_is_character,

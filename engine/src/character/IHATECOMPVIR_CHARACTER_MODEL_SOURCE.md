@@ -23,6 +23,9 @@ records the upstream commits for the copied files:
 - `ihatecompvir-extra/grim` is a narrow source copy of `ihatecompvir/grim`
   commit `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb` containing the
   `char_bones_samples`, `char_clip`, and `char_clip_samples` loaders.
+- `ihatecompvir-extra/grim-dev` is a narrow source copy of `ihatecompvir/grim`
+  branch `dev` commit `40dd809e46390a3c2952affdcc19b5c48857fb03`
+  containing the GH2 `char_hair` loader plus matching `char_clip` parser rows.
 - `ihatecompvir-extra/re-notes` is a narrow source copy of
   `ihatecompvir/re-notes` commit `5c486fd6e5e5186c0797df9c84182b056672b3f0`
   containing GH2 `CharClipSamples` notes and the matching 010 templates.
@@ -34,10 +37,14 @@ records the upstream commits for the copied files:
   `re-gh2` main `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`, and
   `band3_recomp` main `c51944bd13dfd4cb6df918159fb7136c20f74fb0`,
   `grim` main `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb`, and
+  `grim` dev `40dd809e46390a3c2952affdcc19b5c48857fb03`, and
   `re-notes` main `5c486fd6e5e5186c0797df9c84182b056672b3f0`.
   The imported `grim` loader snapshot adds reviewable Rust source for
   `CharClipSamples`, `CharClip`, and `CharBonesSamples` file-structure details
   that were missing from the checked C++ bodies.
+  The imported `grim-dev` snapshot adds reviewable Rust source for GH2
+  `CharHair` version 2 file-structure details that were missing from the
+  checked C++ bodies.
 
 The contract test verifies that every copied
 `ihatecompvir-extra/rb3-latest/src/system/char` `.cpp`/`.h` file is named in
@@ -1352,6 +1359,16 @@ note, and all report `unreadBytes=0`.
     `source_char_hair_point_load_plan` record the same source read order and
     revision gates as deterministic format evidence for hair segment/controller
     rows.
+  - Grim `dev` `char_hair/io.rs` independently records GH2/GH2 360
+    `CharHair` version 2 parser order: version, object metadata, stiffness,
+    torsion, inertia, gravity, weight, friction, strand count, strand
+    root/angle, point count, point vector/bone/length/collide
+    type/collision/distance/align distance, base/root matrices, and simulate.
+    Native `source_grim_char_hair_load_plan` records that separate Grim row
+    order and maps `unknown_floats`, `distance`, and `align_dist` to the RB3
+    revision-2 `pos`, `radius`, and `outerRadius` fields. This is parser
+    evidence only; it does not promote collision hookup, physics, or
+    simulation writeback into solved runtime behavior.
   - `CharHair::Save` uses source save id `0x41B`. Native
     `source_char_hair_save_plan` records that row id only; it does not imply
     any additional runtime writer.
