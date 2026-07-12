@@ -314,6 +314,53 @@ struct SourceGltfMiloMaterialPlan {
   bool obj_fields_revision2 = false;
 };
 
+struct SourceGltfMiloBoneNodeInput {
+  std::string name;
+  std::string type;
+  std::string fallback_parent;
+  bool has_parent_bone = false;
+  std::string parent_bone;
+  bool is_rb3_skeleton_bone = false;
+};
+
+struct SourceGltfMiloBoneNodePlan {
+  bool skipped_neutral_bone = false;
+  bool skipped_character_rb3_skeleton_bone = false;
+  bool creates_trans_entry = false;
+  std::string entry_type;
+  std::string entry_name;
+  int trans_revision = 0;
+  int object_fields_revision = 0;
+  bool copies_local_matrix = false;
+  bool copies_world_matrix = false;
+  std::string parent_name;
+};
+
+struct SourceGltfMiloGroupNodeInput {
+  std::string name;
+  int group_revision = 0;
+  int trans_revision = 0;
+  int drawable_revision = 0;
+  int animatable_revision = 0;
+  std::vector<std::string> descendant_names;
+};
+
+struct SourceGltfMiloGroupNodePlan {
+  bool skipped_armature = false;
+  bool creates_group_entry = false;
+  std::string entry_type;
+  std::string entry_name;
+  int group_revision = 0;
+  int object_fields_revision = 0;
+  int trans_revision = 0;
+  int drawable_revision = 0;
+  int animatable_revision = 0;
+  bool copies_local_matrix = false;
+  bool copies_world_matrix = false;
+  bool calls_milo_extras_add_to_group = false;
+  std::vector<std::string> objects;
+};
+
 SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     bool has_joints,
     bool has_weights,
@@ -341,6 +388,12 @@ SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
 
 SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input);
+
+SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
+    const SourceGltfMiloBoneNodeInput& input);
+
+SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
+    const SourceGltfMiloGroupNodeInput& input);
 
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,

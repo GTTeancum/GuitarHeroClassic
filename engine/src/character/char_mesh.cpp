@@ -617,6 +617,55 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
   return plan;
 }
 
+SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
+    const SourceGltfMiloBoneNodeInput& input) {
+  SourceGltfMiloBoneNodePlan plan;
+  if (input.name == "neutral_bone") {
+    plan.skipped_neutral_bone = true;
+    return plan;
+  }
+  if (input.type == "character" && input.is_rb3_skeleton_bone) {
+    plan.skipped_character_rb3_skeleton_bone = true;
+    return plan;
+  }
+
+  plan.creates_trans_entry = true;
+  plan.entry_type = "Trans";
+  plan.entry_name = input.name;
+  plan.trans_revision = 9;
+  plan.object_fields_revision = 2;
+  plan.copies_local_matrix = true;
+  plan.copies_world_matrix = true;
+  plan.parent_name =
+      input.has_parent_bone ? input.parent_bone : input.fallback_parent;
+  return plan;
+}
+
+SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
+    const SourceGltfMiloGroupNodeInput& input) {
+  SourceGltfMiloGroupNodePlan plan;
+  if (input.name == "Armature") {
+    plan.skipped_armature = true;
+    return plan;
+  }
+
+  plan.creates_group_entry = true;
+  plan.entry_type = "Group";
+  plan.entry_name = input.name + ".grp";
+  plan.group_revision = input.group_revision;
+  plan.object_fields_revision = 2;
+  plan.trans_revision = input.trans_revision;
+  plan.drawable_revision = input.drawable_revision;
+  plan.animatable_revision = input.animatable_revision;
+  plan.copies_local_matrix = true;
+  plan.copies_world_matrix = true;
+  plan.calls_milo_extras_add_to_group = true;
+  for (const std::string& child : input.descendant_names) {
+    if (!child.empty()) plan.objects.push_back(child);
+  }
+  return plan;
+}
+
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,
     int32_t position_count,

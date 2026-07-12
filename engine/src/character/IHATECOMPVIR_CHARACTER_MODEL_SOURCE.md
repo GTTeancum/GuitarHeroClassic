@@ -923,6 +923,18 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     those deterministic exporter rows for evidence only; live GH2 character
     material behavior still comes from decoded stock `RndMat` rows plus the
     separate project hair two-sided culling override.
+  - `NodeProcessor.ProcessBoneNode` skips `neutral_bone`, skips RB3 skeleton
+    bones only when exporting a `character`, otherwise emits a revision-9
+    `Trans` row with object-fields revision 2, local/world matrices copied from
+    the glTF node, and parent chosen from `GetParentBoneName(...) ??
+    fallbackParent`. `NodeProcessor.ProcessGroupNode` skips only `Armature`,
+    creates a `Group` row named `<node>.grp`, allocates group/trans/draw/anim
+    rows from the selected game's revisions, copies local/world transforms,
+    appends all non-null descendant names, calls `MiloExtras.AddToGroup`, and
+    emits the group entry. Native `source_gltf_milo_process_bone_node_plan` and
+    `source_gltf_milo_process_group_node_plan` mirror those exporter hierarchy
+    decisions only; they do not alter GH2 stock transform solving or renderer
+    group membership.
   - The same glTFMilo source validates skin influences before packing: missing
     or non-finite weights/joints are ignored, zero or negative weights are
     skipped, non-integral/out-of-range joints are rejected, excluded joints such

@@ -536,6 +536,75 @@ int main() {
   CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
   CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
 
+  ghogx::character::SourceGltfMiloBoneNodeInput bone_node;
+  bone_node.name = "neutral_bone";
+  bone_node.type = "character";
+  bone_node.fallback_parent = "rock1.milo";
+  const auto neutral_bone =
+      ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);
+  CHECK(neutral_bone.skipped_neutral_bone);
+  CHECK(!neutral_bone.creates_trans_entry);
+
+  bone_node.name = "bone_pelvis";
+  bone_node.is_rb3_skeleton_bone = true;
+  const auto rb3_character_bone =
+      ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);
+  CHECK(rb3_character_bone.skipped_character_rb3_skeleton_bone);
+  CHECK(!rb3_character_bone.creates_trans_entry);
+
+  bone_node.type = "instrument";
+  const auto rb3_instrument_bone =
+      ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);
+  CHECK(!rb3_instrument_bone.skipped_character_rb3_skeleton_bone);
+  CHECK(rb3_instrument_bone.creates_trans_entry);
+  CHECK(rb3_instrument_bone.entry_type == "Trans");
+  CHECK(rb3_instrument_bone.entry_name == "bone_pelvis");
+  CHECK(rb3_instrument_bone.trans_revision == 9);
+  CHECK(rb3_instrument_bone.object_fields_revision == 2);
+  CHECK(rb3_instrument_bone.copies_local_matrix);
+  CHECK(rb3_instrument_bone.copies_world_matrix);
+  CHECK(rb3_instrument_bone.parent_name == "rock1.milo");
+
+  bone_node.name = "bone_hair_front";
+  bone_node.type = "character";
+  bone_node.is_rb3_skeleton_bone = false;
+  bone_node.has_parent_bone = true;
+  bone_node.parent_bone = "bone_head";
+  const auto parented_hair_bone =
+      ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);
+  CHECK(parented_hair_bone.creates_trans_entry);
+  CHECK(parented_hair_bone.parent_name == "bone_head");
+
+  ghogx::character::SourceGltfMiloGroupNodeInput group_node;
+  group_node.name = "Armature";
+  group_node.group_revision = 5;
+  group_node.trans_revision = 9;
+  group_node.drawable_revision = 3;
+  group_node.animatable_revision = 6;
+  group_node.descendant_names = {"bone_head", "", "hair.mesh"};
+  const auto armature_group =
+      ghogx::character::source_gltf_milo_process_group_node_plan(group_node);
+  CHECK(armature_group.skipped_armature);
+  CHECK(!armature_group.creates_group_entry);
+
+  group_node.name = "hair_group";
+  const auto hair_group =
+      ghogx::character::source_gltf_milo_process_group_node_plan(group_node);
+  CHECK(hair_group.creates_group_entry);
+  CHECK(hair_group.entry_type == "Group");
+  CHECK(hair_group.entry_name == "hair_group.grp");
+  CHECK(hair_group.group_revision == 5);
+  CHECK(hair_group.object_fields_revision == 2);
+  CHECK(hair_group.trans_revision == 9);
+  CHECK(hair_group.drawable_revision == 3);
+  CHECK(hair_group.animatable_revision == 6);
+  CHECK(hair_group.copies_local_matrix);
+  CHECK(hair_group.copies_world_matrix);
+  CHECK(hair_group.calls_milo_extras_add_to_group);
+  CHECK(hair_group.objects.size() == 2);
+  CHECK(hair_group.objects[0] == "bone_head");
+  CHECK(hair_group.objects[1] == "hair.mesh");
+
   const auto gltf_validated =
       ghogx::character::source_gltf_milo_validate_skin_influences(
           {{1.0f, 4.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {4.0f, 1.0f},

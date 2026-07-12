@@ -3206,6 +3206,31 @@ int run_contract() {
   ok &= contains(gltf_program_cs,
                  "if(material.Alpha==SharpGLTF.Schema2.AlphaMode.MASK){",
                  "glTFMilo material pass gates alpha mask rows");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(node.Name==\"neutral_bone\")return;",
+                 "glTFMilo ProcessBoneNode skips neutral bone");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(type==\"character\"&&BoneNames.rb3SkeletonBones.Contains("
+                 "node.Name))return;",
+                 "glTFMilo ProcessBoneNode skips RB3 skeleton bones only for characters");
+  ok &= contains(gltf_node_processor_cs,
+                 "stringparentName=NodeHelpers.GetParentBoneName(node,model)"
+                 "??fallbackParent;",
+                 "glTFMilo ProcessBoneNode uses parent bone fallback");
+  ok &= contains(gltf_node_processor_cs,
+                 "meta.entries.Add(newDirectoryMeta.Entry(\"Trans\",node.Name,"
+                 "trans));",
+                 "glTFMilo ProcessBoneNode emits Trans entry");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(node.Name==\"Armature\")return;",
+                 "glTFMilo ProcessGroupNode skips Armature");
+  ok &= contains(gltf_node_processor_cs,
+                 "foreach(varchildinchildren){if(child!=null)group.objects.Add("
+                 "child);}",
+                 "glTFMilo ProcessGroupNode appends non-null descendants");
+  ok &= contains(gltf_node_processor_cs,
+                 "MiloExtras.AddToGroup(node,group,refoverriddenFilename);",
+                 "glTFMilo ProcessGroupNode calls MiloExtras AddToGroup");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -3245,6 +3270,12 @@ int run_contract() {
                  "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
                  "native declares glTFMilo material plan row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloBoneNodeInput{std::stringname;",
+                 "native declares glTFMilo bone node input row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloGroupNodePlan{boolskipped_armature=false;",
+                 "native declares glTFMilo group node plan row");
+  ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
@@ -3266,6 +3297,14 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
                  "native exposes glTFMilo material base helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloBoneNodePlan"
+                 "source_gltf_milo_process_bone_node_plan(",
+                 "native exposes glTFMilo bone node helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloGroupNodePlan"
+                 "source_gltf_milo_process_group_node_plan(",
+                 "native exposes glTFMilo group node helper");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
@@ -3390,6 +3429,31 @@ int run_contract() {
                  "if(input.alpha_mode==SourceGltfMiloAlphaMode::kMask){"
                  "plan.alpha_cut=true;",
                  "native preserves glTFMilo alpha-mask branch");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloBoneNodePlansource_gltf_milo_process_bone_node_plan(",
+                 "native ports glTFMilo ProcessBoneNode helper");
+  ok &= contains(char_mesh,
+                 "if(input.name==\"neutral_bone\"){plan.skipped_neutral_bone="
+                 "true;returnplan;}",
+                 "native preserves ProcessBoneNode neutral skip");
+  ok &= contains(char_mesh,
+                 "if(input.type==\"character\"&&input.is_rb3_skeleton_bone){"
+                 "plan.skipped_character_rb3_skeleton_bone=true;returnplan;}",
+                 "native preserves ProcessBoneNode character skeleton skip");
+  ok &= contains(char_mesh,
+                 "plan.parent_name=input.has_parent_bone?input.parent_bone:"
+                 "input.fallback_parent;",
+                 "native preserves ProcessBoneNode parent fallback");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloGroupNodePlansource_gltf_milo_process_group_node_plan(",
+                 "native ports glTFMilo ProcessGroupNode helper");
+  ok &= contains(char_mesh,
+                 "if(input.name==\"Armature\"){plan.skipped_armature=true;"
+                 "returnplan;}",
+                 "native preserves ProcessGroupNode Armature skip");
+  ok &= contains(char_mesh,
+                 "if(!child.empty())plan.objects.push_back(child);",
+                 "native preserves ProcessGroupNode non-null descendant append");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
@@ -3411,6 +3475,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "gltf_hair_material.tex_wrap==0",
                  "focused mesh decode test covers glTFMilo wrap priority");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_process_bone_node_plan(bone_node)",
+                 "focused mesh decode test covers glTFMilo bone node helper");
+  ok &= contains(mesh_decode_test,
+                 "parented_hair_bone.parent_name==\"bone_head\"",
+                 "focused mesh decode test covers glTFMilo parent bone fallback");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_process_group_node_plan(group_node)",
+                 "focused mesh decode test covers glTFMilo group node helper");
+  ok &= contains(mesh_decode_test,
+                 "hair_group.calls_milo_extras_add_to_group",
+                 "focused mesh decode test covers glTFMilo group extras call");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_validate_skin_influences(",
                  "focused mesh decode test covers glTFMilo skin validation");
@@ -3441,6 +3517,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_process_bone_node_plan` and",
+                 "document records glTFMilo node processor helpers");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");
