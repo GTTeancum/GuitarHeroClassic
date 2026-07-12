@@ -2182,6 +2182,18 @@ struct SourceCharacterInterestResult {
   bool invoked_eyes = false;
 };
 
+struct SourceCharacterCurrentInterestsResult {
+  bool found_eyes = false;
+  int32_t interest_count = 0;
+  bool first_node_empty_symbol = true;
+  std::vector<std::string> data_array_symbols;
+};
+
+struct SourceCharacterDebugDrawInterestResult {
+  bool assigned = false;
+  bool debug_draw_interest_objects = false;
+};
+
 struct SourceCharacterSetSphereBaseResult {
   bool defaulted_to_self = false;
   bool made_world_sphere = false;
@@ -3259,6 +3271,11 @@ SourceCharacterInterestResult source_character_set_interest_filter_flags(
     bool has_eyes);
 SourceCharacterInterestResult source_character_clear_interest_filter_flags(
     bool has_eyes);
+SourceCharacterCurrentInterestsResult source_character_on_get_current_interests(
+    bool has_eyes,
+    const std::vector<std::string>& interest_names);
+SourceCharacterDebugDrawInterestResult
+source_character_set_debug_draw_interest_objects(bool enabled);
 SourceCharacterSetSphereBaseResult source_character_set_sphere_base(
     SourceCharacterState& state,
     bool has_transform);

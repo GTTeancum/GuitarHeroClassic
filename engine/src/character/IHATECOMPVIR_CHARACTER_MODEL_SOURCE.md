@@ -566,6 +566,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
   all current interest objects, validates each candidate with either the
   override directory or the candidate's own directory, and only adds validated
   candidates.
+- `OnGetCurrentInterests` is a debug/source inspection path: it reads
+  `CharEyes::mInterests` when eyes exist, creates a `DataArray` sized to the
+  interest count plus one, stores an empty symbol in node zero, then appends
+  each current interest object's name as a symbol in source order. With no eyes
+  it still returns the single leading empty symbol. Native `source_character_on_get_current_interests`
+  ports only that list-construction contract.
+- `SetDebugDrawInterestObjects` only assigns the debug draw flag. Native `source_character_set_debug_draw_interest_objects`
+  records that setter behavior without promoting the debug overlay.
 - `AddShadowBone` returns null for a null transform, returns an existing
   `ShadowBone` with the same parent when present, otherwise appends one new
   row. `UnhookShadow` deletes every shadow bone row.

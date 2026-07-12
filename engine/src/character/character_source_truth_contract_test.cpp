@@ -1784,6 +1784,20 @@ int run_contract() {
                  "*it,dir?dir:(*it)->Dir()))eyes->AddInterestObject(*it);}}}",
                  "Character source SetInterestObjects gate");
   ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::SetDebugDrawInterestObjects(boolb){"
+                 "mDebugDrawInterestObjects=b;}",
+                 "Character source debug interest setter");
+  ok &= contains(rb3_latest_character_cpp,
+                 "DataNodeCharacter::OnGetCurrentInterests(DataArray*da){"
+                 "intsize=0;CharEyes*eyes=GetEyes();if(eyes)size=eyes->"
+                 "mInterests.size();DataArrayPtrptr;ptr->Resize(size+1);"
+                 "ptr->Node(0)=DataNode(Symbol());",
+                 "Character source current interests list prefix");
+  ok &= contains(rb3_latest_character_cpp,
+                 "ptr->Node(i+1)=DataNode(Symbol(interest->Name()));}"
+                 "returnDataNode(ptr);}",
+                 "Character source current interests list names");
+  ok &= contains(rb3_latest_character_cpp,
                  "voidCharacter::ForceBlink(){CharEyes*eyes=GetEyes();"
                  "if(eyes)eyes->ForceBlink();}",
                  "Character source ForceBlink eyes gate");
@@ -10011,6 +10025,21 @@ int run_contract() {
                  "boolhas_driver,int32_tmessage_size,int32_tsupplied_play_flags,"
                  "booldriver_play_returned);",
                  "native exposes Character OnPlayClip helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterCurrentInterestsResult{"
+                 "boolfound_eyes=false;int32_tinterest_count=0;"
+                 "boolfirst_node_empty_symbol=true;",
+                 "native exposes Character current-interest result");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterCurrentInterestsResult"
+                 "source_character_on_get_current_interests(boolhas_eyes,"
+                 "conststd::vector<std::string>&interest_names);",
+                 "native exposes Character current-interest helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterDebugDrawInterestResult"
+                 "source_character_set_debug_draw_interest_objects("
+                 "boolenabled);",
+                 "native exposes Character debug interest setter helper");
   ok &= contains(char_mesh,
                  "SourceCharacterLodStatesource_character_lod_default_state(){"
                  "returnSourceCharacterLodState{};}",
@@ -10232,6 +10261,23 @@ int run_contract() {
                  "for(boolvalid:validate_results){++result.validated_count;",
                  "native ports Character SetInterestObjects eyes gate");
   ok &= contains(char_mesh,
+                 "SourceCharacterCurrentInterestsResult"
+                 "source_character_on_get_current_interests(boolhas_eyes,"
+                 "conststd::vector<std::string>&interest_names){"
+                 "SourceCharacterCurrentInterestsResultresult;",
+                 "native implements Character current-interest helper");
+  ok &= contains(char_mesh,
+                 "result.data_array_symbols.push_back(\"\");if(has_eyes){"
+                 "for(conststd::string&interest_name:interest_names){"
+                 "result.data_array_symbols.push_back(interest_name);}}",
+                 "native ports Character current-interest symbol order");
+  ok &= contains(char_mesh,
+                 "SourceCharacterDebugDrawInterestResult"
+                 "source_character_set_debug_draw_interest_objects(boolenabled)"
+                 "{SourceCharacterDebugDrawInterestResultresult;result."
+                 "assigned=true;result.debug_draw_interest_objects=enabled;",
+                 "native ports Character debug interest setter");
+  ok &= contains(char_mesh,
                  "SourceCharacterAddShadowBoneResult"
                  "source_character_add_shadow_bone(int32_tcurrent_shadow_bones,"
                  "boolhas_transform,boolalready_hooked)",
@@ -10363,6 +10409,13 @@ int run_contract() {
                  "false)",
                  "focused Character test covers SetInterestObjects");
   ok &= contains(character_source_test,
+                 "source_character_on_get_current_interests(true,{"
+                 "\"singer.look\",\"guitarist.look\",\"crowd.look\"})",
+                 "focused Character test covers current interests");
+  ok &= contains(character_source_test,
+                 "source_character_set_debug_draw_interest_objects(true)",
+                 "focused Character test covers debug interest setter");
+  ok &= contains(character_source_test,
                  "source_character_add_shadow_bone(2,true,false)",
                  "focused Character test covers AddShadowBone");
   ok &= contains(character_source_test,
@@ -10405,6 +10458,11 @@ int run_contract() {
                  "document records native Character prop-sync plan");
   ok &= contains(doc, "Native `source_character_on_play_clip` ports",
                  "document records native Character OnPlayClip helper");
+  ok &= contains(doc, "Native `source_character_on_get_current_interests`",
+                 "document records native Character current-interest helper");
+  ok &= contains(doc,
+                 "Native `source_character_set_debug_draw_interest_objects`",
+                 "document records native Character debug interest helper");
   ok &= contains(doc,
                  "Native `source_char_pollable_sorter_changed_by` ports that "
                  "reachability body",

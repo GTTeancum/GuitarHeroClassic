@@ -4947,6 +4947,34 @@ SourceCharacterInterestResult source_character_clear_interest_filter_flags(
   return {has_eyes, has_eyes};
 }
 
+SourceCharacterCurrentInterestsResult source_character_on_get_current_interests(
+    bool has_eyes,
+    const std::vector<std::string>& interest_names) {
+  SourceCharacterCurrentInterestsResult result;
+  result.found_eyes = has_eyes;
+  result.interest_count =
+      has_eyes ? static_cast<int32_t>(interest_names.size()) : 0;
+  result.data_array_symbols.reserve(
+      static_cast<size_t>(result.interest_count) + 1u);
+  result.data_array_symbols.push_back("");
+  if (has_eyes) {
+    for (const std::string& interest_name : interest_names) {
+      result.data_array_symbols.push_back(interest_name);
+    }
+  }
+  result.first_node_empty_symbol =
+      !result.data_array_symbols.empty() && result.data_array_symbols[0].empty();
+  return result;
+}
+
+SourceCharacterDebugDrawInterestResult
+source_character_set_debug_draw_interest_objects(bool enabled) {
+  SourceCharacterDebugDrawInterestResult result;
+  result.assigned = true;
+  result.debug_draw_interest_objects = enabled;
+  return result;
+}
+
 SourceCharacterSetSphereBaseResult source_character_set_sphere_base(
     SourceCharacterState& state,
     bool has_transform) {

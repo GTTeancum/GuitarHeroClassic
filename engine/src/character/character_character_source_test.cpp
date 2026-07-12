@@ -93,12 +93,14 @@ int main() {
   using ghogx::character::source_character_load_plan;
   using ghogx::character::source_char_lifecycle_plan;
   using ghogx::character::source_character_force_blink;
+  using ghogx::character::source_character_on_get_current_interests;
   using ghogx::character::source_character_poll;
   using ghogx::character::source_character_pre_save;
   using ghogx::character::source_character_prop_sync_plan;
   using ghogx::character::source_character_removing_object;
   using ghogx::character::source_character_repoint_sphere_base;
   using ghogx::character::source_character_replace;
+  using ghogx::character::source_character_set_debug_draw_interest_objects;
   using ghogx::character::source_character_set_sphere_base;
   using ghogx::character::source_character_set_focus_interest;
   using ghogx::character::source_character_set_interest_filter_flags;
@@ -636,6 +638,47 @@ int main() {
   ok &= expect_bool(
       source_character_clear_interest_filter_flags(true).invoked_eyes, true,
       "ClearInterestFilterFlags invokes eyes");
+
+  auto current_interests =
+      source_character_on_get_current_interests(false, {"ignored.look"});
+  ok &= expect_bool(current_interests.found_eyes, false,
+                    "OnGetCurrentInterests records missing eyes");
+  ok &= expect_int(current_interests.interest_count, 0,
+                   "OnGetCurrentInterests missing eyes count");
+  ok &= expect_bool(current_interests.first_node_empty_symbol, true,
+                    "OnGetCurrentInterests first node empty symbol");
+  ok &= expect_size(current_interests.data_array_symbols.size(), 1,
+                    "OnGetCurrentInterests missing eyes array size");
+  ok &= expect_string(current_interests.data_array_symbols[0], "",
+                      "OnGetCurrentInterests missing eyes empty symbol");
+
+  current_interests = source_character_on_get_current_interests(
+      true, {"singer.look", "guitarist.look", "crowd.look"});
+  ok &= expect_bool(current_interests.found_eyes, true,
+                    "OnGetCurrentInterests records eyes");
+  ok &= expect_int(current_interests.interest_count, 3,
+                   "OnGetCurrentInterests source interest count");
+  ok &= expect_size(current_interests.data_array_symbols.size(), 4,
+                    "OnGetCurrentInterests source array size");
+  ok &= expect_string(current_interests.data_array_symbols[0], "",
+                      "OnGetCurrentInterests source leading empty symbol");
+  ok &= expect_string(current_interests.data_array_symbols[1],
+                      "singer.look",
+                      "OnGetCurrentInterests first interest name");
+  ok &= expect_string(current_interests.data_array_symbols[3],
+                      "crowd.look",
+                      "OnGetCurrentInterests preserves source order");
+
+  const auto debug_interest_on =
+      source_character_set_debug_draw_interest_objects(true);
+  ok &= expect_bool(debug_interest_on.assigned, true,
+                    "SetDebugDrawInterestObjects assigns flag");
+  ok &= expect_bool(debug_interest_on.debug_draw_interest_objects, true,
+                    "SetDebugDrawInterestObjects stores true");
+  const auto debug_interest_off =
+      source_character_set_debug_draw_interest_objects(false);
+  ok &= expect_bool(debug_interest_off.debug_draw_interest_objects, false,
+                    "SetDebugDrawInterestObjects stores false");
 
   auto sphere = source_character_set_sphere_base(state, false);
   ok &= expect_bool(sphere.defaulted_to_self, true,
