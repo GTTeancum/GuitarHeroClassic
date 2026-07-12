@@ -397,7 +397,10 @@ class Gameplay {
   };
   struct VenueEventAnimRoute {
     std::string anim;
+    std::string source_trigger;
     float source_blend_period_seconds = 0.0f;
+    float source_delay_seconds = 0.0f;
+    bool source_wait = false;
   };
   struct ActiveVenueMaterialAnim {
     std::string name;
@@ -416,6 +419,7 @@ class Gameplay {
     std::vector<VenueMaterialAnim::Vec3Key> tex_rotation_keys;
     bool persistent = true;
     float source_blend_period_seconds = 0.0f;
+    float source_start_delay_seconds = 0.0f;
     bool has_start_color = false;
     std::array<float, 4> start_color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool has_start_tex_transform = false;
@@ -436,6 +440,7 @@ class Gameplay {
     bool persistent = true;
     bool target_frame_mode = false;
     float source_blend_period_seconds = 0.0f;
+    float source_start_delay_seconds = 0.0f;
   };
   struct ActiveVenueLightAnim {
     std::string name;
@@ -445,6 +450,7 @@ class Gameplay {
     std::vector<VenueLightAnim::ColorKey> color_keys;
     bool persistent = true;
     float source_blend_period_seconds = 0.0f;
+    float source_start_delay_seconds = 0.0f;
   };
   struct VenueParticleRoute {
     struct ColorKey {
@@ -459,7 +465,10 @@ class Gameplay {
     std::string anim;
     std::string particle;
     std::string keys_owner;
+    std::string source_trigger;
     float source_blend_period_seconds = 0.0f;
+    float source_delay_seconds = 0.0f;
+    bool source_wait = false;
     float duration_frames = 0.0f;
     std::vector<ColorKey> start_color_keys;
     std::vector<ColorKey> end_color_keys;
@@ -474,6 +483,7 @@ class Gameplay {
     double duration_seconds = 0.0;
     float duration_frames = 0.0f;
     float source_blend_period_seconds = 0.0f;
+    float source_start_delay_seconds = 0.0f;
     std::vector<VenueParticleRoute::ColorKey> start_color_keys;
     std::vector<VenueParticleRoute::ColorKey> end_color_keys;
     std::vector<VenueParticleRoute::EmissionKey> emission_keys;

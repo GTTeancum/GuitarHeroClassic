@@ -4090,29 +4090,47 @@ std::map<std::string, Gameplay::VenueLightAnim> load_venue_light_anims(
 void push_unique_event_anim_route(
     std::vector<Gameplay::VenueEventAnimRoute>& routes,
     const std::string& anim,
-    float source_blend_period_seconds) {
+    float source_blend_period_seconds,
+    bool source_wait = false,
+    float source_delay_seconds = 0.0f,
+    const std::string& source_trigger = {}) {
     if (anim.empty()) return;
     const float blend = std::isfinite(source_blend_period_seconds)
                             ? std::max(0.0f, source_blend_period_seconds)
                             : 0.0f;
+    const float delay = std::isfinite(source_delay_seconds)
+                            ? std::max(0.0f, source_delay_seconds)
+                            : 0.0f;
+    const std::string trigger = canonical_milo_ref(source_trigger);
     for (auto& route : routes) {
-        if (route.anim != anim) continue;
+        if (route.anim != anim || route.source_trigger != trigger ||
+            route.source_wait != source_wait ||
+            std::fabs(route.source_delay_seconds - delay) > 0.0001f) {
+            continue;
+        }
         route.source_blend_period_seconds = blend;
         return;
     }
     Gameplay::VenueEventAnimRoute route;
     route.anim = anim;
+    route.source_trigger = trigger;
     route.source_blend_period_seconds = blend;
+    route.source_delay_seconds = delay;
+    route.source_wait = source_wait;
     routes.push_back(std::move(route));
 }
 
 void push_event_anim_routes(
     std::vector<Gameplay::VenueEventAnimRoute>& routes,
     const std::vector<std::string>& anims,
-    float source_blend_period_seconds) {
+    float source_blend_period_seconds,
+    bool source_wait = false,
+    float source_delay_seconds = 0.0f,
+    const std::string& source_trigger = {}) {
     for (const auto& anim : anims) {
         push_unique_event_anim_route(routes, anim,
-                                     source_blend_period_seconds);
+                                     source_blend_period_seconds, source_wait,
+                                     source_delay_seconds, source_trigger);
     }
 }
 
@@ -4200,7 +4218,9 @@ load_venue_event_light_anims(
                 std::vector<std::string> resolved;
                 std::unordered_set<std::string> seen;
                 collect_ref(collect_ref, ref, resolved, seen);
-                push_event_anim_routes(light_anims, resolved, anim_route.blend);
+                push_event_anim_routes(light_anims, resolved, anim_route.blend,
+                                       anim_route.wait, anim_route.delay,
+                                       de.name);
             }
             if (light_anims.empty()) continue;
             for (const auto& key :
@@ -4210,15 +4230,20 @@ load_venue_event_light_anims(
                 for (const auto& route : light_anims) {
                     push_unique_event_anim_route(
                         routed, route.anim,
-                        route.source_blend_period_seconds);
+                        route.source_blend_period_seconds, route.source_wait,
+                        route.source_delay_seconds, route.source_trigger);
                 }
             }
             if (debug_venue_filters_enabled()) {
                 std::fprintf(stderr, "[world] EventTrigger %s LightAnims=",
                              de.name.c_str());
                 for (const auto& route : light_anims)
-                    std::fprintf(stderr, "%s blend=%.3f ", route.anim.c_str(),
-                                 route.source_blend_period_seconds);
+                    std::fprintf(stderr,
+                                 "%s blend=%.3f wait=%d delay=%.3f ",
+                                 route.anim.c_str(),
+                                 route.source_blend_period_seconds,
+                                 route.source_wait ? 1 : 0,
+                                 route.source_delay_seconds);
                 std::fprintf(stderr, "\n");
             }
         }
@@ -4371,7 +4396,9 @@ load_venue_event_env_anims(
                     for (const auto& anim : group_it->second)
                         push_unique_ref(resolved, anim);
                 }
-                push_event_anim_routes(env_anims, resolved, anim_route.blend);
+                push_event_anim_routes(env_anims, resolved, anim_route.blend,
+                                       anim_route.wait, anim_route.delay,
+                                       de.name);
             }
             if (!env_anims.empty()) {
                 for (const auto& key :
@@ -4381,16 +4408,21 @@ load_venue_event_env_anims(
                     for (const auto& route : env_anims) {
                         push_unique_event_anim_route(
                             routed, route.anim,
-                            route.source_blend_period_seconds);
+                            route.source_blend_period_seconds,
+                            route.source_wait, route.source_delay_seconds,
+                            route.source_trigger);
                     }
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr, "[world] EventTrigger %s EnvAnims=",
                                  de.name.c_str());
                     for (const auto& route : env_anims) {
-                        std::fprintf(stderr, "%s blend=%.3f ",
+                        std::fprintf(stderr,
+                                     "%s blend=%.3f wait=%d delay=%.3f ",
                                      route.anim.c_str(),
-                                     route.source_blend_period_seconds);
+                                     route.source_blend_period_seconds,
+                                     route.source_wait ? 1 : 0,
+                                     route.source_delay_seconds);
                     }
                     std::fprintf(stderr, "\n");
                 }
@@ -4485,6 +4517,11 @@ void merge_particle_route_tracks(Gameplay::VenueParticleRoute& existing,
     if (std::isfinite(route.source_blend_period_seconds))
         existing.source_blend_period_seconds =
             route.source_blend_period_seconds;
+    if (std::isfinite(route.source_delay_seconds))
+        existing.source_delay_seconds = std::max(0.0f,
+                                                 route.source_delay_seconds);
+    existing.source_wait = route.source_wait;
+    existing.source_trigger = route.source_trigger;
     bool adopted = false;
     adopted |= copy_particle_channel_if_richer(existing.start_color_keys,
                                                route.start_color_keys);
@@ -4521,6 +4558,15 @@ void log_particle_anim_route(const Gameplay::VenueParticleRoute& route) {
                      : route.keys_owner.c_str());
 }
 
+bool particle_routes_share_source_timing(
+    const Gameplay::VenueParticleRoute& a,
+    const Gameplay::VenueParticleRoute& b) {
+    return a.source_trigger == b.source_trigger &&
+           a.source_wait == b.source_wait &&
+           std::fabs(a.source_delay_seconds - b.source_delay_seconds) <=
+               0.0001f;
+}
+
 std::map<std::string, std::vector<Gameplay::VenueParticleRoute>>
 load_venue_event_particles(const std::string& hdr_path,
                            const std::string& ark_path,
@@ -4530,8 +4576,20 @@ load_venue_event_particles(const std::string& hdr_path,
         [](std::vector<Gameplay::VenueParticleRoute>& routes,
            Gameplay::VenueParticleRoute route) {
             if (route.particle.empty()) return;
+            route.source_trigger = canonical_milo_ref(route.source_trigger);
+            route.source_delay_seconds =
+                std::isfinite(route.source_delay_seconds)
+                    ? std::max(0.0f, route.source_delay_seconds)
+                    : 0.0f;
+            route.source_blend_period_seconds =
+                std::isfinite(route.source_blend_period_seconds)
+                    ? std::max(0.0f, route.source_blend_period_seconds)
+                    : 0.0f;
             for (auto& existing : routes) {
-                if (existing.particle != route.particle) continue;
+                if (existing.particle != route.particle ||
+                    !particle_routes_share_source_timing(existing, route)) {
+                    continue;
+                }
                 merge_particle_route_tracks(existing, route);
                 return;
             }
@@ -4656,6 +4714,9 @@ load_venue_event_particles(const std::string& hdr_path,
                 collect_ref(collect_ref, ref, row_routes, row_seen);
                 for (auto& route : row_routes) {
                     route.source_blend_period_seconds = anim_route.blend;
+                    route.source_delay_seconds = anim_route.delay;
+                    route.source_wait = anim_route.wait;
+                    route.source_trigger = canonical_milo_ref(de.name);
                     push_route(routes, std::move(route));
                 }
             }
@@ -4671,7 +4732,7 @@ load_venue_event_particles(const std::string& hdr_path,
                              de.name.c_str());
                 for (const auto& route : routes) {
                     std::fprintf(stderr,
-                                  "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f blend_period=%.3f ",
+                                  "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f ",
                                   route.particle.c_str(), route.anim.c_str(),
                                   route.start_color_keys.size(),
                                   route.end_color_keys.size(),
@@ -4680,7 +4741,9 @@ load_venue_event_particles(const std::string& hdr_path,
                                   route.life_keys.size(),
                                   route.size_keys.size(),
                                   route.duration_frames,
-                                  route.source_blend_period_seconds);
+                                  route.source_blend_period_seconds,
+                                  route.source_wait ? 1 : 0,
+                                  route.source_delay_seconds);
                 }
                 std::fprintf(stderr, "\n");
             }
@@ -4875,7 +4938,9 @@ load_venue_event_mat_anims(
                     for (const auto& anim : group_it->second)
                         push_unique_ref(resolved, anim);
                 }
-                push_event_anim_routes(mat_anims, resolved, anim_route.blend);
+                push_event_anim_routes(mat_anims, resolved, anim_route.blend,
+                                       anim_route.wait, anim_route.delay,
+                                       de.name);
             }
             if (!mat_anims.empty()) {
                 for (const auto& key :
@@ -4885,16 +4950,21 @@ load_venue_event_mat_anims(
                     for (const auto& route : mat_anims) {
                         push_unique_event_anim_route(
                             routed, route.anim,
-                            route.source_blend_period_seconds);
+                            route.source_blend_period_seconds,
+                            route.source_wait, route.source_delay_seconds,
+                            route.source_trigger);
                     }
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr, "[world] EventTrigger %s MatAnims=",
                                  de.name.c_str());
                     for (const auto& route : mat_anims) {
-                        std::fprintf(stderr, "%s blend=%.3f ",
+                        std::fprintf(stderr,
+                                     "%s blend=%.3f wait=%d delay=%.3f ",
                                      route.anim.c_str(),
-                                     route.source_blend_period_seconds);
+                                     route.source_blend_period_seconds,
+                                     route.source_wait ? 1 : 0,
+                                     route.source_delay_seconds);
                     }
                     std::fprintf(stderr, "\n");
                 }
@@ -10927,6 +10997,95 @@ float source_anim_blend_at(float blend_period_seconds, double elapsed_seconds) {
     return std::clamp(
         static_cast<float>(elapsed / static_cast<double>(blend_period_seconds)),
         0.0f, 1.0f);
+}
+
+float source_anim_delay_seconds(float delay_seconds) {
+    return std::isfinite(delay_seconds) ? std::max(0.0f, delay_seconds)
+                                        : 0.0f;
+}
+
+double direct_anim_time_until_end_seconds(double now_seconds,
+                                          double start_seconds,
+                                          double duration_seconds,
+                                          bool loop) {
+    const double duration = std::max(0.0, duration_seconds);
+    if (duration <= 0.001) return 0.0;
+    const double elapsed = now_seconds - start_seconds;
+    if (elapsed < 0.0) return -elapsed + duration;
+    if (loop) {
+        const double phase = std::fmod(elapsed, duration);
+        if (phase <= 0.001) return duration;
+        return std::max(0.0, duration - phase);
+    }
+    return std::max(0.0, duration - elapsed);
+}
+
+double venue_material_anim_wait_seconds(
+    const std::vector<Gameplay::ActiveVenueMaterialAnim>& active_anims,
+    const std::string& material,
+    double now_seconds) {
+    double wait_seconds = 0.0;
+    for (const auto& active : active_anims) {
+        if (active.material != material) continue;
+        wait_seconds = std::max(
+            wait_seconds,
+            direct_anim_time_until_end_seconds(now_seconds, active.start_time,
+                                               active.duration_seconds,
+                                               active.persistent));
+    }
+    return wait_seconds;
+}
+
+double venue_environment_anim_wait_seconds(
+    const std::vector<Gameplay::ActiveVenueEnvironmentAnim>& active_anims,
+    const std::string& environment,
+    double now_seconds) {
+    double wait_seconds = 0.0;
+    for (const auto& active : active_anims) {
+        if (active.environment != environment) continue;
+        const double duration =
+            active.target_frame_mode
+                ? std::max(0.0, active.duration_seconds)
+                : authored_frames_to_seconds(active.duration_frames);
+        wait_seconds = std::max(
+            wait_seconds,
+            direct_anim_time_until_end_seconds(now_seconds, active.start_time,
+                                               duration, active.persistent));
+    }
+    return wait_seconds;
+}
+
+double venue_light_anim_wait_seconds(
+    const std::vector<Gameplay::ActiveVenueLightAnim>& active_anims,
+    const std::string& light,
+    double now_seconds) {
+    double wait_seconds = 0.0;
+    for (const auto& active : active_anims) {
+        if (active.light != light) continue;
+        wait_seconds = std::max(
+            wait_seconds,
+            direct_anim_time_until_end_seconds(
+                now_seconds, active.start_time,
+                authored_frames_to_seconds(active.duration_frames),
+                active.persistent));
+    }
+    return wait_seconds;
+}
+
+double venue_particle_wait_seconds(
+    const std::vector<Gameplay::ActiveVenueParticleSystem>& active_particles,
+    const std::string& particle,
+    double now_seconds) {
+    double wait_seconds = 0.0;
+    for (const auto& active : active_particles) {
+        if (active.particle != particle) continue;
+        wait_seconds = std::max(
+            wait_seconds,
+            direct_anim_time_until_end_seconds(now_seconds, active.start_time,
+                                               active.duration_seconds,
+                                               active.persistent));
+    }
+    return wait_seconds;
 }
 
 float venue_filter_source_blend_at(const Gameplay::VenueAnimFilter& filter,
@@ -19260,6 +19419,17 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 !has_tex_transform) {
                 continue;
             }
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_material_anim_wait_seconds(
+                          active_venue_material_anims_, anim.material,
+                          song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
+            const bool delayed_start = start_delay > 0.001;
             active_venue_material_anims_.erase(
                 std::remove_if(active_venue_material_anims_.begin(),
                                active_venue_material_anims_.end(),
@@ -19279,7 +19449,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                              anim.start_alpha)
                     : 1.0f;
             active_anim.end_alpha = anim.end_alpha;
-            active_anim.start_time = song_time_;
+            active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_seconds =
                 authored_frames_to_seconds(anim.duration_frames);
             active_anim.duration_frames = anim.duration_frames;
@@ -19292,6 +19462,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.persistent = persistent;
             active_anim.source_blend_period_seconds =
                 route.source_blend_period_seconds;
+            active_anim.source_start_delay_seconds =
+                static_cast<float>(start_delay);
             if (has_color) {
                 active_anim.has_start_color = true;
                 active_anim.start_color =
@@ -19308,7 +19480,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
             const float initial_blend = source_anim_blend_at(
                 active_anim.source_blend_period_seconds, 0.0);
-            if (anim.has_alpha) {
+            if (!delayed_start && anim.has_alpha) {
                 const float sampled_alpha =
                     active_anim.alpha_keys.empty()
                         ? active_anim.start_alpha
@@ -19319,19 +19491,19 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                          sampled_alpha, initial_blend);
                 material_changes.push_back({anim.material, anim.end_alpha});
             }
-            if (has_color) {
+            if (!delayed_start && has_color) {
                 venue_material_colors_[anim.material] = blend_material_color(
                     active_anim.start_color,
                     sample_material_color_key(anim.color_keys, 0.0f),
                     initial_blend);
                 material_color_changed = true;
             }
-            if (has_texture) {
+            if (!delayed_start && has_texture) {
                 venue_material_textures_[anim.material] =
                     sample_material_texture_key(anim.texture_keys, 0.0f);
                 material_texture_changed = true;
             }
-            if (has_tex_transform) {
+            if (!delayed_start && has_tex_transform) {
                 venue_material_tex_transforms_[anim.material] =
                     blend_material_tex_transform(
                         active_anim.start_tex_transform,
@@ -19341,7 +19513,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
             venue_route_applied = true;
             std::fprintf(stderr,
-                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f %s\n",
+                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
                          event_name.c_str(), route.anim.c_str(),
                          anim.material.c_str(), active_anim.start_alpha,
                          active_anim.end_alpha,
@@ -19353,8 +19525,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                          active_anim.tex_rotation_keys.size(),
                          active_anim.duration_seconds,
                          active_anim.source_blend_period_seconds,
+                         route.source_wait ? 1 : 0, route_delay,
+                         wait_seconds,
                          persistent ? "persistent" : "transient");
-            if (active_anim.duration_seconds <= 0.0001) {
+            if (active_anim.duration_seconds <= 0.0001 && !delayed_start) {
                 if (anim.has_alpha)
                     venue_material_alpha_[anim.material] = blend_material_alpha(
                         active_anim.start_alpha,
@@ -19402,6 +19576,17 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             if (anim_it == venue_env_anims_.end()) continue;
             const auto& anim = anim_it->second;
             if (!venue_environment_anim_has_keys(anim)) continue;
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_environment_anim_wait_seconds(
+                          active_venue_environment_anims_, anim.environment,
+                          song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
+            const bool delayed_start = start_delay > 0.001;
             active_venue_environment_anims_.erase(
                 std::remove_if(active_venue_environment_anims_.begin(),
                                active_venue_environment_anims_.end(),
@@ -19412,7 +19597,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             ActiveVenueEnvironmentAnim active_anim;
             active_anim.name = anim.name;
             active_anim.environment = anim.environment;
-            active_anim.start_time = song_time_;
+            active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.fog_color_keys = anim.fog_color_keys;
@@ -19420,27 +19605,33 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.persistent = persistent;
             active_anim.source_blend_period_seconds =
                 route.source_blend_period_seconds;
-            venue_environment_frames_[anim.environment] = 0.0f;
-            sample_environment_anim_tracks_blended(
-                anim.environment, active_anim.color_keys,
-                active_anim.fog_color_keys, active_anim.fog_range_keys, 0.0f,
-                source_anim_blend_at(
-                    active_anim.source_blend_period_seconds, 0.0),
-                venue_environs_,
-                venue_environment_colors_, venue_environment_fog_colors_,
-                venue_environment_fog_ranges_, environment_color_changed,
-                environment_fog_changed);
+            active_anim.source_start_delay_seconds =
+                static_cast<float>(start_delay);
+            if (!delayed_start) {
+                venue_environment_frames_[anim.environment] = 0.0f;
+                sample_environment_anim_tracks_blended(
+                    anim.environment, active_anim.color_keys,
+                    active_anim.fog_color_keys, active_anim.fog_range_keys,
+                    0.0f,
+                    source_anim_blend_at(
+                        active_anim.source_blend_period_seconds, 0.0),
+                    venue_environs_,
+                    venue_environment_colors_, venue_environment_fog_colors_,
+                    venue_environment_fog_ranges_, environment_color_changed,
+                    environment_fog_changed);
+            }
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f blend_period=%.3f %s\n",
+                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
                 event_name.c_str(), anim.name.c_str(),
                 anim.environment.c_str(), anim.color_keys.size(),
                 anim.fog_color_keys.size(), anim.fog_range_keys.size(),
                 anim.duration_frames,
                 active_anim.source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds,
                 persistent ? "persistent" : "transient");
-            if (anim.duration_frames > 0.001f) {
+            if (anim.duration_frames > 0.001f || delayed_start) {
                 active_venue_environment_anims_.push_back(std::move(active_anim));
             }
         }
@@ -19453,6 +19644,16 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             if (anim_it == venue_light_anims_.end()) continue;
             const auto& anim = anim_it->second;
             if (anim.color_keys.empty()) continue;
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_light_anim_wait_seconds(
+                          active_venue_light_anims_, anim.light, song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
+            const bool delayed_start = start_delay > 0.001;
             active_venue_light_anims_.erase(
                 std::remove_if(active_venue_light_anims_.begin(),
                                active_venue_light_anims_.end(),
@@ -19463,28 +19664,33 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             ActiveVenueLightAnim active_anim;
             active_anim.name = anim.name;
             active_anim.light = anim.light;
-            active_anim.start_time = song_time_;
+            active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.persistent = persistent;
             active_anim.source_blend_period_seconds =
                 route.source_blend_period_seconds;
-            venue_light_colors_[anim.light] = blend_light_color(
-                current_light_color(anim.light, venue_light_colors_,
-                                    venue_lights_),
-                sample_light_color_key(active_anim.color_keys, 0.0f),
-                source_anim_blend_at(
-                    active_anim.source_blend_period_seconds, 0.0));
-            light_color_changed = true;
+            active_anim.source_start_delay_seconds =
+                static_cast<float>(start_delay);
+            if (!delayed_start) {
+                venue_light_colors_[anim.light] = blend_light_color(
+                    current_light_color(anim.light, venue_light_colors_,
+                                        venue_lights_),
+                    sample_light_color_key(active_anim.color_keys, 0.0f),
+                    source_anim_blend_at(
+                        active_anim.source_blend_period_seconds, 0.0));
+                light_color_changed = true;
+            }
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f blend_period=%.3f %s\n",
+                "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
                 event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
                 anim.color_keys.size(), anim.duration_frames,
                 active_anim.source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds,
                 persistent ? "persistent" : "transient");
-            if (anim.duration_frames > 0.001f) {
+            if (anim.duration_frames > 0.001f || delayed_start) {
                 active_venue_light_anims_.push_back(std::move(active_anim));
             }
         }
@@ -19493,6 +19699,15 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             venue_event_particle_systems_.find(event_name);
         particle_it != venue_event_particle_systems_.end()) {
         for (const auto& route : particle_it->second) {
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_particle_wait_seconds(active_venue_particles_,
+                                                  route.particle, song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
             active_venue_particles_.erase(
                 std::remove_if(active_venue_particles_.begin(),
                                active_venue_particles_.end(),
@@ -19503,7 +19718,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 active_venue_particles_.end());
             ActiveVenueParticleSystem active;
             active.particle = route.particle;
-            active.start_time = song_time_;
+            active.start_time = song_time_ + start_delay;
             active.duration_seconds = authored_frames_to_seconds(
                 route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
             active.duration_frames = route.duration_frames;
@@ -19515,12 +19730,14 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active.size_keys = route.size_keys;
             active.source_blend_period_seconds =
                 route.source_blend_period_seconds;
+            active.source_start_delay_seconds =
+                static_cast<float>(start_delay);
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f %s\n",
+                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.start_color_keys.size(),
                 route.end_color_keys.size(), route.emission_keys.size(),
@@ -19528,6 +19745,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 route.size_keys.size(), route.duration_frames,
                 active_venue_particles_.back().duration_seconds,
                 active_venue_particles_.back().source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds,
                 persistent ? "persistent" : "transient");
         }
     }
@@ -19880,6 +20098,19 @@ void Gameplay::update_active_venue_material_anims() {
          song_time_ - last_venue_mat_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_material_anims_.begin();
          it != active_venue_material_anims_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue MatAnim waiting %s -> %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->name.c_str(), it->material.c_str(),
+                    it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double duration = std::max(0.0, it->duration_seconds);
         const double t =
             duration <= 0.0001
@@ -19953,13 +20184,14 @@ void Gameplay::update_active_venue_material_anims() {
                 it->has_alpha ? venue_material_alpha_[it->material] : -1.0f;
             std::fprintf(
                 stderr,
-                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
+                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
                 it->name.c_str(), it->material.c_str(), frame, alpha,
                 it->color_keys.size(), it->alpha_keys.size(),
                 it->texture_keys.size(),
                 it->tex_translation_keys.size(), it->tex_scale_keys.size(),
                 it->tex_rotation_keys.size(), it->persistent ? 1 : 0,
-                source_blend, it->source_blend_period_seconds);
+                source_blend, it->source_blend_period_seconds,
+                it->source_start_delay_seconds);
         }
         const bool keep_persistent_tex =
             it->persistent && (has_color || has_texture || has_tex_transform) &&
@@ -19996,6 +20228,19 @@ void Gameplay::update_active_venue_environment_anims() {
          song_time_ - last_venue_env_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_environment_anims_.begin();
          it != active_venue_environment_anims_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue EnvAnim waiting %s -> %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->name.c_str(), it->environment.c_str(),
+                    it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         float frame = 0.0f;
         bool done = false;
@@ -20030,12 +20275,13 @@ void Gameplay::update_active_venue_environment_anims() {
                                          it->color_keys, frame);
             std::fprintf(
                 stderr,
-                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
+                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
                 it->name.c_str(), it->environment.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->fog_color_keys.size(), it->fog_range_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
-                it->source_blend_period_seconds);
+                it->source_blend_period_seconds,
+                it->source_start_delay_seconds);
         }
         if ((it->target_frame_mode && done) ||
             (!it->target_frame_mode && !it->persistent &&
@@ -20064,6 +20310,19 @@ void Gameplay::update_active_venue_light_anims() {
          song_time_ - last_venue_light_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_light_anims_.begin();
          it != active_venue_light_anims_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue LightAnim waiting %s -> %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->name.c_str(), it->light.c_str(),
+                    it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         const float frame = material_anim_frame_at(
             it->duration_frames, elapsed, it->persistent);
@@ -20077,11 +20336,12 @@ void Gameplay::update_active_venue_light_anims() {
         if (debug_sample) {
             std::fprintf(
                 stderr,
-                "[world] venue LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
+                "[world] venue LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
                 it->name.c_str(), it->light.c_str(), frame, color[0], color[1],
                 color[2], color[3], it->color_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
-                it->source_blend_period_seconds);
+                it->source_blend_period_seconds,
+                it->source_start_delay_seconds);
         }
         if (!it->persistent && frame >= it->duration_frames - 0.001f) {
             it = active_venue_light_anims_.erase(it);
@@ -20108,6 +20368,18 @@ void Gameplay::update_active_venue_particles() {
          song_time_ - last_venue_particle_debug_time_ >= 0.5);
     for (auto it = active_venue_particles_.begin();
          it != active_venue_particles_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue ParticleSys waiting %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->particle.c_str(), it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         if (!it->persistent && elapsed > it->duration_seconds) {
             it = active_venue_particles_.erase(it);
@@ -20176,7 +20448,7 @@ void Gameplay::update_active_venue_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f sampled_intensity=%.3f\n",
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f sampled_intensity=%.3f\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
                     start_color[0], start_color[1], start_color[2],
                     start_color[3], end_color[0], end_color[1],
@@ -20185,7 +20457,8 @@ void Gameplay::update_active_venue_particles() {
                     it->emission_keys.size(), it->speed_keys.size(),
                     it->life_keys.size(), it->size_keys.size(),
                     it->persistent ? 1 : 0, blend,
-                    it->source_blend_period_seconds, sampled_intensity);
+                    it->source_blend_period_seconds,
+                    it->source_start_delay_seconds, sampled_intensity);
             }
         }
         ++it;
@@ -20754,6 +21027,17 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                         !has_tex_transform) {
                         continue;
                     }
+                    const float route_delay =
+                        source_anim_delay_seconds(route.source_delay_seconds);
+                    const double wait_seconds =
+                        route.source_wait
+                            ? venue_material_anim_wait_seconds(
+                                  active_venue_material_anims_, anim.material,
+                                  song_time_)
+                            : 0.0;
+                    const double start_delay =
+                        static_cast<double>(route_delay) + wait_seconds;
+                    const bool delayed_start = start_delay > 0.001;
                     active_venue_material_anims_.erase(
                         std::remove_if(
                             active_venue_material_anims_.begin(),
@@ -20774,7 +21058,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                                                      anim.start_alpha)
                             : 1.0f;
                     active_anim.end_alpha = anim.end_alpha;
-                    active_anim.start_time = song_time_;
+                    active_anim.start_time = song_time_ + start_delay;
                     active_anim.duration_seconds =
                         authored_frames_to_seconds(anim.duration_frames);
                     active_anim.duration_frames = anim.duration_frames;
@@ -20787,6 +21071,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     active_anim.persistent = persistent;
                     active_anim.source_blend_period_seconds =
                         route.source_blend_period_seconds;
+                    active_anim.source_start_delay_seconds =
+                        static_cast<float>(start_delay);
                     if (has_color) {
                         active_anim.has_start_color = true;
                         active_anim.start_color =
@@ -20803,7 +21089,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     }
                     const float initial_blend = source_anim_blend_at(
                         active_anim.source_blend_period_seconds, 0.0);
-                    if (anim.has_alpha) {
+                    if (!delayed_start && anim.has_alpha) {
                         const float sampled_alpha =
                             active_anim.alpha_keys.empty()
                                 ? active_anim.start_alpha
@@ -20815,7 +21101,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                                                  sampled_alpha, initial_blend);
                         venue_alpha_changed = true;
                     }
-                    if (has_color) {
+                    if (!delayed_start && has_color) {
                         venue_material_colors_[anim.material] =
                             blend_material_color(
                                 active_anim.start_color,
@@ -20824,13 +21110,13 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                                 initial_blend);
                         venue_color_changed = true;
                     }
-                    if (has_texture) {
+                    if (!delayed_start && has_texture) {
                         venue_material_textures_[anim.material] =
                             sample_material_texture_key(anim.texture_keys,
                                                         0.0f);
                         venue_texture_changed = true;
                     }
-                    if (has_tex_transform) {
+                    if (!delayed_start && has_tex_transform) {
                         venue_material_tex_transforms_[anim.material] =
                             blend_material_tex_transform(
                                 active_anim.start_tex_transform,
@@ -20841,7 +21127,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     lighting_route_applied = true;
                     std::fprintf(
                         stderr,
-                        "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f\n",
+                        "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f\n",
                         event_name.c_str(), route.anim.c_str(),
                         anim.material.c_str(), active_anim.start_alpha,
                         active_anim.end_alpha,
@@ -20852,8 +21138,11 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                         active_anim.tex_scale_keys.size(),
                         active_anim.tex_rotation_keys.size(),
                         active_anim.duration_seconds,
-                        active_anim.source_blend_period_seconds);
-                    if (active_anim.duration_seconds <= 0.0001) {
+                        active_anim.source_blend_period_seconds,
+                        route.source_wait ? 1 : 0, route_delay,
+                        wait_seconds);
+                    if (active_anim.duration_seconds <= 0.0001 &&
+                        !delayed_start) {
                         if (anim.has_alpha)
                             venue_material_alpha_[anim.material] =
                                 blend_material_alpha(
@@ -20921,6 +21210,17 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 }
                 continue;
             }
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_material_anim_wait_seconds(
+                          active_lighting_material_anims_, anim.material,
+                          song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
+            const bool delayed_start = start_delay > 0.001;
             active_lighting_material_anims_.erase(
                 std::remove_if(active_lighting_material_anims_.begin(),
                                active_lighting_material_anims_.end(),
@@ -20940,7 +21240,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                                              anim.start_alpha)
                     : 1.0f;
             active_anim.end_alpha = anim.end_alpha;
-            active_anim.start_time = song_time_;
+            active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_seconds =
                 authored_frames_to_seconds(anim.duration_frames);
             active_anim.duration_frames = anim.duration_frames;
@@ -20953,6 +21253,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.persistent = persistent;
             active_anim.source_blend_period_seconds =
                 route.source_blend_period_seconds;
+            active_anim.source_start_delay_seconds =
+                static_cast<float>(start_delay);
             if (has_color) {
                 active_anim.has_start_color = true;
                 active_anim.start_color =
@@ -20969,7 +21271,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             }
             const float initial_blend = source_anim_blend_at(
                 active_anim.source_blend_period_seconds, 0.0);
-            if (anim.has_alpha) {
+            if (!delayed_start && anim.has_alpha) {
                 const float sampled_alpha =
                     active_anim.alpha_keys.empty()
                         ? active_anim.start_alpha
@@ -20979,19 +21281,19 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     blend_material_alpha(active_anim.start_alpha,
                                          sampled_alpha, initial_blend);
             }
-            if (has_color) {
+            if (!delayed_start && has_color) {
                 lighting_material_colors_[anim.material] = blend_material_color(
                     active_anim.start_color,
                     sample_material_color_key(anim.color_keys, 0.0f),
                     initial_blend);
                 color_changed = true;
             }
-            if (has_texture) {
+            if (!delayed_start && has_texture) {
                 lighting_material_textures_[anim.material] =
                     sample_material_texture_key(anim.texture_keys, 0.0f);
                 texture_changed = true;
             }
-            if (has_tex_transform) {
+            if (!delayed_start && has_tex_transform) {
                 lighting_material_tex_transforms_[anim.material] =
                     blend_material_tex_transform(
                         active_anim.start_tex_transform,
@@ -21002,7 +21304,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f\n",
+                "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f\n",
                 event_name.c_str(), route.anim.c_str(), anim.material.c_str(),
                 active_anim.start_alpha, active_anim.end_alpha,
                 active_anim.color_keys.size(), active_anim.alpha_keys.size(),
@@ -21011,8 +21313,9 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 active_anim.tex_scale_keys.size(),
                 active_anim.tex_rotation_keys.size(),
                 active_anim.duration_seconds,
-                active_anim.source_blend_period_seconds);
-            if (active_anim.duration_seconds <= 0.0001) {
+                active_anim.source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds);
+            if (active_anim.duration_seconds <= 0.0001 && !delayed_start) {
                 if (anim.has_alpha)
                     lighting_material_alpha_[anim.material] =
                         blend_material_alpha(
@@ -21062,6 +21365,17 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             if (anim_it == lighting_env_anims_.end()) continue;
             const auto& anim = anim_it->second;
             if (!venue_environment_anim_has_keys(anim)) continue;
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_environment_anim_wait_seconds(
+                          active_lighting_environment_anims_,
+                          anim.environment, song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
+            const bool delayed_start = start_delay > 0.001;
             active_lighting_environment_anims_.erase(
                 std::remove_if(
                     active_lighting_environment_anims_.begin(),
@@ -21073,7 +21387,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             ActiveVenueEnvironmentAnim active_anim;
             active_anim.name = anim.name;
             active_anim.environment = anim.environment;
-            active_anim.start_time = song_time_;
+            active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.fog_color_keys = anim.fog_color_keys;
@@ -21081,26 +21395,33 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.persistent = persistent;
             active_anim.source_blend_period_seconds =
                 route.source_blend_period_seconds;
-            lighting_environment_frames_[anim.environment] = 0.0f;
-            sample_environment_anim_tracks_blended(
-                anim.environment, active_anim.color_keys,
-                active_anim.fog_color_keys, active_anim.fog_range_keys, 0.0f,
-                source_anim_blend_at(
-                    active_anim.source_blend_period_seconds, 0.0),
-                lighting_environs_,
-                lighting_environment_colors_, lighting_environment_fog_colors_,
-                lighting_environment_fog_ranges_, environment_color_changed,
-                environment_fog_changed);
+            active_anim.source_start_delay_seconds =
+                static_cast<float>(start_delay);
+            if (!delayed_start) {
+                lighting_environment_frames_[anim.environment] = 0.0f;
+                sample_environment_anim_tracks_blended(
+                    anim.environment, active_anim.color_keys,
+                    active_anim.fog_color_keys, active_anim.fog_range_keys,
+                    0.0f,
+                    source_anim_blend_at(
+                        active_anim.source_blend_period_seconds, 0.0),
+                    lighting_environs_,
+                    lighting_environment_colors_,
+                    lighting_environment_fog_colors_,
+                    lighting_environment_fog_ranges_,
+                    environment_color_changed, environment_fog_changed);
+            }
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f blend_period=%.3f\n",
+                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f\n",
                 event_name.c_str(), anim.name.c_str(),
                 anim.environment.c_str(), anim.color_keys.size(),
                 anim.fog_color_keys.size(), anim.fog_range_keys.size(),
                 anim.duration_frames,
-                active_anim.source_blend_period_seconds);
-            if (anim.duration_frames > 0.001f) {
+                active_anim.source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds);
+            if (anim.duration_frames > 0.001f || delayed_start) {
                 active_lighting_environment_anims_.push_back(
                     std::move(active_anim));
             }
@@ -21112,6 +21433,16 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             if (anim_it == lighting_light_anims_.end()) continue;
             const auto& anim = anim_it->second;
             if (anim.color_keys.empty()) continue;
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_light_anim_wait_seconds(
+                          active_lighting_light_anims_, anim.light, song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
+            const bool delayed_start = start_delay > 0.001;
             active_lighting_light_anims_.erase(
                 std::remove_if(active_lighting_light_anims_.begin(),
                                active_lighting_light_anims_.end(),
@@ -21122,27 +21453,32 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             ActiveVenueLightAnim active_anim;
             active_anim.name = anim.name;
             active_anim.light = anim.light;
-            active_anim.start_time = song_time_;
+            active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.persistent = persistent;
             active_anim.source_blend_period_seconds =
                 route.source_blend_period_seconds;
-            lighting_light_colors_[anim.light] = blend_light_color(
-                current_light_color(anim.light, lighting_light_colors_,
-                                    lighting_lights_),
-                sample_light_color_key(active_anim.color_keys, 0.0f),
-                source_anim_blend_at(
-                    active_anim.source_blend_period_seconds, 0.0));
-            light_color_changed = true;
+            active_anim.source_start_delay_seconds =
+                static_cast<float>(start_delay);
+            if (!delayed_start) {
+                lighting_light_colors_[anim.light] = blend_light_color(
+                    current_light_color(anim.light, lighting_light_colors_,
+                                        lighting_lights_),
+                    sample_light_color_key(active_anim.color_keys, 0.0f),
+                    source_anim_blend_at(
+                        active_anim.source_blend_period_seconds, 0.0));
+                light_color_changed = true;
+            }
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f blend_period=%.3f\n",
+                "[world] lighting event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f\n",
                 event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
                 anim.color_keys.size(), anim.duration_frames,
-                active_anim.source_blend_period_seconds);
-            if (anim.duration_frames > 0.001f) {
+                active_anim.source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds);
+            if (anim.duration_frames > 0.001f || delayed_start) {
                 active_lighting_light_anims_.push_back(std::move(active_anim));
             }
         }
@@ -21180,6 +21516,15 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     if (lighting_visibility_applied) lighting_route_applied = true;
     if (particle_it != lighting_event_particle_systems_.end()) {
         for (const auto& route : particle_it->second) {
+            const float route_delay =
+                source_anim_delay_seconds(route.source_delay_seconds);
+            const double wait_seconds =
+                route.source_wait
+                    ? venue_particle_wait_seconds(active_lighting_particles_,
+                                                  route.particle, song_time_)
+                    : 0.0;
+            const double start_delay =
+                static_cast<double>(route_delay) + wait_seconds;
             active_lighting_particles_.erase(
                 std::remove_if(active_lighting_particles_.begin(),
                                active_lighting_particles_.end(),
@@ -21190,7 +21535,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 active_lighting_particles_.end());
             ActiveVenueParticleSystem active;
             active.particle = route.particle;
-            active.start_time = song_time_;
+            active.start_time = song_time_ + start_delay;
             active.duration_seconds = authored_frames_to_seconds(
                 route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
             active.duration_frames = route.duration_frames;
@@ -21202,12 +21547,14 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active.size_keys = route.size_keys;
             active.source_blend_period_seconds =
                 route.source_blend_period_seconds;
+            active.source_start_delay_seconds =
+                static_cast<float>(start_delay);
             active.persistent = persistent;
             active_lighting_particles_.push_back(std::move(active));
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f %s\n",
+                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.start_color_keys.size(),
                 route.end_color_keys.size(), route.emission_keys.size(),
@@ -21215,6 +21562,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 route.size_keys.size(), route.duration_frames,
                 active_lighting_particles_.back().duration_seconds,
                 active_lighting_particles_.back().source_blend_period_seconds,
+                route.source_wait ? 1 : 0, route_delay, wait_seconds,
                 persistent ? "persistent" : "transient");
         }
     }
@@ -21394,6 +21742,19 @@ void Gameplay::update_active_lighting_material_anims() {
          song_time_ - last_lighting_mat_anim_debug_time_ >= 0.5);
     for (auto it = active_lighting_material_anims_.begin();
          it != active_lighting_material_anims_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting MatAnim waiting %s -> %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->name.c_str(), it->material.c_str(),
+                    it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double duration = std::max(0.0, it->duration_seconds);
         const double t =
             duration <= 0.0001
@@ -21467,13 +21828,14 @@ void Gameplay::update_active_lighting_material_anims() {
                 it->has_alpha ? lighting_material_alpha_[it->material] : -1.0f;
             std::fprintf(
                 stderr,
-                "[world] lighting MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
+                "[world] lighting MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
                 it->name.c_str(), it->material.c_str(), frame, alpha,
                 it->color_keys.size(), it->alpha_keys.size(),
                 it->texture_keys.size(),
                 it->tex_translation_keys.size(), it->tex_scale_keys.size(),
                 it->tex_rotation_keys.size(), it->persistent ? 1 : 0,
-                source_blend, it->source_blend_period_seconds);
+                source_blend, it->source_blend_period_seconds,
+                it->source_start_delay_seconds);
         }
         const bool keep_persistent_tex =
             it->persistent && (has_color || has_texture || has_tex_transform) &&
@@ -21509,6 +21871,19 @@ void Gameplay::update_active_lighting_environment_anims() {
          song_time_ - last_lighting_env_anim_debug_time_ >= 0.5);
     for (auto it = active_lighting_environment_anims_.begin();
          it != active_lighting_environment_anims_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting EnvAnim waiting %s -> %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->name.c_str(), it->environment.c_str(),
+                    it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         float frame = 0.0f;
         bool done = false;
@@ -21543,12 +21918,13 @@ void Gameplay::update_active_lighting_environment_anims() {
                                          it->color_keys, frame);
             std::fprintf(
                 stderr,
-                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
+                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
                 it->name.c_str(), it->environment.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->fog_color_keys.size(), it->fog_range_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
-                it->source_blend_period_seconds);
+                it->source_blend_period_seconds,
+                it->source_start_delay_seconds);
         }
         if ((it->target_frame_mode && done) ||
             (!it->target_frame_mode && !it->persistent &&
@@ -21579,6 +21955,19 @@ void Gameplay::update_active_lighting_light_anims() {
          song_time_ - last_lighting_light_anim_debug_time_ >= 0.5);
     for (auto it = active_lighting_light_anims_.begin();
          it != active_lighting_light_anims_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting LightAnim waiting %s -> %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->name.c_str(), it->light.c_str(),
+                    it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         const float frame = material_anim_frame_at(
             it->duration_frames, elapsed, it->persistent);
@@ -21595,11 +21984,12 @@ void Gameplay::update_active_lighting_light_anims() {
         if (debug_sample) {
             std::fprintf(
                 stderr,
-                "[world] lighting LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
+                "[world] lighting LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
                 it->name.c_str(), it->light.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
-                it->source_blend_period_seconds);
+                it->source_blend_period_seconds,
+                it->source_start_delay_seconds);
         }
         if (!it->persistent && frame >= it->duration_frames - 0.001f) {
             it = active_lighting_light_anims_.erase(it);
@@ -21626,6 +22016,18 @@ void Gameplay::update_active_lighting_particles() {
          song_time_ - last_lighting_particle_debug_time_ >= 0.5);
     for (auto it = active_lighting_particles_.begin();
          it != active_lighting_particles_.end();) {
+        if (song_time_ + 0.0001 < it->start_time) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting ParticleSys waiting %s remaining=%.3f delay=%.3f blend_period=%.3f\n",
+                    it->particle.c_str(), it->start_time - song_time_,
+                    it->source_start_delay_seconds,
+                    it->source_blend_period_seconds);
+            }
+            ++it;
+            continue;
+        }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         if (!it->persistent && elapsed > it->duration_seconds) {
             it = active_lighting_particles_.erase(it);
@@ -21694,7 +22096,7 @@ void Gameplay::update_active_lighting_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f sampled_intensity=%.3f\n",
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f sampled_intensity=%.3f\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
                     start_color[0], start_color[1], start_color[2],
                     start_color[3], end_color[0], end_color[1],
@@ -21703,7 +22105,8 @@ void Gameplay::update_active_lighting_particles() {
                     it->emission_keys.size(), it->speed_keys.size(),
                     it->life_keys.size(), it->size_keys.size(),
                     it->persistent ? 1 : 0, blend,
-                    it->source_blend_period_seconds, sampled_intensity);
+                    it->source_blend_period_seconds,
+                    it->source_start_delay_seconds, sampled_intensity);
             }
         }
         ++it;

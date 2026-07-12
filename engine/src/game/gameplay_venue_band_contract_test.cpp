@@ -4661,8 +4661,19 @@ int main() {
                  "gameplay loads authored LightAnim event routes with source blend");
   ok &= contains(gameplay_h_c,
                  "structVenueEventAnimRoute{std::stringanim;"
-                 "floatsource_blend_period_seconds=0.0f;};",
-                 "EventTrigger EnvAnim/LightAnim routes preserve ihatecompvir blend");
+                 "std::stringsource_trigger;"
+                 "floatsource_blend_period_seconds=0.0f;"
+                 "floatsource_delay_seconds=0.0f;"
+                 "boolsource_wait=false;};",
+                 "EventTrigger EnvAnim/LightAnim routes preserve ihatecompvir blend/wait/delay");
+  ok &= contains(gameplay_c,
+                 "push_event_anim_routes(light_anims,resolved,anim_route.blend,"
+                 "anim_route.wait,anim_route.delay,de.name);",
+                 "LightAnim route loader keeps source EventTrigger timing rows");
+  ok &= contains(gameplay_c,
+                 "push_event_anim_routes(env_anims,resolved,anim_route.blend,"
+                 "anim_route.wait,anim_route.delay,de.name);",
+                 "EnvAnim route loader keeps source EventTrigger timing rows");
   ok &= contains(gameplay_c,
                  "venue_event_light_anims_=load_venue_event_light_anims(",
                  "venue load wires EventTrigger LightAnim routes");
@@ -5112,6 +5123,22 @@ int main() {
                  "route.source_blend_period_seconds=anim_route.blend;",
                  "ParticleSys event routes inherit EventTrigger Anim mBlend period");
   ok &= contains(gameplay_c,
+                 "route.source_delay_seconds=anim_route.delay;",
+                 "ParticleSys event routes inherit EventTrigger Anim delay");
+  ok &= contains(gameplay_c,
+                 "route.source_wait=anim_route.wait;",
+                 "ParticleSys event routes inherit EventTrigger Anim wait");
+  ok &= contains(gameplay_c,
+                 "push_event_anim_routes(mat_anims,resolved,anim_route.blend,"
+                 "anim_route.wait,anim_route.delay,de.name);",
+                 "MatAnim route loader keeps source EventTrigger timing rows");
+  ok &= contains(gameplay_c,
+                 "source_anim_delay_seconds(route.source_delay_seconds)",
+                 "direct EventTrigger animation playback honors authored source delay");
+  ok &= contains(gameplay_c,
+                 "if(song_time_+0.0001<it->start_time)",
+                 "direct EventTrigger animation playback waits before sampling frame zero");
+  ok &= contains(gameplay_c,
                  "venue_event_particle_systems_=load_venue_event_particles(",
                  "venue load wires ParticleSys routes");
   ok &= contains(gameplay_c,
@@ -5157,8 +5184,8 @@ int main() {
                  "it->particle,sampled_start_color)",
                  "venue ParticleSys color blend starts from current native particle state");
   ok &= contains(gameplay_c,
-                 "blend=%.3fblend_period=%.3fsampled_intensity=%.3f",
-                 "venue ParticleSys diagnostics expose live source blend period and raw sampled emission");
+                 "blend=%.3fblend_period=%.3fdelay=%.3fsampled_intensity=%.3f",
+                 "venue ParticleSys diagnostics expose source blend period, delay, and raw sampled emission");
   ok &= contains(gameplay_c,
                  "it->speed_keys.size()",
                  "venue particle sample logs include decoded source speed keys");
@@ -5406,7 +5433,7 @@ int main() {
                  "\"[world]lightingMatAnimsample%s->%sframe=%.2falpha=%.3f"
                  "color_keys=%zualpha_keys=%zutexture_keys=%zutex_trans_keys=%zu"
                  "tex_scale_keys=%zutex_rot_keys=%zupersistent=%dblend=%.3f"
-                 "blend_period=%.3f\\n\"",
+                 "blend_period=%.3fdelay=%.3f\\n\"",
                  "lighting overlay MatAnim sampler emits debug rows for native validation");
   ok &= contains(gameplay_c,
                  "if(debug_sample)last_lighting_mat_anim_debug_time_=song_time_;",
@@ -5490,14 +5517,16 @@ int main() {
                  "active_lighting_particles_.back().duration_seconds,"
                  "active_lighting_particles_.back()."
                  "source_blend_period_seconds,"
+                 "route.source_wait?1:0,route_delay,wait_seconds,"
                  "persistent?\"persistent\":\"transient\");",
-                 "lighting ParticleSys diagnostics expose transient ownership and source blend period");
+                 "lighting ParticleSys diagnostics expose transient ownership and source timing");
   ok &= contains(gameplay_c,
                  "it->emission_keys.size(),it->speed_keys.size(),"
                  "it->life_keys.size(),it->size_keys.size(),"
                  "it->persistent?1:0,blend,"
-                 "it->source_blend_period_seconds,sampled_intensity);",
-                 "lighting ParticleSys samples log persistent state, source blend, and blend period");
+                 "it->source_blend_period_seconds,"
+                 "it->source_start_delay_seconds,sampled_intensity);",
+                 "lighting ParticleSys samples log persistent state, source blend, blend period, and delay");
   ok &= contains(gameplay_c,
                  "active_filter.persistent=persistent;",
                  "lighting overlay AnimFilters inherit transient versus persistent events");
