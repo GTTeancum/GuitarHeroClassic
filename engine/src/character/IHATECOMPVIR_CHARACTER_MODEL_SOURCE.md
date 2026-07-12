@@ -3525,6 +3525,10 @@ note, and all report `unreadBytes=0`.
     `source_grim_char_bones_samples_channel_mesh_name` ports that exact
     conversion, and the GH2 clip parser now emits Grim-style `.mesh` channel
     targets instead of a local bare-name stripping rule.
+  - Grim then sorts decoded `CharBoneSample` rows by `symbol`. Native
+    `source_grim_char_bones_samples_sort_decoded_channels` mirrors that as a
+    stable per-frame sort by decoded target name before returning parser frames,
+    preserving same-target channel order while matching the source output order.
   - The same Grim `decode_samples` body only decodes `.pos`, `.quat`, and
     `.rotz`; all other transform types hit the unsupported `t@_` panic arm.
     Native `source_grim_char_bones_samples_decode_plan` and

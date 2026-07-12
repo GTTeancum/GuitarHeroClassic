@@ -836,6 +836,9 @@ int run_contract() {
                  "\".mesh\");",
                  "grim CharBonesSamples maps decoded channels to mesh names");
   ok &= contains(grim_char_bones_samples_mod,
+                 "bone_samples.sort_by(|a,b|a.symbol.cmp(&b.symbol));",
+                 "grim CharBonesSamples sorts decoded samples by symbol");
+  ok &= contains(grim_char_bones_samples_mod,
                  "matchSelf::get_type_of(bone.symbol.as_str()){t@0=>",
                  "grim CharBonesSamples decode switches on bone type");
   ok &= contains(grim_char_bones_samples_mod,
@@ -20152,6 +20155,13 @@ int run_contract() {
                  "exact",
                  "document records Grim channel mesh-name helper");
   ok &= contains(doc,
+                 "`source_grim_char_bones_samples_sort_decoded_channels` "
+                 "mirrors",
+                 "document records Grim decoded channel sort helper");
+  ok &= contains(doc,
+                 "stable per-frame sort by decoded target name",
+                 "document records parser use of Grim decoded channel sorting");
+  ok &= contains(doc,
                  "parser now emits Grim-style `.mesh` channel",
                  "document records parser use of Grim mesh-name helper");
   ok &= contains(doc,
@@ -20254,6 +20264,10 @@ int run_contract() {
                  "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
                  "native exposes Grim channel mesh-name helper");
   ok &= contains(char_clip_h,
+                 "voidsource_grim_char_bones_samples_sort_decoded_channels("
+                 "std::vector<ClipChannel>&channels);",
+                 "native exposes Grim decoded channel sort helper");
+  ok &= contains(char_clip_h,
                  "structSourceGrimCharBonesSamplesDecodePlan{",
                  "native exposes Grim CharBonesSamples decode plan");
   ok &= contains(char_clip_h,
@@ -20284,6 +20298,11 @@ int run_contract() {
   ok &= contains(char_clip,
                  "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
                  "native implements Grim channel mesh-name helper");
+  ok &= contains(char_clip,
+                 "voidsource_grim_char_bones_samples_sort_decoded_channels("
+                 "std::vector<ClipChannel>&channels){std::stable_sort("
+                 "channels.begin(),channels.end(),",
+                 "native implements Grim decoded channel sort helper");
   ok &= contains(char_clip,
                  "replace_all(name,\".pos\",\".mesh\");replace_all(name,"
                  "\".quat\",\".mesh\");replace_all(name,\".rotz\",\".mesh\");",
@@ -20324,6 +20343,10 @@ int run_contract() {
                  "ch.source_weight=source_grim_char_bones_samples_channel_weight"
                  "(bl.weights,bi);",
                  "clip parser retains Grim channel weight metadata");
+  ok &= contains(char_clip,
+                 "for(std::vector<ClipChannel>&frame:frames){"
+                 "source_grim_char_bones_samples_sort_decoded_channels(frame);}",
+                 "clip parser sorts decoded channels by Grim symbol order");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::EvaluateChannel(",
                 "latest CharBonesSamples source does not expose EvaluateChannel body");
@@ -20360,6 +20383,10 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_channel_weight(",
                  "focused CharBones source test covers Grim channel weights");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_sort_decoded_channels("
+                 "grim_channels)",
+                 "focused CharBones source test covers Grim decoded channel sort");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");

@@ -1627,6 +1627,26 @@ int main() {
   ok &= expect_float(source_grim_char_bones_samples_channel_weight(
                          {0.25f, 0.75f}, 2),
                      1.0f, "grim channel weight fallback");
+  std::vector<ClipChannel> grim_channels(4);
+  grim_channels[0].bone_name = "bone_z.mesh";
+  grim_channels[0].type = ClipChannel::kPos;
+  grim_channels[1].bone_name = "bone_a.mesh";
+  grim_channels[1].type = ClipChannel::kQuat;
+  grim_channels[2].bone_name = "bone_a.mesh";
+  grim_channels[2].type = ClipChannel::kRotZ;
+  grim_channels[3].bone_name = "bone_m.mesh";
+  grim_channels[3].type = ClipChannel::kPos;
+  source_grim_char_bones_samples_sort_decoded_channels(grim_channels);
+  ok &= expect_string(grim_channels[0].bone_name, "bone_a.mesh",
+                      "grim sort first target");
+  ok &= expect_int(grim_channels[0].type, ClipChannel::kQuat,
+                   "grim sort preserves first same-target channel");
+  ok &= expect_int(grim_channels[1].type, ClipChannel::kRotZ,
+                   "grim sort preserves second same-target channel");
+  ok &= expect_string(grim_channels[2].bone_name, "bone_m.mesh",
+                      "grim sort middle target");
+  ok &= expect_string(grim_channels[3].bone_name, "bone_z.mesh",
+                      "grim sort final target");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(0), 0.0f,
                     "grim snorm16 zero");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(32767), 1.0f,

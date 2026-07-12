@@ -2074,6 +2074,8 @@ std::string source_grim_char_bones_samples_channel_mesh_name(
 float source_grim_char_bones_samples_channel_weight(
     const std::vector<float>& weights,
     size_t index);
+void source_grim_char_bones_samples_sort_decoded_channels(
+    std::vector<ClipChannel>& channels);
 bool source_grim_char_bones_samples_decodes_channel_type(int type);
 bool source_grim_char_bones_samples_panics_channel_type(int type);
 SourceGrimCharBonesSamplesDecodePlan

@@ -1162,6 +1162,14 @@ float source_grim_char_bones_samples_channel_weight(
   return index < weights.size() ? weights[index] : 1.0f;
 }
 
+void source_grim_char_bones_samples_sort_decoded_channels(
+    std::vector<ClipChannel>& channels) {
+  std::stable_sort(channels.begin(), channels.end(),
+                   [](const ClipChannel& a, const ClipChannel& b) {
+                     return a.bone_name < b.bone_name;
+                   });
+}
+
 bool source_grim_char_bones_samples_panics_channel_type(int type) {
   return !source_grim_char_bones_samples_decodes_channel_type(type);
 }
@@ -2499,6 +2507,10 @@ std::vector<std::vector<ClipChannel>> parse_all(
       }
     }
     data += (size_t)frames_here * bl.frame_bytes;
+  }
+
+  for (std::vector<ClipChannel>& frame : frames) {
+    source_grim_char_bones_samples_sort_decoded_channels(frame);
   }
 
   return frames;
