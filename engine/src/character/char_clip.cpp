@@ -1012,6 +1012,17 @@ float source_grim_char_bones_samples_decode_snorm16(int16_t value) {
   return std::max(static_cast<float>(value) / 32767.0f, -1.0f);
 }
 
+std::array<float, 4> source_grim_char_bones_samples_decode_short_quat(
+    int16_t x,
+    int16_t y,
+    int16_t z,
+    int16_t w) {
+  return {source_grim_char_bones_samples_decode_snorm16(x),
+          source_grim_char_bones_samples_decode_snorm16(y),
+          source_grim_char_bones_samples_decode_snorm16(z),
+          source_grim_char_bones_samples_decode_snorm16(w)};
+}
+
 size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression) {
   if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
@@ -2116,10 +2127,16 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
 void read_quat(Cur& c, bool comp, ClipChannel& ch) {
   ch.type = ClipChannel::kQuat;
   if (comp) {
-    ch.quat[0] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // x
-    ch.quat[1] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // y
-    ch.quat[2] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // z
-    ch.quat[3] = source_grim_char_bones_samples_decode_snorm16(c.i16());  // w
+    const int16_t x = c.i16();
+    const int16_t y = c.i16();
+    const int16_t z = c.i16();
+    const int16_t w = c.i16();
+    const auto quat = source_grim_char_bones_samples_decode_short_quat(
+        x, y, z, w);
+    ch.quat[0] = quat[0];  // x
+    ch.quat[1] = quat[1];  // y
+    ch.quat[2] = quat[2];  // z
+    ch.quat[3] = quat[3];  // w
   } else {
     ch.quat[0] = c.f32();      // x
     ch.quat[1] = c.f32();      // y

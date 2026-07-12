@@ -1566,6 +1566,14 @@ int main() {
                     -1.0f, "grim snorm16 negative clamp");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(16384),
                     16384.0f / 32767.0f, "grim snorm16 mid value");
+  const auto short_quat = source_grim_char_bones_samples_decode_short_quat(
+      -32768, 0, 16384, 32767);
+  ok &= expect_near(short_quat[0], -1.0f,
+                    "grim short quat x negative clamp");
+  ok &= expect_near(short_quat[1], 0.0f, "grim short quat y zero");
+  ok &= expect_near(short_quat[2], 16384.0f / 32767.0f,
+                    "grim short quat z mid value");
+  ok &= expect_near(short_quat[3], 1.0f, "grim short quat w positive max");
 
   ok &= expect_size(
       source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypePos, 0),

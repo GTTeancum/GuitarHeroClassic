@@ -884,6 +884,10 @@ int run_contract() {
                  "floatsource_grim_char_bones_samples_decode_snorm16("
                  "int16_tvalue);",
                  "native exposes grim snorm16 decode helper");
+  ok &= contains(char_clip_h,
+                 "std::array<float,4>source_grim_char_bones_samples_decode_"
+                 "short_quat(int16_tx,int16_ty,int16_tz,int16_tw);",
+                 "native exposes grim short quat decode helper");
   ok &= contains(char_clip,
                  "source_grim_char_clip_samples_version_known",
                  "native names grim CharClipSamples version gate");
@@ -897,6 +901,14 @@ int run_contract() {
                  "32767.0f,-1.0f);}",
                  "native implements grim snorm16 decode without pi scale");
   ok &= contains(char_clip,
+                 "std::array<float,4>source_grim_char_bones_samples_decode_"
+                 "short_quat(int16_tx,int16_ty,int16_tz,int16_tw){return{"
+                 "source_grim_char_bones_samples_decode_snorm16(x),"
+                 "source_grim_char_bones_samples_decode_snorm16(y),"
+                 "source_grim_char_bones_samples_decode_snorm16(z),"
+                 "source_grim_char_bones_samples_decode_snorm16(w)};}",
+                 "native implements grim short quat decode helper");
+  ok &= contains(char_clip,
                  "intc=source_grim_char_bones_samples_get_type_of(name);",
                  "native sample-name validator uses grim classifier");
   ok &= contains(char_clip,
@@ -907,13 +919,13 @@ int run_contract() {
                  "ch.angle=comp?read_snorm16(c):c.f32();",
                  "native scalar sample decode keeps grim raw angle value");
   ok &= contains(char_clip,
-                 "ch.quat[0]=source_grim_char_bones_samples_decode_snorm16("
-                 "c.i16());",
-                 "native packed quat x uses grim snorm16 clamp");
+                 "constint16_tx=c.i16();constint16_ty=c.i16();"
+                 "constint16_tz=c.i16();constint16_tw=c.i16();",
+                 "native packed quat consumes samples in x/y/z/w order");
   ok &= contains(char_clip,
-                 "ch.quat[3]=source_grim_char_bones_samples_decode_snorm16("
-                 "c.i16());",
-                 "native packed quat w uses grim snorm16 clamp");
+                 "constautoquat=source_grim_char_bones_samples_decode_short_"
+                 "quat(x,y,z,w);",
+                 "native packed quat uses grim short quat helper");
   ok &= contains(char_clip, "candidate.resize(2);",
                  "native keeps two runtime data lists after duplicate header");
   ok &= contains(char_clip,
@@ -15569,6 +15581,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_type_of(\"bone_head.rotx\")",
                  "focused CharBones source test covers rot-x suffix");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_decode_short_quat(",
+                 "focused CharBones source test covers Grim short quat decode");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_type_of(\"bone.head.pos\")",
                  "focused CharBones source test covers later-dot suffix scan");

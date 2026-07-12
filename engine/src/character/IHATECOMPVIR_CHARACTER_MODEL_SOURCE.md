@@ -3184,7 +3184,8 @@ note, and all report `unreadBytes=0`.
   - Grim and re-notes decode compressed scalar rotation samples and short
     quaternion components as `i16 / 32767.0` clamped to `-1.0`; uncompressed
     scalar rotations stay as the stored float. Native
-    `source_grim_char_bones_samples_decode_snorm16`, the `CharClipSamples`
+    `source_grim_char_bones_samples_decode_snorm16`,
+    `source_grim_char_bones_samples_decode_short_quat`, the `CharClipSamples`
     scalar channel reader, and the short quaternion reader preserve that raw
     source value; no pi-scale is applied unless a future source body proves one
     belongs in a later pose-application step.
