@@ -6422,6 +6422,18 @@ int run_contract() {
                  "mProceduralBlinkWeight>0.0f&&!mAppliedProceduralBlink){",
                  "CharFaceServo source exposes procedural blink gate");
   ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "TryScaleDown();if(mBlinkClipLeft){mBlinkClipLeft->ScaleAdd("
+                 "*this,Interp(0.0f,1.0f-mBlinkWeightLeft,"
+                 "mProceduralBlinkWeight),mBlinkClipLeft->StartBeat(),0.0f);}",
+                 "CharFaceServo source exposes procedural left blink weight");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "if(mBlinkClipRight&&mBlinkClipRight!=mBlinkClipLeft){"
+                 "mBlinkClipRight->ScaleAdd(*this,Interp(0.0f,1.0f-"
+                 "mBlinkWeightRight,mProceduralBlinkWeight),"
+                 "mBlinkClipRight->StartBeat(),0.0f);}"
+                 "mAppliedProceduralBlink=true;",
+                 "CharFaceServo source exposes procedural right blink gate");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
                  "voidCharFaceServo::PollDeps(std::list<Hmx::Object*>&,"
                  "std::list<Hmx::Object*>&change){StuffMeshes(change);}",
                  "CharFaceServo source exposes PollDeps mesh publication");
@@ -6437,6 +6449,13 @@ int run_contract() {
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink(",
                  "native exposes CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoProceduralWeightsResult{"
+                 "boolaccepted=false;boolscale_down=false;"
+                 "boolleft_applied=false;boolright_applied=false;"
+                 "boolapplied_procedural_blink=false;floatleft_weight=0.0f;"
+                 "floatright_weight=0.0f;};",
+                 "native exposes CharFaceServo procedural blink result");
   ok &= contains(char_mesh_h,
                  "structSourceCharFaceServoLoadPlan{boolknown_revision=false;"
                  "std::vector<std::string>read_order;std::vector<std::string>"
@@ -6463,6 +6482,13 @@ int run_contract() {
                  "SourceCharFaceServoPollPlansource_char_face_servo_poll_plan("
                  "boolhas_base_clip);",
                  "native exposes CharFaceServo poll plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharFaceServoProceduralWeightsResult"
+                 "source_char_face_servo_apply_procedural_weights("
+                 "SourceCharFaceServoBlinkState&state,floatprocedural_weight,"
+                 "boolalready_applied,boolhas_left_clip,boolhas_right_clip,"
+                 "boolright_same_as_left);",
+                 "native exposes CharFaceServo procedural blink helper");
   ok &= contains(char_mesh,
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink("
@@ -6502,6 +6528,23 @@ int run_contract() {
                  "boolpositive_weight,boolalready_applied){",
                  "native implements CharFaceServo procedural blink plan");
   ok &= contains(char_mesh,
+                 "SourceCharFaceServoProceduralWeightsResult"
+                 "source_char_face_servo_apply_procedural_weights("
+                 "SourceCharFaceServoBlinkState&state,floatprocedural_weight,"
+                 "boolalready_applied,boolhas_left_clip,boolhas_right_clip,"
+                 "boolright_same_as_left){SourceCharFaceServoProceduralWeightsResult"
+                 "result;",
+                 "native implements CharFaceServo procedural blink helper");
+  ok &= contains(char_mesh,
+                 "if(procedural_weight<=0.0f||already_applied)returnresult;",
+                 "native CharFaceServo procedural helper mirrors source gate");
+  ok &= contains(char_mesh,
+                 "if(has_left_clip){result.left_applied=true;result.left_weight="
+                 "(1.0f-state.left)*procedural_weight;}if(has_right_clip&&"
+                 "!right_same_as_left){result.right_applied=true;"
+                 "result.right_weight=(1.0f-state.right)*procedural_weight;}",
+                 "native CharFaceServo procedural helper mirrors source weights");
+  ok &= contains(char_mesh,
                  "if(!clip_is_relative||weight<0.0f)returnresult;",
                  "native CharFaceServo helper keeps source relative/assert boundary");
   ok &= contains(char_mesh,
@@ -6536,6 +6579,16 @@ int run_contract() {
                  "source_char_face_servo_procedural_weights_plan(true,false)",
                  "focused CharFaceServo test covers procedural blink plan");
   ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_apply_procedural_weights("
+                 "procedural_state,0.4f,false,true,true,false)",
+                 "focused CharFaceServo test covers concrete procedural weights");
+  ok &= contains(face_servo_source_test,
+                 "\"proceduralduplicaterightskipped\"",
+                 "focused CharFaceServo test covers duplicate right procedural gate");
+  ok &= contains(face_servo_source_test,
+                 "\"proceduralresetstateleft\"",
+                 "focused CharFaceServo test covers procedural scale-down reset");
+  ok &= contains(face_servo_source_test,
                  "source_char_face_servo_scale_add_blink(state,clips,"
                  "\"blink_R2\",true,0.5f)",
                  "focused CharFaceServo test covers right2 clamp branch");
@@ -6546,6 +6599,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_face_servo_scale_add_blink` ports the bounded",
                  "document records native CharFaceServo blink helper");
+  ok &= contains(doc,
+                 "Native `source_char_face_servo_apply_procedural_weights` ports the concrete",
+                 "document records native CharFaceServo procedural blink helper");
+  ok &= contains(doc,
+                 "right blink applies\n    `(1 - mBlinkWeightRight) * mProceduralBlinkWeight` only when a right clip",
+                 "document records procedural right blink gate");
   ok &= contains(doc,
                  "Native `source_char_face_servo_load_plan`,",
                  "document records native CharFaceServo load plan");

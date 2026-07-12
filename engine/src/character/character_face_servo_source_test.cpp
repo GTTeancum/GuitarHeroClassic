@@ -44,6 +44,7 @@ bool expect_string(const std::string& got,
 int main() {
   using ghogx::character::SourceCharFaceServoBlinkClips;
   using ghogx::character::SourceCharFaceServoBlinkState;
+  using ghogx::character::source_char_face_servo_apply_procedural_weights;
   using ghogx::character::source_char_face_servo_copy_plan;
   using ghogx::character::source_char_face_servo_enter_plan;
   using ghogx::character::source_char_face_servo_handler_plan;
@@ -182,6 +183,56 @@ int main() {
   ok &= expect_bool(source_char_face_servo_poll_deps_plan()
                         .change_list_gets_stuff_meshes,
                     true, "PollDeps stuffs meshes");
+
+  SourceCharFaceServoBlinkState procedural_state;
+  procedural_state.left = 0.25f;
+  procedural_state.right = 0.5f;
+  auto procedural_result = source_char_face_servo_apply_procedural_weights(
+      procedural_state, 0.4f, false, true, true, false);
+  ok &= expect_bool(procedural_result.accepted, true,
+                    "procedural concrete accepted");
+  ok &= expect_bool(procedural_result.scale_down, false,
+                    "procedural concrete no scale-down");
+  ok &= expect_bool(procedural_result.left_applied, true,
+                    "procedural concrete left applied");
+  ok &= expect_bool(procedural_result.right_applied, true,
+                    "procedural concrete right applied");
+  ok &= near(procedural_result.left_weight, 0.3f,
+             "procedural concrete left weight");
+  ok &= near(procedural_result.right_weight, 0.2f,
+             "procedural concrete right weight");
+  ok &= expect_bool(procedural_result.applied_procedural_blink, true,
+                    "procedural concrete marks applied");
+
+  procedural_result = source_char_face_servo_apply_procedural_weights(
+      procedural_state, 0.4f, true, true, true, false);
+  ok &= expect_bool(procedural_result.accepted, false,
+                    "procedural already applied skipped");
+
+  procedural_result = source_char_face_servo_apply_procedural_weights(
+      procedural_state, 0.0f, false, true, true, false);
+  ok &= expect_bool(procedural_result.accepted, false,
+                    "procedural zero weight skipped");
+
+  procedural_state.left = 0.8f;
+  procedural_state.right = 0.1f;
+  procedural_state.need_scale_down = true;
+  procedural_result = source_char_face_servo_apply_procedural_weights(
+      procedural_state, 0.5f, false, true, true, true);
+  ok &= expect_bool(procedural_result.scale_down, true,
+                    "procedural scale-down consumed");
+  ok &= expect_bool(procedural_result.left_applied, true,
+                    "procedural duplicate left applied");
+  ok &= expect_bool(procedural_result.right_applied, false,
+                    "procedural duplicate right skipped");
+  ok &= near(procedural_result.left_weight, 0.5f,
+             "procedural reset left weight");
+  ok &= near(procedural_result.right_weight, 0.0f,
+             "procedural duplicate right weight");
+  ok &= near(procedural_state.left, 0.0f, "procedural reset state left");
+  ok &= near(procedural_state.right, 0.0f, "procedural reset state right");
+  ok &= expect_bool(procedural_state.need_scale_down, false,
+                    "procedural reset state need scale-down");
 
   const SourceCharFaceServoBlinkClips clips{
       "blink_L", "blink_L2", "blink_R", "blink_R2"};

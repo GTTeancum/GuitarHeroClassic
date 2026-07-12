@@ -1247,6 +1247,13 @@ note, and all report `unreadBytes=0`.
     poll order, procedural blink gate, property rows, and handler check
     `0x119`. These plans remain source context and do not promote
     `FaceFxLipSyncServo` rows into `CharFaceServo` behavior.
+  - Native `source_char_face_servo_apply_procedural_weights` ports the concrete
+    `ApplyProceduralWeights` blink math: positive unapplied procedural weight
+    first consumes `TryScaleDown`, left blink applies `(1 - mBlinkWeightLeft) *
+    mProceduralBlinkWeight` when a left clip exists, right blink applies
+    `(1 - mBlinkWeightRight) * mProceduralBlinkWeight` only when a right clip
+    exists and is not the same object as the left clip, and the source marks
+    procedural blink applied after the gated update.
   - Native `source_char_face_servo_scale_add_blink` ports the bounded,
     complete blink-weight part of `CharFaceServo::ScaleAdd`: non-relative clips
     do not enter the source update path; accepted relative clips first consume

@@ -2578,6 +2578,37 @@ source_char_face_servo_procedural_weights_plan(bool positive_weight,
   return plan;
 }
 
+SourceCharFaceServoProceduralWeightsResult
+source_char_face_servo_apply_procedural_weights(
+    SourceCharFaceServoBlinkState& state,
+    float procedural_weight,
+    bool already_applied,
+    bool has_left_clip,
+    bool has_right_clip,
+    bool right_same_as_left) {
+  SourceCharFaceServoProceduralWeightsResult result;
+  if (procedural_weight <= 0.0f || already_applied) return result;
+
+  result.accepted = true;
+  if (state.need_scale_down) {
+    state.need_scale_down = false;
+    state.left = 0.0f;
+    state.right = 0.0f;
+    result.scale_down = true;
+  }
+
+  if (has_left_clip) {
+    result.left_applied = true;
+    result.left_weight = (1.0f - state.left) * procedural_weight;
+  }
+  if (has_right_clip && !right_same_as_left) {
+    result.right_applied = true;
+    result.right_weight = (1.0f - state.right) * procedural_weight;
+  }
+  result.applied_procedural_blink = true;
+  return result;
+}
+
 SourceCharFaceServoPollDepsPlan source_char_face_servo_poll_deps_plan() {
   return SourceCharFaceServoPollDepsPlan{};
 }

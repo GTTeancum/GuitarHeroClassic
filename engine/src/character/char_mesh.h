@@ -654,6 +654,16 @@ struct SourceCharFaceServoProceduralWeightsPlan {
   bool marks_applied = true;
 };
 
+struct SourceCharFaceServoProceduralWeightsResult {
+  bool accepted = false;
+  bool scale_down = false;
+  bool left_applied = false;
+  bool right_applied = false;
+  bool applied_procedural_blink = false;
+  float left_weight = 0.0f;
+  float right_weight = 0.0f;
+};
+
 struct SourceCharFaceServoPollDepsPlan {
   bool change_list_gets_stuff_meshes = true;
 };
@@ -1679,6 +1689,14 @@ SourceCharFaceServoProceduralWeightsPlan
 source_char_face_servo_procedural_weights_plan(
     bool positive_weight,
     bool already_applied);
+SourceCharFaceServoProceduralWeightsResult
+source_char_face_servo_apply_procedural_weights(
+    SourceCharFaceServoBlinkState& state,
+    float procedural_weight,
+    bool already_applied,
+    bool has_left_clip,
+    bool has_right_clip,
+    bool right_same_as_left);
 SourceCharFaceServoPollDepsPlan source_char_face_servo_poll_deps_plan();
 int32_t source_char_mesh_hide_combined_flags(
     const std::vector<SourceCharMeshHideObject>& objects,
