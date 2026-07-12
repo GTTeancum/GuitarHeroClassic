@@ -1683,6 +1683,10 @@ note, and all report `unreadBytes=0`.
     `source_char_hair_strand_default_state` now match that constructor so
     helper-created strands do not start from zero rotation matrices or invented
     diagnostic display state.
+  - `CharHair::Strand::~Strand` and `CharHair::~CharHair` are empty checked
+    source bodies. Native `source_char_hair_destructor_plan` records that no
+    explicit strand/hair cleanup or transform writeback is source-backed by
+    those destructors.
   - `CharHair::SetCloth` assigns `sideLength` from the matching point in the
     next strand when cloth mode is enabled and otherwise forces `sideLength` to
     `-1.0f`. Native ports this exactly as `source_char_hair_set_cloth`; it is

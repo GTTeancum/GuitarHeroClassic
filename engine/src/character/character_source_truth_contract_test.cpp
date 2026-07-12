@@ -6387,6 +6387,9 @@ int run_contract() {
                  "mMe(this,0),mWind(this,0),mCollide(this,kObjListNoNull),"
                  "mManagedHookup(0){}",
                  "RB3 CharHair constructor exposes runtime default flags");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "CharHair::Strand::~Strand(){}CharHair::~CharHair(){}",
+                 "RB3 CharHair destructors are empty source bodies");
   ok &= contains(rb3_latest_char_hair_h,
                  "Point(Hmx::Object*o):bone(o,0),length(0.0f),"
                  "collides(o,kObjListNoNull),radius(0.0f),"
@@ -6456,6 +6459,18 @@ int run_contract() {
                  "floatradius=0.0f;floatouter_radius=-1.0f;",
                  "native point default helper records source radius defaults");
   ok &= contains(char_mesh_h,
+                 "structSourceCharHairDestructorPlan{"
+                 "boolstrand_body_no_op=true;boolhair_body_no_op=true;",
+                 "native exposes CharHair destructor plan");
+  ok &= contains(char_mesh_h,
+                 "boolexplicit_strand_cleanup=false;"
+                 "boolexplicit_hair_cleanup=false;boolwrites_transforms=false;",
+                 "native destructor plan records no cleanup/writeback");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairDestructorPlan"
+                 "source_char_hair_destructor_plan();",
+                 "native exposes CharHair destructor helper");
+  ok &= contains(char_mesh_h,
                  "structSourceCharHairRuntime{boolinitialized=false;"
                  "booluse_post_proc=true;",
                  "native carries CharHair SetName postproc state into runtime");
@@ -6467,6 +6482,10 @@ int run_contract() {
                  "SourceCharHairPointDefaultStatesource_char_hair_point_default_state(){"
                  "returnSourceCharHairPointDefaultState{};}",
                  "native CharHair point default helper returns source defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharHairDestructorPlansource_char_hair_destructor_plan(){"
+                 "return{};}",
+                 "native CharHair destructor helper returns source no-op plan");
   ok &= contains(char_mesh,
                  "if(hair.version>1){point.outer_radius=r.f32();}"
                  "else{point.outer_radius=0.0f;}",
@@ -7378,6 +7397,9 @@ int run_contract() {
                  "source_char_hair_load_plan(11)",
                  "focused CharHair test covers modern CharHair load plan");
   ok &= contains(char_hair_source_test,
+                 "source_char_hair_destructor_plan()",
+                 "focused CharHair test covers destructor plan");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_hookup_plan(true,{\"head.collide\","
                  "\"neck.collide\"})",
                  "focused CharHair test covers managed Hookup return");
@@ -7408,6 +7430,12 @@ int run_contract() {
                  "document records native CharHair RB2 mapped body evidence");
   ok &= contains(doc, "declaration/body boundary, those ranges",
                  "document records native CharHair PollDeps boundary/ranges");
+  ok &= contains(doc,
+                 "`CharHair::Strand::~Strand` and `CharHair::~CharHair` are empty checked",
+                 "document records CharHair destructor no-op bodies");
+  ok &= contains(doc,
+                 "`source_char_hair_destructor_plan` records that no",
+                 "document records native destructor helper boundary");
   ok &= contains(doc,
                  "`source_char_hair_load_plan`, `source_char_hair_strand_load_plan`, and",
                  "document records native CharHair load plan helpers");

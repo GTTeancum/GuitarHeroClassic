@@ -1510,6 +1510,14 @@ struct SourceCharHairSavePlan {
   int32_t save_id = 0x41b;
 };
 
+struct SourceCharHairDestructorPlan {
+  bool strand_body_no_op = true;
+  bool hair_body_no_op = true;
+  bool explicit_strand_cleanup = false;
+  bool explicit_hair_cleanup = false;
+  bool writes_transforms = false;
+};
+
 struct SourceCharHairSetNamePlan {
   bool call_hmx_object_set_name = true;
   bool assigns_character_owner = false;
@@ -3032,6 +3040,7 @@ SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
 SourceGrimCharHairLoadPlan source_grim_char_hair_load_plan(int version);
 uint32_t source_grim_char_hair_collide_type(uint32_t raw);
 SourceCharHairSavePlan source_char_hair_save_plan();
+SourceCharHairDestructorPlan source_char_hair_destructor_plan();
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
     bool owner_is_character,
     bool owner_is_world_dir);

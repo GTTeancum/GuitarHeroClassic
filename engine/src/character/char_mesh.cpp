@@ -3533,6 +3533,10 @@ SourceCharHairSavePlan source_char_hair_save_plan() {
   return {};
 }
 
+SourceCharHairDestructorPlan source_char_hair_destructor_plan() {
+  return {};
+}
+
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision) {
   SourceCharHairPointLoadPlan plan;
   plan.known_revision = revision >= 0 && revision <= 11;

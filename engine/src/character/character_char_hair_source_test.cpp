@@ -71,6 +71,7 @@ int main() {
   using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
   using ghogx::character::source_char_hair_default_state;
+  using ghogx::character::source_char_hair_destructor_plan;
   using ghogx::character::source_char_hair_do_reset_plan;
   using ghogx::character::source_char_hair_handler_plan;
   using ghogx::character::source_char_hair_hookup_dump_evidence;
@@ -438,6 +439,18 @@ int main() {
 
   const auto save = source_char_hair_save_plan();
   ok &= expect_int(save.save_id, 0x41b, "hair save id");
+
+  const auto destructor = source_char_hair_destructor_plan();
+  ok &= expect_bool(destructor.strand_body_no_op, true,
+                    "strand destructor no-op");
+  ok &= expect_bool(destructor.hair_body_no_op, true,
+                    "hair destructor no-op");
+  ok &= expect_bool(destructor.explicit_strand_cleanup, false,
+                    "strand destructor no explicit cleanup");
+  ok &= expect_bool(destructor.explicit_hair_cleanup, false,
+                    "hair destructor no explicit cleanup");
+  ok &= expect_bool(destructor.writes_transforms, false,
+                    "destructors do not write transforms");
 
   const auto set_name_plain = source_char_hair_set_name_plan(false, false);
   ok &= expect_bool(set_name_plain.call_hmx_object_set_name, true,
