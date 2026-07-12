@@ -1080,7 +1080,7 @@ DecodedRndAnimatable read_rnd_animatable_like_miloeditor(MiloCursor& r) {
     if (out.revision < 4) {
         if (out.revision > 2) {
             const uint8_t encoded = r.u8();
-            out.rate = encoded == 0 ? 1 : 0;
+            out.rate = encoded == 0 ? 0 : 1;
         }
         if (out.revision < 1) {
             const uint32_t anim_entry_count = r.u32();

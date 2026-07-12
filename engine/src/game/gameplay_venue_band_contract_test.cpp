@@ -6482,6 +6482,9 @@ int main() {
                  "out.rate=r.i32();",
                  "source-shaped RndAnimatable reader preserves rev4+ mRate");
   ok &= contains(gameplay_c,
+                 "out.rate=encoded==0?0:1;",
+                 "source-shaped RndAnimatable reader maps rev3 byte 0 to k30_fps and nonzero to k480_fpb");
+  ok &= contains(gameplay_c,
                  "rnd_animatable_frames_per_unit(filter.anim_rate)",
                  "venue AnimFilter timing uses source FramesPerUnit instead of hardcoded 30 fps");
   ok &= contains(gameplay_c,
