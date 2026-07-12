@@ -25,7 +25,7 @@
 //  Then, AFTER every bone-list header, the full/one sample data blocks follow
 //  in list order (two-pass: all defs, then data for the live lists). Each
 //  list's block is:
-//      numSamples x frame, where each frame is (bones grouped BY CATEGORY):
+//      numSamples x frame, where each frame is walked in serialized bone order:
 //         vectors (.pos + .scale):  float32x3 (12B) or int16x3 (6B)
 //         quats   (.quat):          float32x4 (16B), int16x4 (8B), or
 //                                   source ByteQuat (4B)
@@ -2133,6 +2133,10 @@ void read_vec(Cur& c, int cat, int compression, ClipChannel& ch) {
   }
 }
 
+void skip_grim_scale(Cur& c) {
+  (void)c.u32();
+}
+
 void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
   ch.type = cat == kSourceCharBonesTypeRotX ? ClipChannel::kRotX
           : cat == kSourceCharBonesTypeRotY ? ClipChannel::kRotY
@@ -2200,6 +2204,10 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
   if (debug_clip_parse_enabled()) {
     for (size_t i = 0; i < lists.size(); ++i) {
       const BoneList& bl = lists[i];
+      int type_counts[kSourceCharBonesTypeEnd] = {};
+      for (int cat : bl.cats) {
+        if (cat >= 0 && cat < kSourceCharBonesTypeEnd) ++type_counts[cat];
+      }
       std::fprintf(stderr,
                    "[clip-source-bones] list=%zu comp=%d(%s) samples=%d "
                    "channels=%zu bytes=%zu byteQuat=%d\n",
@@ -2211,6 +2219,15 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
                    "[clip-source-bones-counts] list=%zu vec=%d quat=%d "
                    "angle=%d\n",
                    i, bl.n_vec, bl.n_quat, bl.n_angle);
+      std::fprintf(stderr,
+                   "[clip-source-bones-types] list=%zu pos=%d scale=%d "
+                   "quat=%d rotx=%d roty=%d rotz=%d\n",
+                   i, type_counts[kSourceCharBonesTypePos],
+                   type_counts[kSourceCharBonesTypeScale],
+                   type_counts[kSourceCharBonesTypeQuat],
+                   type_counts[kSourceCharBonesTypeRotX],
+                   type_counts[kSourceCharBonesTypeRotY],
+                   type_counts[kSourceCharBonesTypeRotZ]);
     }
   }
 
@@ -2223,7 +2240,9 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
 
   std::vector<std::vector<ClipChannel>> frames(num_samples);
 
-  // For each list, its block is frames_here frames laid out by category.
+  // For each list, its block is frames_here frames walked in serialized bone
+  // order. Grim's decode_samples iterates `for bone in bones`, consuming each
+  // channel's get_type_size2 bytes before moving to the next bone.
   // GH2 clips commonly include a full-rate list plus a one-sample list for
   // constant channels; repeat that single sample so every frame is a complete
   // pose instead of silently losing those channels after frame 0.
@@ -2239,29 +2258,29 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
       Cur c(d, n);
       c.pos = frame_off;
 
-      // Walk bones, but read by CATEGORY GROUP in the data: all vectors,
-      // then all quats, then all angles. We bucket bone indices by category.
-      // The data order is category-ascending; within a category, file order.
-      // Vectors first (cat 0,1):
       for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-        if (bl.cats[bi] == 0 || bl.cats[bi] == 1) {
-          ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
-          read_vec(c, bl.cats[bi], bl.compression, ch);
-          frames[f].push_back(ch);
-        }
-      }
-      for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-        if (bl.cats[bi] == 2) {
-          ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
-          read_quat(c, comp, ch);
-          frames[f].push_back(ch);
-        }
-      }
-      for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-        if (bl.cats[bi] >= 3 && bl.cats[bi] <= 5) {
-          ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
-          read_angle(c, comp, bl.cats[bi], ch);
-          frames[f].push_back(ch);
+        ClipChannel ch;
+        ch.bone_name = strip_suffix(bl.names[bi]);
+        switch (bl.cats[bi]) {
+          case kSourceCharBonesTypePos:
+            read_vec(c, bl.cats[bi], bl.compression, ch);
+            frames[f].push_back(ch);
+            break;
+          case kSourceCharBonesTypeScale:
+            skip_grim_scale(c);
+            break;
+          case kSourceCharBonesTypeQuat:
+            read_quat(c, comp, ch);
+            frames[f].push_back(ch);
+            break;
+          case kSourceCharBonesTypeRotX:
+          case kSourceCharBonesTypeRotY:
+          case kSourceCharBonesTypeRotZ:
+            read_angle(c, comp, bl.cats[bi], ch);
+            frames[f].push_back(ch);
+            break;
+          default:
+            break;
         }
       }
     }

@@ -716,7 +716,8 @@ int run_contract() {
   ok &= contains(doc,
                  "Grim GH2 `CharClipSamples` version gates, legacy "
                  "full/one/duplicate header read order, version-gated "
-                 "weights, raw sample-byte sizing",
+                 "weights, raw sample-byte sizing, serialized bone-order "
+                 "sample walking",
                  "coverage matrix records concrete CharBones source evidence");
   ok &= missing(doc,
                 "No newer reviewable character bodies were available from "
@@ -766,6 +767,21 @@ int run_contract() {
   ok &= contains(grim_char_bones_samples_mod,
                  "[12,4,16,4,4,4],",
                  "grim CharBonesSamples uncompressed raw size row");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "forboneinbones{",
+                 "grim CharBonesSamples walks samples in bone order");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "matchSelf::get_type_of(bone.symbol.as_str()){t@0=>",
+                 "grim CharBonesSamples decode switches on bone type");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "t@2=>{//quat",
+                 "grim CharBonesSamples explicitly decodes quat");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "t@5=>{//rotz",
+                 "grim CharBonesSamples explicitly decodes rotz");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "t@_=>panic!(\"Unsupportedbonetransformoftype{t}\"),",
+                 "grim CharBonesSamples fences unsupported decode types");
   ok &= contains(grim_char_clip_io,
                  "matchversion{5=>true,//GH2/GH236012=>true,//TBRB/GDRB_=>"
                  "false",
@@ -777,6 +793,11 @@ int run_contract() {
                  "native names grim CharClipSamples version gate");
   ok &= contains(char_clip, "candidate.resize(2);",
                  "native keeps two runtime data lists after duplicate header");
+  ok &= contains(char_clip,
+                 "for(size_tbi=0;bi<bl.names.size();++bi){ClipChannelch;",
+                 "native walks clip sample bytes in bone order");
+  ok &= contains(char_clip, "casekSourceCharBonesTypeScale:skip_grim_scale(c);",
+                 "native consumes scale bytes without publishing pose");
   ok &= contains(doc,
                  "sample decode/evaluate and broad pose publishing remain "
                  "fenced",
@@ -918,6 +939,12 @@ int run_contract() {
                  "GH2-era `CharClipSamples` / `CharBonesSamples` file loading "
                  "now follows\n     Grim's source-backed version gates",
                  "remaining import checklist records Grim load import");
+  ok &= contains(doc,
+                 "serialized bone-order\n     sample walking",
+                 "remaining import checklist records Grim sample order");
+  ok &= contains(doc,
+                 "native consumes `.scale` bytes without pose writeback",
+                 "remaining import checklist fences scale publish");
   ok &= contains(doc,
                  "The remaining missing\n     source-backed bodies are "
                  "`CharBonesSamples::EvaluateChannel`,",
