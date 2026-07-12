@@ -144,6 +144,23 @@ constexpr SourceCoverage kCoverage[] = {
      "fenced-runtime-gap"},
 };
 
+constexpr SourceCoverage kRb2OnlyCoverage[] = {
+    {"CharClipFilter.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "rb2-dump-diagnostic-only"},
+    {"CharClipSamples.cpp", "ghogx_character_char_bones_source_test",
+     "rb2-dump-runtime-map"},
+    {"CharClipUtl.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "rb2-dump-editor-utility"},
+    {"CharWalk.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "rb2-dump-bodyless-runtime-gap"},
+    {"DisplayDriver.cpp", "ghogx_character_clip_display_source_test",
+     "rb2-dump-diagnostic-only"},
+    {"DisplayIKMidi.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "rb2-dump-diagnostic-only"},
+    {"OutfitLoader.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "rb2-dump-bodyless-runtime-gap"},
+};
+
 std::string read_file(const std::filesystem::path& path) {
   std::ifstream in(path, std::ios::binary);
   if (!in) {
@@ -169,6 +186,13 @@ bool is_known_status(const std::string& status) {
   return kKnown.count(status) != 0;
 }
 
+bool is_known_rb2_status(const std::string& status) {
+  static const std::set<std::string> kKnown = {
+      "rb2-dump-diagnostic-only", "rb2-dump-runtime-map",
+      "rb2-dump-editor-utility", "rb2-dump-bodyless-runtime-gap"};
+  return kKnown.count(status) != 0;
+}
+
 }  // namespace
 
 int main() {
@@ -176,6 +200,9 @@ int main() {
   const std::filesystem::path extra_dir = GHOGX_IHATECOMPVIR_EXTRA_DIR;
   const std::filesystem::path source_dir =
       extra_dir / "rb3-latest" / "src" / "system" / "char";
+  const std::filesystem::path rb2_source_dir =
+      extra_dir / "rb3-retail-old" / "doc" / "rb2_dump" / "rockband2" /
+      "system" / "src" / "char";
   const std::filesystem::path doc_path =
       char_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md";
   const std::filesystem::path cmake_path = char_dir / "CMakeLists.txt";
@@ -190,6 +217,8 @@ int main() {
                  "documentation names fenced runtime gap status");
   ok &= contains(doc, "absence-evidence",
                  "documentation names source absence evidence status");
+  ok &= contains(doc, "## RB2 Dump-Only Character Evidence Inventory",
+                 "documentation has RB2 dump-only inventory section");
 
   std::set<std::string> mapped_sources;
   std::set<std::string> mapped_targets;
@@ -224,6 +253,44 @@ int main() {
     ok &= contains(doc, status, "documentation lists status for " + source);
   }
 
+  std::set<std::string> rb2_only_sources;
+  for (const SourceCoverage& row : kRb2OnlyCoverage) {
+    const std::string source(row.source_file);
+    const std::string target(row.owner_target);
+    const std::string status(row.status);
+
+    if (!rb2_only_sources.insert(source).second) {
+      std::cerr << "Duplicate RB2-only source inventory row: " << source
+                << "\n";
+      ok = false;
+    }
+    mapped_targets.insert(target);
+
+    if (!is_known_rb2_status(status)) {
+      std::cerr << "Unknown RB2-only source status for " << source << ": "
+                << status << "\n";
+      ok = false;
+    }
+    if (!std::filesystem::is_regular_file(rb2_source_dir / source)) {
+      std::cerr << "Missing RB2 dump source file: "
+                << (rb2_source_dir / source).string() << "\n";
+      ok = false;
+    }
+    if (std::filesystem::is_regular_file(source_dir / source)) {
+      std::cerr << "RB2-only inventory row is present in rb3-latest: "
+                << source << "\n";
+      ok = false;
+    }
+    ok &= contains(cmake, "add_executable(" + target,
+                   "owner target exists for RB2-only " + source);
+    ok &= contains(doc, "`" + source + "`",
+                   "documentation lists RB2-only source " + source);
+    ok &= contains(doc, "`" + target + "`",
+                   "documentation lists RB2-only owner target for " + source);
+    ok &= contains(doc, status,
+                   "documentation lists RB2-only status for " + source);
+  }
+
   std::set<std::string> actual_sources;
   for (const auto& entry : std::filesystem::directory_iterator(source_dir)) {
     if (!entry.is_regular_file()) continue;
@@ -252,11 +319,16 @@ int main() {
                  "CharHair runtime gap remains explicit");
   ok &= contains(doc, "`ClipCompressor.cpp` | `ghogx_character_clip_editor_source_test` | `absence-evidence`",
                  "ClipCompressor absence remains explicit");
+  ok &= contains(doc, "`CharWalk.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-bodyless-runtime-gap`",
+                 "CharWalk RB2 bodyless gap remains explicit");
+  ok &= contains(doc, "`CharClipSamples.cpp` | `ghogx_character_char_bones_source_test` | `rb2-dump-runtime-map`",
+                 "CharClipSamples RB2 runtime map remains explicit");
 
   if (!ok) return 1;
 
   std::cout << "ihatecompvir character source inventory covers "
             << mapped_sources.size() << " source files across "
-            << mapped_targets.size() << " owner targets\n";
+            << mapped_targets.size() << " owner targets plus "
+            << rb2_only_sources.size() << " RB2-only dump files\n";
   return 0;
 }

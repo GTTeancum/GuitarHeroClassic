@@ -144,6 +144,29 @@ source proves there is no usable runtime class/body to port from that file.
 | `FileMerger.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
 | `Waypoint.cpp` | `ghogx_character_waypoint_source_test` | `fenced-runtime-gap` |
 
+## RB2 Dump-Only Character Evidence Inventory
+
+The RB2 dump includes a few character-system files that are not present in the
+checked `rb3-latest/src/system/char` source tree. These rows are still
+ihatecompvir evidence, but they are not promoted to native runtime behavior
+unless the dump exposes enough statement-level body data to port directly.
+`rb2-dump-runtime-map` means the dump maps important runtime function names,
+ranges, locals, or call surfaces but still lacks complete source statements.
+`rb2-dump-bodyless-runtime-gap` means the relevant loader/runtime path is named
+but has no field-read or statement body to port. `rb2-dump-diagnostic-only` and
+`rb2-dump-editor-utility` are editor/debug/offline utilities and not live
+character model playback.
+
+| RB2 dump-only file | Native owner | Status |
+| --- | --- | --- |
+| `CharClipFilter.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-diagnostic-only` |
+| `CharClipSamples.cpp` | `ghogx_character_char_bones_source_test` | `rb2-dump-runtime-map` |
+| `CharClipUtl.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-editor-utility` |
+| `CharWalk.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-bodyless-runtime-gap` |
+| `DisplayDriver.cpp` | `ghogx_character_clip_display_source_test` | `rb2-dump-diagnostic-only` |
+| `DisplayIKMidi.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-diagnostic-only` |
+| `OutfitLoader.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-bodyless-runtime-gap` |
+
 ## Source Coverage Matrix
 
 | Area | ihatecompvir evidence | Native status |

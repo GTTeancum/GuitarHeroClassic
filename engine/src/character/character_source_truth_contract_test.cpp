@@ -635,6 +635,14 @@ int run_contract() {
       rb2_dump_char_dir / "CharWalk.cpp"));
   const std::string rb2_outfit_loader_cpp = compact(read_file(
       rb2_dump_char_dir / "OutfitLoader.cpp"));
+  const std::string rb2_char_clip_filter_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharClipFilter.cpp"));
+  const std::string rb2_char_clip_utl_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharClipUtl.cpp"));
+  const std::string rb2_display_driver_cpp = compact(read_file(
+      rb2_dump_char_dir / "DisplayDriver.cpp"));
+  const std::string rb2_display_ik_midi_cpp = compact(read_file(
+      rb2_dump_char_dir / "DisplayIKMidi.cpp"));
   const std::string rb2_char_collide_cpp = compact(read_file(
       rb2_dump_char_dir / "CharCollide.cpp"));
   const std::string rb2_char_collide_h = compact(read_file(
@@ -13846,6 +13854,43 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharWalk::Load` itself has no\n  decompiled body",
                  "document fences CharWalk layout");
+  ok &= contains(doc, "## RB2 Dump-Only Character Evidence Inventory",
+                 "document has RB2 dump-only character inventory");
+  ok &= contains(doc,
+                 "`CharClipFilter.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`rb2-dump-diagnostic-only`",
+                 "document inventories RB2-only CharClipFilter");
+  ok &= contains(doc,
+                 "`CharClipSamples.cpp` | "
+                 "`ghogx_character_char_bones_source_test` | "
+                 "`rb2-dump-runtime-map`",
+                 "document inventories RB2-only CharClipSamples");
+  ok &= contains(doc,
+                 "`CharClipUtl.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`rb2-dump-editor-utility`",
+                 "document inventories RB2-only CharClipUtl");
+  ok &= contains(doc,
+                 "`CharWalk.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`rb2-dump-bodyless-runtime-gap`",
+                 "document inventories RB2-only CharWalk");
+  ok &= contains(doc,
+                 "`DisplayDriver.cpp` | "
+                 "`ghogx_character_clip_display_source_test` | "
+                 "`rb2-dump-diagnostic-only`",
+                 "document inventories RB2-only DisplayDriver");
+  ok &= contains(doc,
+                 "`DisplayIKMidi.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`rb2-dump-diagnostic-only`",
+                 "document inventories RB2-only DisplayIKMidi");
+  ok &= contains(doc,
+                 "`OutfitLoader.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`rb2-dump-bodyless-runtime-gap`",
+                 "document inventories RB2-only OutfitLoader");
   ok &= contains(rb2_char_walk_cpp,
                  "voidCharWalk::Load(classCharWalk*constthis/*r29*/,"
                  "classBinStream&d/*r30*/){",
@@ -13857,6 +13902,40 @@ int run_contract() {
                  "voidOutfitLoader::Load(classOutfitLoader*constthis/*r30*/,"
                  "classBinStream&d/*r31*/){}",
                  "RB2 dump OutfitLoader Load has no serialized field body");
+  ok &= contains(rb2_char_clip_filter_cpp,
+                 "voidCharClipFilter::Load(classCharClipFilter*constthis"
+                 "/*r31*/){",
+                 "RB2 dump exposes CharClipFilter Load symbol");
+  ok &= contains(rb2_char_clip_filter_cpp,
+                 "staticclassMessagefilterClips;",
+                 "RB2 dump CharClipFilter names filterClips message");
+  ok &= contains(rb2_char_clip_samples_cpp,
+                 "voidCharClipSamples::Load(classCharClipSamples*constthis"
+                 "/*r30*/,classBinStream&d/*r31*/){",
+                 "RB2 dump exposes CharClipSamples Load map");
+  ok &= contains(rb2_char_clip_samples_cpp,
+                 "voidCharClipSamples::ScaleAdd(classCharClipSamples*constthis",
+                 "RB2 dump exposes CharClipSamples ScaleAdd map");
+  ok &= contains(rb2_char_clip_utl_cpp,
+                 "voidCharClipUtl::SetCharClipSamples("
+                 "classCharClipSamples*clip/*r28*/,intnumSamples",
+                 "RB2 dump maps CharClipUtl SetCharClipSamples utility");
+  ok &= contains(rb2_char_clip_utl_cpp,
+                 "voidCharClipUtl::CompressClip(classCharClipSamples*c",
+                 "RB2 dump maps CharClipUtl CompressClip utility");
+  ok &= contains(rb2_display_driver_cpp,
+                 "floatCharDriverDisplay::Draw(classCharDriverDisplay*"
+                 "constthis/*r23*/,classCharDriver*d/*r24*/,floattop",
+                 "RB2 dump maps CharDriverDisplay Draw diagnostic");
+  ok &= contains(rb2_display_driver_cpp,
+                 "floatDisplayCharDriver(){",
+                 "RB2 dump maps DisplayCharDriver entry");
+  ok &= contains(rb2_display_ik_midi_cpp,
+                 "staticvoidDoDebugDraws(classCharIKMidi*m/*r31*/,floaty",
+                 "RB2 dump maps DisplayIKMidi debug draw helper");
+  ok &= contains(rb2_display_ik_midi_cpp,
+                 "floatDisplayIKMidi(classCharIKMidi*m/*r31*/,floattop",
+                 "RB2 dump maps DisplayIKMidi entry");
   ok &= contains(rb3_latest_event_trigger_cpp,
                  "BEGIN_LOADS(EventTrigger)LOAD_REVS(bs)ASSERT_REVS(0x11,0)"
                  "LOAD_SUPERCLASS(Hmx::Object)",
