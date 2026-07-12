@@ -1008,6 +1008,10 @@ int source_grim_char_bones_samples_get_type_of(const std::string& channel) {
   return kSourceCharBonesTypeEnd;
 }
 
+float source_grim_char_bones_samples_decode_snorm16(int16_t value) {
+  return std::max(static_cast<float>(value) / 32767.0f, -1.0f);
+}
+
 size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression) {
   if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
@@ -2127,7 +2131,7 @@ void read_quat(Cur& c, bool comp, ClipChannel& ch) {
 }
 
 float read_snorm16(Cur& c) {
-  return std::max(c.i16() / 32767.0f, -1.0f);
+  return source_grim_char_bones_samples_decode_snorm16(c.i16());
 }
 
 void read_vec(Cur& c, int cat, int compression, ClipChannel& ch) {
@@ -2170,10 +2174,7 @@ void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
   ch.type = cat == kSourceCharBonesTypeRotX ? ClipChannel::kRotX
           : cat == kSourceCharBonesTypeRotY ? ClipChannel::kRotY
                                             : ClipChannel::kRotZ;
-  // Community tooling decodes compressed single-axis rotations as signed
-  // normalized values, then applies them as a pi-scaled axis rotation.
-  ch.angle = (comp ? read_snorm16(c) : c.f32()) *
-             3.14159265358979323846f;
+  ch.angle = comp ? read_snorm16(c) : c.f32();
 }
 
 void add_raw_channel_count(CharClip::RawChannelCounts& counts, int type) {

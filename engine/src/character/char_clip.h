@@ -1982,6 +1982,7 @@ bool source_grim_char_bones_samples_standalone_version_known(int version);
 bool source_grim_char_clip_samples_version_known(int version);
 bool source_grim_char_clip_version_known(int version);
 int source_grim_char_bones_samples_get_type_of(const std::string& channel);
+float source_grim_char_bones_samples_decode_snorm16(int16_t value);
 size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression);
 size_t source_grim_char_bones_samples_get_type_size2(int type,

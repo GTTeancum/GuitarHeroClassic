@@ -1558,6 +1558,14 @@ int main() {
                    kSourceCharBonesTypeRotZ, "grim get_type_of rotz");
   ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.head.pos"),
                    kSourceCharBonesTypeEnd, "grim get_type_of first-dot rule");
+  ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(0), 0.0f,
+                    "grim snorm16 zero");
+  ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(32767), 1.0f,
+                    "grim snorm16 positive max");
+  ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(-32768),
+                    -1.0f, "grim snorm16 negative clamp");
+  ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(16384),
+                    16384.0f / 32767.0f, "grim snorm16 mid value");
 
   ok &= expect_size(
       source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypePos, 0),

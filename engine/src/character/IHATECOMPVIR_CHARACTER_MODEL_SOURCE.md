@@ -3181,6 +3181,12 @@ note, and all report `unreadBytes=0`.
     rule and the `CharClipSamples` parser now uses it for serialized sample
     rows, while keeping `source_char_bones_type_of` for C++ `CharBones`
     layout/utility contracts.
+  - Grim and re-notes decode compressed scalar rotation samples as
+    `i16 / 32767.0` clamped to `-1.0`, and uncompressed scalar rotations as the
+    stored float. Native `source_grim_char_bones_samples_decode_snorm16` and
+    the `CharClipSamples` scalar channel reader preserve that raw source value;
+    no pi-scale is applied unless a future source body proves one belongs in a
+    later pose-application step.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,

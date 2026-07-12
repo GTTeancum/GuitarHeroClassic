@@ -812,6 +812,9 @@ int run_contract() {
                  "t@5=>{//rotz",
                  "grim CharBonesSamples explicitly decodes rotz");
   ok &= contains(grim_char_bones_samples_mod,
+                 "((i16::from_le_bytes(data)asf32)/32767.0).max(-1.0)",
+                 "grim CharBonesSamples compressed scalar decode has no pi scale");
+  ok &= contains(grim_char_bones_samples_mod,
                  "t@_=>panic!(\"Unsupportedbonetransformoftype{t}\"),",
                  "grim CharBonesSamples fences unsupported decode types");
   ok &= contains(re_notes_char_clip_samples_bt,
@@ -837,6 +840,9 @@ int run_contract() {
                  "RotSamplerot_sample(char_bones.char_bones.bones[bone_idx],"
                  "char_bones.compression);",
                  "re-notes active sample reader uses scalar RotSample");
+  ok &= contains(re_notes_char_bones_samples_bt,
+                 "xx=Max((float)x/32767.0,-1);",
+                 "re-notes scalar RotSample has no pi scale");
   ok &= contains(re_notes_gh2_charclipsamples,
                  "bone_L-foreArm.rotz",
                  "re-notes GH2 notes show rotz rows in stock examples");
@@ -863,6 +869,10 @@ int run_contract() {
                  "intsource_grim_char_bones_samples_get_type_of("
                  "conststd::string&channel);",
                  "native exposes grim CharBonesSamples first-dot classifier");
+  ok &= contains(char_clip_h,
+                 "floatsource_grim_char_bones_samples_decode_snorm16("
+                 "int16_tvalue);",
+                 "native exposes grim snorm16 decode helper");
   ok &= contains(char_clip,
                  "source_grim_char_clip_samples_version_known",
                  "native names grim CharClipSamples version gate");
@@ -871,12 +881,20 @@ int run_contract() {
                  "conststd::string&channel){",
                  "native implements grim first-dot classifier");
   ok &= contains(char_clip,
+                 "floatsource_grim_char_bones_samples_decode_snorm16("
+                 "int16_tvalue){returnstd::max(static_cast<float>(value)/"
+                 "32767.0f,-1.0f);}",
+                 "native implements grim snorm16 decode without pi scale");
+  ok &= contains(char_clip,
                  "intc=source_grim_char_bones_samples_get_type_of(name);",
                  "native sample-name validator uses grim classifier");
   ok &= contains(char_clip,
                  "out.cats.push_back(source_grim_char_bones_samples_get_type_of"
                  "(name));",
                  "native clip sample parser stores grim-classified categories");
+  ok &= contains(char_clip,
+                 "ch.angle=comp?read_snorm16(c):c.f32();",
+                 "native scalar sample decode keeps grim raw angle value");
   ok &= contains(char_clip, "candidate.resize(2);",
                  "native keeps two runtime data lists after duplicate header");
   ok &= contains(char_clip,
