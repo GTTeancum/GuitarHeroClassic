@@ -2534,23 +2534,37 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (const auto tex_it = material_tex_transforms_.find(material);
         tex_it != material_tex_transforms_.end()) {
       const auto& transform = tex_it->second;
+      // RndMatAnim::SetFrame starts from Mat.TexXfm, replaces keyed
+      // rotation, then scales the current rows.
+      if (transform.has_rotation) {
+        rot = transform.rotation_radians;
+        const float c = std::cos(rot);
+        const float sn = std::sin(rot);
+        uv_m00 = c;
+        uv_m01 = sn;
+        uv_m10 = -sn;
+        uv_m11 = c;
+        material_tex_anim = true;
+      }
+      if (transform.has_scale) {
+        const float sx = transform.scale[0];
+        const float sy = transform.scale[1];
+        uv_m00 *= sx;
+        uv_m01 *= sx;
+        uv_m10 *= sy;
+        uv_m11 *= sy;
+        material_tex_anim = true;
+      }
       if (transform.has_translation) {
         tu = uv_m20 = transform.translation[0];
         tv = uv_m21 = transform.translation[1];
         material_tex_anim = true;
       }
-      if (transform.has_scale) {
-        su = transform.scale[0];
-        sv = transform.scale[1];
-        uv_m00 = su;
-        uv_m01 = 0.0f;
-        uv_m10 = 0.0f;
-        uv_m11 = sv;
-        material_tex_anim = true;
-      }
-      if (transform.has_rotation) {
-        rot = transform.rotation_radians;
-        material_tex_anim = true;
+      if (material_tex_anim) {
+        su = std::hypot(uv_m00, uv_m01);
+        sv = std::hypot(uv_m10, uv_m11);
+        tu = uv_m20;
+        tv = uv_m21;
       }
     }
     if (spotlight_state) {
@@ -2682,14 +2696,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         base_max_v = std::max(base_max_v, base_v);
         float u = base_u * uv_m00 + base_v * uv_m10;
         float vv = base_u * uv_m01 + base_v * uv_m11;
-        if (material_tex_anim && std::fabs(rot) > 0.000001f) {
-          const float c = std::cos(rot);
-          const float sn = std::sin(rot);
-          const float ru = u * c - vv * sn;
-          const float rv = u * sn + vv * c;
-          u = ru;
-          vv = rv;
-        }
         u += uv_m20;
         vv += uv_m21;
         final_min_u = std::min(final_min_u, u);
@@ -2815,14 +2821,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           use_texcoord_override ? (*texcoord_override)[vi][1] : v.v;
       float u = base_u * uv_m00 + base_v * uv_m10;
       float vv = base_u * uv_m01 + base_v * uv_m11;
-      if (material_tex_anim && std::fabs(rot) > 0.000001f) {
-        const float c = std::cos(rot);
-        const float sn = std::sin(rot);
-        const float ru = u * c - vv * sn;
-        const float rv = u * sn + vv * c;
-        u = ru;
-        vv = rv;
-      }
       s.u = u + uv_m20;
       s.v = vv + uv_m21;
       vb.push_back(s);

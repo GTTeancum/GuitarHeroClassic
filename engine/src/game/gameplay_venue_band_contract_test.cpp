@@ -4418,6 +4418,30 @@ int main() {
                  "transform.has_rotation",
                  "renderer applies MatAnim texture rotation overrides");
   ok &= contains(renderer_c,
+                 "RndMatAnim::SetFramestartsfromMat.TexXfm",
+                 "MatAnim texture transform composition is tied to ihatecompvir runtime shape");
+  ok &= contains(renderer_c,
+                 "uv_m00=c;"
+                 "uv_m01=sn;"
+                 "uv_m10=-sn;"
+                 "uv_m11=c;",
+                 "MatAnim keyed texture rotation replaces the material basis rows");
+  ok &= contains(renderer_c,
+                 "uv_m00*=sx;"
+                 "uv_m01*=sx;"
+                 "uv_m10*=sy;"
+                 "uv_m11*=sy;",
+                 "MatAnim keyed texture scale scales the current basis rows");
+  ok &= absent(renderer_c,
+               "uv_m00=su;"
+               "uv_m01=0.0f;"
+               "uv_m10=0.0f;"
+               "uv_m11=sv;",
+               "MatAnim texture scale must not discard the authored/current material basis");
+  ok &= absent(renderer_c,
+               "constfloatru=u*c-vv*sn;",
+               "MatAnim texture rotation must be composed into the source matrix, not applied as a loose post-step");
+  ok &= contains(renderer_c,
                  "constbooluv_repeats=bounds_sane&&",
                  "renderer detects authored UVs that cross tile boundaries");
   ok &= contains(renderer_c,
