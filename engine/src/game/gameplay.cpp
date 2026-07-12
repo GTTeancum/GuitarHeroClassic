@@ -20241,10 +20241,12 @@ void Gameplay::update_active_venue_anim_filters() {
     venue_mesh_texcoord_overrides_ = venue_latched_mesh_texcoord_overrides_;
     venue_mesh_color_overrides_ = venue_latched_mesh_color_overrides_;
     std::map<std::string, float> venue_mesh_anim_blends;
+    const double debug_stride = std::max(
+        0.0f, env_float("GHOGX_DEBUG_VENUE_FILTER_STRIDE", 0.5f));
     const bool debug_sample =
         debug_venue_filters_enabled() &&
-        (last_venue_filter_debug_time_ < 0.0 ||
-         song_time_ - last_venue_filter_debug_time_ >= 0.5);
+        (last_venue_filter_debug_time_ < 0.0 || debug_stride <= 0.0 ||
+         song_time_ - last_venue_filter_debug_time_ >= debug_stride);
     if (debug_sample) last_venue_filter_debug_time_ = song_time_;
     for (auto it = active_venue_anim_filters_.begin();
          it != active_venue_anim_filters_.end();) {

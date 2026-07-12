@@ -863,6 +863,17 @@ float env_float_or(const char* name, float fallback, float min_value,
   return parsed;
 }
 
+size_t mesh_anim_log_stride() {
+  return static_cast<size_t>(
+      std::max(1.0f, env_float_or("GHOGX_LOG_MESH_ANIM_STRIDE", 30.0f, 1.0f,
+                                  100000.0f)));
+}
+
+bool should_log_mesh_anim_sample(size_t sample) {
+  const size_t stride = mesh_anim_log_stride();
+  return sample == 1 || stride <= 1 || sample % stride == 0;
+}
+
 void normalize3(float v[3]) {
   const float len = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   if (len <= 1e-6f) return;
@@ -1013,7 +1024,7 @@ void log_mesh_anim_local_rows(
   static std::unordered_map<std::string, size_t> logged_local_rows;
   const std::string key = mesh_name + "|" + target_name;
   const size_t sample = ++logged_local_rows[key];
-  if (sample != 1 && sample % 30 != 0) return;
+  if (!should_log_mesh_anim_sample(sample)) return;
   const auto base_scale = local_row_scales(base_local);
   const auto sampled_scale = local_row_scales(sampled_local);
   const float base_det = local_basis_determinant(base_local);
@@ -3753,7 +3764,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_WORLD", m.name)) {
       static std::unordered_map<std::string, size_t> logged_mesh_world_rows;
       const size_t sample = ++logged_mesh_world_rows[m.name];
-      if (sample == 1 || sample % 30 == 0) {
+      if (should_log_mesh_anim_sample(sample)) {
         const MeshLocalAxisDiagnostics axes = mesh_local_axis_diagnostics(m);
         const std::array<float, 3> world_face =
             axes.valid ? transform_local_dir(world, axes.face_dir)

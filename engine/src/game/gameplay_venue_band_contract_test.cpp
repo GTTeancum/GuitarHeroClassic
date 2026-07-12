@@ -6258,6 +6258,12 @@ int main() {
                  "GHOGX_LOG_MESH_ANIM_LOCAL",
                  "renderer can log source-local TransAnim rows for gear/fan diagnostics");
   ok &= contains(renderer_c,
+                 "env_float_or(\"GHOGX_LOG_MESH_ANIM_STRIDE\",30.0f",
+                 "renderer mesh animation diagnostics can use a shorter stride for fast fan/gear motion");
+  ok &= contains(gameplay_c,
+                 "env_float(\"GHOGX_DEBUG_VENUE_FILTER_STRIDE\",0.5f)",
+                 "venue AnimFilter diagnostics can avoid aliasing fast shuttle cycles");
+  ok &= contains(renderer_c,
                  "mesh_anim_localmesh=%starget=%skind=%sparent=%s",
                  "source-local TransAnim diagnostics identify the drawn mesh, animated target, source type, and parent");
   ok &= contains(renderer_c,
