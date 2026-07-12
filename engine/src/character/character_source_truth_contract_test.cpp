@@ -279,6 +279,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "TransAnim.cpp"));
   const std::string rb3_latest_trans_anim_h = compact(read_file(
       rb3_latest_rndobj_dir / "TransAnim.h"));
+  const std::string rb3_latest_mesh_anim_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "MeshAnim.cpp"));
+  const std::string rb3_latest_mesh_anim_h = compact(read_file(
+      rb3_latest_rndobj_dir / "MeshAnim.h"));
   const std::string rb3_latest_mesh_deform_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "MeshDeform.cpp"));
   const std::string rb3_latest_mesh_deform_h = compact(read_file(
@@ -1670,6 +1674,145 @@ int run_contract() {
                  "constSourceRndTransAnimCopyPlancopy_owned="
                  "source_rndtrans_anim_copy_plan(false,false,true);",
                  "milo_scene test covers RndTransAnim owned-key copy path");
+  ok &= contains(doc,
+                 "| Mesh vertex animation rows | "
+                 "`rb3-latest/src/system/rndobj/MeshAnim.cpp` / "
+                 "`MeshAnim.h` |",
+                 "coverage matrix records RndMeshAnim source boundary");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "RndMeshAnim::RndMeshAnim():mMesh(this,0),"
+                 "mKeysOwner(this,this){}",
+                 "latest RndMeshAnim source constructor defaults");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "intRndMeshAnim::NumVerts(){intnum=0;if(VertPointsKeys()."
+                 "size()!=0){MaxEq<int>(num,VertPointsKeys().size());}",
+                 "latest RndMeshAnim source NumVerts opening rows");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "if(VertColorsKeys().size()!=0){MaxEq<int>(num,"
+                 "VertColorsKeys().size());}returnnum;}",
+                 "latest RndMeshAnim source NumVerts color row");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "voidRndMeshAnim::Replace(Hmx::Object*from,Hmx::Object*to){"
+                 "Hmx::Object::Replace(from,to);if(mKeysOwner==from){if(!to)"
+                 "mKeysOwner=this;elsemKeysOwner=dynamic_cast<RndMeshAnim*>"
+                 "(to)->mKeysOwner;}}",
+                 "latest RndMeshAnim source replace key-owner branch");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "ASSERT_REVS(2,0)if(gRev!=0)LOAD_SUPERCLASS(Hmx::Object)"
+                 "LOAD_SUPERCLASS(RndAnimatable)bs>>mMesh;bs>>"
+                 "mVertPointsKeys;if(gRev>1)bs>>mVertNormalsKeys;",
+                 "latest RndMeshAnim source load prefix");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "bs>>mVertTexsKeys;bs>>mVertColorsKeys;bs>>mKeysOwner;"
+                 "if(!mKeysOwner)mKeysOwner=this;",
+                 "latest RndMeshAnim source load key-owner fallback");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(RndAnimatable)"
+                 "COPY_MEMBER_FROM(m,mMesh)",
+                 "latest RndMeshAnim source copy superclasses");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "if(ty==kCopyShallow||(ty==kCopyFromMax&&m->mKeysOwner!=m))"
+                 "{COPY_MEMBER_FROM(m,mKeysOwner)}else{MILO_ASSERT("
+                 "m->mKeysOwner!=this,0xE3);mKeysOwner=this;",
+                 "latest RndMeshAnim source copy owner split");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "mVertPointsKeys=m->mKeysOwner->mVertPointsKeys;"
+                 "mVertNormalsKeys=m->mKeysOwner->mVertNormalsKeys;"
+                 "mVertTexsKeys=m->mKeysOwner->mVertTexsKeys;"
+                 "mVertColorsKeys=m->mKeysOwner->mVertColorsKeys;",
+                 "latest RndMeshAnim source copy owned key streams");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "floatRndMeshAnim::EndFrame(){floatend=VertPointsKeys()."
+                 "LastFrame();MaxEq(end,VertNormalsKeys().LastFrame());"
+                 "MaxEq(end,VertTexsKeys().LastFrame());MaxEq(end,"
+                 "VertColorsKeys().LastFrame());returnend;}",
+                 "latest RndMeshAnim source EndFrame max rows");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "voidRndMeshAnim::SetFrame(floatframe,floatblend){"
+                 "RndAnimatable::SetFrame(frame,blend);if(mMesh){if(("
+                 "mMesh->GetMutable()&0x1F)==0){",
+                 "latest RndMeshAnim source SetFrame mutable gate");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "InterpVertData<Vector3,GetVertPoint>(prev->value,"
+                 "next->value,ref,mMesh->Verts(),blend);syncnum|=0x1F;",
+                 "latest RndMeshAnim source SetFrame point sync row");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "InterpVertData<Vector2,GetVertTex>(prev->value,"
+                 "next->value,ref,mMesh->Verts(),blend);syncnum|=0x1F;",
+                 "latest RndMeshAnim source SetFrame UV sync row");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "if(syncnum!=0)mMesh->Sync(syncnum);",
+                 "latest RndMeshAnim source SetFrame sync gate");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "voidRndMeshAnim::SetKey(float){}",
+                 "latest RndMeshAnim source empty SetKey body");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "voidRndMeshAnim::ShrinkVerts(intnum){for(Keys<"
+                 "std::vector<Vector3>,std::vector<Vector3>>::iteratorit="
+                 "VertPointsKeys().begin();",
+                 "latest RndMeshAnim source ShrinkVerts opening row");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "voidRndMeshAnim::ShrinkKeys(intnum){if(VertPointsKeys()."
+                 "size()!=0){VertPointsKeys().resize(num);}",
+                 "latest RndMeshAnim source ShrinkKeys opening row");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "BEGIN_HANDLERS(RndMeshAnim)HANDLE_SUPERCLASS(RndAnimatable)"
+                 "HANDLE_EXPR(num_verts,NumVerts())HANDLE_ACTION("
+                 "shrink_verts,ShrinkVerts(_msg->Int(2)))HANDLE_ACTION("
+                 "shrink_keys,ShrinkKeys(_msg->Int(2)))",
+                 "latest RndMeshAnim source handler rows");
+  ok &= contains(rb3_latest_mesh_anim_cpp,
+                 "BEGIN_PROPSYNCS(RndMeshAnim)SYNC_PROP(mesh,mMesh)"
+                 "SYNC_SUPERCLASS(RndAnimatable)END_PROPSYNCS",
+                 "latest RndMeshAnim source prop-sync rows");
+  ok &= contains(rb3_latest_mesh_anim_h,
+                 "classRndMeshAnim:publicRndAnimatable{",
+                 "latest RndMeshAnim header exposes inheritance");
+  ok &= contains(rb3_latest_mesh_anim_h,
+                 "ObjPtr<RndMesh,ObjectDir>mMesh;//0x10Keys<"
+                 "std::vector<Vector3>,std::vector<Vector3>>"
+                 "mVertPointsKeys;",
+                 "latest RndMeshAnim header exposes mesh and point keys");
+  ok &= contains(rb3_latest_mesh_anim_h,
+                 "ObjOwnerPtr<RndMeshAnim,ObjectDir>mKeysOwner;//0x3c",
+                 "latest RndMeshAnim header exposes key owner");
+  ok &= contains(scene_h,
+                 "structSourceRndMeshAnimLoadPlan{",
+                 "shared milo_scene exposes RndMeshAnim load plan");
+  ok &= contains(scene,
+                 "SourceRndMeshAnimLoadPlansource_rndmeshanim_load_plan("
+                 "int32_trevision)",
+                 "shared milo_scene implements RndMeshAnim load plan");
+  ok &= contains(scene,
+                 "plan.reads_object_fields=revision!=0;"
+                 "plan.reads_vert_normals_keys=revision>1;",
+                 "shared RndMeshAnim load plan mirrors source revision gates");
+  ok &= contains(scene,
+                 "plan.copies_keys_owner_ref=copy_shallow||("
+                 "copy_from_max&&!source_keys_owner_is_self);",
+                 "shared RndMeshAnim copy plan mirrors source owner split");
+  ok &= contains(scene,
+                 "plan.affected_verts=std::max(0,std::min(source_values,"
+                 "mesh_verts));",
+                 "shared RndMeshAnim interpolation plan mirrors vertex clamp");
+  ok &= contains(scene,
+                 "plan.mesh_mutable=(mesh_mutable_mask&0x1Fu)!=0;",
+                 "shared RndMeshAnim SetFrame plan mirrors mutable mask");
+  ok &= contains(scene,
+                 "plan.sync_mask=0x1F;plan.calls_mesh_sync=true;",
+                 "shared RndMeshAnim SetFrame plan mirrors source sync mask");
+  ok &= contains(scene_test,
+                 "voidtest_mesh_anim(){",
+                 "milo_scene test covers RndMeshAnim helper");
+  ok &= contains(scene_test,
+                 "constSourceRndMeshAnimSetFramePlanmutable_mesh="
+                 "source_rndmeshanim_set_frame_plan(true,0x04,true,false,"
+                 "true,false);",
+                 "milo_scene test covers RndMeshAnim mutable SetFrame path");
+  ok &= contains(doc,
+                 "`source_rndmeshanim_set_frame_plan` record that flow "
+                 "without enabling live",
+                 "document fences RndMeshAnim live vertex animation");
   ok &= contains(doc,
                  "Shared native `source_rndanimatable_load_plan` records "
                  "these gates",

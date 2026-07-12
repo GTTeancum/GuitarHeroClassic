@@ -593,6 +593,192 @@ SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
   return plan;
 }
 
+SourceRndMeshAnimDefaultState source_rndmeshanim_default_state() {
+  return SourceRndMeshAnimDefaultState{};
+}
+
+SourceRndMeshAnimNumVertsPlan source_rndmeshanim_num_verts_plan(
+    int32_t points_keys,
+    int32_t normals_keys,
+    int32_t texs_keys,
+    int32_t colors_keys) {
+  SourceRndMeshAnimNumVertsPlan plan;
+  plan.points_keys = points_keys;
+  plan.normals_keys = normals_keys;
+  plan.texs_keys = texs_keys;
+  plan.colors_keys = colors_keys;
+  if (points_keys != 0) {
+    plan.result = std::max(plan.result, points_keys);
+    plan.nonempty_sources.push_back("points");
+  }
+  if (normals_keys != 0) {
+    plan.result = std::max(plan.result, normals_keys);
+    plan.nonempty_sources.push_back("normals");
+  }
+  if (texs_keys != 0) {
+    plan.result = std::max(plan.result, texs_keys);
+    plan.nonempty_sources.push_back("texs");
+  }
+  if (colors_keys != 0) {
+    plan.result = std::max(plan.result, colors_keys);
+    plan.nonempty_sources.push_back("colors");
+  }
+  return plan;
+}
+
+SourceRndMeshAnimReplacePlan source_rndmeshanim_replace_plan(
+    bool keys_owner_matches_from,
+    bool replacement_null) {
+  SourceRndMeshAnimReplacePlan plan;
+  plan.keys_owner_matches_from = keys_owner_matches_from;
+  plan.replacement_null = replacement_null;
+  plan.assigns_self = keys_owner_matches_from && replacement_null;
+  plan.copies_replacement_keys_owner =
+      keys_owner_matches_from && !replacement_null;
+  return plan;
+}
+
+SourceRndMeshAnimLoadPlan source_rndmeshanim_load_plan(int32_t revision) {
+  SourceRndMeshAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 2;
+  plan.reads_object_fields = revision != 0;
+  plan.reads_vert_normals_keys = revision > 1;
+  return plan;
+}
+
+SourceRndMeshAnimCopyPlan source_rndmeshanim_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_keys_owner_is_self) {
+  SourceRndMeshAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.copies_keys_owner_ref =
+      copy_shallow || (copy_from_max && !source_keys_owner_is_self);
+  plan.assigns_self_as_keys_owner = !plan.copies_keys_owner_ref;
+  if (plan.assigns_self_as_keys_owner) {
+    plan.copied_owned_members = {"mVertPointsKeys", "mVertNormalsKeys",
+                                 "mVertTexsKeys", "mVertColorsKeys"};
+  }
+  return plan;
+}
+
+SourceRndMeshAnimEndFramePlan source_rndmeshanim_end_frame_plan(
+    float points_last,
+    float normals_last,
+    float texs_last,
+    float colors_last) {
+  SourceRndMeshAnimEndFramePlan plan;
+  plan.points_last = points_last;
+  plan.normals_last = normals_last;
+  plan.texs_last = texs_last;
+  plan.colors_last = colors_last;
+  plan.result = std::max(std::max(points_last, normals_last),
+                         std::max(texs_last, colors_last));
+  return plan;
+}
+
+SourceRndMeshAnimInterpPlan source_rndmeshanim_interp_plan(
+    float ref,
+    float blend,
+    int32_t source_values,
+    int32_t mesh_verts) {
+  SourceRndMeshAnimInterpPlan plan;
+  plan.ref = ref;
+  plan.blend = blend;
+  plan.source_values = source_values;
+  plan.mesh_verts = mesh_verts;
+  plan.affected_verts = std::max(0, std::min(source_values, mesh_verts));
+  plan.uses_first_key = ref != 1.0f;
+  plan.uses_second_key = ref != 0.0f;
+  plan.interpolates_between_keys = ref != 0.0f && ref != 1.0f;
+  plan.blends_with_existing_vert = blend != 1.0f;
+  return plan;
+}
+
+SourceRndMeshAnimSetFramePlan source_rndmeshanim_set_frame_plan(
+    bool has_mesh,
+    uint32_t mesh_mutable_mask,
+    bool has_points_keys,
+    bool has_normals_keys,
+    bool has_texs_keys,
+    bool has_colors_keys) {
+  SourceRndMeshAnimSetFramePlan plan;
+  plan.has_mesh = has_mesh;
+  plan.mesh_mutable_mask = mesh_mutable_mask;
+  plan.mesh_mutable = (mesh_mutable_mask & 0x1Fu) != 0;
+  plan.notifies_not_mutable = has_mesh && !plan.mesh_mutable;
+  if (has_mesh && plan.mesh_mutable) {
+    plan.evaluates_points = has_points_keys;
+    plan.evaluates_normals = has_normals_keys;
+    plan.evaluates_texs = has_texs_keys;
+    plan.evaluates_colors = has_colors_keys;
+    if (plan.evaluates_points || plan.evaluates_normals ||
+        plan.evaluates_texs || plan.evaluates_colors) {
+      plan.sync_mask = 0x1F;
+      plan.calls_mesh_sync = true;
+    }
+  }
+  return plan;
+}
+
+SourceRndMeshAnimSetKeyPlan source_rndmeshanim_set_key_plan() {
+  return SourceRndMeshAnimSetKeyPlan{};
+}
+
+SourceRndMeshAnimShrinkPlan source_rndmeshanim_shrink_verts_plan(
+    int32_t requested_count,
+    bool points_nonempty,
+    bool normals_nonempty,
+    bool texs_nonempty,
+    bool colors_nonempty) {
+  SourceRndMeshAnimShrinkPlan plan;
+  plan.requested_count = requested_count;
+  plan.points_nonempty = points_nonempty;
+  plan.normals_nonempty = normals_nonempty;
+  plan.texs_nonempty = texs_nonempty;
+  plan.colors_nonempty = colors_nonempty;
+  if (points_nonempty) plan.resized_streams.push_back("points_values");
+  if (normals_nonempty) plan.resized_streams.push_back("normals_values");
+  if (texs_nonempty) plan.resized_streams.push_back("texs_values");
+  if (colors_nonempty) plan.resized_streams.push_back("colors_values");
+  return plan;
+}
+
+SourceRndMeshAnimShrinkPlan source_rndmeshanim_shrink_keys_plan(
+    int32_t requested_count,
+    bool points_nonempty,
+    bool normals_nonempty,
+    bool texs_nonempty,
+    bool colors_nonempty) {
+  SourceRndMeshAnimShrinkPlan plan;
+  plan.requested_count = requested_count;
+  plan.points_nonempty = points_nonempty;
+  plan.normals_nonempty = normals_nonempty;
+  plan.texs_nonempty = texs_nonempty;
+  plan.colors_nonempty = colors_nonempty;
+  if (points_nonempty) plan.resized_streams.push_back("points_keys");
+  if (normals_nonempty) plan.resized_streams.push_back("normals_keys");
+  if (texs_nonempty) plan.resized_streams.push_back("texs_keys");
+  if (colors_nonempty) plan.resized_streams.push_back("colors_keys");
+  return plan;
+}
+
+SourceRndMeshAnimHandlerPlan source_rndmeshanim_handler_plan() {
+  SourceRndMeshAnimHandlerPlan plan;
+  plan.expressions = {"num_verts"};
+  plan.actions = {"shrink_verts", "shrink_keys"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndMeshAnimPropSyncPlan source_rndmeshanim_prop_sync_plan() {
+  SourceRndMeshAnimPropSyncPlan plan;
+  plan.props = {"mesh"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
 TransObj decode_trans(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

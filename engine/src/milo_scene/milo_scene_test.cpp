@@ -356,6 +356,147 @@ void test_trans_anim() {
               load_v7.accepted_revision ? 1 : 0, handlers.handlers.size());
 }
 
+void test_mesh_anim() {
+  const SourceRndMeshAnimDefaultState defaults =
+      source_rndmeshanim_default_state();
+  CHECK(defaults.mesh_null);
+  CHECK(defaults.keys_owner_self);
+
+  const SourceRndMeshAnimNumVertsPlan num_verts =
+      source_rndmeshanim_num_verts_plan(0, 6, 4, 9);
+  CHECK(num_verts.result == 9);
+  CHECK(num_verts.nonempty_sources.size() == 3);
+  CHECK(num_verts.nonempty_sources[0] == "normals");
+  CHECK(num_verts.nonempty_sources[2] == "colors");
+
+  const SourceRndMeshAnimReplacePlan replace_null =
+      source_rndmeshanim_replace_plan(true, true);
+  CHECK(replace_null.calls_object_replace);
+  CHECK(replace_null.assigns_self);
+  CHECK(!replace_null.copies_replacement_keys_owner);
+  const SourceRndMeshAnimReplacePlan replace_other =
+      source_rndmeshanim_replace_plan(true, false);
+  CHECK(!replace_other.assigns_self);
+  CHECK(replace_other.copies_replacement_keys_owner);
+  const SourceRndMeshAnimReplacePlan replace_miss =
+      source_rndmeshanim_replace_plan(false, false);
+  CHECK(!replace_miss.assigns_self);
+  CHECK(!replace_miss.copies_replacement_keys_owner);
+
+  const SourceRndMeshAnimLoadPlan rev0 = source_rndmeshanim_load_plan(0);
+  CHECK(rev0.accepted_revision);
+  CHECK(!rev0.reads_object_fields);
+  CHECK(rev0.reads_animatable);
+  CHECK(rev0.reads_mesh);
+  CHECK(rev0.reads_vert_points_keys);
+  CHECK(!rev0.reads_vert_normals_keys);
+  CHECK(rev0.reads_vert_texs_keys);
+  CHECK(rev0.reads_vert_colors_keys);
+  CHECK(rev0.reads_keys_owner);
+  CHECK(rev0.null_keys_owner_defaults_to_self);
+
+  const SourceRndMeshAnimLoadPlan rev2 = source_rndmeshanim_load_plan(2);
+  CHECK(rev2.accepted_revision);
+  CHECK(rev2.reads_object_fields);
+  CHECK(rev2.reads_vert_normals_keys);
+  CHECK(!source_rndmeshanim_load_plan(3).accepted_revision);
+
+  const SourceRndMeshAnimCopyPlan shallow_copy =
+      source_rndmeshanim_copy_plan(true, false, true);
+  CHECK(shallow_copy.superclasses.size() == 2);
+  CHECK(shallow_copy.superclasses[0] == "Hmx::Object");
+  CHECK(shallow_copy.superclasses[1] == "RndAnimatable");
+  CHECK(shallow_copy.copies_mesh);
+  CHECK(shallow_copy.copies_keys_owner_ref);
+  CHECK(!shallow_copy.assigns_self_as_keys_owner);
+
+  const SourceRndMeshAnimCopyPlan max_external =
+      source_rndmeshanim_copy_plan(false, true, false);
+  CHECK(max_external.copies_keys_owner_ref);
+  const SourceRndMeshAnimCopyPlan owned_copy =
+      source_rndmeshanim_copy_plan(false, false, true);
+  CHECK(!owned_copy.copies_keys_owner_ref);
+  CHECK(owned_copy.assigns_self_as_keys_owner);
+  CHECK(owned_copy.copied_owned_members.size() == 4);
+  CHECK(owned_copy.copied_owned_members[0] == "mVertPointsKeys");
+  CHECK(owned_copy.copied_owned_members[3] == "mVertColorsKeys");
+
+  const SourceRndMeshAnimEndFramePlan end_frame =
+      source_rndmeshanim_end_frame_plan(2.0f, 6.0f, 4.0f, 3.0f);
+  CHECK(approx(end_frame.result, 6.0f));
+
+  const SourceRndMeshAnimInterpPlan interp_prev =
+      source_rndmeshanim_interp_plan(0.0f, 1.0f, 8, 5);
+  CHECK(interp_prev.affected_verts == 5);
+  CHECK(interp_prev.uses_first_key);
+  CHECK(!interp_prev.uses_second_key);
+  CHECK(!interp_prev.interpolates_between_keys);
+  CHECK(!interp_prev.blends_with_existing_vert);
+  const SourceRndMeshAnimInterpPlan interp_mid =
+      source_rndmeshanim_interp_plan(0.25f, 0.5f, 3, 9);
+  CHECK(interp_mid.affected_verts == 3);
+  CHECK(interp_mid.uses_first_key);
+  CHECK(interp_mid.uses_second_key);
+  CHECK(interp_mid.interpolates_between_keys);
+  CHECK(interp_mid.blends_with_existing_vert);
+
+  const SourceRndMeshAnimSetFramePlan no_mesh =
+      source_rndmeshanim_set_frame_plan(false, 0x1F, true, true, true, true);
+  CHECK(no_mesh.calls_animatable_set_frame);
+  CHECK(!no_mesh.evaluates_points);
+  CHECK(!no_mesh.calls_mesh_sync);
+  const SourceRndMeshAnimSetFramePlan immutable =
+      source_rndmeshanim_set_frame_plan(true, 0, true, true, true, true);
+  CHECK(immutable.notifies_not_mutable);
+  CHECK(!immutable.evaluates_points);
+  CHECK(!immutable.calls_mesh_sync);
+  const SourceRndMeshAnimSetFramePlan mutable_mesh =
+      source_rndmeshanim_set_frame_plan(true, 0x04, true, false, true, false);
+  CHECK(mutable_mesh.mesh_mutable);
+  CHECK(mutable_mesh.evaluates_points);
+  CHECK(!mutable_mesh.evaluates_normals);
+  CHECK(mutable_mesh.evaluates_texs);
+  CHECK(mutable_mesh.sync_mask == 0x1F);
+  CHECK(mutable_mesh.calls_mesh_sync);
+
+  const SourceRndMeshAnimSetKeyPlan set_key =
+      source_rndmeshanim_set_key_plan();
+  CHECK(set_key.body_empty);
+
+  const SourceRndMeshAnimShrinkPlan shrink_verts =
+      source_rndmeshanim_shrink_verts_plan(12, true, false, true, true);
+  CHECK(shrink_verts.requested_count == 12);
+  CHECK(shrink_verts.resized_streams.size() == 3);
+  CHECK(shrink_verts.resized_streams[0] == "points_values");
+  CHECK(shrink_verts.resized_streams[2] == "colors_values");
+  const SourceRndMeshAnimShrinkPlan shrink_keys =
+      source_rndmeshanim_shrink_keys_plan(2, false, true, false, true);
+  CHECK(shrink_keys.resized_streams.size() == 2);
+  CHECK(shrink_keys.resized_streams[0] == "normals_keys");
+  CHECK(shrink_keys.resized_streams[1] == "colors_keys");
+
+  const SourceRndMeshAnimHandlerPlan handlers =
+      source_rndmeshanim_handler_plan();
+  CHECK(handlers.expressions.size() == 1);
+  CHECK(handlers.expressions[0] == "num_verts");
+  CHECK(handlers.actions.size() == 2);
+  CHECK(handlers.actions[0] == "shrink_verts");
+  CHECK(handlers.actions[1] == "shrink_keys");
+  CHECK(handlers.superclasses.size() == 2);
+  CHECK(handlers.check == 0x207);
+
+  const SourceRndMeshAnimPropSyncPlan props =
+      source_rndmeshanim_prop_sync_plan();
+  CHECK(props.props.size() == 1);
+  CHECK(props.props[0] == "mesh");
+  CHECK(props.superclasses.size() == 1);
+  CHECK(props.superclasses[0] == "RndAnimatable");
+
+  std::printf("  [ok] MeshAnim: numVerts=%d sync=0x%x actions=%zu\n",
+              num_verts.result, mutable_mesh.sync_mask,
+              handlers.actions.size());
+}
+
 void test_mat() {
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
@@ -1013,6 +1154,7 @@ int main() {
   test_trans();
   test_trans_proxy();
   test_trans_anim();
+  test_mesh_anim();
   test_mat();
   test_group();
   test_mesh_deform();

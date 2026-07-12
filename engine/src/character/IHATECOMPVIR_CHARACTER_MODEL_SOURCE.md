@@ -66,6 +66,7 @@ writer body.
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Transform proxy attachment | `rb3-latest/src/system/rndobj/TransProxy.cpp` / `TransProxy.h` | Native helper ports source defaults, load gates, sync parent-resolution flow, setter/save/copy/handler/prop rows; it does not create live proxy attachments. |
 | Transform animation rows | `rb3-latest/src/system/rndobj/TransAnim.cpp` / `TransAnim.h` | Native helper ports source defaults, load gates, key-owner copy/replace decisions, SetFrame/SetKey call flow, handlers, and prop rows; `MakeTransform` remains fenced because the checked body is an assertion stub. |
+| Mesh vertex animation rows | `rb3-latest/src/system/rndobj/MeshAnim.cpp` / `MeshAnim.h` | Native helper ports source defaults, key-count sizing, load/copy/replace, SetFrame interpolation/sync gates, shrink helpers, handlers, and prop rows; it does not enable live vertex animation in the character renderer. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
@@ -564,6 +565,46 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - Shared native `source_rndanimatable_load_plan` records these gates for
     embedded `RndAnimatable` bases such as `RndGroup` without promoting the
     legacy revision-0 conversion branch into runtime behavior.
+- `rb3-latest/src/system/rndobj/MeshAnim.cpp` and
+  `rb3-latest/src/system/rndobj/MeshAnim.h`
+  - `RndMeshAnim` derives from `RndAnimatable`. Its constructor nulls `mMesh`
+    and sets `mKeysOwner` to itself. Native
+    `source_rndmeshanim_default_state` records those defaults.
+  - `NumVerts` takes the maximum non-zero key count across vertex points,
+    normals, UVs, and colors. Native `source_rndmeshanim_num_verts_plan`
+    records the checked source order.
+  - `Replace` delegates to `Hmx::Object::Replace`; only when `mKeysOwner ==
+    from` does it set the owner to `this` for null replacement or copy the
+    replacement `RndMeshAnim` key owner. Native
+    `source_rndmeshanim_replace_plan` records that decision.
+  - `Load` accepts revisions `0..2`, reads `Hmx::Object` only when revision is
+    non-zero, always reads `RndAnimatable`, `mMesh`, point keys, UV keys, color
+    keys, and `mKeysOwner`, reads normal keys only for revisions above `1`, and
+    defaults a null key owner to `this`. Native
+    `source_rndmeshanim_load_plan` records those gates.
+  - `Copy` copies `Hmx::Object`, `RndAnimatable`, and `mMesh`. Shallow copies,
+    plus Max copies whose source key owner is external, copy the key-owner
+    pointer. Otherwise the destination owns copied point, normal, UV, and color
+    key streams. Native `source_rndmeshanim_copy_plan` records that split.
+  - `EndFrame` returns the maximum last frame across the four key streams.
+    `SetFrame` calls `RndAnimatable::SetFrame`, does nothing without `mMesh`,
+    warns when the mesh mutable mask has no low `0x1F` bits, otherwise
+    evaluates each non-empty key stream through `InterpVertData` and calls
+    `mMesh->Sync(0x1F)` when any stream was applied. Native
+    `source_rndmeshanim_end_frame_plan`,
+    `source_rndmeshanim_interp_plan`, and
+    `source_rndmeshanim_set_frame_plan` record that flow without enabling live
+    vertex animation in the character renderer.
+  - `SetKey` is an empty body in the checked source. `ShrinkVerts` resizes the
+    stored value vectors for each key in each stream; `ShrinkKeys` resizes each
+    non-empty key stream itself. Native `source_rndmeshanim_set_key_plan`,
+    `source_rndmeshanim_shrink_verts_plan`, and
+    `source_rndmeshanim_shrink_keys_plan` record those behaviors.
+  - `BEGIN_HANDLERS(RndMeshAnim)` exposes `num_verts`, `shrink_verts`,
+    `shrink_keys`, superclass handlers for `RndAnimatable` and `Hmx::Object`,
+    and check `0x207`. `BEGIN_PROPSYNCS` exposes `mesh` and `RndAnimatable`.
+    Native `source_rndmeshanim_handler_plan` and
+    `source_rndmeshanim_prop_sync_plan` record those rows.
 - `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
   - `RndDrawable.Read` reads combined revision, showing, optional sphere, and
     draw order for revisions greater than 2.

@@ -310,6 +310,168 @@ struct SourceRndAnimatableLoadPlan {
 SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
     int32_t revision);
 
+struct SourceRndMeshAnimDefaultState {
+  bool mesh_null = true;
+  bool keys_owner_self = true;
+};
+
+SourceRndMeshAnimDefaultState source_rndmeshanim_default_state();
+
+struct SourceRndMeshAnimNumVertsPlan {
+  int32_t points_keys = 0;
+  int32_t normals_keys = 0;
+  int32_t texs_keys = 0;
+  int32_t colors_keys = 0;
+  int32_t result = 0;
+  std::vector<std::string> nonempty_sources;
+};
+
+SourceRndMeshAnimNumVertsPlan source_rndmeshanim_num_verts_plan(
+    int32_t points_keys,
+    int32_t normals_keys,
+    int32_t texs_keys,
+    int32_t colors_keys);
+
+struct SourceRndMeshAnimReplacePlan {
+  bool calls_object_replace = true;
+  bool keys_owner_matches_from = false;
+  bool replacement_null = false;
+  bool assigns_self = false;
+  bool copies_replacement_keys_owner = false;
+};
+
+SourceRndMeshAnimReplacePlan source_rndmeshanim_replace_plan(
+    bool keys_owner_matches_from,
+    bool replacement_null);
+
+struct SourceRndMeshAnimLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool reads_object_fields = false;
+  bool reads_animatable = true;
+  bool reads_mesh = true;
+  bool reads_vert_points_keys = true;
+  bool reads_vert_normals_keys = false;
+  bool reads_vert_texs_keys = true;
+  bool reads_vert_colors_keys = true;
+  bool reads_keys_owner = true;
+  bool null_keys_owner_defaults_to_self = true;
+};
+
+SourceRndMeshAnimLoadPlan source_rndmeshanim_load_plan(int32_t revision);
+
+struct SourceRndMeshAnimCopyPlan {
+  std::vector<std::string> superclasses;
+  bool copies_mesh = true;
+  bool copies_keys_owner_ref = false;
+  bool assigns_self_as_keys_owner = false;
+  std::vector<std::string> copied_owned_members;
+};
+
+SourceRndMeshAnimCopyPlan source_rndmeshanim_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_keys_owner_is_self);
+
+struct SourceRndMeshAnimEndFramePlan {
+  float points_last = 0.0f;
+  float normals_last = 0.0f;
+  float texs_last = 0.0f;
+  float colors_last = 0.0f;
+  float result = 0.0f;
+};
+
+SourceRndMeshAnimEndFramePlan source_rndmeshanim_end_frame_plan(
+    float points_last,
+    float normals_last,
+    float texs_last,
+    float colors_last);
+
+struct SourceRndMeshAnimInterpPlan {
+  float ref = 0.0f;
+  float blend = 1.0f;
+  int32_t source_values = 0;
+  int32_t mesh_verts = 0;
+  int32_t affected_verts = 0;
+  bool uses_first_key = false;
+  bool uses_second_key = false;
+  bool interpolates_between_keys = false;
+  bool blends_with_existing_vert = false;
+};
+
+SourceRndMeshAnimInterpPlan source_rndmeshanim_interp_plan(
+    float ref,
+    float blend,
+    int32_t source_values,
+    int32_t mesh_verts);
+
+struct SourceRndMeshAnimSetFramePlan {
+  bool calls_animatable_set_frame = true;
+  bool has_mesh = false;
+  uint32_t mesh_mutable_mask = 0;
+  bool mesh_mutable = false;
+  bool notifies_not_mutable = false;
+  bool evaluates_points = false;
+  bool evaluates_normals = false;
+  bool evaluates_texs = false;
+  bool evaluates_colors = false;
+  uint32_t sync_mask = 0;
+  bool calls_mesh_sync = false;
+};
+
+SourceRndMeshAnimSetFramePlan source_rndmeshanim_set_frame_plan(
+    bool has_mesh,
+    uint32_t mesh_mutable_mask,
+    bool has_points_keys,
+    bool has_normals_keys,
+    bool has_texs_keys,
+    bool has_colors_keys);
+
+struct SourceRndMeshAnimSetKeyPlan {
+  bool body_empty = true;
+};
+
+SourceRndMeshAnimSetKeyPlan source_rndmeshanim_set_key_plan();
+
+struct SourceRndMeshAnimShrinkPlan {
+  int32_t requested_count = 0;
+  bool points_nonempty = false;
+  bool normals_nonempty = false;
+  bool texs_nonempty = false;
+  bool colors_nonempty = false;
+  std::vector<std::string> resized_streams;
+};
+
+SourceRndMeshAnimShrinkPlan source_rndmeshanim_shrink_verts_plan(
+    int32_t requested_count,
+    bool points_nonempty,
+    bool normals_nonempty,
+    bool texs_nonempty,
+    bool colors_nonempty);
+
+SourceRndMeshAnimShrinkPlan source_rndmeshanim_shrink_keys_plan(
+    int32_t requested_count,
+    bool points_nonempty,
+    bool normals_nonempty,
+    bool texs_nonempty,
+    bool colors_nonempty);
+
+struct SourceRndMeshAnimHandlerPlan {
+  std::vector<std::string> expressions;
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x207;
+};
+
+SourceRndMeshAnimHandlerPlan source_rndmeshanim_handler_plan();
+
+struct SourceRndMeshAnimPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> superclasses;
+};
+
+SourceRndMeshAnimPropSyncPlan source_rndmeshanim_prop_sync_plan();
+
 struct TransObj {
   std::string name;          // the entry name
   Xfm local;                 // local matrix (matrix 1)
