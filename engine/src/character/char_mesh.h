@@ -257,6 +257,63 @@ struct SourceGltfMiloAddVertexResult {
   SourceGltfMiloChunkVertex vertex;
 };
 
+enum class SourceGltfMiloTextureWrapMode {
+  kRepeat,
+  kClampToEdge,
+  kMirroredRepeat,
+};
+
+enum class SourceGltfMiloAlphaMode {
+  kOpaque,
+  kMask,
+  kBlend,
+};
+
+struct SourceGltfMiloMaterialInput {
+  std::string name;
+  bool has_base_color_texture = false;
+  bool double_sided = false;
+  bool prelit_option_equals_false = false;
+  bool sampler_present = false;
+  SourceGltfMiloTextureWrapMode wrap_s =
+      SourceGltfMiloTextureWrapMode::kRepeat;
+  SourceGltfMiloTextureWrapMode wrap_t =
+      SourceGltfMiloTextureWrapMode::kRepeat;
+  bool image_has_alpha = false;
+  SourceGltfMiloAlphaMode alpha_mode = SourceGltfMiloAlphaMode::kOpaque;
+  float alpha_cutoff = 0.5f;
+};
+
+struct SourceGltfMiloMaterialPlan {
+  bool creates_mat_entry = true;
+  bool creates_diffuse_tex_entry = false;
+  std::string mat_entry_name;
+  std::string diffuse_tex;
+  std::string diffuse_tex_entry_name;
+  std::string texture_external_path;
+  bool stencil_ignore = false;
+  bool per_pixel_lit = false;
+  bool pre_lit = false;
+  bool point_lights = false;
+  bool projected_lights = false;
+  bool fog = true;
+  bool cull = true;
+  int shader_variation = 0;
+  int blend = 1;
+  int z_mode = 1;
+  int tex_wrap = 1;
+  bool alpha_cut = false;
+  int alpha_threshold = 0;
+  bool alpha_write = false;
+  int texture_compression = 1;
+  float emissive_multiplier = 1.0f;
+  float normal_detail_tiling = 1.0f;
+  float rim_power = 4.0f;
+  float specular_power = 0.0f;
+  float specular2_power = 0.0f;
+  bool obj_fields_revision2 = false;
+};
+
 SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     bool has_joints,
     bool has_weights,
@@ -281,6 +338,9 @@ SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
     bool compressed_vertex_layout,
     bool mesh_has_ao_calculation,
     int32_t current_vertex_count);
+
+SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
+    const SourceGltfMiloMaterialInput& input);
 
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,

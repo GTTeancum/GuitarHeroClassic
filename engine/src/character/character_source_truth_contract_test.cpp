@@ -3192,6 +3192,20 @@ int run_contract() {
   ok &= contains(gltf_program_cs,
                  "varrelativeTransform=boneWorldInverse*node.WorldMatrix;",
                  "glTFMilo writes inverse joint world times mesh world");
+  ok &= contains(gltf_program_cs,
+                 "mat.cull=!material.DoubleSided;",
+                 "glTFMilo material cull follows glTF DoubleSided");
+  ok &= contains(gltf_program_cs,
+                 "if(material.Name.Contains(\"_skin\")){mat.shaderVariation="
+                 "RndMat.ShaderVariation.kShaderVariationSkin;",
+                 "glTFMilo material pass selects skin shader variation");
+  ok &= contains(gltf_program_cs,
+                 "elseif(material.Name.Contains(\"_hair\")){mat.shaderVariation="
+                 "RndMat.ShaderVariation.kShaderVariationHair;",
+                 "glTFMilo material pass selects hair shader variation");
+  ok &= contains(gltf_program_cs,
+                 "if(material.Alpha==SharpGLTF.Schema2.AlphaMode.MASK){",
+                 "glTFMilo material pass gates alpha mask rows");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -3225,6 +3239,12 @@ int run_contract() {
                  "false;",
                  "native declares glTFMilo AddVertex result row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMaterialInput{std::stringname;",
+                 "native declares glTFMilo material input row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
+                 "native declares glTFMilo material plan row");
+  ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
@@ -3243,6 +3263,9 @@ int run_contract() {
                  "SourceGltfMiloAddVertexResult"
                  "source_gltf_milo_add_vertex_to_chunk_mesh(",
                  "native exposes glTFMilo AddVertex helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
+                 "native exposes glTFMilo material base helper");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
@@ -3349,6 +3372,24 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "result.exceeded_max_vertices=current_vertex_count+1>65535;",
                  "native records glTFMilo vertex-limit throw boundary");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
+                 "native ports glTFMilo material base helper");
+  ok &= contains(char_mesh,
+                 "plan.cull=!input.double_sided;",
+                 "native preserves glTFMilo DoubleSided cull rule");
+  ok &= contains(char_mesh,
+                 "if(input.name.find(\"_skin\")!=std::string::npos){"
+                 "plan.shader_variation=1;",
+                 "native preserves glTFMilo skin shader variation branch");
+  ok &= contains(char_mesh,
+                 "elseif(input.name.find(\"_hair\")!=std::string::npos){"
+                 "plan.shader_variation=2;",
+                 "native preserves glTFMilo hair shader variation branch");
+  ok &= contains(char_mesh,
+                 "if(input.alpha_mode==SourceGltfMiloAlphaMode::kMask){"
+                 "plan.alpha_cut=true;",
+                 "native preserves glTFMilo alpha-mask branch");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
@@ -3361,6 +3402,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "gltf_vertex_limit.exceeded_max_vertices",
                  "focused mesh decode test covers glTFMilo vertex-limit boundary");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_material_base_plan(material_input)",
+                 "focused mesh decode test covers glTFMilo material helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_hair_material.shader_variation==2",
+                 "focused mesh decode test covers glTFMilo hair shader variation");
+  ok &= contains(mesh_decode_test,
+                 "gltf_hair_material.tex_wrap==0",
+                 "focused mesh decode test covers glTFMilo wrap priority");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_validate_skin_influences(",
                  "focused mesh decode test covers glTFMilo skin validation");
@@ -3388,6 +3438,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_material_base_plan` mirrors",
+                 "document records glTFMilo material base helper");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");

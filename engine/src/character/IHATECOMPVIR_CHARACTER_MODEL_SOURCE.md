@@ -914,6 +914,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `source_gltf_milo_add_vertex_to_chunk_mesh` mirrors those deterministic
     rows for contract coverage only; it does not change stock GH2 runtime mesh
     decode or manufacture per-vertex bone-index rows.
+  - The glTFMilo material creation pass creates a `Mat` row for every logical
+    material and, when a base-color texture exists, wires `diffuseTex`,
+    `stencilMode=kStencilIgnore`, per-pixel/prelit/point/projected lighting,
+    `fog=false`, `cull=!material.DoubleSided`, `_skin` / `_hair` shader
+    variation selection, source blend/z/wrap/alpha decisions, and a matching
+    diffuse `Tex` row. Native `source_gltf_milo_material_base_plan` mirrors
+    those deterministic exporter rows for evidence only; live GH2 character
+    material behavior still comes from decoded stock `RndMat` rows plus the
+    separate project hair two-sided culling override.
   - The same glTFMilo source validates skin influences before packing: missing
     or non-finite weights/joints are ignored, zero or negative weights are
     skipped, non-integral/out-of-range joints are rejected, excluded joints such

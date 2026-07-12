@@ -461,6 +461,81 @@ int main() {
   CHECK(gltf_vertex_limit.added_vertex);
   CHECK(gltf_vertex_limit.exceeded_max_vertices);
 
+  ghogx::character::SourceGltfMiloMaterialInput material_input;
+  material_input.name = "rock1_hair";
+  material_input.has_base_color_texture = true;
+  material_input.double_sided = true;
+  material_input.sampler_present = true;
+  material_input.wrap_s =
+      ghogx::character::SourceGltfMiloTextureWrapMode::kMirroredRepeat;
+  material_input.wrap_t =
+      ghogx::character::SourceGltfMiloTextureWrapMode::kClampToEdge;
+  material_input.image_has_alpha = true;
+  material_input.alpha_mode = ghogx::character::SourceGltfMiloAlphaMode::kMask;
+  material_input.alpha_cutoff = 0.25f;
+  const auto gltf_hair_material =
+      ghogx::character::source_gltf_milo_material_base_plan(material_input);
+  CHECK(gltf_hair_material.creates_mat_entry);
+  CHECK(gltf_hair_material.creates_diffuse_tex_entry);
+  CHECK(gltf_hair_material.mat_entry_name == "rock1_hair.mat");
+  CHECK(gltf_hair_material.diffuse_tex == "rock1_hair.tex");
+  CHECK(gltf_hair_material.texture_external_path == "rock1_hair.png");
+  CHECK(gltf_hair_material.stencil_ignore);
+  CHECK(gltf_hair_material.per_pixel_lit);
+  CHECK(gltf_hair_material.pre_lit);
+  CHECK(gltf_hair_material.point_lights);
+  CHECK(gltf_hair_material.projected_lights);
+  CHECK(!gltf_hair_material.fog);
+  CHECK(!gltf_hair_material.cull);
+  CHECK(gltf_hair_material.shader_variation == 2);
+  CHECK(gltf_hair_material.tex_wrap == 0);
+  CHECK(gltf_hair_material.z_mode == 1);
+  CHECK(gltf_hair_material.alpha_cut);
+  CHECK(gltf_hair_material.alpha_threshold == 63);
+  CHECK(!gltf_hair_material.alpha_write);
+  CHECK(gltf_hair_material.blend == 1);
+  CHECK(gltf_hair_material.texture_compression == 3);
+  CHECK(gltf_hair_material.obj_fields_revision2);
+
+  material_input.name = "body_skin";
+  material_input.double_sided = false;
+  material_input.prelit_option_equals_false = true;
+  material_input.wrap_s =
+      ghogx::character::SourceGltfMiloTextureWrapMode::kRepeat;
+  material_input.wrap_t =
+      ghogx::character::SourceGltfMiloTextureWrapMode::kMirroredRepeat;
+  material_input.alpha_mode =
+      ghogx::character::SourceGltfMiloAlphaMode::kOpaque;
+  const auto gltf_skin_material =
+      ghogx::character::source_gltf_milo_material_base_plan(material_input);
+  CHECK(gltf_skin_material.shader_variation == 1);
+  CHECK(gltf_skin_material.cull);
+  CHECK(!gltf_skin_material.pre_lit);
+  CHECK(gltf_skin_material.tex_wrap == 4);
+  CHECK(!gltf_skin_material.alpha_cut);
+  CHECK(gltf_skin_material.alpha_write);
+  CHECK(gltf_skin_material.blend == 3);
+
+  material_input.name = "plain_mat";
+  material_input.has_base_color_texture = true;
+  material_input.sampler_present = false;
+  material_input.image_has_alpha = false;
+  material_input.prelit_option_equals_false = false;
+  const auto gltf_plain_material =
+      ghogx::character::source_gltf_milo_material_base_plan(material_input);
+  CHECK(gltf_plain_material.shader_variation == 0);
+  CHECK(gltf_plain_material.tex_wrap == 1);
+  CHECK(!gltf_plain_material.alpha_write);
+  CHECK(gltf_plain_material.blend == 1);
+  CHECK(gltf_plain_material.texture_compression == 1);
+
+  material_input.has_base_color_texture = false;
+  const auto gltf_no_texture_material =
+      ghogx::character::source_gltf_milo_material_base_plan(material_input);
+  CHECK(gltf_no_texture_material.creates_mat_entry);
+  CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
+  CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
+
   const auto gltf_validated =
       ghogx::character::source_gltf_milo_validate_skin_influences(
           {{1.0f, 4.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {4.0f, 1.0f},
