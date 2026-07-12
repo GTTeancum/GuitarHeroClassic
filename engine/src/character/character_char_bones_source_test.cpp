@@ -1568,6 +1568,21 @@ int main() {
                    kSourceCharBonesTypeRotZ, "grim get_type_of rotz");
   ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.head.pos"),
                    kSourceCharBonesTypeEnd, "grim get_type_of first-dot rule");
+  ok &= expect_string(
+      source_grim_char_bones_samples_channel_mesh_name("bone_head.pos"),
+      "bone_head.mesh", "grim channel pos maps to mesh");
+  ok &= expect_string(
+      source_grim_char_bones_samples_channel_mesh_name("bone_head.quat"),
+      "bone_head.mesh", "grim channel quat maps to mesh");
+  ok &= expect_string(
+      source_grim_char_bones_samples_channel_mesh_name("bone_head.rotz"),
+      "bone_head.mesh", "grim channel rotz maps to mesh");
+  ok &= expect_string(
+      source_grim_char_bones_samples_channel_mesh_name("bone_head.rotx"),
+      "bone_head.rotx", "grim channel rotx stays fenced");
+  ok &= expect_string(
+      source_grim_char_bones_samples_channel_mesh_name("bone_head.scale"),
+      "bone_head.scale", "grim channel scale stays fenced");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(0), 0.0f,
                     "grim snorm16 zero");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(32767), 1.0f,

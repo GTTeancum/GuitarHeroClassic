@@ -831,6 +831,11 @@ int run_contract() {
                  "forboneinbones{",
                  "grim CharBonesSamples walks samples in bone order");
   ok &= contains(grim_char_bones_samples_mod,
+                 "letbone_name=bone.symbol.to_owned().replace(\".pos\","
+                 "\".mesh\").replace(\".quat\",\".mesh\").replace(\".rotz\","
+                 "\".mesh\");",
+                 "grim CharBonesSamples maps decoded channels to mesh names");
+  ok &= contains(grim_char_bones_samples_mod,
                  "matchSelf::get_type_of(bone.symbol.as_str()){t@0=>",
                  "grim CharBonesSamples decode switches on bone type");
   ok &= contains(grim_char_bones_samples_mod,
@@ -1004,6 +1009,10 @@ int run_contract() {
   ok &= contains(char_clip,
                  "for(size_tbi=0;bi<bl.names.size();++bi){ClipChannelch;",
                  "native walks clip sample bytes in bone order");
+  ok &= contains(char_clip,
+                 "ch.bone_name=source_grim_char_bones_samples_channel_mesh_name"
+                 "(bl.names[bi]);",
+                 "native parser maps sample channels to Grim mesh names");
   ok &= contains(char_clip, "casekSourceCharBonesTypeScale:skip_grim_scale(c);",
                  "native consumes scale bytes without publishing pose");
   ok &= contains(char_clip,
@@ -17869,8 +17878,8 @@ int run_contract() {
                  "if(samples_version>=13)return{};",
                  "native clip parser fences non-GH2 Grim sample variants");
   ok &= contains(char_clip,
-                 "SourceCharBones::ChannelNameusesthefirstdot",
-                 "native suffix strip follows source first-dot rule");
+                 "source_grim_char_bones_samples_channel_mesh_name(bl.names[bi])",
+                 "native clip parser follows Grim mesh-name channel mapping");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_type_of(\"bone_head.rotx\")",
                  "focused CharBones source test covers rot-x suffix");
@@ -20120,6 +20129,13 @@ int run_contract() {
                  "GH2 clip parser now uses it for `BoneList.frame_bytes`",
                  "document records parser use of Grim data stride helper");
   ok &= contains(doc,
+                 "`source_grim_char_bones_samples_channel_mesh_name` ports that "
+                 "exact",
+                 "document records Grim channel mesh-name helper");
+  ok &= contains(doc,
+                 "parser now emits Grim-style `.mesh` channel",
+                 "document records parser use of Grim mesh-name helper");
+  ok &= contains(doc,
                  "Native `source_char_bones_samples_load_plan` records the "
                  "checked `Load`\n    delegation",
                  "document records native CharBonesSamples load plan");
@@ -20187,12 +20203,27 @@ int run_contract() {
                  "ifversion>11{sample_size=crate::io::align_to_multiple_of_four"
                  "(sample_size);}",
                  "Grim CharBonesSamples data aligns RB-era sample bytes");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "letbone_name=bone.symbol.to_owned().replace(\".pos\","
+                 "\".mesh\").replace(\".quat\",\".mesh\").replace(\".rotz\","
+                 "\".mesh\");",
+                 "Grim CharBonesSamples decode maps channels to mesh targets");
   ok &= contains(char_clip_h,
                  "structSourceGrimCharBonesSamplesDataPlan{",
                  "native exposes Grim CharBonesSamples data stride plan");
+  ok &= contains(char_clip_h,
+                 "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
+                 "native exposes Grim channel mesh-name helper");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDataPlansource_grim_char_bones_samples_data_plan(",
                  "native implements Grim CharBonesSamples data stride helper");
+  ok &= contains(char_clip,
+                 "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
+                 "native implements Grim channel mesh-name helper");
+  ok &= contains(char_clip,
+                 "replace_all(name,\".pos\",\".mesh\");replace_all(name,"
+                 "\".quat\",\".mesh\");replace_all(name,\".rotz\",\".mesh\");",
+                 "native helper ports Grim suffix replacement chain");
   ok &= contains(char_clip,
                  "source_grim_char_bones_samples_get_type_size2(type,compression)",
                  "native helper uses Grim get_type_size2 per channel");
@@ -20221,6 +20252,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "grim_data16.sample_size",
                  "focused CharBones source test covers aligned Grim data stride");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_channel_mesh_name(\"bone_head.quat\")",
+                 "focused CharBones source test covers Grim channel mesh-name helper");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");

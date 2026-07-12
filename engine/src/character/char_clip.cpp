@@ -55,9 +55,10 @@
 
 namespace ghogx::character {
 
-// Strip ".pos"/".quat"/etc to bone base name. Defined below; forward-declared
-// so the anonymous-namespace parser can use it.
-std::string strip_suffix(const std::string& channel);
+// Grim decode_samples rewrites channel suffixes to .mesh names before grouping.
+// Defined below; forward-declared so the anonymous-namespace parser can use it.
+std::string source_grim_char_bones_samples_channel_mesh_name(
+    const std::string& channel);
 static void source_rotate_about_z_vec(float v[3], float angle);
 static float source_limit_ang(float radians);
 
@@ -2379,7 +2380,8 @@ std::vector<std::vector<ClipChannel>> parse_all(
 
       for (size_t bi = 0; bi < bl.names.size(); ++bi) {
         ClipChannel ch;
-        ch.bone_name = strip_suffix(bl.names[bi]);
+        ch.bone_name =
+            source_grim_char_bones_samples_channel_mesh_name(bl.names[bi]);
         switch (bl.cats[bi]) {
           case kSourceCharBonesTypePos:
             read_vec(c, bl.cats[bi], bl.compression, ch);
@@ -2413,11 +2415,22 @@ std::vector<std::vector<ClipChannel>> parse_all(
 
 }  // namespace
 
-// Strip ".pos"/".quat"/etc. Source CharBones::ChannelName uses the first dot
-// as the suffix marker.
-std::string strip_suffix(const std::string& channel) {
-  auto dot = channel.find('.');
-  return dot == std::string::npos ? channel : channel.substr(0, dot);
+std::string source_grim_char_bones_samples_channel_mesh_name(
+    const std::string& channel) {
+  std::string name = channel;
+  auto replace_all = [](std::string& s, const char* from, const char* to) {
+    const size_t from_len = std::strlen(from);
+    const size_t to_len = std::strlen(to);
+    size_t pos = 0;
+    while ((pos = s.find(from, pos)) != std::string::npos) {
+      s.replace(pos, from_len, to);
+      pos += to_len;
+    }
+  };
+  replace_all(name, ".pos", ".mesh");
+  replace_all(name, ".quat", ".mesh");
+  replace_all(name, ".rotz", ".mesh");
+  return name;
 }
 
 bool debug_clip_enabled() {
