@@ -4182,6 +4182,27 @@ bool source_char_eye_dart_ruleset_load_revision_known(int revision) {
   return revision >= 0 && revision <= 1;
 }
 
+SourceCharEyeDartRulesetLoadPlan source_char_eye_dart_ruleset_load_plan(
+    int revision) {
+  SourceCharEyeDartRulesetLoadPlan plan;
+  plan.known_revision =
+      source_char_eye_dart_ruleset_load_revision_known(revision);
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object",
+                     "mData.mMinRadius",
+                     "mData.mMaxRadius",
+                     "mData.mOnTargetAngleThresh",
+                     "mData.mMinDartsPerSequence",
+                     "mData.mMaxDartsPerSequence",
+                     "mData.mMinSecsBetweenDarts",
+                     "mData.mMaxSecsBetweenDarts",
+                     "mData.mMinSecsBetweenSequences",
+                     "mData.mMaxSecsBetweenSequences",
+                     "mData.mScaleWithDistance",
+                     "mData.mReferenceDistance"};
+  return plan;
+}
+
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
     const SourceCharEyeDartRulesetData& src) {
   SourceCharEyeDartRulesetData dst;
@@ -4197,6 +4218,47 @@ SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
   dst.scale_with_distance = src.scale_with_distance;
   dst.reference_distance = src.reference_distance;
   return dst;
+}
+
+SourceCharEyeDartRulesetCopyPlan source_char_eye_dart_ruleset_copy_plan() {
+  SourceCharEyeDartRulesetCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mData.mMinRadius",
+                         "mData.mOnTargetAngleThresh",
+                         "mData.mMinDartsPerSequence",
+                         "mData.mMaxDartsPerSequence",
+                         "mData.mMinSecsBetweenDarts",
+                         "mData.mMaxSecsBetweenDarts",
+                         "mData.mMinSecsBetweenSequences",
+                         "mData.mMaxSecsBetweenSequences",
+                         "mData.mScaleWithDistance",
+                         "mData.mReferenceDistance"};
+  return plan;
+}
+
+SourceCharEyeDartRulesetPropSyncPlan
+source_char_eye_dart_ruleset_prop_sync_plan() {
+  SourceCharEyeDartRulesetPropSyncPlan plan;
+  plan.properties = {"min_radius",
+                     "max_radius",
+                     "on_target_angle_thresh",
+                     "min_darts_per_sequence",
+                     "max_darts_per_sequence",
+                     "min_secs_between_darts",
+                     "max_secs_between_darts",
+                     "min_secs_between_sequences",
+                     "max_secs_between_sequences",
+                     "scale_with_distance",
+                     "reference_distance"};
+  return plan;
+}
+
+SourceCharEyeDartRulesetHandlerPlan
+source_char_eye_dart_ruleset_handler_plan() {
+  SourceCharEyeDartRulesetHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0xd4;
+  return plan;
 }
 
 float source_char_interest_sync_max_view_angle(float max_view_angle_degrees) {

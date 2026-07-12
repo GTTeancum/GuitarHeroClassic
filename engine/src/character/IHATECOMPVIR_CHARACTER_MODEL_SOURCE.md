@@ -986,8 +986,8 @@ note, and all report `unreadBytes=0`.
   - The source `Copy` body copies `mMinRadius`, then assigns destination
     `mMaxRadius` from the source `mMinRadius` rather than the source
     `mMaxRadius`. Native `source_char_eye_dart_ruleset_*` helpers preserve this
-    exact data behavior for deterministic coverage; they do not enable
-    procedural eye darts in GH2 runtime.
+    exact data behavior plus load/copy/prop/handler row plans for deterministic
+    coverage; they do not enable procedural eye darts in GH2 runtime.
 - `rb3-latest/src/system/char/CharInterest.cpp` and `CharInterest.h`
   - The constructor defaults are source data: max view angle `20.0`,
     priority `1.0`, look time `1.0..3.0`, refractory period `6.1`, no dart

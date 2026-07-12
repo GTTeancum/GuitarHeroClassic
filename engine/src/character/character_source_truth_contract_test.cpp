@@ -9669,9 +9669,31 @@ int run_contract() {
                  "bs>>mData.mMinRadius>>mData.mMaxRadius",
                  "latest CharEyeDartRuleset source load accepts revision 1");
   ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "mData.mMaxDartsPerSequence>>mData.mMinSecsBetweenDarts>>"
+                 "mData.mMaxSecsBetweenDarts>>mData.mMinSecsBetweenSequences>>"
+                 "mData.mMaxSecsBetweenSequences>>mData.mScaleWithDistance>>"
+                 "mData.mReferenceDistance;",
+                 "latest CharEyeDartRuleset source load row tail");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
                  "COPY_MEMBER(mData.mMinRadius)//COPY_MEMBER(mData.mMaxRadius)"
                  "mData.mMaxRadius=c->mData.mMinRadius;",
                  "latest CharEyeDartRuleset source copy has max-radius quirk");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "BEGIN_PROPSYNCS(CharEyeDartRuleset)SYNC_PROP(min_radius,"
+                 "mData.mMinRadius)SYNC_PROP(max_radius,mData.mMaxRadius)"
+                 "SYNC_PROP(on_target_angle_thresh,"
+                 "mData.mOnTargetAngleThresh)",
+                 "latest CharEyeDartRuleset source prop-sync rows start");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "SYNC_PROP(max_secs_between_sequences,"
+                 "mData.mMaxSecsBetweenSequences)SYNC_PROP("
+                 "scale_with_distance,mData.mScaleWithDistance)SYNC_PROP("
+                 "reference_distance,mData.mReferenceDistance)",
+                 "latest CharEyeDartRuleset source prop-sync rows tail");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "BEGIN_HANDLERS(CharEyeDartRuleset)HANDLE_SUPERCLASS("
+                 "Hmx::Object)HANDLE_CHECK(0xD4)END_HANDLERS",
+                 "latest CharEyeDartRuleset source handler table");
   ok &= contains(rb3_latest_char_interest_h,
                  "floatmMaxViewAngle;",
                  "latest CharInterest header exposes timing fields");
@@ -9773,6 +9795,23 @@ int run_contract() {
                  "boolsource_char_eye_dart_ruleset_load_revision_known(intrevision);",
                  "native exposes CharEyeDartRuleset revision helper");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyeDartRulesetLoadPlan{"
+                 "boolknown_revision=false;std::vector<std::string>read_order;};",
+                 "native exposes CharEyeDartRuleset load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyeDartRulesetCopyPlan{std::vector<"
+                 "std::string>copied_superclasses;std::vector<std::string>"
+                 "copied_members;boolmax_radius_from_min_radius=true;};",
+                 "native exposes CharEyeDartRuleset copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyeDartRulesetPropSyncPlan{std::vector<"
+                 "std::string>properties;};",
+                 "native exposes CharEyeDartRuleset prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyeDartRulesetHandlerPlan{std::vector<"
+                 "std::string>superclasses;intcheck=0;};",
+                 "native exposes CharEyeDartRuleset handler plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharEyeDartRulesetDatasource_char_eye_dart_ruleset_copy(",
                  "native exposes CharEyeDartRuleset copy helper");
   ok &= contains(char_mesh,
@@ -9783,8 +9822,38 @@ int run_contract() {
                  "returnrevision>=0&&revision<=1;",
                  "native implements CharEyeDartRuleset source revision range");
   ok &= contains(char_mesh,
+                 "SourceCharEyeDartRulesetLoadPlansource_char_eye_dart_ruleset_load_plan("
+                 "intrevision){SourceCharEyeDartRulesetLoadPlanplan;",
+                 "native implements CharEyeDartRuleset load plan helper");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"mData.mMinRadius\","
+                 "\"mData.mMaxRadius\",\"mData.mOnTargetAngleThresh\"",
+                 "native implements CharEyeDartRuleset load row start");
+  ok &= contains(char_mesh,
+                 "\"mData.mMaxSecsBetweenSequences\",\"mData.mScaleWithDistance\","
+                 "\"mData.mReferenceDistance\"};",
+                 "native implements CharEyeDartRuleset load row tail");
+  ok &= contains(char_mesh,
                  "dst.min_radius=src.min_radius;dst.max_radius=src.min_radius;",
                  "native preserves CharEyeDartRuleset copy max-radius quirk");
+  ok &= contains(char_mesh,
+                 "SourceCharEyeDartRulesetCopyPlansource_char_eye_dart_ruleset_copy_plan(){"
+                 "SourceCharEyeDartRulesetCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};",
+                 "native implements CharEyeDartRuleset copy plan helper");
+  ok &= contains(char_mesh,
+                 "SourceCharEyeDartRulesetPropSyncPlan"
+                 "source_char_eye_dart_ruleset_prop_sync_plan(){",
+                 "native implements CharEyeDartRuleset prop-sync helper");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"min_radius\",\"max_radius\","
+                 "\"on_target_angle_thresh\",\"min_darts_per_sequence\"",
+                 "native implements CharEyeDartRuleset prop rows");
+  ok &= contains(char_mesh,
+                 "SourceCharEyeDartRulesetHandlerPlansource_char_eye_dart_ruleset_handler_plan(){"
+                 "SourceCharEyeDartRulesetHandlerPlanplan;plan.superclasses={"
+                 "\"Hmx::Object\"};plan.check=0xd4;",
+                 "native implements CharEyeDartRuleset handler plan");
   ok &= contains(char_mesh_h,
                  "structSourceCharInterestState{floatmax_view_angle=20.0f;",
                  "native exposes CharInterest source state");
@@ -9953,8 +10022,20 @@ int run_contract() {
                  "source_char_eye_dart_ruleset_load_revision_known(2)",
                  "focused CharEyeDartRuleset source test covers revision reject");
   ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_load_plan(1)",
+                 "focused CharEyeDartRuleset source test covers load plan");
+  ok &= contains(eye_dart_ruleset_source_test,
                  "\"copymaxradiusfollowssourcemin-radiusassignment\"",
                  "focused CharEyeDartRuleset source test covers copy quirk");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_copy_plan()",
+                 "focused CharEyeDartRuleset source test covers copy plan");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_prop_sync_plan()",
+                 "focused CharEyeDartRuleset source test covers prop plan");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_handler_plan()",
+                 "focused CharEyeDartRuleset source test covers handler plan");
   ok &= contains(interest_source_test,
                  "source_char_interest_defaults()",
                  "focused CharInterest source test covers defaults");
@@ -10692,6 +10773,9 @@ int run_contract() {
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",
                  "document records native CharEyeDartRuleset helper boundary");
+  ok &= contains(doc,
+                 "load/copy/prop/handler row plans",
+                 "document records expanded CharEyeDartRuleset row coverage");
   ok &= contains(doc,
                  "Native `source_char_interest_*`\n    helpers port these data decisions",
                  "document records native CharInterest helper boundary");

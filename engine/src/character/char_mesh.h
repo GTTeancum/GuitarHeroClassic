@@ -1361,6 +1361,26 @@ struct SourceCharEyeDartRulesetData {
   float reference_distance = 70.0f;
 };
 
+struct SourceCharEyeDartRulesetLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharEyeDartRulesetCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  bool max_radius_from_min_radius = true;
+};
+
+struct SourceCharEyeDartRulesetPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
+struct SourceCharEyeDartRulesetHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
 struct SourceCharInterestState {
   float max_view_angle = 20.0f;
   float priority = 1.0f;
@@ -1936,8 +1956,15 @@ void source_char_eyes_poll_deps(
     const std::string& face_servo);
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults();
 bool source_char_eye_dart_ruleset_load_revision_known(int revision);
+SourceCharEyeDartRulesetLoadPlan source_char_eye_dart_ruleset_load_plan(
+    int revision);
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
     const SourceCharEyeDartRulesetData& src);
+SourceCharEyeDartRulesetCopyPlan source_char_eye_dart_ruleset_copy_plan();
+SourceCharEyeDartRulesetPropSyncPlan
+source_char_eye_dart_ruleset_prop_sync_plan();
+SourceCharEyeDartRulesetHandlerPlan
+source_char_eye_dart_ruleset_handler_plan();
 SourceCharInterestState source_char_interest_defaults();
 bool source_char_interest_load_revision_known(int revision);
 SourceCharInterestLoadPlan source_char_interest_load_plan(int revision);
