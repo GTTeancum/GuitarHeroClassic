@@ -2633,6 +2633,14 @@ struct ObjectRow {
   std::string unread_tail_hex;
 };
 
+struct OpaqueObjectRow {
+  std::string name;
+  std::string type;
+  size_t body_bytes = 0;
+  std::string head_hex;
+  std::string tail_hex;
+};
+
 struct RndTex {
   std::string name;
   int32_t version = 0;
@@ -2746,6 +2754,7 @@ struct Character {
   std::vector<EventTrigger> event_triggers;
   std::vector<ObjectRow> object_rows;
   std::vector<RndTex> tex_rows;
+  std::vector<OpaqueObjectRow> opaque_rows;
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
   std::map<std::string, int> object_type_counts;

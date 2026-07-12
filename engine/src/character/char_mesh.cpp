@@ -5493,15 +5493,20 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
       std::vector<uint8_t> b(payload.data() + de.offset,
                              payload.data() + de.offset + de.size);
       try {
+        bool handled = false;
         if (de.type == "Mesh") {
+          handled = true;
           SkinnedMesh m = decode_skinned_mesh(de.name, b, dir.dir_version);
           if (m.decoded) ++mesh_ok; else ++mesh_fail;
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {
+          handled = true;
           out.bones.push_back(milo_scene::decode_trans(de.name, b));
         } else if (de.type == "Mat") {
+          handled = true;
           out.mats.push_back(milo_scene::decode_mat(de.name, b));
         } else if (de.type == "Group") {
+          handled = true;
           milo_scene::GroupObj group = milo_scene::decode_group(de.name, b);
           if (!group.decoded) {
             std::fprintf(stderr, "[char]   Group '%s' decode: %s\n",
@@ -5509,49 +5514,84 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           }
           out.groups.push_back(std::move(group));
         } else if (de.type == "CharUpperTwist") {
+          handled = true;
           out.upper_twists.push_back(decode_upper_twist(de.name, b));
         } else if (de.type == "CharForeTwist") {
+          handled = true;
           out.fore_twists.push_back(decode_fore_twist(de.name, b));
         } else if (de.type == "CharNeckTwist") {
+          handled = true;
           out.neck_twists.push_back(decode_neck_twist(de.name, b));
         } else if (de.type == "CharIKRod") {
+          handled = true;
           out.ik_rods.push_back(decode_ik_rod(de.name, b));
         } else if (de.type == "CharIKHand") {
+          handled = true;
           out.ik_hands.push_back(decode_ik_hand(de.name, b));
         } else if (de.type == "CharIKMidi") {
+          handled = true;
           out.ik_midis.push_back(decode_ik_midi(de.name, b));
         } else if (de.type == "CharServoBone") {
+          handled = true;
           out.servo_bones.push_back(decode_servo_bone(de.name, b));
         } else if (de.type == "CharLookAt") {
+          handled = true;
           out.lookats.push_back(decode_lookat(de.name, b));
         } else if (de.type == "CharEyes") {
+          handled = true;
           out.eyes.push_back(decode_eyes(de.name, b));
         } else if (de.type == "CharHair") {
+          handled = true;
           out.hairs.push_back(decode_hair(de.name, b));
         } else if (de.type == "CharCollide") {
+          handled = true;
           out.collides.push_back(decode_collide(de.name, b));
         } else if (de.type == "CharPosConstraint") {
+          handled = true;
           out.pos_constraints.push_back(decode_pos_constraint(de.name, b));
         } else if (de.type == "CharBoneOffset") {
+          handled = true;
           out.bone_offsets.push_back(decode_bone_offset(de.name, b));
         } else if (de.type == "CharBoneTwist") {
+          handled = true;
           out.bone_twists.push_back(decode_bone_twist(de.name, b));
         } else if (de.type == "FaceFxLipSyncServo") {
+          handled = true;
           out.lip_sync_servos.push_back(decode_lip_sync_servo(de.name, b));
         } else if (de.type == "AnimFilter") {
+          handled = true;
           out.anim_filters.push_back(decode_anim_filter(de.name, b));
         } else if (de.type == "EventTrigger") {
+          handled = true;
           out.event_triggers.push_back(decode_event_trigger(de.name, b));
         } else if (de.type == "Object") {
+          handled = true;
           out.object_rows.push_back(decode_object_row(de.name, b));
         } else if (de.type == "Tex") {
+          handled = true;
           out.tex_rows.push_back(decode_rnd_tex(de.name, b));
         } else if (de.type == "CharDriver") {
+          handled = true;
           out.drivers.push_back(decode_driver(de.name, b));
         } else if (de.type == "CharDriverMidi") {
+          handled = true;
           out.drivers.push_back(decode_driver_midi(de.name, b));
         } else if (de.type == "CharWeightSetter") {
+          handled = true;
           out.weight_setters.push_back(decode_weight_setter(de.name, b));
+        }
+        if (!handled) {
+          OpaqueObjectRow row;
+          row.name = de.name;
+          row.type = de.type;
+          row.body_bytes = b.size();
+          if (!b.empty()) {
+            row.head_hex = hex_bytes(b.data(), std::min<size_t>(b.size(), 32));
+            const size_t tail_start = b.size() > 32 ? b.size() - 32 : 0;
+            row.tail_hex =
+                hex_bytes(b.data() + tail_start, b.size() - tail_start);
+          }
+          out.opaque_rows.push_back(std::move(row));
         }
       } catch (const std::exception& ex) {
         std::fprintf(stderr, "[char]   %s '%s' decode: %s\n", de.type.c_str(),
@@ -5567,7 +5607,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu boneOffset, %zu boneTwist, %zu lipServo, %zu animFilter, "
                  "%zu eventTrigger, %zu object, %zu tex, %zu driver, "
-                 "%zu weightSetter\n",
+                 "%zu weightSetter, %zu opaque\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.bones.size(), out.mats.size(), out.groups.size(),
                  out.upper_twists.size(), out.fore_twists.size(),
@@ -5583,7 +5623,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  out.object_rows.size(),
                  out.tex_rows.size(),
                  out.drivers.size(),
-                 out.weight_setters.size());
+                 out.weight_setters.size(),
+                 out.opaque_rows.size());
     out.bind_mesh_local.clear();
     out.bind_mesh_local.reserve(out.meshes.size());
     for (const auto& m : out.meshes) out.bind_mesh_local.push_back(m.local);

@@ -84,7 +84,7 @@ writer body.
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
-| Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
+| Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Native records opaque row names, types, sizes, and byte prefixes, but does not decode or run them unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharLookAt` poll gating, `CharEyes` load/copy/state/dependency/handler/property rows, plus `CharInterest` / `CharEyeDartRuleset` data decisions; no synthetic eye runtime bridge. |
 | Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
@@ -3308,6 +3308,17 @@ bounded as follows:
   `DirLoader::FixClassName`/symbol references for `WorldFx`; there is no
   checked `WorldFx::Load` source body. Native keeps these rows as inventory
   evidence only.
+
+Native `OpaqueObjectRow` inventory records any unhandled directory entry after
+the source-backed decoder table declines it. The record is limited to entry
+name, class symbol, body byte count, and first/last byte prefixes. This is for
+stock-audit evidence only and is not a class-specific loader, controller, mesh,
+or material behavior path.
+Fresh proof at
+`engine/out/source_truth_opaque_rows_20260712/stock_character_opaque_type_inventory.log`
+records 138 opaque stock rows across the 24-character base set: 19 `CharWalk`,
+20 `OutfitLoader`, and 99 `WorldFx`, all tagged
+`note=no-source-loader-body`.
 
 The local stock-asset audit log at
 `analysis/ihatecompvir_source_truth_20260710/stock_hair_bone_inventory.log`

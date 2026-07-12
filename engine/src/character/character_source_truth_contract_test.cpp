@@ -9782,7 +9782,8 @@ int run_contract() {
                  "filter.start=r.f32();filter.end=r.f32();",
                  "native RndAnimFilter decoder mirrors source range rows");
   ok &= contains(char_mesh,
-                 "elseif(de.type==\"AnimFilter\"){out.anim_filters.push_back",
+                 "elseif(de.type==\"AnimFilter\"){handled=true;"
+                 "out.anim_filters.push_back",
                  "character load stores decoded AnimFilter rows");
   ok &= contains(bind_audit,
                  "\"[controller-anim-filter]char=%sname=%sversion=%d",
@@ -10039,6 +10040,24 @@ int run_contract() {
                  "document records stock CharWalk row count");
   ok &= contains(doc, "`OutfitLoader`: 20 stock rows",
                  "document records stock OutfitLoader row count");
+  ok &= contains(doc,
+                 "Native `OpaqueObjectRow` inventory records any unhandled "
+                 "directory entry",
+                 "document records opaque row inventory boundary");
+  ok &= contains(doc,
+                 "is not a class-specific loader, controller, mesh,\n"
+                 "or material behavior path",
+                 "document fences opaque rows from runtime behavior");
+  ok &= contains(doc,
+                 "source_truth_opaque_rows_20260712/"
+                 "stock_character_opaque_type_inventory.log",
+                 "document cites refreshed opaque row proof log");
+  ok &= contains(doc,
+                 "records 138 opaque stock rows across the 24-character base "
+                 "set: 19 `CharWalk`,\n20 `OutfitLoader`, and 99 `WorldFx`",
+                 "document records opaque row proof counts");
+  ok &= contains(doc, "`note=no-source-loader-body`",
+                 "document records source-fenced opaque row tag");
   ok &= contains(doc, "`CharPollGroup`: zero stock rows",
                  "document records stock CharPollGroup absence");
   ok &= contains(doc,
@@ -10283,7 +10302,7 @@ int run_contract() {
                  "trigger.unread_tail_hex=hex_bytes(",
                  "EventTrigger decoder logs unexplained tail bytes");
   ok &= contains(char_mesh,
-                 "elseif(de.type==\"EventTrigger\"){"
+                 "elseif(de.type==\"EventTrigger\"){handled=true;"
                  "out.event_triggers.push_back(decode_event_trigger(de.name,b));"
                  "}",
                  "native character graph stores passive EventTrigger inventory");
@@ -10317,6 +10336,27 @@ int run_contract() {
                 "native must not guess OutfitLoader decoder");
   ok &= missing(char_mesh, "decode_world_fx",
                 "native must not guess WorldFx decoder");
+  ok &= contains(char_mesh_h, "structOpaqueObjectRow{",
+                 "native header exposes opaque row inventory record");
+  ok &= contains(char_mesh_h, "std::vector<OpaqueObjectRow>opaque_rows;",
+                 "native header stores opaque row inventory");
+  ok &= contains(char_mesh, "if(!handled){OpaqueObjectRowrow;",
+                 "native records unhandled rows only after decoder table miss");
+  ok &= contains(char_mesh, "row.body_bytes=b.size();",
+                 "opaque row records bounded body size");
+  ok &= contains(char_mesh,
+                 "row.head_hex=hex_bytes(b.data(),std::min<size_t>(b.size(),32));",
+                 "opaque row records bounded head bytes");
+  ok &= contains(char_mesh,
+                 "row.tail_hex=hex_bytes(b.data()+tail_start,b.size()-tail_start);",
+                 "opaque row records bounded tail bytes");
+  ok &= contains(char_mesh, "out.opaque_rows.push_back(std::move(row));",
+                 "native stores opaque row inventory");
+  ok &= contains(bind_audit,
+                 "[opaque-row]char=%sname=%stype=%sbodyBytes=%zuheadHex=%s",
+                 "bind audit logs opaque row inventory");
+  ok &= contains(bind_audit, "note=no-source-loader-body",
+                 "bind audit marks opaque rows as source-fenced");
   ok &= contains(char_mesh_h, "structRndTex{",
                  "native header exposes passive RndTex inventory row");
   ok &= contains(char_mesh_h,
@@ -13970,7 +14010,7 @@ int run_contract() {
                  "t.unread_bytes=r.n-r.pos;returnt;",
                  "native CharNeckTwist decoder follows source load order");
   ok &= contains(char_mesh,
-                 "elseif(de.type==\"CharNeckTwist\"){"
+                 "elseif(de.type==\"CharNeckTwist\"){handled=true;"
                  "out.neck_twists.push_back(decode_neck_twist(de.name,b));",
                  "native character loader decodes CharNeckTwist rows");
   ok &= contains(char_mesh_h,

@@ -590,6 +590,14 @@ void audit_types(const Character& c, const std::string& milo_path) {
     std::printf("[type] char=%s type=%s count=%d\n", c.dir_name.c_str(),
                 type.c_str(), count);
   }
+  for (const auto& row : c.opaque_rows) {
+    std::printf(
+        "[opaque-row] char=%s name=%s type=%s bodyBytes=%zu headHex=%s "
+        "tailHex=%s note=no-source-loader-body\n",
+        c.dir_name.c_str(), row.name.c_str(), row.type.c_str(),
+        row.body_bytes, none_if_empty(row.head_hex),
+        none_if_empty(row.tail_hex));
+  }
   for (const auto& object : c.object_rows) {
     std::printf(
         "[object-row] char=%s name=%s version=%d altVersion=%d subtype=%s "
