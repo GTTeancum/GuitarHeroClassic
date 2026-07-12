@@ -337,6 +337,42 @@ int main() {
   CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
   CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
 
+  const std::vector<ghogx::character::SourceGltfMiloSkinInfluence>
+      skin_influences = {{10, 0.40f}, {20, 0.30f}, {30, 0.20f}, {40, 0.10f}};
+  const auto gltf_uncompressed_slots =
+      ghogx::character::source_gltf_milo_pack_skin_slots(skin_influences,
+                                                         false);
+  CHECK(approx(gltf_uncompressed_slots.weights[0], 0.40f));
+  CHECK(approx(gltf_uncompressed_slots.weights[3], 0.10f));
+  CHECK(gltf_uncompressed_slots.bones[0] == 10);
+  CHECK(gltf_uncompressed_slots.bones[1] == 20);
+  CHECK(gltf_uncompressed_slots.bones[2] == 30);
+  CHECK(gltf_uncompressed_slots.bones[3] == 40);
+
+  const auto gltf_compressed_slots =
+      ghogx::character::source_gltf_milo_pack_skin_slots(skin_influences,
+                                                         true);
+  CHECK(gltf_compressed_slots.bones[0] == 40);
+  CHECK(gltf_compressed_slots.bones[1] == 30);
+  CHECK(gltf_compressed_slots.bones[2] == 20);
+  CHECK(gltf_compressed_slots.bones[3] == 10);
+
+  const auto gltf_two_influence_compressed =
+      ghogx::character::source_gltf_milo_pack_skin_slots(
+          {{11, 0.75f}, {22, 0.25f}}, true);
+  CHECK(gltf_two_influence_compressed.bones[0] == 0);
+  CHECK(gltf_two_influence_compressed.bones[1] == 0);
+  CHECK(gltf_two_influence_compressed.bones[2] == 22);
+  CHECK(gltf_two_influence_compressed.bones[3] == 11);
+
+  const auto gltf_invalid_repaired =
+      ghogx::character::source_gltf_milo_pack_skin_slots(
+          {{-1, 0.50f}, {8, 0.50f}}, false);
+  CHECK(gltf_invalid_repaired.bones[0] == 0);
+  CHECK(gltf_invalid_repaired.bones[1] == 8);
+  CHECK(gltf_invalid_repaired.bones[2] == 8);
+  CHECK(gltf_invalid_repaired.bones[3] == 8);
+
   ghogx::character::SourceRndMeshZeroWeightVertex weighted_vertex;
   weighted_vertex.weights[0] = 0.25f;
   weighted_vertex.weights[1] = 0.0f;

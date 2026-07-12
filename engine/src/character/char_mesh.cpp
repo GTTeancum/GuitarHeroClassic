@@ -352,6 +352,49 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
+    const std::vector<SourceGltfMiloSkinInfluence>& influences,
+    bool compressed_vertex_layout) {
+  SourceGltfMiloPackedSkinSlots slots;
+  const size_t count = std::min<size_t>(influences.size(), 4);
+  for (size_t i = 0; i < count; ++i) {
+    slots.weights[i] = influences[i].weight;
+  }
+
+  constexpr uint16_t kInvalidBone = 0xffff;
+  auto remapped = [&](size_t index) -> uint16_t {
+    if (index >= count || influences[index].remapped_bone < 0 ||
+        influences[index].remapped_bone > 0xffff) {
+      return kInvalidBone;
+    }
+    return static_cast<uint16_t>(influences[index].remapped_bone);
+  };
+
+  if (count > 0) {
+    if (compressed_vertex_layout) {
+      slots.bones[0] = count > 3 ? remapped(3) : 0;
+      slots.bones[1] = count > 2 ? remapped(2) : slots.bones[0];
+      slots.bones[2] = count > 1 ? remapped(1) : slots.bones[1];
+      slots.bones[3] = remapped(0);
+    } else {
+      slots.bones[0] = remapped(0);
+      slots.bones[1] = count > 1 ? remapped(1) : slots.bones[0];
+      slots.bones[2] = count > 2 ? remapped(2) : slots.bones[1];
+      slots.bones[3] = count > 3 ? remapped(3) : slots.bones[2];
+    }
+  }
+
+  uint16_t last_valid_bone = 0;
+  for (uint16_t& bone : slots.bones) {
+    if (bone != kInvalidBone) {
+      last_valid_bone = bone;
+    } else {
+      bone = last_valid_bone;
+    }
+  }
+  return slots;
+}
+
 SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
     int32_t bone_count,
     std::vector<SourceRndMeshZeroWeightVertex> vertices) {

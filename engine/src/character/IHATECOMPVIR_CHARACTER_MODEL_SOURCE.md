@@ -818,6 +818,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - `glTFMilo/Source/glTFMilo/Program.cs` is source evidence for exporter-side
+    skin packing, not GH2 rev28 runtime decoding. It writes the four weights in
+    influence order, writes bone slots in influence order for normal vertex
+    layouts, reverses the bone slot order for compressed vertex layouts, and
+    repairs invalid remapped bones by reusing the last valid slot. Native
+    `source_gltf_milo_pack_skin_slots` ports that exact packing contract so the
+    exporter rule is documented without being mistaken for stock runtime skin
+    order.
   - Native `source_rndmesh_vert_load_plan` records the visible vertex stream
     gates: position, normal, color, and UV are read for all revisions in this
     source path; revisions `>= 0x25` read a separate weight vector; revisions
@@ -1055,6 +1063,8 @@ note, and all report `unreadBytes=0`.
 - `glTFMilo/Source/glTFMilo/Program.cs`
   - Current exporter source identifies hair bones by names beginning with
     `bone_hair_`.
+  - The same source defines mesh skin export packing and the compressed-layout
+    bone-slot reversal now recorded by `source_gltf_milo_pack_skin_slots`.
 - `glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs`
   - `ProcessCharHair` builds `CharHair` strands from weighted hair-bone chains.
     The newer source splits strands at branches, matching how the decompiled

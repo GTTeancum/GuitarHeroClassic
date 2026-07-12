@@ -130,6 +130,20 @@ struct SourceRndMeshSkinIndexPlan {
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision);
 
+struct SourceGltfMiloSkinInfluence {
+  int32_t remapped_bone = -1;
+  float weight = 0.0f;
+};
+
+struct SourceGltfMiloPackedSkinSlots {
+  std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
+  std::array<uint16_t, 4> bones = {0, 0, 0, 0};
+};
+
+SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
+    const std::vector<SourceGltfMiloSkinInfluence>& influences,
+    bool compressed_vertex_layout);
+
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   int32_t bone_indices[4] = {0, 0, 0, 0};

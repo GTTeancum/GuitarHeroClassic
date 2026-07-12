@@ -3009,6 +3009,39 @@ int run_contract() {
                  "MatrixHelpers.CopyMatrix(relativeTransform,miloBoneTransform.transform,"
                  "convertCoordinates);",
                  "glTFMilo writes inverse bone world times mesh world");
+  ok &= contains(gltf_program_cs,
+                 "newVert.weight0=vertexInfluences.Count>0?"
+                 "vertexInfluences[0].weight:0.0f;",
+                 "glTFMilo writes skin weights in influence order");
+  ok &= contains(gltf_program_cs,
+                 "if(mesh.vertices.compressionType==1){newVert.bone0="
+                 "vertexInfluences.Count>3?GetRemappedBoneIndex("
+                 "vertexInfluences[3].idx,jointIndexToLocalBoneIndex):"
+                 "(ushort)0;",
+                 "glTFMilo reverses compressed-layout skin bone slots");
+  ok &= contains(gltf_program_cs,
+                 "if(newVert.bone0!=ushort.MaxValue){lastValidBone="
+                 "newVert.bone0;}else{newVert.bone0=lastValidBone;}",
+                 "glTFMilo repairs invalid skin bone slots from last valid");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
+                 "floatweight=0.0f;};",
+                 "native declares glTFMilo skin influence contract");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloPackedSkinSlotssource_gltf_milo_pack_skin_slots("
+                 "conststd::vector<SourceGltfMiloSkinInfluence>&influences,"
+                 "boolcompressed_vertex_layout)",
+                 "native ports glTFMilo skin slot packer");
+  ok &= contains(char_mesh,
+                 "if(compressed_vertex_layout){slots.bones[0]=count>3?"
+                 "remapped(3):0;",
+                 "native preserves compressed-layout slot reversal");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_pack_skin_slots(skin_influences,true)",
+                 "focused mesh decode test covers glTFMilo skin slot packer");
+  ok &= contains(doc,
+                 "`source_gltf_milo_pack_skin_slots` ports that exact packing",
+                 "document records glTFMilo skin packing helper");
   ok &= contains(rb3_mesh_cpp,
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",
