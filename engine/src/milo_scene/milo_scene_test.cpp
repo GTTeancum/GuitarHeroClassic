@@ -288,10 +288,14 @@ void test_cam_projection_fields() {
 void test_group_transform() {
   std::vector<uint8_t> b;
   put_u32(b, 13);                // GH2-era Group version with drawOnly.
-  put_zeros(b, 0x1d - b.size()); // UI group matrix start.
+  put_zeros(b, 9);               // Hmx::Object metadata.
+  put_u32(b, 4);                 // RndAnimatable revision.
+  put_f32(b, 0.0f);              // frame.
+  put_u32(b, 0);                 // rate.
+  put_u32(b, 9);                 // RndTransformable revision.
   put_matrix(b, 25.0f, 0.0f, -40.0f);
   put_matrix(b, 25.0f, 0.0f, 940.0f);
-  put_zeros(b, 9);
+  put_zeros(b, 9);               // constraint, empty target, preserve_scale.
   put_str(b, "ss_setlist.view");
   put_u32(b, 3);                  // RndDrawable revision.
   b.push_back(1);                 // showing.
@@ -309,6 +313,7 @@ void test_group_transform() {
   GroupObj group = decode_group("ss_songlist.view", b);
   CHECK(group.name == "ss_songlist.view");
   CHECK(group.decoded);
+  CHECK(group.source_order_decoded);
   CHECK(group.has_transform);
   CHECK(group.parent == "ss_setlist.view");
   CHECK(group.showing);

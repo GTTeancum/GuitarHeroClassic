@@ -5121,6 +5121,26 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "mesh.target,mesh.preserve_scale,trans_parent,false);",
                  "Mesh embedded RndTrans decode does not consume a second Object metadata block");
+  ok &= contains(milo_scene_h_c,
+                 "boolsource_order_decoded=false;",
+                 "MILO scene Group records whether the source-order reader succeeded");
+  ok &= contains(milo_scene_cpp_c,
+                 "booldecode_group_source_order(conststd::vector<uint8_t>&body,"
+                 "GroupObj&group)",
+                 "MILO scene Group decoder has a source-order reader");
+  ok &= contains(milo_scene_cpp_c,
+                 "r.skip(kObjMeta);read_rnd_animatable_source_layout(r);"
+                 "read_trans_block(r,decoded.local",
+                 "MILO scene Group source-order reader follows Object/Animatable/Trans");
+  ok &= contains(milo_scene_cpp_c,
+                 "decoded.source_order_decoded=true;",
+                 "MILO scene Group source-order reader marks successful source decode");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(decode_group_source_order(body,group))returngroup;",
+                 "MILO scene Group decode prefers source-order before scanner fallback");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(group.source_order_decoded)++source_order_groups;",
+                 "MILO scene diagnostics count source-order Group decodes");
   ok &= contains(milo_scene_cpp_c,
                  "read_group_transform_tail",
                  "MILO scene group transform scanner reads the source RndTrans tail");

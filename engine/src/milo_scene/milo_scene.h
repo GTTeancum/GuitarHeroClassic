@@ -231,6 +231,7 @@ struct GroupObj {
   bool preserve_scale = false;
   bool has_transform = false;
   bool decoded = false;
+  bool source_order_decoded = false;
   bool showing = true;
   float draw_order = 0.0f;
   size_t dir_index = 0;

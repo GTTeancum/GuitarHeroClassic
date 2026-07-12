@@ -366,6 +366,19 @@ uint16_t low_revision(uint32_t combined_revision) {
   return static_cast<uint16_t>(combined_revision & 0xffffu);
 }
 
+void read_rnd_animatable_source_layout(Reader& r) {
+  const uint16_t anim_revision = low_revision(r.u32());
+  if (anim_revision == 0 || anim_revision > 4) {
+    throw std::runtime_error("milo_scene: unsupported RndAnimatable revision");
+  }
+  if (anim_revision > 1) (void)r.f32();
+  if (anim_revision > 3) {
+    (void)r.u32();
+  } else if (anim_revision > 2) {
+    (void)r.u8();
+  }
+}
+
 bool parse_group_source_layout(const std::vector<uint8_t>& body,
                                uint16_t group_revision,
                                size_t after_trans_offset,
@@ -428,6 +441,33 @@ bool parse_group_source_layout(const std::vector<uint8_t>& body,
       if (!object.empty()) group.children.push_back(std::move(object));
     }
     group.decoded = true;
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
+bool decode_group_source_order(const std::vector<uint8_t>& body,
+                               GroupObj& group) {
+  try {
+    Reader r(body.data(), body.size());
+    const uint16_t group_revision = low_revision(r.u32());
+    if (group_revision <= 7 || group_revision > 14) return false;
+
+    GroupObj decoded;
+    decoded.name = group.name;
+    r.skip(kObjMeta);
+    read_rnd_animatable_source_layout(r);
+    read_trans_block(r, decoded.local, decoded.world_stored,
+                     decoded.constraint, decoded.target,
+                     decoded.preserve_scale, decoded.parent,
+                     false);
+    decoded.has_transform = true;
+    if (!parse_group_source_layout(body, group_revision, r.pos, decoded)) {
+      return false;
+    }
+    decoded.source_order_decoded = true;
+    group = std::move(decoded);
     return true;
   } catch (const std::exception&) {
     return false;
@@ -950,6 +990,7 @@ GroupObj decode_group(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   GroupObj group;
   group.name = entry_name;
+  if (decode_group_source_order(body, group)) return group;
   size_t after_trans_offset = body.size();
   decode_group_transform(body, group, &after_trans_offset);
   const uint16_t group_revision =
@@ -1761,13 +1802,18 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       }
     }
     rebuild_group_authored_draw_order(out);
+    size_t source_order_groups = 0;
+    for (const auto& group : out.groups) {
+      if (group.source_order_decoded) ++source_order_groups;
+    }
     std::fprintf(stderr,
-                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group, %zu world_crowd (%d ok / %d fail)\n",
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group (%zu source-order), %zu world_crowd (%d ok / %d fail)\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.particles.size(), particle_ok, particle_fail,
                  out.transes.size(), out.mats.size(), out.cams.size(),
                  out.waypoints.size(), out.groups.size(),
-                 out.world_crowds.size(), world_crowd_ok, world_crowd_fail);
+                 source_order_groups, out.world_crowds.size(), world_crowd_ok,
+                 world_crowd_fail);
     if (!out.spotlights.empty()) {
       size_t transformed = 0;
       for (const auto& spot : out.spotlights)
