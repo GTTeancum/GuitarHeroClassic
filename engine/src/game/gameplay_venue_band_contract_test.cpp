@@ -3905,7 +3905,8 @@ int main() {
                "script_task scheduling must not regress to inert");
   ok &= contains(gameplay_h_c,
                  "voidapply_venue_event(conststd::string&event_name,"
-                 "boolpersistent=true,boolforce_persistent=false)",
+                 "boolpersistent=true,boolforce_persistent=false,"
+                 "intnext_link_depth=0)",
                  "persistent venue events can be force-reapplied without changing state");
   ok &= contains(gameplay_c,
                  "active_venue_event_==event_name&&world_&&"
@@ -4152,6 +4153,12 @@ int main() {
                  "std::stringnext_link;",
                  "EventTrigger decoder preserves source next_link refs");
   ok &= contains(gameplay_c,
+                 "structProxyCall{std::stringproxy;std::stringcall;};",
+                 "EventTrigger decoder preserves source proxy-call rows");
+  ok &= contains(gameplay_c,
+                 "std::vector<ProxyCall>proxy_calls;",
+                 "EventTrigger decoder stores source proxy-call rows");
+  ok &= contains(gameplay_c,
                  "read_event_trigger_symbol_list(body,size,cursor,"
                  "out.wait_for_events)",
                  "EventTrigger decoder reads wait_for_events after enable/disable");
@@ -4159,6 +4166,17 @@ int main() {
                  "read_packed_symbol_event_cursor(body,size,cursor,"
                  "out.next_link)",
                  "EventTrigger decoder reads next_link after wait_for_events");
+  ok &= contains(gameplay_c,
+                 "read_u32_event_cursor(body,size,cursor,proxy_count)",
+                 "EventTrigger decoder reads proxy-call count after next_link");
+  ok &= contains(gameplay_c,
+                 "read_packed_symbol_event_cursor(body,size,cursor,"
+                 "proxy_call.proxy)",
+                 "EventTrigger decoder reads proxy-call proxy refs");
+  ok &= contains(gameplay_c,
+                 "read_packed_symbol_event_cursor(body,size,cursor,"
+                 "proxy_call.call)",
+                 "EventTrigger decoder reads proxy-call message symbols");
   ok &= contains(gameplay_c,
                  "for(constauto&show:trigger->shows)",
                  "EventTrigger visibility uses decoded source shows list");
@@ -4196,6 +4214,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "venue_event_trigger_route_keys(de.name,body,size,event_label)",
                  "venue EventTrigger route loaders include wait_for aliases");
+  ok &= contains(gameplay_c,
+                 "for(constauto&proxy_call:trigger->proxy_calls)",
+                 "venue EventTrigger script routing uses decoded proxy-call rows");
+  ok &= contains(gameplay_c,
+                 "source=rev8_proxy_calls:%zu",
+                 "venue EventTrigger script diagnostics identify proxy-call routing");
   ok &= appears_before(gameplay_c,
                        "if(is_event_payload_label(payload_label))"
                        "keys.emplace_back(payload_label);",

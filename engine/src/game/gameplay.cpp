@@ -817,6 +817,10 @@ struct DecodedVenueEventTrigger {
         bool wait = false;
         float delay = 0.0f;
     };
+    struct ProxyCall {
+        std::string proxy;
+        std::string call;
+    };
     std::string event_label;
     std::vector<AnimRoute> anims;
     std::vector<std::string> sounds;
@@ -826,6 +830,7 @@ struct DecodedVenueEventTrigger {
     std::vector<std::string> disable_events;
     std::vector<std::string> wait_for_events;
     std::string next_link;
+    std::vector<ProxyCall> proxy_calls;
 };
 
 std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
@@ -884,6 +889,26 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
         return std::nullopt;
     if (!read_packed_symbol_event_cursor(body, size, cursor, out.next_link))
         return std::nullopt;
+    if (cursor < size) {
+        uint32_t proxy_count = 0;
+        if (!read_u32_event_cursor(body, size, cursor, proxy_count) ||
+            proxy_count > 256) {
+            return std::nullopt;
+        }
+        out.proxy_calls.reserve(proxy_count);
+        for (uint32_t i = 0; i < proxy_count; ++i) {
+            DecodedVenueEventTrigger::ProxyCall proxy_call;
+            if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                                 proxy_call.proxy)) {
+                return std::nullopt;
+            }
+            if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                                 proxy_call.call)) {
+                return std::nullopt;
+            }
+            out.proxy_calls.push_back(std::move(proxy_call));
+        }
+    }
     return out;
 }
 
@@ -3512,6 +3537,34 @@ load_venue_event_script_messages(
             if (strings.empty()) continue;
 
             std::vector<VenueScriptObjectMessage> messages;
+            size_t decoded_proxy_messages = 0;
+            if (const auto trigger =
+                    decode_venue_event_trigger_rev8(body, size)) {
+                for (const auto& proxy_call : trigger->proxy_calls) {
+                    const std::string object_name =
+                        canonical_milo_ref(proxy_call.proxy);
+                    const auto object_it = objects.find(object_name);
+                    if (object_it == objects.end()) continue;
+                    const std::string& message_name = proxy_call.call;
+                    const auto handlers_it =
+                        object_handlers.find(object_it->second.type);
+                    const bool handler_exists =
+                        handlers_it != object_handlers.end() &&
+                        handlers_it->second.find(message_name) !=
+                            handlers_it->second.end();
+                    const bool proxy_message =
+                        object_it->second.properties.find("proxy_milo") !=
+                        object_it->second.properties.end();
+                    if ((handler_exists || proxy_message) &&
+                        is_plain_script_message_atom(message_name)) {
+                        push_unique_script_message(
+                            messages,
+                            VenueScriptObjectMessage{object_name,
+                                                     message_name});
+                        ++decoded_proxy_messages;
+                    }
+                }
+            }
             for (size_t i = 0; i + 1 < strings.size();) {
                 const std::string object_name = canonical_milo_ref(strings[i]);
                 const auto object_it = objects.find(object_name);
@@ -3572,6 +3625,10 @@ load_venue_event_script_messages(
                 for (const auto& message : messages) {
                     std::fprintf(stderr, "%s.%s ", message.object.c_str(),
                                  message.message.c_str());
+                }
+                if (decoded_proxy_messages > 0) {
+                    std::fprintf(stderr, "source=rev8_proxy_calls:%zu ",
+                                 decoded_proxy_messages);
                 }
                 std::fprintf(stderr, "\n");
             }
