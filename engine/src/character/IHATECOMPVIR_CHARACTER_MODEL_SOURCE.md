@@ -69,6 +69,7 @@ writer body.
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
+| Mesh deformation rows | `rb3-latest/src/system/rndobj/MeshDeform.cpp` / `MeshDeform.h` | Native helper ports visible defaults, vertex-array resize/clear, `SetMesh`, and handler rows; load/copy/reskin bodies remain fenced because they are declared but not visible in the checked source. |
 | Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, revision defaults, and the source `AddBoneChildren` bone-prefix recursion rule; deformation and mesh hookup remain unwired without complete source bodies/stock rows. |
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
@@ -657,6 +658,28 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     copies copy the geometry owner and bones instead; `kCopyFromMax` ORs
     mutable state, skips keep-mesh-data, and only takes the owner/bones branch
     when the source mesh itself has an external geometry owner.
+- `rb3-latest/src/system/rndobj/MeshDeform.cpp` and
+  `rb3-latest/src/system/rndobj/MeshDeform.h`
+  - `RndMeshDeform::VertArray::VertArray` starts with size `0`, data `0`, and
+    the provided parent pointer. `Clear` delegates to `SetSize(0)`.
+    `SetSize` only acts when the size changes: it stores the new size, frees
+    existing data, and allocates the requested byte count. Native
+    `source_rndmesh_deform_vert_array_default_state`,
+    `source_rndmesh_deform_vert_array_set_size_plan`, and
+    `source_rndmesh_deform_clear_plan` record these decisions.
+  - `RndMeshDeform::RndMeshDeform` nulls `mMesh`, parents `mBones` and
+    `mVerts` to itself, clears `mSkipInverse`, and clears `mDeformed`. Native
+    `source_rndmesh_deform_default_state` records those defaults.
+  - `RndMeshDeform::SetMesh` assigns `mMesh` and clears `mVerts`. Native
+    `source_rndmesh_deform_set_mesh_plan` records that bounded behavior.
+  - `BEGIN_HANDLERS(RndMeshDeform)` only exposes `Hmx::Object` and
+    `HANDLE_CHECK(0x2A1)`. Native `source_rndmesh_deform_handler_plan` records
+    the visible handler table.
+  - The header declares `CopyWeights`, `Reskin`, `FindDeform`, `Load`, and
+    `Copy`, but the checked source file does not expose statement bodies for
+    those routines. Native `source_rndmesh_deform_body_availability` keeps those
+    bodies fenced; do not infer a skinning/deformation runtime from the class
+    name alone.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

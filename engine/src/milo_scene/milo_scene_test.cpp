@@ -496,6 +496,71 @@ void test_group() {
               g.draw_only.c_str(), g.sort_in_world ? 1 : 0);
 }
 
+void test_mesh_deform() {
+  const SourceRndMeshDeformVertArrayState vert_array_parented =
+      source_rndmesh_deform_vert_array_default_state(true);
+  CHECK(vert_array_parented.size == 0);
+  CHECK(vert_array_parented.data_null);
+  CHECK(vert_array_parented.parent_set);
+
+  const SourceRndMeshDeformVertArrayState vert_array_unparented =
+      source_rndmesh_deform_vert_array_default_state(false);
+  CHECK(!vert_array_unparented.parent_set);
+
+  const SourceRndMeshDeformVertArraySetSizePlan resize =
+      source_rndmesh_deform_vert_array_set_size_plan(4, 12);
+  CHECK(resize.old_size == 4);
+  CHECK(resize.new_size == 12);
+  CHECK(resize.changes_size);
+  CHECK(resize.frees_existing_data);
+  CHECK(resize.allocates_requested_size);
+
+  const SourceRndMeshDeformVertArraySetSizePlan same_size =
+      source_rndmesh_deform_vert_array_set_size_plan(4, 4);
+  CHECK(!same_size.changes_size);
+  CHECK(!same_size.frees_existing_data);
+  CHECK(!same_size.allocates_requested_size);
+
+  const SourceRndMeshDeformClearPlan clear_nonempty =
+      source_rndmesh_deform_clear_plan(3);
+  CHECK(clear_nonempty.calls_set_size_zero);
+  CHECK(clear_nonempty.changes_size);
+  const SourceRndMeshDeformClearPlan clear_empty =
+      source_rndmesh_deform_clear_plan(0);
+  CHECK(clear_empty.calls_set_size_zero);
+  CHECK(!clear_empty.changes_size);
+
+  const SourceRndMeshDeformDefaultState defaults =
+      source_rndmesh_deform_default_state();
+  CHECK(defaults.mesh_null);
+  CHECK(defaults.bones_parent_set);
+  CHECK(defaults.verts_parent_set);
+  CHECK(!defaults.skip_inverse);
+  CHECK(!defaults.deformed);
+
+  const SourceRndMeshDeformSetMeshPlan set_mesh =
+      source_rndmesh_deform_set_mesh_plan();
+  CHECK(set_mesh.assigns_mesh);
+  CHECK(set_mesh.clears_verts);
+
+  const SourceRndMeshDeformHandlerPlan handlers =
+      source_rndmesh_deform_handler_plan();
+  CHECK(handlers.superclasses.size() == 1);
+  CHECK(handlers.superclasses[0] == "Hmx::Object");
+  CHECK(handlers.check == 0x2A1);
+
+  const SourceRndMeshDeformBodyAvailability bodies =
+      source_rndmesh_deform_body_availability();
+  CHECK(!bodies.load_body_visible);
+  CHECK(!bodies.copy_body_visible);
+  CHECK(!bodies.reskin_body_visible);
+  CHECK(!bodies.copy_weights_body_visible);
+  CHECK(!bodies.find_deform_body_visible);
+
+  std::printf("  [ok] MeshDeform: resize=%d handler=0x%x\n",
+              resize.new_size, handlers.check);
+}
+
 void test_light() {
   std::vector<uint8_t> b;
   put_u32(b, 6);                 // Light version
@@ -687,6 +752,7 @@ int main() {
   test_trans_proxy();
   test_mat();
   test_group();
+  test_mesh_deform();
   test_light();
   test_environ_with_lights();
   test_environ_with_extensionless_light();

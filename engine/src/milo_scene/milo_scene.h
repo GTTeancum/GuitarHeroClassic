@@ -383,6 +383,70 @@ struct SourceRndGroupPropSyncPlan {
 
 SourceRndGroupPropSyncPlan source_rndgroup_prop_sync_plan();
 
+struct SourceRndMeshDeformVertArrayState {
+  int32_t size = 0;
+  bool data_null = true;
+  bool parent_set = false;
+};
+
+SourceRndMeshDeformVertArrayState
+source_rndmesh_deform_vert_array_default_state(bool parent_provided);
+
+struct SourceRndMeshDeformVertArraySetSizePlan {
+  int32_t old_size = 0;
+  int32_t new_size = 0;
+  bool changes_size = false;
+  bool frees_existing_data = false;
+  bool allocates_requested_size = false;
+};
+
+SourceRndMeshDeformVertArraySetSizePlan
+source_rndmesh_deform_vert_array_set_size_plan(int32_t old_size,
+                                               int32_t new_size);
+
+struct SourceRndMeshDeformClearPlan {
+  bool calls_set_size_zero = true;
+  bool changes_size = false;
+};
+
+SourceRndMeshDeformClearPlan source_rndmesh_deform_clear_plan(
+    int32_t old_size);
+
+struct SourceRndMeshDeformDefaultState {
+  bool mesh_null = true;
+  bool bones_parent_set = true;
+  bool verts_parent_set = true;
+  bool skip_inverse = false;
+  bool deformed = false;
+};
+
+SourceRndMeshDeformDefaultState source_rndmesh_deform_default_state();
+
+struct SourceRndMeshDeformSetMeshPlan {
+  bool assigns_mesh = true;
+  bool clears_verts = true;
+};
+
+SourceRndMeshDeformSetMeshPlan source_rndmesh_deform_set_mesh_plan();
+
+struct SourceRndMeshDeformHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0x2A1;
+};
+
+SourceRndMeshDeformHandlerPlan source_rndmesh_deform_handler_plan();
+
+struct SourceRndMeshDeformBodyAvailability {
+  bool load_body_visible = false;
+  bool copy_body_visible = false;
+  bool reskin_body_visible = false;
+  bool copy_weights_body_visible = false;
+  bool find_deform_body_visible = false;
+};
+
+SourceRndMeshDeformBodyAvailability
+source_rndmesh_deform_body_availability();
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)

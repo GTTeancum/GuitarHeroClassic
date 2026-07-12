@@ -275,6 +275,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "TransProxy.cpp"));
   const std::string rb3_latest_trans_proxy_h = compact(read_file(
       rb3_latest_rndobj_dir / "TransProxy.h"));
+  const std::string rb3_latest_mesh_deform_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "MeshDeform.cpp"));
+  const std::string rb3_latest_mesh_deform_h = compact(read_file(
+      rb3_latest_rndobj_dir / "MeshDeform.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb2_char_eyes_cpp = compact(read_file(
@@ -2343,6 +2347,77 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_copy_plan(",
                  "focused mesh decode test covers RndMesh Copy helper");
+  ok &= contains(doc,
+                 "| Mesh deformation rows | `rb3-latest/src/system/rndobj/"
+                 "MeshDeform.cpp` / `MeshDeform.h` |",
+                 "coverage matrix records RndMeshDeform source boundary");
+  ok &= contains(rb3_latest_mesh_deform_cpp,
+                 "RndMeshDeform::VertArray::VertArray(RndMeshDeform*md):"
+                 "mSize(0),mData(0),mParent(md){}",
+                 "latest RndMeshDeform source VertArray defaults");
+  ok &= contains(rb3_latest_mesh_deform_cpp,
+                 "voidRndMeshDeform::VertArray::Clear(){SetSize(0);}",
+                 "latest RndMeshDeform source VertArray clear");
+  ok &= contains(rb3_latest_mesh_deform_cpp,
+                 "voidRndMeshDeform::VertArray::SetSize(inti){if(mSize!=i){"
+                 "mSize=i;_MemFree(mData);mData=_MemAlloc(mSize,0);}}",
+                 "latest RndMeshDeform source VertArray resize");
+  ok &= contains(rb3_latest_mesh_deform_cpp,
+                 "RndMeshDeform::RndMeshDeform():mMesh(this,0),mBones(this),"
+                 "mVerts(this),mSkipInverse(0),mDeformed(0){}",
+                 "latest RndMeshDeform source constructor defaults");
+  ok &= contains(rb3_latest_mesh_deform_cpp,
+                 "voidRndMeshDeform::SetMesh(RndMesh*mesh){mMesh=mesh;"
+                 "mVerts.Clear();}",
+                 "latest RndMeshDeform source SetMesh clears verts");
+  ok &= contains(rb3_latest_mesh_deform_cpp,
+                 "BEGIN_HANDLERS(RndMeshDeform)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x2A1)END_HANDLERS",
+                 "latest RndMeshDeform source handler table");
+  ok &= contains(rb3_latest_mesh_deform_h,
+                 "classVertArray{public:VertArray(RndMeshDeform*);"
+                 "~VertArray();voidClear();voidSetSize(int);",
+                 "latest RndMeshDeform header exposes VertArray rows");
+  ok &= contains(rb3_latest_mesh_deform_h,
+                 "voidCopyWeights(int,int,RndMeshDeform*);voidReskin("
+                 "SyncMeshCB*,bool);voidSetMesh(RndMesh*);",
+                 "latest RndMeshDeform header declares deformation helpers");
+  ok &= contains(rb3_latest_mesh_deform_h,
+                 "ObjPtr<RndMesh,ObjectDir>mMesh;TransformmMeshInverse;"
+                 "ObjVector<BoneDesc>mBones;VertArraymVerts;boolmSkipInverse;"
+                 "boolmDeformed;",
+                 "latest RndMeshDeform header exposes storage rows");
+  ok &= contains(scene_h,
+                 "structSourceRndMeshDeformVertArrayState{",
+                 "shared milo_scene exposes RndMeshDeform VertArray state");
+  ok &= contains(scene_h,
+                 "SourceRndMeshDeformBodyAvailability"
+                 "source_rndmesh_deform_body_availability();",
+                 "shared milo_scene exposes RndMeshDeform body boundary");
+  ok &= contains(scene,
+                 "source_rndmesh_deform_vert_array_set_size_plan("
+                 "int32_told_size,int32_tnew_size)",
+                 "shared milo_scene implements RndMeshDeform resize plan");
+  ok &= contains(scene,
+                 "plan.changes_size=old_size!=new_size;plan.frees_existing_data="
+                 "plan.changes_size;plan.allocates_requested_size=plan.changes_size;",
+                 "shared RndMeshDeform resize plan mirrors source branch");
+  ok &= contains(scene,
+                 "SourceRndMeshDeformDefaultStatesource_rndmesh_deform_default_state()"
+                 "{returnSourceRndMeshDeformDefaultState{};}",
+                 "shared RndMeshDeform helper mirrors constructor defaults");
+  ok &= contains(scene,
+                 "SourceRndMeshDeformBodyAvailability"
+                 "source_rndmesh_deform_body_availability(){return"
+                 "SourceRndMeshDeformBodyAvailability{};}",
+                 "shared RndMeshDeform helper fences missing bodies");
+  ok &= contains(scene_test,
+                 "voidtest_mesh_deform(){",
+                 "milo_scene test covers RndMeshDeform helper");
+  ok &= contains(scene_test,
+                 "constSourceRndMeshDeformBodyAvailabilitybodies="
+                 "source_rndmesh_deform_body_availability();",
+                 "milo_scene test covers RndMeshDeform missing-body boundary");
   ok &= contains(rb3_mesh_cpp,
                  "bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
                  "mBones[2].mOffset>>mBones[3].mOffset;",

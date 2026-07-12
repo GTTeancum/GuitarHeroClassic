@@ -867,6 +867,51 @@ SourceRndGroupPropSyncPlan source_rndgroup_prop_sync_plan() {
   return plan;
 }
 
+SourceRndMeshDeformVertArrayState
+source_rndmesh_deform_vert_array_default_state(bool parent_provided) {
+  SourceRndMeshDeformVertArrayState state;
+  state.parent_set = parent_provided;
+  return state;
+}
+
+SourceRndMeshDeformVertArraySetSizePlan
+source_rndmesh_deform_vert_array_set_size_plan(int32_t old_size,
+                                               int32_t new_size) {
+  SourceRndMeshDeformVertArraySetSizePlan plan;
+  plan.old_size = old_size;
+  plan.new_size = new_size;
+  plan.changes_size = old_size != new_size;
+  plan.frees_existing_data = plan.changes_size;
+  plan.allocates_requested_size = plan.changes_size;
+  return plan;
+}
+
+SourceRndMeshDeformClearPlan source_rndmesh_deform_clear_plan(
+    int32_t old_size) {
+  SourceRndMeshDeformClearPlan plan;
+  plan.changes_size = old_size != 0;
+  return plan;
+}
+
+SourceRndMeshDeformDefaultState source_rndmesh_deform_default_state() {
+  return SourceRndMeshDeformDefaultState{};
+}
+
+SourceRndMeshDeformSetMeshPlan source_rndmesh_deform_set_mesh_plan() {
+  return SourceRndMeshDeformSetMeshPlan{};
+}
+
+SourceRndMeshDeformHandlerPlan source_rndmesh_deform_handler_plan() {
+  SourceRndMeshDeformHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndMeshDeformBodyAvailability
+source_rndmesh_deform_body_availability() {
+  return SourceRndMeshDeformBodyAvailability{};
+}
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
   SourceRndMatLoadPlan plan;
   plan.revision = revision;
