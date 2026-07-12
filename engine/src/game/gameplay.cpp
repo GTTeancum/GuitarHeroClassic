@@ -17629,6 +17629,7 @@ void Gameplay::stop_venue_proxy_object_animation(
         proxy.renderer->set_mesh_normal_overrides({});
         proxy.renderer->set_mesh_texcoord_overrides({});
         proxy.renderer->set_mesh_color_overrides({});
+        proxy.renderer->set_mesh_anim_blends({});
         proxy.renderer->set_material_alpha_multipliers({});
         proxy.renderer->set_material_color_overrides({});
         proxy.renderer->set_material_texture_overrides({});
@@ -18791,6 +18792,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
         world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
         world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
+        world_->set_mesh_anim_blends({});
         world_->set_face_camera_meshes({});
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
@@ -18823,6 +18825,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         lighting_->set_mesh_texcoord_overrides(
             lighting_mesh_texcoord_overrides_);
         lighting_->set_mesh_color_overrides(lighting_mesh_color_overrides_);
+        lighting_->set_mesh_anim_blends({});
         lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
         apply_lighting_event("start");
         apply_lighting_event("intro_start");
@@ -19162,6 +19165,7 @@ void Gameplay::update_active_venue_anim_filters() {
         world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
         world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
         world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
+        world_->set_mesh_anim_blends({});
         return;
     }
 
@@ -19171,6 +19175,7 @@ void Gameplay::update_active_venue_anim_filters() {
     venue_mesh_normal_overrides_ = venue_latched_mesh_normal_overrides_;
     venue_mesh_texcoord_overrides_ = venue_latched_mesh_texcoord_overrides_;
     venue_mesh_color_overrides_ = venue_latched_mesh_color_overrides_;
+    std::map<std::string, float> venue_mesh_anim_blends;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_filter_debug_time_ < 0.0 ||
@@ -19259,6 +19264,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {
+                venue_mesh_anim_blends[target.mesh] = source_blend;
                 auto positions = sample_mesh_anim_positions(target.anim, frame);
                 const size_t position_count = positions.size();
                 if (!positions.empty())
@@ -19333,6 +19339,7 @@ void Gameplay::update_active_venue_anim_filters() {
     world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
     world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
     world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
+    world_->set_mesh_anim_blends(std::move(venue_mesh_anim_blends));
 }
 
 void Gameplay::update_venue_proxy_objects() {
@@ -19442,6 +19449,7 @@ void Gameplay::update_venue_proxy_objects() {
         proxy.renderer->set_mesh_texcoord_overrides(
             std::move(texcoord_overrides));
         proxy.renderer->set_mesh_color_overrides(std::move(color_overrides));
+        proxy.renderer->set_mesh_anim_blends({});
 
         std::map<std::string, float> material_alpha;
         std::map<std::string, std::array<float, 4>> material_colors;
@@ -20440,6 +20448,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                 lighting_mesh_texcoord_overrides_);
             lighting_->set_mesh_color_overrides(
                 lighting_mesh_color_overrides_);
+            lighting_->set_mesh_anim_blends({});
         }
         return;
     }
@@ -20449,6 +20458,7 @@ void Gameplay::update_active_lighting_anim_filters() {
     lighting_mesh_normal_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
     lighting_mesh_color_overrides_.clear();
+    std::map<std::string, float> lighting_mesh_anim_blends;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_lighting_filter_debug_time_ < 0.0 ||
@@ -20505,6 +20515,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {
+                lighting_mesh_anim_blends[target.mesh] = source_blend;
                 auto positions = sample_mesh_anim_positions(target.anim, frame);
                 const size_t position_count = positions.size();
                 if (!positions.empty())
@@ -20547,6 +20558,7 @@ void Gameplay::update_active_lighting_anim_filters() {
     lighting_->set_mesh_normal_overrides(lighting_mesh_normal_overrides_);
     lighting_->set_mesh_texcoord_overrides(lighting_mesh_texcoord_overrides_);
     lighting_->set_mesh_color_overrides(lighting_mesh_color_overrides_);
+    lighting_->set_mesh_anim_blends(std::move(lighting_mesh_anim_blends));
 }
 
 void Gameplay::set_lighting_spot_targets(
@@ -22972,6 +22984,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_mesh_normal_overrides({});
                 world_->set_mesh_texcoord_overrides({});
                 world_->set_mesh_color_overrides({});
+                world_->set_mesh_anim_blends({});
                 world_->set_face_camera_meshes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 if (!venue_poll_anim_filters_.empty()) {
@@ -23223,6 +23236,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_mesh_normal_overrides({});
                 lighting_->set_mesh_texcoord_overrides({});
                 lighting_->set_mesh_color_overrides({});
+                lighting_->set_mesh_anim_blends({});
                 lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
                 apply_lighting_event("start");
                 apply_lighting_event("intro_start");

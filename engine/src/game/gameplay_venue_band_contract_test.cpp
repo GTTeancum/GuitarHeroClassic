@@ -4687,6 +4687,12 @@ int main() {
                  "venue_mesh_color_overrides_[target.mesh]=",
                  "venue MeshAnim sampler stores vertex-color overrides");
   ok &= contains(gameplay_c,
+                 "std::map<std::string,float>venue_mesh_anim_blends;",
+                 "venue MeshAnim keeps source AnimTask blend values");
+  ok &= contains(gameplay_c,
+                 "venue_mesh_anim_blends[target.mesh]=source_blend;",
+                 "venue MeshAnim routes forward source blend per mesh");
+  ok &= contains(gameplay_c,
                  "world_->set_mesh_position_overrides(venue_mesh_position_overrides_);",
                  "venue MeshAnim samples feed renderer overrides");
   ok &= contains(gameplay_c,
@@ -4698,6 +4704,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_mesh_color_overrides(venue_mesh_color_overrides_);",
                  "venue MeshAnim color samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_mesh_anim_blends(std::move(venue_mesh_anim_blends));",
+                 "venue MeshAnim samples feed source blend to renderer");
   ok &= contains(renderer_h_c,
                  "set_mesh_position_overrides",
                  "renderer accepts MeshAnim vertex-position overrides");
@@ -4710,6 +4719,9 @@ int main() {
   ok &= contains(renderer_h_c,
                  "set_mesh_color_overrides",
                  "renderer accepts MeshAnim vertex-color overrides");
+  ok &= contains(renderer_h_c,
+                 "set_mesh_anim_blends",
+                 "renderer accepts MeshAnim source blend values");
   ok &= contains(renderer_c,
                  "pos_it!=mesh_position_overrides_.end()&&!pos_it->second.empty()",
                  "renderer accepts source MeshAnim position streams without exact vertex-count equality");
@@ -4734,6 +4746,21 @@ int main() {
   ok &= contains(renderer_c,
                  "color_override&&vi<color_override->size()",
                  "renderer applies MeshAnim colors as a source-style vertex prefix");
+  ok &= contains(renderer_c,
+                 "mesh_anim_blends_.find(m.name)",
+                 "renderer looks up per-mesh MeshAnim source blend");
+  ok &= contains(renderer_c,
+                 "v.px+(p[0]-v.px)*mesh_anim_blend",
+                 "renderer blends MeshAnim positions against current/base verts");
+  ok &= contains(renderer_c,
+                 "v.nx+(n[0]-v.nx)*mesh_anim_blend",
+                 "renderer blends MeshAnim normals against current/base verts");
+  ok &= contains(renderer_c,
+                 "v.u+(uv[0]-v.u)*mesh_anim_blend",
+                 "renderer blends MeshAnim UVs before sampler and draw");
+  ok &= contains(renderer_c,
+                 "v.r+((*color_override)[vi][0]-v.r)*mesh_anim_blend",
+                 "renderer blends MeshAnim colors against current/base verts");
   ok &= contains(milo_scene_h_c,
                  "structParticleSysObj",
                  "MILO scene decoder exposes ParticleSys objects");

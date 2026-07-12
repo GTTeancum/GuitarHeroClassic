@@ -1759,6 +1759,11 @@ void MiloSceneRenderer::set_mesh_color_overrides(
   mesh_color_overrides_ = std::move(colors);
 }
 
+void MiloSceneRenderer::set_mesh_anim_blends(
+    std::map<std::string, float> blends) {
+  mesh_anim_blends_ = std::move(blends);
+}
+
 void MiloSceneRenderer::set_face_camera_meshes(
     std::unordered_set<std::string> mesh_names) {
   face_camera_meshes_ = std::move(mesh_names);
@@ -2669,6 +2674,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         color_it != mesh_color_overrides_.end() && !color_it->second.empty()) {
       color_override = &color_it->second;
     }
+    float mesh_anim_blend = 1.0f;
+    if (const auto blend_it = mesh_anim_blends_.find(m.name);
+        blend_it != mesh_anim_blends_.end() && std::isfinite(blend_it->second)) {
+      mesh_anim_blend = std::clamp(blend_it->second, 0.0f, 1.0f);
+    }
     float base_min_u = std::numeric_limits<float>::infinity();
     float base_min_v = std::numeric_limits<float>::infinity();
     float base_max_u = -std::numeric_limits<float>::infinity();
@@ -2682,14 +2692,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       has_uv_range = true;
       for (size_t vi = 0; vi < m.verts.size(); ++vi) {
         const auto& v = m.verts[vi];
-        const float base_u =
-            (texcoord_override && vi < texcoord_override->size())
-                ? (*texcoord_override)[vi][0]
-                : v.u;
-        const float base_v =
-            (texcoord_override && vi < texcoord_override->size())
-                ? (*texcoord_override)[vi][1]
-                : v.v;
+        float base_u = v.u;
+        float base_v = v.v;
+        if (texcoord_override && vi < texcoord_override->size()) {
+          const auto& uv = (*texcoord_override)[vi];
+          base_u = v.u + (uv[0] - v.u) * mesh_anim_blend;
+          base_v = v.v + (uv[1] - v.v) * mesh_anim_blend;
+        }
         base_min_u = std::min(base_min_u, base_u);
         base_min_v = std::min(base_min_v, base_v);
         base_max_u = std::max(base_max_u, base_u);
@@ -2783,9 +2792,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       SVtx s;
       if (position_override && vi < position_override->size()) {
         const auto& p = (*position_override)[vi];
-        s.x = p[0];
-        s.y = p[1];
-        s.z = p[2];
+        s.x = v.px + (p[0] - v.px) * mesh_anim_blend;
+        s.y = v.py + (p[1] - v.py) * mesh_anim_blend;
+        s.z = v.pz + (p[2] - v.pz) * mesh_anim_blend;
       } else {
         s.x = v.px;
         s.y = v.py;
@@ -2793,9 +2802,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       if (normal_override && vi < normal_override->size()) {
         const auto& n = (*normal_override)[vi];
-        s.nx = n[0];
-        s.ny = n[1];
-        s.nz = n[2];
+        s.nx = v.nx + (n[0] - v.nx) * mesh_anim_blend;
+        s.ny = v.ny + (n[1] - v.ny) * mesh_anim_blend;
+        s.nz = v.nz + (n[2] - v.nz) * mesh_anim_blend;
       } else {
         s.nx = v.nx;
         s.ny = v.ny;
@@ -2807,18 +2816,33 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       };
       const bool use_color_override =
           color_override && vi < color_override->size();
-      const float vr = use_color_override ? (*color_override)[vi][0] : v.r;
-      const float vg = use_color_override ? (*color_override)[vi][1] : v.g;
-      const float vc_b = use_color_override ? (*color_override)[vi][2] : v.b;
-      const float va = use_color_override ? (*color_override)[vi][3] : v.a;
+      const float vr =
+          use_color_override
+              ? v.r + ((*color_override)[vi][0] - v.r) * mesh_anim_blend
+              : v.r;
+      const float vg =
+          use_color_override
+              ? v.g + ((*color_override)[vi][1] - v.g) * mesh_anim_blend
+              : v.g;
+      const float vc_b =
+          use_color_override
+              ? v.b + ((*color_override)[vi][2] - v.b) * mesh_anim_blend
+              : v.b;
+      const float va =
+          use_color_override
+              ? v.a + ((*color_override)[vi][3] - v.a) * mesh_anim_blend
+              : v.a;
       s.color = D3DCOLOR_ARGB(cc(va * ma), cc(vr * mr), cc(vg * mg),
                               cc(vc_b * mb));
       const bool use_texcoord_override =
           texcoord_override && vi < texcoord_override->size();
-      const float base_u =
-          use_texcoord_override ? (*texcoord_override)[vi][0] : v.u;
-      const float base_v =
-          use_texcoord_override ? (*texcoord_override)[vi][1] : v.v;
+      float base_u = v.u;
+      float base_v = v.v;
+      if (use_texcoord_override) {
+        const auto& uv = (*texcoord_override)[vi];
+        base_u = v.u + (uv[0] - v.u) * mesh_anim_blend;
+        base_v = v.v + (uv[1] - v.v) * mesh_anim_blend;
+      }
       float u = base_u * uv_m00 + base_v * uv_m10;
       float vv = base_u * uv_m01 + base_v * uv_m11;
       s.u = u + uv_m20;
