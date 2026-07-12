@@ -11656,22 +11656,29 @@ load_venue_group_visibility(const std::string& hdr_path,
                             const ghogx::milo_scene::Scene& scene) {
     std::map<std::string, Gameplay::VenueGroupVisibility> out;
     std::map<std::string, std::vector<std::string>> group_children;
-    for (const auto& group : scene.groups) group_children[group.name] = group.children;
+    std::unordered_set<std::string> mesh_names;
+    for (const auto& mesh : scene.meshes)
+        mesh_names.insert(canonical_milo_ref(mesh.name));
+    for (const auto& group : scene.groups)
+        group_children[canonical_milo_ref(group.name)] = group.children;
 
-    auto add_group_meshes = [&](auto&& self, const std::string& group_name,
-                                std::vector<std::string>& meshes,
-                                std::unordered_set<std::string>& seen_groups) -> void {
-        if (!seen_groups.insert(group_name).second) return;
-        const auto group_it = group_children.find(group_name);
+    auto add_drawable_meshes =
+        [&](auto&& self, const std::string& raw_ref,
+            std::vector<std::string>& meshes,
+            std::unordered_set<std::string>& seen_groups) -> void {
+        const auto ref = canonical_milo_ref(raw_ref);
+        if (ref.empty()) return;
+        if (mesh_names.find(ref) != mesh_names.end() ||
+            ref.rfind(".mesh") != std::string::npos) {
+            push_unique_ref(meshes, ref);
+            return;
+        }
+        if (!seen_groups.insert(ref).second) return;
+        const auto group_it = group_children.find(ref);
         if (group_it == group_children.end()) return;
         for (const auto& child : group_it->second) {
-            const auto ref = canonical_milo_ref(child);
-            if (ref.rfind(".mesh") != std::string::npos) {
-                if (std::find(meshes.begin(), meshes.end(), ref) == meshes.end())
-                    meshes.push_back(ref);
-            } else if (ref.rfind(".grp") != std::string::npos) {
-                self(self, ref, meshes, seen_groups);
-            }
+            const auto child_ref = canonical_milo_ref(child);
+            self(self, child_ref, meshes, seen_groups);
         }
     };
 
@@ -11689,6 +11696,41 @@ load_venue_group_visibility(const std::string& hdr_path,
                 continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
+            if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
+                Gameplay::VenueGroupVisibility visibility;
+                for (const auto& show : trigger->shows) {
+                    std::unordered_set<std::string> seen_groups;
+                    add_drawable_meshes(add_drawable_meshes, show,
+                                        visibility.show_meshes, seen_groups);
+                }
+                for (const auto& hide : trigger->draws) {
+                    std::unordered_set<std::string> seen_groups;
+                    add_drawable_meshes(add_drawable_meshes, hide,
+                                        visibility.hide_meshes, seen_groups);
+                }
+                if (visibility.show_meshes.empty() &&
+                    visibility.hide_meshes.empty()) {
+                    continue;
+                }
+                const auto route_keys = event_trigger_route_keys(de.name, *trigger);
+                for (const auto& key : route_keys) {
+                    merge_venue_group_visibility(out[key], visibility);
+                }
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue EventTrigger visibility %s show=%zu hide=%zu label=%s routes=",
+                        de.name.c_str(), visibility.show_meshes.size(),
+                        visibility.hide_meshes.size(),
+                        trigger->event_label.c_str());
+                    for (size_t i = 0; i < route_keys.size(); ++i) {
+                        std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                                     route_keys[i].c_str());
+                    }
+                    std::fprintf(stderr, " source=rev8_shows_draws\n");
+                }
+                continue;
+            }
             auto strings = scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string event_label = strings.front();
@@ -11731,9 +11773,8 @@ load_venue_group_visibility(const std::string& hdr_path,
                         return false;
                     }
                     std::unordered_set<std::string> seen_groups;
-                    add_group_meshes(add_group_meshes,
-                                     canonical_milo_ref(group_name), meshes,
-                                     seen_groups);
+                    add_drawable_meshes(add_drawable_meshes, group_name,
+                                        meshes, seen_groups);
                 }
                 return true;
             };

@@ -4160,6 +4160,19 @@ int main() {
                  "out.next_link)",
                  "EventTrigger decoder reads next_link after wait_for_events");
   ok &= contains(gameplay_c,
+                 "for(constauto&show:trigger->shows)",
+                 "EventTrigger visibility uses decoded source shows list");
+  ok &= contains(gameplay_c,
+                 "for(constauto&hide:trigger->draws)",
+                 "GH2 rev8 EventTrigger legacy draws list drives hidden drawables");
+  ok &= contains(gameplay_c,
+                 "source=rev8_shows_draws",
+                 "visibility diagnostics identify source-shaped EventTrigger show/draw routing");
+  ok &= contains(gameplay_c,
+                 "mesh_names.find(ref)!=mesh_names.end()||"
+                 "ref.rfind(\".mesh\")!=std::string::npos",
+                 "EventTrigger visibility resolves direct mesh refs as drawables");
+  ok &= contains(gameplay_c,
                  "for(constauto&wait_for_event:trigger.wait_for_events)"
                  "push_unique_ref(keys,wait_for_event);",
                  "EventTrigger wait_for_events become source trigger route aliases");
