@@ -222,6 +222,8 @@ int run_contract() {
       extra_dir / "rb3-latest/src/system/utl";
   const std::filesystem::path rb2_dump_char_dir =
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
+  const std::string rb3_latest_mesh_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Mesh.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_cpp = compact(read_file(
@@ -1444,6 +1446,8 @@ int run_contract() {
                  "RB3 RndMesh zero-weight bone-index cleanup gate");
   ok &= contains(rb3_mesh_cpp, "intRndMesh::MaxBones(){returnMAX_BONES;}",
                  "RB3 RndMesh MaxBones helper is visible");
+  ok &= contains(rb3_latest_mesh_h, "#defineMAX_BONES40",
+                 "latest RB3 RndMesh source defines 40 max bones");
   ok &= contains(rb3_mesh_cpp,
                  "voidRndMesh::Sync(inti){OnSync(mKeepMeshData?i|0x200:i);}",
                  "RB3 RndMesh Sync keep-data mask behavior");
