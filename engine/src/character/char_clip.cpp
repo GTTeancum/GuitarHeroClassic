@@ -7838,10 +7838,8 @@ void clear_runtime_trans_worlds(Character& character) {
   character.runtime_world_overrides.clear();
 }
 
-void apply_character_controllers(Character& character, float time_seconds,
-                                 FaceFxEyeProperties* eye_props) {
+void apply_character_controllers(Character& character, float time_seconds) {
   (void)time_seconds;
-  if (eye_props) *eye_props = {};
   character.runtime_world_overrides.clear();
   log_character_controller_graph_once(character);
   std::vector<milo_scene::Xfm> bind_bones = character.bind_bone_local;

@@ -220,49 +220,6 @@ void keep_hand_overlay_channels(ghogx::character::CharClip& clip) {
                  clip.name.c_str(), kept, total);
 }
 
-std::optional<float> facefx_eye_register_value(
-    const ghogx::character::FaceFxServoTarget& target,
-    const ghogx::character::FaceFxEyeProperties& props) {
-    auto lower = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
-        });
-        return s;
-    };
-    const std::string prop = lower(target.property);
-    const std::string object = lower(target.object);
-    const bool left = prop.find("l-eye") != std::string::npos ||
-                      object == "eye-l.mesh" || object == "l-eye.mesh";
-    const bool right = prop.find("r-eye") != std::string::npos ||
-                       object == "eye-r.mesh" || object == "r-eye.mesh";
-    const bool x_axis = prop.find("eyex") != std::string::npos ||
-                        prop.find("eye-x") != std::string::npos ||
-                        target.prop_type == 0;
-    const bool z_axis = prop.find("eyez") != std::string::npos ||
-                        prop.find("eye-z") != std::string::npos ||
-                        target.prop_type == 2;
-    if (left && x_axis && props.has_l_eye_x) return props.l_eye_x;
-    if (left && z_axis && props.has_l_eye_z) return -props.l_eye_z;
-    if (right && x_axis && props.has_r_eye_x) return props.r_eye_x;
-    if (right && z_axis && props.has_r_eye_z) return -props.r_eye_z;
-    return std::nullopt;
-}
-
-std::unordered_map<std::string, float> facefx_registers_from_eye_servo(
-    const ghogx::character::Character& character,
-    const ghogx::character::FaceFxEyeProperties& props) {
-    std::unordered_map<std::string, float> registers;
-    for (const auto& servo : character.lip_sync_servos) {
-        for (const auto& target : servo.targets) {
-            if (target.property.empty()) continue;
-            if (auto value = facefx_eye_register_value(target, props)) {
-                registers[target.property] = *value;
-            }
-        }
-    }
-    return registers;
-}
-
 float env_float(const char* name, float fallback) {
     if (const char* value = env_value(name)) {
         char* end = nullptr;
@@ -17714,9 +17671,8 @@ void Gameplay::update_worldcrowd_actor_runtime(float dt) {
             }
         }
         ghogx::character::clear_runtime_ik_weights(character);
-        ghogx::character::FaceFxEyeProperties eye_props;
         ghogx::character::apply_character_controllers(
-            character, static_cast<float>(song_time_), &eye_props);
+            character, static_cast<float>(song_time_));
     }
 }
 
@@ -20415,9 +20371,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     character, perf_fret_pos.spot_name,
                     static_cast<float>(song_time_));
             }
-            ghogx::character::FaceFxEyeProperties eye_props;
             ghogx::character::apply_character_controllers(
-                character, static_cast<float>(song_time_), &eye_props);
+                character, static_cast<float>(song_time_));
             if (hand_driver_active) {
                 const uint32_t debug_hand_mask =
                     perf_anim_note_cue.active
@@ -20448,10 +20403,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               *facefx_animation_,
                               static_cast<float>(song_time_))
                         : std::unordered_map<std::string, float>{};
-                for (const auto& [name, value] :
-                     facefx_registers_from_eye_servo(character, eye_props)) {
-                    registers[name] = value;
-                }
                 if (!registers.empty()) {
                     const float eyez =
                         ghogx::character::evaluate_facefx_node(

@@ -2778,21 +2778,9 @@ void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character)
 void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
                                float weight, Character& character);
 
-// Apply decoded character-level controllers that sit outside CharClipSamples
-// (eyes/look-at, FaceFX servo targets). Call after clip poses for the frame.
-struct FaceFxEyeProperties {
-  float l_eye_x = 0.0f;
-  float l_eye_z = 0.0f;
-  float r_eye_x = 0.0f;
-  float r_eye_z = 0.0f;
-  bool has_l_eye_x = false;
-  bool has_l_eye_z = false;
-  bool has_r_eye_x = false;
-  bool has_r_eye_z = false;
-};
-
-void apply_character_controllers(Character& character, float time_seconds,
-                                 FaceFxEyeProperties* eye_props = nullptr);
+// Apply decoded character-level controllers that sit outside CharClipSamples.
+// Call after clip poses for the frame.
+void apply_character_controllers(Character& character, float time_seconds);
 
 void clear_runtime_ik_weights(Character& character);
 void set_runtime_ik_weight(Character& character, const std::string& weight_prop,

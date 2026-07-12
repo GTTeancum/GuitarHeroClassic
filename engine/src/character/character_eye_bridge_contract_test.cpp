@@ -68,14 +68,14 @@ int main() {
   const std::string char_clip = read_file(source_dir / "char_clip.cpp");
   const std::string char_facefx = read_file(source_dir / "char_facefx.cpp");
   const std::string char_renderer = read_file(source_dir / "char_renderer.cpp");
+  const std::string gameplay =
+      read_file(source_dir.parent_path() / "game/gameplay.cpp");
   const std::string format_notes =
       read_file(source_dir / "CHARACTER_FORMAT_NOTES.md");
   const std::string format_notes_compact = compact(format_notes);
 
   const std::string decode_eyes =
       compact(function_body(char_mesh, "decode_eyes"));
-  const std::string apply_controllers =
-      compact(function_body(char_clip, "apply_character_controllers"));
   const std::string parse_animation =
       compact(function_body(char_facefx, "parse_animation"));
   const std::string renderer_c = compact(char_renderer);
@@ -96,8 +96,12 @@ int main() {
                  "throwstd::runtime_error",
                  "CharEyes decoder enforces source revision range");
 
-  ok &= contains(apply_controllers, "if(eye_props)*eye_props={};",
-                 "FaceFX eye props are cleared when no source-backed eye poll is active");
+  ok &= missing(compact(char_clip), "FaceFxEyeProperties",
+                "unsupported FaceFX eye property output must stay removed");
+  ok &= missing(compact(gameplay), "facefx_registers_from_eye_servo",
+                "gameplay must not infer FaceFX registers from CharEyes rows");
+  ok &= missing(compact(gameplay), "facefx_eye_register_value",
+                "gameplay must not infer FaceFX eye register axes by name");
   ok &= missing(compact(char_clip), "submit_char_eyes_runtime_rows",
                 "unsupported CharEyes runtime-row bridge must stay removed");
   ok &= missing(compact(char_clip),

@@ -1480,7 +1480,6 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
     ghogx::character::clear_runtime_ik_weights(renderer.character());
-    ghogx::character::FaceFxEyeProperties eye_props;
     if (character_controllers) {
       if (viewer_hand_ik_weights_active) {
         if (right_hand_weight_override || strum_clip.loaded) {
@@ -1495,7 +1494,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
         }
       }
       ghogx::character::apply_character_controllers(
-          renderer.character(), static_cast<float>(pose_time), &eye_props);
+          renderer.character(), static_cast<float>(pose_time));
     }
 
     if (const auto viseme_frame = env_int("GHOGX_FACEFX_VISEME_FRAME")) {

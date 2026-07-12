@@ -108,7 +108,7 @@ int main() {
   hair.strands[0].points[0].length = 2.0f;
   character.hairs.push_back(hair);
 
-  apply_character_controllers(character, 0.0f, nullptr);
+  apply_character_controllers(character, 0.0f);
 
   const auto state_it = character.source_char_hair_runtime.find("test.hair");
   if (state_it == character.source_char_hair_runtime.end()) {

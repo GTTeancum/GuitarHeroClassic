@@ -2384,7 +2384,7 @@ int run_contract() {
                  "hair.simulate=false;",
                  "deterministic CharHair test starts with disabled simulate flag");
   ok &= contains(char_hair_source_test,
-                 "apply_character_controllers(character,0.0f,nullptr);",
+                 "apply_character_controllers(character,0.0f);",
                  "deterministic CharHair test exercises public controller path");
   ok &= contains(char_hair_source_test,
                  "ok&=state.use_post_proc;",
@@ -4073,7 +4073,7 @@ int run_contract() {
                  "focused CharIKRod test covers source PollDeps");
   ok &= contains(ik_rod_source_test,
                  "character.ik_rods.push_back(make_identity_rod());"
-                 "apply_character_controllers(character,0.0f,nullptr);",
+                 "apply_character_controllers(character,0.0f);",
                  "focused CharIKRod test covers controller writeback path");
   ok &= contains(bind_audit, "version=%dleft=%s",
                  "controller audit logs CharIKRod source revision");
@@ -7395,6 +7395,15 @@ int run_contract() {
                  "FaceFxLipSyncServo::Loadbody.Keepthislimitedtothestock"
                  "FAC/viseme",
                  "native FaceFxLipSyncServo decoder states source boundary");
+  ok &= contains(doc,
+                 "The old native `FaceFxEyeProperties` bridge and gameplay\n"
+                 "    eye-register-name inference were removed.",
+                 "document records removed FaceFX eye-register bridge");
+  ok &= missing(char_clip, "FaceFxEyeProperties",
+                "native API must not expose unsupported FaceFX eye properties");
+  ok &= missing(char_clip_h, "FaceFxEyeProperties",
+                "public character API must not expose unsupported FaceFX eye "
+                "properties");
   ok &= contains(bind_audit, "object_type_counts",
                  "bind audit has stock object-type inventory support");
   ok &= contains(bind_audit, "--types",
@@ -8081,7 +8090,7 @@ int run_contract() {
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
   ok &= contains(weight_setter_source_test,
-                 "apply_character_controllers(character,0.0f,nullptr);",
+                 "apply_character_controllers(character,0.0f);",
                  "focused CharWeightSetter test covers controller writeback");
   ok &= contains(weight_setter_source_test,
                  "source_char_weight_setter_poll_deps(",

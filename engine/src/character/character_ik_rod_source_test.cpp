@@ -207,7 +207,7 @@ int main() {
 
   character.ik_rods.clear();
   character.ik_rods.push_back(make_identity_rod());
-  apply_character_controllers(character, 0.0f, nullptr);
+  apply_character_controllers(character, 0.0f);
   const auto runtime = character.runtime_world_overrides.find("dest");
   ok &= runtime != character.runtime_world_overrides.end();
   if (runtime != character.runtime_world_overrides.end()) {

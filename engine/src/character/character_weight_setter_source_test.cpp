@@ -324,7 +324,7 @@ int main() {
 
   Character character;
   character.weight_setters.push_back(make_setter("live.weight"));
-  apply_character_controllers(character, 0.0f, nullptr);
+  apply_character_controllers(character, 0.0f);
   const auto runtime = character.runtime_weight_props.find("live.weight");
   ok &= runtime != character.runtime_weight_props.end();
   if (runtime != character.runtime_weight_props.end()) {

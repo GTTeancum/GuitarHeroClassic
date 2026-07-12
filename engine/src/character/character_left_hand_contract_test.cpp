@@ -203,8 +203,7 @@ int main() {
   ok &= contains(app_main_c,
                  "ghogx::character::clear_runtime_ik_weights("
                  "renderer.character());"
-                 "ghogx::character::FaceFxEyePropertieseye_props;"
-                 "if(character_controllers){",
+                  "if(character_controllers){",
                  "character viewer clears stale IK weights every frame");
   ok &= lacks(app_main_c,
               "set_runtime_ik_weight(renderer.character(),ik.weight_prop,0.0f)",

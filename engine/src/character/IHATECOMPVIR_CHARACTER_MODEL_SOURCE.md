@@ -1385,6 +1385,12 @@ note, and all report `unreadBytes=0`.
     `.fac` files, viseme MILOs, and target object/property rows; it is not
     source evidence for synthetic eye rows, mouth offsets, or a face-controller
     runtime bridge.
+  - The old native `FaceFxEyeProperties` bridge and gameplay
+    eye-register-name inference were removed. `CharEyes::Poll` and
+    `FaceFxLipSyncServo::Load` are not available from the checked
+    ihatecompvir sources, so gameplay must not synthesize FaceFX registers from
+    decoded eye rows. FaceFX runtime registers remain limited to sampled
+    FaceFX animation curves until a source-backed producer exists.
 - `rb3-latest/src/system/char/CharLipSync.cpp` and
   `rb3-latest/src/system/char/CharLipSync.h`
   - `CharLipSync::Generator` initializes the lip-sync pointer to null,
