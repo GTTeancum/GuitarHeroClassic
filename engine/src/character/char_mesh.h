@@ -153,7 +153,7 @@ struct SourceRndMeshFieldGatePlan {
   bool reads_vertices = true;
   bool reads_faces = true;
   bool reads_group_sizes_modern = false;
-  bool group_sizes_gap_unimplemented = false;
+  bool reads_patch_vector_loop_legacy = false;
   bool reads_group_sizes_legacy = false;
   bool uses_bone_block_presence_probe = true;
   bool reads_modern_bone_transform_vector = false;

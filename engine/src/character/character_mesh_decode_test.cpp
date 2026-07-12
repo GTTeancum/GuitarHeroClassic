@@ -641,7 +641,7 @@ int main() {
   CHECK(gh2_rev28_fields.reads_vertices);
   CHECK(gh2_rev28_fields.reads_faces);
   CHECK(gh2_rev28_fields.reads_group_sizes_modern);
-  CHECK(!gh2_rev28_fields.group_sizes_gap_unimplemented);
+  CHECK(!gh2_rev28_fields.reads_patch_vector_loop_legacy);
   CHECK(!gh2_rev28_fields.reads_group_sizes_legacy);
   CHECK(gh2_rev28_fields.uses_bone_block_presence_probe);
   CHECK(!gh2_rev28_fields.reads_modern_bone_transform_vector);
@@ -657,12 +657,12 @@ int main() {
   CHECK(rev27_fields.reads_group_sizes_modern);
   CHECK(!rev27_fields.reads_group_sections);
 
-  const auto rev23_gap_fields =
+  const auto rev23_patch_fields =
       ghogx::character::source_rndmesh_field_gate_plan(23, 0, 24, 1, true);
-  CHECK(!rev23_gap_fields.reads_group_sizes_modern);
-  CHECK(rev23_gap_fields.group_sizes_gap_unimplemented);
-  CHECK(!rev23_gap_fields.reads_group_sizes_legacy);
-  CHECK(rev23_gap_fields.reads_group_sections);
+  CHECK(!rev23_patch_fields.reads_group_sizes_modern);
+  CHECK(rev23_patch_fields.reads_patch_vector_loop_legacy);
+  CHECK(!rev23_patch_fields.reads_group_sizes_legacy);
+  CHECK(rev23_patch_fields.reads_group_sections);
 
   const auto modern_fields =
       ghogx::character::source_rndmesh_field_gate_plan(38, 4, 30, 1, true);

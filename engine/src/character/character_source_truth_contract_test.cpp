@@ -3058,9 +3058,9 @@ int run_contract() {
                  "plan.reads_alt_geom_owner=mesh_revision<13;",
                  "native field-gate helper preserves alt geom owner gate");
   ok &= contains(char_mesh,
-                 "plan.group_sizes_gap_unimplemented=mesh_revision>0x15&&"
+                 "plan.reads_patch_vector_loop_legacy=mesh_revision>0x15&&"
                  "mesh_revision<=0x17;",
-                 "native field-gate helper preserves groupSizes TODO gap");
+                 "native field-gate helper preserves legacy patch-vector loop");
   ok &= contains(char_mesh,
                  "plan.reads_modern_bone_transform_vector=mesh_revision>=33;",
                  "native field-gate helper preserves modern bone vector gate");
@@ -3137,7 +3137,16 @@ int run_contract() {
                  "focused mesh decode test covers GH2 old four-bone gate");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_field_gate_plan(23,0,24,1,true)",
-                 "focused mesh decode test covers RndMesh groupSizes TODO gap");
+                 "focused mesh decode test covers RndMesh legacy patch-vector loop");
+  ok &= contains(mesh_decode_test,
+                 "rev23_patch_fields.reads_patch_vector_loop_legacy",
+                 "focused mesh decode test asserts legacy patch-vector loop");
+  ok &= contains(rb3_mesh_cpp,
+                 "elseif(gRev>0x15){mPatches.clear();intcount;unsignedintui;"
+                 "bs>>count;for(;count!=0;count--){std::vector<unsignedshort>"
+                 "usvec;std::vector<unsignedint>uivec;bs>>ui>>usvec>>uivec;"
+                 "mPatches.push_back(ui);}}",
+                 "RB3 RndMesh source exposes legacy patch-vector loop");
   ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("

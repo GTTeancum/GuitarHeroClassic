@@ -400,7 +400,7 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
   plan.reads_rev7_bool = mesh_revision == 7;
   plan.reads_legacy_int = mesh_revision < 11;
   plan.reads_group_sizes_modern = mesh_revision > 0x17;
-  plan.group_sizes_gap_unimplemented =
+  plan.reads_patch_vector_loop_legacy =
       mesh_revision > 0x15 && mesh_revision <= 0x17;
   plan.reads_group_sizes_legacy =
       mesh_revision > 0x10 && mesh_revision <= 0x15;
