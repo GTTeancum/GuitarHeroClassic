@@ -5121,6 +5121,22 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "source_grim_char_hair_load_plan(2)",
                  "focused CharHair test covers grim-dev GH2 parser plan");
+  ok &= contains(mesh_decode_test,
+                 "make_rev2_hair_with_point()",
+                 "deterministic mesh decode test builds GH2 rev-2 hair row");
+  ok &= contains(mesh_decode_test,
+                 "rev2_hair.strands[0].points[0].collide_type==3",
+                 "deterministic mesh decode test preserves GH2 collide type");
+  ok &= contains(mesh_decode_test,
+                 "rev2_hair.strands[0].points[0].collision=="
+                 "\"hair_collision\"",
+                 "deterministic mesh decode test preserves GH2 collision row");
+  ok &= contains(mesh_decode_test,
+                 "rev2_hair.strands[0].points[0].outer_radius,1.25f",
+                 "deterministic mesh decode test maps align_dist to outer radius");
+  ok &= contains(mesh_decode_test,
+                 "rev2_hair.strands[0].points[0].side_length,-1.0f",
+                 "deterministic mesh decode test keeps rev-2 side length default");
   ok &= contains(doc,
                  "Grim `dev` `char_hair/io.rs` independently records GH2/GH2 360",
                  "document records grim-dev GH2 CharHair parser evidence");
@@ -5128,6 +5144,10 @@ int run_contract() {
                  "This is parser\n    evidence only; it does not promote "
                  "collision hookup, physics, or\n    simulation writeback",
                  "document fences grim-dev CharHair parser evidence");
+  ok &= contains(doc,
+                 "The deterministic `decode_hair` coverage includes a "
+                 "synthetic revision-2\n    row that preserves `collide_type`",
+                 "document records rev-2 CharHair decode coverage");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairSetNamePlan{"
                  "boolcall_hmx_object_set_name=true;"

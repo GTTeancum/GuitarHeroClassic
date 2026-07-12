@@ -1369,6 +1369,10 @@ note, and all report `unreadBytes=0`.
     revision-2 `pos`, `radius`, and `outerRadius` fields. This is parser
     evidence only; it does not promote collision hookup, physics, or
     simulation writeback into solved runtime behavior.
+    The deterministic `decode_hair` coverage includes a synthetic revision-2
+    row that preserves `collide_type`, `collision`, `distance`, and
+    `align_dist` while leaving `side_length` and strand hookup flags at their
+    source-gated defaults.
   - `CharHair::Save` uses source save id `0x41B`. Native
     `source_char_hair_save_plan` records that row id only; it does not imply
     any additional runtime writer.

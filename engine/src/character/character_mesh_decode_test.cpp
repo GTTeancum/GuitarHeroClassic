@@ -137,6 +137,39 @@ std::vector<uint8_t> make_rev11_hair_without_strands() {
   return b;
 }
 
+std::vector<uint8_t> make_rev2_hair_with_point() {
+  std::vector<uint8_t> b;
+  put_u32(b, 2);                  // CharHair revision used by GH2/GH2 360
+  put_zeros(b, 9);                // ObjectFields revision 0, empty type/root
+  put_f32(b, 0.04f);              // stiffness
+  put_f32(b, 0.10f);              // torsion
+  put_f32(b, 0.70f);              // inertia
+  put_f32(b, 1.00f);              // gravity
+  put_f32(b, 0.50f);              // weight
+  put_f32(b, 0.30f);              // friction
+  put_u32(b, 1);                  // strands
+  put_str(b, "bone_hair_root");   // strand root
+  put_f32(b, 12.5f);              // angle
+  put_u32(b, 1);                  // points
+  put_f32(b, 1.0f);               // point unknown_floats / pos x
+  put_f32(b, 2.0f);               // point unknown_floats / pos y
+  put_f32(b, 3.0f);               // point unknown_floats / pos z
+  put_str(b, "bone_hair_tip");    // driven bone
+  put_f32(b, 4.0f);               // length
+  put_u32(b, 3);                  // collide_type
+  put_str(b, "hair_collision");   // collision
+  put_f32(b, 0.75f);              // distance / radius
+  put_f32(b, 1.25f);              // align_dist / outer_radius
+  for (int i = 0; i < 9; ++i) {
+    put_f32(b, (i % 4) == 0 ? 1.0f : 0.0f);
+  }
+  for (int i = 0; i < 9; ++i) {
+    put_f32(b, (i % 4) == 0 ? 1.0f : 0.0f);
+  }
+  b.push_back(0);                 // simulate
+  return b;
+}
+
 std::vector<uint8_t> make_eyes_with_lookats(uint32_t version,
                                             bool include_legacy_transform) {
   std::vector<uint8_t> b;
@@ -1421,6 +1454,29 @@ int main() {
   CHECK(rev11_hair.simulate);
   CHECK(rev11_hair.wind == "stage.wind");
   CHECK(rev11_hair.unread_bytes == 0);
+
+  const ghogx::character::CharHair rev2_hair =
+      ghogx::character::decode_hair("rev2.hair", make_rev2_hair_with_point());
+  CHECK(rev2_hair.version == 2);
+  CHECK(approx(rev2_hair.min_slack, 0.0f));
+  CHECK(approx(rev2_hair.max_slack, 0.0f));
+  CHECK(rev2_hair.strands.size() == 1);
+  CHECK(rev2_hair.strands[0].root == "bone_hair_root");
+  CHECK(approx(rev2_hair.strands[0].angle, 12.5f));
+  CHECK(rev2_hair.strands[0].hookup_flags == 0);
+  CHECK(rev2_hair.strands[0].points.size() == 1);
+  CHECK(approx(rev2_hair.strands[0].points[0].pos[0], 1.0f));
+  CHECK(approx(rev2_hair.strands[0].points[0].pos[1], 2.0f));
+  CHECK(approx(rev2_hair.strands[0].points[0].pos[2], 3.0f));
+  CHECK(rev2_hair.strands[0].points[0].bone == "bone_hair_tip");
+  CHECK(approx(rev2_hair.strands[0].points[0].length, 4.0f));
+  CHECK(rev2_hair.strands[0].points[0].collide_type == 3);
+  CHECK(rev2_hair.strands[0].points[0].collision == "hair_collision");
+  CHECK(approx(rev2_hair.strands[0].points[0].radius, 0.75f));
+  CHECK(approx(rev2_hair.strands[0].points[0].outer_radius, 1.25f));
+  CHECK(approx(rev2_hair.strands[0].points[0].side_length, -1.0f));
+  CHECK(!rev2_hair.simulate);
+  CHECK(rev2_hair.unread_bytes == 0);
 
   const ghogx::character::CharLookAt rev2_lookat =
       ghogx::character::decode_lookat("l-eye.lookat", make_lookat(2, 2));
