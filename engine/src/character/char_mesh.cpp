@@ -2396,7 +2396,11 @@ CharHair decode_hair_body(const std::string& entry_name,
         point.collide_type = r.u32();
       }
       point.radius = r.f32();
-      if (hair.version > 1) point.outer_radius = r.f32();
+      if (hair.version > 1) {
+        point.outer_radius = r.f32();
+      } else {
+        point.outer_radius = 0.0f;
+      }
       if (hair.version == 6 || hair.version == 7 || hair.version == 8) {
         const float add_to_radius = r.f32();
         point.radius += add_to_radius;
@@ -3515,6 +3519,10 @@ void source_char_hair_set_cloth(CharHair& hair, bool enabled) {
 
 SourceCharHairDefaultState source_char_hair_default_state() {
   return SourceCharHairDefaultState{};
+}
+
+SourceCharHairPointDefaultState source_char_hair_point_default_state() {
+  return SourceCharHairPointDefaultState{};
 }
 
 SourceCharHairSavePlan source_char_hair_save_plan() {

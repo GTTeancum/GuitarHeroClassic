@@ -76,6 +76,7 @@ int main() {
   using ghogx::character::source_char_hair_hookup_dump_evidence;
   using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_load_plan;
+  using ghogx::character::source_char_hair_point_default_state;
   using ghogx::character::source_char_hair_point_load_plan;
   using ghogx::character::source_char_hair_poll_decision;
   using ghogx::character::source_char_hair_prop_sync_plan;
@@ -145,6 +146,29 @@ int main() {
                 << " want near -2\n";
     }
   }
+
+  const auto point_defaults = source_char_hair_point_default_state();
+  ok &= near(point_defaults.radius, 0.0f, "point default radius");
+  ok &= near(point_defaults.outer_radius, -1.0f,
+             "point default outer radius");
+  ok &= near(point_defaults.unk5c[0], 0.0f, "point default unk5c x");
+  ok &= expect_bool(point_defaults.bone_null, true, "point default null bone");
+  ok &= expect_bool(point_defaults.collides_empty, true,
+                    "point default empty collides");
+
+  const ghogx::character::CharHairPoint native_point;
+  ok &= near(native_point.radius, point_defaults.radius,
+             "native point radius default");
+  ok &= near(native_point.outer_radius, point_defaults.outer_radius,
+             "native point outer radius default");
+  ok &= near(native_point.side_length, -1.0f,
+             "native point side length default");
+
+  const auto point_v1 = source_char_hair_point_load_plan(1);
+  ok &= expect_bool(point_v1.known_revision, true,
+                    "point load accepts v1");
+  ok &= expect_bool(point_v1.branches[0] == "outerRadius=0", true,
+                    "point v1 load overrides constructor outer radius");
 
   const auto point_v2 = source_char_hair_point_load_plan(2);
   ok &= expect_bool(point_v2.known_revision, true,

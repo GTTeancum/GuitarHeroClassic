@@ -6387,6 +6387,15 @@ int run_contract() {
                  "mMe(this,0),mWind(this,0),mCollide(this,kObjListNoNull),"
                  "mManagedHookup(0){}",
                  "RB3 CharHair constructor exposes runtime default flags");
+  ok &= contains(rb3_latest_char_hair_h,
+                 "Point(Hmx::Object*o):bone(o,0),length(0.0f),"
+                 "collides(o,kObjListNoNull),radius(0.0f),"
+                 "outerRadius(-1.0f){",
+                 "RB3 CharHair Point constructor exposes source defaults");
+  ok &= contains(rb3_latest_char_hair_h,
+                 "pos.Zero();force.Zero();lastFriction.Zero();lastZ.Zero();"
+                 "unk5c.Zero();",
+                 "RB3 CharHair Point constructor zeroes runtime vectors");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "BinStream&operator>>(BinStream&bs,CharHair::Point&pt){"
                  "bs>>pt.pos;bs>>pt.bone;bs>>pt.length;",
@@ -6434,6 +6443,19 @@ int run_contract() {
                  "booluse_post_proc=true;boolmanaged_hookup=false;};",
                  "native exposes source CharHair default runtime flags");
   ok &= contains(char_mesh_h,
+                 "structCharHairPoint{floatpos[3]={0,0,0};",
+                 "native CharHairPoint exposes source point defaults");
+  ok &= contains(char_mesh_h,
+                 "floatradius=0.0f;floatouter_radius=-1.0f;",
+                 "native CharHairPoint matches source outer radius default");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairPointDefaultState{floatpos[3]="
+                 "{0.0f,0.0f,0.0f};boolbone_null=true;",
+                 "native exposes CharHair Point default-state helper row");
+  ok &= contains(char_mesh_h,
+                 "floatradius=0.0f;floatouter_radius=-1.0f;",
+                 "native point default helper records source radius defaults");
+  ok &= contains(char_mesh_h,
                  "structSourceCharHairRuntime{boolinitialized=false;"
                  "booluse_post_proc=true;",
                  "native carries CharHair SetName postproc state into runtime");
@@ -6441,10 +6463,22 @@ int run_contract() {
                  "SourceCharHairDefaultStatesource_char_hair_default_state(){"
                  "returnSourceCharHairDefaultState{};}",
                  "native CharHair default helper returns source defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharHairPointDefaultStatesource_char_hair_point_default_state(){"
+                 "returnSourceCharHairPointDefaultState{};}",
+                 "native CharHair point default helper returns source defaults");
+  ok &= contains(char_mesh,
+                 "if(hair.version>1){point.outer_radius=r.f32();}"
+                 "else{point.outer_radius=0.0f;}",
+                 "native CharHair load overrides old-revision outer radius");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairPointLoadPlan{boolknown_revision=false;"
                  "std::vector<std::string>read_order;",
                  "native exposes CharHair Point load plan row");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairPointDefaultState"
+                 "source_char_hair_point_default_state();",
+                 "native exposes CharHair Point default helper");
   ok &= contains(char_mesh_h,
                  "SourceCharHairPointLoadPlansource_char_hair_point_load_plan("
                  "intrevision);",
@@ -7351,6 +7385,15 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_hair_load_plan`, `source_char_hair_strand_load_plan`, and",
                  "document records native CharHair load plan helpers");
+  ok &= contains(doc,
+                 "The `CharHair::Point` constructor in the latest header",
+                 "document records CharHair Point constructor default source");
+  ok &= contains(doc,
+                 "`outerRadius` to `-1.0f`",
+                 "document records CharHair Point outer radius default");
+  ok &= contains(doc,
+                 "`source_char_hair_point_default_state` now mirror that constructor default",
+                 "document records native point default helper");
   ok &= contains(doc,
                  "revision gates as deterministic format evidence for hair segment/controller",
                  "document ties CharHair load plans to segment/controller rows");

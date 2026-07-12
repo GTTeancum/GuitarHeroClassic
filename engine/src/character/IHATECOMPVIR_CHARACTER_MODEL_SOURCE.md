@@ -1543,6 +1543,13 @@ note, and all report `unreadBytes=0`.
     transform, and eight empty structs.
 - `rb3-latest/src/system/char/CharHair.cpp` and
   `rb3-latest/src/system/char/CharHair.h`
+  - The `CharHair::Point` constructor in the latest header zeroes position,
+    force, last-friction, last-Z, and `unk5c`, creates null `bone` and empty
+    no-null `collides` rows, sets `length` and `radius` to `0.0f`, and sets
+    `outerRadius` to `-1.0f`. Native `CharHairPoint` and
+    `source_char_hair_point_default_state` now mirror that constructor default.
+    The point load plan still records the source revision gate that forces
+    `outerRadius=0` for revisions below 2.
   - `operator>>(BinStream&, CharHair::Point&)` is the runtime read authority for
     point fields. For revisions 6, 7, and 8 the extra float is added to both
     `radius` and `outerRadius`. For revisions below 8, `sideLength` is forced to

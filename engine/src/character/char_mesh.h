@@ -1389,7 +1389,7 @@ struct CharHairPoint {
   uint32_t collide_type = 0;
   std::string collision;
   float radius = 0.0f;
-  float outer_radius = 0.0f;
+  float outer_radius = -1.0f;
   float side_length = -1.0f;
   float unk5c[3] = {0, 0, 0};
 };
@@ -1438,6 +1438,19 @@ struct SourceCharHairDefaultState {
   bool simulate = true;
   bool use_post_proc = true;
   bool managed_hookup = false;
+};
+
+struct SourceCharHairPointDefaultState {
+  float pos[3] = {0.0f, 0.0f, 0.0f};
+  bool bone_null = true;
+  float length = 0.0f;
+  bool collides_empty = true;
+  float radius = 0.0f;
+  float outer_radius = -1.0f;
+  float force[3] = {0.0f, 0.0f, 0.0f};
+  float last_friction[3] = {0.0f, 0.0f, 0.0f};
+  float last_z[3] = {0.0f, 0.0f, 0.0f};
+  float unk5c[3] = {0.0f, 0.0f, 0.0f};
 };
 
 struct SourceCharHairPointLoadPlan {
@@ -2992,6 +3005,7 @@ struct SourceCharIKFingersPropSyncPlan {
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
 SourceCharHairDefaultState source_char_hair_default_state();
+SourceCharHairPointDefaultState source_char_hair_point_default_state();
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
 SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
 SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
