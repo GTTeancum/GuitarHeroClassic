@@ -633,6 +633,18 @@ bool expect_driver_midi_helpers() {
     ok = false;
   }
 
+  const ghogx::character::SourceCharDriverMidiPollPlan poll_plan =
+      ghogx::character::source_char_driver_midi_poll_plan();
+  ghogx::character::SourceCharDriverPollDeps midi_deps;
+  ghogx::character::source_char_driver_midi_poll_deps(midi_deps,
+                                                      "midi.bones");
+  if (!poll_plan.call_driver_poll || !poll_plan.call_driver_poll_deps ||
+      !midi_deps.changed_by.empty() || midi_deps.change.size() != 1 ||
+      midi_deps.change[0] != "midi.bones") {
+    std::cerr << "driver MIDI Poll/PollDeps delegation mismatch\n";
+    ok = false;
+  }
+
   ghogx::character::source_char_driver_midi_on_parser_flags(midi, 0x1234);
   if (midi.clip_flags != 0x1234) {
     std::cerr << "driver MIDI flags message mismatch\n";

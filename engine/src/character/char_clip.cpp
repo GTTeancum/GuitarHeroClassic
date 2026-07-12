@@ -3078,6 +3078,18 @@ SourceCharDriverMidiExitDecision source_char_driver_midi_exit(
   return decision;
 }
 
+SourceCharDriverMidiPollPlan source_char_driver_midi_poll_plan() {
+  SourceCharDriverMidiPollPlan plan;
+  plan.call_driver_poll = true;
+  plan.call_driver_poll_deps = true;
+  return plan;
+}
+
+void source_char_driver_midi_poll_deps(SourceCharDriverPollDeps& deps,
+                                       const std::string& bones) {
+  source_char_driver_poll_deps(deps, bones);
+}
+
 void source_char_driver_midi_on_parser_flags(
     SourceCharDriverMidiState& midi_state,
     int clip_flags) {

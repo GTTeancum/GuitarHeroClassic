@@ -7415,6 +7415,10 @@ int run_contract() {
                  "intgroup_clip_flags=0;",
                  "native exposes source CharDriverMidi group clip flag decision");
   ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiPollPlan{boolcall_driver_poll=false;"
+                 "boolcall_driver_poll_deps=false;};",
+                 "native exposes source CharDriverMidi poll delegation plan");
+  ok &= contains(char_clip_h,
                  "SourceCharDriverMidiStatesource_char_driver_midi_default_state();",
                  "native exposes source CharDriverMidi constructor helper");
   ok &= contains(char_clip_h,
@@ -7426,6 +7430,13 @@ int run_contract() {
                  "SourceCharDriverMidiExitDecisionsource_char_driver_midi_exit("
                  "boolparser_found,boolflag_parser_found);",
                  "native exposes source CharDriverMidi Exit helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiPollPlansource_char_driver_midi_poll_plan();",
+                 "native exposes source CharDriverMidi Poll helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_driver_midi_poll_deps("
+                 "SourceCharDriverPollDeps&deps,conststd::string&bones);",
+                 "native exposes source CharDriverMidi PollDeps helper");
   ok &= contains(char_clip_h,
                  "voidsource_char_driver_midi_on_parser_flags("
                  "SourceCharDriverMidiState&midi_state,intclip_flags);",
@@ -7531,6 +7542,16 @@ int run_contract() {
                  "SourceCharDriverMidiExitDecisiondecision;decision.call_driver_exit=true;",
                  "native CharDriverMidi Exit helper records base exit");
   ok &= contains(char_clip,
+                 "SourceCharDriverMidiPollPlansource_char_driver_midi_poll_plan(){"
+                 "SourceCharDriverMidiPollPlanplan;plan.call_driver_poll=true;"
+                 "plan.call_driver_poll_deps=true;returnplan;}",
+                 "native CharDriverMidi Poll helper records base delegation");
+  ok &= contains(char_clip,
+                 "voidsource_char_driver_midi_poll_deps("
+                 "SourceCharDriverPollDeps&deps,conststd::string&bones){"
+                 "source_char_driver_poll_deps(deps,bones);}",
+                 "native CharDriverMidi PollDeps helper delegates to CharDriver");
+  ok &= contains(char_clip,
                  "voidsource_char_driver_midi_on_parser_flags("
                  "SourceCharDriverMidiState&midi_state,intclip_flags){"
                  "midi_state.clip_flags=clip_flags;}",
@@ -7612,6 +7633,12 @@ int run_contract() {
                  "source_char_driver_midi_enter(driver_state,midi,true,false)",
                  "focused clip driver test covers CharDriverMidi Enter helper");
   ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_poll_plan()",
+                 "focused clip driver test covers CharDriverMidi Poll helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_poll_deps(midi_deps,\"midi.bones\")",
+                 "focused clip driver test covers CharDriverMidi PollDeps helper");
+  ok &= contains(clip_driver_flags_test,
                  "source_char_driver_midi_on_parser_flags(midi,0x1234)",
                  "focused clip driver test covers CharDriverMidi flags helper");
   ok &= contains(clip_driver_flags_test,
@@ -7653,6 +7680,10 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_driver_midi_default_state`,",
                  "document records native CharDriverMidi source helper slice");
+  ok &= contains(doc,
+                 "`Poll` and `PollDeps` add no\n"
+                 "    MIDI-specific behavior and delegate to `CharDriver`",
+                 "document records CharDriverMidi poll delegation boundary");
   ok &= contains(doc,
                  "`OnMidiParserGroup` use of `grp->GetClip(mClipFlags)`",
                  "document records CharDriverMidi group clip flag behavior");

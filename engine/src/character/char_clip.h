@@ -931,6 +931,11 @@ struct SourceCharDriverMidiExitDecision {
   bool remove_flag_parser_sink = false;
 };
 
+struct SourceCharDriverMidiPollPlan {
+  bool call_driver_poll = false;
+  bool call_driver_poll_deps = false;
+};
+
 struct SourceCharDriverMidiParserDecision {
   bool used_default_clip = false;
   bool call_group_get_clip = false;
@@ -1281,6 +1286,9 @@ SourceCharDriverMidiEnterDecision source_char_driver_midi_enter(
 SourceCharDriverMidiExitDecision source_char_driver_midi_exit(
     bool parser_found,
     bool flag_parser_found);
+SourceCharDriverMidiPollPlan source_char_driver_midi_poll_plan();
+void source_char_driver_midi_poll_deps(SourceCharDriverPollDeps& deps,
+                                       const std::string& bones);
 void source_char_driver_midi_on_parser_flags(
     SourceCharDriverMidiState& midi_state,
     int clip_flags);

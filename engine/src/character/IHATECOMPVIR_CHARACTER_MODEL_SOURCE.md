@@ -1703,9 +1703,12 @@ note, and all report `unreadBytes=0`.
   - `CharDriverMidi::Enter` attaches the object as a sink to `mParser` and
     `mFlagParser`. `OnMidiParser`, `OnMidiParserFlags`, and
     `OnMidiParserGroup` are the source-backed runtime route for MIDI/note-driven
-    clip selection and blend width scaling.
+    clip selection and blend width scaling. `Poll` and `PollDeps` add no
+    MIDI-specific behavior and delegate to `CharDriver`.
   - Native `source_char_driver_midi_default_state`,
     `source_char_driver_midi_enter`, `source_char_driver_midi_exit`,
+    `source_char_driver_midi_poll_plan`,
+    `source_char_driver_midi_poll_deps`,
     `source_char_driver_midi_on_parser_flags`,
     `source_char_driver_midi_on_parser`, and
     `source_char_driver_midi_on_parser_group` port the concrete source
