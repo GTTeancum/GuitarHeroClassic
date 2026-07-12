@@ -923,6 +923,18 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     triangle, and ignores indexed triangles whose indices fall outside the
     position accessor. Native `source_gltf_milo_build_source_triangles` ports
     that pre-chunk triangle contract.
+  - `SplitTrianglesIntoMeshChunks` greedily partitions exporter triangles
+    under `MaxMeshInfluencingBones = 40` and `MaxMeshVertices = ushort.MaxValue`.
+    It precomputes each triangle's unique joint set in vertex order, rejects a
+    triangle that cannot fit within the 40-bone palette, returns the full mesh
+    as one chunk when it already fits, otherwise seeds each chunk with the
+    unassigned triangle using the most joints, grows through shared-edge
+    adjacency by fewest added joints then fewest added vertices, and finally
+    does a global fill pass. Native `source_gltf_milo_split_mesh_chunks` ports
+    this deterministic exporter chunking rule and records the emitted chunk
+    triangle indices, joint palette order, and unique vertex count. It is
+    exporter/format evidence for palette layout, not a change to stock GH2
+    runtime skin decoding.
   - Native `source_rndmesh_vert_load_plan` records the visible vertex stream
     gates: position, normal, color, and UV are read for all revisions in this
     source path; revisions `>= 0x25` read a separate weight vector; revisions

@@ -461,6 +461,60 @@ int main() {
   CHECK(gltf_indexed_triangles.triangles[0].idx1 == 1);
   CHECK(gltf_indexed_triangles.triangles[0].idx2 == 2);
 
+  const std::vector<ghogx::character::SourceGltfMiloTriangle>
+      small_chunk_tris = {{0, 1, 2}, {2, 1, 3}};
+  const std::vector<std::vector<int32_t>> small_chunk_joints = {
+      {1}, {2}, {3}, {4}};
+  const auto small_chunk_plan =
+      ghogx::character::source_gltf_milo_split_mesh_chunks(
+          small_chunk_tris, small_chunk_joints);
+  CHECK(!small_chunk_plan.source_limits_exceeded);
+  CHECK(small_chunk_plan.max_influencing_bones == 40);
+  CHECK(small_chunk_plan.max_vertices == 65535);
+  CHECK(small_chunk_plan.chunks.size() == 1);
+  CHECK(small_chunk_plan.chunks[0].triangle_indices.size() == 2);
+  CHECK(small_chunk_plan.chunks[0].triangle_indices[0] == 0);
+  CHECK(small_chunk_plan.chunks[0].triangle_indices[1] == 1);
+  CHECK(small_chunk_plan.chunks[0].joint_indices.size() == 4);
+  CHECK(small_chunk_plan.chunks[0].joint_indices[0] == 1);
+  CHECK(small_chunk_plan.chunks[0].joint_indices[3] == 4);
+  CHECK(small_chunk_plan.chunks[0].unique_vertex_count == 4);
+
+  std::vector<ghogx::character::SourceGltfMiloTriangle> strip_tris;
+  std::vector<std::vector<int32_t>> strip_joints;
+  for (int32_t vertex = 0; vertex < 42; ++vertex) {
+    strip_joints.push_back({vertex});
+  }
+  for (uint32_t tri = 0; tri < 40; ++tri) {
+    strip_tris.push_back({tri, tri + 1, tri + 2});
+  }
+  const auto strip_chunk_plan =
+      ghogx::character::source_gltf_milo_split_mesh_chunks(
+          strip_tris, strip_joints);
+  CHECK(!strip_chunk_plan.source_limits_exceeded);
+  CHECK(strip_chunk_plan.chunks.size() == 2);
+  CHECK(strip_chunk_plan.chunks[0].triangle_indices.size() == 38);
+  CHECK(strip_chunk_plan.chunks[0].triangle_indices.front() == 0);
+  CHECK(strip_chunk_plan.chunks[0].triangle_indices.back() == 37);
+  CHECK(strip_chunk_plan.chunks[0].joint_indices.size() == 40);
+  CHECK(strip_chunk_plan.chunks[0].unique_vertex_count == 40);
+  CHECK(strip_chunk_plan.chunks[1].triangle_indices.size() == 2);
+  CHECK(strip_chunk_plan.chunks[1].triangle_indices[0] == 38);
+  CHECK(strip_chunk_plan.chunks[1].triangle_indices[1] == 39);
+  CHECK(strip_chunk_plan.chunks[1].joint_indices.size() == 4);
+
+  std::vector<std::vector<int32_t>> rejected_joints(1);
+  for (int32_t joint = 0; joint < 41; ++joint) {
+    rejected_joints[0].push_back(joint);
+  }
+  const auto rejected_chunk_plan =
+      ghogx::character::source_gltf_milo_split_mesh_chunks(
+          {{0, 0, 0}}, rejected_joints);
+  CHECK(rejected_chunk_plan.source_limits_exceeded);
+  CHECK(rejected_chunk_plan.rejected_triangle_indices.size() == 1);
+  CHECK(rejected_chunk_plan.rejected_triangle_indices[0] == 0);
+  CHECK(rejected_chunk_plan.chunks.empty());
+
   ghogx::character::SourceRndMeshZeroWeightVertex weighted_vertex;
   weighted_vertex.weights[0] = 0.25f;
   weighted_vertex.weights[1] = 0.0f;

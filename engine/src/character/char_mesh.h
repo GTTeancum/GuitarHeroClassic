@@ -185,6 +185,20 @@ struct SourceGltfMiloBuildTrianglesResult {
   int32_t ignored_invalid_triangles = 0;
 };
 
+struct SourceGltfMiloMeshChunk {
+  std::vector<int32_t> triangle_indices;
+  std::vector<int32_t> joint_indices;
+  int32_t unique_vertex_count = 0;
+};
+
+struct SourceGltfMiloMeshChunkPlan {
+  int32_t max_influencing_bones = 40;
+  int32_t max_vertices = 65535;
+  bool source_limits_exceeded = false;
+  std::vector<int32_t> rejected_triangle_indices;
+  std::vector<SourceGltfMiloMeshChunk> chunks;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
@@ -210,6 +224,10 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,
     int32_t position_count,
     bool has_index_buffer);
+
+SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
+    const std::vector<SourceGltfMiloTriangle>& triangles,
+    const std::vector<std::vector<int32_t>>& vertex_joint_indices);
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};

@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <unordered_set>
@@ -541,6 +542,250 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     result.triangles.push_back({idx0, idx1, idx2});
   }
   return result;
+}
+
+namespace {
+
+struct SourceGltfMiloMeshChunkBuilder {
+  std::vector<int32_t> triangle_indices;
+  std::vector<int32_t> joint_indices;
+  std::unordered_set<int32_t> joint_set;
+  std::unordered_set<uint32_t> vertex_set;
+
+  int32_t additional_joint_count(const std::vector<int32_t>& joints) const {
+    int32_t count = 0;
+    for (int32_t joint : joints) {
+      if (joint_set.find(joint) == joint_set.end()) ++count;
+    }
+    return count;
+  }
+
+  int32_t additional_vertex_count(const SourceGltfMiloTriangle& tri) const {
+    int32_t count = 0;
+    if (vertex_set.find(tri.idx0) == vertex_set.end()) ++count;
+    if (tri.idx1 != tri.idx0 &&
+        vertex_set.find(tri.idx1) == vertex_set.end()) {
+      ++count;
+    }
+    if (tri.idx2 != tri.idx0 && tri.idx2 != tri.idx1 &&
+        vertex_set.find(tri.idx2) == vertex_set.end()) {
+      ++count;
+    }
+    return count;
+  }
+
+  bool can_add_triangle(const SourceGltfMiloTriangle& tri,
+                        const std::vector<int32_t>& joints,
+                        int32_t max_joint_count,
+                        int32_t max_vertex_count) const {
+    return static_cast<int32_t>(joint_indices.size()) +
+                   additional_joint_count(joints) <=
+               max_joint_count &&
+           static_cast<int32_t>(vertex_set.size()) +
+                   additional_vertex_count(tri) <=
+               max_vertex_count;
+  }
+
+  void add_triangle(int32_t triangle_index,
+                    const SourceGltfMiloTriangle& tri,
+                    const std::vector<int32_t>& joints) {
+    triangle_indices.push_back(triangle_index);
+    vertex_set.insert(tri.idx0);
+    vertex_set.insert(tri.idx1);
+    vertex_set.insert(tri.idx2);
+    for (int32_t joint : joints) {
+      if (joint_set.insert(joint).second) joint_indices.push_back(joint);
+    }
+  }
+
+  SourceGltfMiloMeshChunk finish() const {
+    SourceGltfMiloMeshChunk chunk;
+    chunk.triangle_indices = triangle_indices;
+    chunk.joint_indices = joint_indices;
+    chunk.unique_vertex_count = static_cast<int32_t>(vertex_set.size());
+    return chunk;
+  }
+};
+
+std::vector<int32_t> source_gltf_milo_triangle_joint_indices(
+    const SourceGltfMiloTriangle& tri,
+    const std::vector<std::vector<int32_t>>& vertex_joint_indices) {
+  std::vector<int32_t> joints;
+  std::unordered_set<int32_t> seen;
+  const uint32_t vertices[3] = {tri.idx0, tri.idx1, tri.idx2};
+  for (uint32_t vertex : vertices) {
+    if (vertex >= vertex_joint_indices.size()) continue;
+    for (int32_t joint : vertex_joint_indices[vertex]) {
+      if (seen.insert(joint).second) joints.push_back(joint);
+    }
+  }
+  return joints;
+}
+
+}  // namespace
+
+SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
+    const std::vector<SourceGltfMiloTriangle>& triangles,
+    const std::vector<std::vector<int32_t>>& vertex_joint_indices) {
+  SourceGltfMiloMeshChunkPlan plan;
+  constexpr int32_t kMaxMeshInfluencingBones = 40;
+  constexpr int32_t kMaxMeshVertices = 65535;
+  plan.max_influencing_bones = kMaxMeshInfluencingBones;
+  plan.max_vertices = kMaxMeshVertices;
+
+  std::vector<std::vector<int32_t>> triangle_joints;
+  triangle_joints.reserve(triangles.size());
+  for (size_t i = 0; i < triangles.size(); ++i) {
+    triangle_joints.push_back(source_gltf_milo_triangle_joint_indices(
+        triangles[i], vertex_joint_indices));
+    if (triangle_joints.back().size() >
+        static_cast<size_t>(kMaxMeshInfluencingBones)) {
+      plan.source_limits_exceeded = true;
+      plan.rejected_triangle_indices.push_back(static_cast<int32_t>(i));
+    }
+  }
+  if (plan.source_limits_exceeded) return plan;
+
+  SourceGltfMiloMeshChunkBuilder full_mesh_chunk;
+  for (size_t i = 0; i < triangles.size(); ++i) {
+    full_mesh_chunk.add_triangle(static_cast<int32_t>(i), triangles[i],
+                                 triangle_joints[i]);
+  }
+  if (full_mesh_chunk.joint_indices.size() <=
+          static_cast<size_t>(kMaxMeshInfluencingBones) &&
+      full_mesh_chunk.vertex_set.size() <=
+          static_cast<size_t>(kMaxMeshVertices)) {
+    plan.chunks.push_back(full_mesh_chunk.finish());
+    return plan;
+  }
+
+  std::map<std::pair<uint32_t, uint32_t>, std::vector<int32_t>>
+      edge_to_triangle_indices;
+  auto add_edge = [&](uint32_t a, uint32_t b, int32_t triangle_index) {
+    if (b < a) std::swap(a, b);
+    edge_to_triangle_indices[{a, b}].push_back(triangle_index);
+  };
+  for (size_t i = 0; i < triangles.size(); ++i) {
+    const SourceGltfMiloTriangle& tri = triangles[i];
+    const int32_t triangle_index = static_cast<int32_t>(i);
+    add_edge(tri.idx0, tri.idx1, triangle_index);
+    add_edge(tri.idx1, tri.idx2, triangle_index);
+    add_edge(tri.idx2, tri.idx0, triangle_index);
+  }
+
+  std::vector<std::set<int32_t>> adjacency_sets(triangles.size());
+  for (const auto& edge : edge_to_triangle_indices) {
+    const std::vector<int32_t>& edge_triangles = edge.second;
+    if (edge_triangles.size() <= 1) continue;
+    for (size_t i = 0; i < edge_triangles.size(); ++i) {
+      for (size_t j = 0; j < edge_triangles.size(); ++j) {
+        if (i != j) {
+          adjacency_sets[edge_triangles[i]].insert(edge_triangles[j]);
+        }
+      }
+    }
+  }
+
+  std::vector<std::vector<int32_t>> triangle_adjacency;
+  triangle_adjacency.reserve(adjacency_sets.size());
+  for (const auto& adjacency : adjacency_sets) {
+    triangle_adjacency.emplace_back(adjacency.begin(), adjacency.end());
+  }
+
+  std::vector<bool> assigned(triangles.size(), false);
+  int32_t remaining_triangle_count = static_cast<int32_t>(triangles.size());
+  while (remaining_triangle_count > 0) {
+    int32_t seed_triangle_index = -1;
+    int32_t best_seed_joint_count = -1;
+    for (size_t i = 0; i < triangle_joints.size(); ++i) {
+      if (assigned[i]) continue;
+      const int32_t joint_count =
+          static_cast<int32_t>(triangle_joints[i].size());
+      if (joint_count > best_seed_joint_count) {
+        seed_triangle_index = static_cast<int32_t>(i);
+        best_seed_joint_count = joint_count;
+      }
+    }
+    if (seed_triangle_index < 0) break;
+
+    SourceGltfMiloMeshChunkBuilder chunk;
+    chunk.add_triangle(seed_triangle_index, triangles[seed_triangle_index],
+                       triangle_joints[seed_triangle_index]);
+    assigned[seed_triangle_index] = true;
+    --remaining_triangle_count;
+
+    std::set<int32_t> frontier;
+    for (int32_t adjacent : triangle_adjacency[seed_triangle_index]) {
+      if (!assigned[adjacent]) frontier.insert(adjacent);
+    }
+
+    while (!frontier.empty()) {
+      int32_t best_triangle_index = -1;
+      int32_t best_additional_joint_count = INT32_MAX;
+      int32_t best_additional_vertex_count = INT32_MAX;
+      for (int32_t triangle_index : frontier) {
+        if (!chunk.can_add_triangle(triangles[triangle_index],
+                                    triangle_joints[triangle_index],
+                                    kMaxMeshInfluencingBones,
+                                    kMaxMeshVertices)) {
+          continue;
+        }
+        const int32_t additional_joint_count =
+            chunk.additional_joint_count(triangle_joints[triangle_index]);
+        const int32_t additional_vertex_count =
+            chunk.additional_vertex_count(triangles[triangle_index]);
+        if (additional_joint_count < best_additional_joint_count ||
+            (additional_joint_count == best_additional_joint_count &&
+             additional_vertex_count < best_additional_vertex_count)) {
+          best_triangle_index = triangle_index;
+          best_additional_joint_count = additional_joint_count;
+          best_additional_vertex_count = additional_vertex_count;
+        }
+      }
+      if (best_triangle_index < 0) break;
+
+      frontier.erase(best_triangle_index);
+      chunk.add_triangle(best_triangle_index, triangles[best_triangle_index],
+                         triangle_joints[best_triangle_index]);
+      assigned[best_triangle_index] = true;
+      --remaining_triangle_count;
+      for (int32_t adjacent : triangle_adjacency[best_triangle_index]) {
+        if (!assigned[adjacent]) frontier.insert(adjacent);
+      }
+    }
+
+    int32_t global_search_start = 0;
+    while (remaining_triangle_count > 0 &&
+           chunk.vertex_set.size() < static_cast<size_t>(kMaxMeshVertices)) {
+      int32_t best_triangle_index = -1;
+      for (size_t offset = 0; offset < triangles.size(); ++offset) {
+        const int32_t triangle_index = static_cast<int32_t>(
+            (static_cast<size_t>(global_search_start) + offset) %
+            triangles.size());
+        if (assigned[triangle_index]) continue;
+        if (!chunk.can_add_triangle(triangles[triangle_index],
+                                    triangle_joints[triangle_index],
+                                    kMaxMeshInfluencingBones,
+                                    kMaxMeshVertices)) {
+          continue;
+        }
+        best_triangle_index = triangle_index;
+        global_search_start =
+            (triangle_index + 1) % static_cast<int32_t>(triangles.size());
+        break;
+      }
+      if (best_triangle_index < 0) break;
+
+      chunk.add_triangle(best_triangle_index, triangles[best_triangle_index],
+                         triangle_joints[best_triangle_index]);
+      assigned[best_triangle_index] = true;
+      --remaining_triangle_count;
+    }
+
+    plan.chunks.push_back(chunk.finish());
+  }
+
+  return plan;
 }
 
 SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(

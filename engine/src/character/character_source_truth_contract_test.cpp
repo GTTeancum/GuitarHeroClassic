@@ -3147,6 +3147,30 @@ int run_contract() {
                  "if(index0>=maxPositionIndex||index1>=maxPositionIndex||"
                  "index2>=maxPositionIndex)",
                  "glTFMilo rejects out-of-range indexed triangles");
+  ok &= contains(gltf_program_cs,
+                 "privateconstintMaxMeshInfluencingBones=40;",
+                 "glTFMilo source caps mesh chunks at forty bones");
+  ok &= contains(gltf_program_cs,
+                 "privatestaticList<MeshChunk>SplitTrianglesIntoMeshChunks(",
+                 "glTFMilo mesh chunk splitter is visible");
+  ok &= contains(gltf_program_cs,
+                 "if(currentTriangleJointIndices.Count>MaxMeshInfluencingBones)",
+                 "glTFMilo rejects triangles over the source bone palette limit");
+  ok &= contains(gltf_program_cs,
+                 "if(fullMeshChunk.jointIndices.Count<=MaxMeshInfluencingBones&&"
+                 "fullMeshChunk.uniqueVertexCount<=MaxMeshVertices)",
+                 "glTFMilo returns a whole-mesh chunk when source limits fit");
+  ok &= contains(gltf_program_cs,
+                 "intseedTriangleIndex=-1;intbestSeedJointCount=-1;",
+                 "glTFMilo chunk splitter seeds by largest joint count");
+  ok &= contains(gltf_program_cs,
+                 "intadditionalJointCount=chunk.AdditionalJointCount("
+                 "currentTriangleJointIndices);",
+                 "glTFMilo chunk splitter prefers fewer added joints");
+  ok &= contains(gltf_program_cs,
+                 "intglobalSearchStart=0;while(remainingTriangleCount>0&&"
+                 "chunk.uniqueVertexCount<MaxMeshVertices)",
+                 "glTFMilo chunk splitter has global fill pass");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -3159,6 +3183,13 @@ int run_contract() {
                  "SourceGltfMiloTriangle>triangles;",
                  "native declares glTFMilo triangle build result");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMeshChunk{std::vector<int32_t>"
+                 "triangle_indices;",
+                 "native declares glTFMilo mesh chunk contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMeshChunkPlan{int32_tmax_influencing_bones=40;",
+                 "native declares glTFMilo mesh chunk plan limits");
+  ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
@@ -3167,6 +3198,9 @@ int run_contract() {
                  "source_gltf_milo_build_source_triangles(conststd::vector<"
                  "uint32_t>&indices,int32_tposition_count,boolhas_index_buffer);",
                  "native exposes glTFMilo triangle builder helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloMeshChunkPlansource_gltf_milo_split_mesh_chunks(",
+                 "native exposes glTFMilo mesh chunk splitter helper");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
@@ -3211,6 +3245,26 @@ int run_contract() {
                  "idx2>=max_position_index)",
                  "native mirrors glTFMilo invalid triangle branch");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloMeshChunkPlansource_gltf_milo_split_mesh_chunks(",
+                 "native implements glTFMilo mesh chunk splitter helper");
+  ok &= contains(char_mesh,
+                 "constexprint32_tkMaxMeshInfluencingBones=40;",
+                 "native mesh chunk splitter preserves forty-bone limit");
+  ok &= contains(char_mesh,
+                 "if(triangle_joints.back().size()>static_cast<size_t>("
+                 "kMaxMeshInfluencingBones))",
+                 "native mesh chunk splitter rejects over-limit triangle rows");
+  ok &= contains(char_mesh,
+                 "if(full_mesh_chunk.joint_indices.size()<="
+                 "static_cast<size_t>(kMaxMeshInfluencingBones)&&",
+                 "native mesh chunk splitter returns whole mesh when it fits");
+  ok &= contains(char_mesh,
+                 "if(joint_count>best_seed_joint_count){seed_triangle_index=",
+                 "native mesh chunk splitter preserves source seed rule");
+  ok &= contains(char_mesh,
+                 "additional_joint_count<best_additional_joint_count||",
+                 "native mesh chunk splitter prefers fewer added joints");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloPackedSkinSlotssource_gltf_milo_pack_skin_slots("
                  "conststd::vector<SourceGltfMiloSkinInfluence>&influences,"
                  "boolcompressed_vertex_layout)",
@@ -3231,6 +3285,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_build_source_triangles(",
                  "focused mesh decode test covers glTFMilo triangle builder");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_split_mesh_chunks(",
+                 "focused mesh decode test covers glTFMilo chunk splitter");
+  ok &= contains(mesh_decode_test,
+                 "strip_chunk_plan.chunks[0].joint_indices.size()==40",
+                 "focused mesh decode test covers forty-bone chunk boundary");
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
@@ -3243,6 +3303,10 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_build_source_triangles` ports",
                  "document records glTFMilo triangle builder helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_split_mesh_chunks` ports\n"
+                 "    this deterministic exporter chunking rule",
+                 "document records glTFMilo mesh chunk splitter helper");
   ok &= contains(rb3_mesh_cpp,
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",
