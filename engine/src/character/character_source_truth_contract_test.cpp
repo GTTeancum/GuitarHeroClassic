@@ -531,6 +531,14 @@ int run_contract() {
                  "document states copied source snapshot boundary");
   ok &= missing(doc, "re-notes",
                 "document must not cite absent re-notes snapshot");
+  ok &= contains(doc,
+                 "2026-07-12 upstream check: `git ls-remote "
+                 "ihatecompvir/rb3` still reports",
+                 "document records current upstream source check");
+  ok &= contains(doc,
+                 "No newer reviewable character bodies were available from "
+                 "upstream",
+                 "document records no newer ihatecompvir character bodies");
   ok &= contains(doc, "## Source Coverage Matrix",
                  "document includes source coverage matrix");
   ok &= contains(doc,
@@ -760,19 +768,40 @@ int run_contract() {
                  "concrete\n    `CharDriver::FirstPlaying` stack scan",
                  "document records concrete CharDriver FirstPlaying slice");
   ok &= contains(doc,
-                 "Port `CharDriver::Load`, `CharDriver::Poll`, and "
+                 "Port base `CharDriver::Load`, `CharDriver::Poll`, and "
                  "`EvaluateFlags`",
                  "remaining import checklist names CharDriver runtime gap");
+  ok &= contains(doc,
+                 "`CharDriverMidi` parser/message-sink/load/copy/property "
+                 "decisions are\n     already ported as deterministic helpers",
+                 "remaining import checklist records CharDriverMidi helper "
+                 "scope");
+  ok &= contains(doc,
+                 "they still delegate to the\n     missing base driver and "
+                 "clip/pose stack",
+                 "remaining import checklist fences CharDriverMidi runtime "
+                 "playback");
   ok &= contains(doc,
                  "`CharServoBone` movement and broad `CharBonesMeshes` writes "
                  "depend on the",
                  "remaining import checklist keeps CharServoBone fenced to pose stack");
   ok &= contains(doc,
-                 "`CharLookAt::Poll` has a reviewable source body",
-                 "remaining import checklist distinguishes CharLookAt source poll");
+                 "`CharLookAt::Poll` has reviewable source coverage for "
+                 "gate/branch math",
+                 "remaining import checklist distinguishes CharLookAt helper "
+                 "scope");
   ok &= contains(doc,
-                 "`CharEyes::Poll` remains fenced to RB2 range/local\n"
-                 "    evidence",
+                 "native deterministic helpers already port the visible "
+                 "yaw-weight",
+                 "remaining import checklist records CharLookAt native helper "
+                 "coverage");
+  ok &= contains(doc,
+                 "stock GH2 `CharLookAt` rows currently\n     decode with "
+                 "`mDest=<none>`",
+                 "remaining import checklist fences stock GH2 look-at rows");
+  ok &= contains(doc,
+                 "`CharEyes::Poll` still has only RB2\n     range/local "
+                 "evidence",
                  "remaining import checklist fences CharEyes poll body");
   ok &= contains(doc,
                  "point\n     world-row writeback still needs the overloaded",

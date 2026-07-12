@@ -20,6 +20,11 @@ records the upstream commits for the copied files:
 - `ihatecompvir-extra/rb3-retail-old` is a shallow sparse source copy of
   `ihatecompvir/rb3` tag `retail-old` at
   `ae71945afad4d3b12bb34f4d71aecc4750334105`.
+- 2026-07-12 upstream check: `git ls-remote ihatecompvir/rb3` still reports
+  master `41719f248995f677ffa39bd394706b5d18ef70c6` and tag `retail-old`
+  `ae71945afad4d3b12bb34f4d71aecc4750334105`, matching the local source
+  snapshot. No newer reviewable character bodies were available from upstream
+  during this check.
 
 ## Source Coverage Matrix
 
@@ -249,10 +254,13 @@ into final transform rows.
      trace. The current `rb3-latest` file only exposes stack construction and
      flag masking; the RB2 dump gives a function map, not enough standalone C++
      body to blindly copy.
-   - Port `CharDriver::Load`, `CharDriver::Poll`, and `EvaluateFlags`, plus
-     the `CharDriverMidi` parser/message-sink path, before treating source
-     drivers as active clip selection. Until then, native viewer clip playback
-     is diagnostic/application glue, not proof of the Harmonix driver runtime.
+   - Port base `CharDriver::Load`, `CharDriver::Poll`, and `EvaluateFlags`
+     before treating source drivers as active clip selection. The visible
+     `CharDriverMidi` parser/message-sink/load/copy/property decisions are
+     already ported as deterministic helpers, but they still delegate to the
+     missing base driver and clip/pose stack for actual playback. Until those
+     base bodies exist, native viewer clip playback is diagnostic/application
+     glue, not proof of the Harmonix driver runtime.
 
 2. Pose-dependent controller publishing:
    - `CharWeightSetter::Poll` depends on `CharDriver::EvaluateFlags`; do not
@@ -264,11 +272,13 @@ into final transform rows.
    - `CharFaceServo` is useful source context, but GH2 stock rows are
      `FaceFxLipSyncServo`; do not infer eye or mouth transforms from it unless
      a matching GH2 source body or direct trace is available.
-  - `CharLookAt::Poll` has a reviewable source body and can be ported as an
-    isolated helper. `CharEyes::Poll` remains fenced to RB2 range/local
-    evidence until a reviewable statement body or direct original-game trace is
-    available. Native must respect the GH2 row shape and avoid the removed
-    synthetic eye-row bridge.
+   - `CharLookAt::Poll` has reviewable source coverage for gate/branch math and
+     native deterministic helpers already port the visible yaw-weight,
+     source-radius, smoothing, range, and no-roll pieces. Live eye/look-at
+     publishing remains fenced because stock GH2 `CharLookAt` rows currently
+     decode with `mDest=<none>`, and `CharEyes::Poll` still has only RB2
+     range/local evidence. Native must respect the GH2 row shape and avoid the
+     removed synthetic eye-row bridge.
 
 3. Hair and cloth writeback:
    - Decode, reset, and simulation-state coverage is source-backed, but point
