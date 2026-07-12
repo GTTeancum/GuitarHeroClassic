@@ -400,6 +400,10 @@ SourceCharBonesBlenderLoadPlan source_char_bones_blender_load_plan(
   return plan;
 }
 
+SourceCharBonesBlenderSavePlan source_char_bones_blender_save_plan() {
+  return SourceCharBonesBlenderSavePlan{};
+}
+
 SourceCharBonesBlenderCopyPlan source_char_bones_blender_copy_plan() {
   SourceCharBonesBlenderCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object"};
@@ -597,6 +601,10 @@ SourceCharBoneDirLoadPlan source_char_bone_dir_load_plan(int32_t revision) {
   plan.postload_order.push_back("mRecenter");
   if (revision > 3) plan.postload_order.push_back("mBakeOutFacing");
   return plan;
+}
+
+SourceCharBoneDirSavePlan source_char_bone_dir_save_plan() {
+  return SourceCharBoneDirSavePlan{};
 }
 
 SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan() {
@@ -5502,6 +5510,10 @@ SourceCharServoBoneLoadPlan source_char_servo_bone_load_plan(
   }
   plan.call_order = {"SetClipType"};
   return plan;
+}
+
+SourceCharServoBoneSavePlan source_char_servo_bone_save_plan() {
+  return SourceCharServoBoneSavePlan{};
 }
 
 SourceCharServoBoneHandlerPlan source_char_servo_bone_handler_plan() {

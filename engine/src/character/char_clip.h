@@ -152,6 +152,10 @@ struct SourceCharBonesBlenderLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceCharBonesBlenderSavePlan {
+  int32_t save_id = 0x58;
+};
+
 struct SourceCharBonesBlenderCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> member_calls;
@@ -224,6 +228,10 @@ struct SourceCharBoneDirLoadPlan {
   std::vector<std::string> load_order;
   std::vector<std::string> postload_order;
   std::vector<std::string> branches;
+};
+
+struct SourceCharBoneDirSavePlan {
+  int32_t save_id = 0x18c;
 };
 
 struct SourceCharBoneDirCopyPlan {
@@ -393,6 +401,10 @@ struct SourceCharServoBoneLoadPlan {
   std::vector<std::string> read_order;
   std::vector<std::string> call_order;
   std::vector<std::string> branches;
+};
+
+struct SourceCharServoBoneSavePlan {
+  int32_t save_id = 0x14a;
 };
 
 struct SourceCharServoBoneHandlerPlan {
@@ -1846,6 +1858,7 @@ SourceCharBonesBlenderReallocateStep
 source_char_bones_blender_reallocate_step(bool has_dest);
 SourceCharBonesBlenderLoadPlan source_char_bones_blender_load_plan(
     int32_t revision);
+SourceCharBonesBlenderSavePlan source_char_bones_blender_save_plan();
 SourceCharBonesBlenderCopyPlan source_char_bones_blender_copy_plan();
 SourceCharBonesBlenderHandlerPlan source_char_bones_blender_handler_plan();
 SourceCharBonesBlenderPropSyncPlan source_char_bones_blender_prop_sync_plan();
@@ -1872,6 +1885,7 @@ void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
                                   std::vector<SourceCharBonesBone>& bones);
 SourceCharBoneDirDefaultState source_char_bone_dir_default_state();
 SourceCharBoneDirLoadPlan source_char_bone_dir_load_plan(int32_t revision);
+SourceCharBoneDirSavePlan source_char_bone_dir_save_plan();
 SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan();
 SourceCharBoneDirHandlerPlan source_char_bone_dir_handler_plan();
 SourceCharBoneDirRecenterPropSyncPlan
@@ -1941,6 +1955,7 @@ SourceCharServoBoneSetMoveSelfStep source_char_servo_bone_set_move_self(
     bool requested_move_self);
 SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan();
 SourceCharServoBoneLoadPlan source_char_servo_bone_load_plan(int32_t revision);
+SourceCharServoBoneSavePlan source_char_servo_bone_save_plan();
 SourceCharServoBoneHandlerPlan source_char_servo_bone_handler_plan();
 SourceCharServoBonePropSyncPlan source_char_servo_bone_prop_sync_plan();
 SourceCharServoBoneRuntimeDumpEvidence

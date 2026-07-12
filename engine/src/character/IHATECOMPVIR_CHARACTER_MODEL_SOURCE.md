@@ -2766,6 +2766,8 @@ note, and all report `unreadBytes=0`.
     `source_char_bone_dir_default_state`,
     `source_char_bone_dir_load_plan`, and
     `source_char_bone_dir_copy_plan` port those deterministic source facts only.
+    Native `source_char_bone_dir_save_plan` records the checked
+    `SAVE_OBJ(CharBoneDir, 0x18C)` row id; it does not imply a native writer.
     Native `source_char_bone_dir_handler_plan`,
     `source_char_bone_dir_recenter_prop_sync_plan`, and
     `source_char_bone_dir_prop_sync_plan` record the checked handler and
@@ -2788,9 +2790,11 @@ note, and all report `unreadBytes=0`.
     marks `delta_changed` when the requested value differs; `Copy` copies
     `Hmx::Object`, `mMoveSelf`, and calls `SetClipType`.
   - Native `source_char_servo_bone_load_plan`,
+    `source_char_servo_bone_save_plan`,
     `source_char_servo_bone_handler_plan`, and
     `source_char_servo_bone_prop_sync_plan` port the visible source
-    revision-gated load row order, `SetClipType` call, `CharPollable` /
+    revision-gated load row order, save row id
+    `SAVE_OBJ(CharServoBone, 0x14A)`, `SetClipType` call, `CharPollable` /
     `Hmx::Object` handler chain, check value `0x16E`, `clip_type` /
     `move_self` property setters, `delta_changed` / `regulate` direct rows,
     and `CharBonesMeshes` superclass.
@@ -3174,6 +3178,9 @@ note, and all report `unreadBytes=0`.
     revisions are `0..2`, the row order is `Hmx::Object`, destination
     `boneObjPtr`, and revision-gated `mClipType`, then the source calls
     `SetClipType` before `SetDest`.
+  - Native `source_char_bones_blender_save_plan` records the checked
+    `SAVE_OBJ(CharBonesBlender, 0x58)` row id; it does not imply a native
+    writer.
   - Native `source_char_bones_blender_copy_plan`,
     `source_char_bones_blender_handler_plan`, and
     `source_char_bones_blender_prop_sync_plan` port the visible source

@@ -482,6 +482,10 @@ int main() {
   ok &= expect_int(source_char_bones_blender_load_plan(3).known_revision ? 1
                                                                          : 0,
                    0, "CharBonesBlender Load rejects high revision");
+  const SourceCharBonesBlenderSavePlan blender_save =
+      source_char_bones_blender_save_plan();
+  ok &= expect_int(blender_save.save_id, 0x58,
+                   "CharBonesBlender SAVE_OBJ id");
   const SourceCharBonesBlenderCopyPlan blender_copy =
       source_char_bones_blender_copy_plan();
   ok &= expect_size(blender_copy.copied_superclasses.size(), 1,
@@ -793,6 +797,8 @@ int main() {
                       "CharBoneDir latest recenter");
   ok &= expect_string(dir_load_latest.postload_order[5], "mBakeOutFacing",
                       "CharBoneDir latest bake out facing");
+  const SourceCharBoneDirSavePlan dir_save = source_char_bone_dir_save_plan();
+  ok &= expect_int(dir_save.save_id, 0x18c, "CharBoneDir SAVE_OBJ id");
   const SourceCharBoneDirCopyPlan dir_copy =
       source_char_bone_dir_copy_plan();
   ok &= expect_size(dir_copy.copied_superclasses.size(), 1,
@@ -1298,6 +1304,10 @@ int main() {
                       "CharServoBone Load v2 clip type");
   ok &= expect_int(source_char_servo_bone_load_plan(3).known_revision ? 1 : 0,
                    0, "CharServoBone Load rejects high revision");
+  const SourceCharServoBoneSavePlan servo_save =
+      source_char_servo_bone_save_plan();
+  ok &= expect_int(servo_save.save_id, 0x14a,
+                   "CharServoBone SAVE_OBJ id");
   const SourceCharServoBoneHandlerPlan servo_handlers =
       source_char_servo_bone_handler_plan();
   ok &= expect_size(servo_handlers.superclasses.size(), 2,

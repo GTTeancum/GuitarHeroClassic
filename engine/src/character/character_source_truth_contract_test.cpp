@@ -6983,6 +6983,9 @@ int run_contract() {
                  "LOAD_SUPERCLASS(Hmx::Object)Symbols;",
                  "CharServoBone source Load revision and object rows");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "SAVE_OBJ(CharServoBone,0x14A)",
+                 "CharServoBone source defines save id");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "ClearBones();CharBoneDir::StuffBones(*this,mClipType);",
                  "CharServoBone source SetClipType refills source bones");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
@@ -7081,6 +7084,9 @@ int run_contract() {
                  "std::vector<std::string>branches;};",
                  "native exposes CharServoBone Load contract");
   ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneSavePlan{int32_tsave_id=0x14a;};",
+                 "native exposes CharServoBone save contract");
+  ok &= contains(char_clip_h,
                  "structSourceCharServoBonePropSyncPlan{"
                  "std::vector<std::string>set_properties;"
                  "std::vector<std::string>properties;"
@@ -7122,6 +7128,9 @@ int run_contract() {
                  "SourceCharServoBoneLoadPlan"
                  "source_char_servo_bone_load_plan(int32_trevision);",
                  "native exposes CharServoBone Load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneSavePlansource_char_servo_bone_save_plan();",
+                 "native exposes CharServoBone save helper");
   ok &= contains(char_clip_h,
                  "SourceCharServoBonePropSyncPlan"
                  "source_char_servo_bone_prop_sync_plan();",
@@ -7177,6 +7186,10 @@ int run_contract() {
                  "plan.branches.push_back(\"mClipTypedefaultsempty\");}"
                  "plan.call_order={\"SetClipType\"};returnplan;}",
                  "native CharServoBone Load helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneSavePlansource_char_servo_bone_save_plan(){"
+                 "returnSourceCharServoBoneSavePlan{};}",
+                 "native CharServoBone save helper records source id");
   ok &= contains(char_clip,
                  "SourceCharServoBoneHandlerPlan"
                  "source_char_servo_bone_handler_plan(){"
@@ -7267,6 +7280,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_load_plan(2)",
                  "focused CharBones test covers CharServoBone Load");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_save_plan()",
+                 "focused CharBones test covers CharServoBone save id");
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_handler_plan()",
                  "focused CharBones test covers CharServoBone handlers");
@@ -9508,7 +9524,7 @@ int run_contract() {
                  "document records CharServoBone Copy source branch");
   ok &= contains(doc,
                  "Native `source_char_servo_bone_load_plan`,\n"
-                 "    `source_char_servo_bone_handler_plan`, and",
+                 "    `source_char_servo_bone_save_plan`,",
                  "document records CharServoBone load/handler helper slice");
   ok &= contains(doc,
                  "`delta_changed` / `regulate` direct rows,\n"
@@ -15658,6 +15674,9 @@ int run_contract() {
                  "Native `source_char_bones_blender_load_plan` ports `Load`",
                  "document records concrete CharBonesBlender Load slice");
   ok &= contains(doc,
+                 "Native `source_char_bones_blender_save_plan` records the checked",
+                 "document records concrete CharBonesBlender save id");
+  ok &= contains(doc,
                  "`source_char_bones_blender_copy_plan`,\n"
                  "    `source_char_bones_blender_handler_plan`, and",
                  "document records concrete CharBonesBlender copy/handler slice");
@@ -16138,6 +16157,9 @@ int run_contract() {
                  "source_char_bones_blender_load_plan(2)",
                  "focused CharBones source test covers CharBonesBlender Load v2");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_save_plan()",
+                 "focused CharBones source test covers CharBonesBlender save id");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_blender_copy_plan()",
                  "focused CharBones source test covers CharBonesBlender Copy");
   ok &= contains(char_bones_source_test,
@@ -16347,6 +16369,9 @@ int run_contract() {
                  "LOAD_SUPERCLASS(Hmx::Object)",
                  "latest CharBonesBlender source defines Load revision gates");
   ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "SAVE_OBJ(CharBonesBlender,0x58);",
+                 "latest CharBonesBlender source defines save id");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
                  "ObjPtr<CharBonesObject,ObjectDir>boneObjPtr(this,0);"
                  "bs>>boneObjPtr;Symbols;if(gRev>1)bs>>s;"
                  "SetClipType(s);SetDest(boneObjPtr);",
@@ -16475,6 +16500,9 @@ int run_contract() {
                  "std::vector<std::string>branches;};",
                  "native API exposes CharBonesBlender Load plan row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesBlenderSavePlan{int32_tsave_id=0x58;};",
+                 "native API exposes CharBonesBlender save plan row");
+  ok &= contains(char_clip_h,
                  "structSourceCharBonesBlenderCopyPlan{"
                  "std::vector<std::string>copied_superclasses;"
                  "std::vector<std::string>member_calls;};",
@@ -16483,6 +16511,10 @@ int run_contract() {
                  "SourceCharBonesBlenderLoadPlan"
                  "source_char_bones_blender_load_plan(int32_trevision);",
                  "native exposes CharBonesBlender Load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderSavePlan"
+                 "source_char_bones_blender_save_plan();",
+                 "native exposes CharBonesBlender save helper");
   ok &= contains(char_clip_h,
                  "SourceCharBonesBlenderPropSyncPlan"
                  "source_char_bones_blender_prop_sync_plan();",
@@ -16597,6 +16629,10 @@ int run_contract() {
   ok &= contains(char_clip,
                  "plan.call_order={\"SetClipType\",\"SetDest\"};returnplan;}",
                  "native CharBonesBlender Load helper mirrors source setter order");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBlenderSavePlansource_char_bones_blender_save_plan(){"
+                 "returnSourceCharBonesBlenderSavePlan{};}",
+                 "native CharBonesBlender save helper records source id");
   ok &= contains(char_clip,
                  "SourceCharBonesBlenderCopyPlan"
                  "source_char_bones_blender_copy_plan(){"
@@ -16863,6 +16899,12 @@ int run_contract() {
                  "SourceCharBoneDirLoadPlan"
                  "source_char_bone_dir_load_plan(int32_trevision);",
                  "native API exposes source CharBoneDir load plan helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirSavePlan{int32_tsave_id=0x18c;};",
+                 "native API exposes source CharBoneDir save plan row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirSavePlansource_char_bone_dir_save_plan();",
+                 "native API exposes source CharBoneDir save plan helper");
   ok &= contains(char_clip_h,
                  "SourceCharBoneDirCopyPlan"
                  "source_char_bone_dir_copy_plan();",
@@ -17165,6 +17207,10 @@ int run_contract() {
                  "if(revision>3)plan.postload_order.push_back("
                  "\"mBakeOutFacing\");returnplan;}",
                  "native CharBoneDir load plan records recenter and bake-out read");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirSavePlansource_char_bone_dir_save_plan(){"
+                 "returnSourceCharBoneDirSavePlan{};}",
+                 "native CharBoneDir save plan records source id");
   ok &= contains(char_clip,
                  "SourceCharBoneDirCopyPlansource_char_bone_dir_copy_plan(){"
                  "SourceCharBoneDirCopyPlanplan;plan.copied_superclasses={"
@@ -17546,6 +17592,9 @@ int run_contract() {
                  "source_char_bone_dir_load_plan(4)",
                  "focused CharBones source test covers CharBoneDir latest load");
   ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_save_plan()",
+                 "focused CharBones source test covers CharBoneDir save id");
+  ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_copy_plan()",
                  "focused CharBones source test covers CharBoneDir copy plan");
   ok &= contains(char_bones_source_test,
@@ -17566,6 +17615,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_bone_dir_handler_plan`,",
                  "document records CharBoneDir handler import");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_save_plan` records the checked",
+                 "document records CharBoneDir save id");
   ok &= contains(doc,
                  "and `filter_context` as a modify prop that calls `SyncFilter`",
                  "document records CharBoneDir filter_context prop hook");
@@ -17711,6 +17763,9 @@ int run_contract() {
                  "if(gRev<3)bs.ReadBool();bs>>mRecenter;if(gRev>3)"
                  "bs>>mBakeOutFacing;}",
                  "latest CharBoneDir source defines PostLoad revision gates");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "SAVE_OBJ(CharBoneDir,0x18C)",
+                 "latest CharBoneDir source defines save id");
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "COPY_MEMBER(mMoveContext)COPY_MEMBER(mRecenter)"
                  "COPY_MEMBER(mBakeOutFacing)",
