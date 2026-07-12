@@ -8535,29 +8535,41 @@ int main() {
                  "WorldCrowd placement mesh refs are sourced from decoded chars MILO data");
   ok &= contains(gameplay_c,
                  "material==\"ray_blocker.mat\"||material==\"invisible.mat\"",
-                 "WorldCrowd helper ray blockers stay out of placement debug draws");
+                 "WorldCrowd helper ray blockers stay out of crowd floor draws");
   ok &= contains(gameplay_c,
-                 "booldebug_worldcrowd_placement_meshes_enabled(){"
-                 "returnenv_value(\"GHOGX_DEBUG_WORLDCROWD_PLACEMENT_MESHES\")!=nullptr;}",
-                 "WorldCrowd placement mesh draw has an explicit debug gate");
-  ok &= contains(gameplay_c,
-                 "append_worldcrowd_placement_debug_meshes_for_venue_chars(venue_scene,"
+                 "append_worldcrowd_floor_meshes_for_venue_chars(venue_scene,"
                  "venue_chars_scene_for_load);",
-                 "venue renderer only receives decoded WorldCrowd placement meshes for debug");
+                 "venue renderer receives decoded WorldCrowd placement meshes as the authored crowd floor");
+  ok &= contains(gameplay_c,
+                 "for(constchar*name:{\"floor.mat\",\"tile_dark.mat\"})",
+                 "WorldCrowd floor cleanup prefers RedOctane's grey floor material before tile trim");
+  ok &= contains(gameplay_c,
+                 "if(constautofloor_mat=dst_floor_mat()){"
+                 "draw_mesh.material=*floor_mat;",
+                 "WorldCrowd floor cleanup replaces placement color with a venue-authored floor material");
+  ok &= contains(gameplay_c,
+                 "if(constautofloor_tint=dst_floor_tint(*floor_mat)){"
+                 "for(auto&vertex:draw_mesh.verts){",
+                 "WorldCrowd floor cleanup inherits venue-authored baked floor tint");
+  ok &= contains(gameplay_c,
+                 "\"[world]venueWorldCrowdfloormeshesappended:%zusource=%s\\n\"",
+                 "WorldCrowd crowd-floor merge is logged during venue validation");
   ok &= contains(gameplay_c,
                  "push_unique_ref(venue_extra_visual_sources,chars_milo);",
-                 "WorldCrowd placement debug mesh materials load textures from the chars MILO");
+                 "WorldCrowd crowd-floor materials load textures from the chars MILO");
   ok &= contains(gameplay_c,
-                 "\"[world]venueWorldCrowdplacementmeshesretainedforactorsonly;"
-                 "visibleaudiencefloorstaysinvenuegeometrysource=%s\\n\"",
-                 "WorldCrowd placement meshes are not treated as the audience floor");
+                 "venue_crowd_meshes_.erase(\"Crowd_area.mesh\");",
+                 "WorldCrowd crowd floor is not hidden by CamShot hide_crowd actor visibility");
   ok &= contains(gameplay_c,
                  "\"[world]venuefloormesh:mesh=%smaterial=%stexture=%s"
                  "showing=%dhidden=%d\\n\"",
                  "venue diagnostics report real floor geometry and material state");
+  ok &= contains(gameplay_c,
+                 "name_l.find(\"crowd_area\")!=std::string::npos",
+                 "venue floor diagnostics include the WorldCrowd floor footprint");
   ok &= absent(gameplay_c,
-               "append_worldcrowd_area_meshes_for_venue_chars",
-               "old WorldCrowd area mesh append path must stay removed");
+               "debug_worldcrowd_placement_meshes_enabled",
+               "WorldCrowd crowd floor is no longer gated behind a debug-only draw path");
   ok &= contains(gameplay_h_c,
                  "boolworldcrowd_actor_runtime_enabled()const;",
                  "WorldCrowd actor runtime has one opt-in policy gate");

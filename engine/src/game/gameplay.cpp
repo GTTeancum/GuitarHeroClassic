@@ -186,10 +186,6 @@ bool debug_worldcrowd_enabled() {
     return env_value("GHOGX_DEBUG_WORLDCROWD") != nullptr;
 }
 
-bool debug_worldcrowd_placement_meshes_enabled() {
-    return env_value("GHOGX_DEBUG_WORLDCROWD_PLACEMENT_MESHES") != nullptr;
-}
-
 bool debug_performer_start_enabled() {
     return env_value("GHOGX_DEBUG_PERFORMER_START") != nullptr;
 }
@@ -8939,7 +8935,7 @@ void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
                             std::make_move_iterator(src.world_crowds.end()));
 }
 
-size_t append_worldcrowd_placement_debug_meshes_for_venue_chars(
+size_t append_worldcrowd_floor_meshes_for_venue_chars(
     ghogx::milo_scene::Scene& dst, const ghogx::milo_scene::Scene& chars_scene) {
     std::unordered_set<std::string> placement_mesh_refs;
     for (const auto& crowd : chars_scene.world_crowds) {
@@ -8961,6 +8957,37 @@ size_t append_worldcrowd_placement_debug_meshes_for_venue_chars(
                            [&](const ghogx::milo_scene::MatObj& mat) {
                                return canonical_milo_ref(mat.name) == ref;
                            });
+    };
+    auto dst_floor_mat = [&]() -> std::optional<std::string> {
+        for (const char* name : {"floor.mat", "tile_dark.mat"}) {
+            if (dst_has_mat(name)) return std::string(name);
+        }
+        return std::nullopt;
+    };
+    auto dst_floor_tint =
+        [&](const std::string& mat_name) -> std::optional<std::array<float, 4>> {
+        const std::string ref = canonical_milo_ref(mat_name);
+        for (const auto& floor_mesh : dst.meshes) {
+            if (!floor_mesh.decoded || !floor_mesh.showing ||
+                canonical_milo_ref(floor_mesh.material) != ref) {
+                continue;
+            }
+            for (const auto& vertex : floor_mesh.verts) {
+                const std::array<float, 4> tint = {vertex.r, vertex.g, vertex.b,
+                                                   vertex.a};
+                const bool non_white =
+                    std::fabs(tint[0] - 1.0f) > 0.001f ||
+                    std::fabs(tint[1] - 1.0f) > 0.001f ||
+                    std::fabs(tint[2] - 1.0f) > 0.001f;
+                const bool sane =
+                    std::isfinite(tint[0]) && std::isfinite(tint[1]) &&
+                    std::isfinite(tint[2]) && std::isfinite(tint[3]) &&
+                    tint[0] >= 0.0f && tint[1] >= 0.0f && tint[2] >= 0.0f &&
+                    tint[3] > 0.0f;
+                if (non_white && sane) return tint;
+            }
+        }
+        return std::nullopt;
     };
     auto source_mat = [&](const std::string& mat_name)
         -> const ghogx::milo_scene::MatObj* {
@@ -8987,9 +9014,24 @@ size_t append_worldcrowd_placement_debug_meshes_for_venue_chars(
             if (const auto* mat = source_mat(mesh.material)) dst.mats.push_back(*mat);
         }
         auto draw_mesh = mesh;
-        // ihatecompvir names WorldCrowd::mPlacementMesh as the placement mesh:
-        // keep it as actor placement data unless an explicit debug capture asks
-        // to draw it. The visible audience floor stays in venue geometry.
+        // ihatecompvir's WorldCrowd owns mPlacementMesh and WorldDir sync calls
+        // CleanUpCrowdFloor on each crowd. GH2 keeps the visible crowd floor in
+        // the chars MILO beside the actor placements, not in big_geom. The
+        // decoded Crowd_area.mat is an untextured placement color, so the native
+        // cleanup pairs the placement footprint with a venue-authored floor mat.
+        if (lower_ascii(draw_mesh.material) == "crowd_area.mat") {
+            if (const auto floor_mat = dst_floor_mat()) {
+                draw_mesh.material = *floor_mat;
+                if (const auto floor_tint = dst_floor_tint(*floor_mat)) {
+                    for (auto& vertex : draw_mesh.verts) {
+                        vertex.r = (*floor_tint)[0];
+                        vertex.g = (*floor_tint)[1];
+                        vertex.b = (*floor_tint)[2];
+                        vertex.a = (*floor_tint)[3];
+                    }
+                }
+            }
+        }
         draw_mesh.showing = true;
         dst.meshes.push_back(std::move(draw_mesh));
         ++appended;
@@ -9015,6 +9057,7 @@ void log_venue_floor_meshes(
         const std::string texture_l = lower_ascii(texture);
         const bool floor_like =
             name_l.find("floor") != std::string::npos ||
+            name_l.find("crowd_area") != std::string::npos ||
             material_l.find("floor") != std::string::npos ||
             texture_l.find("floor") != std::string::npos;
         if (!floor_like) continue;
@@ -22701,24 +22744,25 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_visual_subdir_sources;
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
                     hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
-                if (chars_scene_loaded &&
-                    debug_worldcrowd_placement_meshes_enabled()) {
-                    const size_t worldcrowd_placement_meshes =
-                        append_worldcrowd_placement_debug_meshes_for_venue_chars(
+                if (chars_scene_loaded) {
+                    const size_t worldcrowd_floor_meshes =
+                        append_worldcrowd_floor_meshes_for_venue_chars(
                             venue_scene, venue_chars_scene_for_load);
-                    if (worldcrowd_placement_meshes > 0) {
+                    if (worldcrowd_floor_meshes > 0) {
                         push_unique_ref(venue_extra_visual_sources, chars_milo);
+                        if (debug_venue_filters_enabled()) {
+                            std::fprintf(
+                                stderr,
+                                "[world] venue WorldCrowd floor meshes appended: %zu source=%s\n",
+                                worldcrowd_floor_meshes, chars_milo.c_str());
+                        }
+                    } else if (debug_venue_filters_enabled() &&
+                               !venue_chars_scene_for_load.world_crowds.empty()) {
                         std::fprintf(
                             stderr,
-                            "[world] venue WorldCrowd placement debug meshes appended: %zu source=%s\n",
-                            worldcrowd_placement_meshes, chars_milo.c_str());
+                            "[world] venue WorldCrowd floor meshes: none appended source=%s\n",
+                            chars_milo.c_str());
                     }
-                } else if (chars_scene_loaded && debug_venue_filters_enabled() &&
-                           !venue_chars_scene_for_load.world_crowds.empty()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] venue WorldCrowd placement meshes retained for actors only; visible audience floor stays in venue geometry source=%s\n",
-                        chars_milo.c_str());
                 }
                 auto hidden_venue_meshes = mesh_names_in_groups(
                     venue_scene, {"coplight_red.grp", "coplight_blue.grp"});
@@ -22748,6 +22792,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         source_hidden_venue_meshes.size());
                 }
                 venue_crowd_meshes_ = mesh_names_for_crowd(venue_scene);
+                venue_crowd_meshes_.erase("Crowd_area.mesh");
                 venue_mesh_names_.clear();
                 venue_mesh_names_.reserve(venue_scene.meshes.size());
                 for (const auto& mesh : venue_scene.meshes) {
