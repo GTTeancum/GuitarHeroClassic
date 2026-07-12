@@ -4348,7 +4348,8 @@ int main() {
                  "persistent venue events clear prior persistent MatAnim playback");
   ok &= contains(gameplay_c,
                  "active_anim.duration_seconds="
-                 "authored_frames_to_seconds(anim.duration_frames);",
+                 "material_anim_route_duration_seconds(route,"
+                 "anim.duration_frames,&chart_,active_anim.start_time);",
                  "venue MatAnim duration is converted to runtime seconds");
   ok &= contains(gameplay_c,
                  "floatclamp_material_alpha(floatalpha)",
@@ -4409,15 +4410,16 @@ int main() {
                  "MatAnim color/alpha/texture samplers share source-shaped key lookup");
   ok &= contains(gameplay_c,
                  "blend_material_color(active_anim.start_color,"
-                 "sample_material_color_key(anim.color_keys,0.0f),"
+                 "sample_material_color_key(anim.color_keys,initial_frame),"
                  "initial_blend);",
                  "MatAnim color channel initializes renderer override through source blend");
   ok &= contains(gameplay_c,
-                 "sample_material_texture_key(anim.texture_keys,0.0f);",
+                 "sample_material_texture_key(anim.texture_keys,initial_frame);",
                  "MatAnim texture channel initializes renderer override");
   ok &= contains(gameplay_c,
                  "blend_material_tex_transform(active_anim.start_tex_transform,"
-                 "sample_material_tex_transform(anim,0.0f),initial_blend);",
+                 "sample_material_tex_transform(anim,initial_frame),"
+                 "initial_blend);",
                  "MatAnim texture transform initializes renderer override through source blend");
   ok &= contains(gameplay_c,
                  "floatmaterial_anim_tex_value_to_uv(floatvalue)",
@@ -4664,7 +4666,9 @@ int main() {
                  "std::stringsource_trigger;"
                  "floatsource_blend_period_seconds=0.0f;"
                  "floatsource_delay_seconds=0.0f;"
-                 "boolsource_wait=false;};",
+                 "boolsource_wait=false;"
+                 "boolhas_source_filter=false;"
+                 "VenueAnimFiltersource_filter;};",
                  "EventTrigger EnvAnim/LightAnim routes preserve ihatecompvir blend/wait/delay");
   ok &= contains(gameplay_c,
                  "push_event_anim_routes(light_anims,resolved,anim_route.blend,"
@@ -5129,7 +5133,7 @@ int main() {
                  "route.source_wait=anim_route.wait;",
                  "ParticleSys event routes inherit EventTrigger Anim wait");
   ok &= contains(gameplay_c,
-                 "push_event_anim_routes(mat_anims,resolved,anim_route.blend,"
+                 "append_mat_routes(mat_anims,resolved,anim_route.blend,"
                  "anim_route.wait,anim_route.delay,de.name);",
                  "MatAnim route loader keeps source EventTrigger timing rows");
   ok &= contains(gameplay_c,
@@ -5252,6 +5256,14 @@ int main() {
                  "filter_mat_anims;",
                  "MatAnim loader resolves AnimFilter-indirected material animations");
   ok &= contains(gameplay_c,
+                 "std::map<std::string,Gameplay::VenueAnimFilter>"
+                 "filter_mat_timing;",
+                 "MatAnim loader preserves AnimFilter timing for material routes");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<Gameplay::"
+                 "VenueEventAnimRoute>>filter_mat_routes;",
+                 "MatAnim loader keeps filtered material routes as timed route objects");
+  ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<std::string>>"
                  "group_mat_anims;",
                  "MatAnim loader resolves Group-contained material animations");
@@ -5259,7 +5271,7 @@ int main() {
                  "push_unique_ref(filter_group_refs[filter_key],ref);",
                  "AnimFilter material routes preserve authored group refs");
   ok &= contains(gameplay_c,
-                 "constautogroup_it=group_mat_anims.find(ref);",
+                 "constautogroup_it=group_mat_routes.find(ref);",
                  "EventTrigger material routes expand authored group refs");
   ok &= contains(gameplay_c,
                  "elseif(ref.size()>5&&ref.rfind(\".filt\")==ref.size()-5)",
@@ -5270,6 +5282,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "noop_mat_anims.find(ref)!=noop_mat_anims.end())return;",
                  "same-MILO zero-channel MatAnim refs are not treated as unsupported routes");
+  ok &= contains(gameplay_h_c,
+                 "boolhas_source_filter=false;VenueAnimFiltersource_filter;",
+                 "MatAnim routes and active state keep source AnimFilter timing");
+  ok &= contains(gameplay_c,
+                 "material_anim_route_duration_seconds(route,anim.duration_frames,"
+                 "&chart_,active_anim.start_time)",
+                 "filtered MatAnim activation derives duration from source AnimFilter timing");
+  ok &= contains(gameplay_c,
+                 "active_material_anim_frame_at(*it,elapsed,t,has_frame_sample,"
+                 "&chart_)",
+                 "filtered MatAnim sampler uses source AnimFilter frame mapping");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<VenueEventAnimRoute>>"
                  "lighting_event_mat_anims_;",
@@ -5433,7 +5456,7 @@ int main() {
                  "\"[world]lightingMatAnimsample%s->%sframe=%.2falpha=%.3f"
                  "color_keys=%zualpha_keys=%zutexture_keys=%zutex_trans_keys=%zu"
                  "tex_scale_keys=%zutex_rot_keys=%zupersistent=%dblend=%.3f"
-                 "blend_period=%.3fdelay=%.3f\\n\"",
+                 "blend_period=%.3fdelay=%.3ffilter=%s\\n\"",
                  "lighting overlay MatAnim sampler emits debug rows for native validation");
   ok &= contains(gameplay_c,
                  "if(debug_sample)last_lighting_mat_anim_debug_time_=song_time_;",

@@ -401,6 +401,8 @@ class Gameplay {
     float source_blend_period_seconds = 0.0f;
     float source_delay_seconds = 0.0f;
     bool source_wait = false;
+    bool has_source_filter = false;
+    VenueAnimFilter source_filter;
   };
   struct ActiveVenueMaterialAnim {
     std::string name;
@@ -420,6 +422,8 @@ class Gameplay {
     bool persistent = true;
     float source_blend_period_seconds = 0.0f;
     float source_start_delay_seconds = 0.0f;
+    bool has_source_filter = false;
+    VenueAnimFilter source_filter;
     bool has_start_color = false;
     std::array<float, 4> start_color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool has_start_tex_transform = false;
