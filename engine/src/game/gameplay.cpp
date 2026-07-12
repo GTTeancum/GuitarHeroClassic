@@ -3945,6 +3945,215 @@ bool venue_material_anim_has_channels(
            !anim.tex_rotation_keys.empty() || !anim.texture_keys.empty();
 }
 
+uint32_t read_rnd_matanim_key_count_like_miloeditor(MiloCursor& r,
+                                                    const char* label) {
+    const uint32_t count = r.u32();
+    if (count > 4096) {
+        throw std::runtime_error(std::string("RndMatAnim ") + label +
+                                 " key count invalid");
+    }
+    return count;
+}
+
+Gameplay::VenueMaterialAnim::ColorKey
+read_rnd_matanim_color_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueMaterialAnim::ColorKey key;
+    for (float& c : key.color) c = clamp_material_color_component(r.f32());
+    key.frame = r.f32();
+    return key;
+}
+
+Gameplay::VenueMaterialAnim::FloatKey
+read_rnd_matanim_float_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueMaterialAnim::FloatKey key;
+    key.value = clamp_material_alpha(r.f32());
+    key.frame = r.f32();
+    return key;
+}
+
+Gameplay::VenueMaterialAnim::Vec3Key
+read_rnd_matanim_vec3_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueMaterialAnim::Vec3Key key;
+    key.value[0] = r.f32();
+    key.value[1] = r.f32();
+    key.value[2] = r.f32();
+    key.frame = r.f32();
+    return key;
+}
+
+Gameplay::VenueMaterialAnim::TextureKey
+read_rnd_matanim_symbol_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueMaterialAnim::TextureKey key;
+    key.texture = r.symbol();
+    key.frame = r.f32();
+    return key;
+}
+
+void skip_rnd_matanim_color_keys_like_miloeditor(MiloCursor& r,
+                                                 const char* label) {
+    const uint32_t count =
+        read_rnd_matanim_key_count_like_miloeditor(r, label);
+    for (uint32_t i = 0; i < count; ++i)
+        (void)read_rnd_matanim_color_key_like_miloeditor(r);
+}
+
+void skip_rnd_matanim_vec3_keys_like_miloeditor(MiloCursor& r,
+                                                const char* label) {
+    const uint32_t count =
+        read_rnd_matanim_key_count_like_miloeditor(r, label);
+    for (uint32_t i = 0; i < count; ++i)
+        (void)read_rnd_matanim_vec3_key_like_miloeditor(r);
+}
+
+void skip_rnd_matanim_symbol_keys_like_miloeditor(MiloCursor& r,
+                                                  const char* label) {
+    const uint32_t count =
+        read_rnd_matanim_key_count_like_miloeditor(r, label);
+    for (uint32_t i = 0; i < count; ++i)
+        (void)read_rnd_matanim_symbol_key_like_miloeditor(r);
+}
+
+std::optional<Gameplay::VenueMaterialAnim> read_rnd_matanim_like_miloeditor(
+    const uint8_t* body, size_t size, const std::string& entry_name) {
+    try {
+        MiloCursor r{body, size, 0};
+        const uint32_t combined_revision = r.u32();
+        const uint16_t revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        if (revision > 5) {
+            std::unordered_map<std::string, MiloValue> object_props;
+            read_object_fields_like_miloeditor(r, object_props);
+        }
+        (void)read_rnd_animatable_like_miloeditor(r);
+
+        Gameplay::VenueMaterialAnim anim;
+        anim.name = canonical_milo_ref(entry_name);
+        anim.material = r.symbol();
+
+        if (revision < 7) {
+            const uint32_t stage_count = r.u32();
+            if (stage_count > 128)
+                throw std::runtime_error("RndMatAnim stage count invalid");
+            for (uint32_t i = 0; i < stage_count; ++i) {
+                if (revision != 0) {
+                    skip_rnd_matanim_vec3_keys_like_miloeditor(
+                        r, "stage vec3-1");
+                    skip_rnd_matanim_vec3_keys_like_miloeditor(
+                        r, "stage vec3-2");
+                    skip_rnd_matanim_vec3_keys_like_miloeditor(
+                        r, "stage vec3-3");
+                }
+                if (revision > 1) {
+                    skip_rnd_matanim_symbol_keys_like_miloeditor(
+                        r, "stage symbol");
+                }
+            }
+        }
+
+        anim.keys_owner = canonical_milo_ref(r.symbol());
+        if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
+
+        if (revision > 1) {
+            if (revision < 5)
+                skip_rnd_matanim_color_keys_like_miloeditor(r,
+                                                            "legacy color-1");
+            if (revision < 3)
+                skip_rnd_matanim_color_keys_like_miloeditor(r,
+                                                            "legacy color-2");
+
+            uint32_t color_count = 0;
+            color_count =
+                read_rnd_matanim_key_count_like_miloeditor(r, "color");
+            anim.color_keys.reserve(color_count);
+            for (uint32_t i = 0; i < color_count; ++i) {
+                auto key = read_rnd_matanim_color_key_like_miloeditor(r);
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+                anim.color_keys.push_back(key);
+            }
+
+            if (revision < 4)
+                skip_rnd_matanim_color_keys_like_miloeditor(r,
+                                                            "legacy color-3");
+
+            uint32_t alpha_count = 0;
+            alpha_count =
+                read_rnd_matanim_key_count_like_miloeditor(r, "alpha");
+            anim.alpha_keys.reserve(alpha_count);
+            for (uint32_t i = 0; i < alpha_count; ++i) {
+                auto key = read_rnd_matanim_float_key_like_miloeditor(r);
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+                anim.alpha_keys.push_back(key);
+            }
+            anim.has_alpha = !anim.alpha_keys.empty();
+            if (anim.has_alpha) {
+                anim.start_alpha = anim.alpha_keys.front().value;
+                anim.end_alpha = anim.alpha_keys.back().value;
+            }
+        }
+
+        if (revision > 6) {
+            uint32_t trans_count = 0;
+            trans_count =
+                read_rnd_matanim_key_count_like_miloeditor(r, "translation");
+            anim.tex_translation_keys.reserve(trans_count);
+            for (uint32_t i = 0; i < trans_count; ++i) {
+                auto key = read_rnd_matanim_vec3_key_like_miloeditor(r);
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+                anim.tex_translation_keys.push_back(key);
+            }
+
+            uint32_t scale_count = 0;
+            scale_count =
+                read_rnd_matanim_key_count_like_miloeditor(r, "scale");
+            anim.tex_scale_keys.reserve(scale_count);
+            for (uint32_t i = 0; i < scale_count; ++i) {
+                auto key = read_rnd_matanim_vec3_key_like_miloeditor(r);
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+                anim.tex_scale_keys.push_back(key);
+            }
+
+            uint32_t rot_count = 0;
+            rot_count =
+                read_rnd_matanim_key_count_like_miloeditor(r, "rotation");
+            anim.tex_rotation_keys.reserve(rot_count);
+            for (uint32_t i = 0; i < rot_count; ++i) {
+                auto key = read_rnd_matanim_vec3_key_like_miloeditor(r);
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+                anim.tex_rotation_keys.push_back(key);
+            }
+
+            uint32_t texture_count = 0;
+            texture_count =
+                read_rnd_matanim_key_count_like_miloeditor(r, "texture");
+            anim.texture_keys.reserve(texture_count);
+            for (uint32_t i = 0; i < texture_count; ++i) {
+                auto key = read_rnd_matanim_symbol_key_like_miloeditor(r);
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+                anim.texture_keys.push_back(std::move(key));
+            }
+        }
+
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndMatAnim source-shaped reader did not consume EOF");
+        }
+        if (anim.material.empty()) return std::nullopt;
+        return anim;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr, "[world] RndMatAnim decode failed: %s\n",
+                         ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
 std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path) {
@@ -3962,141 +4171,10 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (size < 40) continue;
-            uint32_t version = 0;
-            std::memcpy(&version, body, sizeof(version));
-            if (static_cast<uint16_t>(version & 0xffff) != 7) continue;
-            size_t pos = 25;
-            auto read_string = [&]() {
-                return read_milo_string_advance(body, size, pos, 128);
-            };
-            auto material = read_string();
-            auto keys_owner = read_string();
-            if (!material || material->empty() || !keys_owner) continue;
-            Gameplay::VenueMaterialAnim anim;
-            anim.name = canonical_milo_ref(de.name);
-            anim.material = *material;
-            anim.keys_owner = canonical_milo_ref(*keys_owner);
-            if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
-            uint32_t color_count = 0;
-            if (!read_u32_advance(body, size, pos, color_count) ||
-                color_count > 4096) {
-                continue;
-            }
-            for (uint32_t i = 0; i < color_count; ++i) {
-                Gameplay::VenueMaterialAnim::ColorKey key;
-                if (!read_f32_advance(body, size, pos, key.color[0]) ||
-                    !read_f32_advance(body, size, pos, key.color[1]) ||
-                    !read_f32_advance(body, size, pos, key.color[2]) ||
-                    !read_f32_advance(body, size, pos, key.color[3]) ||
-                    !read_f32_advance(body, size, pos, key.frame)) {
-                    anim.color_keys.clear();
-                    break;
-                }
-                for (float& c : key.color)
-                    c = clamp_material_color_component(c);
-                anim.color_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (color_count != anim.color_keys.size()) continue;
-            uint32_t alpha_count = 0;
-            if (!read_u32_advance(body, size, pos, alpha_count) ||
-                alpha_count > 4096) {
-                continue;
-            }
-            for (uint32_t i = 0; i < alpha_count; ++i) {
-                Gameplay::VenueMaterialAnim::FloatKey key;
-                if (!read_f32_advance(body, size, pos, key.value) ||
-                    !read_f32_advance(body, size, pos, key.frame)) {
-                    anim.alpha_keys.clear();
-                    break;
-                }
-                key.value = clamp_material_alpha(key.value);
-                anim.alpha_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (alpha_count != anim.alpha_keys.size()) continue;
-            anim.has_alpha = !anim.alpha_keys.empty();
-            if (anim.has_alpha) {
-                anim.start_alpha = anim.alpha_keys.front().value;
-                anim.end_alpha = anim.alpha_keys.back().value;
-            }
-            uint32_t trans_count = 0;
-            if (!read_u32_advance(body, size, pos, trans_count) ||
-                trans_count > 4096) {
-                continue;
-            }
-            for (uint32_t i = 0; i < trans_count; ++i) {
-                Gameplay::VenueMaterialAnim::Vec3Key key;
-                if (!read_f32_advance(body, size, pos, key.value[0]) ||
-                    !read_f32_advance(body, size, pos, key.value[1]) ||
-                    !read_f32_advance(body, size, pos, key.value[2]) ||
-                    !read_f32_advance(body, size, pos, key.frame)) {
-                    anim.tex_translation_keys.clear();
-                    break;
-                }
-                anim.tex_translation_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (trans_count != anim.tex_translation_keys.size()) continue;
-            uint32_t scale_count = 0;
-            if (!read_u32_advance(body, size, pos, scale_count) ||
-                scale_count > 4096) {
-                continue;
-            }
-            for (uint32_t i = 0; i < scale_count; ++i) {
-                Gameplay::VenueMaterialAnim::Vec3Key key;
-                if (!read_f32_advance(body, size, pos, key.value[0]) ||
-                    !read_f32_advance(body, size, pos, key.value[1]) ||
-                    !read_f32_advance(body, size, pos, key.value[2]) ||
-                    !read_f32_advance(body, size, pos, key.frame)) {
-                    anim.tex_scale_keys.clear();
-                    break;
-                }
-                anim.tex_scale_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (scale_count != anim.tex_scale_keys.size()) continue;
-            uint32_t rot_count = 0;
-            if (!read_u32_advance(body, size, pos, rot_count) ||
-                rot_count > 4096) {
-                continue;
-            }
-            for (uint32_t i = 0; i < rot_count; ++i) {
-                Gameplay::VenueMaterialAnim::Vec3Key key;
-                if (!read_f32_advance(body, size, pos, key.value[0]) ||
-                    !read_f32_advance(body, size, pos, key.value[1]) ||
-                    !read_f32_advance(body, size, pos, key.value[2]) ||
-                    !read_f32_advance(body, size, pos, key.frame)) {
-                    anim.tex_rotation_keys.clear();
-                    break;
-                }
-                anim.tex_rotation_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (rot_count != anim.tex_rotation_keys.size()) continue;
-            if (pos + 4 <= size) {
-                uint32_t texture_count = 0;
-                if (!read_u32_advance(body, size, pos, texture_count) ||
-                    texture_count > 4096) {
-                    continue;
-                }
-                for (uint32_t i = 0; i < texture_count; ++i) {
-                    Gameplay::VenueMaterialAnim::TextureKey key;
-                    auto texture = read_string();
-                    if (!texture || texture->rfind(".tex") == std::string::npos ||
-                        !read_f32_advance(body, size, pos, key.frame)) {
-                        anim.texture_keys.clear();
-                        break;
-                    }
-                    key.texture = *texture;
-                    anim.texture_keys.push_back(std::move(key));
-                    anim.duration_frames =
-                        std::max(anim.duration_frames,
-                                 anim.texture_keys.back().frame);
-                }
-                if (texture_count != anim.texture_keys.size()) continue;
-            }
+            auto decoded =
+                read_rnd_matanim_like_miloeditor(body, size, de.name);
+            if (!decoded) continue;
+            auto anim = std::move(*decoded);
             const bool owner_backed =
                 !anim.keys_owner.empty() && anim.keys_owner != anim.name;
             if (!venue_material_anim_has_channels(anim) && !owner_backed) {
@@ -5154,26 +5232,15 @@ load_venue_event_mat_anims(
         std::unordered_set<std::string> noop_mat_anims;
         auto mat_anim_is_true_noop = [](const uint8_t* body, size_t size,
                                         const std::string& name) -> bool {
-            if (size < 40) return false;
-            uint32_t version = 0;
-            std::memcpy(&version, body, sizeof(version));
-            if (static_cast<uint16_t>(version & 0xffff) != 7) return false;
-            size_t pos = 25;
-            auto material = read_milo_string_advance(body, size, pos, 128);
-            auto keys_owner = read_milo_string_advance(body, size, pos, 128);
-            if (!material || !keys_owner) return false;
+            auto decoded =
+                read_rnd_matanim_like_miloeditor(body, size, name);
+            if (!decoded) return false;
+            const auto& anim = *decoded;
             const std::string anim_name = canonical_milo_ref(name);
-            std::string owner = canonical_milo_ref(*keys_owner);
+            std::string owner = canonical_milo_ref(anim.keys_owner);
             if (owner.empty()) owner = anim_name;
             if (owner != anim_name) return false;
-            for (int i = 0; i < 6; ++i) {
-                if (pos + 4 > size) return false;
-                uint32_t count = 0;
-                std::memcpy(&count, body + pos, sizeof(count));
-                pos += 4;
-                if (count != 0) return false;
-            }
-            return true;
+            return !venue_material_anim_has_channels(anim);
         };
         for (const auto& de : dir.entries) {
             if (de.type != "MatAnim" || de.offset + de.size > payload.size())

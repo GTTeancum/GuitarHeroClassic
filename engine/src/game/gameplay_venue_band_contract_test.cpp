@@ -4429,7 +4429,7 @@ int main() {
                  "floatclamp_material_alpha(floatalpha)",
                  "venue MatAnim alpha is converted to renderer alpha space");
   ok &= contains(gameplay_c,
-                 "key.value=clamp_material_alpha(key.value);",
+                 "key.value=clamp_material_alpha(r.f32());",
                  "decoded venue MatAnim start alpha is clamped");
   ok &= contains(gameplay_c,
                  "anim.end_alpha=anim.alpha_keys.back().value;",
@@ -4450,10 +4450,19 @@ int main() {
                  "std::vector<Vec3Key>tex_rotation_keys;",
                  "decoded venue MatAnim keeps source-shaped texture rotation Vec3 keys");
   ok &= contains(gameplay_c,
+                 "read_object_fields_like_miloeditor(r,object_props);",
+                 "MatAnim loader reads source object fields before material");
+  ok &= contains(gameplay_c,
+                 "(void)read_rnd_animatable_like_miloeditor(r);",
+                 "MatAnim loader follows ihatecompvir RndAnimatable order");
+  ok &= contains(gameplay_c,
+                 "anim.material=r.symbol();",
+                 "MatAnim loader reads source material symbol after RndAnimatable");
+  ok &= contains(gameplay_c,
                  "uint32_tcolor_count=0;",
                  "MatAnim loader reads material color channel count");
   ok &= contains(gameplay_c,
-                 "anim.keys_owner=canonical_milo_ref(*keys_owner);",
+                 "anim.keys_owner=canonical_milo_ref(r.symbol());",
                  "MatAnim loader preserves source key-owner references");
   ok &= contains(gameplay_c,
                  "constboolowner_backed=!anim.keys_owner.empty()&&"
@@ -4475,7 +4484,7 @@ int main() {
                  "uint32_trot_count=0;",
                  "MatAnim loader reads texture rotation channel count");
   ok &= contains(gameplay_c,
-                 "read_f32_advance(body,size,pos,key.value[2])",
+                 "key.value[2]=r.f32();",
                  "MatAnim loader reads texture rotation keys as ihatecompvir Vec3Key rows");
   ok &= contains(gameplay_c,
                  "sample_material_rotation_z_key(anim.tex_rotation_keys,frame)",
@@ -5424,7 +5433,8 @@ int main() {
                  "std::unordered_set<std::string>noop_mat_anims;",
                  "EventTrigger MatAnim routing tracks same-MILO zero-channel no-ops");
   ok &= contains(gameplay_c,
-                 "if(owner!=anim_name)returnfalse;",
+                 "if(owner!=anim_name)returnfalse;return!"
+                 "venue_material_anim_has_channels(anim);",
                  "zero-channel MatAnim routing preserves source keys_owner rows");
   ok &= contains(gameplay_c,
                  "noop_mat_anims.find(ref)!=noop_mat_anims.end())return;",
