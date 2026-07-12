@@ -1113,15 +1113,76 @@ int run_contract() {
                  "changedBy.push_back(mNut);changedBy.push_back(mBridge);"
                  "changedBy.push_back(mTarget);change.push_back(mBend);",
                  "latest CharGuitarString PollDeps order");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "CharGuitarString::CharGuitarString():mOpen(0),"
+                 "mNut(this,0),mBridge(this,0),mBend(this,0),mTarget(this,0)",
+                 "latest CharGuitarString constructor rows");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "voidCharGuitarString::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(0,0);Hmx::Object::Load(bs);bs>>mNut;"
+                 "bs>>mBridge;bs>>mBend;bs>>mTarget;}",
+                 "latest CharGuitarString load rows");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "COPY_MEMBER(mTarget)COPY_MEMBER(mNut)COPY_MEMBER(mBridge)"
+                 "COPY_MEMBER(mBend)",
+                 "latest CharGuitarString copy rows");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "BEGIN_HANDLERS(CharGuitarString)HANDLE_ACTION(set_open,"
+                 "mOpen=_msg->Int(2)!=0)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x70)END_HANDLERS",
+                 "latest CharGuitarString handler rows");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "BEGIN_PROPSYNCS(CharGuitarString)SYNC_PROP(nut,mNut)"
+                 "SYNC_PROP(bridge,mBridge)SYNC_PROP(bend,mBend)"
+                 "SYNC_PROP(target,mTarget)END_PROPSYNCS",
+                 "latest CharGuitarString prop-sync rows");
   ok &= contains(char_mesh_h,
                  "structSourceCharGuitarStringPollResult{boolwrote_bend=false;",
                  "native exposes CharGuitarString poll result");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringDefaultState{boolopen=false;};",
+                 "native exposes CharGuitarString default state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharGuitarString load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes CharGuitarString copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringHandlerPlan{std::vector<std::string>"
+                 "actions;std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes CharGuitarString handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringPropSyncPlan{std::vector<std::string>"
+                 "properties;};",
+                 "native exposes CharGuitarString prop-sync plan");
   ok &= contains(char_mesh_h,
                  "SourceCharGuitarStringPollResultsource_char_guitar_string_poll(",
                  "native exposes CharGuitarString poll helper");
   ok &= contains(char_mesh_h,
                  "voidsource_char_guitar_string_poll_deps(",
                  "native exposes CharGuitarString PollDeps helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharGuitarStringDefaultState"
+                 "source_char_guitar_string_default_state();",
+                 "native exposes CharGuitarString default helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharGuitarStringLoadPlansource_char_guitar_string_load_plan("
+                 "intrevision);",
+                 "native exposes CharGuitarString load helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharGuitarStringCopyPlansource_char_guitar_string_copy_plan();",
+                 "native exposes CharGuitarString copy helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharGuitarStringHandlerPlan"
+                 "source_char_guitar_string_handler_plan();",
+                 "native exposes CharGuitarString handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharGuitarStringPropSyncPlan"
+                 "source_char_guitar_string_prop_sync_plan();",
+                 "native exposes CharGuitarString prop-sync helper");
   ok &= contains(char_mesh,
                  "SourceCharGuitarStringPollResultsource_char_guitar_string_poll("
                  "boolhas_nut,boolhas_bridge,boolhas_bend,boolhas_target,",
@@ -1142,6 +1203,38 @@ int run_contract() {
                  "deps.changed_by.push_back(nut);deps.changed_by.push_back(bridge);"
                  "deps.changed_by.push_back(target);deps.change.push_back(bend);",
                  "native CharGuitarString helper ports PollDeps order");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringDefaultState"
+                 "source_char_guitar_string_default_state(){return"
+                 "SourceCharGuitarStringDefaultState{};}",
+                 "native CharGuitarString helper ports default state");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringLoadPlansource_char_guitar_string_load_plan("
+                 "intrevision){SourceCharGuitarStringLoadPlanplan;plan.known_revision="
+                 "revision==0;",
+                 "native CharGuitarString helper ports revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"mNut\",\"mBridge\","
+                 "\"mBend\",\"mTarget\"};",
+                 "native CharGuitarString helper ports load rows");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringCopyPlansource_char_guitar_string_copy_plan(){"
+                 "SourceCharGuitarStringCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};plan.copied_members={\"mTarget\",\"mNut\","
+                 "\"mBridge\",\"mBend\"};",
+                 "native CharGuitarString helper ports copy rows");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringHandlerPlansource_char_guitar_string_handler_plan(){"
+                 "SourceCharGuitarStringHandlerPlanplan;plan.actions={"
+                 "\"set_open:mOpen=_msg->Int(2)!=0\"};plan.superclasses={"
+                 "\"Hmx::Object\"};plan.check=0x70;",
+                 "native CharGuitarString helper ports handler rows");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringPropSyncPlan"
+                 "source_char_guitar_string_prop_sync_plan(){"
+                 "SourceCharGuitarStringPropSyncPlanplan;plan.properties={"
+                 "\"nut\",\"bridge\",\"bend\",\"target\"};",
+                 "native CharGuitarString helper ports prop-sync rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_guitar_string_source_test",
                  "CMake builds CharGuitarString source test");
@@ -1155,6 +1248,21 @@ int run_contract() {
                  "source_char_guitar_string_poll_deps(deps,\"nut.trans\","
                  "\"bridge.trans\",\"target.trans\",\"bend.trans\")",
                  "focused CharGuitarString test covers PollDeps");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_default_state()",
+                 "focused CharGuitarString test covers default state");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_load_plan(0)",
+                 "focused CharGuitarString test covers load plan");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_copy_plan()",
+                 "focused CharGuitarString test covers copy plan");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_handler_plan()",
+                 "focused CharGuitarString test covers handler plan");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_prop_sync_plan()",
+                 "focused CharGuitarString test covers prop-sync plan");
   ok &= contains(stock_guitar_string_sweep,
                  "\"Entry\",\"HasCharGuitarString\",\"StringHits\",\"TransSummary\"",
                  "stock guitar sweep records CharGuitarString column");
@@ -1165,6 +1273,15 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_guitar_string_*` helpers port that math",
                  "document records native CharGuitarString helper");
+  ok &= contains(doc,
+                 "source_char_guitar_string_load_plan",
+                 "document records native CharGuitarString load helper");
+  ok &= contains(doc,
+                 "source_char_guitar_string_handler_plan",
+                 "document records native CharGuitarString handler helper");
+  ok &= contains(doc,
+                 "source_char_guitar_string_prop_sync_plan",
+                 "document records native CharGuitarString prop-sync helper");
   ok &= contains(doc,
                  "not the active GH2 stock guitar/left-hand\n"
                  "or string-transparency route",

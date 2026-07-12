@@ -2285,6 +2285,30 @@ struct SourceCharGuitarStringPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharGuitarStringDefaultState {
+  bool open = false;
+};
+
+struct SourceCharGuitarStringLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharGuitarStringCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharGuitarStringHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharGuitarStringPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharEyesInterest {
   std::string interest;
   bool same_dir = false;
@@ -3112,6 +3136,14 @@ void source_char_guitar_string_poll_deps(
     const std::string& bridge,
     const std::string& target,
     const std::string& bend);
+SourceCharGuitarStringDefaultState
+source_char_guitar_string_default_state();
+SourceCharGuitarStringLoadPlan source_char_guitar_string_load_plan(
+    int revision);
+SourceCharGuitarStringCopyPlan source_char_guitar_string_copy_plan();
+SourceCharGuitarStringHandlerPlan source_char_guitar_string_handler_plan();
+SourceCharGuitarStringPropSyncPlan
+source_char_guitar_string_prop_sync_plan();
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
 bool source_char_eyes_either_eye_clamped(

@@ -5615,6 +5615,41 @@ void source_char_guitar_string_poll_deps(
   deps.change.push_back(bend);
 }
 
+SourceCharGuitarStringDefaultState source_char_guitar_string_default_state() {
+  return SourceCharGuitarStringDefaultState{};
+}
+
+SourceCharGuitarStringLoadPlan source_char_guitar_string_load_plan(
+    int revision) {
+  SourceCharGuitarStringLoadPlan plan;
+  plan.known_revision = revision == 0;
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "mNut", "mBridge", "mBend", "mTarget"};
+  return plan;
+}
+
+SourceCharGuitarStringCopyPlan source_char_guitar_string_copy_plan() {
+  SourceCharGuitarStringCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mTarget", "mNut", "mBridge", "mBend"};
+  return plan;
+}
+
+SourceCharGuitarStringHandlerPlan source_char_guitar_string_handler_plan() {
+  SourceCharGuitarStringHandlerPlan plan;
+  plan.actions = {"set_open:mOpen=_msg->Int(2)!=0"};
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x70;
+  return plan;
+}
+
+SourceCharGuitarStringPropSyncPlan
+source_char_guitar_string_prop_sync_plan() {
+  SourceCharGuitarStringPropSyncPlan plan;
+  plan.properties = {"nut", "bridge", "bend", "target"};
+  return plan;
+}
+
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats) {
   std::vector<std::string> children;

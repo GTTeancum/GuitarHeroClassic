@@ -45,10 +45,18 @@ bool vec_near(const std::array<float, 3>& got,
 
 int main() {
   using ghogx::character::SourceCharGuitarStringPollDeps;
+  using ghogx::character::source_char_guitar_string_copy_plan;
+  using ghogx::character::source_char_guitar_string_default_state;
+  using ghogx::character::source_char_guitar_string_handler_plan;
+  using ghogx::character::source_char_guitar_string_load_plan;
   using ghogx::character::source_char_guitar_string_poll;
   using ghogx::character::source_char_guitar_string_poll_deps;
+  using ghogx::character::source_char_guitar_string_prop_sync_plan;
 
   bool ok = true;
+
+  const auto defaults = source_char_guitar_string_default_state();
+  ok &= expect_bool(defaults.open, false, "default closed string");
 
   auto result = source_char_guitar_string_poll(
       true, true, true, false, false,
@@ -115,6 +123,56 @@ int main() {
   ok &= expect_string(deps.changed_by[1], "bridge.trans", "deps bridge");
   ok &= expect_string(deps.changed_by[2], "target.trans", "deps target");
   ok &= expect_string(deps.change[0], "bend.trans", "deps bend");
+
+  const auto load_plan = source_char_guitar_string_load_plan(0);
+  ok &= expect_bool(load_plan.known_revision, true,
+                    "guitar string load revision known");
+  ok &= expect_size(load_plan.read_order.size(), 5,
+                    "guitar string load row count");
+  ok &= expect_string(load_plan.read_order[0], "Hmx::Object",
+                      "guitar string load object");
+  ok &= expect_string(load_plan.read_order[1], "mNut",
+                      "guitar string load nut");
+  ok &= expect_string(load_plan.read_order[4], "mTarget",
+                      "guitar string load target");
+  const auto rejected_load = source_char_guitar_string_load_plan(1);
+  ok &= expect_bool(rejected_load.known_revision, false,
+                    "guitar string load rejects revision 1");
+  ok &= expect_size(rejected_load.read_order.size(), 0,
+                    "guitar string rejected load empty");
+
+  const auto copy_plan = source_char_guitar_string_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 1,
+                    "guitar string copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "guitar string copy superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 4,
+                    "guitar string copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mTarget",
+                      "guitar string copy target first");
+  ok &= expect_string(copy_plan.copied_members[3], "mBend",
+                      "guitar string copy bend last");
+
+  const auto handler_plan = source_char_guitar_string_handler_plan();
+  ok &= expect_size(handler_plan.actions.size(), 1,
+                    "guitar string handler action count");
+  ok &= expect_string(handler_plan.actions[0],
+                      "set_open:mOpen=_msg->Int(2)!=0",
+                      "guitar string handler set open");
+  ok &= expect_size(handler_plan.superclasses.size(), 1,
+                    "guitar string handler superclass count");
+  ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
+                      "guitar string handler superclass");
+  ok &= expect_bool(handler_plan.check == 0x70, true,
+                    "guitar string handler check row");
+
+  const auto prop_plan = source_char_guitar_string_prop_sync_plan();
+  ok &= expect_size(prop_plan.properties.size(), 4,
+                    "guitar string prop-sync count");
+  ok &= expect_string(prop_plan.properties[0], "nut",
+                      "guitar string prop nut");
+  ok &= expect_string(prop_plan.properties[3], "target",
+                      "guitar string prop target");
 
   return ok ? 0 : 1;
 }

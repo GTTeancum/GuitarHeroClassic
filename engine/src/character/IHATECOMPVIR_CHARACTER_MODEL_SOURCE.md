@@ -3943,6 +3943,16 @@ transform. Native `source_char_guitar_string_*` helpers port that math and
 `CharGuitarString` rows, but this is not the active GH2 stock guitar/left-hand
 or string-transparency route and must not be promoted as an implicit fix.
 
+The same source also exposes deterministic row metadata: constructor `mOpen=0`,
+revision-0 load rows (`Hmx::Object`, `mNut`, `mBridge`, `mBend`, `mTarget`),
+copy rows (`mTarget`, `mNut`, `mBridge`, `mBend`), the `set_open` handler,
+`Hmx::Object` superclass/check `0x70`, and prop-sync rows (`nut`, `bridge`,
+`bend`, `target`). Native `source_char_guitar_string_default_state`,
+`source_char_guitar_string_load_plan`, `source_char_guitar_string_copy_plan`,
+`source_char_guitar_string_handler_plan`, and
+`source_char_guitar_string_prop_sync_plan` record those rows as source metadata
+only.
+
 The local stock mesh detail audit log at
 `analysis/ihatecompvir_source_truth_20260710/source_rndmesh_group_sections.log`
 confirms GH2 PS2 mesh group-section tails decode through the same
