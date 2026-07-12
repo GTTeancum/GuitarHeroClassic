@@ -126,7 +126,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharSleeve.cpp` | `ghogx_character_sleeve_source_test` | `ported-visible-source` |
 | `CharTaskMgr.cpp` | `ghogx_character_clip_display_source_test` | `diagnostic-only` |
 | `CharTransCopy.cpp` | `ghogx_character_trans_copy_source_test` | `ported-visible-source` |
-| `CharTransDraw.cpp` | `ghogx_character_trans_draw_source_test` | `diagnostic-only` |
+| `CharTransDraw.cpp` | `ghogx_character_trans_draw_source_test` | `ported-visible-source` |
 | `CharUpperTwist.cpp` | `ghogx_character_fore_upper_twist_source_test` | `ported-visible-source` |
 | `CharUtl.cpp` | `ghogx_character_char_utl_source_test` | `ported-visible-source` |
 | `CharWeightable.cpp` | `ghogx_character_weight_setter_source_test` | `ported-visible-source` |
@@ -1771,6 +1771,10 @@ note, and all report `unreadBytes=0`.
     order.
   - `CharTransDraw::Load` reads `Hmx::Object`, `RndDrawable`, then `mChars`,
     and immediately sets every referenced character to `kCharDrawOpaque`.
+  - `CharTransDraw::Copy`, handlers, and prop-sync rows are source-visible:
+    copy duplicates `mChars` after the `Hmx::Object` and `RndDrawable`
+    superclasses, handlers delegate to `RndDrawable` then `Hmx::Object` with
+    check `0x5E`, and prop-sync exposes `chars` then `RndDrawable`.
   - `CharTransDraw::~CharTransDraw` restores every referenced character to
     `kCharDrawAll`.
   - `DrawShowing` skips hidden characters. For each showing character it sets

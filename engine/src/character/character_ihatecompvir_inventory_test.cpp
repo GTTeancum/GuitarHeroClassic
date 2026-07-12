@@ -123,7 +123,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharTransCopy.cpp", "ghogx_character_trans_copy_source_test",
      "ported-visible-source"},
     {"CharTransDraw.cpp", "ghogx_character_trans_draw_source_test",
-     "diagnostic-only"},
+     "ported-visible-source"},
     {"CharUpperTwist.cpp", "ghogx_character_fore_upper_twist_source_test",
      "ported-visible-source"},
     {"CharUtl.cpp", "ghogx_character_char_utl_source_test",

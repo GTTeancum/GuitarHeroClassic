@@ -3900,6 +3900,36 @@ SourceCharacterTestLoadResult source_character_test_load(
   return result;
 }
 
+SourceCharTransDrawLoadPlan source_char_trans_draw_load_plan(int revision) {
+  SourceCharTransDrawLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 1;
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "RndDrawable", "mChars"};
+  plan.post_load_mode = SourceCharacterDrawMode::kOpaque;
+  return plan;
+}
+
+SourceCharTransDrawCopyPlan source_char_trans_draw_copy_plan() {
+  SourceCharTransDrawCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndDrawable"};
+  plan.copied_members = {"mChars"};
+  return plan;
+}
+
+SourceCharTransDrawHandlerPlan source_char_trans_draw_handler_plan() {
+  SourceCharTransDrawHandlerPlan plan;
+  plan.superclasses = {"RndDrawable", "Hmx::Object"};
+  plan.check = 0x5e;
+  return plan;
+}
+
+SourceCharTransDrawPropSyncPlan source_char_trans_draw_prop_sync_plan() {
+  SourceCharTransDrawPropSyncPlan plan;
+  plan.properties = {"chars"};
+  plan.superclasses = {"RndDrawable"};
+  return plan;
+}
+
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode) {

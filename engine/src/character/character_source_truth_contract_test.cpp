@@ -8100,6 +8100,20 @@ int run_contract() {
                  "SetDrawModes(Character::kCharDrawOpaque);}",
                  "CharTransDraw source Load sets opaque");
   ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "BEGIN_COPYS(CharTransDraw)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(RndDrawable)CREATE_COPY(CharTransDraw)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mChars)",
+                 "CharTransDraw source Copy rows");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "BEGIN_HANDLERS(CharTransDraw)HANDLE_SUPERCLASS(RndDrawable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x5E)"
+                 "END_HANDLERS",
+                 "CharTransDraw source handler table");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "BEGIN_PROPSYNCS(CharTransDraw)SYNC_PROP(chars,mChars)"
+                 "SYNC_SUPERCLASS(RndDrawable)END_PROPSYNCS",
+                 "CharTransDraw source prop-sync rows");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
                  "voidCharTransDraw::DrawShowing(){for(ObjPtrList<Character,"
                  "ObjectDir>::iteratorit=mChars.begin();it!=mChars.end();"
                  "++it){Character*theChar=*it;if(theChar->Showing()){"
@@ -8111,6 +8125,50 @@ int run_contract() {
                  "enumclassSourceCharacterDrawMode:int32_t{kNone=0,"
                  "kOpaque=1,kTranslucent=2,kAll=3,};",
                  "native exposes source character draw-mode enum order");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransDrawLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;"
+                 "SourceCharacterDrawModepost_load_mode="
+                 "SourceCharacterDrawMode::kOpaque;};",
+                 "native exposes CharTransDraw load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransDrawCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes CharTransDraw copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransDrawHandlerPlan{std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native exposes CharTransDraw handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransDrawPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharTransDraw prop-sync plan");
+  ok &= contains(char_mesh,
+                 "SourceCharTransDrawLoadPlansource_char_trans_draw_load_plan("
+                 "intrevision){SourceCharTransDrawLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=1;",
+                 "native implements CharTransDraw load revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"RndDrawable\",\"mChars\"};"
+                 "plan.post_load_mode=SourceCharacterDrawMode::kOpaque;",
+                 "native implements CharTransDraw load rows");
+  ok &= contains(char_mesh,
+                 "SourceCharTransDrawCopyPlansource_char_trans_draw_copy_plan(){"
+                 "SourceCharTransDrawCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"RndDrawable\"};plan.copied_members={"
+                 "\"mChars\"};",
+                 "native implements CharTransDraw copy plan");
+  ok &= contains(char_mesh,
+                 "SourceCharTransDrawHandlerPlansource_char_trans_draw_handler_plan(){"
+                 "SourceCharTransDrawHandlerPlanplan;plan.superclasses={"
+                 "\"RndDrawable\",\"Hmx::Object\"};plan.check=0x5e;",
+                 "native implements CharTransDraw handler plan");
+  ok &= contains(char_mesh,
+                 "SourceCharTransDrawPropSyncPlansource_char_trans_draw_prop_sync_plan(){"
+                 "SourceCharTransDrawPropSyncPlanplan;plan.properties={\"chars\"};"
+                 "plan.superclasses={\"RndDrawable\"};",
+                 "native implements CharTransDraw prop-sync plan");
   ok &= contains(char_mesh,
                  "std::vector<SourceCharTransDrawStep>"
                  "source_char_trans_draw_set_draw_modes("
@@ -8139,6 +8197,18 @@ int run_contract() {
                  "source_char_trans_draw_load_modes(chars)",
                  "focused CharTransDraw test covers Load opaque");
   ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_load_plan(1)",
+                 "focused CharTransDraw test covers load plan");
+  ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_copy_plan()",
+                 "focused CharTransDraw test covers copy plan");
+  ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_handler_plan()",
+                 "focused CharTransDraw test covers handler plan");
+  ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_prop_sync_plan()",
+                 "focused CharTransDraw test covers prop-sync plan");
+  ok &= contains(trans_draw_source_test,
                  "source_char_trans_draw_destruct_modes(chars)",
                  "focused CharTransDraw test covers destructor all");
   ok &= contains(trans_draw_source_test,
@@ -8147,6 +8217,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_trans_draw_*` helpers port",
                  "document records native CharTransDraw helpers");
+  ok &= contains(doc,
+                 "`CharTransDraw::Copy`, handlers, and prop-sync rows are source-visible",
+                 "document records CharTransDraw row plans");
   ok &= contains(rb3_latest_char_cuff_h,
                  "classCharCuff:publicRndTransformable",
                  "latest CharCuff header exposes source class");

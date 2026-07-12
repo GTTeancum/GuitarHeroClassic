@@ -1516,6 +1516,27 @@ struct SourceCharTransDrawStep {
   bool draw = false;
 };
 
+struct SourceCharTransDrawLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  SourceCharacterDrawMode post_load_mode = SourceCharacterDrawMode::kOpaque;
+};
+
+struct SourceCharTransDrawCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharTransDrawHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharTransDrawPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharCuffShape {
   float offset = 0.0f;
   float radius = 0.0f;
@@ -2354,6 +2375,10 @@ bool source_character_test_set_move_self(bool has_bone_servo);
 SourceCharacterTestLoadResult source_character_test_load(
     int32_t revision,
     int32_t alt_revision);
+SourceCharTransDrawLoadPlan source_char_trans_draw_load_plan(int revision);
+SourceCharTransDrawCopyPlan source_char_trans_draw_copy_plan();
+SourceCharTransDrawHandlerPlan source_char_trans_draw_handler_plan();
+SourceCharTransDrawPropSyncPlan source_char_trans_draw_prop_sync_plan();
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode);
