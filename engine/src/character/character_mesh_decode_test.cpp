@@ -743,6 +743,56 @@ int main() {
   CHECK(hair_group.objects[0] == "bone_head");
   CHECK(hair_group.objects[1] == "hair.mesh");
 
+  const auto gltf_trans_anim =
+      ghogx::character::source_gltf_milo_export_trans_anim_plan(
+          "hair_sway",
+          {{"bone_hair_root", "translation", 2},
+           {"bone_hair_root", "rotation", 1},
+           {"bone_hair_root", "scale", 3}},
+          6, 3, true);
+  CHECK(gltf_trans_anim.has_channels);
+  CHECK(gltf_trans_anim.transform_only);
+  CHECK(gltf_trans_anim.creates_trans_anim);
+  CHECK(gltf_trans_anim.uses_reflection_revision);
+  CHECK(gltf_trans_anim.trans_anim_revision == 7);
+  CHECK(gltf_trans_anim.animatable_revision == 6);
+  CHECK(gltf_trans_anim.anim_rate_30_fps);
+  CHECK(gltf_trans_anim.drawable_revision == 3);
+  CHECK(approx(gltf_trans_anim.draw_sphere_radius, 0.0f));
+  CHECK(gltf_trans_anim.trans_target == "bone_hair_root.mesh");
+  CHECK(gltf_trans_anim.keys_owner == "hair_sway.tnm");
+  CHECK(gltf_trans_anim.object_fields_revision == 2);
+  CHECK(gltf_trans_anim.entry_type == "TransAnim");
+  CHECK(gltf_trans_anim.entry_name == "hair_sway.tnm");
+  CHECK(gltf_trans_anim.translation_key_count == 2);
+  CHECK(gltf_trans_anim.rotation_key_count == 1);
+  CHECK(gltf_trans_anim.scale_key_count == 3);
+  CHECK(gltf_trans_anim.converts_translation_keys);
+  CHECK(gltf_trans_anim.converts_rotation_keys);
+  CHECK(gltf_trans_anim.converts_scale_keys);
+  CHECK(gltf_trans_anim.processed_channel_paths.size() == 3);
+  CHECK(gltf_trans_anim.processed_channel_paths[0] == "translation");
+  CHECK(gltf_trans_anim.processed_channel_paths[2] == "scale");
+
+  const auto gltf_trans_anim_mismatch =
+      ghogx::character::source_gltf_milo_export_trans_anim_plan(
+          "bad_targets",
+          {{"bone_head", "translation", 1}, {"bone_arm", "rotation", 1}},
+          6, 3, false);
+  CHECK(gltf_trans_anim_mismatch.creates_trans_anim);
+  CHECK(gltf_trans_anim_mismatch.logs_mismatched_target);
+  CHECK(gltf_trans_anim_mismatch.mismatched_target_nodes.size() == 1);
+  CHECK(gltf_trans_anim_mismatch.mismatched_target_nodes[0] == "bone_arm");
+  CHECK(gltf_trans_anim_mismatch.trans_target == "bone_head.mesh");
+  CHECK(!gltf_trans_anim_mismatch.converts_translation_keys);
+
+  const auto gltf_non_transform_anim =
+      ghogx::character::source_gltf_milo_export_trans_anim_plan(
+          "visibility_anim", {{"bone_head", "weights", 2}}, 6, 3, false);
+  CHECK(gltf_non_transform_anim.has_channels);
+  CHECK(!gltf_non_transform_anim.transform_only);
+  CHECK(!gltf_non_transform_anim.creates_trans_anim);
+
   const auto gltf_validated =
       ghogx::character::source_gltf_milo_validate_skin_influences(
           {{1.0f, 4.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {4.0f, 1.0f},

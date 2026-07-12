@@ -4184,6 +4184,30 @@ int run_contract() {
   ok &= contains(gltf_program_cs,
                  "if(material.Alpha==SharpGLTF.Schema2.AlphaMode.MASK){",
                  "glTFMilo material pass gates alpha mask rows");
+  ok &= contains(gltf_program_cs,
+                 "boolisTransformOnly=anim.Channels.All(channel=>"
+                 "channel.TargetNodePath.ToString()==\"translation\"||",
+                 "glTFMilo gates TransAnim export to transform channels");
+  ok &= contains(gltf_program_cs,
+                 "Logger.Error($\"Animation{anim.Name}haschannelsthat"
+                 "targetdifferentnodes.\");",
+                 "glTFMilo logs mismatched TransAnim channel targets");
+  ok &= contains(gltf_program_cs,
+                 "SetValue(transAnim,(UInt16)7);",
+                 "glTFMilo sets TransAnim revision 7");
+  ok &= contains(gltf_program_cs,
+                 "transAnim.anim.rate=RndAnimatable.Rate.k30_fps;",
+                 "glTFMilo exports TransAnim at 30fps");
+  ok &= contains(gltf_program_cs,
+                 "transAnim.trans=targetNode+\".mesh\";",
+                 "glTFMilo targets TransAnim at target mesh");
+  ok &= contains(gltf_program_cs,
+                 "transAnim.keysOwner=anim.Name+\".tnm\";",
+                 "glTFMilo names TransAnim key owner from animation");
+  ok &= contains(gltf_program_cs,
+                 "DirectoryMeta.Entryentry=newDirectoryMeta.Entry("
+                 "\"TransAnim\",anim.Name+\".tnm\",transAnim);",
+                 "glTFMilo emits TransAnim directory entry");
   ok &= contains(gltf_node_processor_cs,
                  "if(node.Name==\"neutral_bone\")return;",
                  "glTFMilo ProcessBoneNode skips neutral bone");
@@ -4272,6 +4296,14 @@ int run_contract() {
                  "structSourceGltfMiloGroupNodePlan{boolskipped_armature=false;",
                  "native declares glTFMilo group node plan row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloTransAnimChannelInput{std::string"
+                 "target_node;",
+                 "native declares glTFMilo TransAnim channel row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloTransAnimExportPlan{boolhas_channels="
+                 "false;",
+                 "native declares glTFMilo TransAnim export plan row");
+  ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
@@ -4316,6 +4348,10 @@ int run_contract() {
                  "SourceGltfMiloGroupNodePlan"
                  "source_gltf_milo_process_group_node_plan(",
                  "native exposes glTFMilo group node helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloTransAnimExportPlan"
+                 "source_gltf_milo_export_trans_anim_plan(",
+                 "native exposes glTFMilo TransAnim export helper");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
@@ -4550,6 +4586,25 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "if(!child.empty())plan.objects.push_back(child);",
                  "native preserves ProcessGroupNode non-null descendant append");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloTransAnimExportPlan"
+                 "source_gltf_milo_export_trans_anim_plan(",
+                 "native ports glTFMilo TransAnim export helper");
+  ok &= contains(char_mesh,
+                 "path==\"translation\"||path==\"rotation\"||path==\"scale\"",
+                 "native preserves glTFMilo transform-only channel gate");
+  ok &= contains(char_mesh,
+                 "plan.logs_mismatched_target=true;",
+                 "native preserves glTFMilo mismatched-target log flag");
+  ok &= contains(char_mesh,
+                 "plan.trans_anim_revision=7;",
+                 "native preserves glTFMilo TransAnim revision");
+  ok &= contains(char_mesh,
+                 "plan.trans_target=target_node+\".mesh\";",
+                 "native preserves glTFMilo TransAnim target name");
+  ok &= contains(char_mesh,
+                 "plan.entry_type=\"TransAnim\";",
+                 "native preserves glTFMilo TransAnim directory type");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
@@ -4592,6 +4647,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "hair_group.calls_milo_extras_add_to_group",
                  "focused mesh decode test covers glTFMilo group extras call");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_export_trans_anim_plan(",
+                 "focused mesh decode test covers glTFMilo TransAnim export");
+  ok &= contains(mesh_decode_test,
+                 "gltf_trans_anim.trans_anim_revision==7",
+                 "focused mesh decode test covers TransAnim revision");
+  ok &= contains(mesh_decode_test,
+                 "gltf_trans_anim_mismatch.logs_mismatched_target",
+                 "focused mesh decode test covers TransAnim mismatch log");
+  ok &= contains(mesh_decode_test,
+                 "!gltf_non_transform_anim.creates_trans_anim",
+                 "focused mesh decode test covers non-transform animation gate");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_validate_skin_influences(",
                  "focused mesh decode test covers glTFMilo skin validation");
@@ -4687,6 +4754,9 @@ int run_contract() {
                  "`source_gltf_milo_build_bone_transforms` ports\n"
                  "    that per-chunk transform-list rule",
                  "document records glTFMilo bone transform helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_export_trans_anim_plan` records",
+                 "document records glTFMilo TransAnim export helper");
   ok &= contains(rb3_mesh_cpp,
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",

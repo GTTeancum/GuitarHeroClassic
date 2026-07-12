@@ -507,6 +507,38 @@ struct SourceGltfMiloGroupNodePlan {
   std::vector<std::string> objects;
 };
 
+struct SourceGltfMiloTransAnimChannelInput {
+  std::string target_node;
+  std::string target_path;
+  int32_t linear_key_count = 0;
+};
+
+struct SourceGltfMiloTransAnimExportPlan {
+  bool has_channels = false;
+  bool transform_only = false;
+  bool creates_trans_anim = false;
+  bool uses_reflection_revision = false;
+  bool logs_mismatched_target = false;
+  bool converts_translation_keys = false;
+  bool converts_rotation_keys = false;
+  bool converts_scale_keys = false;
+  uint16_t trans_anim_revision = 0;
+  int animatable_revision = 0;
+  bool anim_rate_30_fps = false;
+  int drawable_revision = 0;
+  float draw_sphere_radius = 0.0f;
+  std::string trans_target;
+  std::string keys_owner;
+  int object_fields_revision = 0;
+  std::string entry_type;
+  std::string entry_name;
+  int32_t translation_key_count = 0;
+  int32_t rotation_key_count = 0;
+  int32_t scale_key_count = 0;
+  std::vector<std::string> processed_channel_paths;
+  std::vector<std::string> mismatched_target_nodes;
+};
+
 SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     bool has_joints,
     bool has_weights,
@@ -550,6 +582,14 @@ SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
 
 SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
     const SourceGltfMiloGroupNodeInput& input);
+
+SourceGltfMiloTransAnimExportPlan
+source_gltf_milo_export_trans_anim_plan(
+    const std::string& anim_name,
+    const std::vector<SourceGltfMiloTransAnimChannelInput>& channels,
+    int animatable_revision,
+    int drawable_revision,
+    bool convert_world_coordinates);
 
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,

@@ -801,6 +801,65 @@ SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
   return plan;
 }
 
+SourceGltfMiloTransAnimExportPlan
+source_gltf_milo_export_trans_anim_plan(
+    const std::string& anim_name,
+    const std::vector<SourceGltfMiloTransAnimChannelInput>& channels,
+    int animatable_revision,
+    int drawable_revision,
+    bool convert_world_coordinates) {
+  SourceGltfMiloTransAnimExportPlan plan;
+  plan.has_channels = !channels.empty();
+  if (!plan.has_channels) return plan;
+
+  auto is_transform_path = [](const std::string& path) {
+    return path == "translation" || path == "rotation" || path == "scale";
+  };
+  plan.transform_only = std::all_of(
+      channels.begin(), channels.end(),
+      [&](const SourceGltfMiloTransAnimChannelInput& channel) {
+        return is_transform_path(channel.target_path);
+      });
+  if (!plan.transform_only) return plan;
+
+  const std::string target_node = channels.front().target_node;
+  for (const SourceGltfMiloTransAnimChannelInput& channel : channels) {
+    if (channel.target_node != target_node) {
+      plan.logs_mismatched_target = true;
+      plan.mismatched_target_nodes.push_back(channel.target_node);
+    }
+  }
+
+  plan.creates_trans_anim = true;
+  plan.uses_reflection_revision = true;
+  plan.trans_anim_revision = 7;
+  plan.animatable_revision = animatable_revision;
+  plan.anim_rate_30_fps = true;
+  plan.drawable_revision = drawable_revision;
+  plan.draw_sphere_radius = 0.0f;
+  plan.trans_target = target_node + ".mesh";
+  plan.keys_owner = anim_name + ".tnm";
+  plan.object_fields_revision = 2;
+  plan.entry_type = "TransAnim";
+  plan.entry_name = anim_name + ".tnm";
+
+  for (const SourceGltfMiloTransAnimChannelInput& channel : channels) {
+    const int32_t count = std::max(0, channel.linear_key_count);
+    plan.processed_channel_paths.push_back(channel.target_path);
+    if (channel.target_path == "translation") {
+      plan.translation_key_count += count;
+      plan.converts_translation_keys |= convert_world_coordinates && count > 0;
+    } else if (channel.target_path == "rotation") {
+      plan.rotation_key_count += count;
+      plan.converts_rotation_keys |= convert_world_coordinates && count > 0;
+    } else if (channel.target_path == "scale") {
+      plan.scale_key_count += count;
+      plan.converts_scale_keys |= convert_world_coordinates && count > 0;
+    }
+  }
+  return plan;
+}
+
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,
     int32_t position_count,

@@ -1020,6 +1020,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_gltf_milo_process_group_node_plan` mirror those exporter hierarchy
     decisions only; they do not alter GH2 stock transform solving or renderer
     group membership.
+  - For each glTF logical animation whose channels all target only
+    `translation`, `rotation`, or `scale`, glTFMilo creates a revision-7
+    `TransAnim`, assigns selected-game anim/draw revisions, uses 30fps,
+    zeroes the draw sphere, targets `<firstTargetNode>.mesh`, stores keys under
+    `<animName>.tnm`, and emits a `TransAnim` directory entry with that same
+    name. If channels target different nodes, source logs an error but still
+    builds the `TransAnim` row from the first channel's node. Native
+    `source_gltf_milo_export_trans_anim_plan` records that exporter contract
+    only; it does not promote animation playback or pose publishing.
   - The same glTFMilo source validates skin influences before packing: missing
     or non-finite weights/joints are ignored, zero or negative weights are
     skipped, non-integral/out-of-range joints are rejected, excluded joints such
