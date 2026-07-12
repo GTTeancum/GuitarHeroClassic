@@ -13460,6 +13460,17 @@ int run_contract() {
                  "std::vector<std::string>superclasses;};",
                  "native API exposes source CharBoneDir prop-sync row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirMergeTransform{std::stringname;"
+                 "boolis_loaded_dir=false;boolanimatable=false;};",
+                 "native API exposes source CharBoneDir MergeCharacter transform row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirMergeCharacterPlan{"
+                 "boolload_attempted=true;boolloaded=false;"
+                 "boolwarned_failed_load=false;size_tscanned_transforms=0;"
+                 "std::vector<std::string>selected_transforms;"
+                 "boolmerge_body_fenced=true;};",
+                 "native API exposes source CharBoneDir MergeCharacter plan row");
+  ok &= contains(char_clip_h,
                  "SourceCharBoneDirHandlerPlan"
                  "source_char_bone_dir_handler_plan();",
                  "native API exposes source CharBoneDir handler helper");
@@ -13528,6 +13539,11 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "std::vector<std::string>source_char_bone_dir_sync_filter(",
                  "native API exposes source CharBoneDir SyncFilter helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirMergeCharacterPlansource_char_bone_dir_merge_character_plan("
+                 "boolload_succeeds,conststd::vector<SourceCharBoneDirMergeTransform>&"
+                 "transforms);",
+                 "native API exposes source CharBoneDir MergeCharacter helper");
   ok &= contains(char_clip_h,
                  "structSourceCharBonesMeshesReplaceStep{boolobject_replace=true;"
                  "boolscan_meshes=false;intreplaced_index=-1;"
@@ -13802,6 +13818,20 @@ int run_contract() {
                  "(filter_context&bone.rotation_context)!=0",
                  "native CharBoneDir SyncFilter helper gates TYPE_END rotation");
   ok &= contains(char_clip,
+                 "SourceCharBoneDirMergeCharacterPlansource_char_bone_dir_merge_character_plan("
+                 "boolload_succeeds,conststd::vector<SourceCharBoneDirMergeTransform>&"
+                 "transforms){SourceCharBoneDirMergeCharacterPlanplan;",
+                 "native CharBoneDir MergeCharacter helper is implemented");
+  ok &= contains(char_clip,
+                 "if(!load_succeeds){plan.warned_failed_load=true;returnplan;}",
+                 "native CharBoneDir MergeCharacter helper mirrors load failure");
+  ok &= contains(char_clip,
+                 "if(transform.is_loaded_dir||!transform.animatable)continue;"
+                 "if(transform.name.rfind(\"bone_\",0)==0||transform.name.rfind("
+                 "\"exo_\",0)==0){plan.selected_transforms.push_back("
+                 "transform.name);}",
+                 "native CharBoneDir MergeCharacter helper mirrors transform selection");
+  ok &= contains(char_clip,
                  "SourceCharBonesMeshesReplaceStepsource_char_bones_meshes_replace_step("
                  "conststd::vector<std::string>&meshes,conststd::string&from,"
                  "conststd::string&to,boolto_is_transformable,"
@@ -13904,6 +13934,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharBoneDir::SyncFilter` clears `mFilterBones`",
                  "document records source CharBoneDir SyncFilter behavior");
+  ok &= contains(doc,
+                 "`CharBoneDir::MergeCharacter` has a concrete checked prefix",
+                 "document records source CharBoneDir MergeCharacter prefix");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_merge_character_plan` ports only that source-visible",
+                 "document records native CharBoneDir MergeCharacter boundary");
   ok &= contains(doc,
                  "`CharBoneDir` construction, load, and copy are source-visible",
                  "document records source CharBoneDir load/copy slice");
@@ -14045,6 +14081,15 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_sync_filter(filter_inputs,0x8)",
                  "focused CharBones source test covers CharBoneDir SyncFilter");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_merge_character_plan(false,{})",
+                 "focused CharBones source test covers CharBoneDir MergeCharacter load failure");
+  ok &= contains(char_bones_source_test,
+                 "\"CharBoneDirMergeCharacterselectsexoprefix\"",
+                 "focused CharBones source test covers CharBoneDir MergeCharacter exo prefix");
+  ok &= contains(char_bones_source_test,
+                 "\"CharBoneDirMergeCharacterbodyremainsfenced\"",
+                 "focused CharBones source test covers CharBoneDir MergeCharacter fenced body");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_meshes_replace_step({\"mesh_a\",\"mesh_b\"},",
                  "focused CharBones source test covers CharBonesMeshes Replace dummy skip");
@@ -14230,6 +14275,18 @@ int run_contract() {
                  "it->ScaleContext()||(it->RotationType()!=CharBones::TYPE_END&&"
                  "mFilterContext&it->RotationContext())",
                  "latest CharBoneDir source defines SyncFilter gates");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::MergeCharacter(constFilePath&fp){"
+                 "ObjectDir*dir=DirLoader::LoadObjects(FilePath(fp.c_str()),"
+                 "0,0);if(!dir)MILO_WARN(\"Couldnotload%s\",fp);else{"
+                 "std::list<RndTransformable*>tlist;",
+                 "latest CharBoneDir source defines MergeCharacter load branch");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "if((Hmx::Object*)it!=(Hmx::Object*)dir){if("
+                 "CharUtlIsAnimatable(it)){constchar*name=it->Name();if("
+                 "strncmp(\"bone_\",name,5)==0||strncmp(\"exo_\",name,4)==0){"
+                 "tlist.push_back(it);}}}",
+                 "latest CharBoneDir source defines MergeCharacter transform filter");
   ok &= contains(rb3_latest_char_bones_meshes_h,
                  "classCharBonesMeshes:publicCharBonesAlloc",
                  "latest CharBonesMeshes header defines source inheritance");

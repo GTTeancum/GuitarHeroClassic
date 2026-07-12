@@ -1009,6 +1009,39 @@ int main() {
                     "CharBoneDir SyncFilter rotation count");
   ok &= expect_string(filter_context_eight[0], "bone_rot",
                       "CharBoneDir SyncFilter skips TYPE_END rotation");
+  const SourceCharBoneDirMergeCharacterPlan merge_failed =
+      source_char_bone_dir_merge_character_plan(false, {});
+  ok &= expect_int(merge_failed.load_attempted ? 1 : 0, 1,
+                   "CharBoneDir MergeCharacter attempts load");
+  ok &= expect_int(merge_failed.loaded ? 1 : 0, 0,
+                   "CharBoneDir MergeCharacter failed not loaded");
+  ok &= expect_int(merge_failed.warned_failed_load ? 1 : 0, 1,
+                   "CharBoneDir MergeCharacter failed warns");
+  ok &= expect_size(merge_failed.selected_transforms.size(), 0,
+                    "CharBoneDir MergeCharacter failed selects none");
+  const std::vector<SourceCharBoneDirMergeTransform> merge_transforms = {
+      {"character.dir", true, true},
+      {"bone_root.mesh", false, true},
+      {"exo_spine.mesh", false, true},
+      {"spot_anchor.trans", false, true},
+      {"bone_static.mesh", false, false},
+      {"bone_hand.mesh", false, true}};
+  const SourceCharBoneDirMergeCharacterPlan merge_plan =
+      source_char_bone_dir_merge_character_plan(true, merge_transforms);
+  ok &= expect_int(merge_plan.loaded ? 1 : 0, 1,
+                   "CharBoneDir MergeCharacter loaded");
+  ok &= expect_size(merge_plan.scanned_transforms, 6,
+                    "CharBoneDir MergeCharacter scan count");
+  ok &= expect_size(merge_plan.selected_transforms.size(), 3,
+                    "CharBoneDir MergeCharacter selected count");
+  ok &= expect_string(merge_plan.selected_transforms[0], "bone_root.mesh",
+                      "CharBoneDir MergeCharacter selects bone prefix");
+  ok &= expect_string(merge_plan.selected_transforms[1], "exo_spine.mesh",
+                      "CharBoneDir MergeCharacter selects exo prefix");
+  ok &= expect_string(merge_plan.selected_transforms[2], "bone_hand.mesh",
+                      "CharBoneDir MergeCharacter preserves source order");
+  ok &= expect_int(merge_plan.merge_body_fenced ? 1 : 0, 1,
+                   "CharBoneDir MergeCharacter body remains fenced");
   const SourceCharBonesMeshesReplaceStep replace_dummy_from =
       source_char_bones_meshes_replace_step({"mesh_a", "mesh_b"}, "dummy_mesh",
                                             "mesh_c", true, "dummy_mesh");

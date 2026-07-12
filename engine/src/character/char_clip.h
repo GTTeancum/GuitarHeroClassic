@@ -281,6 +281,21 @@ struct SourceCharBoneDirContextFlagsStep {
   std::vector<std::string> context_flags;
 };
 
+struct SourceCharBoneDirMergeTransform {
+  std::string name;
+  bool is_loaded_dir = false;
+  bool animatable = false;
+};
+
+struct SourceCharBoneDirMergeCharacterPlan {
+  bool load_attempted = true;
+  bool loaded = false;
+  bool warned_failed_load = false;
+  size_t scanned_transforms = 0;
+  std::vector<std::string> selected_transforms;
+  bool merge_body_fenced = true;
+};
+
 struct SourceCharBonesMeshesReplaceStep {
   bool object_replace = true;
   bool scan_meshes = false;
@@ -1610,6 +1625,9 @@ source_char_bone_dir_get_context_flags_step(
 std::vector<std::string> source_char_bone_dir_sync_filter(
     const std::vector<CharClip::OutputBone>& output_bones,
     int filter_context);
+SourceCharBoneDirMergeCharacterPlan source_char_bone_dir_merge_character_plan(
+    bool load_succeeds,
+    const std::vector<SourceCharBoneDirMergeTransform>& transforms);
 SourceCharBonesMeshesReplaceStep source_char_bones_meshes_replace_step(
     const std::vector<std::string>& meshes,
     const std::string& from,

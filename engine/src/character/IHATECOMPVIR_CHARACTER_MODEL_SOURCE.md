@@ -2003,6 +2003,13 @@ note, and all report `unreadBytes=0`.
     intersects `mFilterContext`. Native `source_char_bone_dir_sync_filter`
     ports that selection rule for decoded output-bone rows without installing a
     live editor filter list.
+  - `CharBoneDir::MergeCharacter` has a concrete checked prefix and then an
+    omitted body. The prefix loads a character MILO, warns and returns when the
+    load fails, scans transformables from the loaded directory while skipping
+    the directory object itself, requires `CharUtlIsAnimatable`, and collects
+    only names beginning with `bone_` or `exo_`. Native
+    `source_char_bone_dir_merge_character_plan` ports only that source-visible
+    selection prefix; the actual merge body remains fenced.
   - `CharBoneDir` construction, load, and copy are source-visible in the same
     file. Construction starts `mMoveContext` at `0`, `mBakeOutFacing` at `1`,
     `mContextFlags` as integer `0`, `mFilterContext` at `0`, no-null recenter

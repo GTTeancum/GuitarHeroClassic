@@ -694,6 +694,27 @@ std::vector<std::string> source_char_bone_dir_sync_filter(
   return filter_bones;
 }
 
+SourceCharBoneDirMergeCharacterPlan source_char_bone_dir_merge_character_plan(
+    bool load_succeeds,
+    const std::vector<SourceCharBoneDirMergeTransform>& transforms) {
+  SourceCharBoneDirMergeCharacterPlan plan;
+  if (!load_succeeds) {
+    plan.warned_failed_load = true;
+    return plan;
+  }
+
+  plan.loaded = true;
+  for (const SourceCharBoneDirMergeTransform& transform : transforms) {
+    ++plan.scanned_transforms;
+    if (transform.is_loaded_dir || !transform.animatable) continue;
+    if (transform.name.rfind("bone_", 0) == 0 ||
+        transform.name.rfind("exo_", 0) == 0) {
+      plan.selected_transforms.push_back(transform.name);
+    }
+  }
+  return plan;
+}
+
 SourceCharBonesMeshesReplaceStep source_char_bones_meshes_replace_step(
     const std::vector<std::string>& meshes,
     const std::string& from,
