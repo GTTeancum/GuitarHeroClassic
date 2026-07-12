@@ -1050,6 +1050,13 @@ void log_mesh_anim_local_rows(
   const std::array<float, 4> quat =
       applied_sample ? applied_sample->rotation_xyzw
                     : std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
+  const std::array<float, 3> sample_axis =
+      has_rot ? normalized3({quat[0], quat[1], quat[2]})
+              : std::array<float, 3>{0.0f, 0.0f, 0.0f};
+  const bool sample_axis_valid =
+      std::fabs(sample_axis[0]) + std::fabs(sample_axis[1]) +
+          std::fabs(sample_axis[2]) >
+      0.000001f;
   const std::array<float, 3> scale =
       applied_sample ? applied_sample->scale
                     : std::array<float, 3>{1.0f, 1.0f, 1.0f};
@@ -1059,7 +1066,9 @@ void log_mesh_anim_local_rows(
       "sample=%zu "
       "offset=%d active=%d frame=%.3f source_frame=%d:%.3f "
       "sample_pos=%d:%d sample_rot=%d:%d "
-      "quat=(%.6f %.6f %.6f %.6f) sample_scale=%d:%d "
+      "quat=(%.6f %.6f %.6f %.6f) "
+      "sample_axis=(%.6f %.6f %.6f) sample_axis_dom=%s "
+      "sample_scale=%d:%d "
       "scale_vec=(%.6f %.6f %.6f) base_scale=(%.6f %.6f %.6f) "
       "sampled_scale=(%.6f %.6f %.6f) "
       "base_det=%.6f sampled_det=%.6f "
@@ -1073,7 +1082,9 @@ void log_mesh_anim_local_rows(
       target_parent.c_str(), sample, has_offset ? 1 : 0,
       has_active_anim ? 1 : 0, active_frame, has_source_frame, source_frame,
       has_pos, abs_pos, has_rot, abs_rot, quat[0], quat[1], quat[2],
-      quat[3], has_scale, abs_scale, scale[0], scale[1], scale[2],
+      quat[3], sample_axis[0], sample_axis[1], sample_axis[2],
+      sample_axis_valid ? axis_label(dominant_abs_axis(sample_axis)) : "-",
+      has_scale, abs_scale, scale[0], scale[1], scale[2],
       base_scale[0], base_scale[1], base_scale[2], sampled_scale[0],
       sampled_scale[1], sampled_scale[2], base_det, sampled_det,
       source_base_rot[2][0], source_base_rot[2][1],

@@ -6288,6 +6288,9 @@ int main() {
                  "sample_rot=%d:%d\"\"quat=(%.6f%.6f%.6f%.6f)",
                  "source-local TransAnim diagnostics expose sampled quaternion absoluteness");
   ok &= contains(renderer_c,
+                 "sample_axis=(%.6f%.6f%.6f)sample_axis_dom=%s",
+                 "source-local TransAnim diagnostics expose the authored rotation axis for gear/fan review");
+  ok &= contains(renderer_c,
                  "mesh_anim_worldmesh=%sparent=%ssample=%zu",
                  "animated venue mesh diagnostics identify the final mesh and parent rows");
   ok &= contains(renderer_c,
