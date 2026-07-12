@@ -6303,11 +6303,11 @@ int main() {
                  "if(has_absolute_rot_scale)apply_absolute_local_rot_scale(world,sample);",
                  "venue TransAnim rotations rebuild local rotation while preserving signed MakeScale rows");
   ok &= contains(renderer_c,
-                 "constfloatabs_s=std::fabs(s);",
-                 "venue TransAnim signed scale rows are normalized by magnitude");
+                 "source_normalized_rows(local,rot);",
+                 "venue TransAnim scale-only samples rebuild basis with ihatcompvir Normalize");
   ok &= contains(renderer_c,
-                 "rot[r][c]=local[r*4+c]/s;",
-                 "venue TransAnim signed scale rows keep their authored facing sign");
+                 "source_normalized_rows(world,base_rot);",
+                 "venue TransAnim blended absolute rotations start from ihatcompvir Normalize");
   ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");

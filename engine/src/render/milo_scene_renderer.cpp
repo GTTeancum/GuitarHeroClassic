@@ -397,20 +397,6 @@ void source_normalized_rows(const std::array<float, 16>& local,
   rot[2][2] = rot[0][0] * rot[1][1] - rot[0][1] * rot[1][0];
 }
 
-void local_normalized_rows(const std::array<float, 16>& local,
-                           float rot[3][3]) {
-  const auto scale = local_row_scales(local);
-  for (int r = 0; r < 3; ++r) {
-    const float s = scale[r];
-    const float abs_s = std::fabs(s);
-    if (std::isfinite(s) && abs_s > 0.000001f) {
-      for (int c = 0; c < 3; ++c) rot[r][c] = local[r * 4 + c] / s;
-    } else {
-      for (int c = 0; c < 3; ++c) rot[r][c] = r == c ? 1.0f : 0.0f;
-    }
-  }
-}
-
 std::array<float, 4> quat_xyzw_from_row_rot(const float rot[3][3]) {
   std::array<float, 4> q{};
   const float row0x = rot[0][0];
@@ -456,7 +442,7 @@ void apply_absolute_local_rot_scale(
   if (sample.has_rotation && sample.rotation_is_absolute) {
     quat_xyzw_to_row_rot(sample.rotation_xyzw, rot);
   } else {
-    local_normalized_rows(local, rot);
+    source_normalized_rows(local, rot);
   }
 
   std::array<float, 3> scale = local_row_scales(local);
@@ -524,7 +510,7 @@ void apply_mesh_transform_sample(
   if (sample.has_rotation) {
     if (sample.rotation_is_absolute) {
       float base_rot[3][3];
-      local_normalized_rows(world, base_rot);
+      source_normalized_rows(world, base_rot);
       const auto base_quat = quat_xyzw_from_row_rot(base_rot);
       blended.rotation_xyzw =
           fast_interp_quat_xyzw(base_quat, sample.rotation_xyzw, blend);
