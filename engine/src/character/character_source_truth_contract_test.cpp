@@ -1418,6 +1418,23 @@ int run_contract() {
   ok &= contains(rb3_mesh_cpp,
                  "RemoveInvalidBones();",
                  "RB3 RndMesh runtime removes invalid active bones");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(RndMesh::gRev>0x1C){bs>>v.boneIndices[0]>>"
+                 "v.boneIndices[1]>>v.boneIndices[2]>>v.boneIndices[3];}",
+                 "RB3 RndMesh stream gates explicit vertex bone indices");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(gRev<0x1F)SetZeroWeightBones();",
+                 "RB3 RndMesh zero-weight bone-index cleanup gate");
+  ok &= contains(mesh_cs,
+                 "elseif(meshVersion<35||isNextGen==false){",
+                 "MiloEditor RndMesh legacy non-next-gen vertex path");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSkinIndexPlan{",
+                 "native exposes RndMesh skin-index source plan");
+  ok &= contains(char_mesh,
+                 "plan.gh2_legacy_slots_without_serialized_indices="
+                 "mesh_revision==28",
+                 "native records GH2 rev28 no serialized bone-index rows");
   ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("

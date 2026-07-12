@@ -269,6 +269,27 @@ size_t source_bitmap_mip_pixel_bytes(int32_t width, int32_t height,
 
 }  // namespace
 
+SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
+    int32_t mesh_revision) {
+  SourceRndMeshSkinIndexPlan plan;
+  // ihatecompvir rb3 Mesh.cpp operator>>(RndMesh::Vert&) reads explicit
+  // per-vertex bone indices only after revision 0x1c.
+  plan.rb3_stream_reads_bone_indices = mesh_revision > 0x1c;
+
+  // MiloEditor's layout reader has older pre-GH2 indexed layouts, then later
+  // indexed layouts. GH2 rev28 is in the in-between legacy slot-weight range.
+  plan.milo_editor_reads_bone_indices =
+      mesh_revision <= 22 || mesh_revision >= 33;
+
+  // RB3 PostLoad calls SetZeroWeightBones for old mesh revisions, but this is
+  // not a license to invent serialized indices for GH2 rev28 rows.
+  plan.zero_weight_fixup_runs = mesh_revision > 0 && mesh_revision < 0x1f;
+  plan.gh2_legacy_slots_without_serialized_indices =
+      mesh_revision == 28 && !plan.rb3_stream_reads_bone_indices &&
+      !plan.milo_editor_reads_bone_indices;
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {

@@ -77,6 +77,16 @@ struct SkinVertex {
 static_assert(sizeof(SkinVertex) == 48,
               "GH2 PS2 skinned vertex stride must be 48 bytes");
 
+struct SourceRndMeshSkinIndexPlan {
+  bool rb3_stream_reads_bone_indices = false;
+  bool milo_editor_reads_bone_indices = false;
+  bool zero_weight_fixup_runs = false;
+  bool gh2_legacy_slots_without_serialized_indices = false;
+};
+
+SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
+    int32_t mesh_revision);
+
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;
   std::vector<uint16_t> vert_offsets;

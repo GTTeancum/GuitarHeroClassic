@@ -464,6 +464,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `RemoveInvalidBones`. Native therefore keeps `raw_bone_palette` /
     `raw_bind` for row proof, while `bone_palette` / `bind` follow the
     runtime-active source list used for skinning.
+  - ihatecompvir's RB3 `operator>>(BinStream&, RndMesh::Vert&)` reads explicit
+    `boneIndices[0..3]` only for mesh revisions above `0x1c`, while
+    MiloEditor reads explicit vertex bone indices in older pre-GH2 layouts and
+    newer indexed layouts, not in GH2 revision 28. Native
+    `source_rndmesh_skin_index_plan` records that GH2 rev28 is a legacy
+    slot-weight layout with no serialized per-vertex bone-index rows. The RB3
+    `SetZeroWeightBones` pass is therefore source evidence for zero-weight
+    index cleanup when indices exist, not permission to synthesize fake GH2
+    rev28 bone indices for hair, face, neck, or hand fixes.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

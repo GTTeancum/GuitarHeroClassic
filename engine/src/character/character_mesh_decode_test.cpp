@@ -243,6 +243,23 @@ ghogx::character::CharHair make_two_strand_hair() {
 
 int main() {
   std::printf("character_mesh_decode_test\n");
+  const auto rev28_skin_index_plan =
+      ghogx::character::source_rndmesh_skin_index_plan(28);
+  CHECK(!rev28_skin_index_plan.rb3_stream_reads_bone_indices);
+  CHECK(!rev28_skin_index_plan.milo_editor_reads_bone_indices);
+  CHECK(rev28_skin_index_plan.zero_weight_fixup_runs);
+  CHECK(rev28_skin_index_plan.gh2_legacy_slots_without_serialized_indices);
+
+  const auto rev29_skin_index_plan =
+      ghogx::character::source_rndmesh_skin_index_plan(29);
+  CHECK(rev29_skin_index_plan.rb3_stream_reads_bone_indices);
+  CHECK(!rev29_skin_index_plan.gh2_legacy_slots_without_serialized_indices);
+
+  const auto rev33_skin_index_plan =
+      ghogx::character::source_rndmesh_skin_index_plan(33);
+  CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
+  CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);
