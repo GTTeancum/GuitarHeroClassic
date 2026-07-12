@@ -2551,6 +2551,7 @@ struct SourceCharIKHandTargetInput {
   bool present = true;
   std::array<float, 3> world_pos = {0.0f, 0.0f, 0.0f};
   float extent = 0.0f;
+  std::optional<std::array<float, 4>> world_quat;
 };
 
 struct SourceCharIKHandTargetBlendResult {
@@ -2559,6 +2560,9 @@ struct SourceCharIKHandTargetBlendResult {
   float adjusted_weight = 0.0f;
   bool reduced_weight_for_low_sum = false;
   std::array<float, 3> blended_pos = {0.0f, 0.0f, 0.0f};
+  bool orientation_blended = false;
+  bool orientation_normalized = false;
+  std::array<float, 4> blended_quat = {0.0f, 0.0f, 0.0f, 0.0f};
   std::vector<float> weights;
 };
 
@@ -2640,7 +2644,8 @@ bool source_char_ik_hand_elbow_cosine(
     float& out_cosine);
 SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
     float char_weight,
-    const std::vector<SourceCharIKHandTargetInput>& targets);
+    const std::vector<SourceCharIKHandTargetInput>& targets,
+    bool orientation = false);
 SourceCharIKFootState source_char_ik_foot_default_state();
 SourceCharIKFootEnterResult source_char_ik_foot_enter(
     SourceCharIKFootState& state);

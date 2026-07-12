@@ -1987,7 +1987,12 @@ note, and all report `unreadBytes=0`.
     the source `0.001` floor when `extent < -worldPos.z` or zero `z` before the
     length calculation, low total weight scales the row weight down, and the
     final destination position blends the original target world positions by
-    normalized source weights.
+    normalized source weights. The same helper now ports the source
+    multi-target orientation path for deterministic data: when orientation is
+    requested, caller-supplied target quaternions are weighted by the same
+    normalized target weights, summed, and normalized once at the end, matching
+    the `ScaleAddEq(quat, q268, weight / sumfloat)` and final `Normalize`
+    branch without adding a hemisphere correction.
   - `CharIKHand::PullShoulder` is source-real but not yet source-importable:
     `CharIKHand.cpp` calls it from `IKElbow`, and
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a
@@ -1996,10 +2001,10 @@ note, and all report `unreadBytes=0`.
     therefore must not rederive that shoulder offset or claim a full IKElbow
     port until the function body is source-backed.
   - The current runtime solver is the bounded GH2 single-target slice. Source
-    branches for `mFinger`, multi-target orientation quaternion blending,
-    `PullShoulder`, `mElbowSwing`, wrist constraint, and elbow-collision
-    correction remain fenced unless an asset log proves they are present and
-    the matching ihatecompvir source branch is ported.
+    branches for `mFinger`, live multi-target publishing, `PullShoulder`,
+    `mElbowSwing`, wrist constraint, and elbow-collision correction remain
+    fenced unless an asset log proves they are present and the matching
+    ihatecompvir source branch is ported.
 - `rb3-latest/src/system/char/CharIKRod.cpp` and
   `rb3-latest/src/system/char/CharIKRod.h`
   - `CharIKRod::Load` reads revision 2 rows as `left_end`, `right_end`,

@@ -12337,12 +12337,18 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "structSourceCharIKHandTargetInput{boolpresent=true;"
                  "std::array<float,3>world_pos={0.0f,0.0f,0.0f};"
-                 "floatextent=0.0f;};",
+                 "floatextent=0.0f;std::optional<std::array<float,4>>"
+                 "world_quat;};",
                  "native exposes source CharIKHand multi-target input");
   ok &= contains(char_clip_h,
                  "structSourceCharIKHandTargetBlendResult{boolentered=false;"
                  "floatsum=0.0f;floatadjusted_weight=0.0f;",
                  "native exposes source CharIKHand multi-target blend result");
+  ok &= contains(char_clip_h,
+                 "boolorientation_blended=false;"
+                 "boolorientation_normalized=false;"
+                 "std::array<float,4>blended_quat={0.0f,0.0f,0.0f,0.0f};",
+                 "native exposes source CharIKHand orientation blend result");
   ok &= contains(char_clip_h,
                  "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
                  "int32_trevision);",
@@ -12374,7 +12380,7 @@ int run_contract() {
                  "SourceCharIKHandTargetBlendResult"
                  "source_char_ik_hand_multi_target_blend("
                  "floatchar_weight,conststd::vector<"
-                 "SourceCharIKHandTargetInput>&targets);",
+                 "SourceCharIKHandTargetInput>&targets,boolorientation=false);",
                  "native API exposes source CharIKHand multi-target blend helper");
   ok &= contains(char_clip,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
@@ -12454,7 +12460,8 @@ int run_contract() {
   ok &= contains(char_clip,
                  "SourceCharIKHandTargetBlendResult"
                  "source_char_ik_hand_multi_target_blend(floatchar_weight,"
-                 "conststd::vector<SourceCharIKHandTargetInput>&targets){"
+                 "conststd::vector<SourceCharIKHandTargetInput>&targets,"
+                 "boolorientation){"
                  "SourceCharIKHandTargetBlendResultresult;",
                  "native CharIKHand multi-target helper starts from source inputs");
   ok &= contains(char_clip,
@@ -12469,6 +12476,21 @@ int run_contract() {
                  "if(result.sum<1.0f){result.adjusted_weight=char_weight-"
                  "(char_weight*(1.0f-result.sum));",
                  "native CharIKHand multi-target helper ports low-sum weight scaling");
+  ok &= contains(char_clip,
+                 "if(orientation&&target.world_quat.has_value()){"
+                 "result.orientation_blended=true;",
+                 "native CharIKHand multi-target helper enters orientation branch");
+  ok &= contains(char_clip,
+                 "result.blended_quat[axis]+=(*target.world_quat)[axis]*scale;",
+                 "native CharIKHand multi-target helper weighted-adds quats");
+  ok &= contains(char_clip,
+                 "if(result.orientation_blended){floatlen_sq=0.0f;"
+                 "for(floatvalue:result.blended_quat)len_sq+=value*value;",
+                 "native CharIKHand multi-target helper starts quat normalize");
+  ok &= contains(char_clip,
+                 "for(float&value:result.blended_quat)value*=inv_len;"
+                 "result.orientation_normalized=true;",
+                 "native CharIKHand multi-target helper normalizes quat result");
   ok &= contains(char_clip,
                  "RuntimeIKHandMeasureState&measure_state="
                  "character.runtime_ik_hand_measures[live_key];",
@@ -12512,8 +12534,14 @@ int run_contract() {
                  "source_char_ik_hand_multi_target_blend(",
                  "focused CharIKHand source test covers multi-target blend helper");
   ok &= contains(ik_hand_source_test,
-                 "SourceCharIKHandTargetInput{true,{0.0f,4.0f,-10.0f},5.0f}",
+                 "SourceCharIKHandTargetInput{true,{0.0f,4.0f,-10.0f},5.0f,{}}",
                  "focused CharIKHand source test covers positive extent branch");
+  ok &= contains(ik_hand_source_test,
+                 "orientation_blend=source_char_ik_hand_multi_target_blend(",
+                 "focused CharIKHand source test covers orientation blend helper");
+  ok &= contains(ik_hand_source_test,
+                 "orientation_blend.orientation_normalized,true",
+                 "focused CharIKHand source test checks orientation normalization");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
@@ -12530,8 +12558,15 @@ int run_contract() {
                  "Native `source_char_ik_hand_multi_target_blend` ports the concrete",
                  "document records native CharIKHand multi-target blend slice");
   ok &= contains(doc,
-                 "multi-target orientation quaternion blending",
-                 "document fences CharIKHand multi-target orientation branch");
+                 "The same helper now ports the source\n"
+                 "    multi-target orientation path",
+                 "document records CharIKHand deterministic orientation blend slice");
+  ok &= contains(doc,
+                 "without adding a hemisphere correction",
+                 "document records source-faithful CharIKHand quat blend boundary");
+  ok &= contains(doc,
+                 "live multi-target publishing",
+                 "document keeps live CharIKHand multi-target publishing fenced");
   ok &= contains(doc,
                  "`CharIKHand::PullShoulder` is source-real but not yet "
                  "source-importable",

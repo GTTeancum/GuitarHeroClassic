@@ -4739,7 +4739,8 @@ bool source_char_ik_hand_elbow_cosine(
 
 SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
     float char_weight,
-    const std::vector<SourceCharIKHandTargetInput>& targets) {
+    const std::vector<SourceCharIKHandTargetInput>& targets,
+    bool orientation) {
   SourceCharIKHandTargetBlendResult result;
   if (targets.empty()) return result;
   result.entered = true;
@@ -4782,6 +4783,22 @@ SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
     const float scale = result.weights[i] / result.sum;
     for (int axis = 0; axis < 3; ++axis) {
       result.blended_pos[axis] += target.world_pos[axis] * scale;
+    }
+    if (orientation && target.world_quat.has_value()) {
+      result.orientation_blended = true;
+      for (int axis = 0; axis < 4; ++axis) {
+        result.blended_quat[axis] += (*target.world_quat)[axis] * scale;
+      }
+    }
+  }
+
+  if (result.orientation_blended) {
+    float len_sq = 0.0f;
+    for (float value : result.blended_quat) len_sq += value * value;
+    if (len_sq > 0.0f) {
+      const float inv_len = 1.0f / std::sqrt(len_sq);
+      for (float& value : result.blended_quat) value *= inv_len;
+      result.orientation_normalized = true;
     }
   }
   return result;
