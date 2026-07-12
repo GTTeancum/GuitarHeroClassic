@@ -80,6 +80,7 @@ int main() {
   using ghogx::character::source_char_hair_prop_sync_plan;
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
+  using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
   using ghogx::character::source_char_hair_simulate_internal_collision_step;
   using ghogx::character::source_char_hair_simulate_internal_force_step;
@@ -419,6 +420,22 @@ int main() {
                     "hookup dump max radius local");
   ok &= expect_bool(hookup_dump.has_statement_body, false,
                     "hookup dump no statement body");
+
+  const auto zero_time_dump = source_char_hair_simulate_zero_time_dump_evidence();
+  ok &= expect_bool(zero_time_dump.range == "0x8035FC8C -> 0x80360144",
+                    true, "zero-time dump range");
+  ok &= expect_bool(zero_time_dump.has_outer_loop_counter, true,
+                    "zero-time dump outer loop");
+  ok &= expect_bool(zero_time_dump.has_transform_local, true,
+                    "zero-time dump transform local");
+  ok &= expect_bool(zero_time_dump.has_point_vector, true,
+                    "zero-time dump point vector");
+  ok &= expect_bool(zero_time_dump.has_inner_loop_counter, true,
+                    "zero-time dump inner loop");
+  ok &= expect_bool(zero_time_dump.has_matrix_local, true,
+                    "zero-time dump matrix local");
+  ok &= expect_bool(zero_time_dump.has_statement_body, false,
+                    "zero-time dump no statement body");
 
   const auto enter_plan =
       source_char_hair_enter_plan(false, {"head.collide", "neck.collide"});

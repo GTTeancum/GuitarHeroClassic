@@ -2165,6 +2165,14 @@ int run_contract() {
   ok &= contains(rb2_dump_char_hair_cpp,
                  "intj;//r25floatmaxRadius;//f1",
                  "RB2 dump names Hookup max-radius local");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x8035FC8C->0x80360144voidCharHair::"
+                 "SimulateZeroTime(classCharHair*constthis/*r30*/){",
+                 "RB2 dump names CharHair SimulateZeroTime runtime range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "inti;//r31classTransformt;//r1+0x70classObjVector&ps;"
+                 "//r0intj;//r27classMatrix3m;//r1+0x40",
+                 "RB2 dump names CharHair SimulateZeroTime locals");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairHookupPlan{boolreturned_for_managed_hookup="
                  "false;std::vector<std::string>collected_collides;"
@@ -2174,6 +2182,11 @@ int run_contract() {
                  "structSourceCharHairHookupDumpEvidence{std::stringrange;"
                  "boolhas_vector_collides=true;boolhas_obj_dir_iterator=true;",
                  "native exposes CharHair Hookup dump evidence");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairSimulateZeroTimeDumpEvidence{"
+                 "std::stringrange;boolhas_outer_loop_counter=true;"
+                 "boolhas_transform_local=true;",
+                 "native exposes CharHair SimulateZeroTime dump evidence");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairEnterPlan{intnext_reset=1;"
                  "boolcalled_rnd_pollable_enter=true;"
@@ -2204,6 +2217,12 @@ int run_contract() {
                  "SourceCharHairHookupDumpEvidenceevidence;evidence.range="
                  "\"0x80360284->0x80360BE0\";returnevidence;}",
                  "native CharHair Hookup dump evidence records RB2 range");
+  ok &= contains(char_mesh,
+                 "SourceCharHairSimulateZeroTimeDumpEvidence"
+                 "source_char_hair_simulate_zero_time_dump_evidence(){"
+                 "SourceCharHairSimulateZeroTimeDumpEvidenceevidence;"
+                 "evidence.range=\"0x8035FC8C->0x80360144\";returnevidence;}",
+                 "native CharHair SimulateZeroTime dump evidence records RB2 range");
   ok &= contains(char_mesh,
                  "SourceCharHairEnterPlansource_char_hair_enter_plan(",
                  "native implements CharHair Enter plan helper");
@@ -2709,6 +2728,9 @@ int run_contract() {
                  "\"neck.collide\"})",
                  "focused CharHair test covers managed Hookup return");
   ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_zero_time_dump_evidence()",
+                 "focused CharHair test covers SimulateZeroTime dump evidence");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_loops_plan(true,2,3,4,30.0f)",
                  "focused CharHair test covers SimulateLoops gate");
   ok &= contains(doc,
@@ -2736,6 +2758,9 @@ int run_contract() {
   ok &= missing(rb3_latest_char_hair_cpp,
                 "voidCharHair::Hookup(ObjPtrList<CharCollide,ObjectDir>&",
                 "latest CharHair source still lacks overloaded hookup body");
+  ok &= missing(rb3_latest_char_hair_cpp,
+                "voidCharHair::SimulateZeroTime(",
+                "latest CharHair source still lacks SimulateZeroTime body");
   ok &= contains(rb3_latest_char_collide_h,
                  "enumShape{kPlane=0,kSphere=1,kInsideSphere=2,kCigar=3,"
                  "kInsideCigar=4,};",
@@ -3259,6 +3284,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_hair_hookup_dump_evidence` records",
                  "document records native Hookup dump evidence helper");
+  ok &= contains(doc,
+                 "`source_char_hair_simulate_zero_time_dump_evidence` records",
+                 "document records native SimulateZeroTime dump evidence helper");
+  ok &= contains(doc,
+                 "`0x8035FC8C -> 0x80360144`",
+                 "document records RB2 CharHair SimulateZeroTime range");
   ok &= contains(doc,
                  "`has_statement_body=false`",
                  "document records Hookup dump has no statement body");

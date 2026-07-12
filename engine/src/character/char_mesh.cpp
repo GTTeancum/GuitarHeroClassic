@@ -2041,6 +2041,13 @@ SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence() {
   return evidence;
 }
 
+SourceCharHairSimulateZeroTimeDumpEvidence
+source_char_hair_simulate_zero_time_dump_evidence() {
+  SourceCharHairSimulateZeroTimeDumpEvidence evidence;
+  evidence.range = "0x8035FC8C -> 0x80360144";
+  return evidence;
+}
+
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides) {

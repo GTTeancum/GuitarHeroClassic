@@ -490,6 +490,16 @@ struct SourceCharHairHookupDumpEvidence {
   bool has_statement_body = false;
 };
 
+struct SourceCharHairSimulateZeroTimeDumpEvidence {
+  std::string range;
+  bool has_outer_loop_counter = true;
+  bool has_transform_local = true;
+  bool has_point_vector = true;
+  bool has_inner_loop_counter = true;
+  bool has_matrix_local = true;
+  bool has_statement_body = false;
+};
+
 struct SourceCharHairEnterPlan {
   int next_reset = 1;
   bool called_rnd_pollable_enter = true;
@@ -1548,6 +1558,8 @@ void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
                                          bool managed_hookup);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence();
+SourceCharHairSimulateZeroTimeDumpEvidence
+source_char_hair_simulate_zero_time_dump_evidence();
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);

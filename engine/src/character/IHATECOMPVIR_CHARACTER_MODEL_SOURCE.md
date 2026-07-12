@@ -757,6 +757,14 @@ note, and all report `unreadBytes=0`.
     those facts and also records `has_statement_body=false`: the dump is enough
     to prove Hookup is doing geometric collide filtering, but not enough to copy
     the filtering statements or live point collide-list population.
+  - The same RB2 dump confirms `CharHair::SimulateZeroTime` is a real runtime
+    body at `0x8035FC8C -> 0x80360144`. Its local inventory names an outer loop
+    counter, `Transform t`, an `ObjVector` point list, an inner loop counter,
+    and `Matrix3 m`. Native
+    `source_char_hair_simulate_zero_time_dump_evidence` records those facts and
+    also records `has_statement_body=false`: the dump is enough to prove
+    zero-delta hair has its own transform path, but not enough to copy that path
+    or use it for live native point writeback.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,
