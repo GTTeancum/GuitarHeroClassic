@@ -130,6 +130,51 @@ struct SourceRndMeshSkinIndexPlan {
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision);
 
+struct SourceRndMeshFieldGatePlan {
+  int32_t mesh_revision = 0;
+  int32_t alt_revision = 0;
+  int32_t parent_dir_revision = 0;
+  bool reads_material = true;
+  bool reads_second_material = false;
+  bool reads_geom_owner = true;
+  bool reads_alt_geom_owner = false;
+  bool reads_trans_parent = false;
+  bool reads_unknown_trans_refs = false;
+  bool reads_unknown_vector3 = false;
+  bool reads_legacy_sphere = false;
+  bool reads_legacy_bool = false;
+  bool reads_unknown_symbol_float = false;
+  bool reads_legacy_bool1 = false;
+  bool reads_mutable = false;
+  bool reads_volume = false;
+  bool reads_bsp_node = false;
+  bool reads_rev7_bool = false;
+  bool reads_legacy_int = false;
+  bool reads_vertices = true;
+  bool reads_faces = true;
+  bool reads_group_sizes_modern = false;
+  bool group_sizes_gap_unimplemented = false;
+  bool reads_group_sizes_legacy = false;
+  bool uses_bone_block_presence_probe = true;
+  bool reads_modern_bone_transform_vector = false;
+  bool reads_old_four_bone_names_and_offsets = false;
+  bool striper_block_todo = false;
+  bool legacy_usvec_todo = false;
+  bool revision_zero_todo = false;
+  bool reads_keep_mesh_data = false;
+  bool reads_has_ao_calculation = false;
+  bool reads_no_quant = false;
+  bool reads_alt_bool3 = false;
+  bool reads_group_sections = false;
+};
+
+SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision,
+    int32_t parent_dir_revision,
+    int32_t group_sizes_count,
+    bool group_sizes_first_positive);
+
 struct SourceGltfMiloSkinInfluence {
   int32_t remapped_bone = -1;
   float weight = 0.0f;

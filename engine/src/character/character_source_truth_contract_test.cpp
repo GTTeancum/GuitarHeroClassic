@@ -2892,6 +2892,12 @@ int run_contract() {
                  "structSourceRndMeshSkinIndexPlan{",
                  "native exposes RndMesh skin-index source plan");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshFieldGatePlan{int32_tmesh_revision=0;",
+                 "native exposes RndMesh field-gate source plan");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshFieldGatePlansource_rndmesh_field_gate_plan(",
+                 "native exposes RndMesh field-gate helper");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshZeroWeightVertex{",
                  "native exposes RndMesh zero-weight source vertex");
   ok &= contains(char_mesh_h,
@@ -2926,6 +2932,29 @@ int run_contract() {
                  "plan.gh2_legacy_slots_without_serialized_indices="
                  "mesh_revision==28",
                  "native records GH2 rev28 no serialized bone-index rows");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshFieldGatePlansource_rndmesh_field_gate_plan(",
+                 "native ports RndMesh field-gate helper");
+  ok &= contains(char_mesh,
+                 "plan.reads_second_material=mesh_revision==27;",
+                 "native field-gate helper preserves mat2 gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_alt_geom_owner=mesh_revision<13;",
+                 "native field-gate helper preserves alt geom owner gate");
+  ok &= contains(char_mesh,
+                 "plan.group_sizes_gap_unimplemented=mesh_revision>0x15&&"
+                 "mesh_revision<=0x17;",
+                 "native field-gate helper preserves groupSizes TODO gap");
+  ok &= contains(char_mesh,
+                 "plan.reads_modern_bone_transform_vector=mesh_revision>=33;",
+                 "native field-gate helper preserves modern bone vector gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_old_four_bone_names_and_offsets=mesh_revision<33;",
+                 "native field-gate helper preserves old four-bone gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_group_sections=group_sizes_count>0&&"
+                 "group_sizes_first_positive&&parent_dir_revision<25;",
+                 "native field-gate helper preserves group section gate");
   ok &= contains(char_mesh,
                  "plan.reads_new_bone_vector=mesh_revision>0x1c;"
                  "plan.clamps_new_bone_vector_to_max=plan.reads_new_bone_vector;",
@@ -2984,6 +3013,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_zero_weight_bones(",
                  "focused mesh decode test covers RndMesh zero-weight helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_field_gate_plan(28,0,24,1,true)",
+                 "focused mesh decode test covers GH2 rev28 RndMesh field gates");
+  ok &= contains(mesh_decode_test,
+                 "gh2_rev28_fields.reads_old_four_bone_names_and_offsets",
+                 "focused mesh decode test covers GH2 old four-bone gate");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_field_gate_plan(23,0,24,1,true)",
+                 "focused mesh decode test covers RndMesh groupSizes TODO gap");
   ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("
@@ -2996,6 +3034,51 @@ int run_contract() {
                  "newGroupSection();groupSections.Add(section.Read(reader,"
                  "revision));}}",
                  "RndMesh source last-gen group-section gate");
+  ok &= contains(mesh_cs,
+                 "if(revision==27)mat2=Symbol.Read(reader);",
+                 "MiloEditor RndMesh reads second material only at rev27");
+  ok &= contains(mesh_cs,
+                 "if(revision<13)altGeomOwner=Symbol.Read(reader);",
+                 "MiloEditor RndMesh reads legacy alt geom owner");
+  ok &= contains(mesh_cs,
+                 "if(revision<15)transParent=Symbol.Read(reader);",
+                 "MiloEditor RndMesh reads legacy trans parent");
+  ok &= contains(mesh_cs,
+                 "if(revision<14){unkTransReference1=Symbol.Read(reader);"
+                 "unkTransReference2=Symbol.Read(reader);}",
+                 "MiloEditor RndMesh reads legacy transform references");
+  ok &= contains(mesh_cs,
+                 "if(revision<16){if(revision>11){unkBool1=reader."
+                 "ReadBoolean();}}elsemutable=(Mutable)reader.ReadUInt32();",
+                 "MiloEditor RndMesh mutable gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>17)volume=(Volume)reader.ReadUInt32();",
+                 "MiloEditor RndMesh volume gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>18)bspNode=bspNode.Read(reader);",
+                 "MiloEditor RndMesh BSP gate");
+  ok &= contains(mesh_cs,
+                 "elseif(revision>0x15){//todo}",
+                 "MiloEditor RndMesh leaves groupSizes 0x16-0x17 TODO");
+  ok &= contains(mesh_cs,
+                 "if(revision>=33){boneCount=reader.ReadUInt32();",
+                 "MiloEditor RndMesh reads modern bone transform vector");
+  ok &= contains(mesh_cs,
+                 "for(inti=0;i<4;i++){boneTransforms.Add(newBoneTransform());"
+                 "boneTransforms[i].name=Symbol.Read(reader);}",
+                 "MiloEditor RndMesh reads old four bone names");
+  ok &= contains(mesh_cs,
+                 "if(revision>34){keepMeshData=reader.ReadBoolean();}",
+                 "MiloEditor RndMesh keepMeshData gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>0x25){hasAOCalculation=reader.ReadBoolean();}",
+                 "MiloEditor RndMesh hasAOCalculation gate");
+  ok &= contains(mesh_cs,
+                 "if(altRevision>1){noQuant=reader.ReadBoolean();}",
+                 "MiloEditor RndMesh noQuant gate");
+  ok &= contains(mesh_cs,
+                 "if(altRevision>3){unkBool3=reader.ReadBoolean();}",
+                 "MiloEditor RndMesh alt bool3 gate");
   ok &= contains(char_mesh,
                  "constint32_tfirst_bone_len=r.i32();if(first_bone_len>0){"
                  "r.pos=bone_probe;",
@@ -3687,6 +3770,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
+  ok &= contains(doc,
+                 "`source_rndmesh_field_gate_plan` ports those gates",
+                 "document records RndMesh field-gate helper");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");

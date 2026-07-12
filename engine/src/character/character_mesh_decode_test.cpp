@@ -594,6 +594,53 @@ int main() {
   CHECK(!ps2_base_mesh.has_ao_calculation);
   CHECK(!ps2_base_mesh.logs_missing_diffuse_or_maps);
 
+  const auto gh2_rev28_fields =
+      ghogx::character::source_rndmesh_field_gate_plan(28, 0, 24, 1, true);
+  CHECK(gh2_rev28_fields.reads_material);
+  CHECK(!gh2_rev28_fields.reads_second_material);
+  CHECK(gh2_rev28_fields.reads_geom_owner);
+  CHECK(!gh2_rev28_fields.reads_alt_geom_owner);
+  CHECK(!gh2_rev28_fields.reads_trans_parent);
+  CHECK(!gh2_rev28_fields.reads_unknown_trans_refs);
+  CHECK(gh2_rev28_fields.reads_mutable);
+  CHECK(gh2_rev28_fields.reads_volume);
+  CHECK(gh2_rev28_fields.reads_bsp_node);
+  CHECK(gh2_rev28_fields.reads_vertices);
+  CHECK(gh2_rev28_fields.reads_faces);
+  CHECK(gh2_rev28_fields.reads_group_sizes_modern);
+  CHECK(!gh2_rev28_fields.group_sizes_gap_unimplemented);
+  CHECK(!gh2_rev28_fields.reads_group_sizes_legacy);
+  CHECK(gh2_rev28_fields.uses_bone_block_presence_probe);
+  CHECK(!gh2_rev28_fields.reads_modern_bone_transform_vector);
+  CHECK(gh2_rev28_fields.reads_old_four_bone_names_and_offsets);
+  CHECK(!gh2_rev28_fields.reads_keep_mesh_data);
+  CHECK(!gh2_rev28_fields.reads_has_ao_calculation);
+  CHECK(!gh2_rev28_fields.reads_no_quant);
+  CHECK(gh2_rev28_fields.reads_group_sections);
+
+  const auto rev27_fields =
+      ghogx::character::source_rndmesh_field_gate_plan(27, 0, 25, 0, false);
+  CHECK(rev27_fields.reads_second_material);
+  CHECK(rev27_fields.reads_group_sizes_modern);
+  CHECK(!rev27_fields.reads_group_sections);
+
+  const auto rev23_gap_fields =
+      ghogx::character::source_rndmesh_field_gate_plan(23, 0, 24, 1, true);
+  CHECK(!rev23_gap_fields.reads_group_sizes_modern);
+  CHECK(rev23_gap_fields.group_sizes_gap_unimplemented);
+  CHECK(!rev23_gap_fields.reads_group_sizes_legacy);
+  CHECK(rev23_gap_fields.reads_group_sections);
+
+  const auto modern_fields =
+      ghogx::character::source_rndmesh_field_gate_plan(38, 4, 30, 1, true);
+  CHECK(modern_fields.reads_modern_bone_transform_vector);
+  CHECK(!modern_fields.reads_old_four_bone_names_and_offsets);
+  CHECK(modern_fields.reads_keep_mesh_data);
+  CHECK(modern_fields.reads_has_ao_calculation);
+  CHECK(modern_fields.reads_no_quant);
+  CHECK(modern_fields.reads_alt_bool3);
+  CHECK(!modern_fields.reads_group_sections);
+
   ghogx::character::SourceGltfMiloBoneNodeInput bone_node;
   bone_node.name = "neutral_bone";
   bone_node.type = "character";

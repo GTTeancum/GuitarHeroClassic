@@ -897,6 +897,20 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - `MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs` records the source field gates
+    around the same `RndMesh` rows: `mat2` exists only at mesh revision 27,
+    `altGeomOwner` before 13, `transParent` before 15, the two unknown transform
+    references before 14, mutable flags from 16 onward, volume after 17, BSP
+    after 18, modern `groupSizes` after `0x17`, legacy `groupSizes` for
+    revisions `0x11..0x15`, an explicit TODO gap for revisions `0x16..0x17`,
+    old four-slot bone names/offsets before revision 33, vector bone transforms
+    at 33+, `keepMeshData` after 34, `hasAOCalculation` after `0x25`, `noQuant`
+    when alt revision is above 1, and `unkBool3` when alt revision is above 3.
+    The parent-dir gate for legacy `GroupSection` rows is
+    `groupSizesCount > 0 && groupSizes[0] > 0 && parent.revision < 25`. Native
+    `source_rndmesh_field_gate_plan` ports those gates so GH2 PS2 revision 28
+    remains a source-backed material/geom-owner/mutable/volume/BSP/group-size
+    and old-four-bone layout, not an inferred newer indexed layout.
   - `glTFMilo/Source/glTFMilo/Program.cs` is source evidence for exporter-side
     skin packing, not GH2 rev28 runtime decoding. It writes the four weights in
     influence order, writes bone slots in influence order for normal vertex

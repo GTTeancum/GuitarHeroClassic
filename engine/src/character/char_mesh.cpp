@@ -353,6 +353,50 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision,
+    int32_t parent_dir_revision,
+    int32_t group_sizes_count,
+    bool group_sizes_first_positive) {
+  SourceRndMeshFieldGatePlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.alt_revision = alt_revision;
+  plan.parent_dir_revision = parent_dir_revision;
+  plan.reads_second_material = mesh_revision == 27;
+  plan.reads_alt_geom_owner = mesh_revision < 13;
+  plan.reads_trans_parent = mesh_revision < 15;
+  plan.reads_unknown_trans_refs = mesh_revision < 14;
+  plan.reads_unknown_vector3 = mesh_revision < 3;
+  plan.reads_legacy_sphere = mesh_revision < 15;
+  plan.reads_legacy_bool = mesh_revision < 8;
+  plan.reads_unknown_symbol_float = mesh_revision < 15;
+  plan.reads_legacy_bool1 = mesh_revision < 16 && mesh_revision > 11;
+  plan.reads_mutable = mesh_revision >= 16;
+  plan.reads_volume = mesh_revision > 17;
+  plan.reads_bsp_node = mesh_revision > 18;
+  plan.reads_rev7_bool = mesh_revision == 7;
+  plan.reads_legacy_int = mesh_revision < 11;
+  plan.reads_group_sizes_modern = mesh_revision > 0x17;
+  plan.group_sizes_gap_unimplemented =
+      mesh_revision > 0x15 && mesh_revision <= 0x17;
+  plan.reads_group_sizes_legacy =
+      mesh_revision > 0x10 && mesh_revision <= 0x15;
+  plan.reads_modern_bone_transform_vector = mesh_revision >= 33;
+  plan.reads_old_four_bone_names_and_offsets = mesh_revision < 33;
+  plan.striper_block_todo = alt_revision > 5;
+  plan.legacy_usvec_todo = mesh_revision != 0 && mesh_revision < 4;
+  plan.revision_zero_todo = mesh_revision == 0;
+  plan.reads_keep_mesh_data = mesh_revision > 34;
+  plan.reads_has_ao_calculation = mesh_revision > 0x25;
+  plan.reads_no_quant = alt_revision > 1;
+  plan.reads_alt_bool3 = alt_revision > 3;
+  plan.reads_group_sections =
+      group_sizes_count > 0 && group_sizes_first_positive &&
+      parent_dir_revision < 25;
+  return plan;
+}
+
 SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     bool has_joints,
     bool has_weights,
