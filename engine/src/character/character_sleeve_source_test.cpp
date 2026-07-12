@@ -55,9 +55,11 @@ int main() {
   using ghogx::character::SourceCharSleevePollDeps;
   using ghogx::character::source_char_sleeve_copy_plan;
   using ghogx::character::source_char_sleeve_default_state;
+  using ghogx::character::source_char_sleeve_handler_plan;
   using ghogx::character::source_char_sleeve_load_plan;
   using ghogx::character::source_char_sleeve_poll;
   using ghogx::character::source_char_sleeve_poll_deps;
+  using ghogx::character::source_char_sleeve_prop_sync_plan;
 
   bool ok = true;
 
@@ -149,6 +151,26 @@ int main() {
                       "sleeve copy top sleeve pointer");
   ok &= expect_string(copy_plan.copied_members[7], "mPosLength",
                       "sleeve copy pos length last");
+
+  const auto handler_plan = source_char_sleeve_handler_plan();
+  ok &= expect_size(handler_plan.superclasses.size(), 1,
+                    "sleeve handler superclass count");
+  ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
+                      "sleeve handler superclass");
+  ok &= expect_bool(handler_plan.check == 0x112, true,
+                    "sleeve handler check row");
+
+  const auto prop_plan = source_char_sleeve_prop_sync_plan();
+  ok &= expect_size(prop_plan.properties.size(), 8,
+                    "sleeve prop-sync count");
+  ok &= expect_string(prop_plan.properties[0], "sleeve",
+                      "sleeve prop-sync sleeve");
+  ok &= expect_string(prop_plan.properties[1], "top_sleeve",
+                      "sleeve prop-sync top sleeve");
+  ok &= expect_string(prop_plan.properties[4], "stiffness",
+                      "sleeve prop-sync stiffness");
+  ok &= expect_string(prop_plan.properties[7], "pos_length",
+                      "sleeve prop-sync pos length");
 
   return ok ? 0 : 1;
 }

@@ -6786,6 +6786,21 @@ SourceCharSleeveCopyPlan source_char_sleeve_copy_plan() {
   return plan;
 }
 
+SourceCharSleeveHandlerPlan source_char_sleeve_handler_plan() {
+  SourceCharSleeveHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x112;
+  return plan;
+}
+
+SourceCharSleevePropSyncPlan source_char_sleeve_prop_sync_plan() {
+  SourceCharSleevePropSyncPlan plan;
+  plan.properties = {"sleeve",    "top_sleeve", "inertia", "gravity",
+                     "stiffness", "range",      "neg_length",
+                     "pos_length"};
+  return plan;
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

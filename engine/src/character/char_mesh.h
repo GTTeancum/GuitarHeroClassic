@@ -2266,6 +2266,15 @@ struct SourceCharSleeveCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharSleeveHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharSleevePropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharGuitarStringPollResult {
   bool wrote_bend = false;
   std::array<float, 3> bend_pos = {0.0f, 0.0f, 0.0f};
@@ -3085,6 +3094,8 @@ void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
                                   bool has_sleeve);
 SourceCharSleeveLoadPlan source_char_sleeve_load_plan(int32_t revision);
 SourceCharSleeveCopyPlan source_char_sleeve_copy_plan();
+SourceCharSleeveHandlerPlan source_char_sleeve_handler_plan();
+SourceCharSleevePropSyncPlan source_char_sleeve_prop_sync_plan();
 SourceCharGuitarStringPollResult source_char_guitar_string_poll(
     bool has_nut,
     bool has_bridge,

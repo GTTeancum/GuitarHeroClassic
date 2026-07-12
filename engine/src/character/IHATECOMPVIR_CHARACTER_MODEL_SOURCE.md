@@ -2108,6 +2108,12 @@ note, and all report `unreadBytes=0`.
     then reads `mSleeve`, `mTopSleeve`, `mInertia`, `mGravity`, `mStiffness`,
     `mRange`, `mNegLength`, and `mPosLength`. `Copy` copies `Hmx::Object` and
     the same eight sleeve data members in source order.
+  - `BEGIN_HANDLERS(CharSleeve)` delegates to `Hmx::Object` and checks
+    `0x112`. `BEGIN_PROPSYNCS(CharSleeve)` exposes `sleeve`, `top_sleeve`,
+    `inertia`, `gravity`, `stiffness`, `range`, `neg_length`, and
+    `pos_length`. Native `source_char_sleeve_handler_plan` and
+    `source_char_sleeve_prop_sync_plan` record those rows as source metadata
+    only.
   - Native `source_char_sleeve_*` helpers port this source-visible simulation
     dependency, row-load, and copy behavior for deterministic tests. They do
     not attach it to live character rendering until stock rows and owner

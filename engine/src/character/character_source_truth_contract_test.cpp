@@ -10520,6 +10520,17 @@ int run_contract() {
                  "COPY_MEMBER(mStiffness)COPY_MEMBER(mRange)"
                  "COPY_MEMBER(mNegLength)COPY_MEMBER(mPosLength)",
                  "CharSleeve source Copy order");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "BEGIN_HANDLERS(CharSleeve)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x112)END_HANDLERS",
+                 "CharSleeve source handler rows");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "BEGIN_PROPSYNCS(CharSleeve)SYNC_PROP(sleeve,mSleeve)"
+                 "SYNC_PROP(top_sleeve,mTopSleeve)SYNC_PROP(inertia,"
+                 "mInertia)SYNC_PROP(gravity,mGravity)SYNC_PROP(stiffness,"
+                 "mStiffness)SYNC_PROP(range,mRange)SYNC_PROP(neg_length,"
+                 "mNegLength)SYNC_PROP(pos_length,mPosLength)END_PROPSYNCS",
+                 "CharSleeve source prop-sync rows");
   ok &= contains(char_mesh_h,
                  "structSourceCharSleeveState{std::array<float,3>pos="
                  "{0.0f,0.0f,0.0f};std::array<float,3>last_pos=",
@@ -10531,6 +10542,14 @@ int run_contract() {
                  "structSourceCharSleeveCopyPlan{std::vector<std::string>"
                  "copied_superclasses;",
                  "native exposes CharSleeve copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharSleeveHandlerPlan{std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native exposes CharSleeve handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharSleevePropSyncPlan{std::vector<std::string>"
+                 "properties;};",
+                 "native exposes CharSleeve prop-sync plan");
   ok &= contains(char_mesh,
                  "SourceCharSleeveStatesource_char_sleeve_default_state(){"
                  "returnSourceCharSleeveState{};}",
@@ -10586,6 +10605,17 @@ int run_contract() {
                  "\"mInertia\",\"mGravity\",\"mStiffness\",\"mRange\","
                  "\"mNegLength\",\"mPosLength\"};",
                  "native CharSleeve helper ports copy members");
+  ok &= contains(char_mesh,
+                 "SourceCharSleeveHandlerPlansource_char_sleeve_handler_plan(){"
+                 "SourceCharSleeveHandlerPlanplan;plan.superclasses={"
+                 "\"Hmx::Object\"};plan.check=0x112;",
+                 "native CharSleeve helper ports handler rows");
+  ok &= contains(char_mesh,
+                 "SourceCharSleevePropSyncPlansource_char_sleeve_prop_sync_plan(){"
+                 "SourceCharSleevePropSyncPlanplan;plan.properties={"
+                 "\"sleeve\",\"top_sleeve\",\"inertia\",\"gravity\","
+                 "\"stiffness\",\"range\",\"neg_length\",\"pos_length\"};",
+                 "native CharSleeve helper ports prop-sync rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_sleeve_source_test",
                  "CMake builds CharSleeve source test");
@@ -10610,9 +10640,21 @@ int run_contract() {
   ok &= contains(sleeve_source_test,
                  "source_char_sleeve_copy_plan()",
                  "focused CharSleeve test covers copy plan");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_handler_plan()",
+                 "focused CharSleeve test covers handler plan");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_prop_sync_plan()",
+                 "focused CharSleeve test covers prop-sync plan");
   ok &= contains(doc,
                  "Native `source_char_sleeve_*` helpers port",
                  "document records native CharSleeve helpers");
+  ok &= contains(doc,
+                 "source_char_sleeve_handler_plan",
+                 "document records native CharSleeve handler helper");
+  ok &= contains(doc,
+                 "source_char_sleeve_prop_sync_plan",
+                 "document records native CharSleeve prop-sync helper");
   ok &= contains(rb3_latest_char_mesh_cache_h, "classMeshCacher{",
                  "latest CharMeshCacheMgr header exposes MeshCacher");
   ok &= contains(rb3_latest_char_mesh_cache_h,
