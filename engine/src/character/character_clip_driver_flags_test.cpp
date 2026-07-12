@@ -1102,6 +1102,19 @@ int main() {
     std::cerr << "Transitions Clear release/resize mismatch\n";
     ok = false;
   }
+  const ghogx::character::SourceCharClipTransitionsDumpEvidence
+      transitions_dump =
+          ghogx::character::source_char_clip_transitions_dump_evidence();
+  if (transitions_dump.remove_nodes_range != "0x803286D0 -> 0x80328774" ||
+      transitions_dump.resize_nodes_range != "0x80328774 -> 0x803288A4" ||
+      transitions_dump.add_node_range != "0x803288A4 -> 0x80328A1C" ||
+      !transitions_dump.has_remove_nodes_locals ||
+      !transitions_dump.has_resize_nodes_locals ||
+      !transitions_dump.has_add_node_locals ||
+      transitions_dump.has_statement_bodies) {
+    std::cerr << "Transitions dump evidence mismatch\n";
+    ok = false;
+  }
   const std::vector<ghogx::character::SourceCharBonesBone> stuffed =
       ghogx::character::source_char_clip_stuff_bones(
           {{"preexisting.pos", 0.25f}},

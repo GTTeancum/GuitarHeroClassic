@@ -474,6 +474,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharClipGroup.cpp"));
   const std::string rb3_latest_char_clip_group_h = compact(read_file(
       rb3_latest_char_dir / "CharClipGroup.h"));
+  const std::string rb2_char_clip_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharClip.cpp"));
   const std::string rb2_char_clip_samples_cpp = compact(read_file(
       rb2_dump_char_dir / "CharClipSamples.cpp"));
   const std::string rb2_char_bones_cpp = compact(read_file(
@@ -14311,6 +14313,16 @@ int run_contract() {
                  "for(NodeVector*it=mNodeStart;it<mNodeEnd;it=&it[it->size]){"
                  "size++;}returnsize;}",
                  "latest CharClip source exposes Transitions size body");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x803286D0->0x80328774voidCharClip::RemoveNodes(",
+                 "RB2 dump maps CharClip RemoveNodes range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80328774->0x803288A4classNodeVector*"
+                 "CharClip::ResizeNodes(",
+                 "RB2 dump maps CharClip ResizeNodes range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x803288A4->0x80328A1CvoidCharClip::AddNode(",
+                 "RB2 dump maps CharClip AddNode range");
   ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::StuffBones(CharBones&bones){std::list<"
                  "CharBones::Bone>blist;ListBones(blist);bones.AddBones(blist);}",
@@ -14367,6 +14379,15 @@ int run_contract() {
   ok &= contains(doc,
                  "does not claim `Resize`, `RemoveNodes`, or transition graph evaluation",
                  "document fences CharClip Transitions unresolved bodies");
+  ok &= contains(doc,
+                 "The RB2 dump maps `RemoveNodes`, `ResizeNodes`, and `AddNode`",
+                 "document records RB2 transition mutation maps");
+  ok &= contains(doc,
+                 "`source_char_clip_transitions_dump_evidence` records those ranges",
+                 "document records native transition dump evidence helper");
+  ok &= contains(doc,
+                 "`has_statement_bodies=false`",
+                 "document records transition maps lack statement bodies");
   ok &= contains(doc,
                  "Native `source_char_clip_stuff_bones` and",
                  "document records native CharClip StuffBones helper");
@@ -14573,6 +14594,15 @@ int run_contract() {
                  "boolresized_zero=false;};",
                  "native character API exposes source CharClip Transitions clear result");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipTransitionsDumpEvidence{"
+                 "std::stringremove_nodes_range;std::stringresize_nodes_range;"
+                 "std::stringadd_node_range;",
+                 "native character API exposes source CharClip transition dump evidence");
+  ok &= contains(char_clip_h,
+                 "boolhas_remove_nodes_locals=true;boolhas_resize_nodes_locals=true;"
+                 "boolhas_add_node_locals=true;boolhas_statement_bodies=false;",
+                 "native character API fences transition dump statement bodies");
+  ok &= contains(char_clip_h,
                  "structSourceCharClipPoseMeshesSteps{std::stringtemp_meshes_name;"
                  "boolstuff_bones=false;boolscale_down=false;"
                  "floatscale_down_weight=0.0f;boolscale_add=false;",
@@ -14633,6 +14663,10 @@ int run_contract() {
                  "source_char_clip_transitions_clear("
                  "SourceCharClipTransitionsState&transitions);",
                  "native character API exposes source CharClip Transitions clear helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipTransitionsDumpEvidence"
+                 "source_char_clip_transitions_dump_evidence();",
+                 "native character API exposes source CharClip transition dump helper");
   ok &= contains(char_clip_h,
                  "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
                  "conststd::vector<SourceCharBonesBone>&existing_bones,"
@@ -14899,6 +14933,17 @@ int run_contract() {
                  "result.resized_zero=true;returnresult;}",
                  "native CharClip Transitions clear helper ports release and resize");
   ok &= contains(char_clip,
+                 "SourceCharClipTransitionsDumpEvidence"
+                 "source_char_clip_transitions_dump_evidence(){"
+                 "SourceCharClipTransitionsDumpEvidenceevidence;"
+                 "evidence.remove_nodes_range=\"0x803286D0->0x80328774\";",
+                 "native CharClip transition dump helper records RemoveNodes range");
+  ok &= contains(char_clip,
+                 "evidence.resize_nodes_range=\"0x80328774->0x803288A4\";"
+                 "evidence.add_node_range=\"0x803288A4->0x80328A1C\";"
+                 "returnevidence;}",
+                 "native CharClip transition dump helper records Resize/AddNode ranges");
+  ok &= contains(char_clip,
                  "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
                  "conststd::vector<SourceCharBonesBone>&existing_bones,"
                  "conststd::vector<SourceCharBonesBone>&listed_bones){"
@@ -14996,6 +15041,9 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_transitions_clear(transitions)",
                  "focused clip driver flags test covers Transitions Clear");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_transitions_dump_evidence()",
+                 "focused clip driver flags test covers transition dump evidence");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_stuff_bones(",
                  "focused clip driver flags test covers StuffBones append flow");

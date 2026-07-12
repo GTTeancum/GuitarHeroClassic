@@ -809,6 +809,16 @@ struct SourceCharClipTransitionsClearResult {
   bool resized_zero = false;
 };
 
+struct SourceCharClipTransitionsDumpEvidence {
+  std::string remove_nodes_range;
+  std::string resize_nodes_range;
+  std::string add_node_range;
+  bool has_remove_nodes_locals = true;
+  bool has_resize_nodes_locals = true;
+  bool has_add_node_locals = true;
+  bool has_statement_bodies = false;
+};
+
 struct SourceCharClipPoseMeshesSteps {
   std::string temp_meshes_name;
   bool stuff_bones = false;
@@ -1243,6 +1253,8 @@ size_t source_char_clip_transitions_size(
     const SourceCharClipTransitionsState& transitions);
 SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
     SourceCharClipTransitionsState& transitions);
+SourceCharClipTransitionsDumpEvidence
+source_char_clip_transitions_dump_evidence();
 std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
     const std::vector<SourceCharBonesBone>& existing_bones,
     const std::vector<SourceCharBonesBone>& listed_bones);

@@ -2430,6 +2430,13 @@ note, and all report `unreadBytes=0`.
     empty with an owner, `Size` counts transition node-vector entries, and
     `Clear` releases one clip per entry before resizing the range to zero. This
     does not claim `Resize`, `RemoveNodes`, or transition graph evaluation.
+    The RB2 dump maps `RemoveNodes`, `ResizeNodes`, and `AddNode` at
+    `0x803286D0 -> 0x80328774`, `0x80328774 -> 0x803288A4`, and
+    `0x803288A4 -> 0x80328A1C`, respectively, with local inventories but no
+    statement-level bodies. Native
+    `source_char_clip_transitions_dump_evidence` records those ranges and keeps
+    `has_statement_bodies=false` so transition mutation is not fabricated from
+    names alone.
   - Native `source_char_clip_stuff_bones` and
     `source_char_clip_pose_meshes_steps` port the concrete `StuffBones` /
     `PoseMeshes` call order only: list clip bones, append them into the target

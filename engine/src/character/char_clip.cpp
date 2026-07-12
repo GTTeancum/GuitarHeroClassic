@@ -2902,6 +2902,15 @@ SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
   return result;
 }
 
+SourceCharClipTransitionsDumpEvidence
+source_char_clip_transitions_dump_evidence() {
+  SourceCharClipTransitionsDumpEvidence evidence;
+  evidence.remove_nodes_range = "0x803286D0 -> 0x80328774";
+  evidence.resize_nodes_range = "0x80328774 -> 0x803288A4";
+  evidence.add_node_range = "0x803288A4 -> 0x80328A1C";
+  return evidence;
+}
+
 std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
     const std::vector<SourceCharBonesBone>& existing_bones,
     const std::vector<SourceCharBonesBone>& listed_bones) {
