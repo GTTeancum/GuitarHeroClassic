@@ -10605,6 +10605,27 @@ double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter,
                                             chart);
 }
 
+double venue_filter_time_until_end_seconds(
+    const Gameplay::VenueAnimFilter& filter,
+    double active_elapsed_seconds,
+    const ghogx::chart::Chart* chart = nullptr,
+    double absolute_start_seconds = 0.0) {
+    const double delay = std::max(
+        0.0, static_cast<double>(filter.event_delay_seconds));
+    const double elapsed = std::max(0.0, active_elapsed_seconds) - delay;
+    const double duration =
+        venue_filter_duration_seconds(filter, chart,
+                                      absolute_start_seconds + delay);
+    if (duration <= 0.001) return 0.0;
+    if (elapsed < 0.0) return -elapsed + duration;
+    if (filter.type >= 1) {
+        const double phase = std::fmod(elapsed, duration);
+        if (phase <= 0.001) return duration;
+        return std::max(0.0, duration - phase);
+    }
+    return std::max(0.0, duration - elapsed);
+}
+
 float source_anim_blend_at(float blend_period_seconds, double elapsed_seconds) {
     if (!std::isfinite(blend_period_seconds) ||
         blend_period_seconds <= 0.001f) {
@@ -19259,6 +19280,37 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                     event_name.c_str());
             }
         } else {
+            for (auto& filter : enabled_filters) {
+                if (!filter.event_wait) continue;
+                double wait_seconds = 0.0;
+                for (const auto& active : active_venue_anim_filters_) {
+                    if (active.polled) continue;
+                    const double active_elapsed =
+                        std::max(0.0, song_time_ - active.start_time);
+                    for (const auto& active_filter : active.filters) {
+                        if (!venue_filters_share_authored_target(
+                                active_filter, filter)) {
+                            continue;
+                        }
+                        wait_seconds = std::max(
+                            wait_seconds,
+                            venue_filter_time_until_end_seconds(
+                                active_filter, active_elapsed, &chart_,
+                                active.start_time));
+                    }
+                }
+                if (wait_seconds > 0.001) {
+                    filter.event_delay_seconds +=
+                        static_cast<float>(wait_seconds);
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue event %s: AnimFilter %s wait inherited %.3fs from active source task\n",
+                            event_name.c_str(), filter.name.c_str(),
+                            wait_seconds);
+                    }
+                }
+            }
             size_t replaced_filters = 0;
             for (auto active_it = active_venue_anim_filters_.begin();
                  active_it != active_venue_anim_filters_.end();) {

@@ -4273,6 +4273,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "filter.event_wait=route.wait;",
                  "venue AnimFilters carry EventTrigger wait metadata from source rows");
+  ok &= contains(gameplay_c,
+                 "venue_filter_time_until_end_seconds(",
+                 "venue AnimFilter wait uses ihatecompvir AnimTask TimeUntilEnd timing");
+  ok &= contains(gameplay_c,
+                 "filter.event_delay_seconds+=static_cast<float>(wait_seconds);",
+                 "venue AnimFilter wait delays the new EventTrigger task before sampling");
   ok &= contains(gameplay_h_c,
                  "std::unordered_set<std::string>venue_runtime_hidden_meshes_;",
                  "venue EventTrigger visibility latches in runtime state");
