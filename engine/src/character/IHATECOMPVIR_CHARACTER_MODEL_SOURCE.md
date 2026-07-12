@@ -488,6 +488,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - Native `source_rndmesh_vert_load_plan` records the visible vertex stream
+    gates: position, normal, color, and UV are read for all revisions in this
+    source path; revisions `>= 0x25` read a separate weight vector; revisions
+    `> 0x1c` read explicit bone indices; revisions `> 0x1d` read the later
+    trailing vector. For skinned revisions below `0x25`, PostLoad copies
+    `color.fr/fg/fb/fa` into `boneWeights` and clears the color. Therefore GH2
+    rev28 character vertices use the color payload as the source-backed skin
+    weight carrier, with no serialized per-vertex bone index rows.
   - Native `source_rndmesh_set_zero_weight_bones` ports the exact visible
     `SetZeroWeightBones` rule as a deterministic contract only: if the active
     source bone count is below two, it does nothing; otherwise zero weights in

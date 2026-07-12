@@ -1442,6 +1442,34 @@ int run_contract() {
                  "v.boneIndices[1]>>v.boneIndices[2]>>v.boneIndices[3];}",
                  "RB3 RndMesh stream gates explicit vertex bone indices");
   ok &= contains(rb3_mesh_cpp,
+                 "intMESH_REV_SEP_COLOR=0x25;",
+                 "RB3 RndMesh separate color/weight revision constant");
+  ok &= contains(rb3_mesh_cpp,
+                 "bs>>v.pos;if(RndMesh::gRev!=10&&RndMesh::gRev<23){"
+                 "bs>>f34>>f38;}bs>>v.norm;if(RndMesh::gRev<"
+                 "MESH_REV_SEP_COLOR)bs>>v.color;elsebs>>v.color;bs>>v.uv;",
+                 "RB3 RndMesh vertex stream reads position normal color and UV");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(MESH_REV_SEP_COLOR<=RndMesh::gRev){Vector4v4;bs>>v4;"
+                 "v.boneWeights.Set(v4.x,v4.y,v4.z,v4.w);}",
+                 "RB3 RndMesh vertex stream gates separate weights");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(RndMesh::gRev!=10&&RndMesh::gRev<23){v.boneWeights.Set("
+                 "(1.0f-f34)-f38,f34,f38,0);}",
+                 "RB3 RndMesh legacy vertex stream computes pair weights");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(RndMesh::gRev<0xB){Vector2v2;bs>>v2;}",
+                 "RB3 RndMesh vertex stream gates legacy trailing Vector2");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(RndMesh::gRev>0x1D){Vector4v4;bs>>v4;}",
+                 "RB3 RndMesh vertex stream gates later trailing Vector4");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(gRev<MESH_REV_SEP_COLOR&&IsSkinned()){for(Vert*it="
+                 "mVerts.begin();it!=mVerts.end();++it){Hmx::Color32&col="
+                 "it->color;it->boneWeights.Set(col.fr(),col.fg(),col.fb(),"
+                 "col.fa());col.Clear();}}",
+                 "RB3 RndMesh PostLoad maps old skinned color payload to weights");
+  ok &= contains(rb3_mesh_cpp,
                  "if(gRev<0x1F)SetZeroWeightBones();",
                  "RB3 RndMesh zero-weight bone-index cleanup gate");
   ok &= contains(rb3_mesh_cpp, "intRndMesh::MaxBones(){returnMAX_BONES;}",
@@ -1471,6 +1499,9 @@ int run_contract() {
   ok &= contains(mesh_cs,
                  "elseif(meshVersion<35||isNextGen==false){",
                  "MiloEditor RndMesh legacy non-next-gen vertex path");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshVertLoadPlan{",
+                 "native exposes RndMesh vertex-load source plan");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSkinIndexPlan{",
                  "native exposes RndMesh skin-index source plan");
@@ -1510,6 +1541,20 @@ int run_contract() {
                  "mesh_revision==28",
                  "native records GH2 rev28 no serialized bone-index rows");
   ok &= contains(char_mesh,
+                 "plan.reads_separate_weights=mesh_revision>=0x25;",
+                 "native vertex-load plan mirrors separate weight gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_bone_indices=mesh_revision>0x1c;",
+                 "native vertex-load plan mirrors bone-index gate");
+  ok &= contains(char_mesh,
+                 "plan.postload_color_to_weights=mesh_revision<0x25&&is_skinned;",
+                 "native vertex-load plan mirrors old skinned color-to-weight gate");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_color_payload_is_skin_weights=mesh_revision==28&&"
+                 "plan.postload_color_to_weights&&!plan.reads_separate_weights&&"
+                 "!plan.reads_bone_indices;",
+                 "native vertex-load plan records GH2 rev28 color payload as weights");
+  ok &= contains(char_mesh,
                  "if(bone_count<2)returnplan;",
                  "native zero-weight helper mirrors source bone-count gate");
   ok &= contains(char_mesh,
@@ -1520,6 +1565,9 @@ int run_contract() {
                  "if(vertex.weights[3]==0.0f){vertex.bone_indices[3]="
                  "vertex.bone_indices[0];}",
                  "native zero-weight helper mirrors source slot 3 rewrite");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_vert_load_plan(28,true)",
+                 "focused mesh decode test covers GH2 rev28 vertex load plan");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_zero_weight_bones(",
                  "focused mesh decode test covers RndMesh zero-weight helper");

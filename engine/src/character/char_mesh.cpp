@@ -269,6 +269,25 @@ size_t source_bitmap_mip_pixel_bytes(int32_t width, int32_t height,
 
 }  // namespace
 
+SourceRndMeshVertLoadPlan source_rndmesh_vert_load_plan(
+    int32_t mesh_revision,
+    bool is_skinned) {
+  SourceRndMeshVertLoadPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.reads_legacy_weight_pair = mesh_revision != 10 && mesh_revision < 23;
+  plan.reads_separate_weights = mesh_revision >= 0x25;
+  plan.computes_legacy_pair_weights = plan.reads_legacy_weight_pair;
+  plan.reads_legacy_extra_vec2 = mesh_revision < 0x0b;
+  plan.reads_bone_indices = mesh_revision > 0x1c;
+  plan.reads_post_indices_vec4 = mesh_revision > 0x1d;
+  plan.postload_color_to_weights = mesh_revision < 0x25 && is_skinned;
+  plan.postload_clears_color = plan.postload_color_to_weights;
+  plan.gh2_rev28_color_payload_is_skin_weights =
+      mesh_revision == 28 && plan.postload_color_to_weights &&
+      !plan.reads_separate_weights && !plan.reads_bone_indices;
+  return plan;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

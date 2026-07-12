@@ -77,6 +77,27 @@ struct SkinVertex {
 static_assert(sizeof(SkinVertex) == 48,
               "GH2 PS2 skinned vertex stride must be 48 bytes");
 
+struct SourceRndMeshVertLoadPlan {
+  int32_t mesh_revision = 0;
+  bool reads_position = true;
+  bool reads_legacy_weight_pair = false;
+  bool reads_normal = true;
+  bool reads_color = true;
+  bool reads_uv = true;
+  bool reads_separate_weights = false;
+  bool computes_legacy_pair_weights = false;
+  bool reads_legacy_extra_vec2 = false;
+  bool reads_bone_indices = false;
+  bool reads_post_indices_vec4 = false;
+  bool postload_color_to_weights = false;
+  bool postload_clears_color = false;
+  bool gh2_rev28_color_payload_is_skin_weights = false;
+};
+
+SourceRndMeshVertLoadPlan source_rndmesh_vert_load_plan(
+    int32_t mesh_revision,
+    bool is_skinned);
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;

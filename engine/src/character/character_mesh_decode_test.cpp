@@ -243,6 +243,43 @@ ghogx::character::CharHair make_two_strand_hair() {
 
 int main() {
   std::printf("character_mesh_decode_test\n");
+  const auto rev28_vert_plan =
+      ghogx::character::source_rndmesh_vert_load_plan(28, true);
+  CHECK(rev28_vert_plan.mesh_revision == 28);
+  CHECK(rev28_vert_plan.reads_position);
+  CHECK(!rev28_vert_plan.reads_legacy_weight_pair);
+  CHECK(rev28_vert_plan.reads_normal);
+  CHECK(rev28_vert_plan.reads_color);
+  CHECK(rev28_vert_plan.reads_uv);
+  CHECK(!rev28_vert_plan.reads_separate_weights);
+  CHECK(!rev28_vert_plan.reads_bone_indices);
+  CHECK(!rev28_vert_plan.reads_post_indices_vec4);
+  CHECK(rev28_vert_plan.postload_color_to_weights);
+  CHECK(rev28_vert_plan.postload_clears_color);
+  CHECK(rev28_vert_plan.gh2_rev28_color_payload_is_skin_weights);
+
+  const auto rev29_vert_plan =
+      ghogx::character::source_rndmesh_vert_load_plan(29, true);
+  CHECK(!rev29_vert_plan.reads_separate_weights);
+  CHECK(rev29_vert_plan.reads_bone_indices);
+  CHECK(!rev29_vert_plan.reads_post_indices_vec4);
+  CHECK(rev29_vert_plan.postload_color_to_weights);
+  CHECK(!rev29_vert_plan.gh2_rev28_color_payload_is_skin_weights);
+
+  const auto rev37_vert_plan =
+      ghogx::character::source_rndmesh_vert_load_plan(37, true);
+  CHECK(rev37_vert_plan.reads_separate_weights);
+  CHECK(rev37_vert_plan.reads_bone_indices);
+  CHECK(rev37_vert_plan.reads_post_indices_vec4);
+  CHECK(!rev37_vert_plan.postload_color_to_weights);
+
+  const auto rev10_vert_plan =
+      ghogx::character::source_rndmesh_vert_load_plan(10, false);
+  CHECK(!rev10_vert_plan.reads_legacy_weight_pair);
+  CHECK(!rev10_vert_plan.computes_legacy_pair_weights);
+  CHECK(rev10_vert_plan.reads_legacy_extra_vec2);
+  CHECK(!rev10_vert_plan.postload_color_to_weights);
+
   const auto rev28_skin_index_plan =
       ghogx::character::source_rndmesh_skin_index_plan(28);
   CHECK(!rev28_skin_index_plan.rb3_stream_reads_bone_indices);
