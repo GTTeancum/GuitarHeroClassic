@@ -2742,6 +2742,13 @@ note, and all report `unreadBytes=0`.
     `CharDriver::Load` body, plus named `PreLoad`/`PostLoad` and runtime
     function ranges. Native GHOGX must not claim a full source-backed base
     driver load/poll port from these files.
+  - `CharDriver.h` also declares `Handle`, `SyncProperty`, `Save`, `Copy`,
+    `Replace`, `EvaluateFlags`, `Display`, `FindClip`, `FirstClip`, and
+    `FirstPlayingClip`, but the checked `CharDriver.cpp` snapshot does not
+    expose reviewable bodies for those declarations. Native records them in
+    `source_char_driver_runtime_dump_evidence` as bodyless declarations; they
+    are not source-backed permission to synthesize clip lookup, display, copy,
+    property, or replacement behavior.
   - Native GHOGX therefore treats base `CharDriver` rows as passive controller
     inventory unless a connected source-backed runtime path is present. The
     existing viewer-side clip playback is a diagnostic/application helper; it

@@ -12624,6 +12624,30 @@ int run_contract() {
   ok &= contains(rb3_latest_char_driver_cpp,
                  "change.push_back(mBones);",
                  "latest CharDriver PollDeps depends on bones");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "CharClip*FindClip(constDataNode&,bool);",
+                 "latest CharDriver header declares FindClip");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "CharClip*FirstClip();",
+                 "latest CharDriver header declares FirstClip");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "CharClip*FirstPlayingClip();",
+                 "latest CharDriver header declares FirstPlayingClip");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "floatDisplay(float);",
+                 "latest CharDriver header declares Display");
+  ok &= missing(rb3_latest_char_driver_cpp,
+                "CharClip*CharDriver::FindClip(",
+                "latest CharDriver source lacks FindClip body");
+  ok &= missing(rb3_latest_char_driver_cpp,
+                "CharClip*CharDriver::FirstClip(",
+                "latest CharDriver source lacks FirstClip body");
+  ok &= missing(rb3_latest_char_driver_cpp,
+                "CharClip*CharDriver::FirstPlayingClip(",
+                "latest CharDriver source lacks FirstPlayingClip body");
+  ok &= missing(rb3_latest_char_driver_cpp,
+                "floatCharDriver::Display(",
+                "latest CharDriver source lacks Display body");
   ok &= missing(rb3_latest_char_driver_cpp, "BEGIN_LOADS(CharDriver)",
                 "latest CharDriver source lacks base load body");
   ok &= missing(rb3_latest_char_driver_cpp, "voidCharDriver::Poll(",
@@ -22430,6 +22454,19 @@ int run_contract() {
                  "evidence.most_playing_locals={\"maxWeight\",\"best\","
                  "\"weight\",\"cd\",\"w\"};",
                  "native CharDriver runtime dump helper records MostPlaying locals");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>"
+                 "header_declarations_without_checked_bodies;",
+                 "native CharDriver runtime dump exposes bodyless declarations");
+  ok &= contains(char_clip_h,
+                 "boolsafe_to_find_clip=false;boolsafe_to_display=false;",
+                 "native CharDriver runtime dump fences lookup/display imports");
+  ok &= contains(char_clip,
+                 "evidence.header_declarations_without_checked_bodies={"
+                 "\"Handle\",\"SyncProperty\",\"Save\",\"Copy\",\"Load\","
+                 "\"Poll\",\"Replace\",\"EvaluateFlags\",\"Display\","
+                 "\"FindClip\",\"FirstClip\",\"FirstPlayingClip\"};",
+                 "native CharDriver runtime dump records bodyless declarations");
   ok &= contains(char_clip,
                  "voidsource_char_driver_poll_deps(SourceCharDriverPollDeps&deps,"
                  "conststd::string&bones){deps.change.push_back(bones);}",
@@ -22561,6 +22598,12 @@ int run_contract() {
                  "runtime_dump.evaluate_flags_range!=\"0x8034DC4C->0x8034DD64\"",
                  "focused flag-mask test covers CharDriver EvaluateFlags range");
   ok &= contains(clip_driver_flags_test,
+                 "runtime_dump.header_declarations_without_checked_bodies!=",
+                 "focused flag-mask test covers CharDriver bodyless declarations");
+  ok &= contains(clip_driver_flags_test,
+                 "runtime_dump.safe_to_find_clip||runtime_dump.safe_to_display",
+                 "focused flag-mask test fences CharDriver lookup/display imports");
+  ok &= contains(clip_driver_flags_test,
                  "runtime_dump.safe_to_evaluate_flags||"
                  "runtime_dump.safe_to_import_poll",
                  "focused flag-mask test covers CharDriver runtime fence");
@@ -22591,6 +22634,13 @@ int run_contract() {
   ok &= contains(doc,
                  "`EvaluateFlags`\n    `0x8034DC4C -> 0x8034DD64`",
                  "document records CharDriver EvaluateFlags dump range");
+  ok &= contains(doc,
+                 "`CharDriver.h` also declares `Handle`, `SyncProperty`, "
+                 "`Save`, `Copy`,",
+                 "document records CharDriver bodyless header declarations");
+  ok &= contains(doc,
+                 "not source-backed permission to synthesize clip lookup, display, copy,",
+                 "document fences CharDriver bodyless declaration behavior");
   ok &= contains(doc,
                  "`safe_to_evaluate_flags=false` and\n"
                  "    `safe_to_import_poll=false`",

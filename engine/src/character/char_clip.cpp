@@ -4004,6 +4004,10 @@ source_char_driver_runtime_dump_evidence() {
   evidence.set_beat_scale_locals = {"fp", "invScale", "cd"};
   evidence.evaluate_flags_locals = {"weight", "flagWeight", "cd", "w"};
   evidence.most_playing_locals = {"maxWeight", "best", "weight", "cd", "w"};
+  evidence.header_declarations_without_checked_bodies = {
+      "Handle",       "SyncProperty", "Save",      "Copy",
+      "Load",         "Poll",         "Replace",   "EvaluateFlags",
+      "Display",      "FindClip",     "FirstClip", "FirstPlayingClip"};
   return evidence;
 }
 

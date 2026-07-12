@@ -1264,10 +1264,13 @@ struct SourceCharDriverRuntimeDumpEvidence {
   std::vector<std::string> set_beat_scale_locals;
   std::vector<std::string> evaluate_flags_locals;
   std::vector<std::string> most_playing_locals;
+  std::vector<std::string> header_declarations_without_checked_bodies;
   bool rb3_latest_has_poll_body = false;
   bool rb2_dump_has_poll_range = false;
   bool has_evaluate_flags_statement_body = false;
   bool has_set_beat_scale_statement_body = false;
+  bool safe_to_find_clip = false;
+  bool safe_to_display = false;
   bool safe_to_evaluate_flags = false;
   bool safe_to_import_poll = false;
 };

@@ -607,10 +607,16 @@ bool expect_driver_state_helpers() {
       runtime_dump.most_playing_locals !=
           std::vector<std::string>({"maxWeight", "best", "weight", "cd",
                                     "w"}) ||
+      runtime_dump.header_declarations_without_checked_bodies !=
+          std::vector<std::string>(
+              {"Handle", "SyncProperty", "Save", "Copy", "Load", "Poll",
+               "Replace", "EvaluateFlags", "Display", "FindClip",
+               "FirstClip", "FirstPlayingClip"}) ||
       runtime_dump.rb3_latest_has_poll_body ||
       runtime_dump.rb2_dump_has_poll_range ||
       runtime_dump.has_evaluate_flags_statement_body ||
       runtime_dump.has_set_beat_scale_statement_body ||
+      runtime_dump.safe_to_find_clip || runtime_dump.safe_to_display ||
       runtime_dump.safe_to_evaluate_flags || runtime_dump.safe_to_import_poll) {
     std::cerr << "driver RB2 runtime dump evidence mismatch\n";
     ok = false;
