@@ -440,6 +440,41 @@ struct SourceCharBonesSamplesLoadPlan {
   std::vector<std::string> read_order;
 };
 
+struct SourceGrimCharBonesSamplesHeaderPlan {
+  bool known_version = false;
+  int count_size = 0;
+  bool defaults_weight = false;
+  bool reads_weight = false;
+  bool reads_frame_table = false;
+  bool aligns_sample_data_to_4 = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceGrimCharClipLoadPlan {
+  bool known_version = false;
+  bool reads_object_meta = false;
+  bool reads_range = false;
+  bool skips_v5_unknown_bool = false;
+  bool reads_relative = false;
+  bool reads_unknown_1 = false;
+  bool reads_do_not_decompress = false;
+  bool reads_node_size = false;
+  bool reads_deprecated_events = false;
+  bool reads_events = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceGrimCharClipSamplesLoadPlan {
+  bool known_version = false;
+  bool calls_char_clip_with_meta = false;
+  bool reads_some_bool = false;
+  bool legacy_split_headers_and_data = false;
+  bool reads_duplicate_legacy_header = false;
+  bool reads_extra_bones = false;
+  int runtime_data_lists = 0;
+  std::vector<std::string> read_order;
+};
+
 struct SourceCharBonesSamplesPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> set_properties;
@@ -1896,6 +1931,19 @@ source_char_bones_samples_scale_add_steps(
 bool source_char_bones_samples_set_ver_known(int version);
 bool source_char_bones_samples_load_version_known(int version);
 SourceCharBonesSamplesLoadPlan source_char_bones_samples_load_plan(int version);
+bool source_grim_char_bones_samples_standalone_version_known(int version);
+bool source_grim_char_clip_samples_version_known(int version);
+bool source_grim_char_clip_version_known(int version);
+size_t source_grim_char_bones_samples_get_type_size(int type,
+                                                    int compression);
+size_t source_grim_char_bones_samples_get_type_size2(int type,
+                                                     int compression);
+SourceGrimCharBonesSamplesHeaderPlan
+source_grim_char_bones_samples_header_plan(int version);
+SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
+                                                           bool read_meta);
+SourceGrimCharClipSamplesLoadPlan
+source_grim_char_clip_samples_load_plan(int version);
 SourceCharBonesSamplesPropSyncPlan source_char_bones_samples_prop_sync_plan();
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary();

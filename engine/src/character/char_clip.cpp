@@ -9,9 +9,11 @@
 // broad output writes diagnostic until the corresponding runtime path is ported
 // from source or proved by direct trace.
 //
-// Observed format:
-//  A clip contains the CharClip base (a neighbor/transition list of CLIP names)
-//  followed by 1..3 CharBonesSamples "bone lists". Each bone list is:
+// Grim-backed GH2-era format:
+//  A CharClipSamples entry contains a CharClipSamples version, the CharClip
+//  base (metadata, beat/play flags, nodes/events), then full/one
+//  CharBonesSamples headers plus a duplicate legacy header. Runtime sample data
+//  follows only for the full and one headers. Each bone list header is:
 //      uint32 bone_count
 //      bone_count x { length-prefixed name (ends .pos/.scale/.quat/.rotx/.roty/.rotz),
 //                     float32 weight }     (weight present for gRev>10)
@@ -20,8 +22,9 @@
 //                              0 none, 1 rotations, 2 vectors,
 //                              3 quats, 4 all
 //      uint32 numSamples       number of frames
-//  Then, AFTER every bone-list header, the sample data blocks follow in list
-//  order (two-pass: all defs, then all data). Each list's block is:
+//  Then, AFTER every bone-list header, the full/one sample data blocks follow
+//  in list order (two-pass: all defs, then data for the live lists). Each
+//  list's block is:
 //      numSamples x frame, where each frame is (bones grouped BY CATEGORY):
 //         vectors (.pos + .scale):  float32x3 (12B) or int16x3 (6B)
 //         quats   (.quat):          float32x4 (16B), int16x4 (8B), or
@@ -980,6 +983,128 @@ SourceCharBonesSamplesLoadPlan source_char_bones_samples_load_plan(
   return plan;
 }
 
+bool source_grim_char_bones_samples_standalone_version_known(int version) {
+  return version == 16;
+}
+
+bool source_grim_char_clip_samples_version_known(int version) {
+  return version == 10 || version == 11 || version == 16;
+}
+
+bool source_grim_char_clip_version_known(int version) {
+  return version == 5 || version == 12;
+}
+
+size_t source_grim_char_bones_samples_get_type_size(int type,
+                                                    int compression) {
+  if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
+  if (compression < 0 || compression > 3) return 0u;
+  if (type < kSourceCharBonesTypeQuat) {
+    return compression < 2 ? 16u : 6u;
+  }
+  if (type != kSourceCharBonesTypeQuat) {
+    return compression == 0 ? 4u : 2u;
+  }
+  if (compression > 2) return 4u;
+  return compression == 0 ? 16u : 8u;
+}
+
+size_t source_grim_char_bones_samples_get_type_size2(int type,
+                                                     int compression) {
+  if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
+  static const size_t kSizes[4][kSourceCharBonesTypeEnd] = {
+      {12u, 4u, 16u, 4u, 4u, 4u},
+      {12u, 4u, 8u, 2u, 2u, 2u},
+      {6u, 4u, 8u, 2u, 2u, 2u},
+      {6u, 4u, 4u, 2u, 2u, 2u},
+  };
+  if (compression < 0 || compression >= 4) return 0u;
+  return kSizes[compression][type];
+}
+
+SourceGrimCharBonesSamplesHeaderPlan
+source_grim_char_bones_samples_header_plan(int version) {
+  SourceGrimCharBonesSamplesHeaderPlan plan;
+  if (!(version == 10 || version == 11 || version == 16)) return plan;
+  plan.known_version = true;
+  plan.count_size = version > 15 ? 7 : 10;
+  plan.defaults_weight = version <= 10;
+  plan.reads_weight = version > 10;
+  plan.reads_frame_table = version > 11;
+  plan.aligns_sample_data_to_4 = version > 11;
+  plan.read_order = {
+      "bone_count",
+      "bone_symbols",
+      plan.reads_weight ? "weights" : "default_weight_1.0",
+      plan.count_size == 7 ? "counts[7]" : "counts[10]",
+      "compression",
+      "sample_count",
+  };
+  if (plan.reads_frame_table) plan.read_order.push_back("frames");
+  return plan;
+}
+
+SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
+                                                           bool read_meta) {
+  SourceGrimCharClipLoadPlan plan;
+  if (!source_grim_char_clip_version_known(version)) return plan;
+  plan.known_version = true;
+  plan.reads_object_meta = read_meta;
+  plan.reads_range = version > 3;
+  plan.skips_v5_unknown_bool = version == 5;
+  plan.reads_relative = version > 5;
+  plan.reads_unknown_1 = version > 9;
+  plan.reads_do_not_decompress = version > 11;
+  plan.reads_node_size = version >= 8;
+  plan.reads_deprecated_events = version < 7;
+  plan.reads_events = true;
+  plan.read_order = {"version"};
+  if (read_meta) plan.read_order.push_back("Object::Load");
+  plan.read_order.insert(plan.read_order.end(),
+                         {"start_beat", "end_beat", "beats_per_sec",
+                          "flags", "play_flags", "blend_width"});
+  if (plan.reads_range) plan.read_order.push_back("range");
+  if (plan.skips_v5_unknown_bool) plan.read_order.push_back("v5_unknown_bool");
+  if (plan.reads_relative) plan.read_order.push_back("relative");
+  if (plan.reads_unknown_1) plan.read_order.push_back("unknown_1");
+  if (plan.reads_do_not_decompress) {
+    plan.read_order.push_back("do_not_decompress");
+  }
+  if (plan.reads_node_size) plan.read_order.push_back("node_size");
+  plan.read_order.push_back("nodes");
+  if (plan.reads_deprecated_events) plan.read_order.push_back("enter_exit");
+  plan.read_order.push_back("events");
+  return plan;
+}
+
+SourceGrimCharClipSamplesLoadPlan
+source_grim_char_clip_samples_load_plan(int version) {
+  SourceGrimCharClipSamplesLoadPlan plan;
+  if (!source_grim_char_clip_samples_version_known(version)) return plan;
+  plan.known_version = true;
+  plan.calls_char_clip_with_meta = true;
+  plan.reads_some_bool = version >= 16;
+  plan.legacy_split_headers_and_data = version < 13;
+  plan.reads_duplicate_legacy_header = version < 13 && version > 7;
+  plan.reads_extra_bones = version > 14;
+  plan.runtime_data_lists = version < 13 ? 2 : 2;
+  plan.read_order = {"version", "CharClip(read_meta=true)"};
+  if (plan.reads_some_bool) plan.read_order.push_back("some_bool");
+  if (plan.legacy_split_headers_and_data) {
+    plan.read_order.insert(plan.read_order.end(),
+                           {"full.header", "one.header"});
+    if (plan.reads_duplicate_legacy_header) {
+      plan.read_order.push_back("duplicate.header");
+    }
+    plan.read_order.insert(plan.read_order.end(), {"full.data", "one.data"});
+  } else {
+    plan.read_order.insert(plan.read_order.end(),
+                           {"full.CharBonesSamples", "one.CharBonesSamples"});
+  }
+  if (plan.reads_extra_bones) plan.read_order.push_back("extra_bones");
+  return plan;
+}
+
 SourceCharBonesSamplesPropSyncPlan
 source_char_bones_samples_prop_sync_plan() {
   SourceCharBonesSamplesPropSyncPlan plan;
@@ -1775,6 +1900,7 @@ bool is_bone_name_at(const uint8_t* d, size_t n, size_t at) {
 struct BoneList {
   std::vector<std::string> names;   // full names, file order
   std::vector<int>         cats;    // category per bone
+  std::vector<float>       weights;
   uint32_t cum[10] = {};
   int      compression = 1;
   int      num_samples = 0;
@@ -1851,17 +1977,25 @@ bool debug_clip_parse_enabled() {
 }
 
 bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
+                         int samples_version,
                          BoneList& out) {
-  if (at + 52 > n) return false;
+  const SourceGrimCharBonesSamplesHeaderPlan header_plan =
+      source_grim_char_bones_samples_header_plan(samples_version);
+  if (!header_plan.known_version) return false;
+  const size_t header_size =
+      4u + static_cast<size_t>(header_plan.count_size) * 4u + 8u;
+  if (at + header_size > n) return false;
   Cur c(d, n);
   c.pos = at;
   uint32_t count = c.u32();
   if (count != 0) return false;
 
   out = BoneList{};
-  for (int i = 0; i < 10; ++i) out.cum[i] = c.u32();
-  for (int i = 1; i < 10; ++i) if (out.cum[i] < out.cum[i - 1]) return false;
-  if (out.cum[9] != 0) return false;
+  for (int i = 0; i < header_plan.count_size; ++i) out.cum[i] = c.u32();
+  for (int i = 1; i < header_plan.count_size; ++i) {
+    if (out.cum[i] < out.cum[i - 1]) return false;
+  }
+  if (out.cum[header_plan.count_size - 1] != 0) return false;
 
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
@@ -1873,17 +2007,22 @@ bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
 
 // Try to read a bone-list header starting at byte `at`. On success advances
 // `at` past the header and fills `out`. Returns false if not a valid list.
-bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
+bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
+                    int samples_version, BoneList& out) {
   if (at + 4 > n) return false;
+  const SourceGrimCharBonesSamplesHeaderPlan header_plan =
+      source_grim_char_bones_samples_header_plan(samples_version);
+  if (!header_plan.known_version) return false;
   Cur c(d, n);
   c.pos = at;
   uint32_t count = c.u32();
-  if (count == 0) return read_zero_bone_list(d, n, at, out);
+  if (count == 0) return read_zero_bone_list(d, n, at, samples_version, out);
   if (count < 1 || count > 300) return false;
   if (!is_bone_name_at(d, n, c.pos)) return false;  // first entry must be a bone
 
   out = BoneList{};
   out.names.reserve(count);
+  out.weights.reserve(count);
   for (uint32_t i = 0; i < count; ++i) {
     if (!is_bone_name_at(d, n, c.pos)) return false;
     uint32_t len = c.u32();
@@ -1892,16 +2031,24 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
     if (!is_valid_category_name(name)) return false;
     out.names.push_back(name);
     out.cats.push_back(source_char_bones_type_of(name));
-    // No per-bone weight in GH2 PS2 (gRev<=10): names are back-to-back.
+    if (header_plan.reads_weight) {
+      if (c.pos + 4 > n) return false;
+      out.weights.push_back(c.f32());
+    } else {
+      out.weights.push_back(1.0f);
+    }
   }
 
-  // cum_counts[10]
-  if (c.pos + 10 * 4 > n) return false;
-  for (int i = 0; i < 10; ++i) out.cum[i] = c.u32();
+  if (c.pos + static_cast<size_t>(header_plan.count_size) * 4u > n) {
+    return false;
+  }
+  for (int i = 0; i < header_plan.count_size; ++i) out.cum[i] = c.u32();
   // Validate: cum[0]==0, non-decreasing, cum[9] <= count.
   if (out.cum[0] != 0) return false;
-  for (int i = 1; i < 10; ++i) if (out.cum[i] < out.cum[i - 1]) return false;
-  if (out.cum[9] > count) return false;
+  for (int i = 1; i < header_plan.count_size; ++i) {
+    if (out.cum[i] < out.cum[i - 1]) return false;
+  }
+  if (out.cum[header_plan.count_size - 1] > count) return false;
 
   if (c.pos + 8 > n) return false;
   out.compression = (int)c.u32();
@@ -1920,7 +2067,10 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
   out.n_angle = cat_n(3) + cat_n(4) + cat_n(5);            // rot*
   out.frame_bytes = 0;
   for (int cat : out.cats) {
-    out.frame_bytes += source_char_bones_type_size(cat, out.compression);
+    const size_t type_size =
+        source_grim_char_bones_samples_get_type_size2(cat, out.compression);
+    if (type_size == 0u) return false;
+    out.frame_bytes += type_size;
   }
 
   // Source TypeSize proves the 4-byte ByteQuat row for kCompressQuats and
@@ -1928,6 +2078,8 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
   // ByteQuat-to-Quat conversion body. Refuse those lists rather than silently
   // reading four bytes as a ShortQuat.
   if (uses_source_byte_quat(out)) return false;
+
+  if (header_plan.reads_frame_table) return false;
 
   at = c.pos;
   return true;
@@ -1998,19 +2150,21 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
   if (n < 4) return {};
   uint32_t samples_version = 0;
   std::memcpy(&samples_version, d, 4);
-  if (!source_char_bones_samples_load_version_known(
+  if (!source_grim_char_clip_samples_version_known(
           static_cast<int>(samples_version))) {
     return {};
   }
+  if (samples_version >= 13) return {};
 
   std::vector<BoneList> lists;
   size_t p = SIZE_MAX;
 
   // GH2 CharClipSamples entries begin with the samples version, then a CharClip
-  // base payload, then exactly three CharBonesSamples headers for version 8+.
+  // base payload, then full/one CharBonesSamples headers plus a duplicate
+  // serialized header for version 8+. Grim then reads data only for full/one.
   // The CharClip base contains arbitrary transition names, so finding the first
   // "bone_*.pos" is not reliable; `neutral` even has an empty list first.
-  // Instead, accept only a candidate whose three declared sample blocks consume
+  // Instead, accept only a candidate whose two declared sample blocks consume
   // the remaining entry bytes exactly.
   for (size_t at = 4; at + 52 <= n; ++at) {
     std::vector<BoneList> candidate;
@@ -2018,19 +2172,24 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
     bool ok = true;
     for (int i = 0; i < 3; ++i) {
       BoneList bl;
-      if (!read_bone_list(d, n, q, bl)) { ok = false; break; }
+      if (!read_bone_list(d, n, q, static_cast<int>(samples_version), bl)) {
+        ok = false;
+        break;
+      }
       candidate.push_back(std::move(bl));
     }
     if (!ok || candidate.empty()) continue;
     bool has_channels = false;
     uint64_t sample_bytes = 0;
-    for (const auto& bl : candidate) {
+    for (size_t i = 0; i < candidate.size() && i < 2; ++i) {
+      const auto& bl = candidate[i];
       if (!bl.names.empty()) has_channels = true;
       sample_bytes += static_cast<uint64_t>(bl.frame_bytes) *
                       static_cast<uint64_t>(bl.num_samples);
     }
     if (!has_channels) continue;
     if (sample_bytes == n - q) {
+      candidate.resize(2);
       lists = std::move(candidate);
       p = q;
       break;

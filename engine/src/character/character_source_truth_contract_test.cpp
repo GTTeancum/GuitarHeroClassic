@@ -267,6 +267,8 @@ int run_contract() {
       extra_dir / "rb3-latest/src/system/utl";
   const std::filesystem::path rb2_dump_char_dir =
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
+  const std::filesystem::path grim_scene_dir =
+      extra_dir / "grim/core/grim/src/scene";
   const std::string rb3_latest_mesh_h = compact(read_file(
       rb3_latest_rndobj_dir / "Mesh.h"));
   const std::string rb3_latest_group_cpp = compact(read_file(
@@ -577,6 +579,14 @@ int run_contract() {
       rb2_dump_char_dir / "CharBonesSamples.cpp"));
   const std::string rb2_char_clip_driver_cpp = compact(read_file(
       rb2_dump_char_dir / "CharClipDriver.cpp"));
+  const std::string grim_char_bones_samples_io = compact(read_file(
+      grim_scene_dir / "char_bones_samples/io.rs"));
+  const std::string grim_char_bones_samples_mod = compact(read_file(
+      grim_scene_dir / "char_bones_samples/mod.rs"));
+  const std::string grim_char_clip_io = compact(read_file(
+      grim_scene_dir / "char_clip/io.rs"));
+  const std::string grim_char_clip_samples_io = compact(read_file(
+      grim_scene_dir / "char_clip_samples/io.rs"));
   const std::string rb2_char_driver_cpp = compact(read_file(
       rb2_dump_char_dir / "CharDriver.cpp"));
   const std::string rb2_char_weight_setter_cpp = compact(read_file(
@@ -663,14 +673,20 @@ int run_contract() {
                  "`c51944bd13dfd4cb6df918159fb7136c20f74fb0`",
                  "document records current band3_recomp upstream check");
   ok &= contains(doc,
-                 "No newer reviewable character bodies were available from "
-                 "upstream",
-                 "document records no newer ihatecompvir character bodies");
+                 "`ihatecompvir-extra/grim` is a narrow source copy of "
+                 "`ihatecompvir/grim`",
+                 "document records imported grim source snapshot");
+  ok &= contains(doc,
+                 "`CharClipSamples`, `CharClip`, and `CharBonesSamples` "
+                 "file-structure details",
+                 "document records grim loader source role");
   ok &= contains(doc, "## Source Coverage Matrix",
                  "document includes source coverage matrix");
   ok &= contains(doc,
                  "| Clip sample/output publishing | `rb3-latest` `CharClip` / "
-                 "`CharBones` / `CharBonesSamples` / `CharBone`, "
+                 "`CharBones` / `CharBonesSamples` / `CharBone`, `grim` "
+                 "`char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, "
+                 "`char_clip_samples/io.rs`, "
                  "`MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, "
                  "`band3_recomp` symbols |",
                  "coverage matrix cites current CharClip source evidence");
@@ -698,11 +714,69 @@ int run_contract() {
                  "`CharClipGroup::GetClip` cycling.",
                  "coverage matrix records native CharClipGroup GetClip slice");
   ok &= contains(doc,
-                 "Channel naming, compression sizing, sample interpolation "
-                 "wrappers, CharBonesSamples load/prop-sync row plans, "
-                 "CharBone output row fields, and partial call flow are "
-                 "source-backed",
+                 "Grim GH2 `CharClipSamples` version gates, legacy "
+                 "full/one/duplicate header read order, version-gated "
+                 "weights, raw sample-byte sizing",
                  "coverage matrix records concrete CharBones source evidence");
+  ok &= missing(doc,
+                "No newer reviewable character bodies were available from "
+                "upstream",
+                "document no longer claims grim source is absent");
+  ok &= contains(grim_char_clip_samples_io,
+                 "10|11=>true,//GH2/GH2360",
+                 "grim CharClipSamples accepts GH2/GH2 360 versions");
+  ok &= contains(grim_char_clip_samples_io,
+                 "load_char_clip(self,&mutreader,info,true)?;",
+                 "grim CharClipSamples delegates CharClip metadata load");
+  ok &= contains(grim_char_clip_samples_io,
+                 "load_char_bones_samples_header(&mutself.full,&mutreader,"
+                 "version)?;",
+                 "grim CharClipSamples reads full header first");
+  ok &= contains(grim_char_clip_samples_io,
+                 "load_char_bones_samples_header(&mutself.one,&mutreader,"
+                 "version)?;",
+                 "grim CharClipSamples reads one header second");
+  ok &= contains(grim_char_clip_samples_io,
+                 "load_char_bones_samples_header(&mutcbs,&mutreader,"
+                 "version)?;",
+                 "grim CharClipSamples reads duplicate legacy header");
+  ok &= contains(grim_char_clip_samples_io,
+                 "load_char_bones_samples_data(&mutself.full,&mutreader,"
+                 "version,full_bones,full_sample_count)?;",
+                 "grim CharClipSamples reads full data after headers");
+  ok &= contains(grim_char_clip_samples_io,
+                 "load_char_bones_samples_data(&mutself.one,&mutreader,"
+                 "version,one_bones,one_sample_count)?;",
+                 "grim CharClipSamples reads one data after full data");
+  ok &= contains(grim_char_bones_samples_io,
+                 "letcount_size=ifversion>15{7}else{10};",
+                 "grim CharBonesSamples count-size gate");
+  ok &= contains(grim_char_bones_samples_io,
+                 "letweight=ifversion<=10{1.0}else{reader.read_float32()?};",
+                 "grim CharBonesSamples version-gated weights");
+  ok &= contains(grim_char_bones_samples_io,
+                 "ifversion>11{",
+                 "grim CharBonesSamples frame-table gate");
+  ok &= contains(grim_char_bones_samples_io,
+                 "align_to_multiple_of_four(sample_size)",
+                 "grim CharBonesSamples sample alignment gate");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "constSIZES:[[usize;6];4]=",
+                 "grim CharBonesSamples get_type_size2 table");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "[12,4,16,4,4,4],",
+                 "grim CharBonesSamples uncompressed raw size row");
+  ok &= contains(grim_char_clip_io,
+                 "matchversion{5=>true,//GH2/GH236012=>true,//TBRB/GDRB_=>"
+                 "false",
+                 "grim CharClip accepts GH2/GH2 360 version 5");
+  ok &= contains(char_clip_h, "SourceGrimCharClipSamplesLoadPlan",
+                 "native exposes grim CharClipSamples load plan");
+  ok &= contains(char_clip,
+                 "source_grim_char_clip_samples_version_known",
+                 "native names grim CharClipSamples version gate");
+  ok &= contains(char_clip, "candidate.resize(2);",
+                 "native keeps two runtime data lists after duplicate header");
   ok &= contains(doc,
                  "sample decode/evaluate and broad pose publishing remain "
                  "fenced",
@@ -841,14 +915,13 @@ int run_contract() {
                  "and controller runtime",
                  "remaining import checklist identifies the broad unresolved area");
   ok &= contains(doc,
-                 "Port the missing source-backed bodies for "
-                 "`CharBonesSamples::LoadHeader`,",
-                 "remaining import checklist names CharBonesSamples body gap");
+                 "GH2-era `CharClipSamples` / `CharBonesSamples` file loading "
+                 "now follows\n     Grim's source-backed version gates",
+                 "remaining import checklist records Grim load import");
   ok &= contains(doc,
-                 "Current evidence is not enough to copy them: `rb3-latest` "
-                 "declares those\n     functions and delegates to `LoadHeader`/"
-                 "`LoadData`, while the RB2 dump maps",
-                 "remaining import checklist fences CharBonesSamples body maps");
+                 "The remaining missing\n     source-backed bodies are "
+                 "`CharBonesSamples::EvaluateChannel`,",
+                 "remaining import checklist names CharBonesSamples runtime gap");
   ok &= contains(doc,
                  "Port the missing source-backed bodies for "
                  "`CharBones::ScaleAdd`,",
@@ -14819,9 +14892,12 @@ int run_contract() {
                  "native CharBonesSamples runtime dump fences pose publishing");
   ok &= contains(char_clip,
                  "uint32_tsamples_version=0;std::memcpy(&samples_version,d,4);"
-                 "if(!source_char_bones_samples_load_version_known("
+                 "if(!source_grim_char_clip_samples_version_known("
                  "static_cast<int>(samples_version))){return{};}",
-                 "native clip parser applies source CharBonesSamples version gate");
+                 "native clip parser applies Grim CharClipSamples version gate");
+  ok &= contains(char_clip,
+                 "if(samples_version>=13)return{};",
+                 "native clip parser fences non-GH2 Grim sample variants");
   ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");

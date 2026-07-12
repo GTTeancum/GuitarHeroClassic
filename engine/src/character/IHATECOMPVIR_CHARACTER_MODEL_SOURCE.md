@@ -20,6 +20,9 @@ records the upstream commits for the copied files:
 - `ihatecompvir-extra/rb3-retail-old` is a shallow sparse source copy of
   `ihatecompvir/rb3` tag `retail-old` at
   `ae71945afad4d3b12bb34f4d71aecc4750334105`.
+- `ihatecompvir-extra/grim` is a narrow source copy of `ihatecompvir/grim`
+  commit `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb` containing the
+  `char_bones_samples`, `char_clip`, and `char_clip_samples` loaders.
 - 2026-07-12 upstream checks still match the local source snapshot:
   `MiloEditor` main `3ebffb1c4391dd83c5765cb428eef433dffaff51`,
   `glTFMilo` main `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`,
@@ -27,8 +30,9 @@ records the upstream commits for the copied files:
   `rb3` tag `retail-old` `ae71945afad4d3b12bb34f4d71aecc4750334105`,
   `re-gh2` main `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`, and
   `band3_recomp` main `c51944bd13dfd4cb6df918159fb7136c20f74fb0`.
-  No newer reviewable character bodies were available from upstream during
-  this check.
+  The imported `grim` loader snapshot adds reviewable Rust source for
+  `CharClipSamples`, `CharClip`, and `CharBonesSamples` file-structure details
+  that were missing from the checked C++ bodies.
 
 The contract test verifies that every copied
 `ihatecompvir-extra/rb3-latest/src/system/char` `.cpp`/`.h` file is named in
@@ -107,7 +111,7 @@ writer body.
 | Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log the source load order and expose helper math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
-| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
+| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `grim` `char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, `char_clip_samples/io.rs`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, Grim GH2 `CharClipSamples` version gates, legacy full/one/duplicate header read order, version-gated weights, raw sample-byte sizing, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
 ## Character Mesh Cache Helper
@@ -271,11 +275,13 @@ connected character animation and controller runtime that turns authored clips
 into final transform rows.
 
 1. Whole-character clip and pose stack:
-   - Port the missing source-backed bodies for `CharBonesSamples::LoadHeader`,
-     `LoadData`, `EvaluateChannel`, and `Relativize`.
-     Current evidence is not enough to copy them: `rb3-latest` declares those
-     functions and delegates to `LoadHeader`/`LoadData`, while the RB2 dump maps
-     function names/ranges and locals but does not expose a statement-level body.
+   - GH2-era `CharClipSamples` / `CharBonesSamples` file loading now follows
+     Grim's source-backed version gates, full/one/duplicate header order,
+     version-gated weights, and raw sample-byte sizing. The remaining missing
+     source-backed bodies are `CharBonesSamples::EvaluateChannel`,
+     `Relativize`, and the complete pose application path. `rb3-latest`
+     declares those functions, while the RB2 dump maps names/ranges and locals
+     but does not expose a statement-level body.
    - Port the missing source-backed bodies for `CharBones::ScaleAdd`,
      `RotateBy`, `RotateTo`, `Blend`, and any required identity/mesh
      application helpers.

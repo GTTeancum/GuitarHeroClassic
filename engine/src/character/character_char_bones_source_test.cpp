@@ -1526,6 +1526,152 @@ int main() {
                    "samples load plan rejects low version");
   ok &= expect_size(samples_bad_load.read_order.size(), 0,
                     "samples bad load plan has no reads");
+
+  ok &= expect_int(source_grim_char_clip_samples_version_known(10) ? 1 : 0, 1,
+                   "grim CharClipSamples GH2 version 10 accepted");
+  ok &= expect_int(source_grim_char_clip_samples_version_known(11) ? 1 : 0, 1,
+                   "grim CharClipSamples GH2 360 version 11 accepted");
+  ok &= expect_int(source_grim_char_clip_samples_version_known(16) ? 1 : 0, 1,
+                   "grim CharClipSamples TBRB version 16 accepted");
+  ok &= expect_int(source_grim_char_clip_samples_version_known(13) ? 1 : 0, 0,
+                   "grim CharClipSamples version 13 rejected");
+  ok &= expect_int(
+      source_grim_char_bones_samples_standalone_version_known(16) ? 1 : 0, 1,
+      "grim standalone CharBonesSamples version 16 accepted");
+  ok &= expect_int(
+      source_grim_char_bones_samples_standalone_version_known(10) ? 1 : 0, 0,
+      "grim standalone CharBonesSamples version 10 rejected");
+  ok &= expect_int(source_grim_char_clip_version_known(5) ? 1 : 0, 1,
+                   "grim CharClip version 5 accepted");
+  ok &= expect_int(source_grim_char_clip_version_known(12) ? 1 : 0, 1,
+                   "grim CharClip version 12 accepted");
+
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypePos, 0),
+      16, "grim get_type_size pos uncompressed");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypeScale,
+                                                   0),
+      16, "grim get_type_size scale uncompressed");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypePos, 2),
+      6, "grim get_type_size pos compressed vectors");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypeQuat, 3),
+      4, "grim get_type_size quat compressed quats");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypeRotZ, 1),
+      2, "grim get_type_size rotz compressed rots");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypePos, 0),
+      12, "grim get_type_size2 pos uncompressed");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypeScale,
+                                                    0),
+      4, "grim get_type_size2 scale uncompressed");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypeQuat,
+                                                    0),
+      16, "grim get_type_size2 quat uncompressed");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypeQuat,
+                                                    3),
+      4, "grim get_type_size2 quat compressed quats");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypeRotX,
+                                                    2),
+      2, "grim get_type_size2 rotx compressed vectors");
+  ok &= expect_size(
+      source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypePos, 4),
+      0, "grim get_type_size2 rejects unsupported compression");
+
+  const SourceGrimCharBonesSamplesHeaderPlan grim_header10 =
+      source_grim_char_bones_samples_header_plan(10);
+  ok &= expect_int(grim_header10.known_version ? 1 : 0, 1,
+                   "grim header v10 known");
+  ok &= expect_int(grim_header10.count_size, 10,
+                   "grim header v10 count size");
+  ok &= expect_int(grim_header10.defaults_weight ? 1 : 0, 1,
+                   "grim header v10 defaults weights");
+  ok &= expect_int(grim_header10.reads_weight ? 1 : 0, 0,
+                   "grim header v10 skips weights");
+  ok &= expect_int(grim_header10.reads_frame_table ? 1 : 0, 0,
+                   "grim header v10 skips frames");
+  ok &= expect_int(grim_header10.aligns_sample_data_to_4 ? 1 : 0, 0,
+                   "grim header v10 skips alignment");
+  ok &= expect_string(grim_header10.read_order[2], "default_weight_1.0",
+                      "grim header v10 default weight row");
+
+  const SourceGrimCharBonesSamplesHeaderPlan grim_header11 =
+      source_grim_char_bones_samples_header_plan(11);
+  ok &= expect_int(grim_header11.reads_weight ? 1 : 0, 1,
+                   "grim header v11 reads weights");
+  ok &= expect_string(grim_header11.read_order[2], "weights",
+                      "grim header v11 weight row");
+
+  const SourceGrimCharBonesSamplesHeaderPlan grim_header16 =
+      source_grim_char_bones_samples_header_plan(16);
+  ok &= expect_int(grim_header16.count_size, 7,
+                   "grim header v16 count size");
+  ok &= expect_int(grim_header16.reads_frame_table ? 1 : 0, 1,
+                   "grim header v16 reads frames");
+  ok &= expect_int(grim_header16.aligns_sample_data_to_4 ? 1 : 0, 1,
+                   "grim header v16 aligns data");
+
+  const SourceGrimCharClipLoadPlan grim_clip5 =
+      source_grim_char_clip_load_plan(5, true);
+  ok &= expect_int(grim_clip5.known_version ? 1 : 0, 1,
+                   "grim CharClip v5 known");
+  ok &= expect_int(grim_clip5.reads_object_meta ? 1 : 0, 1,
+                   "grim CharClip reads meta");
+  ok &= expect_int(grim_clip5.skips_v5_unknown_bool ? 1 : 0, 1,
+                   "grim CharClip v5 skips unknown bool");
+  ok &= expect_int(grim_clip5.reads_deprecated_events ? 1 : 0, 1,
+                   "grim CharClip v5 reads deprecated events");
+  ok &= expect_int(grim_clip5.reads_node_size ? 1 : 0, 0,
+                   "grim CharClip v5 skips node size");
+  ok &= expect_string(grim_clip5.read_order[1], "Object::Load",
+                      "grim CharClip meta read order");
+
+  const SourceGrimCharClipLoadPlan grim_clip12 =
+      source_grim_char_clip_load_plan(12, true);
+  ok &= expect_int(grim_clip12.reads_relative ? 1 : 0, 1,
+                   "grim CharClip v12 reads relative");
+  ok &= expect_int(grim_clip12.reads_unknown_1 ? 1 : 0, 1,
+                   "grim CharClip v12 reads unknown_1");
+  ok &= expect_int(grim_clip12.reads_do_not_decompress ? 1 : 0, 1,
+                   "grim CharClip v12 reads do_not_decompress");
+  ok &= expect_int(grim_clip12.reads_node_size ? 1 : 0, 1,
+                   "grim CharClip v12 reads node size");
+
+  const SourceGrimCharClipSamplesLoadPlan grim_clip_samples10 =
+      source_grim_char_clip_samples_load_plan(10);
+  ok &= expect_int(grim_clip_samples10.known_version ? 1 : 0, 1,
+                   "grim CharClipSamples v10 known");
+  ok &= expect_int(grim_clip_samples10.calls_char_clip_with_meta ? 1 : 0, 1,
+                   "grim CharClipSamples calls CharClip metadata loader");
+  ok &= expect_int(grim_clip_samples10.legacy_split_headers_and_data ? 1 : 0,
+                   1, "grim CharClipSamples v10 split headers/data");
+  ok &= expect_int(grim_clip_samples10.reads_duplicate_legacy_header ? 1 : 0,
+                   1, "grim CharClipSamples v10 duplicate header");
+  ok &= expect_int(grim_clip_samples10.runtime_data_lists, 2,
+                   "grim CharClipSamples v10 runtime data list count");
+  ok &= expect_string(grim_clip_samples10.read_order[2], "full.header",
+                      "grim CharClipSamples v10 first header");
+  ok &= expect_string(grim_clip_samples10.read_order[4], "duplicate.header",
+                      "grim CharClipSamples v10 duplicate header order");
+  ok &= expect_string(grim_clip_samples10.read_order[5], "full.data",
+                      "grim CharClipSamples v10 full data order");
+
+  const SourceGrimCharClipSamplesLoadPlan grim_clip_samples16 =
+      source_grim_char_clip_samples_load_plan(16);
+  ok &= expect_int(grim_clip_samples16.reads_some_bool ? 1 : 0, 1,
+                   "grim CharClipSamples v16 reads some_bool");
+  ok &= expect_int(grim_clip_samples16.legacy_split_headers_and_data ? 1 : 0,
+                   0, "grim CharClipSamples v16 uses standalone samples");
+  ok &= expect_int(grim_clip_samples16.reads_extra_bones ? 1 : 0, 1,
+                   "grim CharClipSamples v16 reads extra bones");
+
   const SourceCharBonesSamplesPropSyncPlan samples_prop_sync =
       source_char_bones_samples_prop_sync_plan();
   ok &= expect_size(samples_prop_sync.properties.size(), 2,
