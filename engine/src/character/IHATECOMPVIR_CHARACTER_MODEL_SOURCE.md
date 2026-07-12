@@ -20,11 +20,15 @@ records the upstream commits for the copied files:
 - `ihatecompvir-extra/rb3-retail-old` is a shallow sparse source copy of
   `ihatecompvir/rb3` tag `retail-old` at
   `ae71945afad4d3b12bb34f4d71aecc4750334105`.
-- 2026-07-12 upstream check: `git ls-remote ihatecompvir/rb3` still reports
-  master `41719f248995f677ffa39bd394706b5d18ef70c6` and tag `retail-old`
-  `ae71945afad4d3b12bb34f4d71aecc4750334105`, matching the local source
-  snapshot. No newer reviewable character bodies were available from upstream
-  during this check.
+- 2026-07-12 upstream checks still match the local source snapshot:
+  `MiloEditor` main `3ebffb1c4391dd83c5765cb428eef433dffaff51`,
+  `glTFMilo` main `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`,
+  `rb3` master `41719f248995f677ffa39bd394706b5d18ef70c6`,
+  `rb3` tag `retail-old` `ae71945afad4d3b12bb34f4d71aecc4750334105`,
+  `re-gh2` main `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`, and
+  `band3_recomp` main `c51944bd13dfd4cb6df918159fb7136c20f74fb0`.
+  No newer reviewable character bodies were available from upstream during
+  this check.
 
 ## Source Coverage Matrix
 

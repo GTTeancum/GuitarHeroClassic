@@ -532,9 +532,33 @@ int run_contract() {
   ok &= missing(doc, "re-notes",
                 "document must not cite absent re-notes snapshot");
   ok &= contains(doc,
-                 "2026-07-12 upstream check: `git ls-remote "
-                 "ihatecompvir/rb3` still reports",
-                 "document records current upstream source check");
+                 "2026-07-12 upstream checks still match the local source "
+                 "snapshot",
+                 "document records current upstream source checks");
+  ok &= contains(doc,
+                 "`MiloEditor` main "
+                 "`3ebffb1c4391dd83c5765cb428eef433dffaff51`",
+                 "document records current MiloEditor upstream check");
+  ok &= contains(doc,
+                 "`glTFMilo` main "
+                 "`3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`",
+                 "document records current glTFMilo upstream check");
+  ok &= contains(doc,
+                 "`rb3` master "
+                 "`41719f248995f677ffa39bd394706b5d18ef70c6`",
+                 "document records current rb3 master upstream check");
+  ok &= contains(doc,
+                 "`rb3` tag `retail-old` "
+                 "`ae71945afad4d3b12bb34f4d71aecc4750334105`",
+                 "document records current rb3 retail-old upstream check");
+  ok &= contains(doc,
+                 "`re-gh2` main "
+                 "`2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`",
+                 "document records current re-gh2 upstream check");
+  ok &= contains(doc,
+                 "`band3_recomp` main "
+                 "`c51944bd13dfd4cb6df918159fb7136c20f74fb0`",
+                 "document records current band3_recomp upstream check");
   ok &= contains(doc,
                  "No newer reviewable character bodies were available from "
                  "upstream",
