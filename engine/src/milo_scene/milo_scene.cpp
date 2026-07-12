@@ -445,6 +445,89 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
   return plan;
 }
 
+SourceRndTransformableDefaultState source_rndtransformable_default_state() {
+  return SourceRndTransformableDefaultState{};
+}
+
+SourceRndTransformableDirtyPlan source_rndtransformable_set_dirty_plan(
+    bool cache_already_dirty,
+    bool has_children) {
+  SourceRndTransformableDirtyPlan plan;
+  plan.cache_already_dirty = cache_already_dirty;
+  plan.set_dirty_force = !cache_already_dirty;
+  plan.sets_last_bit = !cache_already_dirty;
+  plan.propagates_to_children = !cache_already_dirty && has_children;
+  return plan;
+}
+
+SourceRndTransformableParentPlan source_rndtransformable_set_parent_plan(
+    bool same_parent,
+    bool preserve_world,
+    bool had_old_parent,
+    bool has_new_parent) {
+  SourceRndTransformableParentPlan plan;
+  plan.same_parent = same_parent;
+  plan.preserve_world = preserve_world;
+  plan.had_old_parent = had_old_parent;
+  plan.has_new_parent = has_new_parent;
+  if (same_parent) {
+    plan.same_parent_sets_dirty = true;
+    plan.calls_set_dirty = true;
+    return plan;
+  }
+  plan.computes_reparent_delta = preserve_world;
+  plan.transforms_local_xfm = preserve_world;
+  plan.transforms_trans_anims = preserve_world;
+  plan.removes_from_old_parent = had_old_parent;
+  plan.assigns_parent = true;
+  plan.cache_set_to_new_parent_or_zero = true;
+  plan.adds_to_new_parent_children = has_new_parent;
+  plan.calls_set_dirty = true;
+  return plan;
+}
+
+SourceRndTransformableWorldWritePlan
+source_rndtransformable_world_write_plan(
+    const std::string& setter,
+    bool has_children) {
+  SourceRndTransformableWorldWritePlan plan;
+  plan.setter = setter;
+  if (setter == "SetWorldXfm") {
+    plan.writes_world_xfm = true;
+    plan.clears_cache_dirty_bit = true;
+    plan.calls_updated_world_xfm = true;
+    plan.dirties_children = has_children;
+  } else if (setter == "SetWorldPos") {
+    plan.writes_world_position_only = true;
+    plan.calls_updated_world_xfm = true;
+    plan.dirties_children = has_children;
+  }
+  return plan;
+}
+
+SourceRndTransformableLocalWritePlan
+source_rndtransformable_local_write_plan(const std::string& setter) {
+  SourceRndTransformableLocalWritePlan plan;
+  plan.setter = setter;
+  if (setter == "ResetLocalXfm") {
+    plan.resets_local_xfm = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "SetLocalXfm") {
+    plan.writes_local_xfm = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "SetLocalRot") {
+    plan.writes_local_rotation = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "SetLocalPos") {
+    plan.writes_local_position = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "DirtyLocalXfm") {
+    plan.calls_set_dirty = true;
+    plan.returns_dirty_local_ref = true;
+  }
+  return plan;
+}
+
 SourceRndTransProxyDefaultState source_rndtrans_proxy_default_state() {
   return SourceRndTransProxyDefaultState{};
 }

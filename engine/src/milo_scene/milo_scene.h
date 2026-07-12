@@ -117,10 +117,78 @@ struct SourceRndTransLoadPlan {
   bool reads_parent = true;
 };
 
+struct SourceRndTransformableDefaultState {
+  bool parent_null = true;
+  bool target_null = true;
+  int32_t constraint = 0;
+  bool preserve_scale = false;
+  bool local_xfm_reset = true;
+  bool world_xfm_reset = true;
+  bool cache_allocated = true;
+  bool cache_set_to_self = true;
+};
+
+struct SourceRndTransformableDirtyPlan {
+  bool cache_already_dirty = false;
+  bool set_dirty_force = false;
+  bool sets_last_bit = false;
+  bool propagates_to_children = false;
+};
+
+struct SourceRndTransformableParentPlan {
+  bool same_parent = false;
+  bool preserve_world = false;
+  bool had_old_parent = false;
+  bool has_new_parent = false;
+  bool asserts_new_parent_not_self = true;
+  bool same_parent_sets_dirty = false;
+  bool computes_reparent_delta = false;
+  bool transforms_local_xfm = false;
+  bool transforms_trans_anims = false;
+  bool removes_from_old_parent = false;
+  bool assigns_parent = false;
+  bool cache_set_to_new_parent_or_zero = false;
+  bool adds_to_new_parent_children = false;
+  bool calls_set_dirty = false;
+};
+
+struct SourceRndTransformableWorldWritePlan {
+  std::string setter;
+  bool writes_world_xfm = false;
+  bool writes_world_position_only = false;
+  bool clears_cache_dirty_bit = false;
+  bool calls_updated_world_xfm = false;
+  bool dirties_children = false;
+};
+
+struct SourceRndTransformableLocalWritePlan {
+  std::string setter;
+  bool resets_local_xfm = false;
+  bool writes_local_xfm = false;
+  bool writes_local_rotation = false;
+  bool writes_local_position = false;
+  bool calls_set_dirty = false;
+  bool returns_dirty_local_ref = false;
+};
+
 SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t revision,
     int32_t parent_revision,
     bool standalone);
+SourceRndTransformableDefaultState source_rndtransformable_default_state();
+SourceRndTransformableDirtyPlan source_rndtransformable_set_dirty_plan(
+    bool cache_already_dirty,
+    bool has_children);
+SourceRndTransformableParentPlan source_rndtransformable_set_parent_plan(
+    bool same_parent,
+    bool preserve_world,
+    bool had_old_parent,
+    bool has_new_parent);
+SourceRndTransformableWorldWritePlan source_rndtransformable_world_write_plan(
+    const std::string& setter,
+    bool has_children);
+SourceRndTransformableLocalWritePlan source_rndtransformable_local_write_plan(
+    const std::string& setter);
 
 struct SourceRndTransProxyDefaultState {
   bool proxy_null = true;

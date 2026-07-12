@@ -62,6 +62,70 @@ void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
 bool approx(float a, float b) { return std::fabs(a - b) < 1e-4f; }
 
 void test_trans() {
+  const SourceRndTransformableDefaultState trans_defaults =
+      source_rndtransformable_default_state();
+  CHECK(trans_defaults.parent_null);
+  CHECK(trans_defaults.target_null);
+  CHECK(trans_defaults.constraint == 0);
+  CHECK(!trans_defaults.preserve_scale);
+  CHECK(trans_defaults.local_xfm_reset);
+  CHECK(trans_defaults.world_xfm_reset);
+  CHECK(trans_defaults.cache_allocated);
+  CHECK(trans_defaults.cache_set_to_self);
+
+  const SourceRndTransformableDirtyPlan dirty_clean =
+      source_rndtransformable_set_dirty_plan(false, true);
+  CHECK(!dirty_clean.cache_already_dirty);
+  CHECK(dirty_clean.set_dirty_force);
+  CHECK(dirty_clean.sets_last_bit);
+  CHECK(dirty_clean.propagates_to_children);
+  const SourceRndTransformableDirtyPlan dirty_already =
+      source_rndtransformable_set_dirty_plan(true, true);
+  CHECK(dirty_already.cache_already_dirty);
+  CHECK(!dirty_already.set_dirty_force);
+  CHECK(!dirty_already.propagates_to_children);
+
+  const SourceRndTransformableParentPlan same_parent =
+      source_rndtransformable_set_parent_plan(true, true, true, true);
+  CHECK(same_parent.same_parent);
+  CHECK(same_parent.same_parent_sets_dirty);
+  CHECK(same_parent.calls_set_dirty);
+  CHECK(!same_parent.assigns_parent);
+
+  const SourceRndTransformableParentPlan reparent_preserve =
+      source_rndtransformable_set_parent_plan(false, true, true, true);
+  CHECK(reparent_preserve.preserve_world);
+  CHECK(reparent_preserve.computes_reparent_delta);
+  CHECK(reparent_preserve.transforms_local_xfm);
+  CHECK(reparent_preserve.transforms_trans_anims);
+  CHECK(reparent_preserve.removes_from_old_parent);
+  CHECK(reparent_preserve.assigns_parent);
+  CHECK(reparent_preserve.cache_set_to_new_parent_or_zero);
+  CHECK(reparent_preserve.adds_to_new_parent_children);
+  CHECK(reparent_preserve.calls_set_dirty);
+
+  const SourceRndTransformableWorldWritePlan set_world =
+      source_rndtransformable_world_write_plan("SetWorldXfm", true);
+  CHECK(set_world.writes_world_xfm);
+  CHECK(set_world.clears_cache_dirty_bit);
+  CHECK(set_world.calls_updated_world_xfm);
+  CHECK(set_world.dirties_children);
+  const SourceRndTransformableWorldWritePlan set_world_pos =
+      source_rndtransformable_world_write_plan("SetWorldPos", true);
+  CHECK(set_world_pos.writes_world_position_only);
+  CHECK(!set_world_pos.clears_cache_dirty_bit);
+  CHECK(set_world_pos.calls_updated_world_xfm);
+  CHECK(set_world_pos.dirties_children);
+
+  const SourceRndTransformableLocalWritePlan set_local_pos =
+      source_rndtransformable_local_write_plan("SetLocalPos");
+  CHECK(set_local_pos.writes_local_position);
+  CHECK(set_local_pos.calls_set_dirty);
+  const SourceRndTransformableLocalWritePlan dirty_local =
+      source_rndtransformable_local_write_plan("DirtyLocalXfm");
+  CHECK(dirty_local.calls_set_dirty);
+  CHECK(dirty_local.returns_dirty_local_ref);
+
   const SourceRndTransLoadPlan rev9_standalone =
       source_rndtrans_load_plan(9, 24, true);
   CHECK(rev9_standalone.standalone);

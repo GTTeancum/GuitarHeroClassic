@@ -1280,7 +1280,24 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - `RndTransformable::Constraint` is the runtime enum authority:
     `kNone`, `kLocalRotate`, `kParentWorld`, `kLookAtTarget`,
     `kShadowTarget`, billboard variants, and `kTargetWorld`.
+  - Source local setters (`ResetLocalXfm`, `SetLocalXfm`, local rotation,
+    local position, and `DirtyLocalXfm`) call `SetDirty` and directly write or
+    return the local transform row. They do not contain character-name,
+    material-name, or mesh-name correction logic.
 - `rb3/src/system/rndobj/Trans.cpp`
+  - `RndTransformable` constructor defaults are source state: parent and target
+    null, constraint `kNone`, preserve scale false, local/world transforms reset,
+    a `DirtyCache` allocated, and the cache initialized to itself.
+  - `SetTransParent` asserts the new parent is not `this`; when the parent is
+    unchanged it only marks dirty. Otherwise, the preserve-world branch computes
+    the old-parent to new-parent delta, multiplies it into `mLocalXfm`, and
+    calls `TransformTransAnims`; then it removes the old parent links, assigns
+    the new parent, updates the cache parent flags, adds new parent links, and
+    marks dirty.
+  - `SetWorldXfm` writes the full world transform, clears the dirty bit, calls
+    `UpdatedWorldXfm`, and dirties children. `SetWorldPos` writes only the world
+    translation, calls `UpdatedWorldXfm`, and dirties children, but the checked
+    source body does not clear the cache dirty bit.
   - `RndTransformable::WorldXfm_Force` is the runtime transform-composition
     authority. With no parent, world equals local. `kParentWorld` copies the
     parent world row. `kLocalRotate` transforms only the local translation by
@@ -1293,6 +1310,12 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     a target row is present. Other dynamic constraints log
     `[source-xfm-unsupported]` with `runtimeWriteback=0` and keep the decoded
     base transform until the matching source runtime path is ported.
+  - Shared native `source_rndtransformable_default_state`,
+    `source_rndtransformable_set_dirty_plan`,
+    `source_rndtransformable_set_parent_plan`,
+    `source_rndtransformable_world_write_plan`, and
+    `source_rndtransformable_local_write_plan` record those concrete source
+    behaviors as deterministic contracts for character/bone transform work.
 
 ## Rnd Texture Row Authority
 

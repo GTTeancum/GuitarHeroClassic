@@ -1278,6 +1278,21 @@ int run_contract() {
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
                  "document cites RB3 RndTransformable runtime header source");
+  ok &= contains(doc,
+                 "`RndTransformable` constructor defaults are source state",
+                 "document records RndTransformable constructor defaults");
+  ok &= contains(doc,
+                 "`SetTransParent` asserts the new parent is not `this`",
+                 "document records RndTransformable parent-change source path");
+  ok &= contains(doc,
+                 "`SetWorldXfm` writes the full world transform",
+                 "document records RndTransformable world write source path");
+  ok &= contains(doc,
+                 "does not clear the cache dirty bit",
+                 "document records RndTransformable SetWorldPos distinction");
+  ok &= contains(doc,
+                 "Shared native `source_rndtransformable_default_state`,",
+                 "document records RndTransformable source helpers");
   ok &= contains(doc, "rb3-latest/src/system/char/CharHair.cpp",
                  "document cites latest CharHair runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharClipGroup.cpp",
@@ -2588,6 +2603,62 @@ int run_contract() {
                  "kBillboardZ){boolret2=false;if(mConstraint>=kLookAtTarget&&"
                  "mTarget)ret2=true;if(!ret2)ret=false;}returnret;}",
                  "RB3 RndTransformable dynamic-constraint gate");
+  ok &= contains(rb3_trans_h,
+                 "voidSetDirty(){if(mCache->mFlags&1)return;"
+                 "mCache->SetDirty_Force();}",
+                 "RB3 RndTransformable SetDirty source gate");
+  ok &= contains(rb3_trans_h,
+                 "Transform&WorldXfm(){if(mCache->mFlags&1)return"
+                 "WorldXfm_Force();elsereturnmWorldXfm;}",
+                 "RB3 RndTransformable WorldXfm cache gate");
+  ok &= contains(rb3_trans_h,
+                 "voidResetLocalXfm(){SetDirty();mLocalXfm.Reset();}",
+                 "RB3 RndTransformable ResetLocalXfm dirty path");
+  ok &= contains(rb3_trans_h,
+                 "voidSetLocalXfm(constTransform&tf){mLocalXfm=tf;"
+                 "SetDirty();}",
+                 "RB3 RndTransformable SetLocalXfm dirty path");
+  ok &= contains(rb3_trans_h,
+                 "Transform&DirtyLocalXfm(){SetDirty();returnmLocalXfm;}",
+                 "RB3 RndTransformable DirtyLocalXfm dirty path");
+  ok &= contains(rb3_trans_cpp,
+                 "RndTransformable::RndTransformable():mParent(this,NULL),"
+                 "mTarget(this,NULL),mConstraint(kNone),mPreserveScale(0){"
+                 "mLocalXfm.Reset();mWorldXfm.Reset();mCache=newDirtyCache();"
+                 "mCache->Set((u32)mCache);}",
+                 "RB3 RndTransformable constructor defaults");
+  ok &= contains(rb3_trans_cpp,
+                 "voidRndTransformable::SetTransParent(RndTransformable*"
+                 "newParent,boolb){MILO_ASSERT(newParent!=this,0xBB);"
+                 "if(mParent==newParent)SetDirty();else{if(b){",
+                 "RB3 RndTransformable SetTransParent source prefix");
+  ok &= contains(rb3_trans_cpp,
+                 "Invert(tf78,tf78);Multiply(tf48,tf78,tf78);"
+                 "Multiply(mLocalXfm,tf78,mLocalXfm);TransformTransAnims(tf78);",
+                 "RB3 RndTransformable preserve-world reparent math");
+  ok &= contains(rb3_trans_cpp,
+                 "if(mParent){RemoveSwap(mParent->mChildren,this);RemoveSwap("
+                 "mParent->mCache->mChildren,mCache);}mParent=newParent;",
+                 "RB3 RndTransformable removes old parent before assign");
+  ok &= contains(rb3_trans_cpp,
+                 "mCache->Set(newflags);if(newParent){newParent->mChildren."
+                 "push_back(this);newParent->mCache->mChildren.push_back("
+                 "mCache);}SetDirty();",
+                 "RB3 RndTransformable parent cache/link update");
+  ok &= contains(rb3_trans_cpp,
+                 "voidDirtyCache::SetDirty_Force(){SetLastBit(1);if(!"
+                 "mChildren.empty()){for(std::vector<DirtyCache*>::iteratorit="
+                 "mChildren.begin();it!=mChildren.end();it++){(*it)->"
+                 "SetDirty();}}}",
+                 "RB3 DirtyCache SetDirty_Force propagates children");
+  ok &= contains(rb3_trans_cpp,
+                 "voidRndTransformable::SetWorldXfm(constTransform&tf){"
+                 "mWorldXfm=tf;mCache->SetLastBit(0);UpdatedWorldXfm();",
+                 "RB3 RndTransformable SetWorldXfm clears dirty bit");
+  ok &= contains(rb3_trans_cpp,
+                 "voidRndTransformable::SetWorldPos(constVector3&vec){"
+                 "mWorldXfm.v=vec;UpdatedWorldXfm();",
+                 "RB3 RndTransformable SetWorldPos source body");
   ok &= contains(rb3_trans_cpp,
                  "if(!mParent){mWorldXfm=mLocalXfm;}elseif(mConstraint=="
                  "kParentWorld){mWorldXfm=mParent->WorldXfm();}elseif("
@@ -2600,6 +2671,57 @@ int run_contract() {
   ok &= contains(rb3_trans_cpp,
                  "if(mConstraint==kTargetWorld){mWorldXfm=mTarget->WorldXfm();}",
                  "RB3 RndTransformable target-world dynamic constraint");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableDefaultState{"
+                 "boolparent_null=true;",
+                 "shared milo_scene exposes RndTransformable defaults");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableParentPlan{boolsame_parent=false;",
+                 "shared milo_scene exposes RndTransformable parent plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableWorldWritePlan{std::stringsetter;",
+                 "shared milo_scene exposes RndTransformable world write plan");
+  ok &= contains(scene,
+                 "SourceRndTransformableDefaultStatesource_rndtransformable_"
+                 "default_state(){returnSourceRndTransformableDefaultState{};}",
+                 "shared milo_scene implements RndTransformable defaults helper");
+  ok &= contains(scene,
+                 "plan.set_dirty_force=!cache_already_dirty;plan.sets_last_bit="
+                 "!cache_already_dirty;",
+                 "shared RndTransformable dirty helper mirrors SetDirty gate");
+  ok &= contains(scene,
+                 "if(same_parent){plan.same_parent_sets_dirty=true;"
+                 "plan.calls_set_dirty=true;returnplan;}",
+                 "shared RndTransformable parent helper mirrors same-parent gate");
+  ok &= contains(scene,
+                 "plan.computes_reparent_delta=preserve_world;"
+                 "plan.transforms_local_xfm=preserve_world;",
+                 "shared RndTransformable parent helper mirrors preserve-world math");
+  ok &= contains(scene,
+                 "plan.removes_from_old_parent=had_old_parent;plan.assigns_parent=true;"
+                 "plan.cache_set_to_new_parent_or_zero=true;",
+                 "shared RndTransformable parent helper mirrors reparent bookkeeping");
+  ok &= contains(scene,
+                 "if(setter==\"SetWorldXfm\"){plan.writes_world_xfm=true;"
+                 "plan.clears_cache_dirty_bit=true;",
+                 "shared RndTransformable world helper mirrors SetWorldXfm");
+  ok &= contains(scene,
+                 "elseif(setter==\"SetWorldPos\"){plan.writes_world_position_only=true;"
+                 "plan.calls_updated_world_xfm=true;",
+                 "shared RndTransformable world helper mirrors SetWorldPos");
+  ok &= contains(scene,
+                 "elseif(setter==\"DirtyLocalXfm\"){plan.calls_set_dirty=true;"
+                 "plan.returns_dirty_local_ref=true;}",
+                 "shared RndTransformable local helper mirrors DirtyLocalXfm");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_default_state()",
+                 "milo_scene test covers RndTransformable defaults");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_set_parent_plan(false,true,true,true)",
+                 "milo_scene test covers RndTransformable preserve reparent");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_world_write_plan(\"SetWorldPos\",true)",
+                 "milo_scene test covers RndTransformable SetWorldPos distinction");
   ok &= contains(char_mesh,
                  "if(xfm.constraint==2){//kParentWorldreturnparent_world;}",
                  "native transform evaluator mirrors kParentWorld");
