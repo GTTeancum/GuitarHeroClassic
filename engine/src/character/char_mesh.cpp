@@ -7146,6 +7146,43 @@ source_gltf_milo_collect_hair_chains_split_at_branches(
   return result;
 }
 
+SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
+    int weighted_hair_bone_count,
+    int strand_count,
+    const std::string& requested_wind,
+    bool split_strands_at_branches) {
+  SourceGltfMiloCharHairExportPlan plan;
+  if (weighted_hair_bone_count <= 0) {
+    plan.exits_for_empty_weighted_set = true;
+    return plan;
+  }
+
+  plan.constructs_char_hair_object = true;
+  plan.revision = 11;
+  plan.object_revision = 2;
+  plan.simulate = true;
+  plan.physics_fields = {"stiffness", "torsion", "inertia",
+                         "gravity", "weight",  "friction"};
+  plan.uses_default_wind = requested_wind.empty();
+  plan.wind_source =
+      plan.uses_default_wind ? "CharHairExtras.DefaultWind"
+                             : "physicsSettings.Wind";
+  plan.wind_value = requested_wind;
+  plan.strand_collector =
+      split_strands_at_branches ? "CollectHairChainsSplitAtBranches"
+                                : "CollectHairChains";
+
+  if (strand_count <= 0) {
+    plan.exits_for_empty_strands = true;
+    return plan;
+  }
+
+  plan.creates_entry = true;
+  plan.entry_type = "CharHair";
+  plan.entry_name = "hair.hair";
+  return plan;
+}
+
 static float source_gltf_milo_hair_point_length(
     const std::vector<SourceGltfMiloHairPointNode>& chain,
     size_t point_index,

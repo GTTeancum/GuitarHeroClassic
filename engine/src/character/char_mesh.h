@@ -1444,6 +1444,23 @@ struct SourceGltfMiloHairCollideExport {
   bool exporter_marks_inferred = true;
 };
 
+struct SourceGltfMiloCharHairExportPlan {
+  bool exits_for_empty_weighted_set = false;
+  bool constructs_char_hair_object = false;
+  bool exits_for_empty_strands = false;
+  bool creates_entry = false;
+  int revision = 0;
+  int object_revision = 0;
+  bool simulate = false;
+  std::vector<std::string> physics_fields;
+  bool uses_default_wind = false;
+  std::string wind_source;
+  std::string wind_value;
+  std::string strand_collector;
+  std::string entry_type;
+  std::string entry_name;
+};
+
 struct SourceCharHairRuntimePoint {
   bool initialized = false;
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
@@ -3417,6 +3434,11 @@ source_gltf_milo_process_empty_hair_collides(
     const std::vector<std::string>& hair_mesh_names,
     const std::vector<std::string>& existing_collide_names,
     const std::string& parent_name);
+SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
+    int weighted_hair_bone_count,
+    int strand_count,
+    const std::string& requested_wind,
+    bool split_strands_at_branches);
 
 struct CharCollideMeshSphere {
   int32_t vertex = 0;

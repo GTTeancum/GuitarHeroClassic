@@ -96,6 +96,7 @@ int main() {
   using ghogx::character::source_gltf_milo_export_hair_point;
   using ghogx::character::source_gltf_milo_hair_collide_name;
   using ghogx::character::source_gltf_milo_is_hair_bone_node;
+  using ghogx::character::source_gltf_milo_process_char_hair_plan;
   using ghogx::character::source_gltf_milo_process_empty_hair_collides;
   using ghogx::character::SourceCharHairCollisionInput;
   using ghogx::character::SourceGltfMiloHairNode;
@@ -263,6 +264,62 @@ int main() {
   const auto grim_hair_v11 = source_grim_char_hair_load_plan(11);
   ok &= expect_bool(grim_hair_v11.known_version, false,
                     "grim dev CharHair rejects unimplemented v11");
+
+  const auto gltf_no_weighted_hair =
+      source_gltf_milo_process_char_hair_plan(0, 3, "", true);
+  ok &= expect_bool(gltf_no_weighted_hair.exits_for_empty_weighted_set, true,
+                    "glTFMilo no weighted hair exits before object");
+  ok &= expect_bool(gltf_no_weighted_hair.constructs_char_hair_object, false,
+                    "glTFMilo no weighted hair creates no object");
+  ok &= expect_bool(gltf_no_weighted_hair.creates_entry, false,
+                    "glTFMilo no weighted hair creates no entry");
+
+  const auto gltf_no_strands =
+      source_gltf_milo_process_char_hair_plan(2, 0, "", true);
+  ok &= expect_bool(gltf_no_strands.constructs_char_hair_object, true,
+                    "glTFMilo weighted hair constructs object");
+  ok &= expect_bool(gltf_no_strands.exits_for_empty_strands, true,
+                    "glTFMilo empty strands exit before entry");
+  ok &= expect_bool(gltf_no_strands.creates_entry, false,
+                    "glTFMilo empty strands creates no entry");
+  ok &= expect_int(gltf_no_strands.revision, 11,
+                   "glTFMilo CharHair export revision");
+  ok &= expect_int(gltf_no_strands.object_revision, 2,
+                   "glTFMilo CharHair object revision");
+  ok &= expect_bool(gltf_no_strands.simulate, true,
+                    "glTFMilo CharHair export simulate");
+  ok &= expect_size(gltf_no_strands.physics_fields.size(), 6,
+                    "glTFMilo CharHair physics field count");
+  ok &= expect_string(gltf_no_strands.physics_fields[0], "stiffness",
+                      "glTFMilo CharHair first physics field");
+  ok &= expect_string(gltf_no_strands.physics_fields[5], "friction",
+                      "glTFMilo CharHair last physics field");
+  ok &= expect_bool(gltf_no_strands.uses_default_wind, true,
+                    "glTFMilo empty wind uses default");
+  ok &= expect_string(gltf_no_strands.wind_source,
+                      "CharHairExtras.DefaultWind",
+                      "glTFMilo default wind source");
+  ok &= expect_string(gltf_no_strands.strand_collector,
+                      "CollectHairChainsSplitAtBranches",
+                      "glTFMilo default strand collector");
+
+  const auto gltf_exported_hair =
+      source_gltf_milo_process_char_hair_plan(2, 3, "venue_wind.wind", false);
+  ok &= expect_bool(gltf_exported_hair.creates_entry, true,
+                    "glTFMilo populated hair creates entry");
+  ok &= expect_string(gltf_exported_hair.entry_type, "CharHair",
+                      "glTFMilo CharHair entry type");
+  ok &= expect_string(gltf_exported_hair.entry_name, "hair.hair",
+                      "glTFMilo CharHair entry name");
+  ok &= expect_bool(gltf_exported_hair.uses_default_wind, false,
+                    "glTFMilo explicit wind bypasses default");
+  ok &= expect_string(gltf_exported_hair.wind_source, "physicsSettings.Wind",
+                      "glTFMilo explicit wind source");
+  ok &= expect_string(gltf_exported_hair.wind_value, "venue_wind.wind",
+                      "glTFMilo explicit wind value");
+  ok &= expect_string(gltf_exported_hair.strand_collector,
+                      "CollectHairChains",
+                      "glTFMilo disabled split uses old collector");
 
   const auto save = source_char_hair_save_plan();
   ok &= expect_int(save.save_id, 0x41b, "hair save id");

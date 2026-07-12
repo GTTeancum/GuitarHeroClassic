@@ -5646,6 +5646,26 @@ int run_contract() {
   ok &= contains(gltf_node_processor_cs, "CollectHairChainsSplitAtBranches",
                  "glTFMilo current hair strand splitter is visible");
   ok &= contains(gltf_node_processor_cs,
+                 "varweightedHairBoneSet=newHashSet<string>("
+                 "weightedHairBoneNames,StringComparer.OrdinalIgnoreCase);"
+                 "if(weightedHairBoneSet.Count==0)return;",
+                 "glTFMilo CharHair exits when no weighted hair bones exist");
+  ok &= contains(gltf_node_processor_cs,
+                 "GetField(\"revision\",BindingFlags.NonPublic|"
+                 "BindingFlags.Instance).SetValue(hair,(System.UInt16)11);"
+                 "hair.objFields.revision=2;hair.simulate=true;",
+                 "glTFMilo CharHair export revisions and simulate flag");
+  ok &= contains(gltf_node_processor_cs,
+                 "hair.stiffness=physicsSettings.Stiffness;hair.torsion="
+                 "physicsSettings.Torsion;hair.inertia=physicsSettings.Inertia;"
+                 "hair.gravity=physicsSettings.Gravity;hair.weight="
+                 "physicsSettings.Weight;hair.friction=physicsSettings.Friction;",
+                 "glTFMilo CharHair copies physics fields");
+  ok &= contains(gltf_node_processor_cs,
+                 "hair.wind=string.IsNullOrEmpty(physicsSettings.Wind)?"
+                 "CharHairExtras.DefaultWind:physicsSettings.Wind;",
+                 "glTFMilo CharHair default wind rule");
+  ok &= contains(gltf_node_processor_cs,
                  "strand.root=chain[0].Name;MatrixHelpers.CopyMatrix3("
                  "chain[0].LocalMatrix,strand.baseMat,convertCoordinates);"
                  "MatrixHelpers.CopyMatrix3(chain[0].LocalMatrix,strand.rootMat,"
@@ -5671,10 +5691,18 @@ int run_contract() {
                  "fromlookingatthedecompitseemedthattheremustbeoneorhairwon'tbesim,"
                  "couldbewrong",
                  "glTFMilo marks generated CharCollide rows as inferred");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(hair.strands.Count==0)return;stringhairName=\"hair.hair\";"
+                 "meta.entries.Add(newDirectoryMeta.Entry(\"CharHair\",hairName,hair));",
+                 "glTFMilo CharHair only emits populated hair.hair entry");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloHairNode{std::stringname;intparent=-1;"
                  "boolis_bone=false;boolweighted=false;};",
                  "native declares glTFMilo hair graph node contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloCharHairExportPlan{boolexits_for_empty_weighted_set=false;"
+                 "boolconstructs_char_hair_object=false;",
+                 "native declares glTFMilo CharHair export plan contract");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloHairPointNode{std::stringname;"
                  "std::array<float,3>world_pos=",
@@ -5692,6 +5720,13 @@ int run_contract() {
                  "source_gltf_milo_collect_hair_chains_split_at_branches("
                  "conststd::vector<SourceGltfMiloHairNode>&nodes)",
                  "native ports glTFMilo hair branch splitter");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloCharHairExportPlan"
+                 "source_gltf_milo_process_char_hair_plan(",
+                 "native ports glTFMilo CharHair export defaults");
+  ok &= contains(char_mesh,
+                 "plan.revision=11;plan.object_revision=2;plan.simulate=true;",
+                 "native glTFMilo CharHair export revisions and simulate flag");
   ok &= contains(char_mesh,
                  "SourceGltfMiloHairPointExportsource_gltf_milo_export_hair_point("
                  "conststd::vector<SourceGltfMiloHairPointNode>&chain,",
@@ -5717,6 +5752,9 @@ int run_contract() {
                  "hair_nodes)",
                  "focused CharHair source test covers glTFMilo chain splitter");
   ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_process_char_hair_plan(0,3,\"\",true)",
+                 "focused CharHair source test covers glTFMilo export early exit");
+  ok &= contains(char_hair_source_test,
                  "source_gltf_milo_export_hair_point(point_chain,0,"
                  "parent_inverse)",
                  "focused CharHair source test covers glTFMilo point export");
@@ -5731,6 +5769,9 @@ int run_contract() {
                  "`source_gltf_milo_collect_hair_chains_split_at_branches` "
                  "ports that\n    root-climb and branch-split rule",
                  "document records glTFMilo native hair segment helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_process_char_hair_plan` records those top-level",
+                 "document records glTFMilo CharHair export plan helper");
   ok &= contains(doc,
                  "`source_gltf_milo_export_hair_point` ports those deterministic point rows",
                  "document records glTFMilo native hair point helper");

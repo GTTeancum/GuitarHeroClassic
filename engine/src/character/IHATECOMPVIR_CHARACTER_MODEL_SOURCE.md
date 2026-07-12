@@ -1445,6 +1445,16 @@ note, and all report `unreadBytes=0`.
   - The same source defines mesh skin export packing and the compressed-layout
     bone-slot reversal now recorded by `source_gltf_milo_pack_skin_slots`.
 - `glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs`
+  - `ProcessCharHair` starts by building a case-insensitive weighted hair-bone
+    set and returns without a `CharHair` object when the set is empty. When the
+    set is non-empty, it creates a revision 11 `CharHair` with object revision
+    2, `simulate = true`, copies stiffness/torsion/inertia/gravity/weight/
+    friction from `CharHairExtras`, and uses `CharHairExtras.DefaultWind` when
+    the requested wind string is empty. It only adds a `CharHair` directory
+    entry after at least one strand exists, and names that entry `hair.hair`.
+    Native `source_gltf_milo_process_char_hair_plan` records those top-level
+    exporter gates and defaults without turning them into a runtime placement
+    guess.
   - `ProcessCharHair` builds `CharHair` strands from weighted hair-bone chains.
     The newer source splits strands at branches, matching how the decompiled
     runtime expects hair to be structured. Native
