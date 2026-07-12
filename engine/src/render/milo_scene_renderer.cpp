@@ -237,6 +237,30 @@ std::array<float, 16> identity16() {
           0.0f, 0.0f, 0.0f, 1.0f};
 }
 
+constexpr uint32_t kConstraintLocalRotate = 1;
+constexpr uint32_t kConstraintParentWorld = 2;
+
+std::array<float, 16> apply_transform_constraint(
+    const std::array<float, 16>& local,
+    const std::array<float, 16>& parent_world,
+    uint32_t constraint) {
+  if (constraint == kConstraintParentWorld) return parent_world;
+  if (constraint == kConstraintLocalRotate) {
+    std::array<float, 16> out = local;
+    const float x = local[12];
+    const float y = local[13];
+    const float z = local[14];
+    out[12] = x * parent_world[0] + y * parent_world[4] +
+              z * parent_world[8] + parent_world[12];
+    out[13] = x * parent_world[1] + y * parent_world[5] +
+              z * parent_world[9] + parent_world[13];
+    out[14] = x * parent_world[2] + y * parent_world[6] +
+              z * parent_world[10] + parent_world[14];
+    return out;
+  }
+  return mul16(local, parent_world);
+}
+
 std::array<float, 16> affine_inverse16(const std::array<float, 16>& m) {
   const float a = m[0], b = m[1], c = m[2];
   const float d = m[4], e = m[5], f = m[6];
@@ -3517,6 +3541,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       return {};
     };
+    auto constraint_for = [&](const std::string& name) -> uint32_t {
+      if (m.name == name) return m.constraint;
+      for (const auto& mesh : scene_.meshes) {
+        if (mesh.name == name) return mesh.constraint;
+      }
+      for (const auto& trans : scene_.transes) {
+        if (trans.name == name) return trans.constraint;
+      }
+      return 0;
+    };
     auto local_for = [&](const std::string& name, std::array<float, 16>& local)
         -> bool {
       if (m.name == name) {
@@ -3543,8 +3577,29 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       return false;
     };
+    auto composed_world_for = [&](const std::string& name,
+                                  std::array<float, 16>& world) -> bool {
+      auto impl = [&](auto&& self, const std::string& node,
+                      std::array<float, 16>& out, int guard) -> bool {
+        if (guard >= 64) return false;
+        std::array<float, 16> local{};
+        if (!local_for(node, local)) return false;
+        const std::string parent = parent_for(node);
+        if (parent.empty() || parent == node) {
+          out = local;
+          return true;
+        }
+        std::array<float, 16> parent_world{};
+        if (!self(self, parent, parent_world, guard + 1)) return false;
+        out = apply_transform_constraint(local, parent_world,
+                                         constraint_for(node));
+        return true;
+      };
+      return impl(impl, name, world, 0);
+    };
     auto base_world_for = [&](const std::string& name,
                               std::array<float, 16>& world) -> bool {
+      if (composed_world_for(name, world)) return true;
       if (m.name == name) {
         world = scene_.world_matrix(m);
         return true;

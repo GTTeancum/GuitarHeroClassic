@@ -78,8 +78,8 @@ struct Reader {
 };
 
 // The 9-byte block that follows every object version int (Hmx::Object base
-// metadata) and the 9-byte block between the Trans matrices and its parent
-// string. Constant across all GH2 PS2 render objects we have inspected.
+// metadata). GH2 Trans blocks then store the source RndTransformable fields as
+// u32 constraint, empty target string, u8 preserve_scale before parent.
 constexpr size_t kObjMeta = 9;
 
 bool debug_worldcrowd_decode_enabled() {
@@ -124,14 +124,18 @@ bool is_environ_light_ref(std::string_view ref) {
 }
 
 // Read the Trans portion that every Trans/Mesh starts with, leaving the cursor
-// just past the Trans parent string. Returns local matrix, world matrix, parent.
-void read_trans_block(Reader& r, Xfm& local, Xfm& world, std::string& parent) {
+// just past the Trans parent string. Returns the source transform state.
+void read_trans_block(Reader& r, Xfm& local, Xfm& world, uint32_t& constraint,
+                      std::string& target, bool& preserve_scale,
+                      std::string& parent) {
   int32_t ver = r.i32();
-  (void)ver;                 // = 9 for GH2; kept for documentation
+  (void)ver;                 // = 9 for standalone Trans; embedded Mesh uses 0
   r.skip(kObjMeta);          // Hmx::Object base metadata (zeros)
   local = r.matrix();        // matrix 1 (local)
   world = r.matrix();        // matrix 2 (world as stored)
-  r.skip(kObjMeta);          // constraint / flags (zeros)
+  constraint = r.u32();      // RndTransformable::Constraint
+  target = r.str();          // target name; empty in the GH2 venue props seen
+  preserve_scale = r.u8() != 0;
   parent = r.str();          // parent / target name
 }
 
@@ -562,7 +566,8 @@ TransObj decode_trans(const std::string& entry_name,
   Reader r(body.data(), body.size());
   TransObj t;
   t.name = entry_name;
-  read_trans_block(r, t.local, t.world_stored, t.parent);
+  read_trans_block(r, t.local, t.world_stored, t.constraint, t.target,
+                   t.preserve_scale, t.parent);
   return t;
 }
 
@@ -1012,7 +1017,8 @@ MeshObj decode_mesh(const std::string& entry_name,
     }
     // Trans base.
     std::string trans_parent;
-    read_trans_block(r, mesh.local, mesh.world_stored, trans_parent);
+    read_trans_block(r, mesh.local, mesh.world_stored, mesh.constraint,
+                     mesh.target, mesh.preserve_scale, trans_parent);
     mesh.parent = trans_parent;
 
     // Draw base: version (= 3), showing flag, then sphere + draw-order.
@@ -1123,7 +1129,9 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     }
     part.local = tr.matrix();
     part.world_stored = tr.matrix();
-    tr.skip(kObjMeta);
+    part.constraint = tr.u32();
+    part.target = tr.str();
+    part.preserve_scale = tr.u8() != 0;
     part.parent = tr.str();
 
     const size_t draw_base = kParticleTransAt + tr.pos;
@@ -1433,6 +1441,95 @@ bool xfm_nearly_equal(const Xfm& a, const Xfm& b) {
   return true;
 }
 
+constexpr uint32_t kConstraintLocalRotate = 1;
+constexpr uint32_t kConstraintParentWorld = 2;
+
+std::array<float, 16> apply_transform_constraint(
+    const std::array<float, 16>& local,
+    const std::array<float, 16>& parent_world,
+    uint32_t constraint) {
+  if (constraint == kConstraintParentWorld) return parent_world;
+  if (constraint == kConstraintLocalRotate) {
+    std::array<float, 16> out = local;
+    const float x = local[12];
+    const float y = local[13];
+    const float z = local[14];
+    out[12] = x * parent_world[0] + y * parent_world[4] +
+              z * parent_world[8] + parent_world[12];
+    out[13] = x * parent_world[1] + y * parent_world[5] +
+              z * parent_world[9] + parent_world[13];
+    out[14] = x * parent_world[2] + y * parent_world[6] +
+              z * parent_world[10] + parent_world[14];
+    return out;
+  }
+  return mat4_mul(local, parent_world);
+}
+
+struct TransformNode {
+  Xfm local;
+  Xfm world_stored;
+  std::string parent;
+  uint32_t constraint = 0;
+};
+
+bool find_transform_node(const Scene& scene, const std::string& name,
+                         TransformNode& out) {
+  for (const TransObj& t : scene.transes) {
+    if (t.name == name) {
+      out.local = t.local;
+      out.world_stored = t.world_stored;
+      out.parent = t.parent;
+      out.constraint = t.constraint;
+      return true;
+    }
+  }
+  for (const MeshObj& mesh : scene.meshes) {
+    if (mesh.name == name) {
+      out.local = mesh.local;
+      out.world_stored = mesh.world_stored;
+      out.parent = mesh.parent;
+      out.constraint = mesh.constraint;
+      return true;
+    }
+  }
+  for (const GroupObj& group : scene.groups) {
+    if (group.name == name) {
+      out.local = group.has_transform ? group.local : Xfm{};
+      out.world_stored = group.has_transform ? group.world_stored : Xfm{};
+      out.parent = group.parent;
+      out.constraint = 0;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool source_world_from_node(const Scene& scene, const TransformNode& node,
+                            std::array<float, 16>& world, int guard);
+
+bool source_world_for_name(const Scene& scene, const std::string& name,
+                           std::array<float, 16>& world, int guard) {
+  if (guard >= 64) return false;
+  TransformNode node;
+  if (!find_transform_node(scene, name, node)) return false;
+  return source_world_from_node(scene, node, world, guard + 1);
+}
+
+bool source_world_from_node(const Scene& scene, const TransformNode& node,
+                            std::array<float, 16>& world, int guard) {
+  const std::array<float, 16> local = xfm_to_mat4(node.local);
+  if (node.parent.empty()) {
+    world = local;
+    return true;
+  }
+  std::array<float, 16> parent_world{};
+  if (!source_world_for_name(scene, node.parent, parent_world, guard)) {
+    return false;
+  }
+  world = apply_transform_constraint(local, parent_world, node.constraint);
+  return true;
+}
+
 }  // namespace
 
 void rebuild_group_authored_draw_order_for_test(Scene& scene) {
@@ -1464,75 +1561,42 @@ const BandPlacerObj* Scene::find_band_placer(const std::string& name) const {
 }
 
 std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
-  // Compose local * parent.local * parent.parent.local * ... up the chain.
-  // Parents may be Trans, Mesh, or Group. Trust an authored stored-world matrix
-  // when it differs from local, because those bytes already include hierarchy
-  // state in many GH2 UI MILOs.
-  std::array<float, 16> acc = xfm_to_mat4(mesh.local);
-  std::string parent = mesh.parent;
-  bool resolved_parent = false;
-  int guard = 0;
-  while (!parent.empty() && guard++ < 64) {
-    const Xfm* px = nullptr;
-    for (const TransObj& t : transes)
-      if (t.name == parent) { px = &t.local; parent = t.parent; break; }
-    if (!px) {
-      for (const MeshObj& mm : meshes)
-        if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
-    }
-    if (!px) {
-      for (const GroupObj& group : groups) {
-        if (group.name == parent && group.has_transform) {
-          px = &group.local;
-          parent = group.parent;
-          break;
-        }
-      }
-    }
-    if (!px) break;
-    resolved_parent = true;
-    acc = mat4_mul(acc, xfm_to_mat4(*px));
-  }
+  // Mirror RndTransformable::WorldXfm_Force: compose local through the parent
+  // chain, honoring kLocalRotate and kParentWorld instead of treating those
+  // source fields as padding.
+  TransformNode node;
+  node.local = mesh.local;
+  node.world_stored = mesh.world_stored;
+  node.parent = mesh.parent;
+  node.constraint = mesh.constraint;
+  std::array<float, 16> composed{};
+  const bool resolved_parent = source_world_from_node(*this, node, composed, 0);
+  if (resolved_parent && mesh.constraint != 0) return composed;
+
   // The PS2 Trans block also carries the resolved world matrix immediately
   // after local. Trust it when it has authored hierarchy state; when it is still
   // identical to local and we can resolve a native parent chain, mirror the PS2
   // dirty-world helper by composing the parent rows now.
   if (!resolved_parent || !xfm_nearly_equal(mesh.local, mesh.world_stored))
     return xfm_to_mat4(mesh.world_stored);
-  return acc;
+  return composed;
 }
 
 std::array<float, 16> Scene::world_matrix(const ParticleSysObj& particle) const {
-  std::array<float, 16> acc = xfm_to_mat4(particle.local);
-  std::string parent = particle.parent;
-  bool resolved_parent = false;
-  int guard = 0;
-  while (!parent.empty() && guard++ < 64) {
-    const Xfm* px = nullptr;
-    for (const TransObj& t : transes)
-      if (t.name == parent) { px = &t.local; parent = t.parent; break; }
-    if (!px) {
-      for (const MeshObj& mm : meshes)
-        if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
-    }
-    if (!px) {
-      for (const GroupObj& group : groups) {
-        if (group.name == parent && group.has_transform) {
-          px = &group.local;
-          parent = group.parent;
-          break;
-        }
-      }
-    }
-    if (!px) break;
-    resolved_parent = true;
-    acc = mat4_mul(acc, xfm_to_mat4(*px));
-  }
+  TransformNode node;
+  node.local = particle.local;
+  node.world_stored = particle.world_stored;
+  node.parent = particle.parent;
+  node.constraint = particle.constraint;
+  std::array<float, 16> composed{};
+  const bool resolved_parent = source_world_from_node(*this, node, composed, 0);
+  if (resolved_parent && particle.constraint != 0) return composed;
+
   if (!resolved_parent ||
       !xfm_nearly_equal(particle.world_stored, particle.local)) {
     return xfm_to_mat4(particle.world_stored);
   }
-  return acc;
+  return composed;
 }
 
 bool load_scene(const std::string& hdr_path, const std::string& ark_path,

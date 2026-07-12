@@ -4856,6 +4856,33 @@ int main() {
                  "uint32_tmax_particles",
                  "MILO scene decoder exposes source ParticleSys max particle count");
   ok &= contains(milo_scene_h_c,
+                 "uint32_tconstraint=0;",
+                 "MILO scene decoder preserves source RndTransformable constraints");
+  ok &= contains(milo_scene_h_c,
+                 "std::stringtarget;",
+                 "MILO scene decoder preserves source transform target refs");
+  ok &= contains(milo_scene_h_c,
+                 "boolpreserve_scale=false;",
+                 "MILO scene decoder preserves source transform preserve-scale flags");
+  ok &= contains(milo_scene_cpp_c,
+                 "constraint=r.u32();",
+                 "MILO scene decoder reads source transform constraint before target");
+  ok &= contains(milo_scene_cpp_c,
+                 "target=r.str();",
+                 "MILO scene decoder reads source transform target string");
+  ok &= contains(milo_scene_cpp_c,
+                 "preserve_scale=r.u8()!=0;",
+                 "MILO scene decoder reads source transform preserve-scale flag");
+  ok &= contains(milo_scene_cpp_c,
+                 "constraint==kConstraintParentWorld",
+                 "MILO scene world matrix honors source ParentWorld constraint");
+  ok &= contains(milo_scene_cpp_c,
+                 "constraint==kConstraintLocalRotate",
+                 "MILO scene world matrix honors source LocalRotate constraint");
+  ok &= contains(milo_scene_cpp_c,
+                 "out[12]=x*parent_world[0]+y*parent_world[4]+",
+                 "MILO scene LocalRotate translates local position through parent world");
+  ok &= contains(milo_scene_h_c,
                  "floatforce_dir[3]",
                  "MILO scene decoder exposes source ParticleSys force direction");
   ok &= contains(milo_scene_h_c,
@@ -6226,8 +6253,14 @@ int main() {
                  "group.has_transform?xfm_to_mat4(group.local):identity16();",
                  "animated venue chains treat transformless source groups as neutral ancestors");
   ok &= contains(renderer_c,
-                 "group.has_transform?xfm_to_mat4(group.world_stored):identity16();",
-                 "animated venue chains keep walking through neutral source group parents");
+                 "if(composed_world_for(name,world))returntrue;",
+                 "animated venue chains rebuild source dirty-world bases from local parent rows");
+  ok &= contains(renderer_c,
+                 "constraint_for(node)",
+                 "animated venue chain base worlds honor source transform constraints");
+  ok &= contains(renderer_c,
+                 "out=apply_transform_constraint(local,parent_world,constraint_for(node));",
+                 "animated venue chain recomposition applies source ParentWorld/LocalRotate rules");
   ok &= contains(renderer_c,
                  "if(!target_sampled&&!target_is_mesh)continue;",
                  "animated venue chain recomposition resolves only sampled nodes and the drawn mesh");

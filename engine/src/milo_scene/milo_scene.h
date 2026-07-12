@@ -18,7 +18,9 @@
 //     9     bytes (Hmx::Object base metadata; all zero in practice)
 //     48    local  matrix : 12 f32 = 9 rotation (row-major 3x3) + 3 translation
 //     48    world  matrix : 12 f32 (identical to local for static props)
-//     9     bytes (constraint/flags; all zero in practice)
+//     u32   constraint (RndTransformable::Constraint)
+//     str   target (usually empty for GH2 venue props)
+//     u8    preserve_scale
 //     str   parent/target name (length-prefixed UTF-8; "" if unparented)
 //
 //   Mat  (material, version 0x1b = 27):
@@ -132,6 +134,9 @@ struct TransObj {
   std::string name;          // the entry name
   Xfm local;                 // local matrix (matrix 1)
   Xfm world_stored;          // world matrix as stored (matrix 2)
+  uint32_t constraint = 0;    // RndTransformable::Constraint
+  std::string target;         // optional target name used by constrained transforms
+  bool preserve_scale = false;
   std::string parent;        // parent/target name ("" if none)
 };
 
@@ -281,6 +286,9 @@ struct MeshObj {
   std::string geometry_owner;// Mesh entry that owns reusable geometry.
   Xfm local;                 // the mesh's own Trans local matrix
   Xfm world_stored;          // the stored Trans world matrix from the MILO
+  uint32_t constraint = 0;    // RndTransformable::Constraint
+  std::string target;
+  bool preserve_scale = false;
   uint32_t vertex_count = 0;
   uint32_t face_count = 0;
   std::vector<Vertex> verts;
@@ -301,6 +309,9 @@ struct ParticleSysObj {
   std::string material;
   Xfm local;
   Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
   bool showing = true;
   float draw_order = 0.0f;
   size_t dir_index = 0;
