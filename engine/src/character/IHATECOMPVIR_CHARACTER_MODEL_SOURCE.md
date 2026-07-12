@@ -2549,6 +2549,14 @@ note, and all report `unreadBytes=0`.
     source boundary: decoding/logging rows is allowed, but broad pose publishing
     and channel evaluation remain fenced until a real body or direct trace is
     available.
+  - Native `source_char_bones_samples_runtime_dump_evidence` records the exact
+    RB2 ranges and visible locals for the missing low-level sample bodies:
+    `FracToSample`, `EvaluateChannel`, `RotateBy`, `RotateTo`,
+    `ScaleAddSample`, `Relativize`, `Load`, `ReadCounts`, `LoadHeader`,
+    `LoadData`, and `SyncProperty`. The helper keeps `LoadHeader`, `LoadData`,
+    `EvaluateChannel`, and `Relativize` marked as lacking statement-level
+    bodies, so it is evidence for decoding/logging and future tracing targets,
+    not permission to publish broad pose output.
   - `SetVer` is the separate legacy source gate and asserts `ver < 13`.
     Native `source_char_bones_samples_set_ver_known` records that older
     pre-load boundary separately from the serialized `Load` range.

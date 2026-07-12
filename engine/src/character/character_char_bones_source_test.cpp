@@ -1460,6 +1460,78 @@ int main() {
                       "CharBonesSamples::EvaluateChannel",
                       "samples evaluate channel fenced");
 
+  const SourceCharBonesSamplesRuntimeDumpEvidence samples_dump =
+      source_char_bones_samples_runtime_dump_evidence();
+  ok &= expect_string(samples_dump.frac_to_sample_range,
+                      "0x80323420 -> 0x80323654",
+                      "samples dump FracToSample range");
+  ok &= expect_string(samples_dump.evaluate_channel_range,
+                      "0x80323654 -> 0x80323E64",
+                      "samples dump EvaluateChannel range");
+  ok &= expect_string(samples_dump.rotate_by_range,
+                      "0x80323E64 -> 0x80323E7C",
+                      "samples dump RotateBy range");
+  ok &= expect_string(samples_dump.rotate_to_range,
+                      "0x80323E7C -> 0x80323F3C",
+                      "samples dump RotateTo range");
+  ok &= expect_string(samples_dump.scale_add_sample_range,
+                      "0x80323F3C -> 0x80323FFC",
+                      "samples dump ScaleAddSample range");
+  ok &= expect_string(samples_dump.relativize_range,
+                      "0x80323FFC -> 0x803250DC",
+                      "samples dump Relativize range");
+  ok &= expect_string(samples_dump.load_header_range,
+                      "0x80325C9C -> 0x80326054",
+                      "samples dump LoadHeader range");
+  ok &= expect_string(samples_dump.load_data_range,
+                      "0x80326054 -> 0x80326370",
+                      "samples dump LoadData range");
+  ok &= expect_string(samples_dump.sync_property_range,
+                      "0x803263A8 -> 0x803266E8",
+                      "samples dump SyncProperty range");
+  ok &= expect_size(samples_dump.frac_to_sample_locals.size(), 3,
+                    "samples dump FracToSample locals");
+  ok &= expect_string(samples_dump.frac_to_sample_locals[2], "float w",
+                      "samples dump FracToSample weight local");
+  ok &= expect_size(samples_dump.evaluate_channel_locals.size(), 9,
+                    "samples dump EvaluateChannel locals");
+  ok &= expect_string(samples_dump.evaluate_channel_locals[0],
+                      "const char* src",
+                      "samples dump EvaluateChannel first local");
+  ok &= expect_string(samples_dump.evaluate_channel_locals[8], "Vector3 b",
+                      "samples dump EvaluateChannel last local");
+  ok &= expect_size(samples_dump.relativize_locals.size(), 29,
+                    "samples dump Relativize locals");
+  ok &= expect_string(samples_dump.relativize_locals[1], "const Bone* bone",
+                      "samples dump Relativize bone local");
+  ok &= expect_string(samples_dump.relativize_locals[24], "Quat first",
+                      "samples dump Relativize quat first local");
+  ok &= expect_size(samples_dump.load_header_locals.size(), 4,
+                    "samples dump LoadHeader locals");
+  ok &= expect_string(samples_dump.load_header_locals[2], "int count",
+                      "samples dump LoadHeader count local");
+  ok &= expect_size(samples_dump.load_data_locals.size(), 15,
+                    "samples dump LoadData locals");
+  ok &= expect_string(samples_dump.load_data_locals[1],
+                      "const ShortVector3* send",
+                      "samples dump LoadData first vector local");
+  ok &= expect_string(samples_dump.load_data_locals[13],
+                      "const float* rend",
+                      "samples dump LoadData float end local");
+  ok &= expect_int(samples_dump.has_load_header_statement_body ? 1 : 0, 0,
+                   "samples dump lacks LoadHeader body");
+  ok &= expect_int(samples_dump.has_load_data_statement_body ? 1 : 0, 0,
+                   "samples dump lacks LoadData body");
+  ok &= expect_int(
+      samples_dump.has_evaluate_channel_statement_body ? 1 : 0, 0,
+      "samples dump lacks EvaluateChannel body");
+  ok &= expect_int(samples_dump.has_relativize_statement_body ? 1 : 0, 0,
+                   "samples dump lacks Relativize body");
+  ok &= expect_int(samples_dump.safe_to_decode_logged_rows ? 1 : 0, 1,
+                   "samples dump allows row decode");
+  ok &= expect_int(samples_dump.safe_to_publish_pose ? 1 : 0, 0,
+                   "samples dump fences pose publish");
+
   const SourceCharClipSamplesRuntimeDumpEvidence clip_samples_dump =
       source_char_clip_samples_runtime_dump_evidence();
   ok &= expect_string(clip_samples_dump.facing_bones_set_range,

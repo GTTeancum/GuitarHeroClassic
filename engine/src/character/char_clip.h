@@ -409,6 +409,31 @@ struct SourceCharBonesSamplesBodyBoundary {
   std::vector<std::string> fenced_bodies;
 };
 
+struct SourceCharBonesSamplesRuntimeDumpEvidence {
+  std::string frac_to_sample_range;
+  std::string evaluate_channel_range;
+  std::string rotate_by_range;
+  std::string rotate_to_range;
+  std::string scale_add_sample_range;
+  std::string relativize_range;
+  std::string load_range;
+  std::string read_counts_range;
+  std::string load_header_range;
+  std::string load_data_range;
+  std::string sync_property_range;
+  std::vector<std::string> frac_to_sample_locals;
+  std::vector<std::string> evaluate_channel_locals;
+  std::vector<std::string> relativize_locals;
+  std::vector<std::string> load_header_locals;
+  std::vector<std::string> load_data_locals;
+  bool has_load_header_statement_body = false;
+  bool has_load_data_statement_body = false;
+  bool has_evaluate_channel_statement_body = false;
+  bool has_relativize_statement_body = false;
+  bool safe_to_decode_logged_rows = true;
+  bool safe_to_publish_pose = false;
+};
+
 struct SourceCharClipSamplesRuntimeDumpEvidence {
   std::string facing_bones_set_range;
   std::string facing_set_scale_add_range;
@@ -1810,6 +1835,8 @@ SourceCharBonesSamplesLoadPlan source_char_bones_samples_load_plan(int version);
 SourceCharBonesSamplesPropSyncPlan source_char_bones_samples_prop_sync_plan();
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary();
+SourceCharBonesSamplesRuntimeDumpEvidence
+source_char_bones_samples_runtime_dump_evidence();
 SourceCharClipSamplesRuntimeDumpEvidence
 source_char_clip_samples_runtime_dump_evidence();
 

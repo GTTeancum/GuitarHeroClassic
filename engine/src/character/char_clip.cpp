@@ -888,6 +888,82 @@ source_char_bones_samples_body_boundary() {
   return boundary;
 }
 
+SourceCharBonesSamplesRuntimeDumpEvidence
+source_char_bones_samples_runtime_dump_evidence() {
+  SourceCharBonesSamplesRuntimeDumpEvidence evidence;
+  evidence.frac_to_sample_range = "0x80323420 -> 0x80323654";
+  evidence.evaluate_channel_range = "0x80323654 -> 0x80323E64";
+  evidence.rotate_by_range = "0x80323E64 -> 0x80323E7C";
+  evidence.rotate_to_range = "0x80323E7C -> 0x80323F3C";
+  evidence.scale_add_sample_range = "0x80323F3C -> 0x80323FFC";
+  evidence.relativize_range = "0x80323FFC -> 0x803250DC";
+  evidence.load_range = "0x80325AD8 -> 0x80325B8C";
+  evidence.read_counts_range = "0x80325B8C -> 0x80325C9C";
+  evidence.load_header_range = "0x80325C9C -> 0x80326054";
+  evidence.load_data_range = "0x80326054 -> 0x80326370";
+  evidence.sync_property_range = "0x803263A8 -> 0x803266E8";
+  evidence.frac_to_sample_locals = {"int lastSample", "int sample",
+                                    "float w"};
+  evidence.evaluate_channel_locals = {
+      "const char* src", "const char* src2", "float& d",
+      "Quat a",         "Quat b",           "Quat a",
+      "Quat b",         "Vector3 a",        "Vector3 b"};
+  evidence.relativize_locals = {
+      "int i",
+      "const Bone* bone",
+      "ShortVector3* sp",
+      "Vector3 first",
+      "Vector3 v",
+      "Vector3* p",
+      "Vector3 first",
+      "ByteQuat* bq",
+      "Quat first",
+      "Matrix3 firstMat",
+      "Quat q",
+      "Matrix3 m",
+      "signed short* sa",
+      "float first",
+      "float a",
+      "ShortQuat* sq",
+      "Quat first",
+      "Matrix3 firstMat",
+      "Quat q",
+      "Matrix3 m",
+      "signed short* sa",
+      "float first",
+      "float a",
+      "Quat* q",
+      "Quat first",
+      "Matrix3 firstMat",
+      "Matrix3 m",
+      "float* a",
+      "float first"};
+  evidence.load_header_locals = {"int size", "int i", "int count",
+                                 "int tmp"};
+  evidence.load_data_locals = {"int i",
+                               "const ShortVector3* send",
+                               "ShortVector3* sp",
+                               "const Vector3* send",
+                               "Vector3* p",
+                               "const ByteQuat* qend",
+                               "ByteQuat* bq",
+                               "const ShortQuat* qend",
+                               "ShortQuat* q",
+                               "const Quat* qend",
+                               "Quat* q",
+                               "const signed short* rend",
+                               "signed short* a",
+                               "const float* rend",
+                               "float* a"};
+  evidence.has_load_header_statement_body = false;
+  evidence.has_load_data_statement_body = false;
+  evidence.has_evaluate_channel_statement_body = false;
+  evidence.has_relativize_statement_body = false;
+  evidence.safe_to_decode_logged_rows = true;
+  evidence.safe_to_publish_pose = false;
+  return evidence;
+}
+
 SourceCharClipSamplesRuntimeDumpEvidence
 source_char_clip_samples_runtime_dump_evidence() {
   SourceCharClipSamplesRuntimeDumpEvidence evidence;

@@ -13098,6 +13098,13 @@ int run_contract() {
                  "SourceCharBonesSamplesBodyBoundary"
                  "source_char_bones_samples_body_boundary();",
                  "native API exposes CharBonesSamples body-boundary helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesSamplesRuntimeDumpEvidence",
+                 "native API exposes CharBonesSamples runtime dump evidence");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesSamplesRuntimeDumpEvidence"
+                 "source_char_bones_samples_runtime_dump_evidence();",
+                 "native API exposes CharBonesSamples runtime dump helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -13290,6 +13297,22 @@ int run_contract() {
                  "\"CharBonesSamples::EvaluateChannel\","
                  "\"CharBonesSamples::Relativize\",};",
                  "native CharBonesSamples body-boundary helper names fenced bodies");
+  ok &= contains(char_clip,
+                 "SourceCharBonesSamplesRuntimeDumpEvidence"
+                 "source_char_bones_samples_runtime_dump_evidence(){",
+                 "native CharBonesSamples runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.evaluate_channel_range=\"0x80323654->0x80323E64\";",
+                 "native CharBonesSamples runtime dump records EvaluateChannel range");
+  ok &= contains(char_clip,
+                 "evidence.load_header_range=\"0x80325C9C->0x80326054\";",
+                 "native CharBonesSamples runtime dump records LoadHeader range");
+  ok &= contains(char_clip,
+                 "evidence.load_data_range=\"0x80326054->0x80326370\";",
+                 "native CharBonesSamples runtime dump records LoadData range");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_publish_pose=false;",
+                 "native CharBonesSamples runtime dump fences pose publishing");
   ok &= contains(char_clip,
                  "uint32_tsamples_version=0;std::memcpy(&samples_version,d,4);"
                  "if(!source_char_bones_samples_load_version_known("
@@ -15342,6 +15365,13 @@ int run_contract() {
                  "decoding/logging rows is allowed, but broad pose publishing",
                  "document records CharBonesSamples pose publish fence");
   ok &= contains(doc,
+                 "Native `source_char_bones_samples_runtime_dump_evidence` "
+                 "records the exact\n    RB2 ranges and visible locals",
+                 "document records CharBonesSamples runtime dump helper");
+  ok &= contains(doc,
+                 "not permission to publish broad pose output",
+                 "document fences CharBonesSamples runtime dump from pose publishing");
+  ok &= contains(doc,
                  "`SetVer` is the separate legacy source gate and asserts "
                  "`ver < 13`",
                  "document records native CharBonesSamples SetVer boundary");
@@ -15367,6 +15397,14 @@ int run_contract() {
   ok &= contains(rb2_char_bones_samples_cpp,
                  "voidCharBonesSamples::LoadData(classCharBonesSamples*constthis",
                  "RB2 dump maps CharBonesSamples LoadData");
+  ok &= contains(rb2_char_bones_samples_cpp,
+                 "//Range:0x80323654->0x80323E64void"
+                 "CharBonesSamples::EvaluateChannel(",
+                 "RB2 dump maps CharBonesSamples EvaluateChannel range");
+  ok &= contains(rb2_char_bones_samples_cpp,
+                 "//Range:0x80323FFC->0x803250DCvoid"
+                 "CharBonesSamples::Relativize(",
+                 "RB2 dump maps CharBonesSamples Relativize range");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::EvaluateChannel(",
                 "latest CharBonesSamples source does not expose EvaluateChannel body");
@@ -15382,6 +15420,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_runtime_dump_evidence()",
+                 "focused CharBones source test covers CharBonesSamples runtime dump helper");
+  ok &= contains(char_bones_source_test,
+                 "samples_dump.safe_to_publish_pose",
+                 "focused CharBones source test covers CharBonesSamples dump pose fence");
   ok &= contains(rb3_latest_char_clip_driver_cpp,
                  "CharClipDriver::CharClipDriver(Hmx::Object*owner,CharClip*clip,"
                  "intmask,floatblendwidth,CharClipDriver*next,floatf2,floatf3,"
