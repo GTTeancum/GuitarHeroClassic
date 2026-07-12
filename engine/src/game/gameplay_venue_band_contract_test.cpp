@@ -4051,8 +4051,9 @@ int main() {
                  "GHOGX_VENUE_FREECAM",
                  "venue inspector freecam is gated behind an explicit debug flag");
   ok &= contains(renderer_c,
-                 "accumulate_debug_venue_pick(venue_pick,m,draw_world);",
-                 "venue inspector pick ray uses the rendered mesh draw world");
+                 "accumulate_debug_venue_pick(venue_pick,m,draw_world,"
+                 "pick_mesh_state);",
+                 "venue inspector pick ray uses the current mesh draw world and renderability state");
   ok &= contains(renderer_c,
                  "debug_highlighted_mesh?D3DCULL_NONE",
                  "venue inspector highlight forces selected meshes two-sided");
@@ -4071,6 +4072,12 @@ int main() {
   ok &= contains(renderer_c,
                  "GHOGX_VENUE_PICK_GRID",
                  "venue inspector can log lower-screen mesh picks for floor probes");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_PICK_SOURCE",
+                 "venue inspector can fall back to decoded source geometry when the render path has no hit");
+  ok &= contains(renderer_c,
+                 "culled_by_backface",
+                 "venue inspector reports backface-cull evidence for flipped floor probes");
   ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"

@@ -857,16 +857,35 @@ struct DebugVenuePick {
   float distance = 0.0f;
   float point[3] = {0.0f, 0.0f, 0.0f};
   bool backfacing = false;
+  bool would_draw = true;
+  bool source_pick = false;
+  bool hidden_by_filter = false;
+  bool source_showing = true;
+  bool material_invisible = false;
+  bool spotlight_template = false;
+  bool cull_enabled = false;
+  bool culled_by_backface = false;
 };
 
 struct DebugVenuePickAccumulator {
   bool enabled = false;
+  bool source_mode = false;
   std::string label = "center";
   float ndc_x = 0.0f;
   float ndc_y = 0.0f;
   float eye[3] = {0.0f, 0.0f, 0.0f};
   float dir[3] = {0.0f, 1.0f, 0.0f};
   DebugVenuePick best;
+};
+
+struct DebugVenuePickMeshState {
+  bool would_draw = true;
+  bool source_pick = false;
+  bool hidden_by_filter = false;
+  bool source_showing = true;
+  bool material_invisible = false;
+  bool spotlight_template = false;
+  bool cull_enabled = false;
 };
 
 struct DebugVenueInspectorState {
@@ -880,6 +899,7 @@ struct DebugVenueInspectorState {
   float crosshair_ndc_x = 0.0f;
   float crosshair_ndc_y = 0.0f;
   DebugVenuePick pick;
+  bool highlight_source_only = false;
 };
 
 std::unordered_map<const MiloSceneRenderer*, DebugVenueInspectorState>&
@@ -1029,7 +1049,7 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
     state.initialized = true;
     if (!state.announced) {
       std::fprintf(stderr,
-                   "[venue-freecam] enabled: WASD move, R/F up/down, "
+                   "[venue-freecam] enabled: WASD move, E/R up, Q/F down, "
                    "arrows look, Shift fast, Ctrl slow, C reseed\n");
       state.announced = true;
     }
@@ -1074,8 +1094,8 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
   if (win->key_down('S')) add_scaled(forward, -step);
   if (win->key_down('D')) add_scaled(right, step);
   if (win->key_down('A')) add_scaled(right, -step);
-  if (win->key_down('R')) delta[2] += step;
-  if (win->key_down('F')) delta[2] -= step;
+  if (win->key_down('E') || win->key_down('R')) delta[2] += step;
+  if (win->key_down('Q') || win->key_down('F')) delta[2] -= step;
   for (int k = 0; k < 3; ++k) freecam.target[k] += delta[k];
   cam = freecam;
 }
@@ -1126,7 +1146,8 @@ bool intersect_debug_triangle(const float eye[3], const float dir[3],
 
 void accumulate_debug_venue_pick(DebugVenuePickAccumulator& pick,
                                  const milo_scene::MeshObj& mesh,
-                                 const std::array<float, 16>& world) {
+                                 const std::array<float, 16>& world,
+                                 const DebugVenuePickMeshState& mesh_state) {
   if (!pick.enabled || !mesh.decoded || mesh.verts.empty() ||
       mesh.indices.size() < 3) {
     return;
@@ -1155,6 +1176,15 @@ void accumulate_debug_venue_pick(DebugVenuePickAccumulator& pick,
     pick.best.material = mesh.material;
     pick.best.distance = t;
     pick.best.backfacing = backfacing;
+    const bool culled_by_backface = mesh_state.cull_enabled && backfacing;
+    pick.best.would_draw = mesh_state.would_draw && !culled_by_backface;
+    pick.best.source_pick = mesh_state.source_pick;
+    pick.best.hidden_by_filter = mesh_state.hidden_by_filter;
+    pick.best.source_showing = mesh_state.source_showing;
+    pick.best.material_invisible = mesh_state.material_invisible;
+    pick.best.spotlight_template = mesh_state.spotlight_template;
+    pick.best.cull_enabled = mesh_state.cull_enabled;
+    pick.best.culled_by_backface = culled_by_backface;
     for (int k = 0; k < 3; ++k) pick.best.point[k] = pick.eye[k] + pick.dir[k] * t;
   }
 }
@@ -1199,11 +1229,17 @@ DebugVenuePickAccumulator make_debug_venue_pick_accumulator(
 std::string debug_pick_summary(const DebugVenuePickAccumulator& pick) {
   char buf[512];
   if (pick.best.hit) {
+    const char* status =
+        pick.best.would_draw
+            ? "draw"
+            : (pick.best.culled_by_backface ? "culled" : "source");
     std::snprintf(buf, sizeof(buf),
-                  "%s=%s|%s|bf%d|d%.1f|p(%.1f,%.1f,%.1f)",
+                  "%s=%s|%s|%s|bf%d|cull%d|d%.1f|p(%.1f,%.1f,%.1f)",
                   pick.label.c_str(), pick.best.mesh.c_str(),
-                  pick.best.material.c_str(),
-                  pick.best.backfacing ? 1 : 0, pick.best.distance,
+                  pick.best.material.c_str(), status,
+                  pick.best.backfacing ? 1 : 0,
+                  pick.best.culled_by_backface ? 1 : 0,
+                  pick.best.distance,
                   pick.best.point[0], pick.best.point[1],
                   pick.best.point[2]);
   } else {
@@ -1234,12 +1270,22 @@ void update_debug_venue_title(Window* win, DebugVenueInspectorState& state) {
   char title[384];
   char key[384];
   if (state.pick.hit) {
+    const char* status =
+        state.pick.would_draw
+            ? "renders"
+            : (state.pick.culled_by_backface ? "backface-culled"
+                                             : "source-only");
     std::snprintf(title, sizeof(title),
-                  "GuitarHeroOGX venue freecam - %s | %s | dist %.1f | backface %s",
+                  "GuitarHeroOGX venue freecam - %s | %s | %.1f | %s | backface %s | culled %s",
                   state.pick.mesh.c_str(), state.pick.material.c_str(),
-                  state.pick.distance, state.pick.backfacing ? "yes" : "no");
-    std::snprintf(key, sizeof(key), "%s|%s|%d", state.pick.mesh.c_str(),
-                  state.pick.material.c_str(), state.pick.backfacing ? 1 : 0);
+                  state.pick.distance, status,
+                  state.pick.backfacing ? "yes" : "no",
+                  state.pick.culled_by_backface ? "yes" : "no");
+    std::snprintf(key, sizeof(key), "%s|%s|%d|%d|%d",
+                  state.pick.mesh.c_str(), state.pick.material.c_str(),
+                  state.pick.backfacing ? 1 : 0,
+                  state.pick.would_draw ? 1 : 0,
+                  state.pick.culled_by_backface ? 1 : 0);
   } else {
     std::snprintf(title, sizeof(title),
                   "GuitarHeroOGX venue freecam - no mesh under crosshair");
@@ -1251,10 +1297,20 @@ void update_debug_venue_title(Window* win, DebugVenueInspectorState& state) {
   if (state.pick.hit) {
     std::fprintf(stderr,
                  "[venue-freecam] pick mesh=%s material=%s dist=%.2f "
-                 "point=(%.2f %.2f %.2f) backface=%d\n",
+                 "point=(%.2f %.2f %.2f) backface=%d would_draw=%d "
+                 "source_pick=%d hidden=%d showing=%d invisible_mat=%d "
+                 "spotlight_template=%d cull_enabled=%d culled_by_backface=%d\n",
                  state.pick.mesh.c_str(), state.pick.material.c_str(),
                  state.pick.distance, state.pick.point[0], state.pick.point[1],
-                 state.pick.point[2], state.pick.backfacing ? 1 : 0);
+                 state.pick.point[2], state.pick.backfacing ? 1 : 0,
+                 state.pick.would_draw ? 1 : 0,
+                 state.pick.source_pick ? 1 : 0,
+                 state.pick.hidden_by_filter ? 1 : 0,
+                 state.pick.source_showing ? 1 : 0,
+                 state.pick.material_invisible ? 1 : 0,
+                 state.pick.spotlight_template ? 1 : 0,
+                 state.pick.cull_enabled ? 1 : 0,
+                 state.pick.culled_by_backface ? 1 : 0);
   } else {
     std::fprintf(stderr, "[venue-freecam] pick none\n");
   }
@@ -1266,7 +1322,8 @@ struct DebugLineVertex {
 };
 
 void draw_debug_crosshair(IDirect3DDevice9* dev, int width, int height,
-                          float ndc_x, float ndc_y, bool hit) {
+                          float ndc_x, float ndc_y, bool hit,
+                          bool would_draw) {
   if (!dev || width <= 0 || height <= 0) return;
   const float cx =
       (std::clamp(ndc_x, -1.0f, 1.0f) * 0.5f + 0.5f) *
@@ -1276,8 +1333,10 @@ void draw_debug_crosshair(IDirect3DDevice9* dev, int width, int height,
       static_cast<float>(height);
   const float gap = 5.0f;
   const float arm = 18.0f;
-  const D3DCOLOR color = hit ? D3DCOLOR_ARGB(235, 255, 232, 64)
-                             : D3DCOLOR_ARGB(235, 255, 80, 80);
+  const D3DCOLOR color =
+      hit ? (would_draw ? D3DCOLOR_ARGB(235, 255, 232, 64)
+                        : D3DCOLOR_ARGB(235, 64, 232, 255))
+          : D3DCOLOR_ARGB(235, 255, 80, 80);
   DebugLineVertex verts[] = {
       {cx - arm, cy, 0.0f, 1.0f, color},
       {cx - gap, cy, 0.0f, 1.0f, color},
@@ -2214,11 +2273,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   };
 
   auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
-                                  const std::array<float, 16>& w,
-                                  const std::string* material_override = nullptr,
-                                  const SpotlightState* spotlight_state = nullptr) {
-    if (!m.decoded || !m.showing || m.vertex_count == 0 || m.face_count == 0) return;
-    if (mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name)) return;
+                                   const std::array<float, 16>& w,
+                                   const std::string* material_override = nullptr,
+                                   const SpotlightState* spotlight_state = nullptr,
+                                   bool force_debug_draw = false) {
+    if (!m.decoded || (!m.showing && !force_debug_draw) ||
+        m.vertex_count == 0 || m.face_count == 0) {
+      return;
+    }
+    if (!force_debug_draw &&
+        mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name)) {
+      return;
+    }
     std::memcpy(&wm, w.data(), 64);
     dev_->SetTransform(D3DTS_WORLD, &wm);
 
@@ -2233,11 +2299,14 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const std::string& material =
         (material_override && !material_override->empty()) ? *material_override
                                                            : m.material;
-    if (is_authored_invisible_material(material)) return;
+    if (is_authored_invisible_material(material) && !force_debug_draw) return;
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
     const bool debug_highlighted_mesh =
         !debug_highlight_mesh.empty() && m.name == debug_highlight_mesh;
+    const bool debug_highlighted_source_only =
+        debug_highlighted_mesh && debug_venue &&
+        debug_venue->highlight_source_only;
     const milo_scene::MatObj* mat_obj = scene_.find_mat(material);
     std::string diffuse_tex;
     if (mat_obj) {
@@ -2381,10 +2450,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     if (debug_highlighted_mesh) {
       texture = nullptr;
-      mr = 1.0f;
-      mg = 0.08f;
-      mb = 0.95f;
-      ma = std::max(ma, 0.82f);
+      if (debug_highlighted_source_only) {
+        mr = 0.05f;
+        mg = 0.82f;
+        mb = 1.0f;
+        ma = 0.28f;
+      } else {
+        mr = 1.0f;
+        mg = 0.08f;
+        mb = 0.95f;
+        ma = std::max(ma, 0.82f);
+      }
       material_blend = kBlendSrcAlpha;
       material_z_mode = kZModeForce;
     }
@@ -2858,6 +2934,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const bool debug_camera_meshes =
         env_enabled("GHOGX_DEBUG_CAMERA_MESHES");
     std::vector<DebugVenuePickAccumulator> venue_picks;
+    const bool debug_source_pick =
+        debug_venue && (env_enabled("GHOGX_VENUE_PICK_SOURCE") ||
+                        !env_enabled("GHOGX_VENUE_PICK_RENDER_ONLY"));
     if (debug_venue) {
       float pick_ndc[2] = {0.0f, 0.0f};
       if (env_float_pair("GHOGX_VENUE_PICK_NDC", pick_ndc)) {
@@ -2869,6 +2948,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       venue_picks.push_back(make_debug_venue_pick_accumulator(
           "primary", pick_ndc[0], pick_ndc[1], eye, at, up, cam_.fov,
           aspect));
+      if (debug_source_pick) {
+        auto source_pick = make_debug_venue_pick_accumulator(
+            "source", pick_ndc[0], pick_ndc[1], eye, at, up, cam_.fov,
+            aspect);
+        source_pick.source_mode = true;
+        venue_picks.push_back(std::move(source_pick));
+      }
       if (env_enabled("GHOGX_VENUE_PICK_GRID")) {
         venue_picks.push_back(make_debug_venue_pick_accumulator(
             "lower_left", -0.72f, -0.72f, eye, at, up, cam_.fov, aspect));
@@ -2880,6 +2966,23 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             "mid_left", -0.72f, 0.0f, eye, at, up, cam_.fov, aspect));
         venue_picks.push_back(make_debug_venue_pick_accumulator(
             "mid_right", 0.72f, 0.0f, eye, at, up, cam_.fov, aspect));
+        if (debug_source_pick) {
+          auto lower_left_source = make_debug_venue_pick_accumulator(
+              "source_lower_left", -0.72f, -0.72f, eye, at, up, cam_.fov,
+              aspect);
+          auto lower_center_source = make_debug_venue_pick_accumulator(
+              "source_lower_center", 0.0f, -0.72f, eye, at, up, cam_.fov,
+              aspect);
+          auto lower_right_source = make_debug_venue_pick_accumulator(
+              "source_lower_right", 0.72f, -0.72f, eye, at, up, cam_.fov,
+              aspect);
+          lower_left_source.source_mode = true;
+          lower_center_source.source_mode = true;
+          lower_right_source.source_mode = true;
+          venue_picks.push_back(std::move(lower_left_source));
+          venue_picks.push_back(std::move(lower_center_source));
+          venue_picks.push_back(std::move(lower_right_source));
+        }
       }
     }
   struct CameraMeshHit {
@@ -2937,9 +3040,23 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
 
   for (const auto* mp : draw_meshes) {
     const auto& m = *mp;
-    if (hidden_meshes_.find(m.name) != hidden_meshes_.end()) continue;
-    if (!m.showing) continue;
-    if (spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end())
+    const bool hidden_by_runtime =
+        hidden_meshes_.find(m.name) != hidden_meshes_.end();
+    const bool hidden_by_debug_skip =
+        mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name);
+    const bool spotlight_template_mesh =
+        spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end();
+    const bool material_invisible = is_authored_invisible_material(m.material);
+    const auto* pick_mat = scene_.find_mat(m.material);
+    const bool cull_enabled =
+        authored_cull_mode != D3DCULL_NONE && (!pick_mat || pick_mat->cull);
+    const bool would_reach_draw =
+        m.decoded && m.showing && !hidden_by_runtime && !hidden_by_debug_skip &&
+        !spotlight_template_mesh && !material_invisible;
+    const bool debug_source_highlighted =
+        debug_venue && !debug_venue->highlight_mesh.empty() &&
+        m.name == debug_venue->highlight_mesh;
+    if (!would_reach_draw && !debug_source_pick && !debug_source_highlighted)
       continue;
     auto parent_for = [&](const std::string& name) -> std::string {
       for (const auto& group : scene_.groups) {
@@ -3122,7 +3239,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     for (auto& venue_pick : venue_picks) {
-      accumulate_debug_venue_pick(venue_pick, m, draw_world);
+      if (!venue_pick.source_mode && !would_reach_draw) continue;
+      DebugVenuePickMeshState pick_mesh_state;
+      pick_mesh_state.would_draw = would_reach_draw;
+      pick_mesh_state.source_pick = venue_pick.source_mode;
+      pick_mesh_state.hidden_by_filter =
+          hidden_by_runtime || hidden_by_debug_skip;
+      pick_mesh_state.source_showing = m.showing;
+      pick_mesh_state.material_invisible = material_invisible;
+      pick_mesh_state.spotlight_template = spotlight_template_mesh;
+      pick_mesh_state.cull_enabled = cull_enabled;
+      accumulate_debug_venue_pick(venue_pick, m, draw_world,
+                                  pick_mesh_state);
     }
     if (post_text_meshes_.find(m.name) != post_text_meshes_.end()) {
       if (const auto overlay_it = post_text_mesh_world_offsets_.find(m.name);
@@ -3228,13 +3356,26 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         }
       }
     }
-    draw_mesh_with_world(m, draw_world);
+    if (would_reach_draw || debug_source_highlighted) {
+      draw_mesh_with_world(m, draw_world, nullptr, nullptr,
+                           debug_source_highlighted && !would_reach_draw);
+    }
   }
   if (debug_venue) {
     debug_venue->pick =
         venue_picks.empty() ? DebugVenuePick{} : venue_picks.front().best;
+    if (!debug_venue->pick.hit) {
+      for (const auto& venue_pick : venue_picks) {
+        if (venue_pick.source_mode && venue_pick.best.hit) {
+          debug_venue->pick = venue_pick.best;
+          break;
+        }
+      }
+    }
     debug_venue->highlight_mesh =
         debug_venue->pick.hit ? debug_venue->pick.mesh : std::string{};
+    debug_venue->highlight_source_only =
+        debug_venue->pick.hit && !debug_venue->pick.would_draw;
     update_debug_venue_title(win_, *debug_venue);
     log_debug_pick_grid(*debug_venue, venue_picks);
   }
@@ -3576,7 +3717,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     draw_debug_crosshair(dev_, win_->bb_width(), win_->bb_height(),
                          debug_venue->crosshair_ndc_x,
                          debug_venue->crosshair_ndc_y,
-                         debug_venue->pick.hit);
+                         debug_venue->pick.hit,
+                         debug_venue->pick.would_draw);
   }
 
   dev_->EndScene();
