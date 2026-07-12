@@ -21494,9 +21494,150 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     bool venue_color_changed = false;
     bool venue_texture_changed = false;
     bool venue_tex_changed = false;
+    bool venue_environment_color_changed = false;
+    bool venue_environment_fog_changed = false;
+    bool venue_light_color_changed = false;
     bool lighting_route_applied =
         execute_venue_script_object_messages(lighting_event_script_messages_,
                                              event_name);
+    auto apply_venue_environment_route_from_lighting =
+        [&](const VenueEventAnimRoute& route,
+            const VenueEnvironmentAnim& anim) -> bool {
+        if (!world_ || !venue_environment_anim_has_keys(anim)) return false;
+        const float route_delay =
+            source_anim_delay_seconds(route.source_delay_seconds);
+        const double wait_seconds =
+            route.source_wait
+                ? venue_environment_anim_wait_seconds(
+                      active_venue_environment_anims_, anim.environment,
+                      song_time_)
+                : 0.0;
+        const double start_delay =
+            static_cast<double>(route_delay) + wait_seconds;
+        const bool delayed_start = start_delay > 0.001;
+        active_venue_environment_anims_.erase(
+            std::remove_if(active_venue_environment_anims_.begin(),
+                           active_venue_environment_anims_.end(),
+                           [&](const ActiveVenueEnvironmentAnim& active) {
+                               return active.environment == anim.environment;
+                           }),
+            active_venue_environment_anims_.end());
+        ActiveVenueEnvironmentAnim active_anim;
+        active_anim.name = anim.name;
+        active_anim.environment = anim.environment;
+        active_anim.start_time = song_time_ + start_delay;
+        active_anim.duration_frames = anim.duration_frames;
+        active_anim.duration_seconds = event_anim_route_duration_seconds(
+            route, anim.duration_frames, &chart_, active_anim.start_time);
+        active_anim.color_keys = anim.color_keys;
+        active_anim.fog_color_keys = anim.fog_color_keys;
+        active_anim.fog_range_keys = anim.fog_range_keys;
+        active_anim.persistent = persistent;
+        active_anim.source_blend_period_seconds =
+            route.source_blend_period_seconds;
+        active_anim.source_start_delay_seconds =
+            static_cast<float>(start_delay);
+        active_anim.has_source_filter = route.has_source_filter;
+        if (route.has_source_filter) {
+            active_anim.source_filter = route.source_filter;
+        }
+        const float initial_frame =
+            active_environment_anim_initial_frame(active_anim, &chart_);
+        if (!delayed_start) {
+            venue_environment_frames_[anim.environment] = initial_frame;
+            sample_environment_anim_tracks_blended(
+                anim.environment, active_anim.color_keys,
+                active_anim.fog_color_keys, active_anim.fog_range_keys,
+                initial_frame,
+                source_anim_blend_at(active_anim.source_blend_period_seconds,
+                                     0.0),
+                venue_environs_, venue_environment_colors_,
+                venue_environment_fog_colors_, venue_environment_fog_ranges_,
+                venue_environment_color_changed,
+                venue_environment_fog_changed);
+        }
+        std::fprintf(
+            stderr,
+            "[world] lighting event %s: venue EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s\n",
+            event_name.c_str(), anim.name.c_str(), anim.environment.c_str(),
+            anim.color_keys.size(), anim.fog_color_keys.size(),
+            anim.fog_range_keys.size(), anim.duration_frames,
+            active_anim.duration_seconds,
+            active_anim.source_blend_period_seconds,
+            route.source_wait ? 1 : 0, route_delay, wait_seconds,
+            route.has_source_filter ? route.source_filter.name.c_str()
+                                    : "none");
+        if (active_anim.duration_seconds > 0.001 ||
+            anim.duration_frames > 0.001f || delayed_start) {
+            active_venue_environment_anims_.push_back(std::move(active_anim));
+        }
+        return true;
+    };
+    auto apply_venue_light_route_from_lighting =
+        [&](const VenueEventAnimRoute& route,
+            const VenueLightAnim& anim) -> bool {
+        if (!world_ || anim.color_keys.empty()) return false;
+        const float route_delay =
+            source_anim_delay_seconds(route.source_delay_seconds);
+        const double wait_seconds =
+            route.source_wait
+                ? venue_light_anim_wait_seconds(active_venue_light_anims_,
+                                                anim.light, song_time_)
+                : 0.0;
+        const double start_delay =
+            static_cast<double>(route_delay) + wait_seconds;
+        const bool delayed_start = start_delay > 0.001;
+        active_venue_light_anims_.erase(
+            std::remove_if(active_venue_light_anims_.begin(),
+                           active_venue_light_anims_.end(),
+                           [&](const ActiveVenueLightAnim& active) {
+                               return active.light == anim.light;
+                           }),
+            active_venue_light_anims_.end());
+        ActiveVenueLightAnim active_anim;
+        active_anim.name = anim.name;
+        active_anim.light = anim.light;
+        active_anim.start_time = song_time_ + start_delay;
+        active_anim.duration_seconds = event_anim_route_duration_seconds(
+            route, anim.duration_frames, &chart_, active_anim.start_time);
+        active_anim.duration_frames = anim.duration_frames;
+        active_anim.color_keys = anim.color_keys;
+        active_anim.persistent = persistent;
+        active_anim.source_blend_period_seconds =
+            route.source_blend_period_seconds;
+        active_anim.source_start_delay_seconds =
+            static_cast<float>(start_delay);
+        active_anim.has_source_filter = route.has_source_filter;
+        if (route.has_source_filter) {
+            active_anim.source_filter = route.source_filter;
+        }
+        const float initial_frame =
+            active_light_anim_initial_frame(active_anim, &chart_);
+        if (!delayed_start) {
+            venue_light_colors_[anim.light] = blend_light_color(
+                current_light_color(anim.light, venue_light_colors_,
+                                    venue_lights_),
+                sample_light_color_key(active_anim.color_keys, initial_frame),
+                source_anim_blend_at(active_anim.source_blend_period_seconds,
+                                     0.0));
+            venue_light_color_changed = true;
+        }
+        std::fprintf(
+            stderr,
+            "[world] lighting event %s: venue LightAnim %s -> %s color_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s\n",
+            event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
+            anim.color_keys.size(), anim.duration_frames,
+            active_anim.duration_seconds,
+            active_anim.source_blend_period_seconds,
+            route.source_wait ? 1 : 0, route_delay, wait_seconds,
+            route.has_source_filter ? route.source_filter.name.c_str()
+                                    : "none");
+        if (active_anim.duration_seconds > 0.001 ||
+            anim.duration_frames > 0.001f || delayed_start) {
+            active_venue_light_anims_.push_back(std::move(active_anim));
+        }
+        return true;
+    };
     if (event_it != lighting_event_mat_anims_.end()) {
         for (const auto& route : event_it->second) {
             auto anim_it = lighting_mat_anims_.find(route.anim);
@@ -21877,7 +22018,23 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     if (env_event_it != lighting_event_env_anims_.end()) {
         for (const auto& route : env_event_it->second) {
             const auto anim_it = lighting_env_anims_.find(route.anim);
-            if (anim_it == lighting_env_anims_.end()) continue;
+            if (anim_it == lighting_env_anims_.end()) {
+                const auto venue_anim_it = venue_env_anims_.find(route.anim);
+                if (venue_anim_it != venue_env_anims_.end()) {
+                    if (apply_venue_environment_route_from_lighting(
+                            route, venue_anim_it->second)) {
+                        lighting_route_applied = true;
+                    }
+                    continue;
+                }
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting event %s: EnvAnim %s route has unsupported channel shape\n",
+                        event_name.c_str(), route.anim.c_str());
+                }
+                continue;
+            }
             const auto& anim = anim_it->second;
             if (!venue_environment_anim_has_keys(anim)) continue;
             const float route_delay =
@@ -21957,7 +22114,23 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     if (light_event_it != lighting_event_light_anims_.end()) {
         for (const auto& route : light_event_it->second) {
             const auto anim_it = lighting_light_anims_.find(route.anim);
-            if (anim_it == lighting_light_anims_.end()) continue;
+            if (anim_it == lighting_light_anims_.end()) {
+                const auto venue_anim_it = venue_light_anims_.find(route.anim);
+                if (venue_anim_it != venue_light_anims_.end()) {
+                    if (apply_venue_light_route_from_lighting(
+                            route, venue_anim_it->second)) {
+                        lighting_route_applied = true;
+                    }
+                    continue;
+                }
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting event %s: LightAnim %s route has unsupported channel shape\n",
+                        event_name.c_str(), route.anim.c_str());
+                }
+                continue;
+            }
             const auto& anim = anim_it->second;
             if (anim.color_keys.empty()) continue;
             const float route_delay =
@@ -22051,6 +22224,13 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     if (venue_tex_changed && world_)
         world_->set_material_tex_transform_overrides(
             venue_material_tex_transforms_);
+    if (venue_environment_color_changed && world_)
+        world_->set_environment_color_overrides(venue_environment_colors_);
+    if (venue_environment_fog_changed && world_)
+        world_->set_environment_fog_overrides(compose_environment_fog_overrides(
+            venue_environment_fog_colors_, venue_environment_fog_ranges_));
+    if (venue_light_color_changed && world_)
+        world_->set_light_color_overrides(venue_light_colors_);
     const bool lighting_visibility_applied =
         apply_lighting_event_visibility(event_name, true);
     if (lighting_visibility_applied) lighting_route_applied = true;

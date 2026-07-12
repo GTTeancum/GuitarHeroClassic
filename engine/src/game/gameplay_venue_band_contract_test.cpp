@@ -4577,6 +4577,25 @@ int main() {
                  "venue_material_tex_transforms_);",
                  "cross-MILO venue MatAnim texture samples feed venue renderer");
   ok &= contains(gameplay_c,
+                 "autovenue_anim_it=venue_env_anims_.find(route.anim);",
+                 "lighting EventTriggers can resolve venue-geometry EnvAnim routes");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingevent%s:venueEnvAnim%s->%s",
+                 "cross-MILO venue EnvAnim routes are logged distinctly");
+  ok &= contains(gameplay_c,
+                 "world_->set_environment_color_overrides("
+                 "venue_environment_colors_);",
+                 "cross-MILO venue EnvAnim color samples feed venue renderer");
+  ok &= contains(gameplay_c,
+                 "autovenue_anim_it=venue_light_anims_.find(route.anim);",
+                 "lighting EventTriggers can resolve venue-geometry LightAnim routes");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingevent%s:venueLightAnim%s->%s",
+                 "cross-MILO venue LightAnim routes are logged distinctly");
+  ok &= contains(gameplay_c,
+                 "world_->set_light_color_overrides(venue_light_colors_);",
+                 "cross-MILO venue LightAnim color samples feed venue renderer");
+  ok &= contains(gameplay_c,
                  "update_active_venue_material_anims();"
                  "update_active_venue_environment_anims();"
                  "update_active_venue_light_anims();"
