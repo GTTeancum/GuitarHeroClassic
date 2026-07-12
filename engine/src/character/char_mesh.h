@@ -87,6 +87,48 @@ struct SourceRndMeshSkinIndexPlan {
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision);
 
+struct SourceRndMeshSyncPlan {
+  int32_t input_mask = 0;
+  bool keep_mesh_data = false;
+  int32_t on_sync_mask = 0;
+};
+
+struct SourceRndMeshClearCompressedVertsPlan {
+  bool release_compressed_verts = true;
+  int32_t num_compressed_verts = 0;
+};
+
+struct SourceRndMeshCountPlan {
+  int32_t requested_count = 0;
+  bool resize_verts = false;
+  bool resize_faces = false;
+  int32_t sync_input_mask = 0x3f;
+  int32_t on_sync_mask = 0x3f;
+};
+
+struct SourceRndMeshKeepMeshDataPlan {
+  bool changed = false;
+  bool keep_mesh_data = false;
+  bool clear_verts = false;
+  bool clear_faces = false;
+  bool clear_patches = false;
+};
+
+int32_t source_rndmesh_max_bones();
+SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
+                                               bool keep_mesh_data);
+SourceRndMeshClearCompressedVertsPlan
+source_rndmesh_clear_compressed_verts_plan();
+SourceRndMeshCountPlan source_rndmesh_set_num_verts_plan(
+    int32_t count,
+    bool keep_mesh_data);
+SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
+    int32_t count,
+    bool keep_mesh_data);
+SourceRndMeshKeepMeshDataPlan source_rndmesh_set_keep_mesh_data_plan(
+    bool current_keep_mesh_data,
+    bool requested_keep_mesh_data);
+
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;
   std::vector<uint16_t> vert_offsets;

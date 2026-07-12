@@ -473,6 +473,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - The visible RB3 `RndMesh` ownership helpers are now mirrored as source
+    plans: `MaxBones()` is 80; `Sync(mask)` ORs `0x200` only while
+    `mKeepMeshData` is true; `ClearCompressedVerts()` releases the compressed
+    buffer and zeros `mNumCompressedVerts`; `SetNumVerts` and `SetNumFaces`
+    resize their respective arrays and call `Sync(0x3f)`; and
+    `SetKeepMeshData(false)` clears verts, faces, and patches only when the
+    keep flag actually changes. These helpers are bookkeeping contracts, not
+    permission to alter character material state or synthesize skinning data.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

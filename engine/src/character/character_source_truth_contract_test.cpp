@@ -1425,12 +1425,59 @@ int run_contract() {
   ok &= contains(rb3_mesh_cpp,
                  "if(gRev<0x1F)SetZeroWeightBones();",
                  "RB3 RndMesh zero-weight bone-index cleanup gate");
+  ok &= contains(rb3_mesh_cpp, "intRndMesh::MaxBones(){returnMAX_BONES;}",
+                 "RB3 RndMesh MaxBones helper is visible");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::Sync(inti){OnSync(mKeepMeshData?i|0x200:i);}",
+                 "RB3 RndMesh Sync keep-data mask behavior");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::ClearCompressedVerts(){RELEASE(mCompressedVerts);"
+                 "mNumCompressedVerts=0;}",
+                 "RB3 RndMesh ClearCompressedVerts behavior");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::SetNumVerts(intnum){Verts().resize(num,true);"
+                 "Sync(0x3F);}",
+                 "RB3 RndMesh SetNumVerts sync behavior");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::SetNumFaces(intnum){Faces().resize(num);"
+                 "Sync(0x3F);}",
+                 "RB3 RndMesh SetNumFaces sync behavior");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(keep!=mKeepMeshData){mKeepMeshData=keep;if(!mKeepMeshData)"
+                 "{mVerts.clear();mFaces=std::vector<Face>();"
+                 "mPatches=std::vector<unsignedchar>();}}",
+                 "RB3 RndMesh SetKeepMeshData clearing behavior");
   ok &= contains(mesh_cs,
                  "elseif(meshVersion<35||isNextGen==false){",
                  "MiloEditor RndMesh legacy non-next-gen vertex path");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSkinIndexPlan{",
                  "native exposes RndMesh skin-index source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSyncPlan{int32_tinput_mask=0;"
+                 "boolkeep_mesh_data=false;int32_ton_sync_mask=0;};",
+                 "native exposes RndMesh Sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshKeepMeshDataPlan{boolchanged=false;"
+                 "boolkeep_mesh_data=false;boolclear_verts=false;"
+                 "boolclear_faces=false;boolclear_patches=false;};",
+                 "native exposes RndMesh keep-data clear plan");
+  ok &= contains(char_mesh,
+                 "int32_tsource_rndmesh_max_bones(){return80;}",
+                 "native ports RndMesh max bone constant");
+  ok &= contains(char_mesh,
+                 "plan.on_sync_mask=keep_mesh_data?(mask|0x200):mask;",
+                 "native ports RndMesh Sync keep-data mask");
+  ok &= contains(char_mesh,
+                 "returnSourceRndMeshClearCompressedVertsPlan{};",
+                 "native ports RndMesh compressed-vert clear result");
+  ok &= contains(char_mesh,
+                 "plan.sync_input_mask,keep_mesh_data).on_sync_mask;",
+                 "native SetNumVerts/SetNumFaces use source Sync mask");
+  ok &= contains(char_mesh,
+                 "if(plan.changed&&!requested_keep_mesh_data){plan.clear_verts=true;"
+                 "plan.clear_faces=true;plan.clear_patches=true;}",
+                 "native ports RndMesh keep-data clearing gate");
   ok &= contains(char_mesh,
                  "plan.gh2_legacy_slots_without_serialized_indices="
                  "mesh_revision==28",

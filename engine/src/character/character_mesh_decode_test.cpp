@@ -260,6 +260,46 @@ int main() {
   CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
   CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
 
+  CHECK(ghogx::character::source_rndmesh_max_bones() == 80);
+  const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
+  CHECK(sync_plain.input_mask == 0x3f);
+  CHECK(sync_plain.on_sync_mask == 0x3f);
+  const auto sync_keep = ghogx::character::source_rndmesh_sync_plan(0x3f, true);
+  CHECK(sync_keep.on_sync_mask == 0x23f);
+
+  const auto clear_compressed =
+      ghogx::character::source_rndmesh_clear_compressed_verts_plan();
+  CHECK(clear_compressed.release_compressed_verts);
+  CHECK(clear_compressed.num_compressed_verts == 0);
+
+  const auto set_verts =
+      ghogx::character::source_rndmesh_set_num_verts_plan(12, true);
+  CHECK(set_verts.requested_count == 12);
+  CHECK(set_verts.resize_verts);
+  CHECK(!set_verts.resize_faces);
+  CHECK(set_verts.sync_input_mask == 0x3f);
+  CHECK(set_verts.on_sync_mask == 0x23f);
+
+  const auto set_faces =
+      ghogx::character::source_rndmesh_set_num_faces_plan(7, false);
+  CHECK(set_faces.requested_count == 7);
+  CHECK(!set_faces.resize_verts);
+  CHECK(set_faces.resize_faces);
+  CHECK(set_faces.on_sync_mask == 0x3f);
+
+  const auto keep_same =
+      ghogx::character::source_rndmesh_set_keep_mesh_data_plan(true, true);
+  CHECK(!keep_same.changed);
+  CHECK(keep_same.keep_mesh_data);
+  CHECK(!keep_same.clear_verts);
+  const auto keep_off =
+      ghogx::character::source_rndmesh_set_keep_mesh_data_plan(true, false);
+  CHECK(keep_off.changed);
+  CHECK(!keep_off.keep_mesh_data);
+  CHECK(keep_off.clear_verts);
+  CHECK(keep_off.clear_faces);
+  CHECK(keep_off.clear_patches);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);

@@ -290,6 +290,63 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+int32_t source_rndmesh_max_bones() {
+  return 80;
+}
+
+SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
+                                               bool keep_mesh_data) {
+  SourceRndMeshSyncPlan plan;
+  plan.input_mask = mask;
+  plan.keep_mesh_data = keep_mesh_data;
+  plan.on_sync_mask = keep_mesh_data ? (mask | 0x200) : mask;
+  return plan;
+}
+
+SourceRndMeshClearCompressedVertsPlan
+source_rndmesh_clear_compressed_verts_plan() {
+  return SourceRndMeshClearCompressedVertsPlan{};
+}
+
+SourceRndMeshCountPlan source_rndmesh_set_num_verts_plan(
+    int32_t count,
+    bool keep_mesh_data) {
+  SourceRndMeshCountPlan plan;
+  plan.requested_count = count;
+  plan.resize_verts = true;
+  plan.on_sync_mask = source_rndmesh_sync_plan(plan.sync_input_mask,
+                                               keep_mesh_data)
+                          .on_sync_mask;
+  return plan;
+}
+
+SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
+    int32_t count,
+    bool keep_mesh_data) {
+  SourceRndMeshCountPlan plan;
+  plan.requested_count = count;
+  plan.resize_faces = true;
+  plan.on_sync_mask = source_rndmesh_sync_plan(plan.sync_input_mask,
+                                               keep_mesh_data)
+                          .on_sync_mask;
+  return plan;
+}
+
+SourceRndMeshKeepMeshDataPlan source_rndmesh_set_keep_mesh_data_plan(
+    bool current_keep_mesh_data,
+    bool requested_keep_mesh_data) {
+  SourceRndMeshKeepMeshDataPlan plan;
+  plan.changed = current_keep_mesh_data != requested_keep_mesh_data;
+  plan.keep_mesh_data = plan.changed ? requested_keep_mesh_data
+                                     : current_keep_mesh_data;
+  if (plan.changed && !requested_keep_mesh_data) {
+    plan.clear_verts = true;
+    plan.clear_faces = true;
+    plan.clear_patches = true;
+  }
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {
