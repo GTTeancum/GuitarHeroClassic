@@ -585,6 +585,43 @@ struct SourceRndLightLoadPlan {
   bool animate_range_defaults_from_color = false;
 };
 
+struct SourceRndLightCopyPlan {
+  std::vector<std::string> superclasses;
+  std::vector<std::string> copied_members;
+  bool copy_type_shallow = false;
+  bool copy_type_from_max = false;
+  bool source_color_owner_self = true;
+  bool copies_range = true;
+  bool copies_color_owner = false;
+  bool resets_color_owner_to_self = false;
+  bool copies_color_in_owner_fallback = false;
+};
+
+struct SourceRndLightReplacePlan {
+  bool calls_transformable_replace = true;
+  bool color_owner_matches_from = false;
+  bool replacement_is_light = false;
+  bool copies_replacement_color_owner = false;
+  bool resets_color_owner_to_self = false;
+};
+
+struct SourceRndLightIntensityPlan {
+  std::array<float, 3> color = {1.0f, 1.0f, 1.0f};
+  float intensity = 1.0f;
+};
+
+struct SourceRndLightHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x186;
+};
+
+struct SourceRndLightPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> set_props;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceGltfMiloTransAnimChannelInput {
   std::string target_node;
   std::string target_path;
@@ -669,6 +706,17 @@ SourceRndLightLoadPlan source_rndlight_load_plan(
     int32_t revision,
     int32_t alt_revision,
     int32_t serialized_type);
+SourceRndLightCopyPlan source_rndlight_copy_plan(
+    bool copy_type_shallow,
+    bool copy_type_from_max,
+    bool source_color_owner_self);
+SourceRndLightReplacePlan source_rndlight_replace_plan(
+    bool color_owner_matches_from,
+    bool replacement_is_light);
+SourceRndLightIntensityPlan source_rndlight_intensity_plan(
+    std::array<float, 3> color);
+SourceRndLightHandlerPlan source_rndlight_handler_plan();
+SourceRndLightPropSyncPlan source_rndlight_prop_sync_plan();
 
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(

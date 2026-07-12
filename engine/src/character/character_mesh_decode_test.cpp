@@ -857,6 +857,72 @@ int main() {
       ghogx::character::source_rndlight_load_plan(17, 0, 0);
   CHECK(!rnd_light_bad.accepted_revision);
 
+  const auto rnd_light_shallow_copy =
+      ghogx::character::source_rndlight_copy_plan(true, false, true);
+  CHECK(rnd_light_shallow_copy.superclasses.size() == 2);
+  CHECK(rnd_light_shallow_copy.superclasses[0] == "Hmx::Object");
+  CHECK(rnd_light_shallow_copy.superclasses[1] == "RndTransformable");
+  CHECK(rnd_light_shallow_copy.copies_range);
+  CHECK(rnd_light_shallow_copy.copies_color_owner);
+  CHECK(!rnd_light_shallow_copy.resets_color_owner_to_self);
+  CHECK(rnd_light_shallow_copy.copied_members[0] == "mColor");
+  CHECK(rnd_light_shallow_copy.copied_members.back() == "mProjectedBlend");
+
+  const auto rnd_light_from_max_self =
+      ghogx::character::source_rndlight_copy_plan(false, true, true);
+  CHECK(!rnd_light_from_max_self.copies_range);
+  CHECK(!rnd_light_from_max_self.copies_color_owner);
+  CHECK(rnd_light_from_max_self.resets_color_owner_to_self);
+  CHECK(rnd_light_from_max_self.copies_color_in_owner_fallback);
+
+  const auto rnd_light_from_max_external_owner =
+      ghogx::character::source_rndlight_copy_plan(false, true, false);
+  CHECK(!rnd_light_from_max_external_owner.copies_range);
+  CHECK(rnd_light_from_max_external_owner.copies_color_owner);
+  CHECK(!rnd_light_from_max_external_owner.resets_color_owner_to_self);
+
+  const auto rnd_light_replace_no_match =
+      ghogx::character::source_rndlight_replace_plan(false, true);
+  CHECK(rnd_light_replace_no_match.calls_transformable_replace);
+  CHECK(!rnd_light_replace_no_match.copies_replacement_color_owner);
+  CHECK(!rnd_light_replace_no_match.resets_color_owner_to_self);
+
+  const auto rnd_light_replace_with_light =
+      ghogx::character::source_rndlight_replace_plan(true, true);
+  CHECK(rnd_light_replace_with_light.copies_replacement_color_owner);
+  CHECK(!rnd_light_replace_with_light.resets_color_owner_to_self);
+
+  const auto rnd_light_replace_without_light =
+      ghogx::character::source_rndlight_replace_plan(true, false);
+  CHECK(!rnd_light_replace_without_light.copies_replacement_color_owner);
+  CHECK(rnd_light_replace_without_light.resets_color_owner_to_self);
+
+  const auto rnd_light_dark =
+      ghogx::character::source_rndlight_intensity_plan({0.2f, 0.3f, 0.4f});
+  CHECK(approx(rnd_light_dark.intensity, 1.0f));
+  const auto rnd_light_bright =
+      ghogx::character::source_rndlight_intensity_plan({0.2f, 2.5f, 1.5f});
+  CHECK(approx(rnd_light_bright.intensity, 2.5f));
+
+  const auto rnd_light_handlers =
+      ghogx::character::source_rndlight_handler_plan();
+  CHECK(rnd_light_handlers.actions.size() == 1);
+  CHECK(rnd_light_handlers.actions[0] ==
+        "set_showing:SetShowing(_msg->Int(2))");
+  CHECK(rnd_light_handlers.superclasses[0] == "RndTransformable");
+  CHECK(rnd_light_handlers.superclasses[1] == "Hmx::Object");
+  CHECK(rnd_light_handlers.check == 0x186);
+
+  const auto rnd_light_props =
+      ghogx::character::source_rndlight_prop_sync_plan();
+  CHECK(rnd_light_props.props.size() == 8);
+  CHECK(rnd_light_props.props[0] == "animate_color_from_preset");
+  CHECK(rnd_light_props.props.back() == "shadow_objects");
+  CHECK(rnd_light_props.set_props.size() == 8);
+  CHECK(rnd_light_props.set_props[0] == "type");
+  CHECK(rnd_light_props.set_props.back() == "projected_blend");
+  CHECK(rnd_light_props.superclasses[0] == "RndTransformable");
+
   const auto gltf_trans_anim =
       ghogx::character::source_gltf_milo_export_trans_anim_plan(
           "hair_sway",

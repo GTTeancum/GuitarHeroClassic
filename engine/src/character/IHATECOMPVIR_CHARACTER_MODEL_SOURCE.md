@@ -1044,6 +1044,17 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_rndlight_default_state` and
     `source_rndlight_load_plan` record those row contracts without changing
     live lighting or renderer behavior.
+    The same checked source shows `RndLight::Copy` always copying color/type
+    and preset/radius/texture/shadow/projected-blend rows, skipping range only
+    for `kCopyFromMax`, and copying `mColorOwner` only for shallow copies or
+    from-Max copies whose source color owner is external. Otherwise it resets
+    color owner to self and copies color. `Replace` delegates to
+    `RndTransformable`, then rewires color owner from a replacement light or
+    falls back to self. `Intensity` returns the maximum of `1.0` and RGB.
+    Native `source_rndlight_copy_plan`, `source_rndlight_replace_plan`,
+    `source_rndlight_intensity_plan`, `source_rndlight_handler_plan`, and
+    `source_rndlight_prop_sync_plan` record those source rows without promoting
+    any lighting animation, preset, or renderer path.
   - For each glTF logical animation whose channels all target only
     `translation`, `rotation`, or `scale`, glTFMilo creates a revision-7
     `TransAnim`, assigns selected-game anim/draw revisions, uses 30fps,

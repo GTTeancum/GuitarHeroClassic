@@ -871,6 +871,79 @@ SourceRndLightLoadPlan source_rndlight_load_plan(
   return plan;
 }
 
+SourceRndLightCopyPlan source_rndlight_copy_plan(
+    bool copy_type_shallow,
+    bool copy_type_from_max,
+    bool source_color_owner_self) {
+  SourceRndLightCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.copied_members = {
+      "mColor",       "mType",        "mAnimateColorFromPreset",
+      "mAnimatePositionFromPreset",   "mAnimateRangeFromPreset",
+      "mFalloffStart", "mTopRadius",  "mBotRadius",
+      "mTexture",    "mShadowOverride",
+      "mShadowObjects", "mProjectedBlend"};
+  plan.copy_type_shallow = copy_type_shallow;
+  plan.copy_type_from_max = copy_type_from_max;
+  plan.source_color_owner_self = source_color_owner_self;
+  plan.copies_range = !copy_type_from_max;
+  plan.copies_color_owner =
+      copy_type_shallow || (copy_type_from_max && !source_color_owner_self);
+  if (!plan.copies_color_owner) {
+    plan.resets_color_owner_to_self = true;
+    plan.copies_color_in_owner_fallback = true;
+  }
+  return plan;
+}
+
+SourceRndLightReplacePlan source_rndlight_replace_plan(
+    bool color_owner_matches_from,
+    bool replacement_is_light) {
+  SourceRndLightReplacePlan plan;
+  plan.color_owner_matches_from = color_owner_matches_from;
+  plan.replacement_is_light = replacement_is_light;
+  if (color_owner_matches_from) {
+    if (replacement_is_light) {
+      plan.copies_replacement_color_owner = true;
+    } else {
+      plan.resets_color_owner_to_self = true;
+    }
+  }
+  return plan;
+}
+
+SourceRndLightIntensityPlan source_rndlight_intensity_plan(
+    std::array<float, 3> color) {
+  SourceRndLightIntensityPlan plan;
+  plan.color = color;
+  plan.intensity = std::max(1.0f, std::max(color[0], std::max(color[1], color[2])));
+  return plan;
+}
+
+SourceRndLightHandlerPlan source_rndlight_handler_plan() {
+  SourceRndLightHandlerPlan plan;
+  plan.actions = {"set_showing:SetShowing(_msg->Int(2))"};
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndLightPropSyncPlan source_rndlight_prop_sync_plan() {
+  SourceRndLightPropSyncPlan plan;
+  plan.props = {"animate_color_from_preset",
+                "animate_position_from_preset",
+                "animate_range_from_preset",
+                "color_owner",
+                "texture",
+                "texture_xfm",
+                "only_projection",
+                "shadow_objects"};
+  plan.set_props = {"type",       "range",     "falloff_start",
+                    "color",      "intensity", "topradius",
+                    "botradius",  "projected_blend"};
+  plan.superclasses = {"RndTransformable"};
+  return plan;
+}
+
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(
     const std::string& anim_name,

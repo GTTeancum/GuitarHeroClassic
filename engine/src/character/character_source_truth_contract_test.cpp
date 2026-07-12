@@ -4308,6 +4308,42 @@ int run_contract() {
                  "if(gRev>0xF)bs>>mAnimateRangeFromPreset;else"
                  "mAnimateRangeFromPreset=mAnimateColorFromPreset;",
                  "latest RndLight load animate-range fallback");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS("
+                 "RndTransformable)COPY_MEMBER_FROM(l,mColor)",
+                 "latest RndLight copy calls object/transformable superclasses");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "if(ty!=kCopyFromMax)COPY_MEMBER_FROM(l,mRange)",
+                 "latest RndLight copy skips range for CopyFromMax");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "if(ty==kCopyShallow||(ty==kCopyFromMax&&l->mColorOwner!=l)){"
+                 "COPY_MEMBER_FROM(l,mColorOwner)}else{mColorOwner=this;"
+                 "COPY_MEMBER_FROM(l,mColor)}",
+                 "latest RndLight copy color owner fallback");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "voidRndLight::Replace(Hmx::Object*from,Hmx::Object*to){"
+                 "RndTransformable::Replace(from,to);if(mColorOwner==from){",
+                 "latest RndLight replace calls transformable and checks color owner");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "if(lit){mColorOwner=lit->mColorOwner;}elsemColorOwner=this;",
+                 "latest RndLight replace color owner resolution");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "returnMax(1.0f,Max(col.red,col.green,col.blue));",
+                 "latest RndLight intensity clamps to at least one");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "HANDLE_ACTION(set_showing,SetShowing(_msg->Int(2)))"
+                 "HANDLE_SUPERCLASS(RndTransformable)HANDLE_SUPERCLASS("
+                 "Hmx::Object)HANDLE_CHECK(0x186)",
+                 "latest RndLight handler table is visible");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "SYNC_PROP(animate_color_from_preset,mAnimateColorFromPreset)"
+                 "SYNC_PROP(animate_position_from_preset,mAnimatePositionFromPreset)"
+                 "SYNC_PROP(animate_range_from_preset,mAnimateRangeFromPreset)",
+                 "latest RndLight prop table starts with preset flags");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "SYNC_PROP_SET(type,mType,SetLightType((Type)_val.Int(0)))"
+                 "SYNC_PROP_SET(range,mRange,SetRange(_val.Float(0)))",
+                 "latest RndLight prop table exposes set props");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -4433,6 +4469,21 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceRndLightLoadPlansource_rndlight_load_plan(",
                  "native exposes RndLight load plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightCopyPlansource_rndlight_copy_plan(",
+                 "native exposes RndLight copy plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightReplacePlansource_rndlight_replace_plan(",
+                 "native exposes RndLight replace plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightIntensityPlansource_rndlight_intensity_plan(",
+                 "native exposes RndLight intensity helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightHandlerPlansource_rndlight_handler_plan();",
+                 "native exposes RndLight handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightPropSyncPlansource_rndlight_prop_sync_plan();",
+                 "native exposes RndLight prop sync helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloTransAnimExportPlan"
                  "source_gltf_milo_export_trans_anim_plan(",
@@ -4702,6 +4753,31 @@ int run_contract() {
                  "plan.null_color_owner_defaults_to_self=revision>10;",
                  "native RndLight load helper preserves color owner fallback");
   ok &= contains(char_mesh,
+                 "SourceRndLightCopyPlansource_rndlight_copy_plan(",
+                 "native ports RndLight copy helper");
+  ok &= contains(char_mesh,
+                 "plan.copies_range=!copy_type_from_max;",
+                 "native RndLight copy helper preserves range gate");
+  ok &= contains(char_mesh,
+                 "plan.copies_color_owner=copy_type_shallow||("
+                 "copy_type_from_max&&!source_color_owner_self);",
+                 "native RndLight copy helper preserves color owner branch");
+  ok &= contains(char_mesh,
+                 "SourceRndLightReplacePlansource_rndlight_replace_plan(",
+                 "native ports RndLight replace helper");
+  ok &= contains(char_mesh,
+                 "plan.intensity=std::max(1.0f,std::max(color[0],"
+                 "std::max(color[1],color[2])));",
+                 "native RndLight intensity helper preserves max clamp");
+  ok &= contains(char_mesh,
+                 "plan.actions={\"set_showing:SetShowing(_msg->Int(2))\"};",
+                 "native RndLight handler helper preserves set_showing");
+  ok &= contains(char_mesh,
+                 "plan.set_props={\"type\",\"range\",\"falloff_start\","
+                 "\"color\",\"intensity\",\"topradius\",\"botradius\","
+                 "\"projected_blend\"};",
+                 "native RndLight prop sync helper preserves set props");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloTransAnimExportPlan"
                  "source_gltf_milo_export_trans_anim_plan(",
                  "native ports glTFMilo TransAnim export helper");
@@ -4777,6 +4853,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "rnd_light_rev16.reads_animate_range",
                  "focused mesh decode test covers RndLight modern range gate");
+  ok &= contains(mesh_decode_test,
+                 "source_rndlight_copy_plan(false,true,true)",
+                 "focused mesh decode test covers RndLight CopyFromMax self-owner");
+  ok &= contains(mesh_decode_test,
+                 "source_rndlight_replace_plan(true,false)",
+                 "focused mesh decode test covers RndLight replace self fallback");
+  ok &= contains(mesh_decode_test,
+                 "source_rndlight_intensity_plan({0.2f,2.5f,1.5f})",
+                 "focused mesh decode test covers RndLight intensity max");
+  ok &= contains(mesh_decode_test,
+                 "source_rndlight_prop_sync_plan()",
+                 "focused mesh decode test covers RndLight prop sync helper");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_export_trans_anim_plan(",
                  "focused mesh decode test covers glTFMilo TransAnim export");
@@ -4865,6 +4953,9 @@ int run_contract() {
                  "`source_rndlight_default_state` and\n"
                  "    `source_rndlight_load_plan`",
                  "document records RndLight source helpers");
+  ok &= contains(doc,
+                 "`source_rndlight_copy_plan`, `source_rndlight_replace_plan`",
+                 "document records RndLight copy/replace helpers");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");
