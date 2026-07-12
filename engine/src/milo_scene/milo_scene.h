@@ -424,6 +424,7 @@ struct ParticleSysObj {
   std::string emitter_mesh;
   bool preserve_particles = false;
   uint32_t preserved_particle_count = 0;
+  uint32_t preserved_particle_stride_bytes = 0;
   bool source_order_decoded = false;
   bool decoded = false;
   std::string error;

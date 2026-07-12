@@ -5142,6 +5142,9 @@ int main() {
                  "boolsource_order_decoded=false;",
                  "MILO scene ParticleSys records source-order decode status");
   ok &= contains(milo_scene_h_c,
+                 "uint32_tpreserved_particle_stride_bytes=0;",
+                 "MILO scene ParticleSys records preserved particle row stride");
+  ok &= contains(milo_scene_h_c,
                  "uint32_tconstraint=0;",
                  "MILO scene decoder preserves source RndTransformable constraints");
   ok &= contains(milo_scene_h_c,
@@ -5221,6 +5224,15 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "part.source_order_decoded=true;",
                  "ParticleSys decoder marks source-order decode success");
+  ok &= contains(milo_scene_cpp_c,
+                 "kPreservedParticleGh2Bytes=8*sizeof(float)",
+                 "ParticleSys decoder accepts GH2 preserved particle rows");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.preserved_particle_stride_bytes=",
+                 "ParticleSys decoder stores the accepted preserved particle stride");
+  ok &= contains(milo_scene_cpp_c,
+                 "preserved_stride=%u",
+                 "ParticleSys diagnostics print preserved particle stride proof");
   ok &= contains(milo_scene_cpp_c,
                  "if(p.source_order_decoded)++source_order_particles;",
                  "ParticleSys diagnostics count source-order decodes");

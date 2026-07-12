@@ -1490,15 +1490,33 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.preserve_particles = r.u8() != 0;
     if (part.preserve_particles) {
       part.preserved_particle_count = r.u32();
-      constexpr size_t kPreservedParticleBytes = 9 * sizeof(float);
-      const size_t preserved_bytes =
-          static_cast<size_t>(part.preserved_particle_count) *
-          kPreservedParticleBytes;
-      if (part.preserved_particle_count >
-              body.size() / kPreservedParticleBytes ||
-          r.pos + preserved_bytes > body.size()) {
+      constexpr size_t kPreservedParticleRb3Bytes = 9 * sizeof(float);
+      constexpr size_t kPreservedParticleGh2Bytes = 8 * sizeof(float);
+      const size_t count = static_cast<size_t>(part.preserved_particle_count);
+      const size_t remaining = body.size() - r.pos;
+      const bool rb3_exact =
+          count <= body.size() / kPreservedParticleRb3Bytes &&
+          count * kPreservedParticleRb3Bytes == remaining;
+      const bool gh2_exact =
+          count <= body.size() / kPreservedParticleGh2Bytes &&
+          count * kPreservedParticleGh2Bytes == remaining;
+      const bool rb3_fits =
+          count <= body.size() / kPreservedParticleRb3Bytes &&
+          count * kPreservedParticleRb3Bytes <= remaining;
+      const bool gh2_fits =
+          count <= body.size() / kPreservedParticleGh2Bytes &&
+          count * kPreservedParticleGh2Bytes <= remaining;
+      if (rb3_exact || (!gh2_exact && rb3_fits)) {
+        part.preserved_particle_stride_bytes =
+            static_cast<uint32_t>(kPreservedParticleRb3Bytes);
+      } else if (gh2_exact || gh2_fits) {
+        part.preserved_particle_stride_bytes =
+            static_cast<uint32_t>(kPreservedParticleGh2Bytes);
+      } else {
         throw std::runtime_error("milo_scene: preserved ParticleSys list past end");
       }
+      const size_t preserved_bytes =
+          count * static_cast<size_t>(part.preserved_particle_stride_bytes);
       r.skip(preserved_bytes);
     }
     if (part.material.empty()) {
@@ -1900,7 +1918,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
             };
             std::fprintf(
                 stderr,
-                "[milo_scene] ParticleSys %s source_order=%d rev=%u anim_rev=%u trans_rev=%u draw_rev=%u material=%s max_parts=%u life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) mid_ratio=%.3f mid_low=(%.3f %.3f %.3f %.3f) mid_high=(%.3f %.3f %.3f %.3f) mid_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f) force=(%.3f %.3f %.3f) grow=%.3f shrink=%.3f bubble=%d bubble_period=(%.3f %.3f) bubble_size=(%.3f %.3f) bounce=%s rel=(%.3f,%s) mesh=%s preserve=%d preserved=%u\n",
+                "[milo_scene] ParticleSys %s source_order=%d rev=%u anim_rev=%u trans_rev=%u draw_rev=%u material=%s max_parts=%u life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) mid_ratio=%.3f mid_low=(%.3f %.3f %.3f %.3f) mid_high=(%.3f %.3f %.3f %.3f) mid_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f) force=(%.3f %.3f %.3f) grow=%.3f shrink=%.3f bubble=%d bubble_period=(%.3f %.3f) bubble_size=(%.3f %.3f) bounce=%s rel=(%.3f,%s) mesh=%s preserve=%d preserved=%u preserved_stride=%u\n",
                 p.name.c_str(), p.source_order_decoded ? 1 : 0,
                 p.revision, p.anim_revision, p.trans_revision,
                 p.draw_revision, p.material.c_str(), p.max_particles,
@@ -1941,7 +1959,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 p.relative_motion,
                 p.relative_parent.empty() ? "-" : p.relative_parent.c_str(),
                 p.emitter_mesh.empty() ? "-" : p.emitter_mesh.c_str(),
-                p.preserve_particles ? 1 : 0, p.preserved_particle_count);
+                p.preserve_particles ? 1 : 0, p.preserved_particle_count,
+                p.preserved_particle_stride_bytes);
+          } else if (!p.error.empty() && debug_particle_decode_enabled()) {
+            std::fprintf(stderr,
+                         "[milo_scene] ParticleSys %s decode failed: %s\n",
+                         p.name.c_str(), p.error.c_str());
           }
           out.particles.push_back(std::move(p));
         } else if (de.type == "WorldCrowd") {

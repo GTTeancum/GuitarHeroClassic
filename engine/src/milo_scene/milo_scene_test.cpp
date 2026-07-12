@@ -730,7 +730,18 @@ void test_particle_sys_source_order() {
   put_f32(b, 0.25f);                          // relative motion.
   put_str(b, "spark_parent.trans");
   put_str(b, "spark_emitter.mesh");
-  b.push_back(0);                             // preserve particles.
+  b.push_back(1);                             // preserve particles.
+  put_u32(b, 2);
+  for (int row = 0; row < 2; ++row) {
+    put_f32(b, 10.0f + row);                  // position x
+    put_f32(b, 20.0f + row);                  // position y
+    put_f32(b, 30.0f + row);                  // position z
+    put_f32(b, 0.1f);                         // color r
+    put_f32(b, 0.2f);                         // color g
+    put_f32(b, 0.3f);                         // color b
+    put_f32(b, 0.4f);                         // color a
+    put_f32(b, 5.0f + row);                   // size
+  }
 
   ParticleSysObj p = decode_particle_sys("sparks.part", b);
   if (!p.decoded) std::printf("  [FAIL] ParticleSys error: %s\n", p.error.c_str());
@@ -768,10 +779,12 @@ void test_particle_sys_source_order() {
   CHECK(approx(p.bubble_period_max, 13.0f));
   CHECK(approx(p.bubble_size_min, 0.7f));
   CHECK(approx(p.relative_motion, 0.25f));
-  CHECK(!p.preserve_particles);
-  std::printf("  [ok] ParticleSys: source rev=%u mat=%s max=%u parent=%s\n",
+  CHECK(p.preserve_particles);
+  CHECK(p.preserved_particle_count == 2);
+  CHECK(p.preserved_particle_stride_bytes == 8u * sizeof(float));
+  std::printf("  [ok] ParticleSys: source rev=%u mat=%s max=%u parent=%s preserved_stride=%u\n",
               p.revision, p.material.c_str(), p.max_particles,
-              p.parent.c_str());
+              p.parent.c_str(), p.preserved_particle_stride_bytes);
 }
 
 void test_world_crowd_gh2_matrix_stride() {
