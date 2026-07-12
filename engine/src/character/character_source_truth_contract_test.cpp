@@ -12988,6 +12988,27 @@ int run_contract() {
                  "cos_f(mMaxViewAngle*0.017453292f);}",
                  "latest CharInterest source syncs max view angle cosine");
   ok &= contains(rb3_latest_char_interest_cpp,
+                 "voidCharInterest::Highlight(){RndGraph*oneframe="
+                 "RndGraph::GetOneFrame();oneframe->AddSphere(WorldXfm().v,"
+                 "1.0f,Hmx::Color(1.0f,0.0f,0.0f));",
+                 "latest CharInterest source highlight base sphere");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(wts>0.0f){vec2.x=vec2.x*TheRnd->Width();"
+                 "vec2.y=vec2.y*TheRnd->Height();vec2.y+=15.0;"
+                 "vec2.x-=30.0;oneframe->AddString(",
+                 "latest CharInterest source highlight label branch");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(mDartOverride){DataNode*minrad=mDartOverride->"
+                 "Property(\"min_radius\",false);DataNode*maxrad="
+                 "mDartOverride->Property(\"max_radius\",false);",
+                 "latest CharInterest source highlight queries dart radii");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(minrad&&maxrad){oneframe->AddSphere(WorldXfm().v,"
+                 "minrad->Float(0),Hmx::Color(0.7f,0.7f,0.7f));"
+                 "oneframe->AddSphere(WorldXfm().v,maxrad->Float(0),"
+                 "Hmx::Color(1.0f,1.0f,1.0f));",
+                 "latest CharInterest source highlight dart spheres");
+  ok &= contains(rb3_latest_char_interest_cpp,
                  "LOAD_REVS(bs)ASSERT_REVS(6,0)LOAD_SUPERCLASS(Hmx::Object)"
                  "LOAD_SUPERCLASS(RndTransformable)",
                  "latest CharInterest source load accepts revision 6");
@@ -13182,6 +13203,15 @@ int run_contract() {
                  "boolsafe_to_publish_runtime_score=false;};",
                  "native exposes CharInterest ComputeScore plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharInterestHighlightPlan{"
+                 "std::vector<std::string>graph_calls;"
+                 "boolprojects_label=false;floatlabel_offset_x=-30.0f;"
+                 "floatlabel_offset_y=15.0f;"
+                 "boolqueries_dart_min_radius=false;"
+                 "boolqueries_dart_max_radius=false;"
+                 "boolsafe_to_publish_runtime_target=false;};",
+                 "native exposes CharInterest Highlight plan");
+  ok &= contains(char_mesh_h,
                  "structSourceCharInterestScoreResult{"
                  "boolcategory_gate=false;booldefault_category_gate=false;"
                  "boolreturned_reject=false;floatdistance_squared=0.0f;",
@@ -13216,6 +13246,10 @@ int run_contract() {
                  "SourceCharInterestComputeScorePlan"
                  "source_char_interest_compute_score_plan();",
                  "native exposes CharInterest ComputeScore plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestHighlightPlan"
+                 "source_char_interest_highlight_plan(",
+                 "native exposes CharInterest Highlight plan helper");
   ok &= contains(char_mesh_h,
                  "SourceCharInterestScoreResult"
                  "source_char_interest_compute_score_deterministic(",
@@ -13301,6 +13335,23 @@ int run_contract() {
                  "\"RndTransformable\",\"Hmx::Object\"};plan.check=0x141;",
                  "native implements CharInterest handler plan");
   ok &= contains(char_mesh,
+                 "SourceCharInterestHighlightPlansource_char_interest_highlight_plan("
+                 "boolworld_to_screen_positive,boolhas_dart_override,"
+                 "boolhas_min_radius_property,boolhas_max_radius_property){",
+                 "native implements CharInterest Highlight plan helper");
+  ok &= contains(char_mesh,
+                 "plan.graph_calls={\"AddSphereinterestradius1red\"};"
+                 "if(world_to_screen_positive){plan.projects_label=true;"
+                 "plan.graph_calls.push_back(\"AddStringnamescreenoffset\");}",
+                 "native CharInterest Highlight plan ports label branch");
+  ok &= contains(char_mesh,
+                 "if(has_dart_override){plan.queries_dart_min_radius=true;"
+                 "plan.queries_dart_max_radius=true;if(has_min_radius_property&&"
+                 "has_max_radius_property){plan.graph_calls.push_back("
+                 "\"AddSpheredartminradiusgray\");plan.graph_calls.push_back("
+                 "\"AddSpheredartmaxradiuswhite\");}}",
+                 "native CharInterest Highlight plan ports dart branch");
+  ok &= contains(char_mesh,
                  "SourceCharInterestComputeScorePlansource_char_interest_compute_score_plan(){",
                  "native implements CharInterest ComputeScore boundary plan");
   ok &= contains(char_mesh,
@@ -13377,6 +13428,12 @@ int run_contract() {
   ok &= contains(interest_source_test,
                  "source_char_interest_category_flags_prop_plan()",
                  "focused CharInterest source test covers category prop plan");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_highlight_plan(true,true,true,true)",
+                 "focused CharInterest source test covers Highlight plan");
+  ok &= contains(interest_source_test,
+                 "\"highlightnotruntimetargetpicker\"",
+                 "focused CharInterest source test fences Highlight from runtime target picker");
   ok &= contains(interest_source_test,
                  "source_char_interest_compute_score_plan()",
                  "focused CharInterest source test covers ComputeScore boundary");
@@ -14170,6 +14227,13 @@ int run_contract() {
   ok &= contains(doc,
                  "deterministic source-contract coverage only; it is not a live target-picker",
                  "document fences deterministic CharInterest score helper from runtime");
+  ok &= contains(doc,
+                 "`CharInterest::Highlight` is a debug/authoring draw path",
+                 "document records CharInterest Highlight boundary");
+  ok &= contains(doc,
+                 "`source_char_interest_highlight_plan` records that\n"
+                 "    draw plan without promoting interest scoring",
+                 "document records native CharInterest Highlight plan");
   ok &= contains(doc,
                  "`source_char_interest_load_plan` records\n    the concrete source load row order",
                  "document records native CharInterest load plan");

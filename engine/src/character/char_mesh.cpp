@@ -5065,6 +5065,28 @@ SourceCharInterestHandlerPlan source_char_interest_handler_plan() {
   return plan;
 }
 
+SourceCharInterestHighlightPlan source_char_interest_highlight_plan(
+    bool world_to_screen_positive,
+    bool has_dart_override,
+    bool has_min_radius_property,
+    bool has_max_radius_property) {
+  SourceCharInterestHighlightPlan plan;
+  plan.graph_calls = {"AddSphere interest radius 1 red"};
+  if (world_to_screen_positive) {
+    plan.projects_label = true;
+    plan.graph_calls.push_back("AddString name screen offset");
+  }
+  if (has_dart_override) {
+    plan.queries_dart_min_radius = true;
+    plan.queries_dart_max_radius = true;
+    if (has_min_radius_property && has_max_radius_property) {
+      plan.graph_calls.push_back("AddSphere dart min radius gray");
+      plan.graph_calls.push_back("AddSphere dart max radius white");
+    }
+  }
+  return plan;
+}
+
 SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan() {
   SourceCharInterestComputeScorePlan plan;
   plan.gates = {"IsMatchingFilterFlags(mask)",

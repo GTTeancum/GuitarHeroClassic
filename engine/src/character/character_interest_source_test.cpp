@@ -42,6 +42,7 @@ int main() {
   using ghogx::character::source_char_interest_copy_plan;
   using ghogx::character::source_char_interest_defaults;
   using ghogx::character::source_char_interest_handler_plan;
+  using ghogx::character::source_char_interest_highlight_plan;
   using ghogx::character::source_char_interest_is_matching_filter_flags;
   using ghogx::character::source_char_interest_is_within_view_cone;
   using ghogx::character::source_char_interest_load_plan;
@@ -205,6 +206,44 @@ int main() {
   ok &= expect_string(handler_plan.superclasses[1], "Hmx::Object",
                       "handler object superclass");
   ok &= expect_int(handler_plan.check, 0x141, "handler check");
+
+  const auto highlight_plan =
+      source_char_interest_highlight_plan(true, true, true, true);
+  ok &= expect_int(static_cast<int>(highlight_plan.graph_calls.size()), 4,
+                   "highlight call count");
+  ok &= expect_string(highlight_plan.graph_calls[0],
+                      "AddSphere interest radius 1 red",
+                      "highlight base sphere");
+  ok &= expect_string(highlight_plan.graph_calls[1],
+                      "AddString name screen offset",
+                      "highlight screen label");
+  ok &= expect_bool(highlight_plan.projects_label, true,
+                    "highlight projects label");
+  ok &= near(highlight_plan.label_offset_x, -30.0f,
+             "highlight label x offset");
+  ok &= near(highlight_plan.label_offset_y, 15.0f,
+             "highlight label y offset");
+  ok &= expect_bool(highlight_plan.queries_dart_min_radius, true,
+                    "highlight queries dart min");
+  ok &= expect_bool(highlight_plan.queries_dart_max_radius, true,
+                    "highlight queries dart max");
+  ok &= expect_string(highlight_plan.graph_calls[2],
+                      "AddSphere dart min radius gray",
+                      "highlight dart min sphere");
+  ok &= expect_string(highlight_plan.graph_calls[3],
+                      "AddSphere dart max radius white",
+                      "highlight dart max sphere");
+  ok &= expect_bool(highlight_plan.safe_to_publish_runtime_target, false,
+                    "highlight not runtime target picker");
+
+  const auto hidden_highlight =
+      source_char_interest_highlight_plan(false, true, true, false);
+  ok &= expect_bool(hidden_highlight.projects_label, false,
+                    "highlight skips label behind camera");
+  ok &= expect_int(static_cast<int>(hidden_highlight.graph_calls.size()), 1,
+                   "highlight missing dart radius skips dart spheres");
+  ok &= expect_bool(hidden_highlight.queries_dart_min_radius, true,
+                    "highlight still queries dart min");
 
   const auto score_plan = source_char_interest_compute_score_plan();
   ok &= expect_string(score_plan.gates[0], "IsMatchingFilterFlags(mask)",

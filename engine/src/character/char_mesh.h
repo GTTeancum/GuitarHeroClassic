@@ -1904,6 +1904,16 @@ struct SourceCharInterestHandlerPlan {
   int check = 0;
 };
 
+struct SourceCharInterestHighlightPlan {
+  std::vector<std::string> graph_calls;
+  bool projects_label = false;
+  float label_offset_x = -30.0f;
+  float label_offset_y = 15.0f;
+  bool queries_dart_min_radius = false;
+  bool queries_dart_max_radius = false;
+  bool safe_to_publish_runtime_target = false;
+};
+
 struct SourceCharInterestComputeScorePlan {
   std::vector<std::string> gates;
   std::vector<std::string> score_steps;
@@ -2520,6 +2530,11 @@ SourceCharInterestPropSyncPlan source_char_interest_prop_sync_plan();
 SourceCharInterestCategoryFlagsPropPlan
 source_char_interest_category_flags_prop_plan();
 SourceCharInterestHandlerPlan source_char_interest_handler_plan();
+SourceCharInterestHighlightPlan source_char_interest_highlight_plan(
+    bool world_to_screen_positive,
+    bool has_dart_override,
+    bool has_min_radius_property,
+    bool has_max_radius_property);
 SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan();
 SourceCharInterestScoreResult source_char_interest_compute_score_deterministic(
     const std::array<float, 3>& view_direction,

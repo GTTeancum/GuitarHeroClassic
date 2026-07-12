@@ -95,7 +95,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharIKSliderMidi.cpp", "ghogx_character_ik_slider_midi_source_test",
      "fenced-runtime-gap"},
     {"CharInterest.cpp", "ghogx_character_interest_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
     {"CharLipSync.cpp", "ghogx_character_lip_sync_source_test",
      "diagnostic-only"},
     {"CharLipSyncDriver.cpp", "ghogx_character_lip_sync_source_test",

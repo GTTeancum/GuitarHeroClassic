@@ -112,7 +112,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharIKRod.cpp` | `ghogx_character_ik_rod_source_test` | `fenced-runtime-gap` |
 | `CharIKScale.cpp` | `ghogx_character_ik_scale_source_test` | `fenced-runtime-gap` |
 | `CharIKSliderMidi.cpp` | `ghogx_character_ik_slider_midi_source_test` | `fenced-runtime-gap` |
-| `CharInterest.cpp` | `ghogx_character_interest_source_test` | `diagnostic-only` |
+| `CharInterest.cpp` | `ghogx_character_interest_source_test` | `fenced-runtime-gap` |
 | `CharLipSync.cpp` | `ghogx_character_lip_sync_source_test` | `diagnostic-only` |
 | `CharLipSyncDriver.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
 | `CharLookAt.cpp` | `ghogx_character_lookat_source_test` | `fenced-runtime-gap` |
@@ -1691,6 +1691,13 @@ note, and all report `unreadBytes=0`.
     distance contribution with the source `NaN -> 0.2` fallback, `-0.99`, the
     nonnegative-score jitter gate, and final priority multiply. This is
     deterministic source-contract coverage only; it is not a live target-picker.
+  - `CharInterest::Highlight` is a debug/authoring draw path. It always adds a
+    red sphere at the interest position, adds a name string only when
+    `WorldToScreen` returns a positive depth using the source `x -= 30`,
+    `y += 15` offsets, and draws dart override min/max spheres only when both
+    properties exist. Native `source_char_interest_highlight_plan` records that
+    draw plan without promoting interest scoring or debug drawing into the live
+    runtime target picker.
 - `rb3-latest/src/system/char/CharTransCopy.cpp` and
   `CharTransCopy.h`
   - `CharTransCopy::Load` accepts source revisions `0..1`, loads
