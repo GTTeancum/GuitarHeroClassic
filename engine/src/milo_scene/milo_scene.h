@@ -175,21 +175,58 @@ struct WaypointObj {
 
 struct SpotlightObj {
   std::string name;
+  uint16_t revision = 0;
+  uint16_t draw_revision = 0;
+  uint16_t trans_revision = 0;
   std::string parent;
   Xfm local;
   Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string trans_target;
+  bool preserve_scale = false;
   bool has_transform = false;
+  bool showing = true;
+  float draw_order = 0.0f;
   float default_color[3] = {1.0f, 1.0f, 1.0f};
   float default_intensity = 1.0f;
   bool has_default_state = false;
+  bool beam_is_cone = false;
+  float beam_length = 0.0f;
+  float beam_bottom_radius = 0.0f;
+  float beam_top_radius = 0.0f;
+  float beam_top_side_border = 0.0f;
+  float beam_bottom_side_border = 0.0f;
+  float beam_bottom_border = 0.0f;
+  float beam_offset = 0.0f;
+  float beam_target_offset[2] = {0.0f, 0.0f};
+  float spot_scale = 30.0f;
+  float spot_height = 0.25f;
+  float light_can_offset = 0.0f;
+  float damping_constant = 1.0f;
+  float flare_size[2] = {0.0f, 0.0f};
+  float flare_range[2] = {0.0f, 0.0f};
+  int32_t flare_steps = 0;
+  float flare_offset = 0.0f;
+  bool flare_enabled = true;
+  bool flare_visibility_test = true;
+  float lens_size = 0.0f;
+  float lens_offset = 0.0f;
+  bool target_shadow = false;
+  bool animate_color_from_preset = true;
+  bool animate_orientation_from_preset = true;
   std::string material;
   std::string group;
+  std::string light_can_group;
   std::string target;
+  std::string disc_material;
+  std::string flare_material;
   std::string circle_mesh;
   std::vector<std::string> instance_meshes;
   std::string circle_material;
   std::string lens_material;
+  bool source_order_decoded = false;
   bool decoded = false;
+  std::string error;
 };
 
 struct LightObj {

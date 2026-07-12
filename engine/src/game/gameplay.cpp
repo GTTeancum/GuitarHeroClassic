@@ -26747,7 +26747,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_spotlights_.clear();
                 lighting_spotlights_.reserve(lighting_scene.spotlights.size());
                 size_t lighting_spotlight_defaults = 0;
+                size_t lighting_spotlight_source_order = 0;
                 for (const auto& spot : lighting_scene.spotlights) {
+                    if (spot.source_order_decoded)
+                        ++lighting_spotlight_source_order;
                     lighting_spotlights_.push_back(
                         {spot.name,
                          spot.target,
@@ -26763,22 +26766,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         if (debug_venue_filters_enabled()) {
                             std::fprintf(
                                 stderr,
-                                "[world] lighting Spotlight default: %s color=(%.3f %.3f %.3f) intensity=%.3f target=%s group=%s\n",
-                                spot.name.c_str(), spot.default_color[0],
+                                "[world] lighting Spotlight default: %s source_order=%d rev=%u color=(%.3f %.3f %.3f) intensity=%.3f target=%s group=%s\n",
+                                spot.name.c_str(),
+                                spot.source_order_decoded ? 1 : 0,
+                                spot.revision, spot.default_color[0],
                                 spot.default_color[1], spot.default_color[2],
-                                spot.default_intensity, spot.target.c_str(),
-                                spot.group.c_str());
+                                spot.default_intensity,
+                                spot.target.c_str(), spot.group.c_str());
                         }
                     }
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting Spotlights decoded: total=%llu default_states=%llu\n",
+                        "[world] lighting Spotlights decoded: total=%llu default_states=%llu source_order=%llu\n",
                         static_cast<unsigned long long>(
                             lighting_spotlights_.size()),
                         static_cast<unsigned long long>(
-                            lighting_spotlight_defaults));
+                            lighting_spotlight_defaults),
+                        static_cast<unsigned long long>(
+                            lighting_spotlight_source_order));
                 }
                 lighting_lights_.clear();
                 for (const auto& light : lighting_scene.lights) {

@@ -127,8 +127,12 @@ bool is_environ_light_ref(std::string_view ref) {
 // share, leaving the cursor just past the Trans parent string.
 void read_trans_block(Reader& r, Xfm& local, Xfm& world, uint32_t& constraint,
                       std::string& target, bool& preserve_scale,
-                      std::string& parent, bool read_object_meta) {
+                      std::string& parent, bool read_object_meta,
+                      uint16_t* out_revision = nullptr) {
   int32_t ver = r.i32();
+  if (out_revision)
+    *out_revision = static_cast<uint16_t>(
+        static_cast<uint32_t>(ver) & 0xffffu);
   (void)ver;                 // = 9 for GH2 RndTrans
   if (read_object_meta) {
     r.skip(kObjMeta);        // Hmx::Object base metadata (standalone Trans)
@@ -620,6 +624,218 @@ bool read_spotlight_default_state(const std::vector<uint8_t>& body,
   return true;
 }
 
+void add_unique_ref(std::vector<std::string>& refs, const std::string& ref) {
+  if (ref.empty()) return;
+  if (std::find(refs.begin(), refs.end(), ref) == refs.end())
+    refs.push_back(ref);
+}
+
+bool ref_has_suffix(std::string_view ref, std::string_view suffix) {
+  return ref.size() >= suffix.size() &&
+         lower_ascii(ref.substr(ref.size() - suffix.size())) ==
+             std::string(suffix);
+}
+
+void assign_scanned_spotlight_material(SpotlightObj& s,
+                                       const std::string& ref) {
+  const std::string lower = lower_ascii(ref);
+  if (lower.find("spot_circle") != std::string::npos) {
+    s.circle_material = ref;
+  } else if (lower.find("lens") != std::string::npos) {
+    s.lens_material = ref;
+  } else if (s.material.empty()) {
+    s.material = ref;
+  }
+}
+
+void assign_scanned_spotlight_mesh(SpotlightObj& s, const std::string& ref,
+                                   bool& has_authored_target) {
+  const std::string lower = lower_ascii(ref);
+  if (lower.rfind("spot_circle", 0) == 0) s.circle_mesh = ref;
+  const bool authored_target = is_spotlight_target_mesh(ref);
+  has_authored_target = has_authored_target || authored_target;
+  if (authored_target || s.target.empty()) s.target = ref;
+  if (!authored_target) add_unique_ref(s.instance_meshes, ref);
+}
+
+uint16_t read_rnd_drawable_source_layout(Reader& r, bool& showing,
+                                         float& draw_order) {
+  const uint16_t draw_revision = low_revision(r.u32());
+  if (draw_revision > 4) {
+    throw std::runtime_error("milo_scene: unsupported RndDrawable revision");
+  }
+  showing = r.u8() != 0;
+  if (draw_revision < 2) {
+    const uint32_t drawable_count = r.u32();
+    if (drawable_count > 2048) {
+      throw std::runtime_error("milo_scene: implausible Drawable refs");
+    }
+    for (uint32_t i = 0; i < drawable_count; ++i) (void)r.str();
+  }
+  if (draw_revision > 0) r.skip(16);
+  if (draw_revision > 2) draw_order = r.f32();
+  if (draw_revision >= 4) {
+    const uint32_t clip_plane_count = r.u32();
+    if (clip_plane_count > 6) {
+      throw std::runtime_error("milo_scene: implausible Drawable clip planes");
+    }
+    for (uint32_t i = 0; i < clip_plane_count; ++i) (void)r.str();
+  }
+  return draw_revision;
+}
+
+std::string read_source_ref_list_item(Reader& r) { return r.str(); }
+
+std::vector<std::string> read_source_ref_list(Reader& r, uint32_t max_count,
+                                              const char* label) {
+  const int32_t signed_count = r.i32();
+  if (signed_count < 0 || static_cast<uint32_t>(signed_count) > max_count) {
+    throw std::runtime_error(std::string("milo_scene: implausible ") + label +
+                             " ref count");
+  }
+  std::vector<std::string> refs;
+  refs.reserve(static_cast<size_t>(signed_count));
+  for (int32_t i = 0; i < signed_count; ++i) {
+    refs.push_back(read_source_ref_list_item(r));
+  }
+  return refs;
+}
+
+void read_spotlight_beam_def_source_order(Reader& r, uint16_t revision,
+                                          SpotlightObj& s) {
+  s.beam_is_cone = r.u8() != 0;
+  s.beam_length = r.f32();
+  s.beam_bottom_radius = r.f32();
+  s.beam_top_radius = r.f32();
+  s.beam_top_side_border = r.f32();
+  s.beam_bottom_side_border = r.f32();
+  s.beam_bottom_border = r.f32();
+  const std::string beam_material = r.str();
+  if (!beam_material.empty()) s.material = beam_material;
+  if (revision == 0x12) {
+    throw std::runtime_error("milo_scene: unsupported Spotlight rev18 string");
+  }
+  s.beam_offset = r.f32();
+  if (revision < 10) {
+    (void)r.f32();
+    (void)r.f32();
+    (void)r.f32();
+    (void)r.f32();
+  }
+  s.beam_target_offset[0] = r.f32();
+  s.beam_target_offset[1] = r.f32();
+  if (revision > 0x14) {
+    (void)r.f32();
+    (void)r.u32();
+  }
+  if (revision > 0x17) (void)r.f32();
+  if (revision > 0x1a) (void)r.u32();
+  if (revision > 0x18) {
+    (void)read_source_ref_list(r, 64, "Spotlight beam cutout");
+  }
+  if (revision > 0x1f) {
+    (void)r.u32();
+    (void)r.u32();
+  }
+}
+
+bool decode_spotlight_source_order(const std::vector<uint8_t>& body,
+                                   SpotlightObj& out) {
+  SpotlightObj s;
+  s.name = out.name;
+  try {
+    Reader r(body.data(), body.size());
+    const uint16_t revision = low_revision(r.u32());
+    s.revision = revision;
+    if (revision != 20) {
+      throw std::runtime_error("milo_scene: unsupported Spotlight revision");
+    }
+    r.skip(kObjMeta);
+    s.draw_revision =
+        read_rnd_drawable_source_layout(r, s.showing, s.draw_order);
+    read_trans_block(r, s.local, s.world_stored, s.constraint,
+                     s.trans_target, s.preserve_scale, s.parent, false,
+                     &s.trans_revision);
+    s.has_transform = true;
+
+    s.spot_scale = r.f32();
+    s.spot_height = r.f32();
+    const uint32_t beam_count = r.u32();
+    if (beam_count > 64) {
+      throw std::runtime_error(
+          "milo_scene: implausible Spotlight beam count=" +
+          std::to_string(beam_count) + " draw_rev=" +
+          std::to_string(s.draw_revision) + " trans_rev=" +
+          std::to_string(s.trans_revision));
+    }
+    if (beam_count == 0) {
+      s.beam_length = 0.0f;
+    }
+    for (uint32_t i = 0; i < beam_count; ++i) {
+      if (i == 0) {
+        read_spotlight_beam_def_source_order(r, revision, s);
+      } else {
+        SpotlightObj ignored;
+        read_spotlight_beam_def_source_order(r, revision, ignored);
+      }
+    }
+
+    s.light_can_group = r.str();
+    s.group = s.light_can_group;
+    s.target = r.str();
+    s.light_can_offset = r.f32();
+    s.default_color[0] = r.f32();
+    s.default_color[1] = r.f32();
+    s.default_color[2] = r.f32();
+    (void)r.f32();  // Hmx::Color32 load alpha; Spotlight forces it opaque.
+    s.default_intensity = r.f32();
+    s.has_default_state = true;
+    s.disc_material = r.str();
+    if (!s.disc_material.empty()) s.circle_material = s.disc_material;
+    s.damping_constant = r.f32();
+    (void)r.str();  // pre-rev33 legacy symbol.
+
+    s.flare_material = r.str();
+    if (!s.flare_material.empty() && s.material.empty()) {
+      s.material = s.flare_material;
+    }
+    s.flare_size[0] = r.f32();
+    s.flare_size[1] = r.f32();
+    s.flare_range[0] = r.f32();
+    s.flare_range[1] = r.f32();
+    s.flare_steps = r.i32();
+    s.flare_offset = r.f32();
+    s.flare_enabled = r.u8() != 0;
+    s.flare_visibility_test = r.u8() != 0;
+    s.lens_size = r.f32();
+    s.lens_offset = r.f32();
+    s.lens_material = r.str();
+
+    for (const auto& ref : read_source_ref_list(r, 2048,
+                                                "Spotlight additional object")) {
+      if (ref_has_suffix(ref, ".mesh")) {
+        const std::string lower = lower_ascii(ref);
+        if (lower.rfind("spot_circle", 0) == 0) s.circle_mesh = ref;
+        add_unique_ref(s.instance_meshes, ref);
+      }
+    }
+    s.target_shadow = r.u8() != 0;
+    s.animate_color_from_preset = r.u8() != 0;
+    s.animate_orientation_from_preset = s.animate_color_from_preset;
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: Spotlight source reader did not consume EOF");
+    }
+    s.source_order_decoded = true;
+    s.decoded = true;
+    out = std::move(s);
+    return true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+    return false;
+  }
+}
+
 }  // namespace
 
 TransObj decode_trans(const std::string& entry_name,
@@ -728,6 +944,9 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
                               const std::vector<uint8_t>& body) {
   SpotlightObj s;
   s.name = entry_name;
+  s.revision = body.size() >= 4 ? low_revision(read_u32_at(body, 0)) : 0;
+  if (decode_spotlight_source_order(body, s)) return s;
+  const std::string source_order_error = s.error;
   try {
     Reader r(body.data(), body.size());
     read_spotlight_trans_block(r, s.local, s.world_stored, s.parent);
@@ -740,25 +959,13 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
   for (const auto& scanned : strings) {
     const auto& ref = scanned.value;
     if (ref.rfind(".mat") != std::string::npos) {
-      if (ref.find("spot_circle") != std::string::npos) {
-        s.circle_material = ref;
-      } else if (ref.find("lens") != std::string::npos) {
-        s.lens_material = ref;
-      } else if (s.material.empty()) {
-        s.material = ref;
-      }
+      assign_scanned_spotlight_material(s, ref);
     } else if (ref.rfind(".grp") != std::string::npos) {
       s.group = ref;
     } else if (ref.rfind(".mesh") != std::string::npos) {
-      if (ref.rfind("SPOT_circle", 0) == 0) s.circle_mesh = ref;
       const bool authored_target = is_spotlight_target_mesh(ref);
-      has_authored_target = has_authored_target || authored_target;
-      if (authored_target || s.target.empty()) s.target = ref;
-      if (!authored_target &&
-          std::find(s.instance_meshes.begin(), s.instance_meshes.end(), ref) ==
-              s.instance_meshes.end()) {
-        s.instance_meshes.push_back(ref);
-      }
+      (void)authored_target;
+      assign_scanned_spotlight_mesh(s, ref, has_authored_target);
     }
   }
   if (!has_authored_target) {
@@ -767,6 +974,7 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
                                      s.default_intensity);
   }
   s.decoded = true;
+  s.error = source_order_error;
   return s;
 }
 
@@ -1817,10 +2025,27 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                  world_crowd_fail);
     if (!out.spotlights.empty()) {
       size_t transformed = 0;
-      for (const auto& spot : out.spotlights)
+      size_t source_order = 0;
+      for (const auto& spot : out.spotlights) {
         if (spot.has_transform) ++transformed;
-      std::fprintf(stderr, "[milo_scene]   %zu spotlights decoded (%zu with Trans base)\n",
-                   out.spotlights.size(), transformed);
+        if (spot.source_order_decoded) ++source_order;
+      }
+      std::fprintf(
+          stderr,
+          "[milo_scene]   %zu spotlights decoded (%zu with Trans base, %zu source-order)\n",
+          out.spotlights.size(), transformed, source_order);
+      for (const auto& spot : out.spotlights) {
+        std::fprintf(
+            stderr,
+            "[milo_scene]   Spotlight object decoded: %s:%s source_order=%d rev=%u trans_rev=%u target=%s group=%s material=%s color=(%.3f %.3f %.3f) intensity=%.3f additional=%zu error=%s\n",
+            milo_path.c_str(), spot.name.c_str(),
+            spot.source_order_decoded ? 1 : 0, spot.revision,
+            spot.trans_revision, spot.target.c_str(), spot.group.c_str(),
+            spot.material.c_str(), spot.default_color[0],
+            spot.default_color[1], spot.default_color[2],
+            spot.default_intensity, spot.instance_meshes.size(),
+            spot.error.c_str());
+      }
     }
     if (!out.environs.empty()) {
       size_t decoded = 0;

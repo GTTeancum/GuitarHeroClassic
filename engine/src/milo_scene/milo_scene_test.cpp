@@ -270,6 +270,112 @@ void test_environ_with_fog() {
               env.name.c_str(), env.fog_start, env.fog_end);
 }
 
+void test_spotlight_source_order_rev20() {
+  std::vector<uint8_t> b;
+  put_u32(b, 20);                // GH2 PS2 Spotlight revision.
+  put_zeros(b, 9);               // Hmx::Object metadata.
+  put_u32(b, 3);                 // RndDrawable revision.
+  b.push_back(1);                // showing.
+  put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f);
+  put_f32(b, 2.0f);              // draw order.
+  put_u32(b, 9);                 // RndTransformable revision.
+  put_matrix(b, 10.0f, 20.0f, 30.0f);
+  put_matrix(b, 40.0f, 50.0f, 60.0f);
+  put_u32(b, 0);                 // constraint.
+  put_str(b, "");                // trans target.
+  b.push_back(0);                // preserve_scale.
+  put_str(b, "lighting_root.grp");
+  put_f32(b, 1.5f);              // spot_scale.
+  put_f32(b, 2.5f);              // spot_height.
+  put_u32(b, 3);                 // pre-rev23 ObjVector<BeamDef> count.
+  b.push_back(1);                // BeamDef::mIsCone.
+  put_f32(b, 100.0f);            // length.
+  put_f32(b, 10.0f);             // bottom_radius.
+  put_f32(b, 4.0f);              // top_radius.
+  put_f32(b, 0.2f);              // top_side_border.
+  put_f32(b, 0.3f);              // bottom_side_border.
+  put_f32(b, 0.4f);              // bottom_border.
+  put_str(b, "beam.mat");
+  put_f32(b, 0.75f);             // beam offset.
+  put_f32(b, 1.0f); put_f32(b, 2.0f);  // target offset.
+  b.push_back(0);                // extra beam consumed, but not selected.
+  put_f32(b, 200.0f);
+  put_f32(b, 20.0f);
+  put_f32(b, 8.0f);
+  put_f32(b, 0.2f);
+  put_f32(b, 0.3f);
+  put_f32(b, 0.4f);
+  put_str(b, "beam_second.mat");
+  put_f32(b, 0.80f);
+  put_f32(b, 3.0f); put_f32(b, 4.0f);
+  b.push_back(0);                // extra beam consumed, but not selected.
+  put_f32(b, 300.0f);
+  put_f32(b, 30.0f);
+  put_f32(b, 12.0f);
+  put_f32(b, 0.2f);
+  put_f32(b, 0.3f);
+  put_f32(b, 0.4f);
+  put_str(b, "beam_third.mat");
+  put_f32(b, 0.85f);
+  put_f32(b, 5.0f); put_f32(b, 6.0f);
+  put_str(b, "lightcan.grp");
+  put_str(b, "bone_pelvis.mesh");
+  put_f32(b, 3.25f);             // light_can_offset.
+  put_f32(b, 0.1f); put_f32(b, 0.2f); put_f32(b, 0.3f); put_f32(b, 0.4f);
+  put_f32(b, 0.8f);              // intensity.
+  put_str(b, "spot_circle.mat"); // disc material.
+  put_f32(b, 0.6f);              // damping_constant.
+  put_str(b, "legacy_symbol");
+  put_str(b, "flare.mat");
+  put_f32(b, 5.0f); put_f32(b, 6.0f);  // flare sizes.
+  put_f32(b, 7.0f); put_f32(b, 8.0f);  // flare range.
+  put_u32(b, 9);                 // flare steps.
+  put_f32(b, 1.25f);             // flare offset.
+  b.push_back(1);                // flare enabled.
+  b.push_back(0);                // flare visibility test.
+  put_f32(b, 11.0f);             // lens size.
+  put_f32(b, 12.0f);             // lens offset.
+  put_str(b, "lens.mat");
+  put_u32(b, 2);                 // additional objects.
+  put_str(b, "SPOT_circle.mesh");
+  put_str(b, "beam_instance.mesh");
+  b.push_back(1);                // target shadow.
+  b.push_back(0);                // animate_color_from_preset.
+
+  SpotlightObj spot = decode_spotlight("SHADOW_solo.spot", b);
+  CHECK(spot.decoded);
+  CHECK(spot.source_order_decoded);
+  CHECK(spot.revision == 20);
+  CHECK(spot.draw_revision == 3);
+  CHECK(spot.trans_revision == 9);
+  CHECK(spot.parent == "lighting_root.grp");
+  CHECK(spot.group == "lightcan.grp");
+  CHECK(spot.target == "bone_pelvis.mesh");
+  CHECK(spot.material == "beam.mat");
+  CHECK(spot.disc_material == "spot_circle.mat");
+  CHECK(spot.circle_material == "spot_circle.mat");
+  CHECK(spot.flare_material == "flare.mat");
+  CHECK(spot.lens_material == "lens.mat");
+  CHECK(spot.circle_mesh == "SPOT_circle.mesh");
+  CHECK(spot.instance_meshes.size() == 2);
+  CHECK(spot.instance_meshes[1] == "beam_instance.mesh");
+  CHECK(spot.has_default_state);
+  CHECK(approx(spot.default_color[1], 0.2f));
+  CHECK(approx(spot.default_intensity, 0.8f));
+  CHECK(approx(spot.world_stored.pos[0], 40.0f));
+  CHECK(approx(spot.beam_length, 100.0f));
+  CHECK(approx(spot.spot_scale, 1.5f));
+  CHECK(approx(spot.light_can_offset, 3.25f));
+  CHECK(spot.flare_steps == 9);
+  CHECK(spot.flare_enabled);
+  CHECK(!spot.flare_visibility_test);
+  CHECK(spot.target_shadow);
+  CHECK(!spot.animate_color_from_preset);
+  CHECK(!spot.animate_orientation_from_preset);
+  std::printf("  [ok] Spotlight: source rev=%u target=%s group=%s\n",
+              spot.revision, spot.target.c_str(), spot.group.c_str());
+}
+
 void test_cam_projection_fields() {
   std::vector<uint8_t> b;
   put_u32(b, 12);                // Cam revision from GH2 PS2 metacam.
@@ -626,6 +732,7 @@ int main() {
   test_environ_with_lights();
   test_environ_with_extensionless_light();
   test_environ_with_fog();
+  test_spotlight_source_order_rev20();
   test_cam_projection_fields();
   test_group_transform();
   test_group_draw_order_matches_rnddir_roots();

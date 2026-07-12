@@ -6448,10 +6448,34 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "constboolauthored_target=is_spotlight_target_mesh(ref);",
                  "Spotlight decoder uses the shared target classifier");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(decode_spotlight_source_order(body,s))returns;",
+                 "Spotlight decoder tries ihatecompvir source-order layout first");
+  ok &= contains(milo_scene_cpp_c,
+                 "constuint32_tbeam_count=r.u32();",
+                 "Spotlight source reader consumes the pre-rev23 BeamDef vector");
+  ok &= contains(milo_scene_cpp_c,
+                 "read_spotlight_beam_def_source_order(r,revision,s);",
+                 "Spotlight source reader uses BeamDef::Load field order");
+  ok &= contains(milo_scene_cpp_c,
+                 "s.target_shadow=r.u8()!=0;",
+                 "Spotlight source reader consumes target_shadow before animation flags");
+  ok &= contains(milo_scene_cpp_c,
+                 "s.source_order_decoded=true;",
+                 "Spotlight source reader marks successful source-order decode");
+  ok &= contains(milo_scene_cpp_c,
+                 "\"[milo_scene]%zuspotlightsdecoded(%zuwithTransbase,%zusource-order)\\n\"",
+                 "Spotlight diagnostics expose source-order coverage");
   ok &= contains(gameplay_c,
                  "log_lighting_light_object_coverage(lighting_scene,"
                  "lighting_presets_,venue_lights_,venue_environs_);",
                  "runtime logs decoded Light/Environ coverage before rendering");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingSpotlightdefault:%ssource_order=%drev=%ucolor=(%.3f%.3f%.3f)intensity=%.3ftarget=%sgroup=%s\\n\"",
+                 "runtime lighting Spotlight diagnostics expose source-order decode");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingSpotlightsdecoded:total=%lludefault_states=%llusource_order=%llu\\n\"",
+                 "runtime lighting Spotlight summary counts source-order decodes");
   ok &= contains(gameplay_c,
                  "structLightingObjectNameSets{"
                  "std::unordered_set<std::string>spots;",
