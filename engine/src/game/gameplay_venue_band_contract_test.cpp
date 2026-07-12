@@ -4402,6 +4402,12 @@ int main() {
                  "sample_material_rotation_z_key(anim.tex_rotation_keys,frame)",
                  "MatAnim sampler drives 2-D texture rotation from the source Vec3 Z component");
   ok &= contains(gameplay_c,
+                 "while(prev+1<keys.size()&&keys[prev+1].frame==keys[prev].frame)",
+                 "MatAnim sampler follows ihatcompvir Keys::AtFrame duplicate-frame selection");
+  ok &= contains(gameplay_c,
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "MatAnim color/alpha/texture samplers share source-shaped key lookup");
+  ok &= contains(gameplay_c,
                  "blend_material_color(active_anim.start_color,"
                  "sample_material_color_key(anim.color_keys,0.0f),"
                  "initial_blend);",

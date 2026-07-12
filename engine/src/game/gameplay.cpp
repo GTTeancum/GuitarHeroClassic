@@ -9550,6 +9550,38 @@ struct VecKeySample {
     float t = 0.0f;
 };
 
+template <typename Keys>
+VecKeySample source_key_sample(const Keys& keys, float frame) {
+    VecKeySample sample;
+    if (keys.empty()) return sample;
+    sample.a = 0;
+    sample.b = 0;
+    if (keys.size() == 1 || frame < keys.front().frame) return sample;
+    if (frame >= keys.back().frame) {
+        sample.a = keys.size() - 1;
+        sample.b = sample.a;
+        return sample;
+    }
+    size_t prev = 0;
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame < keys[i].frame) break;
+        prev = i;
+    }
+    while (prev + 1 < keys.size() &&
+           keys[prev + 1].frame == keys[prev].frame) {
+        ++prev;
+    }
+    sample.a = prev;
+    sample.b = std::min(prev + 1, keys.size() - 1);
+    const auto& a = keys[sample.a];
+    const auto& b = keys[sample.b];
+    const float span = b.frame - a.frame;
+    sample.t = span <= 0.0001f
+                   ? 0.0f
+                   : std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+    return sample;
+}
+
 VecKeySample sample_vec_key(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame) {
@@ -9944,20 +9976,12 @@ std::array<float, 2> sample_material_vec2_key(
     float frame) {
     std::array<float, 2> out = {0.0f, 0.0f};
     if (keys.empty()) return out;
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = b->frame - a->frame;
-    const float t =
-        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const VecKeySample sample = source_key_sample(keys, frame);
+    const auto* a = &keys[sample.a];
+    const auto* b = &keys[sample.b];
     for (int i = 0; i < 2; ++i) {
-        const float value = a->value[i] + (b->value[i] - a->value[i]) * t;
+        const float value =
+            a->value[i] + (b->value[i] - a->value[i]) * sample.t;
         out[i] = value;
     }
     return out;
@@ -9967,60 +9991,33 @@ float sample_material_rotation_z_key(
     const std::vector<Gameplay::VenueMaterialAnim::Vec3Key>& keys,
     float frame) {
     if (keys.empty()) return 0.0f;
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = b->frame - a->frame;
-    const float t =
-        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-    return a->value[2] + (b->value[2] - a->value[2]) * t;
+    const VecKeySample sample = source_key_sample(keys, frame);
+    const auto* a = &keys[sample.a];
+    const auto* b = &keys[sample.b];
+    return a->value[2] + (b->value[2] - a->value[2]) * sample.t;
 }
 
 float sample_material_float_key(
     const std::vector<Gameplay::VenueMaterialAnim::FloatKey>& keys,
     float frame) {
     if (keys.empty()) return 0.0f;
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = b->frame - a->frame;
-    const float t =
-        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-    return a->value + (b->value - a->value) * t;
+    const VecKeySample sample = source_key_sample(keys, frame);
+    const auto* a = &keys[sample.a];
+    const auto* b = &keys[sample.b];
+    return a->value + (b->value - a->value) * sample.t;
 }
 
 std::array<float, 4> sample_material_color_key(
     const std::vector<Gameplay::VenueMaterialAnim::ColorKey>& keys,
     float frame) {
     if (keys.empty()) return {1.0f, 1.0f, 1.0f, 1.0f};
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = b->frame - a->frame;
-    const float t =
-        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const VecKeySample sample = source_key_sample(keys, frame);
+    const auto* a = &keys[sample.a];
+    const auto* b = &keys[sample.b];
     std::array<float, 4> out{};
     for (int i = 0; i < 4; ++i) {
         out[i] = clamp_material_color_component(
-            a->color[i] + (b->color[i] - a->color[i]) * t);
+            a->color[i] + (b->color[i] - a->color[i]) * sample.t);
     }
     return out;
 }
