@@ -67,7 +67,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharDriverMidi.cpp", "ghogx_character_clip_driver_flags_test",
      "fenced-runtime-gap"},
     {"CharEyeDartRuleset.cpp",
-     "ghogx_character_eye_dart_ruleset_source_test", "diagnostic-only"},
+     "ghogx_character_eye_dart_ruleset_source_test", "ported-visible-source"},
     {"CharEyes.cpp", "ghogx_character_eyes_source_test",
      "fenced-runtime-gap"},
     {"CharFaceServo.cpp", "ghogx_character_face_servo_source_test",

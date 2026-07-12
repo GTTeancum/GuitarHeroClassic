@@ -98,7 +98,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharCuff.cpp` | `ghogx_character_cuff_source_test` | `fenced-runtime-gap` |
 | `CharDriver.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
 | `CharDriverMidi.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
-| `CharEyeDartRuleset.cpp` | `ghogx_character_eye_dart_ruleset_source_test` | `diagnostic-only` |
+| `CharEyeDartRuleset.cpp` | `ghogx_character_eye_dart_ruleset_source_test` | `ported-visible-source` |
 | `CharEyes.cpp` | `ghogx_character_eyes_source_test` | `fenced-runtime-gap` |
 | `CharFaceServo.cpp` | `ghogx_character_face_servo_source_test` | `fenced-runtime-gap` |
 | `CharForeTwist.cpp` | `ghogx_character_fore_upper_twist_source_test` | `ported-visible-source` |
