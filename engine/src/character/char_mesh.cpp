@@ -826,6 +826,51 @@ SourceGltfMiloLightNodePlan source_gltf_milo_process_light_node_plan(
   return plan;
 }
 
+SourceRndLightDefaultState source_rndlight_default_state() {
+  return SourceRndLightDefaultState{};
+}
+
+SourceRndLightLoadPlan source_rndlight_load_plan(
+    int32_t revision,
+    int32_t alt_revision,
+    int32_t serialized_type) {
+  SourceRndLightLoadPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  plan.accepted_revision = revision >= 0 && revision <= 16;
+  plan.accepted_alt_revision = alt_revision >= 0 && alt_revision <= 1;
+  if (!plan.accepted_revision || !plan.accepted_alt_revision) return plan;
+
+  plan.reads_object_fields = revision > 3;
+  plan.reads_legacy_colors = revision < 2;
+  plan.reads_legacy_pre_range_ints = revision < 3;
+  plan.reads_legacy_post_range_ints = revision < 3;
+  plan.reads_type = revision != 0;
+  plan.serialized_type = serialized_type;
+  plan.effective_type = serialized_type;
+  if (revision != 0 && revision < 0xE && plan.effective_type > 1) {
+    --plan.effective_type;
+    plan.legacy_type_decrements_above_one = true;
+  }
+  plan.reads_falloff_start = revision > 0xB;
+  plan.reads_animate_color_position = revision > 5;
+  plan.reads_top_bot_radius = revision > 6;
+  plan.reads_legacy_radius_ints = revision > 6 && revision < 0xE;
+  plan.reads_texture = revision > 7;
+  plan.reads_rev9_shadow_draw_list = revision == 9;
+  plan.reads_rev8_shadow_draw_ptr = revision == 8;
+  plan.reads_color_owner = revision > 10;
+  plan.null_color_owner_defaults_to_self = revision > 10;
+  plan.reads_texture_xfm = revision > 0xC;
+  plan.reads_legacy_texture_ptr = revision > 0xD;
+  plan.reads_only_projection = alt_revision != 0;
+  plan.reads_shadow_objects = revision > 0xE;
+  plan.reads_projected_blend = revision > 0xE;
+  plan.reads_animate_range = revision > 0xF;
+  plan.animate_range_defaults_from_color = revision <= 0xF;
+  return plan;
+}
+
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(
     const std::string& anim_name,

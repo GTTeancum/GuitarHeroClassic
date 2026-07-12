@@ -1029,6 +1029,21 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     local/world transforms, calls `MiloExtras.AddToObject`, and emits the
     directory entry. Native `source_gltf_milo_process_light_node_plan` records
     that exporter object-shape contract only.
+  - `rb3-latest/src/system/rndobj/Lit.cpp` and `.h` are the runtime row
+    authority for those `Light` objects. The constructor defaults color to
+    white, color owner to self, range to `1000.0`, falloff to `0.0`, type to
+    `kPoint`, all preset animation flags and showing to true, texture/shadow
+    override pointers to null, top/bottom radii to `0.0`/`30.0`,
+    projected-blend to `0`, only-projection to false, and resets the texture
+    transform. `RndLight::Load` accepts revisions through 16 and alt revision
+    1, reads `Hmx::Object` only above revision 3, always reads
+    `RndTransformable` and color/range, preserves the legacy type decrement for
+    revisions below 14, defaults null color owner to self above revision 10,
+    reads only-projection when the alt revision is nonzero, and defaults
+    animate-range from animate-color until revision 16. Native
+    `source_rndlight_default_state` and
+    `source_rndlight_load_plan` record those row contracts without changing
+    live lighting or renderer behavior.
   - For each glTF logical animation whose channels all target only
     `translation`, `rotation`, or `scale`, glTFMilo creates a revision-7
     `TransAnim`, assigns selected-game anim/draw revisions, uses 30fps,

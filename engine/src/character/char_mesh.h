@@ -532,6 +532,59 @@ struct SourceGltfMiloLightNodePlan {
   bool calls_milo_extras_add_to_object = false;
 };
 
+struct SourceRndLightDefaultState {
+  std::array<float, 3> color = {1.0f, 1.0f, 1.0f};
+  bool color_owner_self = true;
+  float range = 1000.0f;
+  float falloff_start = 0.0f;
+  std::string type = "kPoint";
+  bool animate_color_from_preset = true;
+  bool animate_position_from_preset = true;
+  bool animate_range_from_preset = true;
+  bool showing = true;
+  bool texture_null = true;
+  bool shadow_override_null = true;
+  float top_radius = 0.0f;
+  float bot_radius = 30.0f;
+  int projected_blend = 0;
+  bool only_projection = false;
+  bool texture_xfm_reset = true;
+};
+
+struct SourceRndLightLoadPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool accepted_revision = false;
+  bool accepted_alt_revision = false;
+  bool reads_object_fields = false;
+  bool reads_transformable = true;
+  bool reads_color = true;
+  bool reads_legacy_colors = false;
+  bool reads_legacy_pre_range_ints = false;
+  bool reads_range = true;
+  bool reads_legacy_post_range_ints = false;
+  bool reads_type = false;
+  int32_t serialized_type = 0;
+  int32_t effective_type = 0;
+  bool legacy_type_decrements_above_one = false;
+  bool reads_falloff_start = false;
+  bool reads_animate_color_position = false;
+  bool reads_top_bot_radius = false;
+  bool reads_legacy_radius_ints = false;
+  bool reads_texture = false;
+  bool reads_rev9_shadow_draw_list = false;
+  bool reads_rev8_shadow_draw_ptr = false;
+  bool reads_color_owner = false;
+  bool null_color_owner_defaults_to_self = false;
+  bool reads_texture_xfm = false;
+  bool reads_legacy_texture_ptr = false;
+  bool reads_only_projection = false;
+  bool reads_shadow_objects = false;
+  bool reads_projected_blend = false;
+  bool reads_animate_range = false;
+  bool animate_range_defaults_from_color = false;
+};
+
 struct SourceGltfMiloTransAnimChannelInput {
   std::string target_node;
   std::string target_path;
@@ -610,6 +663,12 @@ SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
 
 SourceGltfMiloLightNodePlan source_gltf_milo_process_light_node_plan(
     const SourceGltfMiloLightNodeInput& input);
+
+SourceRndLightDefaultState source_rndlight_default_state();
+SourceRndLightLoadPlan source_rndlight_load_plan(
+    int32_t revision,
+    int32_t alt_revision,
+    int32_t serialized_type);
 
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(

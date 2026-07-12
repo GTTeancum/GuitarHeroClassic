@@ -279,6 +279,10 @@ int run_contract() {
       extra_dir / "re-notes";
   const std::string rb3_latest_mesh_h = compact(read_file(
       rb3_latest_rndobj_dir / "Mesh.h"));
+  const std::string rb3_latest_lit_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Lit.cpp"));
+  const std::string rb3_latest_lit_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Lit.h"));
   const std::string rb3_latest_draw_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Draw.cpp"));
   const std::string rb3_latest_draw_h = compact(read_file(
@@ -4276,6 +4280,34 @@ int run_contract() {
                  "meta.entries.Add(newDirectoryMeta.Entry(\"Light\","
                  "overriddenFilename,light));",
                  "glTFMilo ProcessLightNode emits Light entry");
+  ok &= contains(rb3_latest_lit_h,
+                 "enumType{kPoint=0,kDirectional=1,kFakeSpot=2,kFloorSpot=3,"
+                 "kShadowRef=4,};",
+                 "latest RndLight header exposes source light type enum");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "RndLight::RndLight():mColor(1.0f,1.0f,1.0f),"
+                 "mColorOwner(this,this),mRange(1000.0f),mFalloffStart(0.0f),"
+                 "mType(kPoint),",
+                 "latest RndLight constructor exposes default color/range/type");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "mAnimateColorFromPreset(1),mAnimatePositionFromPreset(1),"
+                 "mAnimateRangeFromPreset(1),mShowing(1),mTexture(this,0),",
+                 "latest RndLight constructor exposes preset/showing defaults");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "ASSERT_REVS(16,1)if(gRev>3)LOAD_SUPERCLASS(Hmx::Object)"
+                 "LOAD_SUPERCLASS(RndTransformable)bs>>mColor;",
+                 "latest RndLight load revision gates object and transform rows");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "if(gRev!=0){intcount;bs>>count;if(gRev<0xE){if(count>1)"
+                 "count--;}mType=(Type)count;}",
+                 "latest RndLight load source type decrement gate");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "if(gRev>10){bs>>mColorOwner;if(!mColorOwner)mColorOwner=this;}",
+                 "latest RndLight load color owner fallback");
+  ok &= contains(rb3_latest_lit_cpp,
+                 "if(gRev>0xF)bs>>mAnimateRangeFromPreset;else"
+                 "mAnimateRangeFromPreset=mAnimateColorFromPreset;",
+                 "latest RndLight load animate-range fallback");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -4395,6 +4427,12 @@ int run_contract() {
                  "SourceGltfMiloLightNodePlan"
                  "source_gltf_milo_process_light_node_plan(",
                  "native exposes glTFMilo light node helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightDefaultStatesource_rndlight_default_state();",
+                 "native exposes RndLight default state helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndLightLoadPlansource_rndlight_load_plan(",
+                 "native exposes RndLight load plan helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloTransAnimExportPlan"
                  "source_gltf_milo_export_trans_anim_plan(",
@@ -4646,6 +4684,24 @@ int run_contract() {
                  "if(input.punctual_light_type==\"Spot\"){plan.light_type=\"kSpot\";",
                  "native preserves ProcessLightNode spot mapping");
   ok &= contains(char_mesh,
+                 "SourceRndLightDefaultStatesource_rndlight_default_state(){"
+                 "returnSourceRndLightDefaultState{};}",
+                 "native ports RndLight constructor defaults");
+  ok &= contains(char_mesh,
+                 "SourceRndLightLoadPlansource_rndlight_load_plan(",
+                 "native ports RndLight load plan helper");
+  ok &= contains(char_mesh,
+                 "plan.accepted_revision=revision>=0&&revision<=16;"
+                 "plan.accepted_alt_revision=alt_revision>=0&&alt_revision<=1;",
+                 "native RndLight load helper preserves revision caps");
+  ok &= contains(char_mesh,
+                 "if(revision!=0&&revision<0xE&&plan.effective_type>1){"
+                 "--plan.effective_type;",
+                 "native RndLight load helper preserves legacy type decrement");
+  ok &= contains(char_mesh,
+                 "plan.null_color_owner_defaults_to_self=revision>10;",
+                 "native RndLight load helper preserves color owner fallback");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloTransAnimExportPlan"
                  "source_gltf_milo_export_trans_anim_plan(",
                  "native ports glTFMilo TransAnim export helper");
@@ -4712,6 +4768,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "fallback_light.light_type==\"kPoint\"",
                  "focused mesh decode test covers glTFMilo light fallback");
+  ok &= contains(mesh_decode_test,
+                 "source_rndlight_default_state()",
+                 "focused mesh decode test covers RndLight defaults");
+  ok &= contains(mesh_decode_test,
+                 "source_rndlight_load_plan(8,0,3)",
+                 "focused mesh decode test covers RndLight legacy type decrement");
+  ok &= contains(mesh_decode_test,
+                 "rnd_light_rev16.reads_animate_range",
+                 "focused mesh decode test covers RndLight modern range gate");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_export_trans_anim_plan(",
                  "focused mesh decode test covers glTFMilo TransAnim export");
@@ -4796,6 +4861,10 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_process_light_node_plan` records",
                  "document records glTFMilo light node helper");
+  ok &= contains(doc,
+                 "`source_rndlight_default_state` and\n"
+                 "    `source_rndlight_load_plan`",
+                 "document records RndLight source helpers");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");

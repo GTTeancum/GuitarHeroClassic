@@ -784,6 +784,79 @@ int main() {
       ghogx::character::source_gltf_milo_process_light_node_plan(light_node);
   CHECK(fallback_light.light_type == "kPoint");
 
+  const auto rnd_light_defaults =
+      ghogx::character::source_rndlight_default_state();
+  CHECK(approx(rnd_light_defaults.color[0], 1.0f));
+  CHECK(approx(rnd_light_defaults.color[1], 1.0f));
+  CHECK(approx(rnd_light_defaults.color[2], 1.0f));
+  CHECK(rnd_light_defaults.color_owner_self);
+  CHECK(approx(rnd_light_defaults.range, 1000.0f));
+  CHECK(approx(rnd_light_defaults.falloff_start, 0.0f));
+  CHECK(rnd_light_defaults.type == "kPoint");
+  CHECK(rnd_light_defaults.animate_color_from_preset);
+  CHECK(rnd_light_defaults.animate_position_from_preset);
+  CHECK(rnd_light_defaults.animate_range_from_preset);
+  CHECK(rnd_light_defaults.showing);
+  CHECK(rnd_light_defaults.texture_null);
+  CHECK(rnd_light_defaults.shadow_override_null);
+  CHECK(approx(rnd_light_defaults.top_radius, 0.0f));
+  CHECK(approx(rnd_light_defaults.bot_radius, 30.0f));
+  CHECK(rnd_light_defaults.projected_blend == 0);
+  CHECK(!rnd_light_defaults.only_projection);
+  CHECK(rnd_light_defaults.texture_xfm_reset);
+
+  const auto rnd_light_rev0 =
+      ghogx::character::source_rndlight_load_plan(0, 0, 4);
+  CHECK(rnd_light_rev0.accepted_revision);
+  CHECK(rnd_light_rev0.accepted_alt_revision);
+  CHECK(!rnd_light_rev0.reads_object_fields);
+  CHECK(rnd_light_rev0.reads_transformable);
+  CHECK(rnd_light_rev0.reads_color);
+  CHECK(rnd_light_rev0.reads_legacy_colors);
+  CHECK(rnd_light_rev0.reads_legacy_pre_range_ints);
+  CHECK(rnd_light_rev0.reads_range);
+  CHECK(rnd_light_rev0.reads_legacy_post_range_ints);
+  CHECK(!rnd_light_rev0.reads_type);
+  CHECK(rnd_light_rev0.animate_range_defaults_from_color);
+
+  const auto rnd_light_rev8 =
+      ghogx::character::source_rndlight_load_plan(8, 0, 3);
+  CHECK(rnd_light_rev8.reads_object_fields);
+  CHECK(rnd_light_rev8.reads_type);
+  CHECK(rnd_light_rev8.legacy_type_decrements_above_one);
+  CHECK(rnd_light_rev8.effective_type == 2);
+  CHECK(rnd_light_rev8.reads_top_bot_radius);
+  CHECK(rnd_light_rev8.reads_legacy_radius_ints);
+  CHECK(rnd_light_rev8.reads_texture);
+  CHECK(rnd_light_rev8.reads_rev8_shadow_draw_ptr);
+  CHECK(!rnd_light_rev8.reads_rev9_shadow_draw_list);
+  CHECK(!rnd_light_rev8.reads_color_owner);
+
+  const auto rnd_light_rev9 =
+      ghogx::character::source_rndlight_load_plan(9, 1, 1);
+  CHECK(rnd_light_rev9.reads_rev9_shadow_draw_list);
+  CHECK(!rnd_light_rev9.reads_rev8_shadow_draw_ptr);
+  CHECK(rnd_light_rev9.reads_only_projection);
+
+  const auto rnd_light_rev16 =
+      ghogx::character::source_rndlight_load_plan(16, 1, 4);
+  CHECK(rnd_light_rev16.reads_falloff_start);
+  CHECK(rnd_light_rev16.reads_animate_color_position);
+  CHECK(rnd_light_rev16.reads_color_owner);
+  CHECK(rnd_light_rev16.null_color_owner_defaults_to_self);
+  CHECK(rnd_light_rev16.reads_texture_xfm);
+  CHECK(rnd_light_rev16.reads_legacy_texture_ptr);
+  CHECK(rnd_light_rev16.reads_shadow_objects);
+  CHECK(rnd_light_rev16.reads_projected_blend);
+  CHECK(rnd_light_rev16.reads_animate_range);
+  CHECK(!rnd_light_rev16.animate_range_defaults_from_color);
+  CHECK(!rnd_light_rev16.legacy_type_decrements_above_one);
+  CHECK(rnd_light_rev16.effective_type == 4);
+
+  const auto rnd_light_bad =
+      ghogx::character::source_rndlight_load_plan(17, 0, 0);
+  CHECK(!rnd_light_bad.accepted_revision);
+
   const auto gltf_trans_anim =
       ghogx::character::source_gltf_milo_export_trans_anim_plan(
           "hair_sway",
