@@ -3759,6 +3759,13 @@ note, and all report `unreadBytes=0`.
   stack construction, mask application to default blend/loop/beat-align flags,
   clip deletion, exit events, and sync animation cleanup. It does not include a
   reviewable `Evaluate` or `Poll` body.
+  - `CharClipDriver.h` declares the copy constructor and `SetBeatOffset`, but
+    the checked `CharClipDriver.cpp` snapshot does not expose either body. The
+    visible constructor initializes only the fields listed in its source
+    initializer (`mPlayFlags`, `mBlendWidth`, `mTimeScale`, `mDBeat`,
+    `mAdvanceBeat`, `mClip`, `mNext`, `mNextEvent`, and
+    `mPlayMultipleClips`); native must not infer timing, ramp, event-data, or
+    copied-stack behavior from undecompiled fields.
   - Native `char_clip_driver_masked_play_flags` ports the constructor mask
     application exactly: low mode bits, loop bits, and the `0xF600` real-time /
     beat-align group override the clip's stored play flags only when present in

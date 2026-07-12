@@ -583,6 +583,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharBonesSamples.h"));
   const std::string rb3_latest_char_bones_samples_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBonesSamples.cpp"));
+  const std::string rb3_latest_char_clip_driver_h = compact(read_file(
+      rb3_latest_char_dir / "CharClipDriver.h"));
   const std::string rb3_latest_char_clip_driver_cpp = compact(read_file(
       rb3_latest_char_dir / "CharClipDriver.cpp"));
   const std::string rb3_latest_char_clip_group_cpp = compact(read_file(
@@ -18242,6 +18244,14 @@ int run_contract() {
                  "`safe_to_import_runtime=false` because this is still a "
                  "range/local map",
                  "document fences CharClipDriver runtime dump import");
+  ok &= contains(doc,
+                 "`CharClipDriver.h` declares the copy constructor and "
+                 "`SetBeatOffset`",
+                 "document records CharClipDriver bodyless declarations");
+  ok &= contains(doc,
+                 "native must not infer timing, ramp, event-data, or\n"
+                 "    copied-stack behavior from undecompiled fields",
+                 "document fences CharClipDriver undecompiled field behavior");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "case'p':returnTYPE_POS;case's':returnTYPE_SCALE;"
                  "case'q':returnTYPE_QUAT;case'r':unsignedcharnext=p[3];",
@@ -21123,6 +21133,27 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "samples_dump.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples dump pose fence");
+  ok &= contains(rb3_latest_char_clip_driver_h,
+                 "CharClipDriver(Hmx::Object*,constCharClipDriver&);",
+                 "latest CharClipDriver header declares copy constructor");
+  ok &= contains(rb3_latest_char_clip_driver_h,
+                 "voidSetBeatOffset(float,TaskUnits,Symbol);",
+                 "latest CharClipDriver header declares SetBeatOffset");
+  ok &= contains(rb3_latest_char_clip_driver_h,
+                 "floatmRampIn;//0xcfloatmBeat;//0x10floatmDBeat;//0x14"
+                 "floatmBlendFrac;//0x18floatmAdvanceBeat;//0x1c"
+                 "floatmWeight;//0x20",
+                 "latest CharClipDriver header exposes timing fields");
+  ok &= contains(rb3_latest_char_clip_driver_h,
+                 "intmNextEvent;//0x34DataArray*mEventData;//0x38",
+                 "latest CharClipDriver header exposes event fields");
+  ok &= missing(rb3_latest_char_clip_driver_cpp,
+                "CharClipDriver::CharClipDriver(Hmx::Object*owner,"
+                "constCharClipDriver&",
+                "checked CharClipDriver source lacks copy constructor body");
+  ok &= missing(rb3_latest_char_clip_driver_cpp,
+                "voidCharClipDriver::SetBeatOffset(",
+                "checked CharClipDriver source lacks SetBeatOffset body");
   ok &= contains(rb3_latest_char_clip_driver_cpp,
                  "CharClipDriver::CharClipDriver(Hmx::Object*owner,CharClip*clip,"
                  "intmask,floatblendwidth,CharClipDriver*next,floatf2,floatf3,"
@@ -21133,6 +21164,15 @@ int run_contract() {
                  "mAdvanceBeat(0),mClip(owner,clip),mNext(next),"
                  "mNextEvent(-1),mPlayMultipleClips(multclips)",
                  "latest CharClipDriver source exposes constructor initialized fields");
+  ok &= missing(rb3_latest_char_clip_driver_cpp,
+                "mRampIn(",
+                "checked CharClipDriver visible constructor does not initialize ramp field");
+  ok &= missing(rb3_latest_char_clip_driver_cpp,
+                "mBlendFrac(",
+                "checked CharClipDriver visible constructor does not initialize blend fraction");
+  ok &= missing(rb3_latest_char_clip_driver_cpp,
+                "mEventData(",
+                "checked CharClipDriver visible constructor does not initialize event data");
   ok &= contains(rb3_latest_char_clip_driver_cpp,
                  "if(mask&0xF0U)mPlayFlags=mPlayFlags&0xffffff0f|mask&0xf0U;"
                  "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
