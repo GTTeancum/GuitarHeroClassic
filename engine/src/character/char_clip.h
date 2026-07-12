@@ -238,6 +238,28 @@ struct SourceCharBoneDirClipTypeResource {
   std::string context_symbol;
 };
 
+struct SourceCharBoneDirInitClipTypeRow {
+  std::string clip_type;
+  bool has_resource = false;
+  std::string resource_name;
+  bool already_loaded = false;
+  bool load_succeeds = true;
+};
+
+struct SourceCharBoneDirInitPlan {
+  bool creates_char_resources = true;
+  bool reads_resource_path = true;
+  bool reads_char_clip_types = true;
+  bool skipped_missing_clip_types = false;
+  bool skipped_empty_resource_path = false;
+  bool registers_get_clip_types = false;
+  size_t scanned_rows = 0;
+  std::vector<std::string> skipped_existing_resources;
+  std::vector<std::string> load_requests;
+  std::vector<std::string> named_loaded_resources;
+  std::vector<std::string> failed_load_resources;
+};
+
 struct SourceCharBoneDirResourceLookupResult {
   bool clip_type_found = false;
   bool resource_field_found = false;
@@ -1495,6 +1517,10 @@ SourceCharBoneDirHandlerPlan source_char_bone_dir_handler_plan();
 SourceCharBoneDirRecenterPropSyncPlan
 source_char_bone_dir_recenter_prop_sync_plan();
 SourceCharBoneDirPropSyncPlan source_char_bone_dir_prop_sync_plan();
+SourceCharBoneDirInitPlan source_char_bone_dir_init_plan(
+    const std::string& resource_path,
+    bool has_clip_types,
+    const std::vector<SourceCharBoneDirInitClipTypeRow>& clip_types);
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

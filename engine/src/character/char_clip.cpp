@@ -545,6 +545,40 @@ SourceCharBoneDirPropSyncPlan source_char_bone_dir_prop_sync_plan() {
   return plan;
 }
 
+SourceCharBoneDirInitPlan source_char_bone_dir_init_plan(
+    const std::string& resource_path,
+    bool has_clip_types,
+    const std::vector<SourceCharBoneDirInitClipTypeRow>& clip_types) {
+  SourceCharBoneDirInitPlan plan;
+  if (!has_clip_types) {
+    plan.skipped_missing_clip_types = true;
+    return plan;
+  }
+  if (resource_path.empty()) {
+    plan.skipped_empty_resource_path = true;
+    return plan;
+  }
+
+  for (size_t source_index = 1; source_index < clip_types.size();
+       ++source_index) {
+    ++plan.scanned_rows;
+    const SourceCharBoneDirInitClipTypeRow& row = clip_types[source_index];
+    if (!row.has_resource) continue;
+    if (row.already_loaded) {
+      plan.skipped_existing_resources.push_back(row.resource_name);
+      continue;
+    }
+    plan.load_requests.push_back(resource_path + "/" + row.resource_name +
+                                 ".milo");
+    if (row.load_succeeds) {
+      plan.named_loaded_resources.push_back(row.resource_name);
+    } else {
+      plan.failed_load_resources.push_back(row.resource_name);
+    }
+  }
+  return plan;
+}
+
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

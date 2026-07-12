@@ -12706,6 +12706,11 @@ int run_contract() {
                  "source_char_bone_dir_prop_sync_plan();",
                  "native API exposes source CharBoneDir prop-sync helper");
   ok &= contains(char_clip_h,
+                 "SourceCharBoneDirInitPlansource_char_bone_dir_init_plan("
+                 "conststd::string&resource_path,boolhas_clip_types,"
+                 "conststd::vector<SourceCharBoneDirInitClipTypeRow>&clip_types);",
+                 "native API exposes source CharBoneDir Init helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
                  "intmove_context,intcontext_mask,boolinclude_delta_facing,"
@@ -12717,6 +12722,17 @@ int run_contract() {
                  "intcontext_mask=0;boolresource_found=false;"
                  "std::stringcontext_symbol;};",
                  "native API exposes source CharBoneDir clip type resource row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirInitClipTypeRow{"
+                 "std::stringclip_type;boolhas_resource=false;"
+                 "std::stringresource_name;boolalready_loaded=false;"
+                 "boolload_succeeds=true;};",
+                 "native API exposes source CharBoneDir Init clip type row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirInitPlan{"
+                 "boolcreates_char_resources=true;boolreads_resource_path=true;"
+                 "boolreads_char_clip_types=true;",
+                 "native API exposes source CharBoneDir Init plan row");
   ok &= contains(char_clip_h,
                  "structSourceCharBoneDirResourceLookupResult{"
                  "boolclip_type_found=false;boolresource_field_found=false;"
@@ -12940,6 +12956,24 @@ int run_contract() {
                  "plan.superclasses={\"ObjectDir\"};returnplan;}",
                  "native CharBoneDir prop-sync plan mirrors source rows");
   ok &= contains(char_clip,
+                 "SourceCharBoneDirInitPlansource_char_bone_dir_init_plan("
+                 "conststd::string&resource_path,boolhas_clip_types,"
+                 "conststd::vector<SourceCharBoneDirInitClipTypeRow>&clip_types){",
+                 "native CharBoneDir Init helper is implemented");
+  ok &= contains(char_clip,
+                 "if(!has_clip_types){plan.skipped_missing_clip_types=true;"
+                 "returnplan;}if(resource_path.empty()){"
+                 "plan.skipped_empty_resource_path=true;returnplan;}",
+                 "native CharBoneDir Init helper mirrors missing table/path gates");
+  ok &= contains(char_clip,
+                 "for(size_tsource_index=1;source_index<clip_types.size();"
+                 "++source_index)",
+                 "native CharBoneDir Init helper skips source row zero");
+  ok &= contains(char_clip,
+                 "plan.load_requests.push_back(resource_path+\"/\"+"
+                 "row.resource_name+\".milo\");",
+                 "native CharBoneDir Init helper builds source load path");
+  ok &= contains(char_clip,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
                  "intmove_context,intcontext_mask,boolinclude_delta_facing,"
@@ -13093,6 +13127,12 @@ int run_contract() {
                  "missing type, missing `(resource ...)` field, missing loaded resource",
                  "document records CharBoneDir resource warning branches");
   ok &= contains(doc,
+                 "`CharBoneDir::Init` creates the shared `char_resources` directory",
+                 "document records source CharBoneDir Init resource preload");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_init_plan` ports this startup preload",
+                 "document records native CharBoneDir Init helper boundary");
+  ok &= contains(doc,
                  "`CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols",
                  "document records source CharBoneDir GetContextFlags behavior");
   ok &= contains(doc,
@@ -13194,6 +13234,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_prop_sync_plan()",
                  "focused CharBones source test covers CharBoneDir prop-sync");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_init_plan(\"char/resources\",true,init_rows)",
+                 "focused CharBones source test covers CharBoneDir Init plan");
+  ok &= contains(char_bones_source_test,
+                 "\"CharBoneDirInitskipssourcerowzero\"",
+                 "focused CharBones source test covers CharBoneDir Init row-zero skip");
   ok &= contains(doc,
                  "`source_char_bone_dir_handler_plan`,",
                  "document records CharBoneDir handler import");
@@ -13286,6 +13332,29 @@ int run_contract() {
                  "mWeights.begin();it!=mWeights.end();++it){if(("
                  "*it).mContext&i)returnit;}return0;}",
                  "latest CharBone source defines FindWeight first match");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::Init(){FilePathTrackertracker(FileRoot());"
+                 "sResources=ObjectDir::Main()->New<ObjectDir>(\"char_resources\");",
+                 "latest CharBoneDir source defines Init resource dir");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "cfg->FindData(\"resource_path\",cc,false);"
+                 "sCharClipTypes=SystemConfig(\"objects\",\"CharClip\",\"types\");",
+                 "latest CharBoneDir source defines Init config reads");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "for(inti=1;i<sCharClipTypes->Size();i++){"
+                 "DataArray*foundarr=sCharClipTypes->Array(i)->FindArray("
+                 "\"resource\",false);",
+                 "latest CharBoneDir source defines Init row-one scan");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "ObjectDir*thedir=dynamic_cast<ObjectDir*>("
+                 "sResources->FindObject(foundsym.Str(),false));if(!thedir){"
+                 "constchar*milostr=MakeString(\"%s/%s.milo\",cc,foundsym);",
+                 "latest CharBoneDir source defines Init load path");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "MemPushHeap(_x);ObjectDir*loaded=DirLoader::LoadObjects("
+                 "FilePath(milostr),0,0);if(loaded)loaded->SetName("
+                 "foundsym.Str(),sResources);MemPopHeap();",
+                 "latest CharBoneDir source defines Init heap load and naming");
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "CharBoneDir::CharBoneDir():mRecenter(this),mMoveContext(0),"
                  "mBakeOutFacing(1),mContextFlags(0),mFilterContext(0),"

@@ -1889,6 +1889,17 @@ note, and all report `unreadBytes=0`.
     successful resource/context handoff. These helpers do not perform runtime
     MILO loading; they model the source table/resource decisions after the rows
     are known.
+  - `CharBoneDir::Init` creates the shared `char_resources` directory, reads
+    `objects/CharBoneDir resource_path`, reads `objects/CharClip types`, then
+    scans clip-type rows starting at source index one. For every row with a
+    `(resource ...)` array it skips resources already present under
+    `char_resources`; otherwise it builds `<resource_path>/<resource>.milo`,
+    loads it on the `char` heap, and names successful loads under
+    `char_resources`. The checked source leaves
+    `DataRegisterFunc("get_clip_types", GetClipTypes)` commented out. Native
+    `source_char_bone_dir_init_plan` ports this startup preload as a
+    deterministic plan only; it does not perform live resource loading or
+    replace the runtime `ObjectDir` ownership path.
   - `CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols only
     while `mContextFlags` is still the constructor integer node. The source
     scans `CharClip` type rows with `(resource ...)` entries matching the

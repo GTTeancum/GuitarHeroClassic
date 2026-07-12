@@ -804,6 +804,60 @@ int main() {
   ok &= expect_string(dir_prop_sync.superclasses[0], "ObjectDir",
                       "CharBoneDir prop sync superclass");
 
+  const SourceCharBoneDirInitPlan dir_init_missing_types =
+      source_char_bone_dir_init_plan("char/resources", false, {});
+  ok &= expect_int(dir_init_missing_types.creates_char_resources ? 1 : 0, 1,
+                   "CharBoneDir Init creates resource dir");
+  ok &= expect_int(
+      dir_init_missing_types.skipped_missing_clip_types ? 1 : 0, 1,
+      "CharBoneDir Init skips missing clip types");
+  ok &= expect_size(dir_init_missing_types.load_requests.size(), 0,
+                    "CharBoneDir Init missing types no loads");
+  const SourceCharBoneDirInitPlan dir_init_empty_path =
+      source_char_bone_dir_init_plan("", true,
+                                     {{"row0", true, "ignored"}});
+  ok &= expect_int(dir_init_empty_path.skipped_empty_resource_path ? 1 : 0, 1,
+                   "CharBoneDir Init skips empty resource path");
+  ok &= expect_size(dir_init_empty_path.load_requests.size(), 0,
+                    "CharBoneDir Init empty path no loads");
+  const std::vector<SourceCharBoneDirInitClipTypeRow> init_rows = {
+      {"row0", true, "row0_resource"},
+      {"no_resource", false, ""},
+      {"already", true, "shared_resource", true},
+      {"lead", true, "lead_resource", false, true},
+      {"failed", true, "failed_resource", false, false}};
+  const SourceCharBoneDirInitPlan dir_init =
+      source_char_bone_dir_init_plan("char/resources", true, init_rows);
+  ok &= expect_int(dir_init.reads_resource_path ? 1 : 0, 1,
+                   "CharBoneDir Init reads resource path");
+  ok &= expect_int(dir_init.reads_char_clip_types ? 1 : 0, 1,
+                   "CharBoneDir Init reads clip types");
+  ok &= expect_int(dir_init.registers_get_clip_types ? 1 : 0, 0,
+                   "CharBoneDir Init get_clip_types remains unregistered");
+  ok &= expect_size(dir_init.scanned_rows, 4,
+                    "CharBoneDir Init skips source row zero");
+  ok &= expect_size(dir_init.skipped_existing_resources.size(), 1,
+                    "CharBoneDir Init existing resource skip count");
+  ok &= expect_string(dir_init.skipped_existing_resources[0],
+                      "shared_resource",
+                      "CharBoneDir Init existing resource name");
+  ok &= expect_size(dir_init.load_requests.size(), 2,
+                    "CharBoneDir Init load request count");
+  ok &= expect_string(dir_init.load_requests[0],
+                      "char/resources/lead_resource.milo",
+                      "CharBoneDir Init load request path");
+  ok &= expect_string(dir_init.load_requests[1],
+                      "char/resources/failed_resource.milo",
+                      "CharBoneDir Init failed request path");
+  ok &= expect_size(dir_init.named_loaded_resources.size(), 1,
+                    "CharBoneDir Init names successful loads");
+  ok &= expect_string(dir_init.named_loaded_resources[0], "lead_resource",
+                      "CharBoneDir Init loaded resource name");
+  ok &= expect_size(dir_init.failed_load_resources.size(), 1,
+                    "CharBoneDir Init records failed load");
+  ok &= expect_string(dir_init.failed_load_resources[0], "failed_resource",
+                      "CharBoneDir Init failed resource name");
+
   std::vector<CharClip::OutputBone> dir_output_bones;
   dir_output_bones.push_back(output);
   std::vector<SourceCharBonesBone> dir_bones;
