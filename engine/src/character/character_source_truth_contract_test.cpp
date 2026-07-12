@@ -158,6 +158,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_collide_source_test.cpp"));
   const std::string event_trigger_source_test = compact(
       read_file(char_dir / "character_event_trigger_source_test.cpp"));
+  const std::string tex_source_test =
+      compact(read_file(char_dir / "character_tex_source_test.cpp"));
   const std::string face_servo_source_test =
       compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
   const std::string lip_sync_source_test =
@@ -10317,6 +10319,10 @@ int run_contract() {
                 "native must not guess WorldFx decoder");
   ok &= contains(char_mesh_h, "structRndTex{",
                  "native header exposes passive RndTex inventory row");
+  ok &= contains(char_mesh_h,
+                 "RndTexdecode_rnd_tex(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body);",
+                 "native header exposes focused RndTex decoder");
   ok &= contains(char_mesh_h, "std::vector<RndTex>tex_rows;",
                  "native header stores passive RndTex inventory");
   ok &= contains(char_mesh, "RndTexdecode_rnd_tex(",
@@ -10420,6 +10426,28 @@ int run_contract() {
                  "bind audit logs RndBitmap payload size validation");
   ok &= contains(bind_audit, "payloadHexPrefix=%sbitmapHeaderError=%s",
                  "bind audit logs cached bitmap payload prefix");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_tex_source_test"
+                 "character_tex_source_test.cpp)",
+                 "CMake registers focused RndTex source test");
+  ok &= contains(tex_source_test,
+                 "decode_rnd_tex(\"generated_render.tex\",tex)",
+                 "focused RndTex test decodes current source revision");
+  ok &= contains(tex_source_test,
+                 "expect_size(decoded.bitmap_expected_payload_bytes,148",
+                 "focused RndTex test covers cached bitmap payload size");
+  ok &= contains(tex_source_test,
+                 "decode_rnd_tex(\"hair.tex\",legacy)",
+                 "focused RndTex test decodes legacy cubemap suffix row");
+  ok &= contains(tex_source_test,
+                 "expect_string(legacy_decoded.filepath,\"hair_ga.tex\"",
+                 "focused RndTex test covers legacy cubemap suffix");
+  ok &= contains(tex_source_test,
+                 "decode_rnd_tex(\"old_header.tex\",old_header)",
+                 "focused RndTex test decodes revision-zero bitmap header");
+  ok &= contains(tex_source_test,
+                 "expect_size(old_header_decoded.bitmap_palette_bytes,1024",
+                 "focused RndTex test covers bitmap palette byte rule");
   ok &= missing(char_mesh, "OutfitLoader",
                 "native character graph must not promote OutfitLoader yet");
   ok &= missing(char_mesh, "WorldFx",

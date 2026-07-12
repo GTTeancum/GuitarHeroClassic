@@ -2803,6 +2803,8 @@ CharLookAt decode_lookat(const std::string& entry_name,
                          const std::vector<uint8_t>& body);
 CharEyes decode_eyes(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
+RndTex decode_rnd_tex(const std::string& entry_name,
+                      const std::vector<uint8_t>& body);
 
 // Load + decode a whole BandCharacter MILO from a PS2 ARK (runtime-native: read
 // the .milo_ps2 from the ARK, decode in memory — no intermediate extraction).

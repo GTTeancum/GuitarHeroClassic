@@ -1396,6 +1396,8 @@ EventTrigger decode_event_trigger(const std::string& entry_name,
   return trigger;
 }
 
+}  // namespace
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
@@ -1517,6 +1519,8 @@ RndTex decode_rnd_tex(const std::string& entry_name,
   }
   return tex;
 }
+
+namespace {
 
 CharDriver decode_driver_body(const std::string& entry_name, Reader& r,
                               bool midi) {

@@ -996,6 +996,12 @@ the cached bitmap payloads. The inventory includes two stock mip textures
 (`metal_keyboard_mip.tex` and `metal_singer_belt_mip.tex`), and all 160 stock
 rows report `payloadSizeMatch=1`.
 
+`ghogx_character_tex_source_test` builds synthetic source-shaped rows for a
+current revision cached texture, a legacy cubemap-suffix texture, and a
+revision-0 bitmap header. It proves the native decoder follows
+`RndTex::PreLoad`/`PostLoad` and `RndBitmap::LoadHeader`/payload sizing without
+touching renderer upload, material sorting, or runtime texture selection.
+
 ## Generic Object Row Authority
 
 Native now decodes generic `Object` rows as passive source inventory using the
