@@ -6095,8 +6095,11 @@ int main() {
                  "GHOGX_LOG_MESH_ANIM_LOCAL",
                  "renderer can log source-local TransAnim rows for gear/fan diagnostics");
   ok &= contains(renderer_c,
-                 "mesh_anim_localmesh=%starget=%ssample=%zu",
-                 "source-local TransAnim diagnostics identify the drawn mesh and animated target");
+                 "mesh_anim_localmesh=%starget=%skind=%sparent=%s",
+                 "source-local TransAnim diagnostics identify the drawn mesh, animated target, source type, and parent");
+  ok &= contains(renderer_c,
+                 "target_kind_for(target),parent_for(target)",
+                 "source-local TransAnim diagnostics resolve authored target type and parent at the sampled node");
   ok &= contains(renderer_c,
                  "base_scale=(%.6f%.6f%.6f)",
                  "source-local TransAnim diagnostics expose MakeScale-style base scale");

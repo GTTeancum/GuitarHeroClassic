@@ -796,6 +796,7 @@ float row_len16(const std::array<float, 16>& m, size_t row) {
 
 void log_mesh_anim_local_rows(
     const std::string& mesh_name, const std::string& target_name,
+    const std::string& target_kind, const std::string& target_parent,
     const std::array<float, 16>& base_local,
     const std::array<float, 16>& sampled_local,
     const MiloSceneRenderer::MeshTransformSample* applied_sample,
@@ -824,7 +825,8 @@ void log_mesh_anim_local_rows(
                     : std::array<float, 3>{1.0f, 1.0f, 1.0f};
   std::fprintf(
       stderr,
-      "[milo_scene] mesh_anim_local mesh=%s target=%s sample=%zu "
+      "[milo_scene] mesh_anim_local mesh=%s target=%s kind=%s parent=%s "
+      "sample=%zu "
       "offset=%d active=%d frame=%.3f sample_pos=%d:%d sample_rot=%d:%d "
       "quat=(%.6f %.6f %.6f %.6f) sample_scale=%d:%d "
       "scale_vec=(%.6f %.6f %.6f) base_scale=(%.6f %.6f %.6f) "
@@ -832,7 +834,8 @@ void log_mesh_anim_local_rows(
       "base_row0=(%.6f %.6f %.6f) base_row1=(%.6f %.6f %.6f) "
       "base_row2=(%.6f %.6f %.6f) sampled_row0=(%.6f %.6f %.6f) "
       "sampled_row1=(%.6f %.6f %.6f) sampled_row2=(%.6f %.6f %.6f)\n",
-      mesh_name.c_str(), target_name.c_str(), sample, has_offset ? 1 : 0,
+      mesh_name.c_str(), target_name.c_str(), target_kind.c_str(),
+      target_parent.c_str(), sample, has_offset ? 1 : 0,
       has_active_anim ? 1 : 0, active_frame, has_pos, abs_pos, has_rot,
       abs_rot, quat[0], quat[1], quat[2], quat[3], has_scale, abs_scale,
       scale[0], scale[1], scale[2], base_scale[0], base_scale[1],
@@ -3280,6 +3283,22 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         m.name == debug_venue->highlight_mesh;
     if (!would_reach_draw && !debug_source_pick && !debug_source_highlighted)
       continue;
+    auto target_kind_for = [&](const std::string& name) -> const char* {
+      if (m.name == name) return "Mesh";
+      for (const auto& mesh : scene_.meshes) {
+        if (mesh.name == name) return "Mesh";
+      }
+      for (const auto& trans : scene_.transes) {
+        if (trans.name == name) return "Trans";
+      }
+      for (const auto& group : scene_.groups) {
+        if (group.name == name) return "Group";
+      }
+      for (const auto& light : scene_.lights) {
+        if (light.name == name) return "Light";
+      }
+      return "Unknown";
+    };
     auto parent_for = [&](const std::string& name) -> std::string {
       for (const auto& group : scene_.groups) {
         if (group.name == name) return group.parent;
@@ -3434,8 +3453,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           }
           if (log_local) {
             log_mesh_anim_local_rows(
-                m.name, target, base_local, sampled_local, applied_sample,
-                active_frame, has_offset, has_active_anim);
+                m.name, target, target_kind_for(target), parent_for(target),
+                base_local, sampled_local, applied_sample, active_frame,
+                has_offset, has_active_anim);
           }
           current_world =
               mul16(mul16(sampled_local, affine_inverse16(base_local)),
