@@ -3987,6 +3987,14 @@ Fresh proof at
 records 138 opaque stock rows across the 24-character base set: 19 `CharWalk`,
 20 `OutfitLoader`, and 99 `WorldFx`, all tagged
 `note=no-source-loader-body`.
+The same boundary was rechecked against the current local stock asset set at
+`engine/out/source_truth_object_inventory_20260712/stock_character_type_inventory.log`:
+24 base character MILOs were scanned, the opaque rows are still exactly 19
+`CharWalk`, 20 `OutfitLoader`, and 99 `WorldFx`, and the source-backed nearby
+controller rows remain visible as 31 `CharHair`, 38 `CharIKHand`, 39
+`CharForeTwist`, and 48 `CharUpperTwist` rows. These counts are stock evidence,
+not permission to import a runtime body that ihatecompvir's checked sources do
+not expose.
 
 The local stock-asset audit log at
 `analysis/ihatecompvir_source_truth_20260710/stock_hair_bone_inventory.log`

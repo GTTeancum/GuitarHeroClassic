@@ -13454,6 +13454,23 @@ int run_contract() {
                  "document records opaque row proof counts");
   ok &= contains(doc, "`note=no-source-loader-body`",
                  "document records source-fenced opaque row tag");
+  ok &= contains(doc,
+                 "source_truth_object_inventory_20260712/"
+                 "stock_character_type_inventory.log",
+                 "document cites refreshed stock object inventory proof log");
+  ok &= contains(doc,
+                 "24 base character MILOs were scanned, the opaque rows are "
+                 "still exactly 19\n`CharWalk`, 20 `OutfitLoader`, and 99 "
+                 "`WorldFx`",
+                 "document records refreshed opaque row recheck counts");
+  ok &= contains(doc,
+                 "controller rows remain visible as 31 `CharHair`, 38 "
+                 "`CharIKHand`, 39\n`CharForeTwist`, and 48 `CharUpperTwist`",
+                 "document records refreshed source-backed controller counts");
+  ok &= contains(doc,
+                 "not permission to import a runtime body that "
+                 "ihatecompvir's checked sources do\nnot expose",
+                 "document fences refreshed inventory from fabricated imports");
   ok &= contains(doc, "`CharPollGroup`: zero stock rows",
                  "document records stock CharPollGroup absence");
   ok &= contains(doc,
