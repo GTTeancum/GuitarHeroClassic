@@ -352,6 +352,51 @@ std::array<float, 3> local_row_scales(const std::array<float, 16>& local) {
   return scale;
 }
 
+float local_basis_determinant(const std::array<float, 16>& local) {
+  const float cross01[3] = {
+      local[1] * local[6] - local[2] * local[5],
+      local[2] * local[4] - local[0] * local[6],
+      local[0] * local[5] - local[1] * local[4],
+  };
+  return cross01[0] * local[8] + cross01[1] * local[9] +
+         cross01[2] * local[10];
+}
+
+void normalize_row3(float row[3], const float fallback[3]) {
+  const float len =
+      std::sqrt(row[0] * row[0] + row[1] * row[1] + row[2] * row[2]);
+  if (std::isfinite(len) && len > 0.000001f) {
+    const float inv = 1.0f / len;
+    row[0] *= inv;
+    row[1] *= inv;
+    row[2] *= inv;
+    return;
+  }
+  row[0] = fallback[0];
+  row[1] = fallback[1];
+  row[2] = fallback[2];
+}
+
+void source_normalized_rows(const std::array<float, 16>& local,
+                            float rot[3][3]) {
+  rot[1][0] = local[4];
+  rot[1][1] = local[5];
+  rot[1][2] = local[6];
+  const float y_fallback[3] = {0.0f, 1.0f, 0.0f};
+  normalize_row3(rot[1], y_fallback);
+
+  const float src_z[3] = {local[8], local[9], local[10]};
+  rot[0][0] = rot[1][1] * src_z[2] - rot[1][2] * src_z[1];
+  rot[0][1] = rot[1][2] * src_z[0] - rot[1][0] * src_z[2];
+  rot[0][2] = rot[1][0] * src_z[1] - rot[1][1] * src_z[0];
+  const float x_fallback[3] = {1.0f, 0.0f, 0.0f};
+  normalize_row3(rot[0], x_fallback);
+
+  rot[2][0] = rot[0][1] * rot[1][2] - rot[0][2] * rot[1][1];
+  rot[2][1] = rot[0][2] * rot[1][0] - rot[0][0] * rot[1][2];
+  rot[2][2] = rot[0][0] * rot[1][1] - rot[0][1] * rot[1][0];
+}
+
 void local_normalized_rows(const std::array<float, 16>& local,
                            float rot[3][3]) {
   const auto scale = local_row_scales(local);
@@ -807,6 +852,12 @@ void log_mesh_anim_local_rows(
   if (sample != 1 && sample % 30 != 0) return;
   const auto base_scale = local_row_scales(base_local);
   const auto sampled_scale = local_row_scales(sampled_local);
+  const float base_det = local_basis_determinant(base_local);
+  const float sampled_det = local_basis_determinant(sampled_local);
+  float source_base_rot[3][3];
+  float source_sampled_rot[3][3];
+  source_normalized_rows(base_local, source_base_rot);
+  source_normalized_rows(sampled_local, source_sampled_rot);
   const int has_pos =
       applied_sample && applied_sample->has_translation ? 1 : 0;
   const int abs_pos =
@@ -831,6 +882,10 @@ void log_mesh_anim_local_rows(
       "quat=(%.6f %.6f %.6f %.6f) sample_scale=%d:%d "
       "scale_vec=(%.6f %.6f %.6f) base_scale=(%.6f %.6f %.6f) "
       "sampled_scale=(%.6f %.6f %.6f) "
+      "base_det=%.6f sampled_det=%.6f "
+      "source_norm_base_row2=(%.6f %.6f %.6f) "
+      "source_norm_sampled_row0=(%.6f %.6f %.6f) "
+      "source_norm_sampled_row2=(%.6f %.6f %.6f) "
       "base_row0=(%.6f %.6f %.6f) base_row1=(%.6f %.6f %.6f) "
       "base_row2=(%.6f %.6f %.6f) sampled_row0=(%.6f %.6f %.6f) "
       "sampled_row1=(%.6f %.6f %.6f) sampled_row2=(%.6f %.6f %.6f)\n",
@@ -840,6 +895,11 @@ void log_mesh_anim_local_rows(
       abs_rot, quat[0], quat[1], quat[2], quat[3], has_scale, abs_scale,
       scale[0], scale[1], scale[2], base_scale[0], base_scale[1],
       base_scale[2], sampled_scale[0], sampled_scale[1], sampled_scale[2],
+      base_det, sampled_det, source_base_rot[2][0], source_base_rot[2][1],
+      source_base_rot[2][2], source_sampled_rot[0][0],
+      source_sampled_rot[0][1], source_sampled_rot[0][2],
+      source_sampled_rot[2][0], source_sampled_rot[2][1],
+      source_sampled_rot[2][2],
       base_local[0], base_local[1], base_local[2], base_local[4],
       base_local[5], base_local[6], base_local[8], base_local[9],
       base_local[10], sampled_local[0], sampled_local[1],

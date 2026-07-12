@@ -6124,6 +6124,16 @@ int main() {
                  "if(det_sign<0.0f)scale[2]=-scale[2];",
                  "renderer local scale extraction preserves the source MakeScale determinant sign");
   ok &= contains(renderer_c,
+                 "voidsource_normalized_rows(conststd::array<float,16>&local,"
+                 "floatrot[3][3])",
+                 "renderer diagnostics can rebuild ihatecompvir-style normalized local basis rows");
+  ok &= contains(renderer_c,
+                 "rot[0][0]=rot[1][1]*src_z[2]-rot[1][2]*src_z[1];",
+                 "source-normalized diagnostics derive X from authored Y cross Z");
+  ok &= contains(renderer_c,
+                 "rot[2][0]=rot[0][1]*rot[1][2]-rot[0][2]*rot[1][1];",
+                 "source-normalized diagnostics derive Z from rebuilt X cross Y");
+  ok &= contains(renderer_c,
                  "GHOGX_LOG_MESH_ANIM_WORLD",
                  "renderer can log final animated venue mesh world rows");
   ok &= contains(renderer_c,
@@ -6141,6 +6151,15 @@ int main() {
   ok &= contains(renderer_c,
                  "sampled_scale=(%.6f%.6f%.6f)",
                  "source-local TransAnim diagnostics expose sampled local signed scale");
+  ok &= contains(renderer_c,
+                 "base_det=%.6fsampled_det=%.6f",
+                 "source-local TransAnim diagnostics expose local determinant signs");
+  ok &= contains(renderer_c,
+                 "source_norm_sampled_row0=(%.6f%.6f%.6f)",
+                 "source-local TransAnim diagnostics expose ihatcompvir-style sampled X axis");
+  ok &= contains(renderer_c,
+                 "source_norm_sampled_row2=(%.6f%.6f%.6f)",
+                 "source-local TransAnim diagnostics expose ihatcompvir-style sampled facing axis");
   ok &= contains(renderer_c,
                  "sample_rot=%d:%d\"\"quat=(%.6f%.6f%.6f%.6f)",
                  "source-local TransAnim diagnostics expose sampled quaternion absoluteness");
