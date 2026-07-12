@@ -1410,7 +1410,14 @@ int run_contract() {
                  "for(inti=0;i<4;i++){boneTransforms.Add(newBoneTransform());"
                  "boneTransforms[i].name=Symbol.Read(reader);}for(inti=0;i<4;i++){"
                  "boneTransforms[i].transform=boneTransforms[i].transform.Read(reader);}",
-                 "RndMesh rev<33 old-style four names then four transforms");
+                 "RndMesh rev<33 raw four names then four transforms");
+  ok &= contains(rb3_mesh_cpp,
+                 "for(inti=0;i<4;i++){if(!mBones[i].mBone){"
+                 "mBones.resize(i);break;}}",
+                 "RB3 RndMesh runtime trims active bones at first null slot");
+  ok &= contains(rb3_mesh_cpp,
+                 "RemoveInvalidBones();",
+                 "RB3 RndMesh runtime removes invalid active bones");
   ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("
@@ -1428,9 +1435,17 @@ int run_contract() {
                  "r.pos=bone_probe;",
                  "native RndMesh keeps source bone-transform presence gate");
   ok &= contains(char_mesh,
-                 "for(intbi=0;bi<4;++bi){mesh.bone_palette.push_back(r.str());}"
-                 "for(intbi=0;bi<4;++bi){mesh.bind.push_back(r.matrix());}",
-                 "native keeps GH2 four source palette slots and four offsets");
+                 "for(intbi=0;bi<4;++bi){mesh.raw_bone_palette.push_back(r.str());}"
+                 "for(intbi=0;bi<4;++bi){mesh.raw_bind.push_back(r.matrix());}",
+                 "native keeps GH2 raw four source palette slots and four offsets");
+  ok &= contains(char_mesh,
+                 "voidapply_source_rndmesh_active_bones(SkinnedMesh&mesh,"
+                 "constCharacter*character)",
+                 "native exposes source runtime active palette helper");
+  ok &= contains(char_mesh,
+                 "if(bone_name.empty())break;if(character&&!"
+                 "character->has_transform(bone_name))break;",
+                 "native active palette mirrors source null ObjPtr trimming");
   ok &= contains(char_mesh_h,
                  "structRndMeshGroupSection{std::vector<int32_t>sections;"
                  "std::vector<uint16_t>vert_offsets;};",
@@ -1449,7 +1464,7 @@ int run_contract() {
                  "decode_skinned_mesh(de.name,b,dir.dir_version);",
                  "native passes source parent dir revision into Mesh decoder");
   ok &= missing(char_mesh, "erase(std::remove",
-                "native must not trim empty source palette rows");
+                "native must not filter raw palette rows by remove/erase");
   ok &= missing(renderer, "is_terminal_leg_overlay_duplicate",
                 "renderer must not hide meshes through invented leg duplicate rule");
   ok &= missing(renderer, "is_hidden_numbered_hair_variant",

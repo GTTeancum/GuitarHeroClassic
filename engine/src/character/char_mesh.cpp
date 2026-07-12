@@ -216,6 +216,22 @@ bool source_power_of_two(int32_t width, int32_t height) {
   return source_power_of_two_dim(width) && source_power_of_two_dim(height);
 }
 
+void apply_source_rndmesh_active_bones(SkinnedMesh& mesh,
+                                       const Character* character) {
+  mesh.bone_palette.clear();
+  mesh.bind.clear();
+  const size_t slot_count =
+      std::min(mesh.raw_bone_palette.size(), mesh.raw_bind.size());
+  const size_t max_bones = std::min<size_t>(slot_count, 40);
+  for (size_t i = 0; i < max_bones; ++i) {
+    const std::string& bone_name = mesh.raw_bone_palette[i];
+    if (bone_name.empty()) break;
+    if (character && !character->has_transform(bone_name)) break;
+    mesh.bone_palette.push_back(bone_name);
+    mesh.bind.push_back(mesh.raw_bind[i]);
+  }
+}
+
 void source_insert_tex_suffix(std::string& path, const char* suffix) {
   const size_t dot = path.find('.');
   if (dot == std::string::npos) return;
@@ -383,22 +399,23 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
             mesh.error = "bone count exceeds supported range";
             return mesh;
           }
-          mesh.bone_palette.reserve(bone_count);
-          mesh.bind.reserve(bone_count);
+          mesh.raw_bone_palette.reserve(bone_count);
+          mesh.raw_bind.reserve(bone_count);
           for (uint32_t bi = 0; bi < bone_count; ++bi) {
-            mesh.bone_palette.push_back(r.str());
-            mesh.bind.push_back(r.matrix());
+            mesh.raw_bone_palette.push_back(r.str());
+            mesh.raw_bind.push_back(r.matrix());
           }
         } else {
-          mesh.bone_palette.reserve(4);
-          mesh.bind.reserve(4);
+          mesh.raw_bone_palette.reserve(4);
+          mesh.raw_bind.reserve(4);
           for (int bi = 0; bi < 4; ++bi) {
-            mesh.bone_palette.push_back(r.str());
+            mesh.raw_bone_palette.push_back(r.str());
           }
           for (int bi = 0; bi < 4; ++bi) {
-            mesh.bind.push_back(r.matrix());
+            mesh.raw_bind.push_back(r.matrix());
           }
         }
+        apply_source_rndmesh_active_bones(mesh, nullptr);
       }
     }
 
@@ -4915,6 +4932,9 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
         std::fprintf(stderr, "[char]   %s '%s' decode: %s\n", de.type.c_str(),
                      de.name.c_str(), ex.what());
       }
+    }
+    for (SkinnedMesh& mesh : out.meshes) {
+      apply_source_rndmesh_active_bones(mesh, &out);
     }
     std::fprintf(stderr,
                  "[char] %s: %zu meshes (%d ok / %d fail), %zu bones, %zu mat, "

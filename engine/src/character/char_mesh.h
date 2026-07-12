@@ -38,9 +38,9 @@
 //     --- skinning tail (this is what static meshes lack) ---
 //     ...   groupSizes / patch data
 //     bones : for rev < 33, exactly four old-style RndMesh::BoneTransform
-//             Symbol rows followed by four transform rows; empty Symbol rows
-//             remain real source slots, but unresolved slots do not contribute
-//             to skinning.
+//             Symbol rows followed by four transform rows; these raw rows are
+//             kept for audit, then converted to the source runtime active bone
+//             list by trimming at the first null/unresolved row.
 //     bind  : one 3x4 RndBone offset row per source palette slot.
 //     groups: for last-gen parent dirs before revision 25, source GroupSection
 //             rows follow when groupSizes is non-empty and starts above zero.
@@ -50,8 +50,9 @@
 //
 // IMPORTANT (bind pose): ihatecompvir's RB3 RndMesh::SetBone computes each
 // offset row as mesh WorldXfm * inverse(bone WorldXfm). The render path
-// consumes it as vertex * offset * current bone WorldXfm, preserving unresolved
-// source slots instead of reshaping the palette.
+// consumes it as vertex * offset * current bone WorldXfm. The decoder keeps
+// raw MILO bone-transform rows for audit, while the active palette mirrors
+// source runtime ObjPtr semantics by trimming at the first null/unresolved row.
 
 #pragma once
 
@@ -100,11 +101,16 @@ struct SkinnedMesh {
   std::vector<SkinVertex> verts;
   std::vector<uint16_t> indices;  // face_count*3
 
-  // Bone palette: weight slot i of every vertex refers to bone_palette[i].
+  // Raw MILO bone-transform rows, before runtime ObjPtr/null trimming.
+  std::vector<std::string> raw_bone_palette;
+  std::vector<milo_scene::Xfm> raw_bind;
+
+  // Runtime-active bone palette. Weight slot i of every vertex refers to
+  // bone_palette[i] after source-style null/unresolved row trimming.
   std::vector<std::string> bone_palette;
-  // One RndBone offset row per palette bone. ihatecompvir's RB3 RndMesh source
-  // computes this as mesh WorldXfm * inverse(bone WorldXfm), and skinning
-  // consumes it as v * offset * current bone WorldXfm.
+  // One RndBone offset row per active palette bone. ihatecompvir's RB3 RndMesh
+  // source computes this as mesh WorldXfm * inverse(bone WorldXfm), and
+  // skinning consumes it as v * offset * current bone WorldXfm.
   std::vector<milo_scene::Xfm> bind;
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};

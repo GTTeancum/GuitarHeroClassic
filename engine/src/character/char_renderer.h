@@ -87,8 +87,9 @@ class CharRenderer {
 // Linear-blend skinning of one mesh into world space. Source RndMesh rows are
 // consumed as RB3 runtime-authored offsets:
 // offset_i = mesh_world_bind * inverse(bone_world_bind_i). The native path uses
-// skinned = sum_i w_i * (v * offset_i * bone_world_curr_i). Empty or unresolved
-// palette slots remain source slots but do not contribute.
+// skinned = sum_i w_i * (v * offset_i * bone_world_curr_i). Raw MILO palette
+// rows stay on SkinnedMesh for audit; active skinning uses the source runtime
+// palette after null/unresolved rows are trimmed.
 void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                   std::vector<std::array<float, 3>>& out_pos,
                   std::vector<std::array<float, 3>>& out_nrm);

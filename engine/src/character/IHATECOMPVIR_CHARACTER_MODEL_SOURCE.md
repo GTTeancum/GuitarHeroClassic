@@ -38,7 +38,7 @@ records the upstream commits for the copied files:
 | Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, and revision defaults; deformation and mesh hookup remain unwired without stock rows. |
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
-| Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
+| Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser keeps raw source rows; runtime-active skinning palette follows RB3 `RndMesh` null/invalid bone trimming. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
@@ -446,9 +446,9 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `draw.Read`, material, geom owner, vertices, faces, group sizes, then bone
     transforms.
   - GH2-era meshes are below revision 33. When the source presence check sees a
-    bone-transform block, it is exactly four bone-name symbols followed by
-    exactly four transform matrices. Empty names remain source slots; they are
-    not evidence to reshape or renumber the palette.
+    bone-transform block, the raw MILO rows are exactly four bone-name symbols
+    followed by exactly four transform matrices. Native keeps those raw rows
+    for audit.
   - For last-gen parent directories before revision 25, `RndMesh.Read` then
     reads one `GroupSection` per `groupSizes` row when `groupSizes[0] > 0`.
     Each `GroupSection` is `sectionCount`, `vertCount`, signed section indices,
@@ -459,7 +459,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     it inverts `t->WorldXfm()` and calls `Multiply(WorldXfm(), inverseBone,
     mBones[i].mOffset)`.
   - GH2-era `RndMesh::PostLoad` reads the same four source bone slots and four
-    offsets that the native decoder preserves.
+    offsets that the native decoder preserves as raw rows, then trims the
+    active runtime bone list at the first null bone pointer and calls
+    `RemoveInvalidBones`. Native therefore keeps `raw_bone_palette` /
+    `raw_bind` for row proof, while `bone_palette` / `bind` follow the
+    runtime-active source list used for skinning.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

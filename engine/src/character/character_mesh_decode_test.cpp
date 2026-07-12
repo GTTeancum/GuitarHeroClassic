@@ -258,10 +258,13 @@ int main() {
   CHECK(mesh.indices.size() == 3);
   CHECK(mesh.group_sizes.size() == 1);
   CHECK(mesh.group_sizes[0] == 1);
-  CHECK(mesh.bone_palette.size() == 4);
+  CHECK(mesh.raw_bone_palette.size() == 4);
+  CHECK(mesh.raw_bone_palette[0] == "bone_head.mesh");
+  CHECK(mesh.raw_bone_palette[1].empty());
+  CHECK(mesh.raw_bind.size() == 4);
+  CHECK(mesh.bone_palette.size() == 1);
   CHECK(mesh.bone_palette[0] == "bone_head.mesh");
-  CHECK(mesh.bone_palette[1].empty());
-  CHECK(mesh.bind.size() == 4);
+  CHECK(mesh.bind.size() == 1);
   CHECK(approx(mesh.bind[0].pos[0], 10.0f));
   CHECK(mesh.group_sections.size() == 1);
   CHECK(mesh.group_sections[0].sections.size() == 2);
@@ -607,7 +610,8 @@ int main() {
   CHECK(approx(preserved_len_strand.points[0].pos[1], 2.0f));
   CHECK(approx(preserved_len_strand.points[0].pos[2], 3.0f));
 
-  std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu\n",
-              mesh.group_sections.size(), mesh.bone_palette.size());
+  std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu raw=%zu\n",
+              mesh.group_sections.size(), mesh.bone_palette.size(),
+              mesh.raw_bone_palette.size());
   return 0;
 }
