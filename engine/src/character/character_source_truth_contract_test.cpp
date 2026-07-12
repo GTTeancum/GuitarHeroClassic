@@ -7410,6 +7410,11 @@ int run_contract() {
                  "floatblend_override_pct=1.0f;boolhas_default_clip=false;};",
                  "native exposes source CharDriverMidi default state");
   ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiParserDecision{"
+                 "boolused_default_clip=false;boolcall_group_get_clip=false;"
+                 "intgroup_clip_flags=0;",
+                 "native exposes source CharDriverMidi group clip flag decision");
+  ok &= contains(char_clip_h,
                  "SourceCharDriverMidiStatesource_char_driver_midi_default_state();",
                  "native exposes source CharDriverMidi constructor helper");
   ok &= contains(char_clip_h,
@@ -7548,6 +7553,10 @@ int run_contract() {
                  "!midi_state.unk89&&midi_state.has_default_clip;",
                  "native CharDriverMidi group helper ports missing group/default gate");
   ok &= contains(char_clip,
+                 "if(!decision.used_default_clip){decision.call_group_get_clip=true;"
+                 "decision.group_clip_flags=midi_state.clip_flags;}",
+                 "native CharDriverMidi group helper records source GetClip flags");
+  ok &= contains(char_clip,
                  "decision.requested_blend_width=-blend;decision.old_beat=1.0e30f;"
                  "decision.start=0.0f;decision.assigned_blend_width=blend*"
                  "midi_state.blend_override_pct;",
@@ -7612,6 +7621,12 @@ int run_contract() {
                  "source_char_driver_midi_on_parser_group(",
                  "focused clip driver test covers CharDriverMidi parser group helper");
   ok &= contains(clip_driver_flags_test,
+                 "group_realtime.group_clip_flags!=0x1234",
+                 "focused clip driver test covers CharDriverMidi group clip flags");
+  ok &= contains(clip_driver_flags_test,
+                 "!group_default.used_default_clip||group_default.call_group_get_clip",
+                 "focused clip driver test covers CharDriverMidi default group branch");
+  ok &= contains(clip_driver_flags_test,
                  "source_char_driver_midi_load_plan(2)",
                  "focused clip driver test covers CharDriverMidi legacy load plan");
   ok &= contains(clip_driver_flags_test,
@@ -7639,6 +7654,9 @@ int run_contract() {
                  "Native `source_char_driver_midi_default_state`,",
                  "document records native CharDriverMidi source helper slice");
   ok &= contains(doc,
+                 "`OnMidiParserGroup` use of `grp->GetClip(mClipFlags)`",
+                 "document records CharDriverMidi group clip flag behavior");
+  ok &= contains(doc,
                  "Native `source_char_driver_midi_copy_plan` records the checked source copy",
                  "document records native CharDriverMidi copy helper slice");
   ok &= contains(doc,
@@ -7651,7 +7669,8 @@ int run_contract() {
                  "The source copy body does not name `mClipFlags`",
                  "document records CharDriverMidi copy omission boundary");
   ok &= contains(doc,
-                 "group-message assignment of the returned node's `mBlendWidth`",
+                 "group-message assignment of the returned\n"
+                 "    node's `mBlendWidth`",
                  "document records CharDriverMidi group blend assignment");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharDriver.cpp` and "

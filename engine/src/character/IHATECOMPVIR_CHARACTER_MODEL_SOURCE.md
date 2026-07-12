@@ -1712,7 +1712,9 @@ note, and all report `unreadBytes=0`.
     decisions without activating the runtime scheduler: constructor defaults,
     parser sink add/remove decisions, clip-flag updates, default-clip selection
     when `!unk89 && mDefaultClip`, normal and real-time blend-width conversion,
-    and group-message assignment of the returned node's `mBlendWidth`.
+    `OnMidiParserGroup` use of `grp->GetClip(mClipFlags)` when the default
+    clip branch is not active, and group-message assignment of the returned
+    node's `mBlendWidth`.
   - Native `source_char_driver_midi_copy_plan` records the checked source copy
     list: copy `CharDriver`, `unk89`, `mParser`, `mFlagParser`, and
     `mBlendOverridePct`. The source copy body does not name `mClipFlags`, so

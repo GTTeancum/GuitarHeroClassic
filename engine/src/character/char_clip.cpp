@@ -3119,6 +3119,10 @@ SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
   SourceCharDriverMidiParserDecision decision;
   if (!found_group) return decision;
   decision.used_default_clip = !midi_state.unk89 && midi_state.has_default_clip;
+  if (!decision.used_default_clip) {
+    decision.call_group_get_clip = true;
+    decision.group_clip_flags = midi_state.clip_flags;
+  }
   if (!decision.used_default_clip && !found_group_clip) return decision;
   float blend = message_float;
   if (clip_uses_real_time) blend *= average_beats_per_second;

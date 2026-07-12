@@ -933,6 +933,8 @@ struct SourceCharDriverMidiExitDecision {
 
 struct SourceCharDriverMidiParserDecision {
   bool used_default_clip = false;
+  bool call_group_get_clip = false;
+  int group_clip_flags = 0;
   bool request_play = false;
   int play_flags = 0;
   float requested_blend_width = 0.0f;

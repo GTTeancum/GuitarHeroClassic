@@ -684,18 +684,30 @@ bool expect_driver_midi_helpers() {
   const ghogx::character::SourceCharDriverMidiParserDecision group_missing =
       ghogx::character::source_char_driver_midi_on_parser_group(
           midi, false, true, false, 0.5f, 2.0f);
-  if (group_missing.request_play) {
+  if (group_missing.request_play || group_missing.call_group_get_clip) {
     std::cerr << "driver MIDI parser group played missing group\n";
     ok = false;
   }
   const ghogx::character::SourceCharDriverMidiParserDecision group_realtime =
       ghogx::character::source_char_driver_midi_on_parser_group(
           midi, true, true, true, 0.5f, 4.0f);
-  if (!group_realtime.request_play ||
+  if (!group_realtime.call_group_get_clip ||
+      group_realtime.group_clip_flags != 0x1234 ||
+      !group_realtime.request_play ||
       !nearf(group_realtime.requested_blend_width, -2.0f) ||
       !nearf(group_realtime.old_beat, 1.0e30f) ||
       !nearf(group_realtime.assigned_blend_width, 1.0f)) {
     std::cerr << "driver MIDI parser group blend mismatch\n";
+    ok = false;
+  }
+  midi.unk89 = false;
+  const ghogx::character::SourceCharDriverMidiParserDecision group_default =
+      ghogx::character::source_char_driver_midi_on_parser_group(
+          midi, true, false, false, 0.25f, 4.0f);
+  if (!group_default.used_default_clip || group_default.call_group_get_clip ||
+      !group_default.request_play ||
+      !nearf(group_default.assigned_blend_width, 0.125f)) {
+    std::cerr << "driver MIDI parser group default-clip branch mismatch\n";
     ok = false;
   }
   return ok;
