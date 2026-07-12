@@ -71,6 +71,7 @@ writer body.
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
 | Mesh deformation rows | `rb3-latest/src/system/rndobj/MeshDeform.cpp` / `MeshDeform.h` | Native helper ports visible defaults, vertex-array resize/clear, `SetMesh`, and handler rows; load/copy/reskin bodies remain fenced because they are declared but not visible in the checked source. |
+| Multi-mesh instancing/proxy rows | `rb3-latest/src/system/rndobj/MultiMesh.cpp` / `MultiMesh.h`, `MultiMeshProxy.cpp` / `MultiMeshProxy.h` | Native helper ports visible defaults, load/copy, `SetMesh`, handlers, prop-sync, proxy draw/update, and proxy failure rows; it does not create live instanced rendering or proxy ownership. |
 | Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, revision defaults, and the source `AddBoneChildren` bone-prefix recursion rule; deformation and mesh hookup remain unwired without complete source bodies/stock rows. |
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
@@ -722,6 +723,52 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     those routines. Native `source_rndmesh_deform_body_availability` keeps those
     bodies fenced; do not infer a skinning/deformation runtime from the class
     name alone.
+- `rb3-latest/src/system/rndobj/MultiMesh.cpp` and
+  `rb3-latest/src/system/rndobj/MultiMesh.h`
+  - `RndMultiMesh` derives from `RndDrawable`. Its constructor nulls `mMesh`
+    through the `ObjPtr` owner and clears `unk9p4`; `Instance::Instance`
+    resets its transform. Native `source_rndmultimesh_default_state` and
+    `source_rndmultimesh_instance_default_state` record those defaults.
+  - `RndMultiMesh::Load` accepts revisions `0..4`, skips `Hmx::Object::Load`
+    only for revision `0`, always loads `RndDrawable` and `mMesh`, reads and
+    returns after a legacy transform-list dump below revision `2`, otherwise
+    reads `mInstances`, and reads one legacy byte below revision `4`. Native
+    `source_rndmultimesh_load_plan` records those gates.
+  - `RndMultiMesh::Copy` copies `Hmx::Object` and `RndDrawable`, copies `mMesh`
+    except for `kCopyFromMax`, always copies `mInstances`, then calls
+    `UpdateMesh`. Native `source_rndmultimesh_copy_plan` records that split.
+  - `SetMesh` only assigns `mMesh` and calls `UpdateMesh`. `BEGIN_HANDLERS`
+    exposes the transform-list mutation/query handlers, `mesh`, action
+    `set_mesh`, then `RndDrawable` and `Hmx::Object`, with an explicit warning
+    for unhandled messages. `BEGIN_PROPSYNCS` only syncs `RndDrawable`. Native
+    `source_rndmultimesh_set_mesh_plan`,
+    `source_rndmultimesh_handler_plan`, and
+    `source_rndmultimesh_prop_sync_plan` record those rows.
+  - `OnSetPos` advances the instance iterator by the requested index, reads
+    floats in source order `z`, `y`, then `x`, and writes translation in
+    `x`, `y`, `z` order. Native `source_rndmultimesh_set_pos_plan` records the
+    visible row order without adding bounds checks not present in the source.
+- `rb3-latest/src/system/rndobj/MultiMeshProxy.cpp` and
+  `rb3-latest/src/system/rndobj/MultiMeshProxy.h`
+  - `RndMultiMeshProxy` derives from `RndTransformable` and `RndDrawable`.
+    Its constructor nulls `mMultiMesh` and zeros `mIndex`.
+  - `SetMultiMesh` clears `mMultiMesh` first, copies the selected instance
+    transform into local transform only when a mesh is provided, then assigns
+    `mMultiMesh` and `mIndex`. Native `source_rndmultimesh_proxy_set_plan`
+    records those decisions.
+  - `DrawShowing` only acts when both `mMultiMesh` and its `mMesh` are present:
+    it sets the mesh world transform from the selected instance transform, then
+    draws the mesh. `UpdatedWorldXfm` writes the selected instance transform
+    from `WorldXfm()` when `mMultiMesh` is present; the checked source also
+    exposes the `VERSION_SZBE69_B8` spelling variant. Native
+    `source_rndmultimesh_proxy_draw_plan` and
+    `source_rndmultimesh_proxy_updated_world_plan` record that behavior.
+  - Proxy `Load`, `Save`, and `Copy` all fail by design; its handler table only
+    has `HANDLE_CHECK(0x3F)`, and its prop-sync table is empty. Native
+    `source_rndmultimesh_proxy_failure_plan`,
+    `source_rndmultimesh_proxy_handler_plan`, and
+    `source_rndmultimesh_proxy_prop_sync_plan` record those fences. This is not
+    a live character rendering import.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

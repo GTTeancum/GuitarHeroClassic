@@ -545,6 +545,136 @@ struct SourceRndMeshDeformBodyAvailability {
 SourceRndMeshDeformBodyAvailability
 source_rndmesh_deform_body_availability();
 
+struct SourceRndMultiMeshDefaultState {
+  bool mesh_null = true;
+  bool unk9p4_zero = true;
+};
+
+SourceRndMultiMeshDefaultState source_rndmultimesh_default_state();
+
+struct SourceRndMultiMeshInstanceDefaultState {
+  bool resets_transform = true;
+};
+
+SourceRndMultiMeshInstanceDefaultState
+source_rndmultimesh_instance_default_state();
+
+struct SourceRndMultiMeshLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool reads_object_fields = false;
+  bool reads_drawable = true;
+  bool reads_mesh = true;
+  bool reads_legacy_transform_dump_and_returns = false;
+  bool reads_instances = false;
+  bool reads_legacy_tail_byte = false;
+};
+
+SourceRndMultiMeshLoadPlan source_rndmultimesh_load_plan(int32_t revision);
+
+struct SourceRndMultiMeshCopyPlan {
+  std::vector<std::string> superclasses;
+  bool copies_mesh = true;
+  bool copies_instances = true;
+  bool calls_update_mesh = true;
+};
+
+SourceRndMultiMeshCopyPlan source_rndmultimesh_copy_plan(bool copy_from_max);
+
+struct SourceRndMultiMeshSetMeshPlan {
+  bool assigns_mesh = true;
+  bool calls_update_mesh = true;
+};
+
+SourceRndMultiMeshSetMeshPlan source_rndmultimesh_set_mesh_plan();
+
+struct SourceRndMultiMeshHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  bool warns_unhandled = true;
+};
+
+SourceRndMultiMeshHandlerPlan source_rndmultimesh_handler_plan();
+
+struct SourceRndMultiMeshSetPosPlan {
+  int32_t requested_index = 0;
+  bool advances_iterator_by_index = true;
+  std::vector<std::string> assignment_order;
+};
+
+SourceRndMultiMeshSetPosPlan source_rndmultimesh_set_pos_plan(
+    int32_t requested_index);
+
+struct SourceRndMultiMeshPropSyncPlan {
+  std::vector<std::string> superclasses;
+};
+
+SourceRndMultiMeshPropSyncPlan source_rndmultimesh_prop_sync_plan();
+
+struct SourceRndMultiMeshProxyDefaultState {
+  bool multimesh_null = true;
+  bool index_zero = true;
+};
+
+SourceRndMultiMeshProxyDefaultState
+source_rndmultimesh_proxy_default_state();
+
+struct SourceRndMultiMeshProxySetPlan {
+  bool clears_multimesh_first = true;
+  bool has_mesh = false;
+  bool copies_instance_local_transform = false;
+  bool assigns_multimesh = true;
+  bool assigns_index = true;
+};
+
+SourceRndMultiMeshProxySetPlan source_rndmultimesh_proxy_set_plan(
+    bool has_mesh);
+
+struct SourceRndMultiMeshProxyDrawPlan {
+  bool has_multimesh = false;
+  bool has_mesh = false;
+  bool reads_multimesh_mesh = false;
+  bool sets_mesh_world_from_instance = false;
+  bool draws_mesh = false;
+};
+
+SourceRndMultiMeshProxyDrawPlan source_rndmultimesh_proxy_draw_plan(
+    bool has_multimesh,
+    bool has_mesh);
+
+struct SourceRndMultiMeshProxyUpdatedWorldPlan {
+  bool has_multimesh = false;
+  bool writes_instance_from_world = false;
+  bool szbe69_variant_visible = true;
+};
+
+SourceRndMultiMeshProxyUpdatedWorldPlan
+source_rndmultimesh_proxy_updated_world_plan(bool has_multimesh);
+
+struct SourceRndMultiMeshProxyFailurePlan {
+  bool load_fails = true;
+  bool save_fails = true;
+  bool copy_fails = true;
+};
+
+SourceRndMultiMeshProxyFailurePlan
+source_rndmultimesh_proxy_failure_plan();
+
+struct SourceRndMultiMeshProxyHandlerPlan {
+  int32_t check = 0x3F;
+};
+
+SourceRndMultiMeshProxyHandlerPlan
+source_rndmultimesh_proxy_handler_plan();
+
+struct SourceRndMultiMeshProxyPropSyncPlan {
+  bool has_rows = false;
+};
+
+SourceRndMultiMeshProxyPropSyncPlan
+source_rndmultimesh_proxy_prop_sync_plan();
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)

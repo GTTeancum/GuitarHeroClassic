@@ -696,6 +696,133 @@ void test_mesh_deform() {
               resize.new_size, handlers.check);
 }
 
+void test_multimesh() {
+  const SourceRndMultiMeshDefaultState defaults =
+      source_rndmultimesh_default_state();
+  CHECK(defaults.mesh_null);
+  CHECK(defaults.unk9p4_zero);
+
+  const SourceRndMultiMeshInstanceDefaultState instance_defaults =
+      source_rndmultimesh_instance_default_state();
+  CHECK(instance_defaults.resets_transform);
+
+  const SourceRndMultiMeshLoadPlan rev0 = source_rndmultimesh_load_plan(0);
+  CHECK(rev0.accepted_revision);
+  CHECK(!rev0.reads_object_fields);
+  CHECK(rev0.reads_drawable);
+  CHECK(rev0.reads_mesh);
+  CHECK(rev0.reads_legacy_transform_dump_and_returns);
+  CHECK(!rev0.reads_instances);
+
+  const SourceRndMultiMeshLoadPlan rev3 = source_rndmultimesh_load_plan(3);
+  CHECK(rev3.accepted_revision);
+  CHECK(rev3.reads_object_fields);
+  CHECK(!rev3.reads_legacy_transform_dump_and_returns);
+  CHECK(rev3.reads_instances);
+  CHECK(rev3.reads_legacy_tail_byte);
+
+  const SourceRndMultiMeshLoadPlan rev4 = source_rndmultimesh_load_plan(4);
+  CHECK(rev4.accepted_revision);
+  CHECK(rev4.reads_instances);
+  CHECK(!rev4.reads_legacy_tail_byte);
+
+  const SourceRndMultiMeshLoadPlan rev5 = source_rndmultimesh_load_plan(5);
+  CHECK(!rev5.accepted_revision);
+
+  const SourceRndMultiMeshCopyPlan regular_copy =
+      source_rndmultimesh_copy_plan(false);
+  CHECK(regular_copy.superclasses.size() == 2);
+  CHECK(regular_copy.superclasses[0] == "Hmx::Object");
+  CHECK(regular_copy.superclasses[1] == "RndDrawable");
+  CHECK(regular_copy.copies_mesh);
+  CHECK(regular_copy.copies_instances);
+  CHECK(regular_copy.calls_update_mesh);
+  const SourceRndMultiMeshCopyPlan max_copy =
+      source_rndmultimesh_copy_plan(true);
+  CHECK(!max_copy.copies_mesh);
+  CHECK(max_copy.copies_instances);
+
+  const SourceRndMultiMeshSetMeshPlan set_mesh =
+      source_rndmultimesh_set_mesh_plan();
+  CHECK(set_mesh.assigns_mesh);
+  CHECK(set_mesh.calls_update_mesh);
+
+  const SourceRndMultiMeshHandlerPlan handlers =
+      source_rndmultimesh_handler_plan();
+  CHECK(handlers.handlers.size() == 17);
+  CHECK(handlers.handlers.front() == "move_xfms");
+  CHECK(handlers.handlers.back() == "num_xfms");
+  CHECK(handlers.actions.size() == 1);
+  CHECK(handlers.actions[0] == "set_mesh");
+  CHECK(handlers.superclasses.size() == 2);
+  CHECK(handlers.warns_unhandled);
+
+  const SourceRndMultiMeshSetPosPlan set_pos =
+      source_rndmultimesh_set_pos_plan(4);
+  CHECK(set_pos.requested_index == 4);
+  CHECK(set_pos.advances_iterator_by_index);
+  CHECK(set_pos.assignment_order.size() == 6);
+  CHECK(set_pos.assignment_order[0] == "read_z");
+  CHECK(set_pos.assignment_order[2] == "read_x");
+  CHECK(set_pos.assignment_order[5] == "write_z");
+
+  const SourceRndMultiMeshPropSyncPlan prop_sync =
+      source_rndmultimesh_prop_sync_plan();
+  CHECK(prop_sync.superclasses.size() == 1);
+  CHECK(prop_sync.superclasses[0] == "RndDrawable");
+
+  const SourceRndMultiMeshProxyDefaultState proxy_defaults =
+      source_rndmultimesh_proxy_default_state();
+  CHECK(proxy_defaults.multimesh_null);
+  CHECK(proxy_defaults.index_zero);
+
+  const SourceRndMultiMeshProxySetPlan proxy_set =
+      source_rndmultimesh_proxy_set_plan(true);
+  CHECK(proxy_set.clears_multimesh_first);
+  CHECK(proxy_set.has_mesh);
+  CHECK(proxy_set.copies_instance_local_transform);
+  CHECK(proxy_set.assigns_multimesh);
+  CHECK(proxy_set.assigns_index);
+  const SourceRndMultiMeshProxySetPlan proxy_set_null =
+      source_rndmultimesh_proxy_set_plan(false);
+  CHECK(!proxy_set_null.copies_instance_local_transform);
+
+  const SourceRndMultiMeshProxyDrawPlan draw_full =
+      source_rndmultimesh_proxy_draw_plan(true, true);
+  CHECK(draw_full.reads_multimesh_mesh);
+  CHECK(draw_full.sets_mesh_world_from_instance);
+  CHECK(draw_full.draws_mesh);
+  const SourceRndMultiMeshProxyDrawPlan draw_no_mesh =
+      source_rndmultimesh_proxy_draw_plan(true, false);
+  CHECK(draw_no_mesh.reads_multimesh_mesh);
+  CHECK(!draw_no_mesh.sets_mesh_world_from_instance);
+  CHECK(!draw_no_mesh.draws_mesh);
+
+  const SourceRndMultiMeshProxyUpdatedWorldPlan updated =
+      source_rndmultimesh_proxy_updated_world_plan(true);
+  CHECK(updated.writes_instance_from_world);
+  CHECK(updated.szbe69_variant_visible);
+  const SourceRndMultiMeshProxyUpdatedWorldPlan updated_null =
+      source_rndmultimesh_proxy_updated_world_plan(false);
+  CHECK(!updated_null.writes_instance_from_world);
+
+  const SourceRndMultiMeshProxyFailurePlan failures =
+      source_rndmultimesh_proxy_failure_plan();
+  CHECK(failures.load_fails);
+  CHECK(failures.save_fails);
+  CHECK(failures.copy_fails);
+
+  const SourceRndMultiMeshProxyHandlerPlan proxy_handlers =
+      source_rndmultimesh_proxy_handler_plan();
+  CHECK(proxy_handlers.check == 0x3F);
+  const SourceRndMultiMeshProxyPropSyncPlan proxy_props =
+      source_rndmultimesh_proxy_prop_sync_plan();
+  CHECK(!proxy_props.has_rows);
+
+  std::printf("  [ok] MultiMesh: handlers=%zu proxy_check=0x%x\n",
+              handlers.handlers.size(), proxy_handlers.check);
+}
+
 void test_light() {
   std::vector<uint8_t> b;
   put_u32(b, 6);                 // Light version
@@ -889,6 +1016,7 @@ int main() {
   test_mat();
   test_group();
   test_mesh_deform();
+  test_multimesh();
   test_light();
   test_environ_with_lights();
   test_environ_with_extensionless_light();

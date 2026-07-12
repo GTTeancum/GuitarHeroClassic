@@ -1008,6 +1008,114 @@ source_rndmesh_deform_body_availability() {
   return SourceRndMeshDeformBodyAvailability{};
 }
 
+SourceRndMultiMeshDefaultState source_rndmultimesh_default_state() {
+  return SourceRndMultiMeshDefaultState{};
+}
+
+SourceRndMultiMeshInstanceDefaultState
+source_rndmultimesh_instance_default_state() {
+  return SourceRndMultiMeshInstanceDefaultState{};
+}
+
+SourceRndMultiMeshLoadPlan source_rndmultimesh_load_plan(int32_t revision) {
+  SourceRndMultiMeshLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 4;
+  plan.reads_object_fields = revision != 0;
+  plan.reads_legacy_transform_dump_and_returns = revision < 2;
+  plan.reads_instances = revision >= 2;
+  plan.reads_legacy_tail_byte = revision >= 2 && revision < 4;
+  return plan;
+}
+
+SourceRndMultiMeshCopyPlan source_rndmultimesh_copy_plan(
+    bool copy_from_max) {
+  SourceRndMultiMeshCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndDrawable"};
+  plan.copies_mesh = !copy_from_max;
+  return plan;
+}
+
+SourceRndMultiMeshSetMeshPlan source_rndmultimesh_set_mesh_plan() {
+  return SourceRndMultiMeshSetMeshPlan{};
+}
+
+SourceRndMultiMeshHandlerPlan source_rndmultimesh_handler_plan() {
+  SourceRndMultiMeshHandlerPlan plan;
+  plan.handlers = {"move_xfms",  "scale_xfms",  "sort_xfms",
+                   "random_xfms", "scramble_xfms", "distribute",
+                   "get_pos",    "set_pos",     "get_rot",
+                   "set_rot",    "get_scale",   "set_scale",
+                   "mesh",       "add_xfm",     "add_xfms",
+                   "remove_xfm", "num_xfms"};
+  plan.actions = {"set_mesh"};
+  plan.superclasses = {"RndDrawable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndMultiMeshSetPosPlan source_rndmultimesh_set_pos_plan(
+    int32_t requested_index) {
+  SourceRndMultiMeshSetPosPlan plan;
+  plan.requested_index = requested_index;
+  plan.assignment_order = {"read_z", "read_y", "read_x",
+                           "write_x", "write_y", "write_z"};
+  return plan;
+}
+
+SourceRndMultiMeshPropSyncPlan source_rndmultimesh_prop_sync_plan() {
+  SourceRndMultiMeshPropSyncPlan plan;
+  plan.superclasses = {"RndDrawable"};
+  return plan;
+}
+
+SourceRndMultiMeshProxyDefaultState
+source_rndmultimesh_proxy_default_state() {
+  return SourceRndMultiMeshProxyDefaultState{};
+}
+
+SourceRndMultiMeshProxySetPlan source_rndmultimesh_proxy_set_plan(
+    bool has_mesh) {
+  SourceRndMultiMeshProxySetPlan plan;
+  plan.has_mesh = has_mesh;
+  plan.copies_instance_local_transform = has_mesh;
+  return plan;
+}
+
+SourceRndMultiMeshProxyDrawPlan source_rndmultimesh_proxy_draw_plan(
+    bool has_multimesh,
+    bool has_mesh) {
+  SourceRndMultiMeshProxyDrawPlan plan;
+  plan.has_multimesh = has_multimesh;
+  plan.has_mesh = has_mesh;
+  plan.reads_multimesh_mesh = has_multimesh;
+  plan.sets_mesh_world_from_instance = has_multimesh && has_mesh;
+  plan.draws_mesh = has_multimesh && has_mesh;
+  return plan;
+}
+
+SourceRndMultiMeshProxyUpdatedWorldPlan
+source_rndmultimesh_proxy_updated_world_plan(bool has_multimesh) {
+  SourceRndMultiMeshProxyUpdatedWorldPlan plan;
+  plan.has_multimesh = has_multimesh;
+  plan.writes_instance_from_world = has_multimesh;
+  return plan;
+}
+
+SourceRndMultiMeshProxyFailurePlan
+source_rndmultimesh_proxy_failure_plan() {
+  return SourceRndMultiMeshProxyFailurePlan{};
+}
+
+SourceRndMultiMeshProxyHandlerPlan
+source_rndmultimesh_proxy_handler_plan() {
+  return SourceRndMultiMeshProxyHandlerPlan{};
+}
+
+SourceRndMultiMeshProxyPropSyncPlan
+source_rndmultimesh_proxy_prop_sync_plan() {
+  return SourceRndMultiMeshProxyPropSyncPlan{};
+}
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
   SourceRndMatLoadPlan plan;
   plan.revision = revision;

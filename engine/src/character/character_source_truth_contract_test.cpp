@@ -283,6 +283,14 @@ int run_contract() {
       rb3_latest_rndobj_dir / "MeshDeform.cpp"));
   const std::string rb3_latest_mesh_deform_h = compact(read_file(
       rb3_latest_rndobj_dir / "MeshDeform.h"));
+  const std::string rb3_latest_multimesh_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "MultiMesh.cpp"));
+  const std::string rb3_latest_multimesh_h = compact(read_file(
+      rb3_latest_rndobj_dir / "MultiMesh.h"));
+  const std::string rb3_latest_multimesh_proxy_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "MultiMeshProxy.cpp"));
+  const std::string rb3_latest_multimesh_proxy_h = compact(read_file(
+      rb3_latest_rndobj_dir / "MultiMeshProxy.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb2_char_eyes_cpp = compact(read_file(
@@ -2539,6 +2547,143 @@ int run_contract() {
                  "constSourceRndMeshDeformBodyAvailabilitybodies="
                  "source_rndmesh_deform_body_availability();",
                  "milo_scene test covers RndMeshDeform missing-body boundary");
+  ok &= contains(doc,
+                 "| Multi-mesh instancing/proxy rows | "
+                 "`rb3-latest/src/system/rndobj/MultiMesh.cpp` / "
+                 "`MultiMesh.h`, `MultiMeshProxy.cpp` / `MultiMeshProxy.h` |",
+                 "coverage matrix records RndMultiMesh source boundary");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "RndMultiMesh::RndMultiMesh():mMesh(this,0){unk9p4=0;}",
+                 "latest RndMultiMesh source constructor defaults");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "RndMultiMesh::Instance::Instance(){mXfm.Reset();}",
+                 "latest RndMultiMesh source instance reset");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "ASSERT_REVS(4,0)if(gRev!=0)Hmx::Object::Load(bs);"
+                 "RndDrawable::Load(bs);bs>>mMesh;",
+                 "latest RndMultiMesh source load prefix");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "if(gRev<2){std::list<Transform>dump;bs>>dump;return;}"
+                 "bs>>mInstances;if(gRev<4){u8dump;bs>>dump;}",
+                 "latest RndMultiMesh source load revision gates");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "Hmx::Object::Copy(o,ty);RndDrawable::Copy(o,ty);if(ty!="
+                 "kCopyFromMax)mMesh=f->mMesh;mInstances=f->mInstances;",
+                 "latest RndMultiMesh source copy rows");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "voidRndMultiMesh::SetMesh(RndMesh*mesh){mMesh=mesh;"
+                 "UpdateMesh();}",
+                 "latest RndMultiMesh source SetMesh rows");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "HANDLE(move_xfms,OnMoveXfms)HANDLE(scale_xfms,OnScaleXfms)"
+                 "HANDLE(sort_xfms,OnSortXfms)",
+                 "latest RndMultiMesh source handler opening rows");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "HANDLE(mesh,OnMesh)HANDLE(add_xfm,OnAddXfm)HANDLE(add_xfms,"
+                 "OnAddXfms)HANDLE(remove_xfm,OnRemoveXfm)HANDLE(num_xfms,"
+                 "OnNumXfms)",
+                 "latest RndMultiMesh source handler mesh rows");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "HANDLE_ACTION(set_mesh,SetMesh(_msg->Obj<RndMesh>(2)))"
+                 "HANDLE_SUPERCLASS(RndDrawable)HANDLE_SUPERCLASS("
+                 "Hmx::Object)",
+                 "latest RndMultiMesh source handler superclass rows");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "floatnu_z=da->Float(5);floatnu_y=da->Float(4);floatnu_x="
+                 "da->Float(3);inst->mXfm.v.x=nu_x;inst->mXfm.v.y=nu_y;"
+                 "inst->mXfm.v.z=nu_z;",
+                 "latest RndMultiMesh source SetPos order");
+  ok &= contains(rb3_latest_multimesh_cpp,
+                 "BEGIN_PROPSYNCS(RndMultiMesh)SYNC_SUPERCLASS(RndDrawable)"
+                 "END_PROPSYNCS",
+                 "latest RndMultiMesh source prop-sync rows");
+  ok &= contains(rb3_latest_multimesh_h,
+                 "classRndMultiMesh:publicRndDrawable{",
+                 "latest RndMultiMesh header exposes inheritance");
+  ok &= contains(rb3_latest_multimesh_h,
+                 "ObjPtr<RndMesh,classObjectDir>mMesh;//0x20std::list<"
+                 "RndMultiMesh::Instance>mInstances;",
+                 "latest RndMultiMesh header exposes mesh and instances");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "RndMultiMeshProxy::RndMultiMeshProxy():mMultiMesh(this,0),"
+                 "mIndex(0){}",
+                 "latest RndMultiMeshProxy source constructor defaults");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "mMultiMesh=0;if(mesh)SetLocalXfm(it->mXfm);mMultiMesh=mesh;"
+                 "mIndex=it;",
+                 "latest RndMultiMeshProxy source SetMultiMesh rows");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "if(mMultiMesh){RndMesh*theMesh=mMultiMesh->mMesh;if(theMesh)"
+                 "{theMesh->SetWorldXfm(mIndex->mXfm);mMultiMesh->mMesh->"
+                 "Draw();}}",
+                 "latest RndMultiMeshProxy source draw rows");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "if(mMultiMesh){Transform&tfm=WorldXfm();mIndex->mXfm=tfm;}",
+                 "latest RndMultiMeshProxy source SZBE69 update variant");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "if(mMultiMesh){Transform&tfm=mIndex->mXfm;tfm=WorldXfm();}",
+                 "latest RndMultiMeshProxy source update rows");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "MILO_FAIL(\"AttemptingtoloadaMultiMeshproxy\");",
+                 "latest RndMultiMeshProxy source load failure");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "MILO_FAIL(\"AttemptingtosaveaMultiMeshproxy\");",
+                 "latest RndMultiMeshProxy source save failure");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "MILO_FAIL(\"AttemptingtocopyaMultiMeshproxy\");",
+                 "latest RndMultiMeshProxy source copy failure");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "BEGIN_HANDLERS(RndMultiMeshProxy)HANDLE_CHECK(0x3F)"
+                 "END_HANDLERS",
+                 "latest RndMultiMeshProxy source handler rows");
+  ok &= contains(rb3_latest_multimesh_proxy_cpp,
+                 "BEGIN_PROPSYNCS(RndMultiMeshProxy)END_PROPSYNCS",
+                 "latest RndMultiMeshProxy source empty prop-sync rows");
+  ok &= contains(rb3_latest_multimesh_proxy_h,
+                 "classRndMultiMeshProxy:publicRndTransformable,public"
+                 "RndDrawable{",
+                 "latest RndMultiMeshProxy header exposes inheritance");
+  ok &= contains(rb3_latest_multimesh_proxy_h,
+                 "ObjPtr<RndMultiMesh,ObjectDir>mMultiMesh;//0xb0std::list<"
+                 "RndMultiMesh::Instance>::iteratormIndex;",
+                 "latest RndMultiMeshProxy header exposes proxy storage");
+  ok &= contains(scene_h,
+                 "structSourceRndMultiMeshLoadPlan{",
+                 "shared milo_scene exposes RndMultiMesh load plan");
+  ok &= contains(scene_h,
+                 "SourceRndMultiMeshProxyDrawPlan"
+                 "source_rndmultimesh_proxy_draw_plan(",
+                 "shared milo_scene exposes RndMultiMeshProxy draw plan");
+  ok &= contains(scene,
+                 "SourceRndMultiMeshLoadPlansource_rndmultimesh_load_plan("
+                 "int32_trevision)",
+                 "shared milo_scene implements RndMultiMesh load plan");
+  ok &= contains(scene,
+                 "plan.reads_legacy_transform_dump_and_returns=revision<2;",
+                 "shared RndMultiMesh load plan mirrors legacy dump gate");
+  ok &= contains(scene,
+                 "plan.reads_legacy_tail_byte=revision>=2&&revision<4;",
+                 "shared RndMultiMesh load plan mirrors legacy byte gate");
+  ok &= contains(scene,
+                 "plan.copies_mesh=!copy_from_max;",
+                 "shared RndMultiMesh copy plan mirrors Max gate");
+  ok &= contains(scene,
+                 "plan.assignment_order={\"read_z\",\"read_y\",\"read_x\","
+                 "\"write_x\",\"write_y\",\"write_z\"};",
+                 "shared RndMultiMesh SetPos plan mirrors source order");
+  ok &= contains(scene,
+                 "plan.sets_mesh_world_from_instance=has_multimesh&&has_mesh;",
+                 "shared RndMultiMeshProxy draw plan mirrors mesh gate");
+  ok &= contains(scene,
+                 "plan.writes_instance_from_world=has_multimesh;",
+                 "shared RndMultiMeshProxy update plan mirrors source gate");
+  ok &= contains(scene_test,
+                 "voidtest_multimesh(){",
+                 "milo_scene test covers RndMultiMesh helper");
+  ok &= contains(scene_test,
+                 "constSourceRndMultiMeshProxyFailurePlanfailures="
+                 "source_rndmultimesh_proxy_failure_plan();",
+                 "milo_scene test covers RndMultiMeshProxy failure boundary");
   ok &= contains(rb3_mesh_cpp,
                  "bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
                  "mBones[2].mOffset>>mBones[3].mOffset;",
