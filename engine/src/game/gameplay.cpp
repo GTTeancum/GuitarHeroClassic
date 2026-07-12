@@ -11006,6 +11006,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                 anim.trans_spline = owner.trans_spline;
                 anim.repeat_trans = owner.repeat_trans;
                 anim.scale_spline = owner.scale_spline;
+                anim.follow_path = owner.follow_path;
                 anim.rot_slerp = owner.rot_slerp;
                 anim.rot_spline = owner.rot_spline;
             };
@@ -11039,7 +11040,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             if (debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
-                    "[world] venue TransAnim %s inherited keys_owner=%s pos=%zu rot=%zu scale=%zu flags=trans_spline:%d repeat:%d scale_spline:%d rot_slerp:%d rot_spline:%d\n",
+                    "[world] venue TransAnim %s inherited keys_owner=%s pos=%zu rot=%zu scale=%zu flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
                     name.c_str(), owner_name.c_str(),
                     anim.anim.translation_keys.size(),
                     anim.anim.rotation_keys.size(),
@@ -11047,6 +11048,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                     anim.trans_spline ? 1 : 0,
                     anim.repeat_trans ? 1 : 0,
                     anim.scale_spline ? 1 : 0,
+                    anim.follow_path ? 1 : 0,
                     anim.rot_slerp ? 1 : 0,
                     anim.rot_spline ? 1 : 0);
             }

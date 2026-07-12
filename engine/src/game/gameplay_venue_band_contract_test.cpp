@@ -4190,7 +4190,11 @@ int main() {
                  "anim.anim.translation_spline=owner.anim.translation_spline;",
                  "venue TransAnim spline flags resolve through source keys_owner");
   ok &= contains(gameplay_c,
-                 "venueTransAnim%sinheritedkeys_owner=%spos=%zurot=%zuscale=%zu",
+                 "anim.follow_path=owner.follow_path;",
+                 "venue TransAnim followPath flag resolves through source keys_owner");
+  ok &= contains(gameplay_c,
+                 "venueTransAnim%sinheritedkeys_owner=%spos=%zurot=%zuscale=%zu"
+                 "flags=trans_spline:%drepeat:%dscale_spline:%dfollow_path:%d",
                  "venue TransAnim diagnostics expose key-owner inheritance");
   ok &= contains(gameplay_c,
                  "for(constauto&light:scene.lights){",
