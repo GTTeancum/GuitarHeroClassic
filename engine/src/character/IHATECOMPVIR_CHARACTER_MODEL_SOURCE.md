@@ -1049,11 +1049,16 @@ note, and all report `unreadBytes=0`.
     rows, `source_char_interest_is_within_view_cone` ports the nonzero-vector
     source view-cone decision, and the copy helper keeps the max-view-angle
     resync.
-    `ComputeScore` includes runtime vectors and `RandomFloat`; it stays fenced
-    from native runtime until the surrounding source eye-interest path is ported
-    or traced. Native `source_char_interest_compute_score_plan` records the
-    gate and scoring steps only and reports that it is not safe to publish as a
-    runtime score.
+    `ComputeScore` includes runtime vectors and `RandomFloat`; live eye-target
+    scoring stays fenced until the surrounding source eye-interest path is
+    ported or traced. Native `source_char_interest_compute_score_plan` records
+    the gate and scoring steps, and
+    `source_char_interest_compute_score_deterministic` ports the concrete math
+    with the random jitter supplied by the caller: category/default-category
+    gate, normalized viewer-to-interest direction, view and interest dot gates,
+    distance contribution with the source `NaN -> 0.2` fallback, `-0.99`, the
+    nonnegative-score jitter gate, and final priority multiply. This is
+    deterministic source-contract coverage only; it is not a live target-picker.
 - `rb3-latest/src/system/char/CharTransCopy.cpp` and
   `CharTransCopy.h`
   - `CharTransCopy::Load` accepts source revisions `0..1`, loads

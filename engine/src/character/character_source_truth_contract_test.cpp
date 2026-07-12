@@ -10243,6 +10243,13 @@ int run_contract() {
                  "floatCharInterest::ComputeScore(",
                  "latest CharInterest source exposes ComputeScore boundary");
   ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(IsMatchingFilterFlags(i)||(b&&mCategoryFlags==0)){"
+                 "b2=true;}if(!b2)return-1.0f;",
+                 "latest CharInterest source exposes ComputeScore category gate");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "floatf7=-(lensq*f-1.0f);if(IsNaN(f7)){f7=0.2f;}",
+                 "latest CharInterest source exposes ComputeScore distance fallback");
+  ok &= contains(rb3_latest_char_interest_cpp,
                  "RandomFloat(-0.25f,0.25);",
                  "latest CharInterest source ComputeScore includes random jitter");
   ok &= contains(char_mesh_h,
@@ -10357,6 +10364,11 @@ int run_contract() {
                  "boolsafe_to_publish_runtime_score=false;};",
                  "native exposes CharInterest ComputeScore plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharInterestScoreResult{"
+                 "boolcategory_gate=false;booldefault_category_gate=false;"
+                 "boolreturned_reject=false;floatdistance_squared=0.0f;",
+                 "native exposes CharInterest deterministic score result");
+  ok &= contains(char_mesh_h,
                  "SourceCharInterestLoadPlansource_char_interest_load_plan("
                  "intrevision);",
                  "native exposes CharInterest load plan helper");
@@ -10386,6 +10398,10 @@ int run_contract() {
                  "SourceCharInterestComputeScorePlan"
                  "source_char_interest_compute_score_plan();",
                  "native exposes CharInterest ComputeScore plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestScoreResult"
+                 "source_char_interest_compute_score_deterministic(",
+                 "native exposes CharInterest deterministic score helper");
   ok &= contains(char_mesh,
                  "returnstd::cos(max_view_angle_degrees*0.017453292f);",
                  "native ports CharInterest max view angle cosine");
@@ -10469,6 +10485,20 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceCharInterestComputeScorePlansource_char_interest_compute_score_plan(){",
                  "native implements CharInterest ComputeScore boundary plan");
+  ok &= contains(char_mesh,
+                 "result.category_gate=source_char_interest_is_matching_filter_flags"
+                 "(category_flags,mask);result.default_category_gate="
+                 "allow_default_category&&category_flags==0;",
+                 "native deterministic score ports category gates");
+  ok &= contains(char_mesh,
+                 "result.distance_score=-(result.distance_squared*"
+                 "distance_scale-1.0f);if(std::isnan(result.distance_score)){"
+                 "result.distance_score_was_nan=true;result.distance_score=0.2f;}",
+                 "native deterministic score ports distance fallback");
+  ok &= contains(char_mesh,
+                 "if(result.score>=0.0f){result.applied_random_jitter=true;"
+                 "result.score+=random_jitter;}result.score*=priority;",
+                 "native deterministic score ports jitter and priority");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_eye_dart_ruleset_source_test",
                  "CMake builds CharEyeDartRuleset source test");
@@ -10532,6 +10562,12 @@ int run_contract() {
   ok &= contains(interest_source_test,
                  "source_char_interest_compute_score_plan()",
                  "focused CharInterest source test covers ComputeScore boundary");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_compute_score_deterministic(",
+                 "focused CharInterest source test covers deterministic score math");
+  ok &= contains(interest_source_test,
+                 "score.distance_score_was_nan",
+                 "focused CharInterest source test covers NaN distance fallback");
   ok &= contains(interest_source_test,
                  "\"copyresyncsmaxviewcosine\"",
                  "focused CharInterest source test covers copy resync");
@@ -11243,9 +11279,17 @@ int run_contract() {
                  "`source_char_interest_is_within_view_cone` ports the nonzero-vector",
                  "document records native CharInterest view-cone helper");
   ok &= contains(doc,
-                 "`source_char_interest_compute_score_plan` records the\n"
-                 "    gate and scoring steps only",
-                 "document records native CharInterest ComputeScore boundary");
+                 "Native `source_char_interest_compute_score_plan` records",
+                 "document records native CharInterest ComputeScore plan");
+  ok &= contains(doc, "gate and scoring steps, and",
+                 "document records native CharInterest ComputeScore steps");
+  ok &= contains(doc,
+                 "`source_char_interest_compute_score_deterministic` ports "
+                 "the concrete math",
+                 "document records native deterministic CharInterest score helper");
+  ok &= contains(doc,
+                 "deterministic source-contract coverage only; it is not a live target-picker",
+                 "document fences deterministic CharInterest score helper from runtime");
   ok &= contains(doc,
                  "`source_char_interest_load_plan` records\n    the concrete source load row order",
                  "document records native CharInterest load plan");
@@ -11253,7 +11297,9 @@ int run_contract() {
                  "Revisions 2, 3, 4, and 5 read a\n    legacy object pointer; revisions 0, 1, and 6 read `mDartOverride`",
                  "document records CharInterest legacy dart gate");
   ok &= contains(doc,
-                 "`ComputeScore` includes runtime vectors and `RandomFloat`; it stays fenced",
+                 "`ComputeScore` includes runtime vectors and `RandomFloat`",
+                 "document records CharInterest ComputeScore random boundary");
+  ok &= contains(doc, "scoring stays fenced",
                  "document fences CharInterest runtime scoring");
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
                  "RB3 CharIKHand source exposes Poll");

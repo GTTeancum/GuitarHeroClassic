@@ -4516,6 +4516,62 @@ SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan() {
   return plan;
 }
 
+SourceCharInterestScoreResult source_char_interest_compute_score_deterministic(
+    const std::array<float, 3>& view_direction,
+    const std::array<float, 3>& viewer_world,
+    const std::array<float, 3>& interest_direction,
+    const std::array<float, 3>& interest_world,
+    float distance_scale,
+    int mask,
+    bool allow_default_category,
+    int category_flags,
+    float priority,
+    float max_view_angle_cos,
+    float random_jitter) {
+  SourceCharInterestScoreResult result;
+  result.category_gate =
+      source_char_interest_is_matching_filter_flags(category_flags, mask);
+  result.default_category_gate = allow_default_category && category_flags == 0;
+  if (!result.category_gate && !result.default_category_gate) {
+    result.returned_reject = true;
+    result.score = -1.0f;
+    return result;
+  }
+
+  const float dx = interest_world[0] - viewer_world[0];
+  const float dy = interest_world[1] - viewer_world[1];
+  const float dz = interest_world[2] - viewer_world[2];
+  result.distance_squared = dx * dx + dy * dy + dz * dz;
+  const float len = std::sqrt(result.distance_squared);
+  const float nx = len > 0.0f ? dx / len : 0.0f;
+  const float ny = len > 0.0f ? dy / len : 0.0f;
+  const float nz = len > 0.0f ? dz / len : 0.0f;
+
+  result.view_dot = view_direction[0] * nx + view_direction[1] * ny +
+                    view_direction[2] * nz;
+  result.view_dot_gate = result.view_dot >= max_view_angle_cos;
+  result.interest_dot = interest_direction[0] * nx + interest_direction[1] * ny +
+                        interest_direction[2] * nz;
+  result.interest_dot_gate = result.interest_dot >= max_view_angle_cos;
+
+  result.distance_score = -(result.distance_squared * distance_scale - 1.0f);
+  if (std::isnan(result.distance_score)) {
+    result.distance_score_was_nan = true;
+    result.distance_score = 0.2f;
+  }
+
+  result.pre_jitter_score = result.distance_score +
+                            (result.view_dot_gate ? 1.0f : 0.0f) +
+                            (result.interest_dot_gate ? 1.0f : 0.0f) - 0.99f;
+  result.score = result.pre_jitter_score;
+  if (result.score >= 0.0f) {
+    result.applied_random_jitter = true;
+    result.score += random_jitter;
+  }
+  result.score *= priority;
+  return result;
+}
+
 std::array<float, 9> source_char_neck_twist_multiply_matrix(
     const std::array<float, 9>& lhs,
     const std::array<float, 9>& rhs) {

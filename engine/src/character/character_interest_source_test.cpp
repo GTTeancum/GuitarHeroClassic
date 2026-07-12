@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <string>
 
 namespace {
@@ -37,6 +38,7 @@ int main() {
   using ghogx::character::source_char_interest_copy;
   using ghogx::character::source_char_interest_category_flags_prop_plan;
   using ghogx::character::source_char_interest_compute_score_plan;
+  using ghogx::character::source_char_interest_compute_score_deterministic;
   using ghogx::character::source_char_interest_copy_plan;
   using ghogx::character::source_char_interest_defaults;
   using ghogx::character::source_char_interest_handler_plan;
@@ -214,6 +216,68 @@ int main() {
                     "score plan notes random");
   ok &= expect_bool(score_plan.safe_to_publish_runtime_score, false,
                     "score plan remains fenced");
+
+  const float max_cos = source_char_interest_sync_max_view_angle(20.0f);
+  auto score = source_char_interest_compute_score_deterministic(
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 10.0f}, 0.005f, 0x2,
+      false, 0x6, 2.0f, max_cos, 0.125f);
+  ok &= expect_bool(score.category_gate, true,
+                    "score accepts matching category");
+  ok &= expect_bool(score.default_category_gate, false,
+                    "score does not use default category when flags match");
+  ok &= near(score.distance_squared, 100.0f,
+             "score distance squared");
+  ok &= near(score.view_dot, 1.0f, "score view dot");
+  ok &= expect_bool(score.view_dot_gate, true,
+                    "score view dot gate");
+  ok &= near(score.interest_dot, 1.0f, "score interest dot");
+  ok &= expect_bool(score.interest_dot_gate, true,
+                    "score interest dot gate");
+  ok &= near(score.distance_score, 0.5f,
+             "score distance contribution");
+  ok &= near(score.pre_jitter_score, 1.51f,
+             "score before jitter");
+  ok &= expect_bool(score.applied_random_jitter, true,
+                    "score applies nonnegative jitter");
+  ok &= near(score.score, 3.27f, "score final priority multiply");
+
+  score = source_char_interest_compute_score_deterministic(
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 10.0f}, 1.0f, 0x2,
+      false, 0x6, 1.0f, max_cos, 0.25f);
+  ok &= expect_bool(score.applied_random_jitter, false,
+                    "negative score skips random jitter");
+  ok &= near(score.score, -97.99f,
+             "negative score still multiplies priority");
+
+  score = source_char_interest_compute_score_deterministic(
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 10.0f}, 0.0f, 0x2,
+      false, 0x0, 1.0f, max_cos, 0.0f);
+  ok &= expect_bool(score.returned_reject, true,
+                    "score rejects unmatched category");
+  ok &= near(score.score, -1.0f, "score category reject value");
+
+  score = source_char_interest_compute_score_deterministic(
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 10.0f}, 0.0f, 0x2,
+      true, 0x0, 1.0f, max_cos, 0.2f);
+  ok &= expect_bool(score.default_category_gate, true,
+                    "score accepts default category fallback");
+  ok &= near(score.score, 2.21f,
+             "score default category fallback value");
+
+  score = source_char_interest_compute_score_deterministic(
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 10.0f},
+      std::numeric_limits<float>::quiet_NaN(), 0x2, false, 0x6,
+      1.0f, max_cos, 0.0f);
+  ok &= expect_bool(score.distance_score_was_nan, true,
+                    "score records NaN distance fallback");
+  ok &= near(score.distance_score, 0.2f,
+             "score NaN distance fallback value");
+  ok &= near(score.score, 1.21f, "score NaN fallback final value");
 
   interest.max_view_angle = 45.0f;
   interest.priority = 2.0f;

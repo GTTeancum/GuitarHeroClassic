@@ -1458,6 +1458,22 @@ struct SourceCharInterestComputeScorePlan {
   bool safe_to_publish_runtime_score = false;
 };
 
+struct SourceCharInterestScoreResult {
+  bool category_gate = false;
+  bool default_category_gate = false;
+  bool returned_reject = false;
+  float distance_squared = 0.0f;
+  float view_dot = 0.0f;
+  bool view_dot_gate = false;
+  float interest_dot = 0.0f;
+  bool interest_dot_gate = false;
+  float distance_score = 0.0f;
+  bool distance_score_was_nan = false;
+  float pre_jitter_score = 0.0f;
+  bool applied_random_jitter = false;
+  float score = -1.0f;
+};
+
 struct SourceCharNeckTwistState {
   std::string twist;
   std::string head;
@@ -2014,6 +2030,18 @@ SourceCharInterestCategoryFlagsPropPlan
 source_char_interest_category_flags_prop_plan();
 SourceCharInterestHandlerPlan source_char_interest_handler_plan();
 SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan();
+SourceCharInterestScoreResult source_char_interest_compute_score_deterministic(
+    const std::array<float, 3>& view_direction,
+    const std::array<float, 3>& viewer_world,
+    const std::array<float, 3>& interest_direction,
+    const std::array<float, 3>& interest_world,
+    float distance_scale,
+    int mask,
+    bool allow_default_category,
+    int category_flags,
+    float priority,
+    float max_view_angle_cos,
+    float random_jitter);
 SourceCharNeckTwistState source_char_neck_twist_defaults();
 bool source_char_neck_twist_load_revision_known(int revision);
 void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
