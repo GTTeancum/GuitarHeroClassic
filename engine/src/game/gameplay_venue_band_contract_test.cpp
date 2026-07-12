@@ -5615,6 +5615,12 @@ int main() {
                  "m.tex_xfm[2][2]=1.0f;",
                  "Mat decoder preserves UV offset while forcing 2-D homogeneous texture scale");
   ok &= contains(milo_scene_cpp_c,
+                 "constfloatweight0=r.f32();",
+                 "GH2 v28 Mesh decoder reads the authored weight slot before UVs");
+  ok &= contains(milo_scene_cpp_c,
+                 "v.r=1.0f;v.g=1.0f;v.b=1.0f;v.a=1.0f;",
+                 "GH2 v28 Mesh decoder does not treat weights as vertex color");
+  ok &= contains(milo_scene_cpp_c,
                  "crowd.total_placements=r.u32();",
                  "WorldCrowd decoder preserves the authored placement total");
   ok &= contains(milo_scene_cpp_c,
@@ -8463,7 +8469,7 @@ int main() {
                  "choose_venue_floor_focus(\"crowd_group_centroid\")",
                  "gameplay backing camera only falls back to crowd centroid after real floor meshes");
   ok &= contains(gameplay_c,
-                 "cam.distance=std::clamp(span*1.35f,520.0f,720.0f);",
+                 "cam.distance=std::clamp(span*1.15f,360.0f,420.0f);",
                  "venue-floor backing camera pulls far enough back to validate the audience floor");
   ok &= contains(gameplay_c,
                  "\"venue_floor_focus=%dsource=%s",

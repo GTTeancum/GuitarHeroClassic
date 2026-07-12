@@ -52,7 +52,9 @@
 //     9     bytes
 //     i32   vertex_count
 //     verts : vertex_count × 48 bytes, each =
-//                position (3×f32) + normal (3×f32) + colour (4×f32 RGBA) + uv (2×f32)
+//                position (3×f32) + normal (3×f32) +
+//                weight/bone scalars (4×f32, not color in GH2 rev 28) +
+//                uv (2×f32)
 //     i32   face_count
 //     faces : face_count × (3 × u16) triangle indices
 //     ...   per-material / bone-group trailing data (not needed to draw)
@@ -267,7 +269,7 @@ struct MatObj {
 struct Vertex {
   float px, py, pz;          // position
   float nx, ny, nz;          // normal
-  float r, g, b, a;          // colour RGBA (floats 0..1)
+  float r, g, b, a;          // runtime diffuse tint; source slot is weights
   float u, v;                // texture coords
 };
 static_assert(sizeof(Vertex) == 48, "GH2 PS2 mesh vertex stride must be 48 bytes");
