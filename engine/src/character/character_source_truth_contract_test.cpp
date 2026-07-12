@@ -3171,6 +3171,27 @@ int run_contract() {
                  "intglobalSearchStart=0;while(remainingTriangleCount>0&&"
                  "chunk.uniqueVertexCount<MaxMeshVertices)",
                  "glTFMilo chunk splitter has global fill pass");
+  ok &= contains(gltf_program_cs,
+                 "varjointIndexToLocalBoneIndex=newDictionary<int,ushort>("
+                 "meshChunk.jointIndices.Count);",
+                 "glTFMilo builds per-chunk joint palette map");
+  ok &= contains(gltf_program_cs,
+                 "jointIndexToLocalBoneIndex[meshChunk.jointIndices[i]]="
+                 "(ushort)i;",
+                 "glTFMilo maps chunk joint order to local bone slots");
+  ok &= contains(gltf_program_cs,
+                 "foreach(intjointIndexinmeshChunk.jointIndices)",
+                 "glTFMilo emits one bone transform per chunk joint");
+  ok &= contains(gltf_program_cs,
+                 "name=jointNode.Name??$\"joint_{jointIndex}\"",
+                 "glTFMilo falls back to generated joint names");
+  ok &= contains(gltf_program_cs,
+                 "if(!Matrix4x4.Invert(jointNode.WorldMatrix,outvar"
+                 "boneWorldInverse))",
+                 "glTFMilo detects non-invertible joint world matrices");
+  ok &= contains(gltf_program_cs,
+                 "varrelativeTransform=boneWorldInverse*node.WorldMatrix;",
+                 "glTFMilo writes inverse joint world times mesh world");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -3190,6 +3211,12 @@ int run_contract() {
                  "structSourceGltfMiloMeshChunkPlan{int32_tmax_influencing_bones=40;",
                  "native declares glTFMilo mesh chunk plan limits");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloChunkJoint{std::stringname;",
+                 "native declares glTFMilo chunk joint row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloBoneTransform{std::stringname;",
+                 "native declares glTFMilo bone transform row");
+  ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
@@ -3201,6 +3228,9 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMeshChunkPlansource_gltf_milo_split_mesh_chunks(",
                  "native exposes glTFMilo mesh chunk splitter helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloBoneTransformPlansource_gltf_milo_build_bone_transforms(",
+                 "native exposes glTFMilo bone transform helper");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
@@ -3265,6 +3295,21 @@ int run_contract() {
                  "additional_joint_count<best_additional_joint_count||",
                  "native mesh chunk splitter prefers fewer added joints");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloBoneTransformPlansource_gltf_milo_build_bone_transforms(",
+                 "native implements glTFMilo bone transform helper");
+  ok &= contains(char_mesh,
+                 "joint.name.empty()?\"joint_\"+std::to_string(joint_index):"
+                 "joint.name",
+                 "native glTFMilo bone transform helper ports fallback names");
+  ok &= contains(char_mesh,
+                 "transform.used_identity_for_noninvertible_joint="
+                 "!affine_invertible(joint.world_matrix);",
+                 "native glTFMilo bone transform helper records inverse fallback");
+  ok &= contains(char_mesh,
+                 "transform.transform=mat4_mul(bone_world_inverse,"
+                 "mesh_world_matrix);",
+                 "native glTFMilo bone transform helper ports relative transform");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloPackedSkinSlotssource_gltf_milo_pack_skin_slots("
                  "conststd::vector<SourceGltfMiloSkinInfluence>&influences,"
                  "boolcompressed_vertex_layout)",
@@ -3291,6 +3336,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "strip_chunk_plan.chunks[0].joint_indices.size()==40",
                  "focused mesh decode test covers forty-bone chunk boundary");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_build_bone_transforms(",
+                 "focused mesh decode test covers glTFMilo bone transforms");
+  ok &= contains(mesh_decode_test,
+                 "used_identity_for_noninvertible_joint",
+                 "focused mesh decode test covers non-invertible joint fallback");
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
@@ -3307,6 +3358,10 @@ int run_contract() {
                  "`source_gltf_milo_split_mesh_chunks` ports\n"
                  "    this deterministic exporter chunking rule",
                  "document records glTFMilo mesh chunk splitter helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_build_bone_transforms` ports\n"
+                 "    that per-chunk transform-list rule",
+                 "document records glTFMilo bone transform helper");
   ok &= contains(rb3_mesh_cpp,
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",

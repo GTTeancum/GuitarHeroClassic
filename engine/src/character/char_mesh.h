@@ -199,6 +199,27 @@ struct SourceGltfMiloMeshChunkPlan {
   std::vector<SourceGltfMiloMeshChunk> chunks;
 };
 
+struct SourceGltfMiloChunkJoint {
+  std::string name;
+  std::array<float, 16> world_matrix = {1.0f, 0.0f, 0.0f, 0.0f,
+                                        0.0f, 1.0f, 0.0f, 0.0f,
+                                        0.0f, 0.0f, 1.0f, 0.0f,
+                                        0.0f, 0.0f, 0.0f, 1.0f};
+};
+
+struct SourceGltfMiloBoneTransform {
+  std::string name;
+  std::array<float, 16> transform = {1.0f, 0.0f, 0.0f, 0.0f,
+                                     0.0f, 1.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 1.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f, 1.0f};
+  bool used_identity_for_noninvertible_joint = false;
+};
+
+struct SourceGltfMiloBoneTransformPlan {
+  std::vector<SourceGltfMiloBoneTransform> bone_transforms;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
@@ -228,6 +249,11 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
 SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
     const std::vector<SourceGltfMiloTriangle>& triangles,
     const std::vector<std::vector<int32_t>>& vertex_joint_indices);
+
+SourceGltfMiloBoneTransformPlan source_gltf_milo_build_bone_transforms(
+    const std::vector<SourceGltfMiloChunkJoint>& joints,
+    const std::vector<int32_t>& chunk_joint_indices,
+    std::array<float, 16> mesh_world_matrix);
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};

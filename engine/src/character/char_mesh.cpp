@@ -6275,6 +6275,15 @@ std::array<float, 16> affine_inverse(const std::array<float, 16>& m) {
   return out;
 }
 
+bool affine_invertible(const std::array<float, 16>& m) {
+  const float a = m[0], b = m[1], c = m[2];
+  const float d = m[4], e = m[5], f = m[6];
+  const float g = m[8], h = m[9], i = m[10];
+  const float det = a * (e * i - f * h) - b * (d * i - f * g) +
+                    c * (d * h - e * g);
+  return std::fabs(det) >= 1.0e-8f;
+}
+
 void mat4_to_xfm(const std::array<float, 16>& m, Xfm& x) {
   for (int r = 0; r < 3; ++r)
     for (int c = 0; c < 3; ++c) x.rot[r][c] = m[r * 4 + c];
@@ -6419,6 +6428,33 @@ SourceRndMeshSetBonePlan source_rndmesh_set_bone_plan(
   mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),
                        affine_inverse(xfm_to_mat4(bone_world))),
               plan.offset);
+  return plan;
+}
+
+SourceGltfMiloBoneTransformPlan source_gltf_milo_build_bone_transforms(
+    const std::vector<SourceGltfMiloChunkJoint>& joints,
+    const std::vector<int32_t>& chunk_joint_indices,
+    std::array<float, 16> mesh_world_matrix) {
+  SourceGltfMiloBoneTransformPlan plan;
+  for (int32_t joint_index : chunk_joint_indices) {
+    if (joint_index < 0 || static_cast<size_t>(joint_index) >= joints.size()) {
+      continue;
+    }
+    const SourceGltfMiloChunkJoint& joint =
+        joints[static_cast<size_t>(joint_index)];
+
+    SourceGltfMiloBoneTransform transform;
+    transform.name =
+        joint.name.empty() ? "joint_" + std::to_string(joint_index) : joint.name;
+    transform.used_identity_for_noninvertible_joint =
+        !affine_invertible(joint.world_matrix);
+    const std::array<float, 16> bone_world_inverse =
+        transform.used_identity_for_noninvertible_joint
+            ? identity_mat4()
+            : affine_inverse(joint.world_matrix);
+    transform.transform = mat4_mul(bone_world_inverse, mesh_world_matrix);
+    plan.bone_transforms.push_back(transform);
+  }
   return plan;
 }
 

@@ -515,6 +515,53 @@ int main() {
   CHECK(rejected_chunk_plan.rejected_triangle_indices[0] == 0);
   CHECK(rejected_chunk_plan.chunks.empty());
 
+  const std::array<float, 16> gltf_mesh_world = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      10.0f, 20.0f, 30.0f, 1.0f};
+  ghogx::character::SourceGltfMiloChunkJoint root_joint;
+  root_joint.name = "bone_hair_root";
+  root_joint.world_matrix = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      1.0f, 2.0f, 3.0f, 1.0f};
+  ghogx::character::SourceGltfMiloChunkJoint unnamed_joint;
+  unnamed_joint.world_matrix = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      4.0f, 5.0f, 6.0f, 1.0f};
+  ghogx::character::SourceGltfMiloChunkJoint singular_joint;
+  singular_joint.name = "bone_singular";
+  singular_joint.world_matrix = {
+      0.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      7.0f, 8.0f, 9.0f, 1.0f};
+  const auto bone_transforms =
+      ghogx::character::source_gltf_milo_build_bone_transforms(
+          {root_joint, unnamed_joint, singular_joint}, {1, 0, 2},
+          gltf_mesh_world);
+  CHECK(bone_transforms.bone_transforms.size() == 3);
+  CHECK(bone_transforms.bone_transforms[0].name == "joint_1");
+  CHECK(!bone_transforms.bone_transforms[0]
+             .used_identity_for_noninvertible_joint);
+  CHECK(approx(bone_transforms.bone_transforms[0].transform[12], 6.0f));
+  CHECK(approx(bone_transforms.bone_transforms[0].transform[13], 15.0f));
+  CHECK(approx(bone_transforms.bone_transforms[0].transform[14], 24.0f));
+  CHECK(bone_transforms.bone_transforms[1].name == "bone_hair_root");
+  CHECK(approx(bone_transforms.bone_transforms[1].transform[12], 9.0f));
+  CHECK(approx(bone_transforms.bone_transforms[1].transform[13], 18.0f));
+  CHECK(approx(bone_transforms.bone_transforms[1].transform[14], 27.0f));
+  CHECK(bone_transforms.bone_transforms[2].name == "bone_singular");
+  CHECK(bone_transforms.bone_transforms[2]
+            .used_identity_for_noninvertible_joint);
+  CHECK(approx(bone_transforms.bone_transforms[2].transform[12], 10.0f));
+  CHECK(approx(bone_transforms.bone_transforms[2].transform[13], 20.0f));
+  CHECK(approx(bone_transforms.bone_transforms[2].transform[14], 30.0f));
+
   ghogx::character::SourceRndMeshZeroWeightVertex weighted_vertex;
   weighted_vertex.weights[0] = 0.25f;
   weighted_vertex.weights[1] = 0.0f;

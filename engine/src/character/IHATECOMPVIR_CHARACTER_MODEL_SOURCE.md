@@ -935,6 +935,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     triangle indices, joint palette order, and unique vertex count. It is
     exporter/format evidence for palette layout, not a change to stock GH2
     runtime skin decoding.
+  - `PopulateMeshChunk` then builds `jointIndexToLocalBoneIndex` from each
+    chunk's `jointIndices` in order and emits exactly one `RndMesh::BoneTransform`
+    per chunk joint, because vertex bone indices point into this list by
+    position. The source writes the bone name from the joint node or
+    `joint_{index}`, warns and uses an identity inverse for non-invertible joint
+    world matrices, then writes `inverse(jointNode.WorldMatrix) *
+    node.WorldMatrix`. Native `source_gltf_milo_build_bone_transforms` ports
+    that per-chunk transform-list rule.
   - Native `source_rndmesh_vert_load_plan` records the visible vertex stream
     gates: position, normal, color, and UV are read for all revisions in this
     source path; revisions `>= 0x25` read a separate weight vector; revisions
