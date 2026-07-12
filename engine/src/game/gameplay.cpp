@@ -9501,7 +9501,8 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     uint16_t meshanim_revision = 0;
 
     auto sane_frame = [](float frame) {
-        return std::isfinite(frame) && frame >= 0.0f && frame <= 100000.0f;
+        return std::isfinite(frame) && frame >= -100000.0f &&
+               frame <= 100000.0f;
     };
     auto sane_component = [](float value) {
         return std::isfinite(value) && std::fabs(value) <= 1000000.0f;

@@ -4933,6 +4933,9 @@ int main() {
                  "read_vec3_key_page(pos,anim.frames)",
                  "venue MeshAnim loader reads source vertex-position key pages");
   ok &= contains(gameplay_c,
+                 "frame>=-100000.0f&&frame<=100000.0f",
+                 "venue MeshAnim loader accepts source-authored negative key frames");
+  ok &= contains(gameplay_c,
                  "read_normal_key_page(pos,anim.normal_frames)",
                  "venue MeshAnim loader reads source revision-2 normal key pages");
   ok &= contains(gameplay_c,
