@@ -21219,28 +21219,114 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
         }
     }
     if (filter_it != lighting_event_anim_filters_.end()) {
-        active_lighting_anim_filters_.erase(
-            std::remove_if(active_lighting_anim_filters_.begin(),
-                           active_lighting_anim_filters_.end(),
-                           [&](const ActiveVenueAnimFilter& active) {
-                               return active.event_name == event_name;
-                           }),
-            active_lighting_anim_filters_.end());
-        ActiveVenueAnimFilter active_filter;
-        active_filter.event_name = event_name;
-        active_filter.filters = filter_it->second;
-        active_filter.start_time = song_time_;
-        active_filter.persistent = persistent;
-        active_lighting_anim_filters_.push_back(std::move(active_filter));
-        if (!filter_it->second.empty()) lighting_route_applied = true;
+        std::vector<VenueAnimFilter> enabled_filters;
+        enabled_filters.reserve(filter_it->second.size());
         for (const auto& filter : filter_it->second) {
-            std::fprintf(
-                stderr,
-                "[world] lighting event %s: AnimFilter %s rate=%d frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d\n",
-                event_name.c_str(), filter.name.c_str(), filter.anim_rate,
-                filter.start_frame, filter.end_frame, filter.targets.size(),
-                filter.mesh_anim_targets.size(), filter.scale, filter.period,
-                filter.offset_frame, filter.type);
+            if (venue_event_trigger_enabled_by_name(filter.source_trigger)) {
+                enabled_filters.push_back(filter);
+            } else if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting event %s: AnimFilter %s skipped by disabled source trigger %s\n",
+                    event_name.c_str(), filter.name.c_str(),
+                    filter.source_trigger.c_str());
+            }
+        }
+        if (enabled_filters.empty()) {
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting event %s: all AnimFilters disabled by source trigger gates\n",
+                    event_name.c_str());
+            }
+        } else {
+            for (auto& filter : enabled_filters) {
+                if (!filter.event_wait) continue;
+                double wait_seconds = 0.0;
+                for (const auto& active : active_lighting_anim_filters_) {
+                    if (active.polled) continue;
+                    const double active_elapsed =
+                        std::max(0.0, song_time_ - active.start_time);
+                    for (const auto& active_filter : active.filters) {
+                        if (!venue_filters_share_authored_target(
+                                active_filter, filter)) {
+                            continue;
+                        }
+                        wait_seconds = std::max(
+                            wait_seconds,
+                            venue_filter_time_until_end_seconds(
+                                active_filter, active_elapsed, &chart_,
+                                active.start_time));
+                    }
+                }
+                if (wait_seconds > 0.001) {
+                    filter.event_delay_seconds +=
+                        static_cast<float>(wait_seconds);
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] lighting event %s: AnimFilter %s wait inherited %.3fs from active source task\n",
+                            event_name.c_str(), filter.name.c_str(),
+                            wait_seconds);
+                    }
+                }
+            }
+            size_t replaced_filters = 0;
+            for (auto active_it = active_lighting_anim_filters_.begin();
+                 active_it != active_lighting_anim_filters_.end();) {
+                if (active_it->polled) {
+                    ++active_it;
+                    continue;
+                }
+                const size_t before = active_it->filters.size();
+                active_it->filters.erase(
+                    std::remove_if(active_it->filters.begin(),
+                                   active_it->filters.end(),
+                                   [&](const VenueAnimFilter& active) {
+                                       return venue_filter_replaced_by_any(
+                                           active, enabled_filters);
+                                   }),
+                    active_it->filters.end());
+                replaced_filters += before - active_it->filters.size();
+                if (active_it->filters.empty()) {
+                    active_it = active_lighting_anim_filters_.erase(active_it);
+                } else {
+                    ++active_it;
+                }
+            }
+            if (replaced_filters > 0 && debug_venue_filters_enabled()) {
+                std::ostringstream targets;
+                for (const auto& filter : enabled_filters) {
+                    if (filter.target_ref.empty()) continue;
+                    if (targets.tellp() > 0) targets << ',';
+                    targets << filter.target_ref;
+                }
+                std::fprintf(
+                    stderr,
+                    "[world] lighting event %s: replaced %zu active AnimFilters for target(s) %s\n",
+                    event_name.c_str(), replaced_filters,
+                    targets.str().c_str());
+            }
+            ActiveVenueAnimFilter active_filter;
+            active_filter.event_name = event_name;
+            active_filter.filters = enabled_filters;
+            active_filter.start_time = song_time_;
+            active_filter.persistent = persistent;
+            active_lighting_anim_filters_.push_back(std::move(active_filter));
+            lighting_route_applied = true;
+            for (const auto& filter : enabled_filters) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting event %s: AnimFilter %s target=%s source=%s rate=%d frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
+                    event_name.c_str(), filter.name.c_str(),
+                    filter.target_ref.c_str(), filter.source_trigger.c_str(),
+                    filter.anim_rate, filter.start_frame, filter.end_frame,
+                    filter.targets.size(), filter.mesh_anim_targets.size(),
+                    filter.scale, filter.period, filter.offset_frame,
+                    filter.type, filter.event_blend_seconds,
+                    filter.event_wait ? 1 : 0, filter.event_delay_seconds,
+                    persistent ? "persistent" : "transient");
+            }
         }
     }
     update_active_lighting_environment_anims();
@@ -21690,24 +21776,49 @@ void Gameplay::update_active_lighting_anim_filters() {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         double duration = 0.0;
         for (const auto& filter : it->filters) {
-            const double filter_start_time = it->start_time;
+            const double filter_start_time =
+                it->start_time +
+                static_cast<double>(filter.event_delay_seconds);
+            const double source_duration =
+                static_cast<double>(filter.event_delay_seconds) +
+                venue_filter_duration_seconds(filter, &chart_,
+                                              filter_start_time);
+            const double blend_duration =
+                static_cast<double>(filter.event_delay_seconds) +
+                static_cast<double>(
+                    std::max(0.0f, filter.event_blend_seconds));
             duration =
-                std::max(duration,
-                         venue_filter_duration_seconds(filter, &chart_,
-                                                       filter_start_time));
+                std::max(duration, std::max(source_duration, blend_duration));
         }
         if (!it->persistent && !venue_filter_set_loops(it->filters) &&
-            duration > 0.0 && elapsed > duration) {
+            duration > 0.0 && elapsed >= duration) {
             it = active_lighting_anim_filters_.erase(it);
             continue;
         }
 
         for (const auto& filter : it->filters) {
+            const double filter_elapsed =
+                elapsed - static_cast<double>(filter.event_delay_seconds);
+            const double filter_start_time =
+                it->start_time +
+                static_cast<double>(filter.event_delay_seconds);
+            if (filter_elapsed < 0.0) {
+                if (debug_sample) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting AnimFilter waiting event=%s filter=%s delay=%.3f remaining=%.3f blend=%.3f wait=%d\n",
+                        it->event_name.c_str(), filter.name.c_str(),
+                        filter.event_delay_seconds, -filter_elapsed,
+                        filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0);
+                }
+                continue;
+            }
             const float frame =
-                venue_filter_frame_at(filter, elapsed, false, &chart_,
-                                      it->start_time);
+                venue_filter_frame_at(filter, filter_elapsed, false, &chart_,
+                                      filter_start_time);
             const float source_blend =
-                venue_filter_source_blend_at(filter, elapsed);
+                venue_filter_source_blend_at(filter, filter_elapsed);
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
@@ -21720,7 +21831,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s rate=%d fpu=%.1f frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) blend=%.3f blend_period=%.3f spline=%d/%d rot_slerp=%d\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s rate=%d fpu=%.1f frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), filter.anim_rate,
                         rnd_animatable_frames_per_unit(filter.anim_rate), frame,
@@ -21734,7 +21845,9 @@ void Gameplay::update_active_lighting_anim_filters() {
                         sample.translation[1], sample.translation[2],
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2],
+                        filter.event_delay_seconds,
                         source_blend, filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0,
                         target.anim.translation_spline ? 1 : 0,
                         target.anim.scale_spline ? 1 : 0,
                         target.anim.rotation_slerp ? 1 : 0);
@@ -21765,7 +21878,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
+                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
                         target.anim.vertex_count, position_count,
@@ -21773,7 +21886,12 @@ void Gameplay::update_active_lighting_anim_filters() {
                         target.anim.frames.size(),
                         target.anim.normal_frames.size(),
                         target.anim.texcoord_frames.size(),
-                        target.anim.color_frames.size());
+                        target.anim.color_frames.size(),
+                        filter.event_delay_seconds,
+                        source_blend,
+                        filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0,
+                        it->persistent ? 1 : 0);
                 }
             }
         }

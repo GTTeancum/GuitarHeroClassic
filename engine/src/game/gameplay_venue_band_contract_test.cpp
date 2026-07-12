@@ -5425,12 +5425,46 @@ int main() {
                  "voidGameplay::update_active_lighting_anim_filters()",
                  "lighting overlay AnimFilters sample on the song clock");
   ok &= contains(gameplay_c,
-                 "duration=std::max(duration,venue_filter_duration_seconds(filter,"
-                 "&chart_,filter_start_time));"
+                 "constdoublefilter_start_time="
+                 "it->start_time+static_cast<double>(filter.event_delay_seconds);"
+                 "constdoublesource_duration="
+                 "static_cast<double>(filter.event_delay_seconds)+"
+                 "venue_filter_duration_seconds(filter,&chart_,filter_start_time);",
+                 "lighting overlay AnimFilter duration starts after the source delay");
+  ok &= contains(gameplay_c,
+                 "constdoubleblend_duration="
+                 "static_cast<double>(filter.event_delay_seconds)+"
+                 "static_cast<double>(std::max(0.0f,filter.event_blend_seconds));",
+                 "lighting overlay AnimFilter lifetime includes source blend duration");
+  ok &= contains(gameplay_c,
+                 "duration=std::max(duration,std::max(source_duration,blend_duration));"
                  "}if(!it->persistent&&!venue_filter_set_loops(it->filters)&&"
-                 "duration>0.0&&elapsed>duration){"
+                 "duration>0.0&&elapsed>=duration){"
                  "it=active_lighting_anim_filters_.erase(it);continue;}",
-                 "lighting overlay non-loop one-shot AnimFilters expire like venue filters");
+                 "lighting overlay non-loop one-shot AnimFilters include source delay before expiry");
+  ok &= contains(gameplay_c,
+                 "constdoublefilter_elapsed="
+                 "elapsed-static_cast<double>(filter.event_delay_seconds);"
+                 "constdoublefilter_start_time="
+                 "it->start_time+static_cast<double>(filter.event_delay_seconds);"
+                 "if(filter_elapsed<0.0)",
+                 "lighting overlay EventTrigger Anim delay does not sample the first frame early");
+  ok &= contains(gameplay_c,
+                 "venue_filter_frame_at(filter,filter_elapsed,false,&chart_,"
+                 "filter_start_time)",
+                 "lighting overlay AnimFilters sample after the source delay");
+  ok &= contains(gameplay_c,
+                 "venue_filter_source_blend_at(filter,filter_elapsed)",
+                 "lighting overlay AnimFilter blend begins after the source delay");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingevent%s:AnimFilter%starget=%ssource=%s"
+                 "rate=%dframe%.2f..%.2ftargets=%zumesh_anims=%zuscale=%.3f"
+                 "period=%.3foffset=%.3ftype=%dblend=%.3fwait=%ddelay=%.3f%s\\n\"",
+                 "lighting overlay AnimFilter launch diagnostics expose source trigger timing");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingAnimFilterwaitingevent=%sfilter=%s"
+                 "delay=%.3fremaining=%.3fblend=%.3fwait=%d\\n\"",
+                 "lighting overlay AnimFilter waiting diagnostics expose delayed sampling");
   ok &= contains(gameplay_h_c,
                  "boolapply_lighting_event(conststd::string&event_name,"
                  "boolpersistent=true);",
