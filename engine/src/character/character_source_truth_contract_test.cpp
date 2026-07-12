@@ -14476,6 +14476,12 @@ int run_contract() {
                  "SourceCharDriverState&state,conststd::string&clip_type);",
                  "native character API exposes source CharDriver SetClipType helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharDriverPlayGroupDecision{boolhas_clip_dir=false;"
+                 "boolfound_group=false;boolwarn_no_clips=false;"
+                 "boolwarn_missing_group=false;boolcall_group_get_clip=false;"
+                 "boolrequest_play=false;};",
+                 "native character API exposes source CharDriver PlayGroup branch row");
+  ok &= contains(char_clip_h,
                  "SourceCharDriverPlayGroupDecisionsource_char_driver_play_group_decision("
                  "boolhas_clip_dir,boolfound_group);",
                  "native character API exposes source CharDriver PlayGroup helper");
@@ -14894,8 +14900,11 @@ int run_contract() {
                  "SourceCharDriverPlayGroupDecisionsource_char_driver_play_group_decision("
                  "boolhas_clip_dir,boolfound_group){SourceCharDriverPlayGroupDecision"
                  "decision;decision.has_clip_dir=has_clip_dir;"
-                 "decision.found_group=found_group;decision.request_play="
-                 "has_clip_dir&&found_group;returndecision;}",
+                 "decision.found_group=found_group;if(!has_clip_dir){"
+                 "decision.warn_no_clips=true;returndecision;}if(!found_group){"
+                 "decision.warn_missing_group=true;returndecision;}"
+                 "decision.call_group_get_clip=true;decision.request_play=true;"
+                 "returndecision;}",
                  "native CharDriver PlayGroup helper ports source decision branches");
   ok &= contains(char_clip,
                  "voidsource_char_driver_poll_deps(SourceCharDriverPollDeps&deps,"
@@ -14991,7 +15000,16 @@ int run_contract() {
                  "source_char_driver_transfer(dest,source)",
                  "focused flag-mask test covers CharDriver Transfer copy");
   ok &= contains(clip_driver_flags_test,
-                 "expect_play_group_decision(true,true,true,\"groupfound\")",
+                 "expect_play_group_decision(false,false,true,false,false,false,"
+                 "\"noclipdirectory\")",
+                 "focused flag-mask test covers CharDriver PlayGroup missing clips");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_play_group_decision(true,false,false,true,false,false,"
+                 "\"missinggroup\")",
+                 "focused flag-mask test covers CharDriver PlayGroup missing group");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_play_group_decision(true,true,false,false,true,true,"
+                 "\"groupfound\")",
                  "focused flag-mask test covers CharDriver PlayGroup success");
   ok &= contains(clip_driver_flags_test,
                  "source_char_driver_poll_deps(deps,\"bone.servo\")",
@@ -15009,7 +15027,13 @@ int run_contract() {
                  "Native `source_char_driver_enter`, `source_char_driver_set_starved`",
                  "document records remaining concrete CharDriver helper slice");
   ok &= contains(doc,
-                 "`PollDeps` publishes `mBones` in the change list",
+                 "`PlayGroup` warns and returns when `mClips` is missing",
+                 "document records CharDriver PlayGroup missing clips branch");
+  ok &= contains(doc,
+                 "otherwise calls `CharClipGroup::GetClip`",
+                 "document records CharDriver PlayGroup group handoff");
+  ok &= contains(doc,
+                 "`PollDeps` publishes `mBones`",
                  "document records CharDriver PollDeps source direction");
   ok &= contains(rb3_latest_char_clip_set_h,
                  "classCharClipSet:publicObjectDir,publicRndDrawable,"

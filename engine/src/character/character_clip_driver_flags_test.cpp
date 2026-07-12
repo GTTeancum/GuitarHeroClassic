@@ -294,12 +294,19 @@ bool expect_enter_decision(
 }
 
 bool expect_play_group_decision(bool has_clip_dir, bool found_group,
-                                bool want_play, const char* label) {
+                                bool want_warn_no_clips,
+                                bool want_warn_missing_group,
+                                bool want_get_clip,
+                                bool want_play,
+                                const char* label) {
   const ghogx::character::SourceCharDriverPlayGroupDecision got =
       ghogx::character::source_char_driver_play_group_decision(has_clip_dir,
                                                                found_group);
   bool ok = true;
   if (got.has_clip_dir != has_clip_dir || got.found_group != found_group ||
+      got.warn_no_clips != want_warn_no_clips ||
+      got.warn_missing_group != want_warn_missing_group ||
+      got.call_group_get_clip != want_get_clip ||
       got.request_play != want_play) {
     std::cerr << "driver PlayGroup decision mismatch for " << label << "\n";
     ok = false;
@@ -455,9 +462,12 @@ bool expect_driver_state_helpers() {
     std::cerr << "driver Transfer copied source fields incorrectly\n";
     ok = false;
   }
-  ok &= expect_play_group_decision(false, false, false, "no clip directory");
-  ok &= expect_play_group_decision(true, false, false, "missing group");
-  ok &= expect_play_group_decision(true, true, true, "group found");
+  ok &= expect_play_group_decision(false, false, true, false, false, false,
+                                   "no clip directory");
+  ok &= expect_play_group_decision(true, false, false, true, false, false,
+                                   "missing group");
+  ok &= expect_play_group_decision(true, true, false, false, true, true,
+                                   "group found");
 
   ghogx::character::SourceCharDriverState play_state =
       ghogx::character::source_char_driver_default_state();

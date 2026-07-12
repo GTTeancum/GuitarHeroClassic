@@ -898,6 +898,9 @@ struct SourceCharDriverPlayDecision {
 struct SourceCharDriverPlayGroupDecision {
   bool has_clip_dir = false;
   bool found_group = false;
+  bool warn_no_clips = false;
+  bool warn_missing_group = false;
+  bool call_group_get_clip = false;
   bool request_play = false;
 };
 

@@ -1667,8 +1667,10 @@ note, and all report `unreadBytes=0`.
     resets `mLastNode`, `mOldBeat`, and `mBeatScale`, then requests default-clip
     playback with `(1, -1.0f, 1e+30f, 0.0f)` when `mDefaultClip` exists;
     `SetStarved` stores the handler symbol; `SetBlendWidth` stores `mBlendWidth`;
-    `PlayGroup` only requests playback when both `mClips` and the named group
-    resolve; `PollDeps` publishes `mBones` in the change list.
+    `PlayGroup` warns and returns when `mClips` is missing, warns and returns
+    when the named group is missing, and otherwise calls `CharClipGroup::GetClip`
+    before forwarding that clip to `Play`; `PollDeps` publishes `mBones` in the
+    change list.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions

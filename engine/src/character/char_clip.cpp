@@ -3032,7 +3032,16 @@ SourceCharDriverPlayGroupDecision source_char_driver_play_group_decision(
   SourceCharDriverPlayGroupDecision decision;
   decision.has_clip_dir = has_clip_dir;
   decision.found_group = found_group;
-  decision.request_play = has_clip_dir && found_group;
+  if (!has_clip_dir) {
+    decision.warn_no_clips = true;
+    return decision;
+  }
+  if (!found_group) {
+    decision.warn_missing_group = true;
+    return decision;
+  }
+  decision.call_group_get_clip = true;
+  decision.request_play = true;
   return decision;
 }
 
