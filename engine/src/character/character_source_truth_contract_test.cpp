@@ -229,6 +229,8 @@ int run_contract() {
       rb3_latest_rndobj_dir / "Mesh.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
+  const std::string rb2_char_eyes_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharEyes.cpp"));
   const std::string rb3_latest_char_hair_cpp = compact(read_file(
       rb3_latest_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_h = compact(read_file(
@@ -11332,6 +11334,17 @@ int run_contract() {
                  "boolclamped=false;};",
                  "native exposes CharEyes clamp row");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesRuntimeDumpEvidence{std::stringpoll_range;"
+                 "std::stringnext_look_range;std::stringreplace_range;"
+                 "std::stringlist_poll_children_range;std::stringpoll_deps_range;"
+                 "std::vector<std::string>poll_locals;"
+                 "std::vector<std::string>next_look_locals;"
+                 "boolrb2_dump_has_statement_body=false;"
+                 "boollatest_source_has_poll_body=false;"
+                 "boolsafe_to_publish_eye_runtime_rows=false;"
+                 "boolsafe_to_infer_facefx_rows=false;};",
+                 "native exposes CharEyes runtime dump evidence");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesFocusResult{boolaccepted=false;"
                  "std::stringfocus_interest;intfocus_priority=-1;};",
                  "native exposes CharEyes focus result");
@@ -11509,6 +11522,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "voidsource_char_eyes_poll_deps(",
                  "native exposes CharEyes PollDeps helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesRuntimeDumpEvidence"
+                 "source_char_eyes_runtime_dump_evidence();",
+                 "native exposes CharEyes runtime dump helper");
   ok &= contains(char_mesh,
                  "std::vector<std::string>source_char_eyes_list_poll_children("
                  "conststd::vector<std::string>&eye_lookats)",
@@ -11770,6 +11787,24 @@ int run_contract() {
                  "if(!head_lookat.empty())deps.changed_by.push_back(head_lookat);"
                  "if(!face_servo.empty())deps.changed_by.push_back(face_servo);",
                  "native CharEyes helper publishes optional head lookat and face servo");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesRuntimeDumpEvidence"
+                 "source_char_eyes_runtime_dump_evidence(){"
+                 "SourceCharEyesRuntimeDumpEvidenceevidence;",
+                 "native CharEyes runtime dump helper exists");
+  ok &= contains(char_mesh,
+                 "evidence.poll_range=\"0x80354D64->0x80355480\";",
+                 "native CharEyes runtime dump records Poll range");
+  ok &= contains(char_mesh,
+                 "evidence.next_look_range=\"0x8035559C->0x80355A74\";",
+                 "native CharEyes runtime dump records NextLook range");
+  ok &= contains(char_mesh,
+                 "evidence.poll_deps_range=\"0x80355E84->0x80356030\";",
+                 "native CharEyes runtime dump records PollDeps range");
+  ok &= contains(char_mesh,
+                 "evidence.safe_to_publish_eye_runtime_rows=false;"
+                 "evidence.safe_to_infer_facefx_rows=false;",
+                 "native CharEyes runtime dump fences eye and FaceFX rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_eyes_source_test",
                  "CMake builds CharEyes source test");
@@ -11803,6 +11838,12 @@ int run_contract() {
   ok &= contains(eyes_source_test,
                  "source_char_eyes_prop_sync_plan()",
                  "focused CharEyes source test covers prop-sync plan");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_runtime_dump_evidence()",
+                 "focused CharEyes source test covers runtime dump evidence");
+  ok &= contains(eyes_source_test,
+                 "runtime_dump.safe_to_publish_eye_runtime_rows,false",
+                 "focused CharEyes source test fences eye row publishing");
   ok &= contains(eyes_source_test,
                  "source_char_eyes_default_interest_categories_sync("
                  "0x24,0x20,true,false)",
@@ -11985,6 +12026,29 @@ int run_contract() {
   ok &= contains(doc,
                  "Fields not initialized by the source\n    constructor remain outside this helper",
                  "document fences uninitialized CharEyes constructor fields");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_runtime_dump_evidence` records the RB2",
+                 "document records CharEyes runtime dump helper");
+  ok &= contains(doc,
+                 "`Poll`\n  `0x80354D64 -> 0x80355480`",
+                 "document records CharEyes Poll dump range");
+  ok &= contains(doc,
+                 "`safe_to_publish_eye_runtime_rows=false`",
+                 "document fences CharEyes runtime row publishing");
+  ok &= contains(rb2_char_eyes_cpp,
+                 "//Range:0x80354D64->0x80355480",
+                 "RB2 dump maps CharEyes Poll range");
+  ok &= contains(rb2_char_eyes_cpp,
+                 "voidCharEyes::Poll(classCharEyes*constthis",
+                 "RB2 dump maps CharEyes Poll signature");
+  ok &= contains(rb2_char_eyes_cpp,
+                 "classRndTransformable*h;",
+                 "RB2 dump maps CharEyes Poll head local");
+  ok &= contains(rb2_char_eyes_cpp,
+                 "classRndCam*srcCam;",
+                 "RB2 dump maps CharEyes Poll camera local");
+  ok &= missing(rb3_char_eyes_cpp, "voidCharEyes::Poll(",
+                "checked CharEyes source has no Poll body");
   ok &= contains(doc,
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",

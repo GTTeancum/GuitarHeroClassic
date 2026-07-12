@@ -1101,6 +1101,19 @@ note, and all report `unreadBytes=0`.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.
+- Native `source_char_eyes_runtime_dump_evidence` records the RB2 dump ranges
+  for the missing runtime body and adjacent source-visible helpers: `Poll`
+  `0x80354D64 -> 0x80355480`, `NextLook`
+  `0x8035559C -> 0x80355A74`, `Replace`
+  `0x80355A74 -> 0x80355DCC`, `ListPollChildren`
+  `0x80355DCC -> 0x80355E84`, and `PollDeps`
+  `0x80355E84 -> 0x80356030`. The visible `Poll` local inventory includes
+  `h`, `camWeight`, `blinkWeight`, `blink`, `delta`, `cang`, `sec`, `d`,
+  `dest`, `weight`, `srcCam`, two `Transform t` locals, `it`, and `height`.
+  This remains range/local evidence only: the checked latest source lacks a
+  reviewable `CharEyes::Poll` body, so native keeps
+  `safe_to_publish_eye_runtime_rows=false` and
+  `safe_to_infer_facefx_rows=false`.
 - `rb3-latest/src/system/char/CharEyeDartRuleset.cpp` and
   `CharEyeDartRuleset.h`
   - `EyeDartRulesetData::ClearToDefaults` sets the source defaults:

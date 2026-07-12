@@ -4422,6 +4422,28 @@ void source_char_eyes_poll_deps(
   if (!face_servo.empty()) deps.changed_by.push_back(face_servo);
 }
 
+SourceCharEyesRuntimeDumpEvidence
+source_char_eyes_runtime_dump_evidence() {
+  SourceCharEyesRuntimeDumpEvidence evidence;
+  evidence.poll_range = "0x80354D64->0x80355480";
+  evidence.next_look_range = "0x8035559C->0x80355A74";
+  evidence.replace_range = "0x80355A74->0x80355DCC";
+  evidence.list_poll_children_range = "0x80355DCC->0x80355E84";
+  evidence.poll_deps_range = "0x80355E84->0x80356030";
+  evidence.poll_locals = {"h",       "camWeight", "blinkWeight", "blink",
+                          "delta",   "cang",      "sec",         "d",
+                          "dest",    "weight",    "srcCam",      "t",
+                          "t",       "it",        "height"};
+  evidence.next_look_locals = {"facing", "delta", "d",    "tanang",
+                               "h",      "scale", "delta", "it",
+                               "b",      "dist",  "c",     "d2"};
+  evidence.rb2_dump_has_statement_body = false;
+  evidence.latest_source_has_poll_body = false;
+  evidence.safe_to_publish_eye_runtime_rows = false;
+  evidence.safe_to_infer_facefx_rows = false;
+  return evidence;
+}
+
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults() {
   return SourceCharEyeDartRulesetData{};
 }

@@ -1425,6 +1425,20 @@ struct SourceCharEyesPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharEyesRuntimeDumpEvidence {
+  std::string poll_range;
+  std::string next_look_range;
+  std::string replace_range;
+  std::string list_poll_children_range;
+  std::string poll_deps_range;
+  std::vector<std::string> poll_locals;
+  std::vector<std::string> next_look_locals;
+  bool rb2_dump_has_statement_body = false;
+  bool latest_source_has_poll_body = false;
+  bool safe_to_publish_eye_runtime_rows = false;
+  bool safe_to_infer_facefx_rows = false;
+};
+
 struct SourceCharEyesFocusResult {
   bool accepted = false;
   std::string focus_interest;
@@ -2200,6 +2214,8 @@ void source_char_eyes_poll_deps(
     const std::string& target,
     const std::string& head_lookat,
     const std::string& face_servo);
+SourceCharEyesRuntimeDumpEvidence
+source_char_eyes_runtime_dump_evidence();
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults();
 bool source_char_eye_dart_ruleset_load_revision_known(int revision);
 SourceCharEyeDartRulesetLoadPlan source_char_eye_dart_ruleset_load_plan(

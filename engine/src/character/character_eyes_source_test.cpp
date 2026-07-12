@@ -70,6 +70,7 @@ int main() {
   using ghogx::character::source_char_eyes_load_plan;
   using ghogx::character::source_char_eyes_poll_deps;
   using ghogx::character::source_char_eyes_prop_sync_plan;
+  using ghogx::character::source_char_eyes_runtime_dump_evidence;
   using ghogx::character::source_char_eyes_set_focus_interest;
   using ghogx::character::source_char_eyes_toggle_force_focus;
   using ghogx::character::source_char_eyes_toggle_interest_overlay;
@@ -189,6 +190,27 @@ int main() {
                       "CharEyes debug interest filter prop");
   ok &= expect_string(prop_sync.superclasses[0], "CharWeightable",
                       "CharEyes prop superclass");
+  const auto runtime_dump = source_char_eyes_runtime_dump_evidence();
+  ok &= expect_string(runtime_dump.poll_range, "0x80354D64->0x80355480",
+                      "CharEyes rb2 poll range");
+  ok &= expect_string(runtime_dump.next_look_range, "0x8035559C->0x80355A74",
+                      "CharEyes rb2 next-look range");
+  ok &= expect_string(runtime_dump.poll_deps_range, "0x80355E84->0x80356030",
+                      "CharEyes rb2 poll deps range");
+  ok &= expect_size(runtime_dump.poll_locals.size(), 15,
+                    "CharEyes rb2 poll local count");
+  ok &= expect_string(runtime_dump.poll_locals[0], "h",
+                      "CharEyes rb2 poll head local");
+  ok &= expect_string(runtime_dump.poll_locals[10], "srcCam",
+                      "CharEyes rb2 poll camera local");
+  ok &= expect_bool(runtime_dump.rb2_dump_has_statement_body, false,
+                    "CharEyes rb2 dump is not a statement body");
+  ok &= expect_bool(runtime_dump.latest_source_has_poll_body, false,
+                    "CharEyes latest source lacks poll body");
+  ok &= expect_bool(runtime_dump.safe_to_publish_eye_runtime_rows, false,
+                    "CharEyes runtime row publishing remains fenced");
+  ok &= expect_bool(runtime_dump.safe_to_infer_facefx_rows, false,
+                    "CharEyes FaceFX inference remains fenced");
 
   const auto category_get =
       source_char_eyes_default_interest_categories_sync(0x24, 0x20, true,
