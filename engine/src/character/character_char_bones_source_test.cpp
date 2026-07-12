@@ -1883,6 +1883,34 @@ int main() {
   ok &= expect_int(grim_clip_samples16.reads_extra_bones ? 1 : 0, 1,
                    "grim CharClipSamples v16 reads extra bones");
 
+  const SourceGrimCharClipSamplesExtraBonesPlan extra_bones10 =
+      source_grim_char_clip_samples_extra_bones_plan(10);
+  ok &= expect_int(extra_bones10.active ? 1 : 0, 0,
+                   "grim CharClipSamples v10 has no extra bones block");
+  ok &= expect_size(extra_bones10.read_order.size(), 0,
+                    "grim CharClipSamples v10 extra bones order empty");
+
+  const SourceGrimCharClipSamplesExtraBonesPlan extra_bones16 =
+      source_grim_char_clip_samples_extra_bones_plan(16);
+  ok &= expect_int(extra_bones16.active ? 1 : 0, 1,
+                   "grim CharClipSamples v16 extra bones block active");
+  ok &= expect_int(extra_bones16.reads_count ? 1 : 0, 1,
+                   "grim CharClipSamples v16 extra bones reads count");
+  ok &= expect_int(extra_bones16.reads_name ? 1 : 0, 1,
+                   "grim CharClipSamples v16 extra bones reads names");
+  ok &= expect_int(extra_bones16.reads_weight ? 1 : 0, 1,
+                   "grim CharClipSamples v16 extra bones reads weights");
+  ok &= expect_int(extra_bones16.stores_runtime_rows ? 1 : 0, 0,
+                   "grim CharClipSamples v16 extra bones rows are discarded");
+  ok &= expect_size(extra_bones16.read_order.size(), 3,
+                    "grim CharClipSamples v16 extra bones order size");
+  ok &= expect_string(extra_bones16.read_order[0], "bone_count",
+                      "grim CharClipSamples v16 extra bones count order");
+  ok &= expect_string(extra_bones16.read_order[1], "name",
+                      "grim CharClipSamples v16 extra bones name order");
+  ok &= expect_string(extra_bones16.read_order[2], "weight",
+                      "grim CharClipSamples v16 extra bones weight order");
+
   const SourceReNotesCharBonesSamplesDecodePlan re_notes_decode =
       source_re_notes_char_bones_samples_decode_plan();
   ok &= expect_int(re_notes_decode.sample_data_grouped_by_time ? 1 : 0, 1,

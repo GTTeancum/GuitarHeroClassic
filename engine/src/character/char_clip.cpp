@@ -1253,6 +1253,20 @@ source_grim_char_clip_samples_load_plan(int version) {
   return plan;
 }
 
+SourceGrimCharClipSamplesExtraBonesPlan
+source_grim_char_clip_samples_extra_bones_plan(int version) {
+  SourceGrimCharClipSamplesExtraBonesPlan plan;
+  if (!source_grim_char_clip_samples_version_known(version) || version <= 14)
+    return plan;
+  plan.active = true;
+  plan.reads_count = true;
+  plan.reads_name = true;
+  plan.reads_weight = true;
+  plan.stores_runtime_rows = false;
+  plan.read_order = {"bone_count", "name", "weight"};
+  return plan;
+}
+
 SourceReNotesCharBonesSamplesDecodePlan
 source_re_notes_char_bones_samples_decode_plan() {
   SourceReNotesCharBonesSamplesDecodePlan plan;

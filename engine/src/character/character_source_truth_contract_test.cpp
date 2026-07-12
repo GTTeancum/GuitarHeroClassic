@@ -801,6 +801,15 @@ int run_contract() {
                  "load_char_bones_samples_data(&mutself.one,&mutreader,"
                  "version,one_bones,one_sample_count)?;",
                  "grim CharClipSamples reads one data after full data");
+  ok &= contains(grim_char_clip_samples_io,
+                 "letbone_count=reader.read_uint32()?;",
+                 "grim CharClipSamples reads extra bone count");
+  ok &= contains(grim_char_clip_samples_io,
+                 "let_name=reader.read_prefixed_string()?;",
+                 "grim CharClipSamples reads extra bone names");
+  ok &= contains(grim_char_clip_samples_io,
+                 "let_weight=reader.read_float32()?;",
+                 "grim CharClipSamples reads extra bone weights");
   ok &= contains(grim_char_bones_samples_io,
                  "letcount_size=ifversion>15{7}else{10};",
                  "grim CharBonesSamples count-size gate");
@@ -17892,6 +17901,20 @@ int run_contract() {
   ok &= contains(char_clip,
                  "if(samples_version>=13)return{};",
                  "native clip parser fences non-GH2 Grim sample variants");
+  ok &= contains(char_clip_h,
+                 "structSourceGrimCharClipSamplesExtraBonesPlan{",
+                 "native header records Grim CharClipSamples extra-bone plan");
+  ok &= contains(char_clip,
+                 "SourceGrimCharClipSamplesExtraBonesPlan"
+                 "source_grim_char_clip_samples_extra_bones_plan(intversion){",
+                 "native source implements Grim CharClipSamples extra-bone plan");
+  ok &= contains(char_clip,
+                 "if(!source_grim_char_clip_samples_version_known(version)||"
+                 "version<=14)returnplan;",
+                 "native extra-bone plan follows Grim version gate");
+  ok &= contains(char_clip,
+                 "plan.read_order={\"bone_count\",\"name\",\"weight\"};",
+                 "native extra-bone plan records Grim row order");
   ok &= contains(char_clip,
                  "source_grim_char_bones_samples_channel_mesh_name(bl.names[bi])",
                  "native clip parser follows Grim mesh-name channel mapping");
@@ -17907,6 +17930,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_channel_name(\"bone.head.pos\",",
                  "focused CharBones source test covers first-dot replacement");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_clip_samples_extra_bones_plan(16)",
+                 "focused CharBones source test covers Grim extra-bone rows");
+  ok &= contains(char_bones_source_test,
+                 "extra_bones16.stores_runtime_rows?1:0,0",
+                 "focused CharBones source test fences discarded extra-bone rows");
   ok &= contains(char_bones_source_test,
                  "for(intcompression=0;compression<=4;++compression)",
                  "focused CharBones source test covers all compression modes");
@@ -22625,6 +22654,12 @@ int run_contract() {
                  "not statement-level C++ bodies,\n    so native must not use "
                  "it to publish broad pose",
                  "document fences CharClipSamples pose publishing");
+  ok &= contains(doc,
+                 "Grim's newer `CharClipSamples` path reads extra-bone rows",
+                 "document records Grim CharClipSamples extra-bone rows");
+  ok &= contains(doc,
+                 "keeps `stores_runtime_rows=false`",
+                 "document fences Grim extra-bone runtime usage");
   ok &= contains(rb2_char_bones_samples_cpp,
                  "voidCharBonesSamples::LoadHeader(",
                  "RB2 dump exposes CharBonesSamples LoadHeader runtime map");

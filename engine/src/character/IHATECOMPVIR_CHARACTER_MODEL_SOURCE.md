@@ -3574,6 +3574,13 @@ note, and all report `unreadBytes=0`.
     `CharBonesSamples delta` local. This is a source-backed boundary only: the
     dump exposes ranges and local inventories, not statement-level C++ bodies,
     so native must not use it to publish broad pose, channel, or facing output.
+  - Grim's newer `CharClipSamples` path reads extra-bone rows after the `full`
+    and `one` `CharBonesSamples` blocks: `bone_count`, then repeated prefixed
+    name and float weight rows. The checked source marks those values with a
+    TODO and discards `_name`/`_weight`; native
+    `source_grim_char_clip_samples_extra_bones_plan` records the row shape but
+    keeps `stores_runtime_rows=false`. Do not drive pose, hair, or accessory
+    behavior from these rows until a source body proves how they are consumed.
 - `rb3-latest/src/system/char/CharClip.cpp` is concrete for clip resource
   context, `StuffBones`, `PoseMeshes`, play/clip flags, beat-event loading, and
   `full`/`one` property sync. It declares or calls the broad pose math, but the
