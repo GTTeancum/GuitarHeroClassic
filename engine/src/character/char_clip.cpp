@@ -3132,6 +3132,25 @@ SourceCharDriverEnterDecision source_char_driver_enter(
   return decision;
 }
 
+SourceCharDriverTransferPlan source_char_driver_transfer_plan(
+    bool source_has_first) {
+  SourceCharDriverTransferPlan plan;
+  plan.create_first_driver_copy = source_has_first;
+  plan.copied_members = {"mClips", "mLastNode", "mRealign",
+                         "mBeatScale", "mBlendWidth"};
+  if (source_has_first) {
+    plan.copied_members.push_back(
+        "mFirst:new CharClipDriver(this,*driver.mFirst)");
+  }
+  plan.preserved_members = {"mBones",        "mTestClip",
+                            "mDefaultClip",  "mDefaultPlayStarved",
+                            "mStarvedHandler", "mOldBeat",
+                            "mClipType",     "mApply",
+                            "mInternalBones", "mPlayMultipleClips",
+                            "unk89"};
+  return plan;
+}
+
 void source_char_driver_transfer(SourceCharDriverState& state,
                                  const SourceCharDriverState& driver) {
   source_char_driver_clear(state);

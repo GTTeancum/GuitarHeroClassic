@@ -1825,6 +1825,11 @@ note, and all report `unreadBytes=0`.
     concrete source state edits from `Clear`, `Transfer`, `SetClips`, and
     `SetBones`. `SetClips` only resets `mLastNode` when the clip directory
     changes.
+    `source_char_driver_transfer_plan` records the exact `Transfer` boundary:
+    source copies `mClips`, `mLastNode`, `mRealign`, `mBeatScale`,
+    `mBlendWidth`, and conditionally clones `mFirst`; it does not copy bones,
+    test/default clips, default-play/starved state, `mOldBeat`, clip type,
+    apply mode, internal bones, play-multiple state, or `unk89`.
   - Native `source_char_driver_set_apply`, `source_char_driver_set_clip_type`,
     and `source_char_driver_sync_internal_bones` port the concrete
     `SyncInternalBones` gate: every changed apply/clip-type value clears the

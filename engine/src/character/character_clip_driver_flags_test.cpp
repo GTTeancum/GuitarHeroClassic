@@ -455,11 +455,43 @@ bool expect_driver_state_helpers() {
   source.blend_width = 0.25f;
   ghogx::character::SourceCharDriverState dest;
   dest.has_first = true;
+  dest.has_bones = true;
+  dest.has_test_clip = true;
+  dest.has_default_clip = true;
+  dest.default_play_starved = true;
+  dest.starved_handler = "keep_starved";
+  dest.old_beat = 14.0f;
+  dest.clip_type = "keep_clip_type";
+  dest.apply = ghogx::character::kSourceCharDriverApplyBlendWeights;
+  dest.has_internal_bones = true;
+  dest.play_multiple_clips = true;
   ghogx::character::source_char_driver_transfer(dest, source);
   if (!dest.has_clips || !dest.has_first || !dest.last_node_valid ||
       !dest.realign || dest.beat_scale != 0.5f ||
       dest.blend_width != 0.25f) {
     std::cerr << "driver Transfer copied source fields incorrectly\n";
+    ok = false;
+  }
+  if (!dest.has_bones || !dest.has_test_clip || !dest.has_default_clip ||
+      !dest.default_play_starved || dest.starved_handler != "keep_starved" ||
+      dest.old_beat != 14.0f || dest.clip_type != "keep_clip_type" ||
+      dest.apply != ghogx::character::kSourceCharDriverApplyBlendWeights ||
+      !dest.has_internal_bones || !dest.play_multiple_clips) {
+    std::cerr << "driver Transfer mutated source-untouched fields\n";
+    ok = false;
+  }
+  const auto transfer_plan =
+      ghogx::character::source_char_driver_transfer_plan(true);
+  if (!transfer_plan.clear_stack ||
+      !transfer_plan.create_first_driver_copy ||
+      transfer_plan.copied_members.size() != 6 ||
+      transfer_plan.copied_members[0] != "mClips" ||
+      transfer_plan.copied_members[5] !=
+          "mFirst:new CharClipDriver(this,*driver.mFirst)" ||
+      transfer_plan.preserved_members.size() != 11 ||
+      transfer_plan.preserved_members[2] != "mDefaultClip" ||
+      transfer_plan.preserved_members[9] != "mPlayMultipleClips") {
+    std::cerr << "driver Transfer plan no longer matches source boundary\n";
     ok = false;
   }
   ok &= expect_play_group_decision(false, false, true, false, false, false,

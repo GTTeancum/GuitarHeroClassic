@@ -15891,6 +15891,10 @@ int run_contract() {
                  "SourceCharDriverState&state);",
                  "native character API exposes source CharDriver Enter helper");
   ok &= contains(char_clip_h,
+                 "SourceCharDriverTransferPlan"
+                 "source_char_driver_transfer_plan(boolsource_has_first);",
+                 "native character API exposes source CharDriver Transfer plan");
+  ok &= contains(char_clip_h,
                  "voidsource_char_driver_transfer(SourceCharDriverState&state,"
                  "constSourceCharDriverState&driver);",
                  "native character API exposes source CharDriver Transfer helper");
@@ -16310,6 +16314,12 @@ int run_contract() {
                  "driver.last_node_valid;state.realign=driver.realign;",
                  "native CharDriver Transfer helper ports source copied fields");
   ok &= contains(char_clip,
+                 "plan.preserved_members={\"mBones\",\"mTestClip\","
+                 "\"mDefaultClip\",\"mDefaultPlayStarved\",\"mStarvedHandler\","
+                 "\"mOldBeat\",\"mClipType\",\"mApply\",\"mInternalBones\","
+                 "\"mPlayMultipleClips\",\"unk89\"};",
+                 "native CharDriver Transfer plan records source-untouched fields");
+  ok &= contains(char_clip,
                  "voidsource_char_driver_set_clips(SourceCharDriverState&state,"
                  "boolhas_clips){if(has_clips!=state.has_clips){"
                  "state.last_node_valid=false;state.has_clips=has_clips;}}",
@@ -16460,6 +16470,12 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_driver_transfer(dest,source)",
                  "focused flag-mask test covers CharDriver Transfer copy");
+  ok &= contains(clip_driver_flags_test,
+                 "driverTransfermutatedsource-untouchedfields",
+                 "focused flag-mask test covers CharDriver Transfer preserved fields");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_transfer_plan(true)",
+                 "focused flag-mask test covers CharDriver Transfer plan");
   ok &= contains(clip_driver_flags_test,
                  "expect_play_group_decision(false,false,true,false,false,false,"
                  "\"noclipdirectory\")",

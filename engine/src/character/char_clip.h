@@ -914,6 +914,13 @@ struct SourceCharDriverState {
   bool play_multiple_clips = false;
 };
 
+struct SourceCharDriverTransferPlan {
+  bool clear_stack = true;
+  bool create_first_driver_copy = false;
+  std::vector<std::string> copied_members;
+  std::vector<std::string> preserved_members;
+};
+
 struct SourceCharDriverSyncDecision {
   bool changed = false;
   bool clear_stack = false;
@@ -1313,6 +1320,8 @@ SourceCharDriverState source_char_driver_default_state();
 void source_char_driver_clear(SourceCharDriverState& state);
 SourceCharDriverEnterDecision source_char_driver_enter(
     SourceCharDriverState& state);
+SourceCharDriverTransferPlan source_char_driver_transfer_plan(
+    bool source_has_first);
 void source_char_driver_transfer(SourceCharDriverState& state,
                                  const SourceCharDriverState& driver);
 void source_char_driver_set_clips(SourceCharDriverState& state,
