@@ -4337,14 +4337,17 @@ int main() {
                  "sample_material_rotation_z_key(anim.tex_rotation_keys,frame)",
                  "MatAnim sampler drives 2-D texture rotation from the source Vec3 Z component");
   ok &= contains(gameplay_c,
-                 "sample_material_color_key(anim.color_keys,0.0f);",
-                 "MatAnim color channel initializes renderer override");
+                 "blend_material_color(active_anim.start_color,"
+                 "sample_material_color_key(anim.color_keys,0.0f),"
+                 "initial_blend);",
+                 "MatAnim color channel initializes renderer override through source blend");
   ok &= contains(gameplay_c,
                  "sample_material_texture_key(anim.texture_keys,0.0f);",
                  "MatAnim texture channel initializes renderer override");
   ok &= contains(gameplay_c,
-                 "sample_material_tex_transform(anim,0.0f);",
-                 "MatAnim texture transform initializes renderer override");
+                 "blend_material_tex_transform(active_anim.start_tex_transform,"
+                 "sample_material_tex_transform(anim,0.0f),initial_blend);",
+                 "MatAnim texture transform initializes renderer override through source blend");
   ok &= contains(gameplay_c,
                  "floatmaterial_anim_tex_value_to_uv(floatvalue)",
                  "MatAnim texture translation keeps authored raw UV offset");
@@ -4481,8 +4484,9 @@ int main() {
                  "voidGameplay::update_active_venue_material_anims()",
                  "venue MatAnim alpha has a per-tick sampler");
   ok &= contains(gameplay_c,
-                 "venue_material_alpha_[it->material]=clamp_material_alpha(alpha);",
-                 "venue MatAnim sampler updates material alpha over time");
+                 "venue_material_alpha_[it->material]="
+                 "blend_material_alpha(it->start_alpha,sampled_alpha,source_blend);",
+                 "venue MatAnim sampler blends material alpha from the live source state");
   ok &= contains(gameplay_c,
                  "sample_material_float_key(it->alpha_keys,frame)",
                  "venue MatAnim playback samples authored alpha keys by frame");
@@ -4490,8 +4494,8 @@ int main() {
                  "\"[world]venueMatAnimsample%s->%sframe=%.2falpha=%.3f",
                  "venue MatAnim sampler emits debug rows for native validation");
   ok &= contains(gameplay_c,
-                 "autovenue_anim_it=venue_mat_anims_.find(anim_name);",
-                 "lighting EventTriggers can resolve venue-geometry MatAnim refs");
+                 "autovenue_anim_it=venue_mat_anims_.find(route.anim);",
+                 "lighting EventTriggers can resolve venue-geometry MatAnim routes");
   ok &= contains(gameplay_c,
                  "\"[world]lightingevent%s:venueMatAnim%s->%s",
                  "cross-MILO venue MatAnim routes are logged distinctly");
@@ -5070,9 +5074,9 @@ int main() {
                  "noop_mat_anims.find(ref)!=noop_mat_anims.end())return;",
                  "same-MILO zero-channel MatAnim refs are not treated as unsupported routes");
   ok &= contains(gameplay_h_c,
-                 "std::map<std::string,std::vector<std::string>>"
+                 "std::map<std::string,std::vector<VenueEventAnimRoute>>"
                  "lighting_event_mat_anims_;",
-                 "lighting overlay keeps its own EventTrigger MatAnim routes");
+                 "lighting overlay keeps its own EventTrigger MatAnim routes with source blend");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<VenueEventAnimRoute>>"
                  "lighting_event_env_anims_;",
@@ -5231,7 +5235,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]lightingMatAnimsample%s->%sframe=%.2falpha=%.3f"
                  "color_keys=%zualpha_keys=%zutexture_keys=%zutex_trans_keys=%zu"
-                 "tex_scale_keys=%zutex_rot_keys=%zupersistent=%d\\n\"",
+                 "tex_scale_keys=%zutex_rot_keys=%zupersistent=%dblend=%.3f"
+                 "blend_period=%.3f\\n\"",
                  "lighting overlay MatAnim sampler emits debug rows for native validation");
   ok &= contains(gameplay_c,
                  "if(debug_sample)last_lighting_mat_anim_debug_time_=song_time_;",

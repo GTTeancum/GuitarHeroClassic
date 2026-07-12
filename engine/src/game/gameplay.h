@@ -414,6 +414,12 @@ class Gameplay {
     std::vector<VenueMaterialAnim::Vec3Key> tex_scale_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_rotation_keys;
     bool persistent = true;
+    float source_blend_period_seconds = 0.0f;
+    bool has_start_color = false;
+    std::array<float, 4> start_color = {1.0f, 1.0f, 1.0f, 1.0f};
+    bool has_start_tex_transform = false;
+    ghogx::render::MiloSceneRenderer::MaterialTexTransformSample
+        start_tex_transform;
   };
   struct ActiveVenueEnvironmentAnim {
     std::string name;
@@ -828,7 +834,8 @@ class Gameplay {
   std::vector<PendingLightingAdvance> pending_lighting_advances_;
   bool ignored_last_light_change_ = false;
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
-  std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
+  std::map<std::string, std::vector<VenueEventAnimRoute>>
+      lighting_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> lighting_env_anims_;
   std::map<std::string, std::vector<VenueEventAnimRoute>>
       lighting_event_env_anims_;
@@ -850,6 +857,7 @@ class Gameplay {
       lighting_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
   std::map<std::string, std::vector<std::string>> lighting_material_meshes_;
+  std::map<std::string, ghogx::milo_scene::MatObj> lighting_material_defaults_;
   double last_lighting_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> lighting_environment_colors_;
   std::map<std::string, std::array<float, 4>>
@@ -890,7 +898,8 @@ class Gameplay {
   std::unordered_set<std::string> lighting_base_hidden_meshes_;
   std::unordered_set<std::string> lighting_runtime_hidden_meshes_;
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
-  std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
+  std::map<std::string, std::vector<VenueEventAnimRoute>>
+      venue_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> venue_env_anims_;
   std::map<std::string, std::vector<VenueEventAnimRoute>>
       venue_event_env_anims_;
@@ -937,6 +946,7 @@ class Gameplay {
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       venue_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
+  std::map<std::string, ghogx::milo_scene::MatObj> venue_material_defaults_;
   double last_venue_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> venue_environment_colors_;
   std::map<std::string, std::array<float, 4>> venue_environment_fog_colors_;

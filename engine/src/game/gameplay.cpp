@@ -4640,10 +4640,11 @@ load_venue_event_particles(const std::string& hdr_path,
     return out;
 }
 
-std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
+std::map<std::string, std::vector<Gameplay::VenueEventAnimRoute>>
+load_venue_event_mat_anims(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path) {
-    std::map<std::string, std::vector<std::string>> out;
+    std::map<std::string, std::vector<Gameplay::VenueEventAnimRoute>> out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
@@ -4783,7 +4784,7 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
         for (const auto& [filter, anims] : filter_mat_anims) {
             if (anims.empty()) continue;
             auto& routed = out[venue_filter_route_key(filter)];
-            for (const auto& anim : anims) push_unique_ref(routed, anim);
+            push_event_anim_routes(routed, anims, 0.0f);
         }
 
         for (const auto& de : dir.entries) {
@@ -4792,42 +4793,49 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
             std::string event_label_storage;
-            const auto refs = venue_event_trigger_anim_route_refs(
+            const auto anim_routes = venue_event_trigger_anim_routes(
                 body, size, event_label_storage);
             const std::string_view event_label =
                 is_event_payload_label(event_label_storage)
                     ? std::string_view(event_label_storage)
                     : std::string_view{};
-            std::vector<std::string> mat_anims;
-            for (const auto& s : refs) {
-                const auto ref = canonical_milo_ref(s);
+            std::vector<Gameplay::VenueEventAnimRoute> mat_anims;
+            for (const auto& anim_route : anim_routes) {
+                const auto ref = canonical_milo_ref(anim_route.ref);
+                std::vector<std::string> resolved;
                 if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
-                    push_supported_mat_ref(mat_anims, ref);
+                    push_supported_mat_ref(resolved, ref);
                 } else if (ref.size() > 5 &&
                            ref.rfind(".filt") == ref.size() - 5) {
                     const auto filter_it = filter_mat_anims.find(ref);
                     if (filter_it == filter_mat_anims.end()) continue;
                     for (const auto& anim : filter_it->second)
-                        push_unique_ref(mat_anims, anim);
+                        push_unique_ref(resolved, anim);
                 } else if (ref.size() > 4 &&
                            ref.rfind(".grp") == ref.size() - 4) {
                     const auto group_it = group_mat_anims.find(ref);
                     if (group_it == group_mat_anims.end()) continue;
                     for (const auto& anim : group_it->second)
-                        push_unique_ref(mat_anims, anim);
+                        push_unique_ref(resolved, anim);
                 }
+                push_event_anim_routes(mat_anims, resolved, anim_route.blend);
             }
             if (!mat_anims.empty()) {
                 for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
                     auto& routed = out[key];
-                    for (const auto& anim : mat_anims)
-                        push_unique_ref(routed, anim);
+                    for (const auto& route : mat_anims) {
+                        push_unique_event_anim_route(
+                            routed, route.anim,
+                            route.source_blend_period_seconds);
+                    }
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr, "[world] EventTrigger %s MatAnims=",
                                  de.name.c_str());
-                    for (const auto& anim : mat_anims) {
-                        std::fprintf(stderr, "%s ", anim.c_str());
+                    for (const auto& route : mat_anims) {
+                        std::fprintf(stderr, "%s blend=%.3f ",
+                                     route.anim.c_str(),
+                                     route.source_blend_period_seconds);
                     }
                     std::fprintf(stderr, "\n");
                 }
@@ -9894,6 +9902,124 @@ void sample_environment_anim_tracks(
 float normalized_source_blend(float blend) {
     if (!std::isfinite(blend)) return 1.0f;
     return std::clamp(blend, 0.0f, 1.0f);
+}
+
+std::array<float, 4> current_material_color(
+    const std::string& material,
+    const std::map<std::string, std::array<float, 4>>& material_colors,
+    const std::map<std::string, ghogx::milo_scene::MatObj>& material_defaults) {
+    if (const auto it = material_colors.find(material);
+        it != material_colors.end()) {
+        return it->second;
+    }
+    if (const auto mat_it = material_defaults.find(material);
+        mat_it != material_defaults.end()) {
+        return {mat_it->second.color[0], mat_it->second.color[1],
+                mat_it->second.color[2], mat_it->second.color[3]};
+    }
+    return {1.0f, 1.0f, 1.0f, 1.0f};
+}
+
+float current_material_alpha(
+    const std::string& material,
+    const std::map<std::string, float>& material_alpha,
+    const std::map<std::string, ghogx::milo_scene::MatObj>& material_defaults,
+    float fallback) {
+    if (const auto it = material_alpha.find(material); it != material_alpha.end())
+        return it->second;
+    if (const auto mat_it = material_defaults.find(material);
+        mat_it != material_defaults.end()) {
+        return clamp_material_alpha(mat_it->second.color[3]);
+    }
+    return clamp_material_alpha(fallback);
+}
+
+std::array<float, 4> blend_material_color(
+    const std::array<float, 4>& current,
+    const std::array<float, 4>& sampled,
+    float blend) {
+    const float b = normalized_source_blend(blend);
+    std::array<float, 4> out{};
+    for (int i = 0; i < 4; ++i) {
+        out[i] = clamp_material_color_component(
+            current[i] + (sampled[i] - current[i]) * b);
+    }
+    return out;
+}
+
+float blend_material_alpha(float current, float sampled, float blend) {
+    const float b = normalized_source_blend(blend);
+    return clamp_material_alpha(current + (sampled - current) * b);
+}
+
+ghogx::render::MiloSceneRenderer::MaterialTexTransformSample
+base_material_tex_transform(
+    const ghogx::milo_scene::MatObj* mat) {
+    ghogx::render::MiloSceneRenderer::MaterialTexTransformSample out;
+    out.has_translation = true;
+    out.has_scale = true;
+    out.has_rotation = true;
+    if (!mat) return out;
+    out.translation = {mat->tex_xfm[2][0], mat->tex_xfm[2][1]};
+    out.scale = {
+        std::max(0.0001f,
+                 std::hypot(mat->tex_xfm[0][0], mat->tex_xfm[0][1])),
+        std::max(0.0001f,
+                 std::hypot(mat->tex_xfm[1][0], mat->tex_xfm[1][1]))};
+    out.rotation_radians = std::atan2(mat->tex_xfm[0][1],
+                                      mat->tex_xfm[0][0]);
+    return out;
+}
+
+ghogx::render::MiloSceneRenderer::MaterialTexTransformSample
+current_material_tex_transform(
+    const std::string& material,
+    const std::map<std::string,
+                   ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>&
+        material_tex_transforms,
+    const std::map<std::string, ghogx::milo_scene::MatObj>& material_defaults) {
+    const auto mat_it = material_defaults.find(material);
+    auto out = base_material_tex_transform(
+        mat_it == material_defaults.end() ? nullptr : &mat_it->second);
+    if (const auto it = material_tex_transforms.find(material);
+        it != material_tex_transforms.end()) {
+        if (it->second.has_translation) out.translation = it->second.translation;
+        if (it->second.has_scale) out.scale = it->second.scale;
+        if (it->second.has_rotation)
+            out.rotation_radians = it->second.rotation_radians;
+    }
+    return out;
+}
+
+ghogx::render::MiloSceneRenderer::MaterialTexTransformSample
+blend_material_tex_transform(
+    const ghogx::render::MiloSceneRenderer::MaterialTexTransformSample& current,
+    const ghogx::render::MiloSceneRenderer::MaterialTexTransformSample& sampled,
+    float blend) {
+    const float b = normalized_source_blend(blend);
+    auto out = current;
+    out.has_translation = true;
+    out.has_scale = true;
+    out.has_rotation = true;
+    if (sampled.has_translation) {
+        out.translation = {
+            current.translation[0] +
+                (sampled.translation[0] - current.translation[0]) * b,
+            current.translation[1] +
+                (sampled.translation[1] - current.translation[1]) * b};
+    }
+    if (sampled.has_scale) {
+        out.scale = {current.scale[0] +
+                         (sampled.scale[0] - current.scale[0]) * b,
+                     current.scale[1] +
+                         (sampled.scale[1] - current.scale[1]) * b};
+    }
+    if (sampled.has_rotation) {
+        out.rotation_radians =
+            current.rotation_radians +
+            (sampled.rotation_radians - current.rotation_radians) * b;
+    }
+    return out;
 }
 
 std::array<float, 4> blend_unit_color(const std::array<float, 4>& current,
@@ -16824,6 +16950,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
     lighting_material_meshes_.clear();
+    lighting_material_defaults_.clear();
     last_lighting_mat_anim_debug_time_ = -1.0;
     lighting_environment_colors_.clear();
     lighting_environment_fog_colors_.clear();
@@ -16903,6 +17030,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_script_context_type_.clear();
     executing_venue_script_ = false;
     pending_transient_venue_events_.clear();
+    venue_material_defaults_.clear();
     venue_material_meshes_.clear();
     venue_material_alpha_.clear();
     venue_material_colors_.clear();
@@ -18489,8 +18617,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         (!diagnostic_venue_event_.empty() &&
          diagnostic_venue_event_ == event_name);
     if (event_it != venue_event_mat_anims_.end()) {
-        for (const auto& anim_name : event_it->second) {
-            auto anim_it = venue_mat_anims_.find(anim_name);
+        for (const auto& route : event_it->second) {
+            auto anim_it = venue_mat_anims_.find(route.anim);
             if (anim_it == venue_mat_anims_.end()) continue;
             const auto& anim = anim_it->second;
             const bool has_tex_transform =
@@ -18510,16 +18638,16 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                    return active.material == anim.material;
                                }),
                 active_venue_material_anims_.end());
-            const auto current_alpha = venue_material_alpha_.find(anim.material);
             ActiveVenueMaterialAnim active_anim;
             active_anim.name = anim.name;
             active_anim.material = anim.material;
             active_anim.has_alpha = anim.has_alpha;
             active_anim.start_alpha =
                 anim.has_alpha
-                    ? (current_alpha == venue_material_alpha_.end()
-                           ? anim.start_alpha
-                           : current_alpha->second)
+                    ? current_material_alpha(anim.material,
+                                             venue_material_alpha_,
+                                             venue_material_defaults_,
+                                             anim.start_alpha)
                     : 1.0f;
             active_anim.end_alpha = anim.end_alpha;
             active_anim.start_time = song_time_;
@@ -18533,17 +18661,40 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.tex_scale_keys = anim.tex_scale_keys;
             active_anim.tex_rotation_keys = anim.tex_rotation_keys;
             active_anim.persistent = persistent;
+            active_anim.source_blend_period_seconds =
+                route.source_blend_period_seconds;
+            if (has_color) {
+                active_anim.has_start_color = true;
+                active_anim.start_color =
+                    current_material_color(anim.material,
+                                           venue_material_colors_,
+                                           venue_material_defaults_);
+            }
+            if (has_tex_transform) {
+                active_anim.has_start_tex_transform = true;
+                active_anim.start_tex_transform =
+                    current_material_tex_transform(anim.material,
+                                                   venue_material_tex_transforms_,
+                                                   venue_material_defaults_);
+            }
+            const float initial_blend = source_anim_blend_at(
+                active_anim.source_blend_period_seconds, 0.0);
             if (anim.has_alpha) {
-                venue_material_alpha_[anim.material] =
+                const float sampled_alpha =
                     active_anim.alpha_keys.empty()
                         ? active_anim.start_alpha
                         : clamp_material_alpha(sample_material_float_key(
                               active_anim.alpha_keys, 0.0f));
+                venue_material_alpha_[anim.material] =
+                    blend_material_alpha(active_anim.start_alpha,
+                                         sampled_alpha, initial_blend);
                 material_changes.push_back({anim.material, anim.end_alpha});
             }
             if (has_color) {
-                venue_material_colors_[anim.material] =
-                    sample_material_color_key(anim.color_keys, 0.0f);
+                venue_material_colors_[anim.material] = blend_material_color(
+                    active_anim.start_color,
+                    sample_material_color_key(anim.color_keys, 0.0f),
+                    initial_blend);
                 material_color_changed = true;
             }
             if (has_texture) {
@@ -18553,13 +18704,16 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
             if (has_tex_transform) {
                 venue_material_tex_transforms_[anim.material] =
-                    sample_material_tex_transform(anim, 0.0f);
+                    blend_material_tex_transform(
+                        active_anim.start_tex_transform,
+                        sample_material_tex_transform(anim, 0.0f),
+                        initial_blend);
                 material_tex_changed = true;
             }
             venue_route_applied = true;
             std::fprintf(stderr,
-                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f %s\n",
-                         event_name.c_str(), anim_name.c_str(),
+                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f %s\n",
+                         event_name.c_str(), route.anim.c_str(),
                          anim.material.c_str(), active_anim.start_alpha,
                          active_anim.end_alpha,
                          active_anim.color_keys.size(),
@@ -18569,23 +18723,43 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                          active_anim.tex_scale_keys.size(),
                          active_anim.tex_rotation_keys.size(),
                          active_anim.duration_seconds,
+                         active_anim.source_blend_period_seconds,
                          persistent ? "persistent" : "transient");
             if (active_anim.duration_seconds <= 0.0001) {
                 if (anim.has_alpha)
-                    venue_material_alpha_[anim.material] =
+                    venue_material_alpha_[anim.material] = blend_material_alpha(
+                        active_anim.start_alpha,
                         anim.alpha_keys.empty()
                             ? anim.end_alpha
                             : clamp_material_alpha(sample_material_float_key(
-                                  anim.alpha_keys, anim.duration_frames));
+                                  anim.alpha_keys, anim.duration_frames)),
+                        source_anim_blend_at(
+                            active_anim.source_blend_period_seconds,
+                            active_anim.duration_seconds));
                 if (has_color) {
                     venue_material_colors_[anim.material] =
-                        sample_material_color_key(
-                            anim.color_keys, anim.duration_frames);
+                        blend_material_color(
+                            active_anim.start_color,
+                            sample_material_color_key(
+                                anim.color_keys, anim.duration_frames),
+                            source_anim_blend_at(
+                                active_anim.source_blend_period_seconds,
+                                active_anim.duration_seconds));
                 }
                 if (has_texture) {
                     venue_material_textures_[anim.material] =
                         sample_material_texture_key(
                             anim.texture_keys, anim.duration_frames);
+                }
+                if (has_tex_transform) {
+                    venue_material_tex_transforms_[anim.material] =
+                        blend_material_tex_transform(
+                            active_anim.start_tex_transform,
+                            sample_material_tex_transform(
+                                anim, anim.duration_frames),
+                            source_anim_blend_at(
+                                active_anim.source_blend_period_seconds,
+                                active_anim.duration_seconds));
                 }
             } else {
                 active_venue_material_anims_.push_back(std::move(active_anim));
@@ -19068,8 +19242,11 @@ void Gameplay::update_active_venue_material_anims() {
                 : static_cast<float>(
                       std::clamp(t, 0.0, 1.0) *
                       static_cast<double>(std::max(0.0f, it->duration_frames)));
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        const float source_blend =
+            source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         if (it->has_alpha) {
-            const float alpha =
+            const float sampled_alpha =
                 has_alpha_keys
                     ? sample_material_float_key(it->alpha_keys, frame)
                     : static_cast<float>(
@@ -19077,12 +19254,20 @@ void Gameplay::update_active_venue_material_anims() {
                           (static_cast<double>(it->end_alpha) -
                            it->start_alpha) *
                               t);
-            venue_material_alpha_[it->material] = clamp_material_alpha(alpha);
+            venue_material_alpha_[it->material] =
+                blend_material_alpha(it->start_alpha, sampled_alpha,
+                                     source_blend);
             alpha_changed = true;
         }
         if (has_color) {
-            venue_material_colors_[it->material] =
-                sample_material_color_key(it->color_keys, frame);
+            venue_material_colors_[it->material] = blend_material_color(
+                it->has_start_color
+                    ? it->start_color
+                    : current_material_color(it->material,
+                                             venue_material_colors_,
+                                             venue_material_defaults_),
+                sample_material_color_key(it->color_keys, frame),
+                source_blend);
             color_changed = true;
         }
         if (has_texture) {
@@ -19092,7 +19277,14 @@ void Gameplay::update_active_venue_material_anims() {
         }
         if (has_tex_transform) {
             venue_material_tex_transforms_[it->material] =
-                sample_material_tex_transform(*it, frame);
+                blend_material_tex_transform(
+                    it->has_start_tex_transform
+                        ? it->start_tex_transform
+                        : current_material_tex_transform(
+                              it->material, venue_material_tex_transforms_,
+                              venue_material_defaults_),
+                    sample_material_tex_transform(*it, frame),
+                    source_blend);
             tex_changed = true;
         }
         if (debug_sample) {
@@ -19100,12 +19292,13 @@ void Gameplay::update_active_venue_material_anims() {
                 it->has_alpha ? venue_material_alpha_[it->material] : -1.0f;
             std::fprintf(
                 stderr,
-                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
+                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
                 it->name.c_str(), it->material.c_str(), frame, alpha,
                 it->color_keys.size(), it->alpha_keys.size(),
                 it->texture_keys.size(),
                 it->tex_translation_keys.size(), it->tex_scale_keys.size(),
-                it->tex_rotation_keys.size(), it->persistent ? 1 : 0);
+                it->tex_rotation_keys.size(), it->persistent ? 1 : 0,
+                source_blend, it->source_blend_period_seconds);
         }
         const bool keep_persistent_tex =
             it->persistent && (has_color || has_texture || has_tex_transform) &&
@@ -19868,10 +20061,10 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
         execute_venue_script_object_messages(lighting_event_script_messages_,
                                              event_name);
     if (event_it != lighting_event_mat_anims_.end()) {
-        for (const auto& anim_name : event_it->second) {
-            auto anim_it = lighting_mat_anims_.find(anim_name);
+        for (const auto& route : event_it->second) {
+            auto anim_it = lighting_mat_anims_.find(route.anim);
             if (anim_it == lighting_mat_anims_.end()) {
-                auto venue_anim_it = venue_mat_anims_.find(anim_name);
+                auto venue_anim_it = venue_mat_anims_.find(route.anim);
                 if (venue_anim_it != venue_mat_anims_.end() && world_) {
                     const auto& anim = venue_anim_it->second;
                     const bool has_tex_transform =
@@ -19892,17 +20085,16 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                                 return active.material == anim.material;
                             }),
                         active_venue_material_anims_.end());
-                    const auto current_alpha =
-                        venue_material_alpha_.find(anim.material);
                     ActiveVenueMaterialAnim active_anim;
                     active_anim.name = anim.name;
                     active_anim.material = anim.material;
                     active_anim.has_alpha = anim.has_alpha;
                     active_anim.start_alpha =
                         anim.has_alpha
-                            ? (current_alpha == venue_material_alpha_.end()
-                                   ? anim.start_alpha
-                                   : current_alpha->second)
+                            ? current_material_alpha(anim.material,
+                                                     venue_material_alpha_,
+                                                     venue_material_defaults_,
+                                                     anim.start_alpha)
                             : 1.0f;
                     active_anim.end_alpha = anim.end_alpha;
                     active_anim.start_time = song_time_;
@@ -19916,17 +20108,43 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     active_anim.tex_scale_keys = anim.tex_scale_keys;
                     active_anim.tex_rotation_keys = anim.tex_rotation_keys;
                     active_anim.persistent = persistent;
+                    active_anim.source_blend_period_seconds =
+                        route.source_blend_period_seconds;
+                    if (has_color) {
+                        active_anim.has_start_color = true;
+                        active_anim.start_color =
+                            current_material_color(anim.material,
+                                                   venue_material_colors_,
+                                                   venue_material_defaults_);
+                    }
+                    if (has_tex_transform) {
+                        active_anim.has_start_tex_transform = true;
+                        active_anim.start_tex_transform =
+                            current_material_tex_transform(
+                                anim.material, venue_material_tex_transforms_,
+                                venue_material_defaults_);
+                    }
+                    const float initial_blend = source_anim_blend_at(
+                        active_anim.source_blend_period_seconds, 0.0);
                     if (anim.has_alpha) {
-                        venue_material_alpha_[anim.material] =
+                        const float sampled_alpha =
                             active_anim.alpha_keys.empty()
                                 ? active_anim.start_alpha
-                                : clamp_material_alpha(sample_material_float_key(
-                                      active_anim.alpha_keys, 0.0f));
+                                : clamp_material_alpha(
+                                      sample_material_float_key(
+                                          active_anim.alpha_keys, 0.0f));
+                        venue_material_alpha_[anim.material] =
+                            blend_material_alpha(active_anim.start_alpha,
+                                                 sampled_alpha, initial_blend);
                         venue_alpha_changed = true;
                     }
                     if (has_color) {
                         venue_material_colors_[anim.material] =
-                            sample_material_color_key(anim.color_keys, 0.0f);
+                            blend_material_color(
+                                active_anim.start_color,
+                                sample_material_color_key(anim.color_keys,
+                                                          0.0f),
+                                initial_blend);
                         venue_color_changed = true;
                     }
                     if (has_texture) {
@@ -19937,14 +20155,17 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     }
                     if (has_tex_transform) {
                         venue_material_tex_transforms_[anim.material] =
-                            sample_material_tex_transform(anim, 0.0f);
+                            blend_material_tex_transform(
+                                active_anim.start_tex_transform,
+                                sample_material_tex_transform(anim, 0.0f),
+                                initial_blend);
                         venue_tex_changed = true;
                     }
                     lighting_route_applied = true;
                     std::fprintf(
                         stderr,
-                        "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
-                        event_name.c_str(), anim_name.c_str(),
+                        "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f\n",
+                        event_name.c_str(), route.anim.c_str(),
                         anim.material.c_str(), active_anim.start_alpha,
                         active_anim.end_alpha,
                         active_anim.color_keys.size(),
@@ -19953,25 +20174,46 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                         active_anim.tex_translation_keys.size(),
                         active_anim.tex_scale_keys.size(),
                         active_anim.tex_rotation_keys.size(),
-                        active_anim.duration_seconds);
+                        active_anim.duration_seconds,
+                        active_anim.source_blend_period_seconds);
                     if (active_anim.duration_seconds <= 0.0001) {
                         if (anim.has_alpha)
                             venue_material_alpha_[anim.material] =
-                                anim.alpha_keys.empty()
-                                    ? anim.end_alpha
-                                    : clamp_material_alpha(
-                                          sample_material_float_key(
-                                              anim.alpha_keys,
-                                              anim.duration_frames));
+                                blend_material_alpha(
+                                    active_anim.start_alpha,
+                                    anim.alpha_keys.empty()
+                                        ? anim.end_alpha
+                                        : clamp_material_alpha(
+                                              sample_material_float_key(
+                                                  anim.alpha_keys,
+                                                  anim.duration_frames)),
+                                    source_anim_blend_at(
+                                        active_anim.source_blend_period_seconds,
+                                        active_anim.duration_seconds));
                         if (has_color) {
                             venue_material_colors_[anim.material] =
-                                sample_material_color_key(
-                                    anim.color_keys, anim.duration_frames);
+                                blend_material_color(
+                                    active_anim.start_color,
+                                    sample_material_color_key(
+                                        anim.color_keys, anim.duration_frames),
+                                    source_anim_blend_at(
+                                        active_anim.source_blend_period_seconds,
+                                        active_anim.duration_seconds));
                         }
                         if (has_texture) {
                             venue_material_textures_[anim.material] =
                                 sample_material_texture_key(
                                     anim.texture_keys, anim.duration_frames);
+                        }
+                        if (has_tex_transform) {
+                            venue_material_tex_transforms_[anim.material] =
+                                blend_material_tex_transform(
+                                    active_anim.start_tex_transform,
+                                    sample_material_tex_transform(
+                                        anim, anim.duration_frames),
+                                    source_anim_blend_at(
+                                        active_anim.source_blend_period_seconds,
+                                        active_anim.duration_seconds));
                         }
                     } else {
                         active_venue_material_anims_.push_back(
@@ -19982,7 +20224,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
                                  "[world] lighting event %s: MatAnim %s route has unsupported channel shape\n",
-                                 event_name.c_str(), anim_name.c_str());
+                                 event_name.c_str(), route.anim.c_str());
                 }
                 continue;
             }
@@ -19998,7 +20240,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
                                  "[world] lighting event %s: MatAnim %s has no supported material channels\n",
-                                 event_name.c_str(), anim_name.c_str());
+                                 event_name.c_str(), route.anim.c_str());
                 }
                 continue;
             }
@@ -20009,17 +20251,16 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                                    return active.material == anim.material;
                                }),
                 active_lighting_material_anims_.end());
-            const auto current_alpha =
-                lighting_material_alpha_.find(anim.material);
             ActiveVenueMaterialAnim active_anim;
             active_anim.name = anim.name;
             active_anim.material = anim.material;
             active_anim.has_alpha = anim.has_alpha;
             active_anim.start_alpha =
                 anim.has_alpha
-                    ? (current_alpha == lighting_material_alpha_.end()
-                           ? anim.start_alpha
-                           : current_alpha->second)
+                    ? current_material_alpha(anim.material,
+                                             lighting_material_alpha_,
+                                             lighting_material_defaults_,
+                                             anim.start_alpha)
                     : 1.0f;
             active_anim.end_alpha = anim.end_alpha;
             active_anim.start_time = song_time_;
@@ -20033,15 +20274,39 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.tex_scale_keys = anim.tex_scale_keys;
             active_anim.tex_rotation_keys = anim.tex_rotation_keys;
             active_anim.persistent = persistent;
-            if (anim.has_alpha)
-                lighting_material_alpha_[anim.material] =
+            active_anim.source_blend_period_seconds =
+                route.source_blend_period_seconds;
+            if (has_color) {
+                active_anim.has_start_color = true;
+                active_anim.start_color =
+                    current_material_color(anim.material,
+                                           lighting_material_colors_,
+                                           lighting_material_defaults_);
+            }
+            if (has_tex_transform) {
+                active_anim.has_start_tex_transform = true;
+                active_anim.start_tex_transform =
+                    current_material_tex_transform(
+                        anim.material, lighting_material_tex_transforms_,
+                        lighting_material_defaults_);
+            }
+            const float initial_blend = source_anim_blend_at(
+                active_anim.source_blend_period_seconds, 0.0);
+            if (anim.has_alpha) {
+                const float sampled_alpha =
                     active_anim.alpha_keys.empty()
                         ? active_anim.start_alpha
                         : clamp_material_alpha(sample_material_float_key(
                               active_anim.alpha_keys, 0.0f));
+                lighting_material_alpha_[anim.material] =
+                    blend_material_alpha(active_anim.start_alpha,
+                                         sampled_alpha, initial_blend);
+            }
             if (has_color) {
-                lighting_material_colors_[anim.material] =
-                    sample_material_color_key(anim.color_keys, 0.0f);
+                lighting_material_colors_[anim.material] = blend_material_color(
+                    active_anim.start_color,
+                    sample_material_color_key(anim.color_keys, 0.0f),
+                    initial_blend);
                 color_changed = true;
             }
             if (has_texture) {
@@ -20051,37 +20316,61 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             }
             if (has_tex_transform) {
                 lighting_material_tex_transforms_[anim.material] =
-                    sample_material_tex_transform(anim, 0.0f);
+                    blend_material_tex_transform(
+                        active_anim.start_tex_transform,
+                        sample_material_tex_transform(anim, 0.0f),
+                        initial_blend);
                 tex_changed = true;
             }
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
-                event_name.c_str(), anim_name.c_str(), anim.material.c_str(),
+                "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f\n",
+                event_name.c_str(), route.anim.c_str(), anim.material.c_str(),
                 active_anim.start_alpha, active_anim.end_alpha,
                 active_anim.color_keys.size(), active_anim.alpha_keys.size(),
                 active_anim.texture_keys.size(),
                 active_anim.tex_translation_keys.size(),
                 active_anim.tex_scale_keys.size(),
                 active_anim.tex_rotation_keys.size(),
-                active_anim.duration_seconds);
+                active_anim.duration_seconds,
+                active_anim.source_blend_period_seconds);
             if (active_anim.duration_seconds <= 0.0001) {
                 if (anim.has_alpha)
                     lighting_material_alpha_[anim.material] =
-                        anim.alpha_keys.empty()
-                            ? anim.end_alpha
-                            : clamp_material_alpha(sample_material_float_key(
-                                  anim.alpha_keys, anim.duration_frames));
+                        blend_material_alpha(
+                            active_anim.start_alpha,
+                            anim.alpha_keys.empty()
+                                ? anim.end_alpha
+                                : clamp_material_alpha(sample_material_float_key(
+                                      anim.alpha_keys, anim.duration_frames)),
+                            source_anim_blend_at(
+                                active_anim.source_blend_period_seconds,
+                                active_anim.duration_seconds));
                 if (has_color) {
                     lighting_material_colors_[anim.material] =
-                        sample_material_color_key(anim.color_keys,
-                                                  anim.duration_frames);
+                        blend_material_color(
+                            active_anim.start_color,
+                            sample_material_color_key(anim.color_keys,
+                                                      anim.duration_frames),
+                            source_anim_blend_at(
+                                active_anim.source_blend_period_seconds,
+                                active_anim.duration_seconds));
                 }
                 if (has_texture) {
                     lighting_material_textures_[anim.material] =
                         sample_material_texture_key(anim.texture_keys,
                                                     anim.duration_frames);
+                }
+                if (has_tex_transform) {
+                    lighting_material_tex_transforms_[anim.material] =
+                        blend_material_tex_transform(
+                            active_anim.start_tex_transform,
+                            sample_material_tex_transform(
+                                anim, anim.duration_frames),
+                            source_anim_blend_at(
+                                active_anim.source_blend_period_seconds,
+                                active_anim.duration_seconds));
                 }
             } else {
                 active_lighting_material_anims_.push_back(
@@ -20365,8 +20654,11 @@ void Gameplay::update_active_lighting_material_anims() {
                 : static_cast<float>(
                       std::clamp(t, 0.0, 1.0) *
                       static_cast<double>(std::max(0.0f, it->duration_frames)));
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        const float source_blend =
+            source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         if (it->has_alpha) {
-            const float alpha =
+            const float sampled_alpha =
                 has_alpha_keys
                     ? sample_material_float_key(it->alpha_keys, frame)
                     : static_cast<float>(
@@ -20374,12 +20666,20 @@ void Gameplay::update_active_lighting_material_anims() {
                           (static_cast<double>(it->end_alpha) -
                            it->start_alpha) *
                               t);
-            lighting_material_alpha_[it->material] = clamp_material_alpha(alpha);
+            lighting_material_alpha_[it->material] =
+                blend_material_alpha(it->start_alpha, sampled_alpha,
+                                     source_blend);
             alpha_changed = true;
         }
         if (has_color) {
-            lighting_material_colors_[it->material] =
-                sample_material_color_key(it->color_keys, frame);
+            lighting_material_colors_[it->material] = blend_material_color(
+                it->has_start_color
+                    ? it->start_color
+                    : current_material_color(it->material,
+                                             lighting_material_colors_,
+                                             lighting_material_defaults_),
+                sample_material_color_key(it->color_keys, frame),
+                source_blend);
             color_changed = true;
         }
         if (has_texture) {
@@ -20389,7 +20689,14 @@ void Gameplay::update_active_lighting_material_anims() {
         }
         if (has_tex_transform) {
             lighting_material_tex_transforms_[it->material] =
-                sample_material_tex_transform(*it, frame);
+                blend_material_tex_transform(
+                    it->has_start_tex_transform
+                        ? it->start_tex_transform
+                        : current_material_tex_transform(
+                              it->material, lighting_material_tex_transforms_,
+                              lighting_material_defaults_),
+                    sample_material_tex_transform(*it, frame),
+                    source_blend);
             tex_changed = true;
         }
         if (debug_sample) {
@@ -20397,12 +20704,13 @@ void Gameplay::update_active_lighting_material_anims() {
                 it->has_alpha ? lighting_material_alpha_[it->material] : -1.0f;
             std::fprintf(
                 stderr,
-                "[world] lighting MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
+                "[world] lighting MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d blend=%.3f blend_period=%.3f\n",
                 it->name.c_str(), it->material.c_str(), frame, alpha,
                 it->color_keys.size(), it->alpha_keys.size(),
                 it->texture_keys.size(),
                 it->tex_translation_keys.size(), it->tex_scale_keys.size(),
-                it->tex_rotation_keys.size(), it->persistent ? 1 : 0);
+                it->tex_rotation_keys.size(), it->persistent ? 1 : 0,
+                source_blend, it->source_blend_period_seconds);
         }
         const bool keep_persistent_tex =
             it->persistent && (has_color || has_texture || has_tex_transform) &&
@@ -23183,6 +23491,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     executing_venue_script_ = false;
                 }
                 venue_material_meshes_.clear();
+                venue_material_defaults_.clear();
+                for (const auto& mat : venue_scene.mats) {
+                    if (!mat.name.empty()) venue_material_defaults_[mat.name] = mat;
+                }
                 for (const auto& mesh : venue_scene.meshes) {
                     if (mesh.material.empty()) continue;
                     auto& meshes = venue_material_meshes_[mesh.material];
@@ -23440,6 +23752,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 lighting_base_hidden_meshes_.clear();
                 lighting_material_meshes_.clear();
+                lighting_material_defaults_.clear();
+                for (const auto& mat : lighting_scene.mats) {
+                    if (!mat.name.empty())
+                        lighting_material_defaults_[mat.name] = mat;
+                }
                 lighting_mesh_source_local_positions_ =
                     build_scene_mesh_local_positions(lighting_scene);
                 for (const auto& mesh : lighting_scene.meshes) {
