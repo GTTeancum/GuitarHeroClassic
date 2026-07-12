@@ -12212,16 +12212,13 @@ double venue_anim_time_units_to_seconds(int rate, double absolute_start_seconds,
 float venue_filter_signed_scale(const Gameplay::VenueAnimFilter& filter) {
     const float start = filter.start_frame;
     const float end = filter.end_frame;
-    if (std::isfinite(filter.period) && filter.period > 0.001f) {
+    if (std::isfinite(filter.period) && filter.period != 0.0f) {
         const float span = end - start;
         const float fpu = rnd_animatable_frames_per_unit(filter.anim_rate);
         return std::isfinite(span) ? span / (filter.period * fpu) : 1.0f;
     }
-    const float magnitude =
-        std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
-            ? std::fabs(filter.scale)
-            : 1.0f;
-    return end >= start ? magnitude : -magnitude;
+    const float scale = std::isfinite(filter.scale) ? filter.scale : 1.0f;
+    return end >= start ? scale : -scale;
 }
 
 float venue_filter_frame_offset(const Gameplay::VenueAnimFilter& filter) {

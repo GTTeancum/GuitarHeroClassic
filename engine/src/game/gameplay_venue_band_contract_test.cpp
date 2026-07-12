@@ -7133,6 +7133,15 @@ int main() {
                  "floatvenue_filter_signed_scale(constGameplay::VenueAnimFilter&filter)",
                  "venue AnimFilter derives signed Scale from period/start/end like source RndAnimFilter");
   ok &= contains(gameplay_c,
+                 "filter.period!=0.0f",
+                 "venue AnimFilter treats any nonzero source period as authoritative");
+  ok &= contains(gameplay_c,
+                 "constfloatscale=std::isfinite(filter.scale)?filter.scale:1.0f;",
+                 "venue AnimFilter preserves authored negative scale values");
+  ok &= absent(gameplay_c,
+               "std::fabs(filter.scale)",
+               "venue AnimFilter must not discard authored negative scale values");
+  ok &= contains(gameplay_c,
                  "venue_filter_frame_at(filter,filter_elapsed,it->polled,"
                  "&chart_,filter_start_time)",
                  "venue PollAnim routes use direct SetFrame-style offset phase");
