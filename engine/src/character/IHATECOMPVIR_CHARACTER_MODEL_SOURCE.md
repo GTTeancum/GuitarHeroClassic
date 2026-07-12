@@ -514,6 +514,12 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     striper results; `Replace` rewires `mGeomOwner` only when it matched the
     replaced object, taking the replacement mesh's geometry owner or falling
     back to `this`.
+  - Native `source_rndmesh_copy_plan` records the visible `RndMesh::Copy`
+    decision table: normal copies copy keep-mesh-data/mutable state, copy full
+    geometry with volume, copy AO state, and finish with `Sync(0xbf)`; shallow
+    copies copy the geometry owner and bones instead; `kCopyFromMax` ORs
+    mutable state, skips keep-mesh-data, and only takes the owner/bones branch
+    when the source mesh itself has an external geometry owner.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

@@ -184,6 +184,30 @@ SourceRndMeshReplacePlan source_rndmesh_replace_plan(
     bool geom_owner_matches_from,
     bool to_is_mesh);
 
+struct SourceRndMeshCopyPlan {
+  bool copies_object = true;
+  bool copies_transformable = true;
+  bool copies_drawable = true;
+  bool copies_material = true;
+  bool copies_keep_mesh_data = false;
+  bool ors_mutable = false;
+  bool copies_mutable = false;
+  bool clears_has_ao_calc = true;
+  bool copies_force_no_quantize = true;
+  bool copies_geom_owner = false;
+  bool copies_bones = false;
+  bool copies_geometry = false;
+  bool copy_geometry_with_volume = false;
+  bool copies_has_ao_calc = false;
+  bool sync = true;
+  int32_t sync_mask = 0xbf;
+};
+
+SourceRndMeshCopyPlan source_rndmesh_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_geom_owner_is_self);
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;

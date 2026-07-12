@@ -5296,6 +5296,25 @@ SourceRndMeshReplacePlan source_rndmesh_replace_plan(
   return plan;
 }
 
+SourceRndMeshCopyPlan source_rndmesh_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_geom_owner_is_self) {
+  SourceRndMeshCopyPlan plan;
+  plan.copies_keep_mesh_data = !copy_from_max;
+  plan.ors_mutable = copy_from_max;
+  plan.copies_mutable = !copy_from_max;
+  if (copy_shallow || (copy_from_max && !source_geom_owner_is_self)) {
+    plan.copies_geom_owner = true;
+    plan.copies_bones = true;
+  } else {
+    plan.copies_geometry = true;
+    plan.copy_geometry_with_volume = !copy_from_max;
+    plan.copies_has_ao_calc = !copy_from_max;
+  }
+  return plan;
+}
+
 std::vector<std::string> Character::texture_names() const {
   std::set<std::string> set;
   for (const milo_scene::MatObj& m : mats)

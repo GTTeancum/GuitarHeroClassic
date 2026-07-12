@@ -393,6 +393,44 @@ int main() {
   CHECK(!replace_to_non_mesh.new_owner_from_to_geom_owner);
   CHECK(replace_to_non_mesh.new_owner_is_self);
 
+  const auto copy_regular =
+      ghogx::character::source_rndmesh_copy_plan(false, false, true);
+  CHECK(copy_regular.copies_object);
+  CHECK(copy_regular.copies_transformable);
+  CHECK(copy_regular.copies_drawable);
+  CHECK(copy_regular.copies_material);
+  CHECK(copy_regular.copies_keep_mesh_data);
+  CHECK(!copy_regular.ors_mutable);
+  CHECK(copy_regular.copies_mutable);
+  CHECK(copy_regular.clears_has_ao_calc);
+  CHECK(copy_regular.copies_force_no_quantize);
+  CHECK(!copy_regular.copies_geom_owner);
+  CHECK(!copy_regular.copies_bones);
+  CHECK(copy_regular.copies_geometry);
+  CHECK(copy_regular.copy_geometry_with_volume);
+  CHECK(copy_regular.copies_has_ao_calc);
+  CHECK(copy_regular.sync);
+  CHECK(copy_regular.sync_mask == 0xbf);
+  const auto copy_shallow =
+      ghogx::character::source_rndmesh_copy_plan(true, false, true);
+  CHECK(copy_shallow.copies_geom_owner);
+  CHECK(copy_shallow.copies_bones);
+  CHECK(!copy_shallow.copies_geometry);
+  CHECK(copy_shallow.copies_keep_mesh_data);
+  const auto copy_from_max_external_owner =
+      ghogx::character::source_rndmesh_copy_plan(false, true, false);
+  CHECK(!copy_from_max_external_owner.copies_keep_mesh_data);
+  CHECK(copy_from_max_external_owner.ors_mutable);
+  CHECK(!copy_from_max_external_owner.copies_mutable);
+  CHECK(copy_from_max_external_owner.copies_geom_owner);
+  CHECK(copy_from_max_external_owner.copies_bones);
+  CHECK(!copy_from_max_external_owner.copies_geometry);
+  const auto copy_from_max_self_owner =
+      ghogx::character::source_rndmesh_copy_plan(false, true, true);
+  CHECK(copy_from_max_self_owner.copies_geometry);
+  CHECK(!copy_from_max_self_owner.copy_geometry_with_volume);
+  CHECK(!copy_from_max_self_owner.copies_has_ao_calc);
+
   CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);
