@@ -542,6 +542,13 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - Native render state must come from decoded `RndMat`/`RndDrawable` rows, not
     from mesh or material names such as `hair`, except for the project-level
     hair two-sided cull rule below.
+  - Shared native `source_rndmat_load_plan` records the material load gates used
+    by character rendering: blend and color are first, revisions above 21 read
+    `use_environ`, `prelit`, `z_mode`, `alpha_cut`, optional
+    `alpha_threshold` for revisions above `0x25`, `alpha_write`, `tex_gen`,
+    `tex_wrap`, `tex_xfm`, `diffuse_tex`, `next_pass`, `intensify`, `cull`,
+    and `emissive_multiplier` in source order. GH2 PS2 v27 therefore has no
+    serialized alpha-threshold row.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
 - `rb3/src/system/rndobj/Tex.cpp`

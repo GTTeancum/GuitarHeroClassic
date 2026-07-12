@@ -227,6 +227,31 @@ struct MatObj {
   bool decoded = false;
 };
 
+struct SourceRndMatLoadPlan {
+  int32_t revision = 0;
+  bool reads_blend = true;
+  bool reads_color = true;
+  bool reads_modern_render_state = false;
+  bool reads_use_environ = false;
+  bool reads_prelit = false;
+  bool reads_z_mode = false;
+  bool reads_alpha_cut = false;
+  bool reads_alpha_threshold = false;
+  bool reads_alpha_write = false;
+  bool reads_tex_gen = false;
+  bool reads_tex_wrap = false;
+  bool reads_tex_xfm = false;
+  bool reads_diffuse_tex = false;
+  bool reads_next_pass = false;
+  bool reads_intensify = false;
+  bool reads_cull = false;
+  bool reads_emissive_multiplier = false;
+  bool gh2_v27_has_no_alpha_threshold = false;
+  std::vector<std::string> modern_order;
+};
+
+SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
+
 struct Vertex {
   float px, py, pz;          // position
   float nx, ny, nz;          // normal

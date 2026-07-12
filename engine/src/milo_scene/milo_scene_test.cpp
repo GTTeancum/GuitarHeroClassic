@@ -76,6 +76,43 @@ void test_trans() {
 }
 
 void test_mat() {
+  const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
+  CHECK(v27_plan.reads_blend);
+  CHECK(v27_plan.reads_color);
+  CHECK(v27_plan.reads_modern_render_state);
+  CHECK(v27_plan.reads_use_environ);
+  CHECK(v27_plan.reads_prelit);
+  CHECK(v27_plan.reads_z_mode);
+  CHECK(v27_plan.reads_alpha_cut);
+  CHECK(!v27_plan.reads_alpha_threshold);
+  CHECK(v27_plan.reads_alpha_write);
+  CHECK(v27_plan.reads_tex_gen);
+  CHECK(v27_plan.reads_tex_wrap);
+  CHECK(v27_plan.reads_tex_xfm);
+  CHECK(v27_plan.reads_diffuse_tex);
+  CHECK(v27_plan.reads_next_pass);
+  CHECK(v27_plan.reads_intensify);
+  CHECK(v27_plan.reads_cull);
+  CHECK(v27_plan.reads_emissive_multiplier);
+  CHECK(v27_plan.gh2_v27_has_no_alpha_threshold);
+  CHECK(v27_plan.modern_order.size() == 15);
+  CHECK(v27_plan.modern_order[0] == "blend");
+  CHECK(v27_plan.modern_order[5] == "alpha_cut");
+  CHECK(v27_plan.modern_order[6] == "alpha_write");
+  CHECK(v27_plan.modern_order[10] == "diffuse_tex");
+  CHECK(v27_plan.modern_order[13] == "cull");
+
+  const SourceRndMatLoadPlan v38_plan = source_rndmat_load_plan(38);
+  CHECK(v38_plan.reads_alpha_threshold);
+  CHECK(!v38_plan.gh2_v27_has_no_alpha_threshold);
+  CHECK(v38_plan.modern_order.size() == 16);
+  CHECK(v38_plan.modern_order[6] == "alpha_threshold");
+  CHECK(v38_plan.modern_order[7] == "alpha_write");
+
+  const SourceRndMatLoadPlan v21_plan = source_rndmat_load_plan(21);
+  CHECK(!v21_plan.reads_modern_render_state);
+  CHECK(v21_plan.modern_order.empty());
+
   std::vector<uint8_t> b;
   put_u32(b, 27);                // version 0x1b
   put_zeros(b, 9);               // base metadata

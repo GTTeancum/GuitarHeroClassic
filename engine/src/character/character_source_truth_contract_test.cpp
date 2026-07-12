@@ -166,7 +166,10 @@ int run_contract() {
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
   const std::string cmake = compact(read_file(char_dir / "CMakeLists.txt"));
+  const std::string scene_h = compact(read_file(scene_dir / "milo_scene.h"));
   const std::string scene = compact(read_file(scene_dir / "milo_scene.cpp"));
+  const std::string scene_test =
+      compact(read_file(scene_dir / "milo_scene_test.cpp"));
   const std::string doc =
       read_file(char_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md");
   const std::string format_notes =
@@ -1378,6 +1381,18 @@ int run_contract() {
                  "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"
                  "zMode=(ZMode)reader.ReadInt32();alphaCut=reader.ReadBoolean();",
                  "RndMat source useEnviron/preLit/render-state order");
+  ok &= contains(mat_cs,
+                 "if(revision>0x25)alphaThreshold=reader.ReadInt32();"
+                 "alphaWrite=reader.ReadBoolean();texGen=(TexGen)reader.ReadInt32();",
+                 "RndMat source alpha-threshold/alpha-write/tex-gen order");
+  ok &= contains(mat_cs,
+                 "texWrap=(TexWrap)reader.ReadInt32();texXfm=newMatrix()."
+                 "Read(reader);diffuseTex=Symbol.Read(reader);"
+                 "nextPass=Symbol.Read(reader);intensify=reader.ReadBoolean();",
+                 "RndMat source texture transform/diffuse/next-pass order");
+  ok &= contains(mat_cs,
+                 "cull=reader.ReadBoolean();emissiveMultiplier=reader.ReadFloat();",
+                 "RndMat source cull/emissive order");
   ok &= contains(rb3_mat_cpp,
                  "mBlend(kSrc),mTexGen(kTexGenNone),mTexWrap(kRepeat),"
                  "mZMode(kNormal)",
@@ -1387,14 +1402,49 @@ int run_contract() {
                  "LOAD_BITFIELD(bool,mUseEnviron)LOAD_BITFIELD(bool,mPreLit)"
                  "LOAD_BITFIELD_ENUM(int,mZMode,ZMode)",
                  "RB3 RndMat runtime load order matches decoded render state");
+  ok &= contains(rb3_mat_cpp,
+                 "if(gRev>0x25)bs>>mAlphaThresh;LOAD_BITFIELD(bool,mAlphaWrite)"
+                 "LOAD_BITFIELD_ENUM(int,mTexGen,TexGen)LOAD_BITFIELD_ENUM(int,"
+                 "mTexWrap,TexWrap)bs>>mTexXfm;bs>>mDiffuseTex;bs>>mNextPass;"
+                 "LOAD_BITFIELD(bool,mIntensify)mDirty=3;Hmx::Colorloc_color;"
+                 "LOAD_BITFIELD(bool,mCull)bs>>mEmissiveMultiplier;",
+                 "RB3 RndMat runtime load order covers texture and cull state");
   ok &= contains(rb3_mat_h,
                  "BlendGetBlend()const{returnmBlend;}ZModeGetZMode()const{"
                  "returnmZMode;}",
                  "RB3 RndMat exposes source blend and z mode getters");
+  ok &= contains(rb3_mat_h,
+                 "TexWrapGetTexWrap()const{returnmTexWrap;}",
+                 "RB3 RndMat exposes source texture wrap getter");
+  ok &= contains(scene_h,
+                 "structSourceRndMatLoadPlan{",
+                 "shared milo_scene exposes source RndMat load plan");
   ok &= contains(scene,
                  "m.use_environ=r.u8()!=0;m.prelit=r.u8()!=0;"
                  "constint32_tz_mode=r.i32();",
                  "native Mat decode follows source useEnviron/preLit order");
+  ok &= contains(scene,
+                 "SourceRndMatLoadPlansource_rndmat_load_plan(int32_trevision)",
+                 "shared milo_scene implements source RndMat load plan");
+  ok &= contains(scene,
+                 "plan.reads_alpha_threshold=revision>0x25;",
+                 "shared RndMat load plan mirrors alpha-threshold gate");
+  ok &= contains(scene,
+                 "plan.gh2_v27_has_no_alpha_threshold=revision==27&&"
+                 "!plan.reads_alpha_threshold;",
+                 "shared RndMat load plan records GH2 v27 alpha-threshold absence");
+  ok &= contains(scene,
+                 "\"blend\",\"color\",\"use_environ\",\"prelit\",\"z_mode\","
+                 "\"alpha_cut\",\"alpha_write\",\"tex_gen\",\"tex_wrap\","
+                 "\"tex_xfm\",\"diffuse_tex\",\"next_pass\",\"intensify\","
+                 "\"cull\",\"emissive_multiplier\"",
+                 "shared RndMat load plan records source order");
+  ok &= contains(scene_test,
+                 "constSourceRndMatLoadPlanv27_plan=source_rndmat_load_plan(27);",
+                 "milo_scene test covers GH2 v27 RndMat source plan");
+  ok &= contains(scene_test,
+                 "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
+                 "milo_scene test covers alpha-threshold RndMat source plan");
 
   ok &= contains(group_cs,
                  "anim=newRndAnimatable().Read(reader,parent,entry);"

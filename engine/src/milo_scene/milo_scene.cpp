@@ -692,6 +692,40 @@ GroupObj decode_group(const std::string& entry_name,
   return group;
 }
 
+SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
+  SourceRndMatLoadPlan plan;
+  plan.revision = revision;
+  plan.reads_modern_render_state = revision > 21;
+  plan.reads_use_environ = plan.reads_modern_render_state;
+  plan.reads_prelit = plan.reads_modern_render_state;
+  plan.reads_z_mode = plan.reads_modern_render_state;
+  plan.reads_alpha_cut = plan.reads_modern_render_state;
+  plan.reads_alpha_threshold = revision > 0x25;
+  plan.reads_alpha_write = plan.reads_modern_render_state;
+  plan.reads_tex_gen = plan.reads_modern_render_state;
+  plan.reads_tex_wrap = plan.reads_modern_render_state;
+  plan.reads_tex_xfm = plan.reads_modern_render_state;
+  plan.reads_diffuse_tex = plan.reads_modern_render_state;
+  plan.reads_next_pass = plan.reads_modern_render_state;
+  plan.reads_intensify = plan.reads_modern_render_state;
+  plan.reads_cull = plan.reads_modern_render_state;
+  plan.reads_emissive_multiplier = plan.reads_modern_render_state;
+  plan.gh2_v27_has_no_alpha_threshold =
+      revision == 27 && !plan.reads_alpha_threshold;
+  if (plan.reads_modern_render_state) {
+    plan.modern_order = {
+        "blend",       "color",       "use_environ", "prelit",
+        "z_mode",      "alpha_cut",   "alpha_write", "tex_gen",
+        "tex_wrap",    "tex_xfm",     "diffuse_tex", "next_pass",
+        "intensify",   "cull",        "emissive_multiplier"};
+    if (plan.reads_alpha_threshold) {
+      plan.modern_order.insert(plan.modern_order.begin() + 6,
+                               "alpha_threshold");
+    }
+  }
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
