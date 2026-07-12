@@ -1867,6 +1867,12 @@ note, and all report `unreadBytes=0`.
     fields, `mAllowRoll`, jitter fields, and source radius, then calls
     `SyncLimits`; `Copy` copies both superclasses, the checked transform/limit/
     jitter/source-radius member list, then also calls `SyncLimits`.
+  - Native `source_char_lookat_handler_plan` and
+    `source_char_lookat_prop_sync_plan` record the source handler and property
+    rows: handlers delegate to `CharPollable` and `Hmx::Object` with check
+    `0x1DF`; properties expose source/pivot/target, half-time, yaw/pitch
+    setters that resync limits, yaw-weight, roll/range/jitter/source-radius
+    fields, and `CharWeightable`.
   - Native `source_char_lookat_enter` and `source_char_lookat_poll_deps` port
     the concrete `Enter` reset and `PollDeps` dependency bodies: entering resets
     the smoothed direction row to `(1.0E+29, 0, 0)` and requests a pivot-local

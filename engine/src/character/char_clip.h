@@ -782,6 +782,18 @@ struct SourceCharLookAtCopyPlan {
   bool sync_limits = false;
 };
 
+struct SourceCharLookAtHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0;
+};
+
+struct SourceCharLookAtPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+  std::vector<std::string> set_actions;
+  std::vector<std::string> superclasses;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -2165,6 +2177,8 @@ void source_char_lookat_set_max_pitch(SourceCharLookAtLimitState& state,
                                       float pitch);
 SourceCharLookAtLoadPlan source_char_lookat_load_plan(int32_t revision);
 SourceCharLookAtCopyPlan source_char_lookat_copy_plan();
+SourceCharLookAtHandlerPlan source_char_lookat_handler_plan();
+SourceCharLookAtPropSyncPlan source_char_lookat_prop_sync_plan();
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot);
 void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
                                   const std::string& source,

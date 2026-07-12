@@ -1751,6 +1751,27 @@ SourceCharLookAtCopyPlan source_char_lookat_copy_plan() {
   return plan;
 }
 
+SourceCharLookAtHandlerPlan source_char_lookat_handler_plan() {
+  SourceCharLookAtHandlerPlan plan;
+  plan.superclasses = {"CharPollable", "Hmx::Object"};
+  plan.check = 0x1DF;
+  return plan;
+}
+
+SourceCharLookAtPropSyncPlan source_char_lookat_prop_sync_plan() {
+  SourceCharLookAtPropSyncPlan plan;
+  plan.properties = {"source",           "pivot",          "target",
+                     "half_time",        "min_weight_yaw", "max_weight_yaw",
+                     "weight_yaw_speed", "allow_roll",     "show_range",
+                     "source_radius",    "enable_jitter",  "yaw_jitter_limit",
+                     "pitch_jitter_limit", "test_range",
+                     "test_range_pitch",  "test_range_yaw"};
+  plan.set_properties = {"min_yaw", "max_yaw", "min_pitch", "max_pitch"};
+  plan.set_actions = {"SetMinYaw", "SetMaxYaw", "SetMinPitch", "SetMaxPitch"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot) {
   SourceCharLookAtEnterState state;
   state.smoothed_dir = {1.0e29f, 0.0f, 0.0f};

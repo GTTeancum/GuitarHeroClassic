@@ -25,6 +25,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -40,10 +46,12 @@ int main() {
   using ghogx::character::source_char_lookat_copy_plan;
   using ghogx::character::source_char_lookat_default_limit_state;
   using ghogx::character::source_char_lookat_enter;
+  using ghogx::character::source_char_lookat_handler_plan;
   using ghogx::character::source_char_lookat_load_plan;
   using ghogx::character::source_char_lookat_no_roll_axes;
   using ghogx::character::source_char_lookat_poll_deps;
   using ghogx::character::source_char_lookat_poll_plan;
+  using ghogx::character::source_char_lookat_prop_sync_plan;
   using ghogx::character::source_char_lookat_range_dir;
   using ghogx::character::source_char_lookat_set_max_pitch;
   using ghogx::character::source_char_lookat_set_max_yaw;
@@ -150,6 +158,37 @@ int main() {
   ok &= expect_string(copy_plan.copied_members.back(), "mPitchJitterLimit",
                       "copy pitch jitter last");
   ok &= expect_bool(copy_plan.sync_limits, true, "copy sync limits");
+
+  const auto handlers = source_char_lookat_handler_plan();
+  ok &= expect_size(handlers.superclasses.size(), 2,
+                    "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "CharPollable",
+                      "handler first superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "handler second superclass");
+  ok &= expect_int(handlers.check, 0x1DF, "handler check");
+
+  const auto props = source_char_lookat_prop_sync_plan();
+  ok &= expect_size(props.properties.size(), 16,
+                    "prop-sync property count");
+  ok &= expect_string(props.properties[0], "source",
+                      "prop-sync first property");
+  ok &= expect_string(props.properties[3], "half_time",
+                      "prop-sync half-time property");
+  ok &= expect_string(props.properties.back(), "test_range_yaw",
+                      "prop-sync last property");
+  ok &= expect_size(props.set_properties.size(), 4,
+                    "prop-sync set property count");
+  ok &= expect_string(props.set_properties[0], "min_yaw",
+                      "prop-sync min yaw setter");
+  ok &= expect_string(props.set_actions[0], "SetMinYaw",
+                      "prop-sync min yaw action");
+  ok &= expect_string(props.set_properties.back(), "max_pitch",
+                      "prop-sync max pitch setter");
+  ok &= expect_string(props.set_actions.back(), "SetMaxPitch",
+                      "prop-sync max pitch action");
+  ok &= expect_string(props.superclasses[0], "CharWeightable",
+                      "prop-sync superclass");
 
   const auto entered = source_char_lookat_enter(true);
   ok &= near(entered.smoothed_dir[0], 1.0e29f, "enter smoothed dir x");

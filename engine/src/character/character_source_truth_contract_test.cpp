@@ -15620,6 +15620,33 @@ int run_contract() {
                  "COPY_MEMBER(mYawJitterLimit)COPY_MEMBER(mPitchJitterLimit)"
                  "END_COPYING_MEMBERSSyncLimits();",
                  "RB3 CharLookAt source copy gates copied limits and syncs limits");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "BEGIN_HANDLERS(CharLookAt)HANDLE_SUPERCLASS(CharPollable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x1DF)",
+                 "RB3 CharLookAt source handler rows");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "BEGIN_PROPSYNCS(CharLookAt)SYNC_PROP(source,mSource)"
+                 "SYNC_PROP(pivot,mPivot)SYNC_PROP(target,mDest)"
+                 "SYNC_PROP(half_time,mHalfTime)SYNC_PROP_SET(min_yaw,"
+                 "mMinYaw,SetMinYaw(_val.Float(0)))SYNC_PROP_SET(max_yaw,"
+                 "mMaxYaw,SetMaxYaw(_val.Float(0)))SYNC_PROP_SET(min_pitch,"
+                 "mMinPitch,SetMinPitch(_val.Float(0)))SYNC_PROP_SET("
+                 "max_pitch,mMaxPitch,SetMaxPitch(_val.Float(0)))"
+                 "SYNC_PROP(min_weight_yaw,mMinWeightYaw)",
+                 "RB3 CharLookAt source prop-sync row prefix");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "SYNC_PROP(max_weight_yaw,mMaxWeightYaw)"
+                 "SYNC_PROP(weight_yaw_speed,mWeightYawSpeed)"
+                 "SYNC_PROP(allow_roll,mAllowRoll)SYNC_PROP(show_range,"
+                 "mShowRange)SYNC_PROP(source_radius,mSourceRadius)"
+                 "SYNC_PROP(enable_jitter,mEnableJitter)"
+                 "SYNC_PROP(yaw_jitter_limit,mYawJitterLimit)"
+                 "SYNC_PROP(pitch_jitter_limit,mPitchJitterLimit)"
+                 "SYNC_PROP(test_range,mTestRange)SYNC_PROP("
+                 "test_range_pitch,mTestRangePitch)SYNC_PROP("
+                 "test_range_yaw,mTestRangeYaw)"
+                 "SYNC_SUPERCLASS(CharWeightable)",
+                 "RB3 CharLookAt source prop-sync row tail");
   ok &= contains(rb3_latest_char_weightable_cpp,
                  "LOAD_REVS(bs);ASSERT_REVS(2,0);bs>>mWeight;",
                  "latest CharWeightable source enforces revision ceiling");
@@ -15709,6 +15736,17 @@ int run_contract() {
                  "boolsync_limits=false;};",
                  "native header exposes CharLookAt copy plan");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtHandlerPlan{std::vector<std::string>"
+                 "superclasses;int32_tcheck=0;};",
+                 "native header exposes CharLookAt handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLookAtPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>set_properties;"
+                 "std::vector<std::string>set_actions;"
+                 "std::vector<std::string>superclasses;};",
+                 "native header exposes CharLookAt prop-sync plan");
+  ok &= contains(char_clip_h,
                  "SourceCharLookAtBoundssource_char_lookat_sync_limits("
                  "floatmin_yaw,floatmax_yaw,floatmin_pitch,floatmax_pitch);",
                  "native header exposes CharLookAt SyncLimits helper");
@@ -15738,6 +15776,12 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "SourceCharLookAtCopyPlansource_char_lookat_copy_plan();",
                  "native header exposes CharLookAt copy plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtHandlerPlansource_char_lookat_handler_plan();",
+                 "native header exposes CharLookAt handler plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtPropSyncPlansource_char_lookat_prop_sync_plan();",
+                 "native header exposes CharLookAt prop-sync plan helper");
   ok &= contains(char_clip_h,
                  "SourceCharLookAtEnterStatesource_char_lookat_enter("
                  "boolhas_pivot);",
@@ -15868,6 +15912,24 @@ int run_contract() {
                  "\"mHalfTime\",\"mMinYaw\",\"mMaxYaw\",\"mMinPitch\","
                  "\"mMaxPitch\",",
                  "native CharLookAt copy helper records member prefix");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtHandlerPlansource_char_lookat_handler_plan(){"
+                 "SourceCharLookAtHandlerPlanplan;plan.superclasses={"
+                 "\"CharPollable\",\"Hmx::Object\"};plan.check=0x1DF;",
+                 "native CharLookAt handler helper records source rows");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtPropSyncPlansource_char_lookat_prop_sync_plan(){"
+                 "SourceCharLookAtPropSyncPlanplan;plan.properties={"
+                 "\"source\",\"pivot\",\"target\",\"half_time\",",
+                 "native CharLookAt prop-sync helper records property prefix");
+  ok &= contains(char_clip,
+                 "plan.set_properties={\"min_yaw\",\"max_yaw\",\"min_pitch\","
+                 "\"max_pitch\"};plan.set_actions={\"SetMinYaw\","
+                 "\"SetMaxYaw\",\"SetMinPitch\",\"SetMaxPitch\"};",
+                 "native CharLookAt prop-sync helper records setter rows");
+  ok &= contains(char_clip,
+                 "plan.superclasses={\"CharWeightable\"};",
+                 "native CharLookAt prop-sync helper records superclass");
   ok &= contains(char_clip,
                  "SourceCharLookAtEnterStatesource_char_lookat_enter("
                  "boolhas_pivot){SourceCharLookAtEnterStatestate;"
@@ -16039,6 +16101,12 @@ int run_contract() {
                  "source_char_lookat_copy_plan()",
                  "focused CharLookAt source test covers copy plan");
   ok &= contains(lookat_source_test,
+                 "source_char_lookat_handler_plan()",
+                 "focused CharLookAt source test covers handler plan");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_prop_sync_plan()",
+                 "focused CharLookAt source test covers prop-sync plan");
+  ok &= contains(lookat_source_test,
                  "source_char_lookat_enter(true)",
                  "focused CharLookAt source test covers Enter helper");
   ok &= contains(lookat_source_test,
@@ -16119,6 +16187,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_lookat_load_plan` and",
                  "document records CharLookAt load/copy plan helpers");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_handler_plan` and",
+                 "document records CharLookAt handler/prop-sync helpers");
+  ok &= contains(doc,
+                 "handlers delegate to `CharPollable` and `Hmx::Object` with check",
+                 "document records CharLookAt handler row detail");
   ok &= contains(doc,
                  "`Load` accepts revisions 0-5",
                  "document records CharLookAt load revision range");
