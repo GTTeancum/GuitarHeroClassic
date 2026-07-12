@@ -1676,9 +1676,13 @@ note, and all report `unreadBytes=0`.
     Native exposes this exact formula through
     `source_char_hair_strand_set_angle` and the bind audit uses that shared
     helper for `setAngleRootErr`.
-  - `CharHair::Strand::Strand` initializes `mBaseMat` and `mRootMat` to
-    identity. Native `CharHairStrand` defaults now match that constructor so
-    helper-created strands do not start from zero rotation matrices.
+  - `CharHair::Strand::Strand` initializes `mShowSpheres`, `mShowCollide`, and
+    `mShowPose` to false, leaves `mRoot` null, sets `mAngle` to `0.0f`, leaves
+    `mPoints` empty, sets `mHookupFlags` to zero, and initializes `mBaseMat` and
+    `mRootMat` to identity. Native `CharHairStrand` and
+    `source_char_hair_strand_default_state` now match that constructor so
+    helper-created strands do not start from zero rotation matrices or invented
+    diagnostic display state.
   - `CharHair::SetCloth` assigns `sideLength` from the matching point in the
     next strand when cloth mode is enabled and otherwise forces `sideLength` to
     `-1.0f`. Native ports this exactly as `source_char_hair_set_cloth`; it is

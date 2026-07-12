@@ -1395,6 +1395,9 @@ struct CharHairPoint {
 };
 
 struct CharHairStrand {
+  bool show_spheres = false;
+  bool show_collide = false;
+  bool show_pose = false;
   std::string root;
   float angle = 0.0f;  // degrees
   std::vector<CharHairPoint> points;
@@ -1451,6 +1454,22 @@ struct SourceCharHairPointDefaultState {
   float last_friction[3] = {0.0f, 0.0f, 0.0f};
   float last_z[3] = {0.0f, 0.0f, 0.0f};
   float unk5c[3] = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceCharHairStrandDefaultState {
+  bool show_spheres = false;
+  bool show_collide = false;
+  bool show_pose = false;
+  bool root_null = true;
+  float angle = 0.0f;
+  bool points_empty = true;
+  float base_mat[9] = {1.0f, 0.0f, 0.0f,
+                       0.0f, 1.0f, 0.0f,
+                       0.0f, 0.0f, 1.0f};
+  float root_mat[9] = {1.0f, 0.0f, 0.0f,
+                       0.0f, 1.0f, 0.0f,
+                       0.0f, 0.0f, 1.0f};
+  int32_t hookup_flags = 0;
 };
 
 struct SourceCharHairPointLoadPlan {
@@ -3006,6 +3025,7 @@ struct SourceCharIKFingersPropSyncPlan {
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
 SourceCharHairDefaultState source_char_hair_default_state();
 SourceCharHairPointDefaultState source_char_hair_point_default_state();
+SourceCharHairStrandDefaultState source_char_hair_strand_default_state();
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
 SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
 SourceCharHairLoadPlan source_char_hair_load_plan(int revision);

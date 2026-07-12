@@ -85,6 +85,7 @@ int main() {
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
+  using ghogx::character::source_char_hair_strand_default_state;
   using ghogx::character::source_gltf_milo_collect_hair_chains_without_splitting;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
   using ghogx::character::source_char_hair_simulate_internal_collision_step;
@@ -163,6 +164,39 @@ int main() {
              "native point outer radius default");
   ok &= near(native_point.side_length, -1.0f,
              "native point side length default");
+
+  const auto strand_defaults = source_char_hair_strand_default_state();
+  ok &= expect_bool(strand_defaults.show_spheres, false,
+                    "strand default hides spheres");
+  ok &= expect_bool(strand_defaults.show_collide, false,
+                    "strand default hides collide");
+  ok &= expect_bool(strand_defaults.show_pose, false,
+                    "strand default hides pose");
+  ok &= expect_bool(strand_defaults.root_null, true,
+                    "strand default null root");
+  ok &= near(strand_defaults.angle, 0.0f, "strand default angle");
+  ok &= expect_bool(strand_defaults.points_empty, true,
+                    "strand default empty points");
+  ok &= near(strand_defaults.base_mat[0], 1.0f,
+             "strand default base identity");
+  ok &= near(strand_defaults.root_mat[4], 1.0f,
+             "strand default root identity");
+  ok &= expect_int(strand_defaults.hookup_flags, 0,
+                   "strand default hookup flags");
+
+  const ghogx::character::CharHairStrand native_strand;
+  ok &= expect_bool(native_strand.show_spheres,
+                    strand_defaults.show_spheres,
+                    "native strand show spheres default");
+  ok &= expect_bool(native_strand.show_collide,
+                    strand_defaults.show_collide,
+                    "native strand show collide default");
+  ok &= expect_bool(native_strand.show_pose, strand_defaults.show_pose,
+                    "native strand show pose default");
+  ok &= near(native_strand.base_mat[8], strand_defaults.base_mat[8],
+             "native strand base identity");
+  ok &= near(native_strand.root_mat[8], strand_defaults.root_mat[8],
+             "native strand root identity");
 
   const auto point_v1 = source_char_hair_point_load_plan(1);
   ok &= expect_bool(point_v1.known_revision, true,

@@ -3525,6 +3525,10 @@ SourceCharHairPointDefaultState source_char_hair_point_default_state() {
   return SourceCharHairPointDefaultState{};
 }
 
+SourceCharHairStrandDefaultState source_char_hair_strand_default_state() {
+  return SourceCharHairStrandDefaultState{};
+}
+
 SourceCharHairSavePlan source_char_hair_save_plan() {
   return {};
 }

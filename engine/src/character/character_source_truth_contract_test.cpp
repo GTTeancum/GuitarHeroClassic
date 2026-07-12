@@ -7211,6 +7211,10 @@ int run_contract() {
                  "mRootMat.Identity();}",
                  "RB3 CharHair Strand constructor initializes matrix defaults");
   ok &= contains(char_mesh_h,
+                 "structCharHairStrand{boolshow_spheres=false;"
+                 "boolshow_collide=false;boolshow_pose=false;",
+                 "native CharHairStrand diagnostic flags match source defaults");
+  ok &= contains(char_mesh_h,
                  "floatbase_mat[9]={1.0f,0.0f,0.0f,0.0f,1.0f,0.0f,"
                  "0.0f,0.0f,1.0f};",
                  "native CharHairStrand base matrix default is identity");
@@ -7218,12 +7222,34 @@ int run_contract() {
                  "floatroot_mat[9]={1.0f,0.0f,0.0f,0.0f,1.0f,0.0f,"
                  "0.0f,0.0f,1.0f};",
                  "native CharHairStrand root matrix default is identity");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairStrandDefaultState{boolshow_spheres=false;"
+                 "boolshow_collide=false;boolshow_pose=false;boolroot_null=true;",
+                 "native exposes CharHair Strand default-state helper row");
+  ok &= contains(char_mesh_h,
+                 "int32_thookup_flags=0;};",
+                 "native Strand default helper records source hookup flags");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairStrandDefaultState"
+                 "source_char_hair_strand_default_state();",
+                 "native exposes CharHair Strand default helper");
+  ok &= contains(char_mesh,
+                 "SourceCharHairStrandDefaultState"
+                 "source_char_hair_strand_default_state(){"
+                 "returnSourceCharHairStrandDefaultState{};}",
+                 "native CharHair Strand default helper returns source defaults");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_strand_default_state()",
+                 "focused CharHair test covers Strand default helper");
   ok &= contains(mesh_decode_test,
                  "constghogx::character::CharHairStranddefault_strand;",
                  "deterministic test covers CharHairStrand default state");
   ok &= contains(doc,
-                 "`CharHair::Strand::Strand` initializes `mBaseMat` and `mRootMat` to",
-                 "document records CharHair Strand constructor matrix defaults");
+                 "`CharHair::Strand::Strand` initializes `mShowSpheres`, `mShowCollide`, and",
+                 "document records CharHair Strand constructor display defaults");
+  ok &= contains(doc,
+                 "`source_char_hair_strand_default_state` now match that constructor",
+                 "document records native Strand default helper");
   ok &= contains(char_mesh_h,
                  "std::array<float,9>source_char_hair_set_angle_root_mat("
                  "floatangle_degrees,constfloatbase_mat[9]);",

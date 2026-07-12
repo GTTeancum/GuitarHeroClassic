@@ -2193,6 +2193,9 @@ int main() {
                40.0f));
 
   const ghogx::character::CharHairStrand default_strand;
+  CHECK(!default_strand.show_spheres);
+  CHECK(!default_strand.show_collide);
+  CHECK(!default_strand.show_pose);
   CHECK(approx(default_strand.base_mat[0], 1.0f));
   CHECK(approx(default_strand.base_mat[4], 1.0f));
   CHECK(approx(default_strand.base_mat[8], 1.0f));
