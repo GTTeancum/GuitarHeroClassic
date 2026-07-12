@@ -4145,6 +4145,20 @@ int main() {
                  "std::vector<std::string>event_trigger_route_keys("
                  "conststd::string&trigger_name,std::string_viewpayload_label)",
                  "venue EventTrigger routes are normalized through one helper");
+  ok &= contains(gameplay_c,
+                 "std::vector<std::string>wait_for_events;",
+                 "EventTrigger decoder preserves source wait_for_events");
+  ok &= contains(gameplay_c,
+                 "read_event_trigger_symbol_list(body,size,cursor,"
+                 "out.wait_for_events)",
+                 "EventTrigger decoder reads wait_for_events after enable/disable");
+  ok &= contains(gameplay_c,
+                 "for(constauto&wait_for_event:trigger.wait_for_events)"
+                 "push_unique_ref(keys,wait_for_event);",
+                 "EventTrigger wait_for_events become source trigger route aliases");
+  ok &= contains(gameplay_c,
+                 "venue_event_trigger_route_keys(de.name,body,size,event_label)",
+                 "venue EventTrigger route loaders include wait_for aliases");
   ok &= appears_before(gameplay_c,
                        "if(is_event_payload_label(payload_label))"
                        "keys.emplace_back(payload_label);",
@@ -4205,6 +4219,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "gate.enabled=true;",
                  "GH2 rev8 EventTriggers start from the source constructor enabled state");
+  ok &= contains(gameplay_c,
+                 "event_trigger_route_keys(de.name,*trigger)",
+                 "EventTrigger gates include wait_for route aliases from the source trigger");
   ok &= appears_before(gameplay_c,
                        "apply_venue_event(\"single_player\",false);",
                        "apply_venue_event(\"start\",false);",

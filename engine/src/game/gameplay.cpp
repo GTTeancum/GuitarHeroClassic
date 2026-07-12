@@ -824,6 +824,7 @@ struct DecodedVenueEventTrigger {
     std::vector<std::string> draws;
     std::vector<std::string> enable_events;
     std::vector<std::string> disable_events;
+    std::vector<std::string> wait_for_events;
 };
 
 std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
@@ -877,6 +878,9 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
     if (!read_event_trigger_symbol_list(body, size, cursor, out.enable_events))
         return std::nullopt;
     if (!read_event_trigger_symbol_list(body, size, cursor, out.disable_events))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor,
+                                        out.wait_for_events))
         return std::nullopt;
     return out;
 }
@@ -2867,6 +2871,27 @@ std::vector<std::string> event_trigger_route_keys(
     return keys;
 }
 
+std::vector<std::string> event_trigger_route_keys(
+    const std::string& trigger_name,
+    const DecodedVenueEventTrigger& trigger) {
+    const std::string_view event_label =
+        is_event_payload_label(trigger.event_label)
+            ? std::string_view(trigger.event_label)
+            : std::string_view{};
+    auto keys = event_trigger_route_keys(trigger_name, event_label);
+    for (const auto& wait_for_event : trigger.wait_for_events)
+        push_unique_ref(keys, wait_for_event);
+    return keys;
+}
+
+std::vector<std::string> venue_event_trigger_route_keys(
+    const std::string& trigger_name, const uint8_t* body, size_t size,
+    std::string_view fallback_payload_label) {
+    if (const auto trigger = decode_venue_event_trigger_rev8(body, size))
+        return event_trigger_route_keys(trigger_name, *trigger);
+    return event_trigger_route_keys(trigger_name, fallback_payload_label);
+}
+
 std::optional<std::string> dtb_prop_ref_name(const gh::dtb::Node& node) {
     if (node.tag != 0x13 || !gh::dtb::is_array(node)) return std::nullopt;
     const auto& kids = gh::dtb::children(node);
@@ -3498,7 +3523,9 @@ load_venue_event_script_messages(
                 !first_is_object && is_event_payload_label(strings.front())
                     ? std::string_view(strings.front())
                     : std::string_view{};
-            for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+            for (const auto& key :
+                 venue_event_trigger_route_keys(de.name, body, size,
+                                                event_label)) {
                 auto& routed = out[key];
                 for (const auto& message : messages)
                     push_unique_script_message(routed, message);
@@ -4176,7 +4203,9 @@ load_venue_event_light_anims(
                 push_event_anim_routes(light_anims, resolved, anim_route.blend);
             }
             if (light_anims.empty()) continue;
-            for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+            for (const auto& key :
+                 venue_event_trigger_route_keys(de.name, body, size,
+                                                event_label)) {
                 auto& routed = out[key];
                 for (const auto& route : light_anims) {
                     push_unique_event_anim_route(
@@ -4345,7 +4374,9 @@ load_venue_event_env_anims(
                 push_event_anim_routes(env_anims, resolved, anim_route.blend);
             }
             if (!env_anims.empty()) {
-                for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+                for (const auto& key :
+                     venue_event_trigger_route_keys(de.name, body, size,
+                                                    event_label)) {
                     auto& routed = out[key];
                     for (const auto& route : env_anims) {
                         push_unique_event_anim_route(
@@ -4629,7 +4660,9 @@ load_venue_event_particles(const std::string& hdr_path,
                 }
             }
             if (routes.empty()) continue;
-            for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+            for (const auto& key :
+                 venue_event_trigger_route_keys(de.name, body, size,
+                                                event_label)) {
                 auto& routed = out[key];
                 for (const auto& route : routes) push_route(routed, route);
             }
@@ -4845,7 +4878,9 @@ load_venue_event_mat_anims(
                 push_event_anim_routes(mat_anims, resolved, anim_route.blend);
             }
             if (!mat_anims.empty()) {
-                for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+                for (const auto& key :
+                     venue_event_trigger_route_keys(de.name, body, size,
+                                                    event_label)) {
                     auto& routed = out[key];
                     for (const auto& route : mat_anims) {
                         push_unique_event_anim_route(
@@ -4907,7 +4942,8 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
                         ? std::string_view(event_label_storage)
                         : std::string_view{};
                 for (const auto& key :
-                     event_trigger_route_keys(de.name, event_label)) {
+                     venue_event_trigger_route_keys(de.name, body, size,
+                                                    event_label)) {
                     auto& routed = out[key];
                     for (const auto& filter : filters)
                         push_unique_ref(routed, filter);
@@ -4960,8 +4996,7 @@ std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
             // enable/disable events mutate that state after load.
             gate.enabled = true;
 
-            for (const auto& key :
-                 event_trigger_route_keys(de.name, trigger->event_label)) {
+            for (const auto& key : event_trigger_route_keys(de.name, *trigger)) {
                 push_unique_ref(gate.route_keys, key);
             }
             if (gate.route_keys.empty()) continue;
@@ -10764,8 +10799,10 @@ load_venue_group_visibility(const std::string& hdr_path,
             if (!read_group_mesh_list(visibility.hide_meshes)) continue;
             if (visibility.show_meshes.empty() && visibility.hide_meshes.empty())
                 continue;
-            for (const auto& key :
-                 event_trigger_route_keys(de.name, event_label)) {
+            const auto route_keys =
+                venue_event_trigger_route_keys(de.name, body, size,
+                                               event_label);
+            for (const auto& key : route_keys) {
                 merge_venue_group_visibility(out[key], visibility);
             }
             if (debug_venue_filters_enabled()) {
@@ -10774,8 +10811,6 @@ load_venue_group_visibility(const std::string& hdr_path,
                     "[world] venue EventTrigger visibility %s show=%zu hide=%zu label=%s routes=",
                     de.name.c_str(), visibility.show_meshes.size(),
                     visibility.hide_meshes.size(), event_label.c_str());
-                const auto route_keys =
-                    event_trigger_route_keys(de.name, event_label);
                 for (size_t i = 0; i < route_keys.size(); ++i) {
                     std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
                                  route_keys[i].c_str());
@@ -10919,7 +10954,8 @@ load_venue_anim_filters(const std::string& hdr_path,
                     route.ref = ref;
                     route.source_trigger = de.name;
                     for (const auto& key :
-                         event_trigger_route_keys(de.name, event_label)) {
+                         venue_event_trigger_route_keys(de.name, body, size,
+                                                        event_label)) {
                         if (is_venue_anim_filter_ref(ref)) {
                             event_filters[key].push_back(route);
                         } else if (is_direct_venue_anim_ref(ref)) {
