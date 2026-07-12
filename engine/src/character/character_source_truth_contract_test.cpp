@@ -20141,6 +20141,13 @@ int run_contract() {
                  "GH2 clip parser now uses it for `BoneList.frame_bytes`",
                  "document records parser use of Grim data stride helper");
   ok &= contains(doc,
+                 "`source_grim_char_bones_samples_recompute_sizes` ports that "
+                 "distinction",
+                 "document records Grim computed-size helper");
+  ok &= contains(doc,
+                 "parser now validates `CharBonesSamples` count rows against it",
+                 "document records parser use of Grim computed-size helper");
+  ok &= contains(doc,
                  "`source_grim_char_bones_samples_channel_mesh_name` ports that "
                  "exact",
                  "document records Grim channel mesh-name helper");
@@ -20229,9 +20236,20 @@ int run_contract() {
                  "\".mesh\").replace(\".quat\",\".mesh\").replace(\".rotz\","
                  "\".mesh\");",
                  "Grim CharBonesSamples decode maps channels to mesh targets");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "self.computed_sizes[i+1]=self.computed_sizes[i]+"
+                 "(next_count-curr_count)*type_size;",
+                 "Grim CharBonesSamples recompute derives computed sizes");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "self.computed_flags=(self.computed_sizes.last().unwrap()+"
+                 "0xF)&0xFFFF_FFF0;",
+                 "Grim CharBonesSamples recompute aligns computed flags");
   ok &= contains(char_clip_h,
                  "structSourceGrimCharBonesSamplesDataPlan{",
                  "native exposes Grim CharBonesSamples data stride plan");
+  ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesComputedSizes{",
+                 "native exposes Grim computed-size plan");
   ok &= contains(char_clip_h,
                  "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
                  "native exposes Grim channel mesh-name helper");
@@ -20252,6 +20270,17 @@ int run_contract() {
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDataPlansource_grim_char_bones_samples_data_plan(",
                  "native implements Grim CharBonesSamples data stride helper");
+  ok &= contains(char_clip,
+                 "SourceGrimCharBonesSamplesComputedSizes"
+                 "source_grim_char_bones_samples_recompute_sizes(",
+                 "native implements Grim computed-size helper");
+  ok &= contains(char_clip,
+                 "source_grim_char_bones_samples_get_type_size(type,compression)",
+                 "native computed-size helper uses Grim get_type_size");
+  ok &= contains(char_clip,
+                 "plan.computed_flags=(plan.computed_sizes[kSourceCharBonesTypeEnd]+"
+                 "0xFu)&0xFFFFFFF0u;",
+                 "native computed-size helper aligns computed flags");
   ok &= contains(char_clip,
                  "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
                  "native implements Grim channel mesh-name helper");
@@ -20284,6 +20313,11 @@ int run_contract() {
                  "source_grim_char_bones_samples_data_plan(",
                  "clip parser uses source data stride plan");
   ok &= contains(char_clip,
+                 "source_grim_char_bones_samples_recompute_sizes("
+                 "out.compression,source_grim_char_bones_samples_first_counts"
+                 "(out.cum))",
+                 "clip parser validates Grim computed sizes");
+  ok &= contains(char_clip,
                  "if(!source_grim_char_bones_samples_decodes_channel_type(cat))",
                  "clip parser uses Grim decode supported-type helper");
   ok &= contains(char_clip,
@@ -20308,6 +20342,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "grim_data16.sample_size",
                  "focused CharBones source test covers aligned Grim data stride");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_recompute_sizes(",
+                 "focused CharBones source test covers Grim computed-size helper");
+  ok &= contains(char_bones_source_test,
+                 "grim_sizes1.computed_flags",
+                 "focused CharBones source test covers Grim computed flags");
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_channel_mesh_name(\"bone_head.quat\")",
                  "focused CharBones source test covers Grim channel mesh-name helper");

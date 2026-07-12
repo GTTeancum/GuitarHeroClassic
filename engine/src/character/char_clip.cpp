@@ -1059,6 +1059,34 @@ size_t source_grim_char_bones_samples_get_type_size2(int type,
   return kSizes[compression][type];
 }
 
+SourceGrimCharBonesSamplesComputedSizes
+source_grim_char_bones_samples_recompute_sizes(
+    int compression,
+    const std::array<uint32_t, kSourceCharBonesTypeEnd + 1>& counts) {
+  SourceGrimCharBonesSamplesComputedSizes plan;
+  plan.compression = compression;
+  plan.counts = counts;
+  if (compression < 0 || compression >= 4) return plan;
+
+  plan.valid = true;
+  plan.computed_sizes[0] = 0;
+  for (int type = 0; type < kSourceCharBonesTypeEnd; ++type) {
+    const uint32_t curr_count = counts[type];
+    const uint32_t next_count = counts[type + 1];
+    if (next_count < curr_count) {
+      plan.valid = false;
+      return plan;
+    }
+    const uint32_t type_size = static_cast<uint32_t>(
+        source_grim_char_bones_samples_get_type_size(type, compression));
+    plan.computed_sizes[type + 1] =
+        plan.computed_sizes[type] + (next_count - curr_count) * type_size;
+  }
+  plan.computed_flags =
+      (plan.computed_sizes[kSourceCharBonesTypeEnd] + 0xFu) & 0xFFFFFFF0u;
+  return plan;
+}
+
 SourceGrimCharBonesSamplesHeaderPlan
 source_grim_char_bones_samples_header_plan(int version) {
   SourceGrimCharBonesSamplesHeaderPlan plan;
@@ -2077,6 +2105,13 @@ const char* source_char_bones_compression_name(int compression) {
   }
 }
 
+std::array<uint32_t, kSourceCharBonesTypeEnd + 1>
+source_grim_char_bones_samples_first_counts(const uint32_t cum[10]) {
+  std::array<uint32_t, kSourceCharBonesTypeEnd + 1> counts = {};
+  for (size_t i = 0; i < counts.size(); ++i) counts[i] = cum[i];
+  return counts;
+}
+
 bool uses_source_byte_quat(const BoneList& list) {
   if (list.compression < kSourceCompressQuats) return false;
   return std::find(list.cats.begin(), list.cats.end(), 2) != list.cats.end();
@@ -2120,6 +2155,12 @@ bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
   if (!source_char_bones_compression_known(out.compression)) return false;
+  if (!source_grim_char_bones_samples_recompute_sizes(
+           out.compression,
+           source_grim_char_bones_samples_first_counts(out.cum))
+           .valid) {
+    return false;
+  }
   if (out.num_samples < 0 || out.num_samples > 100000) return false;
   at = c.pos;
   return true;
@@ -2174,6 +2215,12 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
   if (!source_char_bones_compression_known(out.compression)) return false;
+  if (!source_grim_char_bones_samples_recompute_sizes(
+           out.compression,
+           source_grim_char_bones_samples_first_counts(out.cum))
+           .valid) {
+    return false;
+  }
   if (out.num_samples < 0 || out.num_samples > 100000) return false;
 
   // Category breakdown from cumulative counts.

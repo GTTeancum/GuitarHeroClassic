@@ -1683,6 +1683,46 @@ int main() {
       source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypePos, 4),
       0, "grim get_type_size2 rejects unsupported compression");
 
+  const SourceGrimCharBonesSamplesComputedSizes grim_sizes1 =
+      source_grim_char_bones_samples_recompute_sizes(
+          1, {0, 1, 1, 22, 22, 22, 32});
+  ok &= expect_int(grim_sizes1.valid ? 1 : 0, 1,
+                   "grim recompute compression 1 valid");
+  ok &= expect_int(static_cast<int>(grim_sizes1.computed_sizes[0]), 0,
+                   "grim recompute c1 size 0");
+  ok &= expect_int(static_cast<int>(grim_sizes1.computed_sizes[1]), 16,
+                   "grim recompute c1 size 1");
+  ok &= expect_int(static_cast<int>(grim_sizes1.computed_sizes[3]), 184,
+                   "grim recompute c1 quat boundary");
+  ok &= expect_int(static_cast<int>(grim_sizes1.computed_sizes[6]), 204,
+                   "grim recompute c1 final size");
+  ok &= expect_int(static_cast<int>(grim_sizes1.computed_flags), 208,
+                   "grim recompute c1 flags");
+
+  const SourceGrimCharBonesSamplesComputedSizes grim_sizes2 =
+      source_grim_char_bones_samples_recompute_sizes(
+          2, {0, 36, 36, 53, 53, 53, 53});
+  ok &= expect_int(grim_sizes2.valid ? 1 : 0, 1,
+                   "grim recompute compression 2 valid");
+  ok &= expect_int(static_cast<int>(grim_sizes2.computed_sizes[1]), 216,
+                   "grim recompute c2 pos size");
+  ok &= expect_int(static_cast<int>(grim_sizes2.computed_sizes[3]), 352,
+                   "grim recompute c2 quat boundary");
+  ok &= expect_int(static_cast<int>(grim_sizes2.computed_flags), 352,
+                   "grim recompute c2 flags");
+  ok &= expect_int(source_grim_char_bones_samples_recompute_sizes(
+                       4, {0, 1, 1, 1, 1, 1, 1})
+                       .valid
+                       ? 1
+                       : 0,
+                   0, "grim recompute rejects unsupported compression");
+  ok &= expect_int(source_grim_char_bones_samples_recompute_sizes(
+                       1, {0, 2, 1, 1, 1, 1, 1})
+                       .valid
+                       ? 1
+                       : 0,
+                   0, "grim recompute rejects decreasing counts");
+
   const SourceGrimCharBonesSamplesDataPlan grim_data10 =
       source_grim_char_bones_samples_data_plan(
           10, kCompressRots,

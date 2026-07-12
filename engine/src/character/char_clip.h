@@ -475,6 +475,14 @@ struct SourceGrimCharBonesSamplesDataPlan {
   std::vector<size_t> channel_sizes;
 };
 
+struct SourceGrimCharBonesSamplesComputedSizes {
+  bool valid = false;
+  int compression = 0;
+  std::array<uint32_t, kSourceCharBonesTypeEnd + 1> counts = {};
+  std::array<uint32_t, kSourceCharBonesTypeEnd + 1> computed_sizes = {};
+  uint32_t computed_flags = 0;
+};
+
 struct SourceGrimCharBonesSamplesDecodePlan {
   bool walks_serialized_bones = true;
   bool groups_by_mesh_name = true;
@@ -2057,6 +2065,10 @@ size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression);
 size_t source_grim_char_bones_samples_get_type_size2(int type,
                                                      int compression);
+SourceGrimCharBonesSamplesComputedSizes
+source_grim_char_bones_samples_recompute_sizes(
+    int compression,
+    const std::array<uint32_t, kSourceCharBonesTypeEnd + 1>& counts);
 std::string source_grim_char_bones_samples_channel_mesh_name(
     const std::string& channel);
 float source_grim_char_bones_samples_channel_weight(

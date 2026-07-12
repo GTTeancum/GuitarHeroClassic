@@ -3514,6 +3514,12 @@ note, and all report `unreadBytes=0`.
     GH2 clip parser now uses it for `BoneList.frame_bytes`; it still refuses
     unsupported channel names and does not evaluate or publish those channels
     as final pose output.
+  - Grim's `recompute_sizes` separately derives `computed_sizes` from the
+    cumulative count rows using `get_type_size` rather than `get_type_size2`,
+    then 16-byte-aligns `computed_flags`. Native
+    `source_grim_char_bones_samples_recompute_sizes` ports that distinction and
+    the GH2 parser now validates `CharBonesSamples` count rows against it
+    without replacing the separate native `CharBones` layout helper.
   - Grim's `decode_samples` groups decoded channel rows under mesh target names
     by replacing `.pos`, `.quat`, and `.rotz` suffixes with `.mesh`. Native
     `source_grim_char_bones_samples_channel_mesh_name` ports that exact
