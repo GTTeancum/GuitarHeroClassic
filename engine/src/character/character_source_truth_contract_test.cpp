@@ -479,6 +479,8 @@ int run_contract() {
       rb3_latest_rndobj_dir / "AnimFilter.h"));
   const std::string rb3_latest_anim_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Anim.cpp"));
+  const std::string rb3_latest_anim_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Anim.h"));
   const std::string rb3_latest_event_trigger_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "EventTrigger.cpp"));
   const std::string rb3_latest_event_trigger_h = compact(read_file(
@@ -2258,9 +2260,29 @@ int run_contract() {
   ok &= contains(scene_h,
                  "structSourceRndAnimatableLoadPlan{",
                  "shared milo_scene exposes source RndAnimatable load plan");
+  ok &= contains(scene_h,
+                 "structSourceRndAnimatableDefaultState{floatframe=0.0f;"
+                 "SourceRndAnimRaterate=kSourceRndAnimRate30Fps;};",
+                 "shared milo_scene exposes RndAnimatable source defaults");
+  ok &= contains(scene_h,
+                 "structSourceRndAnimatableRatePlan{SourceRndAnimRaterate="
+                 "kSourceRndAnimRateUnknown;boolvalid_rate=false;"
+                 "std::stringtask_units;floatframes_per_unit=0.0f;};",
+                 "shared milo_scene exposes RndAnimatable rate mapping plan");
+  ok &= contains(scene_h,
+                 "structSourceRndAnimatableAnimatePlan{std::vector<std::string>"
+                 "defaults;std::vector<std::string>data_keys;",
+                 "shared milo_scene exposes RndAnimatable animate plan");
+  ok &= contains(scene_h,
+                 "structSourceAnimTaskInitPlan{floatstart=0.0f;floatend=0.0f;",
+                 "shared milo_scene exposes AnimTask init plan");
   ok &= contains(scene,
                  "SourceRndAnimatableLoadPlansource_rndanimatable_load_plan(",
                  "shared milo_scene implements source RndAnimatable load plan");
+  ok &= contains(scene,
+                 "SourceRndAnimatableDefaultStatesource_rndanimatable_default"
+                 "_state(){returnSourceRndAnimatableDefaultState{};}",
+                 "shared milo_scene implements RndAnimatable defaults");
   ok &= contains(scene,
                  "plan.accepted_revision=revision>=0&&revision<=4;",
                  "shared RndAnimatable plan mirrors accepted revision range");
@@ -2272,6 +2294,39 @@ int run_contract() {
                  "plan.reads_legacy_rev0_filter_rows=revision<1;"
                  "plan.reads_legacy_rev0_anim_list=revision<1;",
                  "shared RndAnimatable plan mirrors legacy rev0 branch");
+  ok &= contains(scene,
+                 "casekSourceRndAnimRate480Fpb:plan.valid_rate=true;"
+                 "plan.task_units=\"beats\";plan.frames_per_unit=480.0f;",
+                 "shared RndAnimatable plan mirrors 480 frames-per-beat rate");
+  ok &= contains(scene,
+                 "plan.output_units=input_frames/rate_plan.frames_per_unit;",
+                 "shared RndAnimatable plan mirrors ConvertFrames division");
+  ok &= contains(scene,
+                 "plan.returns_converted=rate_plan.task_units!=\"beats\";",
+                 "shared RndAnimatable plan mirrors ConvertFrames return");
+  ok &= contains(scene,
+                 "plan.handlers={\"set_frame\",\"frame\",\"set_key\","
+                 "\"end_frame\",\"start_frame\",\"animate\",\"stop_animation\","
+                 "\"is_animating\",\"convert_frames\"};",
+                 "shared RndAnimatable plan mirrors handler order");
+  ok &= contains(scene,
+                 "plan.props={\"rate\",\"frame:SetFrame\"};",
+                 "shared RndAnimatable plan mirrors prop sync row");
+  ok &= contains(scene,
+                 "plan.mode_rows={\"range:start/end/no-loop\","
+                 "\"loop:optional-start/optional-end/loop\","
+                 "\"dest:current-frame-to-dest/no-loop\","
+                 "\"period:abs-end-minus-start-over-period\"};",
+                 "shared RndAnimatable plan mirrors OnAnimate modes");
+  ok &= contains(scene,
+                 "plan.marks_blend_task_when_blending=blend_period!=0.0f&&"
+                 "has_blend_task;",
+                 "shared AnimTask plan mirrors blend-task marking");
+  ok &= contains(scene,
+                 "if(scale>0.0f){plan.time_until_end=(max_frame-current_frame)"
+                 "/frames_per_unit;}else{plan.time_until_end=(current_frame-"
+                 "min_frame)/frames_per_unit;}",
+                 "shared AnimTask plan mirrors time-until-end direction");
   ok &= contains(scene_test,
                  "constSourceRndAnimatableLoadPlananim_v4="
                  "source_rndanimatable_load_plan(4);",
@@ -2280,6 +2335,42 @@ int run_contract() {
                  "constSourceRndAnimatableLoadPlananim_v0="
                  "source_rndanimatable_load_plan(0);",
                  "milo_scene test covers legacy RndAnimatable plan");
+  ok &= contains(scene_test,
+                 "constSourceRndAnimatableRatePlananim_480fpb="
+                 "source_rndanimatable_rate_plan(kSourceRndAnimRate480Fpb);",
+                 "milo_scene test covers RndAnimatable rate mapping");
+  ok &= contains(scene_test,
+                 "constSourceRndAnimatableConvertFramesPlanconvert_beats="
+                 "source_rndanimatable_convert_frames_plan("
+                 "kSourceRndAnimRate480Fpb,960.0f);",
+                 "milo_scene test covers RndAnimatable ConvertFrames");
+  ok &= contains(scene_test,
+                 "constSourceRndAnimatableAnimatePlanon_animate="
+                 "source_rndanimatable_on_animate_plan();",
+                 "milo_scene test covers RndAnimatable OnAnimate plan");
+  ok &= contains(scene_test,
+                 "constSourceAnimTaskInitPlanreverse_blend_task="
+                 "source_anim_task_init_plan(8.0f,2.0f,30.0f,true,0.25f,true);",
+                 "milo_scene test covers AnimTask reverse blend setup");
+  ok &= contains(scene_test,
+                 "constSourceAnimTaskTimePlanreverse_time="
+                 "source_anim_task_time_until_end_plan(2.0f,8.0f,5.0f,"
+                 "30.0f,-30.0f);",
+                 "milo_scene test covers AnimTask reverse time");
+  ok &= contains(doc,
+                 "| Animation base and task rows | "
+                 "`rb3-latest/src/system/rndobj/Anim.cpp` / `Anim.h` |",
+                 "coverage matrix records RndAnimatable/AnimTask boundary");
+  ok &= contains(doc,
+                 "`RndAnimatable` defaults to frame `0.0` and `k30_fps`",
+                 "document records RndAnimatable source defaults");
+  ok &= contains(doc,
+                 "`OnAnimate` starts from source defaults",
+                 "document records RndAnimatable OnAnimate source flow");
+  ok &= contains(doc,
+                 "`AnimTask` records min/max, direction scale, offset, loop, "
+                 "and blend period",
+                 "document records AnimTask source flow");
   ok &= contains(doc,
                  "| Poll animation cadence | "
                  "`rb3-latest/src/system/rndobj/Poll.cpp` / `Poll.h`, "
@@ -12284,6 +12375,71 @@ int run_contract() {
   ok &= contains(rb3_latest_anim_cpp,
                  "if(gRev<1){intcount;bs>>count;",
                  "RndAnimatable source load gates legacy rev0 branch");
+  ok &= contains(rb3_latest_anim_h,
+                 "enumRate{k30_fps=0,k480_fpb=1,k30_fps_ui=2,"
+                 "k1_fpb=3,k30_fps_tutorial=4,};",
+                 "RndAnimatable header exposes source rate enum");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "staticTaskUnitsgRateUnits[5]={kTaskSeconds,kTaskBeats,"
+                 "kTaskUISeconds,kTaskBeats,kTaskTutorialSeconds};",
+                 "RndAnimatable source maps rates to task units");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "staticfloatgRateFpu[5]={30.0f,480.0f,30.0f,1.0f,30.0f};",
+                 "RndAnimatable source maps rates to frames per unit");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "boolRndAnimatable::ConvertFrames(float&f){f/=FramesPerUnit();"
+                 "return(Units()!=1);}",
+                 "RndAnimatable source converts frames through active rate");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "voidRndAnimatable::Copy(constHmx::Object*o,Hmx::Object::"
+                 "CopyTypety){constRndAnimatable*c=dynamic_cast<const"
+                 "RndAnimatable*>(o);if(c){mFrame=c->mFrame;mRate=c->mRate;}}",
+                 "RndAnimatable source copy is dynamic-cast gated");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "BEGIN_HANDLERS(RndAnimatable);HANDLE_ACTION(set_frame,"
+                 "SetFrame(_msg->Float(2),1.0f));HANDLE_EXPR(frame,mFrame);",
+                 "RndAnimatable source handler row starts with frame controls");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "HANDLE(convert_frames,OnConvertFrames);HANDLE_CHECK(0x16C);",
+                 "RndAnimatable source handler row exposes convert_frames check");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "BEGIN_PROPSYNCS(RndAnimatable);SYNC_PROP(rate,(int&)mRate);"
+                 "SYNC_PROP_MODIFY(frame,mFrame,SetFrame(mFrame,1.0f));",
+                 "RndAnimatable source property row syncs rate and frame");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "DataNodeRndAnimatable::OnAnimate(DataArray*arr){floatlocal_"
+                 "blend=0.0f;floatanimTaskStart=StartFrame();"
+                 "floatanimTaskEnd=EndFrame();boolanimTaskLoop=Loop();",
+                 "RndAnimatable source OnAnimate starts from virtual defaults");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "DataArray*destArr=arr->FindArray(dest,false);if(destArr){"
+                 "animTaskStart=mFrame;animTaskEnd=destArr->Float(1);"
+                 "animTaskLoop=false;}",
+                 "RndAnimatable source OnAnimate supports dest mode");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "if(local_wait){AnimTask*blendtask=theTask->BlendTask();"
+                 "if(blendtask){if(mRate!=blendtask->Anim()->GetRate())",
+                 "RndAnimatable source OnAnimate wait checks rate match");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "AnimTask::AnimTask(RndAnimatable*anim,floatstart,floatend,"
+                 "floatfpu,boolloop,floatblend):",
+                 "AnimTask source constructor is present");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "mMin=Min(start,end);mMax=Max(start,end);if(start<end){"
+                 "mScale=fpu;mOffset=mMin;}else{mScale=-fpu;mOffset=mMax;}",
+                 "AnimTask source stores range direction");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "if(mBlendPeriod&&mBlendTask){mBlendTask->mBlending=true;}",
+                 "AnimTask source marks blended prior task");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "mAnim=anim;mAnimTarget=anim->AnimTarget();mAnim->StartAnim();",
+                 "AnimTask source starts anim after target capture");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "floatAnimTask::TimeUntilEnd(){floattime;if(mScale>0.0f){"
+                 "floatfpu=mAnim->FramesPerUnit();time=(mMax-mAnim->GetFrame())"
+                 "/fpu;}else{floatfpu=mAnim->FramesPerUnit();"
+                 "time=(mAnim->GetFrame()-mMin)/fpu;}",
+                 "AnimTask source computes time until end from frame direction");
   ok &= contains(char_mesh_h,
                  "structRndAnimFilter{std::stringname;int32_tversion=0;",
                  "native stores RndAnimFilter source fields");

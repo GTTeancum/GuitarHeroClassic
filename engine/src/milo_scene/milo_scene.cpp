@@ -696,6 +696,10 @@ SourceRndTransAnimPropSyncPlan source_rndtrans_anim_prop_sync_plan() {
   return plan;
 }
 
+SourceRndAnimatableDefaultState source_rndanimatable_default_state() {
+  return SourceRndAnimatableDefaultState{};
+}
+
 SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
     int32_t revision) {
   SourceRndAnimatableLoadPlan plan;
@@ -706,6 +710,140 @@ SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
   plan.reads_legacy_byte_rate = revision > 2 && revision <= 3;
   plan.reads_legacy_rev0_filter_rows = revision < 1;
   plan.reads_legacy_rev0_anim_list = revision < 1;
+  return plan;
+}
+
+SourceRndAnimatableRatePlan source_rndanimatable_rate_plan(
+    SourceRndAnimRate rate) {
+  SourceRndAnimatableRatePlan plan;
+  plan.rate = rate;
+  switch (rate) {
+    case kSourceRndAnimRate30Fps:
+      plan.valid_rate = true;
+      plan.task_units = "seconds";
+      plan.frames_per_unit = 30.0f;
+      break;
+    case kSourceRndAnimRate480Fpb:
+      plan.valid_rate = true;
+      plan.task_units = "beats";
+      plan.frames_per_unit = 480.0f;
+      break;
+    case kSourceRndAnimRate30FpsUi:
+      plan.valid_rate = true;
+      plan.task_units = "ui_seconds";
+      plan.frames_per_unit = 30.0f;
+      break;
+    case kSourceRndAnimRate1Fpb:
+      plan.valid_rate = true;
+      plan.task_units = "beats";
+      plan.frames_per_unit = 1.0f;
+      break;
+    case kSourceRndAnimRate30FpsTutorial:
+      plan.valid_rate = true;
+      plan.task_units = "tutorial_seconds";
+      plan.frames_per_unit = 30.0f;
+      break;
+    default:
+      break;
+  }
+  return plan;
+}
+
+SourceRndAnimatableConvertFramesPlan
+source_rndanimatable_convert_frames_plan(
+    SourceRndAnimRate rate,
+    float input_frames) {
+  SourceRndAnimatableConvertFramesPlan plan;
+  plan.rate = rate;
+  plan.input_frames = input_frames;
+  const SourceRndAnimatableRatePlan rate_plan =
+      source_rndanimatable_rate_plan(rate);
+  plan.task_units = rate_plan.task_units;
+  if (rate_plan.frames_per_unit != 0.0f) {
+    plan.output_units = input_frames / rate_plan.frames_per_unit;
+  }
+  plan.returns_converted = rate_plan.task_units != "beats";
+  return plan;
+}
+
+SourceRndAnimatableCopyPlan source_rndanimatable_copy_plan() {
+  return SourceRndAnimatableCopyPlan{};
+}
+
+SourceRndAnimatableHandlerPlan source_rndanimatable_handler_plan() {
+  SourceRndAnimatableHandlerPlan plan;
+  plan.handlers = {"set_frame",      "frame",        "set_key",
+                   "end_frame",      "start_frame",  "animate",
+                   "stop_animation", "is_animating", "convert_frames"};
+  return plan;
+}
+
+SourceRndAnimatablePropSyncPlan source_rndanimatable_prop_sync_plan() {
+  SourceRndAnimatablePropSyncPlan plan;
+  plan.props = {"rate", "frame:SetFrame"};
+  return plan;
+}
+
+SourceRndAnimatableAnimatePlan source_rndanimatable_on_animate_plan() {
+  SourceRndAnimatableAnimatePlan plan;
+  plan.defaults = {"blend=0",       "start=StartFrame",
+                   "end=EndFrame",  "loop=Loop",
+                   "units=Units",   "period=FramesPerUnit",
+                   "delay=0",       "name=null",
+                   "wait=false"};
+  plan.data_keys = {"blend", "delay", "units", "name", "wait"};
+  plan.mode_rows = {"range:start/end/no-loop",
+                    "loop:optional-start/optional-end/loop",
+                    "dest:current-frame-to-dest/no-loop",
+                    "period:abs-end-minus-start-over-period"};
+  return plan;
+}
+
+SourceAnimTaskInitPlan source_anim_task_init_plan(
+    float start,
+    float end,
+    float frames_per_unit,
+    bool loop,
+    float blend_period,
+    bool has_blend_task) {
+  SourceAnimTaskInitPlan plan;
+  plan.start = start;
+  plan.end = end;
+  plan.frames_per_unit = frames_per_unit;
+  plan.loop = loop;
+  plan.blend_period = blend_period;
+  plan.min_frame = std::min(start, end);
+  plan.max_frame = std::max(start, end);
+  if (start < end) {
+    plan.scale = frames_per_unit;
+    plan.offset = plan.min_frame;
+  } else {
+    plan.scale = -frames_per_unit;
+    plan.offset = plan.max_frame;
+  }
+  plan.marks_blend_task_when_blending =
+      blend_period != 0.0f && has_blend_task;
+  return plan;
+}
+
+SourceAnimTaskTimePlan source_anim_task_time_until_end_plan(
+    float min_frame,
+    float max_frame,
+    float current_frame,
+    float frames_per_unit,
+    float scale) {
+  SourceAnimTaskTimePlan plan;
+  plan.min_frame = min_frame;
+  plan.max_frame = max_frame;
+  plan.current_frame = current_frame;
+  plan.frames_per_unit = frames_per_unit;
+  plan.scale = scale;
+  if (frames_per_unit == 0.0f) return plan;
+  if (scale > 0.0f) {
+    plan.time_until_end = (max_frame - current_frame) / frames_per_unit;
+  } else {
+    plan.time_until_end = (current_frame - min_frame) / frames_per_unit;
+  }
   return plan;
 }
 

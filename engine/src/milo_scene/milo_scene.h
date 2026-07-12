@@ -363,6 +363,22 @@ struct SourceRndTransAnimPropSyncPlan {
 
 SourceRndTransAnimPropSyncPlan source_rndtrans_anim_prop_sync_plan();
 
+enum SourceRndAnimRate {
+  kSourceRndAnimRate30Fps = 0,
+  kSourceRndAnimRate480Fpb = 1,
+  kSourceRndAnimRate30FpsUi = 2,
+  kSourceRndAnimRate1Fpb = 3,
+  kSourceRndAnimRate30FpsTutorial = 4,
+  kSourceRndAnimRateUnknown = 5,
+};
+
+struct SourceRndAnimatableDefaultState {
+  float frame = 0.0f;
+  SourceRndAnimRate rate = kSourceRndAnimRate30Fps;
+};
+
+SourceRndAnimatableDefaultState source_rndanimatable_default_state();
+
 struct SourceRndAnimatableLoadPlan {
   int32_t revision = 0;
   bool accepted_revision = false;
@@ -377,6 +393,101 @@ struct SourceRndAnimatableLoadPlan {
 
 SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
     int32_t revision);
+
+struct SourceRndAnimatableRatePlan {
+  SourceRndAnimRate rate = kSourceRndAnimRateUnknown;
+  bool valid_rate = false;
+  std::string task_units;
+  float frames_per_unit = 0.0f;
+};
+
+SourceRndAnimatableRatePlan source_rndanimatable_rate_plan(
+    SourceRndAnimRate rate);
+
+struct SourceRndAnimatableConvertFramesPlan {
+  SourceRndAnimRate rate = kSourceRndAnimRateUnknown;
+  float input_frames = 0.0f;
+  float output_units = 0.0f;
+  bool returns_converted = false;
+  std::string task_units;
+};
+
+SourceRndAnimatableConvertFramesPlan source_rndanimatable_convert_frames_plan(
+    SourceRndAnimRate rate,
+    float input_frames);
+
+struct SourceRndAnimatableCopyPlan {
+  bool requires_animatable_source = true;
+  bool copies_frame = true;
+  bool copies_rate = true;
+  bool ignores_non_animatable_source = true;
+};
+
+SourceRndAnimatableCopyPlan source_rndanimatable_copy_plan();
+
+struct SourceRndAnimatableHandlerPlan {
+  std::vector<std::string> handlers;
+  int32_t check = 0x16C;
+};
+
+SourceRndAnimatableHandlerPlan source_rndanimatable_handler_plan();
+
+struct SourceRndAnimatablePropSyncPlan {
+  std::vector<std::string> props;
+};
+
+SourceRndAnimatablePropSyncPlan source_rndanimatable_prop_sync_plan();
+
+struct SourceRndAnimatableAnimatePlan {
+  std::vector<std::string> defaults;
+  std::vector<std::string> data_keys;
+  std::vector<std::string> mode_rows;
+  bool creates_anim_task = true;
+  bool named_task_requires_data_this = true;
+  bool wait_requires_same_rate = true;
+  bool starts_task_manager = true;
+};
+
+SourceRndAnimatableAnimatePlan source_rndanimatable_on_animate_plan();
+
+struct SourceAnimTaskInitPlan {
+  float start = 0.0f;
+  float end = 0.0f;
+  float frames_per_unit = 0.0f;
+  bool loop = false;
+  float blend_period = 0.0f;
+  float min_frame = 0.0f;
+  float max_frame = 0.0f;
+  float scale = 0.0f;
+  float offset = 0.0f;
+  bool scans_anim_target_refs_for_blend_task = true;
+  bool marks_blend_task_when_blending = false;
+  bool calls_start_anim = true;
+};
+
+SourceAnimTaskInitPlan source_anim_task_init_plan(
+    float start,
+    float end,
+    float frames_per_unit,
+    bool loop,
+    float blend_period,
+    bool has_blend_task);
+
+struct SourceAnimTaskTimePlan {
+  float min_frame = 0.0f;
+  float max_frame = 0.0f;
+  float current_frame = 0.0f;
+  float frames_per_unit = 0.0f;
+  float scale = 0.0f;
+  float time_until_end = 0.0f;
+};
+
+SourceAnimTaskTimePlan source_anim_task_time_until_end_plan(
+    float min_frame,
+    float max_frame,
+    float current_frame,
+    float frames_per_unit,
+    float scale);
 
 struct SourceRndPollableHandlerPlan {
   std::vector<std::string> actions;
@@ -394,15 +505,6 @@ struct SourceRndPollableBasePlan {
 };
 
 SourceRndPollableBasePlan source_rndpollable_base_plan();
-
-enum SourceRndAnimRate {
-  kSourceRndAnimRate30Fps = 0,
-  kSourceRndAnimRate480Fpb = 1,
-  kSourceRndAnimRate30FpsUi = 2,
-  kSourceRndAnimRate1Fpb = 3,
-  kSourceRndAnimRate30FpsTutorial = 4,
-  kSourceRndAnimRateUnknown = 5,
-};
 
 struct SourceRndPollAnimDefaultState {
   bool anims_no_null = true;

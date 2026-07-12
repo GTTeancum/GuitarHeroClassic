@@ -157,6 +157,7 @@ source proves there is no usable runtime class/body to port from that file.
 | Transform proxy attachment | `rb3-latest/src/system/rndobj/TransProxy.cpp` / `TransProxy.h` | Native helper ports source defaults, load gates, sync parent-resolution flow, setter/save/copy/handler/prop rows; it does not create live proxy attachments. |
 | Transform animation rows | `rb3-latest/src/system/rndobj/TransAnim.cpp` / `TransAnim.h` | Native helper ports source defaults, load gates, key-owner copy/replace decisions, SetFrame/SetKey call flow, handlers, and prop rows; `MakeTransform` remains fenced because the checked body is an assertion stub. |
 | Mesh vertex animation rows | `rb3-latest/src/system/rndobj/MeshAnim.cpp` / `MeshAnim.h` | Native helper ports source defaults, key-count sizing, load/copy/replace, SetFrame interpolation/sync gates, shrink helpers, handlers, and prop rows; it does not enable live vertex animation in the character renderer. |
+| Animation base and task rows | `rb3-latest/src/system/rndobj/Anim.cpp` / `Anim.h` | Native helper ports source defaults, load gates, rate-unit mapping, frame conversion, copy/handler/property rows, `OnAnimate` mode selection, and `AnimTask` range/timing setup; it does not enable the full task scheduler. |
 | Poll animation cadence | `rb3-latest/src/system/rndobj/Poll.cpp` / `Poll.h`, `PollAnim.cpp` / `PollAnim.h` | Native helper ports source poll message rows, poll-animation child lifecycle, rate-to-frame mapping, load/copy/handler/prop rows; it does not change runtime scheduling. |
 | Property animation rows | `rb3-latest/src/system/rndobj/PropAnim.cpp` / `PropAnim.h`, `PropKeys.cpp` / `PropKeys.h` | Native helper ports source property-key load/copy/frame/key/path/value/handler/property-sync contracts; it does not enable live property animation playback. |
 | Drawable visibility, bounds, and draw gates | `rb3-latest/src/system/rndobj/Draw.cpp` / `Draw.h`, `MiloEditor` `RndDrawable.cs` | Native helper ports source defaults, revision ceiling, load gates, draw/budget culling, copy, collision, handler, and property rows; no material sort/depth override is inferred from drawable state. |
@@ -2207,10 +2208,27 @@ note, and all report `unreadBytes=0`.
   - `RndAnimatable::Load` reads a source revision, optional `mFrame`, then
     `mRate` for revisions above 3 or a legacy byte rate for revision 3. Revision
     0 branches into an old anim-filter/object-list conversion path.
+  - `RndAnimatable` defaults to frame `0.0` and `k30_fps`. The source rate
+    tables map `k30_fps`, `k30_fps_ui`, and `k30_fps_tutorial` to `30` frames
+    per second-style task units, `k480_fpb` to `480` frames per beat, and
+    `k1_fpb` to `1` frame per beat. `ConvertFrames` divides by the selected
+    frames-per-unit row and reports conversion for non-beat units.
+  - The source handler row is `set_frame`, `frame`, `set_key`, `end_frame`,
+    `start_frame`, `animate`, `stop_animation`, `is_animating`, and
+    `convert_frames`; the property row exposes `rate` and `frame` through
+    `SetFrame`.
+  - `OnAnimate` starts from source defaults (`StartFrame`, `EndFrame`, `Loop`,
+    `Units`, `FramesPerUnit`) and then applies `range`, `loop`, `dest`, and
+    `period` rows before creating an `AnimTask`. Named tasks require `DataThis`;
+    wait mode only waits cleanly when the blend task uses the same rate.
+  - `AnimTask` records min/max, direction scale, offset, loop, and blend period,
+    scans the animation target refs for a prior task, marks the old task as
+    blending when needed, calls `StartAnim`, and computes time-until-end from
+    the active frame and frames-per-unit.
   - Native GHOGX decodes the revisioned frame/rate fields, exposes
-    `source_rndanimatable_load_plan` for shared embedded-base tests, and fences
-    the revision-0 object-list branch until the relevant object-list
-    serialization path is source-backed in this decoder.
+    `source_rndanimatable_*` and `source_anim_task_*` helpers for shared
+    embedded-base tests, and fences the revision-0 object-list branch until the
+    relevant object-list serialization path is source-backed in this decoder.
 - `rb3-latest/src/system/rndobj/AnimFilter.cpp` and
   `rb3-latest/src/system/rndobj/AnimFilter.h`
   - `RndAnimFilter::Load` accepts source revisions through 2. It loads

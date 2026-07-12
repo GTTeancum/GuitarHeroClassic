@@ -1130,6 +1130,92 @@ void test_group() {
       source_rndanimatable_load_plan(5);
   CHECK(!anim_v5.accepted_revision);
 
+  const SourceRndAnimatableDefaultState anim_defaults =
+      source_rndanimatable_default_state();
+  CHECK(approx(anim_defaults.frame, 0.0f));
+  CHECK(anim_defaults.rate == kSourceRndAnimRate30Fps);
+
+  const SourceRndAnimatableRatePlan anim_30fps =
+      source_rndanimatable_rate_plan(kSourceRndAnimRate30Fps);
+  CHECK(anim_30fps.valid_rate);
+  CHECK(anim_30fps.task_units == "seconds");
+  CHECK(approx(anim_30fps.frames_per_unit, 30.0f));
+  const SourceRndAnimatableRatePlan anim_480fpb =
+      source_rndanimatable_rate_plan(kSourceRndAnimRate480Fpb);
+  CHECK(anim_480fpb.valid_rate);
+  CHECK(anim_480fpb.task_units == "beats");
+  CHECK(approx(anim_480fpb.frames_per_unit, 480.0f));
+  const SourceRndAnimatableRatePlan anim_1fpb =
+      source_rndanimatable_rate_plan(kSourceRndAnimRate1Fpb);
+  CHECK(anim_1fpb.valid_rate);
+  CHECK(anim_1fpb.task_units == "beats");
+  CHECK(approx(anim_1fpb.frames_per_unit, 1.0f));
+
+  const SourceRndAnimatableConvertFramesPlan convert_seconds =
+      source_rndanimatable_convert_frames_plan(kSourceRndAnimRate30Fps, 60.0f);
+  CHECK(approx(convert_seconds.output_units, 2.0f));
+  CHECK(convert_seconds.returns_converted);
+  const SourceRndAnimatableConvertFramesPlan convert_beats =
+      source_rndanimatable_convert_frames_plan(kSourceRndAnimRate480Fpb,
+                                               960.0f);
+  CHECK(approx(convert_beats.output_units, 2.0f));
+  CHECK(!convert_beats.returns_converted);
+
+  const SourceRndAnimatableCopyPlan anim_copy =
+      source_rndanimatable_copy_plan();
+  CHECK(anim_copy.requires_animatable_source);
+  CHECK(anim_copy.copies_frame);
+  CHECK(anim_copy.copies_rate);
+  CHECK(anim_copy.ignores_non_animatable_source);
+
+  const SourceRndAnimatableHandlerPlan anim_handlers =
+      source_rndanimatable_handler_plan();
+  CHECK(anim_handlers.handlers.size() == 9);
+  CHECK(anim_handlers.handlers[0] == "set_frame");
+  CHECK(anim_handlers.handlers[5] == "animate");
+  CHECK(anim_handlers.handlers[8] == "convert_frames");
+  CHECK(anim_handlers.check == 0x16C);
+  const SourceRndAnimatablePropSyncPlan anim_props =
+      source_rndanimatable_prop_sync_plan();
+  CHECK(anim_props.props.size() == 2);
+  CHECK(anim_props.props[0] == "rate");
+  CHECK(anim_props.props[1] == "frame:SetFrame");
+
+  const SourceRndAnimatableAnimatePlan on_animate =
+      source_rndanimatable_on_animate_plan();
+  CHECK(on_animate.defaults.size() == 9);
+  CHECK(on_animate.defaults[0] == "blend=0");
+  CHECK(on_animate.defaults[5] == "period=FramesPerUnit");
+  CHECK(on_animate.data_keys.size() == 5);
+  CHECK(on_animate.mode_rows.size() == 4);
+  CHECK(on_animate.mode_rows[2] == "dest:current-frame-to-dest/no-loop");
+  CHECK(on_animate.creates_anim_task);
+  CHECK(on_animate.named_task_requires_data_this);
+  CHECK(on_animate.wait_requires_same_rate);
+  CHECK(on_animate.starts_task_manager);
+
+  const SourceAnimTaskInitPlan forward_task =
+      source_anim_task_init_plan(2.0f, 8.0f, 30.0f, false, 0.0f, false);
+  CHECK(approx(forward_task.min_frame, 2.0f));
+  CHECK(approx(forward_task.max_frame, 8.0f));
+  CHECK(approx(forward_task.scale, 30.0f));
+  CHECK(approx(forward_task.offset, 2.0f));
+  CHECK(forward_task.calls_start_anim);
+  const SourceAnimTaskInitPlan reverse_blend_task =
+      source_anim_task_init_plan(8.0f, 2.0f, 30.0f, true, 0.25f, true);
+  CHECK(reverse_blend_task.loop);
+  CHECK(approx(reverse_blend_task.scale, -30.0f));
+  CHECK(approx(reverse_blend_task.offset, 8.0f));
+  CHECK(reverse_blend_task.marks_blend_task_when_blending);
+  const SourceAnimTaskTimePlan forward_time =
+      source_anim_task_time_until_end_plan(2.0f, 8.0f, 5.0f, 30.0f,
+                                           30.0f);
+  CHECK(approx(forward_time.time_until_end, 0.1f));
+  const SourceAnimTaskTimePlan reverse_time =
+      source_anim_task_time_until_end_plan(2.0f, 8.0f, 5.0f, 30.0f,
+                                           -30.0f);
+  CHECK(approx(reverse_time.time_until_end, 0.1f));
+
   const SourceRndDrawableLoadPlan drawable_v3 =
       source_rnddrawable_load_plan(3, 24);
   CHECK(drawable_v3.accepted_revision);
