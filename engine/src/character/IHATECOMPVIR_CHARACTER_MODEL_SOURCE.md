@@ -1648,6 +1648,17 @@ note, and all report `unreadBytes=0`.
     every `mMinWeights` row, and every `mMaxWeights` row are appended to
     `changedBy`; reverse `Refs()` owners are appended to `change` only when the
     ref owner is a `CharWeightable` whose `mWeightOwner` is this setter.
+  - Native `source_char_weight_setter_runtime_dump_evidence` records the RB2
+    dump ranges around the same runtime surface: `Poll`
+    `0x8039D368 -> 0x8039D500`, `PollDeps`
+    `0x8039D500 -> 0x8039D73C`, `Load`
+    `0x8039D83C -> 0x8039DC40`, and `Copy`
+    `0x8039DC40 -> 0x8039DDA0`. The visible local inventory is limited to
+    `Poll` local `delta`, `PollDeps` locals `it`/`w`, and `Load` locals
+    `w`/`it`. This evidence object keeps `safe_to_run_driver_branch=false`
+    and `safe_to_publish_driver_weight=false`: the latest source shows the
+    driver call site, but native still cannot evaluate the driver-backed branch
+    without a source-backed `CharDriver::EvaluateFlags` body.
   - `engine/out/source_weightsetter_20260711/stock_weightsetter_controllers.stdout.log`
     refreshes stock proof against the current decoder: all 38 stock
     `CharWeightSetter` rows are `version=2`, use `CharWeightable` revision 2,

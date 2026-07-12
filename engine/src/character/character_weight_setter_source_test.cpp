@@ -64,6 +64,7 @@ int main() {
   using ghogx::character::source_char_weight_setter_handler_plan;
   using ghogx::character::source_char_weight_setter_load_plan;
   using ghogx::character::source_char_weight_setter_prop_sync_plan;
+  using ghogx::character::source_char_weight_setter_runtime_dump_evidence;
   using ghogx::character::source_char_weightable_copy_plan;
   using ghogx::character::source_char_weightable_handler_plan;
   using ghogx::character::source_char_weightable_load_plan;
@@ -267,6 +268,19 @@ int main() {
                       "weight setter prop max weights");
   ok &= expect_string(setter_props.superclasses[0], "CharWeightable",
                       "weight setter prop superclass");
+  const auto runtime_dump = source_char_weight_setter_runtime_dump_evidence();
+  ok &= expect_string(runtime_dump.poll_range, "0x8039D368->0x8039D500",
+                      "weight setter rb2 poll range");
+  ok &= expect_string(runtime_dump.poll_deps_range, "0x8039D500->0x8039D73C",
+                      "weight setter rb2 poll deps range");
+  ok &= expect_string(runtime_dump.load_range, "0x8039D83C->0x8039DC40",
+                      "weight setter rb2 load range");
+  ok &= expect_bool(runtime_dump.rb2_dump_has_statement_body, false,
+                    "weight setter dump is not statement body");
+  ok &= expect_bool(runtime_dump.safe_to_run_driver_branch, false,
+                    "weight setter driver branch remains fenced");
+  ok &= expect_bool(runtime_dump.safe_to_publish_driver_weight, false,
+                    "weight setter driver output remains fenced");
 
   std::unordered_map<std::string, float> weights;
   CharWeightSetter setter = make_setter("owned.weight");

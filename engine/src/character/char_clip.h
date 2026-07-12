@@ -2126,6 +2126,19 @@ struct SourceCharWeightSetterPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharWeightSetterRuntimeDumpEvidence {
+  std::string poll_range;
+  std::string poll_deps_range;
+  std::string load_range;
+  std::string copy_range;
+  std::vector<std::string> poll_locals;
+  std::vector<std::string> poll_deps_locals;
+  std::vector<std::string> load_locals;
+  bool rb2_dump_has_statement_body = false;
+  bool safe_to_run_driver_branch = false;
+  bool safe_to_publish_driver_weight = false;
+};
+
 struct SourceCharIKHeadPoint {
   std::string transform;
   float local_length = 0.0f;
@@ -2355,6 +2368,8 @@ SourceCharWeightSetterLoadPlan source_char_weight_setter_load_plan(
 SourceCharWeightSetterCopyPlan source_char_weight_setter_copy_plan();
 SourceCharWeightSetterHandlerPlan source_char_weight_setter_handler_plan();
 SourceCharWeightSetterPropSyncPlan source_char_weight_setter_prop_sync_plan();
+SourceCharWeightSetterRuntimeDumpEvidence
+source_char_weight_setter_runtime_dump_evidence();
 
 // Source-backed CharWeightSetter::PollDeps helper. Ref owners are supplied in
 // source Refs() order; the helper scans them in reverse like the source body.

@@ -491,6 +491,8 @@ int run_contract() {
       rb2_dump_char_dir / "CharClipDriver.cpp"));
   const std::string rb2_char_driver_cpp = compact(read_file(
       rb2_dump_char_dir / "CharDriver.cpp"));
+  const std::string rb2_char_weight_setter_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharWeightSetter.cpp"));
   const std::string rb2_char_walk_cpp = compact(read_file(
       rb2_dump_char_dir / "CharWalk.cpp"));
   const std::string rb2_outfit_loader_cpp = compact(read_file(
@@ -7596,6 +7598,17 @@ int run_contract() {
                  "std::vector<std::string>superclasses;};",
                  "native exposes source CharWeightSetter prop-sync plan");
   ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterRuntimeDumpEvidence{"
+                 "std::stringpoll_range;std::stringpoll_deps_range;"
+                 "std::stringload_range;std::stringcopy_range;"
+                 "std::vector<std::string>poll_locals;"
+                 "std::vector<std::string>poll_deps_locals;"
+                 "std::vector<std::string>load_locals;"
+                 "boolrb2_dump_has_statement_body=false;"
+                 "boolsafe_to_run_driver_branch=false;"
+                 "boolsafe_to_publish_driver_weight=false;};",
+                 "native exposes CharWeightSetter runtime dump evidence");
+  ok &= contains(char_clip_h,
                  "SourceCharWeightSetterStatesource_char_weight_setter_default_state("
                  "conststd::string&name);",
                  "native exposes source CharWeightSetter constructor helper");
@@ -7618,6 +7631,10 @@ int run_contract() {
                  "SourceCharWeightSetterPropSyncPlan"
                  "source_char_weight_setter_prop_sync_plan();",
                  "native exposes source CharWeightSetter prop-sync helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightSetterRuntimeDumpEvidence"
+                 "source_char_weight_setter_runtime_dump_evidence();",
+                 "native exposes CharWeightSetter runtime dump helper");
   ok &= contains(char_clip_h,
                  "voidsource_char_weight_setter_poll_deps("
                  "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
@@ -7819,6 +7836,24 @@ int run_contract() {
                  "\"beats_per_weight\",\"min_weights\",\"max_weights\"};"
                  "plan.superclasses={\"CharWeightable\"};returnplan;}",
                  "native CharWeightSetter prop-sync helper mirrors source tail");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterRuntimeDumpEvidence"
+                 "source_char_weight_setter_runtime_dump_evidence(){"
+                 "SourceCharWeightSetterRuntimeDumpEvidenceevidence;",
+                 "native CharWeightSetter runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.poll_range=\"0x8039D368->0x8039D500\";",
+                 "native CharWeightSetter runtime dump records Poll range");
+  ok &= contains(char_clip,
+                 "evidence.poll_deps_range=\"0x8039D500->0x8039D73C\";",
+                 "native CharWeightSetter runtime dump records PollDeps range");
+  ok &= contains(char_clip,
+                 "evidence.load_range=\"0x8039D83C->0x8039DC40\";",
+                 "native CharWeightSetter runtime dump records Load range");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_run_driver_branch=false;"
+                 "evidence.safe_to_publish_driver_weight=false;",
+                 "native CharWeightSetter runtime dump fences driver branch");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
@@ -7908,6 +7943,12 @@ int run_contract() {
   ok &= contains(weight_setter_source_test,
                  "source_char_weight_setter_prop_sync_plan()",
                  "focused CharWeightSetter test covers prop-sync plan");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_runtime_dump_evidence()",
+                 "focused CharWeightSetter test covers runtime dump evidence");
+  ok &= contains(weight_setter_source_test,
+                 "runtime_dump.safe_to_run_driver_branch,false",
+                 "focused CharWeightSetter test fences runtime dump driver branch");
   ok &= contains(weight_setter_source_test,
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
@@ -9294,6 +9335,24 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharDriver::EvaluateFlags` body is available",
                  "document records CharWeightSetter driver fence");
+  ok &= contains(doc,
+                 "Native `source_char_weight_setter_runtime_dump_evidence` records",
+                 "document records CharWeightSetter runtime dump helper");
+  ok &= contains(doc,
+                 "`Poll`\n    `0x8039D368 -> 0x8039D500`",
+                 "document records CharWeightSetter Poll dump range");
+  ok &= contains(doc,
+                 "`safe_to_run_driver_branch=false`",
+                 "document fences CharWeightSetter driver branch");
+  ok &= contains(rb2_char_weight_setter_cpp,
+                 "voidCharWeightSetter::Poll(classCharWeightSetter*constthis",
+                 "RB2 dump maps CharWeightSetter Poll signature");
+  ok &= contains(rb2_char_weight_setter_cpp,
+                 "//Range:0x8039D368->0x8039D500",
+                 "RB2 dump maps CharWeightSetter Poll range");
+  ok &= contains(rb2_char_weight_setter_cpp,
+                 "floatdelta;",
+                 "RB2 dump maps CharWeightSetter Poll local inventory");
   ok &= contains(rb3_latest_char_pos_constraint_h,
                  "ObjPtr<RndTransformable,ObjectDir>mSrc;",
                  "latest CharPosConstraint header exposes source pointer");

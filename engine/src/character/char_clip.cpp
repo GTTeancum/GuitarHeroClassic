@@ -6184,6 +6184,22 @@ source_char_weight_setter_prop_sync_plan() {
   return plan;
 }
 
+SourceCharWeightSetterRuntimeDumpEvidence
+source_char_weight_setter_runtime_dump_evidence() {
+  SourceCharWeightSetterRuntimeDumpEvidence evidence;
+  evidence.poll_range = "0x8039D368->0x8039D500";
+  evidence.poll_deps_range = "0x8039D500->0x8039D73C";
+  evidence.load_range = "0x8039D83C->0x8039DC40";
+  evidence.copy_range = "0x8039DC40->0x8039DDA0";
+  evidence.poll_locals = {"delta"};
+  evidence.poll_deps_locals = {"it", "w"};
+  evidence.load_locals = {"w", "it"};
+  evidence.rb2_dump_has_statement_body = false;
+  evidence.safe_to_run_driver_branch = false;
+  evidence.safe_to_publish_driver_weight = false;
+  return evidence;
+}
+
 void source_char_weight_setter_poll_deps(
     SourceCharWeightSetterPollDeps& deps,
     const CharWeightSetter& setter,
