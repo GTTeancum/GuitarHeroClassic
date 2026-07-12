@@ -801,6 +801,28 @@ bool read_event_trigger_symbol_list(const uint8_t* body, size_t size,
     return true;
 }
 
+bool read_hmx_object_header_event_cursor(const uint8_t* body, size_t size,
+                                         size_t& cursor) {
+    cursor = 4;
+    uint32_t object_revs = 0;
+    if (!read_u32_event_cursor(body, size, cursor, object_revs)) return false;
+    const uint16_t object_rev = static_cast<uint16_t>(object_revs & 0xffff);
+    if (object_rev > 2) return false;
+
+    std::string type;
+    if (!read_packed_symbol_event_cursor(body, size, cursor, type))
+        return false;
+    if (cursor >= size) return false;
+    const bool has_type_props = body[cursor++] != 0;
+    if (has_type_props) return false;
+    if (object_rev != 0) {
+        std::string note;
+        if (!read_packed_symbol_event_cursor(body, size, cursor, note))
+            return false;
+    }
+    return true;
+}
+
 bool event_symbol_list_contains(const std::vector<std::string>& values,
                                 std::string_view symbol) {
     return std::any_of(values.begin(), values.end(),
@@ -833,7 +855,87 @@ struct DecodedVenueEventTrigger {
     std::vector<ProxyCall> proxy_calls;
 };
 
-std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
+std::optional<DecodedVenueEventTrigger>
+decode_venue_event_trigger_rev8_source_layout(const uint8_t* body,
+                                              size_t size) {
+    if (!body || size < 4) return std::nullopt;
+    const uint16_t revision =
+        static_cast<uint16_t>(read_u32_at_unchecked(body, 0) & 0xffff);
+    if (revision != 8) return std::nullopt;
+
+    DecodedVenueEventTrigger out;
+    size_t cursor = 0;
+    if (!read_hmx_object_header_event_cursor(body, size, cursor))
+        return std::nullopt;
+    if (!read_packed_symbol_event_cursor(body, size, cursor, out.event_label))
+        return std::nullopt;
+
+    uint32_t anim_count = 0;
+    if (!read_u32_event_cursor(body, size, cursor, anim_count) ||
+        anim_count > 256) {
+        return std::nullopt;
+    }
+    for (uint32_t i = 0; i < anim_count; ++i) {
+        std::string anim;
+        if (!read_packed_symbol_event_cursor(body, size, cursor, anim))
+            return std::nullopt;
+        if (cursor + 9 > size) return std::nullopt;
+        DecodedVenueEventTrigger::AnimRoute route;
+        route.ref = std::move(anim);
+        route.blend = read_f32_at_unchecked(body, cursor);
+        route.wait = body[cursor + 4] != 0;
+        route.delay = read_f32_at_unchecked(body, cursor + 5);
+        if (!std::isfinite(route.blend) || route.blend < 0.0f ||
+            route.blend > 10000.0f) {
+            route.blend = 0.0f;
+        }
+        if (!std::isfinite(route.delay) || route.delay < 0.0f ||
+            route.delay > 10000.0f) {
+            route.delay = 0.0f;
+        }
+        out.anims.push_back(std::move(route));
+        cursor += 9;
+    }
+
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.sounds))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.shows))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.draws))
+        return std::nullopt;  // draws for revision <= 8
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.enable_events))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.disable_events))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor,
+                                        out.wait_for_events))
+        return std::nullopt;
+    if (!read_packed_symbol_event_cursor(body, size, cursor, out.next_link))
+        return std::nullopt;
+
+    uint32_t proxy_count = 0;
+    if (!read_u32_event_cursor(body, size, cursor, proxy_count) ||
+        proxy_count > 256) {
+        return std::nullopt;
+    }
+    out.proxy_calls.reserve(proxy_count);
+    for (uint32_t i = 0; i < proxy_count; ++i) {
+        DecodedVenueEventTrigger::ProxyCall proxy_call;
+        if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                             proxy_call.proxy)) {
+            return std::nullopt;
+        }
+        if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                             proxy_call.call)) {
+            return std::nullopt;
+        }
+        out.proxy_calls.push_back(std::move(proxy_call));
+    }
+    if (cursor != size) return std::nullopt;
+    return out;
+}
+
+std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8_scan(
     const uint8_t* body, size_t size) {
     if (!body || size < 4) return std::nullopt;
     const uint16_t revision =
@@ -910,6 +1012,13 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
         }
     }
     return out;
+}
+
+std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
+    const uint8_t* body, size_t size) {
+    if (auto source = decode_venue_event_trigger_rev8_source_layout(body, size))
+        return source;
+    return decode_venue_event_trigger_rev8_scan(body, size);
 }
 
 std::vector<std::string> venue_event_trigger_anim_route_refs(

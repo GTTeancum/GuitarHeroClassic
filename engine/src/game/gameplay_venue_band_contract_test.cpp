@@ -4159,6 +4159,15 @@ int main() {
                  "std::vector<ProxyCall>proxy_calls;",
                  "EventTrigger decoder stores source proxy-call rows");
   ok &= contains(gameplay_c,
+                 "read_hmx_object_header_event_cursor(body,size,cursor)",
+                 "EventTrigger decoder skips Hmx::Object fields before source rows");
+  ok &= contains(gameplay_c,
+                 "decode_venue_event_trigger_rev8_source_layout(",
+                 "EventTrigger decoder prefers source-shaped row layout");
+  ok &= contains(gameplay_c,
+                 "returndecode_venue_event_trigger_rev8_scan(body,size);",
+                 "EventTrigger decoder keeps scanner fallback for non-source-shaped bodies");
+  ok &= contains(gameplay_c,
                  "read_event_trigger_symbol_list(body,size,cursor,"
                  "out.wait_for_events)",
                  "EventTrigger decoder reads wait_for_events after enable/disable");
