@@ -301,6 +301,26 @@ int main() {
   CHECK(approx(set_bone_with_offset.offset.pos[1], 0.0f));
   CHECK(approx(set_bone_with_offset.offset.pos[2], 0.0f));
 
+  ghogx::milo_scene::Xfm offset_a;
+  offset_a.pos[0] = 1.0f;
+  offset_a.pos[1] = -2.0f;
+  offset_a.pos[2] = 3.0f;
+  offset_a.rot[0][0] = 0.5f;
+  ghogx::milo_scene::Xfm offset_b;
+  offset_b.pos[0] = -4.0f;
+  offset_b.pos[1] = 5.0f;
+  offset_b.pos[2] = -6.0f;
+  const auto scaled_offsets =
+      ghogx::character::source_rndmesh_scale_bones({offset_a, offset_b}, 2.0f);
+  CHECK(scaled_offsets.scaled);
+  CHECK(approx(scaled_offsets.offsets[0].pos[0], 2.0f));
+  CHECK(approx(scaled_offsets.offsets[0].pos[1], -4.0f));
+  CHECK(approx(scaled_offsets.offsets[0].pos[2], 6.0f));
+  CHECK(approx(scaled_offsets.offsets[0].rot[0][0], 0.5f));
+  CHECK(approx(scaled_offsets.offsets[1].pos[0], -8.0f));
+  CHECK(approx(scaled_offsets.offsets[1].pos[1], 10.0f));
+  CHECK(approx(scaled_offsets.offsets[1].pos[2], -12.0f));
+
   CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);

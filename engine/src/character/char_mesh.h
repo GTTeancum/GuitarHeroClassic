@@ -112,6 +112,16 @@ SourceRndMeshSetBonePlan source_rndmesh_set_bone_plan(
     const milo_scene::Xfm& bone_world,
     bool recompute_offset);
 
+struct SourceRndMeshScaleBonesPlan {
+  bool scaled = false;
+  float scale = 1.0f;
+  std::vector<milo_scene::Xfm> offsets;
+};
+
+SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
+    std::vector<milo_scene::Xfm> offsets,
+    float scale);
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;

@@ -5207,6 +5207,21 @@ SourceRndMeshSetBonePlan source_rndmesh_set_bone_plan(
   return plan;
 }
 
+SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
+    std::vector<milo_scene::Xfm> offsets,
+    float scale) {
+  SourceRndMeshScaleBonesPlan plan;
+  plan.scaled = true;
+  plan.scale = scale;
+  plan.offsets = offsets;
+  for (milo_scene::Xfm& offset : plan.offsets) {
+    offset.pos[0] *= scale;
+    offset.pos[1] *= scale;
+    offset.pos[2] *= scale;
+  }
+  return plan;
+}
+
 std::vector<std::string> Character::texture_names() const {
   std::set<std::string> set;
   for (const milo_scene::MatObj& m : mats)

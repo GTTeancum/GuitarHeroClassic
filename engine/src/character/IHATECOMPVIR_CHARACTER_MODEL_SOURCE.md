@@ -470,6 +470,9 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     a deterministic helper: every call assigns the bone pointer, and only the
     source `b` flag recomputes the offset as mesh world times inverse bone
     world.
+  - Native `source_rndmesh_scale_bones` ports the visible `ScaleBones` helper:
+    only each offset transform's translation vector is multiplied by the scale;
+    rotation rows are not altered.
   - GH2-era `RndMesh::PostLoad` reads the same four source bone slots and four
     offsets that the native decoder preserves as raw rows, then trims the
     active runtime bone list at the first null bone pointer and calls
