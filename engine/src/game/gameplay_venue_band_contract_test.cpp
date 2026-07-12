@@ -5133,6 +5133,23 @@ int main() {
                  "route.source_wait=anim_route.wait;",
                  "ParticleSys event routes inherit EventTrigger Anim wait");
   ok &= contains(gameplay_c,
+                 "std::map<std::string,Gameplay::VenueAnimFilter>"
+                 "filter_particle_timing;",
+                 "ParticleSys AnimFilter routes preserve source timing");
+  ok &= contains(gameplay_c,
+                 "venue_source_filter_from_decoded(entry_key,*decoded)",
+                 "ParticleSys AnimFilter routes use the ihatecompvir-shaped AnimFilter reader");
+  ok &= contains(gameplay_c,
+                 "route.has_source_filter=true;route.source_filter=*source_filter;",
+                 "ParticleSys routes carry source AnimFilter timing to playback");
+  ok &= contains(gameplay_c,
+                 "active.duration_seconds=particle_route_duration_seconds("
+                 "route,&chart_,active.start_time);",
+                 "filtered ParticleSys activation derives duration from source AnimFilter timing");
+  ok &= contains(gameplay_c,
+                 "constfloatframe=active_particle_frame_at(*it,elapsed,&chart_);",
+                 "filtered ParticleSys sampler uses source AnimFilter frame mapping");
+  ok &= contains(gameplay_c,
                  "append_mat_routes(mat_anims,resolved,anim_route.blend,"
                  "anim_route.wait,anim_route.delay,de.name);",
                  "MatAnim route loader keeps source EventTrigger timing rows");
@@ -5541,6 +5558,8 @@ int main() {
                  "active_lighting_particles_.back()."
                  "source_blend_period_seconds,"
                  "route.source_wait?1:0,route_delay,wait_seconds,"
+                 "route.has_source_filter?route.source_filter.name.c_str():"
+                 "\"none\","
                  "persistent?\"persistent\":\"transient\");",
                  "lighting ParticleSys diagnostics expose transient ownership and source timing");
   ok &= contains(gameplay_c,
@@ -5548,7 +5567,9 @@ int main() {
                  "it->life_keys.size(),it->size_keys.size(),"
                  "it->persistent?1:0,blend,"
                  "it->source_blend_period_seconds,"
-                 "it->source_start_delay_seconds,sampled_intensity);",
+                 "it->source_start_delay_seconds,sampled_intensity,"
+                 "it->has_source_filter?it->source_filter.name.c_str():"
+                 "\"none\");",
                  "lighting ParticleSys samples log persistent state, source blend, blend period, and delay");
   ok &= contains(gameplay_c,
                  "active_filter.persistent=persistent;",

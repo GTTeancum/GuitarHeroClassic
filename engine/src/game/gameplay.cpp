@@ -4566,6 +4566,8 @@ void merge_particle_route_tracks(Gameplay::VenueParticleRoute& existing,
                                                  route.source_delay_seconds);
     existing.source_wait = route.source_wait;
     existing.source_trigger = route.source_trigger;
+    existing.has_source_filter = route.has_source_filter;
+    existing.source_filter = route.source_filter;
     bool adopted = false;
     adopted |= copy_particle_channel_if_richer(existing.start_color_keys,
                                                route.start_color_keys);
@@ -4607,6 +4609,10 @@ bool particle_routes_share_source_timing(
     const Gameplay::VenueParticleRoute& b) {
     return a.source_trigger == b.source_trigger &&
            a.source_wait == b.source_wait &&
+           a.has_source_filter == b.has_source_filter &&
+           (!a.has_source_filter ||
+            (a.source_filter.name == b.source_filter.name &&
+             a.source_filter.target_ref == b.source_filter.target_ref)) &&
            std::fabs(a.source_delay_seconds - b.source_delay_seconds) <=
                0.0001f;
 }
@@ -4651,6 +4657,7 @@ load_venue_event_particles(const std::string& hdr_path,
         std::unordered_set<std::string> particle_names;
         std::map<std::string, Gameplay::VenueParticleRoute> panim_routes;
         std::map<std::string, std::vector<std::string>> filter_refs;
+        std::map<std::string, Gameplay::VenueAnimFilter> filter_particle_timing;
         std::map<std::string, std::vector<std::string>> group_refs;
         for (const auto& de : dir.entries) {
             if (de.offset + de.size > payload.size()) continue;
@@ -4663,9 +4670,44 @@ load_venue_event_particles(const std::string& hdr_path,
                 if (!route.anim.empty() && !route.particle.empty())
                     panim_routes[route.anim] = std::move(route);
             } else if (de.type == "AnimFilter" || de.type == "Group") {
-                auto& refs = de.type == "AnimFilter"
-                                 ? filter_refs[canonical_milo_ref(de.name)]
-                                 : group_refs[canonical_milo_ref(de.name)];
+                const bool is_filter = de.type == "AnimFilter";
+                const auto entry_key = canonical_milo_ref(de.name);
+                auto& refs = is_filter ? filter_refs[entry_key]
+                                       : group_refs[entry_key];
+                if (is_filter) {
+                    if (const auto decoded =
+                            read_rnd_animfilter_like_miloeditor(body, size)) {
+                        if (auto filter =
+                                venue_source_filter_from_decoded(entry_key,
+                                                                 *decoded)) {
+                            const auto& target = filter->target_ref;
+                            if ((target.size() > 5 &&
+                                 target.rfind(".part") ==
+                                     target.size() - 5) ||
+                                (target.size() > 6 &&
+                                 target.rfind(".panim") ==
+                                     target.size() - 6) ||
+                                (target.size() > 4 &&
+                                 target.rfind(".grp") ==
+                                     target.size() - 4)) {
+                                filter_particle_timing[entry_key] = *filter;
+                                if (debug_venue_filters_enabled()) {
+                                    std::fprintf(
+                                        stderr,
+                                        "[world] venue ParticleSys AnimFilter %s -> %s source-shaped rev=%u anim_rev=%u rate=%d frame %.2f..%.2f scale=%.3f period=%.3f offset=%.3f type=%d\n",
+                                        filter->name.c_str(), target.c_str(),
+                                        filter->revision,
+                                        filter->anim_revision,
+                                        filter->anim_rate,
+                                        filter->start_frame,
+                                        filter->end_frame, filter->scale,
+                                        filter->period,
+                                        filter->offset_frame, filter->type);
+                                }
+                            }
+                        }
+                    }
+                }
                 const auto strings = scan_milo_strings(body, size);
                 for (const auto& s : strings) {
                     const auto ref = canonical_milo_ref(s);
@@ -4698,20 +4740,43 @@ load_venue_event_particles(const std::string& hdr_path,
         auto collect_ref =
             [&](auto&& self, const std::string& ref,
                 std::vector<Gameplay::VenueParticleRoute>& routes,
-                std::unordered_set<std::string>& seen) -> void {
-            if (!seen.insert(ref).second) return;
+                std::unordered_set<std::string>& seen,
+                const Gameplay::VenueAnimFilter* source_filter) -> void {
+            const std::string seen_key =
+                ref + "|" +
+                (source_filter ? source_filter->name : std::string{});
+            if (!seen.insert(seen_key).second) return;
             if (ref.size() > 5 && ref.rfind(".part") == ref.size() - 5) {
                 if (particle_names.find(ref) != particle_names.end()) {
                     Gameplay::VenueParticleRoute route;
                     route.particle = ref;
+                    if (source_filter) {
+                        route.has_source_filter = true;
+                        route.source_filter = *source_filter;
+                    }
                     push_route(routes, std::move(route));
                 }
                 return;
             }
             if (ref.size() > 6 && ref.rfind(".panim") == ref.size() - 6) {
                 const auto it = panim_routes.find(ref);
-                if (it != panim_routes.end()) push_route(routes, it->second);
+                if (it != panim_routes.end()) {
+                    auto route = it->second;
+                    if (source_filter) {
+                        route.has_source_filter = true;
+                        route.source_filter = *source_filter;
+                    }
+                    push_route(routes, std::move(route));
+                }
                 return;
+            }
+            const Gameplay::VenueAnimFilter* child_source_filter =
+                source_filter;
+            if (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) {
+                const auto timing_it = filter_particle_timing.find(ref);
+                if (timing_it != filter_particle_timing.end()) {
+                    child_source_filter = &timing_it->second;
+                }
             }
             const auto& ref_map =
                 (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5)
@@ -4720,13 +4785,17 @@ load_venue_event_particles(const std::string& hdr_path,
             const auto refs_it = ref_map.find(ref);
             if (refs_it == ref_map.end()) return;
             for (const auto& child : refs_it->second)
-                self(self, child, routes, seen);
+                self(self, child, routes, seen, child_source_filter);
         };
         for (const auto& [filter, refs] : filter_refs) {
             (void)refs;
             std::vector<Gameplay::VenueParticleRoute> routes;
             std::unordered_set<std::string> seen;
-            collect_ref(collect_ref, filter, routes, seen);
+            const auto timing_it = filter_particle_timing.find(filter);
+            collect_ref(collect_ref, filter, routes, seen,
+                        timing_it == filter_particle_timing.end()
+                            ? nullptr
+                            : &timing_it->second);
             if (routes.empty()) continue;
             auto& routed = out[venue_filter_route_key(filter)];
             for (const auto& route : routes) push_route(routed, route);
@@ -4755,7 +4824,11 @@ load_venue_event_particles(const std::string& hdr_path,
                 if (!object_ref) continue;
                 std::vector<Gameplay::VenueParticleRoute> row_routes;
                 std::unordered_set<std::string> row_seen;
-                collect_ref(collect_ref, ref, row_routes, row_seen);
+                const auto timing_it = filter_particle_timing.find(ref);
+                collect_ref(collect_ref, ref, row_routes, row_seen,
+                            timing_it == filter_particle_timing.end()
+                                ? nullptr
+                                : &timing_it->second);
                 for (auto& route : row_routes) {
                     route.source_blend_period_seconds = anim_route.blend;
                     route.source_delay_seconds = anim_route.delay;
@@ -4776,7 +4849,7 @@ load_venue_event_particles(const std::string& hdr_path,
                              de.name.c_str());
                 for (const auto& route : routes) {
                     std::fprintf(stderr,
-                                  "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f ",
+                                  "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f filter=%s ",
                                   route.particle.c_str(), route.anim.c_str(),
                                   route.start_color_keys.size(),
                                   route.end_color_keys.size(),
@@ -4787,7 +4860,10 @@ load_venue_event_particles(const std::string& hdr_path,
                                   route.duration_frames,
                                   route.source_blend_period_seconds,
                                   route.source_wait ? 1 : 0,
-                                  route.source_delay_seconds);
+                                  route.source_delay_seconds,
+                                  route.has_source_filter
+                                      ? route.source_filter.name.c_str()
+                                      : "none");
                 }
                 std::fprintf(stderr, "\n");
             }
@@ -11199,6 +11275,31 @@ float active_material_anim_terminal_frame(
                                      anim.start_time);
     }
     return anim.duration_frames;
+}
+
+double particle_route_duration_seconds(
+    const Gameplay::VenueParticleRoute& route,
+    const ghogx::chart::Chart* chart, double absolute_start_seconds) {
+    if (route.has_source_filter) {
+        return venue_filter_duration_seconds(route.source_filter, chart,
+                                             absolute_start_seconds);
+    }
+    return authored_frames_to_seconds(
+        route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
+}
+
+float active_particle_frame_at(
+    const Gameplay::ActiveVenueParticleSystem& particle,
+    double elapsed_seconds, const ghogx::chart::Chart* chart) {
+    if (particle.has_source_filter) {
+        return venue_filter_frame_at(particle.source_filter, elapsed_seconds,
+                                     false, chart, particle.start_time);
+    }
+    if (particle.duration_frames > 0.001f) {
+        return material_anim_frame_at(particle.duration_frames,
+                                      elapsed_seconds, particle.persistent);
+    }
+    return static_cast<float>(elapsed_seconds * kLightingFramesPerSecond);
 }
 
 float source_anim_delay_seconds(float delay_seconds) {
@@ -19933,8 +20034,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             ActiveVenueParticleSystem active;
             active.particle = route.particle;
             active.start_time = song_time_ + start_delay;
-            active.duration_seconds = authored_frames_to_seconds(
-                route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
+            active.duration_seconds = particle_route_duration_seconds(
+                route, &chart_, active.start_time);
             active.duration_frames = route.duration_frames;
             active.start_color_keys = route.start_color_keys;
             active.end_color_keys = route.end_color_keys;
@@ -19946,12 +20047,16 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 route.source_blend_period_seconds;
             active.source_start_delay_seconds =
                 static_cast<float>(start_delay);
+            active.has_source_filter = route.has_source_filter;
+            if (route.has_source_filter) {
+                active.source_filter = route.source_filter;
+            }
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
+                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.start_color_keys.size(),
                 route.end_color_keys.size(), route.emission_keys.size(),
@@ -19960,6 +20065,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 active_venue_particles_.back().duration_seconds,
                 active_venue_particles_.back().source_blend_period_seconds,
                 route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                route.has_source_filter ? route.source_filter.name.c_str()
+                                        : "none",
                 persistent ? "persistent" : "transient");
         }
     }
@@ -20596,11 +20703,7 @@ void Gameplay::update_active_venue_particles() {
             it = active_venue_particles_.erase(it);
             continue;
         }
-        const float frame =
-            it->duration_frames > 0.001f
-                ? material_anim_frame_at(it->duration_frames, elapsed,
-                                         it->persistent)
-                : static_cast<float>(elapsed * kLightingFramesPerSecond);
+        const float frame = active_particle_frame_at(*it, elapsed, &chart_);
         const float sampled_intensity =
             sample_particle_emission(it->emission_keys, frame);
         const float sampled_size = sample_particle_size(it->size_keys, frame);
@@ -20659,7 +20762,7 @@ void Gameplay::update_active_venue_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f sampled_intensity=%.3f\n",
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f sampled_intensity=%.3f filter=%s\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
                     start_color[0], start_color[1], start_color[2],
                     start_color[3], end_color[0], end_color[1],
@@ -20669,7 +20772,9 @@ void Gameplay::update_active_venue_particles() {
                     it->life_keys.size(), it->size_keys.size(),
                     it->persistent ? 1 : 0, blend,
                     it->source_blend_period_seconds,
-                    it->source_start_delay_seconds, sampled_intensity);
+                    it->source_start_delay_seconds, sampled_intensity,
+                    it->has_source_filter ? it->source_filter.name.c_str()
+                                          : "none");
             }
         }
         ++it;
@@ -21775,8 +21880,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             ActiveVenueParticleSystem active;
             active.particle = route.particle;
             active.start_time = song_time_ + start_delay;
-            active.duration_seconds = authored_frames_to_seconds(
-                route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
+            active.duration_seconds = particle_route_duration_seconds(
+                route, &chart_, active.start_time);
             active.duration_frames = route.duration_frames;
             active.start_color_keys = route.start_color_keys;
             active.end_color_keys = route.end_color_keys;
@@ -21788,12 +21893,16 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 route.source_blend_period_seconds;
             active.source_start_delay_seconds =
                 static_cast<float>(start_delay);
+            active.has_source_filter = route.has_source_filter;
+            if (route.has_source_filter) {
+                active.source_filter = route.source_filter;
+            }
             active.persistent = persistent;
             active_lighting_particles_.push_back(std::move(active));
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
+                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.start_color_keys.size(),
                 route.end_color_keys.size(), route.emission_keys.size(),
@@ -21802,6 +21911,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 active_lighting_particles_.back().duration_seconds,
                 active_lighting_particles_.back().source_blend_period_seconds,
                 route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                route.has_source_filter ? route.source_filter.name.c_str()
+                                        : "none",
                 persistent ? "persistent" : "transient");
         }
     }
@@ -22269,11 +22380,7 @@ void Gameplay::update_active_lighting_particles() {
             it = active_lighting_particles_.erase(it);
             continue;
         }
-        const float frame =
-            it->duration_frames > 0.001f
-                ? material_anim_frame_at(it->duration_frames, elapsed,
-                                         it->persistent)
-                : static_cast<float>(elapsed * kLightingFramesPerSecond);
+        const float frame = active_particle_frame_at(*it, elapsed, &chart_);
         const float sampled_intensity =
             sample_particle_emission(it->emission_keys, frame);
         const float sampled_size = sample_particle_size(it->size_keys, frame);
@@ -22332,7 +22439,7 @@ void Gameplay::update_active_lighting_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f sampled_intensity=%.3f\n",
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f sampled_intensity=%.3f filter=%s\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
                     start_color[0], start_color[1], start_color[2],
                     start_color[3], end_color[0], end_color[1],
@@ -22342,7 +22449,9 @@ void Gameplay::update_active_lighting_particles() {
                     it->life_keys.size(), it->size_keys.size(),
                     it->persistent ? 1 : 0, blend,
                     it->source_blend_period_seconds,
-                    it->source_start_delay_seconds, sampled_intensity);
+                    it->source_start_delay_seconds, sampled_intensity,
+                    it->has_source_filter ? it->source_filter.name.c_str()
+                                          : "none");
             }
         }
         ++it;

@@ -473,6 +473,8 @@ class Gameplay {
     float source_blend_period_seconds = 0.0f;
     float source_delay_seconds = 0.0f;
     bool source_wait = false;
+    bool has_source_filter = false;
+    VenueAnimFilter source_filter;
     float duration_frames = 0.0f;
     std::vector<ColorKey> start_color_keys;
     std::vector<ColorKey> end_color_keys;
@@ -488,6 +490,8 @@ class Gameplay {
     float duration_frames = 0.0f;
     float source_blend_period_seconds = 0.0f;
     float source_start_delay_seconds = 0.0f;
+    bool has_source_filter = false;
+    VenueAnimFilter source_filter;
     std::vector<VenueParticleRoute::ColorKey> start_color_keys;
     std::vector<VenueParticleRoute::ColorKey> end_color_keys;
     std::vector<VenueParticleRoute::EmissionKey> emission_keys;
