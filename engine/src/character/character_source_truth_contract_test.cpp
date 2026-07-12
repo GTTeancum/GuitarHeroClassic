@@ -271,6 +271,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "Group.cpp"));
   const std::string rb3_latest_group_h = compact(read_file(
       rb3_latest_rndobj_dir / "Group.h"));
+  const std::string rb3_latest_trans_proxy_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "TransProxy.cpp"));
+  const std::string rb3_latest_trans_proxy_h = compact(read_file(
+      rb3_latest_rndobj_dir / "TransProxy.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb2_char_eyes_cpp = compact(read_file(
@@ -1463,6 +1467,76 @@ int run_contract() {
                  "constSourceRndTransLoadPlanrev8_old_parent="
                  "source_rndtrans_load_plan(8,6,false);",
                  "milo_scene test covers legacy RndTrans child-list plan");
+  ok &= contains(doc,
+                 "| Transform proxy attachment | `rb3-latest/src/system/rndobj/"
+                 "TransProxy.cpp` / `TransProxy.h` |",
+                 "coverage matrix records RndTransProxy source boundary");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "RndTransProxy::RndTransProxy():mProxy(this,0),mPart(){}",
+                 "latest RndTransProxy source constructor defaults");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "if(mProxy.Ptr()&&mPart.Null()){RndTransformable*trans="
+                 "dynamic_cast<RndTransformable*>(mProxy.Ptr());",
+                 "latest RndTransProxy source direct proxy branch");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "RndTransformable*trans=mProxy->Find<RndTransformable>("
+                 "mPart.mStr,false);if(trans){SetTransParent(dynamic_cast<"
+                 "RndTransformable*>(trans),false);return;}",
+                 "latest RndTransProxy source part lookup branch");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "ASSERT_REVS(1,0);Hmx::Object::Load(bs);if(gRev!=0)"
+                 "RndTransformable::Load(bs);bs>>mProxy;bs>>mPart;Sync();",
+                 "latest RndTransProxy source load gates");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "voidRndTransProxy::SetProxy(classObjectDir*dir){if("
+                 "mProxy.Ptr()!=dir){mProxy=dir;Sync();}}",
+                 "latest RndTransProxy source SetProxy change gate");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "voidRndTransProxy::PreSave(BinStream&bs){SetTransParent(0,"
+                 "false);}voidRndTransProxy::PostSave(BinStream&bs){Sync();}",
+                 "latest RndTransProxy source save hooks");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(RndTransformable)"
+                 "CREATE_COPY(RndTransProxy)",
+                 "latest RndTransProxy source copy superclasses");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "COPY_MEMBER(mProxy)COPY_MEMBER(mPart)Sync();",
+                 "latest RndTransProxy source copy member rows");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "HANDLE_SUPERCLASS(RndTransformable)HANDLE_SUPERCLASS("
+                 "Hmx::Object)HANDLE_CHECK(0x6A)",
+                 "latest RndTransProxy source handler rows");
+  ok &= contains(rb3_latest_trans_proxy_cpp,
+                 "SYNC_PROP_MODIFY_ALT(proxy,mProxy,Sync())SYNC_PROP_MODIFY("
+                 "part,mPart,Sync())SYNC_SUPERCLASS(RndTransformable)",
+                 "latest RndTransProxy source prop-sync rows");
+  ok &= contains(rb3_latest_trans_proxy_h,
+                 "ObjPtr<ObjectDir,ObjectDir>mProxy;SymbolmPart;",
+                 "latest RndTransProxy header exposes proxy and part fields");
+  ok &= contains(scene_h,
+                 "structSourceRndTransProxySyncPlan{",
+                 "shared milo_scene exposes RndTransProxy sync plan");
+  ok &= contains(scene,
+                 "SourceRndTransProxyLoadPlansource_rndtrans_proxy_load_plan("
+                 "int32_trevision)",
+                 "shared milo_scene implements RndTransProxy load plan");
+  ok &= contains(scene,
+                 "plan.attempts_direct_proxy_parent=has_proxy&&part_null;",
+                 "shared RndTransProxy sync plan mirrors direct proxy gate");
+  ok &= contains(scene,
+                 "plan.attempts_part_lookup=has_proxy&&!"
+                 "plan.uses_direct_proxy_parent;",
+                 "shared RndTransProxy sync plan mirrors part lookup fallthrough");
+  ok &= contains(scene,
+                 "plan.props={\"proxy:Sync\",\"part:Sync\"};",
+                 "shared RndTransProxy prop-sync plan mirrors source rows");
+  ok &= contains(scene_test,
+                 "voidtest_trans_proxy(){",
+                 "milo_scene test covers RndTransProxy helper");
+  ok &= contains(scene_test,
+                 "constSourceRndTransProxySyncPlannull_part_fallback="
+                 "source_rndtrans_proxy_sync_plan(true,true,false,true);",
+                 "milo_scene test covers RndTransProxy null-part fallthrough");
   ok &= contains(doc,
                  "Shared native `source_rndanimatable_load_plan` records "
                  "these gates",

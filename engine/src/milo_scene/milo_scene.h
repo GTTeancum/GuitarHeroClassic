@@ -122,6 +122,81 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t parent_revision,
     bool standalone);
 
+struct SourceRndTransProxyDefaultState {
+  bool proxy_null = true;
+  bool part_null = true;
+};
+
+SourceRndTransProxyDefaultState source_rndtrans_proxy_default_state();
+
+struct SourceRndTransProxyLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool reads_object_fields = true;
+  bool reads_transformable = false;
+  bool reads_proxy = true;
+  bool reads_part = true;
+  bool calls_sync = true;
+};
+
+SourceRndTransProxyLoadPlan source_rndtrans_proxy_load_plan(int32_t revision);
+
+struct SourceRndTransProxySyncPlan {
+  bool clears_parent_first = true;
+  bool has_proxy = false;
+  bool part_null = false;
+  bool attempts_direct_proxy_parent = false;
+  bool uses_direct_proxy_parent = false;
+  bool attempts_part_lookup = false;
+  bool uses_part_lookup_parent = false;
+  bool clears_parent_final = true;
+  std::string resolved_parent_source = "none";
+};
+
+SourceRndTransProxySyncPlan source_rndtrans_proxy_sync_plan(
+    bool has_proxy,
+    bool part_null,
+    bool proxy_is_transformable,
+    bool part_lookup_found_transformable);
+
+struct SourceRndTransProxySetterPlan {
+  bool value_changed = false;
+  bool assigns_value = false;
+  bool calls_sync = false;
+};
+
+SourceRndTransProxySetterPlan source_rndtrans_proxy_setter_plan(
+    bool value_changed);
+
+struct SourceRndTransProxySavePlan {
+  bool presave_clears_parent = true;
+  bool postsave_calls_sync = true;
+};
+
+SourceRndTransProxySavePlan source_rndtrans_proxy_save_plan();
+
+struct SourceRndTransProxyCopyPlan {
+  std::vector<std::string> superclasses;
+  std::vector<std::string> member_order;
+  bool calls_sync = true;
+};
+
+SourceRndTransProxyCopyPlan source_rndtrans_proxy_copy_plan();
+
+struct SourceRndTransProxyHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0x6A;
+};
+
+SourceRndTransProxyHandlerPlan source_rndtrans_proxy_handler_plan();
+
+struct SourceRndTransProxyPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> superclasses;
+};
+
+SourceRndTransProxyPropSyncPlan source_rndtrans_proxy_prop_sync_plan();
+
 struct SourceRndAnimatableLoadPlan {
   int32_t revision = 0;
   bool accepted_revision = false;

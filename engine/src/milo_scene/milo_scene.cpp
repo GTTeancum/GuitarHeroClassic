@@ -415,6 +415,75 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
   return plan;
 }
 
+SourceRndTransProxyDefaultState source_rndtrans_proxy_default_state() {
+  return SourceRndTransProxyDefaultState{};
+}
+
+SourceRndTransProxyLoadPlan source_rndtrans_proxy_load_plan(int32_t revision) {
+  SourceRndTransProxyLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 1;
+  plan.reads_transformable = revision != 0;
+  return plan;
+}
+
+SourceRndTransProxySyncPlan source_rndtrans_proxy_sync_plan(
+    bool has_proxy,
+    bool part_null,
+    bool proxy_is_transformable,
+    bool part_lookup_found_transformable) {
+  SourceRndTransProxySyncPlan plan;
+  plan.has_proxy = has_proxy;
+  plan.part_null = part_null;
+  plan.attempts_direct_proxy_parent = has_proxy && part_null;
+  plan.uses_direct_proxy_parent =
+      plan.attempts_direct_proxy_parent && proxy_is_transformable;
+  plan.attempts_part_lookup = has_proxy && !plan.uses_direct_proxy_parent;
+  plan.uses_part_lookup_parent =
+      plan.attempts_part_lookup && part_lookup_found_transformable;
+  if (plan.uses_direct_proxy_parent) {
+    plan.clears_parent_final = false;
+    plan.resolved_parent_source = "proxy";
+  } else if (plan.uses_part_lookup_parent) {
+    plan.clears_parent_final = false;
+    plan.resolved_parent_source = "part";
+  }
+  return plan;
+}
+
+SourceRndTransProxySetterPlan source_rndtrans_proxy_setter_plan(
+    bool value_changed) {
+  SourceRndTransProxySetterPlan plan;
+  plan.value_changed = value_changed;
+  plan.assigns_value = value_changed;
+  plan.calls_sync = value_changed;
+  return plan;
+}
+
+SourceRndTransProxySavePlan source_rndtrans_proxy_save_plan() {
+  return SourceRndTransProxySavePlan{};
+}
+
+SourceRndTransProxyCopyPlan source_rndtrans_proxy_copy_plan() {
+  SourceRndTransProxyCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.member_order = {"mProxy", "mPart"};
+  return plan;
+}
+
+SourceRndTransProxyHandlerPlan source_rndtrans_proxy_handler_plan() {
+  SourceRndTransProxyHandlerPlan plan;
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndTransProxyPropSyncPlan source_rndtrans_proxy_prop_sync_plan() {
+  SourceRndTransProxyPropSyncPlan plan;
+  plan.props = {"proxy:Sync", "part:Sync"};
+  plan.superclasses = {"RndTransformable"};
+  return plan;
+}
+
 SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
     int32_t revision) {
   SourceRndAnimatableLoadPlan plan;

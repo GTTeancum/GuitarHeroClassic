@@ -117,6 +117,110 @@ void test_trans() {
               t.local.pos[1]);
 }
 
+void test_trans_proxy() {
+  const SourceRndTransProxyDefaultState defaults =
+      source_rndtrans_proxy_default_state();
+  CHECK(defaults.proxy_null);
+  CHECK(defaults.part_null);
+
+  const SourceRndTransProxyLoadPlan load_v0 =
+      source_rndtrans_proxy_load_plan(0);
+  CHECK(load_v0.accepted_revision);
+  CHECK(load_v0.reads_object_fields);
+  CHECK(!load_v0.reads_transformable);
+  CHECK(load_v0.reads_proxy);
+  CHECK(load_v0.reads_part);
+  CHECK(load_v0.calls_sync);
+
+  const SourceRndTransProxyLoadPlan load_v1 =
+      source_rndtrans_proxy_load_plan(1);
+  CHECK(load_v1.accepted_revision);
+  CHECK(load_v1.reads_transformable);
+  CHECK(!source_rndtrans_proxy_load_plan(2).accepted_revision);
+
+  const SourceRndTransProxySyncPlan direct_proxy =
+      source_rndtrans_proxy_sync_plan(true, true, true, false);
+  CHECK(direct_proxy.clears_parent_first);
+  CHECK(direct_proxy.attempts_direct_proxy_parent);
+  CHECK(direct_proxy.uses_direct_proxy_parent);
+  CHECK(!direct_proxy.attempts_part_lookup);
+  CHECK(!direct_proxy.clears_parent_final);
+  CHECK(direct_proxy.resolved_parent_source == "proxy");
+
+  const SourceRndTransProxySyncPlan part_lookup =
+      source_rndtrans_proxy_sync_plan(true, false, false, true);
+  CHECK(!part_lookup.attempts_direct_proxy_parent);
+  CHECK(part_lookup.attempts_part_lookup);
+  CHECK(part_lookup.uses_part_lookup_parent);
+  CHECK(!part_lookup.clears_parent_final);
+  CHECK(part_lookup.resolved_parent_source == "part");
+
+  const SourceRndTransProxySyncPlan null_part_fallback =
+      source_rndtrans_proxy_sync_plan(true, true, false, true);
+  CHECK(null_part_fallback.attempts_direct_proxy_parent);
+  CHECK(!null_part_fallback.uses_direct_proxy_parent);
+  CHECK(null_part_fallback.attempts_part_lookup);
+  CHECK(null_part_fallback.uses_part_lookup_parent);
+  CHECK(null_part_fallback.resolved_parent_source == "part");
+
+  const SourceRndTransProxySyncPlan no_match =
+      source_rndtrans_proxy_sync_plan(true, false, false, false);
+  CHECK(no_match.attempts_part_lookup);
+  CHECK(!no_match.uses_part_lookup_parent);
+  CHECK(no_match.clears_parent_final);
+  CHECK(no_match.resolved_parent_source == "none");
+
+  const SourceRndTransProxySyncPlan no_proxy =
+      source_rndtrans_proxy_sync_plan(false, false, false, true);
+  CHECK(!no_proxy.attempts_direct_proxy_parent);
+  CHECK(!no_proxy.attempts_part_lookup);
+  CHECK(no_proxy.clears_parent_final);
+
+  const SourceRndTransProxySetterPlan changed =
+      source_rndtrans_proxy_setter_plan(true);
+  CHECK(changed.value_changed);
+  CHECK(changed.assigns_value);
+  CHECK(changed.calls_sync);
+  const SourceRndTransProxySetterPlan unchanged =
+      source_rndtrans_proxy_setter_plan(false);
+  CHECK(!unchanged.assigns_value);
+  CHECK(!unchanged.calls_sync);
+
+  const SourceRndTransProxySavePlan save_plan =
+      source_rndtrans_proxy_save_plan();
+  CHECK(save_plan.presave_clears_parent);
+  CHECK(save_plan.postsave_calls_sync);
+
+  const SourceRndTransProxyCopyPlan copy_plan =
+      source_rndtrans_proxy_copy_plan();
+  CHECK(copy_plan.superclasses.size() == 2);
+  CHECK(copy_plan.superclasses[0] == "Hmx::Object");
+  CHECK(copy_plan.superclasses[1] == "RndTransformable");
+  CHECK(copy_plan.member_order.size() == 2);
+  CHECK(copy_plan.member_order[0] == "mProxy");
+  CHECK(copy_plan.member_order[1] == "mPart");
+  CHECK(copy_plan.calls_sync);
+
+  const SourceRndTransProxyHandlerPlan handlers =
+      source_rndtrans_proxy_handler_plan();
+  CHECK(handlers.superclasses.size() == 2);
+  CHECK(handlers.superclasses[0] == "RndTransformable");
+  CHECK(handlers.superclasses[1] == "Hmx::Object");
+  CHECK(handlers.check == 0x6A);
+
+  const SourceRndTransProxyPropSyncPlan props =
+      source_rndtrans_proxy_prop_sync_plan();
+  CHECK(props.props.size() == 2);
+  CHECK(props.props[0] == "proxy:Sync");
+  CHECK(props.props[1] == "part:Sync");
+  CHECK(props.superclasses.size() == 1);
+  CHECK(props.superclasses[0] == "RndTransformable");
+
+  std::printf("  [ok] TransProxy: sync=%s/%s\n",
+              direct_proxy.resolved_parent_source.c_str(),
+              part_lookup.resolved_parent_source.c_str());
+}
+
 void test_mat() {
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
@@ -580,6 +684,7 @@ void test_mesh() {
 int main() {
   std::printf("milo_scene_test\n");
   test_trans();
+  test_trans_proxy();
   test_mat();
   test_group();
   test_light();

@@ -64,6 +64,7 @@ writer body.
 | Character subsystem init/terminate | `rb3-latest` `Char.cpp`, `Char.h` | Native helper records the source init/terminate order only; it does not install callbacks or alter runtime startup. |
 | Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
+| Transform proxy attachment | `rb3-latest/src/system/rndobj/TransProxy.cpp` / `TransProxy.h` | Native helper ports source defaults, load gates, sync parent-resolution flow, setter/save/copy/handler/prop rows; it does not create live proxy attachments. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
@@ -482,6 +483,34 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     null-terminated strings for parent directories `<= 6` and symbols
     otherwise; revision `> 6` reads constraint and preserve-scale; revision
     `> 5` reads target; parent is always read.
+- `rb3-latest/src/system/rndobj/TransProxy.cpp` and
+  `rb3-latest/src/system/rndobj/TransProxy.h`
+  - `RndTransProxy::RndTransProxy` nulls `mProxy` and leaves `mPart` default.
+    Native `source_rndtrans_proxy_default_state` records those defaults.
+  - `RndTransProxy::Load` accepts revisions `0..1`, reads `Hmx::Object`,
+    reads `RndTransformable` only when `gRev != 0`, then reads `mProxy`,
+    `mPart`, and calls `Sync`. Native `source_rndtrans_proxy_load_plan`
+    records those gates.
+  - `RndTransProxy::Sync` first clears its transform parent. If `mProxy` is
+    present and `mPart` is null, it tries to use the proxy itself as a
+    `RndTransformable` parent and returns on success. Otherwise, when `mProxy`
+    is present, it searches that object directory for `mPart` as a
+    `RndTransformable` and parents to that on success. If neither branch
+    resolves a parent, it clears the parent again. Native
+    `source_rndtrans_proxy_sync_plan` ports that branch order, including the
+    source fallthrough from a null part to a directory lookup when the proxy
+    object is not transformable.
+  - `SetProxy` and `SetPart` assign and call `Sync` only when the value changes;
+    `PreSave` clears the parent and `PostSave` calls `Sync`. Native
+    `source_rndtrans_proxy_setter_plan` and `source_rndtrans_proxy_save_plan`
+    record those source decisions.
+  - `BEGIN_COPYS`, `BEGIN_HANDLERS`, and `BEGIN_PROPSYNCS` copy
+    `Hmx::Object`/`RndTransformable`, copy `mProxy` and `mPart`, call `Sync`,
+    expose only superclass handlers with check `0x6A`, and sync `proxy` and
+    `part` with `Sync`. Native `source_rndtrans_proxy_copy_plan`,
+    `source_rndtrans_proxy_handler_plan`, and
+    `source_rndtrans_proxy_prop_sync_plan` record those rows without attaching
+    runtime model parts.
 - `rb3-latest/src/system/rndobj/Anim.cpp`
   - `RndAnimatable::Load` accepts revisions `0..4`; the constructor defaults
     frame to `0.0` and rate to `k30_fps`. Revisions above 1 read frame,
