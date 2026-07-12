@@ -988,6 +988,27 @@ struct SourceCharDriverPlayGroupDecision {
   bool request_play = false;
 };
 
+struct SourceCharDriverRuntimeDumpEvidence {
+  std::string play_if_safe_range;
+  std::string set_beat_scale_range;
+  std::string evaluate_flags_range;
+  std::string last_range;
+  std::string before_range;
+  std::string most_playing_range;
+  std::string pre_load_range;
+  std::string post_load_range;
+  std::vector<std::string> play_if_safe_locals;
+  std::vector<std::string> set_beat_scale_locals;
+  std::vector<std::string> evaluate_flags_locals;
+  std::vector<std::string> most_playing_locals;
+  bool rb3_latest_has_poll_body = false;
+  bool rb2_dump_has_poll_range = false;
+  bool has_evaluate_flags_statement_body = false;
+  bool has_set_beat_scale_statement_body = false;
+  bool safe_to_evaluate_flags = false;
+  bool safe_to_import_poll = false;
+};
+
 struct SourceCharDriverPollDeps {
   std::vector<std::string> changed_by;
   std::vector<std::string> change;
@@ -1363,6 +1384,8 @@ SourceCharDriverSyncDecision source_char_driver_set_clip_type(
 SourceCharDriverPlayGroupDecision source_char_driver_play_group_decision(
     bool has_clip_dir,
     bool found_group);
+SourceCharDriverRuntimeDumpEvidence
+source_char_driver_runtime_dump_evidence();
 void source_char_driver_poll_deps(SourceCharDriverPollDeps& deps,
                                   const std::string& bones);
 SourceCharDriverMidiState source_char_driver_midi_default_state();

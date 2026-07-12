@@ -544,6 +544,34 @@ bool expect_driver_state_helpers() {
     std::cerr << "driver PollDeps did not publish bones as change target\n";
     ok = false;
   }
+
+  const ghogx::character::SourceCharDriverRuntimeDumpEvidence runtime_dump =
+      ghogx::character::source_char_driver_runtime_dump_evidence();
+  if (runtime_dump.play_if_safe_range != "0x8034D8A4 -> 0x8034DB54" ||
+      runtime_dump.set_beat_scale_range != "0x8034DBB4 -> 0x8034DC4C" ||
+      runtime_dump.evaluate_flags_range != "0x8034DC4C -> 0x8034DD64" ||
+      runtime_dump.last_range != "0x8034DD64 -> 0x8034DD88" ||
+      runtime_dump.before_range != "0x8034DD88 -> 0x8034DDAC" ||
+      runtime_dump.most_playing_range != "0x8034DDD4 -> 0x8034DF00" ||
+      runtime_dump.pre_load_range != "0x8034E0E0 -> 0x8034ED68" ||
+      runtime_dump.post_load_range != "0x8034ED68 -> 0x8034F008" ||
+      runtime_dump.play_if_safe_locals !=
+          std::vector<std::string>({"d", "FindRestrictLength", "s"}) ||
+      runtime_dump.set_beat_scale_locals !=
+          std::vector<std::string>({"fp", "invScale", "cd"}) ||
+      runtime_dump.evaluate_flags_locals !=
+          std::vector<std::string>({"weight", "flagWeight", "cd", "w"}) ||
+      runtime_dump.most_playing_locals !=
+          std::vector<std::string>({"maxWeight", "best", "weight", "cd",
+                                    "w"}) ||
+      runtime_dump.rb3_latest_has_poll_body ||
+      runtime_dump.rb2_dump_has_poll_range ||
+      runtime_dump.has_evaluate_flags_statement_body ||
+      runtime_dump.has_set_beat_scale_statement_body ||
+      runtime_dump.safe_to_evaluate_flags || runtime_dump.safe_to_import_poll) {
+    std::cerr << "driver RB2 runtime dump evidence mismatch\n";
+    ok = false;
+  }
   return ok;
 }
 

@@ -1848,6 +1848,21 @@ note, and all report `unreadBytes=0`.
     when the named group is missing, and otherwise calls `CharClipGroup::GetClip`
     before forwarding that clip to `Play`; `PollDeps` publishes `mBones` in the
     change list.
+  - Native `source_char_driver_runtime_dump_evidence` records the RB2 dump
+    ranges and locals for driver runtime functions whose statement bodies are
+    still unavailable in the checked sources: `PlayIfSafe`
+    `0x8034D8A4 -> 0x8034DB54`, `SetBeatScale`
+    `0x8034DBB4 -> 0x8034DC4C`, `EvaluateFlags`
+    `0x8034DC4C -> 0x8034DD64`, `Last`
+    `0x8034DD64 -> 0x8034DD88`, `Before`
+    `0x8034DD88 -> 0x8034DDAC`, `MostPlaying`
+    `0x8034DDD4 -> 0x8034DF00`, `PreLoad`
+    `0x8034E0E0 -> 0x8034ED68`, and `PostLoad`
+    `0x8034ED68 -> 0x8034F008`. The visible local inventory includes
+    `EvaluateFlags` locals `weight`, `flagWeight`, `cd`, and `w`.
+    The same helper keeps `safe_to_evaluate_flags=false` and
+    `safe_to_import_poll=false` because the RB2 dump maps ranges and locals, not
+    a reviewable `EvaluateFlags` or `Poll` implementation.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions

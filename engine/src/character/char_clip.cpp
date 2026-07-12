@@ -3264,6 +3264,24 @@ SourceCharDriverPlayGroupDecision source_char_driver_play_group_decision(
   return decision;
 }
 
+SourceCharDriverRuntimeDumpEvidence
+source_char_driver_runtime_dump_evidence() {
+  SourceCharDriverRuntimeDumpEvidence evidence;
+  evidence.play_if_safe_range = "0x8034D8A4 -> 0x8034DB54";
+  evidence.set_beat_scale_range = "0x8034DBB4 -> 0x8034DC4C";
+  evidence.evaluate_flags_range = "0x8034DC4C -> 0x8034DD64";
+  evidence.last_range = "0x8034DD64 -> 0x8034DD88";
+  evidence.before_range = "0x8034DD88 -> 0x8034DDAC";
+  evidence.most_playing_range = "0x8034DDD4 -> 0x8034DF00";
+  evidence.pre_load_range = "0x8034E0E0 -> 0x8034ED68";
+  evidence.post_load_range = "0x8034ED68 -> 0x8034F008";
+  evidence.play_if_safe_locals = {"d", "FindRestrictLength", "s"};
+  evidence.set_beat_scale_locals = {"fp", "invScale", "cd"};
+  evidence.evaluate_flags_locals = {"weight", "flagWeight", "cd", "w"};
+  evidence.most_playing_locals = {"maxWeight", "best", "weight", "cd", "w"};
+  return evidence;
+}
+
 void source_char_driver_poll_deps(SourceCharDriverPollDeps& deps,
                                   const std::string& bones) {
   deps.change.push_back(bones);

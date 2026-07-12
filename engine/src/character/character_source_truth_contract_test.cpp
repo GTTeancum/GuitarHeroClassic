@@ -8013,6 +8013,20 @@ int run_contract() {
                  "voidCharDriver::Load(classCharDriver*constthis/*r30*/,"
                  "classBinStream&d/*r31*/){}",
                  "RB2 dump CharDriver Load body is empty");
+  ok &= contains(rb2_char_driver_cpp,
+                 "floatCharDriver::EvaluateFlags(intflags/*r30*/)",
+                 "RB2 dump maps CharDriver EvaluateFlags signature");
+  ok &= contains(rb2_char_driver_cpp,
+                 "floatweight;//f30floatflagWeight;//f29classCharClipDriver*"
+                 "cd;//r31floatw;//f0",
+                 "RB2 dump maps CharDriver EvaluateFlags locals");
+  ok &= contains(rb2_char_driver_cpp,
+                 "voidCharDriver::SetBeatScale(classCharDriver*constthis"
+                 "/*r31*/,floatnewScale/*f31*/)",
+                 "RB2 dump maps CharDriver SetBeatScale signature");
+  ok &= contains(rb2_char_driver_cpp,
+                 "classCharClipDriver*CharDriver::MostPlaying()",
+                 "RB2 dump maps CharDriver MostPlaying signature");
   ok &= contains(rb3_latest_char_driver_midi_h,
                  "SymbolmParser;",
                  "latest CharDriverMidi header exposes parser symbol");
@@ -8112,6 +8126,25 @@ int run_contract() {
                  "std::stringmidi_default_clip;"
                  "std::stringmidi_legacy_string;std::stringmidi_parser;",
                  "native CharDriver stores MIDI source revision and default clip");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverRuntimeDumpEvidence{"
+                 "std::stringplay_if_safe_range;"
+                 "std::stringset_beat_scale_range;"
+                 "std::stringevaluate_flags_range;",
+                 "native exposes CharDriver runtime dump ranges");
+  ok &= contains(char_clip_h,
+                 "boolrb3_latest_has_poll_body=false;"
+                 "boolrb2_dump_has_poll_range=false;"
+                 "boolhas_evaluate_flags_statement_body=false;",
+                 "native CharDriver runtime dump records missing poll/evaluator bodies");
+  ok &= contains(char_clip_h,
+                 "boolsafe_to_evaluate_flags=false;"
+                 "boolsafe_to_import_poll=false;};",
+                 "native CharDriver runtime dump fences driver runtime import");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverRuntimeDumpEvidence"
+                 "source_char_driver_runtime_dump_evidence();",
+                 "native exposes CharDriver runtime dump helper");
   ok &= contains(char_clip_h,
                  "structSourceCharDriverMidiState{boolunk89=false;"
                  "std::stringparser;std::stringflag_parser;intclip_flags=0;"
@@ -15978,6 +16011,21 @@ int run_contract() {
                  "boolhas_clip_dir,boolfound_group);",
                  "native character API exposes source CharDriver PlayGroup helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharDriverRuntimeDumpEvidence{"
+                 "std::stringplay_if_safe_range;"
+                 "std::stringset_beat_scale_range;"
+                 "std::stringevaluate_flags_range;",
+                 "native character API exposes CharDriver runtime dump ranges");
+  ok &= contains(char_clip_h,
+                 "boolrb3_latest_has_poll_body=false;"
+                 "boolrb2_dump_has_poll_range=false;"
+                 "boolhas_evaluate_flags_statement_body=false;",
+                 "native character API records missing CharDriver poll/evaluator bodies");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverRuntimeDumpEvidence"
+                 "source_char_driver_runtime_dump_evidence();",
+                 "native character API exposes CharDriver runtime dump helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_driver_poll_deps(SourceCharDriverPollDeps&deps,"
                  "conststd::string&bones);",
                  "native character API exposes source CharDriver PollDeps helper");
@@ -16434,6 +16482,24 @@ int run_contract() {
                  "returndecision;}",
                  "native CharDriver PlayGroup helper ports source decision branches");
   ok &= contains(char_clip,
+                 "SourceCharDriverRuntimeDumpEvidence"
+                 "source_char_driver_runtime_dump_evidence(){"
+                 "SourceCharDriverRuntimeDumpEvidenceevidence;",
+                 "native CharDriver runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.evaluate_flags_range=\"0x8034DC4C->0x8034DD64\";"
+                 "evidence.last_range=\"0x8034DD64->0x8034DD88\";"
+                 "evidence.before_range=\"0x8034DD88->0x8034DDAC\";",
+                 "native CharDriver runtime dump helper records evaluator ranges");
+  ok &= contains(char_clip,
+                 "evidence.evaluate_flags_locals={\"weight\",\"flagWeight\","
+                 "\"cd\",\"w\"};",
+                 "native CharDriver runtime dump helper records EvaluateFlags locals");
+  ok &= contains(char_clip,
+                 "evidence.most_playing_locals={\"maxWeight\",\"best\","
+                 "\"weight\",\"cd\",\"w\"};",
+                 "native CharDriver runtime dump helper records MostPlaying locals");
+  ok &= contains(char_clip,
                  "voidsource_char_driver_poll_deps(SourceCharDriverPollDeps&deps,"
                  "conststd::string&bones){deps.change.push_back(bones);}",
                  "native CharDriver PollDeps helper ports source change list");
@@ -16557,6 +16623,16 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_driver_poll_deps(deps,\"bone.servo\")",
                  "focused flag-mask test covers CharDriver PollDeps helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_runtime_dump_evidence()",
+                 "focused flag-mask test covers CharDriver runtime dump helper");
+  ok &= contains(clip_driver_flags_test,
+                 "runtime_dump.evaluate_flags_range!=\"0x8034DC4C->0x8034DD64\"",
+                 "focused flag-mask test covers CharDriver EvaluateFlags range");
+  ok &= contains(clip_driver_flags_test,
+                 "runtime_dump.safe_to_evaluate_flags||"
+                 "runtime_dump.safe_to_import_poll",
+                 "focused flag-mask test covers CharDriver runtime fence");
   ok &= contains(doc,
                  "Native `SourceCharDriverState` records the checked `CharDriver`",
                  "document records native CharDriver source state");
@@ -16578,6 +16654,16 @@ int run_contract() {
   ok &= contains(doc,
                  "`PollDeps` publishes `mBones`",
                  "document records CharDriver PollDeps source direction");
+  ok &= contains(doc,
+                 "Native `source_char_driver_runtime_dump_evidence` records",
+                 "document records CharDriver runtime dump helper");
+  ok &= contains(doc,
+                 "`EvaluateFlags`\n    `0x8034DC4C -> 0x8034DD64`",
+                 "document records CharDriver EvaluateFlags dump range");
+  ok &= contains(doc,
+                 "`safe_to_evaluate_flags=false` and\n"
+                 "    `safe_to_import_poll=false`",
+                 "document fences CharDriver runtime dump import");
   ok &= contains(rb3_latest_char_clip_set_h,
                  "classCharClipSet:publicObjectDir,publicRndDrawable,"
                  "publicRndAnimatable",
