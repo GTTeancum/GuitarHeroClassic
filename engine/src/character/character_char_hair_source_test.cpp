@@ -78,6 +78,7 @@ int main() {
   using ghogx::character::source_char_hair_point_load_plan;
   using ghogx::character::source_char_hair_poll_decision;
   using ghogx::character::source_char_hair_prop_sync_plan;
+  using ghogx::character::source_char_hair_rb2_mapped_body_evidence;
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
@@ -436,6 +437,21 @@ int main() {
                     "zero-time dump matrix local");
   ok &= expect_bool(zero_time_dump.has_statement_body, false,
                     "zero-time dump no statement body");
+
+  const auto mapped_bodies = source_char_hair_rb2_mapped_body_evidence();
+  ok &= expect_bool(mapped_bodies.poll_deps_range ==
+                        "0x80360144 -> 0x80360284",
+                    true, "poll deps dump range");
+  ok &= expect_bool(mapped_bodies.poll_deps_has_loop_counter, true,
+                    "poll deps dump loop counter");
+  ok &= expect_bool(mapped_bodies.poll_deps_has_statement_body, false,
+                    "poll deps dump no statement body");
+  ok &= expect_bool(mapped_bodies.copy_range == "0x803616E8 -> 0x8036181C",
+                    true, "copy dump range");
+  ok &= expect_bool(mapped_bodies.copy_has_source_hair_local, true,
+                    "copy dump source-hair local");
+  ok &= expect_bool(mapped_bodies.copy_has_statement_body, false,
+                    "copy dump no statement body");
 
   const auto enter_plan =
       source_char_hair_enter_plan(false, {"head.collide", "neck.collide"});

@@ -2171,6 +2171,14 @@ source_char_hair_simulate_zero_time_dump_evidence() {
   return evidence;
 }
 
+SourceCharHairRb2MappedBodyEvidence
+source_char_hair_rb2_mapped_body_evidence() {
+  SourceCharHairRb2MappedBodyEvidence evidence;
+  evidence.poll_deps_range = "0x80360144 -> 0x80360284";
+  evidence.copy_range = "0x803616E8 -> 0x8036181C";
+  return evidence;
+}
+
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides) {

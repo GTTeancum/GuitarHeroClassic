@@ -664,6 +664,15 @@ struct SourceCharHairSimulateZeroTimeDumpEvidence {
   bool has_statement_body = false;
 };
 
+struct SourceCharHairRb2MappedBodyEvidence {
+  std::string poll_deps_range;
+  bool poll_deps_has_loop_counter = true;
+  bool poll_deps_has_statement_body = false;
+  std::string copy_range;
+  bool copy_has_source_hair_local = true;
+  bool copy_has_statement_body = false;
+};
+
 struct SourceCharHairEnterPlan {
   int next_reset = 1;
   bool called_rnd_pollable_enter = true;
@@ -1768,6 +1777,8 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence();
 SourceCharHairSimulateZeroTimeDumpEvidence
 source_char_hair_simulate_zero_time_dump_evidence();
+SourceCharHairRb2MappedBodyEvidence
+source_char_hair_rb2_mapped_body_evidence();
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);

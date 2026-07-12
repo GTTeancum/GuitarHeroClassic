@@ -2648,6 +2648,24 @@ int run_contract() {
                  "inti;//r31classTransformt;//r1+0x70classObjVector&ps;"
                  "//r0intj;//r27classMatrix3m;//r1+0x40",
                  "RB2 dump names CharHair SimulateZeroTime locals");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x80360144->0x80360284voidCharHair::PollDeps"
+                 "(classCharHair*constthis/*r28*/,classlist&changedBy",
+                 "RB2 dump maps CharHair PollDeps range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "voidCharHair::PollDeps(classCharHair*constthis/*r28*/,"
+                 "classlist&changedBy/*r29*/,classlist&change/*r30*/){"
+                 "//Localvariablesinti;//r31",
+                 "RB2 dump names CharHair PollDeps loop local");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x803616E8->0x8036181CvoidCharHair::Copy"
+                 "(classCharHair*constthis/*r29*/,constclassObject*o/*r30*/){",
+                 "RB2 dump maps CharHair Copy range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "voidCharHair::Copy(classCharHair*constthis/*r29*/,"
+                 "constclassObject*o/*r30*/){//Localvariablesconstclass"
+                 "CharHair*h;//r0",
+                 "RB2 dump names CharHair Copy source-hair local");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairHookupPlan{boolreturned_for_managed_hookup="
                  "false;std::vector<std::string>collected_collides;"
@@ -2662,6 +2680,11 @@ int run_contract() {
                  "std::stringrange;boolhas_outer_loop_counter=true;"
                  "boolhas_transform_local=true;",
                  "native exposes CharHair SimulateZeroTime dump evidence");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairRb2MappedBodyEvidence{std::string"
+                 "poll_deps_range;boolpoll_deps_has_loop_counter=true;"
+                 "boolpoll_deps_has_statement_body=false;",
+                 "native exposes CharHair RB2 mapped-body evidence");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairEnterPlan{intnext_reset=1;"
                  "boolcalled_rnd_pollable_enter=true;"
@@ -2698,6 +2721,16 @@ int run_contract() {
                  "SourceCharHairSimulateZeroTimeDumpEvidenceevidence;"
                  "evidence.range=\"0x8035FC8C->0x80360144\";returnevidence;}",
                  "native CharHair SimulateZeroTime dump evidence records RB2 range");
+  ok &= contains(char_mesh,
+                 "SourceCharHairRb2MappedBodyEvidence"
+                 "source_char_hair_rb2_mapped_body_evidence(){"
+                 "SourceCharHairRb2MappedBodyEvidenceevidence;"
+                 "evidence.poll_deps_range=\"0x80360144->0x80360284\";",
+                 "native CharHair mapped-body evidence records PollDeps range");
+  ok &= contains(char_mesh,
+                 "evidence.copy_range=\"0x803616E8->0x8036181C\";"
+                 "returnevidence;}",
+                 "native CharHair mapped-body evidence records Copy range");
   ok &= contains(char_mesh,
                  "SourceCharHairEnterPlansource_char_hair_enter_plan(",
                  "native implements CharHair Enter plan helper");
@@ -3206,6 +3239,9 @@ int run_contract() {
                  "source_char_hair_simulate_zero_time_dump_evidence()",
                  "focused CharHair test covers SimulateZeroTime dump evidence");
   ok &= contains(char_hair_source_test,
+                 "source_char_hair_rb2_mapped_body_evidence()",
+                 "focused CharHair test covers RB2 mapped body evidence");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_loops_plan(true,2,3,4,30.0f)",
                  "focused CharHair test covers SimulateLoops gate");
   ok &= contains(doc,
@@ -3215,6 +3251,10 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_hair_simulate_loops_plan` ports that gate",
                  "document records native CharHair SimulateLoops plan");
+  ok &= contains(doc,
+                 "`source_char_hair_rb2_mapped_body_evidence` records those "
+                 "ranges",
+                 "document records native CharHair RB2 mapped body evidence");
   ok &= contains(doc,
                  "`source_char_hair_load_plan`, `source_char_hair_strand_load_plan`, and",
                  "document records native CharHair load plan helpers");

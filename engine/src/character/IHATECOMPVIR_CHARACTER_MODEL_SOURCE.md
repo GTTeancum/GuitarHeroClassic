@@ -852,6 +852,13 @@ note, and all report `unreadBytes=0`.
     also records `has_statement_body=false`: the dump is enough to prove
     zero-delta hair has its own transform path, but not enough to copy that path
     or use it for live native point writeback.
+  - The RB2 dump also maps `CharHair::PollDeps` at
+    `0x80360144 -> 0x80360284` and `CharHair::Copy` at
+    `0x803616E8 -> 0x8036181C`. Native
+    `source_char_hair_rb2_mapped_body_evidence` records those ranges and the
+    visible locals, while explicitly marking both as lacking statement bodies.
+    Do not infer dependency rows or copy-member behavior from those ranges
+    without a reviewable source body or direct original-game trace.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,
