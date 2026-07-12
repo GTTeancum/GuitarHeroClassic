@@ -386,6 +386,21 @@ struct SourceCharServoBonePropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharServoBoneRuntimeDumpEvidence {
+  std::string poll_range;
+  std::string regulate_override_range;
+  std::string regulate_range;
+  std::string poll_deps_range;
+  std::vector<std::string> poll_locals;
+  std::vector<std::string> regulate_override_locals;
+  std::vector<std::string> regulate_locals;
+  bool rb2_dump_has_statement_body = false;
+  bool latest_source_has_poll_body = false;
+  bool safe_to_run_poll = false;
+  bool safe_to_run_regulate = false;
+  bool safe_to_publish_servo_motion = false;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -1807,6 +1822,8 @@ SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan();
 SourceCharServoBoneLoadPlan source_char_servo_bone_load_plan(int32_t revision);
 SourceCharServoBoneHandlerPlan source_char_servo_bone_handler_plan();
 SourceCharServoBonePropSyncPlan source_char_servo_bone_prop_sync_plan();
+SourceCharServoBoneRuntimeDumpEvidence
+source_char_servo_bone_runtime_dump_evidence();
 void source_char_servo_bone_zero_deltas(
     std::array<float, 3>& facing_pos_delta,
     float& facing_rot_delta_radians);

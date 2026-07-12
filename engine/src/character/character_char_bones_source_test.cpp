@@ -1289,6 +1289,27 @@ int main() {
   ok &= expect_string(servo_props.superclasses[0], "CharBonesMeshes",
                       "CharServoBone prop sync superclass");
 
+  const SourceCharServoBoneRuntimeDumpEvidence servo_runtime =
+      source_char_servo_bone_runtime_dump_evidence();
+  ok &= expect_string(servo_runtime.poll_range, "0x8038F4A0->0x8038F820",
+                      "CharServoBone rb2 Poll range");
+  ok &= expect_string(servo_runtime.regulate_override_range,
+                      "0x8038FD74->0x8038FF30",
+                      "CharServoBone rb2 RegulateOverride range");
+  ok &= expect_string(servo_runtime.regulate_range,
+                      "0x8038FF30->0x803901BC",
+                      "CharServoBone rb2 Regulate range");
+  ok &= expect_size(servo_runtime.poll_locals.size(), 5,
+                    "CharServoBone rb2 Poll locals");
+  ok &= expect_string(servo_runtime.regulate_locals[0], "before",
+                      "CharServoBone rb2 Regulate before local");
+  ok &= expect_int(servo_runtime.rb2_dump_has_statement_body ? 1 : 0, 0,
+                   "CharServoBone dump is not statement body");
+  ok &= expect_int(servo_runtime.safe_to_run_poll ? 1 : 0, 0,
+                   "CharServoBone Poll remains fenced");
+  ok &= expect_int(servo_runtime.safe_to_publish_servo_motion ? 1 : 0, 0,
+                   "CharServoBone live motion remains fenced");
+
   constexpr float kHalfPi = 1.57079632679489661923f;
   std::array<float, 3> facing_pos_delta = {4.0f, 5.0f, 6.0f};
   float facing_rot_delta = 0.25f;

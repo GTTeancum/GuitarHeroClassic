@@ -264,9 +264,11 @@ into final transform rows.
    - `CharFaceServo` is useful source context, but GH2 stock rows are
      `FaceFxLipSyncServo`; do not infer eye or mouth transforms from it unless
      a matching GH2 source body or direct trace is available.
-   - `CharEyes` and `CharLookAt` can be ported from source poll bodies, but
-     native must first respect the GH2 row shape and avoid the removed
-     synthetic eye-row bridge.
+  - `CharLookAt::Poll` has a reviewable source body and can be ported as an
+    isolated helper. `CharEyes::Poll` remains fenced to RB2 range/local
+    evidence until a reviewable statement body or direct original-game trace is
+    available. Native must respect the GH2 row shape and avoid the removed
+    synthetic eye-row bridge.
 
 3. Hair and cloth writeback:
    - Decode, reset, and simulation-state coverage is source-backed, but point
@@ -2191,6 +2193,18 @@ note, and all report `unreadBytes=0`.
     `Hmx::Object` handler chain, check value `0x16E`, `clip_type` /
     `move_self` property setters, `delta_changed` / `regulate` direct rows,
     and `CharBonesMeshes` superclass.
+  - Native `source_char_servo_bone_runtime_dump_evidence` records the RB2 dump
+    ranges for runtime bodies whose full statements are not in the checked
+    latest source: `Poll` `0x8038F4A0 -> 0x8038F820`,
+    `RegulateOverride` `0x8038FD74 -> 0x8038FF30`, `Regulate`
+    `0x8038FF30 -> 0x803901BC`, and `PollDeps`
+    `0x803901BC -> 0x803901C8`. The visible local inventory includes `Poll`
+    locals `world`, two `worldPelv` rows, and two `invPelv` rows;
+    `RegulateOverride` locals `names`/`pred`; and `Regulate` locals
+    `before`, `w`, `pred`, `rawDf`, `df`, `dt`, `pos`, `delta`, and `dang`.
+    This evidence does not make live servo motion source-backed:
+    `safe_to_run_poll=false`, `safe_to_run_regulate=false`, and
+    `safe_to_publish_servo_motion=false`.
   - `rb3-latest/src/system/char/CharBonesMeshes.cpp` is concrete for mesh-slot
     ownership and target resolution. Native
     `source_char_bones_meshes_replace_step`,

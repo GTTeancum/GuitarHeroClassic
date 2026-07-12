@@ -495,6 +495,8 @@ int run_contract() {
       rb2_dump_char_dir / "CharDriver.cpp"));
   const std::string rb2_char_weight_setter_cpp = compact(read_file(
       rb2_dump_char_dir / "CharWeightSetter.cpp"));
+  const std::string rb2_char_servo_bone_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharServoBone.cpp"));
   const std::string rb2_char_walk_cpp = compact(read_file(
       rb2_dump_char_dir / "CharWalk.cpp"));
   const std::string rb2_outfit_loader_cpp = compact(read_file(
@@ -763,6 +765,13 @@ int run_contract() {
                  "`CharServoBone` movement and broad `CharBonesMeshes` writes "
                  "depend on the",
                  "remaining import checklist keeps CharServoBone fenced to pose stack");
+  ok &= contains(doc,
+                 "`CharLookAt::Poll` has a reviewable source body",
+                 "remaining import checklist distinguishes CharLookAt source poll");
+  ok &= contains(doc,
+                 "`CharEyes::Poll` remains fenced to RB2 range/local\n"
+                 "    evidence",
+                 "remaining import checklist fences CharEyes poll body");
   ok &= contains(doc,
                  "point\n     world-row writeback still needs the overloaded",
                  "remaining import checklist names CharHair writeback gap");
@@ -5102,6 +5111,18 @@ int run_contract() {
                  "std::vector<std::string>superclasses;};",
                  "native exposes CharServoBone prop-sync contract");
   ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneRuntimeDumpEvidence{"
+                 "std::stringpoll_range;std::stringregulate_override_range;"
+                 "std::stringregulate_range;std::stringpoll_deps_range;"
+                 "std::vector<std::string>poll_locals;"
+                 "std::vector<std::string>regulate_override_locals;"
+                 "std::vector<std::string>regulate_locals;"
+                 "boolrb2_dump_has_statement_body=false;"
+                 "boollatest_source_has_poll_body=false;"
+                 "boolsafe_to_run_poll=false;boolsafe_to_run_regulate=false;"
+                 "boolsafe_to_publish_servo_motion=false;};",
+                 "native exposes CharServoBone runtime dump evidence");
+  ok &= contains(char_clip_h,
                  "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state();",
                  "native exposes CharServoBone default-state helper");
   ok &= contains(char_clip_h,
@@ -5129,6 +5150,10 @@ int run_contract() {
                  "SourceCharServoBonePropSyncPlan"
                  "source_char_servo_bone_prop_sync_plan();",
                  "native exposes CharServoBone prop-sync helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneRuntimeDumpEvidence"
+                 "source_char_servo_bone_runtime_dump_evidence();",
+                 "native exposes CharServoBone runtime dump helper");
   ok &= contains(char_clip,
                  "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state(){"
                  "return{};}",
@@ -5191,6 +5216,22 @@ int run_contract() {
                  "{\"delta_changed\",\"regulate\"};plan.superclasses="
                  "{\"CharBonesMeshes\"};returnplan;}",
                  "native CharServoBone prop-sync helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneRuntimeDumpEvidence"
+                 "source_char_servo_bone_runtime_dump_evidence(){"
+                 "SourceCharServoBoneRuntimeDumpEvidenceevidence;",
+                 "native CharServoBone runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.poll_range=\"0x8038F4A0->0x8038F820\";",
+                 "native CharServoBone runtime dump records Poll range");
+  ok &= contains(char_clip,
+                 "evidence.regulate_range=\"0x8038FF30->0x803901BC\";",
+                 "native CharServoBone runtime dump records Regulate range");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_run_poll=false;"
+                 "evidence.safe_to_run_regulate=false;"
+                 "evidence.safe_to_publish_servo_motion=false;",
+                 "native CharServoBone runtime dump fences live motion");
   ok &= contains(char_clip,
                  "voidsource_char_servo_bone_zero_deltas("
                  "std::array<float,3>&facing_pos_delta,"
@@ -5256,6 +5297,27 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_prop_sync_plan()",
                  "focused CharBones test covers CharServoBone prop sync");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_runtime_dump_evidence()",
+                 "focused CharBones source test covers CharServoBone runtime dump");
+  ok &= contains(char_bones_source_test,
+                 "servo_runtime.safe_to_publish_servo_motion?1:0",
+                 "focused CharBones source test fences live CharServoBone motion");
+  ok &= contains(rb2_char_servo_bone_cpp,
+                 "//Range:0x8038F4A0->0x8038F820",
+                 "RB2 dump maps CharServoBone Poll range");
+  ok &= contains(rb2_char_servo_bone_cpp,
+                 "voidCharServoBone::Poll(classCharServoBone*constthis",
+                 "RB2 dump maps CharServoBone Poll signature");
+  ok &= contains(rb2_char_servo_bone_cpp,
+                 "classTransformworld;",
+                 "RB2 dump maps CharServoBone Poll world local");
+  ok &= contains(rb2_char_servo_bone_cpp,
+                 "voidCharServoBone::Regulate(classCharServoBone*constthis",
+                 "RB2 dump maps CharServoBone Regulate signature");
+  ok &= missing(rb3_latest_char_servo_bone_cpp,
+                "voidCharServoBone::Poll(){",
+                "checked CharServoBone latest source lacks Poll body");
   ok &= contains(rb3_latest_char_trans_copy_h,
                  "classCharTransCopy:publicCharPollable",
                  "latest CharTransCopy header exposes source class");
@@ -7331,6 +7393,15 @@ int run_contract() {
                  "does not call them from the\n    live model path or port "
                  "broad `CharBonesMeshes` movement",
                  "document fences live CharServoBone movement behavior");
+  ok &= contains(doc,
+                 "Native `source_char_servo_bone_runtime_dump_evidence` records",
+                 "document records CharServoBone runtime dump helper");
+  ok &= contains(doc,
+                 "`Poll` `0x8038F4A0 -> 0x8038F820`",
+                 "document records CharServoBone Poll dump range");
+  ok &= contains(doc,
+                 "`safe_to_publish_servo_motion=false`",
+                 "document fences CharServoBone live motion");
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_zero_deltas(facing_pos_delta,"
                  "facing_rot_delta);",

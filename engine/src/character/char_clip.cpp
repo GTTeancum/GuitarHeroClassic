@@ -5170,6 +5170,26 @@ SourceCharServoBonePropSyncPlan source_char_servo_bone_prop_sync_plan() {
   return plan;
 }
 
+SourceCharServoBoneRuntimeDumpEvidence
+source_char_servo_bone_runtime_dump_evidence() {
+  SourceCharServoBoneRuntimeDumpEvidence evidence;
+  evidence.poll_range = "0x8038F4A0->0x8038F820";
+  evidence.regulate_override_range = "0x8038FD74->0x8038FF30";
+  evidence.regulate_range = "0x8038FF30->0x803901BC";
+  evidence.poll_deps_range = "0x803901BC->0x803901C8";
+  evidence.poll_locals = {"world", "worldPelv", "invPelv", "worldPelv",
+                          "invPelv"};
+  evidence.regulate_override_locals = {"names", "pred"};
+  evidence.regulate_locals = {"before", "w",     "pred",  "rawDf", "df",
+                              "dt",     "pos",   "delta", "dang"};
+  evidence.rb2_dump_has_statement_body = false;
+  evidence.latest_source_has_poll_body = false;
+  evidence.safe_to_run_poll = false;
+  evidence.safe_to_run_regulate = false;
+  evidence.safe_to_publish_servo_motion = false;
+  return evidence;
+}
+
 void source_char_servo_bone_zero_deltas(
     std::array<float, 3>& facing_pos_delta,
     float& facing_rot_delta_radians) {
