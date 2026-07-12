@@ -79,7 +79,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharHair.cpp", "ghogx_character_char_hair_source_test",
      "fenced-runtime-gap"},
     {"CharIKFingers.cpp", "ghogx_character_ik_fingers_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
     {"CharIKFoot.cpp", "ghogx_character_ik_foot_source_test",
      "fenced-runtime-gap"},
     {"CharIKHand.cpp", "ghogx_character_ik_hand_source_test",

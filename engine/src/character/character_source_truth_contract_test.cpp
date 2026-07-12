@@ -6861,6 +6861,18 @@ int run_contract() {
   ok &= contains(doc, "CharIKFingers.cpp",
                  "document cites CharIKFingers source");
   ok &= contains(doc,
+                 "| `CharIKFingers.cpp` | "
+                 "`ghogx_character_ik_fingers_source_test` | "
+                 "`fenced-runtime-gap` |",
+                 "inventory marks CharIKFingers as source-fenced runtime");
+  ok &= contains(doc,
+                 "IK fingers helpers port source defaults, left/right finger "
+                 "transform names, setup completeness, visible "
+                 "SetFinger/ReleaseFinger state writes, load gates, and copy "
+                 "flow without promoting the incomplete `Poll` / "
+                 "`MeasureLengths` path",
+                 "coverage matrix describes current CharIKFingers source slice");
+  ok &= contains(doc,
                  "Native `source_char_ik_fingers_*` helpers\n    port these "
                  "data decisions",
                  "document records native CharIKFingers helper boundary");
@@ -6870,6 +6882,9 @@ int run_contract() {
   ok &= contains(doc,
                  "must\n    not be promoted into live fretting-finger behavior",
                  "document fences incomplete CharIKFingers runtime");
+  ok &= missing(doc, "IK fingers helpers port source defaults and left/right "
+                         "finger transform names only",
+                "coverage matrix must not understate CharIKFingers helper slice");
   ok &= contains(rb3_latest_char_servo_bone_h,
                  "classCharServoBone:publicRndHighlightable,publicCharPollable,"
                  "publicCharBonesMeshes",
