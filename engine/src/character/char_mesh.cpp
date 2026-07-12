@@ -290,6 +290,27 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
+    int32_t bone_count,
+    std::vector<SourceRndMeshZeroWeightVertex> vertices) {
+  SourceRndMeshZeroWeightPlan plan;
+  plan.vertices = vertices;
+  if (bone_count < 2) return plan;
+  plan.ran = true;
+  for (SourceRndMeshZeroWeightVertex& vertex : plan.vertices) {
+    if (vertex.weights[1] == 0.0f) {
+      vertex.bone_indices[1] = vertex.bone_indices[0];
+    }
+    if (vertex.weights[2] == 0.0f) {
+      vertex.bone_indices[2] = vertex.bone_indices[0];
+    }
+    if (vertex.weights[3] == 0.0f) {
+      vertex.bone_indices[3] = vertex.bone_indices[0];
+    }
+  }
+  return plan;
+}
+
 int32_t source_rndmesh_max_bones() {
   return 40;
 }

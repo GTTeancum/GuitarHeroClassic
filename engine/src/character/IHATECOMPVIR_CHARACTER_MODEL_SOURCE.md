@@ -481,6 +481,10 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - Native `source_rndmesh_set_zero_weight_bones` ports the exact visible
+    `SetZeroWeightBones` rule as a deterministic contract only: if the active
+    source bone count is below two, it does nothing; otherwise zero weights in
+    slots 1, 2, or 3 copy slot 0's bone index into that zero-weight slot.
   - The visible RB3 `RndMesh` ownership helpers are now mirrored as source
     plans: `MaxBones()` is 40 from ihatecompvir's `MAX_BONES`; `Sync(mask)` ORs `0x200` only while
     `mKeepMeshData` is true; `ClearCompressedVerts()` releases the compressed

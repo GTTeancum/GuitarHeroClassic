@@ -260,6 +260,28 @@ int main() {
   CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
   CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
 
+  ghogx::character::SourceRndMeshZeroWeightVertex weighted_vertex;
+  weighted_vertex.weights[0] = 0.25f;
+  weighted_vertex.weights[1] = 0.0f;
+  weighted_vertex.weights[2] = 0.5f;
+  weighted_vertex.weights[3] = 0.0f;
+  weighted_vertex.bone_indices[0] = 7;
+  weighted_vertex.bone_indices[1] = 2;
+  weighted_vertex.bone_indices[2] = 3;
+  weighted_vertex.bone_indices[3] = 4;
+  const auto zero_weight_skipped =
+      ghogx::character::source_rndmesh_set_zero_weight_bones(
+          1, {weighted_vertex});
+  CHECK(!zero_weight_skipped.ran);
+  CHECK(zero_weight_skipped.vertices[0].bone_indices[1] == 2);
+  const auto zero_weight_fixed =
+      ghogx::character::source_rndmesh_set_zero_weight_bones(
+          2, {weighted_vertex});
+  CHECK(zero_weight_fixed.ran);
+  CHECK(zero_weight_fixed.vertices[0].bone_indices[1] == 7);
+  CHECK(zero_weight_fixed.vertices[0].bone_indices[2] == 3);
+  CHECK(zero_weight_fixed.vertices[0].bone_indices[3] == 7);
+
   CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);

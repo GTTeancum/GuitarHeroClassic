@@ -87,6 +87,20 @@ struct SourceRndMeshSkinIndexPlan {
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision);
 
+struct SourceRndMeshZeroWeightVertex {
+  float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  int32_t bone_indices[4] = {0, 0, 0, 0};
+};
+
+struct SourceRndMeshZeroWeightPlan {
+  bool ran = false;
+  std::vector<SourceRndMeshZeroWeightVertex> vertices;
+};
+
+SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
+    int32_t bone_count,
+    std::vector<SourceRndMeshZeroWeightVertex> vertices);
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;

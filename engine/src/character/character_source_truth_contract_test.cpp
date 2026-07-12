@@ -1471,6 +1471,12 @@ int run_contract() {
                  "structSourceRndMeshSkinIndexPlan{",
                  "native exposes RndMesh skin-index source plan");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshZeroWeightVertex{",
+                 "native exposes RndMesh zero-weight source vertex");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshZeroWeightPlansource_rndmesh_set_zero_weight_bones(",
+                 "native exposes RndMesh zero-weight source helper");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshSyncPlan{int32_tinput_mask=0;"
                  "boolkeep_mesh_data=false;int32_ton_sync_mask=0;};",
                  "native exposes RndMesh Sync plan");
@@ -1499,6 +1505,20 @@ int run_contract() {
                  "plan.gh2_legacy_slots_without_serialized_indices="
                  "mesh_revision==28",
                  "native records GH2 rev28 no serialized bone-index rows");
+  ok &= contains(char_mesh,
+                 "if(bone_count<2)returnplan;",
+                 "native zero-weight helper mirrors source bone-count gate");
+  ok &= contains(char_mesh,
+                 "if(vertex.weights[1]==0.0f){vertex.bone_indices[1]="
+                 "vertex.bone_indices[0];}",
+                 "native zero-weight helper mirrors source slot 1 rewrite");
+  ok &= contains(char_mesh,
+                 "if(vertex.weights[3]==0.0f){vertex.bone_indices[3]="
+                 "vertex.bone_indices[0];}",
+                 "native zero-weight helper mirrors source slot 3 rewrite");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_set_zero_weight_bones(",
+                 "focused mesh decode test covers RndMesh zero-weight helper");
   ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("
