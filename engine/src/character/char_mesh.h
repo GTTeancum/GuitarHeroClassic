@@ -2310,6 +2310,15 @@ struct SourceCharCollideRadiusCache {
   float radius_lerp_scale = 1.0f;
 };
 
+struct SourceCharCollideRadiusRuntimeEvidence {
+  std::string compute_radius_range;
+  bool compute_radius_has_offset_local = true;
+  bool compute_radius_has_statement_body = false;
+  bool sync_radius_empty_body = true;
+  bool radius_getter_mapped_only = true;
+  bool get_radius_inline_body = true;
+};
+
 struct SourceCharCollideDefaultState {
   int32_t shape = 1;
   int32_t flags = 0;
@@ -2366,6 +2375,8 @@ SourceCharCollideHighlightPlan source_char_collide_highlight_plan(
     const CharCollide& collide,
     bool has_mesh);
 SourceCharCollideDeformPlan source_char_collide_deform_plan();
+SourceCharCollideRadiusRuntimeEvidence
+source_char_collide_radius_runtime_evidence();
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
 void source_char_collide_clear_mesh(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);

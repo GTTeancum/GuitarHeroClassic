@@ -3391,6 +3391,13 @@ int run_contract() {
   ok &= contains(rb2_char_collide_cpp,
                  "voidCharCollide::ComputeRadius(classCharCollide*constthis",
                  "RB2 dump names CharCollide ComputeRadius without usable body");
+  ok &= contains(rb2_char_collide_cpp,
+                 "//Range:0x803473DC->0x803474E8voidCharCollide::"
+                 "ComputeRadius(classCharCollide*constthis/*r31*/){",
+                 "RB2 dump maps CharCollide ComputeRadius range");
+  ok &= contains(rb2_char_collide_cpp,
+                 "classVector3offset;//r1+0x10",
+                 "RB2 dump names CharCollide ComputeRadius offset local");
   ok &= contains(rb2_char_collide_cpp, "voidCharCollide::SyncRadius(){}",
                  "RB2 dump names empty CharCollide SyncRadius");
   ok &= contains(rb2_char_collide_h, "floatCharCollide::Radius(){}",
@@ -3430,6 +3437,11 @@ int run_contract() {
                  "{0.0f,1.0f,0.0f};floatlength_scale=1.0f;"
                  "floatradius_lerp_scale=1.0f;};",
                  "native exposes explicit CharCollide radius cache");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollideRadiusRuntimeEvidence{std::string"
+                 "compute_radius_range;boolcompute_radius_has_offset_local="
+                 "true;boolcompute_radius_has_statement_body=false;",
+                 "native exposes CharCollide radius runtime evidence");
   ok &= contains(char_mesh_h,
                  "floatsource_char_collide_get_radius(constCharCollide&"
                  "collide,constSourceCharCollideRadiusCache&cache,"
@@ -3488,6 +3500,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceCharCollideDeformPlansource_char_collide_deform_plan();",
                  "native exposes CharCollide Deform helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideRadiusRuntimeEvidence"
+                 "source_char_collide_radius_runtime_evidence();",
+                 "native exposes CharCollide radius runtime evidence helper");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -3640,6 +3656,12 @@ int run_contract() {
                  "return{};}",
                  "native CharCollide Deform no-op helper is ported");
   ok &= contains(char_mesh,
+                 "SourceCharCollideRadiusRuntimeEvidence"
+                 "source_char_collide_radius_runtime_evidence(){"
+                 "SourceCharCollideRadiusRuntimeEvidenceevidence;"
+                 "evidence.compute_radius_range=\"0x803473DC->0x803474E8\";",
+                 "native CharCollide radius evidence records ComputeRadius range");
+  ok &= contains(char_mesh,
                  "std::clamp(cache.length_scale*dot_axis(),"
                  "collide.cur_length[0],collide.cur_length[1]);",
                  "native CharCollide GetRadius helper clamps cigar length");
@@ -3736,6 +3758,9 @@ int run_contract() {
   ok &= contains(char_collide_source_test,
                  "source_char_collide_deform_plan()",
                  "CharCollide source test covers Deform no-op plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_radius_runtime_evidence()",
+                 "CharCollide source test covers radius runtime evidence");
   ok &= contains(cmake, "ghogx_character_char_collide_source_test",
                  "CMake registers CharCollide source test");
   ok &= contains(doc,
@@ -3773,8 +3798,12 @@ int run_contract() {
   ok &= contains(doc,
                  "ports the\n    inline formula as `source_char_collide_get_radius`",
                  "document records bounded CharCollide GetRadius formula port");
-  ok &= contains(doc, "Native therefore keeps collision response disabled until the\n"
-                      "    cached-field updates are sourced",
+  ok &= contains(doc,
+                 "records the mapped\n    cache/update boundary as "
+                 "`source_char_collide_radius_runtime_evidence`",
+                 "document records CharCollide cache update boundary helper");
+  ok &= contains(doc, "Native therefore keeps collision response\n"
+                      "    disabled until the cached-field updates are sourced",
                  "document fences unsourced CharCollide collision response");
   ok &= contains(doc, "source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");

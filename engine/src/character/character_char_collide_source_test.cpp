@@ -225,5 +225,15 @@ int main() {
       ghogx::character::source_char_collide_deform_plan();
   CHECK(deform.no_op);
 
+  const ghogx::character::SourceCharCollideRadiusRuntimeEvidence
+      radius_runtime =
+          ghogx::character::source_char_collide_radius_runtime_evidence();
+  CHECK(radius_runtime.compute_radius_range == "0x803473DC -> 0x803474E8");
+  CHECK(radius_runtime.compute_radius_has_offset_local);
+  CHECK(!radius_runtime.compute_radius_has_statement_body);
+  CHECK(radius_runtime.sync_radius_empty_body);
+  CHECK(radius_runtime.radius_getter_mapped_only);
+  CHECK(radius_runtime.get_radius_inline_body);
+
   return 0;
 }
