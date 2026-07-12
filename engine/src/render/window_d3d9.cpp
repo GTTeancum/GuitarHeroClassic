@@ -34,6 +34,11 @@ struct Window::Impl {
   bool key_prev[256] = {};
   unsigned short pad_now  = 0;
   unsigned short pad_prev = 0;
+  bool relative_mouse = false;
+  bool relative_mouse_centered = false;
+  bool relative_mouse_hidden = false;
+  int mouse_dx = 0;
+  int mouse_dy = 0;
 
   // GH2 guitar input: bits 0-4 = frets, bit 5 = strum, bit 6 = star power,
   // bit 7 = whammy/killswitch.
@@ -63,6 +68,39 @@ namespace {
 
 constexpr const char* kClassName = "GhogxWindowClass";
 
+void show_cursor_for_relative_mouse(Window::Impl& impl, bool visible) {
+  if (visible) {
+    if (!impl.relative_mouse_hidden) return;
+    while (ShowCursor(TRUE) < 0) {}
+    impl.relative_mouse_hidden = false;
+  } else {
+    if (impl.relative_mouse_hidden) return;
+    while (ShowCursor(FALSE) >= 0) {}
+    impl.relative_mouse_hidden = true;
+  }
+}
+
+bool client_rect_screen(HWND hwnd, RECT& out) {
+  RECT client = {};
+  if (!GetClientRect(hwnd, &client)) return false;
+  POINT tl = {client.left, client.top};
+  POINT br = {client.right, client.bottom};
+  if (!ClientToScreen(hwnd, &tl) || !ClientToScreen(hwnd, &br)) return false;
+  out.left = tl.x;
+  out.top = tl.y;
+  out.right = br.x;
+  out.bottom = br.y;
+  return out.right > out.left && out.bottom > out.top;
+}
+
+bool client_center_screen(HWND hwnd, POINT& out) {
+  RECT rect = {};
+  if (!client_rect_screen(hwnd, rect)) return false;
+  out.x = rect.left + (rect.right - rect.left) / 2;
+  out.y = rect.top + (rect.bottom - rect.top) / 2;
+  return true;
+}
+
 LRESULT CALLBACK wnd_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
   auto* impl = reinterpret_cast<Window::Impl*>(GetWindowLongPtr(h, GWLP_USERDATA));
   switch (msg) {
@@ -89,6 +127,7 @@ LRESULT CALLBACK wnd_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
 Window::Window() : impl_(std::make_unique<Impl>()) {}
 
 Window::~Window() {
+  set_relative_mouse(false);
   if (impl_->blit_tex) impl_->blit_tex->Release();
   if (impl_->dev) impl_->dev->Release();
   if (impl_->d3d) impl_->d3d->Release();
@@ -204,6 +243,8 @@ void Window::pump() {
   // Snapshot last frame's input so action_pressed() can edge-detect this frame.
   std::memcpy(impl_->key_prev, impl_->key_now, sizeof(impl_->key_prev));
   impl_->pad_prev = impl_->pad_now;
+  impl_->mouse_dx = 0;
+  impl_->mouse_dy = 0;
 
   MSG msg;
   while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -212,6 +253,29 @@ void Window::pump() {
     }
     TranslateMessage(&msg);
     DispatchMessage(&msg);  // updates impl_->key_now via wnd_proc
+  }
+
+  const bool mouse_active =
+      impl_->relative_mouse && impl_->hwnd &&
+      GetForegroundWindow() == impl_->hwnd;
+  if (mouse_active) {
+    show_cursor_for_relative_mouse(*impl_, false);
+    RECT clip = {};
+    if (client_rect_screen(impl_->hwnd, clip)) ClipCursor(&clip);
+    POINT center = {};
+    if (client_center_screen(impl_->hwnd, center)) {
+      POINT pos = {};
+      if (GetCursorPos(&pos) && impl_->relative_mouse_centered) {
+        impl_->mouse_dx = pos.x - center.x;
+        impl_->mouse_dy = pos.y - center.y;
+      }
+      SetCursorPos(center.x, center.y);
+      impl_->relative_mouse_centered = true;
+    }
+  } else {
+    ClipCursor(nullptr);
+    show_cursor_for_relative_mouse(*impl_, true);
+    impl_->relative_mouse_centered = false;
   }
 
   // Poll the player-1 XInput controller. Fold the left stick into the d-pad
@@ -314,6 +378,29 @@ bool Window::action_pressed(Action a) const {
 bool Window::key_down(int virtual_key) const {
   if (!impl_ || virtual_key < 0 || virtual_key >= 256) return false;
   return impl_->key_now[virtual_key];
+}
+
+void Window::set_relative_mouse(bool enabled) {
+  if (!impl_) return;
+  if (impl_->relative_mouse == enabled) return;
+  impl_->relative_mouse = enabled;
+  impl_->relative_mouse_centered = false;
+  impl_->mouse_dx = 0;
+  impl_->mouse_dy = 0;
+  if (!enabled) {
+    ClipCursor(nullptr);
+    show_cursor_for_relative_mouse(*impl_, true);
+  }
+}
+
+void Window::mouse_delta(int& dx, int& dy) const {
+  if (!impl_) {
+    dx = 0;
+    dy = 0;
+    return;
+  }
+  dx = impl_->mouse_dx;
+  dy = impl_->mouse_dy;
 }
 
 bool Window::should_close() const { return impl_->should_close; }

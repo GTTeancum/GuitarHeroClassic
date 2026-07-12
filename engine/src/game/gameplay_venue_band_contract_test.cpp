@@ -4055,7 +4055,7 @@ int main() {
                  "pick_mesh_state);",
                  "venue inspector pick ray uses the current mesh draw world and renderability state");
   ok &= contains(renderer_c,
-                 "debug_highlighted_mesh?D3DCULL_NONE",
+                 "if(debug_highlighted_mesh)returnD3DCULL_NONE;",
                  "venue inspector highlight forces selected meshes two-sided");
   ok &= contains(renderer_c,
                  "venue-freecam]pickmesh=%smaterial=%sdist=%.2f",
@@ -4078,6 +4078,18 @@ int main() {
   ok &= contains(renderer_c,
                  "culled_by_backface",
                  "venue inspector reports backface-cull evidence for flipped floor probes");
+  ok &= contains(renderer_c,
+                 "is_redoctane_main_hall_reversed_shell",
+                 "RedOctane audience-floor shell cull fix is source-keyed, not global");
+  ok &= contains(renderer_c,
+                 "redoctane_main_hall_reversed_shell",
+                 "RedOctane cull override logs its source-backed reason");
+  ok &= contains(renderer_c,
+                 "debug_pick_culled_by_cull_mode",
+                 "venue inspector reports culling using the actual mesh cull mode");
+  ok &= contains(renderer_c,
+                 "GHOGX_DISABLE_VENUE_PICK_HIGHLIGHT",
+                 "venue inspector can disable highlight tint for clean floor proof captures");
   ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"

@@ -886,6 +886,7 @@ struct DebugVenuePickMeshState {
   bool material_invisible = false;
   bool spotlight_template = false;
   bool cull_enabled = false;
+  DWORD cull_mode = D3DCULL_NONE;
 };
 
 struct DebugVenueInspectorState {
@@ -912,6 +913,68 @@ debug_venue_inspector_states() {
 bool debug_venue_inspector_enabled() {
   return env_enabled("GHOGX_VENUE_FREECAM") ||
          env_enabled("GHOGX_DEBUG_VENUE_FREECAM");
+}
+
+const char* cull_mode_name(DWORD mode) {
+  switch (mode) {
+    case D3DCULL_NONE:
+      return "none";
+    case D3DCULL_CW:
+      return "cw";
+    case D3DCULL_CCW:
+      return "ccw";
+    default:
+      return "unknown";
+  }
+}
+
+DWORD opposite_cull_mode(DWORD mode) {
+  if (mode == D3DCULL_CW) return D3DCULL_CCW;
+  if (mode == D3DCULL_CCW) return D3DCULL_CW;
+  return mode;
+}
+
+bool is_redoctane_main_hall_reversed_shell(
+    const milo_scene::Scene& scene, const milo_scene::MeshObj& mesh,
+    const milo_scene::MatObj* mat) {
+  if (env_enabled("GHOGX_DISABLE_REDOCTANE_MAIN_HALL_CULL_FIX")) return false;
+  return scene.dir_name == "big_geom" && mesh.name == "main_hall.mesh" &&
+         mesh.material == "wallboard01.mat" && mat &&
+         mat->diffuse_tex == "bottomfloorwall_r.tex";
+}
+
+DWORD venue_mesh_cull_mode(const milo_scene::Scene& scene,
+                           const milo_scene::MeshObj& mesh,
+                           const milo_scene::MatObj* mat,
+                           DWORD authored_cull_mode,
+                           bool debug_highlighted_mesh) {
+  if (debug_highlighted_mesh) return D3DCULL_NONE;
+  if (mat && !mat->cull) return D3DCULL_NONE;
+  if (is_redoctane_main_hall_reversed_shell(scene, mesh, mat)) {
+    const DWORD flipped = opposite_cull_mode(authored_cull_mode);
+    static std::unordered_set<std::string> logged;
+    const std::string key = scene.dir_name + "|" + mesh.name + "|" +
+                            cull_mode_name(authored_cull_mode) + ">" +
+                            cull_mode_name(flipped);
+    if (logged.insert(key).second) {
+      std::fprintf(
+          stderr,
+          "[milo_scene] venue cull override mesh=%s material=%s diffuse=%s "
+          "source=%s mode=%s->%s reason=redoctane_main_hall_reversed_shell\n",
+          mesh.name.c_str(), mesh.material.c_str(), mat->diffuse_tex.c_str(),
+          scene.dir_name.c_str(), cull_mode_name(authored_cull_mode),
+          cull_mode_name(flipped));
+    }
+    return flipped;
+  }
+  return authored_cull_mode;
+}
+
+bool debug_pick_culled_by_cull_mode(DWORD cull_mode, bool backfacing) {
+  if (cull_mode == D3DCULL_NONE) return false;
+  if (cull_mode == D3DCULL_CW) return backfacing;
+  if (cull_mode == D3DCULL_CCW) return !backfacing;
+  return backfacing;
 }
 
 bool env_string(const char* name, std::string& out) {
@@ -1043,14 +1106,16 @@ bool apply_debug_venue_env_camera(OrbitCamera& cam) {
 void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
                                DebugVenueInspectorState& state) {
   if (!win) return;
+  win->set_relative_mouse(true);
   if (!state.initialized || win->key_down('C')) {
     state.camera = cam;
     freecam_seed_from_current_camera(state.camera);
     state.initialized = true;
     if (!state.announced) {
       std::fprintf(stderr,
-                   "[venue-freecam] enabled: WASD move, E/R up, Q/F down, "
-                   "arrows look, Shift fast, Ctrl slow, C reseed\n");
+                   "[venue-freecam] enabled: mouse look, WASD move, E/R up, "
+                   "Q/F down, arrows look, Shift fast, Ctrl slow, C reseed, "
+                   "Esc quit\n");
       state.announced = true;
     }
   }
@@ -1066,9 +1131,16 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
   const float dt = std::clamp(state.dt, 0.001f, 0.1f);
   const float turn_speed =
       env_float_or("GHOGX_VENUE_FREECAM_TURN_SPEED", 1.35f, 0.05f, 8.0f);
+  const float mouse_sens =
+      env_float_or("GHOGX_VENUE_FREECAM_MOUSE_SENS", 0.0035f, 0.0001f, 0.05f);
   const float move_speed =
       env_float_or("GHOGX_VENUE_FREECAM_SPEED", 210.0f, 1.0f, 3000.0f);
   const float turn = turn_speed * dt;
+  int mouse_dx = 0;
+  int mouse_dy = 0;
+  win->mouse_delta(mouse_dx, mouse_dy);
+  freecam.yaw -= static_cast<float>(mouse_dx) * mouse_sens;
+  freecam.pitch -= static_cast<float>(mouse_dy) * mouse_sens;
   if (win->key_down(VK_LEFT)) freecam.yaw += turn;
   if (win->key_down(VK_RIGHT)) freecam.yaw -= turn;
   if (win->key_down(VK_UP)) freecam.pitch += turn;
@@ -1176,7 +1248,8 @@ void accumulate_debug_venue_pick(DebugVenuePickAccumulator& pick,
     pick.best.material = mesh.material;
     pick.best.distance = t;
     pick.best.backfacing = backfacing;
-    const bool culled_by_backface = mesh_state.cull_enabled && backfacing;
+    const bool culled_by_backface =
+        debug_pick_culled_by_cull_mode(mesh_state.cull_mode, backfacing);
     pick.best.would_draw = mesh_state.would_draw && !culled_by_backface;
     pick.best.source_pick = mesh_state.source_pick;
     pick.best.hidden_by_filter = mesh_state.hidden_by_filter;
@@ -2466,10 +2539,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const BlendState blend_state = blend_state_for(material_blend);
     const DWORD mesh_cull_mode =
-        debug_highlighted_mesh
-            ? D3DCULL_NONE
-            : ((mat_obj && !mat_obj->cull) ? D3DCULL_NONE
-                                           : authored_cull_mode);
+        venue_mesh_cull_mode(scene_, m, mat_obj, authored_cull_mode,
+                             debug_highlighted_mesh);
     dev_->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
     if (material_blend == kBlendAdd && ma < 0.999f) {
       // ONE/ONE additive blending ignores vertex alpha, so treat Mat alpha as
@@ -3048,8 +3119,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end();
     const bool material_invisible = is_authored_invisible_material(m.material);
     const auto* pick_mat = scene_.find_mat(m.material);
-    const bool cull_enabled =
-        authored_cull_mode != D3DCULL_NONE && (!pick_mat || pick_mat->cull);
+    const DWORD pick_cull_mode =
+        venue_mesh_cull_mode(scene_, m, pick_mat, authored_cull_mode, false);
+    const bool cull_enabled = pick_cull_mode != D3DCULL_NONE;
     const bool would_reach_draw =
         m.decoded && m.showing && !hidden_by_runtime && !hidden_by_debug_skip &&
         !spotlight_template_mesh && !material_invisible;
@@ -3249,6 +3321,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       pick_mesh_state.material_invisible = material_invisible;
       pick_mesh_state.spotlight_template = spotlight_template_mesh;
       pick_mesh_state.cull_enabled = cull_enabled;
+      pick_mesh_state.cull_mode = pick_cull_mode;
       accumulate_debug_venue_pick(venue_pick, m, draw_world,
                                   pick_mesh_state);
     }
@@ -3372,10 +3445,14 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         }
       }
     }
+    const bool debug_pick_highlight =
+        !env_enabled("GHOGX_DISABLE_VENUE_PICK_HIGHLIGHT");
     debug_venue->highlight_mesh =
-        debug_venue->pick.hit ? debug_venue->pick.mesh : std::string{};
+        debug_pick_highlight && debug_venue->pick.hit ? debug_venue->pick.mesh
+                                                      : std::string{};
     debug_venue->highlight_source_only =
-        debug_venue->pick.hit && !debug_venue->pick.would_draw;
+        debug_pick_highlight && debug_venue->pick.hit &&
+        !debug_venue->pick.would_draw;
     update_debug_venue_title(win_, *debug_venue);
     log_debug_pick_grid(*debug_venue, venue_picks);
   }

@@ -41,6 +41,8 @@ class Window {
   enum class Action { Confirm, Back, Up, Down, Left, Right, Start };
   bool action_pressed(Action a) const;
   bool key_down(int virtual_key) const;
+  void set_relative_mouse(bool enabled);
+  void mouse_delta(int& dx, int& dy) const;
 
   // Clear the back buffer to the given linear RGB color (0..1).
   void clear(float r, float g, float b);
