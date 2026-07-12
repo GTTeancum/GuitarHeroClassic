@@ -1,6 +1,8 @@
 #include "character/char_mesh.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -18,6 +20,10 @@ namespace {
 
 bool has(const std::vector<std::string>& values, const std::string& value) {
   return std::find(values.begin(), values.end(), value) != values.end();
+}
+
+bool near(float a, float b) {
+  return std::fabs(a - b) < 0.0001f;
 }
 
 bool xfm_is_identity(const ghogx::milo_scene::Xfm& xfm) {
@@ -181,6 +187,39 @@ int main() {
   CHECK(has(cigar_highlight.draw_calls, "UtilDrawCigar:orig_radius_length"));
   CHECK(has(cigar_highlight.draw_calls, "UtilDrawCigar:cur_radius_length"));
   CHECK(cigar_highlight.mesh_sphere_draws == 4);
+
+  ghogx::character::SourceCharCollideRadiusCache radius_cache;
+  radius_cache.origin = {1.0f, 2.0f, 3.0f};
+  radius_cache.axis = {0.0f, 1.0f, 0.0f};
+  std::array<float, 3> out_delta = {};
+  sphere.cur_radius[0] = 3.5f;
+  CHECK(near(ghogx::character::source_char_collide_get_radius(
+                 sphere, radius_cache, {4.0f, 6.0f, 8.0f}, out_delta),
+             3.5f));
+  CHECK(near(out_delta[0], 3.0f));
+  CHECK(near(out_delta[1], 4.0f));
+  CHECK(near(out_delta[2], 5.0f));
+
+  CHECK(near(ghogx::character::source_char_collide_get_radius(
+                 plane, radius_cache, {4.0f, 6.0f, 8.0f}, out_delta),
+             4.0f));
+  CHECK(near(out_delta[0], 0.0f));
+  CHECK(near(out_delta[1], 4.0f));
+  CHECK(near(out_delta[2], 0.0f));
+
+  radius_cache.origin = {0.0f, 0.0f, 0.0f};
+  radius_cache.length_scale = 1.0f;
+  radius_cache.radius_lerp_scale = 0.25f;
+  cigar.cur_radius[0] = 2.0f;
+  cigar.cur_radius[1] = 6.0f;
+  cigar.cur_length[0] = 1.0f;
+  cigar.cur_length[1] = 5.0f;
+  CHECK(near(ghogx::character::source_char_collide_get_radius(
+                 cigar, radius_cache, {3.0f, 3.0f, 4.0f}, out_delta),
+             4.0f));
+  CHECK(near(out_delta[0], 3.0f));
+  CHECK(near(out_delta[1], 0.0f));
+  CHECK(near(out_delta[2], 4.0f));
 
   const ghogx::character::SourceCharCollideDeformPlan deform =
       ghogx::character::source_char_collide_deform_plan();

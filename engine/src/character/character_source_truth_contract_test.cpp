@@ -3182,6 +3182,18 @@ int run_contract() {
                  "source_char_collide_highlight_plan(cigar,true)",
                  "CharCollide source test covers cigar highlight plan");
   ok &= contains(char_collide_source_test,
+                 "source_char_collide_get_radius(sphere,radius_cache,"
+                 "{4.0f,6.0f,8.0f},out_delta)",
+                 "CharCollide source test covers sphere GetRadius helper");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_get_radius(plane,radius_cache,"
+                 "{4.0f,6.0f,8.0f},out_delta)",
+                 "CharCollide source test covers plane GetRadius helper");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_get_radius(cigar,radius_cache,"
+                 "{3.0f,3.0f,4.0f},out_delta)",
+                 "CharCollide source test covers cigar GetRadius helper");
+  ok &= contains(char_collide_source_test,
                  "source_char_collide_deform_plan()",
                  "CharCollide source test covers Deform no-op plan");
   ok &= contains(cmake, "ghogx_character_char_collide_source_test",
