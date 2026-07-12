@@ -4153,8 +4153,12 @@ int main() {
                  "std::stringnext_link;",
                  "EventTrigger decoder preserves source next_link refs");
   ok &= contains(gameplay_c,
-                 "structProxyCall{std::stringproxy;std::stringcall;};",
+                 "structProxyCall{std::stringproxy;std::stringcall;"
+                 "std::stringevent;};",
                  "EventTrigger decoder preserves source proxy-call rows");
+  ok &= contains(gameplay_c,
+                 "std::vector<std::string>trigger_events;",
+                 "EventTrigger decoder preserves source trigger event rows");
   ok &= contains(gameplay_c,
                  "std::vector<ProxyCall>proxy_calls;",
                  "EventTrigger decoder stores source proxy-call rows");
@@ -4162,11 +4166,26 @@ int main() {
                  "read_hmx_object_header_event_cursor(body,size,cursor)",
                  "EventTrigger decoder skips Hmx::Object fields before source rows");
   ok &= contains(gameplay_c,
-                 "decode_venue_event_trigger_rev8_source_layout(",
-                 "EventTrigger decoder prefers source-shaped row layout");
+                 "decode_venue_event_trigger_source_order(",
+                 "EventTrigger decoder prefers ihatecompvir source order");
   ok &= contains(gameplay_c,
                  "returndecode_venue_event_trigger_rev8_scan(body,size);",
                  "EventTrigger decoder keeps scanner fallback for non-source-shaped bodies");
+  ok &= contains(gameplay_c,
+                 "if(revision>9){if(!read_event_trigger_symbol_list(body,"
+                 "size,cursor,out.trigger_events))",
+                 "EventTrigger source reader consumes counted trigger events");
+  ok &= contains(gameplay_c,
+                 "if(!out.event_label.empty())out.trigger_events.push_back("
+                 "out.event_label);",
+                 "EventTrigger rev8 source reader promotes the single trigger event");
+  ok &= contains(gameplay_c,
+                 "if(!read_event_trigger_anim_route(body,size,cursor,route,"
+                 "revision))",
+                 "EventTrigger source reader decodes Anim rows through a shared source helper");
+  ok &= contains(gameplay_c,
+                 "if(revision>9){if(cursor+21>size)returnfalse;",
+                 "EventTrigger Anim rows consume post-rev9 source timing fields");
   ok &= contains(gameplay_c,
                  "read_event_trigger_symbol_list(body,size,cursor,"
                  "out.wait_for_events)",
@@ -4187,13 +4206,20 @@ int main() {
                  "proxy_call.call)",
                  "EventTrigger decoder reads proxy-call message symbols");
   ok &= contains(gameplay_c,
+                 "trigger->source_order_decoded?1:0",
+                 "EventTrigger diagnostics expose source-order decode state");
+  ok &= contains(gameplay_c,
+                 "\"[world]venueEventTrigger%ssource_order=%drev=%u",
+                 "venue EventTrigger animation route logs expose source-order revisions");
+  ok &= contains(gameplay_c,
                  "for(constauto&show:trigger->shows)",
                  "EventTrigger visibility uses decoded source shows list");
   ok &= contains(gameplay_c,
                  "for(constauto&hide:trigger->draws)",
                  "GH2 rev8 EventTrigger legacy draws list drives hidden drawables");
   ok &= contains(gameplay_c,
-                 "source=rev8_shows_draws",
+                 "\"[world]venueEventTriggervisibility%ssource_order=%d"
+                 "rev=%ushow=%zuhide=%zulabel=%sroutes=\"",
                  "visibility diagnostics identify source-shaped EventTrigger show/draw routing");
   ok &= contains(gameplay_c,
                  "mesh_names.find(ref)!=mesh_names.end()||"

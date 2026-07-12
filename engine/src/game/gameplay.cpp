@@ -838,12 +838,23 @@ struct DecodedVenueEventTrigger {
         float blend = 0.0f;
         bool wait = false;
         float delay = 0.0f;
+        bool enable = false;
+        int rate = 0;
+        float start = 0.0f;
+        float end = 0.0f;
+        float period = 0.0f;
+        float scale = 1.0f;
+        std::string type;
     };
     struct ProxyCall {
         std::string proxy;
         std::string call;
+        std::string event;
     };
+    uint16_t revision = 0;
+    bool source_order_decoded = false;
     std::string event_label;
+    std::vector<std::string> trigger_events;
     std::vector<AnimRoute> anims;
     std::vector<std::string> sounds;
     std::vector<std::string> shows;
@@ -855,83 +866,202 @@ struct DecodedVenueEventTrigger {
     std::vector<ProxyCall> proxy_calls;
 };
 
+bool read_event_trigger_anim_route(const uint8_t* body, size_t size,
+                                   size_t& cursor,
+                                   DecodedVenueEventTrigger::AnimRoute& route,
+                                   uint16_t revision) {
+    std::string anim;
+    if (!read_packed_symbol_event_cursor(body, size, cursor, anim))
+        return false;
+    if (cursor + 9 > size) return false;
+    route.ref = std::move(anim);
+    route.blend = read_f32_at_unchecked(body, cursor);
+    route.wait = body[cursor + 4] != 0;
+    route.delay = read_f32_at_unchecked(body, cursor + 5);
+    cursor += 9;
+    if (!std::isfinite(route.blend) || route.blend < 0.0f ||
+        route.blend > 10000.0f) {
+        route.blend = 0.0f;
+    }
+    if (!std::isfinite(route.delay) || route.delay < 0.0f ||
+        route.delay > 10000.0f) {
+        route.delay = 0.0f;
+    }
+    if (revision > 9) {
+        if (cursor + 21 > size) return false;
+        route.enable = body[cursor++] != 0;
+        uint32_t rate = 0;
+        if (!read_u32_event_cursor(body, size, cursor, rate)) return false;
+        route.rate = static_cast<int>(rate);
+        route.start = read_f32_at_unchecked(body, cursor);
+        cursor += 4;
+        route.end = read_f32_at_unchecked(body, cursor);
+        cursor += 4;
+        route.period = read_f32_at_unchecked(body, cursor);
+        cursor += 4;
+        if (!read_packed_symbol_event_cursor(body, size, cursor, route.type))
+            return false;
+        if (cursor + 4 > size) return false;
+        route.scale = read_f32_at_unchecked(body, cursor);
+        cursor += 4;
+    }
+    return true;
+}
+
 std::optional<DecodedVenueEventTrigger>
-decode_venue_event_trigger_rev8_source_layout(const uint8_t* body,
-                                              size_t size) {
+decode_venue_event_trigger_source_order(const uint8_t* body, size_t size) {
     if (!body || size < 4) return std::nullopt;
     const uint16_t revision =
         static_cast<uint16_t>(read_u32_at_unchecked(body, 0) & 0xffff);
-    if (revision != 8) return std::nullopt;
+    if (revision > 0x11 || revision > 0x0f) return std::nullopt;
 
     DecodedVenueEventTrigger out;
+    out.revision = revision;
     size_t cursor = 0;
     if (!read_hmx_object_header_event_cursor(body, size, cursor))
         return std::nullopt;
-    if (!read_packed_symbol_event_cursor(body, size, cursor, out.event_label))
-        return std::nullopt;
 
-    uint32_t anim_count = 0;
-    if (!read_u32_event_cursor(body, size, cursor, anim_count) ||
-        anim_count > 256) {
-        return std::nullopt;
-    }
-    for (uint32_t i = 0; i < anim_count; ++i) {
-        std::string anim;
-        if (!read_packed_symbol_event_cursor(body, size, cursor, anim))
+    if (revision > 9) {
+        if (!read_event_trigger_symbol_list(body, size, cursor,
+                                            out.trigger_events)) {
             return std::nullopt;
-        if (cursor + 9 > size) return std::nullopt;
-        DecodedVenueEventTrigger::AnimRoute route;
-        route.ref = std::move(anim);
-        route.blend = read_f32_at_unchecked(body, cursor);
-        route.wait = body[cursor + 4] != 0;
-        route.delay = read_f32_at_unchecked(body, cursor + 5);
-        if (!std::isfinite(route.blend) || route.blend < 0.0f ||
-            route.blend > 10000.0f) {
-            route.blend = 0.0f;
         }
-        if (!std::isfinite(route.delay) || route.delay < 0.0f ||
-            route.delay > 10000.0f) {
-            route.delay = 0.0f;
-        }
-        out.anims.push_back(std::move(route));
-        cursor += 9;
-    }
-
-    if (!read_event_trigger_symbol_list(body, size, cursor, out.sounds))
-        return std::nullopt;
-    if (!read_event_trigger_symbol_list(body, size, cursor, out.shows))
-        return std::nullopt;
-    if (!read_event_trigger_symbol_list(body, size, cursor, out.draws))
-        return std::nullopt;  // draws for revision <= 8
-    if (!read_event_trigger_symbol_list(body, size, cursor, out.enable_events))
-        return std::nullopt;
-    if (!read_event_trigger_symbol_list(body, size, cursor, out.disable_events))
-        return std::nullopt;
-    if (!read_event_trigger_symbol_list(body, size, cursor,
-                                        out.wait_for_events))
-        return std::nullopt;
-    if (!read_packed_symbol_event_cursor(body, size, cursor, out.next_link))
-        return std::nullopt;
-
-    uint32_t proxy_count = 0;
-    if (!read_u32_event_cursor(body, size, cursor, proxy_count) ||
-        proxy_count > 256) {
-        return std::nullopt;
-    }
-    out.proxy_calls.reserve(proxy_count);
-    for (uint32_t i = 0; i < proxy_count; ++i) {
-        DecodedVenueEventTrigger::ProxyCall proxy_call;
+        if (!out.trigger_events.empty()) out.event_label = out.trigger_events[0];
+    } else if (revision > 6) {
         if (!read_packed_symbol_event_cursor(body, size, cursor,
-                                             proxy_call.proxy)) {
+                                             out.event_label)) {
             return std::nullopt;
         }
+        if (!out.event_label.empty()) out.trigger_events.push_back(out.event_label);
+    }
+
+    if (revision > 6) {
+        uint32_t anim_count = 0;
+        if (!read_u32_event_cursor(body, size, cursor, anim_count) ||
+            anim_count > 256) {
+            return std::nullopt;
+        }
+        for (uint32_t i = 0; i < anim_count; ++i) {
+            DecodedVenueEventTrigger::AnimRoute route;
+            if (!read_event_trigger_anim_route(body, size, cursor, route,
+                                               revision)) {
+                return std::nullopt;
+            }
+            out.anims.push_back(std::move(route));
+        }
+
+        if (!read_event_trigger_symbol_list(body, size, cursor, out.sounds))
+            return std::nullopt;
+        if (!read_event_trigger_symbol_list(body, size, cursor, out.shows))
+            return std::nullopt;
+    }
+
+    if (revision > 0x0c) {
+        uint32_t hide_delay_count = 0;
+        if (!read_u32_event_cursor(body, size, cursor, hide_delay_count) ||
+            hide_delay_count > 256) {
+            return std::nullopt;
+        }
+        for (uint32_t i = 0; i < hide_delay_count; ++i) {
+            std::string ignored;
+            if (!read_packed_symbol_event_cursor(body, size, cursor, ignored))
+                return std::nullopt;
+            if (cursor + 8 > size) return std::nullopt;
+            cursor += 8;
+        }
+    } else if (revision > 8) {
+        uint32_t hide_delay_count = 0;
+        if (!read_u32_event_cursor(body, size, cursor, hide_delay_count) ||
+            hide_delay_count > 256) {
+            return std::nullopt;
+        }
+        for (uint32_t i = 0; i < hide_delay_count; ++i) {
+            std::string ignored;
+            if (!read_packed_symbol_event_cursor(body, size, cursor, ignored))
+                return std::nullopt;
+            if (cursor + 4 > size) return std::nullopt;
+            cursor += 4;
+        }
+    } else if (revision > 6) {
+        if (!read_event_trigger_symbol_list(body, size, cursor, out.draws))
+            return std::nullopt;
+    }
+
+    if (revision > 2) {
+        if (!read_event_trigger_symbol_list(body, size, cursor,
+                                            out.enable_events)) {
+            return std::nullopt;
+        }
+        if (!read_event_trigger_symbol_list(body, size, cursor,
+                                            out.disable_events)) {
+            return std::nullopt;
+        }
+    }
+    if (revision > 5) {
+        if (!read_event_trigger_symbol_list(body, size, cursor,
+                                            out.wait_for_events)) {
+            return std::nullopt;
+        }
+    }
+    if (revision > 6) {
         if (!read_packed_symbol_event_cursor(body, size, cursor,
-                                             proxy_call.call)) {
+                                             out.next_link)) {
             return std::nullopt;
         }
-        out.proxy_calls.push_back(std::move(proxy_call));
+    }
+
+    auto remove_empty = [](std::vector<std::string>& values) {
+        values.erase(std::remove(values.begin(), values.end(), ""),
+                     values.end());
+    };
+    if (revision < 10) {
+        remove_empty(out.enable_events);
+        remove_empty(out.disable_events);
+        remove_empty(out.wait_for_events);
+    }
+
+    if (revision > 7) {
+        uint32_t proxy_count = 0;
+        if (!read_u32_event_cursor(body, size, cursor, proxy_count) ||
+            proxy_count > 256) {
+            return std::nullopt;
+        }
+        out.proxy_calls.reserve(proxy_count);
+        for (uint32_t i = 0; i < proxy_count; ++i) {
+            DecodedVenueEventTrigger::ProxyCall proxy_call;
+            if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                                 proxy_call.proxy)) {
+                return std::nullopt;
+            }
+            if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                                 proxy_call.call)) {
+                return std::nullopt;
+            }
+            if (revision > 10) {
+                if (!read_packed_symbol_event_cursor(body, size, cursor,
+                                                     proxy_call.event)) {
+                    return std::nullopt;
+                }
+            }
+            out.proxy_calls.push_back(std::move(proxy_call));
+        }
+    }
+
+    if (revision > 0x0b) {
+        if (cursor + 4 > size) return std::nullopt;
+        cursor += 4;
+    }
+    if (revision > 0x0d) {
+        std::vector<std::string> ignored;
+        if (!read_event_trigger_symbol_list(body, size, cursor, ignored))
+            return std::nullopt;
+    }
+    if (revision > 0x0e) {
+        if (cursor >= size) return std::nullopt;
+        ++cursor;
     }
     if (cursor != size) return std::nullopt;
+    out.source_order_decoded = true;
     return out;
 }
 
@@ -1014,16 +1144,16 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8_scan(
     return out;
 }
 
-std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
+std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger(
     const uint8_t* body, size_t size) {
-    if (auto source = decode_venue_event_trigger_rev8_source_layout(body, size))
+    if (auto source = decode_venue_event_trigger_source_order(body, size))
         return source;
     return decode_venue_event_trigger_rev8_scan(body, size);
 }
 
 std::vector<std::string> venue_event_trigger_anim_route_refs(
     const uint8_t* body, size_t size, std::string& event_label) {
-    if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
+    if (const auto trigger = decode_venue_event_trigger(body, size)) {
         event_label = trigger->event_label;
         std::vector<std::string> refs;
         refs.reserve(trigger->anims.size());
@@ -1038,7 +1168,7 @@ std::vector<std::string> venue_event_trigger_anim_route_refs(
 std::vector<DecodedVenueEventTrigger::AnimRoute>
 venue_event_trigger_anim_routes(const uint8_t* body, size_t size,
                                 std::string& event_label) {
-    if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
+    if (const auto trigger = decode_venue_event_trigger(body, size)) {
         event_label = trigger->event_label;
         return trigger->anims;
     }
@@ -3043,11 +3173,15 @@ std::vector<std::string> event_trigger_route_keys(
 std::vector<std::string> event_trigger_route_keys(
     const std::string& trigger_name,
     const DecodedVenueEventTrigger& trigger) {
-    const std::string_view event_label =
-        is_event_payload_label(trigger.event_label)
-            ? std::string_view(trigger.event_label)
-            : std::string_view{};
-    auto keys = event_trigger_route_keys(trigger_name, event_label);
+    std::vector<std::string> keys;
+    for (const auto& trigger_event : trigger.trigger_events) {
+        if (is_event_payload_label(trigger_event))
+            push_unique_ref(keys, trigger_event);
+    }
+    if (keys.empty() && is_event_payload_label(trigger.event_label))
+        push_unique_ref(keys, trigger.event_label);
+    const std::string object_key = strip_trigger_suffix(trigger_name);
+    push_unique_ref(keys, object_key);
     for (const auto& wait_for_event : trigger.wait_for_events)
         push_unique_ref(keys, wait_for_event);
     return keys;
@@ -3056,7 +3190,7 @@ std::vector<std::string> event_trigger_route_keys(
 std::vector<std::string> venue_event_trigger_route_keys(
     const std::string& trigger_name, const uint8_t* body, size_t size,
     std::string_view fallback_payload_label) {
-    if (const auto trigger = decode_venue_event_trigger_rev8(body, size))
+    if (const auto trigger = decode_venue_event_trigger(body, size))
         return event_trigger_route_keys(trigger_name, *trigger);
     return event_trigger_route_keys(trigger_name, fallback_payload_label);
 }
@@ -3647,8 +3781,7 @@ load_venue_event_script_messages(
 
             std::vector<VenueScriptObjectMessage> messages;
             size_t decoded_proxy_messages = 0;
-            if (const auto trigger =
-                    decode_venue_event_trigger_rev8(body, size)) {
+            if (const auto trigger = decode_venue_event_trigger(body, size)) {
                 for (const auto& proxy_call : trigger->proxy_calls) {
                     const std::string object_name =
                         canonical_milo_ref(proxy_call.proxy);
@@ -5895,7 +6028,7 @@ std::map<std::string, std::vector<std::string>> load_venue_event_next_links(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            const auto trigger = decode_venue_event_trigger_rev8(body, size);
+            const auto trigger = decode_venue_event_trigger(body, size);
             if (!trigger) continue;
             std::vector<std::string> next_links;
             auto add_next_link = [&](std::string ref) {
@@ -5963,7 +6096,7 @@ std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            const auto trigger = decode_venue_event_trigger_rev8(body, size);
+            const auto trigger = decode_venue_event_trigger(body, size);
             if (!trigger) continue;
 
             Gameplay::VenueEventTriggerGate gate;
@@ -12577,7 +12710,7 @@ load_venue_group_visibility(const std::string& hdr_path,
                 continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
+            if (const auto trigger = decode_venue_event_trigger(body, size)) {
                 Gameplay::VenueGroupVisibility visibility;
                 for (const auto& show : trigger->shows) {
                     std::unordered_set<std::string> seen_groups;
@@ -12600,15 +12733,17 @@ load_venue_group_visibility(const std::string& hdr_path,
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(
                         stderr,
-                        "[world] venue EventTrigger visibility %s show=%zu hide=%zu label=%s routes=",
-                        de.name.c_str(), visibility.show_meshes.size(),
+                        "[world] venue EventTrigger visibility %s source_order=%d rev=%u show=%zu hide=%zu label=%s routes=",
+                        de.name.c_str(),
+                        trigger->source_order_decoded ? 1 : 0,
+                        trigger->revision, visibility.show_meshes.size(),
                         visibility.hide_meshes.size(),
                         trigger->event_label.c_str());
                     for (size_t i = 0; i < route_keys.size(); ++i) {
                         std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
                                      route_keys[i].c_str());
                     }
-                    std::fprintf(stderr, " source=rev8_shows_draws\n");
+                    std::fprintf(stderr, " source=shows_draws\n");
                 }
                 continue;
             }
@@ -12812,19 +12947,51 @@ load_venue_anim_filters(const std::string& hdr_path,
                 }
             } else if (de.type == "EventTrigger") {
                 std::string event_label_storage;
-                const auto routes = venue_event_trigger_anim_routes(
-                    body, size, event_label_storage);
-                const std::string_view event_label =
-                    is_event_payload_label(event_label_storage)
-                        ? std::string_view(event_label_storage)
-                        : std::string_view{};
+                std::vector<DecodedVenueEventTrigger::AnimRoute> routes;
+                std::vector<std::string> route_keys;
+                const auto trigger = decode_venue_event_trigger(body, size);
+                if (trigger) {
+                    event_label_storage = trigger->event_label;
+                    routes = trigger->anims;
+                    route_keys = event_trigger_route_keys(de.name, *trigger);
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue EventTrigger %s source_order=%d rev=%u label=%s anims=%zu sounds=%zu shows=%zu draws=%zu enable=%zu disable=%zu wait=%zu proxies=%zu next=%s routes=",
+                            de.name.c_str(),
+                            trigger->source_order_decoded ? 1 : 0,
+                            trigger->revision, trigger->event_label.c_str(),
+                            trigger->anims.size(), trigger->sounds.size(),
+                            trigger->shows.size(), trigger->draws.size(),
+                            trigger->enable_events.size(),
+                            trigger->disable_events.size(),
+                            trigger->wait_for_events.size(),
+                            trigger->proxy_calls.size(),
+                            trigger->next_link.empty()
+                                ? "-"
+                                : trigger->next_link.c_str());
+                        for (size_t i = 0; i < route_keys.size(); ++i) {
+                            std::fprintf(stderr, "%s%s", i ? "," : "",
+                                         route_keys[i].c_str());
+                        }
+                        std::fprintf(stderr, "\n");
+                    }
+                } else {
+                    routes = venue_event_trigger_anim_routes(
+                        body, size, event_label_storage);
+                    const std::string_view event_label =
+                        is_event_payload_label(event_label_storage)
+                            ? std::string_view(event_label_storage)
+                            : std::string_view{};
+                    route_keys =
+                        venue_event_trigger_route_keys(de.name, body, size,
+                                                       event_label);
+                }
                 for (auto route : routes) {
                     const auto ref = canonical_milo_ref(route.ref);
                     route.ref = ref;
                     route.source_trigger = de.name;
-                    for (const auto& key :
-                         venue_event_trigger_route_keys(de.name, body, size,
-                                                        event_label)) {
+                    for (const auto& key : route_keys) {
                         if (is_venue_anim_filter_ref(ref)) {
                             event_filters[key].push_back(route);
                         } else if (is_direct_venue_anim_ref(ref)) {
