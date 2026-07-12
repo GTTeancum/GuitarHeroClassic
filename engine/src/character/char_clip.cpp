@@ -1122,6 +1122,34 @@ SourceGrimCharBonesSamplesDataPlan source_grim_char_bones_samples_data_plan(
   return plan;
 }
 
+bool source_grim_char_bones_samples_decodes_channel_type(int type) {
+  return type == kSourceCharBonesTypePos ||
+         type == kSourceCharBonesTypeQuat ||
+         type == kSourceCharBonesTypeRotZ;
+}
+
+bool source_grim_char_bones_samples_panics_channel_type(int type) {
+  return !source_grim_char_bones_samples_decodes_channel_type(type);
+}
+
+SourceGrimCharBonesSamplesDecodePlan
+source_grim_char_bones_samples_decode_plan() {
+  SourceGrimCharBonesSamplesDecodePlan plan;
+  plan.decoded_types = {kSourceCharBonesTypePos,
+                        kSourceCharBonesTypeQuat,
+                        kSourceCharBonesTypeRotZ};
+  plan.unsupported_types = {kSourceCharBonesTypeScale,
+                            kSourceCharBonesTypeRotX,
+                            kSourceCharBonesTypeRotY,
+                            kSourceCharBonesTypeEnd};
+  plan.target_name_replacements = {
+      ".pos=>.mesh",
+      ".quat=>.mesh",
+      ".rotz=>.mesh",
+  };
+  return plan;
+}
+
 SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
                                                            bool read_meta) {
   SourceGrimCharClipLoadPlan plan;
@@ -2382,20 +2410,28 @@ std::vector<std::vector<ClipChannel>> parse_all(
         ClipChannel ch;
         ch.bone_name =
             source_grim_char_bones_samples_channel_mesh_name(bl.names[bi]);
-        switch (bl.cats[bi]) {
+        const int cat = bl.cats[bi];
+        if (!source_grim_char_bones_samples_decodes_channel_type(cat)) {
+          switch (cat) {
+            case kSourceCharBonesTypeScale:
+              skip_grim_scale(c);
+              break;
+            case kSourceCharBonesTypeRotX:
+            case kSourceCharBonesTypeRotY:
+              skip_grim_angle(c, comp);
+              break;
+            default:
+              break;
+          }
+          continue;
+        }
+        switch (cat) {
           case kSourceCharBonesTypePos:
-            read_vec(c, bl.cats[bi], bl.compression, ch);
+            read_vec(c, cat, bl.compression, ch);
             frames[f].push_back(ch);
             break;
-          case kSourceCharBonesTypeScale:
-            skip_grim_scale(c);
-            break;
-          case kSourceCharBonesTypeRotX:
-          case kSourceCharBonesTypeRotY:
-            skip_grim_angle(c, comp);
-            break;
           case kSourceCharBonesTypeRotZ:
-            read_angle(c, comp, bl.cats[bi], ch);
+            read_angle(c, comp, cat, ch);
             frames[f].push_back(ch);
             break;
           case kSourceCharBonesTypeQuat:

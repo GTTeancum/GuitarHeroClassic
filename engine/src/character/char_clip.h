@@ -475,6 +475,16 @@ struct SourceGrimCharBonesSamplesDataPlan {
   std::vector<size_t> channel_sizes;
 };
 
+struct SourceGrimCharBonesSamplesDecodePlan {
+  bool walks_serialized_bones = true;
+  bool groups_by_mesh_name = true;
+  bool stores_channel_weights = true;
+  bool sorts_bone_samples_by_symbol = true;
+  std::vector<int> decoded_types;
+  std::vector<int> unsupported_types;
+  std::vector<std::string> target_name_replacements;
+};
+
 struct SourceGrimCharClipLoadPlan {
   bool known_version = false;
   bool reads_object_meta = false;
@@ -2048,6 +2058,10 @@ size_t source_grim_char_bones_samples_get_type_size2(int type,
                                                      int compression);
 std::string source_grim_char_bones_samples_channel_mesh_name(
     const std::string& channel);
+bool source_grim_char_bones_samples_decodes_channel_type(int type);
+bool source_grim_char_bones_samples_panics_channel_type(int type);
+SourceGrimCharBonesSamplesDecodePlan
+source_grim_char_bones_samples_decode_plan();
 SourceGrimCharBonesSamplesHeaderPlan
 source_grim_char_bones_samples_header_plan(int version);
 SourceGrimCharBonesSamplesDataPlan source_grim_char_bones_samples_data_plan(

@@ -3519,6 +3519,12 @@ note, and all report `unreadBytes=0`.
     `source_grim_char_bones_samples_channel_mesh_name` ports that exact
     conversion, and the GH2 clip parser now emits Grim-style `.mesh` channel
     targets instead of a local bare-name stripping rule.
+  - The same Grim `decode_samples` body only decodes `.pos`, `.quat`, and
+    `.rotz`; all other transform types hit the unsupported `t@_` panic arm.
+    Native `source_grim_char_bones_samples_decode_plan` and
+    `source_grim_char_bones_samples_decodes_channel_type` expose that decode
+    set, and the GH2 clip parser uses it for the publish/skip decision while
+    still consuming unsupported channel bytes to keep packed sample rows aligned.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,

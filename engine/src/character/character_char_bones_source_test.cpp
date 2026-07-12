@@ -1583,6 +1583,41 @@ int main() {
   ok &= expect_string(
       source_grim_char_bones_samples_channel_mesh_name("bone_head.scale"),
       "bone_head.scale", "grim channel scale stays fenced");
+  const SourceGrimCharBonesSamplesDecodePlan grim_decode =
+      source_grim_char_bones_samples_decode_plan();
+  ok &= expect_int(grim_decode.walks_serialized_bones ? 1 : 0, 1,
+                   "grim decode walks serialized bones");
+  ok &= expect_int(grim_decode.groups_by_mesh_name ? 1 : 0, 1,
+                   "grim decode groups by mesh name");
+  ok &= expect_int(grim_decode.stores_channel_weights ? 1 : 0, 1,
+                   "grim decode stores channel weights");
+  ok &= expect_int(grim_decode.sorts_bone_samples_by_symbol ? 1 : 0, 1,
+                   "grim decode sorts samples by symbol");
+  ok &= expect_size(grim_decode.decoded_types.size(), 3,
+                    "grim decode supported type count");
+  ok &= expect_int(grim_decode.decoded_types[0], kSourceCharBonesTypePos,
+                   "grim decode supports pos first");
+  ok &= expect_int(grim_decode.decoded_types[1], kSourceCharBonesTypeQuat,
+                   "grim decode supports quat second");
+  ok &= expect_int(grim_decode.decoded_types[2], kSourceCharBonesTypeRotZ,
+                   "grim decode supports rotz third");
+  ok &= expect_size(grim_decode.unsupported_types.size(), 4,
+                    "grim decode unsupported type count");
+  ok &= expect_int(source_grim_char_bones_samples_decodes_channel_type(
+                       kSourceCharBonesTypePos)
+                       ? 1
+                       : 0,
+                   1, "grim decode accepts pos");
+  ok &= expect_int(source_grim_char_bones_samples_decodes_channel_type(
+                       kSourceCharBonesTypeScale)
+                       ? 1
+                       : 0,
+                   0, "grim decode rejects scale");
+  ok &= expect_int(source_grim_char_bones_samples_panics_channel_type(
+                       kSourceCharBonesTypeRotX)
+                       ? 1
+                       : 0,
+                   1, "grim decode panics rotx");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(0), 0.0f,
                     "grim snorm16 zero");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(32767), 1.0f,

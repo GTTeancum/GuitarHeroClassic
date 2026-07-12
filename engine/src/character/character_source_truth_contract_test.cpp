@@ -20136,6 +20136,12 @@ int run_contract() {
                  "parser now emits Grim-style `.mesh` channel",
                  "document records parser use of Grim mesh-name helper");
   ok &= contains(doc,
+                 "`source_grim_char_bones_samples_decode_plan` and",
+                 "document records Grim decode plan helper");
+  ok &= contains(doc,
+                 "parser uses it for the publish/skip decision",
+                 "document records parser use of Grim decode support set");
+  ok &= contains(doc,
                  "Native `source_char_bones_samples_load_plan` records the "
                  "checked `Load`\n    delegation",
                  "document records native CharBonesSamples load plan");
@@ -20214,6 +20220,13 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "std::stringsource_grim_char_bones_samples_channel_mesh_name(",
                  "native exposes Grim channel mesh-name helper");
+  ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesDecodePlan{",
+                 "native exposes Grim CharBonesSamples decode plan");
+  ok &= contains(char_clip_h,
+                 "boolsource_grim_char_bones_samples_decodes_channel_type("
+                 "inttype);",
+                 "native exposes Grim decode supported-type helper");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDataPlansource_grim_char_bones_samples_data_plan(",
                  "native implements Grim CharBonesSamples data stride helper");
@@ -20225,6 +20238,15 @@ int run_contract() {
                  "\".quat\",\".mesh\");replace_all(name,\".rotz\",\".mesh\");",
                  "native helper ports Grim suffix replacement chain");
   ok &= contains(char_clip,
+                 "boolsource_grim_char_bones_samples_decodes_channel_type("
+                 "inttype){returntype==kSourceCharBonesTypePos||type=="
+                 "kSourceCharBonesTypeQuat||type==kSourceCharBonesTypeRotZ;}",
+                 "native helper ports Grim supported decode set");
+  ok &= contains(char_clip,
+                 "SourceGrimCharBonesSamplesDecodePlansource_grim_char_bones_"
+                 "samples_decode_plan(){",
+                 "native implements Grim decode plan helper");
+  ok &= contains(char_clip,
                  "source_grim_char_bones_samples_get_type_size2(type,compression)",
                  "native helper uses Grim get_type_size2 per channel");
   ok &= contains(char_clip,
@@ -20234,6 +20256,9 @@ int run_contract() {
                  "constSourceGrimCharBonesSamplesDataPlandata_plan="
                  "source_grim_char_bones_samples_data_plan(",
                  "clip parser uses source data stride plan");
+  ok &= contains(char_clip,
+                 "if(!source_grim_char_bones_samples_decodes_channel_type(cat))",
+                 "clip parser uses Grim decode supported-type helper");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::EvaluateChannel(",
                 "latest CharBonesSamples source does not expose EvaluateChannel body");
@@ -20255,6 +20280,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_channel_mesh_name(\"bone_head.quat\")",
                  "focused CharBones source test covers Grim channel mesh-name helper");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_decode_plan()",
+                 "focused CharBones source test covers Grim decode plan helper");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_decodes_channel_type(",
+                 "focused CharBones source test covers Grim supported decode set");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");
