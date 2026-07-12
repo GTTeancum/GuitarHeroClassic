@@ -57,7 +57,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharClipGroup.cpp", "ghogx_character_clip_set_source_test",
      "fenced-runtime-gap"},
     {"CharClipSet.cpp", "ghogx_character_clip_set_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
     {"CharCollide.cpp", "ghogx_character_char_collide_source_test",
      "ported-visible-source"},
     {"CharCuff.cpp", "ghogx_character_cuff_source_test",

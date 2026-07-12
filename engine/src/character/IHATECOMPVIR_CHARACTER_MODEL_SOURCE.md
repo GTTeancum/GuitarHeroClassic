@@ -93,7 +93,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharClipDisplay.cpp` | `ghogx_character_clip_display_source_test` | `diagnostic-only` |
 | `CharClipDriver.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
 | `CharClipGroup.cpp` | `ghogx_character_clip_set_source_test` | `fenced-runtime-gap` |
-| `CharClipSet.cpp` | `ghogx_character_clip_set_source_test` | `diagnostic-only` |
+| `CharClipSet.cpp` | `ghogx_character_clip_set_source_test` | `fenced-runtime-gap` |
 | `CharCollide.cpp` | `ghogx_character_char_collide_source_test` | `ported-visible-source` |
 | `CharCuff.cpp` | `ghogx_character_cuff_source_test` | `fenced-runtime-gap` |
 | `CharDriver.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
@@ -179,7 +179,7 @@ source proves there is no usable runtime class/body to port from that file.
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Handler and prop-sync row plans now mirror the visible source rows. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
-| Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, pre/post-save preview handling, revision-gated post-load read plan, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
+| Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, load/pre/post-load, pre/post-save preview handling, handler rows, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
 | Clip display/task graph diagnostics | `rb3-latest` `CharClipDisplay.cpp` / `CharClipDisplay.h`, `CharTaskMgr.cpp` / `CharTaskMgr.h` | Native helper ports display init, source lookup, text width plus em, bounded start/end bookkeeping, line spacing, and task-graph toggle registration. This is diagnostic/editor-only and does not change runtime clip playback. |
 | Clip editor/collision/graph diagnostics | `rb3-latest` `ClipCollide.cpp` / `ClipCollide.h`, `ClipGraphGen.cpp` / `ClipGraphGen.h`, `ClipDistMap.h`, `ClipCompressor.cpp`, `FileMerger.cpp` / `FileMerger.h` | Native helper ports source-visible editor defaults, transition-generation gates, list/test call plans, and merger row defaults only; no live collision, transition graph execution, compression, or file merging behavior is promoted. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
@@ -2832,6 +2832,11 @@ note, and all report `unreadBytes=0`.
     call both `ResetPreviewState` and `ResetEditorState`; `PostSave` delegates
     to `ObjectDir::PostSave`, then restores `preview_character`, enters it, and
     sends `update_objects` to `milo` when the object exists.
+  - Native `source_char_clip_set_load_plan` records the source `Load` body as
+    an `ObjectDir::Load` delegation. Native `source_char_clip_set_handler_plan`
+    records the visible handler rows: `randomize_groups`, `sort_groups`,
+    `recenter_all`, `load_character`, `list_clips`, superclass `ObjectDir`,
+    and check `0x2F0`.
   - Native `source_char_clip_set_post_load_plan` ports the full
     revision-gated `PostLoad` read plan through source revision `0x18`,
     including the proxy early return, legacy int/string/list reads,

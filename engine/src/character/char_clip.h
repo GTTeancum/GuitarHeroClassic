@@ -1321,6 +1321,10 @@ struct SourceCharClipSetPreLoadPlan {
   bool object_dir_pre_load = true;
 };
 
+struct SourceCharClipSetLoadPlan {
+  bool object_dir_load = true;
+};
+
 struct SourceCharClipSetPostLoadPlan {
   bool object_dir_post_load = true;
   bool returned_for_proxy = false;
@@ -1370,6 +1374,13 @@ struct SourceCharClipSetCopyResult {
   bool copy_bpm = false;
   bool copy_preview_walk = false;
   bool copy_still_clip = false;
+};
+
+struct SourceCharClipSetHandlerPlan {
+  std::vector<std::string> action_handlers;
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  std::string check;
 };
 
 struct SourceCharClipDisplayGlobals {
@@ -1641,6 +1652,7 @@ SourceCharClipSetPostSaveResult source_char_clip_set_post_save(
     const SourceCharClipSetState& state,
     bool milo_found);
 SourceCharClipSetPreLoadPlan source_char_clip_set_pre_load_plan();
+SourceCharClipSetLoadPlan source_char_clip_set_load_plan();
 SourceCharClipSetPostLoadPlan source_char_clip_set_post_load_plan(
     int32_t revision,
     bool is_proxy,
@@ -1666,6 +1678,7 @@ SourceCharClipSetSetBpmResult source_char_clip_set_set_bpm(
     int bpm,
     bool milo_found);
 const char* source_char_clip_set_recenter_all_warning();
+SourceCharClipSetHandlerPlan source_char_clip_set_handler_plan();
 void source_char_clip_display_init(SourceCharClipDisplayGlobals& globals,
                                    const std::string& dir,
                                    float draw_empty_y);

@@ -19705,6 +19705,10 @@ int run_contract() {
                  "PushRev(packRevs(gAltRev,gRev),this);ObjectDir::PreLoad(bs);}",
                  "latest CharClipSet source PreLoad");
   ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::Load(BinStream&bs){ObjectDir::Load(bs);}"
+                 "SAVE_OBJ(CharClipSet,0x8E)",
+                 "latest CharClipSet source Load delegates ObjectDir");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
                  "voidCharClipSet::PostLoad(BinStream&bs){ObjectDir::"
                  "PostLoad(bs);intrevs=PopRev(this);gRev=getHmxRev(revs);"
                  "gAltRev=getAltRev(revs);if(IsProxy())return;",
@@ -19753,6 +19757,14 @@ int run_contract() {
                  "Hmx::Object*obj=ObjectDir::Main()->FindObject(\"milo\",false);"
                  "if(obj)obj->SetProperty(sBpm,bpm);mBpm=bpm;}",
                  "latest CharClipSet source SetBpm");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "BEGIN_HANDLERS(CharClipSet)HANDLE_ACTION(randomize_groups,"
+                 "RandomizeGroups())HANDLE_ACTION(sort_groups,SortGroups())"
+                 "HANDLE_ACTION(recenter_all,RecenterAll())"
+                 "HANDLE_ACTION(load_character,LoadCharacter())"
+                 "HANDLE(list_clips,OnListClips)HANDLE_SUPERCLASS(ObjectDir)"
+                 "HANDLE_CHECK(0x2F0)",
+                 "latest CharClipSet source handler rows");
   ok &= contains(char_clip_h,
                  "structSourceCharClipSetState{std::stringchar_file_root;"
                  "boolhas_preview_char=false;boolhas_preview_clip=false;"
@@ -19763,6 +19775,15 @@ int run_contract() {
                  "SourceCharClipSetPostLoadPlansource_char_clip_set_post_load_plan("
                  "int32_trevision,boolis_proxy,int32_tclip_count,booltype_null);",
                  "native exposes source CharClipSet PostLoad plan helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipSetLoadPlan{boolobject_dir_load=true;};",
+                 "native exposes source CharClipSet Load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipSetHandlerPlan{"
+                 "std::vector<std::string>action_handlers;"
+                 "std::vector<std::string>handlers;"
+                 "std::vector<std::string>superclasses;std::stringcheck;};",
+                 "native exposes source CharClipSet handler plan");
   ok &= contains(char_clip,
                  "SourceCharClipSetStatesource_char_clip_set_default_state(){"
                  "SourceCharClipSetStatestate;source_char_clip_set_reset_preview_state("
@@ -19789,6 +19810,10 @@ int run_contract() {
                  "boolis_proxy,int32_tclip_count,booltype_null)",
                  "native exposes CharClipSet PostLoad plan implementation");
   ok &= contains(char_clip,
+                 "SourceCharClipSetLoadPlansource_char_clip_set_load_plan(){"
+                 "returnSourceCharClipSetLoadPlan{};}",
+                 "native CharClipSet Load helper mirrors source delegation");
+  ok &= contains(char_clip,
                  "plan.read_char_file_path=revision>0x11;"
                  "plan.read_preview_clip=revision>0x11;"
                  "plan.read_filter_flags=revision>0x13;"
@@ -19803,6 +19828,13 @@ int run_contract() {
                  "constchar*source_char_clip_set_recenter_all_warning(){"
                  "return\"YoucanonlyrecenterclipsfromPC\";}",
                  "native CharClipSet RecenterAll helper ports warning");
+  ok &= contains(char_clip,
+                 "SourceCharClipSetHandlerPlansource_char_clip_set_handler_plan(){"
+                 "SourceCharClipSetHandlerPlanplan;plan.action_handlers={"
+                 "\"randomize_groups\",\"sort_groups\",\"recenter_all\","
+                 "\"load_character\"};plan.handlers={\"list_clips\"};"
+                 "plan.superclasses={\"ObjectDir\"};plan.check=\"0x2F0\";",
+                 "native CharClipSet handler helper mirrors source rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_clip_set_source_test",
                  "CMake builds CharClipSet source test");
@@ -19818,9 +19850,18 @@ int run_contract() {
   ok &= contains(clip_set_source_test,
                  "source_char_clip_set_set_bpm(state,128,true)",
                  "focused CharClipSet test covers SetBpm helper");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_load_plan()",
+                 "focused CharClipSet test covers Load helper");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_handler_plan()",
+                 "focused CharClipSet test covers handler helper");
   ok &= contains(doc,
                  "Native `source_char_clip_set_post_load_plan` ports the full",
                  "document records native CharClipSet post-load helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_set_handler_plan`",
+                 "document records native CharClipSet handler helper");
   ok &= contains(rb3_latest_char_clip_display_h,
                  "classCharClipDisplay{public:MsgSource*FindSource("
                  "Hmx::Object*);voidSetClip(CharClip*,bool);voidSetText("

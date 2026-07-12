@@ -45,6 +45,8 @@ int main() {
   using ghogx::character::source_char_clip_set_default_state;
   using ghogx::character::source_char_clip_set_draw_showing;
   using ghogx::character::source_char_clip_set_end_frame;
+  using ghogx::character::source_char_clip_set_handler_plan;
+  using ghogx::character::source_char_clip_set_load_plan;
   using ghogx::character::source_char_clip_set_load_character;
   using ghogx::character::source_char_clip_set_post_load_plan;
   using ghogx::character::source_char_clip_set_post_save;
@@ -153,6 +155,10 @@ int main() {
                     "PreLoad pushes revision");
   ok &= expect_bool(pre_load.object_dir_pre_load, true,
                     "PreLoad delegates ObjectDir");
+
+  const auto load_plan = source_char_clip_set_load_plan();
+  ok &= expect_bool(load_plan.object_dir_load, true,
+                    "Load delegates ObjectDir");
 
   auto post_load = source_char_clip_set_post_load_plan(4, false, 3, false);
   ok &= expect_bool(post_load.object_dir_post_load, true,
@@ -275,6 +281,22 @@ int main() {
   ok &= expect_int(dest.filter_flags, 5, "Copy filter flags value");
   ok &= expect_int(dest.bpm, 111, "Copy bpm value");
   ok &= expect_bool(dest.preview_walk, true, "Copy preview walk value");
+
+  const auto handlers = source_char_clip_set_handler_plan();
+  ok &= expect_size(handlers.action_handlers.size(), 4,
+                    "handler action count");
+  ok &= expect_string(handlers.action_handlers[0], "randomize_groups",
+                      "handler randomize groups");
+  ok &= expect_string(handlers.action_handlers[3], "load_character",
+                      "handler load character");
+  ok &= expect_size(handlers.handlers.size(), 1, "handler method count");
+  ok &= expect_string(handlers.handlers[0], "list_clips",
+                      "handler list clips");
+  ok &= expect_size(handlers.superclasses.size(), 1,
+                    "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "ObjectDir",
+                      "handler ObjectDir superclass");
+  ok &= expect_string(handlers.check, "0x2F0", "handler check");
 
   return ok ? 0 : 1;
 }

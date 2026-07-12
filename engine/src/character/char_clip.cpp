@@ -4035,6 +4035,10 @@ SourceCharClipSetPreLoadPlan source_char_clip_set_pre_load_plan() {
   return SourceCharClipSetPreLoadPlan{};
 }
 
+SourceCharClipSetLoadPlan source_char_clip_set_load_plan() {
+  return SourceCharClipSetLoadPlan{};
+}
+
 SourceCharClipSetPostLoadPlan source_char_clip_set_post_load_plan(
     int32_t revision,
     bool is_proxy,
@@ -4147,6 +4151,16 @@ SourceCharClipSetSetBpmResult source_char_clip_set_set_bpm(
 
 const char* source_char_clip_set_recenter_all_warning() {
   return "You can only recenter clips from PC";
+}
+
+SourceCharClipSetHandlerPlan source_char_clip_set_handler_plan() {
+  SourceCharClipSetHandlerPlan plan;
+  plan.action_handlers = {"randomize_groups", "sort_groups", "recenter_all",
+                          "load_character"};
+  plan.handlers = {"list_clips"};
+  plan.superclasses = {"ObjectDir"};
+  plan.check = "0x2F0";
+  return plan;
 }
 
 void source_char_clip_display_init(SourceCharClipDisplayGlobals& globals,
