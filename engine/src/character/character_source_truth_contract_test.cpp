@@ -19556,8 +19556,27 @@ int run_contract() {
                  "staticboolcharbone_lower_body_output_enabled()",
                  "lower-body CharBone output bridge is diagnostic opt-in");
   ok &= contains(char_clip,
+                 "staticboolcharbone_output_layer_enabled()",
+                 "full CharBone output bridge is diagnostic opt-in");
+  ok &= contains(char_clip,
+                 "staticboolcharbone_face_output_enabled()",
+                 "face CharBone output bridge is diagnostic opt-in");
+  ok &= contains(char_clip,
+                 "BroadCharBoneoutputisdiagnostic-only;"
+                 "ihatecompvirsourcehasnotyet",
+                 "full CharBone bridge comment keeps source-truth boundary");
+  ok &= contains(char_clip,
+                 "Faceoutputrowsusethesamediagnosticfenceasbroadbodyoutput.",
+                 "face CharBone bridge comment keeps diagnostic fence");
+  ok &= contains(char_clip,
                  "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
                  "lower-body CharBone output bridge uses explicit enable");
+  ok &= contains(char_clip,
+                 "\"GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER\"",
+                 "full CharBone output bridge uses explicit enable");
+  ok &= contains(char_clip,
+                 "\"GHOGX_ENABLE_CHARBONE_FACE_OUTPUT\"",
+                 "face CharBone output bridge uses explicit enable");
   ok &= contains(char_clip,
                  "constboollower_body_output=lower_body_only&&"
                  "output_map_lower_body_bone(it->first);",
@@ -19576,6 +19595,14 @@ int run_contract() {
   ok &= contains(format_notes,
                  "There is no\n  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` switch",
                  "format notes reject the old default-on disable switch");
+  ok &= contains(doc,
+                 "Broad CharBone output bridges for full body, face, or lower body "
+                 "are\n  diagnostic-only",
+                 "native rules fence broad CharBone bridges");
+  ok &= contains(doc,
+                 "must require explicit enable switches and must not have "
+                 "default-on disable\n  switches",
+                 "native rules reject default-on CharBone bridge switches");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");
@@ -19586,6 +19613,10 @@ int run_contract() {
                 "CharIKHand path must not mark CharForeTwist rows consumed");
   ok &= missing(char_clip, "GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT",
                 "lower-body CharBone output bridge must not be default-on");
+  ok &= missing(char_clip, "GHOGX_DISABLE_CHARBONE_OUTPUT_LAYER",
+                "full CharBone output bridge must not be default-on");
+  ok &= missing(char_clip, "GHOGX_DISABLE_CHARBONE_FACE_OUTPUT",
+                "face CharBone output bridge must not be default-on");
   ok &= missing(char_clip, "NOTguessed",
                 "clip decoder must not overstate trace notes as source truth");
   ok &= missing(char_clip, "FORMAT(pertherecomp)",

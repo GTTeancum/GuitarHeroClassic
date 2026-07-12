@@ -3439,6 +3439,10 @@ Rockabill2-specific face attachment override.
   `lod1.grp`), not `_lod1` or `lod_` name prefixes.
 - Renderer state such as blend, z write, alpha test, wrap, and draw order must
   come from source material/drawable rows.
+- Broad CharBone output bridges for full body, face, or lower body are
+  diagnostic-only unless/until a source `CharBones` publisher is ported. They
+  must require explicit enable switches and must not have default-on disable
+  switches masquerading as source behavior.
 - Project override: hair polygons/textures render two-sided. Native therefore
   forces no backface culling for shared hair-token mesh/material/texture
   surfaces. This is a visual policy override, not inferred source evidence, and

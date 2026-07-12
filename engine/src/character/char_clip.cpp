@@ -7477,6 +7477,8 @@ static int output_depth(const std::vector<OutputPoseNode>& nodes,
 }
 
 static bool charbone_output_layer_enabled() {
+  // Broad CharBone output is diagnostic-only; ihatecompvir source has not yet
+  // exposed the runtime publisher for applying these rows to the live pose.
 #ifdef _MSC_VER
   char* value = nullptr;
   size_t len = 0;
@@ -7615,6 +7617,7 @@ static bool output_map_face_bone(const std::string& key) {
 }
 
 static bool charbone_face_output_enabled() {
+  // Face output rows use the same diagnostic fence as broad body output.
 #ifdef _MSC_VER
   char* value = nullptr;
   size_t len = 0;
