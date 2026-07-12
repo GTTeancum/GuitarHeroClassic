@@ -4630,6 +4630,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_environment_color_overrides(venue_environment_colors_);",
                  "venue EnvAnim samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "std::array<float,4>sample_environment_color_key("
+                 "conststd::vector<Gameplay::VenueEnvironmentAnim::ColorKey>&"
+                 "keys,floatframe){if(keys.empty())return{1.0f,1.0f,1.0f,1.0f};"
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "venue EnvAnim color sampler follows source-shaped key lookup");
+  ok &= contains(gameplay_c,
+                 "std::array<float,2>sample_environment_fog_range_key("
+                 "conststd::vector<Gameplay::VenueEnvironmentAnim::FogRangeKey>&"
+                 "keys,floatframe){if(keys.empty())return{0.0f,0.0f};"
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "venue EnvAnim fog-range sampler follows source-shaped key lookup");
   ok &= contains(gameplay_h_c,
                  "structVenueLightAnim",
                  "gameplay keeps decoded LightAnim state");
@@ -4663,6 +4675,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_light_color_overrides(venue_light_colors_);",
                  "venue LightAnim samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "std::array<float,4>sample_light_color_key("
+                 "conststd::vector<Gameplay::VenueLightAnim::ColorKey>&"
+                 "keys,floatframe){if(keys.empty())return{1.0f,1.0f,1.0f,1.0f};"
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "venue LightAnim color sampler follows source-shaped key lookup");
   ok &= contains(renderer_h_c,
                  "set_light_color_overrides",
                  "renderer accepts LightAnim light color overrides");
@@ -4754,14 +4772,17 @@ int main() {
                  "sample_mesh_anim_colors(target.anim,frame)",
                  "venue MeshAnim has a vertex-color sampler");
   ok &= contains(gameplay_c,
-                 "frame<=anim.frames[i].frame",
-                 "venue MeshAnim position sampler uses authored key frames");
+                 "source_key_sample(anim.frames,frame)",
+                 "venue MeshAnim position sampler follows source-shaped key lookup");
   ok &= contains(gameplay_c,
-                 "frame<=anim.normal_frames[i].frame",
-                 "venue MeshAnim normal sampler uses authored key frames");
+                 "source_key_sample(anim.normal_frames,frame)",
+                 "venue MeshAnim normal sampler follows source-shaped key lookup");
   ok &= contains(gameplay_c,
-                 "frame<=anim.texcoord_frames[i].frame",
-                 "venue MeshAnim UV sampler uses authored key frames");
+                 "source_key_sample(anim.texcoord_frames,frame)",
+                 "venue MeshAnim UV sampler follows source-shaped key lookup");
+  ok &= contains(gameplay_c,
+                 "source_key_sample(anim.color_frames,frame)",
+                 "venue MeshAnim color sampler follows source-shaped key lookup");
   ok &= contains(gameplay_c,
                  "norm=%zu",
                  "venue MeshAnim logs include sampled vertex-normal counts");
@@ -5060,6 +5081,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "copy_particle_route_keys_from_owner(route,owner->second);",
                  "ParticleSysAnim owner rows copy source key-owner data");
+  ok &= contains(gameplay_c,
+                 "floatsample_particle_emission("
+                 "conststd::vector<Gameplay::VenueParticleRoute::EmissionKey>&"
+                 "keys,floatframe){if(keys.empty())return1.0f;"
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "venue ParticleSys emission sampler follows source-shaped key lookup");
+  ok &= contains(gameplay_c,
+                 "floatsample_particle_size("
+                 "conststd::vector<Gameplay::VenueParticleRoute::EmissionKey>&"
+                 "keys,floatframe){if(keys.empty())return0.0f;"
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "venue ParticleSys scalar sampler follows source-shaped key lookup");
+  ok &= contains(gameplay_c,
+                 "std::array<float,4>sample_particle_color_key("
+                 "conststd::vector<Gameplay::VenueParticleRoute::ColorKey>&"
+                 "keys,floatframe){if(keys.empty())return{1.0f,1.0f,1.0f,1.0f};"
+                 "constVecKeySamplesample=source_key_sample(keys,frame);",
+                 "venue ParticleSys color sampler follows source-shaped key lookup");
   ok &= contains(gameplay_c,
                  "route.speed_keys=owner.speed_keys;",
                  "ParticleSysAnim owner rows copy speed key data");
