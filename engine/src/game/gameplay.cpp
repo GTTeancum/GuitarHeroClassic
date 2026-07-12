@@ -4226,6 +4226,203 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
     return out;
 }
 
+uint32_t read_rnd_envanim_key_count_like_miloeditor(MiloCursor& r,
+                                                    const char* label) {
+    const uint32_t count = r.u32();
+    if (count > 4096) {
+        throw std::runtime_error(std::string("RndEnvAnim ") + label +
+                                 " key count invalid");
+    }
+    return count;
+}
+
+Gameplay::VenueEnvironmentAnim::ColorKey
+read_rnd_envanim_color_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueEnvironmentAnim::ColorKey key;
+    for (float& c : key.color) c = std::clamp(r.f32(), 0.0f, 1.0f);
+    key.frame = r.f32();
+    if (key.frame < 0.0f || key.frame > 100000.0f)
+        throw std::runtime_error("RndEnvAnim color key frame invalid");
+    return key;
+}
+
+Gameplay::VenueEnvironmentAnim::FogRangeKey
+read_rnd_envanim_fog_range_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueEnvironmentAnim::FogRangeKey key;
+    key.range[0] = r.f32();
+    key.range[1] = r.f32();
+    key.frame = r.f32();
+    if (key.frame < 0.0f || key.frame > 100000.0f)
+        throw std::runtime_error("RndEnvAnim fog-range key frame invalid");
+    return key;
+}
+
+void read_rnd_envanim_color_keys_like_miloeditor(
+    MiloCursor& r, const char* label,
+    std::vector<Gameplay::VenueEnvironmentAnim::ColorKey>& keys,
+    float& last_frame) {
+    const uint32_t count =
+        read_rnd_envanim_key_count_like_miloeditor(r, label);
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        auto key = read_rnd_envanim_color_key_like_miloeditor(r);
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+}
+
+void read_rnd_envanim_fog_range_keys_like_miloeditor(
+    MiloCursor& r,
+    std::vector<Gameplay::VenueEnvironmentAnim::FogRangeKey>& keys) {
+    const uint32_t count =
+        read_rnd_envanim_key_count_like_miloeditor(r, "fog-range");
+    keys.clear();
+    keys.reserve(count);
+    for (uint32_t i = 0; i < count; ++i)
+        keys.push_back(read_rnd_envanim_fog_range_key_like_miloeditor(r));
+}
+
+std::optional<Gameplay::VenueEnvironmentAnim>
+read_rnd_envanim_like_miloeditor(const uint8_t* body, size_t size,
+                                 const std::string& entry_name) {
+    try {
+        MiloCursor r{body, size, 0};
+        const uint32_t combined_revision = r.u32();
+        const uint16_t revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        if (revision > 4)
+            throw std::runtime_error("RndEnvAnim revision unsupported");
+        if (revision > 3) {
+            std::unordered_map<std::string, MiloValue> object_props;
+            read_object_fields_like_miloeditor(r, object_props);
+        }
+        (void)read_rnd_animatable_like_miloeditor(r);
+
+        Gameplay::VenueEnvironmentAnim anim;
+        anim.name = canonical_milo_ref(entry_name);
+        anim.environment = canonical_milo_ref(r.symbol());
+
+        float ambient_last_frame = 0.0f;
+        read_rnd_envanim_color_keys_like_miloeditor(
+            r, "ambient", anim.color_keys, ambient_last_frame);
+        anim.keys_owner = canonical_milo_ref(r.symbol());
+        if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
+
+        float fog_color_last_frame = 0.0f;
+        if (revision > 1) {
+            read_rnd_envanim_color_keys_like_miloeditor(
+                r, "fog-color", anim.fog_color_keys, fog_color_last_frame);
+        }
+        if (revision > 2)
+            read_rnd_envanim_fog_range_keys_like_miloeditor(
+                r, anim.fog_range_keys);
+
+        anim.duration_frames =
+            std::max(ambient_last_frame, fog_color_last_frame);
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndEnvAnim source-shaped reader did not consume EOF");
+        }
+        return anim;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndEnvAnim decode failed %s: %s\n",
+                         entry_name.c_str(), ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
+uint32_t read_rnd_lightanim_key_count_like_miloeditor(MiloCursor& r,
+                                                      const char* label) {
+    const uint32_t count = r.u32();
+    if (count > 4096) {
+        throw std::runtime_error(std::string("RndLightAnim ") + label +
+                                 " key count invalid");
+    }
+    return count;
+}
+
+Gameplay::VenueLightAnim::ColorKey read_rnd_lightanim_color_key_like_miloeditor(
+    MiloCursor& r) {
+    Gameplay::VenueLightAnim::ColorKey key;
+    for (int c = 0; c < 4; ++c) {
+        key.color[c] = std::clamp(r.f32(), 0.0f, c == 3 ? 1.0f : 4.0f);
+    }
+    key.frame = r.f32();
+    if (key.frame < 0.0f || key.frame > 100000.0f)
+        throw std::runtime_error("RndLightAnim color key frame invalid");
+    return key;
+}
+
+void read_rnd_lightanim_color_keys_like_miloeditor(
+    MiloCursor& r, const char* label,
+    std::vector<Gameplay::VenueLightAnim::ColorKey>& keys,
+    float& last_frame) {
+    const uint32_t count =
+        read_rnd_lightanim_key_count_like_miloeditor(r, label);
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        auto key = read_rnd_lightanim_color_key_like_miloeditor(r);
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+}
+
+std::optional<Gameplay::VenueLightAnim> read_rnd_lightanim_like_miloeditor(
+    const uint8_t* body, size_t size, const std::string& entry_name) {
+    try {
+        MiloCursor r{body, size, 0};
+        const uint32_t combined_revision = r.u32();
+        const uint16_t revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        if (revision > 2)
+            throw std::runtime_error("RndLightAnim revision unsupported");
+        if (revision > 1) {
+            std::unordered_map<std::string, MiloValue> object_props;
+            read_object_fields_like_miloeditor(r, object_props);
+        }
+        (void)read_rnd_animatable_like_miloeditor(r);
+
+        Gameplay::VenueLightAnim anim;
+        anim.name = canonical_milo_ref(entry_name);
+        anim.light = canonical_milo_ref(r.symbol());
+
+        std::vector<Gameplay::VenueLightAnim::ColorKey> legacy_keys;
+        float ignored_last_frame = 0.0f;
+        if (revision < 1) {
+            read_rnd_lightanim_color_keys_like_miloeditor(
+                r, "legacy-before", legacy_keys, ignored_last_frame);
+        }
+        read_rnd_lightanim_color_keys_like_miloeditor(
+            r, "color", anim.color_keys, anim.duration_frames);
+        if (revision < 1) {
+            read_rnd_lightanim_color_keys_like_miloeditor(
+                r, "legacy-after", legacy_keys, ignored_last_frame);
+        }
+        anim.keys_owner = canonical_milo_ref(r.symbol());
+        if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
+
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndLightAnim source-shaped reader did not consume EOF");
+        }
+        return anim;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndLightAnim decode failed %s: %s\n",
+                         entry_name.c_str(), ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
 std::map<std::string, Gameplay::VenueEnvironmentAnim> load_venue_env_anims(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path) {
@@ -4243,36 +4440,11 @@ std::map<std::string, Gameplay::VenueEnvironmentAnim> load_venue_env_anims(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (size < 40) continue;
-            uint32_t version = 0;
-            std::memcpy(&version, body, sizeof(version));
-            if (version != 4) continue;
-            size_t pos = 25;
-            auto environment = read_milo_string_advance(body, size, pos, 128);
-            if (!environment || environment->empty() ||
-                environment->rfind(".env") == std::string::npos)
-                continue;
-            Gameplay::VenueEnvironmentAnim anim;
-            anim.name = canonical_milo_ref(de.name);
-            anim.environment = canonical_milo_ref(*environment);
-            float ambient_last_frame = 0.0f;
-            float fog_color_last_frame = 0.0f;
-            if (!read_env_color_keys(body, size, pos, anim.color_keys,
-                                     ambient_last_frame))
-                continue;
-            auto keys_owner = read_milo_string_advance(body, size, pos, 128);
-            if (!keys_owner) continue;
-            anim.keys_owner = canonical_milo_ref(*keys_owner);
-            if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
-            if (!read_env_color_keys(body, size, pos, anim.fog_color_keys,
-                                     fog_color_last_frame))
-                continue;
-            if (!read_env_fog_range_keys(body, size, pos,
-                                         anim.fog_range_keys))
-                continue;
-            anim.duration_frames =
-                std::max(ambient_last_frame, fog_color_last_frame);
-            out[anim.name] = anim;
+            auto decoded =
+                read_rnd_envanim_like_miloeditor(body, size, de.name);
+            if (!decoded) continue;
+            auto anim = std::move(*decoded);
+            out[anim.name] = std::move(anim);
         }
         for (size_t pass = 0; pass < out.size(); ++pass) {
             for (auto& [name, anim] : out) {
@@ -4326,26 +4498,11 @@ std::map<std::string, Gameplay::VenueLightAnim> load_venue_light_anims(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (size < 40) continue;
-            uint32_t version = 0;
-            std::memcpy(&version, body, sizeof(version));
-            if (version != 2) continue;
-            size_t pos = 25;
-            auto light = read_milo_string_advance(body, size, pos, 128);
-            if (!light || light->empty() ||
-                light->rfind(".lit") == std::string::npos)
-                continue;
-            Gameplay::VenueLightAnim anim;
-            anim.name = canonical_milo_ref(de.name);
-            anim.light = canonical_milo_ref(*light);
-            if (!read_light_color_keys(body, size, pos, anim.color_keys,
-                                       anim.duration_frames))
-                continue;
-            auto keys_owner = read_milo_string_advance(body, size, pos, 128);
-            if (!keys_owner) continue;
-            anim.keys_owner = canonical_milo_ref(*keys_owner);
-            if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
-            out[anim.name] = anim;
+            auto decoded =
+                read_rnd_lightanim_like_miloeditor(body, size, de.name);
+            if (!decoded) continue;
+            auto anim = std::move(*decoded);
+            out[anim.name] = std::move(anim);
         }
         for (size_t pass = 0; pass < out.size(); ++pass) {
             for (auto& [name, anim] : out) {
@@ -4363,8 +4520,12 @@ std::map<std::string, Gameplay::VenueLightAnim> load_venue_light_anims(
                          "[world] LightAnim %s -> %s color_keys=%zu frames=%.1f%s%s\n",
                          anim.name.c_str(), anim.light.c_str(),
                          anim.color_keys.size(), anim.duration_frames,
-                         anim.keys_owner.empty() ? "" : " keys_owner=",
-                         anim.keys_owner.c_str());
+                         anim.keys_owner.empty() || anim.keys_owner == anim.name
+                             ? ""
+                             : " keys_owner=",
+                         anim.keys_owner.empty() || anim.keys_owner == anim.name
+                             ? ""
+                             : anim.keys_owner.c_str());
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] LightAnim load %s: %s\n",

@@ -4694,16 +4694,36 @@ int main() {
                  "load_venue_env_anims",
                  "venue EnvAnim loader exists");
   ok &= contains(gameplay_c,
-                 "if(version!=4)continue;",
-                 "venue EnvAnim loader keeps traced PS2 version");
+                 "std::optional<Gameplay::VenueEnvironmentAnim>"
+                 "read_rnd_envanim_like_miloeditor",
+                 "venue EnvAnim loader uses a source-shaped reader");
+  ok &= contains(gameplay_c,
+                 "if(revision>4)throwstd::runtime_error("
+                 "\"RndEnvAnimrevisionunsupported\");",
+                 "venue EnvAnim reader keeps ihatecompvir/rb3 revision cap");
+  ok &= contains(gameplay_c,
+                 "if(revision>3){std::unordered_map<std::string,MiloValue>"
+                 "object_props;read_object_fields_like_miloeditor("
+                 "r,object_props);}(void)read_rnd_animatable_like_miloeditor(r);",
+                 "venue EnvAnim reader follows rb3 Object/RndAnimatable order");
   ok &= contains(gameplay_h_c,
                  "std::stringenvironment;std::stringkeys_owner;",
                  "venue EnvAnim keeps inherited key-owner refs");
   ok &= contains(gameplay_c,
-                 "autokeys_owner=read_milo_string_advance(body,size,pos,128);"
-                 "if(!keys_owner)continue;"
-                 "anim.keys_owner=canonical_milo_ref(*keys_owner);",
+                 "anim.environment=canonical_milo_ref(r.symbol());",
+                 "venue EnvAnim reader decodes the source environ pointer");
+  ok &= contains(gameplay_c,
+                 "read_rnd_envanim_color_keys_like_miloeditor("
+                 "r,\"ambient\",anim.color_keys,ambient_last_frame);"
+                 "anim.keys_owner=canonical_milo_ref(r.symbol());",
                  "venue EnvAnim loader decodes authored key owners from the source field order");
+  ok &= contains(gameplay_c,
+                 "if(revision>1){"
+                 "read_rnd_envanim_color_keys_like_miloeditor("
+                 "r,\"fog-color\",anim.fog_color_keys,fog_color_last_frame);}"
+                 "if(revision>2)read_rnd_envanim_fog_range_keys_like_miloeditor("
+                 "r,anim.fog_range_keys);",
+                 "venue EnvAnim reader follows rb3 fog key revision gates");
   ok &= contains(gameplay_c,
                  "anim.color_keys=owner->second.color_keys;"
                  "anim.fog_color_keys=owner->second.fog_color_keys;"
@@ -4761,10 +4781,23 @@ int main() {
                  "load_venue_light_anims",
                  "venue LightAnim loader exists");
   ok &= contains(gameplay_c,
-                 "if(version!=2)continue;",
-                 "venue LightAnim loader keeps traced PS2 version");
+                 "std::optional<Gameplay::VenueLightAnim>"
+                 "read_rnd_lightanim_like_miloeditor",
+                 "venue LightAnim loader uses a source-shaped reader");
   ok &= contains(gameplay_c,
-                 "anim.keys_owner=canonical_milo_ref(*keys_owner);",
+                 "if(revision>2)throwstd::runtime_error("
+                 "\"RndLightAnimrevisionunsupported\");",
+                 "venue LightAnim reader keeps ihatecompvir/rb3 revision cap");
+  ok &= contains(gameplay_c,
+                 "if(revision>1){std::unordered_map<std::string,MiloValue>"
+                 "object_props;read_object_fields_like_miloeditor("
+                 "r,object_props);}(void)read_rnd_animatable_like_miloeditor(r);",
+                 "venue LightAnim reader follows rb3 Object/RndAnimatable order");
+  ok &= contains(gameplay_c,
+                 "anim.light=canonical_milo_ref(r.symbol());",
+                 "venue LightAnim reader decodes the source light pointer");
+  ok &= contains(gameplay_c,
+                 "anim.keys_owner=canonical_milo_ref(r.symbol());",
                  "venue LightAnim loader preserves key-owner references");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<Gameplay::VenueEventAnimRoute>>"
