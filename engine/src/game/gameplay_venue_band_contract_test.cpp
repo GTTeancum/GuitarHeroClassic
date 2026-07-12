@@ -4149,13 +4149,37 @@ int main() {
                  "std::vector<std::string>wait_for_events;",
                  "EventTrigger decoder preserves source wait_for_events");
   ok &= contains(gameplay_c,
+                 "std::stringnext_link;",
+                 "EventTrigger decoder preserves source next_link refs");
+  ok &= contains(gameplay_c,
                  "read_event_trigger_symbol_list(body,size,cursor,"
                  "out.wait_for_events)",
                  "EventTrigger decoder reads wait_for_events after enable/disable");
   ok &= contains(gameplay_c,
+                 "read_packed_symbol_event_cursor(body,size,cursor,"
+                 "out.next_link)",
+                 "EventTrigger decoder reads next_link after wait_for_events");
+  ok &= contains(gameplay_c,
                  "for(constauto&wait_for_event:trigger.wait_for_events)"
                  "push_unique_ref(keys,wait_for_event);",
                  "EventTrigger wait_for_events become source trigger route aliases");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "load_venue_event_next_links(",
+                 "venue EventTrigger next_link routes are decoded from MILO");
+  ok &= contains(gameplay_c,
+                 "merge_venue_event_next_links(",
+                 "lighting overlay EventTrigger next_link routes merge with venue routes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "venue_event_next_links_;",
+                 "runtime stores EventTrigger next_link route chains");
+  ok &= contains(gameplay_c,
+                 "if(next_link_depth>=16)",
+                 "EventTrigger next_link recursion is bounded");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(linked_event,false,false,next_link_depth+1);",
+                 "EventTrigger next_link fires linked trigger routes transitively");
   ok &= contains(gameplay_c,
                  "venue_event_trigger_route_keys(de.name,body,size,event_label)",
                  "venue EventTrigger route loaders include wait_for aliases");
@@ -4254,6 +4278,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "route.delay=read_f32_at_unchecked(body,cursor+5);",
                  "EventTrigger Anim rows decode source delay after wait byte");
+  ok &= contains(gameplay_c,
+                 "gRev<=9readsanim/blend/wait/delay,thenResetAnimsupplies"
+                 "filtertimingfromthetargetanim.",
+                 "GH2 rev8 EventTrigger Anim rows keep the rb3 source short-row layout");
   ok &= contains(gameplay_c,
                  "boolis_direct_venue_anim_ref(std::string_viewref)",
                  "venue direct animation ref classifier is shared");

@@ -825,6 +825,7 @@ struct DecodedVenueEventTrigger {
     std::vector<std::string> enable_events;
     std::vector<std::string> disable_events;
     std::vector<std::string> wait_for_events;
+    std::string next_link;
 };
 
 std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
@@ -850,8 +851,7 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
         if (!read_packed_symbol_event_cursor(body, size, cursor, anim))
             return std::nullopt;
         if (cursor + 9 > size) return std::nullopt;
-        // Matches ihatecompvir EventTrigger.Anim: Symbol anim, float blend,
-        // bool wait, float delay for GH2 rev8/RB gRev <= 9.
+        // Matches ihatecompvir/rb3 EventTrigger::Anim for GH2 rev8: gRev <= 9 reads anim/blend/wait/delay, then ResetAnim supplies filter timing from the target anim.
         DecodedVenueEventTrigger::AnimRoute route;
         route.ref = std::move(anim);
         route.blend = read_f32_at_unchecked(body, cursor);
@@ -881,6 +881,8 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
         return std::nullopt;
     if (!read_event_trigger_symbol_list(body, size, cursor,
                                         out.wait_for_events))
+        return std::nullopt;
+    if (!read_packed_symbol_event_cursor(body, size, cursor, out.next_link))
         return std::nullopt;
     return out;
 }
@@ -5338,6 +5340,74 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
                      milo_path.c_str(), ex.what());
     }
     return out;
+}
+
+std::map<std::string, std::vector<std::string>> load_venue_event_next_links(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+    std::map<std::string, std::vector<std::string>> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
+                continue;
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            const auto trigger = decode_venue_event_trigger_rev8(body, size);
+            if (!trigger) continue;
+            std::vector<std::string> next_links;
+            auto add_next_link = [&](std::string ref) {
+                if (ref.empty()) return;
+                std::replace(ref.begin(), ref.end(), '\\', '/');
+                push_unique_ref(next_links,
+                                strip_trigger_suffix(canonical_milo_ref(ref)));
+                const size_t slash = ref.find_last_of('/');
+                if (slash != std::string::npos) {
+                    push_unique_ref(
+                        next_links,
+                        strip_trigger_suffix(
+                            canonical_milo_ref(ref.substr(slash + 1))));
+                }
+            };
+            add_next_link(trigger->next_link);
+            if (next_links.empty()) continue;
+            for (const auto& key : event_trigger_route_keys(de.name, *trigger)) {
+                for (const auto& next_link : next_links)
+                    push_unique_ref(out[key], next_link);
+            }
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr, "[world] EventTrigger next_link %s ->",
+                             de.name.c_str());
+                for (const auto& next_link : next_links)
+                    std::fprintf(stderr, " %s", next_link.c_str());
+                std::fprintf(stderr, "\n");
+            }
+        }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] EventTrigger next_links loaded %s: %zu events\n",
+                         milo_path.c_str(), out.size());
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] EventTrigger next_link load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+void merge_venue_event_next_links(
+    std::map<std::string, std::vector<std::string>>& dst,
+    const std::map<std::string, std::vector<std::string>>& src) {
+    for (const auto& [event, links] : src) {
+        auto& routed = dst[event];
+        for (const auto& link : links) push_unique_ref(routed, link);
+    }
 }
 
 std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
@@ -19716,7 +19786,8 @@ void Gameplay::update_venue_script_tasks() {
 
 void Gameplay::apply_venue_event(const std::string& event_name,
                                  bool persistent,
-                                 bool force_persistent) {
+                                 bool force_persistent,
+                                 int next_link_depth) {
     if (event_name.empty()) return;
     if (persistent && !world_) {
         active_venue_event_ = event_name;
@@ -20410,6 +20481,24 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         std::fprintf(stderr,
                      "[world] event %s: no decoded venue/lighting routes\n",
                      event_name.c_str());
+    }
+    if (next_link_depth >= 16) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue event %s: next_link recursion guard\n",
+                         event_name.c_str());
+        }
+        return;
+    }
+    const auto next_links_it = venue_event_next_links_.find(event_name);
+    if (next_links_it == venue_event_next_links_.end()) return;
+    for (const auto& linked_event : next_links_it->second) {
+        if (linked_event.empty() || linked_event == event_name) continue;
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr, "[world] venue event %s: next_link -> %s\n",
+                         event_name.c_str(), linked_event.c_str());
+        }
+        apply_venue_event(linked_event, false, false, next_link_depth + 1);
     }
 }
 
@@ -25361,6 +25450,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 venue_geom, venue_scene);
+                venue_event_next_links_ =
+                    load_venue_event_next_links(hdr_path_, ark_path_,
+                                                venue_geom);
                 venue_event_trigger_gates_ =
                     load_venue_event_trigger_gates(hdr_path_, ark_path_,
                                                    venue_geom);
@@ -25604,6 +25696,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 lighting_milo, lighting_scene);
+                merge_venue_event_next_links(
+                    venue_event_next_links_,
+                    load_venue_event_next_links(hdr_path_, ark_path_,
+                                                lighting_milo));
                 {
                     auto script_objects = load_venue_script_object_instances(
                         hdr_path_, ark_path_, lighting_milo);

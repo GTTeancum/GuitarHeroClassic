@@ -631,7 +631,8 @@ class Gameplay {
 
  private:
   void apply_venue_event(const std::string& event_name, bool persistent = true,
-                         bool force_persistent = false);
+                         bool force_persistent = false,
+                         int next_link_depth = 0);
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
   void update_venue_event_trigger_gates(const std::string& event_name);
   bool venue_event_trigger_enabled_by_name(
@@ -942,6 +943,7 @@ class Gameplay {
   std::map<std::string, std::vector<VenueAnimFilter>> venue_direct_anim_filters_;
   std::vector<VenueAnimFilter> venue_poll_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
+  std::map<std::string, std::vector<std::string>> venue_event_next_links_;
   std::vector<VenueEventTriggerGate> venue_event_trigger_gates_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
   std::map<std::string, std::map<std::string, VenueScriptHandler>>
