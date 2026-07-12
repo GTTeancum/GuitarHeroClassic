@@ -1159,6 +1159,57 @@ int main() {
   CHECK(set_faces.resize_faces);
   CHECK(set_faces.on_sync_mask == 0x3f);
 
+  const auto resize_capacity =
+      ghogx::character::source_rndmesh_vert_vector_resize_plan(8, 3, 5, true);
+  CHECK(resize_capacity.stores_unka);
+  CHECK(resize_capacity.requested_unka);
+  CHECK(resize_capacity.capacity_path);
+  CHECK(!resize_capacity.dynamic_path);
+  CHECK(!resize_capacity.assertion_would_fail);
+  CHECK(resize_capacity.resulting_count == 5);
+
+  const auto resize_capacity_fail =
+      ghogx::character::source_rndmesh_vert_vector_resize_plan(4, 3, 5, false);
+  CHECK(resize_capacity_fail.capacity_path);
+  CHECK(resize_capacity_fail.assertion_would_fail);
+  CHECK(resize_capacity_fail.resulting_count == 3);
+
+  const auto resize_release =
+      ghogx::character::source_rndmesh_vert_vector_resize_plan(0, 3, 0, false);
+  CHECK(resize_release.dynamic_path);
+  CHECK(resize_release.releases_verts);
+  CHECK(resize_release.resulting_count == 0);
+
+  const auto resize_copy =
+      ghogx::character::source_rndmesh_vert_vector_resize_plan(0, 3, 5, true);
+  CHECK(resize_copy.dynamic_path);
+  CHECK(resize_copy.allocates_new_verts);
+  CHECK(resize_copy.copies_old_verts);
+  CHECK(resize_copy.copied_vert_count == 3);
+  CHECK(resize_copy.deletes_old_verts);
+  CHECK(resize_copy.resulting_count == 5);
+
+  const auto reserve_ok =
+      ghogx::character::source_rndmesh_vert_vector_reserve_plan(0, 3, 8, true);
+  CHECK(!reserve_ok.assertion_would_fail);
+  CHECK(!reserve_ok.overflow_fail);
+  CHECK(reserve_ok.clears_capacity_before_resize);
+  CHECK(reserve_ok.resize_step.allocates_new_verts);
+  CHECK(reserve_ok.resize_step.resulting_count == 8);
+  CHECK(reserve_ok.resulting_capacity == 8);
+  CHECK(reserve_ok.resulting_count == 3);
+
+  const auto reserve_assert =
+      ghogx::character::source_rndmesh_vert_vector_reserve_plan(8, 3, 7, false);
+  CHECK(reserve_assert.assertion_would_fail);
+  CHECK(!reserve_assert.clears_capacity_before_resize);
+  const auto reserve_overflow =
+      ghogx::character::source_rndmesh_vert_vector_reserve_plan(0, 3, 0x10000,
+                                                               false);
+  CHECK(reserve_overflow.overflow_fail);
+  CHECK(reserve_overflow.clears_capacity_before_resize);
+  CHECK(reserve_overflow.resulting_capacity == 0);
+
   const auto keep_same =
       ghogx::character::source_rndmesh_set_keep_mesh_data_plan(true, true);
   CHECK(!keep_same.changed);

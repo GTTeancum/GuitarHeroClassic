@@ -1095,6 +1095,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     branches. The source-visible box branch grows a box and allocates a
     `BSPNode`, but both box/BSP branch bodies are incomplete in the checked
     source and must not be treated as a native BSP implementation.
+  - Native `source_rndmesh_vert_vector_resize_plan` and
+    `source_rndmesh_vert_vector_reserve_plan` port the checked
+    `RndMesh::VertVector` storage rules: `resize` stores the incoming `unka`
+    flag, uses a fixed-capacity path when `mCapacity` is nonzero, releases
+    vertices on resize-to-zero, otherwise allocates a new vertex buffer, copies
+    `Min(newCount, oldCount)` rows, and deletes the old buffer. `reserve`
+    asserts that capacity grows past both current capacity and current count,
+    clears capacity, fails above `0xFFFF` before resizing, otherwise delegates
+    to `resize`, then restores `mCapacity` and the previous vertex count.
   - Native `source_rndmesh_pre_load_vertices_plan` and
     `source_rndmesh_post_load_vertices_plan` record the visible vertex-load
     support path: alternate revisions above `4` create a front `FileLoader`,

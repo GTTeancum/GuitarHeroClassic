@@ -666,6 +666,34 @@ struct SourceRndMeshCountPlan {
   int32_t on_sync_mask = 0x3f;
 };
 
+struct SourceRndMeshVertVectorResizePlan {
+  int32_t requested_count = 0;
+  bool requested_unka = false;
+  bool stores_unka = true;
+  bool capacity_path = false;
+  bool dynamic_path = false;
+  bool assertion_would_fail = false;
+  bool releases_verts = false;
+  bool allocates_new_verts = false;
+  bool copies_old_verts = false;
+  int32_t copied_vert_count = 0;
+  bool deletes_old_verts = false;
+  int32_t resulting_count = 0;
+};
+
+struct SourceRndMeshVertVectorReservePlan {
+  int32_t requested_capacity = 0;
+  bool requested_unka = false;
+  bool asserts_capacity_grows = true;
+  bool asserts_above_current_count = true;
+  bool assertion_would_fail = false;
+  bool overflow_fail = false;
+  bool clears_capacity_before_resize = false;
+  SourceRndMeshVertVectorResizePlan resize_step;
+  int32_t resulting_capacity = 0;
+  int32_t resulting_count = 0;
+};
+
 struct SourceRndMeshKeepMeshDataPlan {
   bool changed = false;
   bool keep_mesh_data = false;
@@ -790,6 +818,16 @@ SourceRndMeshCountPlan source_rndmesh_set_num_verts_plan(
 SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
     int32_t count,
     bool keep_mesh_data);
+SourceRndMeshVertVectorResizePlan source_rndmesh_vert_vector_resize_plan(
+    int32_t current_capacity,
+    int32_t current_count,
+    int32_t requested_count,
+    bool resize_bool);
+SourceRndMeshVertVectorReservePlan source_rndmesh_vert_vector_reserve_plan(
+    int32_t current_capacity,
+    int32_t current_count,
+    int32_t requested_capacity,
+    bool resize_bool);
 SourceRndMeshKeepMeshDataPlan source_rndmesh_set_keep_mesh_data_plan(
     bool current_keep_mesh_data,
     bool requested_keep_mesh_data);

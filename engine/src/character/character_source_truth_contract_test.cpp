@@ -2991,6 +2991,19 @@ int run_contract() {
                  "Sync(0x3F);}",
                  "RB3 RndMesh SetNumFaces sync behavior");
   ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::VertVector::resize(intn,boolb){unka=b;"
+                 "if(mCapacity){MILO_ASSERT(n<=mCapacity,0x26A);mNumVerts=n;}",
+                 "RB3 RndMesh VertVector resize fixed-capacity branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(n==0){RELEASE(mVerts);mNumVerts=0;}elseif(n!=mNumVerts)"
+                 "{Vert*oldverts=mVerts;intoldvertcount=Min(n,mNumVerts);",
+                 "RB3 RndMesh VertVector resize dynamic branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::VertVector::reserve(intcapacity,boolb){"
+                 "MILO_ASSERT(capacity>mCapacity,0x297);MILO_ASSERT("
+                 "capacity>mNumVerts,0x298);mCapacity=0;intnum=mNumVerts;",
+                 "RB3 RndMesh VertVector reserve asserts and clears capacity");
+  ok &= contains(rb3_mesh_cpp,
                  "if(keep!=mKeepMeshData){mKeepMeshData=keep;if(!mKeepMeshData)"
                  "{mVerts.clear();mFaces=std::vector<Face>();"
                  "mPatches=std::vector<unsignedchar>();}}",
@@ -4118,6 +4131,12 @@ int run_contract() {
                  "structSourceRndMeshSetVolumePlan{int32_trequested_volume=0;",
                  "native exposes RndMesh SetVolume source helper");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshVertVectorResizePlan{",
+                 "native exposes RndMesh VertVector resize plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshVertVectorReservePlan{",
+                 "native exposes RndMesh VertVector reserve plan");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshPreLoadVerticesPlan{int32_talt_revision=0;",
                  "native exposes RndMesh PreLoadVertices source helper");
   ok &= contains(char_mesh_h,
@@ -4173,6 +4192,14 @@ int run_contract() {
                  "int32_trequested_volume,boolowner_is_self,boolhas_vertices,"
                  "boolhas_faces)",
                  "native implements RndMesh SetVolume source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshVertVectorResizePlan"
+                 "source_rndmesh_vert_vector_resize_plan(",
+                 "native implements RndMesh VertVector resize helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshVertVectorReservePlan"
+                 "source_rndmesh_vert_vector_reserve_plan(",
+                 "native implements RndMesh VertVector reserve helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshPreLoadVerticesPlansource_rndmesh_pre_load_vertices_plan("
                  "int32_talt_revision)",
@@ -4281,6 +4308,24 @@ int run_contract() {
                  "plan.enters_volume_bsp_branch=true;plan.volume_bsp_body_incomplete=true;}",
                  "native SetVolume helper fences incomplete volume branches");
   ok &= contains(char_mesh,
+                 "plan.capacity_path=true;plan.assertion_would_fail="
+                 "requested_count>current_capacity;",
+                 "native VertVector resize helper mirrors capacity assertion");
+  ok &= contains(char_mesh,
+                 "plan.copied_vert_count=std::min(requested_count,current_count);",
+                 "native VertVector resize helper mirrors source Min copy count");
+  ok &= contains(char_mesh,
+                 "plan.assertion_would_fail=requested_capacity<=current_capacity||"
+                 "requested_capacity<=current_count;",
+                 "native VertVector reserve helper mirrors growth assertions");
+  ok &= contains(char_mesh,
+                 "plan.clears_capacity_before_resize=true;plan.resulting_capacity=0;"
+                 "if(plan.overflow_fail)returnplan;",
+                 "native VertVector reserve helper mirrors clear-before-overflow-fail flow");
+  ok &= contains(char_mesh,
+                 "plan.resize_step=source_rndmesh_vert_vector_resize_plan(",
+                 "native VertVector reserve helper mirrors resize delegation");
+  ok &= contains(char_mesh,
                  "plan.creates_file_loader=alt_revision>4;returnplan;",
                  "native PreLoadVertices helper mirrors source alt-revision gate");
   ok &= contains(char_mesh,
@@ -4355,6 +4400,12 @@ int run_contract() {
                  "source_rndmesh_set_volume_plan(",
                  "focused mesh decode test covers RndMesh SetVolume helper");
   ok &= contains(mesh_decode_test,
+                 "source_rndmesh_vert_vector_resize_plan(8,3,5,true)",
+                 "focused mesh decode test covers VertVector capacity resize");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_vert_vector_reserve_plan(0,3,8,true)",
+                 "focused mesh decode test covers VertVector reserve");
+  ok &= contains(mesh_decode_test,
                  "source_rndmesh_pre_load_vertices_plan(",
                  "focused mesh decode test covers RndMesh PreLoadVertices helper");
   ok &= contains(mesh_decode_test,
@@ -4393,6 +4444,9 @@ int run_contract() {
   ok &= contains(doc,
                  "both box/BSP branch bodies are incomplete in the checked",
                  "document fences incomplete RndMesh SetVolume branches");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_vert_vector_resize_plan` and",
+                 "document records RndMesh VertVector helpers");
   ok &= contains(doc,
                  "Native `source_rndmesh_pre_load_vertices_plan` and",
                  "document records RndMesh vertex-load helper");

@@ -1223,6 +1223,62 @@ SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
   return plan;
 }
 
+SourceRndMeshVertVectorResizePlan source_rndmesh_vert_vector_resize_plan(
+    int32_t current_capacity,
+    int32_t current_count,
+    int32_t requested_count,
+    bool resize_bool) {
+  SourceRndMeshVertVectorResizePlan plan;
+  plan.requested_count = requested_count;
+  plan.requested_unka = resize_bool;
+  plan.resulting_count = current_count;
+  if (current_capacity != 0) {
+    plan.capacity_path = true;
+    plan.assertion_would_fail = requested_count > current_capacity;
+    if (!plan.assertion_would_fail) plan.resulting_count = requested_count;
+    return plan;
+  }
+
+  plan.dynamic_path = true;
+  if (requested_count == 0) {
+    plan.releases_verts = true;
+    plan.resulting_count = 0;
+  } else if (requested_count != current_count) {
+    plan.allocates_new_verts = true;
+    plan.copied_vert_count = std::min(requested_count, current_count);
+    plan.copies_old_verts = plan.copied_vert_count > 0;
+    plan.deletes_old_verts = true;
+    plan.resulting_count = requested_count;
+  }
+  return plan;
+}
+
+SourceRndMeshVertVectorReservePlan source_rndmesh_vert_vector_reserve_plan(
+    int32_t current_capacity,
+    int32_t current_count,
+    int32_t requested_capacity,
+    bool resize_bool) {
+  SourceRndMeshVertVectorReservePlan plan;
+  plan.requested_capacity = requested_capacity;
+  plan.requested_unka = resize_bool;
+  plan.assertion_would_fail = requested_capacity <= current_capacity ||
+                              requested_capacity <= current_count;
+  plan.overflow_fail = requested_capacity < 0 || requested_capacity > 0xffff;
+  plan.resulting_capacity = current_capacity;
+  plan.resulting_count = current_count;
+  if (plan.assertion_would_fail) return plan;
+
+  plan.clears_capacity_before_resize = true;
+  plan.resulting_capacity = 0;
+  if (plan.overflow_fail) return plan;
+
+  plan.resize_step = source_rndmesh_vert_vector_resize_plan(
+      0, current_count, requested_capacity, resize_bool);
+  plan.resulting_capacity = requested_capacity;
+  plan.resulting_count = current_count;
+  return plan;
+}
+
 SourceRndMeshKeepMeshDataPlan source_rndmesh_set_keep_mesh_data_plan(
     bool current_keep_mesh_data,
     bool requested_keep_mesh_data) {
