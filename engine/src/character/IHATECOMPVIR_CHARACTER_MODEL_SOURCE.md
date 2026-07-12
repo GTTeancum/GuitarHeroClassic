@@ -442,6 +442,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     null-terminated strings for parent directories `<= 6` and symbols
     otherwise; revision `> 6` reads constraint and preserve-scale; revision
     `> 5` reads target; parent is always read.
+- `rb3-latest/src/system/rndobj/Anim.cpp`
+  - `RndAnimatable::Load` accepts revisions `0..4`; the constructor defaults
+    frame to `0.0` and rate to `k30_fps`. Revisions above 1 read frame,
+    revisions above 3 read integer rate, revision 3 reads the legacy byte-rate
+    row, and revision 0 reads old filter rows plus the old anim-list conversion
+    branch.
+  - Shared native `source_rndanimatable_load_plan` records these gates for
+    embedded `RndAnimatable` bases such as `RndGroup` without promoting the
+    legacy revision-0 conversion branch into runtime behavior.
 - `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
   - `RndDrawable.Read` reads combined revision, showing, optional sphere, and
     draw order for revisions greater than 2.
@@ -1367,9 +1376,10 @@ note, and all report `unreadBytes=0`.
   - `RndAnimatable::Load` reads a source revision, optional `mFrame`, then
     `mRate` for revisions above 3 or a legacy byte rate for revision 3. Revision
     0 branches into an old anim-filter/object-list conversion path.
-  - Native GHOGX decodes the revisioned frame/rate fields and fences the
-    revision-0 object-list branch until the relevant object-list serialization
-    path is source-backed in this decoder.
+  - Native GHOGX decodes the revisioned frame/rate fields, exposes
+    `source_rndanimatable_load_plan` for shared embedded-base tests, and fences
+    the revision-0 object-list branch until the relevant object-list
+    serialization path is source-backed in this decoder.
 - `rb3-latest/src/system/rndobj/AnimFilter.cpp` and
   `rb3-latest/src/system/rndobj/AnimFilter.h`
   - `RndAnimFilter::Load` accepts source revisions through 2. It loads

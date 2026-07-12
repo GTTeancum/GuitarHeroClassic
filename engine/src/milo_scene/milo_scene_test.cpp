@@ -205,6 +205,39 @@ void test_mat() {
 }
 
 void test_group() {
+  const SourceRndAnimatableLoadPlan anim_v4 =
+      source_rndanimatable_load_plan(4);
+  CHECK(anim_v4.accepted_revision);
+  CHECK(anim_v4.default_frame_zero);
+  CHECK(anim_v4.default_rate_30_fps);
+  CHECK(anim_v4.reads_frame);
+  CHECK(anim_v4.reads_int_rate);
+  CHECK(!anim_v4.reads_legacy_byte_rate);
+  CHECK(!anim_v4.reads_legacy_rev0_filter_rows);
+
+  const SourceRndAnimatableLoadPlan anim_v3 =
+      source_rndanimatable_load_plan(3);
+  CHECK(anim_v3.reads_frame);
+  CHECK(!anim_v3.reads_int_rate);
+  CHECK(anim_v3.reads_legacy_byte_rate);
+
+  const SourceRndAnimatableLoadPlan anim_v1 =
+      source_rndanimatable_load_plan(1);
+  CHECK(!anim_v1.reads_frame);
+  CHECK(!anim_v1.reads_int_rate);
+  CHECK(!anim_v1.reads_legacy_byte_rate);
+  CHECK(!anim_v1.reads_legacy_rev0_filter_rows);
+
+  const SourceRndAnimatableLoadPlan anim_v0 =
+      source_rndanimatable_load_plan(0);
+  CHECK(anim_v0.accepted_revision);
+  CHECK(anim_v0.reads_legacy_rev0_filter_rows);
+  CHECK(anim_v0.reads_legacy_rev0_anim_list);
+
+  const SourceRndAnimatableLoadPlan anim_v5 =
+      source_rndanimatable_load_plan(5);
+  CHECK(!anim_v5.accepted_revision);
+
   const SourceRndDrawableLoadPlan drawable_v3 =
       source_rnddrawable_load_plan(3, 24);
   CHECK(drawable_v3.reads_showing);

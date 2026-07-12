@@ -1338,6 +1338,35 @@ int run_contract() {
                  "constSourceRndTransLoadPlanrev8_old_parent="
                  "source_rndtrans_load_plan(8,6,false);",
                  "milo_scene test covers legacy RndTrans child-list plan");
+  ok &= contains(doc,
+                 "Shared native `source_rndanimatable_load_plan` records "
+                 "these gates",
+                 "document records shared RndAnimatable plan");
+  ok &= contains(scene_h,
+                 "structSourceRndAnimatableLoadPlan{",
+                 "shared milo_scene exposes source RndAnimatable load plan");
+  ok &= contains(scene,
+                 "SourceRndAnimatableLoadPlansource_rndanimatable_load_plan(",
+                 "shared milo_scene implements source RndAnimatable load plan");
+  ok &= contains(scene,
+                 "plan.accepted_revision=revision>=0&&revision<=4;",
+                 "shared RndAnimatable plan mirrors accepted revision range");
+  ok &= contains(scene,
+                 "plan.reads_frame=revision>1;plan.reads_int_rate=revision>3;"
+                 "plan.reads_legacy_byte_rate=revision>2&&revision<=3;",
+                 "shared RndAnimatable plan mirrors frame/rate gates");
+  ok &= contains(scene,
+                 "plan.reads_legacy_rev0_filter_rows=revision<1;"
+                 "plan.reads_legacy_rev0_anim_list=revision<1;",
+                 "shared RndAnimatable plan mirrors legacy rev0 branch");
+  ok &= contains(scene_test,
+                 "constSourceRndAnimatableLoadPlananim_v4="
+                 "source_rndanimatable_load_plan(4);",
+                 "milo_scene test covers modern RndAnimatable plan");
+  ok &= contains(scene_test,
+                 "constSourceRndAnimatableLoadPlananim_v0="
+                 "source_rndanimatable_load_plan(0);",
+                 "milo_scene test covers legacy RndAnimatable plan");
   ok &= contains(char_mesh,
                  "out.local=r.matrix();out.world=r.matrix();if(ver<9)",
                  "character RndTrans local/world/legacy-child order");
@@ -8362,6 +8391,9 @@ int run_contract() {
                  "if(gRev>1){bs>>mSnap>>mJitter;}",
                  "RndAnimFilter source load gates snap and jitter");
   ok &= contains(rb3_latest_anim_cpp,
+                 "RndAnimatable::RndAnimatable():mFrame(0.0f),mRate(k30_fps)",
+                 "RndAnimatable source defaults frame and rate");
+  ok &= contains(rb3_latest_anim_cpp,
                  "BEGIN_LOADS(RndAnimatable)LOAD_REVS(bs);ASSERT_REVS(4,0);"
                  "if(gRev>1)bs>>mFrame;",
                  "RndAnimatable source load reads frame gate");
@@ -8369,6 +8401,9 @@ int run_contract() {
                  "if(gRev>3){bs>>(int&)mRate;}elseif(gRev>2){"
                  "unsignedcharuc;bs>>uc;mRate=(Rate)(uc==0);}",
                  "RndAnimatable source load reads rate gates");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "if(gRev<1){intcount;bs>>count;",
+                 "RndAnimatable source load gates legacy rev0 branch");
   ok &= contains(char_mesh_h,
                  "structRndAnimFilter{std::stringname;int32_tversion=0;",
                  "native stores RndAnimFilter source fields");

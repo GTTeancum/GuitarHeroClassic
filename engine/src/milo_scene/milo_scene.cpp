@@ -415,6 +415,19 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
   return plan;
 }
 
+SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
+    int32_t revision) {
+  SourceRndAnimatableLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 4;
+  plan.reads_frame = revision > 1;
+  plan.reads_int_rate = revision > 3;
+  plan.reads_legacy_byte_rate = revision > 2 && revision <= 3;
+  plan.reads_legacy_rev0_filter_rows = revision < 1;
+  plan.reads_legacy_rev0_anim_list = revision < 1;
+  return plan;
+}
+
 TransObj decode_trans(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

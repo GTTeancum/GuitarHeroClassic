@@ -122,6 +122,21 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t parent_revision,
     bool standalone);
 
+struct SourceRndAnimatableLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool default_frame_zero = true;
+  bool default_rate_30_fps = true;
+  bool reads_frame = false;
+  bool reads_int_rate = false;
+  bool reads_legacy_byte_rate = false;
+  bool reads_legacy_rev0_filter_rows = false;
+  bool reads_legacy_rev0_anim_list = false;
+};
+
+SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
+    int32_t revision);
+
 struct TransObj {
   std::string name;          // the entry name
   Xfm local;                 // local matrix (matrix 1)
