@@ -883,6 +883,39 @@ void test_prop_anim() {
 }
 
 void test_mat() {
+  const SourceRndMatDefaultState defaults = source_rndmat_default_state();
+  CHECK(approx(defaults.color[0], 1.0f));
+  CHECK(approx(defaults.color[3], 1.0f));
+  CHECK(defaults.diffuse_tex_null);
+  CHECK(defaults.alpha_threshold == 0);
+  CHECK(defaults.next_pass_null);
+  CHECK(defaults.emissive_map_null);
+  CHECK(approx(defaults.refract_strength, 0.0f));
+  CHECK(defaults.refract_normal_map_null);
+  CHECK(!defaults.intensify);
+  CHECK(defaults.use_environ);
+  CHECK(!defaults.prelit);
+  CHECK(!defaults.alpha_cut);
+  CHECK(!defaults.alpha_write);
+  CHECK(defaults.cull);
+  CHECK(!defaults.per_pixel_lit);
+  CHECK(!defaults.screen_aligned);
+  CHECK(!defaults.refract_enabled);
+  CHECK(!defaults.point_lights);
+  CHECK(!defaults.fog);
+  CHECK(!defaults.fadeout);
+  CHECK(!defaults.color_adjust);
+  CHECK(defaults.blend == 1);
+  CHECK(defaults.tex_gen == 0);
+  CHECK(defaults.tex_wrap == 1);
+  CHECK(defaults.z_mode == 1);
+  CHECK(defaults.stencil_mode == 0);
+  CHECK(defaults.shader_variation == 0);
+  CHECK(defaults.dirty == 3);
+  CHECK(approx(defaults.emissive_multiplier, 1.0f));
+  CHECK(defaults.tex_xfm_reset);
+  CHECK(defaults.color_mod_count == 3);
+
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
   CHECK(v27_plan.reads_color);
@@ -965,6 +998,33 @@ void test_mat() {
   CHECK(m.has_cull);
   CHECK(!m.cull);
   CHECK(approx(m.emissive_multiplier, 1.0f));
+  const SourceRndMatAccessorResult accessors = source_rndmat_accessors(m);
+  CHECK(accessors.blend == 4);
+  CHECK(accessors.z_mode == 2);
+  CHECK(accessors.tex_wrap == 4);
+  CHECK(accessors.diffuse_tex == "gem.tex");
+  CHECK(accessors.next_pass.empty());
+  CHECK(approx(accessors.alpha, 1.0f));
+
+  const SourceRndMatSetterPlan set_alpha =
+      source_rndmat_setter_plan("SetAlpha");
+  CHECK(set_alpha.writes_member);
+  CHECK(set_alpha.writes_alpha_only);
+  CHECK(set_alpha.dirty_or_mask == 1);
+  const SourceRndMatSetterPlan set_blend =
+      source_rndmat_setter_plan("SetBlend");
+  CHECK(set_blend.writes_member);
+  CHECK(!set_blend.writes_alpha_only);
+  CHECK(set_blend.dirty_or_mask == 2);
+  const SourceRndMatSetterPlan set_threshold =
+      source_rndmat_setter_plan("SetAlphaThreshold");
+  CHECK(set_threshold.writes_member);
+  CHECK(set_threshold.dirty_or_mask == 0);
+  const SourceRndMatSetterPlan set_color =
+      source_rndmat_setter_plan("SetColor");
+  CHECK(set_color.writes_member);
+  CHECK(set_color.writes_rgb_only);
+  CHECK(set_color.dirty_or_mask == 1);
   std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),

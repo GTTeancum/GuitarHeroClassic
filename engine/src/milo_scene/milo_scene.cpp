@@ -1777,6 +1777,47 @@ SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
   return plan;
 }
 
+SourceRndMatDefaultState source_rndmat_default_state() {
+  return SourceRndMatDefaultState{};
+}
+
+SourceRndMatAccessorResult source_rndmat_accessors(const MatObj& mat) {
+  SourceRndMatAccessorResult out;
+  out.blend = mat.blend;
+  out.z_mode = mat.z_mode;
+  out.tex_wrap = mat.tex_wrap;
+  out.diffuse_tex = mat.diffuse_tex;
+  out.next_pass = mat.next_pass;
+  out.alpha = mat.color[3];
+  return out;
+}
+
+SourceRndMatSetterPlan source_rndmat_setter_plan(
+    const std::string& setter) {
+  SourceRndMatSetterPlan plan;
+  plan.setter = setter;
+  if (setter == "SetTexXfm" || setter == "SetZMode" ||
+      setter == "SetDiffuseTex" || setter == "SetUseEnv" ||
+      setter == "SetPreLit" || setter == "SetBlend" ||
+      setter == "SetAlphaCut" || setter == "SetTexWrap" ||
+      setter == "SetPerPixelLit") {
+    plan.writes_member = true;
+    plan.dirty_or_mask = 2;
+  } else if (setter == "SetAlpha") {
+    plan.writes_member = true;
+    plan.writes_alpha_only = true;
+    plan.dirty_or_mask = 1;
+  } else if (setter == "SetColor") {
+    plan.writes_member = true;
+    plan.writes_rgb_only = true;
+    plan.dirty_or_mask = 1;
+  } else if (setter == "SetAlphaThreshold" ||
+             setter == "SetPointLights") {
+    plan.writes_member = true;
+  }
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

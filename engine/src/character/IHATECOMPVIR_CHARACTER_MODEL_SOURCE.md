@@ -1213,7 +1213,10 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     a live character rendering import.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
-    `kRepeat`, and z mode `kNormal`.
+    `kRepeat`, z mode `kNormal`, cull true, white RGBA, environment enabled,
+    alpha-cut/write/per-pixel/point/fog/fadeout/color-adjust disabled,
+    emissive multiplier `1.0`, texture transform reset, color-mod array reset
+    to three rows, and dirty state `3`.
   - Native render state must come from decoded `RndMat`/`RndDrawable` rows, not
     from mesh or material names such as `hair`, except for the project-level
     hair two-sided cull rule below.
@@ -1227,8 +1230,16 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `next_pass`, `intensify`, `cull`, and `emissive_multiplier` directly from
     that source cursor instead of scanning forward for a filename-shaped
     `.tex` row.
+  - Shared native `source_rndmat_default_state`,
+    `source_rndmat_accessors`, and `source_rndmat_setter_plan` record the
+    checked constructor, direct member accessors, and setter dirty-bit rules:
+    alpha/color setters dirty color state with bit `1`, transform/render-state
+    setters dirty bit `2`, while `SetAlphaThreshold` and `SetPointLights` write
+    their member without changing `mDirty` in the checked header.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
+  - The source setters directly write members; they do not encode hair/string
+    special cases, sorting rules, or texture-alpha overrides.
 - `rb3/src/system/rndobj/Tex.cpp`
   - `RndTex::Load` is `PreLoad` followed by `PostLoad`.
   - `PreLoad` reads packed revisions, `Hmx::Object` fields for revisions above

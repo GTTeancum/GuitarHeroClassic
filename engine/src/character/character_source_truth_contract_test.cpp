@@ -1260,6 +1260,20 @@ int run_contract() {
                  "document cites RB3 RndMat runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.h",
                  "document cites RB3 RndMat runtime header source");
+  ok &= contains(doc,
+                 "alpha-cut/write/per-pixel/point/fog/fadeout/color-adjust "
+                 "disabled",
+                 "document records fuller RndMat constructor defaults");
+  ok &= contains(doc,
+                 "Shared native `source_rndmat_default_state`,",
+                 "document records RndMat default/accessor helper");
+  ok &= contains(doc,
+                 "alpha/color setters dirty color state with bit `1`",
+                 "document records RndMat setter dirty bit");
+  ok &= contains(doc,
+                 "The source setters directly write members; they do not encode "
+                 "hair/string",
+                 "document fences RndMat setters from name-based fixes");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
@@ -2698,6 +2712,23 @@ int run_contract() {
                  "mZMode(kNormal)",
                  "RB3 RndMat runtime defaults source blend/z/wrap state");
   ok &= contains(rb3_mat_cpp,
+                 "mColor(1.0f,1.0f,1.0f,1.0f),mDiffuseTex(this,0),"
+                 "mAlphaThresh(0),mNextPass(this,0),mEmissiveMap(this,0),"
+                 "mRefractStrength(0.0f),mRefractNormalMap(this,0)",
+                 "RB3 RndMat runtime defaults source color and object refs");
+  ok &= contains(rb3_mat_cpp,
+                 "mIntensify(0),mUseEnviron(1),mPreLit(0),mAlphaCut(0),"
+                 "mAlphaWrite(0),mCull(1),mPerPixelLit(0),mScreenAligned(0)",
+                 "RB3 RndMat runtime defaults source primary flags");
+  ok &= contains(rb3_mat_cpp,
+                 "mRefractEnabled(0),mPointLights(0),mFog(0),mFadeout(0),"
+                 "mColorAdjust(0)",
+                 "RB3 RndMat runtime defaults source secondary flags");
+  ok &= contains(rb3_mat_cpp,
+                 "mEmissiveMultiplier=1.0f;mTexXfm.Reset();"
+                 "ResetColors(mColorMod,3);",
+                 "RB3 RndMat runtime constructor tail defaults");
+  ok &= contains(rb3_mat_cpp,
                  "LOAD_BITFIELD_ENUM(int,mBlend,Blend)bs>>mColor;"
                  "LOAD_BITFIELD(bool,mUseEnviron)LOAD_BITFIELD(bool,mPreLit)"
                  "LOAD_BITFIELD_ENUM(int,mZMode,ZMode)",
@@ -2716,9 +2747,33 @@ int run_contract() {
   ok &= contains(rb3_mat_h,
                  "TexWrapGetTexWrap()const{returnmTexWrap;}",
                  "RB3 RndMat exposes source texture wrap getter");
+  ok &= contains(rb3_mat_h,
+                 "voidSetAlpha(floatf){mColor.alpha=f;mDirty|=1;}",
+                 "RB3 RndMat source SetAlpha dirty bit");
+  ok &= contains(rb3_mat_h,
+                 "voidSetColor(constHmx::Color&col){mColor.Set(col.red,"
+                 "col.green,col.blue);mDirty|=1;}",
+                 "RB3 RndMat source SetColor dirty bit");
+  ok &= contains(rb3_mat_h,
+                 "voidSetBlend(Blendblend){mBlend=blend;mDirty|=2;}",
+                 "RB3 RndMat source SetBlend dirty bit");
+  ok &= contains(rb3_mat_h,
+                 "voidSetAlphaThreshold(intthresh){mAlphaThresh=thresh;}",
+                 "RB3 RndMat source SetAlphaThreshold no dirty write");
+  ok &= contains(rb3_mat_h,
+                 "voidSetPointLights(boollit){mPointLights=lit;}",
+                 "RB3 RndMat source SetPointLights no dirty write");
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
+  ok &= contains(scene_h,
+                 "structSourceRndMatDefaultState{floatcolor[4]={1.0f,1.0f,"
+                 "1.0f,1.0f};",
+                 "shared milo_scene exposes source RndMat default state");
+  ok &= contains(scene_h,
+                 "structSourceRndMatSetterPlan{std::stringsetter;"
+                 "boolwrites_member=false;",
+                 "shared milo_scene exposes source RndMat setter plan");
   ok &= contains(scene_h,
                  "std::stringnext_pass;boolintensify=false;"
                  "floatemissive_multiplier=1.0f;",
@@ -2741,6 +2796,32 @@ int run_contract() {
                  "SourceRndMatLoadPlansource_rndmat_load_plan(int32_trevision)",
                  "shared milo_scene implements source RndMat load plan");
   ok &= contains(scene,
+                 "SourceRndMatDefaultStatesource_rndmat_default_state(){"
+                 "returnSourceRndMatDefaultState{};}",
+                 "shared milo_scene implements source RndMat defaults helper");
+  ok &= contains(scene,
+                 "SourceRndMatAccessorResultsource_rndmat_accessors("
+                 "constMatObj&mat){SourceRndMatAccessorResultout;",
+                 "shared milo_scene implements source RndMat accessor helper");
+  ok &= contains(scene,
+                 "out.blend=mat.blend;out.z_mode=mat.z_mode;out.tex_wrap="
+                 "mat.tex_wrap;out.diffuse_tex=mat.diffuse_tex;",
+                 "shared RndMat accessor helper mirrors direct member returns");
+  ok &= contains(scene,
+                 "if(setter==\"SetTexXfm\"||setter==\"SetZMode\"||"
+                 "setter==\"SetDiffuseTex\"||setter==\"SetUseEnv\"||",
+                 "shared RndMat setter helper mirrors render-state dirty list");
+  ok &= contains(scene,
+                 "plan.writes_alpha_only=true;plan.dirty_or_mask=1;",
+                 "shared RndMat setter helper mirrors alpha dirty bit");
+  ok &= contains(scene,
+                 "plan.writes_rgb_only=true;plan.dirty_or_mask=1;",
+                 "shared RndMat setter helper mirrors color dirty bit");
+  ok &= contains(scene,
+                 "elseif(setter==\"SetAlphaThreshold\"||setter=="
+                 "\"SetPointLights\"){plan.writes_member=true;}",
+                 "shared RndMat setter helper mirrors no-dirty setters");
+  ok &= contains(scene,
                  "plan.reads_alpha_threshold=revision>0x25;",
                  "shared RndMat load plan mirrors alpha-threshold gate");
   ok &= contains(scene,
@@ -2756,6 +2837,20 @@ int run_contract() {
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv27_plan=source_rndmat_load_plan(27);",
                  "milo_scene test covers GH2 v27 RndMat source plan");
+  ok &= contains(scene_test,
+                 "constSourceRndMatDefaultStatedefaults="
+                 "source_rndmat_default_state();",
+                 "milo_scene test covers RndMat source defaults");
+  ok &= contains(scene_test,
+                 "constSourceRndMatAccessorResultaccessors="
+                 "source_rndmat_accessors(m);",
+                 "milo_scene test covers RndMat source accessors");
+  ok &= contains(scene_test,
+                 "source_rndmat_setter_plan(\"SetAlpha\")",
+                 "milo_scene test covers RndMat SetAlpha dirty bit");
+  ok &= contains(scene_test,
+                 "source_rndmat_setter_plan(\"SetAlphaThreshold\")",
+                 "milo_scene test covers RndMat no-dirty setter");
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");

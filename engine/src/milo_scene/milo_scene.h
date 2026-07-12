@@ -1273,7 +1273,60 @@ struct SourceRndMatLoadPlan {
   std::vector<std::string> modern_order;
 };
 
+struct SourceRndMatDefaultState {
+  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  bool diffuse_tex_null = true;
+  int32_t alpha_threshold = 0;
+  bool next_pass_null = true;
+  bool emissive_map_null = true;
+  float refract_strength = 0.0f;
+  bool refract_normal_map_null = true;
+  bool intensify = false;
+  bool use_environ = true;
+  bool prelit = false;
+  bool alpha_cut = false;
+  bool alpha_write = false;
+  bool cull = true;
+  bool per_pixel_lit = false;
+  bool screen_aligned = false;
+  bool refract_enabled = false;
+  bool point_lights = false;
+  bool fog = false;
+  bool fadeout = false;
+  bool color_adjust = false;
+  int32_t blend = 1;
+  int32_t tex_gen = 0;
+  int32_t tex_wrap = 1;
+  int32_t z_mode = 1;
+  int32_t stencil_mode = 0;
+  int32_t shader_variation = 0;
+  int32_t dirty = 3;
+  float emissive_multiplier = 1.0f;
+  bool tex_xfm_reset = true;
+  int32_t color_mod_count = 3;
+};
+
+struct SourceRndMatAccessorResult {
+  uint8_t blend = 1;
+  uint8_t z_mode = 1;
+  uint8_t tex_wrap = 1;
+  std::string diffuse_tex;
+  std::string next_pass;
+  float alpha = 1.0f;
+};
+
+struct SourceRndMatSetterPlan {
+  std::string setter;
+  bool writes_member = false;
+  bool writes_rgb_only = false;
+  bool writes_alpha_only = false;
+  int32_t dirty_or_mask = 0;
+};
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
+SourceRndMatDefaultState source_rndmat_default_state();
+SourceRndMatAccessorResult source_rndmat_accessors(const MatObj& mat);
+SourceRndMatSetterPlan source_rndmat_setter_plan(const std::string& setter);
 
 struct Vertex {
   float px, py, pz;          // position
