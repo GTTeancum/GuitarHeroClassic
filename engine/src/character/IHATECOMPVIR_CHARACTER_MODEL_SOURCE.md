@@ -2636,6 +2636,18 @@ note, and all report `unreadBytes=0`.
     `Exit(false)` returning the next node, `DeleteClip` removing the first
     matching node, and the `ExecuteEvent` guard requiring both a non-null symbol
     and a clip type definition. These helpers do not claim `Evaluate`.
+  - Native `source_char_clip_driver_runtime_dump_evidence` records the exact
+    RB2 dump ranges and local inventories currently available for the missing
+    runtime bodies: copy constructor `0x8032D060 -> 0x8032D168`,
+    `Evaluate` `0x8032D33C -> 0x8032DA1C`, `ScaleAdd`
+    `0x8032DA1C -> 0x8032DB3C`, `RotateTo`
+    `0x8032DB3C -> 0x8032DC90`, `AlignToFrame`
+    `0x8032DC90 -> 0x8032DDD0`, and `PlayEvents`
+    `0x8032DDD0 -> 0x8032DFB4`. The helper also records the visible locals
+    (`nextWeight`, `rt`, `ut`, `rampDelta`, `oldFrame`, `delta`, `dfrac`,
+    `length`, `w`, plus the smaller function-specific locals) and keeps
+    `safe_to_import_runtime=false` because this is still a range/local map, not
+    a statement body.
 - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
   entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
   `CharClipDriver`, and `CharDriver`. These files are useful source-backed

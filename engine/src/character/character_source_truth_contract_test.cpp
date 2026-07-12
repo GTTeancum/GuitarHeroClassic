@@ -12921,6 +12921,16 @@ int run_contract() {
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
                  "document fences missing CharClipDriver runtime evaluator bodies");
+  ok &= contains(doc,
+                 "Native `source_char_clip_driver_runtime_dump_evidence` records",
+                 "document records CharClipDriver runtime dump helper");
+  ok &= contains(doc,
+                 "`Evaluate` `0x8032D33C -> 0x8032DA1C`, `ScaleAdd`",
+                 "document records CharClipDriver Evaluate and ScaleAdd ranges");
+  ok &= contains(doc,
+                 "`safe_to_import_runtime=false` because this is still a "
+                 "range/local map",
+                 "document fences CharClipDriver runtime dump import");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "case'p':returnTYPE_POS;case's':returnTYPE_SCALE;"
                  "case'q':returnTYPE_QUAT;case'r':unsignedcharnext=p[3];",
@@ -15375,6 +15385,22 @@ int run_contract() {
                  "if(mClip->TypeDef()){staticDataNode&dude(DataVariable("
                  "\"clip.dude\"));dude=DataNode(mClip.RefOwner()->Dir());",
                  "latest CharClipDriver source exposes ExecuteEvent guard");
+  ok &= contains(rb2_char_clip_driver_cpp,
+                 "floatCharClipDriver::Evaluate(classCharClipDriver*constthis"
+                 "/*r31*/,floatframe/*f29*/,floatdframe/*f30*/,floatdt/*f27*/)",
+                 "RB2 dump maps CharClipDriver Evaluate signature");
+  ok &= contains(rb2_char_clip_driver_cpp,
+                 "floatnextWeight;//f31unsignedcharrt;//r0unsignedcharut;//r0"
+                 "floatrampDelta;//f0floatoldFrame;//f28",
+                 "RB2 dump maps CharClipDriver Evaluate locals");
+  ok &= contains(rb2_char_clip_driver_cpp,
+                 "voidCharClipDriver::ScaleAdd(classCharClipDriver*constthis"
+                 "/*r30*/,classCharBones&bones/*r31*/,floatweight/*f30*/)",
+                 "RB2 dump maps CharClipDriver ScaleAdd signature");
+  ok &= contains(rb2_char_clip_driver_cpp,
+                 "voidCharClipDriver::RotateTo(classCharClipDriver*constthis"
+                 "/*r30*/,classCharBones&bones/*r31*/,floatweight/*f30*/)",
+                 "RB2 dump maps CharClipDriver RotateTo signature");
   ok &= contains(rb3_latest_char_clip_cpp,
                  "constchar*CharClip::BeatAlignString(intmask){switch(mask&"
                  "0xF600){case0x200:return\"RealTime\";case0x400:return"
@@ -15679,6 +15705,17 @@ int run_contract() {
                  "std::vector<size_t>deleted_indices;};",
                  "native character API exposes source CharClipDriver Exit decision");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipDriverRuntimeDumpEvidence{"
+                 "std::stringcopy_ctor_range;std::stringevaluate_range;"
+                 "std::stringscale_add_range;std::stringrotate_to_range;",
+                 "native character API exposes CharClipDriver runtime dump ranges");
+  ok &= contains(char_clip_h,
+                 "boolhas_evaluate_statement_body=false;"
+                 "boolhas_scale_add_statement_body=false;"
+                 "boolhas_rotate_to_statement_body=false;"
+                 "boolsafe_to_import_runtime=false;};",
+                 "native CharClipDriver runtime dump evidence fences imports");
+  ok &= contains(char_clip_h,
                  "structSourceCharDriverPlayDecision{boolfound_clip=false;"
                  "boolnotify_missing_clip=false;boolset_last_node=false;"
                  "boolduplicate_clip=false;boolcreate_clip_driver=false;"
@@ -15715,6 +15752,10 @@ int run_contract() {
                  "boolsource_char_clip_driver_should_execute_event("
                  "boolsymbol_null,boolclip_has_type_def);",
                  "native character API exposes source CharClipDriver ExecuteEvent helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipDriverRuntimeDumpEvidence"
+                 "source_char_clip_driver_runtime_dump_evidence();",
+                 "native character API exposes CharClipDriver runtime dump helper");
   ok &= contains(char_clip_h,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
@@ -16002,6 +16043,21 @@ int run_contract() {
                  "boolsymbol_null,boolclip_has_type_def){return!symbol_null&&"
                  "clip_has_type_def;}",
                  "native CharClipDriver ExecuteEvent helper ports source guard");
+  ok &= contains(char_clip,
+                 "SourceCharClipDriverRuntimeDumpEvidence"
+                 "source_char_clip_driver_runtime_dump_evidence(){"
+                 "SourceCharClipDriverRuntimeDumpEvidenceevidence;",
+                 "native CharClipDriver runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.evaluate_range=\"0x8032D33C->0x8032DA1C\";"
+                 "evidence.scale_add_range=\"0x8032DA1C->0x8032DB3C\";"
+                 "evidence.rotate_to_range=\"0x8032DB3C->0x8032DC90\";",
+                 "native CharClipDriver runtime dump helper records core ranges");
+  ok &= contains(char_clip,
+                 "evidence.evaluate_locals={\"nextWeight\",\"rt\",\"ut\","
+                 "\"rampDelta\",\"oldFrame\",\"delta\",\"dfrac\",\"length\","
+                 "\"w\"};",
+                 "native CharClipDriver runtime dump helper records Evaluate locals");
   ok &= contains(char_clip,
                  "constchar*source_char_clip_beat_align_string(uint32_tmask){"
                  "switch(mask&0xF600u){casekCharPlayRealTime:return"
@@ -16405,6 +16461,16 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_driver_should_execute_event(",
                  "focused flag-mask test covers CharClipDriver ExecuteEvent helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_driver_runtime_dump_evidence()",
+                 "focused flag-mask test covers CharClipDriver runtime dump helper");
+  ok &= contains(clip_driver_flags_test,
+                 "dump.evaluate_range!=\"0x8032D33C->0x8032DA1C\"",
+                 "focused flag-mask test covers CharClipDriver Evaluate range");
+  ok &= contains(clip_driver_flags_test,
+                 "dump.has_evaluate_statement_body||"
+                 "dump.has_scale_add_statement_body||",
+                 "focused flag-mask test covers CharClipDriver runtime fence");
   ok &= contains(clip_driver_flags_test,
                  "expect_beat_align(0x8000u,\"BeatAlign8\","
                  "\"beatalign8\")",

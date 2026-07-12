@@ -788,6 +788,24 @@ struct SourceCharClipDriverDeleteClipResult {
   std::vector<size_t> remaining_indices;
 };
 
+struct SourceCharClipDriverRuntimeDumpEvidence {
+  std::string copy_ctor_range;
+  std::string evaluate_range;
+  std::string scale_add_range;
+  std::string rotate_to_range;
+  std::string align_to_frame_range;
+  std::string play_events_range;
+  std::vector<std::string> evaluate_locals;
+  std::vector<std::string> scale_add_locals;
+  std::vector<std::string> rotate_to_locals;
+  std::vector<std::string> align_to_frame_locals;
+  std::vector<std::string> play_events_locals;
+  bool has_evaluate_statement_body = false;
+  bool has_scale_add_statement_body = false;
+  bool has_rotate_to_statement_body = false;
+  bool safe_to_import_runtime = false;
+};
+
 // Source-backed CharClipDriver constructor play-flag masking.
 uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask);
@@ -810,6 +828,8 @@ SourceCharClipDriverDeleteClipResult source_char_clip_driver_delete_clip_result(
     const std::vector<bool>& clip_matches_source_order);
 bool source_char_clip_driver_should_execute_event(bool symbol_null,
                                                   bool clip_has_type_def);
+SourceCharClipDriverRuntimeDumpEvidence
+source_char_clip_driver_runtime_dump_evidence();
 
 // Source-backed CharClip::BeatAlignString helper.
 const char* source_char_clip_beat_align_string(uint32_t mask);

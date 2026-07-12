@@ -2949,6 +2949,25 @@ bool source_char_clip_driver_should_execute_event(bool symbol_null,
   return !symbol_null && clip_has_type_def;
 }
 
+SourceCharClipDriverRuntimeDumpEvidence
+source_char_clip_driver_runtime_dump_evidence() {
+  SourceCharClipDriverRuntimeDumpEvidence evidence;
+  evidence.copy_ctor_range = "0x8032D060 -> 0x8032D168";
+  evidence.evaluate_range = "0x8032D33C -> 0x8032DA1C";
+  evidence.scale_add_range = "0x8032DA1C -> 0x8032DB3C";
+  evidence.rotate_to_range = "0x8032DB3C -> 0x8032DC90";
+  evidence.align_to_frame_range = "0x8032DC90 -> 0x8032DDD0";
+  evidence.play_events_range = "0x8032DDD0 -> 0x8032DFB4";
+  evidence.evaluate_locals = {"nextWeight", "rt",       "ut",
+                              "rampDelta",  "oldFrame", "delta",
+                              "dfrac",      "length",   "w"};
+  evidence.scale_add_locals = {"w"};
+  evidence.rotate_to_locals = {"w"};
+  evidence.align_to_frame_locals = {"alignBeat", "delta"};
+  evidence.play_events_locals = {"frame"};
+  return evidence;
+}
+
 const char* source_char_clip_beat_align_string(uint32_t mask) {
   switch (mask & 0xF600u) {
     case kCharPlayRealTime:

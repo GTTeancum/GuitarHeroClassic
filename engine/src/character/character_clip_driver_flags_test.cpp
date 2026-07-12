@@ -920,6 +920,29 @@ bool expect_clip_driver_helpers() {
     std::cerr << "clip-driver ExecuteEvent rejected source-valid event\n";
     ok = false;
   }
+
+  const ghogx::character::SourceCharClipDriverRuntimeDumpEvidence dump =
+      ghogx::character::source_char_clip_driver_runtime_dump_evidence();
+  if (dump.copy_ctor_range != "0x8032D060 -> 0x8032D168" ||
+      dump.evaluate_range != "0x8032D33C -> 0x8032DA1C" ||
+      dump.scale_add_range != "0x8032DA1C -> 0x8032DB3C" ||
+      dump.rotate_to_range != "0x8032DB3C -> 0x8032DC90" ||
+      dump.align_to_frame_range != "0x8032DC90 -> 0x8032DDD0" ||
+      dump.play_events_range != "0x8032DDD0 -> 0x8032DFB4" ||
+      dump.evaluate_locals !=
+          std::vector<std::string>({"nextWeight", "rt", "ut", "rampDelta",
+                                    "oldFrame", "delta", "dfrac", "length",
+                                    "w"}) ||
+      dump.scale_add_locals != std::vector<std::string>({"w"}) ||
+      dump.rotate_to_locals != std::vector<std::string>({"w"}) ||
+      dump.align_to_frame_locals !=
+          std::vector<std::string>({"alignBeat", "delta"}) ||
+      dump.play_events_locals != std::vector<std::string>({"frame"}) ||
+      dump.has_evaluate_statement_body || dump.has_scale_add_statement_body ||
+      dump.has_rotate_to_statement_body || dump.safe_to_import_runtime) {
+    std::cerr << "clip-driver RB2 runtime dump evidence mismatch\n";
+    ok = false;
+  }
   return ok;
 }
 
