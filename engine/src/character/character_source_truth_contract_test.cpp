@@ -1749,6 +1749,19 @@ int run_contract() {
                  "plan.reads_constraint=revision>6;plan.reads_target=revision>5;"
                  "plan.reads_preserve_scale=revision>6;",
                  "shared RndTrans plan mirrors constraint target gates");
+  ok &= contains(scene,
+                 "std::stringutf8_z(){",
+                 "shared RndTrans reader supports source legacy UTF-8 strings");
+  ok &= contains(scene,
+                 "source_rndtrans_load_plan(ver,parent_dir_revision,standalone)",
+                 "shared RndTrans reader uses source plan with parent revision");
+  ok &= contains(scene,
+                 "if(plan.old_child_list_is_null_terminated_strings){"
+                 "(void)r.utf8_z();}else{(void)r.str();}",
+                 "shared RndTrans reader mirrors old child-list string gate");
+  ok &= contains(char_mesh,
+                 "source_rndtrans_load_plan(ver,parent_dir_revision,standalone)",
+                 "character RndTrans reader uses source plan with parent revision");
   ok &= contains(scene_test,
                  "constSourceRndTransLoadPlanrev9_standalone="
                  "source_rndtrans_load_plan(9,24,true);",
@@ -1757,6 +1770,13 @@ int run_contract() {
                  "constSourceRndTransLoadPlanrev8_old_parent="
                  "source_rndtrans_load_plan(8,6,false);",
                  "milo_scene test covers legacy RndTrans child-list plan");
+  ok &= contains(scene_test,
+                 "put_utf8_z(legacy,\"legacy_child\");",
+                 "milo_scene test covers legacy RndTrans UTF-8 child row");
+  ok &= contains(doc,
+                 "pass the actual parent directory revision into their embedded\n"
+                 "    `RndTrans` reader",
+                 "document records RndTrans parent-revision plumbing");
   ok &= contains(doc,
                  "| Transform proxy attachment | `rb3-latest/src/system/rndobj/"
                  "TransProxy.cpp` / `TransProxy.h` |",
@@ -2474,14 +2494,15 @@ int run_contract() {
                  "This remains a source contract only. It does not enable live",
                  "document fences RndPropAnim live playback");
   ok &= contains(char_mesh,
-                 "out.local=r.matrix();out.world=r.matrix();if(ver<9)",
+                 "out.local=r.matrix();out.world=r.matrix();if(plan."
+                 "reads_old_child_list)",
                  "character RndTrans local/world/legacy-child order");
   ok &= contains(scene, "out.local=r.matrix();",
                  "scene RndTrans reads local matrix");
   ok &= contains(scene, "out.world=r.matrix();",
                  "scene RndTrans reads world matrix");
-  ok &= contains(scene, "if(ver<9)",
-                 "scene RndTrans reads legacy child refs after matrices");
+  ok &= contains(scene, "if(plan.reads_old_child_list)",
+                 "scene RndTrans reads source-gated legacy child refs after matrices");
   ok &= contains(rb3_trans_h,
                  "enumConstraint{kNone=0,kLocalRotate=1,kParentWorld=2,"
                  "kLookAtTarget=3,kShadowTarget=4,kBillboardZ=5,"
@@ -2770,13 +2791,14 @@ int run_contract() {
                  "milo_scene test covers RndGroup prop-sync plan");
   ok &= contains(scene,
                  "GroupObjdecode_group(conststd::string&entry_name,"
-                 "conststd::vector<uint8_t>&body)",
+                 "conststd::vector<uint8_t>&body,int32_tparent_dir_revision)",
                  "native exposes source-backed Group decoder");
   ok &= contains(scene,
                  "group.children.push_back(r.str());",
                  "native Group decoder reads explicit object Symbol list");
   ok &= contains(char_mesh,
-                 "milo_scene::GroupObjgroup=milo_scene::decode_group(de.name,b);",
+                 "milo_scene::GroupObjgroup=milo_scene::decode_group(de.name,b,"
+                 "dir.dir_version);",
                  "character load uses source-backed Group decoder");
   ok &= missing(char_mesh, "group_child_refs",
                 "character load must not scan Group strings for membership");
@@ -5932,7 +5954,7 @@ int run_contract() {
                  "native CharCollide stores source mesh transform and digest");
   ok &= contains(char_mesh_h,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
-                 "conststd::vector<uint8_t>&body);",
+                 "conststd::vector<uint8_t>&body,int32_tparent_dir_revision=24);",
                  "native exposes CharCollide decoder for contract coverage");
   ok &= contains(char_mesh_h,
                  "voidsource_char_collide_copy_original_to_cur(CharCollide&"
@@ -6029,7 +6051,7 @@ int run_contract() {
                  "native exposes CharCollide radius runtime evidence helper");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
-                 "conststd::vector<uint8_t>&body)",
+                 "conststd::vector<uint8_t>&body,int32_tparent_dir_revision)",
                  "native CharCollide decoder exists");
   ok &= contains(char_mesh,
                  "SourceCharCollideSavePlansource_char_collide_save_plan(){"
@@ -6041,7 +6063,8 @@ int run_contract() {
                  "outsidesourcerange\");}",
                  "native CharCollide decoder enforces source revision range");
   ok &= contains(char_mesh,
-                 "read_object_fields(r);constTransFieldstrans=read_rnd_trans(r,false);",
+                 "read_object_fields(r);constTransFieldstrans=read_rnd_trans(r,false,"
+                 "parent_dir_revision);",
                  "native CharCollide decoder follows object then transform source order");
   ok &= contains(char_mesh,
                  "collide.shape=r.i32();collide.orig_radius[0]=r.f32();"
@@ -6199,7 +6222,7 @@ int run_contract() {
                  "elseif(collide.shape==0){radius=dot_axis();",
                  "native CharCollide GetRadius helper handles plane branch");
   ok &= contains(char_mesh,
-                 "out.collides.push_back(decode_collide(de.name,b));",
+                 "out.collides.push_back(decode_collide(de.name,b,dir.dir_version));",
                  "character load stores decoded CharCollide rows");
   ok &= contains(char_clip,
                  "\"[chargraph]collide%s",

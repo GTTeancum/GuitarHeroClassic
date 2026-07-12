@@ -3510,7 +3510,8 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
 CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
 CharCollide decode_collide(const std::string& entry_name,
-                           const std::vector<uint8_t>& body);
+                           const std::vector<uint8_t>& body,
+                           int32_t parent_dir_revision = 24);
 CharPosConstraint decode_pos_constraint(const std::string& entry_name,
                                         const std::vector<uint8_t>& body);
 CharLookAt decode_lookat(const std::string& entry_name,

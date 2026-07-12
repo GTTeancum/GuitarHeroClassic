@@ -589,6 +589,12 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     null-terminated strings for parent directories `<= 6` and symbols
     otherwise; revision `> 6` reads constraint and preserve-scale; revision
     `> 5` reads target; parent is always read.
+  - The shared `milo_scene` decoders and the character mesh/collider decoder
+    now pass the actual parent directory revision into their embedded
+    `RndTrans` reader. The legacy `ReadUTF8` child-list branch is decoded only
+    for the source `revision < 9 && parent.revision <= 6` gate; GH2 PS2
+    character directories still take the Symbol path, but the reader no longer
+    hardcodes that common case.
 - `rb3-latest/src/system/rndobj/TransProxy.cpp` and
   `rb3-latest/src/system/rndobj/TransProxy.h`
   - `RndTransProxy::RndTransProxy` nulls `mProxy` and leaves `mPart` default.

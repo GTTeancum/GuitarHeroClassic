@@ -46,6 +46,19 @@ struct Reader {
     pos += len;
     return s;
   }
+  std::string utf8_z() {
+    const size_t start = pos;
+    while (pos < n && p[pos] != 0) ++pos;
+    if (pos >= n) {
+      throw std::runtime_error("char_mesh: unterminated UTF-8 string");
+    }
+    if (pos - start > (1u << 20)) {
+      throw std::runtime_error("char_mesh: implausible UTF-8 string length");
+    }
+    std::string s(reinterpret_cast<const char*>(p + start), pos - start);
+    ++pos;
+    return s;
+  }
   Xfm matrix() {
     Xfm m;
     for (int r = 0; r < 3; ++r)
@@ -146,24 +159,33 @@ struct TransFields {
   std::string parent;
 };
 
-TransFields read_rnd_trans(Reader& r, bool standalone) {
+TransFields read_rnd_trans(Reader& r,
+                           bool standalone,
+                           int32_t parent_dir_revision) {
   TransFields out;
   const uint32_t combined_revision = r.u32();
   const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
-  if (standalone) {
+  const milo_scene::SourceRndTransLoadPlan plan =
+      milo_scene::source_rndtrans_load_plan(ver, parent_dir_revision,
+                                            standalone);
+  if (plan.reads_object_fields) {
     read_object_fields(r);
   }
   out.local = r.matrix();
   out.world = r.matrix();
-  if (ver < 9) {
+  if (plan.reads_old_child_list) {
     const uint32_t trans_count = r.u32();
     for (uint32_t i = 0; i < trans_count; ++i) {
-      r.str();
+      if (plan.old_child_list_is_null_terminated_strings) {
+        (void)r.utf8_z();
+      } else {
+        (void)r.str();
+      }
     }
   }
-  if (ver > 6) out.constraint = r.u32();
-  if (ver > 5) out.target = r.str();
-  if (ver > 6) out.preserve_scale = r.u8() != 0;
+  if (plan.reads_constraint) out.constraint = r.u32();
+  if (plan.reads_target) out.target = r.str();
+  if (plan.reads_preserve_scale) out.preserve_scale = r.u8() != 0;
   out.parent = r.str();
   return out;
 }
@@ -1412,7 +1434,7 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     if (ver != 28) mesh.error = "unexpected mesh version " + std::to_string(ver);
 
     read_object_fields(r);   // Hmx::Object fields for the Mesh object.
-    const TransFields trans = read_rnd_trans(r, false);
+    const TransFields trans = read_rnd_trans(r, false, parent_dir_revision);
     mesh.local = trans.local;
     mesh.world_stored = trans.world;
     mesh.constraint = trans.constraint;
@@ -1955,7 +1977,8 @@ CharHair decode_hair_body(const std::string& entry_name,
 }
 
 CharCollide decode_collide_body(const std::string& entry_name,
-                                const std::vector<uint8_t>& body) {
+                                const std::vector<uint8_t>& body,
+                                int32_t parent_dir_revision) {
   Reader r(body.data(), body.size());
   CharCollide collide;
   collide.name = entry_name;
@@ -1965,7 +1988,7 @@ CharCollide decode_collide_body(const std::string& entry_name,
         "char_mesh: CharCollide revision outside source range");
   }
   read_object_fields(r);
-  const TransFields trans = read_rnd_trans(r, false);
+  const TransFields trans = read_rnd_trans(r, false, parent_dir_revision);
   collide.local = trans.local;
   collide.world_stored = trans.world;
   collide.constraint = trans.constraint;
@@ -2739,8 +2762,9 @@ CharHair decode_hair(const std::string& entry_name,
 }
 
 CharCollide decode_collide(const std::string& entry_name,
-                           const std::vector<uint8_t>& body) {
-  return decode_collide_body(entry_name, body);
+                           const std::vector<uint8_t>& body,
+                           int32_t parent_dir_revision) {
+  return decode_collide_body(entry_name, body, parent_dir_revision);
 }
 
 CharPosConstraint decode_pos_constraint(const std::string& entry_name,
@@ -7000,13 +7024,15 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {
           handled = true;
-          out.bones.push_back(milo_scene::decode_trans(de.name, b));
+          out.bones.push_back(milo_scene::decode_trans(de.name, b,
+                                                       dir.dir_version));
         } else if (de.type == "Mat") {
           handled = true;
           out.mats.push_back(milo_scene::decode_mat(de.name, b));
         } else if (de.type == "Group") {
           handled = true;
-          milo_scene::GroupObj group = milo_scene::decode_group(de.name, b);
+          milo_scene::GroupObj group =
+              milo_scene::decode_group(de.name, b, dir.dir_version);
           if (!group.decoded) {
             std::fprintf(stderr, "[char]   Group '%s' decode: %s\n",
                          de.name.c_str(), group.error.c_str());
@@ -7044,7 +7070,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.hairs.push_back(decode_hair(de.name, b));
         } else if (de.type == "CharCollide") {
           handled = true;
-          out.collides.push_back(decode_collide(de.name, b));
+          out.collides.push_back(decode_collide(de.name, b, dir.dir_version));
         } else if (de.type == "CharPosConstraint") {
           handled = true;
           out.pos_constraints.push_back(decode_pos_constraint(de.name, b));

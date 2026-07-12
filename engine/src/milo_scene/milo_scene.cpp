@@ -66,6 +66,20 @@ struct Reader {
     return s;
   }
 
+  std::string utf8_z() {
+    const size_t start = pos;
+    while (pos < n && p[pos] != 0) ++pos;
+    if (pos >= n) {
+      throw std::runtime_error("milo_scene: unterminated UTF-8 string");
+    }
+    if (pos - start > (1u << 20)) {
+      throw std::runtime_error("milo_scene: implausible UTF-8 string length");
+    }
+    std::string s(reinterpret_cast<const char*>(p + start), pos - start);
+    ++pos;
+    return s;
+  }
+
   // Read a Harmonix 3x4 matrix: 9 rotation floats (row-major) + 3 translation.
   Xfm matrix() {
     Xfm m;
@@ -162,24 +176,32 @@ struct TransFields {
 // child list for rev < 9, constraint, target, preserve-scale, parent.
 // Standalone Trans entries carry Object fields; embedded Trans bases
 // (Mesh/Group/etc.) do not.
-TransFields read_trans_block(Reader& r, bool standalone) {
+TransFields read_trans_block(Reader& r,
+                             bool standalone,
+                             int32_t parent_dir_revision) {
   TransFields out;
   const uint32_t combined_revision = r.u32();
   const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
-  if (standalone) {
+  const SourceRndTransLoadPlan plan =
+      source_rndtrans_load_plan(ver, parent_dir_revision, standalone);
+  if (plan.reads_object_fields) {
     read_object_fields(r);
   }
   out.local = r.matrix();    // matrix 1 (local)
   out.world = r.matrix();    // matrix 2 (world as stored)
-  if (ver < 9) {
+  if (plan.reads_old_child_list) {
     const uint32_t trans_count = r.u32();
     for (uint32_t i = 0; i < trans_count; ++i) {
-      r.str();
+      if (plan.old_child_list_is_null_terminated_strings) {
+        (void)r.utf8_z();
+      } else {
+        (void)r.str();
+      }
     }
   }
-  if (ver > 6) out.constraint = r.u32();
-  if (ver > 5) out.target = r.str();
-  if (ver > 6) out.preserve_scale = r.u8() != 0;
+  if (plan.reads_constraint) out.constraint = r.u32();
+  if (plan.reads_target) out.target = r.str();
+  if (plan.reads_preserve_scale) out.preserve_scale = r.u8() != 0;
   out.parent = r.str();
   return out;
 }
@@ -1189,11 +1211,12 @@ SourceRndMeshAnimPropSyncPlan source_rndmeshanim_prop_sync_plan() {
 }
 
 TransObj decode_trans(const std::string& entry_name,
-                      const std::vector<uint8_t>& body) {
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision) {
   Reader r(body.data(), body.size());
   TransObj t;
   t.name = entry_name;
-  const TransFields trans = read_trans_block(r, true);
+  const TransFields trans = read_trans_block(r, true, parent_dir_revision);
   t.local = trans.local;
   t.world_stored = trans.world;
   t.constraint = trans.constraint;
@@ -1429,7 +1452,8 @@ EnvironObj decode_environ(const std::string& entry_name,
 }
 
 GroupObj decode_group(const std::string& entry_name,
-                      const std::vector<uint8_t>& body) {
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision) {
   GroupObj group;
   group.name = entry_name;
   try {
@@ -1438,7 +1462,7 @@ GroupObj decode_group(const std::string& entry_name,
     const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
     if (ver > 7) read_object_fields(r);
     read_animatable_block(r);
-    (void)read_trans_block(r, false);
+    (void)read_trans_block(r, false, parent_dir_revision);
     read_drawable_block(r);
 
     if (ver > 10) {
@@ -1864,7 +1888,8 @@ MatObj decode_mat(const std::string& entry_name,
 }
 
 MeshObj decode_mesh(const std::string& entry_name,
-                    const std::vector<uint8_t>& body) {
+                    const std::vector<uint8_t>& body,
+                    int32_t parent_dir_revision) {
   MeshObj mesh;
   mesh.name = entry_name;
   try {
@@ -1875,7 +1900,7 @@ MeshObj decode_mesh(const std::string& entry_name,
       mesh.error = "unexpected mesh version " + std::to_string(ver);
     }
     read_object_fields(r);  // Hmx::Object fields for the Mesh object.
-    const TransFields trans = read_trans_block(r, false);
+    const TransFields trans = read_trans_block(r, false, parent_dir_revision);
     mesh.local = trans.local;
     mesh.world_stored = trans.world;
     mesh.parent = trans.parent;
@@ -2278,11 +2303,11 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                              payload.data() + de.offset + de.size);
       try {
         if (de.type == "Mesh") {
-          MeshObj m = decode_mesh(de.name, b);
+          MeshObj m = decode_mesh(de.name, b, dir.dir_version);
           if (m.decoded) ++mesh_ok; else ++mesh_fail;
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {
-          out.transes.push_back(decode_trans(de.name, b));
+          out.transes.push_back(decode_trans(de.name, b, dir.dir_version));
         } else if (de.type == "Mat") {
           out.mats.push_back(decode_mat(de.name, b));
         } else if (de.type == "Cam") {
@@ -2296,7 +2321,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Environ") {
           out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
-          GroupObj group = decode_group(de.name, b);
+          GroupObj group = decode_group(de.name, b, dir.dir_version);
           if (!group.decoded) {
             std::fprintf(stderr, "[milo_scene]   Group '%s' decode: %s\n",
                          de.name.c_str(), group.error.c_str());

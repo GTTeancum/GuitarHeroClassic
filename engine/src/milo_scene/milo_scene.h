@@ -1341,7 +1341,8 @@ struct WorldCrowdObj {
 // `entry_name` is the MILO entry name. Throws std::runtime_error on malformed
 // input; the scene loader catches per-entry so one bad object never aborts.
 TransObj decode_trans(const std::string& entry_name,
-                      const std::vector<uint8_t>& body);
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision = 24);
 CamObj decode_cam(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
 WaypointObj decode_waypoint(const std::string& entry_name,
@@ -1355,11 +1356,13 @@ EnvironObj decode_environ(const std::string& entry_name,
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
 GroupObj decode_group(const std::string& entry_name,
-                      const std::vector<uint8_t>& body);
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision = 24);
 // Mesh decode never throws — on failure it returns a MeshObj with decoded=false
 // and a populated .error, so the `mesh` subcommand can report it.
 MeshObj decode_mesh(const std::string& entry_name,
-                    const std::vector<uint8_t>& body);
+                    const std::vector<uint8_t>& body,
+                    int32_t parent_dir_revision = 24);
 ParticleSysObj decode_particle_sys(const std::string& entry_name,
                                    const std::vector<uint8_t>& body);
 WorldCrowdObj decode_world_crowd(const std::string& entry_name,

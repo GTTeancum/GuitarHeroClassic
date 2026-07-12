@@ -44,6 +44,10 @@ void put_str(std::vector<uint8_t>& b, const std::string& s) {
   put_u32(b, static_cast<uint32_t>(s.size()));
   for (char c : s) b.push_back(static_cast<uint8_t>(c));
 }
+void put_utf8_z(std::vector<uint8_t>& b, const std::string& s) {
+  for (char c : s) b.push_back(static_cast<uint8_t>(c));
+  b.push_back(0);
+}
 void put_zeros(std::vector<uint8_t>& b, size_t n) {
   for (size_t i = 0; i < n; ++i) b.push_back(0);
 }
@@ -108,11 +112,29 @@ void test_trans() {
   put_zeros(b, 9);               // constraint/flags
   put_str(b, "track_surface5.view");
 
-  TransObj t = decode_trans("track_fade.trans", b);
+  TransObj t = decode_trans("track_fade.trans", b, 24);
   CHECK(t.name == "track_fade.trans");
   CHECK(t.parent == "track_surface5.view");
   CHECK(approx(t.local.pos[1], 120.0f));
   CHECK(approx(t.local.rot[0][0], 1.0f) && approx(t.local.rot[2][2], 1.0f));
+
+  std::vector<uint8_t> legacy;
+  put_u32(legacy, 8);                  // RndTrans revision
+  put_zeros(legacy, 9);                // standalone Object fields
+  put_matrix(legacy, 1, 2, 3);
+  put_matrix(legacy, 4, 5, 6);
+  put_u32(legacy, 1);                  // old child list count
+  put_utf8_z(legacy, "legacy_child");  // parent dir revision <= 6 branch
+  put_u32(legacy, 3);                  // constraint
+  put_str(legacy, "legacy_target");
+  legacy.push_back(1);                 // preserve scale
+  put_str(legacy, "legacy_parent");
+  TransObj legacy_t = decode_trans("legacy.trans", legacy, 6);
+  CHECK(legacy_t.parent == "legacy_parent");
+  CHECK(legacy_t.constraint == 3);
+  CHECK(legacy_t.target == "legacy_target");
+  CHECK(legacy_t.preserve_scale);
+  CHECK(approx(legacy_t.world_stored.pos[1], 5.0f));
   std::printf("  [ok] Trans: parent=%s pos.y=%.1f\n", t.parent.c_str(),
               t.local.pos[1]);
 }
