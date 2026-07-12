@@ -9325,17 +9325,32 @@ void log_venue_floor_meshes(
         float avg_nx = 0.0f;
         float avg_ny = 0.0f;
         float avg_nz = 0.0f;
+        float min_u = std::numeric_limits<float>::infinity();
+        float min_v = std::numeric_limits<float>::infinity();
+        float max_u = -std::numeric_limits<float>::infinity();
+        float max_v = -std::numeric_limits<float>::infinity();
+        bool has_uv = false;
         if (!mesh.verts.empty()) {
             for (const auto& vertex : mesh.verts) {
                 avg_nx += vertex.nx;
                 avg_ny += vertex.ny;
                 avg_nz += vertex.nz;
+                if (std::isfinite(vertex.u) && std::isfinite(vertex.v)) {
+                    has_uv = true;
+                    min_u = std::min(min_u, vertex.u);
+                    min_v = std::min(min_v, vertex.v);
+                    max_u = std::max(max_u, vertex.u);
+                    max_v = std::max(max_v, vertex.v);
+                }
             }
             const float inv_count = 1.0f / static_cast<float>(mesh.verts.size());
             avg_nx *= inv_count;
             avg_ny *= inv_count;
             avg_nz *= inv_count;
         }
+        const bool uv_repeats =
+            has_uv && (min_u < -0.05f || min_v < -0.05f || max_u > 1.05f ||
+                       max_v > 1.05f);
         const float mat_r = mat_it != mats.end() ? mat_it->second->color[0] : 1.0f;
         const float mat_g = mat_it != mats.end() ? mat_it->second->color[1] : 1.0f;
         const float mat_b = mat_it != mats.end() ? mat_it->second->color[2] : 1.0f;
@@ -9352,14 +9367,18 @@ void log_venue_floor_meshes(
                      "[world] venue floor mesh: mesh=%s material=%s texture=%s "
                      "showing=%d hidden=%d mat_color=(%.3f %.3f %.3f %.3f) "
                      "blend=%u z=%u use_env=%d prelit=%d cull=%d "
-                     "avg_n=(%.3f %.3f %.3f)\n",
+                     "avg_n=(%.3f %.3f %.3f) uv=(%.3f..%.3f %.3f..%.3f) "
+                     "uv_repeat=%d\n",
                      mesh.name.c_str(), mesh.material.c_str(),
                      texture.empty() ? "(none)" : texture.c_str(),
                      mesh.showing ? 1 : 0,
                      hidden_meshes.find(mesh.name) != hidden_meshes.end() ? 1
-                                                                          : 0,
+                                                                           : 0,
                      mat_r, mat_g, mat_b, mat_a, blend, z_mode, use_environ,
-                     prelit, cull, avg_nx, avg_ny, avg_nz);
+                     prelit, cull, avg_nx, avg_ny, avg_nz,
+                     has_uv ? min_u : 0.0f, has_uv ? max_u : 0.0f,
+                     has_uv ? min_v : 0.0f, has_uv ? max_v : 0.0f,
+                     uv_repeats ? 1 : 0);
         if (++logged >= 64) break;
     }
     if (logged == 0) {

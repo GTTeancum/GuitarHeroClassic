@@ -8973,8 +8973,11 @@ int main() {
                  "\"blend=%uz=%uuse_env=%dprelit=%dcull=%d\"",
                  "venue diagnostics report floor material draw-state flags");
   ok &= contains(gameplay_c,
-                 "\"avg_n=(%.3f%.3f%.3f)\\n\"",
-                 "venue diagnostics report floor average normal");
+                 "\"avg_n=(%.3f%.3f%.3f)uv=(%.3f..%.3f%.3f..%.3f)\"",
+                 "venue diagnostics report floor average normal and authored UV span");
+  ok &= contains(gameplay_c,
+                 "\"uv_repeat=%d\\n\"",
+                 "venue diagnostics report floor UV repeat state");
   ok &= contains(gameplay_c,
                  "name_l.find(\"crowd_area\")!=std::string::npos",
                  "venue floor diagnostics include the WorldCrowd floor footprint");
