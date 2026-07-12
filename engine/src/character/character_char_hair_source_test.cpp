@@ -809,6 +809,10 @@ int main() {
                     "zero-time dump no statement body");
 
   const auto mapped_bodies = source_char_hair_rb2_mapped_body_evidence();
+  ok &= expect_bool(mapped_bodies.latest_header_declares_poll_deps, true,
+                    "latest header declares PollDeps");
+  ok &= expect_bool(mapped_bodies.latest_cpp_has_poll_deps_statement_body,
+                    false, "latest cpp omits PollDeps body");
   ok &= expect_bool(mapped_bodies.poll_deps_range ==
                         "0x80360144 -> 0x80360284",
                     true, "poll deps dump range");

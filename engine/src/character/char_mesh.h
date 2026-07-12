@@ -1665,6 +1665,8 @@ struct SourceCharHairSimulateZeroTimeDumpEvidence {
 };
 
 struct SourceCharHairRb2MappedBodyEvidence {
+  bool latest_header_declares_poll_deps = true;
+  bool latest_cpp_has_poll_deps_statement_body = false;
   std::string poll_deps_range;
   bool poll_deps_has_loop_counter = true;
   bool poll_deps_has_statement_body = false;

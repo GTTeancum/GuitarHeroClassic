@@ -6715,6 +6715,13 @@ int run_contract() {
                  "classlist&changedBy/*r29*/,classlist&change/*r30*/){"
                  "//Localvariablesinti;//r31",
                  "RB2 dump names CharHair PollDeps loop local");
+  ok &= contains(rb3_latest_char_hair_h,
+                 "virtualvoidPollDeps(std::list<Hmx::Object*>&,"
+                 "std::list<Hmx::Object*>&);",
+                 "latest CharHair header declares PollDeps");
+  ok &= missing(rb3_latest_char_hair_cpp,
+                "voidCharHair::PollDeps(",
+                "latest CharHair cpp has no PollDeps statement body");
   ok &= contains(rb2_dump_char_hair_cpp,
                  "//Range:0x803616E8->0x8036181CvoidCharHair::Copy"
                  "(classCharHair*constthis/*r29*/,constclassObject*o/*r30*/){",
@@ -6739,7 +6746,10 @@ int run_contract() {
                  "boolhas_transform_local=true;",
                  "native exposes CharHair SimulateZeroTime dump evidence");
   ok &= contains(char_mesh_h,
-                 "structSourceCharHairRb2MappedBodyEvidence{std::string"
+                 "structSourceCharHairRb2MappedBodyEvidence{"
+                 "boollatest_header_declares_poll_deps=true;"
+                 "boollatest_cpp_has_poll_deps_statement_body=false;"
+                 "std::string"
                  "poll_deps_range;boolpoll_deps_has_loop_counter=true;"
                  "boolpoll_deps_has_statement_body=false;",
                  "native exposes CharHair RB2 mapped-body evidence");
@@ -7328,9 +7338,16 @@ int run_contract() {
                  "Native `source_char_hair_simulate_loops_plan` ports that gate",
                  "document records native CharHair SimulateLoops plan");
   ok &= contains(doc,
-                 "`source_char_hair_rb2_mapped_body_evidence` records those "
-                 "ranges",
+                 "The latest header declares `CharHair::PollDeps`, but the checked latest",
+                 "document records latest CharHair PollDeps declaration boundary");
+  ok &= contains(doc,
+                 "`CharHair.cpp` does not provide a statement body for it",
+                 "document records latest CharHair PollDeps missing body");
+  ok &= contains(doc,
+                 "`source_char_hair_rb2_mapped_body_evidence` records the latest",
                  "document records native CharHair RB2 mapped body evidence");
+  ok &= contains(doc, "declaration/body boundary, those ranges",
+                 "document records native CharHair PollDeps boundary/ranges");
   ok &= contains(doc,
                  "`source_char_hair_load_plan`, `source_char_hair_strand_load_plan`, and",
                  "document records native CharHair load plan helpers");
