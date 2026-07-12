@@ -4194,15 +4194,45 @@ load_venue_event_light_anims(
 
         std::map<std::string, std::vector<std::string>> filter_refs;
         std::map<std::string, std::vector<std::string>> group_refs;
+        std::map<std::string, Gameplay::VenueAnimFilter> filter_light_timing;
         for (const auto& de : dir.entries) {
             if (de.offset + de.size > payload.size()) continue;
             if (de.type != "AnimFilter" && de.type != "Group") continue;
             const auto* body = payload.data() + de.offset;
             const auto strings =
                 scan_milo_strings(body, static_cast<size_t>(de.size));
-            auto& refs = de.type == "AnimFilter"
-                             ? filter_refs[canonical_milo_ref(de.name)]
-                             : group_refs[canonical_milo_ref(de.name)];
+            const bool is_filter = de.type == "AnimFilter";
+            const auto entry_key = canonical_milo_ref(de.name);
+            auto& refs = is_filter ? filter_refs[entry_key]
+                                   : group_refs[entry_key];
+            if (is_filter) {
+                if (const auto decoded =
+                        read_rnd_animfilter_like_miloeditor(
+                            body, static_cast<size_t>(de.size))) {
+                    if (auto filter =
+                            venue_source_filter_from_decoded(entry_key,
+                                                             *decoded)) {
+                        const auto& target = filter->target_ref;
+                        if ((target.size() > 4 &&
+                             target.rfind(".lnm") == target.size() - 4) ||
+                            (target.size() > 4 &&
+                             target.rfind(".grp") == target.size() - 4)) {
+                            filter_light_timing[entry_key] = *filter;
+                            if (debug_venue_filters_enabled()) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] venue LightAnim AnimFilter %s -> %s source-shaped rev=%u anim_rev=%u rate=%d frame %.2f..%.2f scale=%.3f period=%.3f offset=%.3f type=%d\n",
+                                    filter->name.c_str(), target.c_str(),
+                                    filter->revision, filter->anim_revision,
+                                    filter->anim_rate, filter->start_frame,
+                                    filter->end_frame, filter->scale,
+                                    filter->period, filter->offset_frame,
+                                    filter->type);
+                            }
+                        }
+                    }
+                }
+            }
             for (const auto& s : strings) {
                 const auto ref = canonical_milo_ref(s);
                 const bool object_ref =
@@ -4214,12 +4244,25 @@ load_venue_event_light_anims(
         }
         auto collect_ref =
             [&](auto&& self, const std::string& ref,
-                std::vector<std::string>& routes,
-                std::unordered_set<std::string>& seen) -> void {
-            if (!seen.insert(ref).second) return;
+                std::vector<Gameplay::VenueEventAnimRoute>& routes,
+                std::unordered_set<std::string>& seen,
+                const Gameplay::VenueAnimFilter* source_filter) -> void {
+            const std::string seen_key =
+                ref + "|" +
+                (source_filter ? source_filter->name : std::string{});
+            if (!seen.insert(seen_key).second) return;
             if (ref.size() > 4 && ref.rfind(".lnm") == ref.size() - 4) {
-                push_unique_ref(routes, ref);
+                push_unique_event_anim_route(routes, ref, 0.0f, false, 0.0f,
+                                             std::string{}, source_filter);
                 return;
+            }
+            const Gameplay::VenueAnimFilter* child_source_filter =
+                source_filter;
+            if (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) {
+                const auto timing_it = filter_light_timing.find(ref);
+                if (timing_it != filter_light_timing.end()) {
+                    child_source_filter = &timing_it->second;
+                }
             }
             const auto& ref_map =
                 (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5)
@@ -4228,16 +4271,24 @@ load_venue_event_light_anims(
             const auto refs_it = ref_map.find(ref);
             if (refs_it == ref_map.end()) return;
             for (const auto& child : refs_it->second)
-                self(self, child, routes, seen);
+                self(self, child, routes, seen, child_source_filter);
         };
         for (const auto& [filter, refs] : filter_refs) {
             (void)refs;
-            std::vector<std::string> light_anims;
+            std::vector<Gameplay::VenueEventAnimRoute> light_anims;
             std::unordered_set<std::string> seen;
-            collect_ref(collect_ref, filter, light_anims, seen);
+            const auto timing_it = filter_light_timing.find(filter);
+            collect_ref(collect_ref, filter, light_anims, seen,
+                        timing_it == filter_light_timing.end()
+                            ? nullptr
+                            : &timing_it->second);
             if (light_anims.empty()) continue;
             auto& routed = out[venue_filter_route_key(filter)];
-            push_event_anim_routes(routed, light_anims, 0.0f);
+            for (const auto& route : light_anims) {
+                push_unique_event_anim_route(
+                    routed, route.anim, 0.0f, false, 0.0f, std::string{},
+                    route.has_source_filter ? &route.source_filter : nullptr);
+            }
         }
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
@@ -4259,12 +4310,20 @@ load_venue_event_light_anims(
                     (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
                     (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4);
                 if (!object_ref) continue;
-                std::vector<std::string> resolved;
+                std::vector<Gameplay::VenueEventAnimRoute> resolved;
                 std::unordered_set<std::string> seen;
-                collect_ref(collect_ref, ref, resolved, seen);
-                push_event_anim_routes(light_anims, resolved, anim_route.blend,
-                                       anim_route.wait, anim_route.delay,
-                                       de.name);
+                const auto timing_it = filter_light_timing.find(ref);
+                collect_ref(collect_ref, ref, resolved, seen,
+                            timing_it == filter_light_timing.end()
+                                ? nullptr
+                                : &timing_it->second);
+                for (const auto& route : resolved) {
+                    push_unique_event_anim_route(
+                        light_anims, route.anim, anim_route.blend,
+                        anim_route.wait, anim_route.delay, de.name,
+                        route.has_source_filter ? &route.source_filter
+                                                : nullptr);
+                }
             }
             if (light_anims.empty()) continue;
             for (const auto& key :
@@ -4275,7 +4334,9 @@ load_venue_event_light_anims(
                     push_unique_event_anim_route(
                         routed, route.anim,
                         route.source_blend_period_seconds, route.source_wait,
-                        route.source_delay_seconds, route.source_trigger);
+                        route.source_delay_seconds, route.source_trigger,
+                        route.has_source_filter ? &route.source_filter
+                                                : nullptr);
                 }
             }
             if (debug_venue_filters_enabled()) {
@@ -4283,11 +4344,14 @@ load_venue_event_light_anims(
                              de.name.c_str());
                 for (const auto& route : light_anims)
                     std::fprintf(stderr,
-                                 "%s blend=%.3f wait=%d delay=%.3f ",
+                                 "%s blend=%.3f wait=%d delay=%.3f filter=%s ",
                                  route.anim.c_str(),
                                  route.source_blend_period_seconds,
                                  route.source_wait ? 1 : 0,
-                                 route.source_delay_seconds);
+                                 route.source_delay_seconds,
+                                 route.has_source_filter
+                                     ? route.source_filter.name.c_str()
+                                     : "none");
                 std::fprintf(stderr, "\n");
             }
         }
@@ -4317,34 +4381,47 @@ load_venue_event_env_anims(
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
 
-        std::map<std::string, std::vector<std::string>> filter_env_anims;
-        std::map<std::string, std::vector<std::string>> filter_group_refs;
+        std::map<std::string, std::vector<std::string>> filter_refs;
+        std::map<std::string, std::vector<std::string>> group_refs;
+        std::map<std::string, Gameplay::VenueAnimFilter> filter_env_timing;
         for (const auto& de : dir.entries) {
-            if (de.type != "AnimFilter" || de.offset + de.size > payload.size())
-                continue;
+            if (de.offset + de.size > payload.size()) continue;
+            if (de.type != "AnimFilter" && de.type != "Group") continue;
             const auto* body = payload.data() + de.offset;
             const auto strings =
                 scan_milo_strings(body, static_cast<size_t>(de.size));
+            const bool is_filter = de.type == "AnimFilter";
             const auto filter_key = canonical_milo_ref(de.name);
-            auto& routed = filter_env_anims[filter_key];
-            for (const auto& s : strings) {
-                const auto ref = canonical_milo_ref(s);
-                if (ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) {
-                    push_unique_ref(routed, ref);
-                } else if (ref.size() > 4 &&
-                           ref.rfind(".grp") == ref.size() - 4) {
-                    push_unique_ref(filter_group_refs[filter_key], ref);
+            auto& refs = is_filter ? filter_refs[filter_key]
+                                   : group_refs[filter_key];
+            if (is_filter) {
+                if (const auto decoded =
+                        read_rnd_animfilter_like_miloeditor(
+                            body, static_cast<size_t>(de.size))) {
+                    if (auto filter =
+                            venue_source_filter_from_decoded(filter_key,
+                                                             *decoded)) {
+                        const auto& target = filter->target_ref;
+                        if ((target.size() > 4 &&
+                             target.rfind(".enm") == target.size() - 4) ||
+                            (target.size() > 4 &&
+                             target.rfind(".grp") == target.size() - 4)) {
+                            filter_env_timing[filter_key] = *filter;
+                            if (debug_venue_filters_enabled()) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] venue EnvAnim AnimFilter %s -> %s source-shaped rev=%u anim_rev=%u rate=%d frame %.2f..%.2f scale=%.3f period=%.3f offset=%.3f type=%d\n",
+                                    filter->name.c_str(), target.c_str(),
+                                    filter->revision, filter->anim_revision,
+                                    filter->anim_rate, filter->start_frame,
+                                    filter->end_frame, filter->scale,
+                                    filter->period, filter->offset_frame,
+                                    filter->type);
+                            }
+                        }
+                    }
                 }
             }
-        }
-
-        std::map<std::string, std::vector<std::string>> group_refs;
-        for (const auto& de : dir.entries) {
-            if (de.type != "Group" || de.offset + de.size > payload.size())
-                continue;
-            auto& refs = group_refs[canonical_milo_ref(de.name)];
-            const auto strings = scan_milo_strings(
-                payload.data() + de.offset, static_cast<size_t>(de.size));
             for (const auto& s : strings) {
                 const auto ref = canonical_milo_ref(s);
                 if ((ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) ||
@@ -4355,58 +4432,53 @@ load_venue_event_env_anims(
             }
         }
 
-        std::map<std::string, std::vector<std::string>> group_env_anims;
-        auto collect_group_env_anims =
-            [&](auto&& self, const std::string& group,
-                std::vector<std::string>& out,
-                std::unordered_set<std::string>& seen) -> void {
-            if (!seen.insert(group).second) return;
-            if (const auto cached = group_env_anims.find(group);
-                cached != group_env_anims.end()) {
-                for (const auto& anim : cached->second) push_unique_ref(out, anim);
+        auto collect_ref =
+            [&](auto&& self, const std::string& ref,
+                std::vector<Gameplay::VenueEventAnimRoute>& routes,
+                std::unordered_set<std::string>& seen,
+                const Gameplay::VenueAnimFilter* source_filter) -> void {
+            const std::string seen_key =
+                ref + "|" +
+                (source_filter ? source_filter->name : std::string{});
+            if (!seen.insert(seen_key).second) return;
+            if (ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) {
+                push_unique_event_anim_route(routes, ref, 0.0f, false, 0.0f,
+                                             std::string{}, source_filter);
                 return;
             }
-            std::vector<std::string> resolved;
-            const auto refs_it = group_refs.find(group);
-            if (refs_it != group_refs.end()) {
-                for (const auto& ref : refs_it->second) {
-                    if (ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) {
-                        push_unique_ref(resolved, ref);
-                    } else if (ref.size() > 5 &&
-                               ref.rfind(".filt") == ref.size() - 5) {
-                        const auto filter_it = filter_env_anims.find(ref);
-                        if (filter_it == filter_env_anims.end()) continue;
-                        for (const auto& anim : filter_it->second)
-                            push_unique_ref(resolved, anim);
-                    } else if (ref.size() > 4 &&
-                               ref.rfind(".grp") == ref.size() - 4) {
-                        self(self, ref, resolved, seen);
-                    }
+            const Gameplay::VenueAnimFilter* child_source_filter =
+                source_filter;
+            if (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) {
+                const auto timing_it = filter_env_timing.find(ref);
+                if (timing_it != filter_env_timing.end()) {
+                    child_source_filter = &timing_it->second;
                 }
             }
-            group_env_anims[group] = resolved;
-            for (const auto& anim : resolved) push_unique_ref(out, anim);
+            const auto& ref_map =
+                (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5)
+                    ? filter_refs
+                    : group_refs;
+            const auto refs_it = ref_map.find(ref);
+            if (refs_it == ref_map.end()) return;
+            for (const auto& child : refs_it->second)
+                self(self, child, routes, seen, child_source_filter);
         };
-        for (const auto& [group, refs] : group_refs) {
+        for (const auto& [filter, refs] : filter_refs) {
             (void)refs;
-            std::vector<std::string> resolved;
+            std::vector<Gameplay::VenueEventAnimRoute> env_anims;
             std::unordered_set<std::string> seen;
-            collect_group_env_anims(collect_group_env_anims, group, resolved,
-                                    seen);
-        }
-        for (const auto& [filter, groups] : filter_group_refs) {
-            auto& routed = filter_env_anims[filter];
-            for (const auto& group : groups) {
-                const auto group_it = group_env_anims.find(group);
-                if (group_it == group_env_anims.end()) continue;
-                for (const auto& anim : group_it->second)
-                    push_unique_ref(routed, anim);
-            }
-        }
-        for (const auto& [filter, anims] : filter_env_anims) {
-            if (anims.empty()) continue;
+            const auto timing_it = filter_env_timing.find(filter);
+            collect_ref(collect_ref, filter, env_anims, seen,
+                        timing_it == filter_env_timing.end()
+                            ? nullptr
+                            : &timing_it->second);
+            if (env_anims.empty()) continue;
             auto& routed = out[venue_filter_route_key(filter)];
-            push_event_anim_routes(routed, anims, 0.0f);
+            for (const auto& route : env_anims) {
+                push_unique_event_anim_route(
+                    routed, route.anim, 0.0f, false, 0.0f, std::string{},
+                    route.has_source_filter ? &route.source_filter : nullptr);
+            }
         }
 
         for (const auto& de : dir.entries) {
@@ -4424,25 +4496,27 @@ load_venue_event_env_anims(
             std::vector<Gameplay::VenueEventAnimRoute> env_anims;
             for (const auto& anim_route : anim_routes) {
                 const auto ref = canonical_milo_ref(anim_route.ref);
-                std::vector<std::string> resolved;
-                if (ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) {
-                    push_unique_ref(resolved, ref);
-                } else if (ref.size() > 5 &&
-                           ref.rfind(".filt") == ref.size() - 5) {
-                    const auto filter_it = filter_env_anims.find(ref);
-                    if (filter_it == filter_env_anims.end()) continue;
-                    for (const auto& anim : filter_it->second)
-                        push_unique_ref(resolved, anim);
-                } else if (ref.size() > 4 &&
-                           ref.rfind(".grp") == ref.size() - 4) {
-                    const auto group_it = group_env_anims.find(ref);
-                    if (group_it == group_env_anims.end()) continue;
-                    for (const auto& anim : group_it->second)
-                        push_unique_ref(resolved, anim);
+                const bool object_ref =
+                    (ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) ||
+                    (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
+                    (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4);
+                if (!object_ref) {
+                    continue;
                 }
-                push_event_anim_routes(env_anims, resolved, anim_route.blend,
-                                       anim_route.wait, anim_route.delay,
-                                       de.name);
+                std::vector<Gameplay::VenueEventAnimRoute> resolved;
+                std::unordered_set<std::string> seen;
+                const auto timing_it = filter_env_timing.find(ref);
+                collect_ref(collect_ref, ref, resolved, seen,
+                            timing_it == filter_env_timing.end()
+                                ? nullptr
+                                : &timing_it->second);
+                for (const auto& route : resolved) {
+                    push_unique_event_anim_route(
+                        env_anims, route.anim, anim_route.blend,
+                        anim_route.wait, anim_route.delay, de.name,
+                        route.has_source_filter ? &route.source_filter
+                                                : nullptr);
+                }
             }
             if (!env_anims.empty()) {
                 for (const auto& key :
@@ -4454,7 +4528,9 @@ load_venue_event_env_anims(
                             routed, route.anim,
                             route.source_blend_period_seconds,
                             route.source_wait, route.source_delay_seconds,
-                            route.source_trigger);
+                            route.source_trigger,
+                            route.has_source_filter ? &route.source_filter
+                                                    : nullptr);
                     }
                 }
                 if (debug_venue_filters_enabled()) {
@@ -4462,11 +4538,14 @@ load_venue_event_env_anims(
                                  de.name.c_str());
                     for (const auto& route : env_anims) {
                         std::fprintf(stderr,
-                                     "%s blend=%.3f wait=%d delay=%.3f ",
+                                     "%s blend=%.3f wait=%d delay=%.3f filter=%s ",
                                      route.anim.c_str(),
                                      route.source_blend_period_seconds,
                                      route.source_wait ? 1 : 0,
-                                     route.source_delay_seconds);
+                                     route.source_delay_seconds,
+                                     route.has_source_filter
+                                         ? route.source_filter.name.c_str()
+                                         : "none");
                     }
                     std::fprintf(stderr, "\n");
                 }
@@ -11239,6 +11318,16 @@ double material_anim_route_duration_seconds(
     return authored_frames_to_seconds(duration_frames);
 }
 
+double event_anim_route_duration_seconds(
+    const Gameplay::VenueEventAnimRoute& route, float duration_frames,
+    const ghogx::chart::Chart* chart, double absolute_start_seconds) {
+    if (route.has_source_filter) {
+        return venue_filter_duration_seconds(route.source_filter, chart,
+                                             absolute_start_seconds);
+    }
+    return authored_frames_to_seconds(duration_frames);
+}
+
 float active_material_anim_frame_at(
     const Gameplay::ActiveVenueMaterialAnim& anim, double elapsed_seconds,
     double progress, bool has_frame_sample,
@@ -11275,6 +11364,68 @@ float active_material_anim_terminal_frame(
                                      anim.start_time);
     }
     return anim.duration_frames;
+}
+
+float active_environment_anim_initial_frame(
+    const Gameplay::ActiveVenueEnvironmentAnim& anim,
+    const ghogx::chart::Chart* chart) {
+    if (anim.has_source_filter) {
+        return venue_filter_frame_at(anim.source_filter, 0.0, false, chart,
+                                     anim.start_time);
+    }
+    return anim.start_frame;
+}
+
+float active_environment_anim_frame_at(
+    const Gameplay::ActiveVenueEnvironmentAnim& anim, double elapsed_seconds,
+    const ghogx::chart::Chart* chart, bool& done) {
+    done = false;
+    if (anim.target_frame_mode) {
+        const double duration = std::max(0.0, anim.duration_seconds);
+        const double t =
+            duration <= 0.0001
+                ? 1.0
+                : std::clamp(elapsed_seconds / duration, 0.0, 1.0);
+        done = t >= 1.0;
+        return static_cast<float>(
+            static_cast<double>(anim.start_frame) +
+            (static_cast<double>(anim.end_frame) - anim.start_frame) * t);
+    }
+    if (anim.has_source_filter) {
+        done = elapsed_seconds >= std::max(0.0, anim.duration_seconds) - 0.001;
+        return venue_filter_frame_at(anim.source_filter, elapsed_seconds,
+                                     false, chart, anim.start_time);
+    }
+    const float frame =
+        material_anim_frame_at(anim.duration_frames, elapsed_seconds,
+                               anim.persistent);
+    done = frame >= anim.duration_frames - 0.001f;
+    return frame;
+}
+
+float active_light_anim_initial_frame(
+    const Gameplay::ActiveVenueLightAnim& anim,
+    const ghogx::chart::Chart* chart) {
+    if (anim.has_source_filter) {
+        return venue_filter_frame_at(anim.source_filter, 0.0, false, chart,
+                                     anim.start_time);
+    }
+    return 0.0f;
+}
+
+float active_light_anim_frame_at(
+    const Gameplay::ActiveVenueLightAnim& anim, double elapsed_seconds,
+    const ghogx::chart::Chart* chart, bool& done) {
+    if (anim.has_source_filter) {
+        done = elapsed_seconds >= std::max(0.0, anim.duration_seconds) - 0.001;
+        return venue_filter_frame_at(anim.source_filter, elapsed_seconds,
+                                     false, chart, anim.start_time);
+    }
+    const float frame =
+        material_anim_frame_at(anim.duration_frames, elapsed_seconds,
+                               anim.persistent);
+    done = frame >= anim.duration_frames - 0.001f;
+    return frame;
 }
 
 double particle_route_duration_seconds(
@@ -11349,7 +11500,9 @@ double venue_environment_anim_wait_seconds(
         const double duration =
             active.target_frame_mode
                 ? std::max(0.0, active.duration_seconds)
-                : authored_frames_to_seconds(active.duration_frames);
+                : active.has_source_filter
+                      ? std::max(0.0, active.duration_seconds)
+                      : authored_frames_to_seconds(active.duration_frames);
         wait_seconds = std::max(
             wait_seconds,
             direct_anim_time_until_end_seconds(now_seconds, active.start_time,
@@ -11369,7 +11522,9 @@ double venue_light_anim_wait_seconds(
             wait_seconds,
             direct_anim_time_until_end_seconds(
                 now_seconds, active.start_time,
-                authored_frames_to_seconds(active.duration_frames),
+                active.has_source_filter
+                    ? std::max(0.0, active.duration_seconds)
+                    : authored_frames_to_seconds(active.duration_frames),
                 active.persistent));
     }
     return wait_seconds;
@@ -19914,6 +20069,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.environment = anim.environment;
             active_anim.start_time = song_time_ + start_delay;
             active_anim.duration_frames = anim.duration_frames;
+            active_anim.duration_seconds = event_anim_route_duration_seconds(
+                route, anim.duration_frames, &chart_, active_anim.start_time);
             active_anim.color_keys = anim.color_keys;
             active_anim.fog_color_keys = anim.fog_color_keys;
             active_anim.fog_range_keys = anim.fog_range_keys;
@@ -19922,12 +20079,18 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 route.source_blend_period_seconds;
             active_anim.source_start_delay_seconds =
                 static_cast<float>(start_delay);
+            active_anim.has_source_filter = route.has_source_filter;
+            if (route.has_source_filter) {
+                active_anim.source_filter = route.source_filter;
+            }
+            const float initial_frame =
+                active_environment_anim_initial_frame(active_anim, &chart_);
             if (!delayed_start) {
-                venue_environment_frames_[anim.environment] = 0.0f;
+                venue_environment_frames_[anim.environment] = initial_frame;
                 sample_environment_anim_tracks_blended(
                     anim.environment, active_anim.color_keys,
                     active_anim.fog_color_keys, active_anim.fog_range_keys,
-                    0.0f,
+                    initial_frame,
                     source_anim_blend_at(
                         active_anim.source_blend_period_seconds, 0.0),
                     venue_environs_,
@@ -19938,15 +20101,19 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
+                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
                 event_name.c_str(), anim.name.c_str(),
                 anim.environment.c_str(), anim.color_keys.size(),
                 anim.fog_color_keys.size(), anim.fog_range_keys.size(),
                 anim.duration_frames,
+                active_anim.duration_seconds,
                 active_anim.source_blend_period_seconds,
                 route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                route.has_source_filter ? route.source_filter.name.c_str()
+                                        : "none",
                 persistent ? "persistent" : "transient");
-            if (anim.duration_frames > 0.001f || delayed_start) {
+            if (active_anim.duration_seconds > 0.001 ||
+                anim.duration_frames > 0.001f || delayed_start) {
                 active_venue_environment_anims_.push_back(std::move(active_anim));
             }
         }
@@ -19980,6 +20147,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.name = anim.name;
             active_anim.light = anim.light;
             active_anim.start_time = song_time_ + start_delay;
+            active_anim.duration_seconds = event_anim_route_duration_seconds(
+                route, anim.duration_frames, &chart_, active_anim.start_time);
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.persistent = persistent;
@@ -19987,11 +20156,18 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 route.source_blend_period_seconds;
             active_anim.source_start_delay_seconds =
                 static_cast<float>(start_delay);
+            active_anim.has_source_filter = route.has_source_filter;
+            if (route.has_source_filter) {
+                active_anim.source_filter = route.source_filter;
+            }
+            const float initial_frame =
+                active_light_anim_initial_frame(active_anim, &chart_);
             if (!delayed_start) {
                 venue_light_colors_[anim.light] = blend_light_color(
                     current_light_color(anim.light, venue_light_colors_,
                                         venue_lights_),
-                    sample_light_color_key(active_anim.color_keys, 0.0f),
+                    sample_light_color_key(active_anim.color_keys,
+                                           initial_frame),
                     source_anim_blend_at(
                         active_anim.source_blend_period_seconds, 0.0));
                 light_color_changed = true;
@@ -19999,13 +20175,17 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f %s\n",
+                "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
                 event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
                 anim.color_keys.size(), anim.duration_frames,
+                active_anim.duration_seconds,
                 active_anim.source_blend_period_seconds,
                 route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                route.has_source_filter ? route.source_filter.name.c_str()
+                                        : "none",
                 persistent ? "persistent" : "transient");
-            if (anim.duration_frames > 0.001f || delayed_start) {
+            if (active_anim.duration_seconds > 0.001 ||
+                anim.duration_frames > 0.001f || delayed_start) {
                 active_venue_light_anims_.push_back(std::move(active_anim));
             }
         }
@@ -20560,22 +20740,9 @@ void Gameplay::update_active_venue_environment_anims() {
             continue;
         }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
-        float frame = 0.0f;
         bool done = false;
-        if (it->target_frame_mode) {
-            const double duration = std::max(0.0, it->duration_seconds);
-            const double t =
-                duration <= 0.0001
-                    ? 1.0
-                    : std::clamp(elapsed / duration, 0.0, 1.0);
-            frame = static_cast<float>(
-                static_cast<double>(it->start_frame) +
-                (static_cast<double>(it->end_frame) - it->start_frame) * t);
-            done = t >= 1.0;
-        } else {
-            frame = material_anim_frame_at(it->duration_frames, elapsed,
-                                           it->persistent);
-        }
+        const float frame =
+            active_environment_anim_frame_at(*it, elapsed, &chart_, done);
         const float source_blend =
             source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         venue_environment_frames_[it->environment] = frame;
@@ -20593,17 +20760,18 @@ void Gameplay::update_active_venue_environment_anims() {
                                          it->color_keys, frame);
             std::fprintf(
                 stderr,
-                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
+                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f filter=%s\n",
                 it->name.c_str(), it->environment.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->fog_color_keys.size(), it->fog_range_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
                 it->source_blend_period_seconds,
-                it->source_start_delay_seconds);
+                it->source_start_delay_seconds,
+                it->has_source_filter ? it->source_filter.name.c_str()
+                                      : "none");
         }
         if ((it->target_frame_mode && done) ||
-            (!it->target_frame_mode && !it->persistent &&
-             frame >= it->duration_frames - 0.001f)) {
+            (!it->target_frame_mode && !it->persistent && done)) {
             it = active_venue_environment_anims_.erase(it);
         } else {
             ++it;
@@ -20642,8 +20810,9 @@ void Gameplay::update_active_venue_light_anims() {
             continue;
         }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
-        const float frame = material_anim_frame_at(
-            it->duration_frames, elapsed, it->persistent);
+        bool done = false;
+        const float frame = active_light_anim_frame_at(*it, elapsed, &chart_,
+                                                       done);
         const float source_blend =
             source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         const auto color = blend_light_color(
@@ -20654,14 +20823,16 @@ void Gameplay::update_active_venue_light_anims() {
         if (debug_sample) {
             std::fprintf(
                 stderr,
-                "[world] venue LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
+                "[world] venue LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f filter=%s\n",
                 it->name.c_str(), it->light.c_str(), frame, color[0], color[1],
                 color[2], color[3], it->color_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
                 it->source_blend_period_seconds,
-                it->source_start_delay_seconds);
+                it->source_start_delay_seconds,
+                it->has_source_filter ? it->source_filter.name.c_str()
+                                      : "none");
         }
-        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+        if (!it->persistent && done) {
             it = active_venue_light_anims_.erase(it);
         } else {
             ++it;
@@ -21732,6 +21903,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.name = anim.name;
             active_anim.environment = anim.environment;
             active_anim.start_time = song_time_ + start_delay;
+            active_anim.duration_seconds = event_anim_route_duration_seconds(
+                route, anim.duration_frames, &chart_, active_anim.start_time);
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.fog_color_keys = anim.fog_color_keys;
@@ -21741,12 +21914,18 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 route.source_blend_period_seconds;
             active_anim.source_start_delay_seconds =
                 static_cast<float>(start_delay);
+            active_anim.has_source_filter = route.has_source_filter;
+            if (route.has_source_filter) {
+                active_anim.source_filter = route.source_filter;
+            }
+            const float initial_frame =
+                active_environment_anim_initial_frame(active_anim, &chart_);
             if (!delayed_start) {
-                lighting_environment_frames_[anim.environment] = 0.0f;
+                lighting_environment_frames_[anim.environment] = initial_frame;
                 sample_environment_anim_tracks_blended(
                     anim.environment, active_anim.color_keys,
                     active_anim.fog_color_keys, active_anim.fog_range_keys,
-                    0.0f,
+                    initial_frame,
                     source_anim_blend_at(
                         active_anim.source_blend_period_seconds, 0.0),
                     lighting_environs_,
@@ -21758,14 +21937,18 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f\n",
+                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s\n",
                 event_name.c_str(), anim.name.c_str(),
                 anim.environment.c_str(), anim.color_keys.size(),
                 anim.fog_color_keys.size(), anim.fog_range_keys.size(),
                 anim.duration_frames,
+                active_anim.duration_seconds,
                 active_anim.source_blend_period_seconds,
-                route.source_wait ? 1 : 0, route_delay, wait_seconds);
-            if (anim.duration_frames > 0.001f || delayed_start) {
+                route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                route.has_source_filter ? route.source_filter.name.c_str()
+                                        : "none");
+            if (active_anim.duration_seconds > 0.001 ||
+                anim.duration_frames > 0.001f || delayed_start) {
                 active_lighting_environment_anims_.push_back(
                     std::move(active_anim));
             }
@@ -21798,6 +21981,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.name = anim.name;
             active_anim.light = anim.light;
             active_anim.start_time = song_time_ + start_delay;
+            active_anim.duration_seconds = event_anim_route_duration_seconds(
+                route, anim.duration_frames, &chart_, active_anim.start_time);
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.persistent = persistent;
@@ -21805,11 +21990,18 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 route.source_blend_period_seconds;
             active_anim.source_start_delay_seconds =
                 static_cast<float>(start_delay);
+            active_anim.has_source_filter = route.has_source_filter;
+            if (route.has_source_filter) {
+                active_anim.source_filter = route.source_filter;
+            }
+            const float initial_frame =
+                active_light_anim_initial_frame(active_anim, &chart_);
             if (!delayed_start) {
                 lighting_light_colors_[anim.light] = blend_light_color(
                     current_light_color(anim.light, lighting_light_colors_,
                                         lighting_lights_),
-                    sample_light_color_key(active_anim.color_keys, 0.0f),
+                    sample_light_color_key(active_anim.color_keys,
+                                           initial_frame),
                     source_anim_blend_at(
                         active_anim.source_blend_period_seconds, 0.0));
                 light_color_changed = true;
@@ -21817,12 +22009,16 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f\n",
+                "[world] lighting event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s\n",
                 event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
                 anim.color_keys.size(), anim.duration_frames,
+                active_anim.duration_seconds,
                 active_anim.source_blend_period_seconds,
-                route.source_wait ? 1 : 0, route_delay, wait_seconds);
-            if (anim.duration_frames > 0.001f || delayed_start) {
+                route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                route.has_source_filter ? route.source_filter.name.c_str()
+                                        : "none");
+            if (active_anim.duration_seconds > 0.001 ||
+                anim.duration_frames > 0.001f || delayed_start) {
                 active_lighting_light_anims_.push_back(std::move(active_anim));
             }
         }
@@ -22232,22 +22428,9 @@ void Gameplay::update_active_lighting_environment_anims() {
             continue;
         }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
-        float frame = 0.0f;
         bool done = false;
-        if (it->target_frame_mode) {
-            const double duration = std::max(0.0, it->duration_seconds);
-            const double t =
-                duration <= 0.0001
-                    ? 1.0
-                    : std::clamp(elapsed / duration, 0.0, 1.0);
-            frame = static_cast<float>(
-                static_cast<double>(it->start_frame) +
-                (static_cast<double>(it->end_frame) - it->start_frame) * t);
-            done = t >= 1.0;
-        } else {
-            frame = material_anim_frame_at(it->duration_frames, elapsed,
-                                           it->persistent);
-        }
+        const float frame =
+            active_environment_anim_frame_at(*it, elapsed, &chart_, done);
         const float source_blend =
             source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         lighting_environment_frames_[it->environment] = frame;
@@ -22265,17 +22448,18 @@ void Gameplay::update_active_lighting_environment_anims() {
                                          it->color_keys, frame);
             std::fprintf(
                 stderr,
-                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
+                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f filter=%s\n",
                 it->name.c_str(), it->environment.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->fog_color_keys.size(), it->fog_range_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
                 it->source_blend_period_seconds,
-                it->source_start_delay_seconds);
+                it->source_start_delay_seconds,
+                it->has_source_filter ? it->source_filter.name.c_str()
+                                      : "none");
         }
         if ((it->target_frame_mode && done) ||
-            (!it->target_frame_mode && !it->persistent &&
-             frame >= it->duration_frames - 0.001f)) {
+            (!it->target_frame_mode && !it->persistent && done)) {
             it = active_lighting_environment_anims_.erase(it);
         } else {
             ++it;
@@ -22316,8 +22500,9 @@ void Gameplay::update_active_lighting_light_anims() {
             continue;
         }
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
-        const float frame = material_anim_frame_at(
-            it->duration_frames, elapsed, it->persistent);
+        bool done = false;
+        const float frame = active_light_anim_frame_at(*it, elapsed, &chart_,
+                                                       done);
         const float source_blend =
             source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         const auto color =
@@ -22331,14 +22516,16 @@ void Gameplay::update_active_lighting_light_anims() {
         if (debug_sample) {
             std::fprintf(
                 stderr,
-                "[world] lighting LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f\n",
+                "[world] lighting LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d blend=%.3f blend_period=%.3f delay=%.3f filter=%s\n",
                 it->name.c_str(), it->light.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->persistent ? 1 : 0, source_blend,
                 it->source_blend_period_seconds,
-                it->source_start_delay_seconds);
+                it->source_start_delay_seconds,
+                it->has_source_filter ? it->source_filter.name.c_str()
+                                      : "none");
         }
-        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+        if (!it->persistent && done) {
             it = active_lighting_light_anims_.erase(it);
         } else {
             ++it;

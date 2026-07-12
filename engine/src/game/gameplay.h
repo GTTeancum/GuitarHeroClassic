@@ -445,16 +445,21 @@ class Gameplay {
     bool target_frame_mode = false;
     float source_blend_period_seconds = 0.0f;
     float source_start_delay_seconds = 0.0f;
+    bool has_source_filter = false;
+    VenueAnimFilter source_filter;
   };
   struct ActiveVenueLightAnim {
     std::string name;
     std::string light;
     double start_time = 0.0;
+    double duration_seconds = 0.0;
     float duration_frames = 0.0f;
     std::vector<VenueLightAnim::ColorKey> color_keys;
     bool persistent = true;
     float source_blend_period_seconds = 0.0f;
     float source_start_delay_seconds = 0.0f;
+    bool has_source_filter = false;
+    VenueAnimFilter source_filter;
   };
   struct VenueParticleRoute {
     struct ColorKey {

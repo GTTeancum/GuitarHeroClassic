@@ -4610,13 +4610,16 @@ int main() {
                  "color_keys=%zu",
                  "venue EnvAnim logs decoded color key coverage");
   ok &= contains(gameplay_c,
-                 "std::map<std::string,std::vector<std::string>>"
-                 "filter_env_anims;",
-                 "EnvAnim loader resolves AnimFilter-indirected environment animations");
+                 "std::map<std::string,Gameplay::VenueAnimFilter>"
+                 "filter_env_timing;",
+                 "EnvAnim AnimFilter routes preserve source timing");
   ok &= contains(gameplay_c,
-                 "std::map<std::string,std::vector<std::string>>"
-                 "group_env_anims;",
-                 "EnvAnim loader resolves Group-contained environment animations");
+                 "\"[world]venueEnvAnimAnimFilter%s->%ssource-shaped",
+                 "EnvAnim loader exposes source-shaped AnimFilter timing");
+  ok &= contains(gameplay_c,
+                 "push_unique_event_anim_route(routes,ref,0.0f,false,0.0f,"
+                 "std::string{},source_filter);",
+                 "EnvAnim route resolver carries source AnimFilter timing to resolved anims");
   ok &= contains(gameplay_c,
                  "\"[world]venueEnvAnimroutesloaded%s:%zuevents",
                  "EnvAnim route loader emits the same summary evidence as LightAnim/ParticleSys");
@@ -4661,6 +4664,13 @@ int main() {
                  "std::map<std::string,std::vector<Gameplay::VenueEventAnimRoute>>"
                  "load_venue_event_light_anims",
                  "gameplay loads authored LightAnim event routes with source blend");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,Gameplay::VenueAnimFilter>"
+                 "filter_light_timing;",
+                 "LightAnim AnimFilter routes preserve source timing");
+  ok &= contains(gameplay_c,
+                 "\"[world]venueLightAnimAnimFilter%s->%ssource-shaped",
+                 "LightAnim loader exposes source-shaped AnimFilter timing");
   ok &= contains(gameplay_h_c,
                  "structVenueEventAnimRoute{std::stringanim;"
                  "std::stringsource_trigger;"
@@ -4671,12 +4681,16 @@ int main() {
                  "VenueAnimFiltersource_filter;};",
                  "EventTrigger EnvAnim/LightAnim routes preserve ihatecompvir blend/wait/delay");
   ok &= contains(gameplay_c,
-                 "push_event_anim_routes(light_anims,resolved,anim_route.blend,"
-                 "anim_route.wait,anim_route.delay,de.name);",
+                 "push_unique_event_anim_route("
+                 "light_anims,route.anim,anim_route.blend,"
+                 "anim_route.wait,anim_route.delay,de.name,"
+                 "route.has_source_filter?&route.source_filter:nullptr);",
                  "LightAnim route loader keeps source EventTrigger timing rows");
   ok &= contains(gameplay_c,
-                 "push_event_anim_routes(env_anims,resolved,anim_route.blend,"
-                 "anim_route.wait,anim_route.delay,de.name);",
+                 "push_unique_event_anim_route("
+                 "env_anims,route.anim,anim_route.blend,"
+                 "anim_route.wait,anim_route.delay,de.name,"
+                 "route.has_source_filter?&route.source_filter:nullptr);",
                  "EnvAnim route loader keeps source EventTrigger timing rows");
   ok &= contains(gameplay_c,
                  "venue_event_light_anims_=load_venue_event_light_anims(",
@@ -4690,6 +4704,22 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_light_color_overrides(venue_light_colors_);",
                  "venue LightAnim samples feed renderer overrides");
+  ok &= contains(gameplay_h_c,
+                 "structActiveVenueEnvironmentAnim",
+                 "gameplay keeps active EnvAnim state");
+  ok &= contains(gameplay_h_c,
+                 "structActiveVenueLightAnim",
+                 "gameplay keeps active LightAnim state");
+  ok &= contains(gameplay_c,
+                 "active_anim.duration_seconds=event_anim_route_duration_seconds("
+                 "route,anim.duration_frames,&chart_,active_anim.start_time);",
+                 "filtered EnvAnim/LightAnim activation derives duration from source AnimFilter timing");
+  ok &= contains(gameplay_c,
+                 "active_environment_anim_frame_at(*it,elapsed,&chart_,done);",
+                 "filtered EnvAnim sampler uses source AnimFilter frame mapping");
+  ok &= contains(gameplay_c,
+                 "active_light_anim_frame_at(*it,elapsed,&chart_,done);",
+                 "filtered LightAnim sampler uses source AnimFilter frame mapping");
   ok &= contains(gameplay_c,
                  "std::array<float,4>sample_light_color_key("
                  "conststd::vector<Gameplay::VenueLightAnim::ColorKey>&"
