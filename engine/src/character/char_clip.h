@@ -914,6 +914,30 @@ struct SourceCharClipTransitionsDumpEvidence {
   bool has_statement_bodies = false;
 };
 
+struct SourceCharClipRuntimeDumpEvidence {
+  std::string find_nodes_range;
+  std::string find_first_node_range;
+  std::string find_last_node_range;
+  std::string find_node_range;
+  std::string replace_range;
+  std::string clear_all_nodes_range;
+  std::string load_range;
+  std::string check_stick_range;
+  std::string sync_property_range;
+  std::vector<std::string> find_nodes_locals;
+  std::vector<std::string> find_first_node_locals;
+  std::vector<std::string> find_last_node_locals;
+  std::vector<std::string> find_node_locals;
+  std::vector<std::string> load_locals;
+  std::vector<std::string> check_stick_locals;
+  bool has_load_statement_body = false;
+  bool has_check_stick_statement_body = false;
+  bool has_sync_property_statement_body = false;
+  bool safe_to_import_load = false;
+  bool safe_to_import_check_stick = false;
+  bool safe_to_import_sync_property = false;
+};
+
 struct SourceCharClipPoseMeshesSteps {
   std::string temp_meshes_name;
   bool stuff_bones = false;
@@ -1378,6 +1402,7 @@ SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
     SourceCharClipTransitionsState& transitions);
 SourceCharClipTransitionsDumpEvidence
 source_char_clip_transitions_dump_evidence();
+SourceCharClipRuntimeDumpEvidence source_char_clip_runtime_dump_evidence();
 std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
     const std::vector<SourceCharBonesBone>& existing_bones,
     const std::vector<SourceCharBonesBone>& listed_bones);

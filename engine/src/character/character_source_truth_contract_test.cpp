@@ -15539,6 +15539,24 @@ int run_contract() {
   ok &= contains(rb2_char_clip_cpp,
                  "//Range:0x803288A4->0x80328A1CvoidCharClip::AddNode(",
                  "RB2 dump maps CharClip AddNode range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80328218->0x80328258classNodeVector*"
+                 "CharClip::FindNodes(",
+                 "RB2 dump maps CharClip FindNodes range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80328348->0x80328564structCharGraphNode*"
+                 "CharClip::FindNode(",
+                 "RB2 dump maps CharClip FindNode range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80328D70->0x803296ACvoidCharClip::Load(",
+                 "RB2 dump maps CharClip Load range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x8032A5DC->0x8032A8B8floatCharClip::CheckStick(",
+                 "RB2 dump maps CharClip CheckStick range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x8032AA84->0x8032B76Cunsignedchar"
+                 "CharClip::SyncProperty(",
+                 "RB2 dump maps CharClip SyncProperty range");
   ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::StuffBones(CharBones&bones){std::list<"
                  "CharBones::Bone>blist;ListBones(blist);bones.AddBones(blist);}",
@@ -15604,6 +15622,14 @@ int run_contract() {
   ok &= contains(doc,
                  "`has_statement_bodies=false`",
                  "document records transition maps lack statement bodies");
+  ok &= contains(doc,
+                 "Native `source_char_clip_runtime_dump_evidence` records the "
+                 "adjacent RB2\n    `CharClip` runtime map",
+                 "document records native CharClip runtime dump helper");
+  ok &= contains(doc,
+                 "not a source body for `CharClip::Load`,\n    `CheckStick`, "
+                 "or `SyncProperty`",
+                 "document fences CharClip runtime imports");
   ok &= contains(doc,
                  "Native `source_char_clip_stuff_bones` and",
                  "document records native CharClip StuffBones helper");
@@ -15898,6 +15924,13 @@ int run_contract() {
                  "SourceCharClipTransitionsDumpEvidence"
                  "source_char_clip_transitions_dump_evidence();",
                  "native character API exposes source CharClip transition dump helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipRuntimeDumpEvidence",
+                 "native character API exposes source CharClip runtime dump evidence");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipRuntimeDumpEvidencesource_char_clip_runtime_"
+                 "dump_evidence();",
+                 "native character API exposes source CharClip runtime dump helper");
   ok &= contains(char_clip_h,
                  "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
                  "conststd::vector<SourceCharBonesBone>&existing_bones,"
@@ -16209,6 +16242,24 @@ int run_contract() {
                  "returnevidence;}",
                  "native CharClip transition dump helper records Resize/AddNode ranges");
   ok &= contains(char_clip,
+                 "SourceCharClipRuntimeDumpEvidencesource_char_clip_runtime_"
+                 "dump_evidence(){SourceCharClipRuntimeDumpEvidenceevidence;",
+                 "native CharClip runtime dump helper is implemented");
+  ok &= contains(char_clip,
+                 "evidence.find_nodes_range=\"0x80328218->0x80328258\";"
+                 "evidence.find_first_node_range=\"0x80328258->0x803282D0\";",
+                 "native CharClip runtime dump helper records node-find ranges");
+  ok &= contains(char_clip,
+                 "evidence.load_range=\"0x80328D70->0x803296AC\";"
+                 "evidence.check_stick_range=\"0x8032A5DC->0x8032A8B8\";",
+                 "native CharClip runtime dump helper records Load and CheckStick ranges");
+  ok &= contains(char_clip,
+                 "evidence.sync_property_range=\"0x8032AA84->0x8032B76C\";",
+                 "native CharClip runtime dump helper records SyncProperty range");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_import_load=false;",
+                 "native CharClip runtime dump helper fences Load import");
+  ok &= contains(char_clip,
                  "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
                  "conststd::vector<SourceCharBonesBone>&existing_bones,"
                  "conststd::vector<SourceCharBonesBone>&listed_bones){"
@@ -16309,6 +16360,13 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_transitions_dump_evidence()",
                  "focused clip driver flags test covers transition dump evidence");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_runtime_dump_evidence()",
+                 "focused clip driver flags test covers CharClip runtime dump evidence");
+  ok &= contains(clip_driver_flags_test,
+                 "clip_dump.safe_to_import_load||"
+                 "clip_dump.safe_to_import_check_stick||",
+                 "focused clip driver flags test fences CharClip runtime imports");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_stuff_bones(",
                  "focused clip driver flags test covers StuffBones append flow");

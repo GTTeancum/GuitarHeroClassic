@@ -1198,6 +1198,38 @@ int main() {
     std::cerr << "Transitions dump evidence mismatch\n";
     ok = false;
   }
+  const ghogx::character::SourceCharClipRuntimeDumpEvidence clip_dump =
+      ghogx::character::source_char_clip_runtime_dump_evidence();
+  if (clip_dump.find_nodes_range != "0x80328218 -> 0x80328258" ||
+      clip_dump.find_first_node_range != "0x80328258 -> 0x803282D0" ||
+      clip_dump.find_last_node_range != "0x803282D0 -> 0x80328348" ||
+      clip_dump.find_node_range != "0x80328348 -> 0x80328564" ||
+      clip_dump.load_range != "0x80328D70 -> 0x803296AC" ||
+      clip_dump.check_stick_range != "0x8032A5DC -> 0x8032A8B8" ||
+      clip_dump.sync_property_range != "0x8032AA84 -> 0x8032B76C" ||
+      clip_dump.find_node_locals !=
+          std::vector<std::string>({"CharGraphNode* n", "float beatAlign",
+                                    "float endBorder", "float f"}) ||
+      clip_dump.load_locals.size() != 26 ||
+      clip_dump.load_locals[0] != "int num" ||
+      clip_dump.load_locals[2] != "char name[256]" ||
+      clip_dump.load_locals[17] != "String tmp" ||
+      clip_dump.load_locals[21] != "String s" ||
+      clip_dump.load_locals[25] != "float frame" ||
+      clip_dump.check_stick_locals !=
+          std::vector<std::string>({"RndTransformable* stick",
+                                    "RndTransformable* arm",
+                                    "CharBonesMeshes bones",
+                                    "Vector3 stickDown", "Vector3 armDown",
+                                    "float angle"}) ||
+      clip_dump.has_load_statement_body ||
+      clip_dump.has_check_stick_statement_body ||
+      clip_dump.has_sync_property_statement_body ||
+      clip_dump.safe_to_import_load || clip_dump.safe_to_import_check_stick ||
+      clip_dump.safe_to_import_sync_property) {
+    std::cerr << "CharClip runtime dump evidence mismatch\n";
+    ok = false;
+  }
   const std::vector<ghogx::character::SourceCharBonesBone> stuffed =
       ghogx::character::source_char_clip_stuff_bones(
           {{"preexisting.pos", 0.25f}},

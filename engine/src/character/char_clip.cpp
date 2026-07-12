@@ -3135,6 +3135,63 @@ source_char_clip_transitions_dump_evidence() {
   return evidence;
 }
 
+SourceCharClipRuntimeDumpEvidence source_char_clip_runtime_dump_evidence() {
+  SourceCharClipRuntimeDumpEvidence evidence;
+  evidence.find_nodes_range = "0x80328218 -> 0x80328258";
+  evidence.find_first_node_range = "0x80328258 -> 0x803282D0";
+  evidence.find_last_node_range = "0x803282D0 -> 0x80328348";
+  evidence.find_node_range = "0x80328348 -> 0x80328564";
+  evidence.replace_range = "0x80328564 -> 0x80328650";
+  evidence.clear_all_nodes_range = "0x80328650 -> 0x803286D0";
+  evidence.load_range = "0x80328D70 -> 0x803296AC";
+  evidence.check_stick_range = "0x8032A5DC -> 0x8032A8B8";
+  evidence.sync_property_range = "0x8032AA84 -> 0x8032B76C";
+  evidence.find_nodes_locals = {"NodeVector* n"};
+  evidence.find_first_node_locals = {"NodeVector* n", "int i"};
+  evidence.find_last_node_locals = {"NodeVector* n", "int i"};
+  evidence.find_node_locals = {"CharGraphNode* n", "float beatAlign",
+                               "float endBorder", "float f"};
+  evidence.load_locals = {"int num",
+                          "int i",
+                          "char name[256]",
+                          "int numNodes",
+                          "int j",
+                          "CharGraphNode n",
+                          "int maxSize",
+                          "int num",
+                          "NodeVector* start",
+                          "NodeVector* n",
+                          "int i",
+                          "char name[256]",
+                          "int j",
+                          "int size",
+                          "int j",
+                          "CharGraphNode n",
+                          "int num",
+                          "String tmp",
+                          "int i",
+                          "int num",
+                          "int i",
+                          "String s",
+                          "float lastFrame",
+                          "int num",
+                          "int i",
+                          "float frame"};
+  evidence.check_stick_locals = {"RndTransformable* stick",
+                                 "RndTransformable* arm",
+                                 "CharBonesMeshes bones",
+                                 "Vector3 stickDown",
+                                 "Vector3 armDown",
+                                 "float angle"};
+  evidence.has_load_statement_body = false;
+  evidence.has_check_stick_statement_body = false;
+  evidence.has_sync_property_statement_body = false;
+  evidence.safe_to_import_load = false;
+  evidence.safe_to_import_check_stick = false;
+  evidence.safe_to_import_sync_property = false;
+  return evidence;
+}
+
 std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
     const std::vector<SourceCharBonesBone>& existing_bones,
     const std::vector<SourceCharBonesBone>& listed_bones) {

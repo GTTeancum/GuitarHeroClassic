@@ -2625,6 +2625,14 @@ note, and all report `unreadBytes=0`.
     `source_char_clip_transitions_dump_evidence` records those ranges and keeps
     `has_statement_bodies=false` so transition mutation is not fabricated from
     names alone.
+  - Native `source_char_clip_runtime_dump_evidence` records the adjacent RB2
+    `CharClip` runtime map: `FindNodes`, `FindFirstNode`, `FindLastNode`,
+    `FindNode`, `Replace`, `ClearAllNodes`, `Load`, `CheckStick`, and
+    `SyncProperty`, including the repeated `CharClip::Load` locals and the
+    `CheckStick` stick/arm/bones/down-vector/angle locals. This is still a
+    range/local inventory only. It is not a source body for `CharClip::Load`,
+    `CheckStick`, or `SyncProperty`, and native must not import those behaviors
+    until statement-level source or direct trace evidence exists.
   - Native `source_char_clip_stuff_bones` and
     `source_char_clip_pose_meshes_steps` port the concrete `StuffBones` /
     `PoseMeshes` call order only: list clip bones, append them into the target
