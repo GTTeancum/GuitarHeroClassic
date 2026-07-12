@@ -4071,6 +4071,22 @@ int run_contract() {
                  "jointName);}",
                  "glTFMilo collects chunk hair strand bones");
   ok &= contains(gltf_program_cs,
+                 "if(IsHairBone(node.Name)){if(node.Extras!=null){try{"
+                 "stringjson=node.Extras.ToString();",
+                 "glTFMilo hair settings detection starts on hair bones");
+  ok &= contains(gltf_program_cs,
+                 "if(json.Contains(\"milo_hair_\")){varhairData="
+                 "JsonSerializer.Deserialize<CharHairExtras>(json);",
+                 "glTFMilo hair settings require milo_hair marker");
+  ok &= contains(gltf_program_cs,
+                 "if(hairData!=null&&detectedHairSettings==null){"
+                 "detectedHairSettings=hairData;}",
+                 "glTFMilo hair settings keep first valid extras");
+  ok &= contains(gltf_program_cs,
+                 "catch{//hairextrasareoptional,sobadextrasshouldnot"
+                 "detonatethewholeexport}",
+                 "glTFMilo hair settings bad extras are nonfatal");
+  ok &= contains(gltf_program_cs,
                  "uintnumFaces=(uint)mesh.faces.Count;mesh.groupSizes.Clear();"
                  "while(numFaces>0)",
                  "glTFMilo rebuilds mesh groupSizes from face count");
@@ -5746,6 +5762,12 @@ int run_contract() {
                  "source_gltf_milo_process_char_hair_plan(",
                  "native ports glTFMilo CharHair export defaults");
   ok &= contains(char_mesh,
+                 "source_gltf_milo_detect_hair_settings_plan(",
+                 "native ports glTFMilo hair settings detection gates");
+  ok &= contains(char_mesh,
+                 "extras_json.find(\"milo_hair_\")!=std::string::npos;",
+                 "native glTFMilo hair settings marker is exact");
+  ok &= contains(char_mesh,
                  "plan.revision=11;plan.object_revision=2;plan.simulate=true;",
                  "native glTFMilo CharHair export revisions and simulate flag");
   ok &= contains(char_mesh,
@@ -5780,6 +5802,9 @@ int run_contract() {
                  "source_gltf_milo_process_char_hair_plan(0,3,\"\",true)",
                  "focused CharHair source test covers glTFMilo export early exit");
   ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_detect_hair_settings_plan(",
+                 "focused CharHair source test covers glTFMilo hair settings detection");
+  ok &= contains(char_hair_source_test,
                  "source_gltf_milo_export_hair_point(point_chain,0,"
                  "parent_inverse)",
                  "focused CharHair source test covers glTFMilo point export");
@@ -5800,6 +5825,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_process_char_hair_plan` records those top-level",
                  "document records glTFMilo CharHair export plan helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_detect_hair_settings_plan` records that discovery path",
+                 "document records glTFMilo hair settings detection helper");
   ok &= contains(doc,
                  "`source_gltf_milo_export_hair_point` ports those deterministic point rows",
                  "document records glTFMilo native hair point helper");

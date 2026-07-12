@@ -1461,6 +1461,16 @@ struct SourceGltfMiloCharHairExportPlan {
   std::string entry_name;
 };
 
+struct SourceGltfMiloHairSettingsDetectionPlan {
+  bool is_hair_bone = false;
+  bool checks_extras = false;
+  bool contains_milo_hair_marker = false;
+  bool attempts_deserialize = false;
+  bool bad_extras_nonfatal = false;
+  bool assigns_detected_settings = false;
+  bool preserves_existing_settings = false;
+};
+
 struct SourceCharHairRuntimePoint {
   bool initialized = false;
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
@@ -3442,6 +3452,12 @@ SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
     int strand_count,
     const std::string& requested_wind,
     bool split_strands_at_branches);
+SourceGltfMiloHairSettingsDetectionPlan
+source_gltf_milo_detect_hair_settings_plan(
+    const std::string& bone_name,
+    const std::string& extras_json,
+    bool already_detected_settings,
+    bool deserialize_succeeds);
 
 struct CharCollideMeshSphere {
   int32_t vertex = 0;

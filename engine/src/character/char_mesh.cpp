@@ -7284,6 +7284,33 @@ SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
   return plan;
 }
 
+SourceGltfMiloHairSettingsDetectionPlan
+source_gltf_milo_detect_hair_settings_plan(
+    const std::string& bone_name,
+    const std::string& extras_json,
+    bool already_detected_settings,
+    bool deserialize_succeeds) {
+  SourceGltfMiloHairSettingsDetectionPlan plan;
+  plan.is_hair_bone = source_gltf_milo_is_hair_bone_name(bone_name);
+  if (!plan.is_hair_bone) return plan;
+
+  plan.checks_extras = !extras_json.empty();
+  if (!plan.checks_extras) return plan;
+
+  plan.contains_milo_hair_marker =
+      extras_json.find("milo_hair_") != std::string::npos;
+  if (!plan.contains_milo_hair_marker) return plan;
+
+  plan.attempts_deserialize = true;
+  plan.bad_extras_nonfatal = true;
+  if (already_detected_settings) {
+    plan.preserves_existing_settings = true;
+  } else if (deserialize_succeeds) {
+    plan.assigns_detected_settings = true;
+  }
+  return plan;
+}
+
 static float source_gltf_milo_hair_point_length(
     const std::vector<SourceGltfMiloHairPointNode>& chain,
     size_t point_index,

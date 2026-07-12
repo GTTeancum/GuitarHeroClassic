@@ -1444,6 +1444,13 @@ note, and all report `unreadBytes=0`.
     `bone_hair_`.
   - The same source defines mesh skin export packing and the compressed-layout
     bone-slot reversal now recorded by `source_gltf_milo_pack_skin_slots`.
+  - During node traversal, the exporter only tries to discover `CharHairExtras`
+    on `bone_hair_` nodes with non-null extras, only deserializes extras whose
+    JSON contains the exact `milo_hair_` marker, keeps the first valid settings
+    object, and catches bad extras because hair extras are optional. Native
+    `source_gltf_milo_detect_hair_settings_plan` records that discovery path as
+    source-backed gating for physics settings; it does not invent default
+    physics values absent from the checked source.
 - `glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs`
   - `ProcessCharHair` starts by building a case-insensitive weighted hair-bone
     set and returns without a `CharHair` object when the set is empty. When the

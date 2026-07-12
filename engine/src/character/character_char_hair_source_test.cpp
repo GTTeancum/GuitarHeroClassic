@@ -95,6 +95,7 @@ int main() {
   using ghogx::character::source_grim_char_hair_load_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
   using ghogx::character::source_gltf_milo_export_hair_point;
+  using ghogx::character::source_gltf_milo_detect_hair_settings_plan;
   using ghogx::character::source_gltf_milo_hair_collide_name;
   using ghogx::character::source_gltf_milo_is_hair_bone_node;
   using ghogx::character::source_gltf_milo_process_char_hair_plan;
@@ -321,6 +322,54 @@ int main() {
   ok &= expect_string(gltf_exported_hair.strand_collector,
                       "CollectHairChains",
                       "glTFMilo disabled split uses old collector");
+
+  const auto no_hair_settings =
+      source_gltf_milo_detect_hair_settings_plan(
+          "bone_head", "{\"milo_hair_stiffness\":1}", false, true);
+  ok &= expect_bool(no_hair_settings.is_hair_bone, false,
+                    "glTFMilo ignores non-hair bone extras");
+  ok &= expect_bool(no_hair_settings.attempts_deserialize, false,
+                    "glTFMilo non-hair bone does not deserialize");
+
+  const auto no_marker_settings =
+      source_gltf_milo_detect_hair_settings_plan(
+          "bone_hair_front", "{\"hair_stiffness\":1}", false, true);
+  ok &= expect_bool(no_marker_settings.is_hair_bone, true,
+                    "glTFMilo hair settings requires hair bone");
+  ok &= expect_bool(no_marker_settings.checks_extras, true,
+                    "glTFMilo hair settings checks extras");
+  ok &= expect_bool(no_marker_settings.contains_milo_hair_marker, false,
+                    "glTFMilo hair settings marker is exact");
+  ok &= expect_bool(no_marker_settings.attempts_deserialize, false,
+                    "glTFMilo hair settings skips extras without marker");
+
+  const auto first_settings =
+      source_gltf_milo_detect_hair_settings_plan(
+          "bone_hair_front", "{\"milo_hair_stiffness\":1}", false, true);
+  ok &= expect_bool(first_settings.contains_milo_hair_marker, true,
+                    "glTFMilo hair settings marker detected");
+  ok &= expect_bool(first_settings.attempts_deserialize, true,
+                    "glTFMilo hair settings deserializes marked extras");
+  ok &= expect_bool(first_settings.bad_extras_nonfatal, true,
+                    "glTFMilo bad hair settings extras are nonfatal");
+  ok &= expect_bool(first_settings.assigns_detected_settings, true,
+                    "glTFMilo first valid hair settings wins");
+
+  const auto later_settings =
+      source_gltf_milo_detect_hair_settings_plan(
+          "bone_hair_side", "{\"milo_hair_weight\":2}", true, true);
+  ok &= expect_bool(later_settings.preserves_existing_settings, true,
+                    "glTFMilo later hair settings preserve first");
+  ok &= expect_bool(later_settings.assigns_detected_settings, false,
+                    "glTFMilo later hair settings do not overwrite");
+
+  const auto bad_settings =
+      source_gltf_milo_detect_hair_settings_plan(
+          "bone_hair_side", "{\"milo_hair_bad\":", false, false);
+  ok &= expect_bool(bad_settings.attempts_deserialize, true,
+                    "glTFMilo malformed marked extras still deserialize path");
+  ok &= expect_bool(bad_settings.assigns_detected_settings, false,
+                    "glTFMilo malformed hair settings do not assign");
 
   const auto save = source_char_hair_save_plan();
   ok &= expect_int(save.save_id, 0x41b, "hair save id");
