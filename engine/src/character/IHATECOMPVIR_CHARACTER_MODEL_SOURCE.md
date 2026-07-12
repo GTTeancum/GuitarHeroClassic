@@ -482,7 +482,7 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
   - The visible RB3 `RndMesh` ownership helpers are now mirrored as source
-    plans: `MaxBones()` is 80; `Sync(mask)` ORs `0x200` only while
+    plans: `MaxBones()` is 40 from ihatecompvir's `MAX_BONES`; `Sync(mask)` ORs `0x200` only while
     `mKeepMeshData` is true; `ClearCompressedVerts()` releases the compressed
     buffer and zeros `mNumCompressedVerts`; `SetNumVerts` and `SetNumFaces`
     resize their respective arrays and call `Sync(0x3f)`; and

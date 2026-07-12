@@ -291,7 +291,7 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
 }
 
 int32_t source_rndmesh_max_bones() {
-  return 80;
+  return 40;
 }
 
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,

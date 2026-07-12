@@ -1480,7 +1480,7 @@ int run_contract() {
                  "boolclear_faces=false;boolclear_patches=false;};",
                  "native exposes RndMesh keep-data clear plan");
   ok &= contains(char_mesh,
-                 "int32_tsource_rndmesh_max_bones(){return80;}",
+                 "int32_tsource_rndmesh_max_bones(){return40;}",
                  "native ports RndMesh max bone constant");
   ok &= contains(char_mesh,
                  "plan.on_sync_mask=keep_mesh_data?(mask|0x200):mask;",

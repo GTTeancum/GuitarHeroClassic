@@ -260,7 +260,7 @@ int main() {
   CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
   CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
 
-  CHECK(ghogx::character::source_rndmesh_max_bones() == 80);
+  CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);
   CHECK(sync_plain.on_sync_mask == 0x3f);
