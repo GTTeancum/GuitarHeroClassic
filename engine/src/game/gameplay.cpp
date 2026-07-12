@@ -6405,23 +6405,41 @@ void add_unique_lighting_ref(std::vector<std::string>& refs,
 }
 
 std::vector<std::string> decode_lighting_spotlight_set(
-    const uint8_t* body, size_t size) {
+    const uint8_t* body, size_t size, bool* source_order_decoded = nullptr,
+    uint16_t* source_revision = nullptr) {
     std::vector<std::string> refs;
-    constexpr size_t kSetCountOffset = 0x0D;
-    constexpr size_t kSetRefsOffset = 0x11;
-    if (!body || size < kSetRefsOffset) return refs;
-    uint32_t count = 0;
-    std::memcpy(&count, body + kSetCountOffset, sizeof(count));
-    size_t pos = kSetRefsOffset;
-    for (uint32_t i = 0; i < count && pos + 4 <= size; ++i) {
-        uint32_t len = 0;
-        std::memcpy(&len, body + pos, sizeof(len));
-        pos += 4;
-        if (len == 0 || len > 128 || pos + len > size) break;
-        std::string ref(reinterpret_cast<const char*>(body + pos), len);
-        pos += len;
-        if (ref.rfind(".spot") != std::string::npos)
-            add_unique_lighting_ref(refs, std::move(ref));
+    if (source_order_decoded) *source_order_decoded = false;
+    if (source_revision) *source_revision = 0;
+    if (!body || size < 4) return refs;
+    try {
+        MiloCursor r{body, size, 0};
+        const uint32_t combined_revision = r.u32();
+        const uint16_t revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        if (source_revision) *source_revision = revision;
+        if (revision != 0) {
+            throw std::runtime_error("RndSet revision unsupported");
+        }
+        std::unordered_map<std::string, MiloValue> object_props;
+        read_object_fields_like_miloeditor(r, object_props);
+        const uint32_t object_count = r.u32();
+        if (object_count > 4096)
+            throw std::runtime_error("RndSet object count invalid");
+        for (uint32_t i = 0; i < object_count; ++i) {
+            std::string ref = canonical_milo_ref(r.symbol());
+            if (ref.rfind(".spot") != std::string::npos)
+                add_unique_lighting_ref(refs, std::move(ref));
+        }
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndSet source-shaped reader did not consume EOF");
+        }
+        if (source_order_decoded) *source_order_decoded = true;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr, "[world] RndSet decode failed: %s\n",
+                         ex.what());
+        }
     }
     return refs;
 }
@@ -6647,13 +6665,18 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
             if (de.type != "Set" || de.offset + de.size > payload.size())
                 continue;
             const uint8_t* body = payload.data() + de.offset;
-            auto refs =
-                decode_lighting_spotlight_set(body, static_cast<size_t>(de.size));
+            bool set_source_order = false;
+            uint16_t set_revision = 0;
+            auto refs = decode_lighting_spotlight_set(
+                body, static_cast<size_t>(de.size), &set_source_order,
+                &set_revision);
             local_names.sets.insert(de.name);
             spotlight_sets[de.name] = refs;
             std::fprintf(stderr,
-                         "[world] lighting Set %s spot_refs=%zu\n",
-                         de.name.c_str(), refs.size());
+                         "[world] lighting Set %s source_order=%d rev=%u "
+                         "spot_refs=%zu\n",
+                         de.name.c_str(), set_source_order ? 1 : 0,
+                         set_revision, refs.size());
         }
         for (const auto& de : dir.entries) {
             if (de.type != "LightPreset" ||

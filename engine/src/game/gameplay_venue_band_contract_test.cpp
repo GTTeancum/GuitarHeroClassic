@@ -6389,6 +6389,21 @@ int main() {
                  "std::vector<std::string>decode_lighting_spotlight_set",
                  "lighting Set bodies are decoded as spotlight collections");
   ok &= contains(gameplay_c,
+                 "read_object_fields_like_miloeditor(r,object_props);",
+                 "lighting Set reader follows ihatecompvir Object superclass");
+  ok &= contains(gameplay_c,
+                 "constuint32_tobject_count=r.u32();",
+                 "lighting Set reader uses source counted object list");
+  ok &= contains(gameplay_c,
+                 "std::stringref=canonical_milo_ref(r.symbol());",
+                 "lighting Set refs are decoded as source symbols");
+  ok &= contains(gameplay_c,
+                 "RndSetsource-shapedreaderdidnotconsumeEOF",
+                 "lighting Set source reader validates full consumption");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingSet%ssource_order=%drev=%u\"",
+                 "lighting Set diagnostics expose source-order decode");
+  ok &= contains(gameplay_c,
                  "collect_lighting_object_refs(strings,&local_names,"
                  "&spotlight_sets,p.spot_refs,&p.spot_set_refs,"
                  "p.env_refs,p.lit_refs);",
