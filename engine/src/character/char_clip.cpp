@@ -888,6 +888,39 @@ source_char_bones_samples_body_boundary() {
   return boundary;
 }
 
+SourceCharClipSamplesRuntimeDumpEvidence
+source_char_clip_samples_runtime_dump_evidence() {
+  SourceCharClipSamplesRuntimeDumpEvidence evidence;
+  evidence.facing_bones_set_range = "0x803331CC -> 0x80333344";
+  evidence.facing_set_scale_add_range = "0x80333414 -> 0x80333600";
+  evidence.frame_to_sample_range = "0x8033373C -> 0x8033376C";
+  evidence.get_channel_range = "0x8033399C -> 0x80333A24";
+  evidence.evaluate_channel_range = "0x80333A24 -> 0x80333AB8";
+  evidence.evaluate_channel_sample_range = "0x80333AB8 -> 0x80333B18";
+  evidence.rotate_by_range = "0x80333BCC -> 0x80333C70";
+  evidence.rotate_to_range = "0x80333C70 -> 0x80333CF4";
+  evidence.scale_add_frame_range = "0x80333CF4 -> 0x80333DAC";
+  evidence.scale_add_sample_range = "0x80333DAC -> 0x80333E78";
+  evidence.relativize_range = "0x80333ED4 -> 0x80333F94";
+  evidence.set_relative_range = "0x80333F94 -> 0x80334058";
+  evidence.load_range = "0x80334274 -> 0x80334470";
+  evidence.facing_set_scale_add_locals = {"Vector3 curPos", "float curAng",
+                                          "float lastAng"};
+  evidence.evaluate_channel_locals = {"int offset"};
+  evidence.evaluate_channel_sample_locals = {"float frac", "int sample"};
+  evidence.rotate_by_locals = {"float frac", "int sample"};
+  evidence.rotate_to_locals = {"float frac", "int sample"};
+  evidence.scale_add_frame_locals = {"float frac", "float lastFrac",
+                                     "int sample", "int lastSample"};
+  evidence.load_locals = {"CharBonesSamples delta"};
+  evidence.has_evaluate_channel_statement_body = false;
+  evidence.has_rotate_by_statement_body = false;
+  evidence.has_scale_add_statement_body = false;
+  evidence.has_load_statement_body = false;
+  evidence.safe_to_publish_pose = false;
+  return evidence;
+}
+
 std::string source_char_utl_name_with_suffix(const std::string& name,
                                              const std::string& suffix) {
   const size_t dot = name.rfind('.');

@@ -2574,6 +2574,17 @@ note, and all report `unreadBytes=0`.
     split-step flow.
     Empty sample rows remain fenced because the source body assumes an
     allocated packed row buffer.
+  - The RB2 dump also maps `CharClipSamples` runtime-side functions that sit
+    above the packed `CharBonesSamples` rows: `FacingBones::Set`,
+    `FacingSet::ScaleAdd`, `FrameToSample`, `GetChannel`, both
+    `EvaluateChannel` overloads, `RotateBy`, `RotateTo`, both `ScaleAdd`
+    overloads, `Relativize`, `SetRelative`, and `Load`. Native
+    `source_char_clip_samples_runtime_dump_evidence` records those exact
+    ranges and visible locals, including the `FacingSet::ScaleAdd`
+    `curPos`/`curAng`/`lastAng` locals and the `CharClipSamples::Load`
+    `CharBonesSamples delta` local. This is a source-backed boundary only: the
+    dump exposes ranges and local inventories, not statement-level C++ bodies,
+    so native must not use it to publish broad pose, channel, or facing output.
 - `rb3-latest/src/system/char/CharClip.cpp` is concrete for clip resource
   context, `StuffBones`, `PoseMeshes`, play/clip flags, beat-event loading, and
   `full`/`one` property sync. It declares or calls the broad pose math, but the

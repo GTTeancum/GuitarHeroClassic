@@ -17418,6 +17418,38 @@ int run_contract() {
   ok &= contains(rb2_char_clip_samples_cpp,
                  "voidCharClipSamples::Load(",
                  "RB2 dump exposes CharClipSamples Load runtime map");
+  ok &= contains(rb2_char_clip_samples_cpp,
+                 "voidFacingSet::ScaleAdd(",
+                 "RB2 dump exposes FacingSet ScaleAdd runtime map");
+  ok &= contains(rb2_char_clip_samples_cpp,
+                 "unsignedcharCharClipSamples::EvaluateChannel(",
+                 "RB2 dump exposes CharClipSamples EvaluateChannel runtime map");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipSamplesRuntimeDumpEvidence",
+                 "clip header exposes CharClipSamples runtime dump evidence");
+  ok &= contains(char_clip_h,
+                 "source_char_clip_samples_runtime_dump_evidence();",
+                 "clip header exposes CharClipSamples runtime dump helper");
+  ok &= contains(char_clip,
+                 "source_char_clip_samples_runtime_dump_evidence(){",
+                 "clip source implements CharClipSamples runtime dump helper");
+  ok &= contains(char_clip,
+                 "evidence.facing_bones_set_range=\"0x803331CC->0x80333344\"",
+                 "clip source records FacingBones range");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_publish_pose=false",
+                 "clip source fences CharClipSamples pose publishing");
+  ok &= contains(char_bones_source_test,
+                 "source_char_clip_samples_runtime_dump_evidence()",
+                 "focused char bones test covers CharClipSamples dump helper");
+  ok &= contains(doc,
+                 "`source_char_clip_samples_runtime_dump_evidence` records "
+                 "those exact\n    ranges and visible locals",
+                 "document records CharClipSamples runtime dump helper");
+  ok &= contains(doc,
+                 "not statement-level C++ bodies,\n    so native must not use "
+                 "it to publish broad pose",
+                 "document fences CharClipSamples pose publishing");
   ok &= contains(rb2_char_bones_samples_cpp,
                  "voidCharBonesSamples::LoadHeader(",
                  "RB2 dump exposes CharBonesSamples LoadHeader runtime map");

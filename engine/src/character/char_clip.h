@@ -409,6 +409,34 @@ struct SourceCharBonesSamplesBodyBoundary {
   std::vector<std::string> fenced_bodies;
 };
 
+struct SourceCharClipSamplesRuntimeDumpEvidence {
+  std::string facing_bones_set_range;
+  std::string facing_set_scale_add_range;
+  std::string frame_to_sample_range;
+  std::string get_channel_range;
+  std::string evaluate_channel_range;
+  std::string evaluate_channel_sample_range;
+  std::string rotate_by_range;
+  std::string rotate_to_range;
+  std::string scale_add_frame_range;
+  std::string scale_add_sample_range;
+  std::string relativize_range;
+  std::string set_relative_range;
+  std::string load_range;
+  std::vector<std::string> facing_set_scale_add_locals;
+  std::vector<std::string> evaluate_channel_locals;
+  std::vector<std::string> evaluate_channel_sample_locals;
+  std::vector<std::string> rotate_by_locals;
+  std::vector<std::string> rotate_to_locals;
+  std::vector<std::string> scale_add_frame_locals;
+  std::vector<std::string> load_locals;
+  bool has_evaluate_channel_statement_body = false;
+  bool has_rotate_by_statement_body = false;
+  bool has_scale_add_statement_body = false;
+  bool has_load_statement_body = false;
+  bool safe_to_publish_pose = false;
+};
+
 enum class SourceCharUtlObjectKind {
   kTransformable,
   kMesh,
@@ -1757,6 +1785,8 @@ SourceCharBonesSamplesLoadPlan source_char_bones_samples_load_plan(int version);
 SourceCharBonesSamplesPropSyncPlan source_char_bones_samples_prop_sync_plan();
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary();
+SourceCharClipSamplesRuntimeDumpEvidence
+source_char_clip_samples_runtime_dump_evidence();
 
 // Source-backed CharUtl name/object helpers. CharUtlFindBone rewrites the
 // incoming name to .cb. CharUtlFindBoneTrans checks .cb first and returns that

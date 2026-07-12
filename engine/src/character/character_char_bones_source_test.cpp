@@ -1460,5 +1460,65 @@ int main() {
                       "CharBonesSamples::EvaluateChannel",
                       "samples evaluate channel fenced");
 
+  const SourceCharClipSamplesRuntimeDumpEvidence clip_samples_dump =
+      source_char_clip_samples_runtime_dump_evidence();
+  ok &= expect_string(clip_samples_dump.facing_bones_set_range,
+                      "0x803331CC -> 0x80333344",
+                      "clip samples dump FacingBones::Set range");
+  ok &= expect_string(clip_samples_dump.facing_set_scale_add_range,
+                      "0x80333414 -> 0x80333600",
+                      "clip samples dump FacingSet::ScaleAdd range");
+  ok &= expect_string(clip_samples_dump.frame_to_sample_range,
+                      "0x8033373C -> 0x8033376C",
+                      "clip samples dump FrameToSample range");
+  ok &= expect_string(clip_samples_dump.evaluate_channel_range,
+                      "0x80333A24 -> 0x80333AB8",
+                      "clip samples dump EvaluateChannel range");
+  ok &= expect_string(clip_samples_dump.evaluate_channel_sample_range,
+                      "0x80333AB8 -> 0x80333B18",
+                      "clip samples dump EvaluateChannel sample range");
+  ok &= expect_string(clip_samples_dump.rotate_by_range,
+                      "0x80333BCC -> 0x80333C70",
+                      "clip samples dump RotateBy range");
+  ok &= expect_string(clip_samples_dump.rotate_to_range,
+                      "0x80333C70 -> 0x80333CF4",
+                      "clip samples dump RotateTo range");
+  ok &= expect_string(clip_samples_dump.scale_add_frame_range,
+                      "0x80333CF4 -> 0x80333DAC",
+                      "clip samples dump ScaleAdd frame range");
+  ok &= expect_string(clip_samples_dump.scale_add_sample_range,
+                      "0x80333DAC -> 0x80333E78",
+                      "clip samples dump ScaleAdd sample range");
+  ok &= expect_string(clip_samples_dump.relativize_range,
+                      "0x80333ED4 -> 0x80333F94",
+                      "clip samples dump Relativize range");
+  ok &= expect_string(clip_samples_dump.load_range,
+                      "0x80334274 -> 0x80334470",
+                      "clip samples dump Load range");
+  ok &= expect_size(clip_samples_dump.facing_set_scale_add_locals.size(), 3,
+                    "clip samples dump FacingSet locals");
+  ok &= expect_string(clip_samples_dump.facing_set_scale_add_locals[0],
+                      "Vector3 curPos",
+                      "clip samples dump first FacingSet local");
+  ok &= expect_size(clip_samples_dump.evaluate_channel_sample_locals.size(), 2,
+                    "clip samples dump sample evaluate locals");
+  ok &= expect_string(clip_samples_dump.scale_add_frame_locals[3],
+                      "int lastSample",
+                      "clip samples dump ScaleAdd last sample local");
+  ok &= expect_string(clip_samples_dump.load_locals[0],
+                      "CharBonesSamples delta",
+                      "clip samples dump Load local");
+  ok &= expect_int(
+      clip_samples_dump.has_evaluate_channel_statement_body ? 1 : 0, 0,
+      "clip samples dump lacks EvaluateChannel body");
+  ok &= expect_int(clip_samples_dump.has_rotate_by_statement_body ? 1 : 0, 0,
+                   "clip samples dump lacks RotateBy body");
+  ok &= expect_int(clip_samples_dump.has_scale_add_statement_body ? 1 : 0, 0,
+                   "clip samples dump lacks ScaleAdd body");
+  ok &= expect_int(clip_samples_dump.has_load_statement_body ? 1 : 0, 0,
+                   "clip samples dump lacks Load body");
+  ok &= expect_int(clip_samples_dump.safe_to_publish_pose ? 1 : 0, 0,
+                   "clip samples dump fences pose publish");
+
   return ok ? 0 : 1;
 }
