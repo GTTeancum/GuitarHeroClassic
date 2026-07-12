@@ -3436,8 +3436,12 @@ note, and all report `unreadBytes=0`.
     subobject branches. This is property-row evidence only; it does not provide
     the missing clip sample evaluation or pose publishing bodies.
   - Native `source_char_clip_get_context` ports the concrete `GetContext`
-    fallback: a type definition with a `resource` array returns the resource
-    macro context value; missing type/resource data returns zero.
+    fallback: a type definition with a `resource` array reads slot 2 through
+    `DataGetMacro(found->Str(2))->Int(0)` and returns that macro context value;
+    missing type/resource data returns zero. The companion
+    `source_char_clip_get_context_lookup` keeps the macro symbol visible in
+    deterministic tests so native does not collapse the source `resource` row
+    into an untraceable integer.
   - Native `source_char_clip_get_resource` ports the concrete `GetResource`
     lookup shape: inspect the type definition's `resource` array, request the
     named `CharBoneDir` resource, and warn when no resource is resolved. It

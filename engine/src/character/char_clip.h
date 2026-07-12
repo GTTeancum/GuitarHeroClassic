@@ -1048,6 +1048,14 @@ struct SourceCharClipResourceLookup {
   bool warn_no_resource = false;
 };
 
+struct SourceCharClipContextLookup {
+  bool has_type_def = false;
+  bool has_resource_array = false;
+  std::string macro_name;
+  int context = 0;
+  bool reads_macro = false;
+};
+
 struct SourceCharClipTransitionsState {
   bool has_owner = false;
   std::vector<int> node_sizes;
@@ -1564,6 +1572,11 @@ SourceCharClipResourceLookup source_char_clip_get_resource(
     bool has_resource_array,
     const std::string& resource_name,
     bool resource_found);
+SourceCharClipContextLookup source_char_clip_get_context_lookup(
+    bool has_type_def,
+    bool has_resource_array,
+    const std::string& macro_name,
+    int resource_context);
 int source_char_clip_get_context(bool has_type_def,
                                  bool has_resource_array,
                                  int resource_context);

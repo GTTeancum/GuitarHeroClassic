@@ -908,6 +908,30 @@ bool expect_resource_lookup(
   return ok;
 }
 
+bool expect_context_lookup(
+    const ghogx::character::SourceCharClipContextLookup& got,
+    bool has_type_def,
+    bool has_resource_array,
+    const std::string& macro_name,
+    int context,
+    bool reads_macro,
+    const char* label) {
+  bool ok = true;
+  if (got.has_type_def != has_type_def ||
+      got.has_resource_array != has_resource_array ||
+      got.macro_name != macro_name ||
+      got.context != context ||
+      got.reads_macro != reads_macro) {
+    std::cerr << "context lookup mismatch for " << label << ": typeDef="
+              << got.has_type_def << " resourceArray="
+              << got.has_resource_array << " macro='" << got.macro_name
+              << "' context=" << got.context
+              << " readsMacro=" << got.reads_macro << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_clip_driver_helpers() {
   bool ok = true;
   const uint32_t masked =
@@ -1198,7 +1222,20 @@ int main() {
   ok &= expect_resource_lookup(
       ghogx::character::source_char_clip_get_resource(false, true,
                                                       "ignored_resource", true),
-      false, true, "", false, true, "missing typedef");
+      false, false, "", false, true, "missing typedef");
+  ok &= expect_context_lookup(
+      ghogx::character::source_char_clip_get_context_lookup(
+          true, true, "clip_resource_context", 0x27),
+      true, true, "clip_resource_context", 0x27, true,
+      "found context macro");
+  ok &= expect_context_lookup(
+      ghogx::character::source_char_clip_get_context_lookup(
+          true, false, "ignored_context", 0x27),
+      true, false, "", 0, false, "missing resource array");
+  ok &= expect_context_lookup(
+      ghogx::character::source_char_clip_get_context_lookup(
+          false, true, "ignored_context", 0x27),
+      false, false, "", 0, false, "missing typedef context");
   if (ghogx::character::source_char_clip_get_context(true, true, 0x27) !=
       0x27) {
     std::cerr << "GetContext resource macro mismatch\n";

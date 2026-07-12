@@ -19760,6 +19760,16 @@ int run_contract() {
                  "resource_name,boolresource_found);",
                  "native character API exposes source CharClip GetResource helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipContextLookup{boolhas_type_def=false;"
+                 "boolhas_resource_array=false;std::stringmacro_name;intcontext=0;"
+                 "boolreads_macro=false;};",
+                 "native character API exposes source CharClip GetContext lookup state");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipContextLookupsource_char_clip_get_context_lookup("
+                 "boolhas_type_def,boolhas_resource_array,conststd::string&"
+                 "macro_name,intresource_context);",
+                 "native character API exposes source CharClip GetContext lookup helper");
+  ok &= contains(char_clip_h,
                  "intsource_char_clip_get_context(boolhas_type_def,"
                  "boolhas_resource_array,intresource_context);",
                  "native character API exposes source CharClip GetContext helper");
@@ -20058,15 +20068,25 @@ int run_contract() {
                  "boolhas_type_def,boolhas_resource_array,conststd::string&"
                  "resource_name,boolresource_found){SourceCharClipResourceLookup"
                  "lookup;lookup.has_type_def=has_type_def;lookup.has_resource_array="
-                 "has_resource_array;if(has_type_def&&has_resource_array){"
+                 "has_type_def&&has_resource_array;if(lookup.has_resource_array){"
                  "lookup.resource_name=resource_name;lookup.found_resource="
                  "resource_found;}lookup.warn_no_resource=!lookup.found_resource;"
                  "returnlookup;}",
                  "native CharClip GetResource helper ports lookup and warning");
   ok &= contains(char_clip,
+                 "SourceCharClipContextLookupsource_char_clip_get_context_lookup("
+                 "boolhas_type_def,boolhas_resource_array,conststd::string&"
+                 "macro_name,intresource_context){SourceCharClipContextLookup"
+                 "lookup;lookup.has_type_def=has_type_def;lookup.has_resource_array="
+                 "has_type_def&&has_resource_array;if(lookup.has_resource_array){"
+                 "lookup.macro_name=macro_name;lookup.context=resource_context;"
+                 "lookup.reads_macro=true;}returnlookup;}",
+                 "native CharClip GetContext lookup preserves source macro row");
+  ok &= contains(char_clip,
                  "intsource_char_clip_get_context(boolhas_type_def,"
-                 "boolhas_resource_array,intresource_context){if(has_type_def&&"
-                 "has_resource_array)returnresource_context;return0;}",
+                 "boolhas_resource_array,intresource_context){return"
+                 "source_char_clip_get_context_lookup(has_type_def,has_resource_array,"
+                 "\"\",resource_context).context;}",
                  "native CharClip GetContext helper ports source fallback");
   ok &= contains(char_clip,
                  "SourceCharClipTransitionsStatesource_char_clip_transitions_construct("
@@ -20201,6 +20221,14 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_get_resource(false,true,\"ignored_resource\",true)",
                  "focused clip driver flags test covers missing TypeDef resource fallback");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_get_context_lookup(true,true,"
+                 "\"clip_resource_context\",0x27)",
+                 "focused clip driver flags test covers GetContext macro lookup");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_get_context_lookup(false,true,"
+                 "\"ignored_context\",0x27)",
+                 "focused clip driver flags test covers missing TypeDef context fallback");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_get_context(true,true,0x27)",
                  "focused clip driver flags test covers GetContext resource value");

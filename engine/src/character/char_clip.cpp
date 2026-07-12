@@ -3533,8 +3533,8 @@ SourceCharClipResourceLookup source_char_clip_get_resource(
     bool resource_found) {
   SourceCharClipResourceLookup lookup;
   lookup.has_type_def = has_type_def;
-  lookup.has_resource_array = has_resource_array;
-  if (has_type_def && has_resource_array) {
+  lookup.has_resource_array = has_type_def && has_resource_array;
+  if (lookup.has_resource_array) {
     lookup.resource_name = resource_name;
     lookup.found_resource = resource_found;
   }
@@ -3542,11 +3542,28 @@ SourceCharClipResourceLookup source_char_clip_get_resource(
   return lookup;
 }
 
+SourceCharClipContextLookup source_char_clip_get_context_lookup(
+    bool has_type_def,
+    bool has_resource_array,
+    const std::string& macro_name,
+    int resource_context) {
+  SourceCharClipContextLookup lookup;
+  lookup.has_type_def = has_type_def;
+  lookup.has_resource_array = has_type_def && has_resource_array;
+  if (lookup.has_resource_array) {
+    lookup.macro_name = macro_name;
+    lookup.context = resource_context;
+    lookup.reads_macro = true;
+  }
+  return lookup;
+}
+
 int source_char_clip_get_context(bool has_type_def,
                                  bool has_resource_array,
                                  int resource_context) {
-  if (has_type_def && has_resource_array) return resource_context;
-  return 0;
+  return source_char_clip_get_context_lookup(has_type_def, has_resource_array,
+                                             "", resource_context)
+      .context;
 }
 
 SourceCharClipTransitionsState source_char_clip_transitions_construct(
