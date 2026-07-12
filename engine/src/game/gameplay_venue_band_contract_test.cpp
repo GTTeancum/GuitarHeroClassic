@@ -4874,6 +4874,18 @@ int main() {
                  "preserve_scale=r.u8()!=0;",
                  "MILO scene decoder reads source transform preserve-scale flag");
   ok &= contains(milo_scene_cpp_c,
+                 "read_group_transform_tail",
+                 "MILO scene group transform scanner reads the source RndTrans tail");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.constraint=layout->constraint;",
+                 "MILO scene decoder preserves source Group transform constraints");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.target=layout->target;",
+                 "MILO scene decoder preserves source Group transform targets");
+  ok &= contains(milo_scene_cpp_c,
+                 "out.constraint=group.has_transform?group.constraint:0;",
+                 "MILO scene world matrix honors source Group transform constraints");
+  ok &= contains(milo_scene_cpp_c,
                  "constraint==kConstraintParentWorld",
                  "MILO scene world matrix honors source ParentWorld constraint");
   ok &= contains(milo_scene_cpp_c,
@@ -6258,6 +6270,9 @@ int main() {
   ok &= contains(renderer_c,
                  "constraint_for(node)",
                  "animated venue chain base worlds honor source transform constraints");
+  ok &= contains(renderer_c,
+                 "group.name==name&&group.has_transform)returngroup.constraint;",
+                 "animated venue chains honor source Group transform constraints");
   ok &= contains(renderer_c,
                  "out=apply_transform_constraint(local,parent_world,constraint_for(node));",
                  "animated venue chain recomposition applies source ParentWorld/LocalRotate rules");

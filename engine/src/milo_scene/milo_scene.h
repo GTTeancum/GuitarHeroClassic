@@ -78,8 +78,10 @@
 //     48    local matrix (UI groups store this without the standalone Trans
 //           object's 9-byte metadata immediately before it)
 //     48    world matrix
-//     9     bytes
-//     str   parent/target name
+//     u32   constraint
+//     str   target
+//     u8    preserve_scale
+//     str   parent name
 //     ...   child object refs
 //     str   environ ref at the tail when the group draws under an Environ
 //
@@ -221,6 +223,9 @@ struct GroupObj {
   std::string parent;
   Xfm local;
   Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
   bool has_transform = false;
   bool decoded = false;
   bool showing = true;

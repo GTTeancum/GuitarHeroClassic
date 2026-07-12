@@ -283,50 +283,66 @@ bool is_plausible_group_parent(std::string_view ref) {
 struct GroupTransformDecode {
   size_t matrix_offset = 0;
   size_t after_trans_offset = 0;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
   std::string parent;
 };
+
+std::optional<GroupTransformDecode> read_group_transform_tail(
+    const std::vector<uint8_t>& body, size_t matrix_offset) {
+  size_t cursor = matrix_offset + 96;
+  if (cursor + 4 > body.size()) return std::nullopt;
+  GroupTransformDecode out;
+  out.matrix_offset = matrix_offset;
+  out.constraint = read_u32_at(body, cursor);
+  cursor += 4;
+  try {
+    out.target = read_string_at(body, cursor);
+  } catch (const std::exception&) {
+    return std::nullopt;
+  }
+  if (cursor >= body.size()) return std::nullopt;
+  out.preserve_scale = body[cursor++] != 0;
+  try {
+    out.parent = read_string_at(body, cursor);
+  } catch (const std::exception&) {
+    return std::nullopt;
+  }
+  out.after_trans_offset = cursor;
+  return out;
+}
 
 std::optional<GroupTransformDecode> find_group_transform_layout(
     const std::vector<uint8_t>& body) {
   int best_score = -1;
-  size_t best_offset = body.size();
-  size_t best_after_trans = body.size();
-  std::string best_parent;
+  std::optional<GroupTransformDecode> best;
 
-  for (size_t m = 4; m + 96 + kObjMeta + 4 <= body.size(); ++m) {
+  for (size_t m = 4; m + 96 + 4 + 4 + 1 + 4 <= body.size(); ++m) {
     if (!is_plausible_matrix_at(body, m) ||
         !is_plausible_matrix_at(body, m + 48)) {
       continue;
     }
-    size_t parent_offset = m + 96 + kObjMeta;
-    std::string parent;
-    try {
-      parent = read_string_at(body, parent_offset);
-    } catch (const std::exception&) {
-      continue;
-    }
-    const size_t after_trans = parent_offset;
+    auto decoded = read_group_transform_tail(body, m);
+    if (!decoded) continue;
     const bool root_parent =
-        parent.empty() && (m == 0x1d || m == 4 + kObjMeta);
-    if (!root_parent && !is_plausible_group_parent(parent)) continue;
+        decoded->parent.empty() && (m == 0x1d || m == 4 + kObjMeta);
+    if (!root_parent && !is_plausible_group_parent(decoded->parent)) continue;
 
     int score = root_parent ? 1 : 0;
-    if (parent.find(".view") != std::string::npos) score += 20;
-    if (parent.find(".grp") != std::string::npos) score += 12;
+    if (!decoded->target.empty()) score += 3;
+    if (decoded->parent.find(".view") != std::string::npos) score += 20;
+    if (decoded->parent.find(".grp") != std::string::npos) score += 12;
     if (m == 0x1d) score += 8;
     if (m == 4 + kObjMeta) score += 4;
     if (m < 0x40) score += 2;
     if (score > best_score) {
       best_score = score;
-      best_offset = m;
-      best_after_trans = after_trans;
-      best_parent = std::move(parent);
+      best = std::move(decoded);
     }
   }
 
-  if (best_score < 0) return std::nullopt;
-  return GroupTransformDecode{best_offset, best_after_trans,
-                              std::move(best_parent)};
+  return best;
 }
 
 bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group,
@@ -335,6 +351,9 @@ bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group,
   if (!layout) return false;
   group.local = read_matrix_at(body, layout->matrix_offset);
   group.world_stored = read_matrix_at(body, layout->matrix_offset + 48);
+  group.constraint = layout->constraint;
+  group.target = layout->target;
+  group.preserve_scale = layout->preserve_scale;
   group.parent = layout->parent;
   group.has_transform = true;
   if (after_trans_offset) *after_trans_offset = layout->after_trans_offset;
@@ -1497,7 +1516,7 @@ bool find_transform_node(const Scene& scene, const std::string& name,
       out.local = group.has_transform ? group.local : Xfm{};
       out.world_stored = group.has_transform ? group.world_stored : Xfm{};
       out.parent = group.parent;
-      out.constraint = 0;
+      out.constraint = group.has_transform ? group.constraint : 0;
       return true;
     }
   }

@@ -3546,6 +3546,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       for (const auto& mesh : scene_.meshes) {
         if (mesh.name == name) return mesh.constraint;
       }
+      for (const auto& group : scene_.groups) {
+        if (group.name == name && group.has_transform) return group.constraint;
+      }
       for (const auto& trans : scene_.transes) {
         if (trans.name == name) return trans.constraint;
       }
