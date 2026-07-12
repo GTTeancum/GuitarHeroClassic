@@ -4280,6 +4280,9 @@ int main() {
                  "mesh_transform_anim_duration_frames(anim_it->second)",
                  "direct TransAnim routes use authored transform key duration");
   ok &= contains(gameplay_c,
+                 "floatmesh_transform_anim_start_frame(",
+                 "direct TransAnim routes use ihatecompvir StartFrame key timing");
+  ok &= contains(gameplay_c,
                  "filter.name=\"direct_\"+event;",
                  "direct EventTrigger refs become synthetic venue AnimFilters");
   ok &= contains(gameplay_c,
@@ -6542,6 +6545,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "route_filter.anim_rate=direct_ref_rate(route.ref);",
                  "direct EventTrigger anim refs inherit the source anim rate");
+  ok &= contains(gameplay_c,
+                 "filter.start_frame=direct_ref_start_frame(ref);",
+                 "synthetic direct venue AnimFilters inherit the source anim start frame");
+  ok &= contains(gameplay_c,
+                 "route_filter.start_frame=direct_ref_start_frame(route.ref);",
+                 "direct EventTrigger anim refs inherit the source anim start frame");
+  ok &= contains(gameplay_c,
+                 "filter.start_frame+1.0f",
+                 "synthetic direct venue AnimFilters keep a valid span after source start frame fallback");
+  ok &= contains(gameplay_c,
+                 "route_filter.start_frame+1.0f",
+                 "direct EventTrigger anim refs keep a valid span after source start frame fallback");
 
   ok &= contains(gameplay_c,
                  "camera_duration_range_for_event(camera_duration_bars_,"

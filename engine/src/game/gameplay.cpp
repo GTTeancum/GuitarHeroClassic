@@ -8485,6 +8485,18 @@ float mesh_transform_anim_duration_frames(
     return duration;
 }
 
+float mesh_transform_anim_start_frame(
+    const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim) {
+    float start = std::numeric_limits<float>::infinity();
+    const auto include = [&](float frame) {
+        if (std::isfinite(frame)) start = std::min(start, frame);
+    };
+    if (!anim.translation_keys.empty()) include(anim.translation_keys.front().frame);
+    if (!anim.rotation_keys.empty()) include(anim.rotation_keys.front().frame);
+    if (!anim.scale_keys.empty()) include(anim.scale_keys.front().frame);
+    return std::isfinite(start) ? start : 0.0f;
+}
+
 bool mesh_transform_anim_has_key_pages(
     const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim) {
     return !anim.translation_keys.empty() || !anim.rotation_keys.empty() ||
@@ -11268,6 +11280,18 @@ load_venue_anim_filters(const std::string& hdr_path,
                 return filter_rate->second.anim_rate;
             return 0;
         };
+        auto direct_ref_start_frame = [&](const std::string& raw_ref) -> float {
+            const auto ref = canonical_milo_ref(raw_ref);
+            const auto anim_it = transanim_anims.find(ref);
+            if (anim_it != transanim_anims.end()) {
+                return mesh_transform_anim_start_frame(anim_it->second);
+            }
+            const auto filter_it = filters_by_name.find(ref);
+            if (filter_it != filters_by_name.end()) {
+                return filter_it->second.start_frame;
+            }
+            return 0.0f;
+        };
         auto make_direct_filter =
             [&](const std::string& raw_ref)
             -> std::optional<Gameplay::VenueAnimFilter> {
@@ -11275,7 +11299,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             Gameplay::VenueAnimFilter filter;
             filter.name = "direct_" + ref;
             filter.target_ref = ref;
-            filter.start_frame = 0.0f;
+            filter.start_frame = direct_ref_start_frame(ref);
             filter.end_frame = 0.0f;
             filter.scale = 1.0f;
             filter.period = 0.0f;
@@ -11287,10 +11311,11 @@ load_venue_anim_filters(const std::string& hdr_path,
                 collect_filter_targets, filter, ref, seen);
             if (filter.targets.empty() && filter.mesh_anim_targets.empty())
                 return std::nullopt;
-            filter.end_frame = std::isfinite(duration) &&
-                                       duration > 0.001f
-                                   ? duration
-                                   : 1.0f;
+            filter.end_frame =
+                std::isfinite(duration) &&
+                        duration > filter.start_frame + 0.001f
+                    ? duration
+                    : filter.start_frame + 1.0f;
             return filter;
         };
         auto resolve_direct_ref =
@@ -11416,6 +11441,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             for (const auto& route : routes) {
                 Gameplay::VenueAnimFilter route_filter = filter;
                 route_filter.target_ref = canonical_milo_ref(route.ref);
+                route_filter.start_frame = direct_ref_start_frame(route.ref);
                 route_filter.anim_rate = direct_ref_rate(route.ref);
                 apply_event_anim_timing(route_filter, route);
                 float duration = 0.0f;
@@ -11429,8 +11455,10 @@ load_venue_anim_filters(const std::string& hdr_path,
                     continue;
                 }
                 route_filter.end_frame =
-                    std::isfinite(duration) && duration > 0.001f ? duration
-                                                                  : 1.0f;
+                    std::isfinite(duration) &&
+                            duration > route_filter.start_frame + 0.001f
+                        ? duration
+                        : route_filter.start_frame + 1.0f;
                 out[event].push_back(std::move(route_filter));
                 ++routed;
                 ++direct_routed;
