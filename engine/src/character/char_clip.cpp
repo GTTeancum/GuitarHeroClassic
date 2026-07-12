@@ -236,6 +236,90 @@ SourceCharBonesPoseBodyBoundary source_char_bones_pose_body_boundary() {
   return boundary;
 }
 
+SourceCharBonesRuntimeDumpEvidence source_char_bones_runtime_dump_evidence() {
+  SourceCharBonesRuntimeDumpEvidence evidence;
+  evidence.scale_down_range = "0x8031C058 -> 0x8031C33C";
+  evidence.scale_add_range = "0x8031C33C -> 0x8031CB00";
+  evidence.rotate_by_range = "0x8031CB00 -> 0x8031D118";
+  evidence.rotate_to_range = "0x8031D118 -> 0x8031D864";
+  evidence.scale_add_identity_range = "0x8031D864 -> 0x8031D8B0";
+  evidence.scale_down_locals = {"const Bone* name",
+                                "const Bone* endName",
+                                "const Bone* boneName",
+                                "Vector3* pos",
+                                "Quat* quat",
+                                "float* ang",
+                                "Vector3* pos",
+                                "Quat* quat",
+                                "float* ang"};
+  evidence.scale_add_locals = {"const Bone* name",
+                               "const Bone* endName",
+                               "Bone* boneName",
+                               "Vector3* pos",
+                               "const ShortVector3* sp",
+                               "Vector3 v",
+                               "const Vector3* p",
+                               "float fweight",
+                               "Quat* quat",
+                               "float fqweight",
+                               "float qweight",
+                               "const ByteQuat* bq",
+                               "Quat s",
+                               "float fqweight",
+                               "float qweight",
+                               "const ShortQuat* qs",
+                               "Quat s",
+                               "const Quat* q",
+                               "Quat s",
+                               "float* ang",
+                               "float aweight",
+                               "const signed short* as",
+                               "const float* a"};
+  evidence.rotate_by_locals = {"const Bone* name",
+                               "const Bone* endName",
+                               "const Bone* boneName",
+                               "Vector3* pos",
+                               "const ShortVector3* sp",
+                               "Vector3 v",
+                               "const Vector3* p",
+                               "Quat* quat",
+                               "const ByteQuat* bq",
+                               "Quat s",
+                               "const ShortQuat* qs",
+                               "Quat s",
+                               "const Quat* q",
+                               "float* ang",
+                               "const signed short* as",
+                               "const float* a"};
+  evidence.rotate_to_locals = {"const Bone* name",
+                               "const Bone* endName",
+                               "const Bone* boneName",
+                               "Vector3* pos",
+                               "const ShortVector3* sp",
+                               "Vector3 v",
+                               "const Vector3* p",
+                               "Quat* quat",
+                               "const ByteQuat* bq",
+                               "Quat s",
+                               "const ShortQuat* qs",
+                               "Quat s",
+                               "const Quat* q",
+                               "Quat s",
+                               "float* ang",
+                               "float shortWeight",
+                               "const signed short* as",
+                               "const float* a"};
+  evidence.scale_add_identity_locals = {"const Quat* end", "Quat* q"};
+  evidence.rb2_dump_maps_blend = false;
+  evidence.has_scale_down_statement_body = false;
+  evidence.has_scale_add_statement_body = false;
+  evidence.has_rotate_by_statement_body = false;
+  evidence.has_rotate_to_statement_body = false;
+  evidence.has_scale_add_identity_statement_body = false;
+  evidence.safe_to_apply_pose_math = false;
+  return evidence;
+}
+
 SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones) {
   SourceCharBonesAddBonesSteps steps;

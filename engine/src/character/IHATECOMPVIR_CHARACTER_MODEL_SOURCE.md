@@ -2496,6 +2496,11 @@ note, and all report `unreadBytes=0`.
     `source_char_bones_pose_body_boundary` records this boundary: packed-row
     layout helpers remain source-backed, but applying pose math to live
     transforms remains fenced until a real body or direct trace is available.
+    Native `source_char_bones_runtime_dump_evidence` records the exact RB2
+    ranges and visible locals for those mapped pose writers and explicitly
+    records that the checked RB2 dump does not map `CharBones::Blend`. That
+    helper is evidence for future trace/source import targets only; it is not
+    permission to apply pose math from local-name inventories.
 - `rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete for the
   animation-bone blender's control flow:
   - Native `source_char_bones_enter_step` ports the inline `CharBones::Enter`

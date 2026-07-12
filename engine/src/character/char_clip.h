@@ -83,6 +83,26 @@ struct SourceCharBonesPoseBodyBoundary {
   std::vector<std::string> fenced_bodies;
 };
 
+struct SourceCharBonesRuntimeDumpEvidence {
+  std::string scale_down_range;
+  std::string scale_add_range;
+  std::string rotate_by_range;
+  std::string rotate_to_range;
+  std::string scale_add_identity_range;
+  std::vector<std::string> scale_down_locals;
+  std::vector<std::string> scale_add_locals;
+  std::vector<std::string> rotate_by_locals;
+  std::vector<std::string> rotate_to_locals;
+  std::vector<std::string> scale_add_identity_locals;
+  bool rb2_dump_maps_blend = false;
+  bool has_scale_down_statement_body = false;
+  bool has_scale_add_statement_body = false;
+  bool has_rotate_by_statement_body = false;
+  bool has_rotate_to_statement_body = false;
+  bool has_scale_add_identity_statement_body = false;
+  bool safe_to_apply_pose_math = false;
+};
+
 struct SourceCharBonesAddBonesSteps {
   std::vector<SourceCharBonesBone> add_bone_internal_calls;
   bool reallocate_internal = false;
@@ -1678,6 +1698,7 @@ void source_char_bones_zero(std::vector<uint8_t>& start, int total_size);
 SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
     float f1, float f2, float f3);
 SourceCharBonesPoseBodyBoundary source_char_bones_pose_body_boundary();
+SourceCharBonesRuntimeDumpEvidence source_char_bones_runtime_dump_evidence();
 SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones);
 SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(

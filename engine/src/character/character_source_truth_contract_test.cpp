@@ -12918,6 +12918,16 @@ int run_contract() {
                  "packed-row\n    layout helpers remain source-backed, but applying pose math",
                  "document records CharBones pose math fence");
   ok &= contains(doc,
+                 "Native `source_char_bones_runtime_dump_evidence` records the "
+                 "exact RB2",
+                 "document records CharBones runtime dump helper");
+  ok &= contains(doc,
+                 "does not map `CharBones::Blend`",
+                 "document records missing CharBones Blend dump map");
+  ok &= contains(doc,
+                 "not\n    permission to apply pose math from local-name inventories",
+                 "document fences CharBones runtime dump from pose math");
+  ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete",
                  "document cites latest CharBonesBlender source");
   ok &= contains(doc,
@@ -13382,6 +13392,15 @@ int run_contract() {
                  "pose_boundary.safe_to_apply_pose_math",
                  "focused CharBones source test covers pose math fence");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_runtime_dump_evidence()",
+                 "focused CharBones source test covers runtime dump helper");
+  ok &= contains(char_bones_source_test,
+                 "bones_dump.rb2_dump_maps_blend",
+                 "focused CharBones source test covers missing Blend map");
+  ok &= contains(char_bones_source_test,
+                 "bones_dump.safe_to_apply_pose_math",
+                 "focused CharBones source test covers runtime dump pose fence");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_alloc_reallocate_step("
                  "lookup_state.layout.total_size)",
                  "focused CharBones source test covers CharBonesAlloc realloc step");
@@ -13682,6 +13701,13 @@ int run_contract() {
                  "source_char_bones_pose_body_boundary();",
                  "native exposes CharBones pose body-boundary helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesRuntimeDumpEvidence",
+                 "native API exposes CharBones runtime dump evidence");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesRuntimeDumpEvidencesource_char_bones_runtime_"
+                 "dump_evidence();",
+                 "native exposes CharBones runtime dump helper");
+  ok &= contains(char_clip_h,
                  "structSourceCharBonesAddBonesSteps{std::vector<"
                  "SourceCharBonesBone>add_bone_internal_calls;"
                  "boolreallocate_internal=false;};",
@@ -13788,6 +13814,25 @@ int run_contract() {
                  "\"CharBones::Blend\",\"CharBones::ScaleDown\","
                  "\"CharBones::ScaleAddIdentity\",};",
                  "native CharBones pose body-boundary helper names fenced bodies");
+  ok &= contains(char_clip,
+                 "SourceCharBonesRuntimeDumpEvidencesource_char_bones_runtime_"
+                 "dump_evidence(){SourceCharBonesRuntimeDumpEvidenceevidence;",
+                 "native CharBones runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.scale_down_range=\"0x8031C058->0x8031C33C\";",
+                 "native CharBones runtime dump records ScaleDown range");
+  ok &= contains(char_clip,
+                 "evidence.scale_add_range=\"0x8031C33C->0x8031CB00\";",
+                 "native CharBones runtime dump records ScaleAdd range");
+  ok &= contains(char_clip,
+                 "evidence.rotate_to_range=\"0x8031D118->0x8031D864\";",
+                 "native CharBones runtime dump records RotateTo range");
+  ok &= contains(char_clip,
+                 "evidence.rb2_dump_maps_blend=false;",
+                 "native CharBones runtime dump records missing Blend map");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_apply_pose_math=false;",
+                 "native CharBones runtime dump fences pose math");
   ok &= contains(char_clip,
                  "SourceCharBonesAddBonesStepssource_char_bones_add_bones_steps("
                  "conststd::vector<SourceCharBonesBone>&bones){"
@@ -15262,6 +15307,20 @@ int run_contract() {
                  "RB2 dump maps CharBones RotateTo");
   ok &= contains(rb2_char_bones_cpp, "voidCharBones::ScaleAddIdentity(){",
                  "RB2 dump maps CharBones ScaleAddIdentity");
+  ok &= contains(rb2_char_bones_cpp,
+                 "//Range:0x8031C058->0x8031C33CvoidCharBones::ScaleDown(",
+                 "RB2 dump maps CharBones ScaleDown range");
+  ok &= contains(rb2_char_bones_cpp,
+                 "//Range:0x8031C33C->0x8031CB00voidCharBones::ScaleAdd(",
+                 "RB2 dump maps CharBones ScaleAdd range");
+  ok &= contains(rb2_char_bones_cpp,
+                 "//Range:0x8031CB00->0x8031D118voidCharBones::RotateBy(",
+                 "RB2 dump maps CharBones RotateBy range");
+  ok &= contains(rb2_char_bones_cpp,
+                 "//Range:0x8031D118->0x8031D864voidCharBones::RotateTo(",
+                 "RB2 dump maps CharBones RotateTo range");
+  ok &= missing(rb2_char_bones_cpp, "CharBones::Blend(",
+                "RB2 dump does not map CharBones Blend");
   ok &= contains(rb3_latest_char_clip_h,
                  "CharBonesSamplesmFull;//0x64CharBonesSamplesmOne;",
                  "latest CharClip source exposes full/one sample members");

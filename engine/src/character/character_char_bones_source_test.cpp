@@ -328,6 +328,58 @@ int main() {
   ok &= expect_string(pose_boundary.fenced_bodies[3],
                       "CharBones::Blend",
                       "CharBones pose blend fenced");
+  const SourceCharBonesRuntimeDumpEvidence bones_dump =
+      source_char_bones_runtime_dump_evidence();
+  ok &= expect_string(bones_dump.scale_down_range,
+                      "0x8031C058 -> 0x8031C33C",
+                      "CharBones dump ScaleDown range");
+  ok &= expect_string(bones_dump.scale_add_range,
+                      "0x8031C33C -> 0x8031CB00",
+                      "CharBones dump ScaleAdd range");
+  ok &= expect_string(bones_dump.rotate_by_range,
+                      "0x8031CB00 -> 0x8031D118",
+                      "CharBones dump RotateBy range");
+  ok &= expect_string(bones_dump.rotate_to_range,
+                      "0x8031D118 -> 0x8031D864",
+                      "CharBones dump RotateTo range");
+  ok &= expect_string(bones_dump.scale_add_identity_range,
+                      "0x8031D864 -> 0x8031D8B0",
+                      "CharBones dump ScaleAddIdentity range");
+  ok &= expect_size(bones_dump.scale_down_locals.size(), 9,
+                    "CharBones dump ScaleDown locals");
+  ok &= expect_string(bones_dump.scale_down_locals[2],
+                      "const Bone* boneName",
+                      "CharBones dump ScaleDown boneName local");
+  ok &= expect_size(bones_dump.scale_add_locals.size(), 23,
+                    "CharBones dump ScaleAdd locals");
+  ok &= expect_string(bones_dump.scale_add_locals[4],
+                      "const ShortVector3* sp",
+                      "CharBones dump ScaleAdd short vector local");
+  ok &= expect_string(bones_dump.scale_add_locals[20], "float aweight",
+                      "CharBones dump ScaleAdd angle weight local");
+  ok &= expect_size(bones_dump.rotate_by_locals.size(), 16,
+                    "CharBones dump RotateBy locals");
+  ok &= expect_string(bones_dump.rotate_by_locals[8],
+                      "const ByteQuat* bq",
+                      "CharBones dump RotateBy byte quat local");
+  ok &= expect_size(bones_dump.rotate_to_locals.size(), 18,
+                    "CharBones dump RotateTo locals");
+  ok &= expect_string(bones_dump.rotate_to_locals[15], "float shortWeight",
+                      "CharBones dump RotateTo short weight local");
+  ok &= expect_size(bones_dump.scale_add_identity_locals.size(), 2,
+                    "CharBones dump ScaleAddIdentity locals");
+  ok &= expect_int(bones_dump.rb2_dump_maps_blend ? 1 : 0, 0,
+                   "CharBones dump does not map Blend");
+  ok &= expect_int(bones_dump.has_scale_down_statement_body ? 1 : 0, 0,
+                   "CharBones dump lacks ScaleDown statement body");
+  ok &= expect_int(bones_dump.has_scale_add_statement_body ? 1 : 0, 0,
+                   "CharBones dump lacks ScaleAdd statement body");
+  ok &= expect_int(bones_dump.has_rotate_by_statement_body ? 1 : 0, 0,
+                   "CharBones dump lacks RotateBy statement body");
+  ok &= expect_int(bones_dump.has_rotate_to_statement_body ? 1 : 0, 0,
+                   "CharBones dump lacks RotateTo statement body");
+  ok &= expect_int(bones_dump.safe_to_apply_pose_math ? 1 : 0, 0,
+                   "CharBones dump fences pose math");
   const SourceCharBonesAllocReallocateStep realloc_step =
       source_char_bones_alloc_reallocate_step(lookup_state.layout.total_size);
   ok &= expect_int(realloc_step.free_m_start ? 1 : 0, 1,
