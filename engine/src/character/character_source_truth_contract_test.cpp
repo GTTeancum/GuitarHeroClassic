@@ -61,6 +61,25 @@ bool missing(const std::string& haystack, const std::string& needle,
   return false;
 }
 
+bool all_source_files_cited(const std::string& doc,
+                            const std::filesystem::path& source_dir,
+                            const std::string& label) {
+  bool ok = true;
+  for (const auto& entry : std::filesystem::directory_iterator(source_dir)) {
+    if (!entry.is_regular_file()) continue;
+    const std::filesystem::path path = entry.path();
+    const std::string ext = path.extension().string();
+    if (ext != ".cpp" && ext != ".h") continue;
+    const std::string name = path.filename().string();
+    if (doc.find(name) == std::string::npos) {
+      std::cerr << "Missing source-truth contract: " << label << "\n";
+      std::cerr << "Uncited source file: " << name << "\n";
+      ok = false;
+    }
+  }
+  return ok;
+}
+
 }  // namespace
 
 int run_contract() {
@@ -531,6 +550,9 @@ int run_contract() {
                  "document states copied source snapshot boundary");
   ok &= missing(doc, "re-notes",
                 "document must not cite absent re-notes snapshot");
+  ok &= all_source_files_cited(
+      doc, extra_dir / "rb3-latest/src/system/char",
+      "source-truth map must cite every copied ihatecompvir character source");
   ok &= contains(doc,
                  "2026-07-12 upstream checks still match the local source "
                  "snapshot",

@@ -30,6 +30,20 @@ records the upstream commits for the copied files:
   No newer reviewable character bodies were available from upstream during
   this check.
 
+The contract test verifies that every copied
+`ihatecompvir-extra/rb3-latest/src/system/char` `.cpp`/`.h` file is named in
+this map. If another ihatecompvir character source file is added to the local
+snapshot, document it here before treating its behavior as understood.
+
+Copied headers that primarily declare inheritance, fields, constants, or
+missing runtime bodies are accounted for explicitly here: `CharBoneDir.h`,
+`CharBones.h`, `CharBonesBlender.h`, `CharBonesMeshes.h`,
+`CharBonesSamples.h`, `CharClip.h`, `CharClipDriver.h`, `CharEyes.h`,
+`CharForeTwist.h`, `CharIKHand.h`, `CharLookAt.h`, `CharPollable.h`, and
+`CharUpperTwist.h`. Header declarations are evidence for row shape and
+ownership only; they do not promote an undecompiled `Poll`, `Load`, or pose
+writer body.
+
 ## Source Coverage Matrix
 
 | Area | ihatecompvir evidence | Native status |
