@@ -2276,6 +2276,21 @@ struct SourceCharIKHandPropSyncPlan {
   std::string superclass;
 };
 
+struct SourceCharIKHandTargetInput {
+  bool present = true;
+  std::array<float, 3> world_pos = {0.0f, 0.0f, 0.0f};
+  float extent = 0.0f;
+};
+
+struct SourceCharIKHandTargetBlendResult {
+  bool entered = false;
+  float sum = 0.0f;
+  float adjusted_weight = 0.0f;
+  bool reduced_weight_for_low_sum = false;
+  std::array<float, 3> blended_pos = {0.0f, 0.0f, 0.0f};
+  std::vector<float> weights;
+};
+
 struct SourceCharIKFootState {
   bool helper_target_created = true;
   bool helper_target_local_reset = true;
@@ -2352,6 +2367,9 @@ bool source_char_ik_hand_elbow_cosine(
     const SourceCharIKHandMeasure& measure,
     float distance_squared,
     float& out_cosine);
+SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
+    float char_weight,
+    const std::vector<SourceCharIKHandTargetInput>& targets);
 SourceCharIKFootState source_char_ik_foot_default_state();
 SourceCharIKFootEnterResult source_char_ik_foot_enter(
     SourceCharIKFootState& state);

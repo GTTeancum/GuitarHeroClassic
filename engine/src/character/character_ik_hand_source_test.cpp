@@ -1,5 +1,6 @@
 #include "character/char_clip.h"
 
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -48,11 +49,13 @@ bool has(const std::vector<std::string>& values, const std::string& value) {
 
 int main() {
   using ghogx::character::SourceCharIKHandMeasure;
+  using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
   using ghogx::character::source_char_ik_hand_handler_plan;
   using ghogx::character::source_char_ik_hand_load_plan;
   using ghogx::character::source_char_ik_hand_measure_lengths;
+  using ghogx::character::source_char_ik_hand_multi_target_blend;
   using ghogx::character::source_char_ik_hand_prop_sync_plan;
   using ghogx::character::source_char_ik_hand_update_measure_lengths;
 
@@ -195,6 +198,47 @@ int main() {
                         true, hand_changed),
                     true, "scalable hand measures every poll");
   ok &= expect_bool(hand_changed, false, "scalable measure leaves clear");
+
+  const auto target_blend = source_char_ik_hand_multi_target_blend(
+      0.75f, {SourceCharIKHandTargetInput{true, {12.0f, 0.0f, 0.0f}, 0.0f},
+              SourceCharIKHandTargetInput{true, {0.0f, 6.0f, 0.0f}, 0.0f}});
+  ok &= expect_bool(target_blend.entered, true, "multi-target blend entered");
+  ok &= expect_size(target_blend.weights.size(), 2,
+                    "multi-target stores source weights");
+  ok &= expect_float(target_blend.weights[0], 1.0f,
+                     "first multi-target inverse-distance weight");
+  ok &= expect_float(target_blend.weights[1], 4.0f,
+                     "second multi-target inverse-distance weight");
+  ok &= expect_float(target_blend.sum, 5.0f, "multi-target weight sum");
+  ok &= expect_float(target_blend.adjusted_weight, 0.75f,
+                     "multi-target keeps weight when sum high");
+  ok &= expect_float(target_blend.blended_pos[0], 2.4f,
+                     "multi-target blended x");
+  ok &= expect_float(target_blend.blended_pos[1], 4.8f,
+                     "multi-target blended y");
+
+  const auto reduced_blend = source_char_ik_hand_multi_target_blend(
+      0.8f, {SourceCharIKHandTargetInput{true, {120.0f, 0.0f, 0.0f}, 0.0f}});
+  ok &= expect_float(reduced_blend.sum, 0.01f,
+                     "low-sum multi-target weight");
+  ok &= expect_bool(reduced_blend.reduced_weight_for_low_sum, true,
+                    "low-sum multi-target reduces char weight");
+  ok &= expect_float(reduced_blend.adjusted_weight, 0.008f,
+                     "low-sum multi-target adjusted weight");
+
+  const auto extent_blend = source_char_ik_hand_multi_target_blend(
+      1.0f, {SourceCharIKHandTargetInput{true, {0.0f, 4.0f, -10.0f}, 5.0f},
+             SourceCharIKHandTargetInput{true, {3.0f, 4.0f, -2.0f}, 5.0f}});
+  ok &= expect_float(extent_blend.weights[0], 0.001f,
+                     "positive extent behind target uses source floor");
+  ok &= expect_float(extent_blend.weights[1], 144.0f / 25.0f,
+                     "positive extent projects z before length");
+  ok &= expect_bool(extent_blend.blended_pos[0] > 2.99f &&
+                        extent_blend.blended_pos[0] < 3.01f,
+                    true, "positive extent blended x remains near second target");
+  ok &= expect_bool(extent_blend.blended_pos[2] < -2.0f &&
+                        extent_blend.blended_pos[2] > -2.01f,
+                    true, "positive extent keeps source world z in blend");
 
   std::printf("character_ik_hand_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

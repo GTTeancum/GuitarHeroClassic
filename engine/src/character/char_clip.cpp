@@ -4244,6 +4244,56 @@ bool source_char_ik_hand_elbow_cosine(
   return true;
 }
 
+SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
+    float char_weight,
+    const std::vector<SourceCharIKHandTargetInput>& targets) {
+  SourceCharIKHandTargetBlendResult result;
+  if (targets.empty()) return result;
+  result.entered = true;
+  result.adjusted_weight = char_weight;
+  result.weights.assign(targets.size(), 0.0f);
+
+  for (size_t i = 0; i < targets.size(); ++i) {
+    const SourceCharIKHandTargetInput& target = targets[i];
+    if (!target.present) continue;
+    float x = target.world_pos[0];
+    float y = target.world_pos[1];
+    float z = target.world_pos[2];
+    if (target.extent > 0.0f) {
+      if (target.extent < -z) {
+        result.weights[i] = 0.001f;
+        result.sum += result.weights[i];
+        continue;
+      }
+      z = 0.0f;
+    }
+    const float length_sq = std::max(0.001f, x * x + y * y + z * z);
+    result.weights[i] = 144.0f / length_sq;
+    result.sum += result.weights[i];
+  }
+
+  if (result.sum <= 0.0f) {
+    result.adjusted_weight = 0.0f;
+    return result;
+  }
+
+  if (result.sum < 1.0f) {
+    result.adjusted_weight =
+        char_weight - (char_weight * (1.0f - result.sum));
+    result.reduced_weight_for_low_sum = true;
+  }
+
+  for (size_t i = 0; i < targets.size(); ++i) {
+    const SourceCharIKHandTargetInput& target = targets[i];
+    if (!target.present || result.weights[i] == 0.0f) continue;
+    const float scale = result.weights[i] / result.sum;
+    for (int axis = 0; axis < 3; ++axis) {
+      result.blended_pos[axis] += target.world_pos[axis] * scale;
+    }
+  }
+  return result;
+}
+
 static float source_distance3(const std::array<float, 3>& a,
                               const std::array<float, 3>& b) {
   const float dx = a[0] - b[0];

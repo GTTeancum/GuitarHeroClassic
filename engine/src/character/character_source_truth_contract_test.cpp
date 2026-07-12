@@ -10901,6 +10901,22 @@ int run_contract() {
   ok &= contains(rb3_char_ik_hand_cpp,
                  "Interp(mHand->WorldXfm().v,vec,charWeight,mWorldDst);",
                  "RB3 CharIKHand source blends world destination");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "else{floatsumfloat=0.0f;float*locfloats;"
+                 "float*startlocfloats=locfloats;",
+                 "RB3 CharIKHand source enters multi-target branch");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "*locfloats=144.0f/Max(0.001f,LengthSquared(vec));",
+                 "RB3 CharIKHand source weights targets by inverse squared distance");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "elseif(itExtent<-vec.z){*locfloats=0.001f;}else{"
+                 "vec.z=0.0f;*locfloats=144.0f/Max(0.001f,"
+                 "LengthSquared(vec));}",
+                 "RB3 CharIKHand source gates positive extent target weighting");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(sumfloat<1.0f){charWeight=charWeight-"
+                 "(charWeight*(1.0f-sumfloat));}",
+                 "RB3 CharIKHand source scales weight down when target sum is low");
   ok &= contains(rb3_char_ik_hand_cpp, "IKElbow(parent1,parent2);",
                  "RB3 CharIKHand source drives elbow solve");
   ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
@@ -11051,6 +11067,15 @@ int run_contract() {
                  "target_properties;std::vector<std::string>set_properties;",
                  "native exposes source CharIKHand prop-sync plan");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandTargetInput{boolpresent=true;"
+                 "std::array<float,3>world_pos={0.0f,0.0f,0.0f};"
+                 "floatextent=0.0f;};",
+                 "native exposes source CharIKHand multi-target input");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandTargetBlendResult{boolentered=false;"
+                 "floatsum=0.0f;floatadjusted_weight=0.0f;",
+                 "native exposes source CharIKHand multi-target blend result");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
                  "int32_trevision);",
                  "native API exposes source CharIKHand load plan helper");
@@ -11077,6 +11102,12 @@ int run_contract() {
                  "constSourceCharIKHandMeasure&measure,floatdistance_squared,"
                  "float&out_cosine);",
                  "native API exposes source CharIKHand IKElbow cosine helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandTargetBlendResult"
+                 "source_char_ik_hand_multi_target_blend("
+                 "floatchar_weight,conststd::vector<"
+                 "SourceCharIKHandTargetInput>&targets);",
+                 "native API exposes source CharIKHand multi-target blend helper");
   ok &= contains(char_clip,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
                  "boolhas_elbow_chain,floathand_local_len,"
@@ -11153,6 +11184,24 @@ int run_contract() {
                  "-1.0f,1.0f);",
                  "native CharIKHand IKElbow cosine helper mirrors source clamp");
   ok &= contains(char_clip,
+                 "SourceCharIKHandTargetBlendResult"
+                 "source_char_ik_hand_multi_target_blend(floatchar_weight,"
+                 "conststd::vector<SourceCharIKHandTargetInput>&targets){"
+                 "SourceCharIKHandTargetBlendResultresult;",
+                 "native CharIKHand multi-target helper starts from source inputs");
+  ok &= contains(char_clip,
+                 "if(target.extent>0.0f){if(target.extent<-z){"
+                 "result.weights[i]=0.001f;",
+                 "native CharIKHand multi-target helper ports extent floor branch");
+  ok &= contains(char_clip,
+                 "z=0.0f;}constfloatlength_sq=std::max(0.001f,"
+                 "x*x+y*y+z*z);result.weights[i]=144.0f/length_sq;",
+                 "native CharIKHand multi-target helper ports inverse distance weight");
+  ok &= contains(char_clip,
+                 "if(result.sum<1.0f){result.adjusted_weight=char_weight-"
+                 "(char_weight*(1.0f-result.sum));",
+                 "native CharIKHand multi-target helper ports low-sum weight scaling");
+  ok &= contains(char_clip,
                  "RuntimeIKHandMeasureState&measure_state="
                  "character.runtime_ik_hand_measures[live_key];",
                  "runtime CharIKHand slice uses persistent source length cache");
@@ -11191,6 +11240,12 @@ int run_contract() {
   ok &= contains(ik_hand_source_test,
                  "source_char_ik_hand_prop_sync_plan()",
                  "focused CharIKHand source test covers prop-sync plan");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_multi_target_blend(",
+                 "focused CharIKHand source test covers multi-target blend helper");
+  ok &= contains(ik_hand_source_test,
+                 "SourceCharIKHandTargetInput{true,{0.0f,4.0f,-10.0f},5.0f}",
+                 "focused CharIKHand source test covers positive extent branch");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
@@ -11203,6 +11258,12 @@ int run_contract() {
                  "`source_char_ik_hand_update_measure_lengths` mirrors "
                  "`SetHand` /",
                  "document records native CharIKHand UpdateHand cache slice");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_multi_target_blend` ports the concrete",
+                 "document records native CharIKHand multi-target blend slice");
+  ok &= contains(doc,
+                 "multi-target orientation quaternion blending",
+                 "document fences CharIKHand multi-target orientation branch");
   ok &= contains(doc,
                  "`CharIKHand::PullShoulder` is source-real but not yet "
                  "source-importable",
