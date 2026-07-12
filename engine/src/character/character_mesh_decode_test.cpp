@@ -408,6 +408,59 @@ int main() {
   CHECK(gltf_invalid_repaired.bones[2] == 8);
   CHECK(gltf_invalid_repaired.bones[3] == 8);
 
+  ghogx::character::SourceGltfMiloVertexInput vertex_input;
+  vertex_input.position = {1.0f, 2.0f, 3.0f};
+  vertex_input.has_normal = true;
+  vertex_input.normal = {0.0f, 1.0f, 0.0f};
+  vertex_input.has_uv = true;
+  vertex_input.uv = {0.25f, 0.75f};
+  vertex_input.has_tangent = true;
+  vertex_input.tangent = {1.0f, 0.0f, 0.0f, -1.0f};
+  vertex_input.has_color = true;
+  vertex_input.color = {0.1f, 0.2f, 0.3f, 0.4f};
+  vertex_input.influences = {{10, 0.40f}, {20, 0.30f}, {30, 0.20f},
+                             {-1, 0.10f}};
+  const auto gltf_added_vertex =
+      ghogx::character::source_gltf_milo_add_vertex_to_chunk_mesh(
+          7, {1, 3}, vertex_input, true, true, false, 2);
+  CHECK(gltf_added_vertex.added_vertex);
+  CHECK(!gltf_added_vertex.skipped_existing);
+  CHECK(gltf_added_vertex.new_index == 2);
+  CHECK(approx(gltf_added_vertex.vertex.position[2], 3.0f));
+  CHECK(approx(gltf_added_vertex.vertex.normal[1], 1.0f));
+  CHECK(approx(gltf_added_vertex.vertex.uv[0], 0.25f));
+  CHECK(approx(gltf_added_vertex.vertex.tangent[3], -1.0f));
+  CHECK(approx(gltf_added_vertex.vertex.color[2], 0.3f));
+  CHECK(approx(gltf_added_vertex.vertex.skin.weights[0], 0.40f));
+  CHECK(gltf_added_vertex.vertex.skin.bones[0] == 0);
+  CHECK(gltf_added_vertex.vertex.skin.bones[1] == 30);
+  CHECK(gltf_added_vertex.vertex.skin.bones[2] == 20);
+  CHECK(gltf_added_vertex.vertex.skin.bones[3] == 10);
+
+  const auto gltf_existing_vertex =
+      ghogx::character::source_gltf_milo_add_vertex_to_chunk_mesh(
+          3, {1, 3, 5}, vertex_input, true, false, false, 3);
+  CHECK(gltf_existing_vertex.skipped_existing);
+  CHECK(!gltf_existing_vertex.added_vertex);
+  CHECK(gltf_existing_vertex.new_index == 1);
+
+  const auto gltf_ao_vertex =
+      ghogx::character::source_gltf_milo_add_vertex_to_chunk_mesh(
+          9, {}, vertex_input, false, false, true, 0);
+  CHECK(gltf_ao_vertex.added_vertex);
+  CHECK(gltf_ao_vertex.applied_ao_color_override);
+  CHECK(approx(gltf_ao_vertex.vertex.color[0], 255.0f));
+  CHECK(approx(gltf_ao_vertex.vertex.color[3], 255.0f));
+  CHECK(gltf_ao_vertex.vertex.skin.bones[0] == 0);
+  CHECK(gltf_ao_vertex.vertex.skin.bones[3] == 0);
+  CHECK(approx(gltf_ao_vertex.vertex.skin.weights[1], 0.30f));
+
+  const auto gltf_vertex_limit =
+      ghogx::character::source_gltf_milo_add_vertex_to_chunk_mesh(
+          10, {}, vertex_input, true, false, false, 65535);
+  CHECK(gltf_vertex_limit.added_vertex);
+  CHECK(gltf_vertex_limit.exceeded_max_vertices);
+
   const auto gltf_validated =
       ghogx::character::source_gltf_milo_validate_skin_influences(
           {{1.0f, 4.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {4.0f, 1.0f},

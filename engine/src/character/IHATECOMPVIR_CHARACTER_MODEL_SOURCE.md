@@ -905,6 +905,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `source_gltf_milo_pack_skin_slots` ports that exact packing contract so the
     exporter rule is documented without being mistaken for stock runtime skin
     order.
+  - `AddVertexToChunkMesh` is the per-vertex consumer for that exporter-side
+    contract. It skips already-emitted source vertex indices, copies position,
+    optional UV, optional normal, optional tangent, optional vertex color,
+    always writes up to four influence weights, writes chunk-local bone slots
+    only when a skin exists, applies the AO color override to `255,255,255,255`,
+    and throws when the chunk grows past `ushort.MaxValue` vertices. Native
+    `source_gltf_milo_add_vertex_to_chunk_mesh` mirrors those deterministic
+    rows for contract coverage only; it does not change stock GH2 runtime mesh
+    decode or manufacture per-vertex bone-index rows.
   - The same glTFMilo source validates skin influences before packing: missing
     or non-finite weights/joints are ignored, zero or negative weights are
     skipped, non-integral/out-of-range joints are rejected, excluded joints such

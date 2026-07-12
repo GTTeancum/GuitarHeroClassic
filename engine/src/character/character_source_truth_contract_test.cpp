@@ -3217,6 +3217,14 @@ int run_contract() {
                  "structSourceGltfMiloBoneTransform{std::stringname;",
                  "native declares glTFMilo bone transform row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloVertexInput{std::array<float,3>"
+                 "position=",
+                 "native declares glTFMilo vertex input row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloAddVertexResult{boolskipped_existing="
+                 "false;",
+                 "native declares glTFMilo AddVertex result row");
+  ok &= contains(char_mesh_h,
                  "source_gltf_milo_validate_skin_accessor_set(boolhas_joints,"
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
@@ -3231,6 +3239,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBoneTransformPlansource_gltf_milo_build_bone_transforms(",
                  "native exposes glTFMilo bone transform helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloAddVertexResult"
+                 "source_gltf_milo_add_vertex_to_chunk_mesh(",
+                 "native exposes glTFMilo AddVertex helper");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinValidationResult{std::vector<"
                  "SourceGltfMiloValidatedSkinInfluence>influences;",
@@ -3318,9 +3330,37 @@ int run_contract() {
                  "if(compressed_vertex_layout){slots.bones[0]=count>3?"
                  "remapped(3):0;",
                  "native preserves compressed-layout slot reversal");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloAddVertexResult"
+                 "source_gltf_milo_add_vertex_to_chunk_mesh(",
+                 "native ports glTFMilo AddVertexToChunkMesh helper");
+  ok &= contains(char_mesh,
+                 "if(existing_it!=existing_original_indices.end()){"
+                 "result.skipped_existing=true;",
+                 "native preserves glTFMilo original-index dedupe gate");
+  ok &= contains(char_mesh,
+                 "if(!mesh_has_skin||input.influences.empty()){skin.bones="
+                 "{0,0,0,0};}",
+                 "native preserves glTFMilo no-skin bone-slot branch");
+  ok &= contains(char_mesh,
+                 "if(mesh_has_ao_calculation){result.applied_ao_color_override"
+                 "=true;result.vertex.color={255.0f,255.0f,255.0f,255.0f};}",
+                 "native preserves glTFMilo AO vertex-color override");
+  ok &= contains(char_mesh,
+                 "result.exceeded_max_vertices=current_vertex_count+1>65535;",
+                 "native records glTFMilo vertex-limit throw boundary");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_add_vertex_to_chunk_mesh(",
+                 "focused mesh decode test covers glTFMilo AddVertex helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_ao_vertex.applied_ao_color_override",
+                 "focused mesh decode test covers glTFMilo AO color override");
+  ok &= contains(mesh_decode_test,
+                 "gltf_vertex_limit.exceeded_max_vertices",
+                 "focused mesh decode test covers glTFMilo vertex-limit boundary");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_validate_skin_influences(",
                  "focused mesh decode test covers glTFMilo skin validation");
@@ -3345,6 +3385,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
+                 "document records glTFMilo AddVertex helper");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");

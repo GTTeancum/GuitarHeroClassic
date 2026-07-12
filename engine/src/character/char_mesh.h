@@ -225,6 +225,38 @@ struct SourceGltfMiloPackedSkinSlots {
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
 };
 
+struct SourceGltfMiloVertexInput {
+  std::array<float, 3> position = {0.0f, 0.0f, 0.0f};
+  bool has_normal = false;
+  std::array<float, 3> normal = {0.0f, 0.0f, 0.0f};
+  bool has_uv = false;
+  std::array<float, 2> uv = {0.0f, 0.0f};
+  bool has_tangent = false;
+  std::array<float, 4> tangent = {0.0f, 0.0f, 0.0f, 0.0f};
+  bool has_color = false;
+  std::array<float, 4> color = {0.0f, 0.0f, 0.0f, 0.0f};
+  std::vector<SourceGltfMiloSkinInfluence> influences;
+};
+
+struct SourceGltfMiloChunkVertex {
+  uint32_t original_index = 0;
+  std::array<float, 3> position = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> normal = {0.0f, 0.0f, 0.0f};
+  std::array<float, 2> uv = {0.0f, 0.0f};
+  std::array<float, 4> tangent = {0.0f, 0.0f, 0.0f, 0.0f};
+  std::array<float, 4> color = {0.0f, 0.0f, 0.0f, 0.0f};
+  SourceGltfMiloPackedSkinSlots skin;
+};
+
+struct SourceGltfMiloAddVertexResult {
+  bool skipped_existing = false;
+  bool added_vertex = false;
+  bool exceeded_max_vertices = false;
+  bool applied_ao_color_override = false;
+  uint16_t new_index = 0;
+  SourceGltfMiloChunkVertex vertex;
+};
+
 SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     bool has_joints,
     bool has_weights,
@@ -240,6 +272,15 @@ SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
 SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
     const std::vector<SourceGltfMiloSkinInfluence>& influences,
     bool compressed_vertex_layout);
+
+SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
+    uint32_t original_index,
+    const std::vector<uint32_t>& existing_original_indices,
+    const SourceGltfMiloVertexInput& input,
+    bool mesh_has_skin,
+    bool compressed_vertex_layout,
+    bool mesh_has_ao_calculation,
+    int32_t current_vertex_count);
 
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,

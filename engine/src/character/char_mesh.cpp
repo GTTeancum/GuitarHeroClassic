@@ -503,6 +503,54 @@ SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
   return slots;
 }
 
+SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
+    uint32_t original_index,
+    const std::vector<uint32_t>& existing_original_indices,
+    const SourceGltfMiloVertexInput& input,
+    bool mesh_has_skin,
+    bool compressed_vertex_layout,
+    bool mesh_has_ao_calculation,
+    int32_t current_vertex_count) {
+  SourceGltfMiloAddVertexResult result;
+  result.vertex.original_index = original_index;
+  const auto existing_it =
+      std::find(existing_original_indices.begin(),
+                existing_original_indices.end(), original_index);
+  if (existing_it != existing_original_indices.end()) {
+    result.skipped_existing = true;
+    result.new_index = static_cast<uint16_t>(
+        std::distance(existing_original_indices.begin(), existing_it));
+    return result;
+  }
+
+  result.added_vertex = true;
+  result.new_index =
+      current_vertex_count >= 0
+          ? static_cast<uint16_t>(current_vertex_count)
+          : 0;
+  result.vertex.position = input.position;
+  if (input.has_uv) result.vertex.uv = input.uv;
+  if (input.has_normal) result.vertex.normal = input.normal;
+  if (input.has_tangent) result.vertex.tangent = input.tangent;
+
+  SourceGltfMiloPackedSkinSlots skin =
+      source_gltf_milo_pack_skin_slots(input.influences,
+                                       compressed_vertex_layout);
+  if (!mesh_has_skin || input.influences.empty()) {
+    skin.bones = {0, 0, 0, 0};
+  }
+  result.vertex.skin = skin;
+
+  if (input.has_color) result.vertex.color = input.color;
+  if (mesh_has_ao_calculation) {
+    result.applied_ao_color_override = true;
+    result.vertex.color = {255.0f, 255.0f, 255.0f, 255.0f};
+  }
+
+  result.exceeded_max_vertices = current_vertex_count + 1 > 65535;
+  return result;
+}
+
 SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     const std::vector<uint32_t>& indices,
     int32_t position_count,
