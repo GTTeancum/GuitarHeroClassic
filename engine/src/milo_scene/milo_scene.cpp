@@ -756,6 +756,48 @@ SourceRndGroupLoadPlan source_rndgroup_load_plan(int32_t revision) {
   return plan;
 }
 
+SourceRndGroupDefaultState source_rndgroup_default_state() {
+  return SourceRndGroupDefaultState{};
+}
+
+SourceRndGroupCopyPlan source_rndgroup_copy_plan() {
+  SourceRndGroupCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable", "RndDrawable",
+                       "RndTransformable"};
+  plan.member_order = {"mEnv", "mDrawOnly", "mLod", "mLodScreenSize",
+                       "mSortInWorld", "mObjects"};
+  return plan;
+}
+
+SourceRndGroupReplacePlan source_rndgroup_replace_plan(bool object_found) {
+  SourceRndGroupReplacePlan plan;
+  plan.add_object_when_found = object_found;
+  plan.sets_in_replace_around_remove = object_found;
+  plan.remove_object_when_found = object_found;
+  plan.no_object_no_membership_change = !object_found;
+  return plan;
+}
+
+SourceRndGroupHandlerPlan source_rndgroup_handler_plan() {
+  SourceRndGroupHandlerPlan plan;
+  plan.actions = {"sort_draws", "add_object", "remove_object",
+                  "clear_objects"};
+  plan.queries = {"get_draws", "has_object"};
+  plan.superclasses = {"RndAnimatable", "RndDrawable", "RndTransformable",
+                       "Hmx::Object"};
+  return plan;
+}
+
+SourceRndGroupPropSyncPlan source_rndgroup_prop_sync_plan() {
+  SourceRndGroupPropSyncPlan plan;
+  plan.props = {"objects", "environ", "draw_only", "lod",
+                "lod_screen_size", "sort_in_world"};
+  plan.side_effects = {"objects:Update", "lod:Update",
+                       "lod_screen_size:UpdateLODState"};
+  plan.superclasses = {"RndDrawable", "RndTransformable", "RndAnimatable"};
+  return plan;
+}
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
   SourceRndMatLoadPlan plan;
   plan.revision = revision;

@@ -35,6 +35,16 @@ The contract test verifies that every copied
 this map. If another ihatecompvir character source file is added to the local
 snapshot, document it here before treating its behavior as understood.
 
+The same contract also guards the selected `rb3-latest/src/system/rndobj`
+source files that make up the character-model assembly boundary:
+`Group.cpp`, `Group.h`, `Mat.cpp`, `Mat.h`, `Mesh.cpp`, `Mesh.h`,
+`MeshAnim.cpp`, `MeshAnim.h`, `MeshDeform.cpp`, `MeshDeform.h`,
+`MultiMesh.cpp`, `MultiMesh.h`, `MultiMeshProxy.cpp`, `MultiMeshProxy.h`,
+`Trans.cpp`, `Trans.h`, `TransAnim.cpp`, `TransAnim.h`, `TransProxy.cpp`,
+`TransProxy.h`, and `TransRemover.h`. Listing a file here keeps it inside the
+source-truth map; it is not a claim that every body in that file is promoted to
+native runtime behavior.
+
 Copied headers that primarily declare inheritance, fields, constants, or
 missing runtime bodies are accounted for explicitly here: `CharBoneDir.h`,
 `CharBones.h`, `CharBonesBlender.h`, `CharBonesMeshes.h`,
@@ -55,7 +65,7 @@ writer body.
 | Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
-| Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
+| Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
 | Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, revision defaults, and the source `AddBoneChildren` bone-prefix recursion rule; deformation and mesh hookup remain unwired without complete source bodies/stock rows. |
@@ -504,6 +514,33 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     above 10; environ for `> 10 && < 16`; draw-only for revisions above 12; LOD
     for `> 11 && < 16`; legacy object rows for revision 4; revision-7 LOD
     dimensions; and sort-in-world for revisions above 13.
+- `rb3-latest/src/system/rndobj/Group.cpp` and
+  `rb3-latest/src/system/rndobj/Group.h`
+  - `RndGroup::RndGroup` initializes the object list with owner-control
+    semantics, nulls `mEnv`, `mDrawOnly`, and `mLod`, zeros
+    `mLodScreenSize`, clears `mSortInWorld`, and clears `unkf8`.
+    Native `source_rndgroup_default_state` records these defaults.
+  - `RndGroup::Copy` copies `Hmx::Object`, `RndAnimatable`, `RndDrawable`, and
+    `RndTransformable`, then copies `mEnv`, `mDrawOnly`, `mLod`,
+    `mLodScreenSize`, and `mSortInWorld`. Deep copies copy `mObjects`; Max
+    imports call `Merge`; all paths call `Update`. Native
+    `source_rndgroup_copy_plan` records that exact decision table.
+  - `RndGroup::Replace` always delegates to `RndTransformable::Replace`, scans
+    `mObjects`, and only for a found source object calls `AddObject(to, from)`,
+    sets `gInReplace`, calls `RemoveObject(from)`, then clears `gInReplace`.
+    Native `source_rndgroup_replace_plan` ports the membership branch without
+    mutating live group lists.
+  - `BEGIN_HANDLERS(RndGroup)` exposes actions `sort_draws`, `add_object`,
+    `remove_object`, and `clear_objects`, query handlers `get_draws` and
+    `has_object`, then superclasses `RndAnimatable`, `RndDrawable`,
+    `RndTransformable`, and `Hmx::Object`. Native
+    `source_rndgroup_handler_plan` records this source-visible table and check
+    value `0x29B`.
+  - `BEGIN_PROPSYNCS(RndGroup)` exposes `objects`, `environ`, `draw_only`,
+    `lod`, `lod_screen_size`, and custom `sort_in_world`; `objects` and `lod`
+    call `Update`, and `lod_screen_size` calls `UpdateLODState`. Native
+    `source_rndgroup_prop_sync_plan` records those rows without changing
+    character draw membership at runtime.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs`
   - `RndMesh.Read` calls `base.Read`, embedded `trans.Read`, embedded
     `draw.Read`, material, geom owner, vertices, faces, group sizes, then bone

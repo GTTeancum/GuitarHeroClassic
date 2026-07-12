@@ -80,6 +80,27 @@ bool all_source_files_cited(const std::string& doc,
   return ok;
 }
 
+bool selected_source_files_cited(
+    const std::string& doc, const std::filesystem::path& source_dir,
+    const std::vector<std::string>& names, const std::string& label) {
+  bool ok = true;
+  for (const std::string& name : names) {
+    const std::filesystem::path path = source_dir / name;
+    if (!std::filesystem::is_regular_file(path)) {
+      std::cerr << "Missing source-truth contract: " << label << "\n";
+      std::cerr << "Missing selected source file: " << path.string() << "\n";
+      ok = false;
+      continue;
+    }
+    if (doc.find(name) == std::string::npos) {
+      std::cerr << "Missing source-truth contract: " << label << "\n";
+      std::cerr << "Uncited selected source file: " << name << "\n";
+      ok = false;
+    }
+  }
+  return ok;
+}
+
 }  // namespace
 
 int run_contract() {
@@ -246,6 +267,10 @@ int run_contract() {
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
   const std::string rb3_latest_mesh_h = compact(read_file(
       rb3_latest_rndobj_dir / "Mesh.h"));
+  const std::string rb3_latest_group_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Group.cpp"));
+  const std::string rb3_latest_group_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Group.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb2_char_eyes_cpp = compact(read_file(
@@ -553,6 +578,16 @@ int run_contract() {
   ok &= all_source_files_cited(
       doc, extra_dir / "rb3-latest/src/system/char",
       "source-truth map must cite every copied ihatecompvir character source");
+  ok &= selected_source_files_cited(
+      doc, extra_dir / "rb3-latest/src/system/rndobj",
+      {"Group.cpp",          "Group.h",          "Mat.cpp",
+       "Mat.h",              "Mesh.cpp",         "Mesh.h",
+       "MeshAnim.cpp",       "MeshAnim.h",       "MeshDeform.cpp",
+       "MeshDeform.h",       "MultiMesh.cpp",    "MultiMesh.h",
+       "MultiMeshProxy.cpp", "MultiMeshProxy.h", "Trans.cpp",
+       "Trans.h",            "TransAnim.cpp",    "TransAnim.h",
+       "TransProxy.cpp",     "TransProxy.h",     "TransRemover.h"},
+      "source-truth map must cite selected ihatecompvir rndobj character-model sources");
   ok &= contains(doc,
                  "2026-07-12 upstream checks still match the local source "
                  "snapshot",
@@ -1652,9 +1687,60 @@ int run_contract() {
   ok &= contains(group_cs,
                  "if(revision>13)sortInWorld=reader.ReadBoolean();",
                  "RndGroup source reads sort-in-world gate");
+  ok &= contains(rb3_latest_group_cpp,
+                 "RndGroup::RndGroup():mObjects(this,kObjListOwnerControl),"
+                 "mEnv(this,0),mDrawOnly(this,0),mLod(this,0),"
+                 "mLodScreenSize(0.0f),unkf8(0){mSortInWorld=0;}",
+                 "latest RndGroup source constructor defaults");
+  ok &= contains(rb3_latest_group_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(RndAnimatable)"
+                 "COPY_SUPERCLASS(RndDrawable)COPY_SUPERCLASS(RndTransformable)",
+                 "latest RndGroup source copy superclass order");
+  ok &= contains(rb3_latest_group_cpp,
+                 "COPY_MEMBER(mEnv)COPY_MEMBER(mDrawOnly)COPY_MEMBER(mLod)"
+                 "COPY_MEMBER(mLodScreenSize)COPY_MEMBER(mSortInWorld)",
+                 "latest RndGroup source copy member order");
+  ok &= contains(rb3_latest_group_cpp,
+                 "if(ty==kCopyDeep)COPY_MEMBER(mObjects)elseif(ty=="
+                 "kCopyFromMax)Merge(c);",
+                 "latest RndGroup source copy object membership gate");
+  ok &= contains(rb3_latest_group_cpp,
+                 "voidRndGroup::Replace(Hmx::Object*from,Hmx::Object*to){"
+                 "RndTransformable::Replace(from,to);",
+                 "latest RndGroup source replace delegates transformable");
+  ok &= contains(rb3_latest_group_cpp,
+                 "AddObject(to,from);gInReplace=true;RemoveObject(from);"
+                 "gInReplace=false;",
+                 "latest RndGroup source replace membership branch");
+  ok &= contains(rb3_latest_group_cpp,
+                 "HANDLE_ACTION(sort_draws,SortDraws())HANDLE_ACTION(add_object,"
+                 "AddObject(_msg->GetObj(2),0))HANDLE_ACTION(remove_object,"
+                 "RemoveObject(_msg->GetObj(2)))HANDLE_ACTION(clear_objects,"
+                 "ClearObjects())",
+                 "latest RndGroup source handler action rows");
+  ok &= contains(rb3_latest_group_cpp,
+                 "HANDLE(get_draws,OnGetDraws)if(sym==has_object){",
+                 "latest RndGroup source handler query rows");
+  ok &= contains(rb3_latest_group_cpp,
+                 "SYNC_PROP_MODIFY_ALT(objects,mObjects,Update())"
+                 "SYNC_PROP_STATIC(environ,mEnv)SYNC_PROP(draw_only,mDrawOnly)",
+                 "latest RndGroup source prop-sync object rows");
+  ok &= contains(rb3_latest_group_cpp,
+                 "SYNC_PROP_MODIFY(lod_screen_size,mLodScreenSize,"
+                 "UpdateLODState())",
+                 "latest RndGroup source prop-sync LOD side effect");
+  ok &= contains(rb3_latest_group_h,
+                 "ObjPtrList<Hmx::Object,ObjectDir>mObjects;",
+                 "latest RndGroup header exposes object list field");
   ok &= contains(scene_h,
                  "structSourceRndGroupLoadPlan{",
                  "shared milo_scene exposes source RndGroup load plan");
+  ok &= contains(scene_h,
+                 "structSourceRndGroupDefaultState{",
+                 "shared milo_scene exposes RndGroup default-state source plan");
+  ok &= contains(scene_h,
+                 "SourceRndGroupPropSyncPlansource_rndgroup_prop_sync_plan();",
+                 "shared milo_scene exposes RndGroup prop-sync source plan");
   ok &= contains(scene,
                  "SourceRndGroupLoadPlansource_rndgroup_load_plan(int32_trevision)",
                  "shared milo_scene implements source RndGroup load plan");
@@ -1669,9 +1755,38 @@ int run_contract() {
   ok &= contains(scene,
                  "plan.reads_sort_in_world=revision>13;",
                  "shared RndGroup load plan mirrors sort-in-world gate");
+  ok &= contains(scene,
+                 "SourceRndGroupDefaultStatesource_rndgroup_default_state(){"
+                 "returnSourceRndGroupDefaultState{};}",
+                 "shared RndGroup helper mirrors constructor defaults");
+  ok &= contains(scene,
+                 "plan.member_order={\"mEnv\",\"mDrawOnly\",\"mLod\","
+                 "\"mLodScreenSize\",\"mSortInWorld\",\"mObjects\"};",
+                 "shared RndGroup copy plan mirrors member order");
+  ok &= contains(scene,
+                 "plan.add_object_when_found=object_found;"
+                 "plan.sets_in_replace_around_remove=object_found;"
+                 "plan.remove_object_when_found=object_found;",
+                 "shared RndGroup replace plan mirrors membership branch");
+  ok &= contains(scene,
+                 "plan.actions={\"sort_draws\",\"add_object\",\"remove_object\","
+                 "\"clear_objects\"};",
+                 "shared RndGroup handler plan mirrors action rows");
+  ok &= contains(scene,
+                 "plan.props={\"objects\",\"environ\",\"draw_only\",\"lod\","
+                 "\"lod_screen_size\",\"sort_in_world\"};",
+                 "shared RndGroup prop-sync plan mirrors property rows");
   ok &= contains(scene_test,
                  "constSourceRndGroupLoadPlangroup_v15=source_rndgroup_load_plan(15);",
                  "milo_scene test covers GH2-era RndGroup plan");
+  ok &= contains(scene_test,
+                 "constSourceRndGroupDefaultStategroup_defaults="
+                 "source_rndgroup_default_state();",
+                 "milo_scene test covers RndGroup default-state plan");
+  ok &= contains(scene_test,
+                 "constSourceRndGroupPropSyncPlangroup_props="
+                 "source_rndgroup_prop_sync_plan();",
+                 "milo_scene test covers RndGroup prop-sync plan");
   ok &= contains(scene,
                  "GroupObjdecode_group(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",

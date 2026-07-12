@@ -289,6 +289,70 @@ void test_group() {
   const SourceRndGroupLoadPlan group_v7 = source_rndgroup_load_plan(7);
   CHECK(group_v7.reads_rev7_lod_dimensions);
 
+  const SourceRndGroupDefaultState group_defaults =
+      source_rndgroup_default_state();
+  CHECK(group_defaults.objects_owner_control);
+  CHECK(group_defaults.env_null);
+  CHECK(group_defaults.draw_only_null);
+  CHECK(group_defaults.lod_null);
+  CHECK(approx(group_defaults.lod_screen_size, 0.0f));
+  CHECK(!group_defaults.sort_in_world);
+  CHECK(!group_defaults.unkf8);
+
+  const SourceRndGroupCopyPlan group_copy = source_rndgroup_copy_plan();
+  CHECK(group_copy.superclasses.size() == 4);
+  CHECK(group_copy.superclasses[0] == "Hmx::Object");
+  CHECK(group_copy.superclasses[3] == "RndTransformable");
+  CHECK(group_copy.member_order.size() == 6);
+  CHECK(group_copy.member_order[0] == "mEnv");
+  CHECK(group_copy.member_order[5] == "mObjects");
+  CHECK(group_copy.deep_copies_objects);
+  CHECK(group_copy.from_max_merges_objects);
+  CHECK(group_copy.calls_update);
+
+  const SourceRndGroupReplacePlan group_replace_found =
+      source_rndgroup_replace_plan(true);
+  CHECK(group_replace_found.calls_transformable_replace);
+  CHECK(group_replace_found.scans_objects);
+  CHECK(group_replace_found.add_object_when_found);
+  CHECK(group_replace_found.sets_in_replace_around_remove);
+  CHECK(group_replace_found.remove_object_when_found);
+  CHECK(!group_replace_found.no_object_no_membership_change);
+
+  const SourceRndGroupReplacePlan group_replace_missing =
+      source_rndgroup_replace_plan(false);
+  CHECK(group_replace_missing.calls_transformable_replace);
+  CHECK(group_replace_missing.scans_objects);
+  CHECK(!group_replace_missing.add_object_when_found);
+  CHECK(!group_replace_missing.sets_in_replace_around_remove);
+  CHECK(!group_replace_missing.remove_object_when_found);
+  CHECK(group_replace_missing.no_object_no_membership_change);
+
+  const SourceRndGroupHandlerPlan group_handlers =
+      source_rndgroup_handler_plan();
+  CHECK(group_handlers.actions.size() == 4);
+  CHECK(group_handlers.actions[0] == "sort_draws");
+  CHECK(group_handlers.actions[3] == "clear_objects");
+  CHECK(group_handlers.queries.size() == 2);
+  CHECK(group_handlers.queries[0] == "get_draws");
+  CHECK(group_handlers.queries[1] == "has_object");
+  CHECK(group_handlers.superclasses.size() == 4);
+  CHECK(group_handlers.superclasses[0] == "RndAnimatable");
+  CHECK(group_handlers.superclasses[3] == "Hmx::Object");
+  CHECK(group_handlers.check == 0x29B);
+
+  const SourceRndGroupPropSyncPlan group_props =
+      source_rndgroup_prop_sync_plan();
+  CHECK(group_props.props.size() == 6);
+  CHECK(group_props.props[0] == "objects");
+  CHECK(group_props.props[5] == "sort_in_world");
+  CHECK(group_props.side_effects.size() == 3);
+  CHECK(group_props.side_effects[0] == "objects:Update");
+  CHECK(group_props.side_effects[2] == "lod_screen_size:UpdateLODState");
+  CHECK(group_props.superclasses.size() == 3);
+  CHECK(group_props.superclasses[0] == "RndDrawable");
+  CHECK(group_props.superclasses[2] == "RndAnimatable");
+
   std::vector<uint8_t> b;
   put_u32(b, 15);                // RndGroup revision
   put_zeros(b, 9);               // Hmx::Object fields

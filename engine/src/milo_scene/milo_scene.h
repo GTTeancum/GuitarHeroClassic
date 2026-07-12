@@ -258,6 +258,56 @@ struct SourceRndGroupLoadPlan {
 
 SourceRndGroupLoadPlan source_rndgroup_load_plan(int32_t revision);
 
+struct SourceRndGroupDefaultState {
+  bool objects_owner_control = true;
+  bool env_null = true;
+  bool draw_only_null = true;
+  bool lod_null = true;
+  float lod_screen_size = 0.0f;
+  bool sort_in_world = false;
+  bool unkf8 = false;
+};
+
+SourceRndGroupDefaultState source_rndgroup_default_state();
+
+struct SourceRndGroupCopyPlan {
+  std::vector<std::string> superclasses;
+  std::vector<std::string> member_order;
+  bool deep_copies_objects = true;
+  bool from_max_merges_objects = true;
+  bool calls_update = true;
+};
+
+SourceRndGroupCopyPlan source_rndgroup_copy_plan();
+
+struct SourceRndGroupReplacePlan {
+  bool calls_transformable_replace = true;
+  bool scans_objects = true;
+  bool add_object_when_found = true;
+  bool sets_in_replace_around_remove = true;
+  bool remove_object_when_found = true;
+  bool no_object_no_membership_change = true;
+};
+
+SourceRndGroupReplacePlan source_rndgroup_replace_plan(bool object_found);
+
+struct SourceRndGroupHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> queries;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x29B;
+};
+
+SourceRndGroupHandlerPlan source_rndgroup_handler_plan();
+
+struct SourceRndGroupPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> side_effects;
+  std::vector<std::string> superclasses;
+};
+
+SourceRndGroupPropSyncPlan source_rndgroup_prop_sync_plan();
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
