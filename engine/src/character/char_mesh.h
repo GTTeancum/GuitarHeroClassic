@@ -122,6 +122,26 @@ SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale);
 
+struct SourceRndMeshCopyBonesPlan {
+  bool copied = false;
+  bool cleared = false;
+  std::vector<std::string> bones;
+};
+
+SourceRndMeshCopyBonesPlan source_rndmesh_copy_bones(
+    const std::vector<std::string>* source_bones);
+
+struct SourceRndMeshCopyGeometryFromOwnerPlan {
+  bool owner_is_self = true;
+  bool copied_geometry = false;
+  bool copy_with_volume = false;
+  bool sync = false;
+  int32_t sync_mask = 0;
+};
+
+SourceRndMeshCopyGeometryFromOwnerPlan
+source_rndmesh_copy_geometry_from_owner(bool owner_is_self);
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;

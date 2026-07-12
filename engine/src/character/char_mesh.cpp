@@ -5222,6 +5222,32 @@ SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
   return plan;
 }
 
+SourceRndMeshCopyBonesPlan source_rndmesh_copy_bones(
+    const std::vector<std::string>* source_bones) {
+  SourceRndMeshCopyBonesPlan plan;
+  if (source_bones != nullptr) {
+    plan.copied = true;
+    plan.bones = *source_bones;
+  } else {
+    plan.cleared = true;
+    plan.bones.clear();
+  }
+  return plan;
+}
+
+SourceRndMeshCopyGeometryFromOwnerPlan
+source_rndmesh_copy_geometry_from_owner(bool owner_is_self) {
+  SourceRndMeshCopyGeometryFromOwnerPlan plan;
+  plan.owner_is_self = owner_is_self;
+  if (!owner_is_self) {
+    plan.copied_geometry = true;
+    plan.copy_with_volume = true;
+    plan.sync = true;
+    plan.sync_mask = 0x3f;
+  }
+  return plan;
+}
+
 std::vector<std::string> Character::texture_names() const {
   std::set<std::string> set;
   for (const milo_scene::MatObj& m : mats)

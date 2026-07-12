@@ -1635,18 +1635,39 @@ int run_contract() {
                  "iteratorit=mBones.begin();it!=mBones.end();it++){"
                  "it->mOffset.v*=f;}}",
                  "RB3 runtime ScaleBones scales offset translations");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::CopyGeometryFromOwner(){RndMesh*owner="
+                 "GeometryOwner();if(owner!=this){CopyGeometry(owner,true);"
+                 "Sync(0x3F);}}",
+                 "RB3 runtime CopyGeometryFromOwner copies non-self owner and syncs");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::CopyBones(constRndMesh*mesh){if(mesh)mBones="
+                 "mesh->mBones;elsemBones.clear();}",
+                 "RB3 runtime CopyBones copies or clears source bones");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshScaleBonesPlan{",
                  "native exposes RndMesh ScaleBones source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCopyBonesPlan{",
+                 "native exposes RndMesh CopyBones source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCopyGeometryFromOwnerPlan{",
+                 "native exposes RndMesh CopyGeometryFromOwner source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshScaleBonesPlansource_rndmesh_scale_bones(",
                  "native implements RndMesh ScaleBones source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshCopyBonesPlansource_rndmesh_copy_bones(",
+                 "native implements RndMesh CopyBones source helper");
+  ok &= contains(char_mesh,
+                 "source_rndmesh_copy_geometry_from_owner(boolowner_is_self)",
+                 "native implements RndMesh CopyGeometryFromOwner source helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -1655,12 +1676,26 @@ int run_contract() {
                  "offset.pos[0]*=scale;offset.pos[1]*=scale;"
                  "offset.pos[2]*=scale;",
                  "native ScaleBones helper scales offset translation only");
+  ok &= contains(char_mesh,
+                 "if(source_bones!=nullptr){plan.copied=true;plan.bones="
+                 "*source_bones;}else{plan.cleared=true;plan.bones.clear();}",
+                 "native CopyBones helper mirrors source copy-or-clear branch");
+  ok &= contains(char_mesh,
+                 "if(!owner_is_self){plan.copied_geometry=true;"
+                 "plan.copy_with_volume=true;plan.sync=true;plan.sync_mask=0x3f;}",
+                 "native CopyGeometryFromOwner helper mirrors source non-self branch");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_scale_bones(",
                  "focused mesh decode test covers RndMesh ScaleBones helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_copy_bones(",
+                 "focused mesh decode test covers RndMesh CopyBones helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_copy_geometry_from_owner(",
+                 "focused mesh decode test covers RndMesh CopyGeometryFromOwner helper");
   ok &= contains(rb3_mesh_cpp,
                  "bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
                  "mBones[2].mOffset>>mBones[3].mOffset;",

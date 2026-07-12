@@ -500,6 +500,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `SetKeepMeshData(false)` clears verts, faces, and patches only when the
     keep flag actually changes. These helpers are bookkeeping contracts, not
     permission to alter character material state or synthesize skinning data.
+  - Native `source_rndmesh_copy_bones` and
+    `source_rndmesh_copy_geometry_from_owner` port the visible ownership
+    helpers: `CopyBones(nullptr)` clears the source bone list, otherwise it
+    copies the source mesh's bones; `CopyGeometryFromOwner` copies geometry with
+    volume and calls `Sync(0x3f)` only when the geometry owner is not `this`.
 - `rb3/src/system/rndobj/Mat.cpp`
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.

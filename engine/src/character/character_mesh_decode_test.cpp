@@ -321,6 +321,32 @@ int main() {
   CHECK(approx(scaled_offsets.offsets[1].pos[1], 10.0f));
   CHECK(approx(scaled_offsets.offsets[1].pos[2], -12.0f));
 
+  const std::vector<std::string> source_bones = {"bone_head.mesh",
+                                                 "bone_neck.mesh"};
+  const auto copied_bones =
+      ghogx::character::source_rndmesh_copy_bones(&source_bones);
+  CHECK(copied_bones.copied);
+  CHECK(!copied_bones.cleared);
+  CHECK(copied_bones.bones.size() == 2);
+  CHECK(copied_bones.bones[0] == "bone_head.mesh");
+  const auto cleared_bones = ghogx::character::source_rndmesh_copy_bones(nullptr);
+  CHECK(!cleared_bones.copied);
+  CHECK(cleared_bones.cleared);
+  CHECK(cleared_bones.bones.empty());
+
+  const auto copy_geom_self =
+      ghogx::character::source_rndmesh_copy_geometry_from_owner(true);
+  CHECK(copy_geom_self.owner_is_self);
+  CHECK(!copy_geom_self.copied_geometry);
+  CHECK(!copy_geom_self.sync);
+  const auto copy_geom_owner =
+      ghogx::character::source_rndmesh_copy_geometry_from_owner(false);
+  CHECK(!copy_geom_owner.owner_is_self);
+  CHECK(copy_geom_owner.copied_geometry);
+  CHECK(copy_geom_owner.copy_with_volume);
+  CHECK(copy_geom_owner.sync);
+  CHECK(copy_geom_owner.sync_mask == 0x3f);
+
   CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);
