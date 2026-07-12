@@ -377,6 +377,16 @@ struct SourceRndMeshCollideShowingPlan {
   bool returns_mesh = false;
 };
 
+struct SourceRndMeshUpdateSpherePlan {
+  bool has_bones = false;
+  bool make_world_sphere = false;
+  bool make_world_sphere_uses_showing = true;
+  bool invert_world = false;
+  bool multiply_sphere_to_local = false;
+  bool zero_sphere = false;
+  bool set_drawable_sphere = true;
+};
+
 int32_t source_rndmesh_max_bones();
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
                                                bool keep_mesh_data);
@@ -397,6 +407,8 @@ SourceRndMeshCollideShowingPlan source_rndmesh_collide_showing_plan(
     bool has_bsp_tree,
     bool volume_is_triangles,
     bool hit);
+SourceRndMeshUpdateSpherePlan source_rndmesh_update_sphere_plan(
+    bool has_bones);
 
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;

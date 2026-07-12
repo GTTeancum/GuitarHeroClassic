@@ -723,6 +723,25 @@ int main() {
   CHECK(!collide_miss.returns_mesh);
   CHECK(!collide_miss.transforms_triangle_plane_to_world);
 
+  const auto sphere_static =
+      ghogx::character::source_rndmesh_update_sphere_plan(false);
+  CHECK(!sphere_static.has_bones);
+  CHECK(sphere_static.make_world_sphere);
+  CHECK(sphere_static.make_world_sphere_uses_showing);
+  CHECK(sphere_static.invert_world);
+  CHECK(sphere_static.multiply_sphere_to_local);
+  CHECK(!sphere_static.zero_sphere);
+  CHECK(sphere_static.set_drawable_sphere);
+
+  const auto sphere_skinned =
+      ghogx::character::source_rndmesh_update_sphere_plan(true);
+  CHECK(sphere_skinned.has_bones);
+  CHECK(!sphere_skinned.make_world_sphere);
+  CHECK(!sphere_skinned.invert_world);
+  CHECK(!sphere_skinned.multiply_sphere_to_local);
+  CHECK(sphere_skinned.zero_sphere);
+  CHECK(sphere_skinned.set_drawable_sphere);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);

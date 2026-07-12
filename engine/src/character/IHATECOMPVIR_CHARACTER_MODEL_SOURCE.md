@@ -893,6 +893,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     the running segment end/fraction and last-face index, and multiply the
     triangle plane by `WorldXfm()` only when raw collision is off. This does
     not promote a native point-collision or hair writeback path.
+  - Native `source_rndmesh_update_sphere_plan` ports the adjacent checked
+    `RndMesh::UpdateSphere` branch: meshes without bones call
+    `MakeWorldSphere(s, true)`, invert `WorldXfm()`, multiply the sphere back
+    into local space, and publish it through `RndDrawable::SetSphere`; meshes
+    with bones zero the sphere before the same publish step.
 - `rb3-latest/src/system/rndobj/MeshDeform.cpp` and
   `rb3-latest/src/system/rndobj/MeshDeform.h`
   - `RndMeshDeform::VertArray::VertArray` starts with size `0`, data `0`, and

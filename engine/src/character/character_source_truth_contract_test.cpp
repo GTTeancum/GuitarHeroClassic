@@ -3235,6 +3235,11 @@ int run_contract() {
                  "if(b1){if(!sRawCollide)Multiply(pl,WorldXfm(),pl);"
                  "returnthis;}",
                  "RB3 runtime CollideShowing raw-collision plane gate");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::UpdateSphere(){Spheres;if(mBones.empty()){"
+                 "MakeWorldSphere(s,true);Transformtf;FastInvert(WorldXfm(),tf);"
+                 "Multiply(s,tf,s);}elses.Zero();RndDrawable::SetSphere(s);}",
+                 "RB3 runtime UpdateSphere branch is visible");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
@@ -3263,6 +3268,9 @@ int run_contract() {
                  "structSourceRndMeshCollideShowingPlan{"
                  "boolresets_last_collide=true;",
                  "native exposes RndMesh CollideShowing source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshUpdateSpherePlan{boolhas_bones=false;",
+                 "native exposes RndMesh UpdateSphere source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
@@ -3292,6 +3300,10 @@ int run_contract() {
                  "boolis_skinned,boolraw_collide,boolhas_bsp_tree,"
                  "boolvolume_is_triangles,boolhit)",
                  "native implements RndMesh CollideShowing source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshUpdateSpherePlansource_rndmesh_update_sphere_plan("
+                 "boolhas_bones)",
+                 "native implements RndMesh UpdateSphere source helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -3348,6 +3360,14 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.transforms_triangle_plane_to_world=!raw_collide;",
                  "native CollideShowing helper mirrors raw-collision plane gate");
+  ok &= contains(char_mesh,
+                 "if(has_bones){plan.zero_sphere=true;}else{"
+                 "plan.make_world_sphere=true;plan.make_world_sphere_uses_showing=true;"
+                 "plan.invert_world=true;plan.multiply_sphere_to_local=true;}",
+                 "native UpdateSphere helper mirrors source branch");
+  ok &= contains(char_mesh,
+                 "plan.set_drawable_sphere=true;returnplan;",
+                 "native UpdateSphere helper mirrors SetSphere publish");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
@@ -3375,6 +3395,9 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_collide_showing_plan(",
                  "focused mesh decode test covers RndMesh CollideShowing helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_update_sphere_plan(",
+                 "focused mesh decode test covers RndMesh UpdateSphere helper");
   ok &= contains(doc,
                  "Native `source_rndmesh_collide_showing_plan` ports the checked",
                  "document records RndMesh CollideShowing helper");
@@ -3384,6 +3407,12 @@ int run_contract() {
   ok &= contains(doc,
                  "This does\n    not promote a native point-collision or hair writeback path",
                  "document keeps RndMesh CollideShowing helper fenced");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_update_sphere_plan` ports the adjacent checked",
+                 "document records RndMesh UpdateSphere helper");
+  ok &= contains(doc,
+                 "meshes\n    with bones zero the sphere before the same publish step",
+                 "document records skinned RndMesh UpdateSphere branch");
   ok &= contains(doc,
                  "| Mesh deformation rows | `rb3-latest/src/system/rndobj/"
                  "MeshDeform.cpp` / `MeshDeform.h` |",

@@ -652,6 +652,22 @@ SourceRndMeshCollideShowingPlan source_rndmesh_collide_showing_plan(
   return plan;
 }
 
+SourceRndMeshUpdateSpherePlan source_rndmesh_update_sphere_plan(
+    bool has_bones) {
+  SourceRndMeshUpdateSpherePlan plan;
+  plan.has_bones = has_bones;
+  if (has_bones) {
+    plan.zero_sphere = true;
+  } else {
+    plan.make_world_sphere = true;
+    plan.make_world_sphere_uses_showing = true;
+    plan.invert_world = true;
+    plan.multiply_sphere_to_local = true;
+  }
+  plan.set_drawable_sphere = true;
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {
