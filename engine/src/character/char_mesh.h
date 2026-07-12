@@ -2322,9 +2322,30 @@ struct SourceEventTriggerCopyPlan {
   std::vector<std::string> not_copied_members;
 };
 
+struct SourceEventTriggerHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> action_handlers;
+  std::vector<std::string> direct_returns;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceEventTriggerPropSyncPlan {
+  std::vector<std::string> anim_props;
+  std::vector<std::string> proxy_call_props;
+  std::vector<std::string> hide_delay_props;
+  std::vector<std::string> event_list_props;
+  bool event_lists_unregister_before_mutation = false;
+  bool event_lists_register_after_mutation = false;
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision);
 SourceEventTriggerDefaultState source_event_trigger_default_state();
 SourceEventTriggerCopyPlan source_event_trigger_copy_plan();
+SourceEventTriggerHandlerPlan source_event_trigger_handler_plan();
+SourceEventTriggerPropSyncPlan source_event_trigger_prop_sync_plan();
 
 struct ObjectRow {
   std::string name;

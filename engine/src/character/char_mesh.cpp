@@ -1634,6 +1634,47 @@ SourceEventTriggerCopyPlan source_event_trigger_copy_plan() {
   return plan;
 }
 
+SourceEventTriggerHandlerPlan source_event_trigger_handler_plan() {
+  SourceEventTriggerHandlerPlan plan;
+  plan.handlers = {"trigger:OnTrigger", "proxy_calls:OnProxyCalls"};
+  plan.action_handlers = {"enable:unkdf=true",
+                          "disable:unkdf=false",
+                          "wait_for:unkdf=true;Trigger()",
+                          "basic_cleanup:BasicReset"};
+  plan.direct_returns = {"supported_events:SupportedEvents"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  plan.check = 0x3af;
+  return plan;
+}
+
+SourceEventTriggerPropSyncPlan source_event_trigger_prop_sync_plan() {
+  SourceEventTriggerPropSyncPlan plan;
+  plan.anim_props = {"anim:ResetAnim", "blend", "wait",  "delay",
+                     "enable",         "rate",  "start", "end",
+                     "scale",          "period", "type"};
+  plan.proxy_call_props = {"proxy:clear_call", "call", "event"};
+  plan.hide_delay_props = {"hide", "delay", "rate"};
+  plan.event_list_props = {"trigger_events", "enable_events",
+                           "disable_events", "wait_for_events"};
+  plan.event_lists_unregister_before_mutation = true;
+  plan.event_lists_register_after_mutation = true;
+  plan.properties = {"anims:CheckAnims",
+                     "proxy_calls",
+                     "sounds",
+                     "shows",
+                     "hide_delays",
+                     "part_launchers",
+                     "enabled",
+                     "enabled_at_start",
+                     "next_link:SetNextLink",
+                     "trigger_order",
+                     "triggers_to_reset",
+                     "anim_trigger",
+                     "anim_frame"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
 CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body) {
   return decode_hair_body(entry_name, body);

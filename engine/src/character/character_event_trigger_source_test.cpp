@@ -37,7 +37,9 @@ int main() {
   using ghogx::character::EventTrigger;
   using ghogx::character::source_event_trigger_copy_plan;
   using ghogx::character::source_event_trigger_default_state;
+  using ghogx::character::source_event_trigger_handler_plan;
   using ghogx::character::source_event_trigger_load_plan;
+  using ghogx::character::source_event_trigger_prop_sync_plan;
 
   bool ok = true;
 
@@ -97,6 +99,67 @@ int main() {
                     "copy omits unkbc");
   ok &= expect_bool(has(copy.not_copied_members, "mEnabledAtStart"), true,
                     "copy omits enabled-at-start");
+
+  const auto handlers = source_event_trigger_handler_plan();
+  ok &= expect_size(handlers.handlers.size(), 2, "handler count");
+  ok &= expect_string(handlers.handlers[0], "trigger:OnTrigger",
+                      "trigger handler");
+  ok &= expect_string(handlers.handlers[1], "proxy_calls:OnProxyCalls",
+                      "proxy calls handler");
+  ok &= expect_bool(has(handlers.action_handlers, "enable:unkdf=true"), true,
+                    "enable action handler");
+  ok &= expect_bool(has(handlers.action_handlers, "disable:unkdf=false"),
+                    true, "disable action handler");
+  ok &= expect_bool(has(handlers.action_handlers,
+                        "wait_for:unkdf=true;Trigger()"),
+                    true, "wait_for action handler");
+  ok &= expect_bool(has(handlers.action_handlers,
+                        "basic_cleanup:BasicReset"),
+                    true, "basic cleanup handler");
+  ok &= expect_string(handlers.direct_returns[0],
+                      "supported_events:SupportedEvents",
+                      "supported events direct return");
+  ok &= expect_string(handlers.superclasses[0], "RndAnimatable",
+                      "handler first superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "handler second superclass");
+  ok &= expect_string(std::to_string(handlers.check), "943",
+                      "handler check constant");
+
+  const auto props = source_event_trigger_prop_sync_plan();
+  ok &= expect_string(props.anim_props[0], "anim:ResetAnim",
+                      "anim prop reset side-effect");
+  ok &= expect_bool(has(props.anim_props, "period"), true,
+                    "anim prop period");
+  ok &= expect_bool(has(props.anim_props, "type"), true, "anim prop type");
+  ok &= expect_string(props.proxy_call_props[0], "proxy:clear_call",
+                      "proxy prop clears call");
+  ok &= expect_string(props.hide_delay_props[0], "hide",
+                      "hide-delay first prop");
+  ok &= expect_size(props.event_list_props.size(), 4,
+                    "event-list prop count");
+  ok &= expect_bool(has(props.event_list_props, "trigger_events"), true,
+                    "trigger events prop");
+  ok &= expect_bool(has(props.event_list_props, "enable_events"), true,
+                    "enable events prop");
+  ok &= expect_bool(has(props.event_list_props, "disable_events"), true,
+                    "disable events prop");
+  ok &= expect_bool(has(props.event_list_props, "wait_for_events"), true,
+                    "wait-for events prop");
+  ok &= expect_bool(props.event_lists_unregister_before_mutation, true,
+                    "event-list unregister before mutation");
+  ok &= expect_bool(props.event_lists_register_after_mutation, true,
+                    "event-list register after mutation");
+  ok &= expect_bool(has(props.properties, "anims:CheckAnims"), true,
+                    "anims prop check");
+  ok &= expect_bool(has(props.properties, "next_link:SetNextLink"), true,
+                    "next-link prop setter");
+  ok &= expect_bool(has(props.properties, "enabled_at_start"), true,
+                    "enabled-at-start prop");
+  ok &= expect_bool(has(props.properties, "anim_frame"), true,
+                    "anim frame prop");
+  ok &= expect_string(props.superclasses[0], "RndAnimatable",
+                      "prop-sync superclass");
 
   const auto bad_low = source_event_trigger_load_plan(-1);
   ok &= expect_bool(bad_low.known_revision, false, "revision -1 rejected");

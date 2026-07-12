@@ -7906,6 +7906,55 @@ int run_contract() {
                  "COPY_MEMBER(mPartLaunchers)RegisterEvents();"
                  "CleanupHideShow();",
                  "EventTrigger source copy member order");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "BEGIN_HANDLERS(EventTrigger)HANDLE(trigger,OnTrigger)"
+                 "HANDLE_ACTION(enable,unkdf=true)HANDLE_ACTION(disable,"
+                 "unkdf=false)HANDLE_ACTION(wait_for,unkdf=true;Trigger();)"
+                 "HANDLE(proxy_calls,OnProxyCalls)",
+                 "EventTrigger source exposes handler prefix");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "if(sym==supported_events)returnDataNode(SupportedEvents(),"
+                 "kDataArray);HANDLE_ACTION(basic_cleanup,BasicReset())"
+                 "HANDLE_SUPERCLASS(RndAnimatable)HANDLE_SUPERCLASS("
+                 "Hmx::Object)HANDLE_CHECK(0x3AF)",
+                 "EventTrigger source exposes handler tail");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(EventTrigger::Anim)"
+                 "SYNC_PROP_MODIFY_ALT(anim,o.mAnim,ResetAnim(o))"
+                 "SYNC_PROP(blend,o.mBlend)",
+                 "EventTrigger Anim prop-sync resets anim rows");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "SYNC_PROP(rate,(int&)o.mRate)SYNC_PROP(start,o.mStart)"
+                 "SYNC_PROP(end,o.mEnd)SYNC_PROP(scale,o.mScale)"
+                 "SYNC_PROP(period,o.mPeriod)SYNC_PROP(type,o.mType)",
+                 "EventTrigger Anim prop-sync exposes extended rows");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(EventTrigger::ProxyCall)"
+                 "SYNC_PROP_MODIFY_ALT(proxy,o.mProxy,o.mCall=Symbol(\"\"))"
+                 "SYNC_PROP(call,o.mCall)SYNC_PROP(event,o.mEvent)",
+                 "EventTrigger ProxyCall prop-sync clears call on proxy change");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(EventTrigger::HideDelay)"
+                 "SYNC_PROP(hide,o.mHide)SYNC_PROP(delay,o.mDelay)"
+                 "SYNC_PROP(rate,o.mRate)",
+                 "EventTrigger HideDelay prop-sync exposes source rows");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "staticSymbol_s(\"trigger_events\");if(sym==_s){if(!(_op&"
+                 "(kPropSize|kPropGet)))UnregisterEvents();boolsynced="
+                 "PropSync(mTriggerEvents,_val,_prop,_i+1,_op);",
+                 "EventTrigger trigger_events prop-sync unregisters before mutation");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "SYNC_PROP_MODIFY_ALT(anims,mAnims,CheckAnims())"
+                 "SYNC_PROP(proxy_calls,mProxyCalls)SYNC_PROP(sounds,mSounds)"
+                 "SYNC_PROP(shows,mShows)SYNC_PROP(hide_delays,mHideDelays)",
+                 "EventTrigger prop-sync exposes anim/proxy/show rows");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "SYNC_PROP_SET(next_link,mNextLink,SetNextLink("
+                 "_val.Obj<EventTrigger>(0)))SYNC_PROP(trigger_order,"
+                 "mTriggerOrder)SYNC_PROP(triggers_to_reset,mResetTriggers)"
+                 "SYNC_PROP(anim_trigger,mAnimTrigger)SYNC_PROP(anim_frame,"
+                 "mAnimFrame)SYNC_SUPERCLASS(RndAnimatable)",
+                 "EventTrigger prop-sync exposes tail rows and superclass");
   ok &= contains(rb3_latest_event_trigger_h,
                  "ObjVector<ProxyCall>mProxyCalls;",
                  "EventTrigger header exposes ObjVector boundary");
@@ -8076,6 +8125,19 @@ int run_contract() {
                  "  `source_event_trigger_copy_plan` record",
                  "document records EventTrigger default/copy helpers");
   ok &= contains(doc,
+                 "Native `source_event_trigger_handler_plan` and\n"
+                 "  `source_event_trigger_prop_sync_plan` record",
+                 "document records EventTrigger handler/prop-sync helpers");
+  ok &= contains(doc,
+                 "`trigger`, `enable`, `disable`, `wait_for`, `proxy_calls`,",
+                 "document records EventTrigger handler rows");
+  ok &= contains(doc,
+                 "event-list unregister/register wrapping",
+                 "document records EventTrigger event-list prop-sync behavior");
+  ok &= contains(doc,
+                 "not event execution",
+                 "document fences EventTrigger handler helpers from runtime execution");
+  ok &= contains(doc,
                  "records the only stock row as `char=metal_drummer "
                  "name=game_over.trig\n  version=8`",
                  "document records focused EventTrigger stock proof");
@@ -8144,6 +8206,18 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceEventTriggerCopyPlansource_event_trigger_copy_plan();",
                  "native exposes EventTrigger source copy helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerHandlerPlan{",
+                 "native exposes EventTrigger handler plan type");
+  ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerPropSyncPlan{",
+                 "native exposes EventTrigger prop-sync plan type");
+  ok &= contains(char_mesh_h,
+                 "SourceEventTriggerHandlerPlansource_event_trigger_handler_plan();",
+                 "native exposes EventTrigger handler plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceEventTriggerPropSyncPlansource_event_trigger_prop_sync_plan();",
+                 "native exposes EventTrigger prop-sync plan helper");
   ok &= contains(char_mesh,
                  "SourceEventTriggerLoadPlansource_event_trigger_load_plan("
                  "intrevision){",
@@ -8169,6 +8243,38 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.load_steps.push_back(\"ConvertParticleTriggerType\");",
                  "EventTrigger source plan records post-load conversion");
+  ok &= contains(char_mesh,
+                 "SourceEventTriggerHandlerPlansource_event_trigger_handler_plan(){"
+                 "SourceEventTriggerHandlerPlanplan;plan.handlers={"
+                 "\"trigger:OnTrigger\",\"proxy_calls:OnProxyCalls\"};",
+                 "native implements EventTrigger handler plan helper");
+  ok &= contains(char_mesh,
+                 "plan.action_handlers={\"enable:unkdf=true\","
+                 "\"disable:unkdf=false\",\"wait_for:unkdf=true;Trigger()\","
+                 "\"basic_cleanup:BasicReset\"};",
+                 "EventTrigger handler plan records source action handlers");
+  ok &= contains(char_mesh,
+                 "plan.direct_returns={\"supported_events:SupportedEvents\"};"
+                 "plan.superclasses={\"RndAnimatable\",\"Hmx::Object\"};"
+                 "plan.check=0x3af;",
+                 "EventTrigger handler plan records source return and check");
+  ok &= contains(char_mesh,
+                 "SourceEventTriggerPropSyncPlansource_event_trigger_prop_sync_plan(){"
+                 "SourceEventTriggerPropSyncPlanplan;plan.anim_props={"
+                 "\"anim:ResetAnim\",\"blend\",\"wait\",\"delay\",",
+                 "native implements EventTrigger prop-sync plan helper");
+  ok &= contains(char_mesh,
+                 "plan.event_list_props={\"trigger_events\",\"enable_events\","
+                 "\"disable_events\",\"wait_for_events\"};",
+                 "EventTrigger prop-sync plan records event list rows");
+  ok &= contains(char_mesh,
+                 "plan.event_lists_unregister_before_mutation=true;"
+                 "plan.event_lists_register_after_mutation=true;",
+                 "EventTrigger prop-sync plan records event-list wrappers");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"anims:CheckAnims\",\"proxy_calls\","
+                 "\"sounds\",\"shows\",\"hide_delays\",\"part_launchers\",",
+                 "EventTrigger prop-sync plan records primary properties");
   ok &= contains(event_trigger_source_test,
                  "constautorev17=source_event_trigger_load_plan(0x11);",
                  "EventTrigger source test covers newest source revision");
@@ -8184,6 +8290,18 @@ int run_contract() {
   ok &= contains(event_trigger_source_test,
                  "constautocopy=source_event_trigger_copy_plan();",
                  "EventTrigger source test covers copy plan");
+  ok &= contains(event_trigger_source_test,
+                 "constautohandlers=source_event_trigger_handler_plan();",
+                 "EventTrigger source test covers handler plan");
+  ok &= contains(event_trigger_source_test,
+                 "\"wait_for:unkdf=true;Trigger()\"",
+                 "EventTrigger source test covers wait_for action");
+  ok &= contains(event_trigger_source_test,
+                 "constautoprops=source_event_trigger_prop_sync_plan();",
+                 "EventTrigger source test covers prop-sync plan");
+  ok &= contains(event_trigger_source_test,
+                 "props.event_lists_unregister_before_mutation",
+                 "EventTrigger source test covers event-list unregister wrapper");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_event_trigger_source_test",
                  "CMake registers EventTrigger source test");

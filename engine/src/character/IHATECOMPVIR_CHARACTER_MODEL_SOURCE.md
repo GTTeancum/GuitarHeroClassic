@@ -1328,6 +1328,13 @@ note, and all report `unreadBytes=0`.
   source member list, then runs `RegisterEvents` and `CleanupHideShow`.
   Runtime-only fields such as spawned tasks and enabled state are documented as
   not copied by that source body.
+- Native `source_event_trigger_handler_plan` and
+  `source_event_trigger_prop_sync_plan` record the checked handler and property
+  rows: `trigger`, `enable`, `disable`, `wait_for`, `proxy_calls`,
+  `supported_events`, `basic_cleanup`, the `Anim` / `ProxyCall` / `HideDelay`
+  custom property rows, event-list unregister/register wrapping, and
+  `RndAnimatable` superclass handoff. This remains row-surface evidence only,
+  not event execution.
 - Native GHOGX currently decodes EventTrigger rows as passive source inventory
   only. It does not register events, trigger animations, play sounds, hide/show
   drawables, or schedule tasks.
