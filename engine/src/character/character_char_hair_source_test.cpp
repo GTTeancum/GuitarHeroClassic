@@ -89,7 +89,12 @@ int main() {
   using ghogx::character::source_char_hair_simulate_internal_scalars;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
+  using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
+  using ghogx::character::source_gltf_milo_hair_collide_name;
+  using ghogx::character::source_gltf_milo_is_hair_bone_node;
+  using ghogx::character::source_gltf_milo_process_empty_hair_collides;
   using ghogx::character::SourceCharHairCollisionInput;
+  using ghogx::character::SourceGltfMiloHairNode;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -233,6 +238,91 @@ int main() {
                     "set name world no character owner");
   ok &= expect_bool(set_name_world.use_post_proc, true,
                     "set name world postproc");
+
+  ok &= expect_bool(source_gltf_milo_is_hair_bone_node(
+                        {"Bone_Hair_root", -1, true, false}),
+                    true, "glTFMilo hair bone prefix ignores case");
+  ok &= expect_bool(source_gltf_milo_is_hair_bone_node(
+                        {"bone_head", -1, true, false}),
+                    false, "glTFMilo rejects non-hair bone");
+
+  const std::vector<SourceGltfMiloHairNode> hair_nodes = {
+      {"root", -1, true, false},
+      {"bone_hair_root", 0, true, false},
+      {"bone_hair_mid", 1, true, true},
+      {"bone_hair_left", 2, true, true},
+      {"bone_hair_right", 2, true, false},
+      {"bone_hair_tip", 4, true, true},
+      {"bone_face", 2, true, false},
+  };
+  const auto hair_chains =
+      source_gltf_milo_collect_hair_chains_split_at_branches(hair_nodes);
+  ok &= expect_bool(hair_chains.has_weighted_hair_bones, true,
+                    "glTFMilo hair chain weighted input");
+  ok &= expect_size(hair_chains.roots.size(), 1,
+                    "glTFMilo hair root count");
+  ok &= expect_string(hair_chains.roots[0], "bone_hair_root",
+                      "glTFMilo hair root climbs to top hair bone");
+  ok &= expect_size(hair_chains.chains.size(), 3,
+                    "glTFMilo split strand count");
+  ok &= expect_size(hair_chains.chains[0].size(), 2,
+                    "glTFMilo trunk segment size");
+  ok &= expect_string(hair_chains.chains[0][0], "bone_hair_root",
+                      "glTFMilo trunk starts at root");
+  ok &= expect_string(hair_chains.chains[0][1], "bone_hair_mid",
+                      "glTFMilo trunk ends at branch point");
+  ok &= expect_size(hair_chains.chains[1].size(), 1,
+                    "glTFMilo left branch segment size");
+  ok &= expect_string(hair_chains.chains[1][0], "bone_hair_left",
+                      "glTFMilo weighted leaf segment");
+  ok &= expect_size(hair_chains.chains[2].size(), 2,
+                    "glTFMilo right branch carries weighted descendant");
+  ok &= expect_string(hair_chains.chains[2][0], "bone_hair_right",
+                      "glTFMilo child segment starts at branch child");
+  ok &= expect_string(hair_chains.chains[2][1], "bone_hair_tip",
+                      "glTFMilo child segment reaches weighted tip");
+  ok &= expect_size(hair_chains.warnings.size(), 1,
+                    "glTFMilo non-hair child warning count");
+  ok &= expect_bool(hair_chains.warnings[0].find("bone_face") !=
+                        std::string::npos,
+                    true, "glTFMilo non-hair child warning names child");
+
+  ok &= expect_string(source_gltf_milo_hair_collide_name("bang.mesh"),
+                      "bang.coll", "glTFMilo hair collide strips mesh");
+  ok &= expect_string(source_gltf_milo_hair_collide_name("braid.MESH"),
+                      "braid.coll", "glTFMilo hair collide strips mesh case");
+  ok &= expect_string(source_gltf_milo_hair_collide_name("scarf"),
+                      "scarf.coll", "glTFMilo hair collide appends suffix");
+  const auto exported_collides =
+      source_gltf_milo_process_empty_hair_collides(
+          {"bang.mesh", "BANG.MESH", "braid.MESH", "scarf"},
+          {"scarf.coll"}, "rock1.milo");
+  ok &= expect_size(exported_collides.size(), 2,
+                    "glTFMilo empty hair collide export count");
+  ok &= expect_string(exported_collides[0].collide_name, "bang.coll",
+                      "glTFMilo empty collide first name");
+  ok &= expect_string(exported_collides[0].mesh_name, "bang.mesh",
+                      "glTFMilo empty collide mesh name");
+  ok &= expect_string(exported_collides[0].parent_name, "rock1.milo",
+                      "glTFMilo empty collide parent");
+  ok &= expect_int(exported_collides[0].revision, 7,
+                   "glTFMilo empty collide revision");
+  ok &= expect_int(exported_collides[0].object_revision, 2,
+                   "glTFMilo empty collide object revision");
+  ok &= expect_int(exported_collides[0].shape, 1,
+                   "glTFMilo empty collide sphere shape");
+  ok &= expect_int(exported_collides[0].flags, 0,
+                   "glTFMilo empty collide flags");
+  ok &= expect_bool(exported_collides[0].mesh_y_bias, false,
+                    "glTFMilo empty collide mesh y bias");
+  ok &= expect_bool(exported_collides[0].unknown_transform_identity, true,
+                    "glTFMilo empty collide identity unknown transform");
+  ok &= expect_int(exported_collides[0].struct_count, 8,
+                   "glTFMilo empty collide struct count");
+  ok &= expect_bool(exported_collides[0].exporter_marks_inferred, true,
+                    "glTFMilo empty collide marked inferred");
+  ok &= expect_string(exported_collides[1].collide_name, "braid.coll",
+                      "glTFMilo empty collide preserves nonduplicate");
 
   const auto handlers = source_char_hair_handler_plan();
   ok &= expect_size(handlers.actions.size(), 4, "handler action count");

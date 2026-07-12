@@ -1058,11 +1058,22 @@ note, and all report `unreadBytes=0`.
 - `glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs`
   - `ProcessCharHair` builds `CharHair` strands from weighted hair-bone chains.
     The newer source splits strands at branches, matching how the decompiled
-    runtime expects hair to be structured.
-  - `ProcessHairCollides` can emit empty `CharCollide` objects for hair meshes,
-    but its own source comment says this is inferred from decomp and "could be
-    wrong". Treat those rows as exporter/format hints, not proof of GH2 runtime
-    collision hookup.
+    runtime expects hair to be structured. Native
+    `source_gltf_milo_collect_hair_chains_split_at_branches` ports that
+    root-climb and branch-split rule as deterministic segment evidence:
+    weighted hair bones climb to their top `bone_hair_` ancestor, non-hair bone
+    children under hair bones are warnings, branch points end the current
+    segment, and weighted descendants keep child segments alive.
+  - `ProcessEmptyHairCollides` can emit empty `CharCollide` objects for hair
+    meshes, but its own source comment says this is inferred from decomp and
+    "could be wrong". Treat those rows as exporter/format hints, not proof of
+    GH2 runtime collision hookup. Native
+    `source_gltf_milo_process_empty_hair_collides`
+    ports the exporter row shape only: unique hair mesh names become `.coll`
+    entries, existing `CharCollide` names are skipped case-insensitively, and
+    the generated row uses `CharCollide` revision 7, object revision 2, sphere
+    shape, zero flags, mesh reference, no mesh-y bias, identity unknown
+    transform, and eight empty structs.
 - `rb3-latest/src/system/char/CharHair.cpp` and
   `rb3-latest/src/system/char/CharHair.h`
   - `operator>>(BinStream&, CharHair::Point&)` is the runtime read authority for

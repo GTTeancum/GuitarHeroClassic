@@ -3407,9 +3407,45 @@ int run_contract() {
                  "fromlookingatthedecompitseemedthattheremustbeoneorhairwon'tbesim,"
                  "couldbewrong",
                  "glTFMilo marks generated CharCollide rows as inferred");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairNode{std::stringname;intparent=-1;"
+                 "boolis_bone=false;boolweighted=false;};",
+                 "native declares glTFMilo hair graph node contract");
+  ok &= contains(char_mesh,
+                 "boolsource_gltf_milo_is_hair_bone_node("
+                 "constSourceGltfMiloHairNode&node)",
+                 "native ports glTFMilo hair-bone prefix gate");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloHairChainsResult"
+                 "source_gltf_milo_collect_hair_chains_split_at_branches("
+                 "conststd::vector<SourceGltfMiloHairNode>&nodes)",
+                 "native ports glTFMilo hair branch splitter");
+  ok &= contains(char_mesh,
+                 "std::stringsource_gltf_milo_hair_collide_name("
+                 "conststd::string&mesh_name)",
+                 "native ports glTFMilo hair collide naming");
+  ok &= contains(char_mesh,
+                 "source_gltf_milo_process_empty_hair_collides("
+                 "conststd::vector<std::string>&hair_mesh_names,",
+                 "native ports glTFMilo empty hair collide export rows");
+  ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_collect_hair_chains_split_at_branches("
+                 "hair_nodes)",
+                 "focused CharHair source test covers glTFMilo chain splitter");
+  ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_process_empty_hair_collides(",
+                 "focused CharHair source test covers glTFMilo empty collides");
   ok &= contains(doc,
-                 "Treat those rows as exporter/format hints, not proof of GH2 runtime",
+                 "Treat those rows as exporter/format hints, not proof of\n"
+                 "    GH2 runtime collision hookup",
                  "document keeps glTFMilo CharCollide rows out of runtime proof");
+  ok &= contains(doc,
+                 "`source_gltf_milo_collect_hair_chains_split_at_branches` "
+                 "ports that\n    root-climb and branch-split rule",
+                 "document records glTFMilo native hair segment helper");
+  ok &= contains(doc,
+                 "Native\n    `source_gltf_milo_process_empty_hair_collides`",
+                 "document records glTFMilo empty hair collide helper");
   ok &= contains(band3_config, "CharHair__GetFPS",
                  "band3_recomp exposes CharHair GetFPS symbol");
   ok &= contains(band3_config, "CharHair__Simulate",

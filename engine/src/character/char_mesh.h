@@ -606,6 +606,34 @@ struct SourceCharHairRootNode {
                                     0.0f, 0.0f, 1.0f};
 };
 
+struct SourceGltfMiloHairNode {
+  std::string name;
+  int parent = -1;
+  bool is_bone = false;
+  bool weighted = false;
+};
+
+struct SourceGltfMiloHairChainsResult {
+  bool has_weighted_hair_bones = false;
+  std::vector<std::string> roots;
+  std::vector<std::vector<std::string>> chains;
+  std::vector<std::string> warnings;
+};
+
+struct SourceGltfMiloHairCollideExport {
+  std::string collide_name;
+  std::string mesh_name;
+  std::string parent_name;
+  int revision = 7;
+  int object_revision = 2;
+  int shape = 1;
+  int flags = 0;
+  bool mesh_y_bias = false;
+  bool unknown_transform_identity = true;
+  int struct_count = 8;
+  bool exporter_marks_inferred = true;
+};
+
 struct SourceCharHairRuntimePoint {
   bool initialized = false;
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
@@ -2291,6 +2319,18 @@ void source_char_hair_strand_set_angle(CharHairStrand& strand,
 void source_char_hair_strand_set_root(
     CharHairStrand& strand,
     const std::vector<SourceCharHairRootNode>& first_child_chain);
+bool source_gltf_milo_is_hair_bone_node(
+    const SourceGltfMiloHairNode& node);
+SourceGltfMiloHairChainsResult
+source_gltf_milo_collect_hair_chains_split_at_branches(
+    const std::vector<SourceGltfMiloHairNode>& nodes);
+std::string source_gltf_milo_hair_collide_name(
+    const std::string& mesh_name);
+std::vector<SourceGltfMiloHairCollideExport>
+source_gltf_milo_process_empty_hair_collides(
+    const std::vector<std::string>& hair_mesh_names,
+    const std::vector<std::string>& existing_collide_names,
+    const std::string& parent_name);
 
 struct CharCollideMeshSphere {
   int32_t vertex = 0;

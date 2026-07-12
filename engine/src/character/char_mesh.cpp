@@ -6,6 +6,7 @@
 #include "milo.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -5101,6 +5102,176 @@ void source_char_hair_strand_set_root(
   back_point.pos[0] = back_bone.world_pos[0] + back_bone.world_y_axis[0] * len;
   back_point.pos[1] = back_bone.world_pos[1] + back_bone.world_y_axis[1] * len;
   back_point.pos[2] = back_bone.world_pos[2] + back_bone.world_y_axis[2] * len;
+}
+
+static std::string source_ascii_lower(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+  return s;
+}
+
+static bool source_case_equal(const std::string& a, const std::string& b) {
+  return source_ascii_lower(a) == source_ascii_lower(b);
+}
+
+static bool source_case_ends_with(const std::string& s,
+                                  const std::string& suffix) {
+  if (s.size() < suffix.size()) return false;
+  return source_case_equal(s.substr(s.size() - suffix.size()), suffix);
+}
+
+bool source_gltf_milo_is_hair_bone_node(
+    const SourceGltfMiloHairNode& node) {
+  if (!node.is_bone) return false;
+  const std::string lower = source_ascii_lower(node.name);
+  return lower.rfind("bone_hair_", 0) == 0;
+}
+
+static bool source_gltf_milo_collect_hair_chains_split_at_branches_impl(
+    const std::vector<SourceGltfMiloHairNode>& nodes,
+    const std::vector<std::vector<int>>& children,
+    int node_index,
+    bool ancestor_weighted,
+    std::vector<std::vector<std::string>>& chains,
+    std::vector<std::string>& warnings) {
+  std::vector<int> segment;
+  int current = node_index;
+
+  while (current >= 0 && static_cast<size_t>(current) < nodes.size()) {
+    segment.push_back(current);
+
+    std::vector<int> hair_children;
+    for (int child : children[static_cast<size_t>(current)]) {
+      const SourceGltfMiloHairNode& child_node =
+          nodes[static_cast<size_t>(child)];
+      if (source_gltf_milo_is_hair_bone_node(child_node)) {
+        hair_children.push_back(child);
+      } else if (child_node.is_bone) {
+        warnings.push_back("Non-hair bone '" + child_node.name +
+                           "' found under hair bone '" +
+                           nodes[static_cast<size_t>(current)].name +
+                           "'. It will not be included in CharHair strand "
+                           "generation.");
+      }
+    }
+
+    if (hair_children.size() == 1) {
+      current = hair_children.front();
+      continue;
+    }
+
+    bool segment_weighted = false;
+    for (int index : segment) {
+      segment_weighted = segment_weighted ||
+                         nodes[static_cast<size_t>(index)].weighted;
+    }
+
+    std::vector<std::vector<std::string>> child_chains;
+    bool subtree_weighted = false;
+    for (int child : hair_children) {
+      subtree_weighted =
+          source_gltf_milo_collect_hair_chains_split_at_branches_impl(
+              nodes, children, child, ancestor_weighted || segment_weighted,
+              child_chains, warnings) ||
+          subtree_weighted;
+    }
+
+    if (segment_weighted || ancestor_weighted || subtree_weighted) {
+      std::vector<std::string> chain;
+      chain.reserve(segment.size());
+      for (int index : segment) {
+        chain.push_back(nodes[static_cast<size_t>(index)].name);
+      }
+      chains.push_back(std::move(chain));
+    }
+    chains.insert(chains.end(), child_chains.begin(), child_chains.end());
+    return segment_weighted || subtree_weighted;
+  }
+
+  return false;
+}
+
+SourceGltfMiloHairChainsResult
+source_gltf_milo_collect_hair_chains_split_at_branches(
+    const std::vector<SourceGltfMiloHairNode>& nodes) {
+  SourceGltfMiloHairChainsResult result;
+  std::vector<std::vector<int>> children(nodes.size());
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    const int parent = nodes[i].parent;
+    if (parent >= 0 && static_cast<size_t>(parent) < nodes.size()) {
+      children[static_cast<size_t>(parent)].push_back(static_cast<int>(i));
+    }
+  }
+
+  std::unordered_set<std::string> seen_roots;
+  std::vector<int> roots;
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    if (!nodes[i].weighted || !source_gltf_milo_is_hair_bone_node(nodes[i])) {
+      continue;
+    }
+    result.has_weighted_hair_bones = true;
+    int root = static_cast<int>(i);
+    while (nodes[static_cast<size_t>(root)].parent >= 0) {
+      const int parent = nodes[static_cast<size_t>(root)].parent;
+      if (parent < 0 || static_cast<size_t>(parent) >= nodes.size() ||
+          !source_gltf_milo_is_hair_bone_node(
+              nodes[static_cast<size_t>(parent)])) {
+        break;
+      }
+      root = parent;
+    }
+    const std::string key =
+        source_ascii_lower(nodes[static_cast<size_t>(root)].name);
+    if (seen_roots.insert(key).second) {
+      roots.push_back(root);
+      result.roots.push_back(nodes[static_cast<size_t>(root)].name);
+    }
+  }
+
+  for (int root : roots) {
+    source_gltf_milo_collect_hair_chains_split_at_branches_impl(
+        nodes, children, root, false, result.chains, result.warnings);
+  }
+  return result;
+}
+
+std::string source_gltf_milo_hair_collide_name(
+    const std::string& mesh_name) {
+  if (source_case_ends_with(mesh_name, ".mesh")) {
+    return mesh_name.substr(0, mesh_name.size() - 5) + ".coll";
+  }
+  return mesh_name + ".coll";
+}
+
+std::vector<SourceGltfMiloHairCollideExport>
+source_gltf_milo_process_empty_hair_collides(
+    const std::vector<std::string>& hair_mesh_names,
+    const std::vector<std::string>& existing_collide_names,
+    const std::string& parent_name) {
+  std::unordered_set<std::string> seen_meshes;
+  std::unordered_set<std::string> existing_collides;
+  for (const std::string& collide : existing_collide_names) {
+    existing_collides.insert(source_ascii_lower(collide));
+  }
+
+  std::vector<SourceGltfMiloHairCollideExport> exports;
+  for (const std::string& mesh_name : hair_mesh_names) {
+    if (!seen_meshes.insert(source_ascii_lower(mesh_name)).second) continue;
+    const std::string collide_name =
+        source_gltf_milo_hair_collide_name(mesh_name);
+    if (existing_collides.find(source_ascii_lower(collide_name)) !=
+        existing_collides.end()) {
+      continue;
+    }
+
+    SourceGltfMiloHairCollideExport out;
+    out.collide_name = collide_name;
+    out.mesh_name = mesh_name;
+    out.parent_name = parent_name;
+    exports.push_back(std::move(out));
+  }
+  return exports;
 }
 
 // ---------------------------------------------------------------------------
