@@ -1238,6 +1238,9 @@ note, and all report `unreadBytes=0`.
     `source_char_hair_point_load_plan` record the same source read order and
     revision gates as deterministic format evidence for hair segment/controller
     rows.
+  - `CharHair::Save` uses source save id `0x41B`. Native
+    `source_char_hair_save_plan` records that row id only; it does not imply
+    any additional runtime writer.
   - Revisions below 3 consume a legacy `int` and string, and revision 3 consumes
     a legacy `int`, but the reader then calls `pt.collides.clear()`. Native may
     log these legacy inline fields for stock GH2 evidence, but they are not a
@@ -1438,6 +1441,9 @@ note, and all report `unreadBytes=0`.
     draw original/current spheres, cigar variants draw original/current cigars,
     and a present mesh draws `NumSpheres() * 2` tiny vertex spheres. This is
     diagnostic evidence only; it does not change character rendering.
+  - `CharCollide::Save` uses source save id `0x58`. Native
+    `source_char_collide_save_plan` records that row id alongside the decoded
+    collision shape/load/copy/property plans used by the hair boundary.
   - `CharCollide::Deform` is an empty source body. Native
     `source_char_collide_deform_plan` records that no-op explicitly so hair or
     accessory collision fixes do not invent unsupported mesh deformation.

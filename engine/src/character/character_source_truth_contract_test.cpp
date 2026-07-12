@@ -5050,6 +5050,24 @@ int run_contract() {
                  "`CharHair::Strand::SetAngle` stores the angle",
                  "document records CharHair Strand SetAngle source behavior");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "SAVE_OBJ(CharHair,0x41B)",
+                 "RB3 CharHair source save id");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairSavePlan{int32_tsave_id=0x41b;};",
+                 "native exposes CharHair save plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairSavePlansource_char_hair_save_plan();",
+                 "native exposes CharHair save helper");
+  ok &= contains(char_mesh,
+                 "SourceCharHairSavePlansource_char_hair_save_plan(){return{};}",
+                 "native CharHair save helper mirrors source id");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_save_plan()",
+                 "focused CharHair test covers save plan");
+  ok &= contains(doc,
+                 "`source_char_hair_save_plan` records that row id only",
+                 "document records CharHair save plan boundary");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SetCloth(boolb){for(inti=0;"
                  "i<mStrands.size();i++){Strand&strand=mStrands[i];"
                  "intmod=Mod(i+1,mStrands.size());",
@@ -5269,6 +5287,9 @@ int run_contract() {
                  "voidCharCollide::Deform(){}",
                  "latest CharCollide source Deform is empty");
   ok &= contains(rb3_latest_char_collide_cpp,
+                 "SAVE_OBJ(CharCollide,0x58)",
+                 "latest CharCollide source save id");
+  ok &= contains(rb3_latest_char_collide_cpp,
                  "BEGIN_HANDLERS(CharCollide)HANDLE_SUPERCLASS("
                  "RndTransformable)HANDLE_SUPERCLASS(Hmx::Object)"
                  "HANDLE_CHECK(0x221)END_HANDLERS",
@@ -5349,6 +5370,9 @@ int run_contract() {
                  "int32_tflags=0;boolmesh_empty=true;boolmesh_y_bias=false;",
                  "native exposes CharCollide constructor default contract");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCollideSavePlan{int32_tsave_id=0x58;};",
+                 "native exposes CharCollide save-plan contract");
+  ok &= contains(char_mesh_h,
                  "structSourceCharCollideCopyPlan{std::vector<std::string>"
                  "copied_superclasses;std::vector<std::string>"
                  "copied_members;std::vector<std::string>"
@@ -5377,6 +5401,9 @@ int run_contract() {
                  "SourceCharCollideDefaultStatesource_char_collide_default_state();",
                  "native exposes CharCollide default-state helper");
   ok &= contains(char_mesh_h,
+                 "SourceCharCollideSavePlansource_char_collide_save_plan();",
+                 "native exposes CharCollide save-plan helper");
+  ok &= contains(char_mesh_h,
                  "SourceCharCollideLoadPlansource_char_collide_load_plan("
                  "intrevision);",
                  "native exposes CharCollide load-plan helper");
@@ -5404,6 +5431,10 @@ int run_contract() {
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
                  "native CharCollide decoder exists");
+  ok &= contains(char_mesh,
+                 "SourceCharCollideSavePlansource_char_collide_save_plan(){"
+                 "return{};}",
+                 "native CharCollide save helper mirrors source id");
   ok &= contains(char_mesh,
                  "if(collide.version<0||collide.version>7){"
                  "throwstd::runtime_error(\"char_mesh:CharColliderevision"
@@ -5605,6 +5636,9 @@ int run_contract() {
   ok &= contains(char_collide_source_test,
                  "source_char_collide_default_state()",
                  "CharCollide source test covers constructor defaults");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_save_plan()",
+                 "CharCollide source test covers save plan");
   ok &= contains(char_collide_source_test,
                  "native_default.mesh_spheres.size()==static_cast<size_t>("
                  "defaults.mesh_sphere_count)",

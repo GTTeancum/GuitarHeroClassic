@@ -40,6 +40,8 @@ bool xfm_is_identity(const ghogx::milo_scene::Xfm& xfm) {
 int main() {
   const ghogx::character::SourceCharCollideDefaultState defaults =
       ghogx::character::source_char_collide_default_state();
+  const ghogx::character::SourceCharCollideSavePlan save_plan =
+      ghogx::character::source_char_collide_save_plan();
 
   CHECK(defaults.shape == 1);
   CHECK(defaults.flags == 0);
@@ -48,6 +50,7 @@ int main() {
   CHECK(defaults.mesh_transform_reset);
   CHECK(defaults.mesh_sphere_count == 8);
   CHECK(defaults.mesh_spheres_zeroed);
+  CHECK(save_plan.save_id == 0x58);
 
   for (int i = 0; i < 2; ++i) {
     CHECK(defaults.orig_radius[static_cast<size_t>(i)] == 0.0f);

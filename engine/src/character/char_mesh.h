@@ -782,6 +782,10 @@ struct SourceCharHairLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceCharHairSavePlan {
+  int32_t save_id = 0x41b;
+};
+
 struct SourceCharHairSetNamePlan {
   bool call_hmx_object_set_name = true;
   bool assigns_character_owner = false;
@@ -2095,6 +2099,7 @@ SourceCharHairDefaultState source_char_hair_default_state();
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
 SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
 SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
+SourceCharHairSavePlan source_char_hair_save_plan();
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
     bool owner_is_character,
     bool owner_is_world_dir);
@@ -2700,6 +2705,10 @@ struct SourceCharCollideDefaultState {
   bool mesh_spheres_zeroed = true;
 };
 
+struct SourceCharCollideSavePlan {
+  int32_t save_id = 0x58;
+};
+
 struct SourceCharCollideCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -2734,6 +2743,7 @@ struct SourceCharCollideDeformPlan {
 };
 
 SourceCharCollideDefaultState source_char_collide_default_state();
+SourceCharCollideSavePlan source_char_collide_save_plan();
 SourceCharCollideLoadPlan source_char_collide_load_plan(int revision);
 SourceCharCollideCopyPlan source_char_collide_copy_plan();
 SourceCharCollideHandlerPlan source_char_collide_handler_plan();

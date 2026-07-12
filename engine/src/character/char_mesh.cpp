@@ -2229,6 +2229,10 @@ SourceCharCollideDefaultState source_char_collide_default_state() {
   return {};
 }
 
+SourceCharCollideSavePlan source_char_collide_save_plan() {
+  return {};
+}
+
 SourceCharCollideLoadPlan source_char_collide_load_plan(int revision) {
   SourceCharCollideLoadPlan plan;
   plan.known_revision = revision >= 0 && revision <= 7;
@@ -2398,6 +2402,10 @@ void source_char_hair_set_cloth(CharHair& hair, bool enabled) {
 
 SourceCharHairDefaultState source_char_hair_default_state() {
   return SourceCharHairDefaultState{};
+}
+
+SourceCharHairSavePlan source_char_hair_save_plan() {
+  return {};
 }
 
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision) {

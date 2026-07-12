@@ -79,6 +79,7 @@ int main() {
   using ghogx::character::source_char_hair_poll_decision;
   using ghogx::character::source_char_hair_prop_sync_plan;
   using ghogx::character::source_char_hair_rb2_mapped_body_evidence;
+  using ghogx::character::source_char_hair_save_plan;
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
@@ -218,6 +219,9 @@ int main() {
                     "hair v11 reads max slack");
   ok &= expect_bool(load_v11.read_order.back() == "mWind", true,
                     "hair v11 reads wind");
+
+  const auto save = source_char_hair_save_plan();
+  ok &= expect_int(save.save_id, 0x41b, "hair save id");
 
   const auto set_name_plain = source_char_hair_set_name_plan(false, false);
   ok &= expect_bool(set_name_plain.call_hmx_object_set_name, true,
