@@ -4187,13 +4187,19 @@ int main() {
                  "copy_transanim_keys_from_owner(anim,owner_it->second);",
                  "venue TransAnim key pages resolve through source keys_owner");
   ok &= contains(gameplay_c,
+                 "resolve_transanim_owners(transanim_decodes,\"venueTransAnim\");",
+                 "venue event TransAnims use the shared keys_owner resolver");
+  ok &= contains(gameplay_c,
+                 "resolve_transanim_owners(transanim_decodes,\"RndDirTransAnim\");",
+                 "RndDir directory TransAnims use the shared keys_owner resolver");
+  ok &= contains(gameplay_c,
                  "anim.anim.translation_spline=owner.anim.translation_spline;",
                  "venue TransAnim spline flags resolve through source keys_owner");
   ok &= contains(gameplay_c,
                  "anim.follow_path=owner.follow_path;",
                  "venue TransAnim followPath flag resolves through source keys_owner");
   ok &= contains(gameplay_c,
-                 "venueTransAnim%sinheritedkeys_owner=%spos=%zurot=%zuscale=%zu"
+                 "\"[world]%s%sinheritedkeys_owner=%spos=%zurot=%zuscale=%zu"
                  "flags=trans_spline:%drepeat:%dscale_spline:%dfollow_path:%d",
                  "venue TransAnim diagnostics expose key-owner inheritance");
   ok &= contains(gameplay_c,
