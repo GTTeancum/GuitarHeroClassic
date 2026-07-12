@@ -1028,6 +1028,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     normalized. Native `source_gltf_milo_validate_skin_influences` ports that
     deterministic pre-pack contract only; it does not alter stock GH2 mesh
     decode or synthesize per-vertex bone indices.
+  - `GetVertexSkinInfluences` gathers one vertex's `JOINTS_0/WEIGHTS_0` XYZW
+    slots first, then `JOINTS_1/WEIGHTS_1` XYZW slots when the second accessor
+    pair exists, before applying the validation, trim, and normalization rules
+    above. Native `source_gltf_milo_get_vertex_skin_influences_plan` records
+    that eight-slot collection order for exporter parity without promoting a
+    guessed runtime skinning path.
   - `ValidateSkinAccessorSet` accepts only paired `JOINTS_n` / `WEIGHTS_n`
     accessors whose counts match each other and the `POSITION` accessor. Missing
     pairs, mismatched pairs, or wrong-position-count pairs are cleared before

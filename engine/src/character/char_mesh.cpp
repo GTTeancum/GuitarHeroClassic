@@ -526,6 +526,33 @@ SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
   return result;
 }
 
+SourceGltfMiloVertexSkinInfluencePlan
+source_gltf_milo_get_vertex_skin_influences_plan(
+    const SourceGltfMiloSkinAccessorVertexRow& set0,
+    const SourceGltfMiloSkinAccessorVertexRow& set1,
+    int32_t skin_joint_count,
+    const std::vector<int32_t>& excluded_joint_indices) {
+  SourceGltfMiloVertexSkinInfluencePlan plan;
+
+  auto append_set = [&](const SourceGltfMiloSkinAccessorVertexRow& set,
+                        const char* accessor_name, bool& read_flag) {
+    if (!set.present) return;
+    read_flag = true;
+    plan.accessor_order.push_back(accessor_name);
+    for (size_t i = 0; i < 4; ++i) {
+      plan.raw_influences.push_back({set.joints[i], set.weights[i]});
+    }
+  };
+
+  append_set(set0, "JOINTS_0/WEIGHTS_0", plan.read_joints0_weights0);
+  append_set(set1, "JOINTS_1/WEIGHTS_1", plan.read_joints1_weights1);
+  plan.validation =
+      source_gltf_milo_validate_skin_influences(plan.raw_influences,
+                                                skin_joint_count,
+                                                excluded_joint_indices);
+  return plan;
+}
+
 SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
     const std::vector<SourceGltfMiloSkinInfluence>& influences,
     bool compressed_vertex_layout) {

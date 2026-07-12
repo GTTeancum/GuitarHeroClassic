@@ -203,6 +203,20 @@ struct SourceGltfMiloSkinValidationResult {
   float dropped_weight = 0.0f;
 };
 
+struct SourceGltfMiloSkinAccessorVertexRow {
+  bool present = false;
+  std::array<float, 4> joints = {0.0f, 0.0f, 0.0f, 0.0f};
+  std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
+};
+
+struct SourceGltfMiloVertexSkinInfluencePlan {
+  bool read_joints0_weights0 = false;
+  bool read_joints1_weights1 = false;
+  std::vector<std::string> accessor_order;
+  std::vector<SourceGltfMiloRawSkinInfluence> raw_influences;
+  SourceGltfMiloSkinValidationResult validation;
+};
+
 struct SourceGltfMiloSkinAccessorSetPlan {
   bool valid = false;
   bool cleared_joints = false;
@@ -478,6 +492,13 @@ SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
 
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
+    int32_t skin_joint_count,
+    const std::vector<int32_t>& excluded_joint_indices);
+
+SourceGltfMiloVertexSkinInfluencePlan
+source_gltf_milo_get_vertex_skin_influences_plan(
+    const SourceGltfMiloSkinAccessorVertexRow& set0,
+    const SourceGltfMiloSkinAccessorVertexRow& set1,
     int32_t skin_joint_count,
     const std::vector<int32_t>& excluded_joint_indices);
 

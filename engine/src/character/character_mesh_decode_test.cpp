@@ -774,6 +774,42 @@ int main() {
   CHECK(gltf_validation_warnings.ignored_invalid_joint_indices == 2);
   CHECK(gltf_validation_warnings.ignored_excluded_joint_influences == 1);
 
+  ghogx::character::SourceGltfMiloSkinAccessorVertexRow joints0_weights0;
+  joints0_weights0.present = true;
+  joints0_weights0.joints = {4.0f, 1.0f, 2.0f, 3.0f};
+  joints0_weights0.weights = {0.10f, 4.0f, 3.0f, 2.0f};
+  ghogx::character::SourceGltfMiloSkinAccessorVertexRow joints1_weights1;
+  joints1_weights1.present = true;
+  joints1_weights1.joints = {5.0f, 6.0f, 7.0f, 8.0f};
+  joints1_weights1.weights = {
+      1.0f, 0.5f, std::numeric_limits<float>::quiet_NaN(), 0.25f};
+  const auto gltf_vertex_skin =
+      ghogx::character::source_gltf_milo_get_vertex_skin_influences_plan(
+          joints0_weights0, joints1_weights1, 8, {5});
+  CHECK(gltf_vertex_skin.read_joints0_weights0);
+  CHECK(gltf_vertex_skin.read_joints1_weights1);
+  CHECK(gltf_vertex_skin.accessor_order.size() == 2);
+  CHECK(gltf_vertex_skin.accessor_order[0] == "JOINTS_0/WEIGHTS_0");
+  CHECK(gltf_vertex_skin.accessor_order[1] == "JOINTS_1/WEIGHTS_1");
+  CHECK(gltf_vertex_skin.raw_influences.size() == 8);
+  CHECK(approx(gltf_vertex_skin.raw_influences[0].joint_value, 4.0f));
+  CHECK(approx(gltf_vertex_skin.raw_influences[4].joint_value, 5.0f));
+  CHECK(gltf_vertex_skin.validation.logged_trimmed_influences);
+  CHECK(gltf_vertex_skin.validation.logged_invalid_weights);
+  CHECK(gltf_vertex_skin.validation.logged_invalid_joint_indices);
+  CHECK(gltf_vertex_skin.validation.logged_excluded_joint_influences);
+  CHECK(gltf_vertex_skin.validation.dropped_influence_count == 1);
+  CHECK(approx(gltf_vertex_skin.validation.dropped_weight, 0.10f));
+  CHECK(gltf_vertex_skin.validation.influences.size() == 4);
+  CHECK(gltf_vertex_skin.validation.influences[0].joint_index == 1);
+  CHECK(gltf_vertex_skin.validation.influences[1].joint_index == 2);
+  CHECK(gltf_vertex_skin.validation.influences[2].joint_index == 3);
+  CHECK(gltf_vertex_skin.validation.influences[3].joint_index == 6);
+  CHECK(approx(gltf_vertex_skin.validation.influences[0].weight,
+               4.0f / 9.5f));
+  CHECK(approx(gltf_vertex_skin.validation.influences[3].weight,
+               0.5f / 9.5f));
+
   const auto gltf_unindexed_triangles =
       ghogx::character::source_gltf_milo_build_source_triangles({}, 5, false);
   CHECK(!gltf_unindexed_triangles.used_index_buffer);

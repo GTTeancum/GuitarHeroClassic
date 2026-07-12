@@ -4315,6 +4315,10 @@ int run_contract() {
                  "int32_tskin_joint_count,conststd::vector<int32_t>&"
                  "excluded_joint_indices);",
                  "native exposes glTFMilo skin validation helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloVertexSkinInfluencePlan"
+                 "source_gltf_milo_get_vertex_skin_influences_plan(",
+                 "native exposes glTFMilo vertex skin collection helper");
   ok &= contains(char_mesh,
                  "SourceGltfMiloSkinValidationResult"
                  "source_gltf_milo_validate_skin_influences(conststd::vector<"
@@ -4330,6 +4334,23 @@ int run_contract() {
                  "if(result.influences.size()>4){result."
                  "logged_trimmed_influences=true;",
                  "native trims glTFMilo skin influences to four slots");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloVertexSkinInfluencePlan"
+                 "source_gltf_milo_get_vertex_skin_influences_plan(",
+                 "native ports glTFMilo GetVertexSkinInfluences helper");
+  ok &= contains(char_mesh,
+                 "append_set(set0,\"JOINTS_0/WEIGHTS_0\","
+                 "plan.read_joints0_weights0);",
+                 "native preserves JOINTS_0/WEIGHTS_0 collection first");
+  ok &= contains(char_mesh,
+                 "append_set(set1,\"JOINTS_1/WEIGHTS_1\","
+                 "plan.read_joints1_weights1);",
+                 "native preserves JOINTS_1/WEIGHTS_1 collection second");
+  ok &= contains(char_mesh,
+                 "plan.validation=source_gltf_milo_validate_skin_influences("
+                 "plan.raw_influences,skin_joint_count,"
+                 "excluded_joint_indices);",
+                 "native validates collected glTFMilo skin rows through the shared rule");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBuildTrianglesResult"
                  "source_gltf_milo_build_source_triangles(conststd::vector<"
@@ -4539,6 +4560,12 @@ int run_contract() {
                  "source_gltf_milo_validate_skin_influences(",
                  "focused mesh decode test covers glTFMilo skin validation");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_get_vertex_skin_influences_plan(",
+                 "focused mesh decode test covers glTFMilo vertex skin collection");
+  ok &= contains(mesh_decode_test,
+                 "gltf_vertex_skin.accessor_order[1]==\"JOINTS_1/WEIGHTS_1\"",
+                 "focused mesh decode test covers JOINTS_1 collection");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_validate_skin_accessor_set(",
                  "focused mesh decode test covers glTFMilo skin accessor gate");
   ok &= contains(mesh_decode_test,
@@ -4592,6 +4619,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_get_vertex_skin_influences_plan` records",
+                 "document records glTFMilo vertex skin collection helper");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_accessor_set`",
                  "document records glTFMilo skin accessor helper");
