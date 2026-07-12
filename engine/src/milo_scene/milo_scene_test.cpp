@@ -636,6 +636,230 @@ void test_poll_anim() {
               end_frame.result, fpb.frame, handlers.check);
 }
 
+void test_prop_anim() {
+  const SourceRndPropAnimDefaultState defaults =
+      source_rndpropanim_default_state();
+  CHECK(approx(defaults.last_frame, 0.0f));
+  CHECK(!defaults.in_set_frame);
+  CHECK(!defaults.loop);
+
+  const SourceRndPropAnimLoadPlan rev13 =
+      source_rndpropanim_load_plan(13);
+  CHECK(rev13.accepted_revision);
+  CHECK(rev13.sets_prop_keys_revision);
+  CHECK(rev13.superclasses.size() == 2);
+  CHECK(rev13.superclasses[0] == "Hmx::Object");
+  CHECK(rev13.superclasses[1] == "RndAnimatable");
+  CHECK(rev13.captures_last_frame_from_anim_frame);
+  CHECK(rev13.removes_existing_keys);
+  CHECK(!rev13.uses_pre7_loader);
+  CHECK(rev13.reads_key_count);
+  CHECK(rev13.reads_key_type_per_entry);
+  CHECK(rev13.loads_prop_keys_per_entry);
+  CHECK(rev13.reads_loop);
+
+  const SourceRndPropAnimLoadPlan rev6 = source_rndpropanim_load_plan(6);
+  CHECK(rev6.accepted_revision);
+  CHECK(rev6.uses_pre7_loader);
+  CHECK(!rev6.reads_key_count);
+  CHECK(!rev6.reads_loop);
+  CHECK(!source_rndpropanim_load_plan(14).accepted_revision);
+
+  const SourceRndPropAnimPre7LoadPlan pre0 =
+      source_rndpropanim_pre7_load_plan(0);
+  CHECK(pre0.reads_legacy_owner_before_count);
+  CHECK(pre0.reads_symbol_property);
+  CHECK(pre0.reads_float_keys_only);
+  CHECK(!pre0.reads_anim_type);
+  const SourceRndPropAnimPre7LoadPlan pre3 =
+      source_rndpropanim_pre7_load_plan(3);
+  CHECK(!pre3.reads_legacy_owner_before_count);
+  CHECK(pre3.reads_owner_per_entry);
+  CHECK(pre3.reads_dataarray_property);
+  CHECK(pre3.reads_anim_type);
+  CHECK(pre3.reads_color_keys);
+  CHECK(!pre3.reads_object_keys_with_owner_stage);
+  const SourceRndPropAnimPre7LoadPlan pre6 =
+      source_rndpropanim_pre7_load_plan(6);
+  CHECK(pre6.reads_object_keys_with_owner_stage);
+  CHECK(pre6.reads_bool_keys);
+  CHECK(pre6.reads_quat_keys);
+
+  const SourceRndPropAnimCopyPlan copy = source_rndpropanim_copy_plan();
+  CHECK(copy.superclasses.size() == 2);
+  CHECK(copy.superclasses[0] == "Hmx::Object");
+  CHECK(copy.superclasses[1] == "RndAnimatable");
+  CHECK(copy.captures_last_frame_from_get_frame);
+  CHECK(copy.removes_existing_keys);
+  CHECK(copy.copies_prop_keys);
+  CHECK(copy.copies_loop);
+
+  const SourceRndPropAnimFrameBoundsPlan start =
+      source_rndpropanim_start_frame_plan({4.0f, -2.0f, 6.0f});
+  CHECK(approx(start.result, -2.0f));
+  const SourceRndPropAnimFrameBoundsPlan positive_start =
+      source_rndpropanim_start_frame_plan({2.0f, 5.0f});
+  CHECK(approx(positive_start.result, 0.0f));
+  const SourceRndPropAnimFrameBoundsPlan end =
+      source_rndpropanim_end_frame_plan({4.0f, -2.0f, 6.0f});
+  CHECK(approx(end.result, 6.0f));
+
+  const SourceRndPropAnimAdvanceFramePlan advance_loop =
+      source_rndpropanim_advance_frame_plan(true);
+  CHECK(advance_loop.loop);
+  CHECK(advance_loop.applies_mod_range);
+  CHECK(advance_loop.calls_animatable_set_frame);
+  CHECK(approx(advance_loop.blend, 1.0f));
+  CHECK(!source_rndpropanim_advance_frame_plan(false).applies_mod_range);
+
+  const SourceRndPropAnimSetFramePlan set_frame =
+      source_rndpropanim_set_frame_plan(false, 3, 1);
+  CHECK(set_frame.enters_set_frame_guard);
+  CHECK(set_frame.calls_advance_frame);
+  CHECK(set_frame.scans_dir_event_keys);
+  CHECK(set_frame.sets_each_key_frame);
+  CHECK(set_frame.updates_last_frame);
+  CHECK(set_frame.clears_set_frame_guard);
+  const SourceRndPropAnimSetFramePlan reentrant =
+      source_rndpropanim_set_frame_plan(true, 3, 1);
+  CHECK(reentrant.already_in_set_frame);
+  CHECK(!reentrant.calls_advance_frame);
+  CHECK(!reentrant.sets_each_key_frame);
+
+  CHECK(source_rndpropanim_set_key_plan(4).calls == 4);
+  CHECK(source_rndpropanim_start_anim_plan(2).calls == 2);
+  CHECK(source_rndpropanim_remove_all_keys_plan(5).calls == 5);
+
+  const SourceRndPropAnimFindKeysPlan null_prop =
+      source_rndpropanim_find_keys_plan(true, false, false, true);
+  CHECK(null_prop.matches_null_property_row);
+  CHECK(null_prop.found);
+  const SourceRndPropAnimFindKeysPlan target_match =
+      source_rndpropanim_find_keys_plan(false, true, true, false);
+  CHECK(target_match.found);
+  CHECK(!source_rndpropanim_find_keys_plan(false, true, false, false).found);
+
+  const SourceRndPropAnimChangePropPathPlan remove_hit =
+      source_rndpropanim_change_prop_path_plan(true, true);
+  CHECK(remove_hit.calls_remove_keys);
+  CHECK(remove_hit.result);
+  const SourceRndPropAnimChangePropPathPlan remove_miss =
+      source_rndpropanim_change_prop_path_plan(true, false);
+  CHECK(remove_miss.calls_remove_keys);
+  CHECK(!remove_miss.result);
+  const SourceRndPropAnimChangePropPathPlan change_hit =
+      source_rndpropanim_change_prop_path_plan(false, true);
+  CHECK(!change_hit.calls_remove_keys);
+  CHECK(change_hit.sets_new_prop);
+  CHECK(change_hit.result);
+
+  const SourceRndPropAnimValuePlan quat_index =
+      source_rndpropanim_value_from_index_plan(kSourcePropKeysQuat, true, true);
+  CHECK(quat_index.result);
+  CHECK(quat_index.output_kind == "quat_array");
+  const SourceRndPropAnimValuePlan invalid_index =
+      source_rndpropanim_value_from_index_plan(kSourcePropKeysFloat, true,
+                                               false);
+  CHECK(!invalid_index.result);
+  CHECK(invalid_index.output_kind == "zero");
+  const SourceRndPropAnimValuePlan vec_frame =
+      source_rndpropanim_value_from_frame_plan(kSourcePropKeysVector3, true);
+  CHECK(vec_frame.result);
+  CHECK(vec_frame.output_kind == "vector3_array");
+  CHECK(source_rndpropanim_value_from_frame_plan(kSourcePropKeysBool, false)
+            .output_kind == "index_-1");
+
+  const SourceRndPropAnimHandlerPlan handlers =
+      source_rndpropanim_handler_plan();
+  CHECK(handlers.expressions.size() == 6);
+  CHECK(handlers.expressions[0] == "remove_keys");
+  CHECK(handlers.actions.size() == 6);
+  CHECK(handlers.actions[0] == "add_keys");
+  CHECK(handlers.handlers.size() == 10);
+  CHECK(handlers.handlers[0] == "foreach_target");
+  CHECK(handlers.handlers[9] == "value_from_frame");
+  CHECK(handlers.superclasses.size() == 2);
+  CHECK(handlers.superclasses[0] == "RndAnimatable");
+  CHECK(handlers.superclasses[1] == "Hmx::Object");
+  CHECK(handlers.check == 0x43C);
+
+  const SourceRndPropAnimPropSyncPlan props =
+      source_rndpropanim_prop_sync_plan();
+  CHECK(props.props.size() == 1);
+  CHECK(props.props[0] == "loop");
+  CHECK(props.superclasses.size() == 1);
+  CHECK(props.superclasses[0] == "RndAnimatable");
+
+  const SourcePropKeysDefaultState keys_defaults =
+      source_propkeys_default_state();
+  CHECK(keys_defaults.prop_null);
+  CHECK(keys_defaults.trans_null);
+  CHECK(keys_defaults.last_key_frame_index == -2);
+  CHECK(keys_defaults.keys_type == kSourcePropKeysFloat);
+  CHECK(keys_defaults.interpolation == kSourcePropKeysLinear);
+  CHECK(keys_defaults.exception_id == kSourcePropKeysNoException);
+  CHECK(!keys_defaults.last_bit);
+
+  const SourcePropKeysLoadPlan keys_rev6 =
+      source_propkeys_load_plan(6, 1);
+  CHECK(!keys_rev6.accepted_revision);
+  CHECK(keys_rev6.fails_pre7);
+  const SourcePropKeysLoadPlan keys_rev7 =
+      source_propkeys_load_plan(7, 1);
+  CHECK(keys_rev7.accepted_revision);
+  CHECK(keys_rev7.reads_keys_type);
+  CHECK(keys_rev7.reads_target);
+  CHECK(keys_rev7.reads_prop);
+  CHECK(!keys_rev7.reads_interpolation);
+  CHECK(keys_rev7.derives_legacy_interpolation);
+  const SourcePropKeysLoadPlan keys_rev8 =
+      source_propkeys_load_plan(8, 1);
+  CHECK(keys_rev8.reads_interpolation);
+  CHECK(!keys_rev8.derives_legacy_interpolation);
+  const SourcePropKeysLoadPlan keys_rev10 =
+      source_propkeys_load_plan(10, 4);
+  CHECK(keys_rev10.reads_interp_handler);
+  CHECK(keys_rev10.legacy_macro_exception_branch);
+  const SourcePropKeysLoadPlan keys_rev11 =
+      source_propkeys_load_plan(11, 1);
+  CHECK(keys_rev11.reads_exception_id);
+  const SourcePropKeysLoadPlan keys_rev13 =
+      source_propkeys_load_plan(13, 1);
+  CHECK(keys_rev13.reads_last_bit);
+  CHECK(keys_rev13.calls_set_prop_exception_id);
+
+  CHECK(source_propkeys_exception_plan("rotation", true, false).exception_id ==
+        kSourcePropKeysTransQuat);
+  CHECK(source_propkeys_exception_plan("scale", true, false).exception_id ==
+        kSourcePropKeysTransScale);
+  CHECK(source_propkeys_exception_plan("position", true, false).exception_id ==
+        kSourcePropKeysTransPos);
+  CHECK(source_propkeys_exception_plan("event", false, true).exception_id ==
+        kSourcePropKeysDirEvent);
+  CHECK(source_propkeys_exception_plan("event", false, false).exception_id ==
+        kSourcePropKeysNoException);
+
+  const SourcePropKeysSetPropExceptionPlan interp_handler =
+      source_propkeys_set_prop_exception_plan(
+          false, kSourcePropKeysNoException, kSourcePropKeysTransPos);
+  CHECK(interp_handler.result_exception == kSourcePropKeysHandleInterp);
+  CHECK(!interp_handler.updates_transform_cache);
+  const SourcePropKeysSetPropExceptionPlan macro =
+      source_propkeys_set_prop_exception_plan(
+          true, kSourcePropKeysMacro, kSourcePropKeysTransPos);
+  CHECK(macro.result_exception == kSourcePropKeysMacro);
+  CHECK(!macro.updates_transform_cache);
+  const SourcePropKeysSetPropExceptionPlan trans_pos =
+      source_propkeys_set_prop_exception_plan(
+          true, kSourcePropKeysNoException, kSourcePropKeysTransPos);
+  CHECK(trans_pos.result_exception == kSourcePropKeysTransPos);
+  CHECK(trans_pos.updates_transform_cache);
+
+  std::printf("  [ok] PropAnim: load_v13=%d handlers=0x%x value=%s\n",
+              rev13.accepted_revision ? 1 : 0, handlers.check,
+              quat_index.output_kind.c_str());
+}
+
 void test_mat() {
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
@@ -1295,6 +1519,7 @@ int main() {
   test_trans_anim();
   test_mesh_anim();
   test_poll_anim();
+  test_prop_anim();
   test_mat();
   test_group();
   test_mesh_deform();

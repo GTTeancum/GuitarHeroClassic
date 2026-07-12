@@ -726,6 +726,282 @@ SourceRndPollAnimPropSyncPlan source_rndpollanim_prop_sync_plan() {
   return plan;
 }
 
+SourceRndPropAnimDefaultState source_rndpropanim_default_state() {
+  return SourceRndPropAnimDefaultState{};
+}
+
+SourceRndPropAnimLoadPlan source_rndpropanim_load_plan(int32_t revision) {
+  SourceRndPropAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 0xD;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.uses_pre7_loader = revision < 7;
+  plan.reads_key_count = revision >= 7;
+  plan.reads_key_type_per_entry = revision >= 7;
+  plan.loads_prop_keys_per_entry = revision >= 7;
+  plan.reads_loop = revision > 0xB;
+  return plan;
+}
+
+SourceRndPropAnimPre7LoadPlan source_rndpropanim_pre7_load_plan(
+    int32_t revision) {
+  SourceRndPropAnimPre7LoadPlan plan;
+  plan.revision = revision;
+  plan.reads_legacy_owner_before_count = revision < 2;
+  plan.reads_owner_per_entry = revision >= 2;
+  plan.reads_symbol_property = revision < 1;
+  plan.reads_dataarray_property = revision >= 1;
+  plan.reads_float_keys_only = revision < 3;
+  plan.reads_anim_type = revision >= 3;
+  plan.reads_color_keys = revision >= 3;
+  plan.reads_object_keys_with_owner_stage = revision > 3;
+  plan.reads_bool_keys = revision > 4;
+  plan.reads_quat_keys = revision > 5;
+  return plan;
+}
+
+SourceRndPropAnimCopyPlan source_rndpropanim_copy_plan() {
+  SourceRndPropAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  return plan;
+}
+
+SourceRndPropAnimFrameBoundsPlan source_rndpropanim_start_frame_plan(
+    const std::vector<float>& key_start_frames) {
+  SourceRndPropAnimFrameBoundsPlan plan;
+  plan.key_frames = key_start_frames;
+  for (float frame : key_start_frames) {
+    plan.result = std::min(plan.result, frame);
+  }
+  return plan;
+}
+
+SourceRndPropAnimFrameBoundsPlan source_rndpropanim_end_frame_plan(
+    const std::vector<float>& key_end_frames) {
+  SourceRndPropAnimFrameBoundsPlan plan;
+  plan.key_frames = key_end_frames;
+  for (float frame : key_end_frames) {
+    plan.result = std::max(plan.result, frame);
+  }
+  return plan;
+}
+
+SourceRndPropAnimAdvanceFramePlan source_rndpropanim_advance_frame_plan(
+    bool loop) {
+  SourceRndPropAnimAdvanceFramePlan plan;
+  plan.loop = loop;
+  plan.applies_mod_range = loop;
+  return plan;
+}
+
+SourceRndPropAnimSetFramePlan source_rndpropanim_set_frame_plan(
+    bool already_in_set_frame,
+    int32_t key_count,
+    int32_t dir_event_key_count) {
+  SourceRndPropAnimSetFramePlan plan;
+  plan.already_in_set_frame = already_in_set_frame;
+  plan.key_count = key_count;
+  plan.dir_event_key_count = dir_event_key_count;
+  if (!already_in_set_frame) {
+    plan.enters_set_frame_guard = true;
+    plan.calls_advance_frame = true;
+    plan.scans_dir_event_keys = dir_event_key_count > 0;
+    plan.sets_each_key_frame = key_count > 0;
+    plan.updates_last_frame = true;
+    plan.clears_set_frame_guard = true;
+  }
+  return plan;
+}
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_set_key_plan(
+    int32_t key_count) {
+  SourceRndPropAnimKeyListPlan plan;
+  plan.key_count = key_count;
+  plan.calls = std::max(0, key_count);
+  return plan;
+}
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_start_anim_plan(
+    int32_t key_count) {
+  SourceRndPropAnimKeyListPlan plan;
+  plan.key_count = key_count;
+  plan.calls = std::max(0, key_count);
+  return plan;
+}
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_remove_all_keys_plan(
+    int32_t key_count) {
+  SourceRndPropAnimKeyListPlan plan;
+  plan.key_count = key_count;
+  plan.calls = std::max(0, key_count);
+  return plan;
+}
+
+SourceRndPropAnimFindKeysPlan source_rndpropanim_find_keys_plan(
+    bool property_null,
+    bool target_matches,
+    bool property_matches,
+    bool row_property_null) {
+  SourceRndPropAnimFindKeysPlan plan;
+  plan.property_null = property_null;
+  plan.target_matches = target_matches;
+  plan.property_matches = property_matches;
+  plan.matches_null_property_row = property_null && row_property_null;
+  plan.found =
+      plan.matches_null_property_row || (target_matches && property_matches);
+  return plan;
+}
+
+SourceRndPropAnimChangePropPathPlan source_rndpropanim_change_prop_path_plan(
+    bool new_path_empty,
+    bool found_existing_keys) {
+  SourceRndPropAnimChangePropPathPlan plan;
+  plan.new_path_empty = new_path_empty;
+  plan.calls_remove_keys = new_path_empty;
+  plan.found_existing_keys = found_existing_keys;
+  plan.sets_new_prop = !new_path_empty && found_existing_keys;
+  plan.result = found_existing_keys;
+  return plan;
+}
+
+namespace {
+
+std::string source_propkeys_output_kind(SourcePropKeysAnimKeysType type) {
+  switch (type) {
+    case kSourcePropKeysFloat:
+      return "float";
+    case kSourcePropKeysColor:
+      return "packed_color";
+    case kSourcePropKeysObject:
+      return "object";
+    case kSourcePropKeysBool:
+      return "bool";
+    case kSourcePropKeysQuat:
+      return "quat_array";
+    case kSourcePropKeysVector3:
+      return "vector3_array";
+    case kSourcePropKeysSymbol:
+      return "symbol";
+  }
+  return "zero";
+}
+
+}  // namespace
+
+SourceRndPropAnimValuePlan source_rndpropanim_value_from_index_plan(
+    SourcePropKeysAnimKeysType type,
+    bool has_keys,
+    bool valid_index) {
+  SourceRndPropAnimValuePlan plan;
+  plan.type = type;
+  plan.has_keys = has_keys;
+  plan.valid_index = valid_index;
+  plan.result = has_keys && valid_index;
+  plan.output_kind = plan.result ? source_propkeys_output_kind(type) : "zero";
+  return plan;
+}
+
+SourceRndPropAnimValuePlan source_rndpropanim_value_from_frame_plan(
+    SourcePropKeysAnimKeysType type,
+    bool has_keys) {
+  SourceRndPropAnimValuePlan plan;
+  plan.type = type;
+  plan.has_keys = has_keys;
+  plan.valid_index = has_keys;
+  plan.result = has_keys;
+  plan.output_kind = has_keys ? source_propkeys_output_kind(type) : "index_-1";
+  return plan;
+}
+
+SourceRndPropAnimHandlerPlan source_rndpropanim_handler_plan() {
+  SourceRndPropAnimHandlerPlan plan;
+  plan.expressions = {"remove_keys", "has_keys", "keys_type", "interp_type",
+                      "interp_handler", "change_prop_path"};
+  plan.actions = {"add_keys", "set_key", "set_key_val", "set_interp_type",
+                  "set_interp_handler", "replace_target"};
+  plan.handlers = {"foreach_target",     "forall_keyframes",
+                   "foreach_keyframe",   "foreach_frame",
+                   "replace_keyframe",   "replace_frame",
+                   "index_from_frame",   "frame_from_index",
+                   "value_from_index",   "value_from_frame"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndPropAnimPropSyncPlan source_rndpropanim_prop_sync_plan() {
+  SourceRndPropAnimPropSyncPlan plan;
+  plan.props = {"loop"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
+SourcePropKeysDefaultState source_propkeys_default_state() {
+  return SourcePropKeysDefaultState{};
+}
+
+SourcePropKeysLoadPlan source_propkeys_load_plan(int32_t revision,
+                                                 int32_t interpolation_row) {
+  SourcePropKeysLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 7;
+  plan.fails_pre7 = revision < 7;
+  if (!plan.accepted_revision) return plan;
+  plan.reads_keys_type = true;
+  plan.reads_target = true;
+  plan.reads_prop = true;
+  plan.reads_interpolation = revision >= 8;
+  plan.derives_legacy_interpolation = revision < 8;
+  plan.legacy_macro_exception_branch =
+      revision < 0xB && interpolation_row == 4;
+  plan.reads_interp_handler = revision > 9;
+  plan.reads_exception_id = revision > 10;
+  plan.reads_last_bit = revision > 0xC;
+  plan.calls_set_prop_exception_id = true;
+  return plan;
+}
+
+SourcePropKeysExceptionPlan source_propkeys_exception_plan(
+    const std::string& property,
+    bool target_is_trans,
+    bool target_is_object_dir) {
+  SourcePropKeysExceptionPlan plan;
+  plan.property = property;
+  plan.target_is_trans = target_is_trans;
+  plan.target_is_object_dir = target_is_object_dir;
+  if (property == "rotation" && target_is_trans) {
+    plan.exception_id = kSourcePropKeysTransQuat;
+  } else if (property == "scale" && target_is_trans) {
+    plan.exception_id = kSourcePropKeysTransScale;
+  } else if (property == "position" && target_is_trans) {
+    plan.exception_id = kSourcePropKeysTransPos;
+  } else if (property == "event" && target_is_object_dir) {
+    plan.exception_id = kSourcePropKeysDirEvent;
+  }
+  return plan;
+}
+
+SourcePropKeysSetPropExceptionPlan source_propkeys_set_prop_exception_plan(
+    bool interp_handler_null,
+    SourcePropKeysExceptionId current_exception,
+    SourcePropKeysExceptionId property_exception) {
+  SourcePropKeysSetPropExceptionPlan plan;
+  plan.interp_handler_null = interp_handler_null;
+  plan.current_exception = current_exception;
+  plan.property_exception = property_exception;
+  if (!interp_handler_null) {
+    plan.result_exception = kSourcePropKeysHandleInterp;
+  } else if (current_exception == kSourcePropKeysMacro) {
+    plan.result_exception = kSourcePropKeysMacro;
+  } else {
+    plan.result_exception = property_exception;
+  }
+  plan.updates_transform_cache =
+      plan.result_exception == kSourcePropKeysTransQuat ||
+      plan.result_exception == kSourcePropKeysTransScale ||
+      plan.result_exception == kSourcePropKeysTransPos;
+  return plan;
+}
+
 SourceRndMeshAnimDefaultState source_rndmeshanim_default_state() {
   return SourceRndMeshAnimDefaultState{};
 }

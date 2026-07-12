@@ -435,6 +435,253 @@ struct SourceRndPollAnimPropSyncPlan {
 
 SourceRndPollAnimPropSyncPlan source_rndpollanim_prop_sync_plan();
 
+enum SourcePropKeysAnimKeysType {
+  kSourcePropKeysFloat = 0,
+  kSourcePropKeysColor = 1,
+  kSourcePropKeysObject = 2,
+  kSourcePropKeysBool = 3,
+  kSourcePropKeysQuat = 4,
+  kSourcePropKeysVector3 = 5,
+  kSourcePropKeysSymbol = 6,
+};
+
+enum SourcePropKeysInterpolation {
+  kSourcePropKeysStep = 0,
+  kSourcePropKeysLinear = 1,
+  kSourcePropKeysSpline = 2,
+  kSourcePropKeysSlerp = 3,
+  kSourcePropKeysHermite = 4,
+  kSourcePropKeysInterp5 = 5,
+  kSourcePropKeysInterp6 = 6,
+};
+
+enum SourcePropKeysExceptionId {
+  kSourcePropKeysNoException = 0,
+  kSourcePropKeysTransQuat = 1,
+  kSourcePropKeysTransScale = 2,
+  kSourcePropKeysTransPos = 3,
+  kSourcePropKeysDirEvent = 4,
+  kSourcePropKeysHandleInterp = 5,
+  kSourcePropKeysMacro = 6,
+};
+
+struct SourceRndPropAnimDefaultState {
+  float last_frame = 0.0f;
+  bool in_set_frame = false;
+  bool loop = false;
+};
+
+SourceRndPropAnimDefaultState source_rndpropanim_default_state();
+
+struct SourceRndPropAnimLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool sets_prop_keys_revision = true;
+  std::vector<std::string> superclasses;
+  bool captures_last_frame_from_anim_frame = true;
+  bool removes_existing_keys = true;
+  bool uses_pre7_loader = false;
+  bool reads_key_count = false;
+  bool reads_key_type_per_entry = false;
+  bool loads_prop_keys_per_entry = false;
+  bool reads_loop = false;
+};
+
+SourceRndPropAnimLoadPlan source_rndpropanim_load_plan(int32_t revision);
+
+struct SourceRndPropAnimPre7LoadPlan {
+  int32_t revision = 0;
+  bool reads_legacy_owner_before_count = false;
+  bool reads_count = true;
+  bool reads_owner_per_entry = false;
+  bool reads_symbol_property = false;
+  bool reads_dataarray_property = false;
+  bool reads_float_keys_only = false;
+  bool reads_anim_type = false;
+  bool reads_float_keys = true;
+  bool reads_color_keys = false;
+  bool reads_object_keys_with_owner_stage = false;
+  bool reads_bool_keys = false;
+  bool reads_quat_keys = false;
+};
+
+SourceRndPropAnimPre7LoadPlan source_rndpropanim_pre7_load_plan(
+    int32_t revision);
+
+struct SourceRndPropAnimCopyPlan {
+  std::vector<std::string> superclasses;
+  bool captures_last_frame_from_get_frame = true;
+  bool removes_existing_keys = true;
+  bool copies_prop_keys = true;
+  bool copies_loop = true;
+};
+
+SourceRndPropAnimCopyPlan source_rndpropanim_copy_plan();
+
+struct SourceRndPropAnimFrameBoundsPlan {
+  std::vector<float> key_frames;
+  float result = 0.0f;
+};
+
+SourceRndPropAnimFrameBoundsPlan source_rndpropanim_start_frame_plan(
+    const std::vector<float>& key_start_frames);
+SourceRndPropAnimFrameBoundsPlan source_rndpropanim_end_frame_plan(
+    const std::vector<float>& key_end_frames);
+
+struct SourceRndPropAnimAdvanceFramePlan {
+  bool loop = false;
+  bool applies_mod_range = false;
+  bool calls_animatable_set_frame = true;
+  float blend = 1.0f;
+};
+
+SourceRndPropAnimAdvanceFramePlan source_rndpropanim_advance_frame_plan(
+    bool loop);
+
+struct SourceRndPropAnimSetFramePlan {
+  bool already_in_set_frame = false;
+  int32_t key_count = 0;
+  int32_t dir_event_key_count = 0;
+  bool enters_set_frame_guard = false;
+  bool calls_advance_frame = false;
+  bool scans_dir_event_keys = false;
+  bool sets_each_key_frame = false;
+  bool updates_last_frame = false;
+  bool clears_set_frame_guard = false;
+};
+
+SourceRndPropAnimSetFramePlan source_rndpropanim_set_frame_plan(
+    bool already_in_set_frame,
+    int32_t key_count,
+    int32_t dir_event_key_count);
+
+struct SourceRndPropAnimKeyListPlan {
+  int32_t key_count = 0;
+  int32_t calls = 0;
+};
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_set_key_plan(
+    int32_t key_count);
+SourceRndPropAnimKeyListPlan source_rndpropanim_start_anim_plan(
+    int32_t key_count);
+SourceRndPropAnimKeyListPlan source_rndpropanim_remove_all_keys_plan(
+    int32_t key_count);
+
+struct SourceRndPropAnimFindKeysPlan {
+  bool property_null = false;
+  bool target_matches = false;
+  bool property_matches = false;
+  bool matches_null_property_row = false;
+  bool found = false;
+};
+
+SourceRndPropAnimFindKeysPlan source_rndpropanim_find_keys_plan(
+    bool property_null,
+    bool target_matches,
+    bool property_matches,
+    bool row_property_null);
+
+struct SourceRndPropAnimChangePropPathPlan {
+  bool new_path_empty = false;
+  bool calls_remove_keys = false;
+  bool found_existing_keys = false;
+  bool sets_new_prop = false;
+  bool result = false;
+};
+
+SourceRndPropAnimChangePropPathPlan source_rndpropanim_change_prop_path_plan(
+    bool new_path_empty,
+    bool found_existing_keys);
+
+struct SourceRndPropAnimValuePlan {
+  SourcePropKeysAnimKeysType type = kSourcePropKeysFloat;
+  bool has_keys = false;
+  bool valid_index = false;
+  bool result = false;
+  std::string output_kind;
+};
+
+SourceRndPropAnimValuePlan source_rndpropanim_value_from_index_plan(
+    SourcePropKeysAnimKeysType type,
+    bool has_keys,
+    bool valid_index);
+SourceRndPropAnimValuePlan source_rndpropanim_value_from_frame_plan(
+    SourcePropKeysAnimKeysType type,
+    bool has_keys);
+
+struct SourceRndPropAnimHandlerPlan {
+  std::vector<std::string> expressions;
+  std::vector<std::string> actions;
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x43C;
+};
+
+SourceRndPropAnimHandlerPlan source_rndpropanim_handler_plan();
+
+struct SourceRndPropAnimPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> superclasses;
+};
+
+SourceRndPropAnimPropSyncPlan source_rndpropanim_prop_sync_plan();
+
+struct SourcePropKeysDefaultState {
+  bool prop_null = true;
+  bool trans_null = true;
+  int32_t last_key_frame_index = -2;
+  SourcePropKeysAnimKeysType keys_type = kSourcePropKeysFloat;
+  SourcePropKeysInterpolation interpolation = kSourcePropKeysLinear;
+  SourcePropKeysExceptionId exception_id = kSourcePropKeysNoException;
+  bool last_bit = false;
+};
+
+SourcePropKeysDefaultState source_propkeys_default_state();
+
+struct SourcePropKeysLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool fails_pre7 = false;
+  bool reads_keys_type = false;
+  bool reads_target = false;
+  bool reads_prop = false;
+  bool reads_interpolation = false;
+  bool derives_legacy_interpolation = false;
+  bool legacy_macro_exception_branch = false;
+  bool reads_interp_handler = false;
+  bool reads_exception_id = false;
+  bool reads_last_bit = false;
+  bool calls_set_prop_exception_id = false;
+};
+
+SourcePropKeysLoadPlan source_propkeys_load_plan(int32_t revision,
+                                                 int32_t interpolation_row);
+
+struct SourcePropKeysExceptionPlan {
+  std::string property;
+  bool target_is_trans = false;
+  bool target_is_object_dir = false;
+  SourcePropKeysExceptionId exception_id = kSourcePropKeysNoException;
+};
+
+SourcePropKeysExceptionPlan source_propkeys_exception_plan(
+    const std::string& property,
+    bool target_is_trans,
+    bool target_is_object_dir);
+
+struct SourcePropKeysSetPropExceptionPlan {
+  bool interp_handler_null = true;
+  SourcePropKeysExceptionId current_exception = kSourcePropKeysNoException;
+  SourcePropKeysExceptionId property_exception = kSourcePropKeysNoException;
+  SourcePropKeysExceptionId result_exception = kSourcePropKeysNoException;
+  bool updates_transform_cache = false;
+};
+
+SourcePropKeysSetPropExceptionPlan source_propkeys_set_prop_exception_plan(
+    bool interp_handler_null,
+    SourcePropKeysExceptionId current_exception,
+    SourcePropKeysExceptionId property_exception);
+
 struct SourceRndMeshAnimDefaultState {
   bool mesh_null = true;
   bool keys_owner_self = true;

@@ -69,6 +69,7 @@ writer body.
 | Transform animation rows | `rb3-latest/src/system/rndobj/TransAnim.cpp` / `TransAnim.h` | Native helper ports source defaults, load gates, key-owner copy/replace decisions, SetFrame/SetKey call flow, handlers, and prop rows; `MakeTransform` remains fenced because the checked body is an assertion stub. |
 | Mesh vertex animation rows | `rb3-latest/src/system/rndobj/MeshAnim.cpp` / `MeshAnim.h` | Native helper ports source defaults, key-count sizing, load/copy/replace, SetFrame interpolation/sync gates, shrink helpers, handlers, and prop rows; it does not enable live vertex animation in the character renderer. |
 | Poll animation cadence | `rb3-latest/src/system/rndobj/Poll.cpp` / `Poll.h`, `PollAnim.cpp` / `PollAnim.h` | Native helper ports source poll message rows, poll-animation child lifecycle, rate-to-frame mapping, load/copy/handler/prop rows; it does not change runtime scheduling. |
+| Property animation rows | `rb3-latest/src/system/rndobj/PropAnim.cpp` / `PropAnim.h`, `PropKeys.cpp` / `PropKeys.h` | Native helper ports source property-key load/copy/frame/key/path/value/handler/property-sync contracts; it does not enable live property animation playback. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
@@ -605,6 +606,61 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `RndPollable::SyncProperty`. Native `source_rndpollanim_load_plan`,
     `source_rndpollanim_copy_plan`, `source_rndpollanim_handler_plan`, and
     `source_rndpollanim_prop_sync_plan` record those rows.
+- `rb3-latest/src/system/rndobj/PropAnim.cpp`,
+  `rb3-latest/src/system/rndobj/PropAnim.h`,
+  `rb3-latest/src/system/rndobj/PropKeys.cpp`, and
+  `rb3-latest/src/system/rndobj/PropKeys.h`
+  - `RndPropAnim` derives from `RndAnimatable`. Its constructor defaults
+    `mLastFrame` to `0.0`, clears `mInSetFrame`, and clears `mLoop`; its
+    destructor calls `RemoveKeys`. Native
+    `source_rndpropanim_default_state` records those defaults.
+  - `RndPropAnim::Load` accepts revisions `0..0xD`, calls
+    `SetPropKeysRev`, loads `Hmx::Object` and `RndAnimatable`, captures
+    `mLastFrame` from the current animation frame, removes existing keys, uses
+    `LoadPre7` below revision 7, otherwise reads a key count, key type per
+    entry, each `PropKeys` row, and `mLoop` above revision `0xB`. Native
+    `source_rndpropanim_load_plan` and
+    `source_rndpropanim_pre7_load_plan` record those gates.
+  - `Copy` copies `Hmx::Object` and `RndAnimatable`, refreshes `mLastFrame`
+    from `GetFrame`, removes old keys, copies every property-key row, and
+    copies `mLoop`. `StartFrame` starts at `0.0` and takes the minimum child
+    start; `EndFrame` starts at `0.0` and takes the maximum child end.
+    `AdvanceFrame` only applies `ModRange` when looped, then calls
+    `RndAnimatable::SetFrame(frame, 1.0f)`. Native
+    `source_rndpropanim_copy_plan`,
+    `source_rndpropanim_start_frame_plan`,
+    `source_rndpropanim_end_frame_plan`, and
+    `source_rndpropanim_advance_frame_plan` record those rules.
+  - `SetFrame` is guarded by `mInSetFrame`, advances the frame, scans
+    `kDirEvent` object keys for event triggers between `mLastFrame` and the new
+    frame, sets every key frame, updates `mLastFrame`, and clears the guard.
+    `SetKey`, `StartAnim`, `RemoveKeys`, `FindKeys`, `ChangePropPath`,
+    `ValueFromFrame`, and `ValueFromIndex` are recorded by bounded native
+    helpers without promoting property animation into live character playback.
+  - `PropKeys` defaults the target from its owner arguments, nulls the property
+    and transform cache, sets `mLastKeyFrameIndex` to `-2`, defaults key type
+    to float, interpolation to linear, exception id to none, and clears the
+    trailing bit. `PropKeys::Load` is invalid before revision 7, reads key
+    type, target, property, revision-gated interpolation, interpolation
+    handler, exception id, and the trailing bit, then calls
+    `SetPropExceptionID`. Native `source_propkeys_default_state` and
+    `source_propkeys_load_plan` record those rows.
+  - `PropExceptionID` maps `rotation`, `scale`, and `position` on transform
+    subclasses to transform exception ids, and maps `event` on object
+    directories to `kDirEvent`. `SetPropExceptionID` gives a non-null
+    interpolation handler priority, preserves macro exception ids, otherwise
+    derives the property exception and refreshes the transform cache for
+    transform exceptions. Native `source_propkeys_exception_plan` and
+    `source_propkeys_set_prop_exception_plan` record those branches.
+  - `BEGIN_HANDLERS(RndPropAnim)` exposes remove/has/add/set key paths,
+    interpolation query/set paths, target iteration, keyframe/frame
+    replacement, index/frame/value query paths, then `RndAnimatable` and
+    `Hmx::Object` with check `0x43C`. `BEGIN_PROPSYNCS` exposes `loop` and
+    `RndAnimatable`. Native `source_rndpropanim_handler_plan` and
+    `source_rndpropanim_prop_sync_plan` record those rows.
+  - This remains a source contract only. It does not enable live `RndPropAnim`
+    playback, and it does not authorize property-animation guesses for eyes,
+    mouth, hair, cloth, or accessory placement.
 - `rb3-latest/src/system/rndobj/MeshAnim.cpp` and
   `rb3-latest/src/system/rndobj/MeshAnim.h`
   - `RndMeshAnim` derives from `RndAnimatable`. Its constructor nulls `mMesh`

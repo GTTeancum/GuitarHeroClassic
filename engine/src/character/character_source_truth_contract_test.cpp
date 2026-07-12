@@ -287,6 +287,14 @@ int run_contract() {
       rb3_latest_rndobj_dir / "PollAnim.cpp"));
   const std::string rb3_latest_poll_anim_h = compact(read_file(
       rb3_latest_rndobj_dir / "PollAnim.h"));
+  const std::string rb3_latest_prop_anim_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "PropAnim.cpp"));
+  const std::string rb3_latest_prop_anim_h = compact(read_file(
+      rb3_latest_rndobj_dir / "PropAnim.h"));
+  const std::string rb3_latest_prop_keys_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "PropKeys.cpp"));
+  const std::string rb3_latest_prop_keys_h = compact(read_file(
+      rb3_latest_rndobj_dir / "PropKeys.h"));
   const std::string rb3_latest_mesh_anim_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "MeshAnim.cpp"));
   const std::string rb3_latest_mesh_anim_h = compact(read_file(
@@ -618,6 +626,8 @@ int run_contract() {
        "MeshDeform.h",       "MultiMesh.cpp",    "MultiMesh.h",
        "MultiMeshProxy.cpp", "MultiMeshProxy.h", "Poll.cpp",
        "Poll.h",             "PollAnim.cpp",     "PollAnim.h",
+       "PropAnim.cpp",       "PropAnim.h",       "PropKeys.cpp",
+       "PropKeys.h",
        "Trans.cpp",          "Trans.h",          "TransAnim.cpp",
        "TransAnim.h",        "TransProxy.cpp",   "TransProxy.h",
        "TransRemover.h"},
@@ -1984,6 +1994,235 @@ int run_contract() {
   ok &= contains(doc,
                  "record this mapping without changing runtime scheduling",
                  "document fences RndPollAnim runtime scheduling");
+  ok &= contains(doc,
+                 "| Property animation rows | "
+                 "`rb3-latest/src/system/rndobj/PropAnim.cpp` / "
+                 "`PropAnim.h`, `PropKeys.cpp` / `PropKeys.h` |",
+                 "coverage matrix records RndPropAnim/PropKeys boundary");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "RndPropAnim::RndPropAnim():mLastFrame(0.0f),"
+                 "mInSetFrame(0),mLoop(0){}",
+                 "latest RndPropAnim source constructor defaults");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "RndPropAnim::~RndPropAnim(){RemoveKeys();}",
+                 "latest RndPropAnim source destructor removes keys");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "ASSERT_REVS(0xD,0)SetPropKeysRev(gRev);"
+                 "LOAD_SUPERCLASS(Hmx::Object)LOAD_SUPERCLASS(RndAnimatable)",
+                 "latest RndPropAnim source load prefix");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "mLastFrame=mFrame;RemoveKeys();if(gRev<7){"
+                 "LoadPre7(bs);return;}",
+                 "latest RndPropAnim source load pre7 branch");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "AddKeys(0,0,(PropKeys::AnimKeysType)num)->Load(bs);",
+                 "latest RndPropAnim source loads PropKeys rows");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(gRev>0xB)bs>>mLoop;",
+                 "latest RndPropAnim source loop revision gate");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(gRev<2)bs>>objPtr;intcount;bs>>count;",
+                 "latest RndPropAnim source pre7 legacy owner gate");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(gRev>=2)bs>>objPtr;if(gRev<1){Symbolsym;bs>>sym;",
+                 "latest RndPropAnim source pre7 property format gate");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(gRev>3){ObjectStage::sOwner=this;bs>>objKeys;}"
+                 "ObjectStage::sOwner=oldowner;if(gRev>4)bs>>boolKeys;"
+                 "if(gRev>5)bs>>quatKeys;",
+                 "latest RndPropAnim source pre7 typed key gates");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "BEGIN_COPYS(RndPropAnim)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(RndAnimatable)mLastFrame=GetFrame();"
+                 "RemoveKeys();",
+                 "latest RndPropAnim source copy prefix");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "AddKeys(cur->mTarget.Ptr(),cur->mProp,"
+                 "(PropKeys::AnimKeysType)cur->mKeysType)->Copy(*it);",
+                 "latest RndPropAnim source copies PropKeys rows");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "floatRndPropAnim::StartFrame(){floatframe=0.0f;for(",
+                 "latest RndPropAnim source StartFrame starts at zero");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "MinEq(frame,(*it)->StartFrame());}returnframe;}",
+                 "latest RndPropAnim source StartFrame min rule");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "floatRndPropAnim::EndFrame(){floatframe=0.0f;for(",
+                 "latest RndPropAnim source EndFrame starts at zero");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "MaxEq(frame,(*it)->EndFrame());}returnframe;}",
+                 "latest RndPropAnim source EndFrame max rule");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(mLoop){frame=ModRange(StartFrame(),EndFrame(),frame);}"
+                 "RndAnimatable::SetFrame(frame,1.0f);",
+                 "latest RndPropAnim source loop advance rule");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(!mInSetFrame){mInSetFrame=true;AdvanceFrame(frame);"
+                 "floattheframe=mFrame;",
+                 "latest RndPropAnim source SetFrame guard");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if((*it)->mPropExceptionID==PropKeys::kDirEvent){"
+                 "ObjKeys&objkeys=(*it)->AsObjectKeys();",
+                 "latest RndPropAnim source dir-event scan");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "(*it)->SetFrame(theframe,blend);}mLastFrame=theframe;"
+                 "mInSetFrame=false;",
+                 "latest RndPropAnim source SetFrame writes keys and clears guard");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(!da&&!(*it)->mProp||(*it)->mTarget.Ptr()==o&&"
+                 "PathCompare(da,(*it)->mProp))returnit;",
+                 "latest RndPropAnim source FindKeys precedence");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "if(!a2||a2->Size()==0)returnRemoveKeys(o,a1);",
+                 "latest RndPropAnim source ChangePropPath remove branch");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "intRndPropAnim::ValueFromFrame(PropKeys*keys,floatframe,"
+                 "DataNode*node){intret=-1;if(!keys)return-1;",
+                 "latest RndPropAnim source ValueFromFrame null guard");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "boolRndPropAnim::ValueFromIndex(PropKeys*keys,intindex,"
+                 "DataNode*node){if(index<0||index>=keys->NumKeys())"
+                 "returnfalse;",
+                 "latest RndPropAnim source ValueFromIndex bounds guard");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "BEGIN_HANDLERS(RndPropAnim)HANDLE_EXPR(remove_keys,"
+                 "RemoveKeys(_msg->Obj<Hmx::Object>(2),_msg->Array(3)))",
+                 "latest RndPropAnim source handler rows");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "HANDLE(value_from_index,OnGetValueFromIndex)"
+                 "HANDLE(value_from_frame,OnGetValueFromFrame)"
+                 "HANDLE_SUPERCLASS(RndAnimatable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x43C)",
+                 "latest RndPropAnim source value handlers and superclasses");
+  ok &= contains(rb3_latest_prop_anim_cpp,
+                 "BEGIN_PROPSYNCS(RndPropAnim)SYNC_PROP(loop,mLoop)"
+                 "SYNC_SUPERCLASS(RndAnimatable)END_PROPSYNCS",
+                 "latest RndPropAnim source prop-sync rows");
+  ok &= contains(rb3_latest_prop_anim_h,
+                 "classRndPropAnim:publicRndAnimatable{",
+                 "latest RndPropAnim header exposes inheritance");
+  ok &= contains(rb3_latest_prop_anim_h,
+                 "std::vector<PropKeys*>mPropKeys;//0x10floatmLastFrame;"
+                 "//0x18boolmInSetFrame;//0x1cboolmLoop;//0x1d",
+                 "latest RndPropAnim header exposes storage");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "unsignedshortPropKeys::gRev=0;",
+                 "latest PropKeys source revision global");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "voidSetPropKeysRev(intrev){PropKeys::gRev=rev;}",
+                 "latest PropKeys source revision setter");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "PropKeys::PropKeys(Hmx::Object*o1,Hmx::Object*o2):"
+                 "mTarget(o1,o2),mProp(0),mTrans(0),mInterpHandler(),"
+                 "mLastKeyFrameIndex(-2),mKeysType(kFloat),"
+                 "mInterpolation(kLinear),mPropExceptionID(kNoException),"
+                 "unk18lastbit(0){}",
+                 "latest PropKeys source constructor defaults");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(gRev<7)MILO_FAIL(\"PropKeys::Loadshouldnotbecalled"
+                 "beforeversion7\");",
+                 "latest PropKeys source pre7 load failure");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "bs>>iVal;mKeysType=iVal;bs>>mTarget;bs>>mProp;",
+                 "latest PropKeys source load key target prop rows");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(gRev>=8)bs>>iVal;elseiVal=(mKeysType==kObject||"
+                 "mKeysType==kBool)==0;",
+                 "latest PropKeys source interpolation revision gate");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(gRev<0xB&&iVal==4){mPropExceptionID=kMacro;"
+                 "mInterpolation=kStep;}elsemInterpolation=iVal;",
+                 "latest PropKeys source macro exception gate");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(gRev>9){Symbolsym;bs>>sym;if(!sym.Null()){"
+                 "SetInterpHandler(sym);}}",
+                 "latest PropKeys source interp handler gate");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(gRev>10){bs>>iVal;mPropExceptionID=iVal;}",
+                 "latest PropKeys source exception revision gate");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(gRev>0xC){boolb;bs>>b;unk18lastbit=b;}"
+                 "SetPropExceptionID();",
+                 "latest PropKeys source last bit and exception refresh");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(propString==\"rotation\"){if(IsASubclass(o->ClassName(),"
+                 "\"Trans\"))b1=true;if(b1)returnkTransQuat;}",
+                 "latest PropKeys source rotation exception");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(propString==\"event\"){if(IsASubclass(o->ClassName(),"
+                 "\"ObjectDir\"))b1=true;if(b1)returnkDirEvent;}",
+                 "latest PropKeys source event exception");
+  ok &= contains(rb3_latest_prop_keys_cpp,
+                 "if(!mInterpHandler.Null())mPropExceptionID=kHandleInterp;"
+                 "else{if(mPropExceptionID!=kMacro){mPropExceptionID="
+                 "PropExceptionID(mTarget.Ptr(),mProp);",
+                 "latest PropKeys source SetPropExceptionID priority");
+  ok &= contains(rb3_latest_prop_keys_h,
+                 "enumAnimKeysType{kFloat,kColor,kObject,kBool,kQuat,"
+                 "kVector3,kSymbol};",
+                 "latest PropKeys header exposes key type enum order");
+  ok &= contains(rb3_latest_prop_keys_h,
+                 "enumInterpolation{kStep,kLinear,kSpline,kSlerp,kHermite,"
+                 "kInterp5,kInterp6};",
+                 "latest PropKeys header exposes interpolation enum order");
+  ok &= contains(rb3_latest_prop_keys_h,
+                 "enumExceptionID{kNoException,kTransQuat,kTransScale,"
+                 "kTransPos,kDirEvent,kHandleInterp,kMacro};",
+                 "latest PropKeys header exposes exception enum order");
+  ok &= contains(scene_h,
+                 "structSourceRndPropAnimLoadPlan{",
+                 "shared milo_scene exposes RndPropAnim load plan");
+  ok &= contains(scene,
+                 "SourceRndPropAnimLoadPlansource_rndpropanim_load_plan("
+                 "int32_trevision)",
+                 "shared milo_scene implements RndPropAnim load plan");
+  ok &= contains(scene,
+                 "plan.accepted_revision=revision>=0&&revision<=0xD;",
+                 "shared RndPropAnim plan mirrors accepted revision range");
+  ok &= contains(scene,
+                 "plan.uses_pre7_loader=revision<7;",
+                 "shared RndPropAnim plan mirrors pre7 branch");
+  ok &= contains(scene,
+                 "plan.reads_loop=revision>0xB;",
+                 "shared RndPropAnim plan mirrors loop gate");
+  ok &= contains(scene,
+                 "plan.reads_object_keys_with_owner_stage=revision>3;",
+                 "shared RndPropAnim pre7 plan mirrors object key gate");
+  ok &= contains(scene,
+                 "plan.scans_dir_event_keys=dir_event_key_count>0;",
+                 "shared RndPropAnim SetFrame plan mirrors dir-event scan");
+  ok &= contains(scene,
+                 "plan.found=plan.matches_null_property_row||"
+                 "(target_matches&&property_matches);",
+                 "shared RndPropAnim FindKeys plan mirrors source precedence");
+  ok &= contains(scene,
+                 "plan.result=found_existing_keys;",
+                 "shared RndPropAnim ChangePropPath plan returns key lookup result");
+  ok &= contains(scene,
+                 "SourcePropKeysLoadPlansource_propkeys_load_plan("
+                 "int32_trevision,int32_tinterpolation_row)",
+                 "shared milo_scene implements PropKeys load plan");
+  ok &= contains(scene,
+                 "plan.legacy_macro_exception_branch=revision<0xB&&"
+                 "interpolation_row==4;",
+                 "shared PropKeys plan mirrors macro branch");
+  ok &= contains(scene,
+                 "plan.result_exception=kSourcePropKeysHandleInterp;",
+                 "shared PropKeys SetPropExceptionID prioritizes handler");
+  ok &= contains(scene_test,
+                 "voidtest_prop_anim(){",
+                 "milo_scene test covers RndPropAnim/PropKeys helper");
+  ok &= contains(scene_test,
+                 "constSourceRndPropAnimLoadPlanrev13="
+                 "source_rndpropanim_load_plan(13);",
+                 "milo_scene test covers RndPropAnim latest load plan");
+  ok &= contains(scene_test,
+                 "constSourcePropKeysLoadPlankeys_rev13="
+                 "source_propkeys_load_plan(13,1);",
+                 "milo_scene test covers PropKeys latest load plan");
+  ok &= contains(doc,
+                 "This remains a source contract only. It does not enable live",
+                 "document fences RndPropAnim live playback");
   ok &= contains(char_mesh,
                  "out.local=r.matrix();out.world=r.matrix();if(ver<9)",
                  "character RndTrans local/world/legacy-child order");
