@@ -5666,6 +5666,19 @@ int run_contract() {
                  "CharHairExtras.DefaultWind:physicsSettings.Wind;",
                  "glTFMilo CharHair default wind rule");
   ok &= contains(gltf_node_processor_cs,
+                 "privatestaticvoidCollectHairChains(Nodenode,ModelRootmodel,"
+                 "HashSet<string>weightedHairBoneNames,List<Node>currentChain,"
+                 "List<List<Node>>chains)",
+                 "glTFMilo unsplit hair strand collector is visible");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(hairChildren.Count>1){Logger.Warn($\"Hairbone'{node.Name}'"
+                 "branchesintomultiplehairchainsandstrandsplittingisdisabled.",
+                 "glTFMilo unsplit collector warns at branches");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(currentChain.Any(chainNode=>weightedHairBoneNames.Contains("
+                 "chainNode.Name))){chains.Add(newList<Node>(currentChain));}",
+                 "glTFMilo unsplit collector emits weighted root-to-leaf path");
+  ok &= contains(gltf_node_processor_cs,
                  "strand.root=chain[0].Name;MatrixHelpers.CopyMatrix3("
                  "chain[0].LocalMatrix,strand.baseMat,convertCoordinates);"
                  "MatrixHelpers.CopyMatrix3(chain[0].LocalMatrix,strand.rootMat,"
@@ -5721,6 +5734,14 @@ int run_contract() {
                  "conststd::vector<SourceGltfMiloHairNode>&nodes)",
                  "native ports glTFMilo hair branch splitter");
   ok &= contains(char_mesh,
+                 "source_gltf_milo_collect_hair_chains_without_splitting("
+                 "conststd::vector<SourceGltfMiloHairNode>&nodes)",
+                 "native ports glTFMilo unsplit hair collector");
+  ok &= contains(char_mesh,
+                 "strand\"\"splittingisdisabled.Bonesabovethebranchwillbe\"\""
+                 "simulatedbymultiplestrands",
+                 "native glTFMilo unsplit collector keeps branch warning");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloCharHairExportPlan"
                  "source_gltf_milo_process_char_hair_plan(",
                  "native ports glTFMilo CharHair export defaults");
@@ -5752,6 +5773,10 @@ int run_contract() {
                  "hair_nodes)",
                  "focused CharHair source test covers glTFMilo chain splitter");
   ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_collect_hair_chains_without_splitting("
+                 "hair_nodes)",
+                 "focused CharHair source test covers glTFMilo unsplit collector");
+  ok &= contains(char_hair_source_test,
                  "source_gltf_milo_process_char_hair_plan(0,3,\"\",true)",
                  "focused CharHair source test covers glTFMilo export early exit");
   ok &= contains(char_hair_source_test,
@@ -5769,6 +5794,9 @@ int run_contract() {
                  "`source_gltf_milo_collect_hair_chains_split_at_branches` "
                  "ports that\n    root-climb and branch-split rule",
                  "document records glTFMilo native hair segment helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_collect_hair_chains_without_splitting`",
+                 "document records glTFMilo unsplit hair segment helper");
   ok &= contains(doc,
                  "`source_gltf_milo_process_char_hair_plan` records those top-level",
                  "document records glTFMilo CharHair export plan helper");

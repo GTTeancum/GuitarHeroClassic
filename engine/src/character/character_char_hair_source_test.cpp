@@ -84,6 +84,7 @@ int main() {
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
+  using ghogx::character::source_gltf_milo_collect_hair_chains_without_splitting;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
   using ghogx::character::source_char_hair_simulate_internal_collision_step;
   using ghogx::character::source_char_hair_simulate_internal_force_step;
@@ -391,6 +392,42 @@ int main() {
   ok &= expect_bool(hair_chains.warnings[0].find("bone_face") !=
                         std::string::npos,
                     true, "glTFMilo non-hair child warning names child");
+
+  const auto unsplit_hair_chains =
+      source_gltf_milo_collect_hair_chains_without_splitting(hair_nodes);
+  ok &= expect_bool(unsplit_hair_chains.has_weighted_hair_bones, true,
+                    "glTFMilo unsplit hair chain weighted input");
+  ok &= expect_size(unsplit_hair_chains.roots.size(), 1,
+                    "glTFMilo unsplit hair root count");
+  ok &= expect_size(unsplit_hair_chains.chains.size(), 2,
+                    "glTFMilo unsplit root-to-leaf chain count");
+  ok &= expect_size(unsplit_hair_chains.chains[0].size(), 3,
+                    "glTFMilo unsplit left full path size");
+  ok &= expect_string(unsplit_hair_chains.chains[0][0],
+                      "bone_hair_root",
+                      "glTFMilo unsplit first chain root");
+  ok &= expect_string(unsplit_hair_chains.chains[0][1],
+                      "bone_hair_mid",
+                      "glTFMilo unsplit first chain duplicates trunk");
+  ok &= expect_string(unsplit_hair_chains.chains[0][2],
+                      "bone_hair_left",
+                      "glTFMilo unsplit first chain leaf");
+  ok &= expect_size(unsplit_hair_chains.chains[1].size(), 4,
+                    "glTFMilo unsplit right full path size");
+  ok &= expect_string(unsplit_hair_chains.chains[1][2],
+                      "bone_hair_right",
+                      "glTFMilo unsplit second chain keeps unweighted hair bone");
+  ok &= expect_string(unsplit_hair_chains.chains[1][3],
+                      "bone_hair_tip",
+                      "glTFMilo unsplit second chain weighted descendant");
+  ok &= expect_size(unsplit_hair_chains.warnings.size(), 2,
+                    "glTFMilo unsplit warning count");
+  ok &= expect_bool(unsplit_hair_chains.warnings[0].find("bone_face") !=
+                        std::string::npos,
+                    true, "glTFMilo unsplit non-hair child warning");
+  ok &= expect_bool(unsplit_hair_chains.warnings[1].find(
+                        "strand splitting is disabled") != std::string::npos,
+                    true, "glTFMilo unsplit branch warning");
 
   const std::array<float, 16> parent_inverse = {
       1.0f, 0.0f, 0.0f, 0.0f,

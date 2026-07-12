@@ -1463,6 +1463,14 @@ note, and all report `unreadBytes=0`.
     weighted hair bones climb to their top `bone_hair_` ancestor, non-hair bone
     children under hair bones are warnings, branch points end the current
     segment, and weighted descendants keep child segments alive.
+  - The same source keeps the old `CollectHairChains` fallback for
+    `--disable-splitting`. Native
+    `source_gltf_milo_collect_hair_chains_without_splitting` ports that
+    fallback exactly: it walks full root-to-leaf hair-bone paths, emits only
+    paths containing a weighted hair bone, warns when a hair bone branches
+    while splitting is disabled, and therefore duplicates shared root/trunk
+    bones across multiple strands. This documents the fallback; it is not a
+    reason to prefer the fallback over the source-backed branch splitter.
   - The same `ProcessCharHair` row emits each point from visible exporter
     rules: non-tip points use the next bone's world position, tip points extend
     along the current bone's world Y axis with a UnitY fallback, point length

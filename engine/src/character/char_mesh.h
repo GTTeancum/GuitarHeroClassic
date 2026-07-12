@@ -3423,6 +3423,9 @@ bool source_gltf_milo_is_hair_bone_node(
 SourceGltfMiloHairChainsResult
 source_gltf_milo_collect_hair_chains_split_at_branches(
     const std::vector<SourceGltfMiloHairNode>& nodes);
+SourceGltfMiloHairChainsResult
+source_gltf_milo_collect_hair_chains_without_splitting(
+    const std::vector<SourceGltfMiloHairNode>& nodes);
 SourceGltfMiloHairPointExport source_gltf_milo_export_hair_point(
     const std::vector<SourceGltfMiloHairPointNode>& chain,
     int point_index,

@@ -7146,6 +7146,107 @@ source_gltf_milo_collect_hair_chains_split_at_branches(
   return result;
 }
 
+static void source_gltf_milo_collect_hair_chains_without_splitting_impl(
+    const std::vector<SourceGltfMiloHairNode>& nodes,
+    const std::vector<std::vector<int>>& children,
+    int node_index,
+    std::vector<int>& current_chain,
+    std::vector<std::vector<std::string>>& chains,
+    std::vector<std::string>& warnings) {
+  current_chain.push_back(node_index);
+
+  std::vector<int> hair_children;
+  for (int child : children[static_cast<size_t>(node_index)]) {
+    const SourceGltfMiloHairNode& child_node = nodes[static_cast<size_t>(child)];
+    if (source_gltf_milo_is_hair_bone_node(child_node)) {
+      hair_children.push_back(child);
+    } else if (child_node.is_bone) {
+      warnings.push_back("Non-hair bone '" + child_node.name +
+                         "' found under hair bone '" +
+                         nodes[static_cast<size_t>(node_index)].name +
+                         "'. It will not be included in CharHair strand "
+                         "generation.");
+    }
+  }
+
+  if (hair_children.size() > 1) {
+    warnings.push_back("Hair bone '" +
+                       nodes[static_cast<size_t>(node_index)].name +
+                       "' branches into multiple hair chains and strand "
+                       "splitting is disabled. Bones above the branch will be "
+                       "simulated by multiple strands, which will likely "
+                       "behave incorrectly in-game.");
+  }
+
+  if (hair_children.empty()) {
+    bool chain_weighted = false;
+    for (int index : current_chain) {
+      chain_weighted = chain_weighted ||
+                       nodes[static_cast<size_t>(index)].weighted;
+    }
+    if (chain_weighted) {
+      std::vector<std::string> chain;
+      chain.reserve(current_chain.size());
+      for (int index : current_chain) {
+        chain.push_back(nodes[static_cast<size_t>(index)].name);
+      }
+      chains.push_back(std::move(chain));
+    }
+  } else {
+    for (int child : hair_children) {
+      source_gltf_milo_collect_hair_chains_without_splitting_impl(
+          nodes, children, child, current_chain, chains, warnings);
+    }
+  }
+
+  current_chain.pop_back();
+}
+
+SourceGltfMiloHairChainsResult
+source_gltf_milo_collect_hair_chains_without_splitting(
+    const std::vector<SourceGltfMiloHairNode>& nodes) {
+  SourceGltfMiloHairChainsResult result;
+  std::vector<std::vector<int>> children(nodes.size());
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    const int parent = nodes[i].parent;
+    if (parent >= 0 && static_cast<size_t>(parent) < nodes.size()) {
+      children[static_cast<size_t>(parent)].push_back(static_cast<int>(i));
+    }
+  }
+
+  std::unordered_set<std::string> seen_roots;
+  std::vector<int> roots;
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    if (!nodes[i].weighted || !source_gltf_milo_is_hair_bone_node(nodes[i])) {
+      continue;
+    }
+    result.has_weighted_hair_bones = true;
+    int root = static_cast<int>(i);
+    while (nodes[static_cast<size_t>(root)].parent >= 0) {
+      const int parent = nodes[static_cast<size_t>(root)].parent;
+      if (parent < 0 || static_cast<size_t>(parent) >= nodes.size() ||
+          !source_gltf_milo_is_hair_bone_node(
+              nodes[static_cast<size_t>(parent)])) {
+        break;
+      }
+      root = parent;
+    }
+    const std::string key =
+        source_ascii_lower(nodes[static_cast<size_t>(root)].name);
+    if (seen_roots.insert(key).second) {
+      roots.push_back(root);
+      result.roots.push_back(nodes[static_cast<size_t>(root)].name);
+    }
+  }
+
+  std::vector<int> current_chain;
+  for (int root : roots) {
+    source_gltf_milo_collect_hair_chains_without_splitting_impl(
+        nodes, children, root, current_chain, result.chains, result.warnings);
+  }
+  return result;
+}
+
 SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
     int weighted_hair_bone_count,
     int strand_count,
