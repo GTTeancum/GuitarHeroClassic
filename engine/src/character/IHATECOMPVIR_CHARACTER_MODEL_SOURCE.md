@@ -439,6 +439,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
 - `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
   - `RndDrawable.Read` reads combined revision, showing, optional sphere, and
     draw order for revisions greater than 2.
+  - Shared native `source_rnddrawable_load_plan` records the same gates:
+    revision `< 2` reads the old drawable list, parent directories `<= 6` use
+    null-terminated strings for that list, later parents use symbols, revision
+    `> 0` reads the sphere, revision `> 2` reads draw order, and revision
+    `>= 4` reads clip planes.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMat.cs`
   - For material revisions above 21, `RndMat.Read` reads `useEnviron`,
     `preLit`, `zMode`, `alphaCut`, optional `alphaThreshold`, `alphaWrite`,
@@ -449,6 +454,11 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `RndAnimatable`, embedded `RndTrans`, embedded `RndDrawable`, then the
     explicit object `Symbol` list for revisions above 10. Native LOD and draw
     membership must come from this source object list, not broad string scans.
+  - Shared native `source_rndgroup_load_plan` records the revision gates:
+    object fields for revisions above 7; regular object lists for revisions
+    above 10; environ for `> 10 && < 16`; draw-only for revisions above 12; LOD
+    for `> 11 && < 16`; legacy object rows for revision 4; revision-7 LOD
+    dimensions; and sort-in-world for revisions above 13.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs`
   - `RndMesh.Read` calls `base.Read`, embedded `trans.Read`, embedded
     `draw.Read`, material, geom owner, vertices, faces, group sizes, then bone

@@ -692,6 +692,37 @@ GroupObj decode_group(const std::string& entry_name,
   return group;
 }
 
+SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
+    int32_t revision,
+    int32_t parent_revision) {
+  SourceRndDrawableLoadPlan plan;
+  plan.revision = revision;
+  plan.parent_revision = parent_revision;
+  plan.reads_old_drawable_list = revision < 2;
+  plan.old_list_is_null_terminated_strings =
+      plan.reads_old_drawable_list && parent_revision <= 6;
+  plan.old_list_is_symbols =
+      plan.reads_old_drawable_list && parent_revision > 6;
+  plan.reads_sphere = revision > 0;
+  plan.reads_draw_order = revision > 2;
+  plan.reads_clip_planes = revision >= 4;
+  return plan;
+}
+
+SourceRndGroupLoadPlan source_rndgroup_load_plan(int32_t revision) {
+  SourceRndGroupLoadPlan plan;
+  plan.revision = revision;
+  plan.reads_object_fields = revision > 7;
+  plan.reads_objects = revision > 10;
+  plan.reads_environ = revision > 10 && revision < 16;
+  plan.reads_draw_only = revision > 12;
+  plan.reads_lod = revision > 11 && revision < 16;
+  plan.reads_legacy_rev4_objects = revision == 4;
+  plan.reads_rev7_lod_dimensions = revision == 7;
+  plan.reads_sort_in_world = revision > 13;
+  return plan;
+}
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
   SourceRndMatLoadPlan plan;
   plan.revision = revision;

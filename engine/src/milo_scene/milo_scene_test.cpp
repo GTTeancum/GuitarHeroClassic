@@ -163,6 +163,57 @@ void test_mat() {
 }
 
 void test_group() {
+  const SourceRndDrawableLoadPlan drawable_v3 =
+      source_rnddrawable_load_plan(3, 24);
+  CHECK(drawable_v3.reads_showing);
+  CHECK(!drawable_v3.reads_old_drawable_list);
+  CHECK(drawable_v3.reads_sphere);
+  CHECK(drawable_v3.reads_draw_order);
+  CHECK(!drawable_v3.reads_clip_planes);
+
+  const SourceRndDrawableLoadPlan drawable_v1_old_parent =
+      source_rnddrawable_load_plan(1, 6);
+  CHECK(drawable_v1_old_parent.reads_old_drawable_list);
+  CHECK(drawable_v1_old_parent.old_list_is_null_terminated_strings);
+  CHECK(!drawable_v1_old_parent.old_list_is_symbols);
+  CHECK(drawable_v1_old_parent.reads_sphere);
+  CHECK(!drawable_v1_old_parent.reads_draw_order);
+
+  const SourceRndDrawableLoadPlan drawable_v1_new_parent =
+      source_rnddrawable_load_plan(1, 24);
+  CHECK(drawable_v1_new_parent.old_list_is_symbols);
+  CHECK(!drawable_v1_new_parent.old_list_is_null_terminated_strings);
+
+  const SourceRndDrawableLoadPlan drawable_v4 =
+      source_rnddrawable_load_plan(4, 24);
+  CHECK(drawable_v4.reads_clip_planes);
+
+  const SourceRndGroupLoadPlan group_v15 = source_rndgroup_load_plan(15);
+  CHECK(group_v15.reads_object_fields);
+  CHECK(group_v15.reads_animatable);
+  CHECK(group_v15.reads_trans);
+  CHECK(group_v15.reads_drawable);
+  CHECK(group_v15.reads_objects);
+  CHECK(group_v15.reads_environ);
+  CHECK(group_v15.reads_draw_only);
+  CHECK(group_v15.reads_lod);
+  CHECK(group_v15.reads_sort_in_world);
+
+  const SourceRndGroupLoadPlan group_v16 = source_rndgroup_load_plan(16);
+  CHECK(group_v16.reads_objects);
+  CHECK(!group_v16.reads_environ);
+  CHECK(group_v16.reads_draw_only);
+  CHECK(!group_v16.reads_lod);
+
+  const SourceRndGroupLoadPlan group_v4 = source_rndgroup_load_plan(4);
+  CHECK(!group_v4.reads_object_fields);
+  CHECK(!group_v4.reads_objects);
+  CHECK(group_v4.reads_legacy_rev4_objects);
+  CHECK(!group_v4.reads_sort_in_world);
+
+  const SourceRndGroupLoadPlan group_v7 = source_rndgroup_load_plan(7);
+  CHECK(group_v7.reads_rev7_lod_dimensions);
+
   std::vector<uint8_t> b;
   put_u32(b, 15);                // RndGroup revision
   put_zeros(b, 9);               // Hmx::Object fields

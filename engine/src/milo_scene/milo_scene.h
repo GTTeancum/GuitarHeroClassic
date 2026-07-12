@@ -189,6 +189,39 @@ struct GroupObj {
   std::string error;
 };
 
+struct SourceRndDrawableLoadPlan {
+  int32_t revision = 0;
+  int32_t parent_revision = 0;
+  bool reads_showing = true;
+  bool reads_old_drawable_list = false;
+  bool old_list_is_null_terminated_strings = false;
+  bool old_list_is_symbols = false;
+  bool reads_sphere = false;
+  bool reads_draw_order = false;
+  bool reads_clip_planes = false;
+};
+
+SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
+    int32_t revision,
+    int32_t parent_revision);
+
+struct SourceRndGroupLoadPlan {
+  int32_t revision = 0;
+  bool reads_object_fields = false;
+  bool reads_animatable = true;
+  bool reads_trans = true;
+  bool reads_drawable = true;
+  bool reads_objects = false;
+  bool reads_environ = false;
+  bool reads_draw_only = false;
+  bool reads_lod = false;
+  bool reads_legacy_rev4_objects = false;
+  bool reads_rev7_lod_dimensions = false;
+  bool reads_sort_in_world = false;
+};
+
+SourceRndGroupLoadPlan source_rndgroup_load_plan(int32_t revision);
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)

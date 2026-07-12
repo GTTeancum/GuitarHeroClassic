@@ -1374,8 +1374,40 @@ int run_contract() {
                  "showing=reader.ReadBoolean();if(revision<2)",
                  "RndDrawable source starts with showing flag");
   ok &= contains(drawable_cs,
+                 "if(parent.revision<=6){for(inti=0;i<drawableCount;i++){"
+                 "drawablesNullTerminated.Add(reader.ReadUTF8());}}else{"
+                 "for(inti=0;i<drawableCount;i++){drawables.Add(Symbol.Read(reader));}}",
+                 "RndDrawable source old drawable-list parent gate");
+  ok &= contains(drawable_cs,
                  "if(revision>2){drawOrder=reader.ReadFloat();}",
                  "RndDrawable source draw-order gate");
+  ok &= contains(drawable_cs,
+                 "if(revision>=4){",
+                 "RndDrawable source starts clip-plane revision gate");
+  ok &= contains(drawable_cs,
+                 "clipPlaneCount=reader.ReadUInt32();for(inti=0;i<clipPlaneCount;i++){"
+                 "Symbolsym=Symbol.Read(reader);clipPlanes.Add(sym);}",
+                 "RndDrawable source clip-plane gate");
+  ok &= contains(scene_h,
+                 "structSourceRndDrawableLoadPlan{",
+                 "shared milo_scene exposes source RndDrawable load plan");
+  ok &= contains(scene,
+                 "SourceRndDrawableLoadPlansource_rnddrawable_load_plan(",
+                 "shared milo_scene implements source RndDrawable load plan");
+  ok &= contains(scene,
+                 "plan.reads_old_drawable_list=revision<2;",
+                 "shared RndDrawable load plan mirrors old-list gate");
+  ok &= contains(scene,
+                 "plan.old_list_is_null_terminated_strings=plan."
+                 "reads_old_drawable_list&&parent_revision<=6;",
+                 "shared RndDrawable load plan mirrors parent string-list gate");
+  ok &= contains(scene,
+                 "plan.reads_draw_order=revision>2;",
+                 "shared RndDrawable load plan mirrors draw-order gate");
+  ok &= contains(scene_test,
+                 "constSourceRndDrawableLoadPlandrawable_v3="
+                 "source_rnddrawable_load_plan(3,24);",
+                 "milo_scene test covers modern RndDrawable plan");
 
   ok &= contains(mat_cs,
                  "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"
@@ -1455,6 +1487,37 @@ int run_contract() {
                  "objectsCount=reader.ReadUInt32();for(inti=0;i<objectsCount;i++){"
                  "objects.Add(Symbol.Read(reader));}",
                  "RndGroup source reads explicit object Symbol list");
+  ok &= contains(group_cs,
+                 "if(revision<16)environ=Symbol.Read(reader);if(revision>12)"
+                 "drawOnly=Symbol.Read(reader);",
+                 "RndGroup source reads environ and draw-only gates");
+  ok &= contains(group_cs,
+                 "if(revision>11&&revision<16){lod=Symbol.Read(reader);"
+                 "lodScreenSize=reader.ReadFloat();}",
+                 "RndGroup source reads LOD gate");
+  ok &= contains(group_cs,
+                 "if(revision>13)sortInWorld=reader.ReadBoolean();",
+                 "RndGroup source reads sort-in-world gate");
+  ok &= contains(scene_h,
+                 "structSourceRndGroupLoadPlan{",
+                 "shared milo_scene exposes source RndGroup load plan");
+  ok &= contains(scene,
+                 "SourceRndGroupLoadPlansource_rndgroup_load_plan(int32_trevision)",
+                 "shared milo_scene implements source RndGroup load plan");
+  ok &= contains(scene,
+                 "plan.reads_objects=revision>10;plan.reads_environ=revision>10&&"
+                 "revision<16;plan.reads_draw_only=revision>12;",
+                 "shared RndGroup load plan mirrors object/environ/draw-only gates");
+  ok &= contains(scene,
+                 "plan.reads_lod=revision>11&&revision<16;"
+                 "plan.reads_legacy_rev4_objects=revision==4;",
+                 "shared RndGroup load plan mirrors LOD and rev4 gates");
+  ok &= contains(scene,
+                 "plan.reads_sort_in_world=revision>13;",
+                 "shared RndGroup load plan mirrors sort-in-world gate");
+  ok &= contains(scene_test,
+                 "constSourceRndGroupLoadPlangroup_v15=source_rndgroup_load_plan(15);",
+                 "milo_scene test covers GH2-era RndGroup plan");
   ok &= contains(scene,
                  "GroupObjdecode_group(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
