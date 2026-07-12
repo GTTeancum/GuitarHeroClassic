@@ -1059,13 +1059,26 @@ void read_object_fields_like_miloeditor(
     if (revision > 0) (void)r.symbol();
 }
 
-uint16_t read_rnd_animatable_like_miloeditor(MiloCursor& r) {
+struct DecodedRndAnimatable {
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    float frame = 0.0f;
+    int rate = 0;
+};
+
+DecodedRndAnimatable read_rnd_animatable_like_miloeditor(MiloCursor& r) {
     const uint32_t combined_revision = r.u32();
-    const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffff);
-    if (revision > 1) (void)r.f32();
-    if (revision < 4) {
-        if (revision > 2) (void)r.u8();
-        if (revision < 1) {
+    DecodedRndAnimatable out;
+    out.revision = static_cast<uint16_t>(combined_revision & 0xffff);
+    out.alt_revision =
+        static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+    if (out.revision > 1) out.frame = r.f32();
+    if (out.revision < 4) {
+        if (out.revision > 2) {
+            const uint8_t encoded = r.u8();
+            out.rate = encoded == 0 ? 1 : 0;
+        }
+        if (out.revision < 1) {
             const uint32_t anim_entry_count = r.u32();
             for (uint32_t i = 0; i < anim_entry_count; ++i) {
                 (void)r.symbol();
@@ -1076,9 +1089,12 @@ uint16_t read_rnd_animatable_like_miloeditor(MiloCursor& r) {
             for (uint32_t i = 0; i < anim_count; ++i) (void)r.symbol();
         }
     } else {
-        (void)r.u32();
+        out.rate = r.i32();
     }
-    return revision;
+    if (out.rate < 0 || out.rate > 4) {
+        out.rate = 0;
+    }
+    return out;
 }
 
 struct DecodedRndPollAnim {
@@ -1101,7 +1117,8 @@ std::optional<DecodedRndPollAnim> read_rnd_pollanim_like_miloeditor(
 
         std::unordered_map<std::string, MiloValue> object_props;
         read_object_fields_like_miloeditor(r, object_props);
-        poll_anim.anim_revision = read_rnd_animatable_like_miloeditor(r);
+        const auto anim_header = read_rnd_animatable_like_miloeditor(r);
+        poll_anim.anim_revision = anim_header.revision;
 
         // MiloEditor models the RndPollable payload as an Object superclass;
         // RB3 then uses that pollable to call each child anim every frame.
@@ -1134,6 +1151,7 @@ struct DecodedRndAnimFilter {
     uint16_t revision = 0;
     uint16_t alt_revision = 0;
     uint16_t anim_revision = 0;
+    int anim_rate = 0;
     std::string anim;
     float scale = 1.0f;
     float offset = 0.0f;
@@ -1158,7 +1176,9 @@ std::optional<DecodedRndAnimFilter> read_rnd_animfilter_like_miloeditor(
 
         std::unordered_map<std::string, MiloValue> object_props;
         read_object_fields_like_miloeditor(r, object_props);
-        filter.anim_revision = read_rnd_animatable_like_miloeditor(r);
+        const auto anim_header = read_rnd_animatable_like_miloeditor(r);
+        filter.anim_revision = anim_header.revision;
+        filter.anim_rate = anim_header.rate;
         filter.anim = canonical_milo_ref(r.symbol());
         filter.scale = r.f32();
         filter.offset = r.f32();
@@ -1256,6 +1276,7 @@ struct DecodedRndTransAnim {
     uint16_t revision = 0;
     uint16_t alt_revision = 0;
     uint16_t anim_revision = 0;
+    int anim_rate = 0;
     std::string trans;
     std::string keys_owner;
     bool trans_spline = false;
@@ -1305,7 +1326,9 @@ std::optional<DecodedRndTransAnim> read_rnd_transanim_like_miloeditor(
             std::unordered_map<std::string, MiloValue> props;
             read_object_fields_like_miloeditor(r, props);
         }
-        anim.anim_revision = read_rnd_animatable_like_miloeditor(r);
+        const auto anim_header = read_rnd_animatable_like_miloeditor(r);
+        anim.anim_revision = anim_header.revision;
+        anim.anim_rate = anim_header.rate;
         if (anim.revision < 6) {
             throw std::runtime_error(
                 "RndTransAnim embedded RndDrawable branch is not ported for camera paths");
@@ -8335,6 +8358,7 @@ struct VenueTransAnimDecode {
     ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
     uint16_t revision = 0;
     uint16_t anim_revision = 0;
+    int anim_rate = 0;
     std::string keys_owner;
     bool trans_spline = false;
     bool repeat_trans = false;
@@ -8361,6 +8385,7 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
     out.anim.rotation_slerp = decoded->rot_slerp;
     out.revision = decoded->revision;
     out.anim_revision = decoded->anim_revision;
+    out.anim_rate = decoded->anim_rate;
     out.keys_owner = canonical_milo_ref(decoded->keys_owner);
     out.trans_spline = decoded->trans_spline;
     out.repeat_trans = decoded->repeat_trans;
@@ -10311,12 +10336,68 @@ float positive_mod_float(double value, double modulus) {
     return static_cast<float>(out);
 }
 
+float rnd_animatable_frames_per_unit(int rate) {
+    switch (rate) {
+        case 1: return 480.0f;
+        case 3: return 1.0f;
+        case 0:
+        case 2:
+        case 4:
+        default:
+            return 30.0f;
+    }
+}
+
+bool rnd_animatable_rate_uses_beats(int rate) {
+    return rate == 1 || rate == 3;
+}
+
+double venue_anim_time_units(int rate, double absolute_start_seconds,
+                             double elapsed_seconds,
+                             const ghogx::chart::Chart* chart) {
+    const double elapsed = std::max(0.0, elapsed_seconds);
+    if (!rnd_animatable_rate_uses_beats(rate) || !chart ||
+        chart->ticks_per_beat == 0) {
+        return elapsed;
+    }
+    const uint32_t start_tick =
+        chart->sec_to_tick(std::max(0.0, absolute_start_seconds));
+    const uint32_t end_tick = chart->sec_to_tick(
+        std::max(0.0, absolute_start_seconds + elapsed));
+    if (end_tick <= start_tick) return 0.0;
+    return static_cast<double>(end_tick - start_tick) /
+           static_cast<double>(chart->ticks_per_beat);
+}
+
+double venue_anim_time_units_to_seconds(int rate, double absolute_start_seconds,
+                                        double units,
+                                        const ghogx::chart::Chart* chart) {
+    const double clamped_units = std::max(0.0, units);
+    if (!rnd_animatable_rate_uses_beats(rate) || !chart ||
+        chart->ticks_per_beat == 0) {
+        return clamped_units;
+    }
+    const uint32_t start_tick =
+        chart->sec_to_tick(std::max(0.0, absolute_start_seconds));
+    const double end_tick_f =
+        static_cast<double>(start_tick) +
+        clamped_units * static_cast<double>(chart->ticks_per_beat);
+    const uint32_t end_tick = static_cast<uint32_t>(
+        std::max(0.0, std::min<double>(
+                          end_tick_f,
+                          static_cast<double>(
+                              std::numeric_limits<uint32_t>::max()))));
+    return std::max(0.0, chart->tick_to_sec(end_tick) -
+                             chart->tick_to_sec(start_tick));
+}
+
 float venue_filter_signed_scale(const Gameplay::VenueAnimFilter& filter) {
     const float start = filter.start_frame;
     const float end = filter.end_frame;
     if (std::isfinite(filter.period) && filter.period > 0.001f) {
         const float span = end - start;
-        return std::isfinite(span) ? span / (filter.period * 30.0f) : 1.0f;
+        const float fpu = rnd_animatable_frames_per_unit(filter.anim_rate);
+        return std::isfinite(span) ? span / (filter.period * fpu) : 1.0f;
     }
     const float magnitude =
         std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
@@ -10370,10 +10451,15 @@ float normalize_venue_filter_child_frame(
 }
 
 float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
-                            double elapsed_seconds, bool polled) {
+                            double elapsed_seconds, bool polled,
+                            const ghogx::chart::Chart* chart = nullptr,
+                            double absolute_start_seconds = 0.0) {
     const float start = filter.start_frame;
     const float end = filter.end_frame;
     const float span = std::fabs(end - start);
+    const float fpu = rnd_animatable_frames_per_unit(filter.anim_rate);
+    const double units = venue_anim_time_units(
+        filter.anim_rate, absolute_start_seconds, elapsed_seconds, chart);
     if (!std::isfinite(span) || span <= 0.001f) {
         const float raw = polled
                               ? venue_filter_frame_offset(filter)
@@ -10382,41 +10468,49 @@ float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
     }
 
     const float scale = venue_filter_signed_scale(filter);
-    const double elapsed = std::max(0.0, elapsed_seconds);
     float raw_frame = start;
     if (polled) {
-        raw_frame = static_cast<float>(elapsed * 30.0 *
+        raw_frame = static_cast<float>(units * static_cast<double>(fpu) *
                                        static_cast<double>(scale)) +
                     venue_filter_frame_offset(filter);
     } else if (std::isfinite(filter.period) && filter.period > 0.001f) {
         const float direction = end >= start ? 1.0f : -1.0f;
         raw_frame = start +
                     direction *
-                        static_cast<float>((elapsed / filter.period) *
+                        static_cast<float>((units / filter.period) *
                                            static_cast<double>(span));
     } else {
         raw_frame = start +
-                    static_cast<float>(elapsed * 30.0 *
+                    static_cast<float>(units * static_cast<double>(fpu) *
                                        static_cast<double>(scale));
     }
     return normalize_venue_filter_child_frame(filter, raw_frame);
 }
 
-double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
+double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter,
+                                     const ghogx::chart::Chart* chart = nullptr,
+                                     double absolute_start_seconds = 0.0) {
     const float start = filter.start_frame;
     const float end = filter.end_frame;
     const float span = std::fabs(end - start);
     if (!std::isfinite(span) || span <= 0.001f) return 0.0;
+    double units = 0.0;
     if (std::isfinite(filter.period) && filter.period > 0.001f) {
-        return static_cast<double>(filter.period) *
-               (filter.type == 2 ? 2.0 : 1.0);
+        units = static_cast<double>(filter.period) *
+                (filter.type == 2 ? 2.0 : 1.0);
+    } else {
+        const float scale = std::max(std::fabs(venue_filter_signed_scale(filter)),
+                                     0.001f);
+        const double cycle =
+            filter.type == 2 ? static_cast<double>(span) * 2.0
+                             : static_cast<double>(span);
+        units = cycle / (static_cast<double>(
+                             rnd_animatable_frames_per_unit(filter.anim_rate)) *
+                         static_cast<double>(scale));
     }
-    const float scale = std::max(std::fabs(venue_filter_signed_scale(filter)),
-                                 0.001f);
-    const double cycle =
-        filter.type == 2 ? static_cast<double>(span) * 2.0
-                         : static_cast<double>(span);
-    return cycle / (30.0 * static_cast<double>(scale));
+    return venue_anim_time_units_to_seconds(filter.anim_rate,
+                                            absolute_start_seconds, units,
+                                            chart);
 }
 
 float source_anim_blend_at(float blend_period_seconds, double elapsed_seconds) {
@@ -10612,6 +10706,7 @@ load_venue_anim_filters(const std::string& hdr_path,
 
         std::map<std::string, VenueTransAnimDecode> transanim_decodes;
         std::map<std::string, std::string> transanim_mesh;
+        std::map<std::string, int> transanim_rates;
         std::map<std::string,
                  ghogx::render::MiloSceneRenderer::MeshTransformAnim>
             transanim_anims;
@@ -10658,9 +10753,10 @@ load_venue_anim_filters(const std::string& hdr_path,
                         mesh_anim_key_endpoint_summary(stored.anim.scale_keys);
                     std::fprintf(
                         stderr,
-                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
+                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u rate=%d owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
                         de.name.c_str(), stored.target.c_str(),
                         stored.revision, stored.anim_revision,
+                        stored.anim_rate,
                         stored.keys_owner.c_str(),
                         stored.anim.translation_keys.size(),
                         stored.anim.rotation_keys.size(),
@@ -10782,6 +10878,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             resolve_transanim_owner(name, visiting);
             if (!mesh_transform_anim_has_key_pages(anim.anim)) continue;
             transanim_mesh[name] = anim.target;
+            transanim_rates[name] = anim.anim_rate;
             transanim_anims[name] = anim.anim;
         }
         resolve_venue_mesh_anim_key_owners(meshanim_anims);
@@ -10874,6 +10971,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                 target_ref = decoded->anim;
                 filter.revision = decoded->revision;
                 filter.anim_revision = decoded->anim_revision;
+                filter.anim_rate = decoded->anim_rate;
                 filter.scale = decoded->scale;
                 filter.offset_frame = decoded->offset;
                 filter.start_frame = decoded->start;
@@ -10885,9 +10983,10 @@ load_venue_anim_filters(const std::string& hdr_path,
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter %s -> %s source-shaped rev=%u anim_rev=%u frame %.2f..%.2f scale=%.3f period=%.3f offset=%.3f type=%d snap=%.3f jitter=%.3f\n",
+                        "[world] venue AnimFilter %s -> %s source-shaped rev=%u anim_rev=%u rate=%d frame %.2f..%.2f scale=%.3f period=%.3f offset=%.3f type=%d snap=%.3f jitter=%.3f\n",
                         filter.name.c_str(), target_ref.c_str(),
                         filter.revision, filter.anim_revision,
+                        filter.anim_rate,
                         filter.start_frame, filter.end_frame, filter.scale,
                         filter.period, filter.offset_frame, filter.type,
                         filter.snap_frame, filter.jitter_frame);
@@ -10978,6 +11077,15 @@ load_venue_anim_filters(const std::string& hdr_path,
                 filter.event_delay_seconds = route.delay;
                 filter.event_wait = route.wait;
             };
+        auto direct_ref_rate = [&](const std::string& raw_ref) -> int {
+            const auto ref = canonical_milo_ref(raw_ref);
+            const auto trans_rate = transanim_rates.find(ref);
+            if (trans_rate != transanim_rates.end()) return trans_rate->second;
+            const auto filter_rate = filters_by_name.find(ref);
+            if (filter_rate != filters_by_name.end())
+                return filter_rate->second.anim_rate;
+            return 0;
+        };
         auto make_direct_filter =
             [&](const std::string& raw_ref)
             -> std::optional<Gameplay::VenueAnimFilter> {
@@ -10991,6 +11099,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             filter.period = 0.0f;
             filter.offset_frame = 0.0f;
             filter.type = 0;
+            filter.anim_rate = direct_ref_rate(ref);
             std::unordered_set<std::string> seen;
             const float duration = collect_filter_targets(
                 collect_filter_targets, filter, ref, seen);
@@ -11125,6 +11234,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             for (const auto& route : routes) {
                 Gameplay::VenueAnimFilter route_filter = filter;
                 route_filter.target_ref = canonical_milo_ref(route.ref);
+                route_filter.anim_rate = direct_ref_rate(route.ref);
                 apply_event_anim_timing(route_filter, route);
                 float duration = 0.0f;
                 std::unordered_set<std::string> seen;
@@ -19054,9 +19164,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             for (const auto& filter : enabled_filters) {
                 std::fprintf(
                     stderr,
-                    "[world] venue event %s: AnimFilter %s target=%s source=%s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
+                    "[world] venue event %s: AnimFilter %s target=%s source=%s rate=%d frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
                     event_name.c_str(), filter.name.c_str(),
                     filter.target_ref.c_str(), filter.source_trigger.c_str(),
+                    filter.anim_rate,
                     filter.start_frame, filter.end_frame, filter.targets.size(),
                     filter.mesh_anim_targets.size(), filter.scale, filter.period,
                     filter.offset_frame, filter.type, filter.event_blend_seconds,
@@ -19660,9 +19771,13 @@ void Gameplay::update_active_venue_anim_filters() {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         double duration = 0.0;
         for (const auto& filter : it->filters) {
+            const double filter_start_time =
+                it->start_time +
+                static_cast<double>(filter.event_delay_seconds);
             const double source_duration =
                 static_cast<double>(filter.event_delay_seconds) +
-                venue_filter_duration_seconds(filter);
+                venue_filter_duration_seconds(filter, &chart_,
+                                              filter_start_time);
             const double blend_duration =
                 static_cast<double>(filter.event_delay_seconds) +
                 static_cast<double>(
@@ -19677,6 +19792,9 @@ void Gameplay::update_active_venue_anim_filters() {
         for (const auto& filter : it->filters) {
             const double filter_elapsed =
                 elapsed - static_cast<double>(filter.event_delay_seconds);
+            const double filter_start_time =
+                it->start_time +
+                static_cast<double>(filter.event_delay_seconds);
             if (filter_elapsed < 0.0) {
                 if (debug_sample) {
                     std::fprintf(
@@ -19690,7 +19808,8 @@ void Gameplay::update_active_venue_anim_filters() {
                 continue;
             }
             const float frame =
-                venue_filter_frame_at(filter, filter_elapsed, it->polled);
+                venue_filter_frame_at(filter, filter_elapsed, it->polled,
+                                      &chart_, filter_start_time);
             const float source_blend =
                 venue_filter_source_blend_at(filter, filter_elapsed);
             for (const auto& target : filter.targets) {
@@ -19711,9 +19830,10 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s quat=(%.5f %.5f %.5f %.5f) scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s rate=%d fpu=%.1f frame=%.2f pos=%d:%s rot=%d:%s quat=(%.5f %.5f %.5f %.5f) scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
-                        target.mesh.c_str(), frame,
+                        target.mesh.c_str(), filter.anim_rate,
+                        rnd_animatable_frames_per_unit(filter.anim_rate), frame,
                         sample.has_translation ? 1 : 0,
                         sample.translation_is_absolute ? "abs" : "delta",
                         sample.has_rotation ? 1 : 0,
@@ -19867,7 +19987,9 @@ void Gameplay::update_venue_proxy_objects() {
         filter.period = proxy.anim_period;
         filter.type = 0;
         const double elapsed = std::max(0.0, song_time_ - proxy.anim_start_time);
-        const float frame = venue_filter_frame_at(filter, elapsed, false);
+        const float frame =
+            venue_filter_frame_at(filter, elapsed, false, &chart_,
+                                  proxy.anim_start_time);
         const bool debug_sample = debug_venue_filters_enabled();
 
         std::map<std::string,
@@ -19989,7 +20111,9 @@ void Gameplay::update_venue_proxy_objects() {
         proxy.renderer->set_material_tex_transform_overrides(
             std::move(material_tex_transforms));
 
-        const double duration = venue_filter_duration_seconds(filter);
+        const double duration =
+            venue_filter_duration_seconds(filter, &chart_,
+                                          proxy.anim_start_time);
         const bool particle_window = duration <= 0.0 || elapsed <= duration + 1.0;
         std::unordered_set<std::string> active_particles;
         std::map<std::string, float> particle_intensities;
@@ -20629,9 +20753,9 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
         for (const auto& filter : filter_it->second) {
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: AnimFilter %s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d\n",
-                event_name.c_str(), filter.name.c_str(), filter.start_frame,
-                filter.end_frame, filter.targets.size(),
+                "[world] lighting event %s: AnimFilter %s rate=%d frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d\n",
+                event_name.c_str(), filter.name.c_str(), filter.anim_rate,
+                filter.start_frame, filter.end_frame, filter.targets.size(),
                 filter.mesh_anim_targets.size(), filter.scale, filter.period,
                 filter.offset_frame, filter.type);
         }
@@ -21083,8 +21207,11 @@ void Gameplay::update_active_lighting_anim_filters() {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         double duration = 0.0;
         for (const auto& filter : it->filters) {
+            const double filter_start_time = it->start_time;
             duration =
-                std::max(duration, venue_filter_duration_seconds(filter));
+                std::max(duration,
+                         venue_filter_duration_seconds(filter, &chart_,
+                                                       filter_start_time));
         }
         if (!it->persistent && !venue_filter_set_loops(it->filters) &&
             duration > 0.0 && elapsed > duration) {
@@ -21094,7 +21221,8 @@ void Gameplay::update_active_lighting_anim_filters() {
 
         for (const auto& filter : it->filters) {
             const float frame =
-                venue_filter_frame_at(filter, elapsed, false);
+                venue_filter_frame_at(filter, elapsed, false, &chart_,
+                                      it->start_time);
             const float source_blend =
                 venue_filter_source_blend_at(filter, elapsed);
             for (const auto& target : filter.targets) {
@@ -21109,9 +21237,10 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) blend=%.3f blend_period=%.3f spline=%d/%d rot_slerp=%d\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s rate=%d fpu=%.1f frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) blend=%.3f blend_period=%.3f spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
-                        target.mesh.c_str(), frame,
+                        target.mesh.c_str(), filter.anim_rate,
+                        rnd_animatable_frames_per_unit(filter.anim_rate), frame,
                         sample.has_translation ? 1 : 0,
                         sample.translation_is_absolute ? "abs" : "delta",
                         sample.has_rotation ? 1 : 0,

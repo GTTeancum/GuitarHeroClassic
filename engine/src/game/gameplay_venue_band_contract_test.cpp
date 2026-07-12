@@ -4174,7 +4174,7 @@ int main() {
                  "add(light.name,pos);",
                  "source-shaped .lit TransAnim samples subtract the authored light local position");
   ok &= contains(gameplay_c,
-                 "source-shapedrev=%uanim_rev=%uowner=%spos=%zurot=%zuscale=%zu",
+                 "source-shapedrev=%uanim_rev=%urate=%downer=%spos=%zurot=%zuscale=%zu",
                  "venue TransAnim diagnostics expose source-shaped key counts");
   ok &= contains(gameplay_c,
                  "scale_vec=(%.3f%.3f%.3f)",
@@ -5273,7 +5273,8 @@ int main() {
                  "voidGameplay::update_active_lighting_anim_filters()",
                  "lighting overlay AnimFilters sample on the song clock");
   ok &= contains(gameplay_c,
-                 "duration=std::max(duration,venue_filter_duration_seconds(filter));"
+                 "duration=std::max(duration,venue_filter_duration_seconds(filter,"
+                 "&chart_,filter_start_time));"
                  "}if(!it->persistent&&!venue_filter_set_loops(it->filters)&&"
                  "duration>0.0&&elapsed>duration){"
                  "it=active_lighting_anim_filters_.erase(it);continue;}",
@@ -6314,6 +6315,22 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "floatoffset_frame=0.0f;",
                  "venue AnimFilter keeps authored frame offset");
+  ok &= contains(gameplay_h_c,
+                 "intanim_rate=0;",
+                 "venue AnimFilter stores the source RndAnimatable rate");
+  ok &= contains(gameplay_c,
+                 "structDecodedRndAnimatable",
+                 "shared RndAnimatable reader preserves source frame/rate metadata");
+  ok &= contains(gameplay_c,
+                 "out.rate=r.i32();",
+                 "source-shaped RndAnimatable reader preserves rev4+ mRate");
+  ok &= contains(gameplay_c,
+                 "rnd_animatable_frames_per_unit(filter.anim_rate)",
+                 "venue AnimFilter timing uses source FramesPerUnit instead of hardcoded 30 fps");
+  ok &= contains(gameplay_c,
+                 "venue_anim_time_units(filter.anim_rate,"
+                 "absolute_start_seconds,elapsed_seconds,chart)",
+                 "venue AnimFilter timing routes beat-rate animations through the chart clock");
   ok &= contains(gameplay_c,
                  "std::optional<DecodedRndAnimFilter>"
                  "read_rnd_animfilter_like_miloeditor(",
@@ -6331,6 +6348,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "filter.snap=r.f32();filter.jitter=r.f32();",
                  "source-shaped AnimFilter reader preserves rev2 snap and jitter fields");
+  ok &= contains(gameplay_c,
+                 "filter.anim_rate=anim_header.rate;",
+                 "source-shaped AnimFilter reader carries the RndAnimatable rate");
+  ok &= contains(gameplay_c,
+                 "filter.anim_rate=decoded->anim_rate;",
+                 "venue AnimFilter loader stores decoded source rate");
   ok &= contains(gameplay_c,
                  "read_rnd_animfilter_like_miloeditor(body,size)",
                  "venue AnimFilter loader uses source-shaped decode before any fallback");
@@ -6350,7 +6373,8 @@ int main() {
                  "floatvenue_filter_signed_scale(constGameplay::VenueAnimFilter&filter)",
                  "venue AnimFilter derives signed Scale from period/start/end like source RndAnimFilter");
   ok &= contains(gameplay_c,
-                 "venue_filter_frame_at(filter,filter_elapsed,it->polled)",
+                 "venue_filter_frame_at(filter,filter_elapsed,it->polled,"
+                 "&chart_,filter_start_time)",
                  "venue PollAnim routes use direct SetFrame-style offset phase");
   ok &= contains(gameplay_c,
                  "elapsed-static_cast<double>(filter.event_delay_seconds)",
@@ -6359,11 +6383,13 @@ int main() {
                  "if(filter_elapsed<0.0)",
                  "venue EventTrigger Anim delay does not sample the first frame early");
   ok &= contains(gameplay_c,
-                 "venue_filter_frame_at(filter,filter_elapsed,it->polled)",
+                 "venue_filter_frame_at(filter,filter_elapsed,it->polled,"
+                 "&chart_,filter_start_time)",
                  "venue EventTrigger AnimFilter playback samples after source delay");
   ok &= contains(gameplay_c,
                  "static_cast<double>(filter.event_delay_seconds)+"
-                 "venue_filter_duration_seconds(filter)",
+                 "venue_filter_duration_seconds(filter,&chart_,"
+                 "filter_start_time)",
                  "venue EventTrigger AnimFilter lifetime includes source delay");
   ok &= contains(gameplay_c,
                  "raw_frame=start+",
@@ -6396,7 +6422,7 @@ int main() {
                  "read_object_fields_like_miloeditor(r,object_props);",
                  "venue PollAnim reads the Object superclass in source order");
   ok &= contains(gameplay_c,
-                 "poll_anim.anim_revision=read_rnd_animatable_like_miloeditor(r);",
+                 "poll_anim.anim_revision=anim_header.revision;",
                  "venue PollAnim reads the RndAnimatable superclass in source order");
   ok &= contains(gameplay_c,
                  "read_object_fields_like_miloeditor(r,poll_props);",
@@ -6428,6 +6454,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "!it->persistent&&!it->shot_scoped&&!it->polled",
                  "venue PollAnim filters do not expire after one authored cycle");
+  ok &= contains(gameplay_c,
+                 "transanim_rates[name]=anim.anim_rate;",
+                 "direct venue TransAnim routes retain their source RndAnimatable rate");
+  ok &= contains(gameplay_c,
+                 "filter.anim_rate=direct_ref_rate(ref);",
+                 "synthetic direct venue AnimFilters inherit the source anim rate");
+  ok &= contains(gameplay_c,
+                 "route_filter.anim_rate=direct_ref_rate(route.ref);",
+                 "direct EventTrigger anim refs inherit the source anim rate");
 
   ok &= contains(gameplay_c,
                  "camera_duration_range_for_event(camera_duration_bars_,"

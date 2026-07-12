@@ -310,6 +310,7 @@ class Gameplay {
     std::string source_trigger;
     uint16_t revision = 0;
     uint16_t anim_revision = 0;
+    int anim_rate = 0;
     float start_frame = 0.0f;
     float end_frame = 0.0f;
     float scale = 1.0f;
