@@ -4090,6 +4090,15 @@ int main() {
   ok &= contains(renderer_c,
                  "GHOGX_DISABLE_VENUE_PICK_HIGHLIGHT",
                  "venue inspector can disable highlight tint for clean floor proof captures");
+  ok &= contains(renderer_c,
+                 "state.highlight_enabled=!state.highlight_enabled;",
+                 "venue inspector can toggle active-surface highlight without relaunching");
+  ok &= contains(renderer_c,
+                 "win->key_down('H')",
+                 "venue inspector binds the active-surface highlight toggle to H");
+  ok &= contains(renderer_c,
+                 "Hhighlight,",
+                 "venue inspector launch controls list the highlight toggle");
   ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"

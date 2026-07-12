@@ -1020,6 +1020,8 @@ struct DebugVenueInspectorState {
   float crosshair_ndc_y = 0.0f;
   DebugVenuePick pick;
   bool highlight_source_only = false;
+  bool highlight_enabled = true;
+  bool highlight_toggle_down = false;
 };
 
 std::unordered_map<const MiloSceneRenderer*, DebugVenueInspectorState>&
@@ -1233,8 +1235,8 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
     if (!state.announced) {
       std::fprintf(stderr,
                    "[venue-freecam] enabled: mouse look, WASD move, E/R up, "
-                   "Q/F down, arrows look, Shift fast, Ctrl slow, C reseed, "
-                   "Esc quit\n");
+                   "Q/F down, arrows look, Shift fast, Ctrl slow, H highlight, "
+                   "C reseed, Esc quit\n");
       state.announced = true;
     }
   }
@@ -1255,6 +1257,13 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
   const float move_speed =
       env_float_or("GHOGX_VENUE_FREECAM_SPEED", 210.0f, 1.0f, 3000.0f);
   const float turn = turn_speed * dt;
+  const bool highlight_toggle = win->key_down('H');
+  if (highlight_toggle && !state.highlight_toggle_down) {
+    state.highlight_enabled = !state.highlight_enabled;
+    std::fprintf(stderr, "[venue-freecam] pick highlight %s\n",
+                 state.highlight_enabled ? "on" : "off");
+  }
+  state.highlight_toggle_down = highlight_toggle;
   int mouse_dx = 0;
   int mouse_dy = 0;
   win->mouse_delta(mouse_dx, mouse_dy);
@@ -3613,6 +3622,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     const bool debug_pick_highlight =
+        debug_venue->highlight_enabled &&
         !env_enabled("GHOGX_DISABLE_VENUE_PICK_HIGHLIGHT");
     debug_venue->highlight_mesh =
         debug_pick_highlight && debug_venue->pick.hit ? debug_venue->pick.mesh
