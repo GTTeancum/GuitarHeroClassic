@@ -32,7 +32,9 @@ records the upstream commits for the copied files:
   `rb3` master `41719f248995f677ffa39bd394706b5d18ef70c6`,
   `rb3` tag `retail-old` `ae71945afad4d3b12bb34f4d71aecc4750334105`,
   `re-gh2` main `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`, and
-  `band3_recomp` main `c51944bd13dfd4cb6df918159fb7136c20f74fb0`.
+  `band3_recomp` main `c51944bd13dfd4cb6df918159fb7136c20f74fb0`,
+  `grim` main `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb`, and
+  `re-notes` main `5c486fd6e5e5186c0797df9c84182b056672b3f0`.
   The imported `grim` loader snapshot adds reviewable Rust source for
   `CharClipSamples`, `CharClip`, and `CharBonesSamples` file-structure details
   that were missing from the checked C++ bodies.

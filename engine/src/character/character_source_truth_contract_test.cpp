@@ -679,6 +679,14 @@ int run_contract() {
                  "`c51944bd13dfd4cb6df918159fb7136c20f74fb0`",
                  "document records current band3_recomp upstream check");
   ok &= contains(doc,
+                 "`grim` main "
+                 "`1c05ca3d00eaafb4b522435bbb1b8a554c0484bb`",
+                 "document records current grim upstream check");
+  ok &= contains(doc,
+                 "`re-notes` main "
+                 "`5c486fd6e5e5186c0797df9c84182b056672b3f0`",
+                 "document records current re-notes upstream check");
+  ok &= contains(doc,
                  "`ihatecompvir-extra/grim` is a narrow source copy of "
                  "`ihatecompvir/grim`",
                  "document records imported grim source snapshot");
