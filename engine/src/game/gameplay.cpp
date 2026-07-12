@@ -9045,8 +9045,7 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     Gameplay::VenueMeshAnim anim;
     anim.name = canonical_milo_ref(entry_name);
     if (size < 32) return anim;
-    const uint32_t meshanim_revision = read_u32_at_unchecked(body, 0);
-    if (meshanim_revision == 0 || meshanim_revision > 2) return anim;
+    uint16_t meshanim_revision = 0;
 
     auto sane_frame = [](float frame) {
         return std::isfinite(frame) && frame >= 0.0f && frame <= 100000.0f;
@@ -9243,16 +9242,12 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
         return true;
     };
 
-    size_t pos = 25;
-    auto mesh = read_milo_string_advance(body, size, pos, 128);
-    if (!mesh) return anim;
-    anim.mesh = canonical_milo_ref(*mesh);
-
-    if (!read_vec3_key_page(pos, anim.frames) ||
-        (meshanim_revision > 1 &&
-         !read_normal_key_page(pos, anim.normal_frames)) ||
-        !read_vec2_key_page(pos, anim.texcoord_frames) ||
-        !read_color_key_page(pos, anim.color_frames)) {
+    auto fail = [&](const char* reason) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndMeshAnim decode failed %s: %s\n",
+                         entry_name.c_str(), reason);
+        }
         anim.frames.clear();
         anim.normal_frames.clear();
         anim.texcoord_frames.clear();
@@ -9260,18 +9255,44 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
         anim.frame_count = 0;
         anim.vertex_count = 0;
         anim.duration_frames = 0.0f;
+        anim.mesh.clear();
         return anim;
+    };
+
+    size_t pos = 0;
+    try {
+        MiloCursor r{body, size, 0};
+        const uint32_t combined_revision = r.u32();
+        meshanim_revision = static_cast<uint16_t>(combined_revision & 0xffff);
+        if (meshanim_revision > 2)
+            return fail("revision unsupported");
+        if (meshanim_revision != 0) {
+            std::unordered_map<std::string, MiloValue> object_props;
+            read_object_fields_like_miloeditor(r, object_props);
+        }
+        (void)read_rnd_animatable_like_miloeditor(r);
+        anim.mesh = canonical_milo_ref(r.symbol());
+        pos = r.pos;
+    } catch (const std::exception& ex) {
+        return fail(ex.what());
+    }
+
+    if (!read_vec3_key_page(pos, anim.frames) ||
+        (meshanim_revision > 1 &&
+         !read_normal_key_page(pos, anim.normal_frames)) ||
+        !read_vec2_key_page(pos, anim.texcoord_frames) ||
+        !read_color_key_page(pos, anim.color_frames)) {
+        return fail("key page invalid");
     }
     anim.frame_count = static_cast<uint32_t>(std::max(
         {anim.frames.size(), anim.normal_frames.size(), anim.texcoord_frames.size(),
          anim.color_frames.size()}));
 
-    if (pos + 4 <= size) {
-        auto keys_owner = read_milo_string_advance(body, size, pos, 128);
-        if (!keys_owner) return anim;
-        anim.keys_owner = canonical_milo_ref(*keys_owner);
-    }
+    auto keys_owner = read_milo_string_advance(body, size, pos, 128);
+    if (!keys_owner) return fail("keys owner invalid");
+    anim.keys_owner = canonical_milo_ref(*keys_owner);
     if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
+    if (pos != size) return fail("source-shaped reader did not consume EOF");
     return anim;
 }
 

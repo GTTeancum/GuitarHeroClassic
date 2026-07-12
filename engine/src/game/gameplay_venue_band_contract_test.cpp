@@ -4893,11 +4893,16 @@ int main() {
                  "Gameplay::VenueMeshAnimdecode_venue_mesh_anim",
                  "venue MeshAnim loader exists");
   ok &= contains(gameplay_c,
-                 "meshanim_revision==0||meshanim_revision>2",
+                 "if(meshanim_revision>2)returnfail(\"revisionunsupported\");",
                  "venue MeshAnim loader follows source revision range");
   ok &= contains(gameplay_c,
-                 "size_tpos=25;",
-                 "venue MeshAnim loader enters after Object/RndAnimatable bytes");
+                 "if(meshanim_revision!=0){std::unordered_map<std::string,MiloValue>"
+                 "object_props;read_object_fields_like_miloeditor("
+                 "r,object_props);}(void)read_rnd_animatable_like_miloeditor(r);",
+                 "venue MeshAnim loader follows rb3 Object/RndAnimatable order");
+  ok &= contains(gameplay_c,
+                 "anim.mesh=canonical_milo_ref(r.symbol());",
+                 "venue MeshAnim loader reads the authored Mesh target");
   ok &= contains(gameplay_c,
                  "read_vec3_key_page(pos,anim.frames)",
                  "venue MeshAnim loader reads source vertex-position key pages");
@@ -4911,8 +4916,13 @@ int main() {
                  "read_color_key_page(pos,anim.color_frames)",
                  "venue MeshAnim loader reads source vertex-color key pages");
   ok &= contains(gameplay_c,
+                 "autokeys_owner=read_milo_string_advance(body,size,pos,128);"
+                 "if(!keys_owner)returnfail(\"keysownerinvalid\");"
                  "anim.keys_owner=canonical_milo_ref(*keys_owner);",
                  "venue MeshAnim loader preserves key-owner references");
+  ok &= contains(gameplay_c,
+                 "if(pos!=size)returnfail(\"source-shapedreaderdidnotconsumeEOF\");",
+                 "venue MeshAnim loader consumes the source-shaped payload exactly");
   ok &= contains(gameplay_c,
                  "resolve_venue_mesh_anim_key_owners(meshanim_anims);",
                  "venue MeshAnim key-owner references resolve through source pages");
