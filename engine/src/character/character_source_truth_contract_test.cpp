@@ -2659,10 +2659,24 @@ int run_contract() {
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
+  ok &= contains(scene_h,
+                 "std::stringnext_pass;boolintensify=false;"
+                 "floatemissive_multiplier=1.0f;",
+                 "shared MatObj exposes direct post-diffuse source rows");
   ok &= contains(scene,
                  "m.use_environ=r.u8()!=0;m.prelit=r.u8()!=0;"
                  "constint32_tz_mode=r.i32();",
                  "native Mat decode follows source useEnviron/preLit order");
+  ok &= contains(scene,
+                 "m.diffuse_tex_offset=static_cast<uint32_t>(r.pos);"
+                 "m.diffuse_tex=r.str();",
+                 "native Mat decode reads diffuse texture at source cursor");
+  ok &= contains(scene,
+                 "m.next_pass=r.str();m.intensify=r.u8()!=0;"
+                 "m.has_cull=true;m.cull=r.u8()!=0;m.emissive_multiplier=r.f32();",
+                 "native Mat decode reads nextPass/intensify/cull/emissive in source order");
+  ok &= missing(scene, "cand.compare",
+                "native Mat decode must not scan for filename-shaped .tex rows");
   ok &= contains(scene,
                  "SourceRndMatLoadPlansource_rndmat_load_plan(int32_trevision)",
                  "shared milo_scene implements source RndMat load plan");
@@ -2685,6 +2699,9 @@ int run_contract() {
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");
+  ok &= contains(scene_test,
+                 "CHECK(m.next_pass.empty());CHECK(!m.intensify);",
+                 "milo_scene test covers direct RndMat post-diffuse rows");
 
   ok &= contains(group_cs,
                  "anim=newRndAnimatable().Read(reader,parent,entry);"

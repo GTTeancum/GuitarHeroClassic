@@ -1233,6 +1233,9 @@ struct MatObj {
   bool alpha_write = false;
   uint8_t tex_gen = 0;
   uint8_t tex_wrap = 1;
+  std::string next_pass;
+  bool intensify = false;
+  float emissive_multiplier = 1.0f;
   // Source schema: Mat.ng.cull. GH2 PS2 v27 stores this in the
   // post-diffuse render-state block; absent/undecoded means keep renderer
   // default culling.

@@ -4891,8 +4891,9 @@ Viewer hand-overlay validation:
   slice: `blend`, color, `useEnviron`, `preLit`, `zMode`, `alphaCut`,
   optional later-rev `alphaThreshold`, `alphaWrite`, `texGen`, `texWrap`,
   `texXfm`, diffuse texture, next pass, `intensify`, and `cull`. Native
-  `milo_scene::MatObj` now decodes those render-state fields instead of only
-  scanning past them to the diffuse texture. The hermetic
+  `milo_scene::MatObj` now decodes those render-state fields directly from the
+  source cursor instead of scanning forward for a filename-shaped texture row.
+  The hermetic
   `ghogx_milo_scene_test` now pins a GH2-v27 material byte layout with
   `alphaCut`, `zMode`, `texWrap`, and `texXfm`.
 - Fresh ihatecompvir/MiloLib visual/source samples are in

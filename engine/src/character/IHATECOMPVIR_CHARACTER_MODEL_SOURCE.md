@@ -1183,7 +1183,10 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `alpha_threshold` for revisions above `0x25`, `alpha_write`, `tex_gen`,
     `tex_wrap`, `tex_xfm`, `diffuse_tex`, `next_pass`, `intensify`, `cull`,
     and `emissive_multiplier` in source order. GH2 PS2 v27 therefore has no
-    serialized alpha-threshold row.
+    serialized alpha-threshold row. Native now reads `diffuse_tex`,
+    `next_pass`, `intensify`, `cull`, and `emissive_multiplier` directly from
+    that source cursor instead of scanning forward for a filename-shaped
+    `.tex` row.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
 - `rb3/src/system/rndobj/Tex.cpp`

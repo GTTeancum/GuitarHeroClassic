@@ -1782,10 +1782,10 @@ MatObj decode_mat(const std::string& entry_name,
   Reader r(body.data(), body.size());
   MatObj m;
   m.name = entry_name;
-  int32_t ver = r.i32();     // = 27
-  (void)ver;
+  const int32_t ver = r.i32();     // = 27 for GH2 PS2 stock character mats.
+  const SourceRndMatLoadPlan plan = source_rndmat_load_plan(ver);
   read_object_fields(r);     // base metadata
-  const uint32_t blend = r.u32();
+  const uint32_t blend = plan.reads_blend ? r.u32() : 0;
   if (blend <= 6) {
     // macros.dta BLEND_ENUM. This precedes colour in real GH2 PS2 Mat entries:
     // kBlendDest/Src/Add/SrcAlpha/SrcAlphaAdd/Subtract/Multiply.
@@ -1796,100 +1796,51 @@ MatObj decode_mat(const std::string& entry_name,
   m.color[2] = r.f32();
   m.color[3] = r.f32();
   const size_t flag_pos = r.pos;
-  size_t tex_xfm_pos = r.pos + 16;
-  if (ver > 21) {
-    try {
-      m.use_environ = r.u8() != 0;
-      m.prelit = r.u8() != 0;
-      const int32_t z_mode = r.i32();
-      m.z_mode = static_cast<uint8_t>(
-          (z_mode >= 0 && z_mode <= 4) ? z_mode : 1);
-      m.alpha_cut = r.u8() != 0;
-      if (ver > 0x25) m.alpha_threshold = r.i32();
-      m.alpha_write = r.u8() != 0;
-      const int32_t tex_gen = r.i32();
-      m.tex_gen = static_cast<uint8_t>(
-          (tex_gen >= 0 && tex_gen <= 5) ? tex_gen : 0);
-      const int32_t tex_wrap = r.i32();
-      m.tex_wrap = static_cast<uint8_t>(
-          (tex_wrap >= 0 && tex_wrap <= 4) ? tex_wrap : 1);
-      tex_xfm_pos = r.pos;
-      m.has_render_state = true;
-    } catch (const std::exception&) {
-      // Keep diffuse texture scanning below as the tolerant fallback for odd
-      // or partially decoded material bodies.
-      r.pos = flag_pos;
+  if (plan.reads_modern_render_state) {
+    m.use_environ = r.u8() != 0;
+    m.prelit = r.u8() != 0;
+    const int32_t z_mode = r.i32();
+    m.z_mode = static_cast<uint8_t>(
+        (z_mode >= 0 && z_mode <= 4) ? z_mode : 1);
+    m.alpha_cut = r.u8() != 0;
+    if (plan.reads_alpha_threshold) m.alpha_threshold = r.i32();
+    m.alpha_write = r.u8() != 0;
+    const int32_t tex_gen = r.i32();
+    m.tex_gen = static_cast<uint8_t>(
+        (tex_gen >= 0 && tex_gen <= 5) ? tex_gen : 0);
+    const int32_t tex_wrap = r.i32();
+    m.tex_wrap = static_cast<uint8_t>(
+        (tex_wrap >= 0 && tex_wrap <= 4) ? tex_wrap : 1);
+    const float tex_xfm[9] = {r.f32(), r.f32(), r.f32(),
+                              r.f32(), r.f32(), r.f32(),
+                              r.f32(), r.f32(), r.f32()};
+    const float m22 = tex_xfm[8];
+    const float su = tex_xfm[0];
+    const float sv = tex_xfm[4];
+    if (m22 > 0.9f && m22 < 1.1f && su > 0.01f && su < 64.0f &&
+        sv > 0.01f && sv < 64.0f) {
+      m.tex_scale[0] = su;
+      m.tex_scale[1] = sv;
+      m.tex_offset[0] = tex_xfm[6];
+      m.tex_offset[1] = tex_xfm[7];
     }
-  }
-  // Diffuse texcoord transform: source-schema state bytes, then the tex_xfm
-  // transform. The renderer currently consumes the 3x3 UV portion (UV tiling on
-  // the diagonal, UV offset in row 2, homogeneous [2][2]=1). Confirmed from the
-  // raw bytes: mm_brick03.mat has scale (4,3) -> the 256px brick tile repeats
-  // across the 1600-unit wall (small bricks); mainmenu.mat is identity.
-  {
-    const size_t txf = tex_xfm_pos;
-    auto rf = [&](size_t o) { float f; std::memcpy(&f, body.data() + o, 4); return f; };
-    if (txf + 36 <= body.size()) {
-      const float m22 = rf(txf + 32);     // [2][2]
-      const float su = rf(txf + 0);       // [0][0]
-      const float sv = rf(txf + 16);      // [1][1]
-      if (m22 > 0.9f && m22 < 1.1f && su > 0.01f && su < 64.0f && sv > 0.01f && sv < 64.0f) {
-        m.tex_scale[0] = su;
-        m.tex_scale[1] = sv;
-        m.tex_offset[0] = rf(txf + 24);   // [2][0]
-        m.tex_offset[1] = rf(txf + 28);   // [2][1]
-      }
+    m.diffuse_tex_offset = static_cast<uint32_t>(r.pos);
+    m.diffuse_tex = r.str();
+    m.pre_diffuse_tex_bytes.assign(
+        body.begin() + static_cast<std::ptrdiff_t>(flag_pos),
+        body.begin() + static_cast<std::ptrdiff_t>(m.diffuse_tex_offset));
+    const size_t after_diffuse = r.pos;
+    if (after_diffuse < body.size()) {
+      m.post_diffuse_tex_bytes.assign(
+          body.begin() + static_cast<std::ptrdiff_t>(after_diffuse),
+          body.end());
     }
-  }
-  // The flag / texture-state bytes follow the colour. We don't need their exact split
-  // to draw; the diffuse texture name is the load-bearing field. Scan forward
-  // from here for the first length-prefixed ".tex" string — robust against the
-  // version-specific flag block between colour and the texture reference.
-  size_t start = r.pos;
-  for (size_t o = start; o + 4 <= body.size(); ++o) {
-    uint32_t len;
-    std::memcpy(&len, body.data() + o, 4);
-    if (len < 4 || len > 64 || o + 4 + len > body.size()) continue;
-    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
-    // Must be printable and end in ".tex".
-    bool printable = true;
-    for (uint32_t k = 0; k < len; ++k) {
-      char c = s[k];
-      if (c < 0x20 || c >= 0x7f) { printable = false; break; }
-    }
-    if (!printable) continue;
-    std::string cand(s, len);
-    if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".tex") == 0) {
-      m.diffuse_tex = cand;
-      m.diffuse_tex_offset = static_cast<uint32_t>(o);
-      m.pre_diffuse_tex_bytes.assign(body.begin() + static_cast<std::ptrdiff_t>(flag_pos),
-                                     body.begin() + static_cast<std::ptrdiff_t>(o));
-      const size_t after = o + 4 + len;
-      if (after < body.size()) {
-        m.post_diffuse_tex_bytes.assign(
-            body.begin() + static_cast<std::ptrdiff_t>(after), body.end());
-      }
-      // MiloEditor's RndMat source order puts nextPass/intensify/cull/
-      // emissiveMultiplier immediately after diffuseTex. In observed GH2 PS2
-      // v27 materials, the post-diffuse block starts with an empty next_pass
-      // ref, one state byte, then the one-byte ng.cull value. The following
-      // float at +6 is the stable 1.0 emissive multiplier, which guards this
-      // offset from random ".tex" string matches.
-      if (m.post_diffuse_tex_bytes.size() >= 10 &&
-          m.post_diffuse_tex_bytes[0] == 0 &&
-          m.post_diffuse_tex_bytes[1] == 0 &&
-          m.post_diffuse_tex_bytes[2] == 0 &&
-          m.post_diffuse_tex_bytes[3] == 0) {
-        float emissive = 0.0f;
-        std::memcpy(&emissive, m.post_diffuse_tex_bytes.data() + 6, 4);
-        if (std::isfinite(emissive) && emissive >= 0.0f &&
-            emissive <= 16.0f) {
-          m.has_cull = true;
-          m.cull = m.post_diffuse_tex_bytes[5] != 0;
-        }
-      }
-      break;
-    }
+    m.next_pass = r.str();
+    m.intensify = r.u8() != 0;
+    m.has_cull = true;
+    m.cull = r.u8() != 0;
+    m.emissive_multiplier = r.f32();
+    m.has_render_state = true;
   }
   m.decoded = true;
   return m;
