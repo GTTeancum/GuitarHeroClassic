@@ -769,6 +769,7 @@ struct SourceCharLookAtCopyPlan {
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
   std::string bone_name;  // Grim-style target name, often "*.mesh"
+  float source_weight = 1.0f;  // Serialized CharBone weight retained from source.
   float pos[3] = {};      // kPos: X,Y,Z
   float scale[3] = {1.0f, 1.0f, 1.0f};  // kScale: local X,Y,Z scale
   float quat[4] = {};     // kQuat: X,Y,Z,W
@@ -2058,6 +2059,9 @@ size_t source_grim_char_bones_samples_get_type_size2(int type,
                                                      int compression);
 std::string source_grim_char_bones_samples_channel_mesh_name(
     const std::string& channel);
+float source_grim_char_bones_samples_channel_weight(
+    const std::vector<float>& weights,
+    size_t index);
 bool source_grim_char_bones_samples_decodes_channel_type(int type);
 bool source_grim_char_bones_samples_panics_channel_type(int type);
 SourceGrimCharBonesSamplesDecodePlan

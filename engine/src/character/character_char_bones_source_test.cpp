@@ -1618,6 +1618,15 @@ int main() {
                        ? 1
                        : 0,
                    1, "grim decode panics rotx");
+  ok &= expect_float(source_grim_char_bones_samples_channel_weight(
+                         {0.25f, 0.75f}, 0),
+                     0.25f, "grim channel weight first");
+  ok &= expect_float(source_grim_char_bones_samples_channel_weight(
+                         {0.25f, 0.75f}, 1),
+                     0.75f, "grim channel weight second");
+  ok &= expect_float(source_grim_char_bones_samples_channel_weight(
+                         {0.25f, 0.75f}, 2),
+                     1.0f, "grim channel weight fallback");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(0), 0.0f,
                     "grim snorm16 zero");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(32767), 1.0f,

@@ -844,6 +844,18 @@ int run_contract() {
   ok &= contains(grim_char_bones_samples_mod,
                  "t@5=>{//rotz",
                  "grim CharBonesSamples explicitly decodes rotz");
+  ok &= contains(grim_char_bones_samples_io,
+                 "CharBone{symbol:s,weight:w}",
+                 "grim CharBonesSamples stores serialized channel weights");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "Some((bone.weight,vec![pos]))",
+                 "grim CharBonesSamples attaches pos channel weight");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "Some((bone.weight,vec![quat]))",
+                 "grim CharBonesSamples attaches quat channel weight");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "Some((bone.weight,vec![rotz]))",
+                 "grim CharBonesSamples attaches rotz channel weight");
   ok &= contains(grim_char_bones_samples_mod,
                  "((i16::from_le_bytes(data)asf32)/32767.0).max(-1.0)",
                  "grim CharBonesSamples compressed scalar decode has no pi scale");
@@ -20142,6 +20154,9 @@ int run_contract() {
                  "parser uses it for the publish/skip decision",
                  "document records parser use of Grim decode support set");
   ok &= contains(doc,
+                 "`ClipChannel::source_weight` and",
+                 "document records native channel weight retention");
+  ok &= contains(doc,
                  "Native `source_char_bones_samples_load_plan` records the "
                  "checked `Load`\n    delegation",
                  "document records native CharBonesSamples load plan");
@@ -20227,6 +20242,13 @@ int run_contract() {
                  "boolsource_grim_char_bones_samples_decodes_channel_type("
                  "inttype);",
                  "native exposes Grim decode supported-type helper");
+  ok &= contains(char_clip_h,
+                 "floatsource_weight=1.0f;",
+                 "native ClipChannel retains source sample weight");
+  ok &= contains(char_clip_h,
+                 "floatsource_grim_char_bones_samples_channel_weight("
+                 "conststd::vector<float>&weights,size_tindex);",
+                 "native exposes Grim channel weight helper");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDataPlansource_grim_char_bones_samples_data_plan(",
                  "native implements Grim CharBonesSamples data stride helper");
@@ -20242,6 +20264,11 @@ int run_contract() {
                  "inttype){returntype==kSourceCharBonesTypePos||type=="
                  "kSourceCharBonesTypeQuat||type==kSourceCharBonesTypeRotZ;}",
                  "native helper ports Grim supported decode set");
+  ok &= contains(char_clip,
+                 "floatsource_grim_char_bones_samples_channel_weight("
+                 "conststd::vector<float>&weights,size_tindex){returnindex<"
+                 "weights.size()?weights[index]:1.0f;}",
+                 "native helper preserves serialized channel weights");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDecodePlansource_grim_char_bones_"
                  "samples_decode_plan(){",
@@ -20259,6 +20286,10 @@ int run_contract() {
   ok &= contains(char_clip,
                  "if(!source_grim_char_bones_samples_decodes_channel_type(cat))",
                  "clip parser uses Grim decode supported-type helper");
+  ok &= contains(char_clip,
+                 "ch.source_weight=source_grim_char_bones_samples_channel_weight"
+                 "(bl.weights,bi);",
+                 "clip parser retains Grim channel weight metadata");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::EvaluateChannel(",
                 "latest CharBonesSamples source does not expose EvaluateChannel body");
@@ -20286,6 +20317,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_decodes_channel_type(",
                  "focused CharBones source test covers Grim supported decode set");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_channel_weight(",
+                 "focused CharBones source test covers Grim channel weights");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");

@@ -1128,6 +1128,12 @@ bool source_grim_char_bones_samples_decodes_channel_type(int type) {
          type == kSourceCharBonesTypeRotZ;
 }
 
+float source_grim_char_bones_samples_channel_weight(
+    const std::vector<float>& weights,
+    size_t index) {
+  return index < weights.size() ? weights[index] : 1.0f;
+}
+
 bool source_grim_char_bones_samples_panics_channel_type(int type) {
   return !source_grim_char_bones_samples_decodes_channel_type(type);
 }
@@ -2410,6 +2416,8 @@ std::vector<std::vector<ClipChannel>> parse_all(
         ClipChannel ch;
         ch.bone_name =
             source_grim_char_bones_samples_channel_mesh_name(bl.names[bi]);
+        ch.source_weight =
+            source_grim_char_bones_samples_channel_weight(bl.weights, bi);
         const int cat = bl.cats[bi];
         if (!source_grim_char_bones_samples_decodes_channel_type(cat)) {
           switch (cat) {

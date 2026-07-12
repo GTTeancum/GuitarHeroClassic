@@ -3525,6 +3525,12 @@ note, and all report `unreadBytes=0`.
     `source_grim_char_bones_samples_decodes_channel_type` expose that decode
     set, and the GH2 clip parser uses it for the publish/skip decision while
     still consuming unsupported channel bytes to keep packed sample rows aligned.
+  - Grim stores each serialized channel as `CharBone { symbol, weight }` and
+    attaches `bone.weight` to the decoded `.pos`, `.quat`, or `.rotz` sample
+    vector. Native `ClipChannel::source_weight` and
+    `source_grim_char_bones_samples_channel_weight` now retain that authored
+    channel weight as decode metadata; broad pose weighting remains fenced to
+    the missing `CharBonesSamples`/`CharBones` runtime bodies.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,
