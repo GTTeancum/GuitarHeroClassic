@@ -720,6 +720,92 @@ SourceRndMeshSetVolumePlan source_rndmesh_set_volume_plan(
   return plan;
 }
 
+SourceRndMeshPreLoadVerticesPlan source_rndmesh_pre_load_vertices_plan(
+    int32_t alt_revision) {
+  SourceRndMeshPreLoadVerticesPlan plan;
+  plan.alt_revision = alt_revision;
+  plan.creates_file_loader = alt_revision > 4;
+  return plan;
+}
+
+SourceRndMeshPostLoadVerticesPlan source_rndmesh_post_load_vertices_plan(
+    int32_t mesh_revision,
+    int32_t compressed_size,
+    bool stream_compressed_flag,
+    int32_t loaded_compressed_size,
+    int32_t loaded_version,
+    uint32_t mutable_flags,
+    bool keep_mesh_data,
+    bool has_file_loader) {
+  SourceRndMeshPostLoadVerticesPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.compressed_size = compressed_size;
+  plan.had_file_loader = has_file_loader;
+  plan.releases_file_loader = has_file_loader;
+  plan.wraps_buffer_stream = has_file_loader;
+  plan.frees_temp_buffer = has_file_loader;
+  plan.reads_compressed_flag = mesh_revision > 0x22;
+  plan.compressed_flag = plan.reads_compressed_flag && stream_compressed_flag;
+  if (plan.compressed_flag) {
+    plan.loaded_compressed_size = loaded_compressed_size;
+    plan.loaded_version = loaded_version;
+    plan.asserts_vertex_compression_supported = true;
+    plan.unsupported_compression_fail = true;
+    plan.compressed_metadata_zero =
+        loaded_compressed_size == 0 && loaded_version == 0;
+    plan.warns_stale_compressed_data = !plan.compressed_metadata_zero;
+    if (plan.compressed_metadata_zero) {
+      plan.stores_num_compressed_verts = true;
+      plan.num_compressed_verts = compressed_size;
+      plan.debug_fail_if_compressed_size_nonzero = compressed_size != 0;
+      plan.allocates_compressed_verts = compressed_size != 0;
+      plan.reads_compressed_chunks = compressed_size != 0;
+    } else {
+      plan.asserts_positive_seek = true;
+      plan.seek_bytes = loaded_compressed_size * compressed_size;
+    }
+    return plan;
+  }
+
+  plan.uncompressed_path = true;
+  plan.resize_verts = true;
+  plan.resize_bool = (mutable_flags & 0x1fU) == 0 && !keep_mesh_data;
+  plan.vertex_read_count = compressed_size;
+  plan.temp_eof_poll_count = compressed_size > 0 ? compressed_size / 0x200 : 0;
+  return plan;
+}
+
+SourceRndMeshCreateMultiMeshPlan source_rndmesh_create_multi_mesh_plan(
+    bool owner_had_multimesh) {
+  SourceRndMeshCreateMultiMeshPlan plan;
+  plan.owner_had_multimesh = owner_had_multimesh;
+  plan.creates_multimesh = !owner_had_multimesh;
+  plan.sets_mesh_to_owner = !owner_had_multimesh;
+  plan.clears_instances = true;
+  plan.returns_owner_multimesh = true;
+  return plan;
+}
+
+SourceRndMeshCacheStripsPlan source_rndmesh_cache_strips_plan(
+    bool stream_cached,
+    bool platform_wii,
+    bool owner_is_self,
+    int32_t face_count,
+    int32_t vert_count,
+    uint32_t mutable_flags) {
+  SourceRndMeshCacheStripsPlan plan;
+  plan.stream_cached = stream_cached;
+  plan.platform_wii = platform_wii;
+  plan.owner_is_self = owner_is_self;
+  plan.has_faces = face_count != 0;
+  plan.has_verts = vert_count != 0;
+  plan.mutable_strip_disabled = (mutable_flags & 0x20U) != 0;
+  plan.cache_strips = stream_cached && platform_wii && owner_is_self &&
+                      plan.has_faces && plan.has_verts &&
+                      !plan.mutable_strip_disabled;
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {

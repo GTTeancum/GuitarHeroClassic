@@ -910,6 +910,22 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     branches. The source-visible box branch grows a box and allocates a
     `BSPNode`, but both box/BSP branch bodies are incomplete in the checked
     source and must not be treated as a native BSP implementation.
+  - Native `source_rndmesh_pre_load_vertices_plan` and
+    `source_rndmesh_post_load_vertices_plan` record the visible vertex-load
+    support path: alternate revisions above `4` create a front `FileLoader`,
+    `PostLoadVertices` releases that loader into a temporary buffer stream,
+    revisions above `0x22` read the compressed flag, and uncompressed vertices
+    resize with `!(mMutable & 0x1F) && !mKeepMeshData` before reading each row.
+    Compressed vertex data is still fenced because the visible source asserts
+    platform support and immediately fails unsupported compression; stale
+    compressed data is skipped by byte count, while zero metadata stores the
+    compressed size and would read chunks after a debug failure when nonzero.
+  - Native `source_rndmesh_create_multi_mesh_plan` and
+    `source_rndmesh_cache_strips_plan` mirror the checked support helpers:
+    `CreateMultiMesh` allocates an owner multimesh only when missing, sets that
+    mesh to the owner, clears instances, and returns the owner multimesh;
+    `CacheStrips` returns true only for cached Wii streams on self-owned meshes
+    with nonempty faces/verts and without mutable bit `0x20`.
 - `rb3-latest/src/system/rndobj/MeshDeform.cpp` and
   `rb3-latest/src/system/rndobj/MeshDeform.h`
   - `RndMeshDeform::VertArray::VertArray` starts with size `0`, data `0`, and

@@ -410,6 +410,60 @@ struct SourceRndMeshSetVolumePlan {
   bool volume_bsp_body_incomplete = false;
 };
 
+struct SourceRndMeshPreLoadVerticesPlan {
+  int32_t alt_revision = 0;
+  bool creates_file_loader = false;
+  bool load_front = true;
+  bool keeps_bin_stream = true;
+};
+
+struct SourceRndMeshPostLoadVerticesPlan {
+  int32_t mesh_revision = 0;
+  int32_t compressed_size = 0;
+  bool had_file_loader = false;
+  bool releases_file_loader = false;
+  bool wraps_buffer_stream = false;
+  bool frees_temp_buffer = false;
+  bool reads_compressed_flag = false;
+  bool compressed_flag = false;
+  int32_t loaded_compressed_size = 0;
+  int32_t loaded_version = 0;
+  bool asserts_vertex_compression_supported = false;
+  bool unsupported_compression_fail = false;
+  bool compressed_metadata_zero = false;
+  bool warns_stale_compressed_data = false;
+  bool stores_num_compressed_verts = false;
+  int32_t num_compressed_verts = 0;
+  bool debug_fail_if_compressed_size_nonzero = false;
+  bool allocates_compressed_verts = false;
+  bool reads_compressed_chunks = false;
+  bool asserts_positive_seek = false;
+  int32_t seek_bytes = 0;
+  bool uncompressed_path = false;
+  bool resize_verts = false;
+  bool resize_bool = false;
+  int32_t vertex_read_count = 0;
+  int32_t temp_eof_poll_count = 0;
+};
+
+struct SourceRndMeshCreateMultiMeshPlan {
+  bool owner_had_multimesh = false;
+  bool creates_multimesh = false;
+  bool sets_mesh_to_owner = false;
+  bool clears_instances = true;
+  bool returns_owner_multimesh = true;
+};
+
+struct SourceRndMeshCacheStripsPlan {
+  bool stream_cached = false;
+  bool platform_wii = false;
+  bool owner_is_self = false;
+  bool has_faces = false;
+  bool has_verts = false;
+  bool mutable_strip_disabled = false;
+  bool cache_strips = false;
+};
+
 int32_t source_rndmesh_max_bones();
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
                                                bool keep_mesh_data);
@@ -439,6 +493,26 @@ SourceRndMeshSetVolumePlan source_rndmesh_set_volume_plan(
     bool owner_is_self,
     bool has_vertices,
     bool has_faces);
+SourceRndMeshPreLoadVerticesPlan source_rndmesh_pre_load_vertices_plan(
+    int32_t alt_revision);
+SourceRndMeshPostLoadVerticesPlan source_rndmesh_post_load_vertices_plan(
+    int32_t mesh_revision,
+    int32_t compressed_size,
+    bool stream_compressed_flag,
+    int32_t loaded_compressed_size,
+    int32_t loaded_version,
+    uint32_t mutable_flags,
+    bool keep_mesh_data,
+    bool has_file_loader);
+SourceRndMeshCreateMultiMeshPlan source_rndmesh_create_multi_mesh_plan(
+    bool owner_had_multimesh);
+SourceRndMeshCacheStripsPlan source_rndmesh_cache_strips_plan(
+    bool stream_cached,
+    bool platform_wii,
+    bool owner_is_self,
+    int32_t face_count,
+    int32_t vert_count,
+    uint32_t mutable_flags);
 
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;

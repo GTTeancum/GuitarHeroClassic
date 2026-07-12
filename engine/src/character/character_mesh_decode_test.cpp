@@ -796,6 +796,112 @@ int main() {
   CHECK(volume_bsp.enters_volume_bsp_branch);
   CHECK(volume_bsp.volume_bsp_body_incomplete);
 
+  const auto preload_old =
+      ghogx::character::source_rndmesh_pre_load_vertices_plan(4);
+  CHECK(preload_old.alt_revision == 4);
+  CHECK(!preload_old.creates_file_loader);
+  CHECK(preload_old.load_front);
+  CHECK(preload_old.keeps_bin_stream);
+
+  const auto preload_new =
+      ghogx::character::source_rndmesh_pre_load_vertices_plan(5);
+  CHECK(preload_new.alt_revision == 5);
+  CHECK(preload_new.creates_file_loader);
+  CHECK(preload_new.load_front);
+  CHECK(preload_new.keeps_bin_stream);
+
+  const auto post_rev34_uncompressed =
+      ghogx::character::source_rndmesh_post_load_vertices_plan(
+          0x22, 1025, true, 0, 0, 0, false, true);
+  CHECK(post_rev34_uncompressed.had_file_loader);
+  CHECK(post_rev34_uncompressed.releases_file_loader);
+  CHECK(post_rev34_uncompressed.wraps_buffer_stream);
+  CHECK(post_rev34_uncompressed.frees_temp_buffer);
+  CHECK(!post_rev34_uncompressed.reads_compressed_flag);
+  CHECK(!post_rev34_uncompressed.compressed_flag);
+  CHECK(post_rev34_uncompressed.uncompressed_path);
+  CHECK(post_rev34_uncompressed.resize_verts);
+  CHECK(post_rev34_uncompressed.resize_bool);
+  CHECK(post_rev34_uncompressed.vertex_read_count == 1025);
+  CHECK(post_rev34_uncompressed.temp_eof_poll_count == 2);
+
+  const auto post_keep_mesh_data =
+      ghogx::character::source_rndmesh_post_load_vertices_plan(
+          0x22, 12, false, 0, 0, 0, true, false);
+  CHECK(post_keep_mesh_data.uncompressed_path);
+  CHECK(!post_keep_mesh_data.resize_bool);
+
+  const auto post_mutable =
+      ghogx::character::source_rndmesh_post_load_vertices_plan(
+          0x22, 12, false, 0, 0, 0x1f, false, false);
+  CHECK(post_mutable.uncompressed_path);
+  CHECK(!post_mutable.resize_bool);
+
+  const auto post_compressed_zero =
+      ghogx::character::source_rndmesh_post_load_vertices_plan(
+          0x23, 4, true, 0, 0, 0, false, false);
+  CHECK(post_compressed_zero.reads_compressed_flag);
+  CHECK(post_compressed_zero.compressed_flag);
+  CHECK(post_compressed_zero.asserts_vertex_compression_supported);
+  CHECK(post_compressed_zero.unsupported_compression_fail);
+  CHECK(post_compressed_zero.compressed_metadata_zero);
+  CHECK(!post_compressed_zero.warns_stale_compressed_data);
+  CHECK(post_compressed_zero.stores_num_compressed_verts);
+  CHECK(post_compressed_zero.num_compressed_verts == 4);
+  CHECK(post_compressed_zero.debug_fail_if_compressed_size_nonzero);
+  CHECK(post_compressed_zero.allocates_compressed_verts);
+  CHECK(post_compressed_zero.reads_compressed_chunks);
+  CHECK(!post_compressed_zero.uncompressed_path);
+
+  const auto post_compressed_stale =
+      ghogx::character::source_rndmesh_post_load_vertices_plan(
+          0x23, 6, true, 7, 2, 0, false, false);
+  CHECK(post_compressed_stale.reads_compressed_flag);
+  CHECK(post_compressed_stale.compressed_flag);
+  CHECK(!post_compressed_stale.compressed_metadata_zero);
+  CHECK(post_compressed_stale.warns_stale_compressed_data);
+  CHECK(!post_compressed_stale.stores_num_compressed_verts);
+  CHECK(post_compressed_stale.asserts_positive_seek);
+  CHECK(post_compressed_stale.seek_bytes == 42);
+
+  const auto multimesh_existing =
+      ghogx::character::source_rndmesh_create_multi_mesh_plan(true);
+  CHECK(multimesh_existing.owner_had_multimesh);
+  CHECK(!multimesh_existing.creates_multimesh);
+  CHECK(!multimesh_existing.sets_mesh_to_owner);
+  CHECK(multimesh_existing.clears_instances);
+  CHECK(multimesh_existing.returns_owner_multimesh);
+
+  const auto multimesh_new =
+      ghogx::character::source_rndmesh_create_multi_mesh_plan(false);
+  CHECK(!multimesh_new.owner_had_multimesh);
+  CHECK(multimesh_new.creates_multimesh);
+  CHECK(multimesh_new.sets_mesh_to_owner);
+  CHECK(multimesh_new.clears_instances);
+  CHECK(multimesh_new.returns_owner_multimesh);
+
+  const auto cache_ok = ghogx::character::source_rndmesh_cache_strips_plan(
+      true, true, true, 3, 4, 0);
+  CHECK(cache_ok.stream_cached);
+  CHECK(cache_ok.platform_wii);
+  CHECK(cache_ok.owner_is_self);
+  CHECK(cache_ok.has_faces);
+  CHECK(cache_ok.has_verts);
+  CHECK(!cache_ok.mutable_strip_disabled);
+  CHECK(cache_ok.cache_strips);
+
+  const auto cache_mutable =
+      ghogx::character::source_rndmesh_cache_strips_plan(
+          true, true, true, 3, 4, 0x20);
+  CHECK(cache_mutable.mutable_strip_disabled);
+  CHECK(!cache_mutable.cache_strips);
+
+  const auto cache_no_faces =
+      ghogx::character::source_rndmesh_cache_strips_plan(
+          true, true, true, 0, 4, 0);
+  CHECK(!cache_no_faces.has_faces);
+  CHECK(!cache_no_faces.cache_strips);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);

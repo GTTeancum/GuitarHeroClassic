@@ -3259,6 +3259,59 @@ int run_contract() {
                  "mBSPTree=newBSPNode();for(inti=0;i<6;i++){}}"
                  "elseif(mVolume==kVolumeBSP){}",
                  "RB3 runtime SetVolume incomplete BSP branches are visible");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::PreLoadVertices(BinStream&bs){if(gAltRev>4){"
+                 "mFileLoader=newFileLoader(\"\",\"\",kLoadFront,0,true,true,&bs);}}",
+                 "RB3 runtime PreLoadVertices front-load gate is visible");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::PostLoadVertices(BinStream&bs){void*buf;intlen;"
+                 "if(mFileLoader){buf=(void*)mFileLoader->GetBuffer(NULL);"
+                 "len=mFileLoader->GetSize();RELEASE(mFileLoader);}",
+                 "RB3 runtime PostLoadVertices file-loader handoff is visible");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(gRev>0x22)bs>>b58;elseb58=false;",
+                 "RB3 runtime PostLoadVertices compressed flag revision gate");
+  ok &= contains(rb3_mesh_cpp,
+                 "MILO_ASSERT(IsVertexCompressionSupported(TheLoadMgr."
+                 "GetPlatform()),0x331);MILO_FAIL(\"Unsupportedplatformfor"
+                 "vertexcompression\");",
+                 "RB3 runtime PostLoadVertices unsupported compression fence");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(loadedCompressedSize==0&&loadedVersion==0)b4=true;"
+                 "if(!b4){MILO_WARN(",
+                 "RB3 runtime PostLoadVertices stale compressed data warning gate");
+  ok &= contains(rb3_mesh_cpp,
+                 "mNumCompressedVerts=compressedSize;if(compressedSize!=0){"
+                 "TheDebug.Fail(MakeString(kAssertStr,__FILE__,0x369,"
+                 "\"compressedSize>0\"));mCompressedVerts=newunsignedchar["
+                 "mNumCompressedVerts];ReadChunks(bs,mCompressedVerts,0,0);}",
+                 "RB3 runtime PostLoadVertices zero-metadata compressed branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "loadedCompressedSize*=compressedSize;MILO_ASSERT("
+                 "loadedCompressedSize>0,0x376);bs.Seek(loadedCompressedSize,"
+                 "BinStream::kSeekCur);",
+                 "RB3 runtime PostLoadVertices stale compressed seek branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "boolresizebool=!(mMutable&0x1F)&&!mKeepMeshData;"
+                 "mVerts.resize(compressedSize,resizebool);",
+                 "RB3 runtime PostLoadVertices uncompressed resize gate");
+  ok &= contains(rb3_mesh_cpp,
+                 "if((i5&0x1FF)==0){while(bs.Eof()==TempEof)"
+                 "Timer::Sleep(0);}}}if(buf)_MemFree(buf);}",
+                 "RB3 runtime PostLoadVertices temp EOF poll/free tail");
+  ok &= contains(rb3_mesh_cpp,
+                 "RndMultiMesh*RndMesh::CreateMultiMesh(){RndMesh*owner="
+                 "mGeomOwner;if(!owner->mMultiMesh){owner->mMultiMesh="
+                 "Hmx::Object::New<RndMultiMesh>();owner->mMultiMesh->"
+                 "SetMesh(owner);}owner->mMultiMesh->mInstances.resize(0);"
+                 "returnowner->mMultiMesh;}",
+                 "RB3 runtime CreateMultiMesh owner allocation branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "boolRndMesh::CacheStrips(BinStream&bs){boolret=false;"
+                 "if(bs.Cached()&&bs.GetPlatform()==kPlatformWii&&mGeomOwner."
+                 "mPtr==this&&mFaces.size()!=0&&mVerts.size()!=0&&"
+                 "!(mMutable&0x20))ret=true;returnret;}",
+                 "RB3 runtime CacheStrips Wii strip-cache gate");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
@@ -3297,6 +3350,19 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetVolumePlan{int32_trequested_volume=0;",
                  "native exposes RndMesh SetVolume source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshPreLoadVerticesPlan{int32_talt_revision=0;",
+                 "native exposes RndMesh PreLoadVertices source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshPostLoadVerticesPlan{int32_tmesh_revision=0;",
+                 "native exposes RndMesh PostLoadVertices source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCreateMultiMeshPlan{"
+                 "boolowner_had_multimesh=false;",
+                 "native exposes RndMesh CreateMultiMesh source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCacheStripsPlan{boolstream_cached=false;",
+                 "native exposes RndMesh CacheStrips source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
@@ -3340,6 +3406,27 @@ int run_contract() {
                  "int32_trequested_volume,boolowner_is_self,boolhas_vertices,"
                  "boolhas_faces)",
                  "native implements RndMesh SetVolume source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshPreLoadVerticesPlansource_rndmesh_pre_load_vertices_plan("
+                 "int32_talt_revision)",
+                 "native implements RndMesh PreLoadVertices source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshPostLoadVerticesPlan"
+                 "source_rndmesh_post_load_vertices_plan("
+                 "int32_tmesh_revision,int32_tcompressed_size,"
+                 "boolstream_compressed_flag,int32_tloaded_compressed_size,"
+                 "int32_tloaded_version,uint32_tmutable_flags,"
+                 "boolkeep_mesh_data,boolhas_file_loader)",
+                 "native implements RndMesh PostLoadVertices source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshCreateMultiMeshPlansource_rndmesh_create_multi_mesh_plan("
+                 "boolowner_had_multimesh)",
+                 "native implements RndMesh CreateMultiMesh source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshCacheStripsPlansource_rndmesh_cache_strips_plan("
+                 "boolstream_cached,boolplatform_wii,boolowner_is_self,"
+                 "int32_tface_count,int32_tvert_count,uint32_tmutable_flags)",
+                 "native implements RndMesh CacheStrips source helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -3426,6 +3513,44 @@ int run_contract() {
                  "plan.volume_box_body_incomplete=true;}elseif(requested_volume==2){"
                  "plan.enters_volume_bsp_branch=true;plan.volume_bsp_body_incomplete=true;}",
                  "native SetVolume helper fences incomplete volume branches");
+  ok &= contains(char_mesh,
+                 "plan.creates_file_loader=alt_revision>4;returnplan;",
+                 "native PreLoadVertices helper mirrors source alt-revision gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_compressed_flag=mesh_revision>0x22;"
+                 "plan.compressed_flag=plan.reads_compressed_flag&&"
+                 "stream_compressed_flag;",
+                 "native PostLoadVertices helper mirrors compressed flag gate");
+  ok &= contains(char_mesh,
+                 "plan.asserts_vertex_compression_supported=true;"
+                 "plan.unsupported_compression_fail=true;",
+                 "native PostLoadVertices helper mirrors unsupported compression fence");
+  ok &= contains(char_mesh,
+                 "plan.compressed_metadata_zero=loaded_compressed_size==0&&"
+                 "loaded_version==0;plan.warns_stale_compressed_data="
+                 "!plan.compressed_metadata_zero;",
+                 "native PostLoadVertices helper mirrors compressed metadata gate");
+  ok &= contains(char_mesh,
+                 "plan.stores_num_compressed_verts=true;"
+                 "plan.num_compressed_verts=compressed_size;"
+                 "plan.debug_fail_if_compressed_size_nonzero=compressed_size!=0;",
+                 "native PostLoadVertices helper mirrors compressed read branch");
+  ok &= contains(char_mesh,
+                 "plan.asserts_positive_seek=true;plan.seek_bytes="
+                 "loaded_compressed_size*compressed_size;",
+                 "native PostLoadVertices helper mirrors stale compressed seek branch");
+  ok &= contains(char_mesh,
+                 "plan.resize_bool=(mutable_flags&0x1fU)==0&&!keep_mesh_data;"
+                 "plan.vertex_read_count=compressed_size;",
+                 "native PostLoadVertices helper mirrors uncompressed resize branch");
+  ok &= contains(char_mesh,
+                 "plan.creates_multimesh=!owner_had_multimesh;"
+                 "plan.sets_mesh_to_owner=!owner_had_multimesh;",
+                 "native CreateMultiMesh helper mirrors owner allocation branch");
+  ok &= contains(char_mesh,
+                 "plan.cache_strips=stream_cached&&platform_wii&&owner_is_self&&"
+                 "plan.has_faces&&plan.has_verts&&!plan.mutable_strip_disabled;",
+                 "native CacheStrips helper mirrors Wii strip-cache gate");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
@@ -3462,6 +3587,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_volume_plan(",
                  "focused mesh decode test covers RndMesh SetVolume helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_pre_load_vertices_plan(",
+                 "focused mesh decode test covers RndMesh PreLoadVertices helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_post_load_vertices_plan(",
+                 "focused mesh decode test covers RndMesh PostLoadVertices helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_create_multi_mesh_plan(",
+                 "focused mesh decode test covers RndMesh CreateMultiMesh helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_cache_strips_plan(",
+                 "focused mesh decode test covers RndMesh CacheStrips helper");
   ok &= contains(doc,
                  "Native `source_rndmesh_collide_showing_plan` ports the checked",
                  "document records RndMesh CollideShowing helper");
@@ -3489,6 +3626,16 @@ int run_contract() {
   ok &= contains(doc,
                  "both box/BSP branch bodies are incomplete in the checked",
                  "document fences incomplete RndMesh SetVolume branches");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_pre_load_vertices_plan` and",
+                 "document records RndMesh vertex-load helper");
+  ok &= contains(doc,
+                 "Compressed vertex data is still fenced because the visible",
+                 "document fences RndMesh compressed vertex path");
+  ok &= contains(doc,
+                 "`source_rndmesh_create_multi_mesh_plan` and\n"
+                 "    `source_rndmesh_cache_strips_plan`",
+                 "document records RndMesh multimesh/cache helpers");
   ok &= contains(doc,
                  "| Mesh deformation rows | `rb3-latest/src/system/rndobj/"
                  "MeshDeform.cpp` / `MeshDeform.h` |",
