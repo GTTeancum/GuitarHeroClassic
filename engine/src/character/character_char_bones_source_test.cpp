@@ -1018,7 +1018,7 @@ int main() {
   ok &= expect_int(stuff_found.context_mask, 0x4,
                    "CharBoneDir StuffBones context");
   const std::vector<SourceCharBoneDirClipTypeResource> context_resources = {
-      {"solo", true, "lead_resource", 0x4, true, "zeta_context"},
+      {"dummy0", true, "lead_resource", 0x4, true, "row0_skipped"},
       {"rhythm", true, "other_resource", 0x2, true, "ignored_context"},
       {"harmony", true, "lead_resource", 0x1, true, "alpha_context"},
       {"dup", true, "lead_resource", 0x8, true, "alpha_context"},
@@ -1037,14 +1037,12 @@ int main() {
                                                   "lead_resource", {}, true);
   ok &= expect_int(rebuilt_context.rebuilt ? 1 : 0, 1,
                    "CharBoneDir GetContextFlags rebuilds int cache");
-  ok &= expect_size(rebuilt_context.scanned_rows, 4,
+  ok &= expect_size(rebuilt_context.scanned_rows, 3,
                     "CharBoneDir GetContextFlags source scan count");
-  ok &= expect_size(rebuilt_context.context_flags.size(), 2,
+  ok &= expect_size(rebuilt_context.context_flags.size(), 1,
                     "CharBoneDir GetContextFlags unique count");
   ok &= expect_string(rebuilt_context.context_flags[0], "alpha_context",
                       "CharBoneDir GetContextFlags sorts first");
-  ok &= expect_string(rebuilt_context.context_flags[1], "zeta_context",
-                      "CharBoneDir GetContextFlags sorts last");
   std::vector<CharClip::OutputBone> filter_inputs;
   CharClip::OutputBone filter_pos;
   filter_pos.name = "bone_pos";

@@ -16263,7 +16263,7 @@ int run_contract() {
                  "source_char_bone_dir_get_context_flags_step(",
                  "native CharBoneDir GetContextFlags helper is implemented");
   ok &= contains(char_clip,
-                 "for(size_tsource_index=0;source_index+1<clip_types.size();"
+                 "for(size_tsource_index=1;source_index+1<clip_types.size();"
                  "++source_index)",
                  "native CharBoneDir GetContextFlags helper preserves source scan boundary");
   ok &= contains(char_clip,

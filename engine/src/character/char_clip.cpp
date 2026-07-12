@@ -766,7 +766,7 @@ source_char_bone_dir_get_context_flags_step(
 
   step.rebuilt = true;
   step.context_flags.clear();
-  for (size_t source_index = 0; source_index + 1 < clip_types.size();
+  for (size_t source_index = 1; source_index + 1 < clip_types.size();
        ++source_index) {
     ++step.scanned_rows;
     const SourceCharBoneDirClipTypeResource& row = clip_types[source_index];

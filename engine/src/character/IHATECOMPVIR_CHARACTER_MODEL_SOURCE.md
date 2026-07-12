@@ -2543,8 +2543,10 @@ note, and all report `unreadBytes=0`.
     in the `FindResourceFromClipType` helper.
   - `CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols only
     while `mContextFlags` is still the constructor integer node. The source
-    scans `CharClip` type rows with `(resource ...)` entries matching the
-    directory name, de-duplicates `resource[2]`, sorts the symbols, and returns
+    allocates a temporary result array at `cfg->Size() - 1`, then scans source
+    rows starting at index `1` while `i < arr->Size()`. That skips the source
+    row-zero entry and the final source row. Matching `(resource ...)` rows for
+    the directory name de-duplicate `resource[2]`, sort the symbols, and return
     the cached result on later calls. Native
     `source_char_bone_dir_get_context_flags_step` preserves that table scan,
     including the source loop's `cfg->Size() - 1` allocation boundary, as a
