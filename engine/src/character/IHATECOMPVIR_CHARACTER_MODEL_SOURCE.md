@@ -119,7 +119,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `fenced-runtime-gap` |
 | `CharMeshHide.cpp` | `ghogx_character_mesh_hide_source_test` | `ported-visible-source` |
 | `CharMirror.cpp` | `ghogx_character_mirror_source_test` | `fenced-runtime-gap` |
-| `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `diagnostic-only` |
+| `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `fenced-runtime-gap` |
 | `CharPollGroup.cpp` | `ghogx_character_poll_group_source_test` | `ported-visible-source` |
 | `CharPosConstraint.cpp` | `ghogx_character_pos_constraint_source_test` | `ported-visible-source` |
 | `CharServoBone.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
@@ -2633,6 +2633,9 @@ note, and all report `unreadBytes=0`.
   `rb3-latest/src/system/char/CharNeckTwist.h`
   - `CharNeckTwist::Load` accepts source revisions through 1, loads
     `Hmx::Object`, then reads `head` and `twist` transform references.
+  - `CharNeckTwist::Copy`, handlers, and prop-sync rows are source-visible.
+    Copy duplicates `mHead` and `mTwist`, the handler table only delegates to
+    `Hmx::Object` with check `0x65`, and prop-sync exposes `head` and `twist`.
   - `CharNeckTwist::PollDeps` publishes `head` as the changed-by row and
     `twist` as the changed row. Native `source_char_neck_twist_poll_deps`
     mirrors that data behavior.

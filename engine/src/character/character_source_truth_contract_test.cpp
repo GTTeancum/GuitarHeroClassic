@@ -14796,6 +14796,21 @@ int run_contract() {
                  "bs>>mHead;bs>>mTwist;",
                  "latest CharNeckTwist source load order");
   ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "BEGIN_COPYS(CharNeckTwist)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharNeckTwist)",
+                 "latest CharNeckTwist source copy superclass");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "COPY_MEMBER(mHead)COPY_MEMBER(mTwist)",
+                 "latest CharNeckTwist source copy members");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "BEGIN_HANDLERS(CharNeckTwist)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x65)END_HANDLERS",
+                 "latest CharNeckTwist source handlers");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "BEGIN_PROPSYNCS(CharNeckTwist)SYNC_PROP(head,mHead)"
+                 "SYNC_PROP(twist,mTwist)END_PROPSYNCS",
+                 "latest CharNeckTwist source prop-sync rows");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
                  "changedBy.push_back(mHead);change.push_back(mTwist);",
                  "latest CharNeckTwist source PollDeps order");
   ok &= contains(rb3_latest_char_neck_twist_cpp,
@@ -14836,6 +14851,22 @@ int run_contract() {
                  "std::vector<std::string>change;};",
                  "native exposes CharNeckTwist PollDeps state");
   ok &= contains(char_mesh_h,
+                 "structSourceCharNeckTwistLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharNeckTwist load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharNeckTwistCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes CharNeckTwist copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharNeckTwistHandlerPlan{std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native exposes CharNeckTwist handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharNeckTwistPropSyncPlan{"
+                 "std::vector<std::string>properties;};",
+                 "native exposes CharNeckTwist prop-sync plan");
+  ok &= contains(char_mesh_h,
                  "floatsource_char_neck_twist_half_limited_angle("
                  "floatrotated_y_y,floatrotated_y_z);",
                  "native API exposes CharNeckTwist half-angle helper");
@@ -14847,6 +14878,35 @@ int run_contract() {
                  "boolsource_char_neck_twist_load_revision_known(intrevision){"
                  "returnrevision>=0&&revision<=1;}",
                  "native CharNeckTwist revision helper mirrors source range");
+  ok &= contains(char_mesh,
+                 "SourceCharNeckTwistLoadPlansource_char_neck_twist_load_plan("
+                 "intrevision){SourceCharNeckTwistLoadPlanplan;",
+                 "native CharNeckTwist load plan helper exists");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"mHead\",\"mTwist\"};",
+                 "native CharNeckTwist load plan mirrors source order");
+  ok &= contains(char_mesh,
+                 "SourceCharNeckTwistCopyPlansource_char_neck_twist_copy_plan(){"
+                 "SourceCharNeckTwistCopyPlanplan;",
+                 "native CharNeckTwist copy plan helper exists");
+  ok &= contains(char_mesh,
+                 "plan.copied_superclasses={\"Hmx::Object\"};"
+                 "plan.copied_members={\"mHead\",\"mTwist\"};",
+                 "native CharNeckTwist copy plan mirrors source");
+  ok &= contains(char_mesh,
+                 "SourceCharNeckTwistHandlerPlansource_char_neck_twist_handler_plan(){"
+                 "SourceCharNeckTwistHandlerPlanplan;",
+                 "native CharNeckTwist handler plan helper exists");
+  ok &= contains(char_mesh,
+                 "plan.superclasses={\"Hmx::Object\"};plan.check=0x65;",
+                 "native CharNeckTwist handler plan mirrors source");
+  ok &= contains(char_mesh,
+                 "SourceCharNeckTwistPropSyncPlansource_char_neck_twist_prop_sync_plan(){"
+                 "SourceCharNeckTwistPropSyncPlanplan;",
+                 "native CharNeckTwist prop-sync plan helper exists");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"head\",\"twist\"};",
+                 "native CharNeckTwist prop-sync plan mirrors source");
   ok &= contains(char_mesh,
                  "deps.changed_by.push_back(head);deps.change.push_back(twist);",
                  "native CharNeckTwist PollDeps helper mirrors source order");
@@ -14897,6 +14957,18 @@ int run_contract() {
                  "source_char_neck_twist_load_revision_known(1)",
                  "focused CharNeckTwist test covers source revision ceiling");
   ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_load_plan(1)",
+                 "focused CharNeckTwist test covers load plan");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_copy_plan()",
+                 "focused CharNeckTwist test covers copy plan");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_handler_plan()",
+                 "focused CharNeckTwist test covers handler plan");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_prop_sync_plan()",
+                 "focused CharNeckTwist test covers prop-sync plan");
+  ok &= contains(neck_twist_source_test,
                  "source_char_neck_twist_poll_deps(deps,\"bone_head.mesh\","
                  "\"bone_neck.mesh\")",
                  "focused CharNeckTwist test covers PollDeps helper");
@@ -14911,6 +14983,9 @@ int run_contract() {
                  "focused CharNeckTwist test covers missing quat helper boundary");
   ok &= contains(doc, "`CharNeckTwist::Load` accepts source revisions through 1",
                  "document records CharNeckTwist load boundary");
+  ok &= contains(doc,
+                 "`CharNeckTwist::Copy`, handlers, and prop-sync rows are source-visible",
+                 "document records CharNeckTwist copied source rows");
   ok &= contains(doc,
                  "`CharNeckTwist::PollDeps` publishes `head` as the changed-by row",
                  "document records CharNeckTwist dependency order");

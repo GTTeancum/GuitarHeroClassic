@@ -109,7 +109,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharMirror.cpp", "ghogx_character_mirror_source_test",
      "fenced-runtime-gap"},
     {"CharNeckTwist.cpp", "ghogx_character_neck_twist_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
     {"CharPollGroup.cpp", "ghogx_character_poll_group_source_test",
      "ported-visible-source"},
     {"CharPosConstraint.cpp", "ghogx_character_pos_constraint_source_test",

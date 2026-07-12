@@ -20,6 +20,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -37,9 +43,13 @@ bool near(float got, float want, const char* label) {
 
 int main() {
   using ghogx::character::SourceCharNeckTwistPollDeps;
+  using ghogx::character::source_char_neck_twist_copy_plan;
   using ghogx::character::source_char_neck_twist_defaults;
   using ghogx::character::source_char_neck_twist_half_limited_angle;
+  using ghogx::character::source_char_neck_twist_handler_plan;
+  using ghogx::character::source_char_neck_twist_load_plan;
   using ghogx::character::source_char_neck_twist_load_revision_known;
+  using ghogx::character::source_char_neck_twist_prop_sync_plan;
   using ghogx::character::source_char_neck_twist_poll_plan;
   using ghogx::character::source_char_neck_twist_poll_deps;
 
@@ -65,6 +75,36 @@ int main() {
                     "revision 1 accepted");
   ok &= expect_bool(source_char_neck_twist_load_revision_known(2), false,
                     "revision 2 rejected");
+
+  const auto bad_load = source_char_neck_twist_load_plan(2);
+  ok &= expect_bool(bad_load.known_revision, false, "bad load revision");
+  ok &= expect_size(bad_load.read_order.size(), 0, "bad load read order");
+  const auto load_v1 = source_char_neck_twist_load_plan(1);
+  ok &= expect_bool(load_v1.known_revision, true, "load revision 1");
+  ok &= expect_size(load_v1.read_order.size(), 3, "load read count");
+  ok &= expect_string(load_v1.read_order[0], "Hmx::Object", "load object");
+  ok &= expect_string(load_v1.read_order[1], "mHead", "load head");
+  ok &= expect_string(load_v1.read_order[2], "mTwist", "load twist");
+
+  const auto copy_plan = source_char_neck_twist_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 1,
+                    "copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "copy superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 2,
+                    "copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mHead", "copy head");
+  ok &= expect_string(copy_plan.copied_members[1], "mTwist", "copy twist");
+
+  const auto handler_plan = source_char_neck_twist_handler_plan();
+  ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
+                      "handler superclass");
+  ok &= expect_int(handler_plan.check, 0x65, "handler check");
+
+  const auto prop_sync_plan = source_char_neck_twist_prop_sync_plan();
+  ok &= expect_size(prop_sync_plan.properties.size(), 2, "prop count");
+  ok &= expect_string(prop_sync_plan.properties[0], "head", "prop head");
+  ok &= expect_string(prop_sync_plan.properties[1], "twist", "prop twist");
 
   SourceCharNeckTwistPollDeps deps;
   source_char_neck_twist_poll_deps(deps, "bone_head.mesh",

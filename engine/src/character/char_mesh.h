@@ -1937,6 +1937,25 @@ struct SourceCharNeckTwistPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharNeckTwistLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharNeckTwistCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharNeckTwistHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharNeckTwistPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharNeckTwistPollPlan {
   bool entered_head_twist_gate = false;
   bool entered_twist_parent_gate = false;
@@ -2516,6 +2535,10 @@ SourceCharInterestScoreResult source_char_interest_compute_score_deterministic(
     float random_jitter);
 SourceCharNeckTwistState source_char_neck_twist_defaults();
 bool source_char_neck_twist_load_revision_known(int revision);
+SourceCharNeckTwistLoadPlan source_char_neck_twist_load_plan(int revision);
+SourceCharNeckTwistCopyPlan source_char_neck_twist_copy_plan();
+SourceCharNeckTwistHandlerPlan source_char_neck_twist_handler_plan();
+SourceCharNeckTwistPropSyncPlan source_char_neck_twist_prop_sync_plan();
 void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
                                       const std::string& head,
                                       const std::string& twist);

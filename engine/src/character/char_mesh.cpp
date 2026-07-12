@@ -5172,6 +5172,34 @@ bool source_char_neck_twist_load_revision_known(int revision) {
   return revision >= 0 && revision <= 1;
 }
 
+SourceCharNeckTwistLoadPlan source_char_neck_twist_load_plan(int revision) {
+  SourceCharNeckTwistLoadPlan plan;
+  plan.known_revision = source_char_neck_twist_load_revision_known(revision);
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "mHead", "mTwist"};
+  return plan;
+}
+
+SourceCharNeckTwistCopyPlan source_char_neck_twist_copy_plan() {
+  SourceCharNeckTwistCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mHead", "mTwist"};
+  return plan;
+}
+
+SourceCharNeckTwistHandlerPlan source_char_neck_twist_handler_plan() {
+  SourceCharNeckTwistHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x65;
+  return plan;
+}
+
+SourceCharNeckTwistPropSyncPlan source_char_neck_twist_prop_sync_plan() {
+  SourceCharNeckTwistPropSyncPlan plan;
+  plan.properties = {"head", "twist"};
+  return plan;
+}
+
 void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
                                       const std::string& head,
                                       const std::string& twist) {
