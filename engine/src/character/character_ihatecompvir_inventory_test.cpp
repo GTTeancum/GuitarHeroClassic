@@ -111,7 +111,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharNeckTwist.cpp", "ghogx_character_neck_twist_source_test",
      "diagnostic-only"},
     {"CharPollGroup.cpp", "ghogx_character_poll_group_source_test",
-     "diagnostic-only"},
+     "ported-visible-source"},
     {"CharPosConstraint.cpp", "ghogx_character_pos_constraint_source_test",
      "ported-visible-source"},
     {"CharServoBone.cpp", "ghogx_character_char_bones_source_test",

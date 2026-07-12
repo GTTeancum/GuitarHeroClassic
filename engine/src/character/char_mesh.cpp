@@ -3172,6 +3172,16 @@ std::vector<std::string> source_char_poll_group_poll_order(
   return polls;
 }
 
+std::vector<std::string> source_char_poll_group_enter_order(
+    const std::vector<std::string>& polls) {
+  return polls;
+}
+
+std::vector<std::string> source_char_poll_group_exit_order(
+    const std::vector<std::string>& polls) {
+  return polls;
+}
+
 std::vector<std::string> source_char_poll_group_list_children(
     const std::vector<std::string>& polls) {
   return polls;

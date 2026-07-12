@@ -7378,6 +7378,16 @@ int run_contract() {
                  "SYNC_SUPERCLASS(CharWeightable)END_PROPSYNCS",
                  "CharPollGroup source prop-sync rows");
   ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::Enter(){for(ObjPtrList<CharPollable,"
+                 "ObjectDir>::iteratorit=mPolls.begin();it!=mPolls.end();"
+                 "++it){(*it)->Enter();}}",
+                 "CharPollGroup source Enter walks children");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::Exit(){for(ObjPtrList<CharPollable,"
+                 "ObjectDir>::iteratorit=mPolls.begin();it!=mPolls.end();"
+                 "++it){(*it)->Exit();}}",
+                 "CharPollGroup source Exit walks children");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
                  "voidCharPollGroup::Poll(){if(mWeightOwner->mWeight!=0.0f){"
                  "for(ObjPtrList<CharPollable,ObjectDir>::iteratorit="
                  "mPolls.begin();it!=mPolls.end();++it){(*it)->Poll();}}}",
@@ -7429,6 +7439,14 @@ int run_contract() {
                  "floatweight,conststd::vector<std::string>&polls){"
                  "if(weight==0.0f)return{};returnpolls;}",
                  "native ports CharPollGroup Poll decision");
+  ok &= contains(char_mesh,
+                 "std::vector<std::string>source_char_poll_group_enter_order("
+                 "conststd::vector<std::string>&polls){returnpolls;}",
+                 "native ports CharPollGroup Enter order");
+  ok &= contains(char_mesh,
+                 "std::vector<std::string>source_char_poll_group_exit_order("
+                 "conststd::vector<std::string>&polls){returnpolls;}",
+                 "native ports CharPollGroup Exit order");
   ok &= contains(char_mesh,
                  "std::vector<std::string>source_char_poll_group_list_children("
                  "conststd::vector<std::string>&polls){returnpolls;}",
@@ -7509,6 +7527,12 @@ int run_contract() {
   ok &= contains(poll_group_source_test,
                  "source_char_poll_group_poll_order(-0.5f,polls)",
                  "focused CharPollGroup test covers nonzero weight");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_enter_order(polls)",
+                 "focused CharPollGroup test covers Enter order");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_exit_order(polls)",
+                 "focused CharPollGroup test covers Exit order");
   ok &= contains(poll_group_source_test,
                  "source_char_poll_group_poll_deps(override_deps,child_deps,"
                  "\"\",\"override\")",
@@ -10850,6 +10874,16 @@ int run_contract() {
                  "CharPollable,ObjectDir>::iteratorit=mPolls.begin();"
                  "it!=mPolls.end();++it){(*it)->Poll();}}",
                  "CharPollGroup source Poll iterates child poll rows by weight");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::Enter(){for(ObjPtrList<CharPollable,"
+                 "ObjectDir>::iteratorit=mPolls.begin();it!=mPolls.end();"
+                 "++it){(*it)->Enter();}}",
+                 "CharPollGroup source Enter iterates child poll rows");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::Exit(){for(ObjPtrList<CharPollable,"
+                 "ObjectDir>::iteratorit=mPolls.begin();it!=mPolls.end();"
+                 "++it){(*it)->Exit();}}",
+                 "CharPollGroup source Exit iterates child poll rows");
   ok &= missing(char_mesh, "decode_poll_group",
                 "native must not decode absent CharPollGroup rows");
   ok &= missing(char_mesh, "out.poll_groups",

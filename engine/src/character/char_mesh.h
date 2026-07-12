@@ -2172,6 +2172,10 @@ void source_char_trans_copy_poll_deps(
 std::vector<std::string> source_char_poll_group_poll_order(
     float weight,
     const std::vector<std::string>& polls);
+std::vector<std::string> source_char_poll_group_enter_order(
+    const std::vector<std::string>& polls);
+std::vector<std::string> source_char_poll_group_exit_order(
+    const std::vector<std::string>& polls);
 std::vector<std::string> source_char_poll_group_list_children(
     const std::vector<std::string>& polls);
 void source_char_poll_group_poll_deps(

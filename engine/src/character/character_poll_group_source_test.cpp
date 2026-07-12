@@ -31,6 +31,8 @@ int main() {
   using ghogx::character::SourceCharPollGroupChildDeps;
   using ghogx::character::SourceCharPollGroupPollDeps;
   using ghogx::character::source_char_poll_group_copy_plan;
+  using ghogx::character::source_char_poll_group_enter_order;
+  using ghogx::character::source_char_poll_group_exit_order;
   using ghogx::character::source_char_poll_group_handler_plan;
   using ghogx::character::source_char_poll_group_list_children;
   using ghogx::character::source_char_poll_group_load_plan;
@@ -105,6 +107,20 @@ int main() {
   ok &= expect_size(order.size(), 3, "nonzero weight polls children");
   ok &= expect_string(order[0], "first.poll", "Poll preserves source order");
   ok &= expect_string(order[2], "third.poll", "Poll preserves final child");
+
+  auto enter_order = source_char_poll_group_enter_order(polls);
+  ok &= expect_size(enter_order.size(), 3, "Enter visits all children");
+  ok &= expect_string(enter_order[0], "first.poll",
+                      "Enter preserves source order");
+  ok &= expect_string(enter_order[2], "third.poll",
+                      "Enter preserves final child");
+
+  auto exit_order = source_char_poll_group_exit_order(polls);
+  ok &= expect_size(exit_order.size(), 3, "Exit visits all children");
+  ok &= expect_string(exit_order[0], "first.poll",
+                      "Exit preserves source order");
+  ok &= expect_string(exit_order[2], "third.poll",
+                      "Exit preserves final child");
 
   auto children = source_char_poll_group_list_children(polls);
   ok &= expect_size(children.size(), 3, "ListPollChildren count");

@@ -120,7 +120,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharMeshHide.cpp` | `ghogx_character_mesh_hide_source_test` | `ported-visible-source` |
 | `CharMirror.cpp` | `ghogx_character_mirror_source_test` | `fenced-runtime-gap` |
 | `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `diagnostic-only` |
-| `CharPollGroup.cpp` | `ghogx_character_poll_group_source_test` | `diagnostic-only` |
+| `CharPollGroup.cpp` | `ghogx_character_poll_group_source_test` | `ported-visible-source` |
 | `CharPosConstraint.cpp` | `ghogx_character_pos_constraint_source_test` | `ported-visible-source` |
 | `CharServoBone.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
 | `CharSleeve.cpp` | `ghogx_character_sleeve_source_test` | `ported-visible-source` |
@@ -1719,6 +1719,8 @@ note, and all report `unreadBytes=0`.
     `SortPolls` delegates ordering to `CharPollableSorter`, the handler table
     exposes `sort_polls` with check `0xA2`, and prop-sync exposes `polls`,
     `changed_by`, `changes`, then `CharWeightable`.
+  - `CharPollGroup::Enter` and `CharPollGroup::Exit` iterate every child in
+    `mPolls` list order.
   - `CharPollGroup::Poll` iterates `mPolls` only when the source weight owner
     weight is nonzero. Zero weight skips every child.
   - `ListPollChildren` appends every poll child in list order.
@@ -1730,6 +1732,8 @@ note, and all report `unreadBytes=0`.
     `source_char_poll_group_handler_plan`,
     `source_char_poll_group_prop_sync_plan`,
     `source_char_poll_group_sort_plan`,
+    `source_char_poll_group_enter_order`,
+    `source_char_poll_group_exit_order`,
     `source_char_poll_group_poll_order`,
     `source_char_poll_group_list_children`, and
     `source_char_poll_group_poll_deps` port those source decisions for tests and
