@@ -5218,35 +5218,52 @@ int main() {
                  "Gameplay::VenueParticleRoutedecode_particle_anim_route",
                  "gameplay decodes ParticleSysAnim key rows");
   ok &= contains(gameplay_c,
-                 "read_u32_at_unchecked(body,0)!=3",
-                 "ParticleSysAnim loader keeps traced PS2 version");
+                 "std::optional<Gameplay::VenueParticleRoute>"
+                 "read_rnd_particlesysanim_like_miloeditor",
+                 "ParticleSysAnim loader uses a source-shaped reader");
   ok &= contains(gameplay_c,
-                 "size_tpos=25;",
-                 "ParticleSysAnim loader enters after Object/RndAnimatable bytes");
+                 "if(revision>3){throwstd::runtime_error("
+                 "\"RndParticleSysAnimrevisionunsupported\");}",
+                 "ParticleSysAnim reader keeps ihatecompvir/rb3 revision cap");
   ok &= contains(gameplay_c,
-                 "route.particle=canonical_milo_ref(*particle);",
+                 "if(revision>2){std::unordered_map<std::string,MiloValue>"
+                 "object_props;read_object_fields_like_miloeditor("
+                 "r,object_props);}(void)read_rnd_animatable_like_miloeditor(r);",
+                 "ParticleSysAnim reader follows rb3 Object/RndAnimatable order");
+  ok &= contains(gameplay_c,
+                 "route.particle=canonical_milo_ref(r.symbol());",
                  "ParticleSysAnim loader reads the authored ParticleSys reference");
   ok &= contains(gameplay_c,
-                 "read_particle_color_keys(body,size,pos,route.start_color_keys",
+                 "read_rnd_particlesysanim_color_keys_like_miloeditor("
+                 "r,\"start-color\",route.start_color_keys,last_frame);",
                  "ParticleSysAnim loader reads source start-color keys");
   ok &= contains(gameplay_c,
-                 "read_particle_color_keys(body,size,pos,route.end_color_keys",
+                 "read_rnd_particlesysanim_color_keys_like_miloeditor("
+                 "r,\"end-color\",route.end_color_keys,last_frame);",
                  "ParticleSysAnim loader reads source end-color keys");
   ok &= contains(gameplay_c,
-                 "read_particle_vector2_keys(body,size,pos,route.emission_keys",
+                 "read_rnd_particlesysanim_vector2_keys_like_miloeditor("
+                 "r,\"emit-rate\",route.emission_keys,last_frame);",
                  "ParticleSysAnim loader reads source emit-rate keys");
   ok &= contains(gameplay_c,
-                 "route.keys_owner=canonical_milo_ref(*keys_owner);",
+                 "route.keys_owner=canonical_milo_ref(r.symbol());",
                  "ParticleSysAnim loader preserves key-owner references");
   ok &= contains(gameplay_c,
-                 "read_particle_vector2_keys(body,size,pos,route.speed_keys",
+                 "read_rnd_particlesysanim_vector2_keys_like_miloeditor("
+                 "r,\"speed\",route.speed_keys,last_frame);",
                  "ParticleSysAnim loader reads source speed keys");
   ok &= contains(gameplay_c,
-                 "read_particle_vector2_keys(body,size,pos,route.life_keys",
+                 "read_rnd_particlesysanim_vector2_keys_like_miloeditor("
+                 "r,\"life\",route.life_keys,last_frame);",
                  "ParticleSysAnim loader reads source life keys");
   ok &= contains(gameplay_c,
-                 "read_particle_vector2_keys(body,size,pos,route.size_keys",
+                 "read_rnd_particlesysanim_vector2_keys_like_miloeditor("
+                 "r,\"start-size\",route.size_keys,last_frame);",
                  "ParticleSysAnim loader reads source start-size keys");
+  ok &= contains(gameplay_c,
+                 "read_rnd_particlesysanim_float_emit_keys_like_miloeditor("
+                 "r,1.0f,route.emission_keys,last_frame);",
+                 "ParticleSysAnim reader preserves rb3 legacy emit-rate conversion");
   ok &= contains(gameplay_c,
                  "apply_last_frame(last_frame);",
                  "ParticleSysAnim duration comes from authored key frames");

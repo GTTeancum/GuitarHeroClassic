@@ -4977,53 +4977,191 @@ load_venue_event_env_anims(
     return out;
 }
 
+uint32_t read_rnd_particlesysanim_key_count_like_miloeditor(MiloCursor& r,
+                                                            const char* label) {
+    const uint32_t count = r.u32();
+    if (count > 4096) {
+        throw std::runtime_error(std::string("RndParticleSysAnim ") + label +
+                                 " key count invalid");
+    }
+    return count;
+}
+
+Gameplay::VenueParticleRoute::ColorKey
+read_rnd_particlesysanim_color_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueParticleRoute::ColorKey key;
+    for (int c = 0; c < 4; ++c) {
+        key.color[c] = std::clamp(r.f32(), 0.0f, c == 3 ? 1.0f : 4.0f);
+    }
+    key.frame = r.f32();
+    if (key.frame < 0.0f || key.frame > 100000.0f)
+        throw std::runtime_error("RndParticleSysAnim color key frame invalid");
+    return key;
+}
+
+Gameplay::VenueParticleRoute::EmissionKey
+read_rnd_particlesysanim_vector2_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::VenueParticleRoute::EmissionKey key;
+    key.min_value = r.f32();
+    key.max_value = r.f32();
+    key.frame = r.f32();
+    if (key.frame < 0.0f || key.frame > 100000.0f)
+        throw std::runtime_error("RndParticleSysAnim vector2 key frame invalid");
+    return key;
+}
+
+void read_rnd_particlesysanim_color_keys_like_miloeditor(
+    MiloCursor& r, const char* label,
+    std::vector<Gameplay::VenueParticleRoute::ColorKey>& keys,
+    float& last_frame) {
+    const uint32_t count =
+        read_rnd_particlesysanim_key_count_like_miloeditor(r, label);
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        auto key = read_rnd_particlesysanim_color_key_like_miloeditor(r);
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+        return a.frame < b.frame;
+    });
+}
+
+void read_rnd_particlesysanim_vector2_keys_like_miloeditor(
+    MiloCursor& r, const char* label,
+    std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys,
+    float& last_frame) {
+    const uint32_t count =
+        read_rnd_particlesysanim_key_count_like_miloeditor(r, label);
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        auto key = read_rnd_particlesysanim_vector2_key_like_miloeditor(r);
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+        return a.frame < b.frame;
+    });
+}
+
+void read_rnd_particlesysanim_float_emit_keys_like_miloeditor(
+    MiloCursor& r, float scale,
+    std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys,
+    float& last_frame) {
+    const uint32_t count =
+        read_rnd_particlesysanim_key_count_like_miloeditor(r, "legacy-emit");
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        Gameplay::VenueParticleRoute::EmissionKey key;
+        key.min_value = r.f32();
+        key.max_value = key.min_value * scale;
+        key.frame = r.f32();
+        if (key.frame < 0.0f || key.frame > 100000.0f) {
+            throw std::runtime_error(
+                "RndParticleSysAnim legacy emit key frame invalid");
+        }
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+        return a.frame < b.frame;
+    });
+}
+
+std::optional<Gameplay::VenueParticleRoute>
+read_rnd_particlesysanim_like_miloeditor(const uint8_t* body, size_t size,
+                                         const std::string& entry_name) {
+    try {
+        MiloCursor r{body, size, 0};
+        const uint32_t combined_revision = r.u32();
+        const uint16_t revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        if (revision > 3) {
+            throw std::runtime_error(
+                "RndParticleSysAnim revision unsupported");
+        }
+        if (revision > 2) {
+            std::unordered_map<std::string, MiloValue> object_props;
+            read_object_fields_like_miloeditor(r, object_props);
+        }
+        (void)read_rnd_animatable_like_miloeditor(r);
+
+        Gameplay::VenueParticleRoute route;
+        route.anim = canonical_milo_ref(entry_name);
+        route.particle = canonical_milo_ref(r.symbol());
+
+        auto apply_last_frame = [&](float frame) {
+            route.duration_frames = std::max(route.duration_frames, frame);
+        };
+
+        float last_frame = 0.0f;
+        read_rnd_particlesysanim_color_keys_like_miloeditor(
+            r, "start-color", route.start_color_keys, last_frame);
+        apply_last_frame(last_frame);
+        read_rnd_particlesysanim_color_keys_like_miloeditor(
+            r, "end-color", route.end_color_keys, last_frame);
+        apply_last_frame(last_frame);
+
+        if (revision < 2) {
+            read_rnd_particlesysanim_float_emit_keys_like_miloeditor(
+                r, 1.0f, route.emission_keys, last_frame);
+            apply_last_frame(last_frame);
+            route.keys_owner = canonical_milo_ref(r.symbol());
+            if (revision == 1) {
+                const float scale = r.f32();
+                for (auto& key : route.emission_keys)
+                    key.max_value = key.min_value * scale;
+            }
+        } else {
+            read_rnd_particlesysanim_vector2_keys_like_miloeditor(
+                r, "emit-rate", route.emission_keys, last_frame);
+            apply_last_frame(last_frame);
+            route.keys_owner = canonical_milo_ref(r.symbol());
+        }
+        if (route.keys_owner.empty()) route.keys_owner = route.anim;
+
+        if (revision > 1) {
+            read_rnd_particlesysanim_vector2_keys_like_miloeditor(
+                r, "speed", route.speed_keys, last_frame);
+            apply_last_frame(last_frame);
+            read_rnd_particlesysanim_vector2_keys_like_miloeditor(
+                r, "life", route.life_keys, last_frame);
+            apply_last_frame(last_frame);
+            read_rnd_particlesysanim_vector2_keys_like_miloeditor(
+                r, "start-size", route.size_keys, last_frame);
+            apply_last_frame(last_frame);
+        }
+
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndParticleSysAnim source-shaped reader did not consume EOF");
+        }
+        if (route.particle.empty()) return std::nullopt;
+        return route;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndParticleSysAnim decode failed %s: %s\n",
+                         entry_name.c_str(), ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
 Gameplay::VenueParticleRoute decode_particle_anim_route(
     const std::string& entry_name, const uint8_t* body, size_t size) {
+    auto decoded =
+        read_rnd_particlesysanim_like_miloeditor(body, size, entry_name);
+    if (decoded) return std::move(*decoded);
+
     Gameplay::VenueParticleRoute route;
     route.anim = canonical_milo_ref(entry_name);
-    if (size < 32 || read_u32_at_unchecked(body, 0) != 3) return route;
-
-    size_t pos = 25;
-    auto particle = read_milo_string_advance(body, size, pos, 128);
-    if (!particle) return route;
-    route.particle = canonical_milo_ref(*particle);
-    if (route.particle.size() <= 5 ||
-        route.particle.rfind(".part") != route.particle.size() - 5)
-        return route;
-
-    auto apply_last_frame = [&](float frame) {
-        route.duration_frames = std::max(route.duration_frames, frame);
-    };
-
-    float last_frame = 0.0f;
-    if (!read_particle_color_keys(body, size, pos, route.start_color_keys,
-                                  last_frame))
-        return Gameplay::VenueParticleRoute{};
-    apply_last_frame(last_frame);
-    if (!read_particle_color_keys(body, size, pos, route.end_color_keys,
-                                  last_frame))
-        return Gameplay::VenueParticleRoute{};
-    apply_last_frame(last_frame);
-    if (!read_particle_vector2_keys(body, size, pos, route.emission_keys,
-                                    last_frame))
-        return Gameplay::VenueParticleRoute{};
-    apply_last_frame(last_frame);
-    auto keys_owner = read_milo_string_advance(body, size, pos, 128);
-    if (!keys_owner) return Gameplay::VenueParticleRoute{};
-    route.keys_owner = canonical_milo_ref(*keys_owner);
-    if (route.keys_owner.empty()) route.keys_owner = route.anim;
-    if (!read_particle_vector2_keys(body, size, pos, route.speed_keys,
-                                    last_frame))
-        return Gameplay::VenueParticleRoute{};
-    apply_last_frame(last_frame);
-    if (!read_particle_vector2_keys(body, size, pos, route.life_keys,
-                                    last_frame))
-        return Gameplay::VenueParticleRoute{};
-    apply_last_frame(last_frame);
-    if (!read_particle_vector2_keys(body, size, pos, route.size_keys,
-                                    last_frame))
-        return Gameplay::VenueParticleRoute{};
-    apply_last_frame(last_frame);
     return route;
 }
 
