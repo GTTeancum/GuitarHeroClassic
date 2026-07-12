@@ -1100,6 +1100,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `operator>>(RndMesh::Face&)` reads three face indices and reads one legacy
     vector only when `RndMesh::gRev < 1`; `FaceCenter` sums the three indexed
     vertex positions and multiplies by `0.33333333f`.
+  - Native `source_rndmesh_handler_plan`,
+    `source_rndmesh_vertex_edit_plan`, `source_rndmesh_face_edit_plan`, and
+    `source_rndmesh_unitize_normals_plan` port the checked editor/accessor
+    surface: vertex `norm` / `pos` / `uv` getters and setters assert the index,
+    setters call `Sync(31)`, face getters/setters assert the face index,
+    `OnSetFace` calls `Sync(32)`, and `OnUnitizeNormals` normalizes every
+    vertex normal. These helpers document the source row surface only; they do
+    not mutate live renderer geometry.
   - Native `source_rndmesh_vert_vector_resize_plan` and
     `source_rndmesh_vert_vector_reserve_plan` port the checked
     `RndMesh::VertVector` storage rules: `resize` stores the incoming `unka`

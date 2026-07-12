@@ -3001,6 +3001,26 @@ int run_contract() {
                  "face->operator[](i)).pos;}v*=0.33333333f;}",
                  "RB3 RndMesh FaceCenter average");
   ok &= contains(rb3_mesh_cpp,
+                 "HANDLE(get_face,OnGetFace)HANDLE(set_face,OnSetFace)"
+                 "HANDLE(get_vert_pos,OnGetVertXYZ)HANDLE(set_vert_pos,"
+                 "OnSetVertXYZ)HANDLE(get_vert_norm,OnGetVertNorm)",
+                 "RB3 RndMesh handler table exposes indexed mesh rows");
+  ok &= contains(rb3_mesh_cpp,
+                 "DataNodeRndMesh::OnSetVertXYZ(constDataArray*da){Vert*v;"
+                 "s32index=da->Int(2);MILO_ASSERT(index>=0&&index<mVerts.size(),"
+                 "2480);v=&mVerts[index];v->pos.x=da->Float(3);",
+                 "RB3 RndMesh OnSetVertXYZ source body");
+  ok &= contains(rb3_mesh_cpp,
+                 "DataNodeRndMesh::OnSetFace(constDataArray*da){Face*f;"
+                 "intindex=da->Int(2);MILO_ASSERT(index>=0&&index<mFaces.size(),"
+                 "2524);f=&mFaces[index];f->idx0=da->Int(3);",
+                 "RB3 RndMesh OnSetFace source body");
+  ok &= contains(rb3_mesh_cpp,
+                 "DataNodeRndMesh::OnUnitizeNormals(constDataArray*da){"
+                 "for(Vert*it=Verts().begin();it!=Verts().end();++it){"
+                 "Normalize(it->norm,it->norm);}returnDataNode(0);}",
+                 "RB3 RndMesh OnUnitizeNormals source body");
+  ok &= contains(rb3_mesh_cpp,
                  "voidRndMesh::VertVector::resize(intn,boolb){unka=b;"
                  "if(mCapacity){MILO_ASSERT(n<=mCapacity,0x26A);mNumVerts=n;}",
                  "RB3 RndMesh VertVector resize fixed-capacity branch");
@@ -4147,6 +4167,15 @@ int run_contract() {
                  "structSourceRndMeshFaceCenterResult{boolinvalid_index=false;",
                  "native exposes RndMesh FaceCenter result");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshHandlerPlan{",
+                 "native exposes RndMesh handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshIndexedEditPlan{",
+                 "native exposes RndMesh indexed edit plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshUnitizeNormalsPlan{",
+                 "native exposes RndMesh unitize normals plan");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshVertVectorResizePlan{",
                  "native exposes RndMesh VertVector resize plan");
   ok &= contains(char_mesh_h,
@@ -4215,6 +4244,18 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceRndMeshFaceCenterResultsource_rndmesh_face_center(",
                  "native implements RndMesh FaceCenter helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshHandlerPlansource_rndmesh_handler_plan()",
+                 "native implements RndMesh handler plan");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshIndexedEditPlansource_rndmesh_vertex_edit_plan(",
+                 "native implements RndMesh vertex edit plan");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshIndexedEditPlansource_rndmesh_face_edit_plan(",
+                 "native implements RndMesh face edit plan");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshUnitizeNormalsPlansource_rndmesh_unitize_normals_plan(",
+                 "native implements RndMesh unitize normals plan");
   ok &= contains(char_mesh,
                  "SourceRndMeshVertVectorResizePlan"
                  "source_rndmesh_vert_vector_resize_plan(",
@@ -4338,6 +4379,31 @@ int run_contract() {
                  "result.center[2]*=0.33333333f;",
                  "native FaceCenter helper mirrors source scale");
   ok &= contains(char_mesh,
+                 "plan.handlers={\"compare_edge_verts\",\"attach_mesh\","
+                 "\"get_face\",\"set_face\",\"get_vert_pos\",\"set_vert_pos\"",
+                 "native handler plan mirrors RndMesh handler order");
+  ok &= contains(char_mesh,
+                 "plan.assert_line=write?2457:2446;",
+                 "native vertex edit helper mirrors norm assert lines");
+  ok &= contains(char_mesh,
+                 "plan.assert_line=write?2480:2469;",
+                 "native vertex edit helper mirrors pos assert lines");
+  ok &= contains(char_mesh,
+                 "plan.assert_line=write?2502:2492;",
+                 "native vertex edit helper mirrors uv assert lines");
+  ok &= contains(char_mesh,
+                 "if(write&&plan.valid_index)plan.sync_mask=31;",
+                 "native vertex edit helper mirrors Sync(31)");
+  ok &= contains(char_mesh,
+                 "plan.assert_line=write?2524:2513;",
+                 "native face edit helper mirrors face assert lines");
+  ok &= contains(char_mesh,
+                 "if(write&&plan.valid_index)plan.sync_mask=32;",
+                 "native face edit helper mirrors Sync(32)");
+  ok &= contains(char_mesh,
+                 "if(vertex_count>0)plan.normalized_count=vertex_count;",
+                 "native unitize normals helper mirrors full normal loop count");
+  ok &= contains(char_mesh,
                  "plan.capacity_path=true;plan.assertion_would_fail="
                  "requested_count>current_capacity;",
                  "native VertVector resize helper mirrors capacity assertion");
@@ -4436,6 +4502,18 @@ int run_contract() {
                  "source_rndmesh_face_center(",
                  "focused mesh decode test covers RndMesh FaceCenter helper");
   ok &= contains(mesh_decode_test,
+                 "source_rndmesh_handler_plan()",
+                 "focused mesh decode test covers RndMesh handler plan");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_vertex_edit_plan(4,2,\"xyz\",true)",
+                 "focused mesh decode test covers RndMesh vertex edit plan");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_face_edit_plan(3,1,true)",
+                 "focused mesh decode test covers RndMesh face edit plan");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_unitize_normals_plan(5)",
+                 "focused mesh decode test covers RndMesh unitize normals plan");
+  ok &= contains(mesh_decode_test,
                  "source_rndmesh_vert_vector_resize_plan(8,3,5,true)",
                  "focused mesh decode test covers VertVector capacity resize");
   ok &= contains(mesh_decode_test,
@@ -4483,6 +4561,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_rndmesh_face_load_plan` and",
                  "document records RndMesh face helpers");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_handler_plan`,",
+                 "document records RndMesh indexed accessor helpers");
   ok &= contains(doc,
                  "Native `source_rndmesh_vert_vector_resize_plan` and",
                  "document records RndMesh VertVector helpers");

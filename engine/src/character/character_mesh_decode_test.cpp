@@ -1181,6 +1181,51 @@ int main() {
       face_vertices, {0, 3, 2});
   CHECK(face_center_bad.invalid_index);
 
+  const auto mesh_handlers = ghogx::character::source_rndmesh_handler_plan();
+  CHECK(mesh_handlers.handlers.size() == 13);
+  CHECK(mesh_handlers.handlers[2] == "get_face");
+  CHECK(mesh_handlers.handlers[5] == "set_vert_pos");
+  CHECK(mesh_handlers.handlers[10] == "unitize_normals");
+  CHECK(mesh_handlers.actions[0] == "clear_bones:CopyBones(NULL)");
+  CHECK(mesh_handlers.superclasses[1] == "RndTransformable");
+  CHECK(mesh_handlers.check == 2306);
+
+  const auto get_norm =
+      ghogx::character::source_rndmesh_vertex_edit_plan(4, 2, "norm", false);
+  CHECK(get_norm.valid_index);
+  CHECK(get_norm.value_count == 3);
+  CHECK(get_norm.assert_line == 2446);
+  CHECK(get_norm.sync_mask == 0);
+  const auto set_pos =
+      ghogx::character::source_rndmesh_vertex_edit_plan(4, 2, "xyz", true);
+  CHECK(set_pos.valid_index);
+  CHECK(set_pos.row == "pos");
+  CHECK(set_pos.value_count == 3);
+  CHECK(set_pos.assert_line == 2480);
+  CHECK(set_pos.sync_mask == 31);
+  const auto set_uv_bad =
+      ghogx::character::source_rndmesh_vertex_edit_plan(4, 5, "uv", true);
+  CHECK(!set_uv_bad.valid_index);
+  CHECK(set_uv_bad.value_count == 2);
+  CHECK(set_uv_bad.assert_line == 2502);
+  CHECK(set_uv_bad.sync_mask == 0);
+
+  const auto get_face =
+      ghogx::character::source_rndmesh_face_edit_plan(3, 1, false);
+  CHECK(get_face.valid_index);
+  CHECK(get_face.value_count == 3);
+  CHECK(get_face.assert_line == 2513);
+  CHECK(get_face.sync_mask == 0);
+  const auto set_face =
+      ghogx::character::source_rndmesh_face_edit_plan(3, 1, true);
+  CHECK(set_face.valid_index);
+  CHECK(set_face.assert_line == 2524);
+  CHECK(set_face.sync_mask == 32);
+  const auto unitize_normals =
+      ghogx::character::source_rndmesh_unitize_normals_plan(5);
+  CHECK(unitize_normals.normalized_count == 5);
+  CHECK(unitize_normals.returns_zero);
+
   const auto resize_capacity =
       ghogx::character::source_rndmesh_vert_vector_resize_plan(8, 3, 5, true);
   CHECK(resize_capacity.stores_unka);

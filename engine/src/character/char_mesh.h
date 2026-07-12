@@ -683,6 +683,32 @@ struct SourceRndMeshFaceCenterResult {
   std::array<float, 3> center = {0.0f, 0.0f, 0.0f};
 };
 
+struct SourceRndMeshHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> expressions;
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int32_t check = 2306;
+};
+
+struct SourceRndMeshIndexedEditPlan {
+  std::string row;
+  int32_t count = 0;
+  int32_t index = 0;
+  int32_t value_count = 0;
+  bool write = false;
+  bool valid_index = false;
+  int32_t assert_line = 0;
+  int32_t sync_mask = 0;
+  bool returns_zero = true;
+};
+
+struct SourceRndMeshUnitizeNormalsPlan {
+  int32_t vertex_count = 0;
+  int32_t normalized_count = 0;
+  bool returns_zero = true;
+};
+
 struct SourceRndMeshVertVectorResizePlan {
   int32_t requested_count = 0;
   bool requested_unka = false;
@@ -840,6 +866,18 @@ SourceRndMeshFaceLoadPlan source_rndmesh_face_load_plan(
 SourceRndMeshFaceCenterResult source_rndmesh_face_center(
     const std::vector<std::array<float, 3>>& vertices,
     const SourceRndMeshFace& face);
+SourceRndMeshHandlerPlan source_rndmesh_handler_plan();
+SourceRndMeshIndexedEditPlan source_rndmesh_vertex_edit_plan(
+    int32_t vertex_count,
+    int32_t index,
+    const std::string& row,
+    bool write);
+SourceRndMeshIndexedEditPlan source_rndmesh_face_edit_plan(
+    int32_t face_count,
+    int32_t index,
+    bool write);
+SourceRndMeshUnitizeNormalsPlan source_rndmesh_unitize_normals_plan(
+    int32_t vertex_count);
 SourceRndMeshVertVectorResizePlan source_rndmesh_vert_vector_resize_plan(
     int32_t current_capacity,
     int32_t current_count,

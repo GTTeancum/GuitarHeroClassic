@@ -1251,6 +1251,71 @@ SourceRndMeshFaceCenterResult source_rndmesh_face_center(
   return result;
 }
 
+SourceRndMeshHandlerPlan source_rndmesh_handler_plan() {
+  SourceRndMeshHandlerPlan plan;
+  plan.handlers = {"compare_edge_verts", "attach_mesh",  "get_face",
+                   "set_face",           "get_vert_pos", "set_vert_pos",
+                   "get_vert_norm",      "set_vert_norm", "get_vert_uv",
+                   "set_vert_uv",        "unitize_normals",
+                   "point_collide",      "configure_mesh"};
+  plan.expressions = {"num_bones", "estimated_size_kb:MILO_DEBUG"};
+  plan.actions = {"clear_bones:CopyBones(NULL)",
+                  "copy_geom_from_owner:CopyGeometryFromOwner()"};
+  plan.superclasses = {"RndDrawable", "RndTransformable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndMeshIndexedEditPlan source_rndmesh_vertex_edit_plan(
+    int32_t vertex_count,
+    int32_t index,
+    const std::string& row,
+    bool write) {
+  SourceRndMeshIndexedEditPlan plan;
+  plan.row = row;
+  plan.count = vertex_count;
+  plan.index = index;
+  plan.write = write;
+  if (row == "norm") {
+    plan.value_count = 3;
+    plan.assert_line = write ? 2457 : 2446;
+  } else if (row == "pos" || row == "xyz") {
+    plan.row = "pos";
+    plan.value_count = 3;
+    plan.assert_line = write ? 2480 : 2469;
+  } else if (row == "uv") {
+    plan.value_count = 2;
+    plan.assert_line = write ? 2502 : 2492;
+  }
+  plan.valid_index =
+      plan.value_count != 0 && index >= 0 && index < vertex_count;
+  if (write && plan.valid_index) plan.sync_mask = 31;
+  return plan;
+}
+
+SourceRndMeshIndexedEditPlan source_rndmesh_face_edit_plan(
+    int32_t face_count,
+    int32_t index,
+    bool write) {
+  SourceRndMeshIndexedEditPlan plan;
+  plan.row = "face";
+  plan.count = face_count;
+  plan.index = index;
+  plan.value_count = 3;
+  plan.write = write;
+  plan.valid_index = index >= 0 && index < face_count;
+  plan.assert_line = write ? 2524 : 2513;
+  if (write && plan.valid_index) plan.sync_mask = 32;
+  return plan;
+}
+
+SourceRndMeshUnitizeNormalsPlan source_rndmesh_unitize_normals_plan(
+    int32_t vertex_count) {
+  SourceRndMeshUnitizeNormalsPlan plan;
+  plan.vertex_count = vertex_count;
+  if (vertex_count > 0) plan.normalized_count = vertex_count;
+  return plan;
+}
+
 SourceRndMeshVertVectorResizePlan source_rndmesh_vert_vector_resize_plan(
     int32_t current_capacity,
     int32_t current_count,
