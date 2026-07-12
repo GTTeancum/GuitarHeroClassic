@@ -3172,6 +3172,51 @@ int run_contract() {
                  "chunk.uniqueVertexCount<MaxMeshVertices)",
                  "glTFMilo chunk splitter has global fill pass");
   ok &= contains(gltf_program_cs,
+                 "privatestaticboolIsHairBone(stringboneName)",
+                 "glTFMilo source exposes hair-bone classifier");
+  ok &= contains(gltf_program_cs,
+                 "boneName.StartsWith(\"bone_hair_\",StringComparison."
+                 "OrdinalIgnoreCase)",
+                 "glTFMilo hair-bone classifier uses case-insensitive prefix");
+  ok &= contains(gltf_program_cs,
+                 "stringjointName=meshSkin?.Joints[jointIndex].Name??"
+                 "string.Empty;if(IsHairBone(jointName)){hairStrandBones.Add("
+                 "jointName);}",
+                 "glTFMilo collects chunk hair strand bones");
+  ok &= contains(gltf_program_cs,
+                 "uintnumFaces=(uint)mesh.faces.Count;mesh.groupSizes.Clear();"
+                 "while(numFaces>0)",
+                 "glTFMilo rebuilds mesh groupSizes from face count");
+  ok &= contains(gltf_program_cs,
+                 "if(numFaces>=255){mesh.groupSizes.Add(255);numFaces-=255;}",
+                 "glTFMilo groupSizes use 255-face chunks");
+  ok &= contains(gltf_program_cs,
+                 "stringoverridenFilename=baseFilename;MiloExtras.AddToMesh("
+                 "node,mesh,refoverridenFilename);",
+                 "glTFMilo final mesh pass calls MiloExtras AddToMesh");
+  ok &= contains(gltf_program_cs,
+                 "if(meshChunks.Count>1&&chunkIndex>0){stringextension="
+                 "Path.GetExtension(overridenFilename);",
+                 "glTFMilo final mesh pass gates split chunk suffix");
+  ok &= contains(gltf_program_cs,
+                 "overridenFilename=string.IsNullOrEmpty(extension)?$\"{"
+                 "overridenFilename}.{chunkIndex:00}\":$\"{overridenFilename["
+                 "..^extension.Length]}.{chunkIndex:00}{extension}\";",
+                 "glTFMilo final mesh pass suffixes chunk filenames");
+  ok &= contains(gltf_program_cs,
+                 "DirectoryMeta.Entryentry=newDirectoryMeta.Entry(\"Mesh\","
+                 "overridenFilename,mesh);mesh.geomOwner=entry.name;"
+                 "meta.entries.Add(entry);",
+                 "glTFMilo final mesh pass sets geom owner");
+  ok &= contains(gltf_program_cs,
+                 "string.Equals(objectType,\"CharCollide\",StringComparison."
+                 "OrdinalIgnoreCase)||",
+                 "glTFMilo hair-collision detection checks extras object type");
+  ok &= contains(gltf_program_cs,
+                 "nodeName.Contains(\"hair_collide\",StringComparison."
+                 "OrdinalIgnoreCase)",
+                 "glTFMilo hair-collision detection checks node name");
+  ok &= contains(gltf_program_cs,
                  "varjointIndexToLocalBoneIndex=newDictionary<int,ushort>("
                  "meshChunk.jointIndices.Count);",
                  "glTFMilo builds per-chunk joint palette map");
@@ -3287,6 +3332,14 @@ int run_contract() {
                  "structSourceGltfMiloMeshChunkPlan{int32_tmax_influencing_bones=40;",
                  "native declares glTFMilo mesh chunk plan limits");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMeshChunkFinalizeInput{std::string"
+                 "base_filename;",
+                 "native declares glTFMilo mesh chunk finalize input");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMeshChunkFinalizePlan{bool"
+                 "calls_milo_extras_add_to_mesh=true;",
+                 "native declares glTFMilo mesh chunk finalize plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloChunkJoint{std::stringname;",
                  "native declares glTFMilo chunk joint row");
   ok &= contains(char_mesh_h,
@@ -3330,6 +3383,14 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMeshChunkPlansource_gltf_milo_split_mesh_chunks(",
                  "native exposes glTFMilo mesh chunk splitter helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_gltf_milo_is_hair_bone_name(conststd::string&"
+                 "bone_name);",
+                 "native exposes glTFMilo hair-bone classifier");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_finalize_mesh_chunk_plan("
+                 "constSourceGltfMiloMeshChunkFinalizeInput&input);",
+                 "native exposes glTFMilo mesh chunk finalizer helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBoneTransformPlansource_gltf_milo_build_bone_transforms(",
                  "native exposes glTFMilo bone transform helper");
@@ -3414,6 +3475,35 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "additional_joint_count<best_additional_joint_count||",
                  "native mesh chunk splitter prefers fewer added joints");
+  ok &= contains(char_mesh,
+                 "boolsource_gltf_milo_is_hair_bone_name(conststd::string&"
+                 "bone_name)",
+                 "native ports glTFMilo hair-bone classifier");
+  ok &= contains(char_mesh,
+                 "std::tolower(c)!=kPrefix[i]",
+                 "native hair-bone classifier preserves case-insensitive prefix");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloMeshChunkFinalizePlan"
+                 "source_gltf_milo_finalize_mesh_chunk_plan(",
+                 "native ports glTFMilo mesh chunk finalizer helper");
+  ok &= contains(char_mesh,
+                 "plan.group_sizes.push_back(255);",
+                 "native finalizer preserves 255-face groupSizes chunks");
+  ok &= contains(char_mesh,
+                 "if(source_gltf_milo_is_hair_bone_name(joint_name)){",
+                 "native finalizer collects source hair joints");
+  ok &= contains(char_mesh,
+                 "if(input.mesh_chunk_count>1&&input.chunk_index>0){",
+                 "native finalizer preserves split chunk suffix gate");
+  ok &= contains(char_mesh,
+                 "plan.geom_owner=plan.entry_name;",
+                 "native finalizer sets mesh geom owner to entry name");
+  ok &= contains(char_mesh,
+                 "object_type_lower==\"charcollide\"||",
+                 "native finalizer preserves CharCollide extras detection");
+  ok &= contains(char_mesh,
+                 "node_lower.find(\"hair_collide\")!=std::string::npos;",
+                 "native finalizer preserves hair_collide node detection");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBoneTransformPlansource_gltf_milo_build_bone_transforms(",
                  "native implements glTFMilo bone transform helper");
@@ -3574,6 +3664,21 @@ int run_contract() {
                  "strip_chunk_plan.chunks[0].joint_indices.size()==40",
                  "focused mesh decode test covers forty-bone chunk boundary");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_is_hair_bone_name(\"bone_hair_front\")",
+                 "focused mesh decode test covers hair-bone classifier");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_finalize_mesh_chunk_plan(finalize_input)",
+                 "focused mesh decode test covers glTFMilo chunk finalizer");
+  ok &= contains(mesh_decode_test,
+                 "final_split_mesh.group_sizes[0]==255",
+                 "focused mesh decode test covers groupSizes 255 split");
+  ok &= contains(mesh_decode_test,
+                 "final_split_mesh.entry_name==\"rock1_hair.02.mesh\"",
+                 "focused mesh decode test covers split filename suffix");
+  ok &= contains(mesh_decode_test,
+                 "final_no_extension.entry_name==\"grim_accessory.01\"",
+                 "focused mesh decode test covers no-extension split filename");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_build_bone_transforms(",
                  "focused mesh decode test covers glTFMilo bone transforms");
   ok &= contains(mesh_decode_test,
@@ -3607,6 +3712,9 @@ int run_contract() {
                  "`source_gltf_milo_split_mesh_chunks` ports\n"
                  "    this deterministic exporter chunking rule",
                  "document records glTFMilo mesh chunk splitter helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_finalize_mesh_chunk_plan` ports",
+                 "document records glTFMilo mesh chunk finalizer helper");
   ok &= contains(doc,
                  "`source_gltf_milo_build_bone_transforms` ports\n"
                  "    that per-chunk transform-list rule",

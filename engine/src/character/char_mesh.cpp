@@ -993,6 +993,107 @@ SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
   return plan;
 }
 
+bool source_gltf_milo_is_hair_bone_name(const std::string& bone_name) {
+  constexpr char kPrefix[] = "bone_hair_";
+  if (bone_name.empty()) return false;
+  if (bone_name.size() < sizeof(kPrefix) - 1) return false;
+  for (size_t i = 0; i < sizeof(kPrefix) - 1; ++i) {
+    const unsigned char c = static_cast<unsigned char>(bone_name[i]);
+    if (std::tolower(c) != kPrefix[i]) return false;
+  }
+  return true;
+}
+
+namespace {
+
+std::string source_gltf_milo_lower_ascii(std::string value) {
+  for (char& c : value) {
+    c = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(c)));
+  }
+  return value;
+}
+
+bool source_gltf_milo_ends_with_ascii(const std::string& value,
+                                      const std::string& suffix) {
+  if (suffix.size() > value.size()) return false;
+  return value.compare(value.size() - suffix.size(), suffix.size(), suffix) ==
+         0;
+}
+
+std::string source_gltf_milo_chunk_suffix(int32_t chunk_index) {
+  if (chunk_index >= 0 && chunk_index < 10) {
+    return "0" + std::to_string(chunk_index);
+  }
+  return std::to_string(chunk_index);
+}
+
+std::string source_gltf_milo_insert_chunk_suffix(std::string filename,
+                                                 int32_t chunk_index) {
+  const size_t last_sep = filename.find_last_of("/\\");
+  const size_t dot = filename.find_last_of('.');
+  const std::string suffix =
+      "." + source_gltf_milo_chunk_suffix(chunk_index);
+  if (dot == std::string::npos ||
+      (last_sep != std::string::npos && dot < last_sep) ||
+      dot + 1 == filename.size()) {
+    return filename + suffix;
+  }
+  filename.insert(dot, suffix);
+  return filename;
+}
+
+}  // namespace
+
+SourceGltfMiloMeshChunkFinalizePlan
+source_gltf_milo_finalize_mesh_chunk_plan(
+    const SourceGltfMiloMeshChunkFinalizeInput& input) {
+  SourceGltfMiloMeshChunkFinalizePlan plan;
+  for (int32_t remaining_faces = std::max(0, input.face_count);
+       remaining_faces > 0;) {
+    if (remaining_faces >= 255) {
+      plan.group_sizes.push_back(255);
+      remaining_faces -= 255;
+    } else {
+      plan.group_sizes.push_back(static_cast<uint8_t>(remaining_faces));
+      remaining_faces = 0;
+    }
+  }
+
+  for (const std::string& joint_name : input.chunk_joint_names) {
+    if (source_gltf_milo_is_hair_bone_name(joint_name)) {
+      plan.collected_hair_strand_bones.push_back(joint_name);
+    }
+  }
+
+  std::string overridden_filename = input.filename_after_milo_extras.empty()
+                                        ? input.base_filename
+                                        : input.filename_after_milo_extras;
+  if (input.mesh_chunk_count > 1 && input.chunk_index > 0) {
+    overridden_filename =
+        source_gltf_milo_insert_chunk_suffix(overridden_filename,
+                                             input.chunk_index);
+  }
+  plan.entry_type = "Mesh";
+  plan.entry_name = overridden_filename;
+  plan.geom_owner = plan.entry_name;
+
+  const std::string entry_lower =
+      source_gltf_milo_lower_ascii(plan.entry_name);
+  const std::string node_lower =
+      source_gltf_milo_lower_ascii(input.node_name);
+  const std::string object_type_lower =
+      source_gltf_milo_lower_ascii(input.object_type_from_extras);
+  plan.records_hair_collision_mesh =
+      object_type_lower == "charcollide" ||
+      source_gltf_milo_ends_with_ascii(entry_lower, ".coll") ||
+      source_gltf_milo_ends_with_ascii(entry_lower, ".collide") ||
+      source_gltf_milo_ends_with_ascii(node_lower, ".coll") ||
+      source_gltf_milo_ends_with_ascii(node_lower, ".collide") ||
+      node_lower.find("hair_collide") != std::string::npos;
+  return plan;
+}
+
 SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
     int32_t bone_count,
     std::vector<SourceRndMeshZeroWeightVertex> vertices) {

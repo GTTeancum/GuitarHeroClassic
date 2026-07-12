@@ -199,6 +199,27 @@ struct SourceGltfMiloMeshChunkPlan {
   std::vector<SourceGltfMiloMeshChunk> chunks;
 };
 
+struct SourceGltfMiloMeshChunkFinalizeInput {
+  std::string base_filename;
+  std::string filename_after_milo_extras;
+  int32_t mesh_chunk_count = 1;
+  int32_t chunk_index = 0;
+  int32_t face_count = 0;
+  std::vector<std::string> chunk_joint_names;
+  std::string node_name;
+  std::string object_type_from_extras;
+};
+
+struct SourceGltfMiloMeshChunkFinalizePlan {
+  bool calls_milo_extras_add_to_mesh = true;
+  std::vector<uint8_t> group_sizes;
+  std::vector<std::string> collected_hair_strand_bones;
+  std::string entry_type;
+  std::string entry_name;
+  std::string geom_owner;
+  bool records_hair_collision_mesh = false;
+};
+
 struct SourceGltfMiloChunkJoint {
   std::string name;
   std::array<float, 16> world_matrix = {1.0f, 0.0f, 0.0f, 0.0f,
@@ -448,6 +469,12 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
 SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
     const std::vector<SourceGltfMiloTriangle>& triangles,
     const std::vector<std::vector<int32_t>>& vertex_joint_indices);
+
+bool source_gltf_milo_is_hair_bone_name(const std::string& bone_name);
+
+SourceGltfMiloMeshChunkFinalizePlan
+source_gltf_milo_finalize_mesh_chunk_plan(
+    const SourceGltfMiloMeshChunkFinalizeInput& input);
 
 SourceGltfMiloBoneTransformPlan source_gltf_milo_build_bone_transforms(
     const std::vector<SourceGltfMiloChunkJoint>& joints,

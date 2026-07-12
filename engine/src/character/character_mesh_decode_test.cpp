@@ -770,6 +770,70 @@ int main() {
   CHECK(rejected_chunk_plan.rejected_triangle_indices[0] == 0);
   CHECK(rejected_chunk_plan.chunks.empty());
 
+  CHECK(ghogx::character::source_gltf_milo_is_hair_bone_name(
+      "bone_hair_front"));
+  CHECK(ghogx::character::source_gltf_milo_is_hair_bone_name(
+      "BONE_HAIR_SIDE"));
+  CHECK(!ghogx::character::source_gltf_milo_is_hair_bone_name(""));
+  CHECK(!ghogx::character::source_gltf_milo_is_hair_bone_name(
+      "bone_head"));
+
+  ghogx::character::SourceGltfMiloMeshChunkFinalizeInput finalize_input;
+  finalize_input.base_filename = "hair.mesh";
+  finalize_input.filename_after_milo_extras = "rock1_hair.mesh";
+  finalize_input.mesh_chunk_count = 3;
+  finalize_input.chunk_index = 2;
+  finalize_input.face_count = 511;
+  finalize_input.chunk_joint_names = {"bone_head", "bone_hair_front",
+                                      "BONE_HAIR_SIDE"};
+  finalize_input.node_name = "rock1_hair_collide_probe";
+  const auto final_split_mesh =
+      ghogx::character::source_gltf_milo_finalize_mesh_chunk_plan(
+          finalize_input);
+  CHECK(final_split_mesh.calls_milo_extras_add_to_mesh);
+  CHECK(final_split_mesh.group_sizes.size() == 3);
+  CHECK(final_split_mesh.group_sizes[0] == 255);
+  CHECK(final_split_mesh.group_sizes[1] == 255);
+  CHECK(final_split_mesh.group_sizes[2] == 1);
+  CHECK(final_split_mesh.collected_hair_strand_bones.size() == 2);
+  CHECK(final_split_mesh.collected_hair_strand_bones[0] ==
+        "bone_hair_front");
+  CHECK(final_split_mesh.collected_hair_strand_bones[1] ==
+        "BONE_HAIR_SIDE");
+  CHECK(final_split_mesh.entry_type == "Mesh");
+  CHECK(final_split_mesh.entry_name == "rock1_hair.02.mesh");
+  CHECK(final_split_mesh.geom_owner == "rock1_hair.02.mesh");
+  CHECK(final_split_mesh.records_hair_collision_mesh);
+
+  finalize_input.filename_after_milo_extras = "grim_accessory";
+  finalize_input.mesh_chunk_count = 2;
+  finalize_input.chunk_index = 1;
+  finalize_input.face_count = 254;
+  finalize_input.chunk_joint_names = {};
+  finalize_input.node_name = "plain_node";
+  finalize_input.object_type_from_extras = "CharCollide";
+  const auto final_no_extension =
+      ghogx::character::source_gltf_milo_finalize_mesh_chunk_plan(
+          finalize_input);
+  CHECK(final_no_extension.group_sizes.size() == 1);
+  CHECK(final_no_extension.group_sizes[0] == 254);
+  CHECK(final_no_extension.entry_name == "grim_accessory.01");
+  CHECK(final_no_extension.records_hair_collision_mesh);
+
+  finalize_input.filename_after_milo_extras = "";
+  finalize_input.base_filename = "body.mesh";
+  finalize_input.mesh_chunk_count = 1;
+  finalize_input.chunk_index = 0;
+  finalize_input.face_count = 0;
+  finalize_input.object_type_from_extras = "";
+  const auto final_single_mesh =
+      ghogx::character::source_gltf_milo_finalize_mesh_chunk_plan(
+          finalize_input);
+  CHECK(final_single_mesh.group_sizes.empty());
+  CHECK(final_single_mesh.entry_name == "body.mesh");
+  CHECK(final_single_mesh.geom_owner == "body.mesh");
+  CHECK(!final_single_mesh.records_hair_collision_mesh);
+
   const std::array<float, 16> gltf_mesh_world = {
       1.0f, 0.0f, 0.0f, 0.0f,
       0.0f, 1.0f, 0.0f, 0.0f,

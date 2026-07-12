@@ -976,6 +976,18 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     triangle indices, joint palette order, and unique vertex count. It is
     exporter/format evidence for palette layout, not a change to stock GH2
     runtime skin decoding.
+  - After `PopulateMeshChunk`, glTFMilo collects each chunk joint whose name
+    passes `IsHairBone` (`bone_hair_`, case-insensitive), rebuilds
+    `mesh.groupSizes` as repeated `255` entries plus a final remainder from the
+    emitted face count, calls `MiloExtras.AddToMesh`, suffixes split chunk
+    filenames as `.<chunkIndex:00>` before the extension, creates a `Mesh`
+    directory entry, and assigns `mesh.geomOwner = entry.name`. The same pass
+    records hair-collision meshes when extras `ObjectType` is `CharCollide` or
+    the entry/node name ends in `.coll` / `.collide` or contains
+    `hair_collide`. Native `source_gltf_milo_finalize_mesh_chunk_plan` ports
+    these finalization rules around the still-external `MiloExtras.AddToMesh`
+    hook; it is source evidence for mesh ownership, naming, group-size rows,
+    and hair-related mesh classification only.
   - `PopulateMeshChunk` then builds `jointIndexToLocalBoneIndex` from each
     chunk's `jointIndices` in order and emits exactly one `RndMesh::BoneTransform`
     per chunk joint, because vertex bone indices point into this list by
