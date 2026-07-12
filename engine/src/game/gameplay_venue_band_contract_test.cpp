@@ -4147,8 +4147,17 @@ int main() {
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "venue TransAnim scale keys are carried from authored source rows");
   ok &= contains(gameplay_c,
-                 "transanim_mesh[de.name]=decoded->target;",
+                 "transanim_mesh[name]=anim.target;",
                  "venue TransAnim target mesh comes from the authored trans symbol");
+  ok &= contains(gameplay_c,
+                 "copy_transanim_keys_from_owner(anim,owner_it->second);",
+                 "venue TransAnim key pages resolve through source keys_owner");
+  ok &= contains(gameplay_c,
+                 "anim.anim.translation_spline=owner.anim.translation_spline;",
+                 "venue TransAnim spline flags resolve through source keys_owner");
+  ok &= contains(gameplay_c,
+                 "venueTransAnim%sinheritedkeys_owner=%spos=%zurot=%zuscale=%zu",
+                 "venue TransAnim diagnostics expose key-owner inheritance");
   ok &= contains(gameplay_c,
                  "for(constauto&light:scene.lights){",
                  "source local positions include RndLight transform targets");
@@ -6190,7 +6199,7 @@ int main() {
                  "out.anim.rotation_keys=mesh_quat_keys_from_camera_keys(decoded->rot_keys);",
                  "source-shaped TransAnim decoder keeps quaternion rotation keys");
   ok &= contains(gameplay_c,
-                 "mesh_quat_key_endpoint_summary(decoded->anim.rotation_keys)",
+                 "mesh_quat_key_endpoint_summary(stored.anim.rotation_keys)",
                  "venue TransAnim debug logs expose source quaternion key endpoints");
   ok &= contains(gameplay_c,
                  "std::array<float,4>sample_rotation_value("

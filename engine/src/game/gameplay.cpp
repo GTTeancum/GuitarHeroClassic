@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
@@ -8360,17 +8361,13 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
     out.anim.rotation_slerp = decoded->rot_slerp;
     out.revision = decoded->revision;
     out.anim_revision = decoded->anim_revision;
-    out.keys_owner = decoded->keys_owner;
+    out.keys_owner = canonical_milo_ref(decoded->keys_owner);
     out.trans_spline = decoded->trans_spline;
     out.repeat_trans = decoded->repeat_trans;
     out.scale_spline = decoded->scale_spline;
     out.follow_path = decoded->follow_path;
     out.rot_slerp = decoded->rot_slerp;
     out.rot_spline = decoded->rot_spline;
-    if (out.anim.translation_keys.empty() && out.anim.rotation_keys.empty() &&
-        out.anim.scale_keys.empty()) {
-        return std::nullopt;
-    }
     return out;
 }
 
@@ -8425,6 +8422,12 @@ float mesh_transform_anim_duration_frames(
         if (std::isfinite(key.frame)) duration = std::max(duration, key.frame);
     }
     return duration;
+}
+
+bool mesh_transform_anim_has_key_pages(
+    const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim) {
+    return !anim.translation_keys.empty() || !anim.rotation_keys.empty() ||
+           !anim.scale_keys.empty();
 }
 
 std::vector<std::string> ascii_strings_in_object(const uint8_t* body,
@@ -10607,6 +10610,7 @@ load_venue_anim_filters(const std::string& hdr_path,
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
 
+        std::map<std::string, VenueTransAnimDecode> transanim_decodes;
         std::map<std::string, std::string> transanim_mesh;
         std::map<std::string,
                  ghogx::render::MiloSceneRenderer::MeshTransformAnim>
@@ -10640,35 +10644,37 @@ load_venue_anim_filters(const std::string& hdr_path,
                 const auto decoded =
                     decode_venue_transanim_like_miloeditor(body, size);
                 if (!decoded) continue;
-                transanim_mesh[de.name] = decoded->target;
+                const std::string anim_name = canonical_milo_ref(de.name);
+                auto stored = *decoded;
+                if (stored.keys_owner.empty()) stored.keys_owner = anim_name;
                 if (debug_venue_filters_enabled()) {
                     const std::string trans_keys =
                         mesh_anim_key_endpoint_summary(
-                            decoded->anim.translation_keys);
+                            stored.anim.translation_keys);
                     const std::string rot_keys =
                         mesh_quat_key_endpoint_summary(
-                            decoded->anim.rotation_keys);
+                            stored.anim.rotation_keys);
                     const std::string scale_keys =
-                        mesh_anim_key_endpoint_summary(decoded->anim.scale_keys);
+                        mesh_anim_key_endpoint_summary(stored.anim.scale_keys);
                     std::fprintf(
                         stderr,
                         "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
-                        de.name.c_str(), decoded->target.c_str(),
-                        decoded->revision, decoded->anim_revision,
-                        decoded->keys_owner.c_str(),
-                        decoded->anim.translation_keys.size(),
-                        decoded->anim.rotation_keys.size(),
-                        decoded->anim.scale_keys.size(),
+                        de.name.c_str(), stored.target.c_str(),
+                        stored.revision, stored.anim_revision,
+                        stored.keys_owner.c_str(),
+                        stored.anim.translation_keys.size(),
+                        stored.anim.rotation_keys.size(),
+                        stored.anim.scale_keys.size(),
                         trans_keys.c_str(), rot_keys.c_str(),
                         scale_keys.c_str(),
-                        decoded->trans_spline ? 1 : 0,
-                        decoded->repeat_trans ? 1 : 0,
-                        decoded->scale_spline ? 1 : 0,
-                        decoded->follow_path ? 1 : 0,
-                        decoded->rot_slerp ? 1 : 0,
-                        decoded->rot_spline ? 1 : 0);
+                        stored.trans_spline ? 1 : 0,
+                        stored.repeat_trans ? 1 : 0,
+                        stored.scale_spline ? 1 : 0,
+                        stored.follow_path ? 1 : 0,
+                        stored.rot_slerp ? 1 : 0,
+                        stored.rot_spline ? 1 : 0);
                 }
-                transanim_anims[de.name] = std::move(decoded->anim);
+                transanim_decodes[anim_name] = std::move(stored);
             } else if (de.type == "MeshAnim") {
                 auto anim = decode_venue_mesh_anim(de.name, body, size);
                 if (!anim.name.empty()) {
@@ -10713,6 +10719,70 @@ load_venue_anim_filters(const std::string& hdr_path,
                     }
                 }
             }
+        }
+        auto copy_transanim_keys_from_owner =
+            [](VenueTransAnimDecode& anim,
+               const VenueTransAnimDecode& owner) {
+                anim.anim.translation_keys = owner.anim.translation_keys;
+                anim.anim.rotation_keys = owner.anim.rotation_keys;
+                anim.anim.scale_keys = owner.anim.scale_keys;
+                anim.anim.translation_spline = owner.anim.translation_spline;
+                anim.anim.scale_spline = owner.anim.scale_spline;
+                anim.anim.rotation_slerp = owner.anim.rotation_slerp;
+                anim.trans_spline = owner.trans_spline;
+                anim.scale_spline = owner.scale_spline;
+                anim.rot_slerp = owner.rot_slerp;
+                anim.rot_spline = owner.rot_spline;
+            };
+        std::function<bool(const std::string&,
+                           std::unordered_set<std::string>&)>
+            resolve_transanim_owner =
+                [&](const std::string& name,
+                    std::unordered_set<std::string>& visiting) -> bool {
+            const auto anim_it = transanim_decodes.find(name);
+            if (anim_it == transanim_decodes.end()) return false;
+            auto& anim = anim_it->second;
+            if (anim.keys_owner.empty()) anim.keys_owner = name;
+            const std::string owner_name = canonical_milo_ref(anim.keys_owner);
+            if (owner_name.empty() || owner_name == name) {
+                return mesh_transform_anim_has_key_pages(anim.anim);
+            }
+            if (!visiting.insert(name).second) return false;
+            const auto owner_it = transanim_decodes.find(owner_name);
+            if (owner_it == transanim_decodes.end()) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue TransAnim %s missing keys_owner=%s\n",
+                        name.c_str(), owner_name.c_str());
+                }
+                visiting.erase(name);
+                return mesh_transform_anim_has_key_pages(anim.anim);
+            }
+            resolve_transanim_owner(owner_name, visiting);
+            copy_transanim_keys_from_owner(anim, owner_it->second);
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue TransAnim %s inherited keys_owner=%s pos=%zu rot=%zu scale=%zu flags=trans_spline:%d scale_spline:%d rot_slerp:%d rot_spline:%d\n",
+                    name.c_str(), owner_name.c_str(),
+                    anim.anim.translation_keys.size(),
+                    anim.anim.rotation_keys.size(),
+                    anim.anim.scale_keys.size(),
+                    anim.trans_spline ? 1 : 0,
+                    anim.scale_spline ? 1 : 0,
+                    anim.rot_slerp ? 1 : 0,
+                    anim.rot_spline ? 1 : 0);
+            }
+            visiting.erase(name);
+            return mesh_transform_anim_has_key_pages(anim.anim);
+        };
+        for (auto& [name, anim] : transanim_decodes) {
+            std::unordered_set<std::string> visiting;
+            resolve_transanim_owner(name, visiting);
+            if (!mesh_transform_anim_has_key_pages(anim.anim)) continue;
+            transanim_mesh[name] = anim.target;
+            transanim_anims[name] = anim.anim;
         }
         resolve_venue_mesh_anim_key_owners(meshanim_anims);
         resolve_venue_mesh_anim_same_stem_meshes(meshanim_anims, mesh_refs);
