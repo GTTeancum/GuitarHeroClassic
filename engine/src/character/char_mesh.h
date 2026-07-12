@@ -1119,6 +1119,11 @@ struct SourceCharCuffPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharCuffTransformNode {
+  std::string name;
+  std::vector<SourceCharCuffTransformNode> children;
+};
+
 struct SourceCharBlendBoneConstraint {
   std::string target;
   float weight = 0.5f;
@@ -1875,6 +1880,8 @@ float source_char_cuff_eccentricity(float x, float y, float eccentricity);
 void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
                                               int32_t revision,
                                               const std::string& trans_parent);
+std::vector<std::string> source_char_cuff_add_bone_children(
+    const SourceCharCuffTransformNode* trans);
 SourceCharBlendBoneState source_char_blend_bone_default_state();
 SourceCharBlendBoneConstraintLoadPlan
 source_char_blend_bone_constraint_load_plan();

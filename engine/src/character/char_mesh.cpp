@@ -3516,6 +3516,28 @@ void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
   if (revision <= 7) cuff.ignore.clear();
 }
 
+namespace {
+
+void source_char_cuff_add_bone_children_impl(
+    const SourceCharCuffTransformNode* trans,
+    std::vector<std::string>& bones) {
+  if (!trans) return;
+  if (trans->name.rfind("bone_", 0) != 0) return;
+  bones.push_back(trans->name);
+  for (const SourceCharCuffTransformNode& child : trans->children) {
+    source_char_cuff_add_bone_children_impl(&child, bones);
+  }
+}
+
+}  // namespace
+
+std::vector<std::string> source_char_cuff_add_bone_children(
+    const SourceCharCuffTransformNode* trans) {
+  std::vector<std::string> bones;
+  source_char_cuff_add_bone_children_impl(trans, bones);
+  return bones;
+}
+
 SourceCharBlendBoneState source_char_blend_bone_default_state() {
   return SourceCharBlendBoneState{};
 }

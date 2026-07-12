@@ -5651,6 +5651,14 @@ int run_contract() {
                  "(f1*(1.0f/(mEccentricity*mEccentricity))+f2));}",
                  "CharCuff source eccentricity formula");
   ok &= contains(rb3_latest_char_cuff_cpp,
+                 "voidAddBoneChildren(std::list<RndTransformable*>&tlist,"
+                 "RndTransformable*trans){if(trans){if(strncmp(trans->Name(),"
+                 "\"bone_\",5)==0){tlist.push_back(trans);for(std::vector<"
+                 "RndTransformable*>::iteratorit=trans->TransChildren().begin();"
+                 "it!=trans->TransChildren().end();++it){AddBoneChildren("
+                 "tlist,*it);}}}}",
+                 "CharCuff source AddBoneChildren recursion rule");
+  ok &= contains(rb3_latest_char_cuff_cpp,
                  "ASSERT_REVS(8,0)LOAD_SUPERCLASS(Hmx::Object)"
                  "LOAD_SUPERCLASS(RndTransformable)for(inti=0;i<3;i++){"
                  "bs>>mShape[i].radius>>mShape[i].offset;}",
@@ -5720,6 +5728,10 @@ int run_contract() {
                  "std::vector<std::string>superclasses;};",
                  "native exposes CharCuff source prop-sync plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCuffTransformNode{std::stringname;"
+                 "std::vector<SourceCharCuffTransformNode>children;};",
+                 "native exposes CharCuff transform node");
+  ok &= contains(char_mesh_h,
                  "SourceCharCuffLoadPlansource_char_cuff_load_plan("
                  "intrevision);",
                  "native exposes CharCuff load-plan helper");
@@ -5732,6 +5744,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceCharCuffPropSyncPlansource_char_cuff_prop_sync_plan();",
                  "native exposes CharCuff prop-sync-plan helper");
+  ok &= contains(char_mesh_h,
+                 "std::vector<std::string>source_char_cuff_add_bone_children("
+                 "constSourceCharCuffTransformNode*trans);",
+                 "native exposes CharCuff AddBoneChildren helper");
   ok &= contains(char_mesh,
                  "SourceCharCuffStatesource_char_cuff_default_state(){",
                  "native ports CharCuff default helper");
@@ -5751,6 +5767,14 @@ int run_contract() {
                  "if(revision<=5)cuff.category.clear();if(revision<=7)"
                  "cuff.ignore.clear();",
                  "native CharCuff helper ports revision defaults");
+  ok &= contains(char_mesh,
+                 "if(!trans)return;if(trans->name.rfind(\"bone_\",0)!=0)return;"
+                 "bones.push_back(trans->name);",
+                 "native CharCuff helper ports bone-prefix gate");
+  ok &= contains(char_mesh,
+                 "for(constSourceCharCuffTransformNode&child:trans->children){"
+                 "source_char_cuff_add_bone_children_impl(&child,bones);}",
+                 "native CharCuff helper ports child recursion");
   ok &= contains(char_mesh,
                  "SourceCharCuffLoadPlansource_char_cuff_load_plan("
                  "intrevision){SourceCharCuffLoadPlanplan;"
@@ -5832,6 +5856,15 @@ int run_contract() {
   ok &= contains(cuff_source_test,
                  "source_char_cuff_prop_sync_plan()",
                  "focused CharCuff test covers prop-sync plan");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_add_bone_children(nullptr)",
+                 "focused CharCuff test covers null AddBoneChildren");
+  ok &= contains(cuff_source_test,
+                 "\"non-bonerootdoesnotscandescendants\"",
+                 "focused CharCuff test covers non-bone AddBoneChildren gate");
+  ok &= contains(cuff_source_test,
+                 "\"bonerecursionskipsplainsubtree\"",
+                 "focused CharCuff test covers AddBoneChildren recursion");
   ok &= contains(doc,
                  "Native `source_char_cuff_load_plan` records the source read order",
                  "document records native CharCuff load plan");
@@ -5844,6 +5877,9 @@ int run_contract() {
   ok &= contains(doc,
                  "check value `0x1FE`, direct shape/outer/open/bone/eccentricity/category/",
                  "document records CharCuff prop-sync source rows");
+  ok &= contains(doc,
+                 "Source `AddBoneChildren` only appends a transform when the current",
+                 "document records CharCuff AddBoneChildren source rule");
   ok &= contains(doc,
                  "Native `source_char_cuff_*` helpers port",
                  "document records native CharCuff helpers");

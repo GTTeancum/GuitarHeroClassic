@@ -35,6 +35,8 @@ bool near(float got, float want, const char* label) {
 
 int main() {
   using ghogx::character::SourceCharCuffState;
+  using ghogx::character::SourceCharCuffTransformNode;
+  using ghogx::character::source_char_cuff_add_bone_children;
   using ghogx::character::source_char_cuff_apply_revision_defaults;
   using ghogx::character::source_char_cuff_copy_plan;
   using ghogx::character::source_char_cuff_default_state;
@@ -181,6 +183,32 @@ int main() {
   ok &= expect_string(cuff.category, "loaded.category",
                       "rev8 keeps loaded category");
   ok &= expect_size(cuff.ignore.size(), 1, "rev8 keeps ignore list");
+
+  const auto null_bones = source_char_cuff_add_bone_children(nullptr);
+  ok &= expect_size(null_bones.size(), 0, "null add bone children empty");
+
+  const SourceCharCuffTransformNode non_bone_root{
+      "spot_anchor.trans",
+      {{"bone_hidden.mesh", {{"bone_hidden_child.mesh", {}}}}}};
+  const auto skipped_bones = source_char_cuff_add_bone_children(&non_bone_root);
+  ok &= expect_size(skipped_bones.size(), 0,
+                    "non-bone root does not scan descendants");
+
+  const SourceCharCuffTransformNode bone_root{
+      "bone_forearm.mesh",
+      {{"bone_wrist.mesh", {{"spot_not_bone.trans",
+                              {{"bone_not_reached.mesh", {}}}},
+                             {"bone_palm.mesh", {}}}},
+       {"plain_child.mesh", {{"bone_plain_descendant.mesh", {}}}},
+       {"bone_thumb.mesh", {}}}};
+  const auto bones = source_char_cuff_add_bone_children(&bone_root);
+  ok &= expect_size(bones.size(), 4, "bone child recursion count");
+  ok &= expect_string(bones[0], "bone_forearm.mesh", "bone recursion root");
+  ok &= expect_string(bones[1], "bone_wrist.mesh", "bone recursion first child");
+  ok &= expect_string(bones[2], "bone_palm.mesh",
+                      "bone recursion skips spot subtree");
+  ok &= expect_string(bones[3], "bone_thumb.mesh",
+                      "bone recursion skips plain subtree");
 
   return ok ? 0 : 1;
 }

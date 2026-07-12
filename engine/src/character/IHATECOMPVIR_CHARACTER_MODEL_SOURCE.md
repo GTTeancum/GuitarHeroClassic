@@ -35,7 +35,7 @@ records the upstream commits for the copied files:
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
-| Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, and revision defaults; deformation and mesh hookup remain unwired without stock rows. |
+| Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, revision defaults, and the source `AddBoneChildren` bone-prefix recursion rule; deformation and mesh hookup remain unwired without complete source bodies/stock rows. |
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser keeps raw source rows; runtime-active skinning palette follows RB3 `RndMesh` null/invalid bone trimming. |
@@ -1156,6 +1156,11 @@ note, and all report `unreadBytes=0`.
     `source_char_cuff_prop_sync_plan` port the visible source handler chain,
     check value `0x1FE`, direct shape/outer/open/bone/eccentricity/category/
     ignore property rows, and `RndTransformable` superclass.
+  - Source `AddBoneChildren` only appends a transform when the current
+    transform name starts with `bone_`, then recurses into that transform's
+    children. It does not scan below a null or non-`bone_` root. Native
+    `source_char_cuff_add_bone_children` ports that exact collection rule for
+    deterministic accessory/deformation diagnostics.
   - Native `source_char_cuff_*` helpers port those complete source-visible data
     rules only. The deformation path, bone mask helper, and mesh callbacks are
     not promoted without source-backed stock rows or a complete runtime owner.
