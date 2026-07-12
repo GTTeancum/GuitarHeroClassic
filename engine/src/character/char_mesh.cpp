@@ -617,6 +617,48 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
   return plan;
 }
 
+SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
+    const SourceGltfMiloBaseMeshInput& input) {
+  SourceGltfMiloBaseMeshPlan plan;
+  plan.mesh_revision = input.model_revision;
+  plan.mesh_alt_revision = 0;
+  plan.object_fields_revision = 2;
+  plan.trans_revision = 9;
+  plan.parent_name = input.parent_name;
+  plan.copies_local_matrix = true;
+  plan.copies_world_matrix = true;
+  plan.drawable_revision = 3;
+  plan.initializes_draw_sphere = true;
+  plan.draw_sphere_radius = 0.0f;
+  plan.volume_triangles = true;
+  plan.keep_mesh_data = true;
+  plan.has_ao_calculation = false;
+
+  const bool has_next_gen_vertex_branch =
+      input.game == SourceGltfMiloGame::kRockBand3 ||
+      input.game == SourceGltfMiloGame::kDanceCentral1;
+  if (has_next_gen_vertex_branch && input.platform == "xbox") {
+    plan.vertices_is_next_gen = true;
+    plan.vertex_compression_type = 1;
+    plan.vertex_size = 36;
+  } else if (has_next_gen_vertex_branch && input.platform == "ps3") {
+    plan.vertices_is_next_gen = true;
+    plan.vertex_compression_type = 2;
+    plan.vertex_size = 40;
+  }
+
+  if (input.has_material) {
+    plan.binds_material = true;
+    plan.material_name = input.material_name + ".mat";
+    plan.logs_missing_diffuse_or_maps =
+        !input.material_has_diffuse ||
+        (!input.material_has_diffuse && !input.material_has_normal &&
+         !input.material_has_specular);
+    if (input.material_has_normal) plan.has_ao_calculation = true;
+  }
+  return plan;
+}
+
 SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
     const SourceGltfMiloBoneNodeInput& input) {
   SourceGltfMiloBoneNodePlan plan;

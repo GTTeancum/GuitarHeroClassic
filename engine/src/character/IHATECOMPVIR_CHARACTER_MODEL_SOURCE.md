@@ -923,6 +923,17 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     those deterministic exporter rows for evidence only; live GH2 character
     material behavior still comes from decoded stock `RndMat` rows plus the
     separate project hair two-sided culling override.
+  - `CreateBaseMesh` allocates `RndMesh.New(selectedGame.ModelRevision, 0, 0,
+    0)`, sets object-fields revision 2, embeds a revision-9 `RndTrans` parented
+    to the MILO filename, embeds revision-3 `RndDrawable` with radius `0`,
+    sets triangle volume, keeps mesh data, and clears AO by default. It copies
+    the glTF node local/world transforms, turns on next-gen vertex layout only
+    for Rock Band 3 or Dance Central 1 on `xbox` (`compressionType=1`,
+    `vertexSize=36`) or `ps3` (`compressionType=2`, `vertexSize=40`), binds
+    `<material>.mat` when a material exists, warns when diffuse is missing, and
+    enables AO calculation when a normal map exists. Native
+    `source_gltf_milo_create_base_mesh_plan` mirrors that exporter-side mesh
+    setup as a contract; it does not change stock GH2 runtime mesh decode.
   - `NodeProcessor.ProcessBoneNode` skips `neutral_bone`, skips RB3 skeleton
     bones only when exporting a `character`, otherwise emits a revision-9
     `Trans` row with object-fields revision 2, local/world matrices copied from

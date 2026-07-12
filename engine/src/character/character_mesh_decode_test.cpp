@@ -536,6 +536,64 @@ int main() {
   CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
   CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
 
+  ghogx::character::SourceGltfMiloBaseMeshInput base_mesh;
+  base_mesh.game = ghogx::character::SourceGltfMiloGame::kRockBand3;
+  base_mesh.platform = "xbox";
+  base_mesh.model_revision = 33;
+  base_mesh.parent_name = "rock1.milo";
+  base_mesh.node_name = "rock1_hair";
+  base_mesh.has_material = true;
+  base_mesh.material_name = "rock1_hair";
+  base_mesh.material_has_diffuse = true;
+  base_mesh.material_has_normal = true;
+  const auto rb3_xbox_base_mesh =
+      ghogx::character::source_gltf_milo_create_base_mesh_plan(base_mesh);
+  CHECK(rb3_xbox_base_mesh.creates_mesh);
+  CHECK(rb3_xbox_base_mesh.mesh_revision == 33);
+  CHECK(rb3_xbox_base_mesh.mesh_alt_revision == 0);
+  CHECK(rb3_xbox_base_mesh.object_fields_revision == 2);
+  CHECK(rb3_xbox_base_mesh.trans_revision == 9);
+  CHECK(rb3_xbox_base_mesh.parent_name == "rock1.milo");
+  CHECK(rb3_xbox_base_mesh.copies_local_matrix);
+  CHECK(rb3_xbox_base_mesh.copies_world_matrix);
+  CHECK(rb3_xbox_base_mesh.drawable_revision == 3);
+  CHECK(rb3_xbox_base_mesh.initializes_draw_sphere);
+  CHECK(approx(rb3_xbox_base_mesh.draw_sphere_radius, 0.0f));
+  CHECK(rb3_xbox_base_mesh.volume_triangles);
+  CHECK(rb3_xbox_base_mesh.keep_mesh_data);
+  CHECK(rb3_xbox_base_mesh.has_ao_calculation);
+  CHECK(rb3_xbox_base_mesh.vertices_is_next_gen);
+  CHECK(rb3_xbox_base_mesh.vertex_compression_type == 1);
+  CHECK(rb3_xbox_base_mesh.vertex_size == 36);
+  CHECK(rb3_xbox_base_mesh.binds_material);
+  CHECK(rb3_xbox_base_mesh.material_name == "rock1_hair.mat");
+  CHECK(!rb3_xbox_base_mesh.logs_missing_diffuse_or_maps);
+
+  base_mesh.game = ghogx::character::SourceGltfMiloGame::kDanceCentral1;
+  base_mesh.platform = "ps3";
+  base_mesh.material_has_diffuse = false;
+  base_mesh.material_has_normal = false;
+  base_mesh.material_has_specular = true;
+  const auto dc1_ps3_base_mesh =
+      ghogx::character::source_gltf_milo_create_base_mesh_plan(base_mesh);
+  CHECK(dc1_ps3_base_mesh.vertices_is_next_gen);
+  CHECK(dc1_ps3_base_mesh.vertex_compression_type == 2);
+  CHECK(dc1_ps3_base_mesh.vertex_size == 40);
+  CHECK(!dc1_ps3_base_mesh.has_ao_calculation);
+  CHECK(dc1_ps3_base_mesh.logs_missing_diffuse_or_maps);
+
+  base_mesh.game = ghogx::character::SourceGltfMiloGame::kOther;
+  base_mesh.platform = "ps2";
+  base_mesh.has_material = false;
+  const auto ps2_base_mesh =
+      ghogx::character::source_gltf_milo_create_base_mesh_plan(base_mesh);
+  CHECK(!ps2_base_mesh.vertices_is_next_gen);
+  CHECK(ps2_base_mesh.vertex_compression_type == 0);
+  CHECK(ps2_base_mesh.vertex_size == 0);
+  CHECK(!ps2_base_mesh.binds_material);
+  CHECK(!ps2_base_mesh.has_ao_calculation);
+  CHECK(!ps2_base_mesh.logs_missing_diffuse_or_maps);
+
   ghogx::character::SourceGltfMiloBoneNodeInput bone_node;
   bone_node.name = "neutral_bone";
   bone_node.type = "character";

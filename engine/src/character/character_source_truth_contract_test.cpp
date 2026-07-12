@@ -3193,6 +3193,43 @@ int run_contract() {
                  "varrelativeTransform=boneWorldInverse*node.WorldMatrix;",
                  "glTFMilo writes inverse joint world times mesh world");
   ok &= contains(gltf_program_cs,
+                 "varmesh=RndMesh.New(GameRevisions.GetRevision(selectedGame)"
+                 ".ModelRevision,0,0,0);",
+                 "glTFMilo CreateBaseMesh uses selected model revision");
+  ok &= contains(gltf_program_cs,
+                 "mesh.objFields.revision=2;",
+                 "glTFMilo CreateBaseMesh sets object fields revision");
+  ok &= contains(gltf_program_cs,
+                 "mesh.trans=RndTrans.New(9,0);mesh.trans.parentObj="
+                 "parentName;",
+                 "glTFMilo CreateBaseMesh sets revision-9 parent trans");
+  ok &= contains(gltf_program_cs,
+                 "mesh.draw=RndDrawable.New(3,0);mesh.draw.sphere="
+                 "newSphere();mesh.draw.sphere.radius=0.0f;",
+                 "glTFMilo CreateBaseMesh initializes draw sphere");
+  ok &= contains(gltf_program_cs,
+                 "mesh.volume=RndMesh.Volume.kVolumeTriangles;"
+                 "mesh.keepMeshData=true;mesh.hasAOCalculation=false;",
+                 "glTFMilo CreateBaseMesh sets volume and defaults");
+  ok &= contains(gltf_program_cs,
+                 "if(selectedGame==MiloGame.RockBand3||selectedGame=="
+                 "MiloGame.DanceCentral1)",
+                 "glTFMilo CreateBaseMesh gates next-gen layout by game");
+  ok &= contains(gltf_program_cs,
+                 "mesh.vertices.isNextGen=true;mesh.vertices.compressionType="
+                 "1;mesh.vertices.vertexSize=36;",
+                 "glTFMilo CreateBaseMesh selects Xbox compression layout");
+  ok &= contains(gltf_program_cs,
+                 "mesh.vertices.isNextGen=true;mesh.vertices.compressionType="
+                 "2;mesh.vertices.vertexSize=40;",
+                 "glTFMilo CreateBaseMesh selects PS3 compression layout");
+  ok &= contains(gltf_program_cs,
+                 "mesh.mat=primitive.Material.Name+\".mat\";",
+                 "glTFMilo CreateBaseMesh binds material name");
+  ok &= contains(gltf_program_cs,
+                 "if(hasNormal){mesh.hasAOCalculation=true;}",
+                 "glTFMilo CreateBaseMesh enables AO for normal maps");
+  ok &= contains(gltf_program_cs,
                  "mat.cull=!material.DoubleSided;",
                  "glTFMilo material cull follows glTF DoubleSided");
   ok &= contains(gltf_program_cs,
@@ -3270,6 +3307,12 @@ int run_contract() {
                  "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
                  "native declares glTFMilo material plan row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloBaseMeshInput{SourceGltfMiloGamegame=",
+                 "native declares glTFMilo base mesh input row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloBaseMeshPlan{boolcreates_mesh=true;",
+                 "native declares glTFMilo base mesh plan row");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloBoneNodeInput{std::stringname;",
                  "native declares glTFMilo bone node input row");
   ok &= contains(char_mesh_h,
@@ -3297,6 +3340,9 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
                  "native exposes glTFMilo material base helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
+                 "native exposes glTFMilo CreateBaseMesh helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBoneNodePlan"
                  "source_gltf_milo_process_bone_node_plan(",
@@ -3430,6 +3476,22 @@ int run_contract() {
                  "plan.alpha_cut=true;",
                  "native preserves glTFMilo alpha-mask branch");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
+                 "native ports glTFMilo CreateBaseMesh helper");
+  ok &= contains(char_mesh,
+                 "plan.trans_revision=9;",
+                 "native CreateBaseMesh helper preserves revision-9 trans");
+  ok &= contains(char_mesh,
+                 "if(has_next_gen_vertex_branch&&input.platform==\"xbox\"){",
+                 "native CreateBaseMesh helper preserves Xbox branch");
+  ok &= contains(char_mesh,
+                 "plan.vertex_compression_type=2;plan.vertex_size=40;",
+                 "native CreateBaseMesh helper preserves PS3 layout");
+  ok &= contains(char_mesh,
+                 "plan.logs_missing_diffuse_or_maps=!input."
+                 "material_has_diffuse||",
+                 "native CreateBaseMesh helper preserves diffuse warning gate");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloBoneNodePlansource_gltf_milo_process_bone_node_plan(",
                  "native ports glTFMilo ProcessBoneNode helper");
   ok &= contains(char_mesh,
@@ -3476,6 +3538,15 @@ int run_contract() {
                  "gltf_hair_material.tex_wrap==0",
                  "focused mesh decode test covers glTFMilo wrap priority");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_create_base_mesh_plan(base_mesh)",
+                 "focused mesh decode test covers glTFMilo CreateBaseMesh helper");
+  ok &= contains(mesh_decode_test,
+                 "rb3_xbox_base_mesh.vertex_compression_type==1",
+                 "focused mesh decode test covers Xbox CreateBaseMesh layout");
+  ok &= contains(mesh_decode_test,
+                 "dc1_ps3_base_mesh.vertex_compression_type==2",
+                 "focused mesh decode test covers PS3 CreateBaseMesh layout");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_process_bone_node_plan(bone_node)",
                  "focused mesh decode test covers glTFMilo bone node helper");
   ok &= contains(mesh_decode_test,
@@ -3517,6 +3588,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_create_base_mesh_plan` mirrors",
+                 "document records glTFMilo CreateBaseMesh helper");
   ok &= contains(doc,
                  "`source_gltf_milo_process_bone_node_plan` and",
                  "document records glTFMilo node processor helpers");

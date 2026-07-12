@@ -269,6 +269,48 @@ enum class SourceGltfMiloAlphaMode {
   kBlend,
 };
 
+enum class SourceGltfMiloGame {
+  kOther,
+  kRockBand3,
+  kDanceCentral1,
+};
+
+struct SourceGltfMiloBaseMeshInput {
+  SourceGltfMiloGame game = SourceGltfMiloGame::kOther;
+  std::string platform;
+  int32_t model_revision = 0;
+  std::string parent_name;
+  std::string node_name;
+  bool has_material = false;
+  std::string material_name;
+  bool material_has_diffuse = false;
+  bool material_has_normal = false;
+  bool material_has_specular = false;
+};
+
+struct SourceGltfMiloBaseMeshPlan {
+  bool creates_mesh = true;
+  int32_t mesh_revision = 0;
+  int32_t mesh_alt_revision = 0;
+  int32_t object_fields_revision = 0;
+  int32_t trans_revision = 0;
+  std::string parent_name;
+  bool copies_local_matrix = false;
+  bool copies_world_matrix = false;
+  int32_t drawable_revision = 0;
+  bool initializes_draw_sphere = false;
+  float draw_sphere_radius = 0.0f;
+  bool volume_triangles = false;
+  bool keep_mesh_data = false;
+  bool has_ao_calculation = false;
+  bool vertices_is_next_gen = false;
+  int32_t vertex_compression_type = 0;
+  int32_t vertex_size = 0;
+  bool binds_material = false;
+  std::string material_name;
+  bool logs_missing_diffuse_or_maps = false;
+};
+
 struct SourceGltfMiloMaterialInput {
   std::string name;
   bool has_base_color_texture = false;
@@ -388,6 +430,9 @@ SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
 
 SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input);
+
+SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
+    const SourceGltfMiloBaseMeshInput& input);
 
 SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
     const SourceGltfMiloBoneNodeInput& input);
