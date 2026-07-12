@@ -29,7 +29,7 @@
 //         vectors (.pos + .scale):  float32x3 (12B) or int16x3 (6B)
 //         quats   (.quat):          float32x4 (16B), int16x4 (8B), or
 //                                   source ByteQuat (4B)
-//         angles  (.rotx/.roty/.rotz): float32 (4B) or int16 (2B)
+//         scalar axes (.rotx/.roty/.rotz): float32 (4B) or int16 (2B)
 //
 // Source-backed bone classification: .pos=0 .scale=1 .quat=2
 // .rotx=3 .roty=4 .rotz=5, matching ihatecompvir CharBones::Type.
@@ -2145,6 +2145,14 @@ void skip_grim_scale(Cur& c) {
   (void)c.u32();
 }
 
+void skip_grim_angle(Cur& c, bool comp) {
+  if (comp) {
+    (void)c.u16();
+  } else {
+    (void)c.u32();
+  }
+}
+
 void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
   ch.type = cat == kSourceCharBonesTypeRotX ? ClipChannel::kRotX
           : cat == kSourceCharBonesTypeRotY ? ClipChannel::kRotY
@@ -2277,14 +2285,16 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
           case kSourceCharBonesTypeScale:
             skip_grim_scale(c);
             break;
-          case kSourceCharBonesTypeQuat:
-            read_quat(c, comp, ch);
-            frames[f].push_back(ch);
-            break;
           case kSourceCharBonesTypeRotX:
           case kSourceCharBonesTypeRotY:
+            skip_grim_angle(c, comp);
+            break;
           case kSourceCharBonesTypeRotZ:
             read_angle(c, comp, bl.cats[bi], ch);
+            frames[f].push_back(ch);
+            break;
+          case kSourceCharBonesTypeQuat:
+            read_quat(c, comp, ch);
             frames[f].push_back(ch);
             break;
           default:

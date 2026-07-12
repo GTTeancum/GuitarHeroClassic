@@ -284,9 +284,10 @@ into final transform rows.
      sample walking. Grim's visible decode body publishes `.pos`, `.quat`, and
      `.rotz`; re-notes' active `Sample` template also counts `.pos`, `.quat`,
      and `.rotz` while exposing only a generic scalar `RotSample`. Native
-     consumes `.scale` bytes without pose writeback, and treats `.rotx` /
-     `.roty` as requiring the still-missing `EvaluateChannel` / pose body before
-     they can be considered fully understood. The remaining missing
+     consumes `.scale`, `.rotx`, and `.roty` sample bytes without pose
+     writeback, and treats `.rotx` / `.roty` as requiring the still-missing
+     `EvaluateChannel` / pose body before they can be considered fully
+     understood. The remaining missing
      source-backed bodies are `CharBonesSamples::EvaluateChannel`, `Relativize`,
      and the complete pose application path. `rb3-latest` declares those
      functions, while the RB2 dump maps names/ranges and locals but does not

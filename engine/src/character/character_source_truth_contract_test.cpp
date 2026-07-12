@@ -848,6 +848,10 @@ int run_contract() {
                  "native walks clip sample bytes in bone order");
   ok &= contains(char_clip, "casekSourceCharBonesTypeScale:skip_grim_scale(c);",
                  "native consumes scale bytes without publishing pose");
+  ok &= contains(char_clip,
+                 "casekSourceCharBonesTypeRotX:casekSourceCharBonesTypeRotY:"
+                 "skip_grim_angle(c,comp);",
+                 "native consumes rotx roty bytes without publishing pose");
   ok &= contains(doc,
                  "`.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose "
                  "publishing remain fenced",
@@ -993,11 +997,12 @@ int run_contract() {
                  "serialized bone-order\n     sample walking",
                  "remaining import checklist records Grim sample order");
   ok &= contains(doc,
-                 "Native\n     consumes `.scale` bytes without pose writeback",
+                 "Native\n     consumes `.scale`, `.rotx`, and `.roty` sample "
+                 "bytes without pose",
                  "remaining import checklist fences scale publish");
   ok &= contains(doc,
-                 "treats `.rotx` /\n     `.roty` as requiring the "
-                 "still-missing `EvaluateChannel` / pose body",
+                 "treats `.rotx` / `.roty` as requiring the still-missing\n"
+                 "     `EvaluateChannel` / pose body",
                  "remaining import checklist fences rotx roty publish");
   ok &= contains(doc,
                  "The remaining missing\n     source-backed bodies are "
