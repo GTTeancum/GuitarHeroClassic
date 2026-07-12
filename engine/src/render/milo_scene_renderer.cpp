@@ -700,6 +700,26 @@ std::array<float, 3> sample_vec_value(
   return out;
 }
 
+float repeat_translation_sample_frame(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
+    bool repeat, std::array<float, 3>& repeat_offset) {
+  repeat_offset = {0.0f, 0.0f, 0.0f};
+  if (!repeat || keys.size() < 2 || !std::isfinite(frame)) return frame;
+  const float first_frame = keys.front().frame;
+  const float last_frame = keys.back().frame;
+  const float span = last_frame - first_frame;
+  if (!std::isfinite(span) || span <= 0.001f || frame < last_frame) {
+    return frame;
+  }
+  const float cycles = std::floor((frame - first_frame) / span);
+  if (!std::isfinite(cycles) || cycles <= 0.0f) return frame;
+  for (int axis = 0; axis < 3; ++axis) {
+    repeat_offset[axis] =
+        (keys.back().pos[axis] - keys.front().pos[axis]) * cycles;
+  }
+  return frame - cycles * span;
+}
+
 std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                      std::array<float, 4> b, float t) {
   a = normalize_quat_xyzw(a);
@@ -772,8 +792,14 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
   if (!anim.translation_keys.empty()) {
     sample.has_translation = true;
     sample.translation_is_absolute = true;
-    sample.translation =
-        sample_vec_value(anim.translation_keys, frame, anim.translation_spline);
+    std::array<float, 3> repeat_offset;
+    const float sample_frame = repeat_translation_sample_frame(
+        anim.translation_keys, frame, anim.translation_repeat, repeat_offset);
+    sample.translation = sample_vec_value(
+        anim.translation_keys, sample_frame, anim.translation_spline);
+    for (int axis = 0; axis < 3; ++axis) {
+      sample.translation[axis] += repeat_offset[axis];
+    }
   }
   if (!anim.rotation_keys.empty()) {
     sample.has_rotation = true;

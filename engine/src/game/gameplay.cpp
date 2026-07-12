@@ -8416,6 +8416,7 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
         mesh_quat_keys_from_camera_keys(decoded->rot_keys);
     out.anim.scale_keys = mesh_anim_keys_from_camera_keys(decoded->scale_keys);
     out.anim.translation_spline = decoded->trans_spline;
+    out.anim.translation_repeat = decoded->repeat_trans;
     out.anim.scale_spline = decoded->scale_spline;
     out.anim.rotation_slerp = decoded->rot_slerp;
     out.revision = decoded->revision;
@@ -9525,11 +9526,36 @@ std::array<float, 3> sample_vec_value(
     return out;
 }
 
+float repeat_translation_sample_frame(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
+    float frame, bool repeat, std::array<float, 3>& repeat_offset) {
+    repeat_offset = {0.0f, 0.0f, 0.0f};
+    if (!repeat || keys.size() < 2 || !std::isfinite(frame)) return frame;
+    const float first_frame = keys.front().frame;
+    const float last_frame = keys.back().frame;
+    const float span = last_frame - first_frame;
+    if (!std::isfinite(span) || span <= 0.001f || frame < last_frame) {
+        return frame;
+    }
+    const float cycles = std::floor((frame - first_frame) / span);
+    if (!std::isfinite(cycles) || cycles <= 0.0f) return frame;
+    for (int axis = 0; axis < 3; ++axis) {
+        repeat_offset[axis] =
+            (keys.back().pos[axis] - keys.front().pos[axis]) * cycles;
+    }
+    return frame - cycles * span;
+}
+
 std::array<float, 3> sample_translation_position(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
-    float frame, bool spline) {
-    return keys.empty() ? std::array<float, 3>{0.0f, 0.0f, 0.0f}
-                        : sample_vec_value(keys, frame, spline);
+    float frame, bool spline, bool repeat) {
+    if (keys.empty()) return {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> repeat_offset;
+    const float sample_frame =
+        repeat_translation_sample_frame(keys, frame, repeat, repeat_offset);
+    auto out = sample_vec_value(keys, sample_frame, spline);
+    for (int axis = 0; axis < 3; ++axis) out[axis] += repeat_offset[axis];
+    return out;
 }
 
 std::array<float, 3> sample_scale_value(
@@ -9622,7 +9648,8 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
         sample.has_translation = true;
         sample.translation_is_absolute = true;
         sample.translation = sample_translation_position(
-            anim.translation_keys, frame, anim.translation_spline);
+            anim.translation_keys, frame, anim.translation_spline,
+            anim.translation_repeat);
     }
     if (!anim.rotation_keys.empty()) {
         sample.has_rotation = true;
@@ -9667,7 +9694,8 @@ sample_mesh_transform_from_source_local_position(
         if (source) {
             const auto position =
                 sample_translation_position(
-                    anim.translation_keys, frame, anim.translation_spline);
+                    anim.translation_keys, frame, anim.translation_spline,
+                    anim.translation_repeat);
             sample.has_translation = true;
             sample.translation_is_absolute = false;
             for (int axis = 0; axis < 3; ++axis)
@@ -10972,9 +11000,11 @@ load_venue_anim_filters(const std::string& hdr_path,
                 anim.anim.rotation_keys = owner.anim.rotation_keys;
                 anim.anim.scale_keys = owner.anim.scale_keys;
                 anim.anim.translation_spline = owner.anim.translation_spline;
+                anim.anim.translation_repeat = owner.anim.translation_repeat;
                 anim.anim.scale_spline = owner.anim.scale_spline;
                 anim.anim.rotation_slerp = owner.anim.rotation_slerp;
                 anim.trans_spline = owner.trans_spline;
+                anim.repeat_trans = owner.repeat_trans;
                 anim.scale_spline = owner.scale_spline;
                 anim.rot_slerp = owner.rot_slerp;
                 anim.rot_spline = owner.rot_spline;
@@ -11009,12 +11039,13 @@ load_venue_anim_filters(const std::string& hdr_path,
             if (debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
-                    "[world] venue TransAnim %s inherited keys_owner=%s pos=%zu rot=%zu scale=%zu flags=trans_spline:%d scale_spline:%d rot_slerp:%d rot_spline:%d\n",
+                    "[world] venue TransAnim %s inherited keys_owner=%s pos=%zu rot=%zu scale=%zu flags=trans_spline:%d repeat:%d scale_spline:%d rot_slerp:%d rot_spline:%d\n",
                     name.c_str(), owner_name.c_str(),
                     anim.anim.translation_keys.size(),
                     anim.anim.rotation_keys.size(),
                     anim.anim.scale_keys.size(),
                     anim.trans_spline ? 1 : 0,
+                    anim.repeat_trans ? 1 : 0,
                     anim.scale_spline ? 1 : 0,
                     anim.rot_slerp ? 1 : 0,
                     anim.rot_spline ? 1 : 0);
@@ -20059,7 +20090,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s rate=%d fpu=%.1f frame=%.2f pos=%d:%s rot=%d:%s quat=(%.5f %.5f %.5f %.5f) scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s rate=%d fpu=%.1f frame=%.2f pos=%d:%s rot=%d:%s quat=(%.5f %.5f %.5f %.5f) scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d repeat=%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), filter.anim_rate,
                         rnd_animatable_frames_per_unit(filter.anim_rate), frame,
@@ -20083,6 +20114,7 @@ void Gameplay::update_active_venue_anim_filters() {
                         it->persistent ? 1 : 0,
                         target.anim.translation_spline ? 1 : 0,
                         target.anim.scale_spline ? 1 : 0,
+                        target.anim.translation_repeat ? 1 : 0,
                         target.anim.rotation_slerp ? 1 : 0);
                 }
             }

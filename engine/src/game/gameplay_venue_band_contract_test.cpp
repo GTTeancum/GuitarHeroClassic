@@ -6216,16 +6216,23 @@ int main() {
                  "booltranslation_spline=false;",
                  "shared TransAnim data preserves the authored translation spline flag");
   ok &= contains(renderer_h_c,
+                 "booltranslation_repeat=false;",
+                 "shared TransAnim data preserves the authored repeatTrans flag");
+  ok &= contains(renderer_h_c,
                  "boolscale_spline=false;",
                  "shared TransAnim data preserves the authored scale spline flag");
   ok &= contains(renderer_h_c,
                  "boolrotation_slerp=false;",
                  "shared TransAnim data preserves the authored rotation slerp flag");
   ok &= contains(renderer_c,
+                 "repeat_translation_sample_frame("
+                 "anim.translation_keys,frame,anim.translation_repeat,"
+                 "repeat_offset)",
+                 "one-shot renderer TransAnim translation honors source repeatTrans");
+  ok &= contains(renderer_c,
                  "if(!anim.translation_keys.empty()){sample.has_translation=true;"
                  "sample.translation_is_absolute=true;"
-                 "sample.translation=sample_vec_value(anim.translation_keys,"
-                 "frame,anim.translation_spline);}",
+                 "std::array<float,3>repeat_offset;",
                  "one-shot renderer TransAnim translation applies source SetFrame local positions");
   ok &= contains(renderer_c,
                  "fast_interp_quat_xyzw(",
@@ -6306,9 +6313,10 @@ int main() {
                  "source-shaped TransAnim decoder keeps authored scale keys");
   ok &= contains(gameplay_c,
                  "out.anim.translation_spline=decoded->trans_spline;"
+                 "out.anim.translation_repeat=decoded->repeat_trans;"
                  "out.anim.scale_spline=decoded->scale_spline;"
                  "out.anim.rotation_slerp=decoded->rot_slerp;",
-                 "source-shaped TransAnim decoder propagates authored vector spline and rot_slerp flags");
+                 "source-shaped TransAnim decoder propagates authored repeat, vector spline, and rot_slerp flags");
   ok &= contains(gameplay_c,
                  "std::array<float,3>sample_scale_value("
                  "conststd::vector<ghogx::render::MiloSceneRenderer::"
@@ -6330,13 +6338,18 @@ int main() {
                "venue TransAnim playback must not drop one-key scale channels");
   ok &= contains(gameplay_c,
                  "sample_translation_position(anim.translation_keys,frame,"
-                 "anim.translation_spline);",
-                 "source-local translation correction honors authored translation spline mode");
+                 "anim.translation_spline,anim.translation_repeat);",
+                 "source-local translation correction honors authored translation spline and repeat mode");
+  ok &= contains(gameplay_c,
+                 "repeat_translation_sample_frame(keys,frame,repeat,"
+                 "repeat_offset)",
+                 "venue TransAnim translation samples source repeatTrans cycles");
   ok &= contains(gameplay_c,
                  "if(!anim.translation_keys.empty()){sample.has_translation=true;"
                  "sample.translation_is_absolute=true;"
                  "sample.translation=sample_translation_position("
-                 "anim.translation_keys,frame,anim.translation_spline);}",
+                 "anim.translation_keys,frame,anim.translation_spline,"
+                 "anim.translation_repeat);}",
                  "venue TransAnim fallback applies authored translations as source SetFrame local positions");
   ok &= absent(gameplay_c,
                "sample_translation_offset(",
@@ -6345,8 +6358,8 @@ int main() {
                "if(anim.translation_keys.size()>=2){sample.has_translation=true;",
                "venue TransAnim playback must not drop one-key translation channels");
   ok &= contains(gameplay_c,
-                 "spline=%d/%drot_slerp=%d",
-                 "venue AnimFilter sample logs expose authored spline and rot_slerp flags");
+                 "spline=%d/%drepeat=%drot_slerp=%d",
+                 "venue AnimFilter sample logs expose authored spline, repeatTrans, and rot_slerp flags");
   ok &= contains(gameplay_c,
                  "if(trans_count>2048){",
                  "source-shaped TransAnim decoder allows rotation-only venue anims");

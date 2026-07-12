@@ -210,6 +210,7 @@ class MiloSceneRenderer {
     std::vector<MeshQuatAnimKey> rotation_keys;
     std::vector<MeshAnimKey> scale_keys;
     bool translation_spline = false;
+    bool translation_repeat = false;
     bool scale_spline = false;
     bool rotation_slerp = false;
   };
