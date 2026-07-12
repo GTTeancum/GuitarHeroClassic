@@ -10475,6 +10475,20 @@ float venue_filter_frame_offset(const Gameplay::VenueAnimFilter& filter) {
     return offset + reverse_offset;
 }
 
+float venue_filter_task_start_frame(const Gameplay::VenueAnimFilter& filter) {
+    float scale = venue_filter_signed_scale(filter);
+    if (!std::isfinite(scale) || std::fabs(scale) <= 0.001f) scale = 1.0f;
+    return (filter.start_frame - venue_filter_frame_offset(filter)) / scale;
+}
+
+float venue_filter_task_end_frame(const Gameplay::VenueAnimFilter& filter) {
+    float scale = venue_filter_signed_scale(filter);
+    if (!std::isfinite(scale) || std::fabs(scale) <= 0.001f) scale = 1.0f;
+    float end = (filter.end_frame - venue_filter_frame_offset(filter)) / scale;
+    if (filter.type == 2) end *= 2.0f;
+    return end;
+}
+
 float normalize_venue_filter_child_frame(
     const Gameplay::VenueAnimFilter& filter,
     float raw_frame) {
@@ -10510,6 +10524,37 @@ float normalize_venue_filter_child_frame(
     return start + direction * resolved_distance;
 }
 
+float venue_filter_child_frame_from_task_frame(
+    const Gameplay::VenueAnimFilter& filter,
+    float task_frame) {
+    const float raw_frame =
+        task_frame * venue_filter_signed_scale(filter) +
+        venue_filter_frame_offset(filter);
+    return normalize_venue_filter_child_frame(filter, raw_frame);
+}
+
+float venue_filter_task_frame_at(const Gameplay::VenueAnimFilter& filter,
+                                 double elapsed_units) {
+    const float start = venue_filter_task_start_frame(filter);
+    const float end = venue_filter_task_end_frame(filter);
+    const float min_frame = std::min(start, end);
+    const float max_frame = std::max(start, end);
+    const float span = max_frame - min_frame;
+    if (!std::isfinite(span) || span <= 0.001f) return min_frame;
+
+    const float fpu = rnd_animatable_frames_per_unit(filter.anim_rate);
+    const float task_scale = start < end ? fpu : -fpu;
+    const float task_offset = start < end ? min_frame : max_frame;
+    const float task_frame =
+        static_cast<float>(elapsed_units * static_cast<double>(task_scale)) +
+        task_offset;
+    if (filter.type >= 1) {
+        return min_frame +
+               positive_mod_float(task_frame - min_frame, span);
+    }
+    return std::clamp(task_frame, min_frame, max_frame);
+}
+
 float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
                             double elapsed_seconds, bool polled,
                             const ghogx::chart::Chart* chart = nullptr,
@@ -10533,16 +10578,9 @@ float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
         raw_frame = static_cast<float>(units * static_cast<double>(fpu) *
                                        static_cast<double>(scale)) +
                     venue_filter_frame_offset(filter);
-    } else if (std::isfinite(filter.period) && filter.period > 0.001f) {
-        const float direction = end >= start ? 1.0f : -1.0f;
-        raw_frame = start +
-                    direction *
-                        static_cast<float>((units / filter.period) *
-                                           static_cast<double>(span));
     } else {
-        raw_frame = start +
-                    static_cast<float>(units * static_cast<double>(fpu) *
-                                       static_cast<double>(scale));
+        const float task_frame = venue_filter_task_frame_at(filter, units);
+        return venue_filter_child_frame_from_task_frame(filter, task_frame);
     }
     return normalize_venue_filter_child_frame(filter, raw_frame);
 }
@@ -10554,20 +10592,14 @@ double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter,
     const float end = filter.end_frame;
     const float span = std::fabs(end - start);
     if (!std::isfinite(span) || span <= 0.001f) return 0.0;
-    double units = 0.0;
-    if (std::isfinite(filter.period) && filter.period > 0.001f) {
-        units = static_cast<double>(filter.period) *
-                (filter.type == 2 ? 2.0 : 1.0);
-    } else {
-        const float scale = std::max(std::fabs(venue_filter_signed_scale(filter)),
-                                     0.001f);
-        const double cycle =
-            filter.type == 2 ? static_cast<double>(span) * 2.0
-                             : static_cast<double>(span);
-        units = cycle / (static_cast<double>(
-                             rnd_animatable_frames_per_unit(filter.anim_rate)) *
-                         static_cast<double>(scale));
-    }
+    const float task_start = venue_filter_task_start_frame(filter);
+    const float task_end = venue_filter_task_end_frame(filter);
+    const float task_span = std::fabs(task_end - task_start);
+    if (!std::isfinite(task_span) || task_span <= 0.001f) return 0.0;
+    const float fpu = rnd_animatable_frames_per_unit(filter.anim_rate);
+    if (!std::isfinite(fpu) || fpu <= 0.001f) return 0.0;
+    const double units = static_cast<double>(task_span) /
+                         static_cast<double>(fpu);
     return venue_anim_time_units_to_seconds(filter.anim_rate,
                                             absolute_start_seconds, units,
                                             chart);

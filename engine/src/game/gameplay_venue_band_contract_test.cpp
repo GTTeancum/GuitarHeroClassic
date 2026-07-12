@@ -6403,8 +6403,14 @@ int main() {
                  "filter_start_time)",
                  "venue EventTrigger AnimFilter lifetime includes source delay");
   ok &= contains(gameplay_c,
-                 "raw_frame=start+",
-                 "event-triggered AnimFilters start from authored start frame");
+                 "floatvenue_filter_task_start_frame(constGameplay::VenueAnimFilter&filter)",
+                 "event-triggered AnimFilters compute ihatecompvir StartFrame task frames");
+  ok &= contains(gameplay_c,
+                 "floatvenue_filter_task_end_frame(constGameplay::VenueAnimFilter&filter)",
+                 "event-triggered AnimFilters compute ihatecompvir EndFrame task frames");
+  ok &= contains(gameplay_c,
+                 "venue_filter_child_frame_from_task_frame(filter,task_frame)",
+                 "event-triggered AnimFilters map source task frames back to child frames");
   ok &= contains(gameplay_c,
                  "filter.start_frame>100000.0f",
                  "venue AnimFilter keeps long authored MeshAnim frame windows");
@@ -6415,8 +6421,11 @@ int main() {
                  "case2:{//kAnimShuttle",
                  "venue AnimFilter honors kAnimShuttle sampling");
   ok &= contains(gameplay_c,
-                 "(filter.type==2?2.0:1.0)",
-                 "venue AnimFilter shuttle duration follows source EndFrame doubling");
+                 "if(filter.type==2)end*=2.0f;",
+                 "venue AnimFilter shuttle task EndFrame follows source doubling");
+  ok &= contains(gameplay_c,
+                 "constfloattask_span=std::fabs(task_end-task_start)",
+                 "venue AnimFilter duration follows source AnimTask span");
   ok &= contains(gameplay_c,
                  "returnfilter.type>=1;",
                  "venue AnimFilter loop and shuttle routes stay task-looped");
