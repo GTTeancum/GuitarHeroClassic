@@ -394,6 +394,10 @@ class Gameplay {
     float duration_frames = 0.0f;
     std::vector<ColorKey> color_keys;
   };
+  struct VenueEventAnimRoute {
+    std::string anim;
+    float source_blend_period_seconds = 0.0f;
+  };
   struct ActiveVenueMaterialAnim {
     std::string name;
     std::string material;
@@ -424,6 +428,7 @@ class Gameplay {
     std::vector<VenueEnvironmentAnim::FogRangeKey> fog_range_keys;
     bool persistent = true;
     bool target_frame_mode = false;
+    float source_blend_period_seconds = 0.0f;
   };
   struct ActiveVenueLightAnim {
     std::string name;
@@ -432,6 +437,7 @@ class Gameplay {
     float duration_frames = 0.0f;
     std::vector<VenueLightAnim::ColorKey> color_keys;
     bool persistent = true;
+    float source_blend_period_seconds = 0.0f;
   };
   struct VenueParticleRoute {
     struct ColorKey {
@@ -824,9 +830,11 @@ class Gameplay {
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
   std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> lighting_env_anims_;
-  std::map<std::string, std::vector<std::string>> lighting_event_env_anims_;
+  std::map<std::string, std::vector<VenueEventAnimRoute>>
+      lighting_event_env_anims_;
   std::map<std::string, VenueLightAnim> lighting_light_anims_;
-  std::map<std::string, std::vector<std::string>> lighting_event_light_anims_;
+  std::map<std::string, std::vector<VenueEventAnimRoute>>
+      lighting_event_light_anims_;
   std::map<std::string, std::vector<VenueParticleRoute>>
       lighting_event_particle_systems_;
   std::map<std::string, std::vector<VenueAnimFilter>>
@@ -852,6 +860,8 @@ class Gameplay {
   std::vector<ActiveVenueEnvironmentAnim> active_lighting_environment_anims_;
   std::map<std::string, std::array<float, 4>> lighting_light_colors_;
   std::vector<ActiveVenueLightAnim> active_lighting_light_anims_;
+  std::map<std::string, ghogx::milo_scene::LightObj> lighting_lights_;
+  std::map<std::string, ghogx::milo_scene::EnvironObj> lighting_environs_;
   double last_lighting_env_anim_debug_time_ = -1.0;
   double last_lighting_light_anim_debug_time_ = -1.0;
   std::unordered_set<std::string> lighting_active_particle_systems_;
@@ -882,9 +892,11 @@ class Gameplay {
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> venue_env_anims_;
-  std::map<std::string, std::vector<std::string>> venue_event_env_anims_;
+  std::map<std::string, std::vector<VenueEventAnimRoute>>
+      venue_event_env_anims_;
   std::map<std::string, VenueLightAnim> venue_light_anims_;
-  std::map<std::string, std::vector<std::string>> venue_event_light_anims_;
+  std::map<std::string, std::vector<VenueEventAnimRoute>>
+      venue_event_light_anims_;
   std::map<std::string, std::vector<VenueParticleRoute>>
       venue_event_particle_systems_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;

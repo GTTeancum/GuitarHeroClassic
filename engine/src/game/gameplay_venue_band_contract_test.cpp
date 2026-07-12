@@ -4569,9 +4569,13 @@ int main() {
                  "anim.keys_owner=canonical_milo_ref(*keys_owner);",
                  "venue LightAnim loader preserves key-owner references");
   ok &= contains(gameplay_c,
-                 "std::map<std::string,std::vector<std::string>>"
+                 "std::map<std::string,std::vector<Gameplay::VenueEventAnimRoute>>"
                  "load_venue_event_light_anims",
-                 "gameplay loads authored LightAnim event routes");
+                 "gameplay loads authored LightAnim event routes with source blend");
+  ok &= contains(gameplay_h_c,
+                 "structVenueEventAnimRoute{std::stringanim;"
+                 "floatsource_blend_period_seconds=0.0f;};",
+                 "EventTrigger EnvAnim/LightAnim routes preserve ihatecompvir blend");
   ok &= contains(gameplay_c,
                  "venue_event_light_anims_=load_venue_event_light_anims(",
                  "venue load wires EventTrigger LightAnim routes");
@@ -5070,13 +5074,13 @@ int main() {
                  "lighting_event_mat_anims_;",
                  "lighting overlay keeps its own EventTrigger MatAnim routes");
   ok &= contains(gameplay_h_c,
-                 "std::map<std::string,std::vector<std::string>>"
+                 "std::map<std::string,std::vector<VenueEventAnimRoute>>"
                  "lighting_event_env_anims_;",
-                 "lighting overlay keeps its own EventTrigger EnvAnim routes");
+                 "lighting overlay keeps its own EventTrigger EnvAnim routes with source blend");
   ok &= contains(gameplay_h_c,
-                 "std::map<std::string,std::vector<std::string>>"
+                 "std::map<std::string,std::vector<VenueEventAnimRoute>>"
                  "lighting_event_light_anims_;",
-                 "lighting overlay keeps its own EventTrigger LightAnim routes");
+                 "lighting overlay keeps its own EventTrigger LightAnim routes with source blend");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<VenueParticleRoute>>"
                  "lighting_event_particle_systems_;",
