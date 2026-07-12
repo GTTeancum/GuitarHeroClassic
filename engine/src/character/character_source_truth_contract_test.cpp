@@ -217,6 +217,10 @@ int run_contract() {
   const std::string format_notes =
       read_file(char_dir / "CHARACTER_FORMAT_NOTES.md");
   const std::string format_notes_compact = compact(format_notes);
+  const std::string stock_character_type_inventory_latest = read_file(
+      engine_dir /
+      "out/source_truth_controller_inventory_20260710/"
+      "stock_character_type_inventory_latest.log");
   const std::string source_readme = read_file(source_dir / "README.md");
 
   const std::string object_cs = compact(read_file(
@@ -12847,6 +12851,67 @@ int run_contract() {
   ok &= contains(doc,
                  "there is no\n  checked `WorldFx::Load` source body",
                  "document fences WorldFx load body absence");
+  ok &= contains(doc,
+                 "The larger `rb3-latest/src/system/rndobj` source snapshot "
+                 "includes many\nrender/effect classes",
+                 "document records broader rndobj source boundary");
+  ok &= contains(doc,
+                 "do not count `Cam`, `CamAnim`, `Env`, `EnvAnim`,\n"
+                 "`Lit`, `LitAnim`, `Flare`, `Fur`, `Wind`, `Part`, `PartAnim`,",
+                 "document records absent stock render/effect row classes");
+  ok &= contains(doc,
+                 "`PartLauncher`, `TexRenderer`, `TexBlendController`, "
+                 "`TexBlender`, `CubeTex`,\n`ColorXfm`, `Line`, `PostProc`, "
+                 "`ScreenMask`, or `SoftParticles`",
+                 "document records absent stock texture/effect row classes");
+  ok &= missing(stock_character_type_inventory_latest, "type=Cam count=",
+                "stock character inventory has no Cam rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=CamAnim count=",
+                "stock character inventory has no CamAnim rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Env count=",
+                "stock character inventory has no Env rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=EnvAnim count=",
+                "stock character inventory has no EnvAnim rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Lit count=",
+                "stock character inventory has no Lit rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=LitAnim count=",
+                "stock character inventory has no LitAnim rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Flare count=",
+                "stock character inventory has no Flare rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Fur count=",
+                "stock character inventory has no Fur rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Wind count=",
+                "stock character inventory has no Wind rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Part count=",
+                "stock character inventory has no Part rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=PartAnim count=",
+                "stock character inventory has no PartAnim rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=PartLauncher count=",
+                "stock character inventory has no PartLauncher rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=TexRenderer count=",
+                "stock character inventory has no TexRenderer rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=TexBlendController count=",
+                "stock character inventory has no TexBlendController rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=TexBlender count=",
+                "stock character inventory has no TexBlender rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=CubeTex count=",
+                "stock character inventory has no CubeTex rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=ColorXfm count=",
+                "stock character inventory has no ColorXfm rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Line count=",
+                "stock character inventory has no Line rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=PostProc count=",
+                "stock character inventory has no PostProc rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=ScreenMask count=",
+                "stock character inventory has no ScreenMask rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=SoftParticles count=",
+                "stock character inventory has no SoftParticles rows");
   ok &= missing(char_mesh, "decode_char_walk",
                 "native must not guess CharWalk decoder");
   ok &= contains(char_mesh, "EventTriggerdecode_event_trigger(",

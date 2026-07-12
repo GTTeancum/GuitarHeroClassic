@@ -3829,6 +3829,17 @@ bounded as follows:
   checked `WorldFx::Load` source body. Native keeps these rows as inventory
   evidence only.
 
+The larger `rb3-latest/src/system/rndobj` source snapshot includes many
+render/effect classes that are real ihatecompvir source, but the focused GH2
+base-character inventories above show zero stock character rows for them. In
+this character-model slice, do not count `Cam`, `CamAnim`, `Env`, `EnvAnim`,
+`Lit`, `LitAnim`, `Flare`, `Fur`, `Wind`, `Part`, `PartAnim`,
+`PartLauncher`, `TexRenderer`, `TexBlendController`, `TexBlender`, `CubeTex`,
+`ColorXfm`, `Line`, `PostProc`, `ScreenMask`, or `SoftParticles` as remaining
+character-model implementation unless a later stock inventory proves such rows
+exist in the character MILOs. This keeps the implementation queue tied to rows
+the GH2 assets actually contain instead of the full RB3 engine source tree.
+
 Native `OpaqueObjectRow` inventory records any unhandled directory entry after
 the source-backed decoder table declines it. The record is limited to entry
 name, class symbol, body byte count, and first/last byte prefixes. This is for
