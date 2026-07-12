@@ -275,6 +275,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "TransProxy.cpp"));
   const std::string rb3_latest_trans_proxy_h = compact(read_file(
       rb3_latest_rndobj_dir / "TransProxy.h"));
+  const std::string rb3_latest_trans_anim_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "TransAnim.cpp"));
+  const std::string rb3_latest_trans_anim_h = compact(read_file(
+      rb3_latest_rndobj_dir / "TransAnim.h"));
   const std::string rb3_latest_mesh_deform_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "MeshDeform.cpp"));
   const std::string rb3_latest_mesh_deform_h = compact(read_file(
@@ -1541,6 +1545,123 @@ int run_contract() {
                  "constSourceRndTransProxySyncPlannull_part_fallback="
                  "source_rndtrans_proxy_sync_plan(true,true,false,true);",
                  "milo_scene test covers RndTransProxy null-part fallthrough");
+  ok &= contains(doc,
+                 "| Transform animation rows | `rb3-latest/src/system/rndobj/"
+                 "TransAnim.cpp` / `TransAnim.h` |",
+                 "coverage matrix records RndTransAnim source boundary");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "RndTransAnim::RndTransAnim():mTrans(this,0),mTransSpline(0),"
+                 "mScaleSpline(0),mRotSlerp(0),mRotSpline(0),mRotKeys(),"
+                 "mTransKeys(),mScaleKeys(),mKeysOwner(this,this),"
+                 "mRepeatTrans(0),mFollowPath(0){}",
+                 "latest RndTransAnim source constructor defaults");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "ASSERT_GLOBAL_REV(rev,TRANSANIM_REV);if(rev>4)"
+                 "LOAD_SUPERCLASS(Hmx::Object);LOAD_SUPERCLASS(RndAnimatable);"
+                 "if(rev<6)RndDrawable::DumpLoad(bs);bs>>mTrans;",
+                 "latest RndTransAnim source load superclass gates");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "if(rev!=2){bs>>mRotKeys>>mTransKeys;}bs>>mKeysOwner;if(!"
+                 "mKeysOwner)mKeysOwner=this;",
+                 "latest RndTransAnim source key-owner load gate");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "if(rev>1){bs>>mFollowPath;}else{mFollowPath=mKeysOwner->"
+                 "mFollowPath;}if(rev>3)bs>>mRotSlerp;if(rev>6)bs>>mRotSpline;",
+                 "latest RndTransAnim source follow and rot gates");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "voidRndTransAnim::SetKeysOwner(RndTransAnim*o){MILO_ASSERT("
+                 "o,0x2C);mKeysOwner=o;}",
+                 "latest RndTransAnim source SetKeysOwner assertion");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "if(mKeysOwner==from){if(!to)mKeysOwner=this;elsemKeysOwner="
+                 "dynamic_cast<RndTransAnim*>(to)->mKeysOwner;}",
+                 "latest RndTransAnim source replace key-owner branch");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(RndAnimatable)"
+                 "mTrans=t->mTrans;",
+                 "latest RndTransAnim source copy base and trans");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "if(ty==kCopyShallow||ty==kCopyFromMax&&t->mKeysOwner!=t){"
+                 "mKeysOwner=t->mKeysOwner;}else{mKeysOwner=this;mTransKeys="
+                 "t->mKeysOwner->mTransKeys;",
+                 "latest RndTransAnim source copy key-owner split");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "mScaleKeys=t->mKeysOwner->mScaleKeys;mTransSpline=t->"
+                 "mKeysOwner->mTransSpline;mRepeatTrans=t->mKeysOwner->"
+                 "mRepeatTrans;",
+                 "latest RndTransAnim source copy owned key members");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "voidRndTransAnim::MakeTransform(float,Transform&,bool,float){"
+                 "boolprev=0;MILO_ASSERT(prev,50);}",
+                 "latest RndTransAnim source MakeTransform assertion body");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "RndAnimatable::SetFrame(frame,blend);if(mTrans){Transformtf("
+                 "mTrans->LocalXfm());MakeTransform(frame,tf,false,blend);"
+                 "mTrans->SetLocalXfm(tf);}",
+                 "latest RndTransAnim source SetFrame call flow");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "TransKeys().Add(mTrans->LocalXfm().v,frame,true);"
+                 "Hmx::Matrix3mtx;Normalize(mTrans->LocalXfm().m,mtx);",
+                 "latest RndTransAnim source SetKey translation and normalize");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "MakeScale(mTrans->LocalXfm().m,vec);ScaleKeys().Add(vec,"
+                 "frame,true);",
+                 "latest RndTransAnim source SetKey scale path");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "HANDLE(trans,OnTrans)HANDLE(splice,OnSplice)HANDLE(linearize,"
+                 "OnLinearize)HANDLE(set_trans,OnSetTrans)",
+                 "latest RndTransAnim source handler opening rows");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "HANDLE(set_trans_spline,OnSetTransSpline)HANDLE("
+                 "set_scale_spline,OnSetScaleSpline)HANDLE(set_rot_slerp,"
+                 "OnSetRotSlerp)",
+                 "latest RndTransAnim source handler spline rows");
+  ok &= contains(rb3_latest_trans_anim_cpp,
+                 "SYNC_PROP_SET(keys_owner,mKeysOwner,SetKeysOwner(_val.Obj<"
+                 "RndTransAnim>(NULL)))SYNC_SUPERCLASS(RndAnimatable)",
+                 "latest RndTransAnim source prop-sync rows");
+  ok &= contains(rb3_latest_trans_anim_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mTrans;",
+                 "latest RndTransAnim header exposes transform field");
+  ok &= contains(rb3_latest_trans_anim_h,
+                 "boolmTransSpline;",
+                 "latest RndTransAnim header exposes trans spline field");
+  ok &= contains(rb3_latest_trans_anim_h,
+                 "boolmRotSpline;",
+                 "latest RndTransAnim header exposes rot spline field");
+  ok &= contains(rb3_latest_trans_anim_h,
+                 "Keys<Hmx::Quat,Hmx::Quat>mRotKeys;",
+                 "latest RndTransAnim header exposes rot key field");
+  ok &= contains(rb3_latest_trans_anim_h,
+                 "Keys<Vector3,Vector3>mScaleKeys;",
+                 "latest RndTransAnim header exposes scale key field");
+  ok &= contains(scene_h,
+                 "structSourceRndTransAnimLoadPlan{",
+                 "shared milo_scene exposes RndTransAnim load plan");
+  ok &= contains(scene,
+                 "SourceRndTransAnimLoadPlansource_rndtrans_anim_load_plan("
+                 "int32_trevision)",
+                 "shared milo_scene implements RndTransAnim load plan");
+  ok &= contains(scene,
+                 "plan.reads_rot_and_trans_keys=revision!=2;",
+                 "shared RndTransAnim load plan mirrors rev2 key gate");
+  ok &= contains(scene,
+                 "plan.follow_path_from_keys_owner=revision<=1;",
+                 "shared RndTransAnim load plan mirrors follow-path fallback");
+  ok &= contains(scene,
+                 "SourceRndTransAnimCopyPlansource_rndtrans_anim_copy_plan("
+                 "boolcopy_shallow,boolcopy_from_max,boolsource_keys_owner_is_self)",
+                 "shared RndTransAnim copy plan is implemented");
+  ok &= contains(scene,
+                 "plan.make_transform_assert_body_only=true;",
+                 "shared RndTransAnim frame plan fences MakeTransform body");
+  ok &= contains(scene_test,
+                 "voidtest_trans_anim(){",
+                 "milo_scene test covers RndTransAnim helper");
+  ok &= contains(scene_test,
+                 "constSourceRndTransAnimCopyPlancopy_owned="
+                 "source_rndtrans_anim_copy_plan(false,false,true);",
+                 "milo_scene test covers RndTransAnim owned-key copy path");
   ok &= contains(doc,
                  "Shared native `source_rndanimatable_load_plan` records "
                  "these gates",

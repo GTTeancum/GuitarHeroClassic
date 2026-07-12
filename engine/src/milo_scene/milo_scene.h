@@ -197,6 +197,104 @@ struct SourceRndTransProxyPropSyncPlan {
 
 SourceRndTransProxyPropSyncPlan source_rndtrans_proxy_prop_sync_plan();
 
+struct SourceRndTransAnimDefaultState {
+  bool trans_null = true;
+  bool trans_spline = false;
+  bool scale_spline = false;
+  bool rot_slerp = false;
+  bool rot_spline = false;
+  bool keys_owner_self = true;
+  bool repeat_trans = false;
+  bool follow_path = false;
+};
+
+SourceRndTransAnimDefaultState source_rndtrans_anim_default_state();
+
+struct SourceRndTransAnimLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool reads_object_fields = false;
+  bool reads_animatable = true;
+  bool dumps_drawable = false;
+  bool reads_trans = true;
+  bool reads_rot_and_trans_keys = true;
+  bool reads_scale_keys = false;
+  bool reads_keys_owner = true;
+  bool null_keys_owner_defaults_to_self = true;
+  bool reads_legacy_int = false;
+  bool reads_follow_path = false;
+  bool follow_path_from_keys_owner = false;
+  bool reads_rot_slerp = false;
+  bool reads_rot_spline = false;
+};
+
+SourceRndTransAnimLoadPlan source_rndtrans_anim_load_plan(int32_t revision);
+
+struct SourceRndTransAnimSetKeysOwnerPlan {
+  bool asserts_non_null = true;
+  bool assigns_keys_owner = true;
+};
+
+SourceRndTransAnimSetKeysOwnerPlan source_rndtrans_anim_set_keys_owner_plan();
+
+struct SourceRndTransAnimReplacePlan {
+  bool calls_object_replace = true;
+  bool keys_owner_matches_from = false;
+  bool replacement_null = false;
+  bool assigns_self = false;
+  bool copies_replacement_keys_owner = false;
+};
+
+SourceRndTransAnimReplacePlan source_rndtrans_anim_replace_plan(
+    bool keys_owner_matches_from,
+    bool replacement_null);
+
+struct SourceRndTransAnimCopyPlan {
+  std::vector<std::string> superclasses;
+  bool copies_trans = true;
+  bool copies_keys_owner_ref = false;
+  bool assigns_self_as_keys_owner = false;
+  std::vector<std::string> copied_owned_members;
+};
+
+SourceRndTransAnimCopyPlan source_rndtrans_anim_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_keys_owner_is_self);
+
+struct SourceRndTransAnimFramePlan {
+  bool calls_animatable_set_frame = true;
+  bool has_trans = false;
+  bool copies_local_transform = false;
+  bool calls_make_transform = false;
+  bool writes_local_transform = false;
+  bool make_transform_assert_body_only = true;
+};
+
+SourceRndTransAnimFramePlan source_rndtrans_anim_set_frame_plan(bool has_trans);
+
+struct SourceRndTransAnimSetKeyPlan {
+  bool has_trans = false;
+  std::vector<std::string> operations;
+};
+
+SourceRndTransAnimSetKeyPlan source_rndtrans_anim_set_key_plan(bool has_trans);
+
+struct SourceRndTransAnimHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int32_t check = 489;
+};
+
+SourceRndTransAnimHandlerPlan source_rndtrans_anim_handler_plan();
+
+struct SourceRndTransAnimPropSyncPlan {
+  std::vector<std::string> props;
+  std::vector<std::string> superclasses;
+};
+
+SourceRndTransAnimPropSyncPlan source_rndtrans_anim_prop_sync_plan();
+
 struct SourceRndAnimatableLoadPlan {
   int32_t revision = 0;
   bool accepted_revision = false;

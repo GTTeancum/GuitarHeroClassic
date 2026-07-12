@@ -484,6 +484,102 @@ SourceRndTransProxyPropSyncPlan source_rndtrans_proxy_prop_sync_plan() {
   return plan;
 }
 
+SourceRndTransAnimDefaultState source_rndtrans_anim_default_state() {
+  return SourceRndTransAnimDefaultState{};
+}
+
+SourceRndTransAnimLoadPlan source_rndtrans_anim_load_plan(int32_t revision) {
+  SourceRndTransAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 7;
+  plan.reads_object_fields = revision > 4;
+  plan.dumps_drawable = revision < 6;
+  plan.reads_rot_and_trans_keys = revision != 2;
+  plan.reads_legacy_int = revision < 3;
+  plan.reads_follow_path = revision > 1;
+  plan.follow_path_from_keys_owner = revision <= 1;
+  plan.reads_rot_slerp = revision > 3;
+  plan.reads_rot_spline = revision > 6;
+  return plan;
+}
+
+SourceRndTransAnimSetKeysOwnerPlan source_rndtrans_anim_set_keys_owner_plan() {
+  return SourceRndTransAnimSetKeysOwnerPlan{};
+}
+
+SourceRndTransAnimReplacePlan source_rndtrans_anim_replace_plan(
+    bool keys_owner_matches_from,
+    bool replacement_null) {
+  SourceRndTransAnimReplacePlan plan;
+  plan.keys_owner_matches_from = keys_owner_matches_from;
+  plan.replacement_null = replacement_null;
+  if (keys_owner_matches_from) {
+    plan.assigns_self = replacement_null;
+    plan.copies_replacement_keys_owner = !replacement_null;
+  }
+  return plan;
+}
+
+SourceRndTransAnimCopyPlan source_rndtrans_anim_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_keys_owner_is_self) {
+  SourceRndTransAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.copies_keys_owner_ref =
+      copy_shallow || (copy_from_max && !source_keys_owner_is_self);
+  plan.assigns_self_as_keys_owner = !plan.copies_keys_owner_ref;
+  if (plan.assigns_self_as_keys_owner) {
+    plan.copied_owned_members = {"mTransKeys",   "mRotKeys",    "mScaleKeys",
+                                 "mTransSpline", "mRepeatTrans", "mScaleSpline",
+                                 "mFollowPath",  "mRotSlerp",   "mRotSpline"};
+  }
+  return plan;
+}
+
+SourceRndTransAnimFramePlan source_rndtrans_anim_set_frame_plan(bool has_trans) {
+  SourceRndTransAnimFramePlan plan;
+  plan.has_trans = has_trans;
+  plan.make_transform_assert_body_only = true;
+  plan.copies_local_transform = has_trans;
+  plan.calls_make_transform = has_trans;
+  plan.writes_local_transform = has_trans;
+  return plan;
+}
+
+SourceRndTransAnimSetKeyPlan source_rndtrans_anim_set_key_plan(bool has_trans) {
+  SourceRndTransAnimSetKeyPlan plan;
+  plan.has_trans = has_trans;
+  if (has_trans) {
+    plan.operations = {"add_trans_key_from_local_translation",
+                       "normalize_local_matrix",
+                       "add_rot_key_from_quat",
+                       "add_scale_key_from_local_matrix"};
+  }
+  return plan;
+}
+
+SourceRndTransAnimHandlerPlan source_rndtrans_anim_handler_plan() {
+  SourceRndTransAnimHandlerPlan plan;
+  plan.handlers = {"trans",           "splice",
+                   "linearize",       "set_trans",
+                   "remove_rot_keys", "remove_trans_keys",
+                   "num_trans_keys",  "num_rot_keys",
+                   "num_scale_keys",  "add_trans_key",
+                   "add_rot_key",     "add_scale_key",
+                   "set_trans_spline","set_scale_spline",
+                   "set_rot_slerp"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndTransAnimPropSyncPlan source_rndtrans_anim_prop_sync_plan() {
+  SourceRndTransAnimPropSyncPlan plan;
+  plan.props = {"keys_owner:SetKeysOwner"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
 SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
     int32_t revision) {
   SourceRndAnimatableLoadPlan plan;

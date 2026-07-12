@@ -65,6 +65,7 @@ writer body.
 | Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Transform proxy attachment | `rb3-latest/src/system/rndobj/TransProxy.cpp` / `TransProxy.h` | Native helper ports source defaults, load gates, sync parent-resolution flow, setter/save/copy/handler/prop rows; it does not create live proxy attachments. |
+| Transform animation rows | `rb3-latest/src/system/rndobj/TransAnim.cpp` / `TransAnim.h` | Native helper ports source defaults, load gates, key-owner copy/replace decisions, SetFrame/SetKey call flow, handlers, and prop rows; `MakeTransform` remains fenced because the checked body is an assertion stub. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs`, `rb3-latest/src/system/rndobj/Group.cpp` / `Group.h` | Runtime/draw membership must use decoded object rows. Native helper ports source defaults, copy, replace, handler, and prop-sync rows without changing live draw order. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
@@ -512,6 +513,47 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `source_rndtrans_proxy_handler_plan`, and
     `source_rndtrans_proxy_prop_sync_plan` record those rows without attaching
     runtime model parts.
+- `rb3-latest/src/system/rndobj/TransAnim.cpp` and
+  `rb3-latest/src/system/rndobj/TransAnim.h`
+  - `RndTransAnim::RndTransAnim` nulls `mTrans`, clears trans/scale/rot spline
+    flags, defaults `mKeysOwner` to itself, and clears repeat/follow flags.
+    Native `source_rndtrans_anim_default_state` records these defaults.
+  - `RndTransAnim::Load` accepts revisions up to `7`, reads `Hmx::Object` only
+    for revisions above `4`, always reads `RndAnimatable`, dumps old
+    `RndDrawable` rows below revision `6`, reads `mTrans`, skips
+    rot/trans-key rows only for revision `2`, reads `mKeysOwner`, defaults a
+    null owner to `this`, reads a legacy int below revision `3`, reads
+    `mFollowPath` above revision `1` or inherits it from the key owner, reads
+    `mRotSlerp` above revision `3`, and reads `mRotSpline` above revision `6`.
+    Native `source_rndtrans_anim_load_plan` records these gates and keeps
+    `mScaleKeys` as copy/runtime evidence only because the visible load body
+    does not read scale-key rows.
+  - `SetKeysOwner` asserts a non-null owner and assigns it. `Replace` delegates
+    to `Hmx::Object::Replace`; only when `mKeysOwner == from` does it set owner
+    to `this` for null replacement or copy the replacement `RndTransAnim` key
+    owner. Native `source_rndtrans_anim_set_keys_owner_plan` and
+    `source_rndtrans_anim_replace_plan` record those decisions.
+  - `RndTransAnim::Copy` copies `Hmx::Object`, `RndAnimatable`, and `mTrans`.
+    Shallow copies, plus Max copies whose source key owner is external, copy the
+    key-owner pointer. Otherwise the destination owns copied trans/rot/scale
+    keys, spline flags, repeat/follow flags, `mRotSlerp`, and `mRotSpline`.
+    Native `source_rndtrans_anim_copy_plan` records that split.
+  - `SetFrame` calls `RndAnimatable::SetFrame`, and only with `mTrans` does it
+    copy the local transform, call `MakeTransform(frame, tf, false, blend)`, and
+    write the local transform back. The checked `MakeTransform` body asserts
+    false, so native `source_rndtrans_anim_set_frame_plan` records call flow
+    without promoting transform interpolation.
+  - `SetKey` only runs when `mTrans` is present: add a translation key from the
+    local translation, normalize the local matrix, add a rotation quaternion key,
+    derive scale with `MakeScale`, and add a scale key. Native
+    `source_rndtrans_anim_set_key_plan` records this source-visible key path.
+  - `BEGIN_HANDLERS(RndTransAnim)` exposes `trans`, `splice`, `linearize`,
+    `set_trans`, key removal/count/add rows, spline setters, superclass
+    handlers, and check `489`. `BEGIN_PROPSYNCS` exposes `keys_owner` through
+    `SetKeysOwner` and `RndAnimatable`. Native
+    `source_rndtrans_anim_handler_plan` and
+    `source_rndtrans_anim_prop_sync_plan` record those tables without running a
+    transform animation solve.
 - `rb3-latest/src/system/rndobj/Anim.cpp`
   - `RndAnimatable::Load` accepts revisions `0..4`; the constructor defaults
     frame to `0.0` and rate to `k30_fps`. Revisions above 1 read frame,

@@ -221,6 +221,141 @@ void test_trans_proxy() {
               part_lookup.resolved_parent_source.c_str());
 }
 
+void test_trans_anim() {
+  const SourceRndTransAnimDefaultState defaults =
+      source_rndtrans_anim_default_state();
+  CHECK(defaults.trans_null);
+  CHECK(!defaults.trans_spline);
+  CHECK(!defaults.scale_spline);
+  CHECK(!defaults.rot_slerp);
+  CHECK(!defaults.rot_spline);
+  CHECK(defaults.keys_owner_self);
+  CHECK(!defaults.repeat_trans);
+  CHECK(!defaults.follow_path);
+
+  const SourceRndTransAnimLoadPlan load_v7 =
+      source_rndtrans_anim_load_plan(7);
+  CHECK(load_v7.accepted_revision);
+  CHECK(load_v7.reads_object_fields);
+  CHECK(load_v7.reads_animatable);
+  CHECK(!load_v7.dumps_drawable);
+  CHECK(load_v7.reads_trans);
+  CHECK(load_v7.reads_rot_and_trans_keys);
+  CHECK(!load_v7.reads_scale_keys);
+  CHECK(load_v7.reads_keys_owner);
+  CHECK(load_v7.null_keys_owner_defaults_to_self);
+  CHECK(!load_v7.reads_legacy_int);
+  CHECK(load_v7.reads_follow_path);
+  CHECK(load_v7.reads_rot_slerp);
+  CHECK(load_v7.reads_rot_spline);
+
+  const SourceRndTransAnimLoadPlan load_v2 =
+      source_rndtrans_anim_load_plan(2);
+  CHECK(load_v2.accepted_revision);
+  CHECK(!load_v2.reads_object_fields);
+  CHECK(load_v2.dumps_drawable);
+  CHECK(!load_v2.reads_rot_and_trans_keys);
+  CHECK(load_v2.reads_legacy_int);
+  CHECK(load_v2.reads_follow_path);
+  CHECK(!load_v2.follow_path_from_keys_owner);
+  CHECK(!load_v2.reads_rot_slerp);
+
+  const SourceRndTransAnimLoadPlan load_v1 =
+      source_rndtrans_anim_load_plan(1);
+  CHECK(load_v1.reads_rot_and_trans_keys);
+  CHECK(load_v1.reads_legacy_int);
+  CHECK(!load_v1.reads_follow_path);
+  CHECK(load_v1.follow_path_from_keys_owner);
+  CHECK(!source_rndtrans_anim_load_plan(8).accepted_revision);
+
+  const SourceRndTransAnimSetKeysOwnerPlan set_owner =
+      source_rndtrans_anim_set_keys_owner_plan();
+  CHECK(set_owner.asserts_non_null);
+  CHECK(set_owner.assigns_keys_owner);
+
+  const SourceRndTransAnimReplacePlan replace_null =
+      source_rndtrans_anim_replace_plan(true, true);
+  CHECK(replace_null.calls_object_replace);
+  CHECK(replace_null.keys_owner_matches_from);
+  CHECK(replace_null.replacement_null);
+  CHECK(replace_null.assigns_self);
+  CHECK(!replace_null.copies_replacement_keys_owner);
+
+  const SourceRndTransAnimReplacePlan replace_to =
+      source_rndtrans_anim_replace_plan(true, false);
+  CHECK(!replace_to.assigns_self);
+  CHECK(replace_to.copies_replacement_keys_owner);
+
+  const SourceRndTransAnimReplacePlan replace_miss =
+      source_rndtrans_anim_replace_plan(false, false);
+  CHECK(replace_miss.calls_object_replace);
+  CHECK(!replace_miss.assigns_self);
+  CHECK(!replace_miss.copies_replacement_keys_owner);
+
+  const SourceRndTransAnimCopyPlan copy_shallow =
+      source_rndtrans_anim_copy_plan(true, false, true);
+  CHECK(copy_shallow.superclasses.size() == 2);
+  CHECK(copy_shallow.superclasses[0] == "Hmx::Object");
+  CHECK(copy_shallow.superclasses[1] == "RndAnimatable");
+  CHECK(copy_shallow.copies_trans);
+  CHECK(copy_shallow.copies_keys_owner_ref);
+  CHECK(!copy_shallow.assigns_self_as_keys_owner);
+  CHECK(copy_shallow.copied_owned_members.empty());
+
+  const SourceRndTransAnimCopyPlan copy_owned =
+      source_rndtrans_anim_copy_plan(false, false, true);
+  CHECK(!copy_owned.copies_keys_owner_ref);
+  CHECK(copy_owned.assigns_self_as_keys_owner);
+  CHECK(copy_owned.copied_owned_members.size() == 9);
+  CHECK(copy_owned.copied_owned_members[0] == "mTransKeys");
+  CHECK(copy_owned.copied_owned_members[8] == "mRotSpline");
+
+  const SourceRndTransAnimCopyPlan copy_from_max_external =
+      source_rndtrans_anim_copy_plan(false, true, false);
+  CHECK(copy_from_max_external.copies_keys_owner_ref);
+
+  const SourceRndTransAnimFramePlan frame_with_trans =
+      source_rndtrans_anim_set_frame_plan(true);
+  CHECK(frame_with_trans.calls_animatable_set_frame);
+  CHECK(frame_with_trans.copies_local_transform);
+  CHECK(frame_with_trans.calls_make_transform);
+  CHECK(frame_with_trans.writes_local_transform);
+  CHECK(frame_with_trans.make_transform_assert_body_only);
+
+  const SourceRndTransAnimFramePlan frame_without_trans =
+      source_rndtrans_anim_set_frame_plan(false);
+  CHECK(frame_without_trans.calls_animatable_set_frame);
+  CHECK(!frame_without_trans.calls_make_transform);
+  CHECK(frame_without_trans.make_transform_assert_body_only);
+
+  const SourceRndTransAnimSetKeyPlan set_key =
+      source_rndtrans_anim_set_key_plan(true);
+  CHECK(set_key.operations.size() == 4);
+  CHECK(set_key.operations[0] == "add_trans_key_from_local_translation");
+  CHECK(set_key.operations[3] == "add_scale_key_from_local_matrix");
+  CHECK(source_rndtrans_anim_set_key_plan(false).operations.empty());
+
+  const SourceRndTransAnimHandlerPlan handlers =
+      source_rndtrans_anim_handler_plan();
+  CHECK(handlers.handlers.size() == 15);
+  CHECK(handlers.handlers[0] == "trans");
+  CHECK(handlers.handlers[14] == "set_rot_slerp");
+  CHECK(handlers.superclasses.size() == 2);
+  CHECK(handlers.superclasses[0] == "RndAnimatable");
+  CHECK(handlers.superclasses[1] == "Hmx::Object");
+  CHECK(handlers.check == 489);
+
+  const SourceRndTransAnimPropSyncPlan props =
+      source_rndtrans_anim_prop_sync_plan();
+  CHECK(props.props.size() == 1);
+  CHECK(props.props[0] == "keys_owner:SetKeysOwner");
+  CHECK(props.superclasses.size() == 1);
+  CHECK(props.superclasses[0] == "RndAnimatable");
+
+  std::printf("  [ok] TransAnim: load_v7=%d handlers=%zu\n",
+              load_v7.accepted_revision ? 1 : 0, handlers.handlers.size());
+}
+
 void test_mat() {
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
@@ -750,6 +885,7 @@ int main() {
   std::printf("milo_scene_test\n");
   test_trans();
   test_trans_proxy();
+  test_trans_anim();
   test_mat();
   test_group();
   test_mesh_deform();
