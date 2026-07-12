@@ -1545,6 +1545,56 @@ SourceRndMeshHandlerPlan source_rndmesh_handler_plan() {
   return plan;
 }
 
+SourceRndMeshPropSyncPlan source_rndmesh_prop_sync_plan() {
+  SourceRndMeshPropSyncPlan plan;
+  plan.properties = {"mat",
+                     "geom_owner:null->self",
+                     "mutable",
+                     "num_verts:SetNumVerts",
+                     "num_faces:SetNumFaces",
+                     "volume:SetVolume",
+                     "has_valid_bones",
+                     "bones",
+                     "has_ao_calculation",
+                     "force_no_quantize",
+                     "keep_mesh_data:SetKeepMeshData"};
+  plan.mutable_rows = {"int bit mask",
+                       "BIT_* symbol macro",
+                       "whole mutable PropSync fallback"};
+  plan.flag_rows = {"has_ao_calculation:get/set",
+                    "force_no_quantize:get/set"};
+  plan.superclasses = {"RndTransformable", "RndDrawable"};
+  return plan;
+}
+
+SourceRndMeshMutableBitPlan source_rndmesh_mutable_bit_plan(
+    uint32_t current_flags,
+    uint32_t bit_mask,
+    bool has_bit_subproperty,
+    bool prop_get,
+    bool set_value) {
+  SourceRndMeshMutableBitPlan plan;
+  plan.has_bit_subproperty = has_bit_subproperty;
+  plan.bit_mask = bit_mask;
+  plan.result_flags = current_flags;
+  if (!has_bit_subproperty) {
+    plan.delegates_whole_mutable = true;
+    return plan;
+  }
+
+  plan.resolves_int_or_bit_symbol = true;
+  plan.asserts_prop_insert_or_less = true;
+  if (prop_get) {
+    plan.get_returns_bit_set = (current_flags & bit_mask) != 0;
+    return plan;
+  }
+
+  plan.set_or_clear_bit = true;
+  plan.result_flags = set_value ? (current_flags | bit_mask)
+                                : (current_flags & ~bit_mask);
+  return plan;
+}
+
 SourceRndMeshPointCollidePlan source_rndmesh_point_collide_plan(
     bool has_bsp_tree,
     bool intersected) {

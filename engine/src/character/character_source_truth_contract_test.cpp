@@ -3665,6 +3665,47 @@ int run_contract() {
                  "OnSetVertXYZ)HANDLE(get_vert_norm,OnGetVertNorm)",
                  "RB3 RndMesh handler table exposes indexed mesh rows");
   ok &= contains(rb3_mesh_cpp,
+                 "BEGIN_PROPSYNCS(RndMesh)SYNC_PROP(mat,mMat)"
+                 "SYNC_PROP_MODIFY_ALT(geom_owner,mGeomOwner,"
+                 "if(!mGeomOwner)mGeomOwner=this)",
+                 "RB3 RndMesh prop sync exposes material and geom owner");
+  ok &= contains(rb3_mesh_cpp,
+                 "staticSymbol_s(\"mutable\");if(sym==_s){_i++;if(_i<"
+                 "_prop->Size()){DataNode&node=_prop->Node(_i);intres=0;",
+                 "RB3 RndMesh prop sync enters mutable sub-bit row");
+  ok &= contains(rb3_mesh_cpp,
+                 "casekDataSymbol:constchar*bitstr=node.Sym(0).Str();"
+                 "if(strncmp(\"BIT_\",bitstr,4)!=0){MILO_FAIL(",
+                 "RB3 RndMesh mutable row requires BIT symbol prefix");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(_op==kPropGet){intfinal=mGeomOwner->mMutable&res;"
+                 "_val=DataNode(final>0);}else{if(_val.Int(0)!=0)"
+                 "mGeomOwner->mMutable|=res;elsemGeomOwner->mMutable&=~res;}",
+                 "RB3 RndMesh mutable row gets or edits bit mask");
+  ok &= contains(rb3_mesh_cpp,
+                 "elsereturnPropSync(mGeomOwner->mMutable,_val,_prop,_i,_op);",
+                 "RB3 RndMesh mutable row delegates whole mask fallback");
+  ok &= contains(rb3_mesh_cpp,
+                 "SYNC_PROP_SET(num_verts,Verts().size(),SetNumVerts(_val.Int(0)))"
+                 "SYNC_PROP_SET(num_faces,(int)Faces().size(),"
+                 "SetNumFaces(_val.Int(0)))",
+                 "RB3 RndMesh prop sync exposes vertex and face counts");
+  ok &= contains(rb3_mesh_cpp,
+                 "staticSymbol_s(\"has_ao_calculation\");if(sym==_s){"
+                 "if(_op==kPropSet)mHasAOCalc=_val.Int(0);else_val="
+                 "DataNode(mHasAOCalc);returntrue;}",
+                 "RB3 RndMesh prop sync exposes AO flag");
+  ok &= contains(rb3_mesh_cpp,
+                 "staticSymbol_s(\"force_no_quantize\");if(sym==_s){"
+                 "if(_op==kPropSet)mForceNoQuantize=_val.Int(0);else_val="
+                 "DataNode(mForceNoQuantize);returntrue;}",
+                 "RB3 RndMesh prop sync exposes force-no-quantize flag");
+  ok &= contains(rb3_mesh_cpp,
+                 "SYNC_PROP_SET(keep_mesh_data,mKeepMeshData,"
+                 "SetKeepMeshData(_val.Int(0)))SYNC_SUPERCLASS("
+                 "RndTransformable)SYNC_SUPERCLASS(RndDrawable)",
+                 "RB3 RndMesh prop sync exposes keep data and superclass order");
+  ok &= contains(rb3_mesh_cpp,
                  "DataNodeRndMesh::OnPointCollide(constDataArray*da){"
                  "BSPNode*tree=GetBSPTree();Vector3v(da->Float(2),"
                  "da->Float(3),da->Float(4));Multiply(WorldXfm(),v,v);"
@@ -5267,6 +5308,14 @@ int run_contract() {
                  "structSourceRndMeshHandlerPlan{",
                  "native exposes RndMesh handler plan");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshMutableBitPlan{"
+                 "boolincrements_property_index=true;",
+                 "native exposes RndMesh mutable bit plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshPropSyncPlan{"
+                 "std::vector<std::string>properties;",
+                 "native exposes RndMesh prop-sync plan");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshPointCollidePlan{boolhas_bsp_tree=false;",
                  "native exposes RndMesh point-collide plan");
   ok &= contains(char_mesh_h,
@@ -5354,6 +5403,34 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceRndMeshHandlerPlansource_rndmesh_handler_plan()",
                  "native implements RndMesh handler plan");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshPropSyncPlansource_rndmesh_prop_sync_plan(){",
+                 "native implements RndMesh prop-sync plan");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"mat\",\"geom_owner:null->self\","
+                 "\"mutable\",\"num_verts:SetNumVerts\",",
+                 "native RndMesh prop-sync helper records first rows");
+  ok &= contains(char_mesh,
+                 "plan.mutable_rows={\"intbitmask\",\"BIT_*symbolmacro\","
+                 "\"wholemutablePropSyncfallback\"};",
+                 "native RndMesh prop-sync helper records mutable row modes");
+  ok &= contains(char_mesh,
+                 "plan.superclasses={\"RndTransformable\",\"RndDrawable\"};",
+                 "native RndMesh prop-sync helper records superclass order");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshMutableBitPlansource_rndmesh_mutable_bit_plan(",
+                 "native implements RndMesh mutable bit helper");
+  ok &= contains(char_mesh,
+                 "if(!has_bit_subproperty){plan.delegates_whole_mutable=true;"
+                 "returnplan;}",
+                 "native RndMesh mutable helper records whole-mask fallback");
+  ok &= contains(char_mesh,
+                 "plan.get_returns_bit_set=(current_flags&bit_mask)!=0;",
+                 "native RndMesh mutable helper records get branch");
+  ok &= contains(char_mesh,
+                 "plan.result_flags=set_value?(current_flags|bit_mask):"
+                 "(current_flags&~bit_mask);",
+                 "native RndMesh mutable helper records set and clear branch");
   ok &= contains(char_mesh,
                  "SourceRndMeshPointCollidePlan"
                  "source_rndmesh_point_collide_plan(boolhas_bsp_tree,"
@@ -5645,6 +5722,12 @@ int run_contract() {
                  "source_rndmesh_handler_plan()",
                  "focused mesh decode test covers RndMesh handler plan");
   ok &= contains(mesh_decode_test,
+                 "source_rndmesh_prop_sync_plan()",
+                 "focused mesh decode test covers RndMesh prop-sync table");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_mutable_bit_plan(",
+                 "focused mesh decode test covers RndMesh mutable bit rows");
+  ok &= contains(mesh_decode_test,
                  "source_rndmesh_point_collide_plan(true,true)",
                  "focused mesh decode test covers RndMesh point-collide helper");
   ok &= contains(mesh_decode_test,
@@ -5680,6 +5763,16 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_cache_strips_plan(",
                  "focused mesh decode test covers RndMesh CacheStrips helper");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_handler_plan`,",
+                 "document records RndMesh handler helper");
+  ok &= contains(doc,
+                 "`source_rndmesh_prop_sync_plan`,",
+                 "document records RndMesh prop-sync helper");
+  ok &= contains(doc,
+                 "`mutable` as either whole-mask\n    sync or a `BIT_*`/integer "
+                 "sub-bit get/set row",
+                 "document records RndMesh mutable prop-sync behavior");
   ok &= contains(doc,
                  "Native `source_rndmesh_collide_showing_plan` ports the checked",
                  "document records RndMesh CollideShowing helper");

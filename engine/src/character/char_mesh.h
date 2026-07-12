@@ -944,6 +944,25 @@ struct SourceRndMeshHandlerPlan {
   int32_t check = 2306;
 };
 
+struct SourceRndMeshMutableBitPlan {
+  bool increments_property_index = true;
+  bool has_bit_subproperty = false;
+  bool resolves_int_or_bit_symbol = false;
+  bool asserts_prop_insert_or_less = false;
+  bool delegates_whole_mutable = false;
+  bool get_returns_bit_set = false;
+  bool set_or_clear_bit = false;
+  uint32_t bit_mask = 0;
+  uint32_t result_flags = 0;
+};
+
+struct SourceRndMeshPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> mutable_rows;
+  std::vector<std::string> flag_rows;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceRndMeshPointCollidePlan {
   bool has_bsp_tree = false;
   bool reads_bsp_tree = true;
@@ -1150,6 +1169,13 @@ SourceRndMeshFaceCenterResult source_rndmesh_face_center(
     const std::vector<std::array<float, 3>>& vertices,
     const SourceRndMeshFace& face);
 SourceRndMeshHandlerPlan source_rndmesh_handler_plan();
+SourceRndMeshPropSyncPlan source_rndmesh_prop_sync_plan();
+SourceRndMeshMutableBitPlan source_rndmesh_mutable_bit_plan(
+    uint32_t current_flags,
+    uint32_t bit_mask,
+    bool has_bit_subproperty,
+    bool prop_get,
+    bool set_value);
 SourceRndMeshPointCollidePlan source_rndmesh_point_collide_plan(
     bool has_bsp_tree,
     bool intersected);

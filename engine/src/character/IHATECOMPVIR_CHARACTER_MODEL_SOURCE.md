@@ -1216,13 +1216,20 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     vector only when `RndMesh::gRev < 1`; `FaceCenter` sums the three indexed
     vertex positions and multiplies by `0.33333333f`.
   - Native `source_rndmesh_handler_plan`,
+    `source_rndmesh_prop_sync_plan`,
+    `source_rndmesh_mutable_bit_plan`,
     `source_rndmesh_point_collide_plan`,
     `source_rndmesh_attach_mesh_plan`,
     `source_rndmesh_configure_mesh_plan`,
     `source_rndmesh_vertex_edit_plan`, `source_rndmesh_face_edit_plan`, and
-    `source_rndmesh_unitize_normals_plan` port the checked editor/accessor
-    surface: `OnPointCollide` gets the BSP tree, builds a vector from message
-    floats 2-4, multiplies by `WorldXfm()`, and returns
+    `source_rndmesh_unitize_normals_plan` port the checked editor/accessor and
+    property-sync surface. `BEGIN_PROPSYNCS(RndMesh)` exposes `mat`,
+    `geom_owner` with null fallback to self, `mutable` as either whole-mask
+    sync or a `BIT_*`/integer sub-bit get/set row, `num_verts`, `num_faces`,
+    `volume`, `has_valid_bones`, `bones`, `has_ao_calculation`,
+    `force_no_quantize`, and `keep_mesh_data`, then delegates to
+    `RndTransformable` and `RndDrawable`. `OnPointCollide` gets the BSP tree,
+    builds a vector from message floats 2-4, multiplies by `WorldXfm()`, and returns
     `tree && Intersect(v, tree)`; `OnAttachMesh` reads mesh arg 2, calls
     `AttachMesh(this, m)`, deletes that temporary mesh pointer, and returns
     zero; `OnConfigureMesh` warns for non-configurable meshes, otherwise reads

@@ -1521,6 +1521,47 @@ int main() {
   CHECK(mesh_handlers.superclasses[1] == "RndTransformable");
   CHECK(mesh_handlers.check == 2306);
 
+  const auto mesh_props = ghogx::character::source_rndmesh_prop_sync_plan();
+  CHECK(mesh_props.properties.size() == 11);
+  CHECK(mesh_props.properties[0] == "mat");
+  CHECK(mesh_props.properties[1] == "geom_owner:null->self");
+  CHECK(mesh_props.properties[2] == "mutable");
+  CHECK(mesh_props.properties[8] == "has_ao_calculation");
+  CHECK(mesh_props.properties[9] == "force_no_quantize");
+  CHECK(mesh_props.properties[10] == "keep_mesh_data:SetKeepMeshData");
+  CHECK(mesh_props.mutable_rows.size() == 3);
+  CHECK(mesh_props.mutable_rows[1] == "BIT_* symbol macro");
+  CHECK(mesh_props.flag_rows[0] == "has_ao_calculation:get/set");
+  CHECK(mesh_props.superclasses[0] == "RndTransformable");
+  CHECK(mesh_props.superclasses[1] == "RndDrawable");
+
+  const auto mutable_whole =
+      ghogx::character::source_rndmesh_mutable_bit_plan(
+          0x20, 0x04, false, true, false);
+  CHECK(mutable_whole.increments_property_index);
+  CHECK(mutable_whole.delegates_whole_mutable);
+  CHECK(mutable_whole.result_flags == 0x20);
+
+  const auto mutable_get =
+      ghogx::character::source_rndmesh_mutable_bit_plan(
+          0x24, 0x04, true, true, false);
+  CHECK(mutable_get.has_bit_subproperty);
+  CHECK(mutable_get.resolves_int_or_bit_symbol);
+  CHECK(mutable_get.asserts_prop_insert_or_less);
+  CHECK(mutable_get.get_returns_bit_set);
+  CHECK(mutable_get.result_flags == 0x24);
+
+  const auto mutable_set =
+      ghogx::character::source_rndmesh_mutable_bit_plan(
+          0x20, 0x04, true, false, true);
+  CHECK(mutable_set.set_or_clear_bit);
+  CHECK(mutable_set.result_flags == 0x24);
+  const auto mutable_clear =
+      ghogx::character::source_rndmesh_mutable_bit_plan(
+          0x24, 0x04, true, false, false);
+  CHECK(mutable_clear.set_or_clear_bit);
+  CHECK(mutable_clear.result_flags == 0x20);
+
   const auto point_hit =
       ghogx::character::source_rndmesh_point_collide_plan(true, true);
   CHECK(point_hit.reads_bsp_tree);
