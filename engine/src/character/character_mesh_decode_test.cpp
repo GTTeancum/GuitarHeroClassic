@@ -137,7 +137,7 @@ std::vector<uint8_t> make_rev11_hair_without_strands() {
   return b;
 }
 
-std::vector<uint8_t> make_rev2_hair_with_point() {
+std::vector<uint8_t> make_rev2_hair_with_point(uint32_t collide_type = 3) {
   std::vector<uint8_t> b;
   put_u32(b, 2);                  // CharHair revision used by GH2/GH2 360
   put_zeros(b, 9);                // ObjectFields revision 0, empty type/root
@@ -156,7 +156,7 @@ std::vector<uint8_t> make_rev2_hair_with_point() {
   put_f32(b, 3.0f);               // point unknown_floats / pos z
   put_str(b, "bone_hair_tip");    // driven bone
   put_f32(b, 4.0f);               // length
-  put_u32(b, 3);                  // collide_type
+  put_u32(b, collide_type);       // collide_type
   put_str(b, "hair_collision");   // collision
   put_f32(b, 0.75f);              // distance / radius
   put_f32(b, 1.25f);              // align_dist / outer_radius
@@ -1945,6 +1945,14 @@ int main() {
   CHECK(approx(rev2_hair.strands[0].points[0].side_length, -1.0f));
   CHECK(!rev2_hair.simulate);
   CHECK(rev2_hair.unread_bytes == 0);
+
+  const ghogx::character::CharHair rev2_hair_invalid_collide =
+      ghogx::character::decode_hair("rev2-invalid-collide.hair",
+                                    make_rev2_hair_with_point(99));
+  CHECK(rev2_hair_invalid_collide.strands[0].points[0].collide_type == 3);
+  CHECK(ghogx::character::source_grim_char_hair_collide_type(0) == 0);
+  CHECK(ghogx::character::source_grim_char_hair_collide_type(4) == 4);
+  CHECK(ghogx::character::source_grim_char_hair_collide_type(99) == 3);
 
   const ghogx::character::CharLookAt rev2_lookat =
       ghogx::character::decode_lookat("l-eye.lookat", make_lookat(2, 2));

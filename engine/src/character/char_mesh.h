@@ -2982,6 +2982,7 @@ SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
 SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
 SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
 SourceGrimCharHairLoadPlan source_grim_char_hair_load_plan(int version);
+uint32_t source_grim_char_hair_collide_type(uint32_t raw);
 SourceCharHairSavePlan source_char_hair_save_plan();
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
     bool owner_is_character,

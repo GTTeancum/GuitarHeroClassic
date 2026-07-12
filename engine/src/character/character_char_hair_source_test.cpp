@@ -92,6 +92,7 @@ int main() {
   using ghogx::character::source_char_hair_simulate_internal_scalars;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
+  using ghogx::character::source_grim_char_hair_collide_type;
   using ghogx::character::source_grim_char_hair_load_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
   using ghogx::character::source_gltf_milo_export_hair_point;
@@ -262,6 +263,12 @@ int main() {
   ok &= expect_string(grim_hair_v2.point.rb3_rev2_equivalents[5],
                       "distance->radius",
                       "grim GH2 CharHair distance maps to radius");
+  ok &= expect_int(static_cast<int>(source_grim_char_hair_collide_type(0)),
+                   0, "grim GH2 CharHair maps plane collide type");
+  ok &= expect_int(static_cast<int>(source_grim_char_hair_collide_type(4)),
+                   4, "grim GH2 CharHair maps inside-cylinder collide type");
+  ok &= expect_int(static_cast<int>(source_grim_char_hair_collide_type(99)),
+                   3, "grim GH2 CharHair defaults unknown collide type");
 
   const auto grim_hair_v11 = source_grim_char_hair_load_plan(11);
   ok &= expect_bool(grim_hair_v11.known_version, false,

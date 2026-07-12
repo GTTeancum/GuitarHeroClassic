@@ -1558,6 +1558,11 @@ note, and all report `unreadBytes=0`.
     revision-2 `pos`, `radius`, and `outerRadius` fields. This is parser
     evidence only; it does not promote collision hookup, physics, or
     simulation writeback into solved runtime behavior.
+    Grim's `CollideType::from` maps values `0..4` to the five source collision
+    modes and defaults unknown values to `kCollideCylinder` (`3`). Native
+    `source_grim_char_hair_collide_type` now applies that conversion while
+    decoding GH2 revision-2 `CharHair` rows instead of logging impossible
+    collision enum values as if they were source states.
     The deterministic `decode_hair` coverage includes a synthetic revision-2
     row that preserves `collide_type`, `collision`, `distance`, and
     `align_dist` while leaving `side_length` and strand hookup flags at their

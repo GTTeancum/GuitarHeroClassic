@@ -978,6 +978,20 @@ int run_contract() {
   ok &= contains(grim_dev_char_hair_mod,
                  "pubdistance:f32,pubalign_dist:f32,",
                  "grim-dev CharHair point names distance rows");
+  ok &= contains(grim_dev_char_hair_mod,
+                 "implDefaultforCollideType{fndefault()->Self{"
+                 "CollideType::kCollideCylinder}}",
+                 "grim-dev CharHair collide type default is cylinder");
+  ok &= contains(grim_dev_char_hair_mod,
+                 "_=>CollideType::default(),",
+                 "grim-dev CharHair collide type maps unknown values to default");
+  ok &= contains(char_mesh_h,
+                 "uint32_tsource_grim_char_hair_collide_type(uint32_traw);",
+                 "native exposes Grim CharHair collide type conversion");
+  ok &= contains(char_mesh,
+                 "uint32_tsource_grim_char_hair_collide_type(uint32_traw){"
+                 "if(raw<=4)returnraw;return3;}",
+                 "native ports Grim CharHair collide type conversion");
   ok &= contains(grim_dev_char_clip_io,
                  "matchversion{5=>true,//GH2/GH236012=>true,//TBRB/GDRB_=>"
                  "false",
@@ -6152,10 +6166,13 @@ int run_contract() {
                  "inti;bs>>i;}",
                  "RB3 CharHair source consumes legacy inline collision fields");
   ok &= contains(char_mesh,
-                 "if(hair.version<3){point.collide_type=r.u32();"
-                 "point.collision=r.str();}elseif(hair.version==3){"
+                 "if(hair.version<3){constuint32_traw_collide_type=r.u32();"
+                 "point.collide_type=hair.version==2?"
+                 "source_grim_char_hair_collide_type(raw_collide_type):"
+                 "raw_collide_type;point.collision=r.str();}"
+                 "elseif(hair.version==3){"
                  "point.collide_type=r.u32();}",
-                 "native CharHair decode logs legacy inline fields only");
+                 "native CharHair decode applies Grim v2 collide type conversion");
   ok &= contains(doc,
                  "Native may\n    log these legacy inline fields for stock GH2 "
                  "evidence, but they are not a\n    resolved runtime "
@@ -6477,9 +6494,22 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "rev2_hair.strands[0].points[0].side_length,-1.0f",
                  "deterministic mesh decode test keeps rev-2 side length default");
+  ok &= contains(mesh_decode_test,
+                 "make_rev2_hair_with_point(99)",
+                 "deterministic mesh decode test covers invalid GH2 hair collide type");
+  ok &= contains(char_hair_source_test,
+                 "source_grim_char_hair_collide_type(99)",
+                 "focused CharHair test covers Grim collide type default");
   ok &= contains(doc,
                  "Grim `dev` `char_hair/io.rs` independently records GH2/GH2 360",
                  "document records grim-dev GH2 CharHair parser evidence");
+  ok &= contains(doc,
+                 "Grim's `CollideType::from` maps values `0..4`",
+                 "document records Grim CharHair collide type conversion");
+  ok &= contains(doc,
+                 "`source_grim_char_hair_collide_type` now applies that "
+                 "conversion",
+                 "document ties native CharHair collide type conversion to Grim");
   ok &= contains(doc,
                  "This is parser\n    evidence only; it does not promote "
                  "collision hookup, physics, or\n    simulation writeback",

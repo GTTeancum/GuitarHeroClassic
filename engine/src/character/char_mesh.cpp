@@ -2386,7 +2386,11 @@ CharHair decode_hair_body(const std::string& entry_name,
       point.bone = r.str();
       point.length = r.f32();
       if (hair.version < 3) {
-        point.collide_type = r.u32();
+        const uint32_t raw_collide_type = r.u32();
+        point.collide_type = hair.version == 2
+                                 ? source_grim_char_hair_collide_type(
+                                       raw_collide_type)
+                                 : raw_collide_type;
         point.collision = r.str();
       } else if (hair.version == 3) {
         point.collide_type = r.u32();
@@ -3624,6 +3628,11 @@ SourceGrimCharHairLoadPlan source_grim_char_hair_load_plan(int version) {
       "collision->legacyCollisionName", "distance->radius",
       "align_dist->outerRadius"};
   return plan;
+}
+
+uint32_t source_grim_char_hair_collide_type(uint32_t raw) {
+  if (raw <= 4) return raw;
+  return 3;
 }
 
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
