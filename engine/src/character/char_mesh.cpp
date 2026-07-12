@@ -3150,6 +3150,56 @@ SourceCharacterPreSaveResult source_character_pre_save() {
   return {true};
 }
 
+namespace {
+
+bool source_char_pollable_sorter_changed_by_recurse(
+    std::vector<SourceCharPollableSorterDep>& deps,
+    int32_t target_index,
+    int32_t query_index,
+    int32_t search_id,
+    std::vector<int32_t>& visited_indices) {
+  if (query_index < 0 ||
+      query_index >= static_cast<int32_t>(deps.size())) {
+    return false;
+  }
+  if (query_index == target_index) return true;
+
+  SourceCharPollableSorterDep& dep = deps[query_index];
+  if (dep.search_id == search_id) return false;
+
+  dep.search_id = search_id;
+  visited_indices.push_back(query_index);
+  for (const int32_t changed_by : dep.changed_by) {
+    if (source_char_pollable_sorter_changed_by_recurse(
+            deps, target_index, changed_by, search_id, visited_indices)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+SourceCharPollableSorterChangedByResult
+source_char_pollable_sorter_changed_by(
+    std::vector<SourceCharPollableSorterDep>& deps,
+    int32_t target_index,
+    int32_t query_index,
+    int32_t current_search_id) {
+  SourceCharPollableSorterChangedByResult result;
+  result.search_id = current_search_id;
+  if (target_index == query_index) {
+    result.same_dep_short_circuit = true;
+    return result;
+  }
+
+  result.search_id = current_search_id + 1;
+  result.changed_by = source_char_pollable_sorter_changed_by_recurse(
+      deps, target_index, query_index, result.search_id,
+      result.visited_indices);
+  return result;
+}
+
 SourceCharLifecyclePlan source_char_lifecycle_plan() {
   SourceCharLifecyclePlan plan;
   plan.init_steps = {"Character::Init",       "CharBonesObject::Init",

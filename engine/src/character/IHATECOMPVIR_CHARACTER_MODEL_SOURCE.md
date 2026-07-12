@@ -398,6 +398,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   when `bone_pelvis.mesh` exists, delegates to `RndDir::SyncObjects`, removes
   the trans group plus each LOD group and trans group from draws, syncs shadow,
   and sorts character polls.
+- `CharPollableSorter::ChangedBy` / `ChangedByRecurse` are concrete for the
+  dependency reachability test used by poll ordering: same dep pointers return
+  false without incrementing `sSearchID`; other queries increment the search id,
+  recurse through `changedBy`, mark each visited dep with that id, return true
+  before marking the target dep, and use the search id to suppress cycles.
+  Native `source_char_pollable_sorter_changed_by` ports that reachability body
+  only. The broader `Sort` / `AddDeps` object-to-dep construction remains
+  fenced because the checked source has incomplete bodies there.
 - `CopyBoundingSphere` copies sphere, bounding, and the source sphere-base
   pointer when present, otherwise clears the pointer. `RepointSphereBase` only
   looks up by name when the pointer is non-null and only replaces it when the

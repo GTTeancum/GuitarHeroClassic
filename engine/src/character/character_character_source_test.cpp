@@ -59,6 +59,7 @@ bool expect_draw_mode(ghogx::character::SourceCharacterDrawMode got,
 int main() {
   using ghogx::character::SourceCharacterDrawMode;
   using ghogx::character::SourceCharacterPollState;
+  using ghogx::character::SourceCharPollableSorterDep;
   using ghogx::character::source_character_added_object;
   using ghogx::character::source_character_add_shadow_bone;
   using ghogx::character::source_character_bone_servo_resolves;
@@ -93,6 +94,7 @@ int main() {
   using ghogx::character::source_character_sync_shadow;
   using ghogx::character::source_character_sync_objects;
   using ghogx::character::source_character_unhook_shadow;
+  using ghogx::character::source_char_pollable_sorter_changed_by;
 
   bool ok = true;
 
@@ -568,6 +570,64 @@ int main() {
 
   ok &= expect_bool(source_character_pre_save().unhooked_shadow, true,
                     "PreSave unhooks shadow");
+
+  std::vector<SourceCharPollableSorterDep> deps = {
+      {"target.driver", {}, 0},
+      {"lookat.poll", {0}, 0},
+      {"hair.poll", {1}, 0},
+  };
+  auto changed_by = source_char_pollable_sorter_changed_by(deps, 0, 2, 7);
+  ok &= expect_bool(changed_by.changed_by, true,
+                    "PollableSorter finds transitive dependency");
+  ok &= expect_int(changed_by.search_id, 8,
+                   "PollableSorter increments search id");
+  ok &= expect_size(changed_by.visited_indices.size(), 2,
+                    "PollableSorter visits before target");
+  ok &= expect_int(changed_by.visited_indices[0], 2,
+                   "PollableSorter visits query first");
+  ok &= expect_int(changed_by.visited_indices[1], 1,
+                   "PollableSorter visits changedBy edge");
+  ok &= expect_int(deps[2].search_id, 8,
+                   "PollableSorter marks query search id");
+  ok &= expect_int(deps[1].search_id, 8,
+                   "PollableSorter marks intermediate search id");
+  ok &= expect_int(deps[0].search_id, 0,
+                   "PollableSorter returns before marking target");
+
+  std::vector<SourceCharPollableSorterDep> cycle_deps = {
+      {"cycle.a", {1}, 0},
+      {"cycle.b", {0}, 0},
+      {"unreached.target", {}, 0},
+  };
+  changed_by = source_char_pollable_sorter_changed_by(cycle_deps, 2, 0, 41);
+  ok &= expect_bool(changed_by.changed_by, false,
+                    "PollableSorter cycle does not fabricate reachability");
+  ok &= expect_int(changed_by.search_id, 42,
+                   "PollableSorter cycle search id");
+  ok &= expect_size(changed_by.visited_indices.size(), 2,
+                    "PollableSorter cycle visits once per dep");
+  ok &= expect_int(cycle_deps[0].search_id, 42,
+                   "PollableSorter cycle marks first dep");
+  ok &= expect_int(cycle_deps[1].search_id, 42,
+                   "PollableSorter cycle marks second dep");
+
+  changed_by = source_char_pollable_sorter_changed_by(cycle_deps, 1, 1, 42);
+  ok &= expect_bool(changed_by.changed_by, false,
+                    "PollableSorter same dep returns false");
+  ok &= expect_bool(changed_by.same_dep_short_circuit, true,
+                    "PollableSorter records same dep short-circuit");
+  ok &= expect_int(changed_by.search_id, 42,
+                   "PollableSorter same dep does not increment search id");
+  ok &= expect_size(changed_by.visited_indices.size(), 0,
+                    "PollableSorter same dep skips recursion");
+
+  changed_by = source_char_pollable_sorter_changed_by(cycle_deps, 0, -1, 5);
+  ok &= expect_bool(changed_by.changed_by, false,
+                    "PollableSorter null query returns false");
+  ok &= expect_int(changed_by.search_id, 6,
+                   "PollableSorter null query still increments search id");
+  ok &= expect_size(changed_by.visited_indices.size(), 0,
+                    "PollableSorter null query visits no deps");
 
   const auto lifecycle = source_char_lifecycle_plan();
   ok &= expect_size(lifecycle.init_steps.size(), 7, "CharInit step count");

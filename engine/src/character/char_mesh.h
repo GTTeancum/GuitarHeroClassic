@@ -941,6 +941,19 @@ struct SourceCharacterPreSaveResult {
   bool unhooked_shadow = false;
 };
 
+struct SourceCharPollableSorterDep {
+  std::string name;
+  std::vector<int32_t> changed_by;
+  int32_t search_id = 0;
+};
+
+struct SourceCharPollableSorterChangedByResult {
+  bool changed_by = false;
+  bool same_dep_short_circuit = false;
+  int32_t search_id = 0;
+  std::vector<int32_t> visited_indices;
+};
+
 struct SourceCharLifecyclePlan {
   std::vector<std::string> init_steps;
   std::vector<std::string> terminate_steps;
@@ -1793,6 +1806,11 @@ SourceCharacterRepointSphereBaseResult source_character_repoint_sphere_base(
     SourceCharacterState& state,
     bool found_matching_transform);
 SourceCharacterPreSaveResult source_character_pre_save();
+SourceCharPollableSorterChangedByResult source_char_pollable_sorter_changed_by(
+    std::vector<SourceCharPollableSorterDep>& deps,
+    int32_t target_index,
+    int32_t query_index,
+    int32_t current_search_id);
 SourceCharLifecyclePlan source_char_lifecycle_plan();
 SourceCharacterTestState source_character_test_default_state();
 SourceCharacterTestDestroyResult source_character_test_destroy(

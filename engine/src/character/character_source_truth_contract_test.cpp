@@ -1047,6 +1047,21 @@ int run_contract() {
                  "sorter.Sort(mPolls);}",
                  "Character source SyncObjects sorts polls");
   ok &= contains(rb3_latest_character_cpp,
+                 "boolCharPollableSorter::ChangedBy(Dep*d1,Dep*d2){"
+                 "if(d1==d2)returnfalse;sSearchID++;mTarget=d1;"
+                 "returnChangedByRecurse(d2);}",
+                 "Character source PollableSorter ChangedBy flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "boolCharPollableSorter::ChangedByRecurse(Dep*d){"
+                 "if(!d)returnfalse;elseif(d==mTarget)returntrue;else"
+                 "if(d->searchID==sSearchID)returnfalse;",
+                 "Character source PollableSorter recurse gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "d->searchID=sSearchID;for(std::list<Dep*>::iteratorit="
+                 "d->changedBy.begin();it!=d->changedBy.end();++it){"
+                 "if(ChangedByRecurse(*it))returntrue;}returnfalse;",
+                 "Character source PollableSorter recurse edges");
+  ok &= contains(rb3_latest_character_cpp,
                  "voidCharacter::AddedObject(Hmx::Object*o){"
                  "if(dynamic_cast<CharPollable*>(o)){CharDriver*driver="
                  "dynamic_cast<CharDriver*>(o);if(driver){boolstrsmatch="
@@ -5339,6 +5354,22 @@ int run_contract() {
                  "SourceCharacterPreSaveResultsource_character_pre_save(){"
                  "return{true};}",
                  "native ports Character PreSave helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollableSorterDep{std::stringname;"
+                 "std::vector<int32_t>changed_by;int32_tsearch_id=0;};",
+                 "native exposes PollableSorter dep row");
+  ok &= contains(char_mesh_h,
+                 "SourceCharPollableSorterChangedByResult"
+                 "source_char_pollable_sorter_changed_by(",
+                 "native declares PollableSorter ChangedBy helper");
+  ok &= contains(char_mesh,
+                 "if(target_index==query_index){result.same_dep_short_circuit="
+                 "true;returnresult;}",
+                 "native ports PollableSorter same dep short-circuit");
+  ok &= contains(char_mesh,
+                 "dep.search_id=search_id;visited_indices.push_back("
+                 "query_index);for(constint32_tchanged_by:dep.changed_by)",
+                 "native ports PollableSorter visited search id loop");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_character_source_test",
                  "CMake builds Character source test");
@@ -5415,6 +5446,12 @@ int run_contract() {
   ok &= contains(character_source_test,
                  "source_character_pre_save().unhooked_shadow",
                  "focused Character test covers PreSave");
+  ok &= contains(character_source_test,
+                 "source_char_pollable_sorter_changed_by(deps,0,2,7)",
+                 "focused Character test covers PollableSorter reachability");
+  ok &= contains(character_source_test,
+                 "source_char_pollable_sorter_changed_by(cycle_deps,2,0,41)",
+                 "focused Character test covers PollableSorter cycle gate");
   ok &= contains(doc, "## Character Runtime Flow",
                  "document records Character runtime flow section");
   ok &= contains(doc, "## Character LOD Row Authority",
@@ -5437,6 +5474,10 @@ int run_contract() {
                  "document records native Character prop-sync plan");
   ok &= contains(doc, "Native `source_character_on_play_clip` ports",
                  "document records native Character OnPlayClip helper");
+  ok &= contains(doc,
+                 "Native `source_char_pollable_sorter_changed_by` ports that "
+                 "reachability body",
+                 "document records native PollableSorter reachability helper");
   ok &= contains(char_mesh_h, "structSourceCharacterTestState{",
                  "native exposes CharacterTest default state");
   ok &= contains(char_mesh_h, "structSourceCharacterTestAddDefaultsResult{",
