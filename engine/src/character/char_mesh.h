@@ -507,6 +507,31 @@ struct SourceGltfMiloGroupNodePlan {
   std::vector<std::string> objects;
 };
 
+struct SourceGltfMiloLightNodeInput {
+  std::string name;
+  int light_revision = 0;
+  int trans_revision = 0;
+  float range = 0.0f;
+  std::array<float, 3> color = {1.0f, 1.0f, 1.0f};
+  std::string punctual_light_type;
+};
+
+struct SourceGltfMiloLightNodePlan {
+  bool creates_light_entry = false;
+  std::string entry_type;
+  std::string entry_name;
+  int light_revision = 0;
+  int object_fields_revision = 0;
+  float range = 0.0f;
+  std::string color_owner;
+  std::array<float, 4> color = {0.0f, 0.0f, 0.0f, 1.0f};
+  std::string light_type;
+  int trans_revision = 0;
+  bool copies_local_matrix = false;
+  bool copies_world_matrix = false;
+  bool calls_milo_extras_add_to_object = false;
+};
+
 struct SourceGltfMiloTransAnimChannelInput {
   std::string target_node;
   std::string target_path;
@@ -582,6 +607,9 @@ SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
 
 SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
     const SourceGltfMiloGroupNodeInput& input);
+
+SourceGltfMiloLightNodePlan source_gltf_milo_process_light_node_plan(
+    const SourceGltfMiloLightNodeInput& input);
 
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(

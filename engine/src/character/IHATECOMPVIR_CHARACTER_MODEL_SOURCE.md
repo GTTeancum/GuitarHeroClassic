@@ -1020,6 +1020,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_gltf_milo_process_group_node_plan` mirror those exporter hierarchy
     decisions only; they do not alter GH2 stock transform solving or renderer
     group membership.
+  - `NodeProcessor.ProcessLightNode` creates a `Light` row named
+    `<node>.lit`, sets the selected game's light revision and object-fields
+    revision 2, copies range and RGB color from `node.PunctualLight` with
+    alpha forced to `1.0`, sets `colorOwner` to the same `.lit` name, maps
+    point/spot/directional glTF light types to `RndLight` types with unknowns
+    falling back to point, creates a selected-revision `RndTrans`, copies
+    local/world transforms, calls `MiloExtras.AddToObject`, and emits the
+    directory entry. Native `source_gltf_milo_process_light_node_plan` records
+    that exporter object-shape contract only.
   - For each glTF logical animation whose channels all target only
     `translation`, `rotation`, or `scale`, glTFMilo creates a revision-7
     `TransAnim`, assigns selected-game anim/draw revisions, uses 30fps,

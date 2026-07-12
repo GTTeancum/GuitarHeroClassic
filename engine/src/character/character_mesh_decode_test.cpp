@@ -743,6 +743,47 @@ int main() {
   CHECK(hair_group.objects[0] == "bone_head");
   CHECK(hair_group.objects[1] == "hair.mesh");
 
+  ghogx::character::SourceGltfMiloLightNodeInput light_node;
+  light_node.name = "rim_key";
+  light_node.light_revision = 6;
+  light_node.trans_revision = 9;
+  light_node.range = 42.0f;
+  light_node.color = {0.25f, 0.5f, 0.75f};
+  light_node.punctual_light_type = "Point";
+  const auto point_light =
+      ghogx::character::source_gltf_milo_process_light_node_plan(light_node);
+  CHECK(point_light.creates_light_entry);
+  CHECK(point_light.entry_type == "Light");
+  CHECK(point_light.entry_name == "rim_key.lit");
+  CHECK(point_light.light_revision == 6);
+  CHECK(point_light.object_fields_revision == 2);
+  CHECK(approx(point_light.range, 42.0f));
+  CHECK(point_light.color_owner == "rim_key.lit");
+  CHECK(approx(point_light.color[0], 0.25f));
+  CHECK(approx(point_light.color[1], 0.5f));
+  CHECK(approx(point_light.color[2], 0.75f));
+  CHECK(approx(point_light.color[3], 1.0f));
+  CHECK(point_light.light_type == "kPoint");
+  CHECK(point_light.trans_revision == 9);
+  CHECK(point_light.copies_local_matrix);
+  CHECK(point_light.copies_world_matrix);
+  CHECK(point_light.calls_milo_extras_add_to_object);
+
+  light_node.punctual_light_type = "Spot";
+  const auto spot_light =
+      ghogx::character::source_gltf_milo_process_light_node_plan(light_node);
+  CHECK(spot_light.light_type == "kSpot");
+
+  light_node.punctual_light_type = "Directional";
+  const auto directional_light =
+      ghogx::character::source_gltf_milo_process_light_node_plan(light_node);
+  CHECK(directional_light.light_type == "kDirectional");
+
+  light_node.punctual_light_type = "Area";
+  const auto fallback_light =
+      ghogx::character::source_gltf_milo_process_light_node_plan(light_node);
+  CHECK(fallback_light.light_type == "kPoint");
+
   const auto gltf_trans_anim =
       ghogx::character::source_gltf_milo_export_trans_anim_plan(
           "hair_sway",

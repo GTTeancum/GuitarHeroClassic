@@ -801,6 +801,31 @@ SourceGltfMiloGroupNodePlan source_gltf_milo_process_group_node_plan(
   return plan;
 }
 
+SourceGltfMiloLightNodePlan source_gltf_milo_process_light_node_plan(
+    const SourceGltfMiloLightNodeInput& input) {
+  SourceGltfMiloLightNodePlan plan;
+  plan.creates_light_entry = true;
+  plan.entry_type = "Light";
+  plan.entry_name = input.name + ".lit";
+  plan.light_revision = input.light_revision;
+  plan.object_fields_revision = 2;
+  plan.range = input.range;
+  plan.color_owner = input.name + ".lit";
+  plan.color = {input.color[0], input.color[1], input.color[2], 1.0f};
+  if (input.punctual_light_type == "Spot") {
+    plan.light_type = "kSpot";
+  } else if (input.punctual_light_type == "Directional") {
+    plan.light_type = "kDirectional";
+  } else {
+    plan.light_type = "kPoint";
+  }
+  plan.trans_revision = input.trans_revision;
+  plan.copies_local_matrix = true;
+  plan.copies_world_matrix = true;
+  plan.calls_milo_extras_add_to_object = true;
+  return plan;
+}
+
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(
     const std::string& anim_name,

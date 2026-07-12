@@ -4249,6 +4249,33 @@ int run_contract() {
   ok &= contains(gltf_node_processor_cs,
                  "MiloExtras.AddToGroup(node,group,refoverriddenFilename);",
                  "glTFMilo ProcessGroupNode calls MiloExtras AddToGroup");
+  ok &= contains(gltf_node_processor_cs,
+                 "publicstaticvoidProcessLightNode(Nodenode,DirectoryMetameta,"
+                 "MiloGamegame,boolconvertCoordinates=false)",
+                 "glTFMilo ProcessLightNode is visible");
+  ok &= contains(gltf_node_processor_cs,
+                 "stringoverriddenFilename=node.Name+\".lit\";",
+                 "glTFMilo ProcessLightNode names lit entry");
+  ok &= contains(gltf_node_processor_cs,
+                 "SetValue(light,rev.LightRevision);",
+                 "glTFMilo ProcessLightNode uses selected light revision");
+  ok &= contains(gltf_node_processor_cs,
+                 "light.objFields.revision=2;light.range=node.PunctualLight.Range;"
+                 "light.colorOwner=node.Name+\".lit\";",
+                 "glTFMilo ProcessLightNode object fields and color owner");
+  ok &= contains(gltf_node_processor_cs,
+                 "PunctualLightType.Point=>RndLight.Type.kPoint,"
+                 "PunctualLightType.Spot=>RndLight.Type.kSpot,"
+                 "PunctualLightType.Directional=>RndLight.Type.kDirectional,"
+                 "_=>RndLight.Type.kPoint",
+                 "glTFMilo ProcessLightNode maps punctual light types");
+  ok &= contains(gltf_node_processor_cs,
+                 "MiloExtras.AddToObject(node,light,refoverriddenFilename);",
+                 "glTFMilo ProcessLightNode calls MiloExtras AddToObject");
+  ok &= contains(gltf_node_processor_cs,
+                 "meta.entries.Add(newDirectoryMeta.Entry(\"Light\","
+                 "overriddenFilename,light));",
+                 "glTFMilo ProcessLightNode emits Light entry");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
@@ -4364,6 +4391,10 @@ int run_contract() {
                  "SourceGltfMiloGroupNodePlan"
                  "source_gltf_milo_process_group_node_plan(",
                  "native exposes glTFMilo group node helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloLightNodePlan"
+                 "source_gltf_milo_process_light_node_plan(",
+                 "native exposes glTFMilo light node helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloTransAnimExportPlan"
                  "source_gltf_milo_export_trans_anim_plan(",
@@ -4603,6 +4634,18 @@ int run_contract() {
                  "if(!child.empty())plan.objects.push_back(child);",
                  "native preserves ProcessGroupNode non-null descendant append");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloLightNodePlansource_gltf_milo_process_light_node_plan(",
+                 "native ports glTFMilo ProcessLightNode helper");
+  ok &= contains(char_mesh,
+                 "plan.entry_name=input.name+\".lit\";",
+                 "native preserves ProcessLightNode lit naming");
+  ok &= contains(char_mesh,
+                 "plan.color={input.color[0],input.color[1],input.color[2],1.0f};",
+                 "native preserves ProcessLightNode alpha-one color");
+  ok &= contains(char_mesh,
+                 "if(input.punctual_light_type==\"Spot\"){plan.light_type=\"kSpot\";",
+                 "native preserves ProcessLightNode spot mapping");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloTransAnimExportPlan"
                  "source_gltf_milo_export_trans_anim_plan(",
                  "native ports glTFMilo TransAnim export helper");
@@ -4663,6 +4706,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "hair_group.calls_milo_extras_add_to_group",
                  "focused mesh decode test covers glTFMilo group extras call");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_process_light_node_plan(light_node)",
+                 "focused mesh decode test covers glTFMilo light node helper");
+  ok &= contains(mesh_decode_test,
+                 "fallback_light.light_type==\"kPoint\"",
+                 "focused mesh decode test covers glTFMilo light fallback");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_export_trans_anim_plan(",
                  "focused mesh decode test covers glTFMilo TransAnim export");
@@ -4744,6 +4793,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_process_bone_node_plan` and",
                  "document records glTFMilo node processor helpers");
+  ok &= contains(doc,
+                 "`source_gltf_milo_process_light_node_plan` records",
+                 "document records glTFMilo light node helper");
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_influences` ports that",
                  "document records glTFMilo skin validation helper");
