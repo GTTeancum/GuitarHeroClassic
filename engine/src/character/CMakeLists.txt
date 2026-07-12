@@ -388,6 +388,59 @@ target_compile_definitions(ghogx_character_source_truth_contract_test PRIVATE
 add_test(NAME ghogx_character_source_truth_contract_test
          COMMAND ghogx_character_source_truth_contract_test)
 
+add_custom_target(ghogx_character_source_tests
+    DEPENDS
+        ghogx_character_clip_driver_flags_test
+        ghogx_character_clip_set_source_test
+        ghogx_character_clip_display_source_test
+        ghogx_character_clip_editor_source_test
+        ghogx_character_char_bones_source_test
+        ghogx_character_char_utl_source_test
+        ghogx_character_ik_rod_source_test
+        ghogx_character_ik_hand_source_test
+        ghogx_character_ik_foot_source_test
+        ghogx_character_ik_head_source_test
+        ghogx_character_ik_slider_midi_source_test
+        ghogx_character_ik_midi_source_test
+        ghogx_character_bone_offset_source_test
+        ghogx_character_bone_twist_source_test
+        ghogx_character_fore_upper_twist_source_test
+        ghogx_character_lookat_source_test
+        ghogx_character_weight_setter_source_test
+        ghogx_character_mirror_source_test
+        ghogx_character_char_hair_source_test
+        ghogx_character_char_collide_source_test
+        ghogx_character_event_trigger_source_test
+        ghogx_character_tex_source_test
+        ghogx_character_face_servo_source_test
+        ghogx_character_lip_sync_source_test
+        ghogx_character_mesh_hide_source_test
+        ghogx_character_trans_copy_source_test
+        ghogx_character_poll_group_source_test
+        ghogx_character_ik_scale_source_test
+        ghogx_character_trans_draw_source_test
+        ghogx_character_cuff_source_test
+        ghogx_character_blend_bone_source_test
+        ghogx_character_sleeve_source_test
+        ghogx_character_pos_constraint_source_test
+        ghogx_character_waypoint_source_test
+        ghogx_character_guitar_string_source_test
+        ghogx_character_eyes_source_test
+        ghogx_character_eye_dart_ruleset_source_test
+        ghogx_character_interest_source_test
+        ghogx_character_neck_twist_source_test
+        ghogx_character_ik_fingers_source_test
+        ghogx_character_character_source_test
+        ghogx_character_character_test_source_test
+        ghogx_character_mesh_decode_test
+        ghogx_character_skin_order_test
+        ghogx_character_mesh_cache_source_test
+        ghogx_character_no_named_fix_test
+        ghogx_character_left_hand_contract_test
+        ghogx_character_eye_bridge_contract_test
+        ghogx_character_ihatecompvir_inventory_test
+        ghogx_character_source_truth_contract_test)
+
 if(MSVC)
 target_compile_options(ghogx_character PRIVATE /W4)
 target_compile_options(ghogx_character_bind_audit PRIVATE /W4)

@@ -10330,6 +10330,12 @@ int run_contract() {
   ok &= contains(cmake,
                  "add_executable(ghogx_character_character_source_test",
                  "CMake builds Character source test");
+  ok &= contains(cmake,
+                 "add_custom_target(ghogx_character_source_tests",
+                 "CMake exposes aggregate character source-test target");
+  ok &= contains(cmake,
+                 "ghogx_character_source_truth_contract_test)",
+                 "aggregate character source-test target includes contract gate");
   ok &= contains(character_source_test,
                  "source_character_enter(state)",
                  "focused Character test covers Enter");
