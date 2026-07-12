@@ -514,6 +514,13 @@ struct SourceCharLookAtYawWeightResult {
   float final_weight = 1.0f;
 };
 
+struct SourceCharLookAtNoRollAxesResult {
+  std::array<float, 3> x = {1.0f, 0.0f, 0.0f};
+  std::array<float, 3> y = {0.0f, 1.0f, 0.0f};
+  std::array<float, 3> z = {0.0f, 0.0f, 1.0f};
+  bool invalid_xx = false;
+};
+
 struct SourceCharLookAtLoadPlan {
   bool revision_supported = false;
   std::vector<std::string> read_order;
@@ -1729,6 +1736,10 @@ SourceCharLookAtYawWeightResult source_char_lookat_yaw_weight_step(
     float delta_seconds,
     std::array<float, 3> source_world_y,
     std::array<float, 3> dest_delta);
+SourceCharLookAtNoRollAxesResult source_char_lookat_no_roll_axes(
+    std::array<float, 3> current_local_y,
+    std::array<float, 3> desired_parent_space_dir,
+    float weight);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

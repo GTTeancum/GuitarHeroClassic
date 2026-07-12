@@ -887,6 +887,13 @@ note, and all report `unreadBytes=0`.
     This is deterministic math coverage only; it does not create a native eye
     destination or publish a pivot transform for GH2 rows whose `mDest` is
     `<none>`.
+  - Native `source_char_lookat_no_roll_axes` ports the concrete no-roll local
+    write branch inside `CharLookAt::Poll`: interpolate the pivot local Y row
+    toward the bounded parent-space direction by row weight, seed Z to
+    `(-1, 0, 0)`, normalize Y, rebuild X with `Cross(Y, Z)`, rebuild Z with
+    `Cross(X, Y)`, and preserve the source invalid-`x.x` identity fallback.
+    This is deterministic row math only; it does not publish live eye/look-at
+    transforms.
   - Current stock GH2 `CharLookAt` rows observed in the base characters have
     `mDest=<none>`, so the source poll gate would be inert. Native therefore
     keeps these rows decoded/logged and does not publish look-at world rows or

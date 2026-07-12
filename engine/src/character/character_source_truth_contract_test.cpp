@@ -9064,6 +9064,20 @@ int run_contract() {
                  "if(mAllowRoll){",
                  "RB3 CharLookAt Poll gates roll branch");
   ok &= contains(rb3_char_lookat_cpp,
+                 "else{Hmx::Matrix3&temp_dirty=mPivot->DirtyLocalXfm().m;"
+                 "Interp(temp_dirty.y,ve4,charweight,temp_dirty.y);"
+                 "temp_dirty.z.Set(-1.0f,0.0f,0.0f);",
+                 "RB3 CharLookAt Poll no-roll branch interpolates Y and seeds Z");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "Normalize(temp_dirty.y,temp_dirty.y);Cross(temp_dirty.y,"
+                 "temp_dirty.z,temp_dirty.x);Normalize(temp_dirty.x,"
+                 "temp_dirty.x);Cross(temp_dirty.x,temp_dirty.y,temp_dirty.z);",
+                 "RB3 CharLookAt Poll no-roll branch rebuilds local axes");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(temp_dirty.x.x<-2.0f||temp_dirty.x.x>2.0f){"
+                 "MILO_NOTIFY_ONCE",
+                 "RB3 CharLookAt Poll no-roll branch keeps invalid axis guard");
+  ok &= contains(rb3_char_lookat_cpp,
                  "ClampEq(mMinYaw,-80.0f,80.0f);"
                  "ClampEq(mMaxYaw,-80.0f,80.0f);"
                  "ClampEq(mMinPitch,-80.0f,80.0f);"
@@ -9180,6 +9194,12 @@ int run_contract() {
                  "floatfinal_weight=1.0f;};",
                  "native header exposes CharLookAt yaw-weight result");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtNoRollAxesResult{std::array<float,3>x="
+                 "{1.0f,0.0f,0.0f};std::array<float,3>y="
+                 "{0.0f,1.0f,0.0f};std::array<float,3>z="
+                 "{0.0f,0.0f,1.0f};boolinvalid_xx=false;};",
+                 "native header exposes CharLookAt no-roll axes result");
+  ok &= contains(char_clip_h,
                  "boolwrite_pivot_world_to_source=false;boolnormalize_dest_vector=false;",
                  "native header exposes CharLookAt source/pivot branch flags");
   ok &= contains(char_clip_h,
@@ -9244,6 +9264,11 @@ int run_contract() {
                  "floatrow_weight,floatprevious_yaw_weight,"
                  "floatmin_weight_yaw,floatmax_weight_yaw,",
                  "native header exposes CharLookAt yaw-weight helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtNoRollAxesResultsource_char_lookat_no_roll_axes("
+                 "std::array<float,3>current_local_y,"
+                 "std::array<float,3>desired_parent_space_dir,floatweight);",
+                 "native header exposes CharLookAt no-roll axes helper");
   ok &= contains(char_clip,
                  "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
                  "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
@@ -9394,6 +9419,23 @@ int run_contract() {
                  "clamped2=loc13c*delta_seconds+previous_yaw_weight;"
                  "result.speed_limited=true;}",
                  "native CharLookAt yaw-weight helper ports MinEq limit");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtNoRollAxesResultsource_char_lookat_no_roll_axes("
+                 "std::array<float,3>current_local_y,std::array<float,3>"
+                 "desired_parent_space_dir,floatweight){",
+                 "native CharLookAt no-roll helper is implemented");
+  ok &= contains(char_clip,
+                 "result.y[axis]=current_local_y[axis]+("
+                 "desired_parent_space_dir[axis]-current_local_y[axis])*weight;",
+                 "native CharLookAt no-roll helper interpolates Y row");
+  ok &= contains(char_clip,
+                 "result.z={-1.0f,0.0f,0.0f};result.y=normalize(result.y);"
+                 "result.x=normalize(cross(result.y,result.z));"
+                 "result.z=cross(result.x,result.y);",
+                 "native CharLookAt no-roll helper rebuilds source axes");
+  ok &= contains(char_clip,
+                 "result.invalid_xx=result.x[0]<-2.0f||result.x[0]>2.0f;",
+                 "native CharLookAt no-roll helper keeps source invalid-axis guard");
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
                  "focused CharLookAt source test covers default source limits");
@@ -9455,6 +9497,12 @@ int run_contract() {
                  "source_char_lookat_yaw_weight_step(0.5f,0.5f,0.0f,1.0f,"
                  "2.0f,0.25f",
                  "focused CharLookAt source test covers yaw downward branch");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_no_roll_axes(",
+                 "focused CharLookAt source test covers no-roll axes helper");
+  ok &= contains(lookat_source_test,
+                 "constfloatinv_sqrt2=0.70710677f;",
+                 "focused CharLookAt source test covers partial no-roll interpolation");
   ok &= contains(mesh_decode_test,
                  "ghogx::character::decode_lookat(\"l-eye.lookat\","
                  "make_lookat(2,2))",
@@ -9499,6 +9547,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_lookat_yaw_weight_step` ports the concrete",
                  "document records CharLookAt yaw-weight helper");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_no_roll_axes` ports the concrete no-roll",
+                 "document records CharLookAt no-roll axes helper");
+  ok &= contains(doc,
+                 "it does not publish live eye/look-at\n    transforms",
+                 "document fences CharLookAt no-roll helper from live publishing");
   ok &= contains(doc,
                  "This remains a branch contract only; it\n    does not synthesize",
                  "document fences CharLookAt Poll plan from transform write");

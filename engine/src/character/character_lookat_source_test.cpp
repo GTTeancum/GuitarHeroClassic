@@ -1,5 +1,6 @@
 #include "character/char_clip.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -40,6 +41,7 @@ int main() {
   using ghogx::character::source_char_lookat_default_limit_state;
   using ghogx::character::source_char_lookat_enter;
   using ghogx::character::source_char_lookat_load_plan;
+  using ghogx::character::source_char_lookat_no_roll_axes;
   using ghogx::character::source_char_lookat_poll_deps;
   using ghogx::character::source_char_lookat_poll_plan;
   using ghogx::character::source_char_lookat_set_max_pitch;
@@ -278,6 +280,33 @@ int main() {
   ok &= near(yaw_sideways.updated_yaw_weight, 0.0f,
              "yaw weight sideways update");
   ok &= near(yaw_sideways.final_weight, 0.0f, "yaw weight sideways final");
+
+  const auto no_roll_full = source_char_lookat_no_roll_axes(
+      {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, 1.0f);
+  ok &= near(no_roll_full.y[0], 0.0f, "no-roll full y x");
+  ok &= near(no_roll_full.y[1], 0.0f, "no-roll full y y");
+  ok &= near(no_roll_full.y[2], 1.0f, "no-roll full y z");
+  ok &= near(no_roll_full.x[0], 0.0f, "no-roll full x x");
+  ok &= near(no_roll_full.x[1], -1.0f, "no-roll full x y");
+  ok &= near(no_roll_full.x[2], 0.0f, "no-roll full x z");
+  ok &= near(no_roll_full.z[0], -1.0f, "no-roll full z x");
+  ok &= near(no_roll_full.z[1], 0.0f, "no-roll full z y");
+  ok &= near(no_roll_full.z[2], 0.0f, "no-roll full z z");
+  ok &= expect_bool(no_roll_full.invalid_xx, false,
+                    "no-roll full source guard");
+
+  const float inv_sqrt2 = 0.70710677f;
+  const auto no_roll_half = source_char_lookat_no_roll_axes(
+      {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, 0.5f);
+  ok &= near(no_roll_half.y[0], 0.0f, "no-roll half y x");
+  ok &= near(no_roll_half.y[1], inv_sqrt2, "no-roll half y y");
+  ok &= near(no_roll_half.y[2], inv_sqrt2, "no-roll half y z");
+  ok &= near(no_roll_half.x[0], 0.0f, "no-roll half x x");
+  ok &= near(no_roll_half.x[1], -inv_sqrt2, "no-roll half x y");
+  ok &= near(no_roll_half.x[2], inv_sqrt2, "no-roll half x z");
+  ok &= near(no_roll_half.z[0], -1.0f, "no-roll half z x");
+  ok &= near(no_roll_half.z[1], 0.0f, "no-roll half z y");
+  ok &= near(no_roll_half.z[2], 0.0f, "no-roll half z z");
 
   return ok ? 0 : 1;
 }

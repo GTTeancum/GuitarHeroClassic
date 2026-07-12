@@ -1338,6 +1338,47 @@ SourceCharLookAtYawWeightResult source_char_lookat_yaw_weight_step(
   return result;
 }
 
+SourceCharLookAtNoRollAxesResult source_char_lookat_no_roll_axes(
+    std::array<float, 3> current_local_y,
+    std::array<float, 3> desired_parent_space_dir,
+    float weight) {
+  SourceCharLookAtNoRollAxesResult result;
+  auto normalize = [](std::array<float, 3> v) {
+    const float len_sq = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+    if (len_sq > 0.0f) {
+      const float inv_len = 1.0f / std::sqrt(len_sq);
+      for (float& value : v) value *= inv_len;
+    }
+    return v;
+  };
+  auto cross = [](const std::array<float, 3>& a,
+                  const std::array<float, 3>& b) {
+    return std::array<float, 3>{
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    };
+  };
+
+  for (int axis = 0; axis < 3; ++axis) {
+    result.y[axis] = current_local_y[axis] +
+                     (desired_parent_space_dir[axis] -
+                      current_local_y[axis]) *
+                         weight;
+  }
+  result.z = {-1.0f, 0.0f, 0.0f};
+  result.y = normalize(result.y);
+  result.x = normalize(cross(result.y, result.z));
+  result.z = cross(result.x, result.y);
+  result.invalid_xx = result.x[0] < -2.0f || result.x[0] > 2.0f;
+  if (result.invalid_xx) {
+    result.x = {1.0f, 0.0f, 0.0f};
+    result.y = {0.0f, 1.0f, 0.0f};
+    result.z = {0.0f, 0.0f, 1.0f};
+  }
+  return result;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
