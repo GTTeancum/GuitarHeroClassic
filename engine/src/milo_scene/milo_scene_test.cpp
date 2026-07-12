@@ -466,7 +466,9 @@ void test_mesh() {
   // Mesh fields.
   put_str(b, "gem.mat");         // material
   put_str(b, "tri.mesh");        // geometry owner
-  put_zeros(b, 9);
+  put_u32(b, 0x1F);              // RndMesh::mMutable
+  put_u32(b, 1);                 // volume
+  b.push_back(0);                // null BSP-tree owner
   put_u32(b, 3);                 // vertex_count = 3
   // 3 vertices (pos / normal / colour / uv), forming a unit triangle.
   const float P[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
@@ -487,6 +489,7 @@ void test_mesh() {
   CHECK(m.face_count == 1);
   CHECK(m.indices.size() == 3 && m.indices[2] == 2);
   CHECK(m.material == "gem.mat");
+  CHECK(m.mutable_flags == 0x1F);
   CHECK(m.parent == "track.view");
   CHECK(m.showing);
   CHECK(approx(m.local.pos[0], 1.0f) && approx(m.local.pos[2], 3.0f));

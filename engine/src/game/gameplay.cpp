@@ -6309,6 +6309,39 @@ std::map<std::string, std::array<float, 3>> build_scene_mesh_local_positions(
     return out;
 }
 
+std::map<std::string, uint32_t> build_scene_mesh_mutable_flags(
+    const ghogx::milo_scene::Scene& scene) {
+    std::map<std::string, uint32_t> direct_flags;
+    for (const auto& mesh : scene.meshes) {
+        if (!mesh.decoded) continue;
+        direct_flags[canonical_milo_ref(mesh.name)] = mesh.mutable_flags;
+    }
+
+    std::map<std::string, uint32_t> out;
+    for (const auto& mesh : scene.meshes) {
+        if (!mesh.decoded) continue;
+        uint32_t flags = mesh.mutable_flags;
+        const std::string owner =
+            canonical_milo_ref(mesh.geometry_owner.empty() ? mesh.name
+                                                           : mesh.geometry_owner);
+        if (const auto owner_it = direct_flags.find(owner);
+            owner_it != direct_flags.end()) {
+            flags = owner_it->second;
+        }
+        out[canonical_milo_ref(mesh.name)] = flags;
+    }
+    return out;
+}
+
+bool source_mesh_allows_mesh_anim(
+    const std::map<std::string, uint32_t>& mesh_mutable_flags,
+    const std::string& mesh_ref, uint32_t* flags_out = nullptr) {
+    const auto it = mesh_mutable_flags.find(canonical_milo_ref(mesh_ref));
+    if (it == mesh_mutable_flags.end()) return true;
+    if (flags_out) *flags_out = it->second;
+    return (it->second & 0x1Fu) != 0;
+}
+
 std::optional<ghogx::milo_scene::Xfm> find_start_xfm(
     const ghogx::milo_scene::Scene& chars, std::string_view name,
     std::initializer_list<uint32_t> flags) {
@@ -10978,6 +11011,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                  std::vector<DecodedVenueEventTrigger::AnimRoute>>
             event_direct_anim_refs;
         std::map<std::string, std::vector<std::string>> poll_anim_refs;
+        const auto mesh_mutable_flags = build_scene_mesh_mutable_flags(scene);
 
         for (const auto& de : dir.entries) {
             if (de.type == "Mesh") mesh_refs.insert(canonical_milo_ref(de.name));
@@ -11122,6 +11156,17 @@ load_venue_anim_filters(const std::string& hdr_path,
             if (anim_it == meshanim_anims.end()) return 0.0f;
             const auto& anim = anim_it->second;
             if (anim.mesh.empty() || !venue_mesh_anim_has_key_pages(anim)) {
+                return 0.0f;
+            }
+            uint32_t mutable_flags = 0;
+            if (!source_mesh_allows_mesh_anim(mesh_mutable_flags, anim.mesh,
+                                              &mutable_flags)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue MeshAnim %s -> %s skipped non-mutable mesh flags=0x%08x\n",
+                        anim.name.c_str(), anim.mesh.c_str(), mutable_flags);
+                }
                 return 0.0f;
             }
             Gameplay::VenueAnimFilterMeshTarget target;
@@ -11605,12 +11650,13 @@ load_all_venue_particle_routes(const std::string& hdr_path,
 
 Gameplay::VenueAnimFilter load_rnddir_directory_anim(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::string& milo_path) {
+    const std::string& milo_path, const ghogx::milo_scene::Scene& scene) {
     Gameplay::VenueAnimFilter filter;
     filter.name = "__rnddir_directory_anim";
     filter.scale = 1.0f;
     filter.period = 0.0f;
     filter.type = 0;
+    const auto mesh_mutable_flags = build_scene_mesh_mutable_flags(scene);
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
@@ -11673,6 +11719,17 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
         for (auto& [name, anim] : meshanim_anims) {
             if (anim.mesh.empty() ||
                 !venue_mesh_anim_has_key_pages(anim)) {
+                continue;
+            }
+            uint32_t mutable_flags = 0;
+            if (!source_mesh_allows_mesh_anim(mesh_mutable_flags, anim.mesh,
+                                              &mutable_flags)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] RndDir MeshAnim %s -> %s skipped non-mutable mesh flags=0x%08x\n",
+                        anim.name.c_str(), anim.mesh.c_str(), mutable_flags);
+                }
                 continue;
             }
             Gameplay::VenueAnimFilterMeshTarget target;
@@ -11766,7 +11823,8 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
                 proxy.all_meshes.push_back(mesh.name);
             proxy.group_meshes = mesh_names_by_group(proxy_scene);
             proxy.directory_anim =
-                load_rnddir_directory_anim(hdr_path, ark_path, proxy_path);
+                load_rnddir_directory_anim(hdr_path, ark_path, proxy_path,
+                                           proxy_scene);
             proxy.mat_anims = load_venue_mat_anims(hdr_path, ark_path, proxy_path);
             proxy.particle_routes =
                 load_all_venue_particle_routes(hdr_path, ark_path, proxy_path);

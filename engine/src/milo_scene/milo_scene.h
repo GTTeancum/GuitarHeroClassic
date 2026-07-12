@@ -297,6 +297,7 @@ struct MeshObj {
   uint32_t constraint = 0;    // RndTransformable::Constraint
   std::string target;
   bool preserve_scale = false;
+  uint32_t mutable_flags = 0;  // RndMesh::mMutable; MeshAnim needs low bits.
   uint32_t vertex_count = 0;
   uint32_t face_count = 0;
   std::vector<Vertex> verts;

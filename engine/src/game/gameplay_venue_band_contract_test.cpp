@@ -4723,6 +4723,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "filter.mesh_anim_targets.push_back(std::move(target));",
                  "AnimFilter routes resolve MeshAnim targets");
+  ok &= contains(milo_scene_h_c,
+                 "uint32_tmutable_flags=0;",
+                 "MILO scene decoder stores source RndMesh mutable flags");
+  ok &= contains(milo_scene_cpp_c,
+                 "mesh.mutable_flags=r.u32();",
+                 "Mesh decoder reads source RndMesh mMutable before vertices");
+  ok &= contains(gameplay_c,
+                 "source_mesh_allows_mesh_anim(mesh_mutable_flags,anim.mesh",
+                 "venue MeshAnim routing honors source mesh mutability");
+  ok &= contains(gameplay_c,
+                 "load_rnddir_directory_anim(hdr_path,ark_path,proxy_path,proxy_scene);",
+                 "RndDir MeshAnim routing receives proxy source mesh mutability");
   ok &= contains(gameplay_c,
                  "sample_mesh_anim_positions(target.anim,frame)",
                  "venue MeshAnim has a per-tick sampler");

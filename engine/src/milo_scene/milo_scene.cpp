@@ -1053,7 +1053,8 @@ MeshObj decode_mesh(const std::string& entry_name,
     // Mesh fields.
     mesh.material = r.str();           // material name
     mesh.geometry_owner = r.str();     // geometry-owner name (usually self)
-    r.skip(kObjMeta);                  // 9 bytes
+    mesh.mutable_flags = r.u32();      // RndMesh::mMutable
+    r.skip(5);                         // volume + null BSP-tree owner
     uint32_t vcount = r.u32();
 
     // Sanity-gate the vertex count against the remaining bytes: we need at least
