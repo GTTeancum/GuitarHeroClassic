@@ -17511,6 +17511,55 @@ bool Gameplay::venue_event_route_enabled_by_triggers(
     return !has_gate;
 }
 
+void Gameplay::prime_diagnostic_venue_event_gates(
+    const std::string& event_name) {
+    if (event_name.empty() || venue_event_route_enabled_by_triggers(event_name))
+        return;
+    std::vector<std::string> enable_events;
+    for (const auto& gate : venue_event_trigger_gates_) {
+        if (gate.enabled) continue;
+        if (std::find(gate.route_keys.begin(), gate.route_keys.end(),
+                      event_name) == gate.route_keys.end()) {
+            continue;
+        }
+        for (const auto& enable_event : gate.enable_events) {
+            if (enable_event.empty() || enable_event == event_name) continue;
+            push_unique_ref(enable_events, enable_event);
+        }
+    }
+    for (const auto& enable_event : enable_events) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] diagnostic venue event %s: prime EventTrigger gates via %s\n",
+                event_name.c_str(), enable_event.c_str());
+        }
+        apply_venue_event(enable_event, false);
+    }
+}
+
+bool Gameplay::try_apply_diagnostic_venue_event() {
+    if (diagnostic_venue_event_.empty() || diagnostic_venue_event_applied_ ||
+        !world_) {
+        return false;
+    }
+    prime_diagnostic_venue_event_gates(diagnostic_venue_event_);
+    if (!venue_event_route_enabled_by_triggers(diagnostic_venue_event_)) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] diagnostic venue event %s: waiting for EventTrigger gate\n",
+                diagnostic_venue_event_.c_str());
+        }
+        return false;
+    }
+    diagnostic_venue_event_applied_ = true;
+    std::fprintf(stderr, "[world] diagnostic venue event: %s\n",
+                 diagnostic_venue_event_.c_str());
+    apply_venue_event(diagnostic_venue_event_, true);
+    return true;
+}
+
 std::unordered_set<std::string> Gameplay::composed_venue_hidden_meshes() const {
     std::unordered_set<std::string> hidden = venue_runtime_hidden_meshes_;
     hidden.insert(venue_camera_hidden_meshes_.begin(),
@@ -24064,13 +24113,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 std::fprintf(stderr, "[world] lighting overlay loaded: %s\n",
                               lighting_milo.c_str());
             }
-            if (!diagnostic_venue_event_.empty() &&
-                !diagnostic_venue_event_applied_ && world_) {
-                diagnostic_venue_event_applied_ = true;
-                std::fprintf(stderr, "[world] diagnostic venue event: %s\n",
-                             diagnostic_venue_event_.c_str());
-                apply_venue_event(diagnostic_venue_event_, true);
-            }
+            try_apply_diagnostic_venue_event();
 
             if (chars_scene_loaded) {
                 venue_chars_scene_ = std::move(venue_chars_scene_for_load);
@@ -25602,6 +25645,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             intro_end_dispatched_ = true;
             should_resend_excitement_ = true;
             apply_venue_event("intro_end", false);
+            try_apply_diagnostic_venue_event();
         }
 
         const bool in_intro_camera_window =

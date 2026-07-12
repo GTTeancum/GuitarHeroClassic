@@ -3917,6 +3917,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "diagnostic_venue_event_applied_=false;",
                  "diagnostic venue event resets when a song loads");
+  ok &= contains(gameplay_h_c,
+                 "voidprime_diagnostic_venue_event_gates("
+                 "conststd::string&event_name);",
+                 "diagnostic venue events can prime authored EventTrigger gates");
+  ok &= contains(gameplay_c,
+                 "prime_diagnostic_venue_event_gates("
+                 "diagnostic_venue_event_);",
+                 "diagnostic venue event applies authored gate enables before firing");
+  ok &= contains(gameplay_c,
+                 "\"[world]diagnosticvenueevent%s:primeEventTriggergatesvia%s\\n\"",
+                 "diagnostic venue gate priming logs the source enable event");
   ok &= contains(gameplay_c,
                  "apply_venue_event(diagnostic_venue_event_,true);",
                  "diagnostic venue event exercises the persistent event path");

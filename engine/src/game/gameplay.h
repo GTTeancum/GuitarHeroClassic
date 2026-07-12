@@ -615,6 +615,8 @@ class Gameplay {
       const std::string& trigger_name) const;
   bool venue_event_route_enabled_by_triggers(
       const std::string& event_name) const;
+  void prime_diagnostic_venue_event_gates(const std::string& event_name);
+  bool try_apply_diagnostic_venue_event();
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   std::map<std::string, float> composed_venue_material_alpha() const;
   void apply_camera_crowd_visibility(const CameraKey& key);
