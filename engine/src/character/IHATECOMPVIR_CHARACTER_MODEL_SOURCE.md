@@ -23,6 +23,9 @@ records the upstream commits for the copied files:
 - `ihatecompvir-extra/grim` is a narrow source copy of `ihatecompvir/grim`
   commit `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb` containing the
   `char_bones_samples`, `char_clip`, and `char_clip_samples` loaders.
+- `ihatecompvir-extra/re-notes` is a narrow source copy of
+  `ihatecompvir/re-notes` commit `5c486fd6e5e5186c0797df9c84182b056672b3f0`
+  containing GH2 `CharClipSamples` notes and the matching 010 templates.
 - 2026-07-12 upstream checks still match the local source snapshot:
   `MiloEditor` main `3ebffb1c4391dd83c5765cb428eef433dffaff51`,
   `glTFMilo` main `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`,
@@ -111,7 +114,7 @@ writer body.
 | Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log the source load order and expose helper math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
-| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `grim` `char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, `char_clip_samples/io.rs`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, Grim GH2 `CharClipSamples` version gates, legacy full/one/duplicate header read order, version-gated weights, raw sample-byte sizing, serialized bone-order sample walking, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
+| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `grim` `char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, `char_clip_samples/io.rs`, `re-notes` `char_bones_samples.bt` / `char_clip_samples.bt` / `charclipsamples.txt`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, Grim GH2 `CharClipSamples` version gates, legacy full/one/duplicate header order, version-gated weights, raw sample-byte sizing, serialized bone-order sample walking, re-notes active template order `.pos` / `.quat` / `.rotz`, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; `.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
 ## Character Mesh Cache Helper
@@ -279,8 +282,11 @@ into final transform rows.
      Grim's source-backed version gates, full/one/duplicate header order,
      version-gated weights, raw sample-byte sizing, and serialized bone-order
      sample walking. Grim's visible decode body publishes `.pos`, `.quat`, and
-     `.rotz`; native consumes `.scale` bytes without pose writeback until a
-     source-backed scale publish path is available. The remaining missing
+     `.rotz`; re-notes' active `Sample` template also counts `.pos`, `.quat`,
+     and `.rotz` while exposing only a generic scalar `RotSample`. Native
+     consumes `.scale` bytes without pose writeback, and treats `.rotx` /
+     `.roty` as requiring the still-missing `EvaluateChannel` / pose body before
+     they can be considered fully understood. The remaining missing
      source-backed bodies are `CharBonesSamples::EvaluateChannel`, `Relativize`,
      and the complete pose application path. `rb3-latest` declares those
      functions, while the RB2 dump maps names/ranges and locals but does not

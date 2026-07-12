@@ -1105,6 +1105,14 @@ source_grim_char_clip_samples_load_plan(int version) {
   return plan;
 }
 
+SourceReNotesCharBonesSamplesDecodePlan
+source_re_notes_char_bones_samples_decode_plan() {
+  SourceReNotesCharBonesSamplesDecodePlan plan;
+  plan.active_sample_order = {".pos", ".quat", ".rotz"};
+  plan.fenced_channels = {".scale", ".rotx", ".roty"};
+  return plan;
+}
+
 SourceCharBonesSamplesPropSyncPlan
 source_char_bones_samples_prop_sync_plan() {
   SourceCharBonesSamplesPropSyncPlan plan;

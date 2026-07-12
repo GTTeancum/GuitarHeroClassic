@@ -475,6 +475,19 @@ struct SourceGrimCharClipSamplesLoadPlan {
   std::vector<std::string> read_order;
 };
 
+struct SourceReNotesCharBonesSamplesDecodePlan {
+  bool sample_data_grouped_by_time = true;
+  bool has_generic_rot_sample = true;
+  bool active_reader_counts_pos = true;
+  bool active_reader_counts_quat = true;
+  bool active_reader_counts_rotz = true;
+  bool active_reader_counts_rotx = false;
+  bool active_reader_counts_roty = false;
+  bool active_reader_counts_scale = false;
+  std::vector<std::string> active_sample_order;
+  std::vector<std::string> fenced_channels;
+};
+
 struct SourceCharBonesSamplesPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> set_properties;
@@ -1944,6 +1957,8 @@ SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
                                                            bool read_meta);
 SourceGrimCharClipSamplesLoadPlan
 source_grim_char_clip_samples_load_plan(int version);
+SourceReNotesCharBonesSamplesDecodePlan
+source_re_notes_char_bones_samples_decode_plan();
 SourceCharBonesSamplesPropSyncPlan source_char_bones_samples_prop_sync_plan();
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary();

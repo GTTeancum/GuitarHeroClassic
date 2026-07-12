@@ -269,6 +269,8 @@ int run_contract() {
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
   const std::filesystem::path grim_scene_dir =
       extra_dir / "grim/core/grim/src/scene";
+  const std::filesystem::path re_notes_dir =
+      extra_dir / "re-notes";
   const std::string rb3_latest_mesh_h = compact(read_file(
       rb3_latest_rndobj_dir / "Mesh.h"));
   const std::string rb3_latest_group_cpp = compact(read_file(
@@ -587,6 +589,12 @@ int run_contract() {
       grim_scene_dir / "char_clip/io.rs"));
   const std::string grim_char_clip_samples_io = compact(read_file(
       grim_scene_dir / "char_clip_samples/io.rs"));
+  const std::string re_notes_char_bones_samples_bt = compact(read_file(
+      re_notes_dir / "templates/milo/char_bones_samples.bt"));
+  const std::string re_notes_char_clip_samples_bt = compact(read_file(
+      re_notes_dir / "templates/milo/char_clip_samples.bt"));
+  const std::string re_notes_gh2_charclipsamples = compact(read_file(
+      re_notes_dir / "raw_notes/milo/gh2/charclipsamples.txt"));
   const std::string rb2_char_driver_cpp = compact(read_file(
       rb2_dump_char_dir / "CharDriver.cpp"));
   const std::string rb2_char_weight_setter_cpp = compact(read_file(
@@ -625,8 +633,6 @@ int run_contract() {
                  "snapshot README documents copied-source scope");
   ok &= contains(doc, "not a full mirror",
                  "document states copied source snapshot boundary");
-  ok &= missing(doc, "re-notes",
-                "document must not cite absent re-notes snapshot");
   ok &= all_source_files_cited(
       doc, extra_dir / "rb3-latest/src/system/char",
       "source-truth map must cite every copied ihatecompvir character source");
@@ -680,13 +686,22 @@ int run_contract() {
                  "`CharClipSamples`, `CharClip`, and `CharBonesSamples` "
                  "file-structure details",
                  "document records grim loader source role");
+  ok &= contains(doc,
+                 "`ihatecompvir-extra/re-notes` is a narrow source copy of\n  "
+                 "`ihatecompvir/re-notes`",
+                 "document records imported re-notes source snapshot");
+  ok &= contains(doc,
+                 "`CharClipSamples` notes and the matching 010 templates",
+                 "document records re-notes source role");
   ok &= contains(doc, "## Source Coverage Matrix",
                  "document includes source coverage matrix");
   ok &= contains(doc,
                  "| Clip sample/output publishing | `rb3-latest` `CharClip` / "
                  "`CharBones` / `CharBonesSamples` / `CharBone`, `grim` "
                  "`char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, "
-                 "`char_clip_samples/io.rs`, "
+                 "`char_clip_samples/io.rs`, `re-notes` "
+                 "`char_bones_samples.bt` / `char_clip_samples.bt` / "
+                 "`charclipsamples.txt`, "
                  "`MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, "
                  "`band3_recomp` symbols |",
                  "coverage matrix cites current CharClip source evidence");
@@ -715,9 +730,10 @@ int run_contract() {
                  "coverage matrix records native CharClipGroup GetClip slice");
   ok &= contains(doc,
                  "Grim GH2 `CharClipSamples` version gates, legacy "
-                 "full/one/duplicate header read order, version-gated "
+                 "full/one/duplicate header order, version-gated "
                  "weights, raw sample-byte sizing, serialized bone-order "
-                 "sample walking",
+                 "sample walking, re-notes active template order `.pos` / "
+                 "`.quat` / `.rotz`",
                  "coverage matrix records concrete CharBones source evidence");
   ok &= missing(doc,
                 "No newer reviewable character bodies were available from "
@@ -782,6 +798,40 @@ int run_contract() {
   ok &= contains(grim_char_bones_samples_mod,
                  "t@_=>panic!(\"Unsupportedbonetransformoftype{t}\"),",
                  "grim CharBonesSamples fences unsupported decode types");
+  ok &= contains(re_notes_char_clip_samples_bt,
+                 "intversion;//10(GH2),11(GH2X60),13(RB1),15(TBRB),16(GDRB)",
+                 "re-notes CharClipSamples template records GH2 versions");
+  ok &= contains(re_notes_char_clip_samples_bt,
+                 "Thisisthesimplebutinefficientformatthatjuststoressamplesand"
+                 "interpolates.Dataisgroupedbytime",
+                 "re-notes CharClipSamples template records time-grouped data");
+  ok &= contains(re_notes_char_bones_samples_bt,
+                 "localuintpos_count=calc_bone_count_with_ext("
+                 "char_bones.char_bones,\".pos\");",
+                 "re-notes active sample reader counts pos");
+  ok &= contains(re_notes_char_bones_samples_bt,
+                 "localuintquat_count=calc_bone_count_with_ext("
+                 "char_bones.char_bones,\".quat\");",
+                 "re-notes active sample reader counts quat");
+  ok &= contains(re_notes_char_bones_samples_bt,
+                 "localuintrotz_count=calc_bone_count_with_ext("
+                 "char_bones.char_bones,\".rotz\");",
+                 "re-notes active sample reader counts rotz");
+  ok &= contains(re_notes_char_bones_samples_bt,
+                 "RotSamplerot_sample(char_bones.char_bones.bones[bone_idx],"
+                 "char_bones.compression);",
+                 "re-notes active sample reader uses scalar RotSample");
+  ok &= contains(re_notes_gh2_charclipsamples,
+                 "bone_L-foreArm.rotz",
+                 "re-notes GH2 notes show rotz rows in stock examples");
+  ok &= contains(char_clip_h, "SourceReNotesCharBonesSamplesDecodePlan",
+                 "native exposes re-notes decode boundary plan");
+  ok &= contains(char_clip,
+                 "plan.active_sample_order={\".pos\",\".quat\",\".rotz\"};",
+                 "native records re-notes active sample order");
+  ok &= contains(char_clip,
+                 "plan.fenced_channels={\".scale\",\".rotx\",\".roty\"};",
+                 "native records re-notes fenced channels");
   ok &= contains(grim_char_clip_io,
                  "matchversion{5=>true,//GH2/GH236012=>true,//TBRB/GDRB_=>"
                  "false",
@@ -799,8 +849,8 @@ int run_contract() {
   ok &= contains(char_clip, "casekSourceCharBonesTypeScale:skip_grim_scale(c);",
                  "native consumes scale bytes without publishing pose");
   ok &= contains(doc,
-                 "sample decode/evaluate and broad pose publishing remain "
-                 "fenced",
+                 "`.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose "
+                 "publishing remain fenced",
                  "coverage matrix keeps incomplete clip runtime fenced");
   ok &= contains(doc,
                  "| Hair two-sided rendering | User/project visual override |",
@@ -943,8 +993,12 @@ int run_contract() {
                  "serialized bone-order\n     sample walking",
                  "remaining import checklist records Grim sample order");
   ok &= contains(doc,
-                 "native consumes `.scale` bytes without pose writeback",
+                 "Native\n     consumes `.scale` bytes without pose writeback",
                  "remaining import checklist fences scale publish");
+  ok &= contains(doc,
+                 "treats `.rotx` /\n     `.roty` as requiring the "
+                 "still-missing `EvaluateChannel` / pose body",
+                 "remaining import checklist fences rotx roty publish");
   ok &= contains(doc,
                  "The remaining missing\n     source-backed bodies are "
                  "`CharBonesSamples::EvaluateChannel`,",

@@ -1672,6 +1672,37 @@ int main() {
   ok &= expect_int(grim_clip_samples16.reads_extra_bones ? 1 : 0, 1,
                    "grim CharClipSamples v16 reads extra bones");
 
+  const SourceReNotesCharBonesSamplesDecodePlan re_notes_decode =
+      source_re_notes_char_bones_samples_decode_plan();
+  ok &= expect_int(re_notes_decode.sample_data_grouped_by_time ? 1 : 0, 1,
+                   "re-notes samples grouped by time");
+  ok &= expect_int(re_notes_decode.has_generic_rot_sample ? 1 : 0, 1,
+                   "re-notes exposes generic RotSample");
+  ok &= expect_int(re_notes_decode.active_reader_counts_pos ? 1 : 0, 1,
+                   "re-notes active reader counts pos");
+  ok &= expect_int(re_notes_decode.active_reader_counts_quat ? 1 : 0, 1,
+                   "re-notes active reader counts quat");
+  ok &= expect_int(re_notes_decode.active_reader_counts_rotz ? 1 : 0, 1,
+                   "re-notes active reader counts rotz");
+  ok &= expect_int(re_notes_decode.active_reader_counts_rotx ? 1 : 0, 0,
+                   "re-notes active reader does not count rotx");
+  ok &= expect_int(re_notes_decode.active_reader_counts_roty ? 1 : 0, 0,
+                   "re-notes active reader does not count roty");
+  ok &= expect_int(re_notes_decode.active_reader_counts_scale ? 1 : 0, 0,
+                   "re-notes active reader does not count scale");
+  ok &= expect_size(re_notes_decode.active_sample_order.size(), 3,
+                    "re-notes active sample order size");
+  ok &= expect_string(re_notes_decode.active_sample_order[0], ".pos",
+                      "re-notes active sample order pos");
+  ok &= expect_string(re_notes_decode.active_sample_order[1], ".quat",
+                      "re-notes active sample order quat");
+  ok &= expect_string(re_notes_decode.active_sample_order[2], ".rotz",
+                      "re-notes active sample order rotz");
+  ok &= expect_size(re_notes_decode.fenced_channels.size(), 3,
+                    "re-notes fenced channel count");
+  ok &= expect_string(re_notes_decode.fenced_channels[1], ".rotx",
+                      "re-notes fences rotx");
+
   const SourceCharBonesSamplesPropSyncPlan samples_prop_sync =
       source_char_bones_samples_prop_sync_plan();
   ok &= expect_size(samples_prop_sync.properties.size(), 2,
