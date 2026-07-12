@@ -6677,11 +6677,23 @@ int main() {
                  "std::stringtarget_ref=canonical_milo_ref(decoded->trans);",
                  "source-shaped TransAnim first honors the authored trans symbol");
   ok &= contains(gameplay_c,
-                 "target_ref=canonical_milo_ref(std::string(fallback_target));",
-                 "venue TransAnim empty source targets stay routable by object name");
+                 "out.anim_object=anim_ref;",
+                 "venue TransAnim keeps the anim object name separate from its transform target");
   ok &= contains(gameplay_c,
-                 "out.target=std::move(target_ref);",
+                 "out.target=target_ref;",
                  "source-shaped TransAnim stores the resolved venue target");
+  ok &= contains(gameplay_c,
+                 "out.target_empty=out.target.empty();",
+                 "venue TransAnim records source-null mTrans targets instead of inventing a mesh");
+  ok &= contains(gameplay_c,
+                 "if(!anim.target.empty())transanim_mesh[name]=anim.target;",
+                 "source-null TransAnims stay routable without becoming render targets");
+  ok &= contains(gameplay_c,
+                 "source_frames=%.1f",
+                 "venue AnimFilter diagnostics expose duration-only source anim routes");
+  ok &= contains(gameplay_c,
+                 "venueAnimFiltersourceno-opevent=%sfilter=%starget=%s",
+                 "venue AnimFilter runtime logs source no-op filters with no render target");
   ok &= contains(gameplay_c,
                  "out.anim.rotation_keys=mesh_quat_keys_from_camera_keys(decoded->rot_keys);",
                  "source-shaped TransAnim decoder keeps quaternion rotation keys");

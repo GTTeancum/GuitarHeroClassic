@@ -2,7 +2,7 @@
 
 ## Rendering / Asset Format
 
-- 2026-07-12: Small2 empty-target parent `RndTransAnim` rows such as `speaker1.tnm` and `amp4.tnm` now stay routable by their anim object names instead of being dropped. Loader coverage changed from zero targets to live `@filter:` routes, but the parent rows still need a deliberate forced-event/original-game visual check because normal autoplay primarily exercises the direct `speaker_cone*.tnm` hit filters.
+- 2026-07-12: Small2 empty-target parent `RndTransAnim` rows such as `speaker1.tnm` and `amp4.tnm` stay routable by anim object name for source timing, but do not become render targets because rb3 `RndTransAnim::SetFrame` no-ops when `mTrans` is null. Forced `--diagnostic-venue-event @filter:speaker1_hit_p0_fret2` now logs `source no-op` rows with zero `mesh=speaker1.tnm` render samples; normal autoplay primarily exercises the direct `speaker_cone*.tnm` hit filters.
 - 2026-07-12: RedOctane venue gears are still not complete. Several gears have wrong-facing/local-axis behavior and need active user visual review against original gameplay before marking the venue animation pass done.
 - 2026-07-12: RedOctane gear review should use `GHOGX_LOG_MESH_ANIM_LOCAL=gear_opt` / `GHOGX_LOG_MESH_ANIM_WORLD=gear_opt`; the diagnostics now report the authored animated target kind and parent for each sampled gear mesh.
 - 2026-07-12: RedOctane gear axis probe is at `engine/out/redoctane_gear_axis_probe`. Sampled `gear_opt_ccw*` axes are authored local Z, `gear_opt_cw*` axes are authored local X/Y-plane quats, and `gear_opt_small_ccw*` axes are authored local Y-dominant. Compare these with original gameplay before changing transform math.

@@ -9037,6 +9037,7 @@ std::string mesh_quat_key_endpoint_summary(
 }
 
 struct VenueTransAnimDecode {
+    std::string anim_object;
     std::string target;
     ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
     uint16_t revision = 0;
@@ -9049,22 +9050,19 @@ struct VenueTransAnimDecode {
     bool follow_path = false;
     bool rot_slerp = false;
     bool rot_spline = false;
-    bool target_from_anim_name = false;
+    bool target_empty = false;
 };
 
 std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
-    const uint8_t* body, size_t size, std::string_view fallback_target = {}) {
+    const uint8_t* body, size_t size, std::string_view anim_object = {}) {
     const auto decoded = read_rnd_transanim_like_miloeditor(body, size);
     if (!decoded) return std::nullopt;
-    std::string target_ref = canonical_milo_ref(decoded->trans);
-    bool target_from_anim_name = false;
-    if (target_ref.empty() && !fallback_target.empty()) {
-        target_ref = canonical_milo_ref(std::string(fallback_target));
-        target_from_anim_name = !target_ref.empty();
-    }
-    if (target_ref.empty()) return std::nullopt;
+    const std::string anim_ref = canonical_milo_ref(std::string(anim_object));
+    const std::string target_ref = canonical_milo_ref(decoded->trans);
+    if (target_ref.empty() && anim_ref.empty()) return std::nullopt;
     VenueTransAnimDecode out;
-    out.target = std::move(target_ref);
+    out.anim_object = anim_ref;
+    out.target = target_ref;
     out.anim.translation_keys =
         mesh_anim_keys_from_camera_keys(decoded->trans_keys);
     out.anim.rotation_keys =
@@ -9084,7 +9082,7 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
     out.follow_path = decoded->follow_path;
     out.rot_slerp = decoded->rot_slerp;
     out.rot_spline = decoded->rot_spline;
-    out.target_from_anim_name = target_from_anim_name;
+    out.target_empty = out.target.empty();
     return out;
 }
 
@@ -12062,7 +12060,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                         mesh_anim_key_endpoint_summary(stored.anim.scale_keys);
                     std::fprintf(
                         stderr,
-                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u rate=%d owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s fallback_target=%d flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
+                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u rate=%d owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s null_target=%d flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
                         de.name.c_str(), stored.target.c_str(),
                         stored.revision, stored.anim_revision,
                         stored.anim_rate,
@@ -12072,7 +12070,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                         stored.anim.scale_keys.size(),
                         trans_keys.c_str(), rot_keys.c_str(),
                         scale_keys.c_str(),
-                        stored.target_from_anim_name ? 1 : 0,
+                        stored.target_empty ? 1 : 0,
                         stored.trans_spline ? 1 : 0,
                         stored.repeat_trans ? 1 : 0,
                         stored.scale_spline ? 1 : 0,
@@ -12130,7 +12128,7 @@ load_venue_anim_filters(const std::string& hdr_path,
         resolve_transanim_owners(transanim_decodes, "venue TransAnim");
         for (auto& [name, anim] : transanim_decodes) {
             if (!mesh_transform_anim_has_key_pages(anim.anim)) continue;
-            transanim_mesh[name] = anim.target;
+            if (!anim.target.empty()) transanim_mesh[name] = anim.target;
             transanim_rates[name] = anim.anim_rate;
             transanim_anims[name] = anim.anim;
         }
@@ -12154,17 +12152,20 @@ load_venue_anim_filters(const std::string& hdr_path,
         auto add_transanim_target =
             [&](Gameplay::VenueAnimFilter& filter,
                 const std::string& tnm) -> float {
-            const auto mesh_it = transanim_mesh.find(tnm);
             const auto anim_it = transanim_anims.find(tnm);
-            if (mesh_it == transanim_mesh.end() ||
-                anim_it == transanim_anims.end()) {
+            if (anim_it == transanim_anims.end()) {
                 return 0.0f;
             }
-            Gameplay::VenueAnimFilterTarget target;
-            target.mesh = mesh_it->second;
-            target.anim = anim_it->second;
-            filter.targets.push_back(std::move(target));
-            return mesh_transform_anim_duration_frames(anim_it->second);
+            const float duration =
+                mesh_transform_anim_duration_frames(anim_it->second);
+            const auto mesh_it = transanim_mesh.find(tnm);
+            if (mesh_it != transanim_mesh.end() && !mesh_it->second.empty()) {
+                Gameplay::VenueAnimFilterTarget target;
+                target.mesh = mesh_it->second;
+                target.anim = anim_it->second;
+                filter.targets.push_back(std::move(target));
+            }
+            return duration;
         };
         auto add_meshanim_target =
             [&](Gameplay::VenueAnimFilter& filter,
@@ -12303,8 +12304,8 @@ load_venue_anim_filters(const std::string& hdr_path,
             }
 
             std::unordered_set<std::string> seen;
-            collect_filter_targets(collect_filter_targets, filter, target_ref,
-                                   seen);
+            const float source_duration = collect_filter_targets(
+                collect_filter_targets, filter, target_ref, seen);
             if (debug_venue_filters_enabled()) {
                 std::ostringstream transform_refs;
                 for (size_t i = 0; i < filter.targets.size(); ++i) {
@@ -12320,13 +12321,15 @@ load_venue_anim_filters(const std::string& hdr_path,
                     stderr,
                     "[world] venue AnimFilter target coverage %s target=%s "
                     "transforms=%zu transform_refs=%s mesh_anims=%zu "
-                    "mesh_anim_refs=%s\n",
+                    "mesh_anim_refs=%s source_frames=%.1f\n",
                     filter.name.c_str(), target_ref.c_str(),
                     filter.targets.size(), transform_refs.str().c_str(),
                     filter.mesh_anim_targets.size(),
-                    mesh_anim_refs.str().c_str());
+                    mesh_anim_refs.str().c_str(), source_duration);
             }
-            if (!filter.targets.empty() || !filter.mesh_anim_targets.empty()) {
+            if (!filter.targets.empty() || !filter.mesh_anim_targets.empty() ||
+                (std::isfinite(source_duration) &&
+                 source_duration > filter.start_frame + 0.001f)) {
                 filters_by_name[de.name] = std::move(filter);
             }
         }
@@ -12379,8 +12382,11 @@ load_venue_anim_filters(const std::string& hdr_path,
             std::unordered_set<std::string> seen;
             const float duration = collect_filter_targets(
                 collect_filter_targets, filter, ref, seen);
-            if (filter.targets.empty() && filter.mesh_anim_targets.empty())
+            if (filter.targets.empty() && filter.mesh_anim_targets.empty() &&
+                (!std::isfinite(duration) ||
+                 duration <= filter.start_frame + 0.001f)) {
                 return std::nullopt;
+            }
             filter.end_frame =
                 std::isfinite(duration) &&
                         duration > filter.start_frame + 0.001f
@@ -12521,7 +12527,9 @@ load_venue_anim_filters(const std::string& hdr_path,
                                                      route_filter, route.ref,
                                                      seen));
                 if (route_filter.targets.empty() &&
-                    route_filter.mesh_anim_targets.empty()) {
+                    route_filter.mesh_anim_targets.empty() &&
+                    (!std::isfinite(duration) ||
+                     duration <= route_filter.start_frame + 0.001f)) {
                     continue;
                 }
                 route_filter.end_frame =
@@ -21361,6 +21369,18 @@ void Gameplay::update_active_venue_anim_filters() {
                                       &chart_, filter_start_time);
             const float source_blend =
                 venue_filter_source_blend_at(filter, filter_elapsed);
+            if (debug_sample && filter.targets.empty() &&
+                filter.mesh_anim_targets.empty()) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue AnimFilter source no-op event=%s filter=%s target=%s rate=%d fpu=%.1f frame=%.2f delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d\n",
+                    it->event_name.c_str(), filter.name.c_str(),
+                    filter.target_ref.c_str(), filter.anim_rate,
+                    rnd_animatable_frames_per_unit(filter.anim_rate), frame,
+                    filter.event_delay_seconds, source_blend,
+                    filter.event_blend_seconds, filter.event_wait ? 1 : 0,
+                    it->persistent ? 1 : 0);
+            }
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
