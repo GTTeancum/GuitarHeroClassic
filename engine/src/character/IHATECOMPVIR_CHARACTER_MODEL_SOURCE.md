@@ -116,7 +116,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharLipSync.cpp` | `ghogx_character_lip_sync_source_test` | `diagnostic-only` |
 | `CharLipSyncDriver.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
 | `CharLookAt.cpp` | `ghogx_character_lookat_source_test` | `fenced-runtime-gap` |
-| `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `diagnostic-only` |
+| `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `fenced-runtime-gap` |
 | `CharMeshHide.cpp` | `ghogx_character_mesh_hide_source_test` | `ported-visible-source` |
 | `CharMirror.cpp` | `ghogx_character_mirror_source_test` | `fenced-runtime-gap` |
 | `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `diagnostic-only` |
@@ -203,7 +203,11 @@ visible in `rb3-latest/src/system/char/CharMeshCacheMgr.cpp` and `.h`:
 - `HasMesh` and `GetVerts` scan the cache in order by mesh identity.
 - `SyncMesh` preserves the visible ihatecompvir index/post-increment scan
   behavior and appends a new cacher when that scan reaches the current cache
-  size; native records the null-mesh assertion instead of dereferencing it.
+  size. The source `mask` argument is carried through the native helper, but the
+  checked file only exposes it as input to an unknown inlined `MeshCacher` body,
+  so native records that body as not visible instead of inventing mesh-cache
+  deformation or vertex writeback. Native also records the null-mesh assertion
+  instead of dereferencing it.
 - `StuffMeshes` publishes cached meshes in stored order.
 
 The native helper uses mesh names and integer vertex tokens only so the

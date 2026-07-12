@@ -577,6 +577,8 @@ struct SourceCharMeshCacheDisableResult {
 struct SourceCharMeshCacheSyncResult {
   bool added = false;
   bool asserted_null_mesh = false;
+  bool inline_cacher_body_visible = false;
+  int32_t mask = 0;
   size_t index_after_scan = 0;
 };
 
@@ -2156,7 +2158,8 @@ SourceCharMeshCacheVertsResult source_char_mesh_cache_get_verts(
     const std::string& mesh);
 SourceCharMeshCacheSyncResult source_char_mesh_cache_sync_mesh(
     SourceCharMeshCacheState& state,
-    const std::string& mesh);
+    const std::string& mesh,
+    int32_t mask = 0);
 std::vector<std::string> source_char_mesh_cache_stuff_meshes(
     const SourceCharMeshCacheState& state);
 bool source_char_trans_copy_poll(const milo_scene::Xfm* src,

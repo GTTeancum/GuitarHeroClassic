@@ -8762,6 +8762,11 @@ int run_contract() {
                  "native exposes CharMeshCache cacher state");
   ok &= contains(char_mesh_h, "structSourceCharMeshCacheState{",
                  "native exposes CharMeshCache state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharMeshCacheSyncResult{booladded=false;"
+                 "boolasserted_null_mesh=false;boolinline_cacher_body_visible="
+                 "false;int32_tmask=0;size_tindex_after_scan=0;};",
+                 "native exposes CharMeshCacheMgr fenced inline sync result");
   ok &= contains(char_mesh,
                  "SourceCharMeshCacheStatesource_char_mesh_cache_default_"
                  "state(){returnSourceCharMeshCacheState{};}",
@@ -8776,11 +8781,18 @@ int run_contract() {
                  "native exposes CharMeshCacheMgr HasMesh helper");
   ok &= contains(char_mesh,
                  "SourceCharMeshCacheSyncResultsource_char_mesh_cache_sync_"
-                 "mesh(SourceCharMeshCacheState&state,conststd::string&mesh){",
-                 "native exposes CharMeshCacheMgr SyncMesh helper");
+                 "mesh(SourceCharMeshCacheState&state,conststd::string&mesh,"
+                 "int32_tmask){",
+                 "native exposes CharMeshCacheMgr SyncMesh helper with mask");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshCacheSyncResultresult;result.mask=mask;",
+                 "native preserves CharMeshCacheMgr source mask argument");
   ok &= contains(char_mesh,
                  "if(state.cache[idx++].mesh==mesh)break;",
                  "native preserves CharMeshCacheMgr source scan index");
+  ok &= contains(char_mesh,
+                 "result.inline_cacher_body_visible=false;",
+                 "native fences missing CharMeshCacheMgr inline cacher body");
   ok &= contains(char_mesh,
                  "std::vector<std::string>source_char_mesh_cache_stuff_meshes("
                  "constSourceCharMeshCacheState&state){",
@@ -8789,8 +8801,11 @@ int run_contract() {
                  "add_executable(ghogx_character_mesh_cache_source_test",
                  "CMake builds CharMeshCacheMgr source test");
   ok &= contains(mesh_cache_source_test,
-                 "source_char_mesh_cache_sync_mesh(state,\"hair_front.mesh\");",
-                 "focused CharMeshCacheMgr test covers SyncMesh");
+                 "source_char_mesh_cache_sync_mesh(state,\"hair_front.mesh\",0x24);",
+                 "focused CharMeshCacheMgr test covers SyncMesh mask");
+  ok &= contains(mesh_cache_source_test,
+                 "sync.inline_cacher_body_visible,false",
+                 "focused CharMeshCacheMgr test fences inline body");
   ok &= contains(mesh_cache_source_test,
                  "\"sourceloopappendswhenmatchislastentry\"",
                  "focused CharMeshCacheMgr test covers visible source loop");
@@ -8799,6 +8814,9 @@ int run_contract() {
                  "focused CharMeshCacheMgr test covers Disable assert");
   ok &= contains(doc, "Character Mesh Cache Helper",
                  "document records CharMeshCacheMgr helper boundary");
+  ok &= contains(doc,
+                 "source `mask` argument is carried through the native helper",
+                 "document records CharMeshCacheMgr mask boundary");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");

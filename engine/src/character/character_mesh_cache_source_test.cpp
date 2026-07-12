@@ -62,9 +62,12 @@ int main() {
                     "empty disable assert");
   ok &= expect_bool(state.disabled, true, "state disabled");
 
-  auto sync = source_char_mesh_cache_sync_mesh(state, "hair_front.mesh");
+  auto sync = source_char_mesh_cache_sync_mesh(state, "hair_front.mesh", 0x24);
   ok &= expect_bool(sync.added, true, "sync adds first mesh");
   ok &= expect_bool(sync.asserted_null_mesh, false, "sync first assert");
+  ok &= expect_bool(sync.inline_cacher_body_visible, false,
+                    "sync inline cacher body remains fenced");
+  ok &= expect_int(sync.mask, 0x24, "sync preserves source mask argument");
   ok &= expect_size(sync.index_after_scan, 0, "sync first scan index");
   ok &= expect_size(state.cache.size(), 1, "cache after first sync");
   ok &= expect_string(state.cache[0].mesh, "hair_front.mesh",

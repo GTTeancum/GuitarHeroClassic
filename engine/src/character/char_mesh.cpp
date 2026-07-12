@@ -4360,8 +4360,10 @@ SourceCharMeshCacheVertsResult source_char_mesh_cache_get_verts(
 
 SourceCharMeshCacheSyncResult source_char_mesh_cache_sync_mesh(
     SourceCharMeshCacheState& state,
-    const std::string& mesh) {
+    const std::string& mesh,
+    int32_t mask) {
   SourceCharMeshCacheSyncResult result;
+  result.mask = mask;
   size_t idx = 0;
   for (size_t i = 0; i < state.cache.size(); ++i) {
     if (state.cache[idx++].mesh == mesh) break;
@@ -4379,6 +4381,7 @@ SourceCharMeshCacheSyncResult source_char_mesh_cache_sync_mesh(
     state.cache.push_back(cacher);
     result.added = true;
   }
+  result.inline_cacher_body_visible = false;
   return result;
 }
 
