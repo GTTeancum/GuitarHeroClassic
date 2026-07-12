@@ -4059,6 +4059,18 @@ int main() {
   ok &= contains(renderer_c,
                  "venue-freecam]pickmesh=%smaterial=%sdist=%.2f",
                  "venue inspector logs picked mesh/material/distance");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_FREECAM_EYE",
+                 "venue inspector supports deterministic camera eye probes");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_FREECAM_AT",
+                 "venue inspector supports deterministic camera target probes");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_PICK_NDC",
+                 "venue inspector can move the crosshair pick point deterministically");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_PICK_GRID",
+                 "venue inspector can log lower-screen mesh picks for floor probes");
   ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"
