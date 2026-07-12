@@ -814,8 +814,9 @@ EnvironObj decode_environ(const std::string& entry_name,
   env.name = entry_name;
   try {
     Reader r(body.data(), body.size());
-    const int32_t version = r.i32();
-    if (version != 5) {
+    const uint16_t revision = low_revision(r.u32());
+    env.revision = revision;
+    if (revision != 5) {
       throw std::runtime_error("milo_scene: unsupported Environ version");
     }
     r.skip(kObjMeta);
@@ -832,35 +833,36 @@ EnvironObj decode_environ(const std::string& entry_name,
       env.lights.push_back(std::move(ref));
     }
 
-    const size_t base = r.pos;
     for (int i = 0; i < 4; ++i) {
-      env.color_a[i] = read_f32_at(body, base + static_cast<size_t>(i) * 4);
+      env.color_a[i] = r.f32();
       if (!std::isfinite(env.color_a[i])) {
         throw std::runtime_error("milo_scene: non-finite Environ color_a");
       }
     }
-    env.range_a = read_f32_at(body, base + 0x10);
-    env.range_b = read_f32_at(body, base + 0x14);
+    env.range_a = r.f32();
+    env.range_b = r.f32();
     env.fog_start = env.range_a;
     env.fog_end = env.range_b;
     for (int i = 0; i < 4; ++i) {
-      env.color_b[i] =
-          read_f32_at(body, base + 0x18 + static_cast<size_t>(i) * 4);
+      env.color_b[i] = r.f32();
       if (!std::isfinite(env.color_b[i])) {
         throw std::runtime_error("milo_scene: non-finite Environ color_b");
       }
       env.fog_color[i] = env.color_b[i];
     }
-    if (base + 0x29 < body.size()) {
-      env.fog_enabled = body[base + 0x28] != 0;
-      env.animate_from_preset = body[base + 0x29] != 0;
-    }
-    env.range = read_f32_at(body, base + 0x2f);
+    env.fog_enabled = r.u8() != 0;
+    env.animate_from_preset = r.u8() != 0;
+    env.fade_out = r.u8() != 0;
+    env.fade_start = r.f32();
+    env.fade_end = r.f32();
+    env.range = env.fade_end;
     if (!std::isfinite(env.range_a) || !std::isfinite(env.range_b) ||
-        !std::isfinite(env.range) || env.range_a < 0.0f ||
-        env.range_b < 0.0f || env.range < 0.0f) {
+        !std::isfinite(env.fade_start) || !std::isfinite(env.fade_end) ||
+        env.range_a < 0.0f || env.range_b < 0.0f ||
+        env.fade_start < 0.0f || env.fade_end < 0.0f) {
       throw std::runtime_error("milo_scene: invalid Environ range");
     }
+    env.source_order_decoded = true;
     env.decoded = true;
   } catch (const std::exception& ex) {
     env.error = ex.what();
@@ -1819,6 +1821,35 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         if (spot.has_transform) ++transformed;
       std::fprintf(stderr, "[milo_scene]   %zu spotlights decoded (%zu with Trans base)\n",
                    out.spotlights.size(), transformed);
+    }
+    if (!out.environs.empty()) {
+      size_t decoded = 0;
+      size_t source_order = 0;
+      for (const auto& env : out.environs) {
+        if (!env.decoded) continue;
+        ++decoded;
+        if (env.source_order_decoded) ++source_order;
+      }
+      std::fprintf(stderr,
+                   "[milo_scene]   %zu environs decoded (%zu source-order)\n",
+                   decoded, source_order);
+      for (const auto& env : out.environs) {
+        if (env.decoded) {
+          std::fprintf(
+              stderr,
+              "[milo_scene]   Environ object decoded: %s:%s source_order=%d rev=%u lights=%zu fog=%d animate_preset=%d fade_out=%d fade=(%.3f %.3f)\n",
+              milo_path.c_str(), env.name.c_str(),
+              env.source_order_decoded ? 1 : 0, env.revision,
+              env.lights.size(), env.fog_enabled ? 1 : 0,
+              env.animate_from_preset ? 1 : 0, env.fade_out ? 1 : 0,
+              env.fade_start, env.fade_end);
+        } else {
+          std::fprintf(stderr,
+                       "[milo_scene]   Environ object decode failed: %s:%s %s\n",
+                       milo_path.c_str(), env.name.c_str(),
+                       env.error.c_str());
+        }
+      }
     }
     return true;
   } catch (const std::exception& ex) {

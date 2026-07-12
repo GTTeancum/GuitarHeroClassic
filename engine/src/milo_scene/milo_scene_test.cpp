@@ -178,23 +178,29 @@ void test_environ_with_lights() {
   put_u32(b, 2);                 // dynamic light ref count
   put_str(b, "stage_light_02.lit");
   put_str(b, "stage_light_03.lit");
-  const size_t base = b.size();
   put_f32(b, 0.25f); put_f32(b, 0.5f); put_f32(b, 0.75f); put_f32(b, 1.0f);
   put_f32(b, 0.0f);
   put_f32(b, 1.0f);
   put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
-  while (b.size() < base + 0x2f) b.push_back(0);
-  b[base + 0x29] = 1;            // animate_from_preset
-  put_f32(b, 1000.0f);
+  b.push_back(0);                 // fog_enable
+  b.push_back(1);                 // animate_from_preset
+  b.push_back(1);                 // fade_out
+  put_f32(b, 120.0f);             // fade_start
+  put_f32(b, 1000.0f);            // fade_end
 
   EnvironObj env = decode_environ("stage.env", b);
   CHECK(env.decoded);
+  CHECK(env.source_order_decoded);
+  CHECK(env.revision == 5);
   CHECK(env.lights.size() == 2);
   CHECK(env.lights[0] == "stage_light_02.lit");
   CHECK(approx(env.color_a[0], 0.25f));
   CHECK(approx(env.color_a[2], 0.75f));
   CHECK(!env.fog_enabled);
   CHECK(env.animate_from_preset);
+  CHECK(env.fade_out);
+  CHECK(approx(env.fade_start, 120.0f));
+  CHECK(approx(env.fade_end, 1000.0f));
   CHECK(approx(env.range, 1000.0f));
   std::printf("  [ok] Environ: lights=%zu ambient=(%.2f,%.2f,%.2f)\n",
               env.lights.size(), env.color_a[0], env.color_a[1],
@@ -207,23 +213,28 @@ void test_environ_with_extensionless_light() {
   put_zeros(b, 9);               // base metadata
   put_u32(b, 1);                 // dynamic light ref count
   put_str(b, "curtain");         // GH2 PS2 Big uses Light__curtain
-  const size_t base = b.size();
   put_f32(b, 0.30f); put_f32(b, 0.30f); put_f32(b, 0.30f); put_f32(b, 1.0f);
   put_f32(b, 250.0f);
   put_f32(b, 1.0f);
   put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
-  while (b.size() < base + 0x2f) b.push_back(0);
-  b[base + 0x29] = 1;            // animate_from_preset
-  put_f32(b, 1000.0f);
+  b.push_back(0);                 // fog_enable
+  b.push_back(1);                 // animate_from_preset
+  b.push_back(0);                 // fade_out
+  put_f32(b, 300.0f);             // fade_start
+  put_f32(b, 1000.0f);            // fade_end
 
   EnvironObj env = decode_environ("curtain_light", b);
   CHECK(env.decoded);
+  CHECK(env.source_order_decoded);
   CHECK(env.lights.size() == 1);
   CHECK(env.lights[0] == "curtain");
   CHECK(approx(env.color_a[0], 0.30f));
   CHECK(approx(env.range_a, 250.0f));
   CHECK(approx(env.fog_start, 250.0f));
   CHECK(env.animate_from_preset);
+  CHECK(!env.fade_out);
+  CHECK(approx(env.fade_start, 300.0f));
+  CHECK(approx(env.fade_end, 1000.0f));
   CHECK(approx(env.range, 1000.0f));
   std::printf("  [ok] Environ extensionless light: %s -> %s\n",
               env.name.c_str(), env.lights[0].c_str());
@@ -234,24 +245,27 @@ void test_environ_with_fog() {
   put_u32(b, 5);                 // Environ version
   put_zeros(b, 9);               // base metadata
   put_u32(b, 0);                 // dynamic light ref count
-  const size_t base = b.size();
   put_f32(b, 0.07f); put_f32(b, 0.04f); put_f32(b, 0.14f); put_f32(b, 1.0f);
   put_f32(b, 0.0f);              // fog_start
   put_f32(b, 3000.0f);           // fog_end
   put_f32(b, 0.5f); put_f32(b, 0.0f); put_f32(b, 0.5f); put_f32(b, 1.0f);
-  while (b.size() < base + 0x2f) b.push_back(0);
-  b[base + 0x28] = 1;            // fog_enable
-  b[base + 0x29] = 0;            // animate_from_preset
-  put_f32(b, 1000.0f);
+  b.push_back(1);                 // fog_enable
+  b.push_back(0);                 // animate_from_preset
+  b.push_back(1);                 // fade_out
+  put_f32(b, 10.0f);              // fade_start
+  put_f32(b, 1000.0f);            // fade_end
 
   EnvironObj env = decode_environ("op_Art_projection.env", b);
   CHECK(env.decoded);
+  CHECK(env.source_order_decoded);
   CHECK(env.fog_enabled);
   CHECK(!env.animate_from_preset);
   CHECK(approx(env.fog_start, 0.0f));
   CHECK(approx(env.fog_end, 3000.0f));
   CHECK(approx(env.fog_color[0], 0.5f));
   CHECK(approx(env.fog_color[2], 0.5f));
+  CHECK(env.fade_out);
+  CHECK(approx(env.fade_start, 10.0f));
   std::printf("  [ok] Environ fog: %s start=%.0f end=%.0f\n",
               env.name.c_str(), env.fog_start, env.fog_end);
 }

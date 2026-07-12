@@ -7221,9 +7221,11 @@ void log_lighting_light_object_coverage(
         environs_by_name[env.name] = &env;
         std::fprintf(
             stderr,
-            "[world] lighting Environ object decoded: %s lights=%zu fog=%d animate_preset=%d color_a=(%.3f %.3f %.3f %.3f) fog=(%.3f %.3f %.3f %.3f %.3f %.3f) ranges=(%.3f %.3f %.3f) color_b=(%.3f %.3f %.3f %.3f)\n",
-            env.name.c_str(), env.lights.size(), env.fog_enabled ? 1 : 0,
-            env.animate_from_preset ? 1 : 0, env.color_a[0], env.color_a[1],
+            "[world] lighting Environ object decoded: %s source_order=%d rev=%u lights=%zu fog=%d animate_preset=%d fade_out=%d fade=(%.3f %.3f) color_a=(%.3f %.3f %.3f %.3f) fog=(%.3f %.3f %.3f %.3f %.3f %.3f) ranges=(%.3f %.3f %.3f) color_b=(%.3f %.3f %.3f %.3f)\n",
+            env.name.c_str(), env.source_order_decoded ? 1 : 0,
+            env.revision, env.lights.size(), env.fog_enabled ? 1 : 0,
+            env.animate_from_preset ? 1 : 0, env.fade_out ? 1 : 0,
+            env.fade_start, env.fade_end, env.color_a[0], env.color_a[1],
             env.color_a[2], env.color_a[3], env.fog_start, env.fog_end,
             env.fog_color[0], env.fog_color[1], env.fog_color[2],
             env.fog_color[3], env.range_a, env.range_b, env.range,

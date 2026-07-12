@@ -6234,7 +6234,8 @@ int main() {
                  "std::vector<LightObj>lights;",
                  "decoded scenes retain Light entries alongside spotlights");
   ok &= contains(milo_scene_h_c,
-                 "structEnvironObj{std::stringname;std::vector<std::string>lights;"
+                 "structEnvironObj{std::stringname;uint16_trevision=0;"
+                 "std::vector<std::string>lights;"
                  "floatcolor_a[4]="
                  "{1.0f,1.0f,1.0f,1.0f};floatfog_start=0.0f;",
                  "MILO scene exposes decoded raw Environ objects");
@@ -6242,6 +6243,13 @@ int main() {
                  "floatfog_color[4]={1.0f,1.0f,1.0f,1.0f};"
                  "boolfog_enabled=false;boolanimate_from_preset=false;",
                  "MILO scene exposes Environ fog and LightPreset animation flags");
+  ok &= contains(milo_scene_h_c,
+                 "boolfade_out=false;floatfade_start=0.0f;"
+                 "floatfade_end=1000.0f;",
+                 "MILO scene exposes source Environ fade fields");
+  ok &= contains(milo_scene_h_c,
+                 "floatrange=0.0f;boolsource_order_decoded=false;",
+                 "MILO scene exposes Environ source-order decode proof");
   ok &= contains(milo_scene_h_c,
                  "std::stringenvironment_ref;",
                  "decoded Groups retain their authored Environ ref");
@@ -6360,34 +6368,47 @@ int main() {
                  "env.lights.push_back(std::move(ref));",
                  "Environ decoder retains authored light refs");
   ok &= contains(milo_scene_cpp_c,
-                 "constsize_tbase=r.pos;",
-                 "Environ decoder uses dynamic payload base after .lit refs");
+                 "constuint16_trevision=low_revision(r.u32());",
+                 "Environ decoder reads the source revision word");
   ok &= contains(milo_scene_cpp_c,
-                 "env.color_a[i]=read_f32_at(body,base+"
-                 "static_cast<size_t>(i)*4);",
-                 "Environ decoder uses dynamic first color block offset");
+                 "env.color_a[i]=r.f32();",
+                 "Environ decoder reads ambient color in source order");
   ok &= contains(milo_scene_cpp_c,
-                 "env.range_a=read_f32_at(body,base+0x10);",
-                 "Environ decoder uses dynamic range-a offset");
+                 "env.range_a=r.f32();",
+                 "Environ decoder reads source fog-start after ambient color");
   ok &= contains(milo_scene_cpp_c,
                  "env.fog_start=env.range_a;",
                  "Environ decoder aliases traced fog-start field");
   ok &= contains(milo_scene_cpp_c,
-                 "env.color_b[i]=read_f32_at(body,base+0x18+"
-                 "static_cast<size_t>(i)*4);",
-                 "Environ decoder uses dynamic second color block offset");
+                 "env.color_b[i]=r.f32();",
+                 "Environ decoder reads fog color in source order");
   ok &= contains(milo_scene_cpp_c,
                  "env.fog_color[i]=env.color_b[i];",
                  "Environ decoder aliases traced fog-color block");
   ok &= contains(milo_scene_cpp_c,
-                 "env.fog_enabled=body[base+0x28]!=0;",
-                 "Environ decoder uses traced fog-enable byte");
+                 "env.fog_enabled=r.u8()!=0;",
+                 "Environ decoder reads source fog-enable byte");
   ok &= contains(milo_scene_cpp_c,
-                 "env.animate_from_preset=body[base+0x29]!=0;",
-                 "Environ decoder uses traced animate-from-preset byte");
+                 "env.animate_from_preset=r.u8()!=0;",
+                 "Environ decoder reads source animate-from-preset byte");
   ok &= contains(milo_scene_cpp_c,
-                 "env.range=read_f32_at(body,base+0x2f);",
-                 "Environ decoder uses dynamic range offset");
+                 "env.fade_out=r.u8()!=0;",
+                 "Environ decoder reads source fade-out byte");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.fade_start=r.f32();",
+                 "Environ decoder reads source fade-start float");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.fade_end=r.f32();",
+                 "Environ decoder reads source fade-end float");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.source_order_decoded=true;",
+                 "Environ decoder marks successful source-order decode");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingEnvironobjectdecoded:%ssource_order=%drev=%u",
+                 "Environ diagnostics expose source-order decode and revision");
+  ok &= contains(milo_scene_cpp_c,
+                 "\"[milo_scene]Environobjectdecoded:%s:%ssource_order=%drev=%u",
+                 "scene diagnostics expose source-order Environ decode for venue geometry");
   ok &= contains(milo_scene_cpp_c,
                  "parse_group_source_layout(body,group_revision,"
                  "after_trans_offset,group)",
