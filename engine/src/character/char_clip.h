@@ -2566,6 +2566,11 @@ struct SourceCharIKHandTargetBlendResult {
   std::vector<float> weights;
 };
 
+struct SourceCharIKHandFingerTargetResult {
+  bool applied = false;
+  milo_scene::Xfm adjusted_target;
+};
+
 struct SourceCharIKFootState {
   bool helper_target_created = true;
   bool helper_target_local_reset = true;
@@ -2646,6 +2651,12 @@ SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
     float char_weight,
     const std::vector<SourceCharIKHandTargetInput>& targets,
     bool orientation = false);
+SourceCharIKHandFingerTargetResult source_char_ik_hand_finger_target(
+    bool has_finger,
+    const milo_scene::Xfm& hand_world,
+    const milo_scene::Xfm& finger_world,
+    std::array<float, 3> target_pos,
+    std::array<float, 4> target_quat);
 SourceCharIKFootState source_char_ik_foot_default_state();
 SourceCharIKFootEnterResult source_char_ik_foot_enter(
     SourceCharIKFootState& state);

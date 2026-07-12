@@ -52,6 +52,7 @@ int main() {
   using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
+  using ghogx::character::source_char_ik_hand_finger_target;
   using ghogx::character::source_char_ik_hand_handler_plan;
   using ghogx::character::source_char_ik_hand_load_plan;
   using ghogx::character::source_char_ik_hand_measure_lengths;
@@ -265,6 +266,28 @@ int main() {
                      "orientation blend quat z");
   ok &= expect_float(orientation_blend.blended_quat[3], 0.70710677f,
                      "orientation blend quat w");
+
+  ghogx::milo_scene::Xfm hand_world;
+  hand_world.pos[0] = 10.0f;
+  ghogx::milo_scene::Xfm finger_world;
+  finger_world.pos[0] = 2.0f;
+  const auto no_finger_target = source_char_ik_hand_finger_target(
+      false, hand_world, finger_world, {5.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 0.0f, 1.0f});
+  ok &= expect_bool(no_finger_target.applied, false,
+                    "finger target no-finger stays inert");
+  ok &= expect_float(no_finger_target.adjusted_target.pos[0], 5.0f,
+                     "finger target no-finger keeps position");
+
+  const auto finger_target = source_char_ik_hand_finger_target(
+      true, hand_world, finger_world, {5.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 0.0f, 1.0f});
+  ok &= expect_bool(finger_target.applied, true,
+                    "finger target applies source branch");
+  ok &= expect_float(finger_target.adjusted_target.pos[0], 13.0f,
+                     "finger target source transform x");
+  ok &= expect_float(finger_target.adjusted_target.rot[0][0], 1.0f,
+                     "finger target keeps identity rotation");
 
   std::printf("character_ik_hand_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

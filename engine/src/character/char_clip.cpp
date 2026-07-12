@@ -4737,6 +4737,9 @@ bool source_char_ik_hand_elbow_cosine(
   return true;
 }
 
+static std::array<float, 16> source_xfm_to_mat4(
+    const milo_scene::Xfm& xfm);
+
 SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
     float char_weight,
     const std::vector<SourceCharIKHandTargetInput>& targets,
@@ -4801,6 +4804,27 @@ SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
       result.orientation_normalized = true;
     }
   }
+  return result;
+}
+
+SourceCharIKHandFingerTargetResult source_char_ik_hand_finger_target(
+    bool has_finger,
+    const milo_scene::Xfm& hand_world,
+    const milo_scene::Xfm& finger_world,
+    std::array<float, 3> target_pos,
+    std::array<float, 4> target_quat) {
+  SourceCharIKHandFingerTargetResult result;
+  result.adjusted_target.pos[0] = target_pos[0];
+  result.adjusted_target.pos[1] = target_pos[1];
+  result.adjusted_target.pos[2] = target_pos[2];
+  quat_to_rot(target_quat.data(), result.adjusted_target.rot);
+  if (!has_finger) return result;
+
+  const std::array<float, 16> hand_to_finger = mat4_mul(
+      source_xfm_to_mat4(hand_world), affine_inverse(source_xfm_to_mat4(finger_world)));
+  mat4_to_xfm(mat4_mul(hand_to_finger, source_xfm_to_mat4(result.adjusted_target)),
+              result.adjusted_target);
+  result.applied = true;
   return result;
 }
 

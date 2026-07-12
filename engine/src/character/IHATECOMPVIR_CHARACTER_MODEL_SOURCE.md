@@ -1993,6 +1993,12 @@ note, and all report `unreadBytes=0`.
     normalized target weights, summed, and normalized once at the end, matching
     the `ScaleAddEq(quat, q268, weight / sumfloat)` and final `Normalize`
     branch without adding a hemisphere correction.
+  - Native `source_char_ik_hand_finger_target` ports the visible `mFinger`
+    branch from `CharIKHand::Poll` as a deterministic transform helper: build a
+    target transform from the blended destination vector/quaternion, invert the
+    finger world transform, multiply `handWorld * inverse(fingerWorld)`, then
+    multiply that by the target transform and use the resulting position and
+    rotation. This does not publish live hand transforms.
   - `CharIKHand::PullShoulder` is source-real but not yet source-importable:
     `CharIKHand.cpp` calls it from `IKElbow`, and
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a
@@ -2001,10 +2007,10 @@ note, and all report `unreadBytes=0`.
     therefore must not rederive that shoulder offset or claim a full IKElbow
     port until the function body is source-backed.
   - The current runtime solver is the bounded GH2 single-target slice. Source
-    branches for `mFinger`, live multi-target publishing, `PullShoulder`,
-    `mElbowSwing`, wrist constraint, and elbow-collision correction remain
-    fenced unless an asset log proves they are present and the matching
-    ihatecompvir source branch is ported.
+    branches for live multi-target publishing, `PullShoulder`, `mElbowSwing`,
+    wrist constraint, and elbow-collision correction remain fenced unless an
+    asset log proves they are present and the matching ihatecompvir source
+    branch is ported.
 - `rb3-latest/src/system/char/CharIKRod.cpp` and
   `rb3-latest/src/system/char/CharIKRod.h`
   - `CharIKRod::Load` reads revision 2 rows as `left_end`, `right_end`,

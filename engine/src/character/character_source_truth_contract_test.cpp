@@ -12185,6 +12185,14 @@ int run_contract() {
                  "if(sumfloat<1.0f){charWeight=charWeight-"
                  "(charWeight*(1.0f-sumfloat));}",
                  "RB3 CharIKHand source scales weight down when target sum is low");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(mFinger){Transformtf;tf.v=vec;MakeRotMatrix(quat,tf.m);"
+                 "Transformtf2;Invert(mFinger->WorldXfm(),tf2);",
+                 "RB3 CharIKHand source enters finger target transform branch");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "Multiply(mHand->WorldXfm(),tf2,tf2);"
+                 "Multiply(tf2,tf,tf);vec=tf.v;quat.Set(tf.m);}",
+                 "RB3 CharIKHand source applies hand/finger target transform");
   ok &= contains(rb3_char_ik_hand_cpp, "IKElbow(parent1,parent2);",
                  "RB3 CharIKHand source drives elbow solve");
   ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
@@ -12350,6 +12358,10 @@ int run_contract() {
                  "std::array<float,4>blended_quat={0.0f,0.0f,0.0f,0.0f};",
                  "native exposes source CharIKHand orientation blend result");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandFingerTargetResult{boolapplied=false;"
+                 "milo_scene::Xfmadjusted_target;};",
+                 "native exposes source CharIKHand finger target result");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
                  "int32_trevision);",
                  "native API exposes source CharIKHand load plan helper");
@@ -12382,6 +12394,14 @@ int run_contract() {
                  "floatchar_weight,conststd::vector<"
                  "SourceCharIKHandTargetInput>&targets,boolorientation=false);",
                  "native API exposes source CharIKHand multi-target blend helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandFingerTargetResult"
+                 "source_char_ik_hand_finger_target(boolhas_finger,"
+                 "constmilo_scene::Xfm&hand_world,"
+                 "constmilo_scene::Xfm&finger_world,"
+                 "std::array<float,3>target_pos,"
+                 "std::array<float,4>target_quat);",
+                 "native API exposes source CharIKHand finger target helper");
   ok &= contains(char_clip,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
                  "boolhas_elbow_chain,floathand_local_len,"
@@ -12492,6 +12512,27 @@ int run_contract() {
                  "result.orientation_normalized=true;",
                  "native CharIKHand multi-target helper normalizes quat result");
   ok &= contains(char_clip,
+                 "SourceCharIKHandFingerTargetResult"
+                 "source_char_ik_hand_finger_target(boolhas_finger,"
+                 "constmilo_scene::Xfm&hand_world,"
+                 "constmilo_scene::Xfm&finger_world,"
+                 "std::array<float,3>target_pos,"
+                 "std::array<float,4>target_quat){"
+                 "SourceCharIKHandFingerTargetResultresult;",
+                 "native CharIKHand finger target helper exists");
+  ok &= contains(char_clip,
+                 "quat_to_rot(target_quat.data(),result.adjusted_target.rot);"
+                 "if(!has_finger)returnresult;",
+                 "native CharIKHand finger target helper gates missing finger");
+  ok &= contains(char_clip,
+                 "source_xfm_to_mat4(hand_world),affine_inverse("
+                 "source_xfm_to_mat4(finger_world)))",
+                 "native CharIKHand finger target helper computes hand to finger");
+  ok &= contains(char_clip,
+                 "mat4_to_xfm(mat4_mul(hand_to_finger,source_xfm_to_mat4("
+                 "result.adjusted_target)),result.adjusted_target);",
+                 "native CharIKHand finger target helper applies target transform");
+  ok &= contains(char_clip,
                  "RuntimeIKHandMeasureState&measure_state="
                  "character.runtime_ik_hand_measures[live_key];",
                  "runtime CharIKHand slice uses persistent source length cache");
@@ -12542,6 +12583,12 @@ int run_contract() {
   ok &= contains(ik_hand_source_test,
                  "orientation_blend.orientation_normalized,true",
                  "focused CharIKHand source test checks orientation normalization");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_finger_target(",
+                 "focused CharIKHand source test covers finger target helper");
+  ok &= contains(ik_hand_source_test,
+                 "finger_target.adjusted_target.pos[0],13.0f",
+                 "focused CharIKHand source test checks finger adjusted position");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
@@ -12564,6 +12611,16 @@ int run_contract() {
   ok &= contains(doc,
                  "without adding a hemisphere correction",
                  "document records source-faithful CharIKHand quat blend boundary");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_finger_target` ports the visible "
+                 "`mFinger`",
+                 "document records native CharIKHand finger target helper");
+  ok &= contains(doc,
+                 "multiply `handWorld * inverse(fingerWorld)`",
+                 "document records CharIKHand finger transform order");
+  ok &= contains(doc,
+                 "This does not publish live hand transforms",
+                 "document fences CharIKHand finger helper from live publish");
   ok &= contains(doc,
                  "live multi-target publishing",
                  "document keeps live CharIKHand multi-target publishing fenced");
