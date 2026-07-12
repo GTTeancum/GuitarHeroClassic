@@ -6220,6 +6220,18 @@ int main() {
                  "sample_transform_anim(active.anim,anim_frame)",
                  "one-shot mesh TransAnim playback samples translation, rotation, and scale");
   ok &= contains(renderer_h_c,
+                 "boolhas_source_frame=false;floatsource_frame=0.0f;",
+                 "MeshTransformSample carries the source SetFrame frame into renderer diagnostics");
+  ok &= contains(gameplay_c,
+                 "sample.has_source_frame=true;sample.source_frame=frame;",
+                 "venue AnimFilter transform samples retain the ihatcompvir SetFrame frame");
+  ok &= contains(renderer_c,
+                 "sample.has_source_frame=true;sample.source_frame=frame;",
+                 "renderer direct TransAnim samples retain the ihatcompvir SetFrame frame");
+  ok &= contains(renderer_c,
+                 "source_frame=%d:%.3f",
+                 "mesh animation local diagnostics report source SetFrame frames for offset samples");
+  ok &= contains(renderer_h_c,
                  "booltranslation_spline=false;",
                  "shared TransAnim data preserves the authored translation spline flag");
   ok &= contains(renderer_h_c,

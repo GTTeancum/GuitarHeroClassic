@@ -9656,6 +9656,8 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim,
     float frame) {
     ghogx::render::MiloSceneRenderer::MeshTransformSample sample;
+    sample.has_source_frame = true;
+    sample.source_frame = frame;
     if (!anim.translation_keys.empty()) {
         sample.has_translation = true;
         sample.translation_is_absolute = true;

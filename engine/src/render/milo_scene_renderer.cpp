@@ -775,6 +775,8 @@ std::array<float, 4> sample_rotation_value(
 MiloSceneRenderer::MeshTransformSample sample_transform_anim(
     const MiloSceneRenderer::MeshTransformAnim& anim, float frame) {
   MiloSceneRenderer::MeshTransformSample sample;
+  sample.has_source_frame = true;
+  sample.source_frame = frame;
   if (!anim.translation_keys.empty()) {
     sample.has_translation = true;
     sample.translation_is_absolute = true;
@@ -880,6 +882,10 @@ void log_mesh_anim_local_rows(
   const int has_scale = applied_sample && applied_sample->has_scale ? 1 : 0;
   const int abs_scale =
       applied_sample && applied_sample->scale_is_absolute ? 1 : 0;
+  const int has_source_frame =
+      applied_sample && applied_sample->has_source_frame ? 1 : 0;
+  const float source_frame =
+      has_source_frame ? applied_sample->source_frame : active_frame;
   const std::array<float, 4> quat =
       applied_sample ? applied_sample->rotation_xyzw
                     : std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
@@ -890,7 +896,8 @@ void log_mesh_anim_local_rows(
       stderr,
       "[milo_scene] mesh_anim_local mesh=%s target=%s kind=%s parent=%s "
       "sample=%zu "
-      "offset=%d active=%d frame=%.3f sample_pos=%d:%d sample_rot=%d:%d "
+      "offset=%d active=%d frame=%.3f source_frame=%d:%.3f "
+      "sample_pos=%d:%d sample_rot=%d:%d "
       "quat=(%.6f %.6f %.6f %.6f) sample_scale=%d:%d "
       "scale_vec=(%.6f %.6f %.6f) base_scale=(%.6f %.6f %.6f) "
       "sampled_scale=(%.6f %.6f %.6f) "
@@ -903,11 +910,12 @@ void log_mesh_anim_local_rows(
       "sampled_row1=(%.6f %.6f %.6f) sampled_row2=(%.6f %.6f %.6f)\n",
       mesh_name.c_str(), target_name.c_str(), target_kind.c_str(),
       target_parent.c_str(), sample, has_offset ? 1 : 0,
-      has_active_anim ? 1 : 0, active_frame, has_pos, abs_pos, has_rot,
-      abs_rot, quat[0], quat[1], quat[2], quat[3], has_scale, abs_scale,
-      scale[0], scale[1], scale[2], base_scale[0], base_scale[1],
-      base_scale[2], sampled_scale[0], sampled_scale[1], sampled_scale[2],
-      base_det, sampled_det, source_base_rot[2][0], source_base_rot[2][1],
+      has_active_anim ? 1 : 0, active_frame, has_source_frame, source_frame,
+      has_pos, abs_pos, has_rot, abs_rot, quat[0], quat[1], quat[2],
+      quat[3], has_scale, abs_scale, scale[0], scale[1], scale[2],
+      base_scale[0], base_scale[1], base_scale[2], sampled_scale[0],
+      sampled_scale[1], sampled_scale[2], base_det, sampled_det,
+      source_base_rot[2][0], source_base_rot[2][1],
       source_base_rot[2][2], source_sampled_rot[0][0],
       source_sampled_rot[0][1], source_sampled_rot[0][2],
       source_sampled_rot[2][0], source_sampled_rot[2][1],
