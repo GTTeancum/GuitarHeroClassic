@@ -101,6 +101,17 @@ SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
     int32_t bone_count,
     std::vector<SourceRndMeshZeroWeightVertex> vertices);
 
+struct SourceRndMeshSetBonePlan {
+  bool assigned_bone = true;
+  bool recomputed_offset = false;
+  milo_scene::Xfm offset;
+};
+
+SourceRndMeshSetBonePlan source_rndmesh_set_bone_plan(
+    const milo_scene::Xfm& mesh_world,
+    const milo_scene::Xfm& bone_world,
+    bool recompute_offset);
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;

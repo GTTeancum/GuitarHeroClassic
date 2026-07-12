@@ -5034,6 +5034,40 @@ std::array<float, 16> identity_mat4() {
           0, 0, 1, 0, 0, 0, 0, 1};
 }
 
+std::array<float, 16> affine_inverse(const std::array<float, 16>& m) {
+  const float a = m[0], b = m[1], c = m[2];
+  const float d = m[4], e = m[5], f = m[6];
+  const float g = m[8], h = m[9], i = m[10];
+  const float det = a * (e * i - f * h) - b * (d * i - f * g) +
+                    c * (d * h - e * g);
+  if (std::fabs(det) < 1.0e-8f) return identity_mat4();
+  const float inv = 1.0f / det;
+  std::array<float, 16> out{};
+  out[0] = (e * i - f * h) * inv;
+  out[1] = -(b * i - c * h) * inv;
+  out[2] = (b * f - c * e) * inv;
+  out[4] = -(d * i - f * g) * inv;
+  out[5] = (a * i - c * g) * inv;
+  out[6] = -(a * f - c * d) * inv;
+  out[8] = (d * h - e * g) * inv;
+  out[9] = -(a * h - b * g) * inv;
+  out[10] = (a * e - b * d) * inv;
+  out[15] = 1.0f;
+  const float tx = m[12], ty = m[13], tz = m[14];
+  out[12] = -(tx * out[0] + ty * out[4] + tz * out[8]);
+  out[13] = -(tx * out[1] + ty * out[5] + tz * out[9]);
+  out[14] = -(tx * out[2] + ty * out[6] + tz * out[10]);
+  return out;
+}
+
+void mat4_to_xfm(const std::array<float, 16>& m, Xfm& x) {
+  for (int r = 0; r < 3; ++r)
+    for (int c = 0; c < 3; ++c) x.rot[r][c] = m[r * 4 + c];
+  x.pos[0] = m[12];
+  x.pos[1] = m[13];
+  x.pos[2] = m[14];
+}
+
 struct SourceXfm {
   const Xfm* current = nullptr;
   const Xfm* bind = nullptr;
@@ -5159,6 +5193,19 @@ std::array<float, 16> source_world_for(const Character& c,
 }
 
 }  // namespace
+
+SourceRndMeshSetBonePlan source_rndmesh_set_bone_plan(
+    const milo_scene::Xfm& mesh_world,
+    const milo_scene::Xfm& bone_world,
+    bool recompute_offset) {
+  SourceRndMeshSetBonePlan plan;
+  if (!recompute_offset) return plan;
+  plan.recomputed_offset = true;
+  mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),
+                       affine_inverse(xfm_to_mat4(bone_world))),
+              plan.offset);
+  return plan;
+}
 
 std::vector<std::string> Character::texture_names() const {
   std::set<std::string> set;

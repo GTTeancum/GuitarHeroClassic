@@ -1630,6 +1630,19 @@ int run_contract() {
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",
                  "RB3 runtime SetBone stores mesh world times inverse bone world");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSetBonePlan{",
+                 "native exposes RndMesh SetBone source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
+                 "native implements RndMesh SetBone source helper");
+  ok &= contains(char_mesh,
+                 "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
+                 "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
+                 "native SetBone helper mirrors source offset multiplication");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_set_bone_plan(",
+                 "focused mesh decode test covers RndMesh SetBone helper");
   ok &= contains(rb3_mesh_cpp,
                  "bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
                  "mBones[2].mOffset>>mBones[3].mOffset;",

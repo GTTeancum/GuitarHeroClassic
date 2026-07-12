@@ -282,6 +282,25 @@ int main() {
   CHECK(zero_weight_fixed.vertices[0].bone_indices[2] == 3);
   CHECK(zero_weight_fixed.vertices[0].bone_indices[3] == 7);
 
+  ghogx::milo_scene::Xfm mesh_world;
+  mesh_world.pos[0] = 10.0f;
+  ghogx::milo_scene::Xfm bone_world;
+  bone_world.pos[0] = 3.0f;
+  const auto set_bone_no_offset =
+      ghogx::character::source_rndmesh_set_bone_plan(
+          mesh_world, bone_world, false);
+  CHECK(set_bone_no_offset.assigned_bone);
+  CHECK(!set_bone_no_offset.recomputed_offset);
+  CHECK(approx(set_bone_no_offset.offset.pos[0], 0.0f));
+  const auto set_bone_with_offset =
+      ghogx::character::source_rndmesh_set_bone_plan(
+          mesh_world, bone_world, true);
+  CHECK(set_bone_with_offset.assigned_bone);
+  CHECK(set_bone_with_offset.recomputed_offset);
+  CHECK(approx(set_bone_with_offset.offset.pos[0], 7.0f));
+  CHECK(approx(set_bone_with_offset.offset.pos[1], 0.0f));
+  CHECK(approx(set_bone_with_offset.offset.pos[2], 0.0f));
+
   CHECK(ghogx::character::source_rndmesh_max_bones() == 40);
   const auto sync_plain = ghogx::character::source_rndmesh_sync_plan(0x3f, false);
   CHECK(sync_plain.input_mask == 0x3f);

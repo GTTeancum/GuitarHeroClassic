@@ -466,6 +466,10 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - `RndMesh::SetBone` is the runtime source for how a bone offset is authored:
     it inverts `t->WorldXfm()` and calls `Multiply(WorldXfm(), inverseBone,
     mBones[i].mOffset)`.
+    Native `source_rndmesh_set_bone_plan` ports that assignment/offset rule as
+    a deterministic helper: every call assigns the bone pointer, and only the
+    source `b` flag recomputes the offset as mesh world times inverse bone
+    world.
   - GH2-era `RndMesh::PostLoad` reads the same four source bone slots and four
     offsets that the native decoder preserves as raw rows, then trims the
     active runtime bone list at the first null bone pointer and calls
