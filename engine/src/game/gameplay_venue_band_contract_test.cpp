@@ -8703,6 +8703,7 @@ int main() {
                  "WorldCrowd floor cleanup prefers RedOctane's grey floor material before tile trim");
   ok &= contains(gameplay_c,
                  "if(constautofloor_mat=dst_floor_mat()){"
+                 "conststd::stringoriginal_material=draw_mesh.material;"
                  "draw_mesh.material=*floor_mat;",
                  "WorldCrowd floor cleanup replaces placement color with a venue-authored floor material");
   ok &= contains(gameplay_c,
@@ -8719,9 +8720,17 @@ int main() {
                  "venue_crowd_meshes_.erase(\"Crowd_area.mesh\");",
                  "WorldCrowd crowd floor is not hidden by CamShot hide_crowd actor visibility");
   ok &= contains(gameplay_c,
-                 "\"[world]venuefloormesh:mesh=%smaterial=%stexture=%s"
-                 "showing=%dhidden=%d\\n\"",
+                 "\"[world]venuefloormesh:mesh=%smaterial=%stexture=%s\"",
                  "venue diagnostics report real floor geometry and material state");
+  ok &= contains(gameplay_c,
+                 "\"showing=%dhidden=%dmat_color=(%.3f%.3f%.3f%.3f)\"",
+                 "venue diagnostics report floor material color state");
+  ok &= contains(gameplay_c,
+                 "\"blend=%uz=%uuse_env=%dprelit=%dcull=%d\"",
+                 "venue diagnostics report floor material draw-state flags");
+  ok &= contains(gameplay_c,
+                 "\"avg_n=(%.3f%.3f%.3f)\\n\"",
+                 "venue diagnostics report floor average normal");
   ok &= contains(gameplay_c,
                  "name_l.find(\"crowd_area\")!=std::string::npos",
                  "venue floor diagnostics include the WorldCrowd floor footprint");

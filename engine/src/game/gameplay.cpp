@@ -9066,7 +9066,17 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
                     std::isfinite(tint[2]) && std::isfinite(tint[3]) &&
                     tint[0] >= 0.0f && tint[1] >= 0.0f && tint[2] >= 0.0f &&
                     tint[3] > 0.0f;
-                if (non_white && sane) return tint;
+                if (non_white && sane) {
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(stderr,
+                                     "[world] venue WorldCrowd floor tint source: "
+                                     "mesh=%s material=%s rgba=(%.3f %.3f %.3f %.3f)\n",
+                                     floor_mesh.name.c_str(),
+                                     floor_mesh.material.c_str(), tint[0],
+                                     tint[1], tint[2], tint[3]);
+                    }
+                    return tint;
+                }
             }
         }
         return std::nullopt;
@@ -9103,6 +9113,7 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
         // cleanup pairs the placement footprint with a venue-authored floor mat.
         if (lower_ascii(draw_mesh.material) == "crowd_area.mat") {
             if (const auto floor_mat = dst_floor_mat()) {
+                const std::string original_material = draw_mesh.material;
                 draw_mesh.material = *floor_mat;
                 if (const auto floor_tint = dst_floor_tint(*floor_mat)) {
                     for (auto& vertex : draw_mesh.verts) {
@@ -9111,6 +9122,24 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
                         vertex.b = (*floor_tint)[2];
                         vertex.a = (*floor_tint)[3];
                     }
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue WorldCrowd floor cleanup: mesh=%s "
+                            "material=%s->%s vertices=%zu copied_tint=1 "
+                            "rgba=(%.3f %.3f %.3f %.3f)\n",
+                            draw_mesh.name.c_str(), original_material.c_str(),
+                            draw_mesh.material.c_str(), draw_mesh.verts.size(),
+                            (*floor_tint)[0], (*floor_tint)[1],
+                            (*floor_tint)[2], (*floor_tint)[3]);
+                    }
+                } else if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue WorldCrowd floor cleanup: mesh=%s "
+                        "material=%s->%s vertices=%zu copied_tint=0\n",
+                        draw_mesh.name.c_str(), original_material.c_str(),
+                        draw_mesh.material.c_str(), draw_mesh.verts.size());
                 }
             }
         }
@@ -9143,14 +9172,45 @@ void log_venue_floor_meshes(
             material_l.find("floor") != std::string::npos ||
             texture_l.find("floor") != std::string::npos;
         if (!floor_like) continue;
+        float avg_nx = 0.0f;
+        float avg_ny = 0.0f;
+        float avg_nz = 0.0f;
+        if (!mesh.verts.empty()) {
+            for (const auto& vertex : mesh.verts) {
+                avg_nx += vertex.nx;
+                avg_ny += vertex.ny;
+                avg_nz += vertex.nz;
+            }
+            const float inv_count = 1.0f / static_cast<float>(mesh.verts.size());
+            avg_nx *= inv_count;
+            avg_ny *= inv_count;
+            avg_nz *= inv_count;
+        }
+        const float mat_r = mat_it != mats.end() ? mat_it->second->color[0] : 1.0f;
+        const float mat_g = mat_it != mats.end() ? mat_it->second->color[1] : 1.0f;
+        const float mat_b = mat_it != mats.end() ? mat_it->second->color[2] : 1.0f;
+        const float mat_a = mat_it != mats.end() ? mat_it->second->color[3] : 1.0f;
+        const unsigned blend =
+            mat_it != mats.end() ? static_cast<unsigned>(mat_it->second->blend) : 0u;
+        const unsigned z_mode =
+            mat_it != mats.end() ? static_cast<unsigned>(mat_it->second->z_mode) : 1u;
+        const int use_environ =
+            mat_it != mats.end() && mat_it->second->use_environ ? 1 : 0;
+        const int prelit = mat_it != mats.end() && mat_it->second->prelit ? 1 : 0;
+        const int cull = mat_it != mats.end() && mat_it->second->cull ? 1 : 0;
         std::fprintf(stderr,
-                     "[world] venue floor mesh: mesh=%s material=%s texture=%s showing=%d hidden=%d\n",
+                     "[world] venue floor mesh: mesh=%s material=%s texture=%s "
+                     "showing=%d hidden=%d mat_color=(%.3f %.3f %.3f %.3f) "
+                     "blend=%u z=%u use_env=%d prelit=%d cull=%d "
+                     "avg_n=(%.3f %.3f %.3f)\n",
                      mesh.name.c_str(), mesh.material.c_str(),
                      texture.empty() ? "(none)" : texture.c_str(),
                      mesh.showing ? 1 : 0,
                      hidden_meshes.find(mesh.name) != hidden_meshes.end() ? 1
-                                                                          : 0);
-        if (++logged >= 16) break;
+                                                                          : 0,
+                     mat_r, mat_g, mat_b, mat_a, blend, z_mode, use_environ,
+                     prelit, cull, avg_nx, avg_ny, avg_nz);
+        if (++logged >= 64) break;
     }
     if (logged == 0) {
         std::fprintf(stderr,
