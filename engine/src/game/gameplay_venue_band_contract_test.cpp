@@ -4456,6 +4456,10 @@ int main() {
                  "anim.keys_owner=canonical_milo_ref(*keys_owner);",
                  "MatAnim loader preserves source key-owner references");
   ok &= contains(gameplay_c,
+                 "constboolowner_backed=!anim.keys_owner.empty()&&"
+                 "anim.keys_owner!=anim.name;",
+                 "MatAnim loader keeps owner-backed rows before key inheritance");
+  ok &= contains(gameplay_c,
                  "anim.alpha_keys=owner->second.alpha_keys;",
                  "MatAnim owner rows copy authored alpha key data");
   ok &= contains(gameplay_c,
@@ -5419,6 +5423,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "std::unordered_set<std::string>noop_mat_anims;",
                  "EventTrigger MatAnim routing tracks same-MILO zero-channel no-ops");
+  ok &= contains(gameplay_c,
+                 "if(owner!=anim_name)returnfalse;",
+                 "zero-channel MatAnim routing preserves source keys_owner rows");
   ok &= contains(gameplay_c,
                  "noop_mat_anims.find(ref)!=noop_mat_anims.end())return;",
                  "same-MILO zero-channel MatAnim refs are not treated as unsupported routes");

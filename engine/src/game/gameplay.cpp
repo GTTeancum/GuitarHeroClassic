@@ -3937,6 +3937,14 @@ float material_anim_tex_value_to_uv(float value) {
     return value;
 }
 
+bool venue_material_anim_has_channels(
+    const Gameplay::VenueMaterialAnim& anim) {
+    return !anim.color_keys.empty() || anim.has_alpha ||
+           !anim.tex_translation_keys.empty() ||
+           !anim.tex_scale_keys.empty() ||
+           !anim.tex_rotation_keys.empty() || !anim.texture_keys.empty();
+}
+
 std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path) {
@@ -3957,7 +3965,7 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
             if (size < 40) continue;
             uint32_t version = 0;
             std::memcpy(&version, body, sizeof(version));
-            if (version != 7) continue;
+            if (static_cast<uint16_t>(version & 0xffff) != 7) continue;
             size_t pos = 25;
             auto read_string = [&]() {
                 return read_milo_string_advance(body, size, pos, 128);
@@ -4089,10 +4097,9 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
                 }
                 if (texture_count != anim.texture_keys.size()) continue;
             }
-            if (anim.color_keys.empty() && !anim.has_alpha &&
-                anim.tex_translation_keys.empty() &&
-                anim.tex_scale_keys.empty() && anim.tex_rotation_keys.empty() &&
-                anim.texture_keys.empty()) {
+            const bool owner_backed =
+                !anim.keys_owner.empty() && anim.keys_owner != anim.name;
+            if (!venue_material_anim_has_channels(anim) && !owner_backed) {
                 continue;
             }
             out[anim.name] = anim;
@@ -5145,23 +5152,20 @@ load_venue_event_mat_anims(
         std::map<std::string, std::vector<std::string>> filter_group_refs;
         std::map<std::string, Gameplay::VenueAnimFilter> filter_mat_timing;
         std::unordered_set<std::string> noop_mat_anims;
-        auto mat_anim_has_no_channels = [](const uint8_t* body,
-                                           size_t size) -> bool {
+        auto mat_anim_is_true_noop = [](const uint8_t* body, size_t size,
+                                        const std::string& name) -> bool {
             if (size < 40) return false;
             uint32_t version = 0;
             std::memcpy(&version, body, sizeof(version));
-            if (version != 7) return false;
+            if (static_cast<uint16_t>(version & 0xffff) != 7) return false;
             size_t pos = 25;
-            auto read_string = [&]() -> bool {
-                if (pos + 4 > size) return false;
-                uint32_t len = 0;
-                std::memcpy(&len, body + pos, sizeof(len));
-                pos += 4;
-                if (len == 0 || len > 96 || pos + len > size) return false;
-                pos += len;
-                return true;
-            };
-            if (!read_string() || !read_string()) return false;
+            auto material = read_milo_string_advance(body, size, pos, 128);
+            auto keys_owner = read_milo_string_advance(body, size, pos, 128);
+            if (!material || !keys_owner) return false;
+            const std::string anim_name = canonical_milo_ref(name);
+            std::string owner = canonical_milo_ref(*keys_owner);
+            if (owner.empty()) owner = anim_name;
+            if (owner != anim_name) return false;
             for (int i = 0; i < 6; ++i) {
                 if (pos + 4 > size) return false;
                 uint32_t count = 0;
@@ -5174,8 +5178,8 @@ load_venue_event_mat_anims(
         for (const auto& de : dir.entries) {
             if (de.type != "MatAnim" || de.offset + de.size > payload.size())
                 continue;
-            if (mat_anim_has_no_channels(payload.data() + de.offset,
-                                         static_cast<size_t>(de.size))) {
+            if (mat_anim_is_true_noop(payload.data() + de.offset,
+                                      static_cast<size_t>(de.size), de.name)) {
                 noop_mat_anims.insert(canonical_milo_ref(de.name));
             }
         }

@@ -2,6 +2,7 @@
 
 ## Rendering / Asset Format
 
+- 2026-07-12: Venue `RndMatAnim` rows with no local key channels are only treated as true no-ops when their source `keysOwner` is empty/self. Owner-backed rows now stay loadable/routable long enough to inherit keyed material channels, matching ihatecompvir's `RndMatAnim` read order. RedOctane probe `engine/out/redoctane_matanim_owner_probe_20260712_001` confirms `fan_floorspot.mnm` and `smoke_lights.mnm` sample live texture transform channels.
 - 2026-07-12: Small2 empty-target parent `RndTransAnim` rows such as `speaker1.tnm` and `amp4.tnm` stay routable by anim object name for source timing, but do not become render targets because rb3 `RndTransAnim::SetFrame` no-ops when `mTrans` is null. Forced `--diagnostic-venue-event @filter:speaker1_hit_p0_fret2` now logs `source no-op` rows with zero `mesh=speaker1.tnm` render samples; normal autoplay primarily exercises the direct `speaker_cone*.tnm` hit filters.
 - 2026-07-12: RedOctane venue gears are still not complete. Several gears have wrong-facing/local-axis behavior and need active user visual review against original gameplay before marking the venue animation pass done.
 - 2026-07-12: RedOctane gear review should use `GHOGX_LOG_MESH_ANIM_LOCAL=gear_opt` / `GHOGX_LOG_MESH_ANIM_WORLD=gear_opt`; the diagnostics now report the authored animated target kind and parent for each sampled gear mesh.
