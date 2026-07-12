@@ -3213,6 +3213,28 @@ int run_contract() {
   ok &= contains(rb3_mesh_cpp,
                  "END_COPYING_MEMBERSSync(0xBF);",
                  "RB3 runtime Copy syncs final mesh state");
+  ok &= contains(rb3_mesh_cpp,
+                 "RndDrawable*RndMesh::CollideShowing(constSegment&seg,float&f,"
+                 "Plane&pl){",
+                 "RB3 runtime RndMesh CollideShowing body is visible");
+  ok &= contains(rb3_mesh_cpp,
+                 "sLastCollide=-1;if(IsSkinned()||sRawCollide)sega0=seg;"
+                 "else{FastInvert(WorldXfm(),tf58);Multiply(seg.start,tf58,"
+                 "sega0.start);Multiply(seg.end,tf58,sega0.end);}",
+                 "RB3 runtime CollideShowing segment-space branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(mGeomOwner->mBSPTree){if(Intersect(sega0,mGeomOwner->"
+                 "mBSPTree,f,pl)&&f){Multiply(pl,WorldXfm(),pl);returnthis;}}",
+                 "RB3 runtime CollideShowing BSP branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(IsSkinned()&&!sRawCollide){tri.Set(SkinVertex(vert0,0),"
+                 "SkinVertex(vert1,0),SkinVertex(vert2,0));}"
+                 "elsetri.Set(vert0.pos,vert1.pos,vert2.pos);",
+                 "RB3 runtime CollideShowing skinned triangle branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(b1){if(!sRawCollide)Multiply(pl,WorldXfm(),pl);"
+                 "returnthis;}",
+                 "RB3 runtime CollideShowing raw-collision plane gate");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
@@ -3237,6 +3259,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshCopyPlan{",
                  "native exposes RndMesh Copy source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCollideShowingPlan{"
+                 "boolresets_last_collide=true;",
+                 "native exposes RndMesh CollideShowing source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
@@ -3261,6 +3287,11 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceRndMeshCopyPlansource_rndmesh_copy_plan(",
                  "native implements RndMesh Copy source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshCollideShowingPlansource_rndmesh_collide_showing_plan("
+                 "boolis_skinned,boolraw_collide,boolhas_bsp_tree,"
+                 "boolvolume_is_triangles,boolhit)",
+                 "native implements RndMesh CollideShowing source helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -3302,6 +3333,21 @@ int run_contract() {
                  "plan.copies_geometry=true;plan.copy_geometry_with_volume="
                  "!copy_from_max;plan.copies_has_ao_calc=!copy_from_max;}",
                  "native Copy helper mirrors source owner-or-geometry branch");
+  ok &= contains(char_mesh,
+                 "plan.use_original_segment=is_skinned||raw_collide;"
+                 "plan.invert_world_for_segment=!plan.use_original_segment;"
+                 "plan.multiply_segment_start_end=plan.invert_world_for_segment;",
+                 "native CollideShowing helper mirrors segment-space branch");
+  ok &= contains(char_mesh,
+                 "plan.skins_triangle_vertices=plan.checks_triangle_volume&&"
+                 "is_skinned&&!raw_collide;",
+                 "native CollideShowing helper mirrors skinned triangle branch");
+  ok &= contains(char_mesh,
+                 "plan.transforms_bsp_plane_to_world=hit&&plan.checks_bsp_tree;",
+                 "native CollideShowing helper mirrors BSP plane transform");
+  ok &= contains(char_mesh,
+                 "plan.transforms_triangle_plane_to_world=!raw_collide;",
+                 "native CollideShowing helper mirrors raw-collision plane gate");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
@@ -3326,6 +3372,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_copy_plan(",
                  "focused mesh decode test covers RndMesh Copy helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_collide_showing_plan(",
+                 "focused mesh decode test covers RndMesh CollideShowing helper");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_collide_showing_plan` ports the checked",
+                 "document records RndMesh CollideShowing helper");
+  ok &= contains(doc,
+                 "skinned meshes or `sRawCollide` use the incoming segment",
+                 "document records RndMesh CollideShowing segment branch");
+  ok &= contains(doc,
+                 "This does\n    not promote a native point-collision or hair writeback path",
+                 "document keeps RndMesh CollideShowing helper fenced");
   ok &= contains(doc,
                  "| Mesh deformation rows | `rb3-latest/src/system/rndobj/"
                  "MeshDeform.cpp` / `MeshDeform.h` |",

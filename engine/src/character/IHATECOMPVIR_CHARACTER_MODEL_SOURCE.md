@@ -884,6 +884,15 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     copies copy the geometry owner and bones instead; `kCopyFromMax` ORs
     mutable state, skips keep-mesh-data, and only takes the owner/bones branch
     when the source mesh itself has an external geometry owner.
+  - Native `source_rndmesh_collide_showing_plan` ports the checked
+    `RndMesh::CollideShowing` branch contract as deterministic evidence only:
+    skinned meshes or `sRawCollide` use the incoming segment, static non-raw
+    meshes invert `WorldXfm()` and multiply the segment endpoints into mesh
+    space, BSP hits multiply the returned plane by `WorldXfm()`, triangle
+    volume hits skin vertices only for `IsSkinned() && !sRawCollide`, update
+    the running segment end/fraction and last-face index, and multiply the
+    triangle plane by `WorldXfm()` only when raw collision is off. This does
+    not promote a native point-collision or hair writeback path.
 - `rb3-latest/src/system/rndobj/MeshDeform.cpp` and
   `rb3-latest/src/system/rndobj/MeshDeform.h`
   - `RndMeshDeform::VertArray::VertArray` starts with size `0`, data `0`, and

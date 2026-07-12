@@ -672,6 +672,57 @@ int main() {
   CHECK(keep_off.clear_faces);
   CHECK(keep_off.clear_patches);
 
+  const auto collide_static_tri =
+      ghogx::character::source_rndmesh_collide_showing_plan(
+          false, false, false, true, true);
+  CHECK(collide_static_tri.resets_last_collide);
+  CHECK(!collide_static_tri.use_original_segment);
+  CHECK(collide_static_tri.invert_world_for_segment);
+  CHECK(collide_static_tri.multiply_segment_start_end);
+  CHECK(!collide_static_tri.checks_bsp_tree);
+  CHECK(collide_static_tri.checks_triangle_volume);
+  CHECK(!collide_static_tri.skins_triangle_vertices);
+  CHECK(collide_static_tri.uses_raw_vertex_positions);
+  CHECK(collide_static_tri.interpolates_segment_end);
+  CHECK(collide_static_tri.multiplies_hit_fraction);
+  CHECK(collide_static_tri.sets_plane_from_triangle);
+  CHECK(collide_static_tri.records_last_collide_face);
+  CHECK(collide_static_tri.transforms_triangle_plane_to_world);
+  CHECK(collide_static_tri.returns_mesh);
+
+  const auto collide_skinned_tri =
+      ghogx::character::source_rndmesh_collide_showing_plan(
+          true, false, false, true, true);
+  CHECK(collide_skinned_tri.use_original_segment);
+  CHECK(!collide_skinned_tri.invert_world_for_segment);
+  CHECK(collide_skinned_tri.skins_triangle_vertices);
+  CHECK(!collide_skinned_tri.uses_raw_vertex_positions);
+  CHECK(collide_skinned_tri.transforms_triangle_plane_to_world);
+
+  const auto collide_raw_tri =
+      ghogx::character::source_rndmesh_collide_showing_plan(
+          true, true, false, true, true);
+  CHECK(collide_raw_tri.use_original_segment);
+  CHECK(!collide_raw_tri.skins_triangle_vertices);
+  CHECK(collide_raw_tri.uses_raw_vertex_positions);
+  CHECK(!collide_raw_tri.transforms_triangle_plane_to_world);
+
+  const auto collide_bsp =
+      ghogx::character::source_rndmesh_collide_showing_plan(
+          false, false, true, true, true);
+  CHECK(collide_bsp.checks_bsp_tree);
+  CHECK(!collide_bsp.checks_triangle_volume);
+  CHECK(collide_bsp.transforms_bsp_plane_to_world);
+  CHECK(!collide_bsp.transforms_triangle_plane_to_world);
+  CHECK(collide_bsp.returns_mesh);
+
+  const auto collide_miss =
+      ghogx::character::source_rndmesh_collide_showing_plan(
+          false, false, false, true, false);
+  CHECK(collide_miss.checks_triangle_volume);
+  CHECK(!collide_miss.returns_mesh);
+  CHECK(!collide_miss.transforms_triangle_plane_to_world);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);

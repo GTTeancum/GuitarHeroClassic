@@ -359,6 +359,24 @@ struct SourceRndMeshKeepMeshDataPlan {
   bool clear_patches = false;
 };
 
+struct SourceRndMeshCollideShowingPlan {
+  bool resets_last_collide = true;
+  bool use_original_segment = false;
+  bool invert_world_for_segment = false;
+  bool multiply_segment_start_end = false;
+  bool checks_bsp_tree = false;
+  bool checks_triangle_volume = false;
+  bool skins_triangle_vertices = false;
+  bool uses_raw_vertex_positions = false;
+  bool interpolates_segment_end = false;
+  bool multiplies_hit_fraction = false;
+  bool sets_plane_from_triangle = false;
+  bool records_last_collide_face = false;
+  bool transforms_bsp_plane_to_world = false;
+  bool transforms_triangle_plane_to_world = false;
+  bool returns_mesh = false;
+};
+
 int32_t source_rndmesh_max_bones();
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
                                                bool keep_mesh_data);
@@ -373,6 +391,12 @@ SourceRndMeshCountPlan source_rndmesh_set_num_faces_plan(
 SourceRndMeshKeepMeshDataPlan source_rndmesh_set_keep_mesh_data_plan(
     bool current_keep_mesh_data,
     bool requested_keep_mesh_data);
+SourceRndMeshCollideShowingPlan source_rndmesh_collide_showing_plan(
+    bool is_skinned,
+    bool raw_collide,
+    bool has_bsp_tree,
+    bool volume_is_triangles,
+    bool hit);
 
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;

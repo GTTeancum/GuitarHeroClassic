@@ -621,6 +621,37 @@ SourceRndMeshKeepMeshDataPlan source_rndmesh_set_keep_mesh_data_plan(
   return plan;
 }
 
+SourceRndMeshCollideShowingPlan source_rndmesh_collide_showing_plan(
+    bool is_skinned,
+    bool raw_collide,
+    bool has_bsp_tree,
+    bool volume_is_triangles,
+    bool hit) {
+  SourceRndMeshCollideShowingPlan plan;
+  plan.use_original_segment = is_skinned || raw_collide;
+  plan.invert_world_for_segment = !plan.use_original_segment;
+  plan.multiply_segment_start_end = plan.invert_world_for_segment;
+  plan.checks_bsp_tree = has_bsp_tree;
+  plan.checks_triangle_volume = !has_bsp_tree && volume_is_triangles;
+  plan.skins_triangle_vertices =
+      plan.checks_triangle_volume && is_skinned && !raw_collide;
+  plan.uses_raw_vertex_positions =
+      plan.checks_triangle_volume && !plan.skins_triangle_vertices;
+
+  const bool can_hit = hit && (plan.checks_bsp_tree ||
+                              plan.checks_triangle_volume);
+  plan.returns_mesh = can_hit;
+  plan.transforms_bsp_plane_to_world = hit && plan.checks_bsp_tree;
+  if (hit && plan.checks_triangle_volume) {
+    plan.interpolates_segment_end = true;
+    plan.multiplies_hit_fraction = true;
+    plan.sets_plane_from_triangle = true;
+    plan.records_last_collide_face = true;
+    plan.transforms_triangle_plane_to_world = !raw_collide;
+  }
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {
