@@ -684,6 +684,96 @@ void test_mesh() {
   CHECK(!h.showing);
 }
 
+void test_particle_sys_source_order() {
+  std::vector<uint8_t> b;
+  put_u32(b, 27);                // GH2 PS2 RndParticleSys revision.
+  put_zeros(b, 9);               // Hmx::Object metadata.
+  put_u32(b, 4);                 // RndAnimatable revision.
+  put_f32(b, 30.0f);             // anim rate.
+  put_u32(b, 0);                 // anim flags.
+  put_u32(b, 9);                 // RndTransformable revision.
+  put_matrix(b, 1.0f, 2.0f, 3.0f);
+  put_matrix(b, 4.0f, 5.0f, 6.0f);
+  put_u32(b, 2);                 // constraint.
+  put_str(b, "spark_target.trans");
+  b.push_back(1);                // preserve scale.
+  put_str(b, "stage_root.grp");
+  put_u32(b, 3);                 // RndDrawable revision.
+  b.push_back(1);                // showing.
+  put_zeros(b, 16);              // bounding sphere.
+  put_f32(b, 12.0f);             // draw order.
+
+  put_f32(b, 45.0f); put_f32(b, 90.0f);       // life.
+  put_f32(b, -1.0f); put_f32(b, -2.0f); put_f32(b, -3.0f);
+  put_f32(b, 4.0f); put_f32(b, 5.0f); put_f32(b, 6.0f);
+  put_f32(b, 7.0f); put_f32(b, 9.0f);         // speed.
+  put_f32(b, 0.1f); put_f32(b, 0.2f);         // pitch.
+  put_f32(b, 0.3f); put_f32(b, 0.4f);         // yaw.
+  put_f32(b, 10.0f); put_f32(b, 20.0f);       // emit rate.
+  put_f32(b, 2.0f); put_f32(b, 3.0f);         // start size.
+  put_f32(b, -0.5f); put_f32(b, 1.0f);        // delta size.
+  put_f32(b, 0.1f); put_f32(b, 0.2f); put_f32(b, 0.3f); put_f32(b, 0.4f);
+  put_f32(b, 0.5f); put_f32(b, 0.6f); put_f32(b, 0.7f); put_f32(b, 0.8f);
+  put_f32(b, 0.9f); put_f32(b, 0.8f); put_f32(b, 0.7f); put_f32(b, 0.6f);
+  put_f32(b, 0.5f); put_f32(b, 0.4f); put_f32(b, 0.3f); put_f32(b, 0.2f);
+  put_str(b, "spark_bounce.trans");
+  put_f32(b, 0.0f); put_f32(b, 1.0f); put_f32(b, 2.0f);
+  put_str(b, "spark.mat");
+  put_u32(b, 0xA5A5u);
+  put_f32(b, 0.2f); put_f32(b, 0.8f); put_f32(b, 0.4f);
+  put_f32(b, 0.2f); put_f32(b, 0.3f); put_f32(b, 0.4f); put_f32(b, 0.5f);
+  put_f32(b, 0.6f); put_f32(b, 0.7f); put_f32(b, 0.8f); put_f32(b, 0.9f);
+  put_u32(b, 128);
+  put_f32(b, 11.0f); put_f32(b, 13.0f);       // bubble period.
+  put_f32(b, 0.7f); put_f32(b, 1.3f);         // bubble size.
+  b.push_back(1);                             // bubble.
+  put_f32(b, 0.25f);                          // relative motion.
+  put_str(b, "spark_parent.trans");
+  put_str(b, "spark_emitter.mesh");
+  b.push_back(0);                             // preserve particles.
+
+  ParticleSysObj p = decode_particle_sys("sparks.part", b);
+  if (!p.decoded) std::printf("  [FAIL] ParticleSys error: %s\n", p.error.c_str());
+  CHECK(p.decoded);
+  CHECK(p.source_order_decoded);
+  CHECK(p.revision == 27);
+  CHECK(p.anim_revision == 4);
+  CHECK(p.trans_revision == 9);
+  CHECK(p.draw_revision == 3);
+  CHECK(p.parent == "stage_root.grp");
+  CHECK(p.target == "spark_target.trans");
+  CHECK(p.preserve_scale);
+  CHECK(p.material == "spark.mat");
+  CHECK(p.bounce == "spark_bounce.trans");
+  CHECK(p.relative_parent == "spark_parent.trans");
+  CHECK(p.emitter_mesh == "spark_emitter.mesh");
+  CHECK(p.max_particles == 128);
+  CHECK(approx(p.life_min_frames, 45.0f));
+  CHECK(approx(p.life_max_frames, 90.0f));
+  CHECK(approx(p.box_extent_min[1], -2.0f));
+  CHECK(approx(p.box_extent_max[2], 6.0f));
+  CHECK(approx(p.speed_min, 7.0f));
+  CHECK(approx(p.speed_max, 9.0f));
+  CHECK(approx(p.emit_rate_max, 20.0f));
+  CHECK(approx(p.delta_size_min, -0.5f));
+  CHECK(approx(p.start_color_low[2], 0.3f));
+  CHECK(approx(p.end_color_high[3], 0.2f));
+  CHECK(approx(p.force_dir[2], 2.0f));
+  CHECK(p.particle_flags == 0xA5A5u);
+  CHECK(approx(p.grow_ratio, 0.2f));
+  CHECK(approx(p.shrink_ratio, 0.8f));
+  CHECK(approx(p.mid_color_ratio, 0.4f));
+  CHECK(approx(p.mid_color_high[2], 0.8f));
+  CHECK(p.bubble);
+  CHECK(approx(p.bubble_period_max, 13.0f));
+  CHECK(approx(p.bubble_size_min, 0.7f));
+  CHECK(approx(p.relative_motion, 0.25f));
+  CHECK(!p.preserve_particles);
+  std::printf("  [ok] ParticleSys: source rev=%u mat=%s max=%u parent=%s\n",
+              p.revision, p.material.c_str(), p.max_particles,
+              p.parent.c_str());
+}
+
 void test_world_crowd_gh2_matrix_stride() {
   std::vector<uint8_t> b;
   put_u32(b, 6);                 // WorldCrowd revision used by GH2 PS2 chars.
@@ -739,6 +829,7 @@ int main() {
   test_band_placer();
   test_real_menu_band_placers();
   test_mesh();
+  test_particle_sys_source_order();
   test_world_crowd_gh2_matrix_stride();
   std::printf("ALL PASS\n");
   return 0;

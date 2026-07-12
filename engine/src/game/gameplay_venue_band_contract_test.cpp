@@ -5100,10 +5100,19 @@ int main() {
                  "ParticleSysObjdecode_particle_sys",
                  "MILO scene decoder has a ParticleSys decoder");
   ok &= contains(milo_scene_cpp_c,
-                 "constexprsize_tkParticleTransAt=0x19;",
-                 "ParticleSys decoder uses the traced embedded Trans offset");
+                 "part.anim_revision=read_rnd_animatable_source_layout(r);",
+                 "ParticleSys decoder follows source Object/RndAnimatable order");
   ok &= contains(milo_scene_cpp_c,
-                 "part.material=read_cursor_string();",
+                 "read_trans_block(r,part.local,part.world_stored,"
+                 "part.constraint,part.target,part.preserve_scale,"
+                 "part.parent,false,&part.trans_revision);",
+                 "ParticleSys decoder reads the source RndTransformable block");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.draw_revision=read_rnd_drawable_source_layout("
+                 "r,part.showing,part.draw_order);",
+                 "ParticleSys decoder reads the source RndDrawable block");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.material=r.str();",
                  "ParticleSys decoder reads authored material refs in source order");
   ok &= contains(milo_scene_h_c,
                  "std::array<float,4>start_color_low",
@@ -5120,6 +5129,18 @@ int main() {
   ok &= contains(milo_scene_h_c,
                  "uint32_tmax_particles",
                  "MILO scene decoder exposes source ParticleSys max particle count");
+  ok &= contains(milo_scene_h_c,
+                 "uint16_tanim_revision=0;",
+                 "MILO scene ParticleSys records source Animatable revision");
+  ok &= contains(milo_scene_h_c,
+                 "uint16_ttrans_revision=0;",
+                 "MILO scene ParticleSys records source Transformable revision");
+  ok &= contains(milo_scene_h_c,
+                 "uint16_tdraw_revision=0;",
+                 "MILO scene ParticleSys records source Drawable revision");
+  ok &= contains(milo_scene_h_c,
+                 "boolsource_order_decoded=false;",
+                 "MILO scene ParticleSys records source-order decode status");
   ok &= contains(milo_scene_h_c,
                  "uint32_tconstraint=0;",
                  "MILO scene decoder preserves source RndTransformable constraints");
@@ -5198,37 +5219,43 @@ int main() {
                  "boolbubble",
                  "MILO scene decoder exposes source ParticleSys bubble flag");
   ok &= contains(milo_scene_cpp_c,
-                 "part.start_color_low=safe_color(0x50",
-                 "ParticleSys decoder reads source start color low at traced offset");
+                 "part.source_order_decoded=true;",
+                 "ParticleSys decoder marks source-order decode success");
   ok &= contains(milo_scene_cpp_c,
-                 "part.end_color_high=safe_color(0x80",
-                 "ParticleSys decoder reads source end color high at traced offset");
+                 "if(p.source_order_decoded)++source_order_particles;",
+                 "ParticleSys diagnostics count source-order decodes");
   ok &= contains(milo_scene_cpp_c,
-                 "part.life_min_frames=std::max(1.0f,safe_f(0x00",
-                 "ParticleSys decoder reads source life at traced offset");
+                 "part.start_color_low=read_color();",
+                 "ParticleSys decoder reads source start color low in source order");
   ok &= contains(milo_scene_cpp_c,
-                 "part.speed_min=std::max(0.0f,safe_f(0x20",
-                 "ParticleSys decoder reads source speed at traced offset");
+                 "part.end_color_high=read_color();",
+                 "ParticleSys decoder reads source end color high in source order");
   ok &= contains(milo_scene_cpp_c,
-                 "part.start_size_min=std::max(0.0f,safe_f(0x40",
-                 "ParticleSys decoder reads source start size at traced offset");
+                 "part.life_min_frames=std::max(1.0f,life[0]);",
+                 "ParticleSys decoder reads source life before box extents");
   ok &= contains(milo_scene_cpp_c,
-                 "part.delta_size_min=safe_f(0x48",
-                 "ParticleSys decoder reads source delta size at traced offset");
+                 "part.speed_min=std::max(0.0f,speed[0]);",
+                 "ParticleSys decoder reads source speed after box extents");
   ok &= contains(milo_scene_cpp_c,
-                 "part.bounce=read_cursor_string();",
+                 "part.start_size_min=std::max(0.0f,start_size[0]);",
+                 "ParticleSys decoder reads source start size in source order");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.delta_size_min=delta_size[0];",
+                 "ParticleSys decoder reads source delta size in source order");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.bounce=r.str();",
                  "ParticleSys decoder reads source bounce ref after end colors");
   ok &= contains(milo_scene_cpp_c,
-                 "for(float&force:part.force_dir)force=read_cursor_f();",
+                 "read_vec3_to(part.force_dir);",
                  "ParticleSys decoder reads source force vector after bounce");
   ok &= contains(milo_scene_cpp_c,
-                 "part.mid_color_low=read_cursor_color();",
+                 "part.mid_color_low=read_color();",
                  "ParticleSys decoder reads source mid color range");
   ok &= contains(milo_scene_cpp_c,
-                 "part.max_particles=read_cursor_u32();",
+                 "part.max_particles=r.u32();",
                  "ParticleSys decoder reads source max particle count");
   ok &= contains(milo_scene_cpp_c,
-                 "part.bubble=read_cursor_bool();",
+                 "part.bubble=r.u8()!=0;",
                  "ParticleSys decoder reads source bubble flag");
   ok &= contains(renderer_h_c,
                  "set_active_particle_systems",

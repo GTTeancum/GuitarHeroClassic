@@ -365,6 +365,10 @@ struct MeshObj {
 
 struct ParticleSysObj {
   std::string name;
+  uint16_t revision = 0;
+  uint16_t anim_revision = 0;
+  uint16_t trans_revision = 0;
+  uint16_t draw_revision = 0;
   std::string parent;
   std::string material;
   Xfm local;
@@ -420,6 +424,7 @@ struct ParticleSysObj {
   std::string emitter_mesh;
   bool preserve_particles = false;
   uint32_t preserved_particle_count = 0;
+  bool source_order_decoded = false;
   bool decoded = false;
   std::string error;
 };

@@ -370,7 +370,7 @@ uint16_t low_revision(uint32_t combined_revision) {
   return static_cast<uint16_t>(combined_revision & 0xffffu);
 }
 
-void read_rnd_animatable_source_layout(Reader& r) {
+uint16_t read_rnd_animatable_source_layout(Reader& r) {
   const uint16_t anim_revision = low_revision(r.u32());
   if (anim_revision == 0 || anim_revision > 4) {
     throw std::runtime_error("milo_scene: unsupported RndAnimatable revision");
@@ -381,6 +381,7 @@ void read_rnd_animatable_source_layout(Reader& r) {
   } else if (anim_revision > 2) {
     (void)r.u8();
   }
+  return anim_revision;
 }
 
 bool parse_group_source_layout(const std::vector<uint8_t>& body,
@@ -1381,83 +1382,72 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
   ParticleSysObj part;
   part.name = entry_name;
   try {
-    if (body.size() < 0x19 + 4 + 48 + 48 + kObjMeta + 4 + 25) {
-      throw std::runtime_error("milo_scene: ParticleSys body too small");
-    }
-    Reader head(body.data(), body.size());
-    const int32_t version = head.i32();
-    if (version != 27) {
-      throw std::runtime_error("milo_scene: unsupported ParticleSys version");
+    Reader r(body.data(), body.size());
+    part.revision = low_revision(r.u32());
+    if (part.revision != 27) {
+      throw std::runtime_error("milo_scene: unsupported ParticleSys revision");
     }
 
-    // ParticleSys is a Trans subclass, but GH2 PS2 embeds the Trans block after
-    // the object/draw header. The embedded Trans version is at raw +0x19 and is
-    // followed immediately by local/world matrices, the normal 9 Trans bytes,
-    // and the parent string.
-    constexpr size_t kParticleTransAt = 0x19;
-    Reader tr(body.data() + kParticleTransAt, body.size() - kParticleTransAt);
-    const int32_t trans_version = tr.i32();
-    if (trans_version != 9) {
-      throw std::runtime_error("milo_scene: missing ParticleSys Trans block");
+    r.skip(kObjMeta);
+    part.anim_revision = read_rnd_animatable_source_layout(r);
+    read_trans_block(r, part.local, part.world_stored, part.constraint,
+                     part.target, part.preserve_scale, part.parent, false,
+                     &part.trans_revision);
+    if (part.trans_revision != 9) {
+      throw std::runtime_error("milo_scene: unsupported ParticleSys Trans");
     }
-    part.local = tr.matrix();
-    part.world_stored = tr.matrix();
-    part.constraint = tr.u32();
-    part.target = tr.str();
-    part.preserve_scale = tr.u8() != 0;
-    part.parent = tr.str();
+    part.draw_revision =
+        read_rnd_drawable_source_layout(r, part.showing, part.draw_order);
+    if (part.draw_revision != 3) {
+      throw std::runtime_error("milo_scene: unsupported ParticleSys Drawable");
+    }
 
-    const size_t draw_base = kParticleTransAt + tr.pos;
-    if (draw_base + 25 > body.size()) {
-      throw std::runtime_error("milo_scene: truncated ParticleSys Draw block");
-    }
-    int32_t draw_version = 0;
-    std::memcpy(&draw_version, body.data() + draw_base, sizeof(draw_version));
-    if (draw_version != 3) {
-      throw std::runtime_error("milo_scene: unsupported ParticleSys Draw block");
-    }
-    part.showing = body[draw_base + 4] != 0;
-    part.draw_order = read_f32_at(body, draw_base + 21);
-
-    const size_t prop_base = draw_base + 25;
-    auto safe_f = [&](size_t off, float fallback) {
-      if (prop_base + off + 4 > body.size()) return fallback;
-      float value = read_f32_at(body, prop_base + off);
-      return std::isfinite(value) ? value : fallback;
+    auto read_f = [&]() {
+      const float value = r.f32();
+      return std::isfinite(value) ? value : 0.0f;
     };
-    auto safe_color = [&](size_t off,
-                          const std::array<float, 4>& fallback) {
-      std::array<float, 4> color = fallback;
-      for (int i = 0; i < 4; ++i) {
-        color[static_cast<size_t>(i)] =
-            safe_f(off + static_cast<size_t>(i) * 4,
-                   fallback[static_cast<size_t>(i)]);
-      }
+    auto read_vec2 = [&]() {
+      std::array<float, 2> v{};
+      v[0] = read_f();
+      v[1] = read_f();
+      return v;
+    };
+    auto read_vec3_to = [&](float (&dst)[3]) {
+      for (float& value : dst) value = read_f();
+    };
+    auto read_color = [&]() {
+      std::array<float, 4> color{};
+      for (float& channel : color) channel = read_f();
       return color;
     };
-    part.life_min_frames = std::max(1.0f, safe_f(0x00, part.life_min_frames));
-    part.life_max_frames =
-        std::max(part.life_min_frames, safe_f(0x04, part.life_min_frames));
+
+    const std::array<float, 2> life = read_vec2();
+    part.life_min_frames = std::max(1.0f, life[0]);
+    part.life_max_frames = std::max(part.life_min_frames, life[1]);
+    read_vec3_to(part.box_extent_min);
+    read_vec3_to(part.box_extent_max);
     for (int i = 0; i < 3; ++i) {
-      part.box_extent_min[i] = safe_f(0x08 + static_cast<size_t>(i) * 4, 0.0f);
-      part.box_extent_max[i] = safe_f(0x14 + static_cast<size_t>(i) * 4, 0.0f);
       part.velocity_min[i] = part.box_extent_min[i];
       part.velocity_max[i] = part.box_extent_max[i];
     }
-    part.speed_min = std::max(0.0f, safe_f(0x20, part.speed_min));
-    part.speed_max = std::max(part.speed_min, safe_f(0x24, part.speed_min));
-    part.pitch_min = safe_f(0x28, part.pitch_min);
-    part.pitch_max = safe_f(0x2c, part.pitch_min);
-    part.yaw_min = safe_f(0x30, part.yaw_min);
-    part.yaw_max = safe_f(0x34, part.yaw_min);
-    part.emit_rate_min = std::max(0.0f, safe_f(0x38, part.emit_rate_min));
-    part.emit_rate_max =
-        std::max(part.emit_rate_min, safe_f(0x3c, part.emit_rate_min));
-    part.start_size_min = std::max(0.0f, safe_f(0x40, part.start_size_min));
-    part.start_size_max =
-        std::max(part.start_size_min, safe_f(0x44, part.start_size_min));
-    part.delta_size_min = safe_f(0x48, part.delta_size_min);
-    part.delta_size_max = safe_f(0x4c, part.delta_size_min);
+    const std::array<float, 2> speed = read_vec2();
+    part.speed_min = std::max(0.0f, speed[0]);
+    part.speed_max = std::max(part.speed_min, speed[1]);
+    const std::array<float, 2> pitch = read_vec2();
+    part.pitch_min = pitch[0];
+    part.pitch_max = pitch[1];
+    const std::array<float, 2> yaw = read_vec2();
+    part.yaw_min = yaw[0];
+    part.yaw_max = yaw[1];
+    const std::array<float, 2> emit_rate = read_vec2();
+    part.emit_rate_min = std::max(0.0f, emit_rate[0]);
+    part.emit_rate_max = std::max(part.emit_rate_min, emit_rate[1]);
+    const std::array<float, 2> start_size = read_vec2();
+    part.start_size_min = std::max(0.0f, start_size[0]);
+    part.start_size_max = std::max(part.start_size_min, start_size[1]);
+    const std::array<float, 2> delta_size = read_vec2();
+    part.delta_size_min = delta_size[0];
+    part.delta_size_max = delta_size[1];
     part.lifetime_min = std::max(0.05f, part.life_min_frames / 30.0f);
     part.lifetime_max =
         std::max(part.lifetime_min, part.life_max_frames / 30.0f);
@@ -1468,81 +1458,53 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
                              part.size_start +
                                  (part.delta_size_min + part.delta_size_max) *
                                      0.5f);
-    part.start_color_low = safe_color(0x50, part.start_color_low);
-    part.start_color_high = safe_color(0x60, part.start_color_high);
-    part.end_color_low = safe_color(0x70, part.end_color_low);
-    part.end_color_high = safe_color(0x80, part.end_color_high);
+    part.start_color_low = read_color();
+    part.start_color_high = read_color();
+    part.end_color_low = read_color();
+    part.end_color_high = read_color();
 
-    size_t particle_pos = prop_base + 0x90;
-    auto read_cursor_f = [&]() {
-      const float value = read_f32_at(body, particle_pos);
-      particle_pos += 4;
-      return std::isfinite(value) ? value : 0.0f;
-    };
-    auto read_cursor_u32 = [&]() {
-      const uint32_t value = read_u32_at(body, particle_pos);
-      particle_pos += 4;
-      return value;
-    };
-    auto read_cursor_bool = [&]() {
-      if (particle_pos >= body.size()) {
-        throw std::runtime_error("milo_scene: ParticleSys bool past end");
-      }
-      return body[particle_pos++] != 0;
-    };
-    auto read_cursor_string = [&]() {
-      return read_string_at(body, particle_pos);
-    };
-    auto read_cursor_vec2 = [&]() {
-      std::array<float, 2> v{};
-      v[0] = read_cursor_f();
-      v[1] = read_cursor_f();
-      return v;
-    };
-    auto read_cursor_color = [&]() {
-      std::array<float, 4> color{};
-      for (float& channel : color) channel = read_cursor_f();
-      return color;
-    };
-    part.bounce = read_cursor_string();
-    for (float& force : part.force_dir) force = read_cursor_f();
-    part.material = read_cursor_string();
-    part.particle_flags = read_cursor_u32();
-    part.grow_ratio = std::clamp(read_cursor_f(), 0.0f, 1.0f);
-    part.shrink_ratio = std::clamp(read_cursor_f(), 0.0f, 1.0f);
+    part.bounce = r.str();
+    read_vec3_to(part.force_dir);
+    part.material = r.str();
+    part.particle_flags = r.u32();
+    part.grow_ratio = std::clamp(read_f(), 0.0f, 1.0f);
+    part.shrink_ratio = std::clamp(read_f(), 0.0f, 1.0f);
     if (part.shrink_ratio < part.grow_ratio) {
       part.shrink_ratio = part.grow_ratio;
     }
-    part.mid_color_ratio = std::clamp(read_cursor_f(), 0.0f, 1.0f);
-    part.mid_color_low = read_cursor_color();
-    part.mid_color_high = read_cursor_color();
-    part.max_particles = read_cursor_u32();
-    const std::array<float, 2> bubble_period = read_cursor_vec2();
+    part.mid_color_ratio = std::clamp(read_f(), 0.0f, 1.0f);
+    part.mid_color_low = read_color();
+    part.mid_color_high = read_color();
+    part.max_particles = r.u32();
+    const std::array<float, 2> bubble_period = read_vec2();
     part.bubble_period_min = std::max(0.001f, bubble_period[0]);
     part.bubble_period_max =
         std::max(part.bubble_period_min, bubble_period[1]);
-    const std::array<float, 2> bubble_size = read_cursor_vec2();
+    const std::array<float, 2> bubble_size = read_vec2();
     part.bubble_size_min = bubble_size[0];
     part.bubble_size_max = bubble_size[1];
-    part.bubble = read_cursor_bool();
-    part.relative_motion = read_cursor_f();
-    part.relative_parent = read_cursor_string();
-    part.emitter_mesh = read_cursor_string();
-    part.preserve_particles = read_cursor_bool();
+    part.bubble = r.u8() != 0;
+    part.relative_motion = read_f();
+    part.relative_parent = r.str();
+    part.emitter_mesh = r.str();
+    part.preserve_particles = r.u8() != 0;
     if (part.preserve_particles) {
-      part.preserved_particle_count = read_cursor_u32();
+      part.preserved_particle_count = r.u32();
       constexpr size_t kPreservedParticleBytes = 9 * sizeof(float);
       const size_t preserved_bytes =
           static_cast<size_t>(part.preserved_particle_count) *
           kPreservedParticleBytes;
-      if (particle_pos + preserved_bytes > body.size()) {
+      if (part.preserved_particle_count >
+              body.size() / kPreservedParticleBytes ||
+          r.pos + preserved_bytes > body.size()) {
         throw std::runtime_error("milo_scene: preserved ParticleSys list past end");
       }
-      particle_pos += preserved_bytes;
+      r.skip(preserved_bytes);
     }
     if (part.material.empty()) {
       throw std::runtime_error("milo_scene: ParticleSys has no material ref");
     }
+    part.source_order_decoded = true;
     part.decoded = true;
   } catch (const std::exception& ex) {
     part.error = ex.what();
@@ -1891,6 +1853,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
 
     int mesh_ok = 0, mesh_fail = 0;
     int particle_ok = 0, particle_fail = 0;
+    size_t source_order_particles = 0;
     int world_crowd_ok = 0, world_crowd_fail = 0;
     for (const auto& de : dir.entries) {
       std::vector<uint8_t> b(payload.data() + de.offset,
@@ -1925,6 +1888,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           ParticleSysObj p = decode_particle_sys(de.name, b);
           p.dir_index = &de - dir.entries.data();
           if (p.decoded) ++particle_ok; else ++particle_fail;
+          if (p.source_order_decoded) ++source_order_particles;
           if (p.decoded && debug_particle_decode_enabled()) {
             const auto avg = [](const std::array<float, 4>& low,
                                 const std::array<float, 4>& high,
@@ -1933,9 +1897,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
             };
             std::fprintf(
                 stderr,
-                "[milo_scene] ParticleSys %s material=%s max_parts=%u life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) mid_ratio=%.3f mid_low=(%.3f %.3f %.3f %.3f) mid_high=(%.3f %.3f %.3f %.3f) mid_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f) force=(%.3f %.3f %.3f) grow=%.3f shrink=%.3f bubble=%d bubble_period=(%.3f %.3f) bubble_size=(%.3f %.3f) bounce=%s rel=(%.3f,%s) mesh=%s preserve=%d preserved=%u\n",
-                p.name.c_str(), p.material.c_str(),
-                p.max_particles,
+                "[milo_scene] ParticleSys %s source_order=%d rev=%u anim_rev=%u trans_rev=%u draw_rev=%u material=%s max_parts=%u life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) mid_ratio=%.3f mid_low=(%.3f %.3f %.3f %.3f) mid_high=(%.3f %.3f %.3f %.3f) mid_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f) force=(%.3f %.3f %.3f) grow=%.3f shrink=%.3f bubble=%d bubble_period=(%.3f %.3f) bubble_size=(%.3f %.3f) bounce=%s rel=(%.3f,%s) mesh=%s preserve=%d preserved=%u\n",
+                p.name.c_str(), p.source_order_decoded ? 1 : 0,
+                p.revision, p.anim_revision, p.trans_revision,
+                p.draw_revision, p.material.c_str(), p.max_particles,
                 p.life_min_frames, p.life_max_frames, p.speed_min,
                 p.speed_max, p.emit_rate_min, p.emit_rate_max,
                 p.start_size_min, p.start_size_max, p.delta_size_min,
@@ -2016,11 +1981,11 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       if (group.source_order_decoded) ++source_order_groups;
     }
     std::fprintf(stderr,
-                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group (%zu source-order), %zu world_crowd (%d ok / %d fail)\n",
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail, %zu source-order), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group (%zu source-order), %zu world_crowd (%d ok / %d fail)\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.particles.size(), particle_ok, particle_fail,
-                 out.transes.size(), out.mats.size(), out.cams.size(),
-                 out.waypoints.size(), out.groups.size(),
+                 source_order_particles, out.transes.size(), out.mats.size(),
+                 out.cams.size(), out.waypoints.size(), out.groups.size(),
                  source_order_groups, out.world_crowds.size(), world_crowd_ok,
                  world_crowd_fail);
     if (!out.spotlights.empty()) {
