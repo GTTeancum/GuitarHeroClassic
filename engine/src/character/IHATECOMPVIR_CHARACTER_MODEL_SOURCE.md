@@ -878,6 +878,13 @@ note, and all report `unreadBytes=0`.
     world write, parent-space clamp, smoothing, test/show range, jitter, and
     roll/no-roll local write branches. This remains a branch contract only; it
     does not synthesize the missing final pivot transform math.
+  - Native `source_char_lookat_source_radius_offset` ports the concrete
+    source-radius branch inside `CharLookAt::Poll`: when `mSourceRadius > 0`,
+    positive delta blends `vec80` 10% toward source world Y, computes `v108 =
+    sourceY - vec80`, converts source radius degrees to radians, and clamps
+    `v108` length to that radius. This preserves the pre-parent-space offset
+    only; it does not subtract the transformed offset from a live look-at
+    vector.
   - Native `source_char_lookat_yaw_weight_step` ports the concrete
     `mMinWeightYaw >= 0` branch inside `CharLookAt::Poll`: it normalizes the
     source world Y row before flattening Z, computes the same clamped dot,

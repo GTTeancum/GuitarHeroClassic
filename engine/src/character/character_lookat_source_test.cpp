@@ -50,6 +50,7 @@ int main() {
   using ghogx::character::source_char_lookat_set_min_pitch;
   using ghogx::character::source_char_lookat_set_min_yaw;
   using ghogx::character::source_char_lookat_smooth_dir;
+  using ghogx::character::source_char_lookat_source_radius_offset;
   using ghogx::character::source_char_lookat_sync_limits;
 
   bool ok = true;
@@ -354,6 +355,43 @@ int main() {
   ok &= near(show_case_4.dir[0], asymmetric.max[0], "show range case4 x");
   ok &= near(show_case_4.dir[1], asymmetric.min[1], "show range case4 y");
   ok &= near(show_case_4.dir[2], asymmetric.max[2], "show range case4 z");
+
+  const auto radius_disabled = source_char_lookat_source_radius_offset(
+      0.0f, 0.25f, {0.0f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f});
+  ok &= expect_bool(radius_disabled.active, false,
+                    "source-radius disabled inactive");
+  ok &= near(radius_disabled.history[1], 0.5f,
+             "source-radius disabled keeps history");
+  ok &= near(radius_disabled.offset[1], 0.0f,
+             "source-radius disabled keeps zero offset");
+
+  const auto radius_step = source_char_lookat_source_radius_offset(
+      90.0f, 0.25f, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+  ok &= expect_bool(radius_step.active, true, "source-radius active");
+  ok &= expect_bool(radius_step.updated_history, true,
+                    "source-radius positive delta updates history");
+  ok &= expect_bool(radius_step.clamped_to_radius, false,
+                    "source-radius wide radius no clamp");
+  ok &= near(radius_step.radius_radians, 1.57079637f,
+             "source-radius degrees to radians");
+  ok &= near(radius_step.history[1], 0.1f, "source-radius 0.1 history blend");
+  ok &= near(radius_step.offset[1], 0.9f, "source-radius offset after blend");
+  ok &= near(radius_step.pre_clamp_length_sq, 0.81f,
+             "source-radius pre-clamp length");
+
+  const auto source_radius_clamped_offset =
+      source_char_lookat_source_radius_offset(
+          10.0f, 0.0f, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+  ok &= expect_bool(source_radius_clamped_offset.updated_history, false,
+                    "source-radius zero delta keeps history");
+  ok &= expect_bool(source_radius_clamped_offset.clamped_to_radius, true,
+                    "source-radius clamped offset");
+  ok &= near(source_radius_clamped_offset.radius_radians, 0.17453292f,
+             "source-radius clamp radians");
+  ok &= near(source_radius_clamped_offset.pre_clamp_length_sq, 1.0f,
+             "source-radius clamp pre length");
+  ok &= near(source_radius_clamped_offset.offset[1], 0.17453292f,
+             "source-radius clamped y offset");
 
   return ok ? 0 : 1;
 }

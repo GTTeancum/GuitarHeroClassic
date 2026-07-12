@@ -1452,6 +1452,43 @@ SourceCharLookAtRangeResult source_char_lookat_range_dir(
   return result;
 }
 
+SourceCharLookAtSourceRadiusResult source_char_lookat_source_radius_offset(
+    float source_radius_degrees,
+    float delta_seconds,
+    std::array<float, 3> previous_history,
+    std::array<float, 3> source_world_y) {
+  SourceCharLookAtSourceRadiusResult result;
+  result.history = previous_history;
+  if (source_radius_degrees <= 0.0f) return result;
+
+  result.active = true;
+  if (delta_seconds > 0.0f) {
+    result.updated_history = true;
+    for (int axis = 0; axis < 3; ++axis) {
+      result.history[axis] =
+          previous_history[axis] +
+          (source_world_y[axis] - previous_history[axis]) * 0.1f;
+    }
+  }
+
+  for (int axis = 0; axis < 3; ++axis) {
+    result.offset[axis] = source_world_y[axis] - result.history[axis];
+    result.pre_clamp_length_sq += result.offset[axis] * result.offset[axis];
+  }
+
+  constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+  result.radius_radians = source_radius_degrees * kDegToRad;
+  const float radius_sq = result.radius_radians * result.radius_radians;
+  if (radius_sq < result.pre_clamp_length_sq &&
+      result.pre_clamp_length_sq > 0.0f) {
+    const float scale =
+        result.radius_radians / std::sqrt(result.pre_clamp_length_sq);
+    for (float& value : result.offset) value *= scale;
+    result.clamped_to_radius = true;
+  }
+  return result;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------

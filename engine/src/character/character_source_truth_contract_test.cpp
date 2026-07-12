@@ -9040,6 +9040,17 @@ int run_contract() {
                  "if(mSourceRadius>0.0f){if(TheTaskMgr.DeltaSeconds()>0.0f){",
                  "RB3 CharLookAt Poll gates source-radius history on positive delta");
   ok &= contains(rb3_char_lookat_cpp,
+                 "Interp(vec80,srcTrans->WorldXfm().m.y,0.1f,vec80);",
+                 "RB3 CharLookAt Poll source-radius history interpolates by 0.1");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "Subtract(srcTrans->WorldXfm().m.y,vec80,v108);"
+                 "floatv108sq=LengthSquared(v108);floatsrcrad="
+                 "mSourceRadius*DEG2RAD;",
+                 "RB3 CharLookAt Poll computes source-radius offset and radius");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(srcrad*srcrad<v108sq){v108*=srcrad/std::sqrt(v108sq);}",
+                 "RB3 CharLookAt Poll clamps source-radius offset length");
+  ok &= contains(rb3_char_lookat_cpp,
                  "if(srcTrans!=mPivot){Transformtf90(mPivot->WorldXfm());",
                  "RB3 CharLookAt Poll separates source and pivot transform path");
   ok &= contains(rb3_char_lookat_cpp,
@@ -9226,6 +9237,11 @@ int run_contract() {
                  "boolforce_weight_one=false;intshow_range_case=-1;",
                  "native header exposes CharLookAt range result");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtSourceRadiusResult{boolactive=false;"
+                 "boolupdated_history=false;boolclamped_to_radius=false;"
+                 "floatradius_radians=0.0f;floatpre_clamp_length_sq=0.0f;",
+                 "native header exposes CharLookAt source-radius result");
+  ok &= contains(char_clip_h,
                  "boolwrite_pivot_world_to_source=false;boolnormalize_dest_vector=false;",
                  "native header exposes CharLookAt source/pivot branch flags");
   ok &= contains(char_clip_h,
@@ -9307,6 +9323,12 @@ int run_contract() {
                  "floattest_range_pitch,floattest_range_yaw,boolshow_range,"
                  "intseconds);",
                  "native header exposes CharLookAt range helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtSourceRadiusResultsource_char_lookat_source_radius_offset("
+                 "floatsource_radius_degrees,floatdelta_seconds,"
+                 "std::array<float,3>previous_history,std::array<float,3>"
+                 "source_world_y);",
+                 "native header exposes CharLookAt source-radius helper");
   ok &= contains(char_clip,
                  "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
                  "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
@@ -9502,6 +9524,36 @@ int run_contract() {
   ok &= contains(char_clip,
                  "case1:result.dir={0.0f,bounds.min[2],bounds.max[0]};break;",
                  "native CharLookAt range helper preserves source case one axes");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtSourceRadiusResultsource_char_lookat_source_radius_offset("
+                 "floatsource_radius_degrees,floatdelta_seconds,"
+                 "std::array<float,3>previous_history,std::array<float,3>"
+                 "source_world_y){",
+                 "native CharLookAt source-radius helper is implemented");
+  ok &= contains(char_clip,
+                 "if(source_radius_degrees<=0.0f)returnresult;result.active=true;"
+                 "if(delta_seconds>0.0f){result.updated_history=true;",
+                 "native CharLookAt source-radius helper ports gate and history branch");
+  ok &= contains(char_clip,
+                 "result.history[axis]=previous_history[axis]+("
+                 "source_world_y[axis]-previous_history[axis])*0.1f;",
+                 "native CharLookAt source-radius helper ports 0.1 interpolation");
+  ok &= contains(char_clip,
+                 "result.offset[axis]=source_world_y[axis]-result.history[axis];"
+                 "result.pre_clamp_length_sq+=result.offset[axis]*"
+                 "result.offset[axis];",
+                 "native CharLookAt source-radius helper computes pre-clamp offset");
+  ok &= contains(char_clip,
+                 "result.radius_radians=source_radius_degrees*kDegToRad;",
+                 "native CharLookAt source-radius helper converts degrees to radians");
+  ok &= contains(char_clip,
+                 "if(radius_sq<result.pre_clamp_length_sq&&"
+                 "result.pre_clamp_length_sq>0.0f){",
+                 "native CharLookAt source-radius helper ports clamp condition");
+  ok &= contains(char_clip,
+                 "constfloatscale=result.radius_radians/std::sqrt("
+                 "result.pre_clamp_length_sq);",
+                 "native CharLookAt source-radius helper ports clamp scale");
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
                  "focused CharLookAt source test covers default source limits");
@@ -9576,6 +9628,12 @@ int run_contract() {
                  "source_char_lookat_range_dir(",
                  "focused CharLookAt source test covers range helper");
   ok &= contains(lookat_source_test,
+                 "source_char_lookat_source_radius_offset(",
+                 "focused CharLookAt source test covers source-radius helper");
+  ok &= contains(lookat_source_test,
+                 "\"source-radiusclampedoffset\"",
+                 "focused CharLookAt source test covers clamped source-radius branch");
+  ok &= contains(lookat_source_test,
                  "\"showrangecase1sourceyusesminz\"",
                  "focused CharLookAt source test pins show range case one axes");
   ok &= contains(mesh_decode_test,
@@ -9631,6 +9689,16 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_lookat_range_dir` ports the following",
                  "document records CharLookAt range helper");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_source_radius_offset` ports the concrete",
+                 "document records CharLookAt source-radius helper");
+  ok &= contains(doc,
+                 "positive delta blends `vec80` 10% toward source world Y",
+                 "document records CharLookAt source-radius history blend");
+  ok &= contains(doc,
+                 "does not subtract the transformed offset from a live look-at\n"
+                 "    vector",
+                 "document fences CharLookAt source-radius helper from live publishing");
   ok &= contains(doc,
                  "case-1 `Set(0, mBounds.mMin.z, mBounds.mMax.x)`",
                  "document pins CharLookAt show range case one axes");

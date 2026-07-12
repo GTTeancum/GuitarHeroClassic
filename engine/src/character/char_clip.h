@@ -536,6 +536,16 @@ struct SourceCharLookAtRangeResult {
   std::array<float, 3> dir = {0.0f, 1.0f, 0.0f};
 };
 
+struct SourceCharLookAtSourceRadiusResult {
+  bool active = false;
+  bool updated_history = false;
+  bool clamped_to_radius = false;
+  float radius_radians = 0.0f;
+  float pre_clamp_length_sq = 0.0f;
+  std::array<float, 3> history = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> offset = {0.0f, 0.0f, 0.0f};
+};
+
 struct SourceCharLookAtLoadPlan {
   bool revision_supported = false;
   std::vector<std::string> read_order;
@@ -1768,6 +1778,11 @@ SourceCharLookAtRangeResult source_char_lookat_range_dir(
     float test_range_yaw,
     bool show_range,
     int seconds);
+SourceCharLookAtSourceRadiusResult source_char_lookat_source_radius_offset(
+    float source_radius_degrees,
+    float delta_seconds,
+    std::array<float, 3> previous_history,
+    std::array<float, 3> source_world_y);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.
