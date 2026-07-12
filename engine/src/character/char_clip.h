@@ -280,6 +280,16 @@ struct SourceCharBoneDirInitPlan {
   std::vector<std::string> failed_load_resources;
 };
 
+struct SourceCharBoneDirTerminatePlan {
+  bool deletes_resources = true;
+  bool clears_resources_pointer = false;
+};
+
+struct SourceCharBoneDirFindResourceResult {
+  bool found = false;
+  std::string resource_name;
+};
+
 struct SourceCharBoneDirResourceLookupResult {
   bool clip_type_found = false;
   bool resource_field_found = false;
@@ -1776,6 +1786,10 @@ SourceCharBoneDirInitPlan source_char_bone_dir_init_plan(
     const std::string& resource_path,
     bool has_clip_types,
     const std::vector<SourceCharBoneDirInitClipTypeRow>& clip_types);
+SourceCharBoneDirTerminatePlan source_char_bone_dir_terminate_plan();
+SourceCharBoneDirFindResourceResult source_char_bone_dir_find_resource(
+    const std::vector<std::string>& loaded_resources,
+    const std::string& resource_name);
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

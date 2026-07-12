@@ -14502,11 +14502,30 @@ int run_contract() {
                  "boolreads_char_clip_types=true;",
                  "native API exposes source CharBoneDir Init plan row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirTerminatePlan{"
+                 "booldeletes_resources=true;"
+                 "boolclears_resources_pointer=false;};",
+                 "native API exposes source CharBoneDir Terminate plan row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirFindResourceResult{"
+                 "boolfound=false;std::stringresource_name;};",
+                 "native API exposes source CharBoneDir FindResource result row");
+  ok &= contains(char_clip_h,
                  "structSourceCharBoneDirResourceLookupResult{"
                  "boolclip_type_found=false;boolresource_field_found=false;"
                  "boolresource_found=false;std::stringresource_name;"
                  "intcontext_mask=0;std::stringwarning;};",
                  "native API exposes source CharBoneDir resource lookup row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirTerminatePlan"
+                 "source_char_bone_dir_terminate_plan();",
+                 "native API exposes source CharBoneDir Terminate helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirFindResourceResult"
+                 "source_char_bone_dir_find_resource("
+                 "conststd::vector<std::string>&loaded_resources,"
+                 "conststd::string&resource_name);",
+                 "native API exposes source CharBoneDir FindResource helper");
   ok &= contains(char_clip_h,
                  "std::vector<std::string>source_char_bone_dir_get_clip_types("
                  "conststd::vector<SourceCharBoneDirClipTypeResource>&clip_types);",
@@ -14760,6 +14779,24 @@ int run_contract() {
                  "row.resource_name+\".milo\");",
                  "native CharBoneDir Init helper builds source load path");
   ok &= contains(char_clip,
+                 "SourceCharBoneDirTerminatePlan"
+                 "source_char_bone_dir_terminate_plan(){"
+                 "returnSourceCharBoneDirTerminatePlan{};}",
+                 "native CharBoneDir Terminate helper mirrors source delete-only plan");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirFindResourceResult"
+                 "source_char_bone_dir_find_resource("
+                 "conststd::vector<std::string>&loaded_resources,"
+                 "conststd::string&resource_name){"
+                 "SourceCharBoneDirFindResourceResultresult;"
+                 "result.resource_name=resource_name;",
+                 "native CharBoneDir FindResource helper stores queried name");
+  ok &= contains(char_clip,
+                 "result.found=std::find(loaded_resources.begin(),"
+                 "loaded_resources.end(),resource_name)!="
+                 "loaded_resources.end();returnresult;}",
+                 "native CharBoneDir FindResource helper mirrors exact lookup");
+  ok &= contains(char_clip,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
                  "intmove_context,intcontext_mask,boolinclude_delta_facing,"
@@ -14949,6 +14986,21 @@ int run_contract() {
                  "`source_char_bone_dir_init_plan` ports this startup preload",
                  "document records native CharBoneDir Init helper boundary");
   ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharBoneDir.cpp` is the current source",
+                 "document cites exact latest CharBoneDir source file");
+  ok &= contains(doc,
+                 "`CharBoneDir::Terminate` only deletes the shared `sResources` directory",
+                 "document records source CharBoneDir Terminate semantics");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_terminate_plan` records those exact lifecycle",
+                 "document records native CharBoneDir Terminate helper");
+  ok &= contains(doc,
+                 "`CharBoneDir::FindResource` delegates directly to",
+                 "document records source CharBoneDir FindResource behavior");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_find_resource` ports that exact-name lookup",
+                 "document records native CharBoneDir FindResource helper");
+  ok &= contains(doc,
                  "`CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols",
                  "document records source CharBoneDir GetContextFlags behavior");
   ok &= contains(doc,
@@ -15023,6 +15075,13 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_object_prop_sync_plan()",
                  "focused CharBones source test covers CharBonesObject prop-sync");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_terminate_plan()",
+                 "focused CharBones source test covers CharBoneDir Terminate helper");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_find_resource({\"lead_resource\","
+                 "\"band_resource\"},\"band_resource\")",
+                 "focused CharBones source test covers CharBoneDir direct resource lookup");
   ok &= contains(doc,
                  "`source_char_bone_handler_plan` records the checked handler table",
                  "document records CharBone handler import");
@@ -15270,6 +15329,13 @@ int run_contract() {
                  "CharBoneDir*dir=FindResource(resources->Str(1));if(!dir)"
                  "MILO_WARN(\"CharClip%shasnoresource\",cliptype);returndir;",
                  "latest CharBoneDir source defines resource lookup branch");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::Terminate(){deletesResources;}",
+                 "latest CharBoneDir source deletes shared resources on terminate");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "CharBoneDir*CharBoneDir::FindResource(constchar*cc){"
+                 "returnsResources->Find<CharBoneDir>(cc,false);}",
+                 "latest CharBoneDir source defines direct resource lookup");
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "voidCharBoneDir::StuffBones(CharBones&bones,Symbolsym){"
                  "DataArray*found=sCharClipTypes->FindArray(sym,false);",

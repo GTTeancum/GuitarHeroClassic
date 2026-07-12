@@ -663,6 +663,20 @@ SourceCharBoneDirInitPlan source_char_bone_dir_init_plan(
   return plan;
 }
 
+SourceCharBoneDirTerminatePlan source_char_bone_dir_terminate_plan() {
+  return SourceCharBoneDirTerminatePlan{};
+}
+
+SourceCharBoneDirFindResourceResult source_char_bone_dir_find_resource(
+    const std::vector<std::string>& loaded_resources,
+    const std::string& resource_name) {
+  SourceCharBoneDirFindResourceResult result;
+  result.resource_name = resource_name;
+  result.found = std::find(loaded_resources.begin(), loaded_resources.end(),
+                           resource_name) != loaded_resources.end();
+  return result;
+}
+
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

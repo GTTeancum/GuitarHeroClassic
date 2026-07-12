@@ -2116,6 +2116,9 @@ note, and all report `unreadBytes=0`.
     `ReallocateInternal` then looks up `bone_facing_delta.pos`,
     `bone_facing.pos`, `bone_pelvis`, `bone_facing.rotz`, and
     `bone_facing_delta.rotz` from the source bone data.
+  - `rb3-latest/src/system/char/CharBoneDir.cpp` is the current source
+    authority for resource lookup, clip-type bone stuffing, and character bone
+    directory load/copy/property rows.
   - `CharBoneDir::ListBones` adds `bone_facing.pos` and
     `bone_facing.rotz` when `mMoveContext` intersects the requested mask, adds
     `bone_facing_delta.pos` and `bone_facing_delta.rotz` when the caller asks
@@ -2143,6 +2146,15 @@ note, and all report `unreadBytes=0`.
     `source_char_bone_dir_init_plan` ports this startup preload as a
     deterministic plan only; it does not perform live resource loading or
     replace the runtime `ObjectDir` ownership path.
+  - `CharBoneDir::Terminate` only deletes the shared `sResources` directory; the
+    checked source does not clear that static pointer afterward. Native
+    `source_char_bone_dir_terminate_plan` records those exact lifecycle
+    semantics without changing app shutdown.
+  - `CharBoneDir::FindResource` delegates directly to
+    `sResources->Find<CharBoneDir>(name, false)`. Native
+    `source_char_bone_dir_find_resource` ports that exact-name lookup over a
+    supplied resource list only; warnings and clip-type resource handling stay
+    in the `FindResourceFromClipType` helper.
   - `CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols only
     while `mContextFlags` is still the constructor integer node. The source
     scans `CharClip` type rows with `(resource ...)` entries matching the

@@ -909,6 +909,23 @@ int main() {
                     "CharBoneDir Init records failed load");
   ok &= expect_string(dir_init.failed_load_resources[0], "failed_resource",
                       "CharBoneDir Init failed resource name");
+  const SourceCharBoneDirTerminatePlan dir_terminate =
+      source_char_bone_dir_terminate_plan();
+  ok &= expect_int(dir_terminate.deletes_resources ? 1 : 0, 1,
+                   "CharBoneDir Terminate deletes resources");
+  ok &= expect_int(dir_terminate.clears_resources_pointer ? 1 : 0, 0,
+                   "CharBoneDir Terminate does not clear pointer in source");
+  const SourceCharBoneDirFindResourceResult direct_resource =
+      source_char_bone_dir_find_resource({"lead_resource", "band_resource"},
+                                         "band_resource");
+  ok &= expect_int(direct_resource.found ? 1 : 0, 1,
+                   "CharBoneDir FindResource exact hit");
+  ok &= expect_string(direct_resource.resource_name, "band_resource",
+                      "CharBoneDir FindResource queried name");
+  const SourceCharBoneDirFindResourceResult direct_missing_resource =
+      source_char_bone_dir_find_resource({"lead_resource"}, "band_resource");
+  ok &= expect_int(direct_missing_resource.found ? 1 : 0, 0,
+                   "CharBoneDir FindResource exact miss");
 
   std::vector<CharClip::OutputBone> dir_output_bones;
   dir_output_bones.push_back(output);
