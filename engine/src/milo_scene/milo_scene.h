@@ -42,7 +42,10 @@
 //     u8    cull
 //
 //   Mesh  (version 0x1c = 28):
-//     Trans base   (version 9 + 9 + 48 + 48 + 9 + parent string, as above)
+//     9 bytes      Hmx::Object base metadata
+//     Trans base   (version 9 + 48 + 48 + constraint + target +
+//                  preserve_scale + parent string, as above, without another
+//                  Object metadata block)
 //                  The second matrix is preserved as the runtime world matrix;
 //                  venue/prop rendering uses it when it carries resolved
 //                  hierarchy state, falling back to local-parent composition

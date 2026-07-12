@@ -123,14 +123,16 @@ bool is_environ_light_ref(std::string_view ref) {
   return true;
 }
 
-// Read the Trans portion that every Trans/Mesh starts with, leaving the cursor
-// just past the Trans parent string. Returns the source transform state.
+// Read the RndTrans portion that standalone Trans and transformable subclasses
+// share, leaving the cursor just past the Trans parent string.
 void read_trans_block(Reader& r, Xfm& local, Xfm& world, uint32_t& constraint,
                       std::string& target, bool& preserve_scale,
-                      std::string& parent) {
+                      std::string& parent, bool read_object_meta) {
   int32_t ver = r.i32();
-  (void)ver;                 // = 9 for standalone Trans; embedded Mesh uses 0
-  r.skip(kObjMeta);          // Hmx::Object base metadata (zeros)
+  (void)ver;                 // = 9 for GH2 RndTrans
+  if (read_object_meta) {
+    r.skip(kObjMeta);        // Hmx::Object base metadata (standalone Trans)
+  }
   local = r.matrix();        // matrix 1 (local)
   world = r.matrix();        // matrix 2 (world as stored)
   constraint = r.u32();      // RndTransformable::Constraint
@@ -586,7 +588,7 @@ TransObj decode_trans(const std::string& entry_name,
   TransObj t;
   t.name = entry_name;
   read_trans_block(r, t.local, t.world_stored, t.constraint, t.target,
-                   t.preserve_scale, t.parent);
+                   t.preserve_scale, t.parent, true);
   return t;
 }
 
@@ -1034,10 +1036,11 @@ MeshObj decode_mesh(const std::string& entry_name,
       // Not fatal — some mesh variants exist — but record it.
       mesh.error = "unexpected mesh version " + std::to_string(ver);
     }
-    // Trans base.
+    // RndMesh object base, then embedded RndTrans base.
+    r.skip(kObjMeta);
     std::string trans_parent;
     read_trans_block(r, mesh.local, mesh.world_stored, mesh.constraint,
-                     mesh.target, mesh.preserve_scale, trans_parent);
+                     mesh.target, mesh.preserve_scale, trans_parent, false);
     mesh.parent = trans_parent;
 
     // Draw base: version (= 3), showing flag, then sphere + draw-order.

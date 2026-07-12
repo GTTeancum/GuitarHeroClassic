@@ -4874,6 +4874,15 @@ int main() {
                  "preserve_scale=r.u8()!=0;",
                  "MILO scene decoder reads source transform preserve-scale flag");
   ok &= contains(milo_scene_cpp_c,
+                 "t.preserve_scale,t.parent,true);",
+                 "standalone Trans reads its source Object metadata before matrices");
+  ok &= contains(milo_scene_cpp_c,
+                 "r.skip(kObjMeta);std::stringtrans_parent;",
+                 "Mesh decoder reads the RndMesh object metadata before embedded RndTrans");
+  ok &= contains(milo_scene_cpp_c,
+                 "mesh.target,mesh.preserve_scale,trans_parent,false);",
+                 "Mesh embedded RndTrans decode does not consume a second Object metadata block");
+  ok &= contains(milo_scene_cpp_c,
                  "read_group_transform_tail",
                  "MILO scene group transform scanner reads the source RndTrans tail");
   ok &= contains(milo_scene_cpp_c,
