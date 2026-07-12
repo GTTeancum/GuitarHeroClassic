@@ -2018,7 +2018,7 @@ struct SourceCharNeckTwistPollPlan {
                                              0.0f, 0.0f, 1.0f};
   std::array<float, 3> accumulated_x = {1.0f, 0.0f, 0.0f};
   std::array<float, 3> accumulated_y = {0.0f, 1.0f, 0.0f};
-  bool requires_make_rot_quat_unit_x = false;
+  bool applied_make_rot_quat_unit_x = false;
   std::array<float, 3> rotated_y_after_make_rot_quat_unit_x =
       {0.0f, 1.0f, 0.0f};
   bool writes_twist_local_rotate_x = false;
@@ -2615,8 +2615,7 @@ SourceCharNeckTwistPollPlan source_char_neck_twist_poll_plan(
     bool has_twist_parent,
     bool reaches_twist_parent,
     const std::array<float, 9>& head_local_matrix,
-    const std::vector<std::array<float, 9>>& parent_local_matrices,
-    const std::array<float, 3>& rotated_y_after_make_rot_quat_unit_x);
+    const std::vector<std::array<float, 9>>& parent_local_matrices);
 SourceCharIKFingersState source_char_ik_fingers_defaults();
 bool source_char_ik_fingers_load_revision_known(int revision);
 SourceCharIKFingersSetupRefs source_char_ik_fingers_set_name_refs(

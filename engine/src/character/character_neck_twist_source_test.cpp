@@ -58,9 +58,14 @@ int main() {
                                          0.0f, 1.0f, 0.0f,
                                          0.0f, 0.0f, 1.0f};
   const std::array<float, 9> parent = {1.0f, 0.0f, 0.0f,
-                                       4.0f, 1.0f, 0.0f,
+                                       0.0f, 1.0f, 0.0f,
                                        0.0f, 0.0f, 1.0f};
-  const std::array<float, 3> rotated_y = {0.0f, 0.0f, 1.0f};
+  const std::array<float, 9> pure_x_roll = {1.0f, 0.0f, 0.0f,
+                                            0.0f, 0.0f, 1.0f,
+                                            0.0f, -1.0f, 0.0f};
+  const std::array<float, 9> swing_z_only = {0.0f, 1.0f, 0.0f,
+                                             -1.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f};
   bool ok = true;
 
   const auto defaults = source_char_neck_twist_defaults();
@@ -122,21 +127,21 @@ int main() {
              -kPi * 0.25f, "negative quarter twist angle");
 
   auto poll = source_char_neck_twist_poll_plan(
-      false, true, true, true, identity, {parent}, rotated_y);
+      false, true, true, true, identity, {parent});
   ok &= expect_bool(poll.entered_head_twist_gate, false,
                     "Poll skips missing head");
   ok &= expect_bool(poll.writes_twist_local_rotate_x, false,
                     "Poll missing head has no write");
 
   poll = source_char_neck_twist_poll_plan(
-      true, true, false, true, identity, {parent}, rotated_y);
+      true, true, false, true, identity, {parent});
   ok &= expect_bool(poll.entered_head_twist_gate, true,
                     "Poll enters head/twist gate");
   ok &= expect_bool(poll.entered_twist_parent_gate, false,
                     "Poll skips missing twist parent");
 
   poll = source_char_neck_twist_poll_plan(
-      true, true, true, false, identity, {parent}, rotated_y);
+      true, true, true, false, identity, {parent});
   ok &= expect_bool(poll.entered_twist_parent_gate, true,
                     "Poll enters twist parent gate");
   ok &= expect_size(poll.parent_multiply_count, 1,
@@ -147,19 +152,38 @@ int main() {
                     "Poll chain miss has no write");
 
   poll = source_char_neck_twist_poll_plan(
-      true, true, true, true, identity, {parent}, rotated_y);
+      true, true, true, true, pure_x_roll, {});
   ok &= expect_bool(poll.reached_twist_parent, true,
                     "Poll reaches twist parent");
-  ok &= expect_bool(poll.requires_make_rot_quat_unit_x, true,
-                    "Poll requires MakeRotQuatUnitX");
-  ok &= near(poll.accumulated_y[0], 4.0f,
-             "Poll accumulated parent row y x");
-  ok &= near(poll.accumulated_y[1], 1.0f,
-             "Poll accumulated parent row y y");
+  ok &= expect_bool(poll.applied_make_rot_quat_unit_x, true,
+                    "Poll applies MakeRotQuatUnitX");
+  ok &= near(poll.accumulated_y[1], 0.0f,
+             "Poll accumulated pure roll row y y");
+  ok &= near(poll.accumulated_y[2], 1.0f,
+             "Poll accumulated pure roll row y z");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[1], 0.0f,
+             "Poll pure roll rotated y y");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[2], 1.0f,
+             "Poll pure roll rotated y z");
   ok &= near(poll.rotate_about_x_radians, kPi * 0.25f,
-             "Poll writes half limited angle from rotated y");
+             "Poll writes half limited angle from computed rotated y");
   ok &= expect_bool(poll.writes_twist_local_rotate_x, true,
                     "Poll records twist local X write");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, true, true, identity, {swing_z_only});
+  ok &= near(poll.accumulated_x[0], 0.0f,
+             "Poll swing-only accumulated x x");
+  ok &= near(poll.accumulated_x[1], 1.0f,
+             "Poll swing-only accumulated x y");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[0], 0.0f,
+             "Poll swing-only rotated y x");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[1], 1.0f,
+             "Poll swing-only rotated y y");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[2], 0.0f,
+             "Poll swing-only rotated y z");
+  ok &= near(poll.rotate_about_x_radians, 0.0f,
+             "Poll swing-only cancels X swing");
 
   return ok ? 0 : 1;
 }

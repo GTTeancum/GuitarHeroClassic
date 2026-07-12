@@ -119,7 +119,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `fenced-runtime-gap` |
 | `CharMeshHide.cpp` | `ghogx_character_mesh_hide_source_test` | `ported-visible-source` |
 | `CharMirror.cpp` | `ghogx_character_mirror_source_test` | `fenced-runtime-gap` |
-| `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `fenced-runtime-gap` |
+| `CharNeckTwist.cpp` | `ghogx_character_neck_twist_source_test` | `ported-visible-source` |
 | `CharPollGroup.cpp` | `ghogx_character_poll_group_source_test` | `ported-visible-source` |
 | `CharPosConstraint.cpp` | `ghogx_character_pos_constraint_source_test` | `ported-visible-source` |
 | `CharServoBone.cpp` | `ghogx_character_char_bones_source_test` | `fenced-runtime-gap` |
@@ -186,7 +186,7 @@ source proves there is no usable runtime class/body to port from that file.
 | Mirror servo controller | `rb3-latest` `CharMirror.cpp` / `CharMirror.h` | Native helper ports constructor defaults, nonzero-weight/nonempty-bones `Poll` gate, servo setter `SyncBones` triggers, dependency publication, load order, and copy flow; `SyncBones` bone rebuilding remains fenced because the body is absent from `rb3-latest`. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Native helper ports source `Poll` projection/open-string math and `PollDeps`, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
-| Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log the source load order and expose helper math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
+| Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log source load order and port the source `Poll` gates, dependency order, and quaternion-effect angle math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `grim` `char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, `char_clip_samples/io.rs`, `re-notes` `char_bones_samples.bt` / `char_clip_samples.bt` / `charclipsamples.txt`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, Grim GH2 `CharClipSamples` version gates, legacy full/one/duplicate header order, version-gated weights, raw sample-byte sizing, serialized bone-order sample walking, re-notes active template order `.pos` / `.quat` / `.rotz`, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; `.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose publishing remain fenced where source bodies are incomplete. |
@@ -2671,10 +2671,11 @@ note, and all report `unreadBytes=0`.
     parent, derives a rotation from the resulting X/Y rows, and rotates the
     twist row about local X by half of `LimitAng(atan2(z, y))`. Native
     `source_char_neck_twist_poll_plan` ports the source gates, parent-chain
-    local-matrix multiplication, and final dirty-local rotate intent. The
-    upstream snapshots do not expose the `MakeRotQuatUnitX` helper body, so the
-    plan records that dependency instead of fabricating it; no live neck write
-    is promoted.
+    local-matrix multiplication, the source `MakeRotQuatUnitX` call effect
+    using the same row-vector quaternion convention as the imported twist
+    helpers, and final dirty-local rotate intent. The upstream snapshots still
+    do not expose the standalone `MakeRotQuatUnitX` helper body, so no live
+    neck write is promoted.
   - `engine/out/source_necktwist_20260711/stock_necktwist_inventory.log`
     refreshes the current stock GH2 hybrid inventory: every one of the 24 base
     character MILOs reports `neckTwist=0`. This source slice is therefore not

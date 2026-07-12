@@ -15260,8 +15260,8 @@ int run_contract() {
                  "boolentered_head_twist_gate=false;",
                  "native exposes CharNeckTwist Poll plan state");
   ok &= contains(char_mesh_h,
-                 "boolrequires_make_rot_quat_unit_x=false;",
-                 "native CharNeckTwist Poll plan fences missing quat helper");
+                 "boolapplied_make_rot_quat_unit_x=false;",
+                 "native CharNeckTwist Poll plan records MakeRotQuatUnitX application");
   ok &= contains(char_mesh_h,
                  "SourceCharNeckTwistPollPlansource_char_neck_twist_poll_plan(",
                  "native API exposes CharNeckTwist Poll plan helper");
@@ -15276,12 +15276,16 @@ int run_contract() {
                  "if(!reaches_twist_parent)returnplan;",
                  "native CharNeckTwist Poll plan mirrors source chain miss");
   ok &= contains(char_mesh,
-                 "plan.requires_make_rot_quat_unit_x=true;",
-                 "native CharNeckTwist Poll plan keeps missing source helper explicit");
+                 "source_char_neck_twist_quat_from_vec_to_vec({1.0f,0.0f,0.0f},"
+                 "accumulated_x)",
+                 "native CharNeckTwist helper follows unit-X quaternion convention");
+  ok &= contains(char_mesh,
+                 "plan.applied_make_rot_quat_unit_x=true;",
+                 "native CharNeckTwist Poll plan marks MakeRotQuatUnitX application");
   ok &= contains(char_mesh,
                  "source_char_neck_twist_half_limited_angle("
-                 "rotated_y_after_make_rot_quat_unit_x[1],"
-                 "rotated_y_after_make_rot_quat_unit_x[2]);",
+                 "plan.rotated_y_after_make_rot_quat_unit_x[1],"
+                 "plan.rotated_y_after_make_rot_quat_unit_x[2]);",
                  "native CharNeckTwist Poll plan uses source half-angle helper");
   ok &= contains(bind_audit, "neckTwist=%zu",
                  "bind audit logs CharNeckTwist row count");
@@ -15318,8 +15322,11 @@ int run_contract() {
                  "source_char_neck_twist_poll_plan(true,true,true,true,",
                  "focused CharNeckTwist test covers full Poll plan gates");
   ok &= contains(neck_twist_source_test,
-                 "poll.requires_make_rot_quat_unit_x,true",
-                 "focused CharNeckTwist test covers missing quat helper boundary");
+                 "poll.applied_make_rot_quat_unit_x,true",
+                 "focused CharNeckTwist test covers MakeRotQuatUnitX application");
+  ok &= contains(neck_twist_source_test,
+                 "\"Pollswing-onlycancelsXswing\"",
+                 "focused CharNeckTwist test covers swing cancellation");
   ok &= contains(doc, "`CharNeckTwist::Load` accepts source revisions through 1",
                  "document records CharNeckTwist load boundary");
   ok &= contains(doc,
@@ -15336,7 +15343,10 @@ int run_contract() {
                  "`source_char_neck_twist_poll_plan` ports the source gates",
                  "document records native CharNeckTwist Poll plan");
   ok &= contains(doc,
-                 "do not expose the `MakeRotQuatUnitX` helper body",
+                 "the source `MakeRotQuatUnitX` call effect",
+                 "document records CharNeckTwist quaternion effect import");
+  ok &= contains(doc,
+                 "do not expose the standalone `MakeRotQuatUnitX` helper body",
                  "document records CharNeckTwist quat helper boundary");
   ok &= contains(doc,
                  "source_necktwist_20260711/stock_necktwist_inventory.log",

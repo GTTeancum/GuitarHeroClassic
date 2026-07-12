@@ -5265,6 +5265,96 @@ std::array<float, 3> source_char_neck_twist_matrix_row(
           matrix[static_cast<size_t>(row * 3 + 2)]};
 }
 
+float source_char_neck_twist_dot(const std::array<float, 3>& a,
+                                 const std::array<float, 3>& b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+std::array<float, 3> source_char_neck_twist_cross(
+    const std::array<float, 3>& a,
+    const std::array<float, 3>& b) {
+  return {a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0]};
+}
+
+std::array<float, 3> source_char_neck_twist_normalize(
+    std::array<float, 3> v,
+    const std::array<float, 3>& fallback = {1.0f, 0.0f, 0.0f}) {
+  const float len_sq = source_char_neck_twist_dot(v, v);
+  if (len_sq <= 1.0e-12f) return fallback;
+  const float inv_len = 1.0f / std::sqrt(len_sq);
+  v[0] *= inv_len;
+  v[1] *= inv_len;
+  v[2] *= inv_len;
+  return v;
+}
+
+std::array<float, 4> source_char_neck_twist_quat_from_vec_to_vec(
+    std::array<float, 3> from,
+    std::array<float, 3> to) {
+  from = source_char_neck_twist_normalize(from);
+  to = source_char_neck_twist_normalize(to, from);
+  std::array<float, 3> axis = source_char_neck_twist_cross(from, to);
+  const float dot =
+      std::clamp(source_char_neck_twist_dot(from, to), -1.0f, 1.0f);
+  if (dot < -0.9999f) {
+    axis = source_char_neck_twist_cross(from, {1.0f, 0.0f, 0.0f});
+    if (source_char_neck_twist_dot(axis, axis) <= 1.0e-10f) {
+      axis = source_char_neck_twist_cross(from, {0.0f, 1.0f, 0.0f});
+    }
+    axis = source_char_neck_twist_normalize(axis, {0.0f, 0.0f, 1.0f});
+    return {axis[0], axis[1], axis[2], 0.0f};
+  }
+
+  const float scale = std::sqrt((1.0f + dot) * 2.0f);
+  if (scale <= 1.0e-6f) return {0.0f, 0.0f, 0.0f, 1.0f};
+  const float inv_scale = 1.0f / scale;
+  return {axis[0] * inv_scale, axis[1] * inv_scale, axis[2] * inv_scale,
+          0.5f * scale};
+}
+
+std::array<float, 3> source_char_neck_twist_rotate_vec_by_quat(
+    const std::array<float, 3>& v,
+    const std::array<float, 4>& q) {
+  const float x = q[0];
+  const float y = q[1];
+  const float z = q[2];
+  const float w = q[3];
+  const float xx = x * x;
+  const float yy = y * y;
+  const float zz = z * z;
+  const float xy = x * y;
+  const float xz = x * z;
+  const float yz = y * z;
+  const float wx = w * x;
+  const float wy = w * y;
+  const float wz = w * z;
+
+  const float m00 = 1.0f - 2.0f * (yy + zz);
+  const float m01 = 2.0f * (xy - wz);
+  const float m02 = 2.0f * (xz + wy);
+  const float m10 = 2.0f * (xy + wz);
+  const float m11 = 1.0f - 2.0f * (xx + zz);
+  const float m12 = 2.0f * (yz - wx);
+  const float m20 = 2.0f * (xz - wy);
+  const float m21 = 2.0f * (yz + wx);
+  const float m22 = 1.0f - 2.0f * (xx + yy);
+
+  return {v[0] * m00 + v[1] * m10 + v[2] * m20,
+          v[0] * m01 + v[1] * m11 + v[2] * m21,
+          v[0] * m02 + v[1] * m12 + v[2] * m22};
+}
+
+std::array<float, 3> source_char_neck_twist_make_rot_quat_unit_x_y(
+    const std::array<float, 3>& accumulated_x,
+    const std::array<float, 3>& accumulated_y) {
+  const std::array<float, 4> quat =
+      source_char_neck_twist_quat_from_vec_to_vec({1.0f, 0.0f, 0.0f},
+                                                  accumulated_x);
+  return source_char_neck_twist_rotate_vec_by_quat(accumulated_y, quat);
+}
+
 SourceCharNeckTwistState source_char_neck_twist_defaults() {
   return SourceCharNeckTwistState{};
 }
@@ -5325,8 +5415,7 @@ SourceCharNeckTwistPollPlan source_char_neck_twist_poll_plan(
     bool has_twist_parent,
     bool reaches_twist_parent,
     const std::array<float, 9>& head_local_matrix,
-    const std::vector<std::array<float, 9>>& parent_local_matrices,
-    const std::array<float, 3>& rotated_y_after_make_rot_quat_unit_x) {
+    const std::vector<std::array<float, 9>>& parent_local_matrices) {
   SourceCharNeckTwistPollPlan plan;
   if (!has_head || !has_twist) return plan;
   plan.entered_head_twist_gate = true;
@@ -5346,12 +5435,13 @@ SourceCharNeckTwistPollPlan source_char_neck_twist_poll_plan(
       source_char_neck_twist_matrix_row(plan.accumulated_matrix, 0);
   plan.accumulated_y =
       source_char_neck_twist_matrix_row(plan.accumulated_matrix, 1);
-  plan.requires_make_rot_quat_unit_x = true;
+  plan.applied_make_rot_quat_unit_x = true;
   plan.rotated_y_after_make_rot_quat_unit_x =
-      rotated_y_after_make_rot_quat_unit_x;
+      source_char_neck_twist_make_rot_quat_unit_x_y(plan.accumulated_x,
+                                                    plan.accumulated_y);
   plan.rotate_about_x_radians = source_char_neck_twist_half_limited_angle(
-      rotated_y_after_make_rot_quat_unit_x[1],
-      rotated_y_after_make_rot_quat_unit_x[2]);
+      plan.rotated_y_after_make_rot_quat_unit_x[1],
+      plan.rotated_y_after_make_rot_quat_unit_x[2]);
   plan.writes_twist_local_rotate_x = true;
   return plan;
 }
