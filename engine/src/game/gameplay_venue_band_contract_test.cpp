@@ -6180,6 +6180,21 @@ int main() {
                  "draw_row2=(%.6f%.6f%.6f)",
                  "animated venue mesh diagnostics expose the submitted renderer row");
   ok &= contains(renderer_c,
+                 "draw_row0=(%.6f%.6f%.6f)",
+                 "animated venue mesh diagnostics expose the full submitted renderer basis");
+  ok &= contains(renderer_c,
+                 "shape_extent=(%.6f%.6f%.6f)",
+                 "animated venue mesh diagnostics expose source mesh local extents");
+  ok &= contains(renderer_c,
+                 "tri_norm_abs=(%.6f%.6f%.6f)",
+                 "animated venue mesh diagnostics expose source mesh triangle-normal axes");
+  ok &= contains(renderer_c,
+                 "face_axis=%s",
+                 "animated venue mesh diagnostics identify the mesh's authored face axis");
+  ok &= contains(renderer_c,
+                 "draw_face=(%.6f%.6f%.6f)",
+                 "animated venue mesh diagnostics expose the submitted authored face direction");
+  ok &= contains(renderer_c,
                  "apply_local_translation_delta(world,sample.translation.data());",
                  "transform samples still apply translation in local space");
   ok &= contains(renderer_c,

@@ -853,6 +853,132 @@ float row_len16(const std::array<float, 16>& m, size_t row) {
                    m[i + 2] * m[i + 2]);
 }
 
+int dominant_abs_axis(const std::array<float, 3>& v) {
+  int axis = 0;
+  float best = std::fabs(v[0]);
+  for (int i = 1; i < 3; ++i) {
+    const float value = std::fabs(v[i]);
+    if (value > best) {
+      best = value;
+      axis = i;
+    }
+  }
+  return axis;
+}
+
+int smallest_axis(const std::array<float, 3>& v) {
+  int axis = 0;
+  float best = std::fabs(v[0]);
+  for (int i = 1; i < 3; ++i) {
+    const float value = std::fabs(v[i]);
+    if (value < best) {
+      best = value;
+      axis = i;
+    }
+  }
+  return axis;
+}
+
+const char* axis_label(int axis) {
+  switch (axis) {
+    case 0:
+      return "x";
+    case 1:
+      return "y";
+    case 2:
+      return "z";
+    default:
+      return "-";
+  }
+}
+
+std::array<float, 3> normalized3(std::array<float, 3> v) {
+  const float len =
+      std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  if (!std::isfinite(len) || len <= 0.000001f) {
+    return {0.0f, 0.0f, 0.0f};
+  }
+  const float inv = 1.0f / len;
+  for (float& value : v) value *= inv;
+  return v;
+}
+
+std::array<float, 3> transform_local_dir(
+    const std::array<float, 16>& m, const std::array<float, 3>& dir) {
+  return normalized3({
+      dir[0] * m[0] + dir[1] * m[4] + dir[2] * m[8],
+      dir[0] * m[1] + dir[1] * m[5] + dir[2] * m[9],
+      dir[0] * m[2] + dir[1] * m[6] + dir[2] * m[10],
+  });
+}
+
+struct MeshLocalAxisDiagnostics {
+  bool valid = false;
+  std::array<float, 3> extent = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> triangle_normal_abs = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> face_dir = {0.0f, 0.0f, 1.0f};
+  int thin_axis = 2;
+  int face_axis = 2;
+};
+
+MeshLocalAxisDiagnostics mesh_local_axis_diagnostics(
+    const milo_scene::MeshObj& mesh) {
+  MeshLocalAxisDiagnostics out;
+  if (!mesh.decoded || mesh.verts.empty()) return out;
+  out.valid = true;
+  float mn[3] = {mesh.verts.front().px, mesh.verts.front().py,
+                 mesh.verts.front().pz};
+  float mx[3] = {mn[0], mn[1], mn[2]};
+  std::array<float, 3> vertex_normal_sum = {0.0f, 0.0f, 0.0f};
+  for (const auto& v : mesh.verts) {
+    mn[0] = std::min(mn[0], v.px);
+    mn[1] = std::min(mn[1], v.py);
+    mn[2] = std::min(mn[2], v.pz);
+    mx[0] = std::max(mx[0], v.px);
+    mx[1] = std::max(mx[1], v.py);
+    mx[2] = std::max(mx[2], v.pz);
+    vertex_normal_sum[0] += v.nx;
+    vertex_normal_sum[1] += v.ny;
+    vertex_normal_sum[2] += v.nz;
+  }
+  out.extent = {mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]};
+  std::array<float, 3> triangle_normal_sum = {0.0f, 0.0f, 0.0f};
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint16_t ia = mesh.indices[i + 0];
+    const uint16_t ib = mesh.indices[i + 1];
+    const uint16_t ic = mesh.indices[i + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    const auto& a = mesh.verts[ia];
+    const auto& b = mesh.verts[ib];
+    const auto& c = mesh.verts[ic];
+    const float e1[3] = {b.px - a.px, b.py - a.py, b.pz - a.pz};
+    const float e2[3] = {c.px - a.px, c.py - a.py, c.pz - a.pz};
+    const std::array<float, 3> n = {
+        e1[1] * e2[2] - e1[2] * e2[1],
+        e1[2] * e2[0] - e1[0] * e2[2],
+        e1[0] * e2[1] - e1[1] * e2[0],
+    };
+    triangle_normal_sum[0] += n[0];
+    triangle_normal_sum[1] += n[1];
+    triangle_normal_sum[2] += n[2];
+    out.triangle_normal_abs[0] += std::fabs(n[0]);
+    out.triangle_normal_abs[1] += std::fabs(n[1]);
+    out.triangle_normal_abs[2] += std::fabs(n[2]);
+  }
+  out.thin_axis = smallest_axis(out.extent);
+  out.face_axis = dominant_abs_axis(out.triangle_normal_abs);
+  float sign_source = triangle_normal_sum[out.face_axis];
+  if (std::fabs(sign_source) <= 0.000001f) {
+    sign_source = vertex_normal_sum[out.face_axis];
+  }
+  out.face_dir = {0.0f, 0.0f, 0.0f};
+  out.face_dir[out.face_axis] = sign_source < 0.0f ? -1.0f : 1.0f;
+  return out;
+}
+
 void log_mesh_anim_local_rows(
     const std::string& mesh_name, const std::string& target_name,
     const std::string& target_kind, const std::string& target_parent,
@@ -3570,20 +3696,39 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       static std::unordered_map<std::string, size_t> logged_mesh_world_rows;
       const size_t sample = ++logged_mesh_world_rows[m.name];
       if (sample == 1 || sample % 30 == 0) {
+        const MeshLocalAxisDiagnostics axes = mesh_local_axis_diagnostics(m);
+        const std::array<float, 3> world_face =
+            axes.valid ? transform_local_dir(world, axes.face_dir)
+                       : std::array<float, 3>{0.0f, 0.0f, 0.0f};
+        const std::array<float, 3> draw_face =
+            axes.valid ? transform_local_dir(draw_world, axes.face_dir)
+                       : std::array<float, 3>{0.0f, 0.0f, 0.0f};
         std::fprintf(
             stderr,
             "[milo_scene] mesh_anim_world mesh=%s parent=%s sample=%zu "
             "recomposed=%d world_pos=(%.6f %.6f %.6f) "
             "row0=(%.6f %.6f %.6f) row1=(%.6f %.6f %.6f) "
             "row2=(%.6f %.6f %.6f) row_len=(%.6f %.6f %.6f) "
-            "draw_pos=(%.6f %.6f %.6f) draw_row2=(%.6f %.6f %.6f)\n",
+            "draw_pos=(%.6f %.6f %.6f) draw_row0=(%.6f %.6f %.6f) "
+            "draw_row1=(%.6f %.6f %.6f) draw_row2=(%.6f %.6f %.6f) "
+            "shape_extent=(%.6f %.6f %.6f) thin_axis=%s "
+            "tri_norm_abs=(%.6f %.6f %.6f) face_axis=%s "
+            "face_dir=(%.1f %.1f %.1f) world_face=(%.6f %.6f %.6f) "
+            "draw_face=(%.6f %.6f %.6f)\n",
             m.name.c_str(), m.parent.c_str(), sample,
             recomposed_animated_chain ? 1 : 0, world[12], world[13],
             world[14], world[0], world[1], world[2], world[4], world[5],
             world[6], world[8], world[9], world[10], row_len16(world, 0),
             row_len16(world, 1), row_len16(world, 2), draw_world[12],
-            draw_world[13], draw_world[14], draw_world[8], draw_world[9],
-            draw_world[10]);
+            draw_world[13], draw_world[14], draw_world[0], draw_world[1],
+            draw_world[2], draw_world[4], draw_world[5], draw_world[6],
+            draw_world[8], draw_world[9], draw_world[10], axes.extent[0],
+            axes.extent[1], axes.extent[2], axis_label(axes.thin_axis),
+            axes.triangle_normal_abs[0], axes.triangle_normal_abs[1],
+            axes.triangle_normal_abs[2], axis_label(axes.face_axis),
+            axes.face_dir[0], axes.face_dir[1], axes.face_dir[2],
+            world_face[0], world_face[1], world_face[2], draw_face[0],
+            draw_face[1], draw_face[2]);
       }
     }
     for (auto& venue_pick : venue_picks) {
