@@ -115,7 +115,7 @@ writer body.
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `grim` `char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, `char_clip_samples/io.rs`, `re-notes` `char_bones_samples.bt` / `char_clip_samples.bt` / `charclipsamples.txt`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, Grim GH2 `CharClipSamples` version gates, legacy full/one/duplicate header order, version-gated weights, raw sample-byte sizing, serialized bone-order sample walking, re-notes active template order `.pos` / `.quat` / `.rotz`, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; `.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose publishing remain fenced where source bodies are incomplete. |
-| Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
+| Hair two-sided rendering | User/project visual override | Culling disabled only; not source evidence for material/depth/sort changes. |
 
 ## Character Mesh Cache Helper
 
@@ -3432,8 +3432,9 @@ Rockabill2-specific face attachment override.
 - Project override: hair polygons/textures render two-sided. Native therefore
   forces no backface culling for shared hair-token mesh/material/texture
   surfaces. This is a visual policy override, not inferred source evidence, and
-  is implemented as back-side then front-side cull passes. It must not affect
-  source blend, depth write, alpha test, texture wrap, material color, or draw
-  sort, and it must not be used to invent hair blend/depth/alpha/sort behavior.
+  is implemented as a single draw with culling disabled so texture alpha/blend
+  contribution is not doubled. It must not affect source blend, depth write,
+  alpha test, texture wrap, material color, or draw sort, and it must not be
+  used to invent hair blend/depth/alpha/sort behavior.
 - If a behavior is not proven by ihatecompvir source or stock asset data, leave
   it decoded/logged and unwritten until the source-backed runtime path is known.

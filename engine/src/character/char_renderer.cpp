@@ -1966,21 +1966,10 @@ void CharRenderer::draw_impl(bool clear_target) {
       s.v = m.verts[vi].v;
       vb.push_back(s);
     }
-    auto draw_current_mesh = [&]() {
-      dev->DrawIndexedPrimitiveUP(
-          D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.verts.size()),
-          static_cast<UINT>(m.indices.size() / 3), m.indices.data(),
-          D3DFMT_INDEX16, vb.data(), sizeof(SVtx));
-    };
-    if (hair_two_sided) {
-      dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
-      draw_current_mesh();
-      dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-      draw_current_mesh();
-      dev->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
-    } else {
-      draw_current_mesh();
-    }
+    dev->DrawIndexedPrimitiveUP(
+        D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.verts.size()),
+        static_cast<UINT>(m.indices.size() / 3), m.indices.data(),
+        D3DFMT_INDEX16, vb.data(), sizeof(SVtx));
   }
   dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   dev->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);

@@ -2980,12 +2980,14 @@ int run_contract() {
                 "is_hair_two_sided_surface(mesh,material)){returnD3DCULL_NONE;}",
                 "generic cull helper must not keep a hidden hair override");
   ok &= contains(renderer,
-                 "if(hair_two_sided){dev->SetRenderState(D3DRS_CULLMODE,"
-                 "D3DCULL_CCW);draw_current_mesh();dev->SetRenderState("
-                 "D3DRS_CULLMODE,D3DCULL_CW);draw_current_mesh();"
-                 "dev->SetRenderState(D3DRS_CULLMODE,mesh_cull_mode);}"
-                 "else{draw_current_mesh();}",
-                 "hair two-sided rule draws both cull sides without material-state overrides");
+                 "dev->SetRenderState(D3DRS_CULLMODE,mesh_cull_mode);",
+                 "hair two-sided rule reaches D3D only through cull mode");
+  ok &= missing(renderer,
+                "D3DCULL_CCW);draw_current_mesh();dev->SetRenderState("
+                "D3DRS_CULLMODE,D3DCULL_CW);draw_current_mesh();",
+                "hair two-sided rule must not double-draw alpha/blend surfaces");
+  ok &= missing(renderer, "auto draw_current_mesh",
+                "hair two-sided rule must not keep a hidden two-pass drawer");
   ok &= contains(renderer, "hairTwoSided=%d",
                  "mesh render logs expose the hair two-sided rule");
   ok &= contains(renderer,
