@@ -668,6 +668,58 @@ SourceRndMeshUpdateSpherePlan source_rndmesh_update_sphere_plan(
   return plan;
 }
 
+SourceRndMeshDistanceToPlaneResult source_rndmesh_get_distance_to_plane(
+    const std::vector<float>& world_plane_dots) {
+  SourceRndMeshDistanceToPlaneResult result;
+  if (world_plane_dots.empty()) {
+    result.empty_vertices = true;
+    result.uses_world_xfm = false;
+    return result;
+  }
+
+  result.starts_from_first_vertex = true;
+  result.selected_vertex = 0;
+  result.distance = world_plane_dots[0];
+  for (size_t i = 0; i < world_plane_dots.size(); ++i) {
+    const float dotted = world_plane_dots[i];
+    if (std::fabs(dotted) < std::fabs(result.distance)) {
+      result.distance = dotted;
+      result.selected_vertex = i;
+    }
+  }
+  return result;
+}
+
+SourceRndMeshSetVolumePlan source_rndmesh_set_volume_plan(
+    int32_t requested_volume,
+    bool owner_is_self,
+    bool has_vertices,
+    bool has_faces) {
+  SourceRndMeshSetVolumePlan plan;
+  plan.requested_volume = requested_volume;
+  plan.owner_is_self = owner_is_self;
+  if (!owner_is_self) {
+    plan.forwards_to_geom_owner = true;
+    return plan;
+  }
+
+  plan.assigns_volume = true;
+  plan.releases_bsp_tree = true;
+  plan.checks_nonempty_geometry = has_vertices && has_faces;
+  if (!plan.checks_nonempty_geometry) return plan;
+
+  if (requested_volume == 3) {
+    plan.enters_volume_box_branch = true;
+    plan.grows_box_from_vertices = true;
+    plan.creates_bsp_tree = true;
+    plan.volume_box_body_incomplete = true;
+  } else if (requested_volume == 2) {
+    plan.enters_volume_bsp_branch = true;
+    plan.volume_bsp_body_incomplete = true;
+  }
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {

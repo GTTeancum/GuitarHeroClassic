@@ -742,6 +742,60 @@ int main() {
   CHECK(sphere_skinned.zero_sphere);
   CHECK(sphere_skinned.set_drawable_sphere);
 
+  const auto distance_empty =
+      ghogx::character::source_rndmesh_get_distance_to_plane({});
+  CHECK(distance_empty.empty_vertices);
+  CHECK(!distance_empty.uses_world_xfm);
+  CHECK(distance_empty.distance == 0.0f);
+
+  const auto distance_nearest =
+      ghogx::character::source_rndmesh_get_distance_to_plane(
+          {5.0f, -2.0f, 3.0f, -0.25f, 0.5f});
+  CHECK(!distance_nearest.empty_vertices);
+  CHECK(distance_nearest.uses_world_xfm);
+  CHECK(distance_nearest.starts_from_first_vertex);
+  CHECK(distance_nearest.selected_vertex == 3);
+  CHECK(approx(distance_nearest.distance, -0.25f));
+
+  const auto distance_tie =
+      ghogx::character::source_rndmesh_get_distance_to_plane(
+          {2.0f, -2.0f, 1.0f});
+  CHECK(distance_tie.selected_vertex == 2);
+  CHECK(approx(distance_tie.distance, 1.0f));
+
+  const auto volume_forward =
+      ghogx::character::source_rndmesh_set_volume_plan(3, false, true, true);
+  CHECK(volume_forward.forwards_to_geom_owner);
+  CHECK(!volume_forward.assigns_volume);
+  CHECK(!volume_forward.releases_bsp_tree);
+
+  const auto volume_no_geometry =
+      ghogx::character::source_rndmesh_set_volume_plan(1, true, true, false);
+  CHECK(!volume_no_geometry.forwards_to_geom_owner);
+  CHECK(volume_no_geometry.assigns_volume);
+  CHECK(volume_no_geometry.releases_bsp_tree);
+  CHECK(!volume_no_geometry.checks_nonempty_geometry);
+  CHECK(!volume_no_geometry.enters_volume_box_branch);
+  CHECK(!volume_no_geometry.enters_volume_bsp_branch);
+
+  const auto volume_box =
+      ghogx::character::source_rndmesh_set_volume_plan(3, true, true, true);
+  CHECK(volume_box.assigns_volume);
+  CHECK(volume_box.releases_bsp_tree);
+  CHECK(volume_box.checks_nonempty_geometry);
+  CHECK(volume_box.enters_volume_box_branch);
+  CHECK(volume_box.grows_box_from_vertices);
+  CHECK(volume_box.creates_bsp_tree);
+  CHECK(volume_box.volume_box_body_incomplete);
+  CHECK(!volume_box.enters_volume_bsp_branch);
+
+  const auto volume_bsp =
+      ghogx::character::source_rndmesh_set_volume_plan(2, true, true, true);
+  CHECK(volume_bsp.checks_nonempty_geometry);
+  CHECK(!volume_bsp.enters_volume_box_branch);
+  CHECK(volume_bsp.enters_volume_bsp_branch);
+  CHECK(volume_bsp.volume_bsp_body_incomplete);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);

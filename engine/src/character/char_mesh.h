@@ -387,6 +387,29 @@ struct SourceRndMeshUpdateSpherePlan {
   bool set_drawable_sphere = true;
 };
 
+struct SourceRndMeshDistanceToPlaneResult {
+  bool empty_vertices = false;
+  bool uses_world_xfm = true;
+  bool starts_from_first_vertex = false;
+  size_t selected_vertex = 0;
+  float distance = 0.0f;
+};
+
+struct SourceRndMeshSetVolumePlan {
+  int32_t requested_volume = 0;
+  bool owner_is_self = true;
+  bool forwards_to_geom_owner = false;
+  bool assigns_volume = false;
+  bool releases_bsp_tree = false;
+  bool checks_nonempty_geometry = false;
+  bool enters_volume_box_branch = false;
+  bool grows_box_from_vertices = false;
+  bool creates_bsp_tree = false;
+  bool volume_box_body_incomplete = false;
+  bool enters_volume_bsp_branch = false;
+  bool volume_bsp_body_incomplete = false;
+};
+
 int32_t source_rndmesh_max_bones();
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
                                                bool keep_mesh_data);
@@ -409,6 +432,13 @@ SourceRndMeshCollideShowingPlan source_rndmesh_collide_showing_plan(
     bool hit);
 SourceRndMeshUpdateSpherePlan source_rndmesh_update_sphere_plan(
     bool has_bones);
+SourceRndMeshDistanceToPlaneResult source_rndmesh_get_distance_to_plane(
+    const std::vector<float>& world_plane_dots);
+SourceRndMeshSetVolumePlan source_rndmesh_set_volume_plan(
+    int32_t requested_volume,
+    bool owner_is_self,
+    bool has_vertices,
+    bool has_faces);
 
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;

@@ -3240,6 +3240,25 @@ int run_contract() {
                  "MakeWorldSphere(s,true);Transformtf;FastInvert(WorldXfm(),tf);"
                  "Multiply(s,tf,s);}elses.Zero();RndDrawable::SetSphere(s);}",
                  "RB3 runtime UpdateSphere branch is visible");
+  ok &= contains(rb3_mesh_cpp,
+                 "floatRndMesh::GetDistanceToPlane(constPlane&p,Vector3&v){"
+                 "if(Verts().empty())return0;else{Transform&world=WorldXfm();",
+                 "RB3 runtime GetDistanceToPlane empty/source setup branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(std::fabs(dotted)<std::fabs(dot)){dot=dotted;v=v58;}",
+                 "RB3 runtime GetDistanceToPlane strict nearest-dot branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::SetVolume(RndMesh::Volumevol){if(mGeomOwner!=this)"
+                 "mGeomOwner->SetVolume(vol);else{mVolume=vol;RELEASE(mBSPTree);",
+                 "RB3 runtime SetVolume owner/assign branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(!mVerts.empty()&&!mFaces.empty()){if(mVolume==kVolumeBox){"
+                 "Boxbox;for(Vert*it=mVerts.begin();it!=mVerts.end();++it){",
+                 "RB3 runtime SetVolume nonempty box branch");
+  ok &= contains(rb3_mesh_cpp,
+                 "mBSPTree=newBSPNode();for(inti=0;i<6;i++){}}"
+                 "elseif(mVolume==kVolumeBSP){}",
+                 "RB3 runtime SetVolume incomplete BSP branches are visible");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
@@ -3271,6 +3290,13 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshUpdateSpherePlan{boolhas_bones=false;",
                  "native exposes RndMesh UpdateSphere source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshDistanceToPlaneResult{"
+                 "boolempty_vertices=false;",
+                 "native exposes RndMesh GetDistanceToPlane source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSetVolumePlan{int32_trequested_volume=0;",
+                 "native exposes RndMesh SetVolume source helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
@@ -3304,6 +3330,16 @@ int run_contract() {
                  "SourceRndMeshUpdateSpherePlansource_rndmesh_update_sphere_plan("
                  "boolhas_bones)",
                  "native implements RndMesh UpdateSphere source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshDistanceToPlaneResult"
+                 "source_rndmesh_get_distance_to_plane("
+                 "conststd::vector<float>&world_plane_dots)",
+                 "native implements RndMesh GetDistanceToPlane source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshSetVolumePlansource_rndmesh_set_volume_plan("
+                 "int32_trequested_volume,boolowner_is_self,boolhas_vertices,"
+                 "boolhas_faces)",
+                 "native implements RndMesh SetVolume source helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -3368,6 +3404,28 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.set_drawable_sphere=true;returnplan;",
                  "native UpdateSphere helper mirrors SetSphere publish");
+  ok &= contains(char_mesh,
+                 "if(world_plane_dots.empty()){result.empty_vertices=true;"
+                 "result.uses_world_xfm=false;returnresult;}",
+                 "native GetDistanceToPlane helper mirrors empty vertex branch");
+  ok &= contains(char_mesh,
+                 "if(std::fabs(dotted)<std::fabs(result.distance)){"
+                 "result.distance=dotted;result.selected_vertex=i;}",
+                 "native GetDistanceToPlane helper mirrors strict nearest-dot branch");
+  ok &= contains(char_mesh,
+                 "if(!owner_is_self){plan.forwards_to_geom_owner=true;"
+                 "returnplan;}",
+                 "native SetVolume helper mirrors non-self forwarding");
+  ok &= contains(char_mesh,
+                 "plan.assigns_volume=true;plan.releases_bsp_tree=true;"
+                 "plan.checks_nonempty_geometry=has_vertices&&has_faces;",
+                 "native SetVolume helper mirrors assign/release/nonempty gate");
+  ok &= contains(char_mesh,
+                 "if(requested_volume==3){plan.enters_volume_box_branch=true;"
+                 "plan.grows_box_from_vertices=true;plan.creates_bsp_tree=true;"
+                 "plan.volume_box_body_incomplete=true;}elseif(requested_volume==2){"
+                 "plan.enters_volume_bsp_branch=true;plan.volume_bsp_body_incomplete=true;}",
+                 "native SetVolume helper fences incomplete volume branches");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
@@ -3398,6 +3456,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_update_sphere_plan(",
                  "focused mesh decode test covers RndMesh UpdateSphere helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_get_distance_to_plane(",
+                 "focused mesh decode test covers RndMesh GetDistanceToPlane helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_set_volume_plan(",
+                 "focused mesh decode test covers RndMesh SetVolume helper");
   ok &= contains(doc,
                  "Native `source_rndmesh_collide_showing_plan` ports the checked",
                  "document records RndMesh CollideShowing helper");
@@ -3413,6 +3477,18 @@ int run_contract() {
   ok &= contains(doc,
                  "meshes\n    with bones zero the sphere before the same publish step",
                  "document records skinned RndMesh UpdateSphere branch");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_get_distance_to_plane` ports the checked",
+                 "document records RndMesh GetDistanceToPlane helper");
+  ok &= contains(doc,
+                 "vertex with the strictly smallest absolute dot",
+                 "document records RndMesh GetDistanceToPlane strict rule");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_set_volume_plan` records the checked",
+                 "document records RndMesh SetVolume helper");
+  ok &= contains(doc,
+                 "both box/BSP branch bodies are incomplete in the checked",
+                 "document fences incomplete RndMesh SetVolume branches");
   ok &= contains(doc,
                  "| Mesh deformation rows | `rb3-latest/src/system/rndobj/"
                  "MeshDeform.cpp` / `MeshDeform.h` |",

@@ -898,6 +898,18 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `MakeWorldSphere(s, true)`, invert `WorldXfm()`, multiply the sphere back
     into local space, and publish it through `RndDrawable::SetSphere`; meshes
     with bones zero the sphere before the same publish step.
+  - Native `source_rndmesh_get_distance_to_plane` ports the checked
+    `RndMesh::GetDistanceToPlane` selection rule: empty vertex buffers return
+    zero, otherwise each vertex position is multiplied by `WorldXfm()`, dotted
+    against the plane, and the vertex with the strictly smallest absolute dot
+    replaces the current result.
+  - Native `source_rndmesh_set_volume_plan` records the checked
+    `RndMesh::SetVolume` boundary: non-self geometry owners forward the volume
+    request, self-owned meshes assign `mVolume` and release `mBSPTree`, and
+    only nonempty vertex/face geometry enters the `kVolumeBox` or `kVolumeBSP`
+    branches. The source-visible box branch grows a box and allocates a
+    `BSPNode`, but both box/BSP branch bodies are incomplete in the checked
+    source and must not be treated as a native BSP implementation.
 - `rb3-latest/src/system/rndobj/MeshDeform.cpp` and
   `rb3-latest/src/system/rndobj/MeshDeform.h`
   - `RndMeshDeform::VertArray::VertArray` starts with size `0`, data `0`, and
