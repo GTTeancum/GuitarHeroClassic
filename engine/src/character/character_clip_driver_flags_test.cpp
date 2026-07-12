@@ -342,6 +342,21 @@ bool expect_driver_play_decision(
   return ok;
 }
 
+bool expect_driver_play_node_decision(
+    const ghogx::character::SourceCharDriverPlayNodeDecision& got,
+    bool returned_driver,
+    const char* label) {
+  bool ok = true;
+  if (!got.copied_requested_node || !got.find_clip_warn ||
+      !got.final_last_node_from_request ||
+      got.returned_driver != returned_driver) {
+    std::cerr << "driver Play(DataNode) decision mismatch for " << label
+              << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_driver_state_helpers() {
   bool ok = true;
   ghogx::character::SourceCharDriverState state =
@@ -534,6 +549,34 @@ bool expect_driver_state_helpers() {
       "duplicate clip still records last node");
   if (!play_state.last_node_valid || !play_state.has_first) {
     std::cerr << "driver Play duplicate gate lost state\n";
+    ok = false;
+  }
+
+  ghogx::character::SourceCharDriverState node_play_state =
+      ghogx::character::source_char_driver_default_state();
+  node_play_state.blend_width = 0.5f;
+  const ghogx::character::SourceCharDriverPlayNodeDecision node_missing =
+      ghogx::character::source_char_driver_play_node_decision(
+          node_play_state, false, false, 5, -1.0f, 2.0f, 0.25f);
+  ok &= expect_driver_play_node_decision(node_missing, false,
+                                         "missing clip");
+  ok &= expect_driver_play_decision(node_missing.clip_play, false, true, false,
+                                    false, false, false, 0.0f,
+                                    "missing node clip");
+  if (!node_play_state.last_node_valid || node_play_state.has_first) {
+    std::cerr << "driver Play(DataNode) missing clip did not restore request\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverPlayNodeDecision node_found =
+      ghogx::character::source_char_driver_play_node_decision(
+          node_play_state, true, false, 6, -1.0f, 4.0f, 0.5f);
+  ok &= expect_driver_play_node_decision(node_found, true, "found clip");
+  ok &= expect_driver_play_decision(node_found.clip_play, true, false, true,
+                                    false, true, true, 0.5f,
+                                    "found node clip");
+  if (!node_play_state.last_node_valid || !node_play_state.has_first) {
+    std::cerr << "driver Play(DataNode) found clip state mismatch\n";
     ok = false;
   }
 

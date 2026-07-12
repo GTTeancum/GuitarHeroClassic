@@ -4455,6 +4455,24 @@ SourceCharDriverPlayDecision source_char_driver_play_decision(
   return decision;
 }
 
+SourceCharDriverPlayNodeDecision source_char_driver_play_node_decision(
+    SourceCharDriverState& state,
+    bool find_clip_succeeds,
+    bool clip_already_playing,
+    int play_flags,
+    float requested_blend_width,
+    float old_beat,
+    float start) {
+  SourceCharDriverPlayNodeDecision decision;
+  decision.clip_play = source_char_driver_play_decision(
+      state, find_clip_succeeds, clip_already_playing, play_flags,
+      requested_blend_width, old_beat, start);
+  state.last_node_valid = true;
+  decision.final_last_node_from_request = true;
+  decision.returned_driver = decision.clip_play.create_clip_driver;
+  return decision;
+}
+
 std::optional<size_t> source_char_driver_first_playing_index(
     const std::vector<float>& source_stack_blend_fracs) {
   for (size_t i = 0; i < source_stack_blend_fracs.size(); ++i) {

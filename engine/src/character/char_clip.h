@@ -1171,6 +1171,14 @@ struct SourceCharDriverPlayDecision {
   bool play_multiple_clips = false;
 };
 
+struct SourceCharDriverPlayNodeDecision {
+  bool copied_requested_node = true;
+  bool find_clip_warn = true;
+  SourceCharDriverPlayDecision clip_play;
+  bool final_last_node_from_request = false;
+  bool returned_driver = false;
+};
+
 struct SourceCharDriverPlayGroupDecision {
   bool has_clip_dir = false;
   bool found_group = false;
@@ -1754,6 +1762,18 @@ bool source_char_driver_should_start_clip(bool play_multiple_clips,
 SourceCharDriverPlayDecision source_char_driver_play_decision(
     SourceCharDriverState& state,
     bool found_clip,
+    bool clip_already_playing,
+    int play_flags,
+    float requested_blend_width,
+    float old_beat,
+    float start);
+
+// Source-backed CharDriver::Play(DataNode) decision. The checked source copies
+// the requested node, resolves a clip, calls Play(CharClip*), then restores
+// mLastNode to the requested node even when no clip/driver was created.
+SourceCharDriverPlayNodeDecision source_char_driver_play_node_decision(
+    SourceCharDriverState& state,
+    bool find_clip_succeeds,
     bool clip_already_playing,
     int play_flags,
     float requested_blend_width,

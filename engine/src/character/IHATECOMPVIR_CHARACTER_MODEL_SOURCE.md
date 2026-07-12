@@ -2222,6 +2222,12 @@ note, and all report `unreadBytes=0`.
     before the duplicate-clip gate, and a non-duplicate creates the new source
     stack head. It does not allocate a live `CharClipDriver` or run the missing
     driver `Poll` path.
+  - Native `source_char_driver_play_node_decision` ports the checked
+    `CharDriver::Play(const DataNode&)` wrapper: it copies the requested node,
+    resolves the clip through `FindClip(node, true)`, delegates to the
+    `Play(CharClip*)` branch above, then restores `mLastNode` to the requested
+    node even when no clip/driver was created. This keeps default/play-node
+    state bookkeeping source-backed without claiming runtime clip evaluation.
   - Native `source_char_driver_first_playing_index` ports the concrete
     `CharDriver::FirstPlaying` stack scan over `mFirst` / `mNext`, returning
     the first node with nonzero `mBlendFrac`. It is intentionally a source-stack

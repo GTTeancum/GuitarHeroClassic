@@ -17713,6 +17713,11 @@ int run_contract() {
                  "boolnew_stack_head=false;intplay_flags=0;",
                  "native character API exposes source CharDriver Play decision row");
   ok &= contains(char_clip_h,
+                 "structSourceCharDriverPlayNodeDecision{boolcopied_requested_node=true;"
+                 "boolfind_clip_warn=true;SourceCharDriverPlayDecisionclip_play;"
+                 "boolfinal_last_node_from_request=false;boolreturned_driver=false;};",
+                 "native character API exposes source CharDriver Play(DataNode) row");
+  ok &= contains(char_clip_h,
                  "uint32_tsource_char_clip_driver_masked_play_flags("
                  "uint32_tclip_play_flags,uint32_tmask);",
                  "native character API exposes raw source CharClipDriver mask helper");
@@ -17734,6 +17739,12 @@ int run_contract() {
                  "SourceCharDriverState&state,boolfound_clip,"
                  "boolclip_already_playing,intplay_flags,",
                  "native character API exposes source CharDriver Play helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverPlayNodeDecision"
+                 "source_char_driver_play_node_decision("
+                 "SourceCharDriverState&state,boolfind_clip_succeeds,"
+                 "boolclip_already_playing,intplay_flags,",
+                 "native character API exposes source CharDriver Play(DataNode) helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipDriverDeleteClipResult"
                  "source_char_clip_driver_delete_clip_result("
@@ -18320,6 +18331,14 @@ int run_contract() {
                  "source_char_driver_play_decision("
                  "play_state,true,true,3,0.25f,9.0f,1.0f)",
                  "focused clip driver test covers CharDriver Play duplicate gate");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_play_node_decision("
+                 "node_play_state,false,false,5,-1.0f,2.0f,0.25f)",
+                 "focused clip driver test covers missing CharDriver Play(DataNode)");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_play_node_decision("
+                 "node_play_state,true,false,6,-1.0f,4.0f,0.5f)",
+                 "focused clip driver test covers found CharDriver Play(DataNode)");
   ok &= contains(char_clip,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags){if(has_first){"
@@ -18367,6 +18386,21 @@ int run_contract() {
                  "state.has_first=true;decision.create_clip_driver=true;"
                  "decision.new_stack_head=true;returndecision;",
                  "native CharDriver Play decision records new stack head");
+  ok &= contains(char_clip,
+                 "SourceCharDriverPlayNodeDecision"
+                 "source_char_driver_play_node_decision("
+                 "SourceCharDriverState&state,boolfind_clip_succeeds,",
+                 "native CharDriver Play(DataNode) helper exists");
+  ok &= contains(char_clip,
+                 "decision.clip_play=source_char_driver_play_decision("
+                 "state,find_clip_succeeds,clip_already_playing,play_flags,"
+                 "requested_blend_width,old_beat,start);state.last_node_valid=true;",
+                 "native CharDriver Play(DataNode) helper delegates then restores last node");
+  ok &= contains(char_clip,
+                 "decision.final_last_node_from_request=true;"
+                 "decision.returned_driver=decision.clip_play.create_clip_driver;"
+                 "returndecision;",
+                 "native CharDriver Play(DataNode) helper records returned driver");
   ok &= contains(char_clip,
                  "if(source_play_multiple_clips_){for(constLayer&layer:"
                  "layers_){if(layer.clip==&clip){clip_already_playing=true;",
