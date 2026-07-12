@@ -113,7 +113,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharIKScale.cpp` | `ghogx_character_ik_scale_source_test` | `fenced-runtime-gap` |
 | `CharIKSliderMidi.cpp` | `ghogx_character_ik_slider_midi_source_test` | `fenced-runtime-gap` |
 | `CharInterest.cpp` | `ghogx_character_interest_source_test` | `fenced-runtime-gap` |
-| `CharLipSync.cpp` | `ghogx_character_lip_sync_source_test` | `diagnostic-only` |
+| `CharLipSync.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
 | `CharLipSyncDriver.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
 | `CharLookAt.cpp` | `ghogx_character_lookat_source_test` | `fenced-runtime-gap` |
 | `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `fenced-runtime-gap` |
@@ -1929,6 +1929,10 @@ note, and all report `unreadBytes=0`.
   - `CharLipSync::Load` accepts source revisions through 1, reads
     `Hmx::Object`, then viseme names, frame count, raw data, and only reads
     `mPropAnim` when the revision is non-zero.
+  - `CharLipSync::Save` uses source save id `0x155`. The checked
+    `CharLipSync.cpp` snapshot does not include `BEGIN_COPYS`,
+    `BEGIN_HANDLERS`, or `BEGIN_PROPSYNCS` rows, so native coverage records
+    the save/load/default boundary only.
 - `rb3-latest/src/system/char/CharLipSyncDriver.cpp` and
   `rb3-latest/src/system/char/CharLipSyncDriver.h`
   - `CharLipSyncDriver` inherits `RndHighlightable`, `CharWeightable`, and
@@ -1940,8 +1944,8 @@ note, and all report `unreadBytes=0`.
   - The checked source declares `Poll`, `Enter`, `SetClips`, `SetLipSync`,
     `Load`, and `Copy`, but this snapshot only includes the constructor and
     `PollDeps` body. Native `source_char_lip_sync_*` helpers therefore port
-    defaults/load gates/dependency publication as source context only and do
-    not promote any live GH2 mouth or viseme controller behavior.
+    defaults/save id/load gates/dependency publication as source context only
+    and do not promote any live GH2 mouth or viseme controller behavior.
 
 ## Rnd Utility Row Authorities
 

@@ -97,7 +97,7 @@ constexpr SourceCoverage kCoverage[] = {
     {"CharInterest.cpp", "ghogx_character_interest_source_test",
      "fenced-runtime-gap"},
     {"CharLipSync.cpp", "ghogx_character_lip_sync_source_test",
-     "diagnostic-only"},
+     "fenced-runtime-gap"},
     {"CharLipSyncDriver.cpp", "ghogx_character_lip_sync_source_test",
      "fenced-runtime-gap"},
     {"CharLookAt.cpp", "ghogx_character_lookat_source_test",

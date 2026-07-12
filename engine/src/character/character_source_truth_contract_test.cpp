@@ -9274,6 +9274,18 @@ int run_contract() {
                  "bs>>mVisemes;bs>>mFrames;bs>>mData;if(gRev!=0)"
                  "bs>>mPropAnim;",
                  "CharLipSync source load order and prop anim gate");
+  ok &= contains(rb3_latest_char_lip_sync_cpp,
+                 "SAVE_OBJ(CharLipSync,0x155)",
+                 "CharLipSync source save id");
+  ok &= missing(rb3_latest_char_lip_sync_cpp,
+                "BEGIN_COPYS(CharLipSync)",
+                "available CharLipSync source lacks Copy rows");
+  ok &= missing(rb3_latest_char_lip_sync_cpp,
+                "BEGIN_HANDLERS(CharLipSync)",
+                "available CharLipSync source lacks Handler rows");
+  ok &= missing(rb3_latest_char_lip_sync_cpp,
+                "BEGIN_PROPSYNCS(CharLipSync)",
+                "available CharLipSync source lacks PropSync rows");
   ok &= contains(rb3_latest_char_lip_sync_h,
                  "ObjPtr<RndPropAnim,ObjectDir>mPropAnim;",
                  "CharLipSync source header exposes prop anim ref");
@@ -9330,9 +9342,15 @@ int run_contract() {
                  "weightable;",
                  "native exposes CharLipSyncDriver state");
   ok &= contains(char_clip_h,
+                 "structSourceCharLipSyncSavePlan{intsave_id=0x155;};",
+                 "native exposes CharLipSync save plan");
+  ok &= contains(char_clip_h,
                  "SourceCharLipSyncLoadStepssource_char_lip_sync_load_steps("
                  "int32_trevision);",
                  "native API exposes CharLipSync load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLipSyncSavePlansource_char_lip_sync_save_plan();",
+                 "native API exposes CharLipSync save helper");
   ok &= contains(char_clip_h,
                  "voidsource_char_lip_sync_driver_poll_deps(",
                  "native API exposes CharLipSyncDriver PollDeps helper");
@@ -9352,6 +9370,10 @@ int run_contract() {
                  "steps.load_data=true;steps.load_prop_anim=revision!=0;",
                  "native CharLipSync load helper mirrors prop anim gate");
   ok &= contains(char_clip,
+                 "SourceCharLipSyncSavePlansource_char_lip_sync_save_plan(){"
+                 "returnSourceCharLipSyncSavePlan{};}",
+                 "native CharLipSync save helper mirrors source id");
+  ok &= contains(char_clip,
                  "state.weightable=source_char_weightable_default_state(name);"
                  "returnstate;",
                  "native CharLipSyncDriver defaults helper mirrors weightable base");
@@ -9369,6 +9391,9 @@ int run_contract() {
                  "source_char_lip_sync_load_steps(1)",
                  "focused CharLipSync test covers load prop anim gate");
   ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_save_plan()",
+                 "focused CharLipSync test covers save plan");
+  ok &= contains(lip_sync_source_test,
                  "source_char_lip_sync_driver_default_state(\"lips.driver\")",
                  "focused CharLipSync test covers driver defaults");
   ok &= contains(lip_sync_source_test,
@@ -9384,7 +9409,7 @@ int run_contract() {
                  "Native `source_char_lip_sync_*` helpers therefore port",
                  "document records native CharLipSync helper boundary");
   ok &= contains(doc,
-                 "do\n    not promote any live GH2 mouth or viseme controller "
+                 "and do not promote any live GH2 mouth or viseme controller "
                  "behavior",
                  "document fences CharLipSync from GH2 mouth runtime behavior");
   ok &= missing(rb3_latest_char_face_servo_cpp, "FaceFxLipSyncServo",

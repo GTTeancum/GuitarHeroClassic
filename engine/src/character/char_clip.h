@@ -2506,6 +2506,10 @@ struct SourceCharLipSyncLoadSteps {
   bool load_prop_anim = false;
 };
 
+struct SourceCharLipSyncSavePlan {
+  int save_id = 0x155;
+};
+
 struct SourceCharLipSyncDriverState {
   SourceCharWeightableState weightable;
   std::string lip_sync;
@@ -2603,6 +2607,7 @@ SourceCharIKMidiPropSyncPlan source_char_ik_midi_prop_sync_plan();
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state();
 SourceCharLipSyncState source_char_lip_sync_default_state();
 SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision);
+SourceCharLipSyncSavePlan source_char_lip_sync_save_plan();
 SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
     const std::string& name);
 void source_char_lip_sync_driver_poll_deps(

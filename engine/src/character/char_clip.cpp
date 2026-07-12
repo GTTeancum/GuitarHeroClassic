@@ -6862,6 +6862,10 @@ SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision) {
   return steps;
 }
 
+SourceCharLipSyncSavePlan source_char_lip_sync_save_plan() {
+  return SourceCharLipSyncSavePlan{};
+}
+
 SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
     const std::string& name) {
   SourceCharLipSyncDriverState state;
