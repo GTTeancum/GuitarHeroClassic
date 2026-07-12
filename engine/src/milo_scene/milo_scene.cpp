@@ -776,32 +776,31 @@ LightObj decode_light(const std::string& entry_name,
   light.name = entry_name;
   try {
     Reader r(body.data(), body.size());
-    const int32_t version = r.i32();
-    if (version != 6) {
+    const uint16_t light_revision = low_revision(r.u32());
+    if (light_revision != 6) {
       throw std::runtime_error("milo_scene: unsupported Light version");
     }
-    light.local = read_matrix_at(body, 0x11);
-    light.world_stored = read_matrix_at(body, 0x41);
+    r.skip(kObjMeta);
+    read_trans_block(r, light.local, light.world_stored, light.constraint,
+                     light.target, light.preserve_scale, light.parent, false);
     for (int i = 0; i < 4; ++i) {
-      light.color[i] = read_f32_at(body, 0x7e + static_cast<size_t>(i) * 4);
+      light.color[i] = r.f32();
       if (!std::isfinite(light.color[i])) {
         throw std::runtime_error("milo_scene: non-finite Light color");
       }
     }
-    light.range = read_f32_at(body, 0x8e);
+    light.range = r.f32();
     if (!std::isfinite(light.range) || light.range < 0.0f) {
       throw std::runtime_error("milo_scene: invalid Light range");
     }
-    if (body.size() >= 0x96) {
-      int32_t type = 0;
-      std::memcpy(&type, body.data() + 0x92, sizeof(type));
-      if (type < 0 || type > 3) type = 0;
-      light.type = type;
-    }
-    if (body.size() > 0x96)
-      light.animate_color_from_preset = body[0x96] != 0;
-    if (body.size() > 0x97)
-      light.animate_position_from_preset = body[0x97] != 0;
+    int32_t type = r.i32();
+    if (light_revision < 0x0e && type > 1) --type;
+    if (type < 0 || type > 4) type = 0;
+    light.type = type;
+    light.animate_color_from_preset = r.u8() != 0;
+    light.animate_position_from_preset = r.u8() != 0;
+    light.animate_range_from_preset = light.animate_color_from_preset;
+    light.source_order_decoded = true;
     light.decoded = true;
   } catch (const std::exception& ex) {
     light.error = ex.what();

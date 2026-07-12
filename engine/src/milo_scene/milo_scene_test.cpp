@@ -141,10 +141,14 @@ void test_mat() {
 void test_light() {
   std::vector<uint8_t> b;
   put_u32(b, 6);                 // Light version
-  put_zeros(b, 13);              // object/base header
+  put_zeros(b, 9);               // Hmx::Object metadata
+  put_u32(b, 9);                 // RndTransformable revision
   put_matrix(b, 10.0f, 20.0f, 30.0f);
   put_matrix(b, 40.0f, 50.0f, 60.0f);
-  put_zeros(b, 13);              // tail before color block
+  put_u32(b, 0);                 // constraint
+  put_str(b, "");                // target
+  b.push_back(0);                // preserve_scale
+  put_str(b, "stage_root.grp");  // parent
   put_f32(b, 0.1f); put_f32(b, 0.2f); put_f32(b, 0.3f); put_f32(b, 1.0f);
   put_f32(b, 500.0f);
   put_u32(b, 1);                 // kLightDirectional
@@ -153,12 +157,15 @@ void test_light() {
 
   LightObj light = decode_light("stage_light_02.lit", b);
   CHECK(light.decoded);
+  CHECK(light.source_order_decoded);
+  CHECK(light.parent == "stage_root.grp");
   CHECK(approx(light.world_stored.pos[0], 40.0f));
   CHECK(approx(light.color[2], 0.3f));
   CHECK(approx(light.range, 500.0f));
   CHECK(light.type == 1);
   CHECK(light.animate_color_from_preset);
   CHECK(!light.animate_position_from_preset);
+  CHECK(light.animate_range_from_preset);
   std::printf("  [ok] Light: type=%d color=(%.1f,%.1f,%.1f) range=%.1f\n",
               light.type, light.color[0], light.color[1], light.color[2],
               light.range);

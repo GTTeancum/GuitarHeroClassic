@@ -6165,10 +6165,15 @@ int main() {
                  "lighting keyframe log includes transition timing evidence");
   ok &= contains(milo_scene_h_c,
                  "structLightObj{std::stringname;Xfmlocal;Xfmworld_stored;"
+                 "uint32_tconstraint=0;std::stringtarget;"
+                 "boolpreserve_scale=false;std::stringparent;"
                  "floatcolor[4]={1.0f,1.0f,1.0f,1.0f};floatrange=0.0f;"
+                 "floatfalloff_start=0.0f;"
                  "inttype=0;boolanimate_color_from_preset=false;"
-                 "boolanimate_position_from_preset=false;",
-                 "MILO scene exposes decoded raw Light objects");
+                 "boolanimate_position_from_preset=false;"
+                 "boolanimate_range_from_preset=false;"
+                 "boolsource_order_decoded=false;",
+                 "MILO scene exposes decoded source-order Light objects");
   ok &= contains(milo_scene_h_c,
                  "std::vector<LightObj>lights;",
                  "decoded scenes retain Light entries alongside spotlights");
@@ -6251,27 +6256,35 @@ int main() {
                  "out.world_crowds.push_back(std::move(c));",
                  "scene assembly retains decoded WorldCrowd objects");
   ok &= contains(milo_scene_cpp_c,
-                 "light.local=read_matrix_at(body,0x11);",
-                 "Light decoder uses traced local matrix offset");
+                 "constuint16_tlight_revision=low_revision(r.u32());",
+                 "Light decoder reads the source revision word");
   ok &= contains(milo_scene_cpp_c,
-                 "light.world_stored=read_matrix_at(body,0x41);",
-                 "Light decoder uses traced stored-world matrix offset");
+                 "r.skip(kObjMeta);read_trans_block(r,light.local,"
+                 "light.world_stored,light.constraint,light.target,"
+                 "light.preserve_scale,light.parent,false);",
+                 "Light decoder follows source Object/RndTransformable order");
   ok &= contains(milo_scene_cpp_c,
-                 "light.color[i]=read_f32_at(body,0x7e+"
-                 "static_cast<size_t>(i)*4);",
-                 "Light decoder uses traced RGBA offset");
+                 "light.color[i]=r.f32();",
+                 "Light decoder reads source color after RndTransformable");
   ok &= contains(milo_scene_cpp_c,
-                 "light.range=read_f32_at(body,0x8e);",
-                 "Light decoder uses traced range offset");
+                 "light.range=r.f32();",
+                 "Light decoder reads source range after color");
   ok &= contains(milo_scene_cpp_c,
-                 "std::memcpy(&type,body.data()+0x92,sizeof(type));",
-                 "Light decoder uses traced type offset");
+                 "if(light_revision<0x0e&&type>1)--type;",
+                 "Light decoder applies ihatecompvir pre-rev14 type adjustment");
   ok &= contains(milo_scene_cpp_c,
-                 "light.animate_color_from_preset=body[0x96]!=0;",
-                 "Light decoder uses traced animate-color flag offset");
+                 "light.animate_color_from_preset=r.u8()!=0;",
+                 "Light decoder reads source animate-color flag");
   ok &= contains(milo_scene_cpp_c,
-                 "light.animate_position_from_preset=body[0x97]!=0;",
-                 "Light decoder uses traced animate-position flag offset");
+                 "light.animate_position_from_preset=r.u8()!=0;",
+                 "Light decoder reads source animate-position flag");
+  ok &= contains(milo_scene_cpp_c,
+                 "light.source_order_decoded=true;",
+                 "Light decoder marks successful source-order decode");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingLightobjectdecoded:%ssource_order=%d"
+                 "type=%danim_color=%danim_pos=%danim_range=%dparent=%s",
+                 "Light diagnostics expose source-order decode and preset flags");
   ok &= contains(milo_scene_cpp_c,
                  "constLightObj*Scene::find_light(conststd::string&name)const",
                  "decoded scene resolves authored Light refs by name");

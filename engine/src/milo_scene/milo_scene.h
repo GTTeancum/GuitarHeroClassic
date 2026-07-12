@@ -66,15 +66,14 @@
 
 //   Light (version 6, observed in theatre_lighting.milo_ps2):
 //     i32 version (= 6)
-//     13 bytes object/base header
-//     48 local matrix at raw offset 0x11
-//     48 stored world matrix at raw offset 0x41
-//     16 RGBA float color at raw offset 0x7e
-//     f32 range at raw offset 0x8e
-//     i32 type at raw offset 0x92 (0 point, 1 directional, 2 fake spot,
-//     3 floor spot)
-//     u8 animate_color_from_preset at raw offset 0x96
-//     u8 animate_position_from_preset at raw offset 0x97
+//     9 bytes Hmx::Object metadata
+//     Trans base (version 9 + 48 + 48 + constraint + target +
+//                 preserve_scale + parent string)
+//     4xf32 color
+//     f32 range
+//     i32 type (0 point, 1 directional, 2 fake spot, 3 floor spot)
+//     u8 animate_color_from_preset
+//     u8 animate_position_from_preset
 //
 //   Group (version 15 in venue geometry; version 12 observed in UI views):
 //     ...   Draw/Anim fields
@@ -195,11 +194,18 @@ struct LightObj {
   std::string name;
   Xfm local;
   Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   float range = 0.0f;
+  float falloff_start = 0.0f;
   int type = 0;
   bool animate_color_from_preset = false;
   bool animate_position_from_preset = false;
+  bool animate_range_from_preset = false;
+  bool source_order_decoded = false;
   bool decoded = false;
   std::string error;
 };

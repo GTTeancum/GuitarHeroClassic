@@ -6748,10 +6748,13 @@ void log_lighting_light_object_coverage(
         lights_by_name[light.name] = &light;
         std::fprintf(
             stderr,
-            "[world] lighting Light object decoded: %s type=%d anim_color=%d anim_pos=%d pos=(%.3f %.3f %.3f) color=(%.3f %.3f %.3f %.3f) range=%.3f\n",
-            light.name.c_str(), light.type,
+            "[world] lighting Light object decoded: %s source_order=%d type=%d anim_color=%d anim_pos=%d anim_range=%d parent=%s pos=(%.3f %.3f %.3f) color=(%.3f %.3f %.3f %.3f) range=%.3f\n",
+            light.name.c_str(), light.source_order_decoded ? 1 : 0,
+            light.type,
             light.animate_color_from_preset ? 1 : 0,
             light.animate_position_from_preset ? 1 : 0,
+            light.animate_range_from_preset ? 1 : 0,
+            light.parent.empty() ? "-" : light.parent.c_str(),
             light.world_stored.pos[0], light.world_stored.pos[1],
             light.world_stored.pos[2],
             light.color[0], light.color[1], light.color[2], light.color[3],
