@@ -1073,6 +1073,17 @@ std::vector<std::string> source_char_utl_reset_hair_names(
   return hair_names;
 }
 
+SourceCharUtlInitPlan source_char_utl_init_plan() {
+  SourceCharUtlInitPlan plan;
+  plan.registered_functions = {"reset_hair", "char_merge_bones"};
+  plan.reset_hair_handler_steps = {"CharUtlResetHair(Obj<Character>(1))"};
+  plan.char_merge_bones_handler_steps = {
+      "FilePath(Str(1))", "DirLoader::LoadObjects",
+      "Obj<ObjectDir>(2)", "Int(3)", "CharUtlMergeBones",
+      "delete loaded dir"};
+  return plan;
+}
+
 void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
                                   const SourceCharUtlClipPredictFrame& first,
                                   const SourceCharUtlClipPredictFrame& second) {

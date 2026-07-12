@@ -13508,6 +13508,21 @@ int run_contract() {
                  "for(inti=0;i<mMeshes.size();i++){oList.push_back(mMeshes[i]);}}",
                  "latest CharBonesMeshes source defines StuffMeshes order");
   ok &= contains(rb3_latest_char_utl_cpp,
+                 "staticDataNodeOnResetHair(DataArray*da){CharUtlResetHair("
+                 "da->Obj<Character>(1));returnDataNode(0);}",
+                 "latest CharUtl source defines reset_hair handler");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "staticDataNodeOnCharMergeBones(DataArray*da){FilePathfp("
+                 "da->Str(1));ObjectDir*dir=DirLoader::LoadObjects(fp,0,0);"
+                 "ObjectDir*dir2=da->Obj<ObjectDir>(2);CharUtlMergeBones("
+                 "dir,dir2,da->Int(3));deletedir;returnDataNode(0);}",
+                 "latest CharUtl source defines char_merge_bones handler");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "voidCharUtlInit(){DataRegisterFunc(\"reset_hair\","
+                 "OnResetHair);DataRegisterFunc(\"char_merge_bones\","
+                 "OnCharMergeBones);}",
+                 "latest CharUtl source defines registered data functions");
+  ok &= contains(rb3_latest_char_utl_cpp,
                  "CharBone*CharUtlFindBone(constchar*cc,ObjectDir*dir){",
                  "latest CharUtl source exposes FindBone");
   ok &= contains(rb3_latest_char_utl_cpp,
@@ -13598,6 +13613,13 @@ int run_contract() {
                  "voidsource_char_utl_clip_predict("
                  "SourceCharUtlClipPredictState&state,",
                  "native header exposes CharUtl ClipPredict helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharUtlInitPlan{"
+                 "std::vector<std::string>registered_functions;",
+                 "native header exposes CharUtl Init plan row");
+  ok &= contains(char_clip_h,
+                 "SourceCharUtlInitPlansource_char_utl_init_plan();",
+                 "native header exposes CharUtl Init helper");
   ok &= contains(char_clip,
                  "std::stringsource_char_utl_name_with_suffix("
                  "conststd::string&name,conststd::string&suffix){"
@@ -13657,6 +13679,16 @@ int run_contract() {
                  "state.ang=source_limit_ang(state.ang+source_limit_ang("
                  "second.facing_rot-first.facing_rot));",
                  "native CharUtl ClipPredict wraps angle advance");
+  ok &= contains(char_clip,
+                 "SourceCharUtlInitPlansource_char_utl_init_plan(){"
+                 "SourceCharUtlInitPlanplan;plan.registered_functions={"
+                 "\"reset_hair\",\"char_merge_bones\"};",
+                 "native CharUtl Init helper records source registrations");
+  ok &= contains(char_clip,
+                 "plan.char_merge_bones_handler_steps={\"FilePath(Str(1))\","
+                 "\"DirLoader::LoadObjects\",\"Obj<ObjectDir>(2)\",\"Int(3)\","
+                 "\"CharUtlMergeBones\",\"deleteloadeddir\"};returnplan;}",
+                 "native CharUtl Init helper records source merge handler");
   ok &= contains(char_utl_source_test,
                  "source_char_utl_name_with_suffix(\"face.bone.mesh\",\"cb\")",
                  "focused CharUtl source test covers final suffix replacement");
@@ -13689,6 +13721,12 @@ int run_contract() {
                  "\"scarf.hair\"})",
                  "focused CharUtl source test covers ResetHair");
   ok &= contains(char_utl_source_test,
+                 "source_char_utl_init_plan()",
+                 "focused CharUtl source test covers CharUtl Init plan");
+  ok &= contains(char_utl_source_test,
+                 "\"CharUtlInitchar_merge_bonesregistration\"",
+                 "focused CharUtl source test covers char_merge_bones registration");
+  ok &= contains(char_utl_source_test,
                  "source_char_utl_clip_predict(predict_state,predict_first,"
                  "predict_second)",
                  "focused CharUtl source test covers ClipPredict math");
@@ -13710,6 +13748,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharUtlResetHair` calls `Enter()` for every `CharHair` row",
                  "document records source CharUtl ResetHair behavior");
+  ok &= contains(doc,
+                 "`CharUtlInit` registers only two data functions",
+                 "document records source CharUtl Init registrations");
+  ok &= contains(doc,
+                 "`source_char_utl_init_plan` records those registration and handler call",
+                 "document records native CharUtl Init boundary");
   ok &= contains(doc,
                  "`ClipPredict` binds `bone_facing.rotz` and `bone_facing.pos`",
                  "document records source CharUtl ClipPredict channels");

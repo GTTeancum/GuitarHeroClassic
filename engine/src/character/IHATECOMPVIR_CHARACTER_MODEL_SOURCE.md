@@ -2100,6 +2100,14 @@ note, and all report `unreadBytes=0`.
     parent, and `CharUtlResetHair` calls `Enter()` for every `CharHair` row
     under the character. Native deterministic helpers cover those selection
     rules without changing runtime pose or render behavior.
+  - `CharUtlInit` registers only two data functions in the checked source:
+    `reset_hair` and `char_merge_bones`. `reset_hair` reads argument one as a
+    `Character` and calls `CharUtlResetHair`; `char_merge_bones` reads a
+    `FilePath` from argument one, loads that directory, reads the destination
+    `ObjectDir` from argument two and context mask from argument three, calls
+    `CharUtlMergeBones`, then deletes the loaded directory. Native
+    `source_char_utl_init_plan` records those registration and handler call
+    shapes only; it does not run a loader or mutate character resources.
   - `ClipPredict` binds `bone_facing.rotz` and `bone_facing.pos`. Its
     `Predict` body evaluates the two requested frames, rotates the second-minus-
     first position delta by `LimitAng(mAng - firstAngle)`, adds that to `mPos`,

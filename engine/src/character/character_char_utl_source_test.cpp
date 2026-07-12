@@ -69,6 +69,7 @@ int main() {
   using ghogx::character::SourceCharUtlBoneTransResult;
   using ghogx::character::SourceCharUtlClipPredictFrame;
   using ghogx::character::SourceCharUtlClipPredictState;
+  using ghogx::character::SourceCharUtlInitPlan;
   using ghogx::character::SourceCharUtlMergeBone;
   using ghogx::character::SourceCharUtlMergeResult;
   using ghogx::character::SourceCharUtlObject;
@@ -82,6 +83,7 @@ int main() {
   using ghogx::character::source_char_utl_clip_predict;
   using ghogx::character::source_char_utl_find_bone;
   using ghogx::character::source_char_utl_find_bone_trans;
+  using ghogx::character::source_char_utl_init_plan;
   using ghogx::character::source_char_utl_is_animatable;
   using ghogx::character::source_char_utl_merge_bones;
   using ghogx::character::source_char_utl_name_with_suffix;
@@ -259,6 +261,29 @@ int main() {
   ok &= expect_string(reset_hair[0], "hair_front1.hair",
                       "ResetHair first row");
   ok &= expect_string(reset_hair[1], "scarf.hair", "ResetHair second row");
+
+  const SourceCharUtlInitPlan init_plan = source_char_utl_init_plan();
+  ok &= expect_size(init_plan.registered_functions.size(), 2,
+                    "CharUtlInit registration count");
+  ok &= expect_string(init_plan.registered_functions[0], "reset_hair",
+                      "CharUtlInit reset_hair registration");
+  ok &= expect_string(init_plan.registered_functions[1], "char_merge_bones",
+                      "CharUtlInit char_merge_bones registration");
+  ok &= expect_size(init_plan.reset_hair_handler_steps.size(), 1,
+                    "OnResetHair handler step count");
+  ok &= expect_string(init_plan.reset_hair_handler_steps[0],
+                      "CharUtlResetHair(Obj<Character>(1))",
+                      "OnResetHair calls source reset helper");
+  ok &= expect_size(init_plan.char_merge_bones_handler_steps.size(), 6,
+                    "OnCharMergeBones handler step count");
+  ok &= expect_string(init_plan.char_merge_bones_handler_steps[0],
+                      "FilePath(Str(1))",
+                      "OnCharMergeBones reads path arg");
+  ok &= expect_string(init_plan.char_merge_bones_handler_steps[4],
+                      "CharUtlMergeBones",
+                      "OnCharMergeBones calls merge helper");
+  ok &= expect_int(init_plan.char_merge_bones_deletes_loaded_dir ? 1 : 0, 1,
+                   "OnCharMergeBones deletes loaded dir");
 
   SourceCharUtlClipPredictState predict_state;
   predict_state.pos = {10.0f, 0.0f, 1.0f};

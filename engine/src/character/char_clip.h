@@ -455,6 +455,13 @@ struct SourceCharUtlClipPredictState {
   float last_ang = 0.0f;
 };
 
+struct SourceCharUtlInitPlan {
+  std::vector<std::string> registered_functions;
+  std::vector<std::string> reset_hair_handler_steps;
+  std::vector<std::string> char_merge_bones_handler_steps;
+  bool char_merge_bones_deletes_loaded_dir = true;
+};
+
 struct SourceCharLookAtBounds {
   std::array<float, 3> min = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> max = {0.0f, 0.0f, 0.0f};
@@ -1649,6 +1656,7 @@ std::vector<std::string> source_char_utl_reset_hair_names(
 void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
                                   const SourceCharUtlClipPredictFrame& first,
                                   const SourceCharUtlClipPredictFrame& second);
+SourceCharUtlInitPlan source_char_utl_init_plan();
 
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
 SourceCharLookAtBounds source_char_lookat_sync_limits(
