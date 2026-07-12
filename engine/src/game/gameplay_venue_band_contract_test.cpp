@@ -8593,15 +8593,15 @@ int main() {
                  "env_value(\"GHOGX_DISABLE_NORMAL_WORLDCROWD_ACTORS\")"
                  "==nullptr",
                  "normal playable WorldCrowd actors are default-on with an A/B disable");
+  ok &= absent(gameplay_c,
+               "GHOGX_ENABLE_UNSELECTED_WORLDCROWD_ACTORS",
+               "normal WorldCrowd draw is no longer behind a diagnostic-only unselected gate");
+  ok &= absent(gameplay_c,
+               "!unselected_worldcrowd_actor_draw_enabled()",
+               "normal WorldCrowd draw no longer requires a source-selected CamShot 3D crowd");
   ok &= contains(gameplay_c,
-                 "boolunselected_worldcrowd_actor_draw_enabled(){"
-                 "returnenv_value(\"GHOGX_ENABLE_UNSELECTED_WORLDCROWD_ACTORS\")"
-                 "!=nullptr;}",
-                 "unselected WorldCrowd actors are behind an explicit diagnostic gate");
-  ok &= contains(gameplay_c,
-                 "if(!venue_camera_has_crowd_selection_&&"
-                 "!unselected_worldcrowd_actor_draw_enabled()){",
-                 "normal WorldCrowd draw requires a source-selected CamShot 3D crowd");
+                 "if(!venue_camera_has_crowd_selection_)returntrue;",
+                 "missing CamShot crowd selection lets authored WorldCrowd draw by normal fullness/camera rules");
   ok &= contains(gameplay_c,
                  "if(!worldcrowd_actor_runtime_enabled())return;",
                  "WorldCrowd actor rebuild/update/draw share the same runtime gate");

@@ -190,10 +190,6 @@ bool debug_worldcrowd_placement_meshes_enabled() {
     return env_value("GHOGX_DEBUG_WORLDCROWD_PLACEMENT_MESHES") != nullptr;
 }
 
-bool unselected_worldcrowd_actor_draw_enabled() {
-    return env_value("GHOGX_ENABLE_UNSELECTED_WORLDCROWD_ACTORS") != nullptr;
-}
-
 bool debug_performer_start_enabled() {
     return env_value("GHOGX_DEBUG_PERFORMER_START") != nullptr;
 }
@@ -21233,28 +21229,6 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 "basis=%s face_camera=%d "
                 "event=%s groups=%s eye=(%.3f %.3f %.3f) t=%.3f\n",
                 worldcrowd_actor_runtime_.size(),
-                worldcrowd_actor_runtime_placements_,
-                worldcrowd_render_area_local_basis() ? "area_local"
-                                                     : "placement",
-                venue_camera_crowd_face_camera_ ? 1 : 0,
-                active_venue_event_.c_str(), active_group_summary().c_str(),
-                eye[0], eye[1], eye[2], song_time_);
-        }
-        return;
-    }
-    if (!venue_camera_has_crowd_selection_ &&
-        !unselected_worldcrowd_actor_draw_enabled()) {
-        if (should_log_worldcrowd()) {
-            std::fprintf(
-                stderr,
-                "[world] WorldCrowd draw: enabled=1 actors=%zu placements=%zu "
-                "drawn=0 culled_fullness=0 culled_near_source=0 "
-                "culled_camera=0 culled_foreground=0 hidden_camera=0 "
-                "source_selected=0 culled_selection=%zu basis=%s "
-                "face_camera=%d event=%s groups=%s "
-                "eye=(%.3f %.3f %.3f) t=%.3f\n",
-                worldcrowd_actor_runtime_.size(),
-                worldcrowd_actor_runtime_placements_,
                 worldcrowd_actor_runtime_placements_,
                 worldcrowd_render_area_local_basis() ? "area_local"
                                                      : "placement",
