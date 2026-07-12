@@ -9231,6 +9231,178 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
         }
         return std::nullopt;
     };
+    auto dst_mesh_environments = [&]() {
+        std::map<std::string, const ghogx::milo_scene::GroupObj*> groups;
+        for (const auto& group : dst.groups) {
+            groups[canonical_milo_ref(group.name)] = &group;
+        }
+        std::map<std::string, std::string> mesh_environments;
+        auto assign_group_environments =
+            [&](auto&& self, const std::string& group_name,
+                std::string current_env,
+                std::unordered_set<std::string>& visiting) -> void {
+            const std::string group_ref = canonical_milo_ref(group_name);
+            if (!visiting.insert(group_ref).second) return;
+            const auto group_it = groups.find(group_ref);
+            if (group_it == groups.end() || !group_it->second) {
+                visiting.erase(group_ref);
+                return;
+            }
+            const auto& group = *group_it->second;
+            if (!group.showing) {
+                visiting.erase(group_ref);
+                return;
+            }
+            if (!group.environment_ref.empty()) current_env = group.environment_ref;
+            const auto assign_child = [&](const std::string& child) {
+                const std::string child_ref = canonical_milo_ref(child);
+                const std::string child_l = lower_ascii(child_ref);
+                if (child_l.size() >= 5 &&
+                    child_l.compare(child_l.size() - 5, 5, ".mesh") == 0) {
+                    if (!current_env.empty())
+                        mesh_environments.emplace(child_ref, current_env);
+                } else if (child_l.size() >= 4 &&
+                           child_l.compare(child_l.size() - 4, 4, ".grp") == 0) {
+                    self(self, child_ref, current_env, visiting);
+                }
+            };
+            if (!group.draw_only.empty()) {
+                assign_child(group.draw_only);
+            } else {
+                for (const auto& child : group.children) assign_child(child);
+            }
+            visiting.erase(group_ref);
+        };
+        for (const auto& group : dst.groups) {
+            std::unordered_set<std::string> visiting;
+            assign_group_environments(assign_group_environments, group.name, {},
+                                      visiting);
+        }
+        return mesh_environments;
+    };
+    const std::map<std::string, std::string> floor_mesh_environments =
+        dst_mesh_environments();
+    auto dst_floor_environment =
+        [&](const std::string& mat_name) -> std::optional<std::string> {
+        const std::string mat_ref = canonical_milo_ref(mat_name);
+        for (const auto& floor_mesh : dst.meshes) {
+            if (!floor_mesh.decoded || !floor_mesh.showing ||
+                canonical_milo_ref(floor_mesh.material) != mat_ref ||
+                canonical_milo_ref(floor_mesh.name) == "Crowd_area.mesh") {
+                continue;
+            }
+            const auto env_it =
+                floor_mesh_environments.find(canonical_milo_ref(floor_mesh.name));
+            if (env_it == floor_mesh_environments.end() ||
+                env_it->second.empty()) {
+                continue;
+            }
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue WorldCrowd floor environment source: "
+                    "mesh=%s material=%s env=%s\n",
+                    floor_mesh.name.c_str(), floor_mesh.material.c_str(),
+                    env_it->second.c_str());
+            }
+            return env_it->second;
+        }
+        return std::nullopt;
+    };
+    struct FloorUvProjection {
+        std::string source_mesh;
+        std::array<float, 3> u = {0.0f, 0.0f, 0.0f};
+        std::array<float, 3> v = {0.0f, 0.0f, 0.0f};
+        float score = 0.0f;
+    };
+    auto dst_floor_uv_projection =
+        [&](const std::string& mat_name,
+            const ghogx::milo_scene::MeshObj& target_mesh,
+            const ghogx::milo_scene::Scene& target_scene)
+        -> std::optional<FloorUvProjection> {
+        const auto target_world = target_scene.world_matrix(target_mesh);
+        float target_min_z = std::numeric_limits<float>::infinity();
+        float target_max_z = -std::numeric_limits<float>::infinity();
+        for (const auto& vertex : target_mesh.verts) {
+            const auto world = mat4_xform_point_game(
+                target_world, {vertex.px, vertex.py, vertex.pz});
+            target_min_z = std::min(target_min_z, world[2]);
+            target_max_z = std::max(target_max_z, world[2]);
+        }
+        if (!std::isfinite(target_min_z) || !std::isfinite(target_max_z))
+            return std::nullopt;
+        const float target_z = (target_min_z + target_max_z) * 0.5f;
+        const std::string mat_ref = canonical_milo_ref(mat_name);
+        std::optional<FloorUvProjection> best;
+        for (const auto& floor_mesh : dst.meshes) {
+            if (!floor_mesh.decoded || !floor_mesh.showing ||
+                floor_mesh.verts.size() < 3 ||
+                canonical_milo_ref(floor_mesh.material) != mat_ref ||
+                canonical_milo_ref(floor_mesh.name) == "Crowd_area.mesh") {
+                continue;
+            }
+            float avg_nz = 0.0f;
+            float min_u = std::numeric_limits<float>::infinity();
+            float min_v = std::numeric_limits<float>::infinity();
+            float max_u = -std::numeric_limits<float>::infinity();
+            float max_v = -std::numeric_limits<float>::infinity();
+            for (const auto& vertex : floor_mesh.verts) {
+                avg_nz += vertex.nz;
+                min_u = std::min(min_u, vertex.u);
+                min_v = std::min(min_v, vertex.v);
+                max_u = std::max(max_u, vertex.u);
+                max_v = std::max(max_v, vertex.v);
+            }
+            avg_nz /= static_cast<float>(floor_mesh.verts.size());
+            const bool uv_repeats =
+                min_u < -0.05f || min_v < -0.05f || max_u > 1.05f ||
+                max_v > 1.05f;
+            if (!uv_repeats || std::fabs(avg_nz) < 0.20f) continue;
+
+            const auto source_world = dst.world_matrix(floor_mesh);
+            float min_x = std::numeric_limits<float>::infinity();
+            float min_y = std::numeric_limits<float>::infinity();
+            float min_z = std::numeric_limits<float>::infinity();
+            float max_x = -std::numeric_limits<float>::infinity();
+            float max_y = -std::numeric_limits<float>::infinity();
+            float max_z = -std::numeric_limits<float>::infinity();
+            for (const auto& vertex : floor_mesh.verts) {
+                const auto world = mat4_xform_point_game(
+                    source_world, {vertex.px, vertex.py, vertex.pz});
+                min_x = std::min(min_x, world[0]);
+                min_y = std::min(min_y, world[1]);
+                min_z = std::min(min_z, world[2]);
+                max_x = std::max(max_x, world[0]);
+                max_y = std::max(max_y, world[1]);
+                max_z = std::max(max_z, world[2]);
+            }
+            const float source_width = max_x - min_x;
+            const float source_depth = max_y - min_y;
+            const float source_u_span = max_u - min_u;
+            const float source_v_span = max_v - min_v;
+            if (source_width <= 1.0f || source_depth <= 1.0f ||
+                source_u_span <= 0.001f || source_v_span <= 0.001f) {
+                continue;
+            }
+            const float source_scale_u = source_u_span / source_width;
+            const float source_scale_v = source_v_span / source_depth;
+            const float area =
+                std::max(0.0f, source_width) * std::max(0.0f, source_depth);
+            const float source_z = (min_z + max_z) * 0.5f;
+            const float height_weight =
+                1.0f / (1.0f + std::fabs(source_z - target_z) / 75.0f);
+            FloorUvProjection projection;
+            projection.source_mesh = floor_mesh.name;
+            projection.u = {source_scale_u, 0.0f,
+                            min_u - min_x * source_scale_u};
+            projection.v = {0.0f, source_scale_v,
+                            min_v - min_y * source_scale_v};
+            projection.score = area * height_weight;
+            if (!best || projection.score > best->score)
+                best = std::move(projection);
+        }
+        return best;
+    };
     auto source_mat = [&](const std::string& mat_name)
         -> const ghogx::milo_scene::MatObj* {
         const std::string ref = canonical_milo_ref(mat_name);
@@ -9264,7 +9436,52 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
         if (lower_ascii(draw_mesh.material) == "crowd_area.mat") {
             if (const auto floor_mat = dst_floor_mat()) {
                 const std::string original_material = draw_mesh.material;
+                const auto floor_env = dst_floor_environment(*floor_mat);
+                const auto floor_uv =
+                    dst_floor_uv_projection(*floor_mat, mesh, chars_scene);
                 draw_mesh.material = *floor_mat;
+                if (floor_uv) {
+                    const auto target_world = chars_scene.world_matrix(mesh);
+                    float min_u = std::numeric_limits<float>::infinity();
+                    float min_v = std::numeric_limits<float>::infinity();
+                    float max_u = -std::numeric_limits<float>::infinity();
+                    float max_v = -std::numeric_limits<float>::infinity();
+                    for (auto& vertex : draw_mesh.verts) {
+                        const auto world = mat4_xform_point_game(
+                            target_world, {vertex.px, vertex.py, vertex.pz});
+                        vertex.u = world[0] * floor_uv->u[0] +
+                                   world[1] * floor_uv->u[1] +
+                                   floor_uv->u[2];
+                        vertex.v = world[0] * floor_uv->v[0] +
+                                   world[1] * floor_uv->v[1] +
+                                   floor_uv->v[2];
+                        min_u = std::min(min_u, vertex.u);
+                        min_v = std::min(min_v, vertex.v);
+                        max_u = std::max(max_u, vertex.u);
+                        max_v = std::max(max_v, vertex.v);
+                    }
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue WorldCrowd floor uv cleanup: mesh=%s "
+                            "source=%s uv=(%.3f..%.3f %.3f..%.3f)\n",
+                            draw_mesh.name.c_str(),
+                            floor_uv->source_mesh.c_str(), min_u, max_u, min_v,
+                            max_v);
+                    }
+                }
+                if (floor_env) {
+                    ghogx::milo_scene::GroupObj cleanup_group;
+                    cleanup_group.name = "__worldcrowd_floor_env_" +
+                                         std::to_string(appended) + ".grp";
+                    cleanup_group.decoded = true;
+                    cleanup_group.showing = true;
+                    cleanup_group.environment_ref = *floor_env;
+                    cleanup_group.children.push_back(draw_mesh.name);
+                    cleanup_group.draw_order = draw_mesh.draw_order;
+                    cleanup_group.dir_index = draw_mesh.dir_index;
+                    dst.groups.push_back(std::move(cleanup_group));
+                }
                 if (const auto floor_tint = dst_floor_tint(*floor_mat)) {
                     for (auto& vertex : draw_mesh.verts) {
                         vertex.r = (*floor_tint)[0];
@@ -9277,9 +9494,10 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
                             stderr,
                             "[world] venue WorldCrowd floor cleanup: mesh=%s "
                             "material=%s->%s vertices=%zu copied_tint=1 "
-                            "rgba=(%.3f %.3f %.3f %.3f)\n",
+                            "env=%s rgba=(%.3f %.3f %.3f %.3f)\n",
                             draw_mesh.name.c_str(), original_material.c_str(),
                             draw_mesh.material.c_str(), draw_mesh.verts.size(),
+                            floor_env ? floor_env->c_str() : "(none)",
                             (*floor_tint)[0], (*floor_tint)[1],
                             (*floor_tint)[2], (*floor_tint)[3]);
                     }
@@ -9287,9 +9505,10 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
                     std::fprintf(
                         stderr,
                         "[world] venue WorldCrowd floor cleanup: mesh=%s "
-                        "material=%s->%s vertices=%zu copied_tint=0\n",
+                        "material=%s->%s vertices=%zu copied_tint=0 env=%s\n",
                         draw_mesh.name.c_str(), original_material.c_str(),
-                        draw_mesh.material.c_str(), draw_mesh.verts.size());
+                        draw_mesh.material.c_str(), draw_mesh.verts.size(),
+                        floor_env ? floor_env->c_str() : "(none)");
                 }
             }
         }

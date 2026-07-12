@@ -8948,8 +8948,34 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(constautofloor_mat=dst_floor_mat()){"
                  "conststd::stringoriginal_material=draw_mesh.material;"
+                 "constautofloor_env=dst_floor_environment(*floor_mat);"
+                 "constautofloor_uv=dst_floor_uv_projection(*floor_mat,mesh,chars_scene);"
                  "draw_mesh.material=*floor_mat;",
                  "WorldCrowd floor cleanup replaces placement color with a venue-authored floor material");
+  ok &= contains(gameplay_c,
+                 "structFloorUvProjection{",
+                 "WorldCrowd floor cleanup has a venue-floor UV projection model");
+  ok &= contains(gameplay_c,
+                 "autodst_floor_uv_projection=",
+                 "WorldCrowd floor cleanup searches decoded venue floors for repeated floor UVs");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_scale_u=source_u_span/source_width;",
+                 "WorldCrowd floor cleanup preserves the authored floor texture repeat scale");
+  ok &= contains(gameplay_c,
+                 "vertex.u=world[0]*floor_uv->u[0]+",
+                 "WorldCrowd floor cleanup projects placement footprint UVs from venue floor coordinates");
+  ok &= contains(gameplay_c,
+                 "\"[world]venueWorldCrowdflooruvcleanup:mesh=%s\"",
+                 "WorldCrowd floor cleanup logs the projected UV range");
+  ok &= contains(gameplay_c,
+                 "cleanup_group.environment_ref=*floor_env;",
+                 "WorldCrowd floor cleanup attaches the venue-authored floor environment");
+  ok &= contains(gameplay_c,
+                 "cleanup_group.children.push_back(draw_mesh.name);",
+                 "WorldCrowd floor cleanup maps the placement footprint into the floor environment group");
+  ok &= contains(gameplay_c,
+                 "\"[world]venueWorldCrowdfloorenvironmentsource:\"",
+                 "WorldCrowd floor cleanup logs the authored environment source mesh");
   ok &= contains(gameplay_c,
                  "if(constautofloor_tint=dst_floor_tint(*floor_mat)){"
                  "for(auto&vertex:draw_mesh.verts){",
