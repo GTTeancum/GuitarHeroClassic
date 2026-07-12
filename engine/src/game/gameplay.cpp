@@ -9049,15 +9049,22 @@ struct VenueTransAnimDecode {
     bool follow_path = false;
     bool rot_slerp = false;
     bool rot_spline = false;
+    bool target_from_anim_name = false;
 };
 
 std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
-    const uint8_t* body, size_t size) {
+    const uint8_t* body, size_t size, std::string_view fallback_target = {}) {
     const auto decoded = read_rnd_transanim_like_miloeditor(body, size);
     if (!decoded) return std::nullopt;
-    if (decoded->trans.empty()) return std::nullopt;
+    std::string target_ref = canonical_milo_ref(decoded->trans);
+    bool target_from_anim_name = false;
+    if (target_ref.empty() && !fallback_target.empty()) {
+        target_ref = canonical_milo_ref(std::string(fallback_target));
+        target_from_anim_name = !target_ref.empty();
+    }
+    if (target_ref.empty()) return std::nullopt;
     VenueTransAnimDecode out;
-    out.target = canonical_milo_ref(decoded->trans);
+    out.target = std::move(target_ref);
     out.anim.translation_keys =
         mesh_anim_keys_from_camera_keys(decoded->trans_keys);
     out.anim.rotation_keys =
@@ -9077,6 +9084,7 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
     out.follow_path = decoded->follow_path;
     out.rot_slerp = decoded->rot_slerp;
     out.rot_spline = decoded->rot_spline;
+    out.target_from_anim_name = target_from_anim_name;
     return out;
 }
 
@@ -12037,7 +12045,8 @@ load_venue_anim_filters(const std::string& hdr_path,
                 }
             } else if (de.type == "TransAnim") {
                 const auto decoded =
-                    decode_venue_transanim_like_miloeditor(body, size);
+                    decode_venue_transanim_like_miloeditor(body, size,
+                                                          de.name);
                 if (!decoded) continue;
                 const std::string anim_name = canonical_milo_ref(de.name);
                 auto stored = *decoded;
@@ -12053,7 +12062,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                         mesh_anim_key_endpoint_summary(stored.anim.scale_keys);
                     std::fprintf(
                         stderr,
-                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u rate=%d owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
+                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u rate=%d owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s fallback_target=%d flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
                         de.name.c_str(), stored.target.c_str(),
                         stored.revision, stored.anim_revision,
                         stored.anim_rate,
@@ -12063,6 +12072,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                         stored.anim.scale_keys.size(),
                         trans_keys.c_str(), rot_keys.c_str(),
                         scale_keys.c_str(),
+                        stored.target_from_anim_name ? 1 : 0,
                         stored.trans_spline ? 1 : 0,
                         stored.repeat_trans ? 1 : 0,
                         stored.scale_spline ? 1 : 0,
@@ -12682,7 +12692,8 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
             const size_t size = static_cast<size_t>(de.size);
             if (de.type == "TransAnim") {
                 const auto decoded =
-                    decode_venue_transanim_like_miloeditor(body, size);
+                    decode_venue_transanim_like_miloeditor(body, size,
+                                                          de.name);
                 if (!decoded) continue;
                 auto stored = *decoded;
                 const std::string anim_name = canonical_milo_ref(de.name);

@@ -6674,8 +6674,14 @@ int main() {
                  "apply_mesh_transform_sample(sampled_local,active_sample);",
                  "animated venue parent transforms apply samples at the authored node");
   ok &= contains(gameplay_c,
-                 "out.target=canonical_milo_ref(decoded->trans);",
-                 "source-shaped TransAnim targets come from the authored trans symbol");
+                 "std::stringtarget_ref=canonical_milo_ref(decoded->trans);",
+                 "source-shaped TransAnim first honors the authored trans symbol");
+  ok &= contains(gameplay_c,
+                 "target_ref=canonical_milo_ref(std::string(fallback_target));",
+                 "venue TransAnim empty source targets stay routable by object name");
+  ok &= contains(gameplay_c,
+                 "out.target=std::move(target_ref);",
+                 "source-shaped TransAnim stores the resolved venue target");
   ok &= contains(gameplay_c,
                  "out.anim.rotation_keys=mesh_quat_keys_from_camera_keys(decoded->rot_keys);",
                  "source-shaped TransAnim decoder keeps quaternion rotation keys");
