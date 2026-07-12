@@ -2816,6 +2816,12 @@ note, and all report `unreadBytes=0`.
     empty `mLastNode`, `mOldBeat=1e+30f`, `mBeatScale=1.0f`,
     `mBlendWidth=1.0f`, empty `mClipType`, `mApply=kApplyBlend`, no
     `mInternalBones`, and `mPlayMultipleClips=false`.
+  - Native `source_char_driver_destructor_plan` records the checked
+    `CharDriver::~CharDriver` cleanup body: if `mFirst` exists it calls
+    `mFirst->DeleteStack()`, then deletes `mInternalBones`. The source
+    destructor does not call `Clear()`, does not reset `mFirst`, and does not
+    reset `mInternalBones`; native code must not infer broader cleanup from
+    this body.
   - Native `source_char_driver_clear`, `source_char_driver_transfer`,
     `source_char_driver_set_clips`, and `source_char_driver_set_bones` port the
     concrete source state edits from `Clear`, `Transfer`, `SetClips`, and

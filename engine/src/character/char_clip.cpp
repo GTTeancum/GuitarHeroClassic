@@ -3853,6 +3853,10 @@ SourceCharDriverState source_char_driver_default_state() {
   return SourceCharDriverState{};
 }
 
+SourceCharDriverDestructorPlan source_char_driver_destructor_plan() {
+  return SourceCharDriverDestructorPlan{};
+}
+
 void source_char_driver_clear(SourceCharDriverState& state) {
   state.has_first = false;
 }

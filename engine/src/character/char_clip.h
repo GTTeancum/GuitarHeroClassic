@@ -1189,6 +1189,14 @@ struct SourceCharDriverState {
   bool play_multiple_clips = false;
 };
 
+struct SourceCharDriverDestructorPlan {
+  bool delete_stack_when_first = true;
+  bool delete_internal_bones = true;
+  bool calls_clear = false;
+  bool clears_first_pointer = false;
+  bool clears_internal_bones_pointer = false;
+};
+
 struct SourceCharDriverTransferPlan {
   bool clear_stack = true;
   bool create_first_driver_copy = false;
@@ -1641,6 +1649,7 @@ SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame);
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.
 SourceCharDriverState source_char_driver_default_state();
+SourceCharDriverDestructorPlan source_char_driver_destructor_plan();
 void source_char_driver_clear(SourceCharDriverState& state);
 SourceCharDriverEnterDecision source_char_driver_enter(
     SourceCharDriverState& state);

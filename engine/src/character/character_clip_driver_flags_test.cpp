@@ -363,6 +363,17 @@ bool expect_driver_state_helpers() {
       ghogx::character::source_char_driver_default_state();
   ok &= expect_driver_default_state(state);
 
+  const auto destructor_plan =
+      ghogx::character::source_char_driver_destructor_plan();
+  if (!destructor_plan.delete_stack_when_first ||
+      !destructor_plan.delete_internal_bones ||
+      destructor_plan.calls_clear ||
+      destructor_plan.clears_first_pointer ||
+      destructor_plan.clears_internal_bones_pointer) {
+    std::cerr << "driver destructor plan no longer matches source cleanup\n";
+    ok = false;
+  }
+
   state.has_first = true;
   ghogx::character::source_char_driver_clear(state);
   if (state.has_first) {

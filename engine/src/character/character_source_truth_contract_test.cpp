@@ -21673,6 +21673,10 @@ int run_contract() {
   ok &= contains(rb3_latest_char_driver_cpp,
                  "mApply(kApplyBlend),mInternalBones(0),mPlayMultipleClips(0)",
                  "latest CharDriver source constructor exposes apply/internal defaults");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "CharDriver::~CharDriver(){if(mFirst)mFirst->DeleteStack();"
+                 "deletemInternalBones;}",
+                 "latest CharDriver source exposes destructor cleanup");
   ok &= contains(rb3_latest_char_driver_h,
                  "enumApplyMode{kApplyBlend,kApplyAdd,kApplyRotateTo,"
                  "kApplyBlendWeights};",
@@ -22022,8 +22026,21 @@ int run_contract() {
                  "floatold_beat=1.0e30f;",
                  "native character API exposes source CharDriver state defaults");
   ok &= contains(char_clip_h,
+                 "structSourceCharDriverDestructorPlan{"
+                 "booldelete_stack_when_first=true;"
+                 "booldelete_internal_bones=true;boolcalls_clear=false;",
+                 "native character API exposes source CharDriver destructor plan");
+  ok &= contains(char_clip_h,
+                 "boolclears_first_pointer=false;"
+                 "boolclears_internal_bones_pointer=false;};",
+                 "native CharDriver destructor plan fences pointer reset assumptions");
+  ok &= contains(char_clip_h,
                  "SourceCharDriverStatesource_char_driver_default_state();",
                  "native character API exposes source CharDriver default state helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverDestructorPlan"
+                 "source_char_driver_destructor_plan();",
+                 "native character API exposes source CharDriver destructor helper");
   ok &= contains(char_clip_h,
                  "voidsource_char_driver_clear(SourceCharDriverState&state);",
                  "native character API exposes source CharDriver Clear helper");
@@ -22529,6 +22546,10 @@ int run_contract() {
                  "returnSourceCharDriverState{};}",
                  "native CharDriver default state helper returns source defaults");
   ok &= contains(char_clip,
+                 "SourceCharDriverDestructorPlansource_char_driver_destructor_plan(){"
+                 "returnSourceCharDriverDestructorPlan{};}",
+                 "native CharDriver destructor helper returns source cleanup plan");
+  ok &= contains(char_clip,
                  "voidsource_char_driver_clear(SourceCharDriverState&state){"
                  "state.has_first=false;}",
                  "native CharDriver Clear helper ports source mFirst reset");
@@ -22727,6 +22748,9 @@ int run_contract() {
                  "source_char_driver_default_state()",
                  "focused flag-mask test covers CharDriver constructor defaults");
   ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_destructor_plan()",
+                 "focused flag-mask test covers CharDriver destructor plan");
+  ok &= contains(clip_driver_flags_test,
                  "source_char_driver_set_clips(state,true)",
                  "focused flag-mask test covers CharDriver SetClips change");
   ok &= contains(clip_driver_flags_test,
@@ -22788,6 +22812,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `SourceCharDriverState` records the checked `CharDriver`",
                  "document records native CharDriver source state");
+  ok &= contains(doc,
+                 "Native `source_char_driver_destructor_plan` records the checked",
+                 "document records native CharDriver destructor helper");
+  ok &= contains(doc,
+                 "does not call `Clear()`, does not reset `mFirst`, and does not",
+                 "document fences CharDriver destructor pointer reset assumptions");
   ok &= contains(doc,
                  "SetClips` only resets `mLastNode` when the clip directory",
                  "document records CharDriver SetClips source gate");
