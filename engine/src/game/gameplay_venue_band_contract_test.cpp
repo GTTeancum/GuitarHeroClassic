@@ -6792,6 +6792,12 @@ int main() {
                  "sample_axis=(%.6f%.6f%.6f)sample_axis_dom=%s",
                  "source-local TransAnim diagnostics expose the authored rotation axis for gear/fan review");
   ok &= contains(renderer_c,
+                 "recompose_delta_axis=(%.6f%.6f%.6f)",
+                 "source-local TransAnim diagnostics expose the source recomposition delta axis");
+  ok &= contains(renderer_c,
+                 "local_delta_axis=(%.6f%.6f%.6f)local_delta_axis_dom=%s",
+                 "source-local TransAnim diagnostics expose the base-local delta axis");
+  ok &= contains(renderer_c,
                  "mesh_anim_worldmesh=%sparent=%ssample=%zu",
                  "animated venue mesh diagnostics identify the final mesh and parent rows");
   ok &= contains(renderer_c,

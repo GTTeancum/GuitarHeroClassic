@@ -451,6 +451,21 @@ std::array<float, 4> quat_xyzw_from_row_rot(const float rot[3][3]) {
   return normalize_quat_xyzw(q);
 }
 
+void mul_row_rot3(const float a[3][3], const float b[3][3], float out[3][3]) {
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      out[r][c] =
+          a[r][0] * b[0][c] + a[r][1] * b[1][c] + a[r][2] * b[2][c];
+    }
+  }
+}
+
+void transpose_row_rot3(const float in[3][3], float out[3][3]) {
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) out[r][c] = in[c][r];
+  }
+}
+
 std::array<float, 4> fast_interp_quat_xyzw(std::array<float, 4> a,
                                            std::array<float, 4> b,
                                            float t);
@@ -1033,6 +1048,12 @@ void log_mesh_anim_local_rows(
   float source_sampled_rot[3][3];
   source_normalized_rows(base_local, source_base_rot);
   source_normalized_rows(sampled_local, source_sampled_rot);
+  float source_base_inv_rot[3][3];
+  float recompose_delta_rot[3][3];
+  float local_delta_rot[3][3];
+  transpose_row_rot3(source_base_rot, source_base_inv_rot);
+  mul_row_rot3(source_sampled_rot, source_base_inv_rot, recompose_delta_rot);
+  mul_row_rot3(source_base_inv_rot, source_sampled_rot, local_delta_rot);
   const int has_pos =
       applied_sample && applied_sample->has_translation ? 1 : 0;
   const int abs_pos =
@@ -1057,6 +1078,28 @@ void log_mesh_anim_local_rows(
       std::fabs(sample_axis[0]) + std::fabs(sample_axis[1]) +
           std::fabs(sample_axis[2]) >
       0.000001f;
+  const std::array<float, 4> recompose_delta_quat =
+      quat_xyzw_from_row_rot(recompose_delta_rot);
+  const std::array<float, 3> recompose_delta_axis =
+      has_rot ? normalized3({recompose_delta_quat[0],
+                             recompose_delta_quat[1],
+                             recompose_delta_quat[2]})
+              : std::array<float, 3>{0.0f, 0.0f, 0.0f};
+  const bool recompose_delta_axis_valid =
+      std::fabs(recompose_delta_axis[0]) +
+          std::fabs(recompose_delta_axis[1]) +
+          std::fabs(recompose_delta_axis[2]) >
+      0.000001f;
+  const std::array<float, 4> local_delta_quat =
+      quat_xyzw_from_row_rot(local_delta_rot);
+  const std::array<float, 3> local_delta_axis =
+      has_rot ? normalized3({local_delta_quat[0], local_delta_quat[1],
+                             local_delta_quat[2]})
+              : std::array<float, 3>{0.0f, 0.0f, 0.0f};
+  const bool local_delta_axis_valid =
+      std::fabs(local_delta_axis[0]) + std::fabs(local_delta_axis[1]) +
+          std::fabs(local_delta_axis[2]) >
+      0.000001f;
   const std::array<float, 3> scale =
       applied_sample ? applied_sample->scale
                     : std::array<float, 3>{1.0f, 1.0f, 1.0f};
@@ -1068,6 +1111,9 @@ void log_mesh_anim_local_rows(
       "sample_pos=%d:%d sample_rot=%d:%d "
       "quat=(%.6f %.6f %.6f %.6f) "
       "sample_axis=(%.6f %.6f %.6f) sample_axis_dom=%s "
+      "recompose_delta_axis=(%.6f %.6f %.6f) "
+      "recompose_delta_axis_dom=%s "
+      "local_delta_axis=(%.6f %.6f %.6f) local_delta_axis_dom=%s "
       "sample_scale=%d:%d "
       "scale_vec=(%.6f %.6f %.6f) base_scale=(%.6f %.6f %.6f) "
       "sampled_scale=(%.6f %.6f %.6f) "
@@ -1084,6 +1130,14 @@ void log_mesh_anim_local_rows(
       has_pos, abs_pos, has_rot, abs_rot, quat[0], quat[1], quat[2],
       quat[3], sample_axis[0], sample_axis[1], sample_axis[2],
       sample_axis_valid ? axis_label(dominant_abs_axis(sample_axis)) : "-",
+      recompose_delta_axis[0], recompose_delta_axis[1],
+      recompose_delta_axis[2],
+      recompose_delta_axis_valid
+          ? axis_label(dominant_abs_axis(recompose_delta_axis))
+          : "-",
+      local_delta_axis[0], local_delta_axis[1], local_delta_axis[2],
+      local_delta_axis_valid ? axis_label(dominant_abs_axis(local_delta_axis))
+                             : "-",
       has_scale, abs_scale, scale[0], scale[1], scale[2],
       base_scale[0], base_scale[1], base_scale[2], sampled_scale[0],
       sampled_scale[1], sampled_scale[2], base_det, sampled_det,
