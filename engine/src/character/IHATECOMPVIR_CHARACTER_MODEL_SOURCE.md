@@ -3506,6 +3506,14 @@ note, and all report `unreadBytes=0`.
     scalar channel reader, and the short quaternion reader preserve that raw
     source value; no pi-scale is applied unless a future source body proves one
     belongs in a later pose-application step.
+  - Grim's `load_char_bones_samples_data` computes each packed sample row by
+    walking the serialized bone channel list, summing `get_type_size2` for each
+    recognized channel, and aligning that per-sample byte count to a 4-byte
+    boundary only for versions above 11. Native
+    `source_grim_char_bones_samples_data_plan` ports that stride rule and the
+    GH2 clip parser now uses it for `BoneList.frame_bytes`; it still refuses
+    unsupported channel names and does not evaluate or publish those channels
+    as final pose output.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,

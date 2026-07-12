@@ -20113,6 +20113,13 @@ int run_contract() {
                  "Native `source_char_bones_samples_allocate_size`,",
                  "document records native CharBonesSamples state helpers");
   ok &= contains(doc,
+                 "`source_grim_char_bones_samples_data_plan` ports that stride "
+                 "rule",
+                 "document records Grim CharBonesSamples data stride helper");
+  ok &= contains(doc,
+                 "GH2 clip parser now uses it for `BoneList.frame_bytes`",
+                 "document records parser use of Grim data stride helper");
+  ok &= contains(doc,
                  "Native `source_char_bones_samples_load_plan` records the "
                  "checked `Load`\n    delegation",
                  "document records native CharBonesSamples load plan");
@@ -20171,6 +20178,31 @@ int run_contract() {
                  "//Range:0x80323FFC->0x803250DCvoid"
                  "CharBonesSamples::Relativize(",
                  "RB2 dump maps CharBonesSamples Relativize range");
+  ok &= contains(grim_char_bones_samples_io,
+                 "letmutsample_size:usize=bones.iter().filter_map(|(s,_)|"
+                 "matchCharBonesSamples::get_type_of(s){i@0..=6=>"
+                 "Some(char_bones_samples.get_type_size2(i)),_=>None}).sum();",
+                 "Grim CharBonesSamples data computes sample byte stride");
+  ok &= contains(grim_char_bones_samples_io,
+                 "ifversion>11{sample_size=crate::io::align_to_multiple_of_four"
+                 "(sample_size);}",
+                 "Grim CharBonesSamples data aligns RB-era sample bytes");
+  ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesDataPlan{",
+                 "native exposes Grim CharBonesSamples data stride plan");
+  ok &= contains(char_clip,
+                 "SourceGrimCharBonesSamplesDataPlansource_grim_char_bones_samples_data_plan(",
+                 "native implements Grim CharBonesSamples data stride helper");
+  ok &= contains(char_clip,
+                 "source_grim_char_bones_samples_get_type_size2(type,compression)",
+                 "native helper uses Grim get_type_size2 per channel");
+  ok &= contains(char_clip,
+                 "plan.sample_size=(plan.sample_size+3u)&~static_cast<size_t>(3u);",
+                 "native helper ports Grim four-byte alignment");
+  ok &= contains(char_clip,
+                 "constSourceGrimCharBonesSamplesDataPlandata_plan="
+                 "source_grim_char_bones_samples_data_plan(",
+                 "clip parser uses source data stride plan");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::EvaluateChannel(",
                 "latest CharBonesSamples source does not expose EvaluateChannel body");
@@ -20183,6 +20215,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_prop_sync_plan()",
                  "focused CharBones source test covers CharBonesSamples prop-sync plan");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_data_plan(",
+                 "focused CharBones source test covers Grim data stride helper");
+  ok &= contains(char_bones_source_test,
+                 "grim_data16.sample_size",
+                 "focused CharBones source test covers aligned Grim data stride");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");

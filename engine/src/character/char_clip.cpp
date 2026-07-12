@@ -1080,6 +1080,47 @@ source_grim_char_bones_samples_header_plan(int version) {
   return plan;
 }
 
+SourceGrimCharBonesSamplesDataPlan source_grim_char_bones_samples_data_plan(
+    int version,
+    int compression,
+    const std::vector<std::string>& channels,
+    int sample_count) {
+  SourceGrimCharBonesSamplesDataPlan plan;
+  plan.compression = compression;
+  plan.sample_count = sample_count;
+
+  const SourceGrimCharBonesSamplesHeaderPlan header_plan =
+      source_grim_char_bones_samples_header_plan(version);
+  if (!header_plan.known_version || sample_count < 0) return plan;
+
+  plan.known_version = true;
+  for (const std::string& channel : channels) {
+    const int type = source_grim_char_bones_samples_get_type_of(channel);
+    if (type < 0 || type >= kSourceCharBonesTypeEnd) {
+      plan.ignored_channels.push_back(channel);
+      continue;
+    }
+    const size_t type_size =
+        source_grim_char_bones_samples_get_type_size2(type, compression);
+    if (type_size == 0u) {
+      plan.ignored_channels.push_back(channel);
+      continue;
+    }
+    plan.kept_channels.push_back(channel);
+    plan.channel_sizes.push_back(type_size);
+    plan.unaligned_sample_size += type_size;
+  }
+
+  plan.sample_size = plan.unaligned_sample_size;
+  plan.aligns_sample_data_to_4 = version > 11;
+  if (plan.aligns_sample_data_to_4) {
+    plan.sample_size = (plan.sample_size + 3u) & ~static_cast<size_t>(3u);
+  }
+  plan.total_sample_bytes =
+      plan.sample_size * static_cast<size_t>(sample_count);
+  return plan;
+}
+
 SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
                                                            bool read_meta) {
   SourceGrimCharClipLoadPlan plan;
@@ -2109,13 +2150,16 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
   out.n_vec   = cat_n(0) + cat_n(1);                       // pos + scale
   out.n_quat  = cat_n(2);                                  // quat
   out.n_angle = cat_n(3) + cat_n(4) + cat_n(5);            // rot*
-  out.frame_bytes = 0;
-  for (int cat : out.cats) {
-    const size_t type_size =
-        source_grim_char_bones_samples_get_type_size2(cat, out.compression);
-    if (type_size == 0u) return false;
-    out.frame_bytes += type_size;
+  const SourceGrimCharBonesSamplesDataPlan data_plan =
+      source_grim_char_bones_samples_data_plan(samples_version,
+                                               out.compression,
+                                               out.names,
+                                               out.num_samples);
+  if (!data_plan.known_version ||
+      data_plan.kept_channels.size() != out.names.size()) {
+    return false;
   }
+  out.frame_bytes = data_plan.sample_size;
 
   // Source TypeSize proves the 4-byte ByteQuat row for kCompressQuats and
   // kCompressAll, but the checked source snapshot does not expose the exact

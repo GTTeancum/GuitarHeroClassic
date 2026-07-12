@@ -1624,6 +1624,59 @@ int main() {
       source_grim_char_bones_samples_get_type_size2(kSourceCharBonesTypePos, 4),
       0, "grim get_type_size2 rejects unsupported compression");
 
+  const SourceGrimCharBonesSamplesDataPlan grim_data10 =
+      source_grim_char_bones_samples_data_plan(
+          10, kCompressRots,
+          {"bone_root.pos", "bone_root.quat", "bone_root.rotz"}, 3);
+  ok &= expect_int(grim_data10.known_version ? 1 : 0, 1,
+                   "grim data v10 known");
+  ok &= expect_size(grim_data10.kept_channels.size(), 3,
+                    "grim data v10 kept channels");
+  ok &= expect_size(grim_data10.channel_sizes[0], 12,
+                    "grim data v10 pos size");
+  ok &= expect_size(grim_data10.channel_sizes[1], 8,
+                    "grim data v10 quat size");
+  ok &= expect_size(grim_data10.channel_sizes[2], 2,
+                    "grim data v10 rotz size");
+  ok &= expect_size(grim_data10.unaligned_sample_size, 22,
+                    "grim data v10 unaligned sample size");
+  ok &= expect_size(grim_data10.sample_size, 22,
+                    "grim data v10 sample size");
+  ok &= expect_size(grim_data10.total_sample_bytes, 66,
+                    "grim data v10 total bytes");
+  ok &= expect_int(grim_data10.aligns_sample_data_to_4 ? 1 : 0, 0,
+                   "grim data v10 no alignment");
+
+  const SourceGrimCharBonesSamplesDataPlan grim_data16 =
+      source_grim_char_bones_samples_data_plan(
+          16, kCompressRots,
+          {"bone_root.pos", "bone_root.quat", "bone_root.rotz"}, 3);
+  ok &= expect_int(grim_data16.aligns_sample_data_to_4 ? 1 : 0, 1,
+                   "grim data v16 aligns");
+  ok &= expect_size(grim_data16.unaligned_sample_size, 22,
+                    "grim data v16 unaligned sample size");
+  ok &= expect_size(grim_data16.sample_size, 24,
+                    "grim data v16 aligned sample size");
+  ok &= expect_size(grim_data16.total_sample_bytes, 72,
+                    "grim data v16 total bytes");
+
+  const SourceGrimCharBonesSamplesDataPlan grim_data_invalid =
+      source_grim_char_bones_samples_data_plan(
+          10, kCompressRots, {"bone.root.pos", "bone_root.pos"}, 1);
+  ok &= expect_size(grim_data_invalid.ignored_channels.size(), 1,
+                    "grim data invalid channel ignored");
+  ok &= expect_string(grim_data_invalid.ignored_channels[0],
+                      "bone.root.pos",
+                      "grim data invalid first-dot channel");
+  ok &= expect_size(grim_data_invalid.sample_size, 12,
+                    "grim data invalid channel skipped size");
+  ok &= expect_int(source_grim_char_bones_samples_data_plan(
+                       13, kCompressRots, {"bone_root.pos"}, 1)
+                       .known_version
+                       ? 1
+                       : 0,
+                   0, "grim data rejects unsupported version");
+
   const SourceGrimCharBonesSamplesHeaderPlan grim_header10 =
       source_grim_char_bones_samples_header_plan(10);
   ok &= expect_int(grim_header10.known_version ? 1 : 0, 1,

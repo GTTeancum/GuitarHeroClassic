@@ -462,6 +462,19 @@ struct SourceGrimCharBonesSamplesHeaderPlan {
   std::vector<std::string> read_order;
 };
 
+struct SourceGrimCharBonesSamplesDataPlan {
+  bool known_version = false;
+  int compression = 0;
+  int sample_count = 0;
+  size_t unaligned_sample_size = 0;
+  size_t sample_size = 0;
+  size_t total_sample_bytes = 0;
+  bool aligns_sample_data_to_4 = false;
+  std::vector<std::string> kept_channels;
+  std::vector<std::string> ignored_channels;
+  std::vector<size_t> channel_sizes;
+};
+
 struct SourceGrimCharClipLoadPlan {
   bool known_version = false;
   bool reads_object_meta = false;
@@ -2035,6 +2048,11 @@ size_t source_grim_char_bones_samples_get_type_size2(int type,
                                                      int compression);
 SourceGrimCharBonesSamplesHeaderPlan
 source_grim_char_bones_samples_header_plan(int version);
+SourceGrimCharBonesSamplesDataPlan source_grim_char_bones_samples_data_plan(
+    int version,
+    int compression,
+    const std::vector<std::string>& channels,
+    int sample_count);
 SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
                                                            bool read_meta);
 SourceGrimCharClipSamplesLoadPlan
