@@ -3346,6 +3346,37 @@ struct OpaqueObjectRow {
   std::string tail_hex;
 };
 
+struct SourceRndTexLoadPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool stream_cached = false;
+  bool accepted_revision = false;
+  bool reads_object_fields = false;
+  bool reads_short_dimensions = false;
+  bool reads_int_dimensions = true;
+  bool calls_set_power_of_two = true;
+  bool reads_bpp = true;
+  bool reads_filepath = true;
+  bool creates_uncached_loader = false;
+  bool creates_cached_loader = false;
+  bool pushes_revision = true;
+  bool reads_legacy_cubemap_mask = false;
+  bool reads_legacy_bool = false;
+  bool reads_float_mip_map_k = false;
+  bool reads_fixed_mip_map_k = false;
+  bool reads_direct_type = false;
+  bool reads_legacy_type_index = false;
+  bool reads_rendered_bool_type = false;
+  bool reads_post_flag = false;
+  bool reads_optimize_for_ps3 = false;
+  bool delegates_cached_payload_to_bitmap = false;
+};
+
+SourceRndTexLoadPlan source_rndtex_load_plan(
+    int32_t revision,
+    int32_t alt_revision,
+    bool stream_cached);
+
 struct RndTex {
   std::string name;
   int32_t version = 0;

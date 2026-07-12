@@ -12025,6 +12025,11 @@ int run_contract() {
                  "bind audit marks opaque rows as source-fenced");
   ok &= contains(char_mesh_h, "structRndTex{",
                  "native header exposes passive RndTex inventory row");
+  ok &= contains(char_mesh_h, "structSourceRndTexLoadPlan{",
+                 "native header exposes RndTex source load plan");
+  ok &= contains(char_mesh_h,
+                 "SourceRndTexLoadPlansource_rndtex_load_plan(",
+                 "native header exposes RndTex load plan helper");
   ok &= contains(char_mesh_h,
                  "RndTexdecode_rnd_tex(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body);",
@@ -12034,27 +12039,50 @@ int run_contract() {
   ok &= contains(char_mesh, "RndTexdecode_rnd_tex(",
                  "native decodes RndTex only through named source slice");
   ok &= contains(char_mesh,
+                 "SourceRndTexLoadPlansource_rndtex_load_plan(int32_trevision,"
+                 "int32_talt_revision,boolstream_cached)",
+                 "native implements RndTex source load plan helper");
+  ok &= contains(char_mesh,
+                 "plan.reads_object_fields=revision>8;",
+                 "RndTex load plan mirrors object-field gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_fixed_mip_map_k=revision>3&&revision<=7;",
+                 "RndTex load plan mirrors fixed mip-map gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_legacy_type_index=revision>5&&revision<=6;",
+                 "RndTex load plan mirrors legacy type-index gate");
+  ok &= contains(char_mesh,
+                 "plan.delegates_cached_payload_to_bitmap=stream_cached;",
+                 "RndTex load plan mirrors cached bitmap delegation");
+  ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
   ok &= contains(char_mesh,
                  "tex.alt_version=source_alt_rev(packed_rev);",
                  "RndTex decoder uses source high-half revision");
   ok &= contains(char_mesh,
-                 "if(tex.version>8)read_object_fields(r);",
+                 "constSourceRndTexLoadPlanplan=source_rndtex_load_plan("
+                 "tex.version,tex.alt_version,false);",
+                 "RndTex decoder loads source plan");
+  ok &= contains(char_mesh,
+                 "if(plan.reads_object_fields)read_object_fields(r);",
                  "RndTex decoder gates object fields like source");
+  ok &= contains(char_mesh,
+                 "if(plan.reads_short_dimensions){",
+                 "RndTex decoder gates revision-one short dimensions");
   ok &= contains(char_mesh,
                  "tex.power_of_two=source_power_of_two(tex.width,tex.height);",
                  "RndTex decoder mirrors SetPowerOf2 state");
   ok &= contains(char_mesh, "tex.filepath=r.str();",
                  "RndTex decoder reads FilePath as source string payload");
   ok &= contains(char_mesh,
-                 "if(tex.version<5){tex.cubemap_mask=r.i32();",
+                 "if(plan.reads_legacy_cubemap_mask){tex.cubemap_mask=r.i32();",
                  "RndTex decoder reads legacy cubemap mask");
   ok &= contains(char_mesh,
-                 "if(tex.version>7){tex.mip_map_k=r.f32();}",
+                 "if(plan.reads_float_mip_map_k){tex.mip_map_k=r.f32();}",
                  "RndTex decoder reads source mipMapK gate");
   ok &= contains(char_mesh,
-                 "if(tex.version>6){tex.type=r.i32();}",
+                 "if(plan.reads_direct_type){tex.type=r.i32();}",
                  "RndTex decoder reads source type gate");
   ok &= contains(char_mesh,
                  "tex.optimize_for_ps3=r.u8()!=0;",
@@ -12062,6 +12090,13 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "tex.cached_bitmap_bytes=r.n-r.pos;",
                  "RndTex decoder records cached bitmap boundary");
+  ok &= contains(char_mesh,
+                 "constSourceRndTexLoadPlanpayload_plan=source_rndtex_load_plan("
+                 "tex.version,tex.alt_version,tex.cached_bitmap_bytes>0);",
+                 "RndTex decoder builds cached payload source plan");
+  ok &= contains(char_mesh,
+                 "if(payload_plan.delegates_cached_payload_to_bitmap){",
+                 "RndTex decoder uses source cached payload branch");
   ok &= contains(char_mesh,
                  "tex.bitmap_version=bitmap.u8();"
                  "tex.bitmap_bpp=bitmap.u8();",
@@ -12137,6 +12172,9 @@ int run_contract() {
                  "character_tex_source_test.cpp)",
                  "CMake registers focused RndTex source test");
   ok &= contains(tex_source_test,
+                 "source_rndtex_load_plan(11,1,true)",
+                 "focused RndTex test covers current source load plan");
+  ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");
   ok &= contains(tex_source_test,
@@ -12145,6 +12183,9 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"hair.tex\",legacy)",
                  "focused RndTex test decodes legacy cubemap suffix row");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_load_plan(6,0,false)",
+                 "focused RndTex test covers legacy source type-index gate");
   ok &= contains(tex_source_test,
                  "expect_string(legacy_decoded.filepath,\"hair_ga.tex\"",
                  "focused RndTex test covers legacy cubemap suffix");

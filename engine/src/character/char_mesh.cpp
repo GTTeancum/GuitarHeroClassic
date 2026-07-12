@@ -2393,6 +2393,33 @@ EventTrigger decode_event_trigger(const std::string& entry_name,
 
 }  // namespace
 
+SourceRndTexLoadPlan source_rndtex_load_plan(
+    int32_t revision,
+    int32_t alt_revision,
+    bool stream_cached) {
+  SourceRndTexLoadPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  plan.stream_cached = stream_cached;
+  plan.accepted_revision = revision >= 1 && revision <= 11;
+  plan.reads_object_fields = revision > 8;
+  plan.reads_short_dimensions = revision == 1;
+  plan.reads_int_dimensions = !plan.reads_short_dimensions;
+  plan.creates_uncached_loader = revision > 9 && !stream_cached;
+  plan.creates_cached_loader = stream_cached && alt_revision != 0;
+  plan.reads_legacy_cubemap_mask = revision < 5;
+  plan.reads_legacy_bool = revision != 0 && revision < 3;
+  plan.reads_float_mip_map_k = revision > 7;
+  plan.reads_fixed_mip_map_k = revision > 3 && revision <= 7;
+  plan.reads_direct_type = revision > 6;
+  plan.reads_legacy_type_index = revision > 5 && revision <= 6;
+  plan.reads_rendered_bool_type = revision > 4 && revision <= 5;
+  plan.reads_post_flag = revision > 7;
+  plan.reads_optimize_for_ps3 = revision > 10;
+  plan.delegates_cached_payload_to_bitmap = stream_cached;
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
@@ -2401,11 +2428,13 @@ RndTex decode_rnd_tex(const std::string& entry_name,
   const uint32_t packed_rev = r.u32();
   tex.version = source_hmx_rev(packed_rev);
   tex.alt_version = source_alt_rev(packed_rev);
-  if (tex.version < 1 || tex.version > 11) {
+  const SourceRndTexLoadPlan plan =
+      source_rndtex_load_plan(tex.version, tex.alt_version, false);
+  if (!plan.accepted_revision) {
     throw std::runtime_error("char_mesh: RndTex revision outside source range");
   }
-  if (tex.version > 8) read_object_fields(r);
-  if (tex.version == 1) {
+  if (plan.reads_object_fields) read_object_fields(r);
+  if (plan.reads_short_dimensions) {
     tex.width = static_cast<int16_t>(r.u16());
     tex.height = static_cast<int16_t>(r.u16());
   } else {
@@ -2416,7 +2445,7 @@ RndTex decode_rnd_tex(const std::string& entry_name,
   tex.bpp = r.i32();
   tex.filepath = r.str();
 
-  if (tex.version < 5) {
+  if (plan.reads_legacy_cubemap_mask) {
     tex.cubemap_mask = r.i32();
     if (tex.cubemap_mask != 0 && !tex.filepath.empty()) {
       if (tex.cubemap_mask & 2) {
@@ -2428,20 +2457,20 @@ RndTex decode_rnd_tex(const std::string& entry_name,
       }
     }
   }
-  if (tex.version != 0 && tex.version < 3) {
+  if (plan.reads_legacy_bool) {
     tex.has_legacy_flag = true;
     tex.legacy_flag = r.u8() != 0;
   }
-  if (tex.version > 7) {
+  if (plan.reads_float_mip_map_k) {
     tex.mip_map_k = r.f32();
-  } else if (tex.version > 3) {
+  } else if (plan.reads_fixed_mip_map_k) {
     const int32_t mip = r.i32();
     tex.mip_map_k = mip / 16.0f;
   }
 
-  if (tex.version > 6) {
+  if (plan.reads_direct_type) {
     tex.type = r.i32();
-  } else if (tex.version > 5) {
+  } else if (plan.reads_legacy_type_index) {
     static constexpr int32_t kLegacyTypes[] = {1, 2, 4, 8, 0x18};
     const int32_t type_index = r.i32();
     if (type_index < 0 ||
@@ -2450,7 +2479,7 @@ RndTex decode_rnd_tex(const std::string& entry_name,
       throw std::runtime_error("char_mesh: RndTex legacy type index out of range");
     }
     tex.type = kLegacyTypes[type_index];
-  } else if (tex.version > 4) {
+  } else if (plan.reads_rendered_bool_type) {
     const bool rendered = r.u8() != 0;
     tex.type = rendered ? 2 : 1;
   }
@@ -2461,15 +2490,17 @@ RndTex decode_rnd_tex(const std::string& entry_name,
     while (tex.height > 0x100) tex.height /= 2;
     tex.power_of_two = source_power_of_two(tex.width, tex.height);
   }
-  if (tex.version > 7) {
+  if (plan.reads_post_flag) {
     tex.has_post_flag = true;
     tex.post_flag = r.u8() != 0;
   }
-  if (tex.version > 10) {
+  if (plan.reads_optimize_for_ps3) {
     tex.optimize_for_ps3 = r.u8() != 0;
   }
   tex.cached_bitmap_bytes = r.n - r.pos;
-  if (tex.cached_bitmap_bytes > 0) {
+  const SourceRndTexLoadPlan payload_plan = source_rndtex_load_plan(
+      tex.version, tex.alt_version, tex.cached_bitmap_bytes > 0);
+  if (payload_plan.delegates_cached_payload_to_bitmap) {
     try {
       Reader bitmap(r.p + r.pos, tex.cached_bitmap_bytes);
       tex.bitmap_version = bitmap.u8();

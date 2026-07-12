@@ -1200,6 +1200,9 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   - When the stream is cached, `PostLoad` delegates the remaining stream to
     `RndBitmap::Load`; native records that boundary instead of treating the
     remaining bytes as anonymous padding.
+  - Native `source_rndtex_load_plan` records the same `PreLoad` / `PostLoad`
+    revision gates and cached-stream branches, and `decode_rnd_tex` consumes
+    its rows instead of repeating raw revision comparisons inline.
 - `rb3/src/system/rndobj/Bitmap.cpp`
   - `RndBitmap::LoadHeader` reads bitmap revision, bpp, order, mip count,
     width, height, row bytes, and the fixed padding row before pixel chunks.

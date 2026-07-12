@@ -92,6 +92,43 @@ std::vector<uint8_t> make_bitmap_payload(size_t count) {
 int main() {
   bool ok = true;
 
+  const ghogx::character::SourceRndTexLoadPlan rev11_cached =
+      ghogx::character::source_rndtex_load_plan(11, 1, true);
+  ok &= expect_bool(rev11_cached.accepted_revision, true,
+                    "rev11 accepted");
+  ok &= expect_bool(rev11_cached.reads_object_fields, true,
+                    "rev11 object fields");
+  ok &= expect_bool(rev11_cached.reads_float_mip_map_k, true,
+                    "rev11 float mip k");
+  ok &= expect_bool(rev11_cached.reads_direct_type, true,
+                    "rev11 direct type");
+  ok &= expect_bool(rev11_cached.reads_post_flag, true,
+                    "rev11 post flag");
+  ok &= expect_bool(rev11_cached.reads_optimize_for_ps3, true,
+                    "rev11 optimize gate");
+  ok &= expect_bool(rev11_cached.creates_cached_loader, true,
+                    "rev11 cached loader");
+  ok &= expect_bool(rev11_cached.delegates_cached_payload_to_bitmap, true,
+                    "rev11 cached bitmap delegate");
+
+  const ghogx::character::SourceRndTexLoadPlan rev4_uncached =
+      ghogx::character::source_rndtex_load_plan(4, 0, false);
+  ok &= expect_bool(rev4_uncached.reads_object_fields, false,
+                    "rev4 no object fields");
+  ok &= expect_bool(rev4_uncached.reads_legacy_cubemap_mask, true,
+                    "rev4 cubemap mask");
+  ok &= expect_bool(rev4_uncached.reads_fixed_mip_map_k, true,
+                    "rev4 fixed mip k");
+  ok &= expect_bool(rev4_uncached.reads_direct_type, false,
+                    "rev4 no direct type");
+
+  const ghogx::character::SourceRndTexLoadPlan rev6_uncached =
+      ghogx::character::source_rndtex_load_plan(6, 0, false);
+  ok &= expect_bool(rev6_uncached.reads_legacy_type_index, true,
+                    "rev6 legacy type index");
+  ok &= expect_bool(rev6_uncached.reads_rendered_bool_type, false,
+                    "rev6 no rendered bool");
+
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2
   put_object_fields_minimal(tex);
