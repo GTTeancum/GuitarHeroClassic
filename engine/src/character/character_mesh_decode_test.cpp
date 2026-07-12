@@ -886,6 +886,45 @@ int main() {
   CHECK(rejected_chunk_plan.rejected_triangle_indices[0] == 0);
   CHECK(rejected_chunk_plan.chunks.empty());
 
+  const auto populate_chunk =
+      ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
+          {{7, 8, 9}, {9, 8, 10}, {10, 7, 8}}, {22, 11}, true);
+  CHECK(populate_chunk.clears_vertices);
+  CHECK(populate_chunk.clears_faces);
+  CHECK(populate_chunk.builds_joint_index_to_local_bone_index);
+  CHECK(populate_chunk.joint_local_bones.size() == 2);
+  CHECK(populate_chunk.joint_local_bones[0].joint_index == 22);
+  CHECK(populate_chunk.joint_local_bones[0].local_bone_index == 0);
+  CHECK(populate_chunk.joint_local_bones[1].joint_index == 11);
+  CHECK(populate_chunk.joint_local_bones[1].local_bone_index == 1);
+  CHECK(populate_chunk.original_indices_in_vertex_order.size() == 4);
+  CHECK(populate_chunk.original_indices_in_vertex_order[0] == 7);
+  CHECK(populate_chunk.original_indices_in_vertex_order[1] == 8);
+  CHECK(populate_chunk.original_indices_in_vertex_order[2] == 9);
+  CHECK(populate_chunk.original_indices_in_vertex_order[3] == 10);
+  CHECK(populate_chunk.faces.size() == 3);
+  CHECK(populate_chunk.faces[0].idx1 == 0);
+  CHECK(populate_chunk.faces[0].idx2 == 1);
+  CHECK(populate_chunk.faces[0].idx3 == 2);
+  CHECK(populate_chunk.faces[1].idx1 == 2);
+  CHECK(populate_chunk.faces[1].idx2 == 1);
+  CHECK(populate_chunk.faces[1].idx3 == 3);
+  CHECK(populate_chunk.faces[2].idx1 == 3);
+  CHECK(populate_chunk.faces[2].idx2 == 0);
+  CHECK(populate_chunk.faces[2].idx3 == 1);
+  CHECK(populate_chunk.builds_bone_transforms);
+  CHECK(!populate_chunk.clears_bone_transforms);
+  CHECK(populate_chunk.bone_transform_joint_indices.size() == 2);
+  CHECK(populate_chunk.bone_transform_joint_indices[0] == 22);
+  CHECK(populate_chunk.bone_transform_joint_indices[1] == 11);
+
+  const auto populate_unskinned =
+      ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
+          {{1, 2, 3}}, {}, false);
+  CHECK(!populate_unskinned.builds_bone_transforms);
+  CHECK(populate_unskinned.clears_bone_transforms);
+  CHECK(populate_unskinned.faces.size() == 1);
+
   CHECK(ghogx::character::source_gltf_milo_is_hair_bone_name(
       "bone_hair_front"));
   CHECK(ghogx::character::source_gltf_milo_is_hair_bone_name(

@@ -258,6 +258,30 @@ struct SourceGltfMiloMeshChunkPlan {
   std::vector<SourceGltfMiloMeshChunk> chunks;
 };
 
+struct SourceGltfMiloChunkFace {
+  uint16_t idx1 = 0;
+  uint16_t idx2 = 0;
+  uint16_t idx3 = 0;
+};
+
+struct SourceGltfMiloJointLocalBoneMapRow {
+  int32_t joint_index = -1;
+  uint16_t local_bone_index = 0;
+};
+
+struct SourceGltfMiloPopulateMeshChunkPlan {
+  bool clears_vertices = true;
+  bool clears_faces = true;
+  bool builds_joint_index_to_local_bone_index = true;
+  bool builds_bone_transforms = false;
+  bool clears_bone_transforms = false;
+  bool exceeded_max_vertices = false;
+  std::vector<SourceGltfMiloJointLocalBoneMapRow> joint_local_bones;
+  std::vector<uint32_t> original_indices_in_vertex_order;
+  std::vector<SourceGltfMiloChunkFace> faces;
+  std::vector<int32_t> bone_transform_joint_indices;
+};
+
 struct SourceGltfMiloMeshChunkFinalizeInput {
   std::string base_filename;
   std::string filename_after_milo_extras;
@@ -535,6 +559,12 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
 SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
     const std::vector<SourceGltfMiloTriangle>& triangles,
     const std::vector<std::vector<int32_t>>& vertex_joint_indices);
+
+SourceGltfMiloPopulateMeshChunkPlan
+source_gltf_milo_populate_mesh_chunk_plan(
+    const std::vector<SourceGltfMiloTriangle>& triangles,
+    const std::vector<int32_t>& chunk_joint_indices,
+    bool mesh_has_skin);
 
 bool source_gltf_milo_is_hair_bone_name(const std::string& bone_name);
 

@@ -4112,6 +4112,15 @@ int run_contract() {
                  "(ushort)i;",
                  "glTFMilo maps chunk joint order to local bone slots");
   ok &= contains(gltf_program_cs,
+                 "AddVertexToChunkMesh(mesh,triangle.idx0,"
+                 "originalIndexToNewIndex,",
+                 "glTFMilo populates chunk vertices in triangle idx0 order");
+  ok &= contains(gltf_program_cs,
+                 "idx1=originalIndexToNewIndex[triangle.idx0],"
+                 "idx2=originalIndexToNewIndex[triangle.idx1],"
+                 "idx3=originalIndexToNewIndex[triangle.idx2],",
+                 "glTFMilo writes faces from original-index remap");
+  ok &= contains(gltf_program_cs,
                  "foreach(intjointIndexinmeshChunk.jointIndices)",
                  "glTFMilo emits one bone transform per chunk joint");
   ok &= contains(gltf_program_cs,
@@ -4219,6 +4228,10 @@ int run_contract() {
                  "structSourceGltfMiloMeshChunkPlan{int32_tmax_influencing_bones=40;",
                  "native declares glTFMilo mesh chunk plan limits");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloPopulateMeshChunkPlan{bool"
+                 "clears_vertices=true;",
+                 "native declares glTFMilo PopulateMeshChunk plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMeshChunkFinalizeInput{std::string"
                  "base_filename;",
                  "native declares glTFMilo mesh chunk finalize input");
@@ -4270,6 +4283,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMeshChunkPlansource_gltf_milo_split_mesh_chunks(",
                  "native exposes glTFMilo mesh chunk splitter helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloPopulateMeshChunkPlan"
+                 "source_gltf_milo_populate_mesh_chunk_plan(",
+                 "native exposes glTFMilo PopulateMeshChunk helper");
   ok &= contains(char_mesh_h,
                  "boolsource_gltf_milo_is_hair_bone_name(conststd::string&"
                  "bone_name);",
@@ -4383,6 +4400,25 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "additional_joint_count<best_additional_joint_count||",
                  "native mesh chunk splitter prefers fewer added joints");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloPopulateMeshChunkPlan"
+                 "source_gltf_milo_populate_mesh_chunk_plan(",
+                 "native ports glTFMilo PopulateMeshChunk helper");
+  ok &= contains(char_mesh,
+                 "plan.joint_local_bones.push_back({chunk_joint_indices[i],"
+                 "static_cast<uint16_t>(i)});",
+                 "native PopulateMeshChunk helper preserves local joint map order");
+  ok &= contains(char_mesh,
+                 "plan.original_indices_in_vertex_order.push_back("
+                 "original_index);",
+                 "native PopulateMeshChunk helper preserves original-index dedupe");
+  ok &= contains(char_mesh,
+                 "plan.faces.push_back({idx0,idx1,idx2});",
+                 "native PopulateMeshChunk helper writes remapped source faces");
+  ok &= contains(char_mesh,
+                 "if(mesh_has_skin){plan.builds_bone_transforms=true;"
+                 "plan.bone_transform_joint_indices=chunk_joint_indices;}",
+                 "native PopulateMeshChunk helper preserves skinned bone-transform branch");
   ok &= contains(char_mesh,
                  "boolsource_gltf_milo_is_hair_bone_name(conststd::string&"
                  "bone_name)",
@@ -4578,6 +4614,15 @@ int run_contract() {
                  "strip_chunk_plan.chunks[0].joint_indices.size()==40",
                  "focused mesh decode test covers forty-bone chunk boundary");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_populate_mesh_chunk_plan(",
+                 "focused mesh decode test covers glTFMilo PopulateMeshChunk helper");
+  ok &= contains(mesh_decode_test,
+                 "populate_chunk.original_indices_in_vertex_order[3]==10",
+                 "focused mesh decode test covers chunk vertex dedupe order");
+  ok &= contains(mesh_decode_test,
+                 "populate_chunk.faces[1].idx1==2",
+                 "focused mesh decode test covers remapped chunk face indices");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_is_hair_bone_name(\"bone_hair_front\")",
                  "focused mesh decode test covers hair-bone classifier");
   ok &= contains(mesh_decode_test,
@@ -4632,6 +4677,9 @@ int run_contract() {
                  "`source_gltf_milo_split_mesh_chunks` ports\n"
                  "    this deterministic exporter chunking rule",
                  "document records glTFMilo mesh chunk splitter helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_populate_mesh_chunk_plan` records",
+                 "document records glTFMilo PopulateMeshChunk helper");
   ok &= contains(doc,
                  "`source_gltf_milo_finalize_mesh_chunk_plan` ports",
                  "document records glTFMilo mesh chunk finalizer helper");

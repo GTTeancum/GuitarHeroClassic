@@ -1056,6 +1056,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     triangle indices, joint palette order, and unique vertex count. It is
     exporter/format evidence for palette layout, not a change to stock GH2
     runtime skin decoding.
+  - `PopulateMeshChunk` builds `jointIndexToLocalBoneIndex` from the chunk joint
+    list, clears the target mesh vertices/faces, calls `AddVertexToChunkMesh` in
+    each triangle's `idx0` / `idx1` / `idx2` order, and writes each face from
+    the resulting `originalIndexToNewIndex` map. Native
+    `source_gltf_milo_populate_mesh_chunk_plan` records that chunk-local vertex
+    and face remapping contract without changing the live GH2 mesh decoder.
   - After `PopulateMeshChunk`, glTFMilo collects each chunk joint whose name
     passes `IsHairBone` (`bone_hair_`, case-insensitive), rebuilds
     `mesh.groupSizes` as repeated `255` entries plus a final remainder from the

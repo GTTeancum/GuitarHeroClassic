@@ -1086,6 +1086,49 @@ SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
   return plan;
 }
 
+SourceGltfMiloPopulateMeshChunkPlan
+source_gltf_milo_populate_mesh_chunk_plan(
+    const std::vector<SourceGltfMiloTriangle>& triangles,
+    const std::vector<int32_t>& chunk_joint_indices,
+    bool mesh_has_skin) {
+  SourceGltfMiloPopulateMeshChunkPlan plan;
+  for (size_t i = 0; i < chunk_joint_indices.size(); ++i) {
+    plan.joint_local_bones.push_back(
+        {chunk_joint_indices[i], static_cast<uint16_t>(i)});
+  }
+
+  auto remap_original_index = [&](uint32_t original_index) -> uint16_t {
+    const auto it = std::find(plan.original_indices_in_vertex_order.begin(),
+                              plan.original_indices_in_vertex_order.end(),
+                              original_index);
+    if (it != plan.original_indices_in_vertex_order.end()) {
+      return static_cast<uint16_t>(std::distance(
+          plan.original_indices_in_vertex_order.begin(), it));
+    }
+    plan.original_indices_in_vertex_order.push_back(original_index);
+    if (plan.original_indices_in_vertex_order.size() > 65535) {
+      plan.exceeded_max_vertices = true;
+    }
+    return static_cast<uint16_t>(
+        plan.original_indices_in_vertex_order.size() - 1);
+  };
+
+  for (const SourceGltfMiloTriangle& tri : triangles) {
+    const uint16_t idx0 = remap_original_index(tri.idx0);
+    const uint16_t idx1 = remap_original_index(tri.idx1);
+    const uint16_t idx2 = remap_original_index(tri.idx2);
+    plan.faces.push_back({idx0, idx1, idx2});
+  }
+
+  if (mesh_has_skin) {
+    plan.builds_bone_transforms = true;
+    plan.bone_transform_joint_indices = chunk_joint_indices;
+  } else {
+    plan.clears_bone_transforms = true;
+  }
+  return plan;
+}
+
 bool source_gltf_milo_is_hair_bone_name(const std::string& bone_name) {
   constexpr char kPrefix[] = "bone_hair_";
   if (bone_name.empty()) return false;
