@@ -794,6 +794,57 @@ float row_len16(const std::array<float, 16>& m, size_t row) {
                    m[i + 2] * m[i + 2]);
 }
 
+void log_mesh_anim_local_rows(
+    const std::string& mesh_name, const std::string& target_name,
+    const std::array<float, 16>& base_local,
+    const std::array<float, 16>& sampled_local,
+    const MiloSceneRenderer::MeshTransformSample* applied_sample,
+    float active_frame, bool has_offset, bool has_active_anim) {
+  static std::unordered_map<std::string, size_t> logged_local_rows;
+  const std::string key = mesh_name + "|" + target_name;
+  const size_t sample = ++logged_local_rows[key];
+  if (sample != 1 && sample % 30 != 0) return;
+  const auto base_scale = local_row_scales(base_local);
+  const auto sampled_scale = local_row_scales(sampled_local);
+  const int has_pos =
+      applied_sample && applied_sample->has_translation ? 1 : 0;
+  const int abs_pos =
+      applied_sample && applied_sample->translation_is_absolute ? 1 : 0;
+  const int has_rot = applied_sample && applied_sample->has_rotation ? 1 : 0;
+  const int abs_rot =
+      applied_sample && applied_sample->rotation_is_absolute ? 1 : 0;
+  const int has_scale = applied_sample && applied_sample->has_scale ? 1 : 0;
+  const int abs_scale =
+      applied_sample && applied_sample->scale_is_absolute ? 1 : 0;
+  const std::array<float, 4> quat =
+      applied_sample ? applied_sample->rotation_xyzw
+                    : std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
+  const std::array<float, 3> scale =
+      applied_sample ? applied_sample->scale
+                    : std::array<float, 3>{1.0f, 1.0f, 1.0f};
+  std::fprintf(
+      stderr,
+      "[milo_scene] mesh_anim_local mesh=%s target=%s sample=%zu "
+      "offset=%d active=%d frame=%.3f sample_pos=%d:%d sample_rot=%d:%d "
+      "quat=(%.6f %.6f %.6f %.6f) sample_scale=%d:%d "
+      "scale_vec=(%.6f %.6f %.6f) base_scale=(%.6f %.6f %.6f) "
+      "sampled_scale=(%.6f %.6f %.6f) "
+      "base_row0=(%.6f %.6f %.6f) base_row1=(%.6f %.6f %.6f) "
+      "base_row2=(%.6f %.6f %.6f) sampled_row0=(%.6f %.6f %.6f) "
+      "sampled_row1=(%.6f %.6f %.6f) sampled_row2=(%.6f %.6f %.6f)\n",
+      mesh_name.c_str(), target_name.c_str(), sample, has_offset ? 1 : 0,
+      has_active_anim ? 1 : 0, active_frame, has_pos, abs_pos, has_rot,
+      abs_rot, quat[0], quat[1], quat[2], quat[3], has_scale, abs_scale,
+      scale[0], scale[1], scale[2], base_scale[0], base_scale[1],
+      base_scale[2], sampled_scale[0], sampled_scale[1], sampled_scale[2],
+      base_local[0], base_local[1], base_local[2], base_local[4],
+      base_local[5], base_local[6], base_local[8], base_local[9],
+      base_local[10], sampled_local[0], sampled_local[1],
+      sampled_local[2], sampled_local[4], sampled_local[5],
+      sampled_local[6], sampled_local[8], sampled_local[9],
+      sampled_local[10]);
+}
+
 void log_camera_matrix_rows(const OrbitCamera& cam, const float eye[3],
                             const float at[3], const float up[3],
                             float aspect, const Mat4& view,
@@ -3350,7 +3401,33 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             break;
           }
           std::array<float, 16> sampled_local = base_local;
-          apply_transform_samples(sampled_local, target);
+          const bool log_local =
+              env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_LOCAL", m.name) ||
+              env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_LOCAL", target);
+          const auto offset_it = mesh_transform_offsets_.find(target);
+          const bool has_offset = offset_it != mesh_transform_offsets_.end();
+          const auto active_it = active_mesh_anims_.find(target);
+          const bool has_active_anim = active_it != active_mesh_anims_.end();
+          MiloSceneRenderer::MeshTransformSample active_sample;
+          const MiloSceneRenderer::MeshTransformSample* applied_sample =
+              nullptr;
+          float active_frame = 0.0f;
+          if (has_offset) {
+            applied_sample = &offset_it->second;
+            apply_mesh_transform_sample(sampled_local, offset_it->second);
+          }
+          if (has_active_anim) {
+            const auto& active = active_it->second;
+            active_frame = active.elapsed * active.frames_per_second;
+            active_sample = sample_transform_anim(active.anim, active_frame);
+            applied_sample = &active_sample;
+            apply_mesh_transform_sample(sampled_local, active_sample);
+          }
+          if (log_local) {
+            log_mesh_anim_local_rows(
+                m.name, target, base_local, sampled_local, applied_sample,
+                active_frame, has_offset, has_active_anim);
+          }
           current_world =
               mul16(mul16(sampled_local, affine_inverse16(base_local)),
                     current_world);

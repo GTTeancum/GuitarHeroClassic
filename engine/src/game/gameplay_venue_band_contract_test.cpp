@@ -6083,6 +6083,21 @@ int main() {
                  "GHOGX_LOG_MESH_ANIM_WORLD",
                  "renderer can log final animated venue mesh world rows");
   ok &= contains(renderer_c,
+                 "GHOGX_LOG_MESH_ANIM_LOCAL",
+                 "renderer can log source-local TransAnim rows for gear/fan diagnostics");
+  ok &= contains(renderer_c,
+                 "mesh_anim_localmesh=%starget=%ssample=%zu",
+                 "source-local TransAnim diagnostics identify the drawn mesh and animated target");
+  ok &= contains(renderer_c,
+                 "base_scale=(%.6f%.6f%.6f)",
+                 "source-local TransAnim diagnostics expose MakeScale-style base scale");
+  ok &= contains(renderer_c,
+                 "sampled_scale=(%.6f%.6f%.6f)",
+                 "source-local TransAnim diagnostics expose sampled local signed scale");
+  ok &= contains(renderer_c,
+                 "sample_rot=%d:%d\"\"quat=(%.6f%.6f%.6f%.6f)",
+                 "source-local TransAnim diagnostics expose sampled quaternion absoluteness");
+  ok &= contains(renderer_c,
                  "mesh_anim_worldmesh=%sparent=%ssample=%zu",
                  "animated venue mesh diagnostics identify the final mesh and parent rows");
   ok &= contains(renderer_c,
@@ -6190,7 +6205,7 @@ int main() {
                  "world=composed;",
                  "animated venue parent transforms replace stored-world fallback with source hierarchy");
   ok &= contains(renderer_c,
-                 "apply_transform_samples(sampled_local,target);",
+                 "apply_mesh_transform_sample(sampled_local,active_sample);",
                  "animated venue parent transforms apply samples at the authored node");
   ok &= contains(gameplay_c,
                  "out.target=canonical_milo_ref(decoded->trans);",
