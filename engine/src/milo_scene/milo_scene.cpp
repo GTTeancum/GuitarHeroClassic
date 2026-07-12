@@ -1619,10 +1619,13 @@ WorldCrowdObj decode_world_crowd(const std::string& entry_name,
     if (revision > 5) (void)r.u8();    // show3DOnly
     if (revision > 0x0b) (void)r.str();
 
-    if (crowd.total_placements != 0 &&
-        decoded_placements != crowd.total_placements) {
-      throw std::runtime_error(
-          "milo_scene: WorldCrowd placement total mismatch");
+    crowd.decoded_placement_count = decoded_placements;
+    if (debug_decode) {
+      std::fprintf(stderr,
+                   "[milo_scene]   WorldCrowd '%s' mNum=%u "
+                   "decoded_placements=%u actors=%zu\n",
+                   entry_name.c_str(), crowd.total_placements,
+                   crowd.decoded_placement_count, crowd.actors.size());
     }
     crowd.decoded = true;
   } catch (const std::exception& ex) {

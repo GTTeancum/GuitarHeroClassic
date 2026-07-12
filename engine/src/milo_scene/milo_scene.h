@@ -442,7 +442,8 @@ struct WorldCrowdPlacementSet {
 struct WorldCrowdObj {
   std::string name;
   std::string area_mesh;
-  uint32_t total_placements = 0;
+  uint32_t total_placements = 0;  // ihatecompvir WorldCrowd::mNum.
+  uint32_t decoded_placement_count = 0;
   std::vector<WorldCrowdActor> actors;
   std::vector<WorldCrowdPlacementSet> placement_sets;
   bool decoded = false;

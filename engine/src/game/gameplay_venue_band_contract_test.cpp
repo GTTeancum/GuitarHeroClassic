@@ -6300,6 +6300,9 @@ int main() {
                  "std::stringarea_mesh;uint32_ttotal_placements=0;",
                  "MILO scene exposes decoded WorldCrowd source-area metadata");
   ok &= contains(milo_scene_h_c,
+                 "uint32_tdecoded_placement_count=0;",
+                 "MILO scene records decoded WorldCrowd rows separately from mNum");
+  ok &= contains(milo_scene_h_c,
                  "std::vector<WorldCrowdObj>world_crowds;",
                  "decoded scenes retain WorldCrowd entries alongside render objects");
   ok &= contains(milo_scene_cpp_c,
@@ -6339,7 +6342,10 @@ int main() {
                  "GH2 v28 Mesh decoder does not treat weights as vertex color");
   ok &= contains(milo_scene_cpp_c,
                  "crowd.total_placements=r.u32();",
-                 "WorldCrowd decoder preserves the authored placement total");
+                 "WorldCrowd decoder preserves ihatecompvir WorldCrowd mNum");
+  ok &= contains(milo_scene_cpp_c,
+                 "crowd.decoded_placement_count=decoded_placements;",
+                 "WorldCrowd decoder does not reject valid multi-character placement lists");
   ok &= contains(milo_scene_cpp_c,
                  "constboolold_instance_has_color=revision>6&&revision<0x0e;",
                  "WorldCrowd decoder keeps GH2 revision 6 matrix-only placement rows");

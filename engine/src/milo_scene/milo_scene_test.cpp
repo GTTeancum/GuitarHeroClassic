@@ -799,6 +799,7 @@ void test_world_crowd_gh2_matrix_stride() {
   CHECK(crowd.decoded);
   CHECK(crowd.area_mesh == "Crowd_area.mesh");
   CHECK(crowd.total_placements == 2);
+  CHECK(crowd.decoded_placement_count == 2);
   CHECK(crowd.actors.size() == 1);
   CHECK(crowd.placement_sets.size() == 1);
   CHECK(crowd.placement_sets[0].placements.size() == 2);
@@ -810,6 +811,51 @@ void test_world_crowd_gh2_matrix_stride() {
   CHECK(approx(crowd.placement_sets[0].placements[1].pos[2], 60.0f));
   std::printf("  [ok] WorldCrowd rev6: placements=%u matrix stride\n",
               crowd.total_placements);
+}
+
+void test_world_crowd_mnum_separate_from_source_rows() {
+  std::vector<uint8_t> b;
+  put_u32(b, 6);                 // GH2 PS2 WorldCrowd revision.
+  put_u32(b, 3);                 // RndDrawable revision.
+  b.push_back(1);                // showing.
+  put_f32(b, 0); put_f32(b, 0); put_f32(b, 0); put_f32(b, 0);
+  put_f32(b, 0);                 // draw order.
+  put_str(b, "crowd_area_left.mesh");
+  put_u32(b, 2);                 // ihatecompvir mNum, not row sum.
+  b.push_back(0);                // pre-rev8 flag.
+  put_u32(b, 2);                 // character rows.
+  put_str(b, "crowd_female05");
+  put_f32(b, 75.0f);
+  put_f32(b, 1.0f);
+  put_f32(b, 10.0f);
+  put_str(b, "crowd_male05");
+  put_f32(b, 75.0f);
+  put_f32(b, 1.0f);
+  put_f32(b, 10.0f);
+  put_u32(b, 2);
+  put_matrix(b, 10.0f, 20.0f, 30.0f);
+  put_matrix(b, 40.0f, 50.0f, 60.0f);
+  put_u32(b, 2);
+  put_matrix(b, 70.0f, 80.0f, 90.0f);
+  put_matrix(b, 100.0f, 110.0f, 120.0f);
+  put_u32(b, 1234);              // modifyStamp.
+  b.push_back(0);                // show3DOnly.
+
+  WorldCrowdObj crowd = decode_world_crowd("crowd_left", b);
+  if (!crowd.decoded) std::printf("  [FAIL] WorldCrowd error: %s\n", crowd.error.c_str());
+  CHECK(crowd.decoded);
+  CHECK(crowd.total_placements == 2);
+  CHECK(crowd.decoded_placement_count == 4);
+  CHECK(crowd.actors.size() == 2);
+  CHECK(crowd.placement_sets.size() == 2);
+  CHECK(crowd.placement_sets[0].actor_name == "crowd_female05");
+  CHECK(crowd.placement_sets[1].actor_name == "crowd_male05");
+  CHECK(crowd.placement_sets[0].placements.size() == 2);
+  CHECK(crowd.placement_sets[1].placements.size() == 2);
+  CHECK(approx(crowd.placement_sets[1].placements[1].pos[2], 120.0f));
+  std::printf("  [ok] WorldCrowd: mNum=%u decodedRows=%u actors=%zu\n",
+              crowd.total_placements, crowd.decoded_placement_count,
+              crowd.actors.size());
 }
 
 }  // namespace
@@ -831,6 +877,7 @@ int main() {
   test_mesh();
   test_particle_sys_source_order();
   test_world_crowd_gh2_matrix_stride();
+  test_world_crowd_mnum_separate_from_source_rows();
   std::printf("ALL PASS\n");
   return 0;
 }
