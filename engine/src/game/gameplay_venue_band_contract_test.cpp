@@ -4211,6 +4211,19 @@ int main() {
                  "milo_ref_has_suffix(ref,\".trans\")",
                  "venue transformable animation refs preserve source .trans targets");
   ok &= contains(gameplay_c,
+                 "poll_anim_refs[canonical_milo_ref(de.name)]",
+                 "venue RndPollAnim refs are decoded through the source-shaped reader");
+  ok &= contains(gameplay_c,
+                 "poll_filter.event_name=\"@pollanim\";",
+                 "always-running venue PollAnim filters use a distinct runtime bucket");
+  ok &= contains(gameplay_c,
+                 "poll_filter.polled=true;",
+                 "always-running venue PollAnim filters sample with source poll timing");
+  ok &= appears_before(gameplay_c,
+                       "if(!venue_poll_anim_filters_.empty()){",
+                       "apply_venue_event(\"single_player\",false);",
+                       "venue PollAnim runtime begins before startup EventTriggers");
+  ok &= contains(gameplay_c,
                  "event_direct_anim_refs[key].push_back(route);",
                  "EventTrigger direct TransAnim/MeshAnim refs preserve source row timing by payload aliases");
   ok &= contains(gameplay_c,
@@ -6024,6 +6037,10 @@ int main() {
   ok &= contains(renderer_c,
                  "mesh_transform_offsets_.find(target)",
                  "persistent venue AnimFilter offsets also apply to animated parent transforms");
+  ok &= contains(renderer_c,
+                 "std::any_of(animated_ancestors.begin(),"
+                 "animated_ancestors.end(),target_has_transform_sample)",
+                 "RedOctane fan children inherit sampled parent .trans animation");
   ok &= contains(renderer_c,
                  "group.has_transform?xfm_to_mat4(group.local):identity16();",
                  "animated venue chains treat transformless source groups as neutral ancestors");
