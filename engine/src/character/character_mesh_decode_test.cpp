@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -372,6 +373,37 @@ int main() {
   CHECK(gltf_invalid_repaired.bones[1] == 8);
   CHECK(gltf_invalid_repaired.bones[2] == 8);
   CHECK(gltf_invalid_repaired.bones[3] == 8);
+
+  const auto gltf_validated =
+      ghogx::character::source_gltf_milo_validate_skin_influences(
+          {{1.0f, 4.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {4.0f, 1.0f},
+           {5.0f, 0.5f}},
+          6, {});
+  CHECK(gltf_validated.logged_trimmed_influences);
+  CHECK(gltf_validated.dropped_influence_count == 1);
+  CHECK(approx(gltf_validated.dropped_weight, 0.5f));
+  CHECK(gltf_validated.influences.size() == 4);
+  CHECK(gltf_validated.influences[0].joint_index == 1);
+  CHECK(gltf_validated.influences[3].joint_index == 4);
+  CHECK(approx(gltf_validated.influences[0].weight, 0.4f));
+  CHECK(approx(gltf_validated.influences[3].weight, 0.1f));
+
+  const auto gltf_validation_warnings =
+      ghogx::character::source_gltf_milo_validate_skin_influences(
+          {{2.0f, 0.0f},
+           {2.0f, std::numeric_limits<float>::quiet_NaN()},
+           {1.2f, 0.5f},
+           {6.0f, 0.5f},
+           {3.0f, 0.5f}},
+          4, {3});
+  CHECK(gltf_validation_warnings.influences.empty());
+  CHECK(gltf_validation_warnings.logged_invalid_weights);
+  CHECK(gltf_validation_warnings.logged_invalid_joint_indices);
+  CHECK(gltf_validation_warnings.logged_excluded_joint_influences);
+  CHECK(!gltf_validation_warnings.logged_trimmed_influences);
+  CHECK(gltf_validation_warnings.ignored_invalid_weights == 1);
+  CHECK(gltf_validation_warnings.ignored_invalid_joint_indices == 2);
+  CHECK(gltf_validation_warnings.ignored_excluded_joint_influences == 1);
 
   ghogx::character::SourceRndMeshZeroWeightVertex weighted_vertex;
   weighted_vertex.weights[0] = 0.25f;

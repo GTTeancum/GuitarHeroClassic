@@ -352,6 +352,80 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
+    const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
+    int32_t skin_joint_count,
+    const std::vector<int32_t>& excluded_joint_indices) {
+  SourceGltfMiloSkinValidationResult result;
+  auto excluded = [&](int32_t joint_index) {
+    return std::find(excluded_joint_indices.begin(),
+                     excluded_joint_indices.end(),
+                     joint_index) != excluded_joint_indices.end();
+  };
+
+  for (const SourceGltfMiloRawSkinInfluence& raw : raw_influences) {
+    if (!std::isfinite(raw.weight)) {
+      result.logged_invalid_weights = true;
+      ++result.ignored_invalid_weights;
+      continue;
+    }
+    if (raw.weight <= 0.0f) continue;
+
+    if (!std::isfinite(raw.joint_value)) {
+      result.logged_invalid_joint_indices = true;
+      ++result.ignored_invalid_joint_indices;
+      continue;
+    }
+
+    const int32_t joint_index =
+        static_cast<int32_t>(std::round(raw.joint_value));
+    if (std::fabs(raw.joint_value - static_cast<float>(joint_index)) >
+            0.001f ||
+        joint_index < 0 || joint_index >= skin_joint_count) {
+      result.logged_invalid_joint_indices = true;
+      ++result.ignored_invalid_joint_indices;
+      continue;
+    }
+
+    if (excluded(joint_index)) {
+      result.logged_excluded_joint_influences = true;
+      ++result.ignored_excluded_joint_influences;
+      continue;
+    }
+
+    result.influences.push_back({joint_index, raw.weight});
+  }
+
+  std::stable_sort(
+      result.influences.begin(), result.influences.end(),
+      [](const SourceGltfMiloValidatedSkinInfluence& a,
+         const SourceGltfMiloValidatedSkinInfluence& b) {
+        return a.weight > b.weight;
+      });
+
+  if (result.influences.size() > 4) {
+    result.logged_trimmed_influences = true;
+    result.dropped_influence_count =
+        static_cast<int32_t>(result.influences.size() - 4);
+    for (size_t i = 4; i < result.influences.size(); ++i) {
+      result.dropped_weight += result.influences[i].weight;
+    }
+    result.influences.resize(4);
+  }
+
+  float total_weight = 0.0f;
+  for (const SourceGltfMiloValidatedSkinInfluence& influence :
+       result.influences) {
+    total_weight += influence.weight;
+  }
+  if (total_weight > 0.0f) {
+    for (SourceGltfMiloValidatedSkinInfluence& influence : result.influences) {
+      influence.weight /= total_weight;
+    }
+  }
+  return result;
+}
+
 SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
     const std::vector<SourceGltfMiloSkinInfluence>& influences,
     bool compressed_vertex_layout) {

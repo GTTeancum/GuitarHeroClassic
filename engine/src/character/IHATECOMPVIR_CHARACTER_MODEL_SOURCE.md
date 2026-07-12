@@ -826,6 +826,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
     `source_gltf_milo_pack_skin_slots` ports that exact packing contract so the
     exporter rule is documented without being mistaken for stock runtime skin
     order.
+  - The same glTFMilo source validates skin influences before packing: missing
+    or non-finite weights/joints are ignored, zero or negative weights are
+    skipped, non-integral/out-of-range joints are rejected, excluded joints such
+    as `neutral_bone` are ignored, influences are stably sorted by descending
+    weight, more than four influences are trimmed, and the kept four weights are
+    normalized. Native `source_gltf_milo_validate_skin_influences` ports that
+    deterministic pre-pack contract only; it does not alter stock GH2 mesh
+    decode or synthesize per-vertex bone indices.
   - Native `source_rndmesh_vert_load_plan` records the visible vertex stream
     gates: position, normal, color, and UV are read for all revisions in this
     source path; revisions `>= 0x25` read a separate weight vector; revisions

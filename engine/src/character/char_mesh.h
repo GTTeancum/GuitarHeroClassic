@@ -135,10 +135,38 @@ struct SourceGltfMiloSkinInfluence {
   float weight = 0.0f;
 };
 
+struct SourceGltfMiloRawSkinInfluence {
+  float joint_value = 0.0f;
+  float weight = 0.0f;
+};
+
+struct SourceGltfMiloValidatedSkinInfluence {
+  int32_t joint_index = -1;
+  float weight = 0.0f;
+};
+
+struct SourceGltfMiloSkinValidationResult {
+  std::vector<SourceGltfMiloValidatedSkinInfluence> influences;
+  bool logged_invalid_weights = false;
+  bool logged_invalid_joint_indices = false;
+  bool logged_excluded_joint_influences = false;
+  bool logged_trimmed_influences = false;
+  int32_t ignored_invalid_weights = 0;
+  int32_t ignored_invalid_joint_indices = 0;
+  int32_t ignored_excluded_joint_influences = 0;
+  int32_t dropped_influence_count = 0;
+  float dropped_weight = 0.0f;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
 };
+
+SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
+    const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
+    int32_t skin_joint_count,
+    const std::vector<int32_t>& excluded_joint_indices);
 
 SourceGltfMiloPackedSkinSlots source_gltf_milo_pack_skin_slots(
     const std::vector<SourceGltfMiloSkinInfluence>& influences,

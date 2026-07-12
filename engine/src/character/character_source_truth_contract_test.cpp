@@ -3023,10 +3023,54 @@ int run_contract() {
                  "if(newVert.bone0!=ushort.MaxValue){lastValidBone="
                  "newVert.bone0;}else{newVert.bone0=lastValidBone;}",
                  "glTFMilo repairs invalid skin bone slots from last valid");
+  ok &= contains(gltf_program_cs,
+                 "if(!float.IsFinite(weight)){if(!warningState."
+                 "loggedInvalidWeights)",
+                 "glTFMilo validates non-finite skin weights");
+  ok &= contains(gltf_program_cs,
+                 "if(MathF.Abs(jointValue-jointIndex)>0.001f||jointIndex<0||"
+                 "jointIndex>=skinJointCount)",
+                 "glTFMilo validates skin joint indices");
+  ok &= contains(gltf_program_cs,
+                 "varorderedInfluences=influences.OrderByDescending("
+                 "influence=>influence.weight).ToList();",
+                 "glTFMilo sorts skin influences by descending weight");
+  ok &= contains(gltf_program_cs,
+                 "vartrimmedInfluences=orderedInfluences.Take(4).ToList();",
+                 "glTFMilo trims skin influences to four slots");
+  ok &= contains(gltf_program_cs,
+                 "trimmedInfluences[i]=newSkinInfluence(influence.idx,"
+                 "influence.weight/totalWeight);",
+                 "glTFMilo normalizes retained skin weights");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloSkinInfluence{int32_tremapped_bone=-1;"
                  "floatweight=0.0f;};",
                  "native declares glTFMilo skin influence contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloSkinValidationResult{std::vector<"
+                 "SourceGltfMiloValidatedSkinInfluence>influences;",
+                 "native declares glTFMilo skin validation result");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_validate_skin_influences(conststd::vector<"
+                 "SourceGltfMiloRawSkinInfluence>&raw_influences,"
+                 "int32_tskin_joint_count,conststd::vector<int32_t>&"
+                 "excluded_joint_indices);",
+                 "native exposes glTFMilo skin validation helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloSkinValidationResult"
+                 "source_gltf_milo_validate_skin_influences(conststd::vector<"
+                 "SourceGltfMiloRawSkinInfluence>&raw_influences,"
+                 "int32_tskin_joint_count,conststd::vector<int32_t>&"
+                 "excluded_joint_indices)",
+                 "native ports glTFMilo skin validation helper");
+  ok &= contains(char_mesh,
+                 "std::stable_sort(result.influences.begin(),"
+                 "result.influences.end()",
+                 "native preserves source-stable skin influence ordering");
+  ok &= contains(char_mesh,
+                 "if(result.influences.size()>4){result."
+                 "logged_trimmed_influences=true;",
+                 "native trims glTFMilo skin influences to four slots");
   ok &= contains(char_mesh,
                  "SourceGltfMiloPackedSkinSlotssource_gltf_milo_pack_skin_slots("
                  "conststd::vector<SourceGltfMiloSkinInfluence>&influences,"
@@ -3039,9 +3083,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_validate_skin_influences(",
+                 "focused mesh decode test covers glTFMilo skin validation");
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_validate_skin_influences` ports that",
+                 "document records glTFMilo skin validation helper");
   ok &= contains(rb3_mesh_cpp,
                  "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
                  "mBones[i].mOffset);",
