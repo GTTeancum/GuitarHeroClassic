@@ -149,7 +149,7 @@ source proves there is no usable runtime class/body to port from that file.
 | Area | ihatecompvir evidence | Native status |
 | --- | --- | --- |
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
-| Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
+| Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp`, `obj/Dir.h` | Native helper ports visible Character/RndDir/ObjectDir loader, sync, find, subdir, copy, handler, and prop-row contracts while keeping the raw GH2 root byte span opaque until the exact GH2 revision/body relation is pinned. |
 | Character lifecycle and directory sync flow | `rb3-latest` `Character.cpp`, `Character.h` | Native helper ports constructor defaults, poll-state enum order, Enter/Exit/Poll state changes, main-driver discovery, sphere-base replacement, eyes gates, and SyncObjects cleanup/sort flow. |
 | Character subsystem init/terminate | `rb3-latest` `Char.cpp`, `Char.h` | Native helper records the source init/terminate order only; it does not install callbacks or alter runtime startup. |
 | Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
@@ -479,12 +479,34 @@ into final transform rows.
   - `RndDir::PostLoad` delegates to `ObjectDir::PostLoad`, then loads the
     source superclasses `RndAnimatable`, `RndDrawable`, and revision-gated
     `RndTransformable` before environment/test/postproc rows.
-- `rb3-latest/src/system/obj/Dir.cpp`
+  - `RndDir::SyncObjects` clears anim/poll rows, skips the rest for subdirs,
+    otherwise syncs drawables, gathers animatables and pollables, removes
+    child-owned rows, sorts polls, optionally chains a message-source parent,
+    and then calls `ObjectDir::SyncObjects`. `SyncDrawables` similarly clears
+    draw rows, skips subdirs, gathers drawables, updates pre-clear state,
+    removes draw children, and sorts draws.
+  - Native `source_rnddir_load_plan`,
+    `source_rnddir_sync_objects_plan`,
+    `source_rnddir_sync_drawables_plan`, `source_rnddir_copy_plan`,
+    `source_rnddir_handler_plan`, and `source_rnddir_prop_sync_plan` record
+    those visible source decisions without creating a live native `RndDir`.
+- `rb3-latest/src/system/obj/Dir.cpp` and `Dir.h`
   - `ObjectDir::PreLoad` reads packed revisions, asserts source revision
     `0x1B`, then consumes revision-gated object/type prefix, reserve/hash,
     inline/proxy, viewport, and subdir state before pushing the revision.
   - `ObjectDir::PostLoad` pops the revision and resolves inlined dirs,
     subdirs, and proxy state.
+  - `ObjectDir::ObjectDir` defaults `mProxyOverride=false`,
+    `mInlineProxy=true`, null loader/current camera/path/inline hash, clears
+    `mIsSubDir`, and sets `mInlineSubDirType=kInlineNever`.
+  - `FindObject` searches the local hash, then subdirs, then self name, then
+    parent dirs, then main dir. `SetSubDir(true)` clears name and type, while
+    `AddedSubDir` / `RemovingSubDir` publish nested object additions/removals.
+  - Native `source_object_dir_default_state`,
+    `source_object_dir_preload_plan`, `source_object_dir_postload_plan`,
+    `source_object_dir_find_object_plan`, and `source_object_dir_subdir_plan`
+    record those concrete source contracts without replacing the existing
+    native MILO object table.
 
 ## Character Root Body Boundary
 
@@ -499,8 +521,10 @@ this bounded byte span on `Character` and logs it as `[dir-entry]` under
 Do not decode or apply root `Character`, `RndDir`, or `ObjectDir` runtime fields
 from this byte span until the GH2-era root revision/body relationship is proven
 from ihatecompvir source or equivalent trace evidence. The current source-backed
-deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
-`bodyBytes`, copied byte count, and head/tail hex proof.
+deliverable for the raw byte span is inventory only: `dirVersion`, `dirType`,
+`bodyOffset`, `bodyBytes`, copied byte count, and head/tail hex proof. The
+source helper contracts above describe the visible ihatecompvir loader and sync
+flow; they do not claim the opaque GH2 root body is now field-decoded.
 
 2026-07-10 proof log:
 `engine/out/source_truth_dir_entry_20260710/stock_character_dir_entry_inventory.log`.

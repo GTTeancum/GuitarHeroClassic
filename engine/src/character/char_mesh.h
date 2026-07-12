@@ -1763,6 +1763,99 @@ struct SourceCharacterLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceObjectDirDefaultState {
+  bool proxy_override = false;
+  bool inline_proxy = true;
+  bool loader_null = true;
+  bool is_subdir = false;
+  int32_t inline_subdir_type = 0;
+  bool path_name_null = true;
+  bool current_camera_null = true;
+  bool always_inlined = false;
+  bool always_inline_hash_null = true;
+};
+
+struct SourceObjectDirPreLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  bool pushes_revision = false;
+};
+
+struct SourceObjectDirPostLoadPlan {
+  std::vector<std::string> steps;
+  std::vector<std::string> branches;
+  bool pops_revision = true;
+};
+
+struct SourceObjectDirFindObjectPlan {
+  std::vector<std::string> search_order;
+  std::string result;
+};
+
+struct SourceObjectDirSubDirPlan {
+  bool set_subdir_true = false;
+  bool clears_name_and_type = false;
+  bool added_sets_subdir_true = false;
+  bool added_publishes_nested_objects = false;
+  bool removing_sets_subdir_false = false;
+  bool removing_publishes_nested_objects = false;
+};
+
+struct SourceRndDirDefaultState {
+  bool env_null = true;
+  int32_t draw_count = 0;
+  int32_t anim_count = 0;
+  int32_t poll_count = 0;
+  std::string test_event;
+};
+
+struct SourceRndDirLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> preload_steps;
+  std::vector<std::string> postload_steps;
+  std::vector<std::string> postload_reads;
+  std::vector<std::string> branches;
+};
+
+struct SourceRndDirSyncObjectsPlan {
+  bool clears_anims = true;
+  bool clears_polls = true;
+  bool calls_sync_drawables = false;
+  bool collects_animatables = false;
+  bool removes_anim_children = false;
+  bool collects_pollables = false;
+  bool removes_poll_children = false;
+  bool sorts_polls = false;
+  bool chains_source_subdir = false;
+  bool calls_object_dir_sync = false;
+};
+
+struct SourceRndDirSyncDrawablesPlan {
+  bool clears_draws = true;
+  bool collects_drawables = false;
+  bool updates_preclear_state = false;
+  bool removes_draw_children = false;
+  bool sorts_draws = false;
+};
+
+struct SourceRndDirCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::string member_gate;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceRndDirHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int32_t check = 0;
+};
+
+struct SourceRndDirPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharacterCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::string member_gate;
@@ -2793,6 +2886,40 @@ void source_character_lod_assign(SourceCharacterLodState& dest,
                                  const SourceCharacterLodState& src);
 SourceCharacterLodCopyPlan source_character_lod_copy_plan();
 SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan();
+SourceObjectDirDefaultState source_object_dir_default_state();
+SourceObjectDirPreLoadPlan source_object_dir_preload_plan(
+    int revision,
+    bool loading_proxy_from_disk,
+    bool proxy_override);
+SourceObjectDirPostLoadPlan source_object_dir_postload_plan(
+    int revision,
+    int inlined_dir_count,
+    bool stream_cached,
+    bool is_proxy,
+    bool proxy_file_empty,
+    bool proxy_override,
+    bool edit_mode,
+    bool allows_inline_proxy);
+SourceObjectDirFindObjectPlan source_object_dir_find_object_plan(
+    bool entry_hit,
+    bool subdir_hit,
+    bool name_matches_self,
+    bool parent_dirs,
+    bool has_parent_dir,
+    bool parent_is_self,
+    bool is_main_dir);
+SourceObjectDirSubDirPlan source_object_dir_subdir_plan(bool add_subdir);
+SourceRndDirDefaultState source_rnddir_default_state();
+SourceRndDirLoadPlan source_rnddir_load_plan(int revision,
+                                             bool loading_proxy_from_disk);
+SourceRndDirSyncObjectsPlan source_rnddir_sync_objects_plan(
+    bool is_subdir,
+    bool parent_dir_is_msg_source);
+SourceRndDirSyncDrawablesPlan source_rnddir_sync_drawables_plan(
+    bool is_subdir);
+SourceRndDirCopyPlan source_rnddir_copy_plan();
+SourceRndDirHandlerPlan source_rnddir_handler_plan();
+SourceRndDirPropSyncPlan source_rnddir_prop_sync_plan();
 SourceCharacterLoadPlan source_character_load_plan(int revision,
                                                    bool is_proxy,
                                                    int legacy_other_revision);

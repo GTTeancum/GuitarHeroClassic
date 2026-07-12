@@ -491,6 +491,8 @@ int run_contract() {
       rb3_latest_obj_dir / "Object.h"));
   const std::string rb3_latest_obj_dir_cpp = compact(read_file(
       rb3_latest_obj_dir / "Dir.cpp"));
+  const std::string rb3_latest_obj_dir_h = compact(read_file(
+      rb3_latest_obj_dir / "Dir.h"));
   const std::string rb3_latest_bin_stream_h = compact(read_file(
       rb3_latest_utl_dir / "BinStream.h"));
   const std::string rb3_latest_bin_stream_cpp = compact(read_file(
@@ -1348,7 +1350,8 @@ int run_contract() {
 
   ok &= contains(doc,
                  "| Character/BandCharacter/RndDir/ObjectDir root body | "
-                 "`rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` |",
+                 "`rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp`, "
+                 "`obj/Dir.h` |",
                  "coverage matrix records root dir body source evidence");
   ok &= contains(doc,
                  "| Character lifecycle and directory sync flow | "
@@ -1741,6 +1744,33 @@ int run_contract() {
   ok &= contains(rb3_latest_rnd_dir_cpp,
                  "LOAD_SUPERCLASS(RndAnimatable)LOAD_SUPERCLASS(RndDrawable)",
                  "latest RndDir PostLoad reads animatable/drawable superclasses");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "voidRndDir::SyncObjects(){mAnims.clear();mPolls.clear();"
+                 "if(!IsSubDir()){SyncDrawables();",
+                 "latest RndDir SyncObjects clears and gates subdirs");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "std::sort(mPolls.begin(),mPolls.end(),SortPolls);",
+                 "latest RndDir SyncObjects sorts polls");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "voidRndDir::SyncDrawables(){mDraws.clear();if(!IsSubDir()){",
+                 "latest RndDir SyncDrawables clears and gates subdirs");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "std::sort(mDraws.begin(),mDraws.end(),SortDraws);",
+                 "latest RndDir SyncDrawables sorts draws");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "BEGIN_COPYS(RndDir)COPY_SUPERCLASS(ObjectDir)"
+                 "COPY_SUPERCLASS(RndAnimatable)COPY_SUPERCLASS(RndDrawable)"
+                 "COPY_SUPERCLASS(RndTransformable)",
+                 "latest RndDir copy superclass order");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "BEGIN_HANDLERS(RndDir)HANDLE(show_objects,OnShowObjects)"
+                 "HANDLE(supported_events,OnSupportedEvents)",
+                 "latest RndDir handler rows");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "BEGIN_PROPSYNCS(RndDir)SYNC_PROP_STATIC(environ,mEnv)"
+                 "SYNC_PROP(polls,mPolls)SYNC_PROP(draws,mDraws)"
+                 "SYNC_PROP(test_event,mTestEvent)",
+                 "latest RndDir prop-sync rows");
   ok &= contains(rb3_latest_obj_dir_cpp,
                  "voidObjectDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(0x1B,0);",
@@ -1754,6 +1784,30 @@ int run_contract() {
   ok &= contains(rb3_latest_obj_dir_cpp,
                  "voidObjectDir::PostLoad(BinStream&bs){intrevs=PopRev(this);",
                  "latest ObjectDir PostLoad pops packed revision");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "ObjectDir::ObjectDir():mHashTable(0,Entry(),Entry(),0),"
+                 "mStringTable(0),mProxyOverride(false),mInlineProxy(true),",
+                 "latest ObjectDir constructor defaults");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "voidObjectDir::SetSubDir(boolb){if(b){mIsSubDir=true;"
+                 "SetName(0,0);SetTypeDef(0);}}",
+                 "latest ObjectDir SetSubDir source gate");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "Hmx::Object*ObjectDir::FindObject(constchar*name,bool"
+                 "parentDirs){Entry*entry=FindEntry(name,false);",
+                 "latest ObjectDir FindObject source order");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "if(parentDirs){ObjectDir*thisDir=Dir();if(thisDir&&"
+                 "thisDir!=this){returnthisDir->FindObject(name,parentDirs);}"
+                 "if(this!=sMainDir){returnsMainDir->FindObject(name,false);}}",
+                 "latest ObjectDir FindObject parent/main fallback");
+  ok &= contains(rb3_latest_obj_dir_h,
+                 "enumInlineDirType{kInlineNever=0,kInlineCached=1,"
+                 "kInlineAlways=2,kInline3=3};",
+                 "latest ObjectDir header exposes inline dir enum");
+  ok &= contains(rb3_latest_obj_dir_h,
+                 "boolIsProxy()const{returnthis!=mDir;}",
+                 "latest ObjectDir header exposes proxy rule");
   ok &= contains(char_mesh_h, "int32_tdir_version=0;",
                  "native Character stores root directory version");
   ok &= contains(char_mesh_h, "uint64_tdir_entry_offset=0;",
@@ -9112,9 +9166,38 @@ int run_contract() {
                  "boolwould_assert_size=false;boolcalled_driver_play=false;",
                  "native exposes Character OnPlayClip decision");
   ok &= contains(char_mesh_h,
+                 "structSourceObjectDirDefaultState{boolproxy_override=false;",
+                 "native exposes ObjectDir default source state");
+  ok &= contains(char_mesh_h,
+                 "structSourceObjectDirPreLoadPlan{boolknown_revision=false;",
+                 "native exposes ObjectDir preload source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceObjectDirPostLoadPlan{std::vector<std::string>"
+                 "steps;",
+                 "native exposes ObjectDir postload source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceObjectDirFindObjectPlan{std::vector<std::string>"
+                 "search_order;",
+                 "native exposes ObjectDir find source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndDirLoadPlan{boolknown_revision=false;",
+                 "native exposes RndDir load source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndDirSyncObjectsPlan{boolclears_anims=true;",
+                 "native exposes RndDir sync objects plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndDirSyncDrawablesPlan{boolclears_draws=true;",
+                 "native exposes RndDir sync drawables plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharacterLoadPlansource_character_load_plan("
                  "intrevision,boolis_proxy,intlegacy_other_revision);",
                  "native exposes Character source load helper");
+  ok &= contains(char_mesh_h,
+                 "SourceObjectDirPreLoadPlansource_object_dir_preload_plan(",
+                 "native exposes ObjectDir preload helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndDirLoadPlansource_rnddir_load_plan(",
+                 "native exposes RndDir load helper");
   ok &= contains(char_mesh_h,
                  "SourceCharacterCopyPlansource_character_copy_plan();",
                  "native exposes Character source copy helper");
@@ -9151,6 +9234,65 @@ int run_contract() {
                  "plan.properties={\"screen_size\",\"group\","
                  "\"trans_group\"};",
                  "native records Character LOD prop-sync rows");
+  ok &= contains(char_mesh,
+                 "SourceObjectDirDefaultStatesource_object_dir_default_state()",
+                 "native implements ObjectDir default helper");
+  ok &= contains(char_mesh,
+                 "plan.known_revision=revision>=0&&revision<=0x1b;",
+                 "native ObjectDir preload helper gates source revision");
+  ok &= contains(char_mesh,
+                 "plan.read_order.push_back(\"Hmx::Object::LoadType\");",
+                 "native ObjectDir preload helper records LoadType gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order.push_back(\"OldLoadProxies\");",
+                 "native ObjectDir preload helper records old proxy gate");
+  ok &= contains(char_mesh,
+                 "plan.steps.push_back(\"postloadInlinedDirsReverse\");",
+                 "native ObjectDir postload helper records inlined dirs");
+  ok &= contains(char_mesh,
+                 "plan.branches.push_back(\"createDirLoaderForProxyFile\");",
+                 "native ObjectDir postload helper records proxy loader branch");
+  ok &= contains(char_mesh,
+                 "plan.search_order.push_back(\"FindEntry(local)\");",
+                 "native ObjectDir FindObject helper records local first");
+  ok &= contains(char_mesh,
+                 "plan.search_order.push_back(\"mainDir\");",
+                 "native ObjectDir FindObject helper records main fallback");
+  ok &= contains(char_mesh,
+                 "SourceRndDirDefaultStatesource_rnddir_default_state()",
+                 "native implements RndDir default helper");
+  ok &= contains(char_mesh,
+                 "plan.known_revision=revision>=0&&revision<=0x0a;",
+                 "native RndDir load helper gates source revision");
+  ok &= contains(char_mesh,
+                 "plan.preload_steps={\"LOAD_REVS\",\"ASSERT_REVS(0xA,0)\","
+                 "\"PushRev(packRevs(gAltRev,gRev))\",\"ObjectDir::PreLoad\"};",
+                 "native RndDir load helper records preload order");
+  ok &= contains(char_mesh,
+                 "plan.postload_steps={\"ObjectDir::PostLoad\",\"PopRev\","
+                 "\"restoregRev/gAltRev\",\"RndAnimatable::Load\","
+                 "\"RndDrawable::Load\"};",
+                 "native RndDir load helper records postload prefix");
+  ok &= contains(char_mesh,
+                 "plan.calls_sync_drawables=true;",
+                 "native RndDir SyncObjects helper records draw sync");
+  ok &= contains(char_mesh,
+                 "plan.sorts_polls=true;",
+                 "native RndDir SyncObjects helper records poll sort");
+  ok &= contains(char_mesh,
+                 "plan.collects_drawables=true;",
+                 "native RndDir SyncDrawables helper records draw collection");
+  ok &= contains(char_mesh,
+                 "plan.copied_superclasses={\"ObjectDir\",\"RndAnimatable\","
+                 "\"RndDrawable\",\"RndTransformable\"};",
+                 "native RndDir copy helper records source superclass order");
+  ok &= contains(char_mesh,
+                 "plan.handlers={\"show_objects\",\"supported_events\"};",
+                 "native RndDir handler helper records source handlers");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"environ\",\"polls\",\"draws\","
+                 "\"test_event\"};",
+                 "native RndDir prop-sync helper records source rows");
   ok &= contains(char_mesh,
                  "SourceCharacterLoadPlansource_character_load_plan("
                  "intrevision,boolis_proxy,intlegacy_other_revision){",
@@ -9358,6 +9500,26 @@ int run_contract() {
   ok &= contains(character_source_test,
                  "source_character_load_plan(0x11,false,0)",
                  "focused Character test covers modern load plan");
+  ok &= contains(character_source_test,
+                 "source_object_dir_preload_plan(0x1b,false,false)",
+                 "focused Character test covers ObjectDir modern preload");
+  ok &= contains(character_source_test,
+                 "source_object_dir_postload_plan(0x1b,2,false,true,false,false,"
+                 "false,false)",
+                 "focused Character test covers ObjectDir proxy postload");
+  ok &= contains(character_source_test,
+                 "source_object_dir_find_object_plan(false,false,false,true,true,"
+                 "false,false)",
+                 "focused Character test covers ObjectDir parent lookup");
+  ok &= contains(character_source_test,
+                 "source_rnddir_load_plan(0x0a,false)",
+                 "focused Character test covers RndDir modern load");
+  ok &= contains(character_source_test,
+                 "source_rnddir_sync_objects_plan(false,true)",
+                 "focused Character test covers RndDir SyncObjects");
+  ok &= contains(character_source_test,
+                 "source_rnddir_sync_drawables_plan(false)",
+                 "focused Character test covers RndDir SyncDrawables");
   ok &= contains(character_source_test,
                  "source_character_load_plan(0x11,true,0)",
                  "focused Character test covers proxy load plan");

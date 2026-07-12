@@ -4183,6 +4183,243 @@ SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan() {
   return plan;
 }
 
+SourceObjectDirDefaultState source_object_dir_default_state() {
+  return SourceObjectDirDefaultState{};
+}
+
+SourceObjectDirPreLoadPlan source_object_dir_preload_plan(
+    int revision,
+    bool loading_proxy_from_disk,
+    bool proxy_override) {
+  SourceObjectDirPreLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 0x1b;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "ASSERT_REVS(0x1B,0)"};
+  if (revision > 0x15) {
+    plan.read_order.push_back("Hmx::Object::LoadType");
+  } else if (revision >= 2 && revision <= 0x10) {
+    plan.read_order.push_back("Hmx::Object::Load");
+  }
+  if (revision < 3) {
+    plan.read_order.push_back("reserveHashCount");
+    plan.read_order.push_back("reserveStringCount");
+  }
+  if (revision > 0x19) {
+    plan.read_order.push_back("mAlwaysInlined");
+    plan.read_order.push_back("mAlwaysInlineHashBytes");
+  }
+  if (revision > 1) {
+    plan.read_order.push_back("viewports");
+    plan.read_order.push_back("currentViewportIndex");
+  }
+  if (revision > 0x0c) {
+    if (revision > 0x13) {
+      plan.read_order.push_back(
+          loading_proxy_from_disk ? "inlineProxyDummy" : "mInlineProxy");
+    }
+    plan.read_order.push_back("proxyFilePath");
+    plan.branches.push_back(proxy_override ? "proxyOverridePath"
+                                           : "storedProxyPath");
+  }
+  if (revision < 11) plan.read_order.push_back("legacyStringA");
+  if (revision < 11) plan.read_order.push_back("legacyStringB");
+  if (revision == 5) plan.read_order.push_back("legacyStringC");
+  if (revision > 2) {
+    plan.read_order.push_back("notInlinedSubDirs");
+    if (revision == 0x17) plan.read_order.push_back("legacyIntVector");
+    if (revision < 0x15) {
+      plan.branches.push_back("clearInlinedSubDirs");
+    } else {
+      plan.read_order.push_back("mInlineSubDirType");
+      plan.read_order.push_back("inlinedSubDirs");
+    }
+  }
+  if (revision == 0x0c || revision == 0x0d) {
+    plan.read_order.push_back("OldLoadProxies");
+  }
+  plan.branches.push_back("mIsSubDir=false");
+  plan.pushes_revision = true;
+  return plan;
+}
+
+SourceObjectDirPostLoadPlan source_object_dir_postload_plan(
+    int revision,
+    int inlined_dir_count,
+    bool stream_cached,
+    bool is_proxy,
+    bool proxy_file_empty,
+    bool proxy_override,
+    bool edit_mode,
+    bool allows_inline_proxy) {
+  SourceObjectDirPostLoadPlan plan;
+  plan.steps = {"PopRev", "restore gRev/gAltRev"};
+  if (inlined_dir_count > 0) {
+    plan.steps.push_back("postloadInlinedDirsReverse");
+  }
+  if (revision > 0x17) {
+    plan.steps.push_back(stream_cached ? "useCachedRevs2" : "PopRev(revs2)");
+    plan.steps.push_back("PopRev(subdirOffset)");
+    plan.steps.push_back("postloadOffsetSubDirs");
+  } else {
+    plan.steps.push_back("postloadAllSubDirs");
+  }
+  if (revision > 10) plan.steps.push_back("readCurrentCameraStrings");
+  if (revision > 0x15) {
+    plan.steps.push_back("LoadRest");
+  } else if (revision > 0x10) {
+    plan.steps.push_back("Hmx::Object::Load");
+  }
+  plan.steps.push_back("HandleType(change_proxies_msg)");
+  if (proxy_override) {
+    plan.branches.push_back("clearProxyOverride");
+    if (!edit_mode && (!is_proxy || allows_inline_proxy)) {
+      plan.branches.push_back("failInlinedProxyOverride");
+    }
+  } else if (is_proxy && !proxy_file_empty) {
+    plan.branches.push_back("DeleteObjects");
+    plan.branches.push_back("DeleteSubDirs");
+    plan.branches.push_back("createDirLoaderForProxyFile");
+  }
+  return plan;
+}
+
+SourceObjectDirFindObjectPlan source_object_dir_find_object_plan(
+    bool entry_hit,
+    bool subdir_hit,
+    bool name_matches_self,
+    bool parent_dirs,
+    bool has_parent_dir,
+    bool parent_is_self,
+    bool is_main_dir) {
+  SourceObjectDirFindObjectPlan plan;
+  plan.search_order.push_back("FindEntry(local)");
+  if (entry_hit) {
+    plan.result = "entry";
+    return plan;
+  }
+  plan.search_order.push_back("scanSubDirs");
+  if (subdir_hit) {
+    plan.result = "subdir";
+    return plan;
+  }
+  plan.search_order.push_back("compareSelfName");
+  if (name_matches_self) {
+    plan.result = "self";
+    return plan;
+  }
+  if (parent_dirs) {
+    if (has_parent_dir && !parent_is_self) {
+      plan.search_order.push_back("parentDir");
+      plan.result = "parentDir";
+      return plan;
+    }
+    if (!is_main_dir) {
+      plan.search_order.push_back("mainDir");
+      plan.result = "mainDir";
+      return plan;
+    }
+  }
+  plan.result = "null";
+  return plan;
+}
+
+SourceObjectDirSubDirPlan source_object_dir_subdir_plan(bool add_subdir) {
+  SourceObjectDirSubDirPlan plan;
+  plan.set_subdir_true = add_subdir;
+  plan.clears_name_and_type = add_subdir;
+  plan.added_sets_subdir_true = add_subdir;
+  plan.added_publishes_nested_objects = add_subdir;
+  plan.removing_sets_subdir_false = !add_subdir;
+  plan.removing_publishes_nested_objects = !add_subdir;
+  return plan;
+}
+
+SourceRndDirDefaultState source_rnddir_default_state() {
+  return SourceRndDirDefaultState{};
+}
+
+SourceRndDirLoadPlan source_rnddir_load_plan(int revision,
+                                             bool loading_proxy_from_disk) {
+  SourceRndDirLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 0x0a;
+  if (!plan.known_revision) return plan;
+  plan.preload_steps = {"LOAD_REVS", "ASSERT_REVS(0xA,0)",
+                        "PushRev(packRevs(gAltRev,gRev))",
+                        "ObjectDir::PreLoad"};
+  plan.postload_steps = {"ObjectDir::PostLoad", "PopRev",
+                         "restore gRev/gAltRev", "RndAnimatable::Load",
+                         "RndDrawable::Load"};
+  if (revision != 0) plan.postload_steps.push_back("RndTransformable::Load");
+  if (revision > 1) {
+    plan.postload_reads.push_back(
+        loading_proxy_from_disk ? "mEnvProxyDummy" : "mEnv");
+  }
+  if (revision > 2 && revision != 9) plan.postload_reads.push_back("mTestEvent");
+  if (revision >= 4 && revision <= 8) {
+    plan.postload_reads.push_back("legacySymbolA");
+    plan.postload_reads.push_back("legacySymbolB");
+  }
+  if (revision >= 5 && revision <= 7) {
+    plan.postload_reads.push_back("legacyRndPostProc");
+    plan.branches.push_back("loadAndDeleteRndPostProc");
+  }
+  return plan;
+}
+
+SourceRndDirSyncObjectsPlan source_rnddir_sync_objects_plan(
+    bool is_subdir,
+    bool parent_dir_is_msg_source) {
+  SourceRndDirSyncObjectsPlan plan;
+  if (is_subdir) return plan;
+  plan.calls_sync_drawables = true;
+  plan.collects_animatables = true;
+  plan.removes_anim_children = true;
+  plan.collects_pollables = true;
+  plan.removes_poll_children = true;
+  plan.sorts_polls = true;
+  plan.chains_source_subdir = parent_dir_is_msg_source;
+  plan.calls_object_dir_sync = true;
+  return plan;
+}
+
+SourceRndDirSyncDrawablesPlan source_rnddir_sync_drawables_plan(
+    bool is_subdir) {
+  SourceRndDirSyncDrawablesPlan plan;
+  if (is_subdir) return plan;
+  plan.collects_drawables = true;
+  plan.updates_preclear_state = true;
+  plan.removes_draw_children = true;
+  plan.sorts_draws = true;
+  return plan;
+}
+
+SourceRndDirCopyPlan source_rnddir_copy_plan() {
+  SourceRndDirCopyPlan plan;
+  plan.copied_superclasses = {"ObjectDir", "RndAnimatable", "RndDrawable",
+                              "RndTransformable"};
+  plan.member_gate = "ty != kCopyFromMax";
+  plan.copied_members = {"mEnv", "mTestEvent"};
+  return plan;
+}
+
+SourceRndDirHandlerPlan source_rnddir_handler_plan() {
+  SourceRndDirHandlerPlan plan;
+  plan.handlers = {"show_objects", "supported_events"};
+  plan.superclasses = {"RndAnimatable", "RndDrawable", "RndTransformable",
+                       "RndPollable",   "ObjectDir",   "MsgSource"};
+  plan.check = 609;
+  return plan;
+}
+
+SourceRndDirPropSyncPlan source_rnddir_prop_sync_plan() {
+  SourceRndDirPropSyncPlan plan;
+  plan.properties = {"environ", "polls", "draws", "test_event"};
+  plan.superclasses = {"ObjectDir", "RndTransformable", "RndDrawable",
+                       "RndAnimatable"};
+  return plan;
+}
+
 SourceCharacterLoadPlan source_character_load_plan(int revision,
                                                    bool is_proxy,
                                                    int legacy_other_revision) {

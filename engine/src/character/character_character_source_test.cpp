@@ -60,6 +60,18 @@ int main() {
   using ghogx::character::SourceCharacterDrawMode;
   using ghogx::character::SourceCharacterPollState;
   using ghogx::character::SourceCharPollableSorterDep;
+  using ghogx::character::source_object_dir_default_state;
+  using ghogx::character::source_object_dir_find_object_plan;
+  using ghogx::character::source_object_dir_postload_plan;
+  using ghogx::character::source_object_dir_preload_plan;
+  using ghogx::character::source_object_dir_subdir_plan;
+  using ghogx::character::source_rnddir_copy_plan;
+  using ghogx::character::source_rnddir_default_state;
+  using ghogx::character::source_rnddir_handler_plan;
+  using ghogx::character::source_rnddir_load_plan;
+  using ghogx::character::source_rnddir_prop_sync_plan;
+  using ghogx::character::source_rnddir_sync_drawables_plan;
+  using ghogx::character::source_rnddir_sync_objects_plan;
   using ghogx::character::source_character_added_object;
   using ghogx::character::source_character_add_shadow_bone;
   using ghogx::character::source_character_bone_servo_resolves;
@@ -97,6 +109,179 @@ int main() {
   using ghogx::character::source_char_pollable_sorter_changed_by;
 
   bool ok = true;
+
+  const auto object_defaults = source_object_dir_default_state();
+  ok &= expect_bool(object_defaults.proxy_override, false,
+                    "ObjectDir default proxy override");
+  ok &= expect_bool(object_defaults.inline_proxy, true,
+                    "ObjectDir default inline proxy");
+  ok &= expect_bool(object_defaults.loader_null, true,
+                    "ObjectDir default loader null");
+  ok &= expect_bool(object_defaults.is_subdir, false,
+                    "ObjectDir default subdir flag");
+  ok &= expect_int(object_defaults.inline_subdir_type, 0,
+                   "ObjectDir default inline subdir type");
+  ok &= expect_bool(object_defaults.path_name_null, true,
+                    "ObjectDir default path name");
+  ok &= expect_bool(object_defaults.current_camera_null, true,
+                    "ObjectDir default current camera");
+  ok &= expect_bool(object_defaults.always_inlined, false,
+                    "ObjectDir default always inlined");
+  ok &= expect_bool(object_defaults.always_inline_hash_null, true,
+                    "ObjectDir default always inline hash");
+
+  const auto object_pre_v27 =
+      source_object_dir_preload_plan(0x1b, false, false);
+  ok &= expect_bool(object_pre_v27.known_revision, true,
+                    "ObjectDir preload accepts rev27");
+  ok &= expect_string(object_pre_v27.read_order[0], "LOAD_REVS",
+                      "ObjectDir preload first step");
+  ok &= expect_bool(has(object_pre_v27.read_order, "Hmx::Object::LoadType"),
+                    true, "ObjectDir rev27 reads LoadType");
+  ok &= expect_bool(has(object_pre_v27.read_order, "mAlwaysInlined"), true,
+                    "ObjectDir rev27 reads always inlined");
+  ok &= expect_bool(has(object_pre_v27.read_order, "mInlineProxy"), true,
+                    "ObjectDir rev27 reads inline proxy");
+  ok &= expect_bool(has(object_pre_v27.read_order, "mInlineSubDirType"), true,
+                    "ObjectDir rev27 reads inline subdir type");
+  ok &= expect_bool(object_pre_v27.pushes_revision, true,
+                    "ObjectDir preload pushes revision");
+
+  const auto object_pre_v13 =
+      source_object_dir_preload_plan(0x0d, true, true);
+  ok &= expect_bool(has(object_pre_v13.read_order, "proxyFilePath"), true,
+                    "ObjectDir rev13 reads proxy path");
+  ok &= expect_bool(has(object_pre_v13.read_order, "OldLoadProxies"), true,
+                    "ObjectDir rev13 reads old proxies");
+  ok &= expect_bool(has(object_pre_v13.branches, "proxyOverridePath"), true,
+                    "ObjectDir proxy override branch");
+
+  const auto object_post =
+      source_object_dir_postload_plan(0x1b, 2, false, true, false, false,
+                                      false, false);
+  ok &= expect_bool(has(object_post.steps, "postloadInlinedDirsReverse"), true,
+                    "ObjectDir postload inlined dirs");
+  ok &= expect_bool(has(object_post.steps, "postloadOffsetSubDirs"), true,
+                    "ObjectDir postload new subdir branch");
+  ok &= expect_bool(has(object_post.steps, "LoadRest"), true,
+                    "ObjectDir postload LoadRest branch");
+  ok &= expect_bool(has(object_post.branches, "createDirLoaderForProxyFile"),
+                    true, "ObjectDir proxy file reload branch");
+
+  const auto object_find_entry = source_object_dir_find_object_plan(
+      true, false, false, true, true, false, false);
+  ok &= expect_string(object_find_entry.result, "entry",
+                      "ObjectDir FindObject local hit");
+  const auto object_find_parent = source_object_dir_find_object_plan(
+      false, false, false, true, true, false, false);
+  ok &= expect_string(object_find_parent.search_order.back(), "parentDir",
+                      "ObjectDir FindObject parent search");
+  ok &= expect_string(object_find_parent.result, "parentDir",
+                      "ObjectDir FindObject parent result");
+  const auto object_find_main = source_object_dir_find_object_plan(
+      false, false, false, true, false, false, false);
+  ok &= expect_string(object_find_main.result, "mainDir",
+                      "ObjectDir FindObject main fallback");
+
+  const auto object_add_subdir = source_object_dir_subdir_plan(true);
+  ok &= expect_bool(object_add_subdir.clears_name_and_type, true,
+                    "ObjectDir SetSubDir clears name/type");
+  ok &= expect_bool(object_add_subdir.added_publishes_nested_objects, true,
+                    "ObjectDir AddedSubDir publishes nested objects");
+  const auto object_remove_subdir = source_object_dir_subdir_plan(false);
+  ok &= expect_bool(object_remove_subdir.removing_sets_subdir_false, true,
+                    "ObjectDir RemovingSubDir clears subdir flag");
+
+  const auto rnd_defaults = source_rnddir_default_state();
+  ok &= expect_bool(rnd_defaults.env_null, true, "RndDir default env null");
+  ok &= expect_int(rnd_defaults.draw_count, 0, "RndDir default draw count");
+  ok &= expect_int(rnd_defaults.anim_count, 0, "RndDir default anim count");
+  ok &= expect_int(rnd_defaults.poll_count, 0, "RndDir default poll count");
+
+  const auto rnd_load_v10 = source_rnddir_load_plan(0x0a, false);
+  ok &= expect_bool(rnd_load_v10.known_revision, true,
+                    "RndDir load accepts rev10");
+  ok &= expect_bool(has(rnd_load_v10.preload_steps, "ObjectDir::PreLoad"),
+                    true, "RndDir PreLoad delegates ObjectDir");
+  ok &= expect_bool(has(rnd_load_v10.postload_steps, "RndAnimatable::Load"),
+                    true, "RndDir PostLoad loads animatable");
+  ok &= expect_bool(has(rnd_load_v10.postload_steps, "RndDrawable::Load"),
+                    true, "RndDir PostLoad loads drawable");
+  ok &= expect_bool(has(rnd_load_v10.postload_steps, "RndTransformable::Load"),
+                    true, "RndDir PostLoad loads transformable");
+  ok &= expect_bool(has(rnd_load_v10.postload_reads, "mEnv"), true,
+                    "RndDir rev10 reads env");
+  ok &= expect_bool(has(rnd_load_v10.postload_reads, "mTestEvent"), true,
+                    "RndDir rev10 reads test event");
+
+  const auto rnd_load_v6 = source_rnddir_load_plan(6, true);
+  ok &= expect_bool(has(rnd_load_v6.postload_reads, "mEnvProxyDummy"), true,
+                    "RndDir proxy load reads env dummy");
+  ok &= expect_bool(has(rnd_load_v6.postload_reads, "legacyRndPostProc"),
+                    true, "RndDir legacy post proc");
+  ok &= expect_bool(has(rnd_load_v6.branches, "loadAndDeleteRndPostProc"),
+                    true, "RndDir legacy post proc branch");
+
+  const auto sync_objects =
+      source_rnddir_sync_objects_plan(false, true);
+  ok &= expect_bool(sync_objects.calls_sync_drawables, true,
+                    "RndDir SyncObjects calls SyncDrawables");
+  ok &= expect_bool(sync_objects.collects_animatables, true,
+                    "RndDir SyncObjects collects animatables");
+  ok &= expect_bool(sync_objects.removes_anim_children, true,
+                    "RndDir SyncObjects removes anim children");
+  ok &= expect_bool(sync_objects.collects_pollables, true,
+                    "RndDir SyncObjects collects pollables");
+  ok &= expect_bool(sync_objects.sorts_polls, true,
+                    "RndDir SyncObjects sorts polls");
+  ok &= expect_bool(sync_objects.chains_source_subdir, true,
+                    "RndDir SyncObjects chains source subdir");
+  ok &= expect_bool(sync_objects.calls_object_dir_sync, true,
+                    "RndDir SyncObjects delegates ObjectDir");
+  ok &= expect_bool(source_rnddir_sync_objects_plan(true, true)
+                        .calls_object_dir_sync,
+                    false, "RndDir subdir SyncObjects is fenced");
+
+  const auto sync_draws = source_rnddir_sync_drawables_plan(false);
+  ok &= expect_bool(sync_draws.collects_drawables, true,
+                    "RndDir SyncDrawables collects drawables");
+  ok &= expect_bool(sync_draws.updates_preclear_state, true,
+                    "RndDir SyncDrawables updates preclear state");
+  ok &= expect_bool(sync_draws.removes_draw_children, true,
+                    "RndDir SyncDrawables removes draw children");
+  ok &= expect_bool(sync_draws.sorts_draws, true,
+                    "RndDir SyncDrawables sorts draws");
+
+  const auto rnd_copy = source_rnddir_copy_plan();
+  ok &= expect_size(rnd_copy.copied_superclasses.size(), 4,
+                    "RndDir copy superclass count");
+  ok &= expect_string(rnd_copy.copied_superclasses[0], "ObjectDir",
+                      "RndDir copy object dir first");
+  ok &= expect_string(rnd_copy.copied_superclasses[3], "RndTransformable",
+                      "RndDir copy transform last");
+  ok &= expect_string(rnd_copy.copied_members[0], "mEnv",
+                      "RndDir copy env");
+  ok &= expect_string(rnd_copy.copied_members[1], "mTestEvent",
+                      "RndDir copy test event");
+
+  const auto rnd_handlers = source_rnddir_handler_plan();
+  ok &= expect_string(rnd_handlers.handlers[0], "show_objects",
+                      "RndDir handler show objects");
+  ok &= expect_string(rnd_handlers.handlers[1], "supported_events",
+                      "RndDir handler supported events");
+  ok &= expect_size(rnd_handlers.superclasses.size(), 6,
+                    "RndDir handler superclass count");
+  ok &= expect_int(rnd_handlers.check, 609, "RndDir handler check");
+
+  const auto rnd_props = source_rnddir_prop_sync_plan();
+  ok &= expect_size(rnd_props.properties.size(), 4,
+                    "RndDir prop count");
+  ok &= expect_string(rnd_props.properties[0], "environ",
+                      "RndDir prop env");
+  ok &= expect_string(rnd_props.properties[3], "test_event",
+                      "RndDir prop test event");
+  ok &= expect_string(rnd_props.superclasses[0], "ObjectDir",
+                      "RndDir prop superclass ObjectDir");
 
   auto state = source_character_default_state();
   ok &= expect_int(state.min_lod, 0, "constructor min LOD");
