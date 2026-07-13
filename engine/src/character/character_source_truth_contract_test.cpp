@@ -5305,6 +5305,28 @@ int run_contract() {
                  "boneTransforms[i].name=Symbol.Read(reader);}",
                  "MiloEditor RndMesh reads old four bone names");
   ok &= contains(mesh_cs,
+                 "publicBoneTransformRead(EndianReaderreader,uintmeshRevision)"
+                 "{name=Symbol.Read(reader);transform=transform.Read(reader);",
+                 "MiloEditor BoneTransform row reads symbol then matrix");
+  ok &= contains(mesh_cs,
+                 "publicvoidWrite(EndianWriterwriter,uintmeshRevision){"
+                 "Symbol.Write(writer,name);transform.Write(writer);}",
+                 "MiloEditor BoneTransform row writes symbol then matrix");
+  ok &= contains(mesh_cs,
+                 "if(reader.ReadInt32()>0){reader.BaseStream.Position-=4;",
+                 "MiloEditor RndMesh probes and rewinds bone block");
+  ok &= contains(mesh_cs,
+                 "if(revision>=33){writer.WriteUInt32((uint)boneTransforms."
+                 "Count);",
+                 "MiloEditor RndMesh writes modern bone transform count");
+  ok &= contains(mesh_cs,
+                 "while(boneTransforms.Count<4){boneTransforms.Add("
+                 "newBoneTransform());}",
+                 "MiloEditor RndMesh pads legacy bone transforms to four");
+  ok &= contains(mesh_cs,
+                 "else{writer.WriteUInt32(0);}",
+                 "MiloEditor RndMesh writes legacy empty bone sentinel");
+  ok &= contains(mesh_cs,
                  "if(revision>34){keepMeshData=reader.ReadBoolean();}",
                  "MiloEditor RndMesh keepMeshData gate");
   ok &= contains(mesh_cs,
@@ -5970,6 +5992,10 @@ int run_contract() {
                  "false;",
                  "native declares glTFMilo AddVertex result row");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshBoneTransformIoPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh bone transform IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
                  "type=false;",
                  "native declares glTFMilo run options plan");
@@ -6293,6 +6319,30 @@ int run_contract() {
                  "conststd::vector<SourceGltfMiloSkinInfluence>&influences,"
                  "boolcompressed_vertex_layout)",
                  "native ports glTFMilo skin slot packer");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshBoneTransformIoPlansource_milo_editor_rndmesh_"
+      "bone_transform_io_plan(",
+      "native ports MiloEditor RndMesh bone transform IO helper");
+  ok &= contains(char_mesh,
+                 "if(read_probe_positive){plan.read_rewinds_probe_when_"
+                 "positive=true;",
+                 "native bone transform IO helper records read probe rewind");
+  ok &= contains(char_mesh,
+                 "if(mesh_revision>=33){plan.read_modern_counted_vector=true;",
+                 "native bone transform IO helper records modern read count");
+  ok &= contains(char_mesh,
+                 "plan.read_legacy_four_names_then_four_transforms=true;"
+                 "plan.read_legacy_slot_count=4;",
+                 "native bone transform IO helper records legacy four-slot read");
+  ok &= contains(char_mesh,
+                 "plan.write_legacy_pads_to_four_when_nonempty=true;"
+                 "plan.write_legacy_four_names_then_four_transforms=true;"
+                 "plan.write_serialized_slot_count=4;",
+                 "native bone transform IO helper records legacy four-slot write");
+  ok &= contains(char_mesh,
+                 "plan.write_legacy_zero_sentinel_when_empty=true;",
+                 "native bone transform IO helper records legacy empty sentinel");
   ok &= contains(char_mesh,
                  "if(compressed_vertex_layout){slots.bones[0]=count>3?"
                  "remapped(3):0;",
@@ -6799,6 +6849,17 @@ int run_contract() {
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_bone_transform_io_plan(",
+                 "focused mesh decode test covers MiloEditor bone transform IO");
+  ok &= contains(mesh_decode_test,
+                 "rev28_milo_editor_bone_io."
+                 "read_legacy_four_names_then_four_transforms",
+                 "focused mesh decode test covers legacy bone transform read");
+  ok &= contains(mesh_decode_test,
+                 "rev28_empty_milo_editor_bone_io."
+                 "write_legacy_zero_sentinel_when_empty",
+                 "focused mesh decode test covers legacy bone transform sentinel");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_add_vertex_to_chunk_mesh(",
                  "focused mesh decode test covers glTFMilo AddVertex helper");
   ok &= contains(mesh_decode_test,
@@ -7054,6 +7115,11 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_rndmesh_field_gate_plan` ports those gates",
                  "document records RndMesh field-gate helper");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_bone_transform_io_plan` records",
+                 "document records MiloEditor RndMesh bone transform IO helper");
+  ok &= contains(doc, "it does not authorize synthesizing missing legacy skin indices",
+                 "document fences legacy bone transform IO from fake indices");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");

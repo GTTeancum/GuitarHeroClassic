@@ -354,6 +354,41 @@ int main() {
   CHECK(rev24_bone_tail.recomputes_pre25_legacy_weights);
   CHECK(rev24_bone_tail.active_bone_count == 4);
 
+  const auto rev28_milo_editor_bone_io =
+      ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
+          28, true, 2);
+  CHECK(rev28_milo_editor_bone_io.read_uses_presence_probe);
+  CHECK(rev28_milo_editor_bone_io.read_rewinds_probe_when_positive);
+  CHECK(!rev28_milo_editor_bone_io.read_modern_counted_vector);
+  CHECK(rev28_milo_editor_bone_io.read_legacy_four_names_then_four_transforms);
+  CHECK(rev28_milo_editor_bone_io.read_legacy_slot_count == 4);
+  CHECK(rev28_milo_editor_bone_io.bone_transform_row_is_symbol_then_matrix);
+  CHECK(!rev28_milo_editor_bone_io.write_modern_counted_vector);
+  CHECK(rev28_milo_editor_bone_io.write_legacy_pads_to_four_when_nonempty);
+  CHECK(rev28_milo_editor_bone_io.write_legacy_four_names_then_four_transforms);
+  CHECK(!rev28_milo_editor_bone_io.write_legacy_zero_sentinel_when_empty);
+  CHECK(rev28_milo_editor_bone_io.write_serialized_slot_count == 4);
+
+  const auto rev28_empty_milo_editor_bone_io =
+      ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
+          28, false, 0);
+  CHECK(rev28_empty_milo_editor_bone_io
+            .read_skips_bone_block_when_probe_nonpositive);
+  CHECK(!rev28_empty_milo_editor_bone_io
+             .read_legacy_four_names_then_four_transforms);
+  CHECK(rev28_empty_milo_editor_bone_io
+            .write_legacy_zero_sentinel_when_empty);
+  CHECK(rev28_empty_milo_editor_bone_io.write_serialized_slot_count == 0);
+
+  const auto rev33_milo_editor_bone_io =
+      ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
+          33, true, 5);
+  CHECK(rev33_milo_editor_bone_io.read_modern_counted_vector);
+  CHECK(!rev33_milo_editor_bone_io.read_legacy_four_names_then_four_transforms);
+  CHECK(rev33_milo_editor_bone_io.write_modern_counted_vector);
+  CHECK(!rev33_milo_editor_bone_io.write_legacy_pads_to_four_when_nonempty);
+  CHECK(rev33_milo_editor_bone_io.write_serialized_slot_count == 5);
+
   const auto rev28_skin_index_plan =
       ghogx::character::source_rndmesh_skin_index_plan(28);
   CHECK(!rev28_skin_index_plan.rb3_stream_reads_bone_indices);

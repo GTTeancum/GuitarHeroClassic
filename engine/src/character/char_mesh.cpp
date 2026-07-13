@@ -354,6 +354,40 @@ SourceRndMeshBoneTailPlan source_rndmesh_bone_tail_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshBoneTransformIoPlan
+source_milo_editor_rndmesh_bone_transform_io_plan(
+    int32_t mesh_revision,
+    bool read_probe_positive,
+    int32_t bone_transform_count) {
+  SourceMiloEditorRndMeshBoneTransformIoPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.input_bone_transform_count = std::max(0, bone_transform_count);
+
+  if (read_probe_positive) {
+    plan.read_rewinds_probe_when_positive = true;
+    if (mesh_revision >= 33) {
+      plan.read_modern_counted_vector = true;
+    } else {
+      plan.read_legacy_four_names_then_four_transforms = true;
+      plan.read_legacy_slot_count = 4;
+    }
+  } else {
+    plan.read_skips_bone_block_when_probe_nonpositive = true;
+  }
+
+  if (mesh_revision >= 33) {
+    plan.write_modern_counted_vector = true;
+    plan.write_serialized_slot_count = plan.input_bone_transform_count;
+  } else if (plan.input_bone_transform_count > 0) {
+    plan.write_legacy_pads_to_four_when_nonempty = true;
+    plan.write_legacy_four_names_then_four_transforms = true;
+    plan.write_serialized_slot_count = 4;
+  } else {
+    plan.write_legacy_zero_sentinel_when_empty = true;
+  }
+  return plan;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

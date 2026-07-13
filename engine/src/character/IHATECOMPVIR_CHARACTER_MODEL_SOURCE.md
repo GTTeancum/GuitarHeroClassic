@@ -1099,6 +1099,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - MiloEditor `RndMesh.BoneTransform` serializes each bone-transform row as
+    `Symbol` then `Matrix`. The surrounding `RndMesh` reader probes for a bone
+    block, rewinds that probe when it is positive, then reads either a counted
+    bone-transform vector for revisions `>= 33` or four legacy bone names
+    followed by four legacy transforms for older revisions such as GH2 rev28.
+    The writer mirrors that split: modern revisions always write a count, while
+    legacy revisions either pad nonempty bone transforms to four serialized
+    slots or write a single zero sentinel when empty. Native
+    `source_milo_editor_rndmesh_bone_transform_io_plan` records this IO contract
+    only; it does not authorize synthesizing missing legacy skin indices.
   - `rb3-latest/src/system/rndobj/Mesh.h` declares `RndMesh::SkinVertex`,
     `RemoveInvalidBones`, and `HasValidBones`, and `Mesh.cpp` visibly calls
     them from skinned collision, `PostLoad`, and `has_valid_bones` prop sync.

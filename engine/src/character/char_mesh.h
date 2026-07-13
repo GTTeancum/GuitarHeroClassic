@@ -120,6 +120,29 @@ SourceRndMeshBoneTailPlan source_rndmesh_bone_tail_plan(
     int32_t mesh_revision,
     const std::vector<bool>& resolved_slots);
 
+struct SourceMiloEditorRndMeshBoneTransformIoPlan {
+  int32_t mesh_revision = 0;
+  int32_t input_bone_transform_count = 0;
+  bool read_uses_presence_probe = true;
+  bool read_rewinds_probe_when_positive = false;
+  bool read_skips_bone_block_when_probe_nonpositive = false;
+  bool read_modern_counted_vector = false;
+  bool read_legacy_four_names_then_four_transforms = false;
+  int32_t read_legacy_slot_count = 0;
+  bool bone_transform_row_is_symbol_then_matrix = true;
+  bool write_modern_counted_vector = false;
+  bool write_legacy_pads_to_four_when_nonempty = false;
+  bool write_legacy_four_names_then_four_transforms = false;
+  bool write_legacy_zero_sentinel_when_empty = false;
+  int32_t write_serialized_slot_count = 0;
+};
+
+SourceMiloEditorRndMeshBoneTransformIoPlan
+source_milo_editor_rndmesh_bone_transform_io_plan(
+    int32_t mesh_revision,
+    bool read_probe_positive,
+    int32_t bone_transform_count);
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;
