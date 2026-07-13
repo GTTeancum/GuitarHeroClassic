@@ -15508,6 +15508,7 @@ float source_camshot_duration_frames(const Gameplay::CameraKey& shot) {
 
 bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
                                    double song_time, double start_time,
+                                   bool shot_over,
                                    float* out_local_frame,
                                    float* out_duration_frames) {
     const float duration = source_camshot_duration_frames(shot);
@@ -15515,6 +15516,7 @@ bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
         static_cast<float>(std::max(0.0, song_time - start_time) * 30.0);
     if (out_local_frame) *out_local_frame = local_frame;
     if (out_duration_frames) *out_duration_frames = duration;
+    if (shot_over) return false;
     if (shot.has_camshot_looping && shot.camshot_looping) return false;
     if (!std::isfinite(duration) || duration < 0.0f) return false;
     return local_frame >= duration;
@@ -20527,6 +20529,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_ = false;
     pending_regular_camera_start_ = 0.0;
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
@@ -21305,6 +21308,7 @@ void Gameplay::end_camera_shot_runtime() {
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_ = false;
 }
 
 void Gameplay::queue_regular_camera_shot(const CameraKey& key,
@@ -21344,6 +21348,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
         active_camera_shot_started_reported_.clear();
         active_camera_frame_pair_reported_.clear();
         active_camera_shot_over_reported_.clear();
+        active_camera_shot_over_ = false;
     }
     return shot_changed;
 }
@@ -26180,6 +26185,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     camera_bars_left_ = 0;
     pending_regular_camera_.clear();
     pending_regular_camera_start_ = 0.0;
+    active_camera_shot_over_ = false;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
@@ -28222,6 +28228,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 pending_regular_camera_.clear();
                 pending_regular_camera_start_ = 0.0;
                 active_camera_runtime_shot_.clear();
+                active_camera_shot_over_ = false;
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
                 venue_camera_has_crowd_selection_ = false;
@@ -30341,8 +30348,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         float duration_frames = 0.0f;
                         if (camera_source_check_shot_over(
                                 *active_key, song_time_,
-                                active_regular_camera_start_, &local_frame,
+                                active_regular_camera_start_,
+                                active_camera_shot_over_, &local_frame,
                                 &duration_frames)) {
+                            active_camera_shot_over_ = true;
                             source_forced_camera_shot =
                                 active_key->next_shot_ref;
                             force_camera = true;

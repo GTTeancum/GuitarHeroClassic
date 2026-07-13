@@ -9738,6 +9738,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "boolcamera_source_check_shot_over(constGameplay::CameraKey&shot",
                  "runtime exposes a source-shaped CamShot CheckShotOver helper");
+  ok &= contains(gameplay_h_c,
+                 "boolactive_camera_shot_over_=false;",
+                 "regular camera runtime carries CamShot mShotOver state");
+  ok &= contains(gameplay_c,
+                 "boolshot_over,float*out_local_frame,",
+                 "source CheckShotOver bridge receives CamShot mShotOver state");
+  ok &= contains(gameplay_c,
+                 "if(shot_over)returnfalse;",
+                 "source CheckShotOver bridge refuses shots already marked over");
   ok &= contains(gameplay_c,
                  "if(shot.has_camshot_looping&&shot.camshot_looping)"
                  "returnfalse;",
@@ -10657,6 +10666,16 @@ int main() {
                  "camera_source_check_shot_over(*active_key,song_time_,"
                  "active_regular_camera_start_",
                  "source shot_over bridge uses decoded CamShot local frame duration");
+  ok &= contains(gameplay_c,
+                 "active_regular_camera_start_,active_camera_shot_over_,",
+                 "source shot_over bridge passes the active CamShot mShotOver flag");
+  ok &= contains(gameplay_c,
+                 "active_camera_shot_over_=true;"
+                 "source_forced_camera_shot=active_key->next_shot_ref;",
+                 "source shot_over bridge sets mShotOver when shot_over fires");
+  ok &= contains(gameplay_c,
+                 "active_camera_shot_over_=false;",
+                 "source shot_over state resets with the active CamShot lifecycle");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_over:source_msg=shot_overshot=%s"
                  "next_shot=%slocal_frame=%.3fduration_frames=%.3f\\n\"",

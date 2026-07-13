@@ -97,6 +97,13 @@ Open work:
   routes queue the selected CamShot first, then the PrePoll-style bridge makes
   it active immediately before `StartAnim` and `SetPreFrame`. Debug camera rows
   now expose the `mNextShot` assignment and PrePoll consumption points.
+- 2026-07-13 CamShot `mShotOver` one-shot bridge: ihatecompvir
+  `CamShot::CheckShotOver` returns true only when `!mShotOver`, the shot is not
+  looping, and the local frame reaches the cached duration; `SetShotOver` then
+  sends `shot_over` and flips `mShotOver`. Native now carries
+  `active_camera_shot_over_` for the regular CamShot lifetime so an authored
+  `next_shot` chain can fire once per active shot instead of repeatedly forcing
+  the same source `shot_over` bridge on later frames.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that

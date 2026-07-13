@@ -1183,6 +1183,7 @@ class Gameplay {
   std::string active_camera_shot_started_reported_;
   std::string active_camera_frame_pair_reported_;
   std::string active_camera_shot_over_reported_;
+  bool active_camera_shot_over_ = false;
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       active_camera_glow_spot_;
   std::string active_venue_event_;
