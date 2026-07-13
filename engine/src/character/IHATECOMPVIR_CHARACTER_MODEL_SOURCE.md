@@ -1155,6 +1155,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     observed use-site fields and applies them after texture-backed material
     rows, so no-texture materials can still carry the source extras override
     just as the converter orders it.
+  - Native `source_gltf_milo_material_runtime_boundary` records the executable
+    boundary around those material rows: glTFMilo material data is
+    exporter-side evidence, stock runtime character material state still comes
+    from decoded `RndMat` rows, and the project hair override is cull-only.
+    This explicitly forbids using the exporter rows to change depth priority,
+    material sort, blend/z state, or synthesized skin indices for stock GH2
+    character rendering.
   - `CreateBaseMesh` allocates `RndMesh.New(selectedGame.ModelRevision, 0, 0,
     0)`, sets object-fields revision 2, embeds a revision-9 `RndTrans` parented
     to the MILO filename, embeds revision-3 `RndDrawable` with radius `0`,

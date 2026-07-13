@@ -5722,6 +5722,10 @@ int run_contract() {
                  "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
                  "native declares glTFMilo material plan row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMaterialRuntimeBoundary{boolgltf_"
+                 "material_plan_is_exporter_side=true;",
+                 "native declares glTFMilo material runtime boundary row");
+  ok &= contains(char_mesh_h,
                  "std::stringdiffuse_bitmap_encoding;",
                  "native material plan records diffuse bitmap encoding");
   ok &= contains(char_mesh_h,
@@ -5808,6 +5812,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
                  "native exposes glTFMilo material base helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloMaterialRuntimeBoundary"
+                 "source_gltf_milo_material_runtime_boundary();",
+                 "native exposes glTFMilo material runtime boundary helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native exposes glTFMilo CreateBaseMesh helper");
@@ -6121,6 +6129,15 @@ int run_contract() {
                  "plan.normal_detail_map=input.extras.normal_detail_map;",
                  "native preserves glTFMilo extras normal detail map row");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloMaterialRuntimeBoundary"
+                 "source_gltf_milo_material_runtime_boundary(){",
+                 "native implements glTFMilo material runtime boundary helper");
+  ok &= contains(char_mesh,
+                 "boundary.forbidden_runtime_edits={\"depth_priority\","
+                 "\"material_sort\",\"blend_or_z_rewrite\","
+                 "\"synthesized_skin_indices\"};",
+                 "native boundary forbids invented material and skin edits");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native ports glTFMilo CreateBaseMesh helper");
   ok &= contains(char_mesh,
@@ -6381,6 +6398,9 @@ int run_contract() {
                  "gltf_no_texture_extras.extras_applied",
                  "focused mesh decode test covers no-texture material extras");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_material_runtime_boundary()",
+                 "focused mesh decode test covers glTFMilo material boundary helper");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_create_base_mesh_plan(base_mesh)",
                  "focused mesh decode test covers glTFMilo CreateBaseMesh helper");
   ok &= contains(mesh_decode_test,
@@ -6519,6 +6539,10 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_material_runtime_boundary` records the "
+                 "executable\n    boundary",
+                 "document records glTFMilo material boundary helper");
   ok &= contains(doc,
                  "`source_gltf_milo_create_base_mesh_plan` mirrors",
                  "document records glTFMilo CreateBaseMesh helper");

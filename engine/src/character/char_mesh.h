@@ -667,6 +667,19 @@ struct SourceGltfMiloMaterialPlan {
   bool obj_fields_revision2 = false;
 };
 
+struct SourceGltfMiloMaterialRuntimeBoundary {
+  bool gltf_material_plan_is_exporter_side = true;
+  bool stock_runtime_authority_is_decoded_rndmat = true;
+  bool double_sided_maps_to_cull_only = true;
+  bool project_hair_override_is_cull_only = true;
+  bool permits_depth_priority_change = false;
+  bool permits_material_sort_change = false;
+  bool permits_blend_or_z_rewrite = false;
+  bool permits_synthesized_skin_indices = false;
+  std::vector<std::string> source_authorities;
+  std::vector<std::string> forbidden_runtime_edits;
+};
+
 struct SourceGltfMiloBoneNodeInput {
   std::string name;
   std::string type;
@@ -899,6 +912,8 @@ SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
 
 SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input);
+SourceGltfMiloMaterialRuntimeBoundary
+source_gltf_milo_material_runtime_boundary();
 
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input);

@@ -743,6 +743,19 @@ int main() {
   CHECK(!gltf_no_texture_extras.cull);
   CHECK(gltf_no_texture_extras.shader_variation == 3);
 
+  const auto gltf_material_boundary =
+      ghogx::character::source_gltf_milo_material_runtime_boundary();
+  CHECK(gltf_material_boundary.gltf_material_plan_is_exporter_side);
+  CHECK(gltf_material_boundary.stock_runtime_authority_is_decoded_rndmat);
+  CHECK(gltf_material_boundary.double_sided_maps_to_cull_only);
+  CHECK(gltf_material_boundary.project_hair_override_is_cull_only);
+  CHECK(!gltf_material_boundary.permits_depth_priority_change);
+  CHECK(!gltf_material_boundary.permits_material_sort_change);
+  CHECK(!gltf_material_boundary.permits_blend_or_z_rewrite);
+  CHECK(!gltf_material_boundary.permits_synthesized_skin_indices);
+  CHECK(gltf_material_boundary.source_authorities.size() == 3);
+  CHECK(gltf_material_boundary.forbidden_runtime_edits.size() == 4);
+
   ghogx::character::SourceGltfMiloBaseMeshInput base_mesh;
   base_mesh.game = ghogx::character::SourceGltfMiloGame::kRockBand3;
   base_mesh.platform = "xbox";

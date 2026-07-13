@@ -803,6 +803,21 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
   return plan;
 }
 
+SourceGltfMiloMaterialRuntimeBoundary
+source_gltf_milo_material_runtime_boundary() {
+  SourceGltfMiloMaterialRuntimeBoundary boundary;
+  boundary.source_authorities = {
+      "glTFMilo/Source/glTFMilo/Program.cs",
+      "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
+      "rb3/src/system/rndobj/Mat.cpp"};
+  boundary.forbidden_runtime_edits = {
+      "depth_priority",
+      "material_sort",
+      "blend_or_z_rewrite",
+      "synthesized_skin_indices"};
+  return boundary;
+}
+
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input) {
   SourceGltfMiloBaseMeshPlan plan;
