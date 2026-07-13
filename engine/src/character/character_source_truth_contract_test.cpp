@@ -14439,12 +14439,42 @@ int run_contract() {
                  "cd;//r31floatw;//f0",
                  "RB2 dump maps CharDriver EvaluateFlags locals");
   ok &= contains(rb2_char_driver_cpp,
+                 "//References//->classDebugTheDebug;//->constchar*kAssertStr;",
+                 "RB2 dump maps CharDriver debug/assert references");
+  ok &= contains(rb2_char_driver_cpp,
                  "voidCharDriver::SetBeatScale(classCharDriver*constthis"
                  "/*r31*/,floatnewScale/*f31*/)",
                  "RB2 dump maps CharDriver SetBeatScale signature");
   ok &= contains(rb2_char_driver_cpp,
+                 "classCharClipDriver*fp;//r3floatinvScale;//f1class"
+                 "CharClipDriver*cd;//r6",
+                 "RB2 dump maps CharDriver SetBeatScale locals");
+  ok &= contains(rb2_char_driver_cpp,
                  "classCharClipDriver*CharDriver::MostPlaying()",
                  "RB2 dump maps CharDriver MostPlaying signature");
+  ok &= contains(rb2_char_driver_cpp,
+                 "floatmaxWeight;//f30classCharClipDriver*best;//r31"
+                 "floatweight;//f29classCharClipDriver*cd;//r30floatw;//f0",
+                 "RB2 dump maps CharDriver MostPlaying locals");
+  ok &= contains(rb2_char_driver_cpp,
+                 "voidCharDriver::PreLoad(classCharDriver*constthis/*r29*/,"
+                 "classBinStream&d/*r30*/)",
+                 "RB2 dump maps CharDriver PreLoad signature");
+  ok &= contains(rb2_char_driver_cpp,
+                 "inttmp;//r1+0x18classObjPtrp;//r1+0x3C",
+                 "RB2 dump maps CharDriver PreLoad locals");
+  ok &= contains(rb2_char_driver_cpp,
+                 "//->struct[anonymous]__vt__8FilePath;//->struct[anonymous]"
+                 "__RTTI__6Loader;//->struct[anonymous]__RTTI__9DirLoader;",
+                 "RB2 dump maps CharDriver PreLoad loader references");
+  ok &= contains(rb2_char_driver_cpp,
+                 "voidCharDriver::PostLoad(classCharDriver*constthis/*r31*/,"
+                 "classBinStream&d/*r25*/)",
+                 "RB2 dump maps CharDriver PostLoad signature");
+  ok &= contains(rb2_char_driver_cpp,
+                 "//->struct[anonymous]__RTTI__Q23Hmx6Object;//->struct"
+                 "[anonymous]__RTTI__8CharClip;//->staticintgRev;",
+                 "RB2 dump maps CharDriver PostLoad references");
   ok &= contains(rb3_latest_char_driver_midi_h,
                  "SymbolmParser;",
                  "latest CharDriverMidi header exposes parser symbol");
@@ -14550,6 +14580,22 @@ int run_contract() {
                  "std::stringset_beat_scale_range;"
                  "std::stringevaluate_flags_range;",
                  "native exposes CharDriver runtime dump ranges");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>play_if_safe_references;"
+                 "std::vector<std::string>set_beat_scale_locals;"
+                 "std::vector<std::string>set_beat_scale_references;",
+                 "native exposes CharDriver runtime dump play/beat references");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>evaluate_flags_references;"
+                 "std::vector<std::string>last_locals;"
+                 "std::vector<std::string>before_locals;",
+                 "native exposes CharDriver runtime dump evaluator references");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>most_playing_references;"
+                 "std::vector<std::string>pre_load_locals;"
+                 "std::vector<std::string>pre_load_references;"
+                 "std::vector<std::string>post_load_references;",
+                 "native exposes CharDriver runtime dump load references");
   ok &= contains(char_clip_h,
                  "boolrb3_latest_has_poll_body=false;"
                  "boolrb2_dump_has_poll_range=false;"
@@ -24872,13 +24918,45 @@ int run_contract() {
                  "evidence.before_range=\"0x8034DD88->0x8034DDAC\";",
                  "native CharDriver runtime dump helper records evaluator ranges");
   ok &= contains(char_clip,
+                 "evidence.play_if_safe_locals={\"d\",\"FindRestrictLength\","
+                 "\"s\"};evidence.play_if_safe_references={\"TheDebug\","
+                 "\"kAssertStr\"};",
+                 "native CharDriver runtime dump helper records PlayIfSafe evidence");
+  ok &= contains(char_clip,
+                 "evidence.set_beat_scale_locals={\"fp\",\"invScale\","
+                 "\"cd\"};evidence.set_beat_scale_references={};",
+                 "native CharDriver runtime dump helper records SetBeatScale evidence");
+  ok &= contains(char_clip,
                  "evidence.evaluate_flags_locals={\"weight\",\"flagWeight\","
                  "\"cd\",\"w\"};",
                  "native CharDriver runtime dump helper records EvaluateFlags locals");
   ok &= contains(char_clip,
+                 "evidence.evaluate_flags_references={\"TheDebug\","
+                 "\"kAssertStr\"};evidence.last_locals={\"cd\"};"
+                 "evidence.before_locals={\"cd\"};",
+                 "native CharDriver runtime dump helper records evaluator references");
+  ok &= contains(char_clip,
                  "evidence.most_playing_locals={\"maxWeight\",\"best\","
                  "\"weight\",\"cd\",\"w\"};",
                  "native CharDriver runtime dump helper records MostPlaying locals");
+  ok &= contains(char_clip,
+                 "evidence.most_playing_references={\"TheDebug\","
+                 "\"kAssertStr\"};evidence.pre_load_locals={\"tmp\",\"p\"};",
+                 "native CharDriver runtime dump helper records MostPlaying and PreLoad evidence");
+  ok &= contains(char_clip,
+                 "evidence.pre_load_references={\"__vt__8FilePath\","
+                 "\"__RTTI__6Loader\",\"__RTTI__9DirLoader\",\"msg\","
+                 "\"__vt__7Message\",\"__RTTI__Q23Hmx6Object\","
+                 "\"__vt__32ObjPtr<11CharClipSet,9ObjectDir>\","
+                 "\"__RTTI__9ObjectDir\",\"__RTTI__11CharClipSet\","
+                 "\"TheLoadMgr\",\"sRoot\",\"sClipsPath\",\"TheDebug\","
+                 "\"gRev\"};",
+                 "native CharDriver runtime dump helper records PreLoad references");
+  ok &= contains(char_clip,
+                 "evidence.post_load_references={\"__RTTI__Q23Hmx6Object\","
+                 "\"__RTTI__8CharClip\",\"gRev\",\"__RTTI__9ObjectDir\","
+                 "\"__RTTI__11CharClipSet\",\"TheLoadMgr\"};",
+                 "native CharDriver runtime dump helper records PostLoad references");
   ok &= contains(char_clip_h,
                  "std::vector<std::string>"
                  "header_declarations_without_checked_bodies;",
@@ -25068,6 +25146,17 @@ int run_contract() {
   ok &= contains(doc,
                  "`EvaluateFlags`\n    `0x8034DC4C -> 0x8034DD64`",
                  "document records CharDriver EvaluateFlags dump range");
+  ok &= contains(doc,
+                 "`PlayIfSafe` locals `d`, `FindRestrictLength`, and `s`",
+                 "document records CharDriver PlayIfSafe locals");
+  ok &= contains(doc,
+                 "`PreLoad` locals `tmp` and `p`",
+                 "document records CharDriver PreLoad locals");
+  ok &= contains(doc,
+                 "`TheDebug` and `kAssertStr` for `PlayIfSafe`, "
+                 "`EvaluateFlags`, and\n    `MostPlaying`; no references for "
+                 "`SetBeatScale`",
+                 "document records CharDriver runtime reference inventory");
   ok &= contains(doc,
                  "`CharDriver.h` also declares `Handle`, `SyncProperty`, "
                  "`Save`, `Copy`,",

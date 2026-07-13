@@ -639,13 +639,36 @@ bool expect_driver_state_helpers() {
       runtime_dump.post_load_range != "0x8034ED68 -> 0x8034F008" ||
       runtime_dump.play_if_safe_locals !=
           std::vector<std::string>({"d", "FindRestrictLength", "s"}) ||
+      runtime_dump.play_if_safe_references !=
+          std::vector<std::string>({"TheDebug", "kAssertStr"}) ||
       runtime_dump.set_beat_scale_locals !=
           std::vector<std::string>({"fp", "invScale", "cd"}) ||
+      !runtime_dump.set_beat_scale_references.empty() ||
       runtime_dump.evaluate_flags_locals !=
           std::vector<std::string>({"weight", "flagWeight", "cd", "w"}) ||
+      runtime_dump.evaluate_flags_references !=
+          std::vector<std::string>({"TheDebug", "kAssertStr"}) ||
+      runtime_dump.last_locals != std::vector<std::string>({"cd"}) ||
+      runtime_dump.before_locals != std::vector<std::string>({"cd"}) ||
       runtime_dump.most_playing_locals !=
           std::vector<std::string>({"maxWeight", "best", "weight", "cd",
                                     "w"}) ||
+      runtime_dump.most_playing_references !=
+          std::vector<std::string>({"TheDebug", "kAssertStr"}) ||
+      runtime_dump.pre_load_locals !=
+          std::vector<std::string>({"tmp", "p"}) ||
+      runtime_dump.pre_load_references !=
+          std::vector<std::string>(
+              {"__vt__8FilePath", "__RTTI__6Loader", "__RTTI__9DirLoader",
+               "msg", "__vt__7Message", "__RTTI__Q23Hmx6Object",
+               "__vt__32ObjPtr<11CharClipSet,9ObjectDir>",
+               "__RTTI__9ObjectDir", "__RTTI__11CharClipSet", "TheLoadMgr",
+               "sRoot", "sClipsPath", "TheDebug", "gRev"}) ||
+      runtime_dump.post_load_references !=
+          std::vector<std::string>(
+              {"__RTTI__Q23Hmx6Object", "__RTTI__8CharClip", "gRev",
+               "__RTTI__9ObjectDir", "__RTTI__11CharClipSet",
+               "TheLoadMgr"}) ||
       runtime_dump.header_declarations_without_checked_bodies !=
           std::vector<std::string>(
               {"Handle", "SyncProperty", "Save", "Copy", "Load", "Poll",

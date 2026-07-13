@@ -3128,7 +3128,18 @@ note, and all report `unreadBytes=0`.
     `0x8034DDD4 -> 0x8034DF00`, `PreLoad`
     `0x8034E0E0 -> 0x8034ED68`, and `PostLoad`
     `0x8034ED68 -> 0x8034F008`. The visible local inventory includes
-    `EvaluateFlags` locals `weight`, `flagWeight`, `cd`, and `w`.
+    `PlayIfSafe` locals `d`, `FindRestrictLength`, and `s`; `SetBeatScale`
+    locals `fp`, `invScale`, and `cd`; `EvaluateFlags` locals `weight`,
+    `flagWeight`, `cd`, and `w`; `Last` and `Before` local `cd`;
+    `MostPlaying` locals `maxWeight`, `best`, `weight`, `cd`, and `w`; and
+    `PreLoad` locals `tmp` and `p`. The visible reference inventory records
+    `TheDebug` and `kAssertStr` for `PlayIfSafe`, `EvaluateFlags`, and
+    `MostPlaying`; no references for `SetBeatScale`; `PreLoad` references
+    `FilePath`, `Loader`/`DirLoader`, `Message`, `ObjPtr<CharClipSet,
+    ObjectDir>`, `ObjectDir`, `CharClipSet`, `TheLoadMgr`, `sRoot`,
+    `sClipsPath`, `TheDebug`, and `gRev`; and `PostLoad` references
+    `Hmx::Object`, `CharClip`, `gRev`, `ObjectDir`, `CharClipSet`, and
+    `TheLoadMgr`.
     The same helper keeps `safe_to_evaluate_flags=false` and
     `safe_to_import_poll=false` because the RB2 dump maps ranges and locals, not
     a reviewable `EvaluateFlags` or `Poll` implementation.

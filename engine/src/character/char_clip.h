@@ -1353,9 +1353,18 @@ struct SourceCharDriverRuntimeDumpEvidence {
   std::string pre_load_range;
   std::string post_load_range;
   std::vector<std::string> play_if_safe_locals;
+  std::vector<std::string> play_if_safe_references;
   std::vector<std::string> set_beat_scale_locals;
+  std::vector<std::string> set_beat_scale_references;
   std::vector<std::string> evaluate_flags_locals;
+  std::vector<std::string> evaluate_flags_references;
+  std::vector<std::string> last_locals;
+  std::vector<std::string> before_locals;
   std::vector<std::string> most_playing_locals;
+  std::vector<std::string> most_playing_references;
+  std::vector<std::string> pre_load_locals;
+  std::vector<std::string> pre_load_references;
+  std::vector<std::string> post_load_references;
   std::vector<std::string> header_declarations_without_checked_bodies;
   bool rb3_latest_has_poll_body = false;
   bool rb2_dump_has_poll_range = false;

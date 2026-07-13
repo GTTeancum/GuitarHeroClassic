@@ -4110,9 +4110,37 @@ source_char_driver_runtime_dump_evidence() {
   evidence.pre_load_range = "0x8034E0E0 -> 0x8034ED68";
   evidence.post_load_range = "0x8034ED68 -> 0x8034F008";
   evidence.play_if_safe_locals = {"d", "FindRestrictLength", "s"};
+  evidence.play_if_safe_references = {"TheDebug", "kAssertStr"};
   evidence.set_beat_scale_locals = {"fp", "invScale", "cd"};
+  evidence.set_beat_scale_references = {};
   evidence.evaluate_flags_locals = {"weight", "flagWeight", "cd", "w"};
+  evidence.evaluate_flags_references = {"TheDebug", "kAssertStr"};
+  evidence.last_locals = {"cd"};
+  evidence.before_locals = {"cd"};
   evidence.most_playing_locals = {"maxWeight", "best", "weight", "cd", "w"};
+  evidence.most_playing_references = {"TheDebug", "kAssertStr"};
+  evidence.pre_load_locals = {"tmp", "p"};
+  evidence.pre_load_references = {
+      "__vt__8FilePath",
+      "__RTTI__6Loader",
+      "__RTTI__9DirLoader",
+      "msg",
+      "__vt__7Message",
+      "__RTTI__Q23Hmx6Object",
+      "__vt__32ObjPtr<11CharClipSet,9ObjectDir>",
+      "__RTTI__9ObjectDir",
+      "__RTTI__11CharClipSet",
+      "TheLoadMgr",
+      "sRoot",
+      "sClipsPath",
+      "TheDebug",
+      "gRev"};
+  evidence.post_load_references = {"__RTTI__Q23Hmx6Object",
+                                   "__RTTI__8CharClip",
+                                   "gRev",
+                                   "__RTTI__9ObjectDir",
+                                   "__RTTI__11CharClipSet",
+                                   "TheLoadMgr"};
   evidence.header_declarations_without_checked_bodies = {
       "Handle",       "SyncProperty", "Save",      "Copy",
       "Load",         "Poll",         "Replace",   "EvaluateFlags",
