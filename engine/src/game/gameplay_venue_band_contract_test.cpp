@@ -170,6 +170,10 @@ int main() {
       compact(function_body(gameplay, "camshot_entity_from_name"));
   const std::string camshot_frame_reader_c =
       compact(function_body(gameplay, "read_camshot_frame_like_miloeditor"));
+  const std::string camshot_reader_c =
+      compact(function_body(gameplay, "read_camshot_like_miloeditor"));
+  const std::string intro_camera_selector_c =
+      compact(function_body(gameplay, "select_intro_camera_anim"));
   const std::string regular_camera_loader_c =
       compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string camera_submit_c =
@@ -7881,6 +7885,20 @@ int main() {
                  "returncamshot_u8_runtime_field(value,kCamShotBlurByteScale,"
                  "kCamShotBlurByteInv);}",
                  "CamShot blur values mirror source byte-backed accessors");
+  ok &= contains(gameplay_c,
+                 "constexprintkMiloPlatformNone=0;"
+                 "constexprintkMiloPlatformPS2=1;"
+                 "constexprintkMiloPlatformXBox=2;"
+                 "constexprintkMiloPlatformPC=3;"
+                 "constexprintkMiloPlatformPS3=4;"
+                 "[[maybe_unused]]constexprintkMiloPlatformWii=5;",
+                 "native CamShot platform_only uses ihatecompvir source Platform enum values");
+  ok &= contains(gameplay_c,
+                 "boolcamshot_platform_ok_for_source(intplatform_only){"
+                 "if(platform_only==kMiloPlatformNone||"
+                 "kGh2SourceMiloPlatform==kMiloPlatformNone){returntrue;}"
+                 "returncamshot_source_platform_for_ok()==platform_only;}",
+                 "native CamShot PlatformOk mirrors ihatecompvir source gate");
   ok &= contains(camshot_frame_reader_c,
                  "key.fov=camshot_source_field_of_view(r.f32());",
                  "CamShot frame reader stores runtime source FOV, not raw serialized FOV");
@@ -7922,6 +7940,10 @@ int main() {
                  "boolhas_clamp_height=false;",
                  "CameraKey preserves CamShot category/filter/clamp fields");
   ok &= contains(gameplay_h_c,
+                 "booljump_ok=true;boollighter=false;"
+                 "intplatform_only=0;boolhide_crowd=false;",
+                 "CameraKey preserves CamShot platform_only beside source shot filters");
+  ok &= contains(gameplay_h_c,
                  "structCameraResultBuilderState{"
                  "boolhas_filtered_target=false;"
                  "std::array<float,3>filtered_target",
@@ -7948,15 +7970,30 @@ int main() {
                  "if(shot.revision>0x0b&&shot.revision<0x2a)"
                  "shot.old_crowd_sym=r.symbol();",
                  "CamShot source refs come from the source oldCrowdSym field");
+  ok &= contains(camshot_reader_c,
+                 "if(shot.revision>0x22){"
+                 "shot.platform_only=r.i32();}",
+                 "CamShot reader retains modern source platform_only field");
+  ok &= contains(camshot_reader_c,
+                 "if(state==1){shot.platform_only=kMiloPlatformXBox;}"
+                 "elseif(state==2){shot.platform_only=kMiloPlatformPS3;}"
+                 "else{shot.platform_only=kMiloPlatformNone;}",
+                 "CamShot reader maps legacy platform state like ihatecompvir source");
   ok &= contains(gameplay_c,
                  "key.source_ref=shot.old_crowd_sym;",
                  "CamShot source refs are copied into CameraKey shot fields");
+  ok &= contains(camshot_reader_c,
+                 "key.platform_only=shot.platform_only;",
+                 "CamShot platform_only is copied into CameraKey shot fields");
   ok &= absent(gameplay_c,
                "decode_camshot_category_tail_fields(",
                "path-backed CamShots no longer use packed-tail recovery scanners");
   ok &= contains(gameplay_c,
                  "to.source_ref=from.source_ref;",
                  "TransAnim-backed camera keys inherit source refs");
+  ok &= contains(gameplay_c,
+                 "to.platform_only=from.platform_only;",
+                 "TransAnim-backed camera keys inherit source platform_only state");
   ok &= contains(gameplay_c,
                  "to.blur_depth=from.blur_depth;"
                  "to.max_blur=from.max_blur;"
@@ -9732,7 +9769,8 @@ int main() {
                  "parent=%s:%sparent_rot=%drefs=%dposes=%zuposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
-                 "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
+                 "platform_only=%dhide_crowd=%dcrowd_face_camera=%d"
+                 "force_char_lod=%d"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
                  "postproc=%zuanims=%zuglow=%sshot_fields=%dcategory=%s",
                  "regular camera validation logs decoded shot-level fields");
@@ -10271,6 +10309,19 @@ int main() {
   ok &= contains(gameplay_c,
                  "randomize_camera_category_order(out);",
                  "regular camera CamShots are category-randomized after MILO decode");
+  ok &= contains(intro_camera_selector_c,
+                 "if(!camshot_platform_ok_for_source("
+                 "decoded_shot->platform_only)){"
+                 "if(debug_camera_enabled())",
+                 "intro camera selector mirrors CameraManager PlatformOk before accepting CamShots");
+  ok &= contains(regular_camera_loader_c,
+                 "if(!camshot_platform_ok_for_source("
+                 "decoded_shot->platform_only)){"
+                 "if(debug_camera_enabled())",
+                 "regular camera loader mirrors CameraManager PlatformOk before category buckets");
+  ok &= contains(regular_camera_loader_c,
+                 "platform_only=%d",
+                 "regular CamShot diagnostics expose source platform_only state");
   ok &= contains(gameplay_c,
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");

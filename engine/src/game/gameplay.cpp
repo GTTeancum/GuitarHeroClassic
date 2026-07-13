@@ -1558,6 +1558,7 @@ struct DecodedCamShot {
     std::string path;
     float path_ease = 0.0f;
     std::string category;
+    int platform_only = 0;
     std::vector<std::string> hide_list;
     std::vector<std::string> show_list;
     std::vector<std::string> gen_hide_list;
@@ -1640,6 +1641,13 @@ constexpr float kCamShotAngleByteScale = 81.16902f;
 constexpr float kCamShotAngleByteInv = 0.012319971f;
 constexpr float kCamShotBlurByteScale = 255.0f;
 constexpr float kCamShotBlurByteInv = 0.0039215689f;
+constexpr int kMiloPlatformNone = 0;
+constexpr int kMiloPlatformPS2 = 1;
+constexpr int kMiloPlatformXBox = 2;
+constexpr int kMiloPlatformPC = 3;
+constexpr int kMiloPlatformPS3 = 4;
+[[maybe_unused]] constexpr int kMiloPlatformWii = 5;
+constexpr int kGh2SourceMiloPlatform = kMiloPlatformPS2;
 
 float camshot_u8_runtime_field(float value, float scale, float inv_scale) {
     if (!std::isfinite(value)) return 0.0f;
@@ -1671,6 +1679,20 @@ float camshot_source_zoom_field_of_view(float value) {
 float camshot_source_blur_field(float value) {
     return camshot_u8_runtime_field(value, kCamShotBlurByteScale,
                                     kCamShotBlurByteInv);
+}
+
+int camshot_source_platform_for_ok() {
+    int platform = kGh2SourceMiloPlatform;
+    if (platform == kMiloPlatformPC) platform = kMiloPlatformXBox;
+    return platform;
+}
+
+bool camshot_platform_ok_for_source(int platform_only) {
+    if (platform_only == kMiloPlatformNone ||
+        kGh2SourceMiloPlatform == kMiloPlatformNone) {
+        return true;
+    }
+    return camshot_source_platform_for_ok() == platform_only;
 }
 
 std::optional<DecodedRndCamAnim> read_rnd_camanim_like_miloeditor(
@@ -1991,9 +2013,16 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         if (shot.revision > 2) shot.category = r.symbol();
         if (shot.revision > 2 && shot.revision < 0x26) (void)r.f32();
         if (shot.revision > 0x22) {
-            (void)r.i32();
+            shot.platform_only = r.i32();
         } else if (shot.revision > 0x21) {
-            (void)r.i32();
+            const int state = r.i32();
+            if (state == 1) {
+                shot.platform_only = kMiloPlatformXBox;
+            } else if (state == 2) {
+                shot.platform_only = kMiloPlatformPS3;
+            } else {
+                shot.platform_only = kMiloPlatformNone;
+            }
         }
         if (shot.revision >= 5 && shot.revision <= 41) {
             const uint32_t count = r.u32();
@@ -2130,6 +2159,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
                 prop_bool(shot.props, "low_excitement_ok", true);
             key.jump_ok = prop_bool(shot.props, "jump_ok", true);
             key.lighter = shot.category == "LIGHTER";
+            key.platform_only = shot.platform_only;
             key.hide_crowd = prop_bool(shot.props, "hide_crowd", false);
             key.crowd_face_camera =
                 key.crowd_face_camera ||
@@ -2266,6 +2296,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.postproc_override_refs = from.postproc_override_refs;
     to.camera_anim_refs = from.camera_anim_refs;
     to.glow_spot_ref = from.glow_spot_ref;
+    to.platform_only = from.platform_only;
     to.camshot_shot_fields_decoded = from.camshot_shot_fields_decoded;
     to.camshot_shot_tail_offset = from.camshot_shot_tail_offset;
     to.has_camshot_shot_tail_offset = from.has_camshot_shot_tail_offset;
@@ -2305,6 +2336,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.low_excitement_ok = from.low_excitement_ok;
     to.jump_ok = from.jump_ok;
     to.lighter = from.lighter;
+    to.platform_only = from.platform_only;
     to.hide_crowd = from.hide_crowd;
     to.crowd_face_camera = from.crowd_face_camera;
     to.force_char_lod = from.force_char_lod;
@@ -3002,6 +3034,16 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             auto decoded_shot =
                 read_camshot_like_miloeditor(body, static_cast<size_t>(de.size));
             if (!decoded_shot) continue;
+            if (!camshot_platform_ok_for_source(decoded_shot->platform_only)) {
+                if (debug_camera_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] intro CamShot %s skipped platform_only=%d source_platform=%d\n",
+                        de.name.c_str(), decoded_shot->platform_only,
+                        kGh2SourceMiloPlatform);
+                }
+                continue;
+            }
             bool is_intro = decoded_shot->category == "INTRO" ||
                             decoded_shot->category == "INTRO_FAST" ||
                             decoded_shot->category == "INTRO_ENCORE";
@@ -14601,6 +14643,16 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             auto decoded_shot =
                 read_camshot_like_miloeditor(body, static_cast<size_t>(de.size));
             if (!decoded_shot) continue;
+            if (!camshot_platform_ok_for_source(decoded_shot->platform_only)) {
+                if (debug_camera_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] regular CamShot %s skipped platform_only=%d source_platform=%d\n",
+                        de.name.c_str(), decoded_shot->platform_only,
+                        kGh2SourceMiloPlatform);
+                }
+                continue;
+            }
             const std::string& category = decoded_shot->category;
             const bool normal_category =
                 category == "flr_near_lft" || category == "flr_near_rt" ||
@@ -14809,7 +14861,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -14821,7 +14873,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
                          key.low_excitement_ok ? 1 : 0,
                          key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
-                         key.lighter ? 1 : 0, key.hide_crowd ? 1 : 0,
+                         key.lighter ? 1 : 0, key.platform_only,
+                         key.hide_crowd ? 1 : 0,
                          key.crowd_face_camera ? 1 : 0, key.force_char_lod,
                          key.hide_list_refs.size(),
                          key.show_list_refs.size(),
