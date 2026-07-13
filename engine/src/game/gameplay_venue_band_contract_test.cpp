@@ -9634,6 +9634,9 @@ int main() {
                  "key.camshot_loop_keyframe=shot.loop_keyframe;",
                  "CamShot source loop fields are preserved on decoded camera keys");
   ok &= contains(gameplay_c,
+                 "poses=%zuloop=%dloop_keyframe=%d",
+                 "regular CamShot diagnostics expose decoded source loop fields");
+  ok &= contains(gameplay_c,
                  "same_shot?authored_camshot_blend_seconds(*previous,kSweepSeconds)",
                  "authored CamShot blend timing is limited to same-shot position transitions");
   ok &= contains(gameplay_c,
@@ -9645,6 +9648,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "local_frame=pre_loop+std::fmod(local_frame-pre_loop,loop_total);",
                  "source CamShot looping and loop_keyframe drive repeated regular shots");
+  ok &= contains(gameplay_c,
+                 "constsize_twrap_index=can_wrap?loop_start_index:i;",
+                 "looping CamShot final blends wrap to the decoded loop keyframe");
   ok &= contains(gameplay_c,
                  "std::vector<Gameplay::CameraKey>regular_camera_path_keys(",
                  "path-backed regular CamShots keep the authored TransAnim sequence");
@@ -9820,7 +9826,8 @@ int main() {
                  "runtime camera submits authored clip planes to renderer");
   ok &= contains(gameplay_c,
                  "\"[world]regularCamShot%sdistance=%sfacing=%starget=%s:%s"
-                 "parent=%s:%sparent_rot=%drefs=%dposes=%zuposebody+0x%zX"
+                 "parent=%s:%sparent_rot=%drefs=%dposes=%zuloop=%d"
+                 "loop_keyframe=%dposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
                  "platform_only=%dflags=0x%08xhide_crowd=%d"

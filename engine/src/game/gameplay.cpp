@@ -14865,12 +14865,14 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
                          key.use_parent_rotation ? 1 : 0,
                          key.camshot_refs_decoded ? 1 : 0, key.positions.size(),
+                         key.has_camshot_looping && key.camshot_looping ? 1 : 0,
+                         key.has_camshot_looping ? key.camshot_loop_keyframe : 0,
                          c.off, key.has_timing ? "" : "none/",
                          key.duration_frames, key.blend_frames,
                          key.blend_ease, c.order,
@@ -15266,15 +15268,16 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
 
     float local_frame =
         static_cast<float>(std::max(0.0, song_time - start_time) * 30.0);
+    size_t loop_start_index = 0;
     if (shot.has_camshot_looping && shot.camshot_looping) {
-        const int loop_keyframe = std::clamp(
+        loop_start_index = static_cast<size_t>(std::clamp(
             shot.camshot_loop_keyframe, 0,
-            static_cast<int>(frames.size() - 1));
+            static_cast<int>(frames.size() - 1)));
         const float pre_loop =
             source_camshot_frame_total(frames, 0) -
-            source_camshot_frame_total(frames, static_cast<size_t>(loop_keyframe));
+            source_camshot_frame_total(frames, loop_start_index);
         const float loop_total =
-            source_camshot_frame_total(frames, static_cast<size_t>(loop_keyframe));
+            source_camshot_frame_total(frames, loop_start_index);
         if (loop_total > 0.001f && local_frame >= pre_loop) {
             local_frame =
                 pre_loop + std::fmod(local_frame - pre_loop, loop_total);
@@ -15306,8 +15309,9 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             }
             const bool can_wrap =
                 shot.has_camshot_looping && shot.camshot_looping;
+            const size_t wrap_index = can_wrap ? loop_start_index : i;
             const size_t next_index =
-                (i + 1 < frames.size()) ? i + 1 : (can_wrap ? 0 : i);
+                (i + 1 < frames.size()) ? i + 1 : wrap_index;
             if (next_index == i) {
                 Gameplay::CameraKey hold = cur;
                 hold.frame = now_frame;
