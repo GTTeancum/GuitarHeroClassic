@@ -4318,6 +4318,8 @@ SourceCharFaceServoTryScaleDownResult source_char_face_servo_try_scale_down(
     SourceCharFaceServoBlinkState& state,
     bool has_base_clip,
     bool clip_type_valid);
+float source_char_face_servo_blink_weight_left(
+    const SourceCharFaceServoBlinkState& state);
 SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     SourceCharFaceServoBlinkState& state,
     const SourceCharFaceServoBlinkClips& clips,

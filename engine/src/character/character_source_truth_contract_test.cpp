@@ -16305,6 +16305,10 @@ int run_contract() {
                  "1.0f,mBlinkWeightRight);}",
                  "CharFaceServo source exposes right blink accumulation");
   ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "floatCharFaceServo::BlinkWeightLeft()const{"
+                 "returnmBlinkWeightLeft;}",
+                 "CharFaceServo source exposes left blink weight accessor");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
                  "BEGIN_COPYS(CharFaceServo)COPY_SUPERCLASS(Hmx::Object)"
                  "CREATE_COPY(CharFaceServo)BEGIN_COPYING_MEMBERS"
                  "COPY_MEMBER(mBlinkWeightLeft)COPY_MEMBER(mBlinkWeightRight)"
@@ -16386,6 +16390,10 @@ int run_contract() {
                  "SourceCharFaceServoBlinkState&state,boolhas_base_clip,"
                  "boolclip_type_valid);",
                  "native exposes CharFaceServo TryScaleDown helper");
+  ok &= contains(char_mesh_h,
+                 "floatsource_char_face_servo_blink_weight_left("
+                 "constSourceCharFaceServoBlinkState&state);",
+                 "native exposes CharFaceServo left blink accessor helper");
   ok &= contains(char_mesh_h,
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink(",
@@ -16500,6 +16508,10 @@ int run_contract() {
                  "result.reset_blink_weights=true;returnresult;}",
                  "native CharFaceServo helper ports TryScaleDown reset branch");
   ok &= contains(char_mesh,
+                 "floatsource_char_face_servo_blink_weight_left("
+                 "constSourceCharFaceServoBlinkState&state){returnstate.left;}",
+                 "native CharFaceServo helper mirrors left blink accessor");
+  ok &= contains(char_mesh,
                  "result.scale_down=source_char_face_servo_try_scale_down("
                  "state,false,false).consumed_need_scale_down;",
                  "native CharFaceServo blink helpers consume TryScaleDown helper");
@@ -16525,6 +16537,9 @@ int run_contract() {
                  "source_char_face_servo_try_scale_down(try_scale_state,true,"
                  "true)",
                  "focused CharFaceServo test covers TryScaleDown helper");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_blink_weight_left(try_scale_state)",
+                 "focused CharFaceServo test covers left blink accessor");
   ok &= contains(face_servo_source_test,
                  "source_char_face_servo_prop_sync_plan()",
                  "focused CharFaceServo test covers prop-sync plan");
@@ -16555,6 +16570,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_face_servo_scale_add_blink` ports the bounded",
                  "document records native CharFaceServo blink helper");
+  ok &= contains(doc,
+                 "Native `source_char_face_servo_blink_weight_left` mirrors",
+                 "document records native CharFaceServo left blink accessor");
   ok &= contains(doc,
                  "Native `source_char_face_servo_apply_procedural_weights` ports the concrete",
                  "document records native CharFaceServo procedural blink helper");

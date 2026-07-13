@@ -45,6 +45,7 @@ int main() {
   using ghogx::character::SourceCharFaceServoBlinkClips;
   using ghogx::character::SourceCharFaceServoBlinkState;
   using ghogx::character::source_char_face_servo_apply_procedural_weights;
+  using ghogx::character::source_char_face_servo_blink_weight_left;
   using ghogx::character::source_char_face_servo_copy_plan;
   using ghogx::character::source_char_face_servo_enter_plan;
   using ghogx::character::source_char_face_servo_handler_plan;
@@ -138,6 +139,8 @@ int main() {
   SourceCharFaceServoBlinkState try_scale_state;
   try_scale_state.left = 0.4f;
   try_scale_state.right = 0.7f;
+  ok &= near(source_char_face_servo_blink_weight_left(try_scale_state), 0.4f,
+             "BlinkWeightLeft returns left blink weight");
   auto try_scale_result =
       source_char_face_servo_try_scale_down(try_scale_state, true, true);
   ok &= expect_bool(try_scale_result.consumed_need_scale_down, false,

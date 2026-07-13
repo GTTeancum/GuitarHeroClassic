@@ -6123,6 +6123,11 @@ SourceCharFaceServoTryScaleDownResult source_char_face_servo_try_scale_down(
   return result;
 }
 
+float source_char_face_servo_blink_weight_left(
+    const SourceCharFaceServoBlinkState& state) {
+  return state.left;
+}
+
 SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     SourceCharFaceServoBlinkState& state,
     const SourceCharFaceServoBlinkClips& clips,

@@ -2992,6 +2992,9 @@ note, and all report `unreadBytes=0`.
     the clip matches the left/left2 or right/right2 blink rows, clamping each
     side to `[0, 1]`. This is source context for blink accumulation only, not a
     runtime face mesh bridge.
+  - Native `source_char_face_servo_blink_weight_left` mirrors the concrete
+    `CharFaceServo::BlinkWeightLeft()` accessor by returning the current left
+    blink weight only; it does not infer chord, mouth, eye, or mesh behavior.
   - Stock GH2 PS2 base characters use rows named `FaceFxLipSyncServo`, not
     `CharFaceServo`. The checked ihatecompvir snapshots do not expose a
     matching `FaceFxLipSyncServo::Load` body. Native GHOGX therefore treats its
