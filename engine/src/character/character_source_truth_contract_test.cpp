@@ -16547,6 +16547,63 @@ int run_contract() {
                  "voidRndTex::SetPowerOf2(){boolset;if(mWidth<0)set=false;"
                  "elseif(mWidth==0)set=true;elseset=(mWidth&(mWidth-1))==0;",
                  "latest RndTex source exposes SetPowerOf2 width rule");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::PlatformBppOrder(constchar*cc,int&bpp,"
+                 "int&order,boolhasAlpha){Platformplat=TheLoadMgr.GetPlatform();",
+                 "latest RndTex source exposes platform bpp/order helper");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "casekPlatformWii:order=8;if(hasAlpha){order|=0x100;bpp=8;}"
+                 "elsebpp=4;order|=0x40;break;",
+                 "latest RndTex source backs Wii bpp/order branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "bbb=cc&&strstr(cc,\"_norm\");if(bbb){if(plat==kPlatformXBox)"
+                 "order=0x20;elseif(plat==kPlatformPS3)order=8;elseorder=0;}",
+                 "latest RndTex source backs normal-map bpp/order branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::SetBitmap(intw,inth,intbpp,Typety,booluseMips,"
+                 "constchar*path){PresyncBitmap();mWidth=w;mHeight=h;",
+                 "latest RndTex source exposes SetBitmap scalar overload");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(mType&BackBuffer){mWidth=TheRnd->mWidth;"
+                 "mHeight=TheRnd->mHeight;SetPowerOf2();mBpp=TheRnd->mScreenBpp;}",
+                 "latest RndTex source backs back-buffer SetBitmap branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "elseif(mType&Rendered){if(useMips){for(inti=mWidth,j=mHeight;"
+                 "i>0x10&&j>0x10;i>>=1,j>>=1){mNumMips++;}}}",
+                 "latest RndTex source backs rendered mip count branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "PlatformBppOrder(path,x,y,true);mBitmap.Create(mWidth,mHeight,"
+                 "0,x,y,0,0,0);",
+                 "latest RndTex source backs SetBitmap bitmap creation branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::SetBitmap(constRndBitmap&bmap,constchar*cc,boolb){"
+                 "PresyncBitmap();mWidth=bmap.Width();mHeight=bmap.Height();",
+                 "latest RndTex source exposes bitmap overload");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(!b){PlatformBppOrder(cc,i,j,bmap.IsTranslucent());}"
+                 "mBitmap.Create(bmap,i,j,0);",
+                 "latest RndTex source backs bitmap overload platform branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::SetBitmap(FileLoader*fl){PresyncBitmap();"
+                 "mType=Regular;void*buffer;",
+                 "latest RndTex source exposes loader overload");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(buffer){if(UseBottomMip()){RndBitmapsomeotherbmap;"
+                 "someotherbmap.Create(buffer);CopyBottomMip(mBitmap,"
+                 "someotherbmap);}else{mBitmap.Create(buffer);}",
+                 "latest RndTex source backs loader buffer branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "else{mBitmap.Reset();mHeight=0;mWidth=0;SetPowerOf2();"
+                 "mBpp=0x20;mNumMips=0;}",
+                 "latest RndTex source backs loader reset branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidCopyBottomMip(RndBitmap&dst,constRndBitmap&src){"
+                 "MILO_ASSERT(&src!=&dst,48);while(src.mMip){&src=src.mMip;}",
+                 "latest RndTex source backs bottom-mip copy branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::LockBitmap(RndBitmap&bmap,inti){"
+                 "if(mBitmap.mOrder&0x38){bmap.Create(mBitmap,0x20,0,0);}",
+                 "latest RndTex source backs LockBitmap conversion branch");
   ok &= contains(rb3_latest_tex_h,
                  "enumType{Regular=1,Rendered=2,Movie=4,BackBuffer=8,"
                  "FrontBuffer=0x18,RenderedNoZ=0x22",
@@ -16842,6 +16899,13 @@ int run_contract() {
                  "do not add live texture mutation, bitmap loading, save-bmp, or\n"
                  "    renderer behavior",
                  "document fences RndTex tail helpers from runtime behavior");
+  ok &= contains(doc,
+                 "source platform BPP/order, `SetBitmap` branch choices",
+                 "document records RndTex bitmap setup helpers");
+  ok &= contains(doc,
+                 "do not call loaders, allocate bitmaps, generate mips, or\n"
+                 "    change native texture upload",
+                 "document fences RndTex bitmap setup helpers");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17238,6 +17302,18 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndTexPropSyncPlan{",
                  "native exposes RndTex prop-sync source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexPlatformBppOrderPlan{",
+                 "native exposes RndTex platform bpp/order helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexSetBitmapPlan{",
+                 "native exposes RndTex SetBitmap helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexSetBitmapFromLoaderPlan{",
+                 "native exposes RndTex loader SetBitmap helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexLockBitmapPlan{",
+                 "native exposes RndTex LockBitmap helper");
   ok &= contains(char_mesh,
                  "SourceRndTexRenderedClampPlansource_rndtex_rendered_clamp_plan(",
                  "native implements RndTex rendered clamp source helper");
@@ -17284,6 +17360,40 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.modify_alt_props={\"file_path\"};",
                  "RndTex prop-sync helper mirrors file_path modify-alt row");
+  ok &= contains(char_mesh,
+                 "SourceRndTexPlatformBppOrderPlansource_rndtex_platform_bpp_order_plan(",
+                 "native implements RndTex platform bpp/order helper");
+  ok &= contains(char_mesh,
+                 "plan.normal_texture=path_hint.find(\"_norm\")!=std::string::npos;",
+                 "RndTex platform helper mirrors normal texture test");
+  ok &= contains(char_mesh,
+                 "SourceRndTexSetBitmapPlansource_rndtex_set_bitmap_plan(",
+                 "native implements RndTex scalar SetBitmap helper");
+  ok &= contains(char_mesh,
+                 "plan.back_buffer_uses_screen_values=true;",
+                 "RndTex SetBitmap helper mirrors back-buffer branch");
+  ok &= contains(char_mesh,
+                 "for(int32_ti=width,j=height;i>0x10&&j>0x10;",
+                 "RndTex SetBitmap helper mirrors rendered mip loop");
+  ok &= contains(char_mesh,
+                 "SourceRndTexSetBitmapFromBitmapPlansource_rndtex_set_bitmap_from_bitmap_plan(",
+                 "native implements RndTex bitmap overload helper");
+  ok &= contains(char_mesh,
+                 "SourceRndTexSetBitmapFromLoaderPlansource_rndtex_set_bitmap_from_loader_plan(",
+                 "native implements RndTex loader overload helper");
+  ok &= contains(char_mesh,
+                 "plan.warns_disc_build_without_keep=has_loader&&!edit_mode&&"
+                 "!loader_is_current&&filepath.find(\"_keep\")==std::string::npos;",
+                 "RndTex loader helper mirrors disc-build warning branch");
+  ok &= contains(char_mesh,
+                 "SourceRndTexCopyBottomMipPlansource_rndtex_copy_bottom_mip_plan(",
+                 "native implements RndTex bottom-mip helper");
+  ok &= contains(char_mesh,
+                 "SourceRndTexLockBitmapPlansource_rndtex_lock_bitmap_plan(",
+                 "native implements RndTex LockBitmap helper");
+  ok &= contains(char_mesh,
+                 "plan.converts_ordered_bitmap_to_32bpp=(bitmap_order&0x38)!=0;",
+                 "RndTex LockBitmap helper mirrors ordered conversion branch");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17445,6 +17555,24 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "source_rndtex_prop_sync_plan()",
                  "focused RndTex test covers prop-sync helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_platform_bpp_order_plan(",
+                 "focused RndTex test covers platform bpp/order helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_set_bitmap_plan(",
+                 "focused RndTex test covers scalar SetBitmap helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_set_bitmap_from_bitmap_plan(",
+                 "focused RndTex test covers bitmap SetBitmap helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_set_bitmap_from_loader_plan(",
+                 "focused RndTex test covers loader SetBitmap helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_copy_bottom_mip_plan(3)",
+                 "focused RndTex test covers bottom-mip helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_lock_bitmap_plan(0x18,8)",
+                 "focused RndTex test covers LockBitmap conversion helper");
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");

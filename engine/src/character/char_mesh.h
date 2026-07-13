@@ -4869,6 +4869,89 @@ struct SourceRndTexPropSyncPlan {
   std::vector<std::string> modify_alt_props;
 };
 
+struct SourceRndTexPlatformBppOrderPlan {
+  std::string platform;
+  std::string path_hint;
+  bool has_alpha = false;
+  int32_t input_bpp = 32;
+  int32_t result_bpp = 32;
+  int32_t result_order = 0;
+  bool normal_texture = false;
+  bool ps2_leaves_existing_values = false;
+};
+
+struct SourceRndTexSetBitmapPlan {
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t bpp = 32;
+  int32_t type = 1;
+  bool use_mips = false;
+  bool calls_presync_bitmap = true;
+  bool clears_filepath = true;
+  bool resets_bitmap = true;
+  bool calls_set_power_of_two = true;
+  bool back_buffer_uses_screen_values = false;
+  bool rendered_counts_mips = false;
+  int32_t rendered_mip_count = 0;
+  bool checks_size = false;
+  std::string size_error;
+  bool creates_bitmap = false;
+  bool skips_bitmap_for_special_type = false;
+  bool asserts_before_generate_mips = false;
+  bool calls_sync_bitmap = true;
+  int32_t result_width = 0;
+  int32_t result_height = 0;
+  int32_t result_bpp = 32;
+  int32_t result_num_mips = 0;
+};
+
+struct SourceRndTexSetBitmapFromBitmapPlan {
+  std::string platform;
+  int32_t bitmap_width = 0;
+  int32_t bitmap_height = 0;
+  int32_t bitmap_bpp = 32;
+  int32_t bitmap_order = 0;
+  int32_t bitmap_num_mips = 0;
+  bool preserve_bitmap_format = false;
+  bool calls_platform_bpp_order = true;
+  bool resets_on_size_error = false;
+  std::string size_error;
+  int32_t create_bpp = 32;
+  int32_t create_order = 0;
+};
+
+struct SourceRndTexSetBitmapFromLoaderPlan {
+  bool has_loader = false;
+  bool has_buffer = false;
+  bool loader_is_current = false;
+  bool edit_mode = false;
+  std::string filepath;
+  bool warns_disc_build_without_keep = false;
+  bool uses_bottom_mip = false;
+  bool creates_bitmap_from_buffer = false;
+  bool copies_bottom_mip = false;
+  bool resets_bitmap_and_dimensions = false;
+  int32_t result_width = 0;
+  int32_t result_height = 0;
+  int32_t result_bpp = 32;
+  int32_t result_num_mips = 0;
+};
+
+struct SourceRndTexCopyBottomMipPlan {
+  int32_t source_mip_count = 0;
+  bool asserts_distinct_bitmaps = true;
+  bool walks_to_last_mip = false;
+  int32_t selected_mip_index = 0;
+};
+
+struct SourceRndTexLockBitmapPlan {
+  int32_t bitmap_order = 0;
+  bool converts_ordered_bitmap_to_32bpp = false;
+  bool creates_direct_bitmap_view = false;
+  int32_t create_bpp = 32;
+  int32_t create_order = 0;
+};
+
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
     int32_t width,
     int32_t height);
@@ -4904,6 +4987,46 @@ SourceRndTexOnSetRenderedPlan source_rndtex_on_set_rendered_plan(
     bool is_render_target,
     int32_t num_mips);
 SourceRndTexPropSyncPlan source_rndtex_prop_sync_plan();
+SourceRndTexPlatformBppOrderPlan source_rndtex_platform_bpp_order_plan(
+    const std::string& platform,
+    const std::string& path_hint,
+    int32_t input_bpp,
+    bool has_alpha);
+SourceRndTexSetBitmapPlan source_rndtex_set_bitmap_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t type,
+    bool use_mips,
+    int32_t screen_width,
+    int32_t screen_height,
+    int32_t screen_bpp);
+SourceRndTexSetBitmapFromBitmapPlan source_rndtex_set_bitmap_from_bitmap_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t order,
+    int32_t num_mips,
+    bool preserve_bitmap_format,
+    const std::string& platform,
+    const std::string& path_hint,
+    bool has_alpha);
+SourceRndTexSetBitmapFromLoaderPlan source_rndtex_set_bitmap_from_loader_plan(
+    bool has_loader,
+    bool has_buffer,
+    bool loader_is_current,
+    bool edit_mode,
+    const std::string& filepath,
+    bool use_bottom_mip,
+    int32_t bitmap_width,
+    int32_t bitmap_height,
+    int32_t bitmap_bpp,
+    int32_t bitmap_num_mips);
+SourceRndTexCopyBottomMipPlan source_rndtex_copy_bottom_mip_plan(
+    int32_t source_mip_count);
+SourceRndTexLockBitmapPlan source_rndtex_lock_bitmap_plan(
+    int32_t bitmap_order,
+    int32_t bitmap_bpp);
 
 struct RndTex {
   std::string name;

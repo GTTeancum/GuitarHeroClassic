@@ -1618,6 +1618,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     text, print, command, and property rows. They are object-surface contracts
     only and do not add live texture mutation, bitmap loading, save-bmp, or
     renderer behavior.
+  - Native `source_rndtex_platform_bpp_order_plan`,
+    `source_rndtex_set_bitmap_plan`,
+    `source_rndtex_set_bitmap_from_bitmap_plan`,
+    `source_rndtex_set_bitmap_from_loader_plan`,
+    `source_rndtex_copy_bottom_mip_plan`, and
+    `source_rndtex_lock_bitmap_plan` record the visible source bitmap setup
+    paths, platform BPP/order choices, loader/no-loader reset behavior,
+    bottom-mip selection, and lock conversion branch. These remain source
+    contracts only and do not call loaders, allocate bitmaps, generate mips, or
+    change native texture upload.
 - `rb3/src/system/rndobj/Bitmap.cpp`
   - `RndBitmap::LoadHeader` reads bitmap revision, bpp, order, mip count,
     width, height, row bytes, and the fixed padding row before pixel chunks.
@@ -1758,7 +1768,8 @@ touching renderer upload, material sorting, or runtime texture selection.
 The same test covers the source `SetPowerOf2`, `CheckDim`, and `CheckSize`
 contracts, plus the empty-file rendered texture clamp and movie exceptions,
 copy/handler/property rows, and type text without changing stock texture
-loading.
+loading. It also covers source platform BPP/order, `SetBitmap` branch choices,
+loader reset/bottom-mip behavior, and `LockBitmap` conversion decisions.
 
 ## Generic Object Row Authority
 

@@ -3429,6 +3429,200 @@ SourceRndTexPropSyncPlan source_rndtex_prop_sync_plan() {
   return plan;
 }
 
+SourceRndTexPlatformBppOrderPlan source_rndtex_platform_bpp_order_plan(
+    const std::string& platform,
+    const std::string& path_hint,
+    int32_t input_bpp,
+    bool has_alpha) {
+  SourceRndTexPlatformBppOrderPlan plan;
+  plan.platform = platform;
+  plan.path_hint = path_hint;
+  plan.has_alpha = has_alpha;
+  plan.input_bpp = input_bpp;
+  plan.result_bpp = input_bpp;
+  plan.normal_texture = path_hint.find("_norm") != std::string::npos;
+
+  if (platform == "wii") {
+    plan.result_order = 8;
+    if (has_alpha) {
+      plan.result_order |= 0x100;
+      plan.result_bpp = 8;
+    } else {
+      plan.result_bpp = 4;
+    }
+    plan.result_order |= 0x40;
+  } else if (platform == "ps2") {
+    plan.ps2_leaves_existing_values = true;
+  } else if (platform == "xbox" || platform == "pc" ||
+             platform == "ps3") {
+    if (plan.normal_texture) {
+      if (platform == "xbox") {
+        plan.result_order = 0x20;
+      } else if (platform == "ps3") {
+        plan.result_order = 8;
+      } else {
+        plan.result_order = 0;
+      }
+    } else {
+      plan.result_order = has_alpha ? 0x18 : 8;
+    }
+
+    if (plan.result_order == 8) {
+      plan.result_bpp = 4;
+    } else if ((plan.result_order & 0x38) != 0) {
+      plan.result_bpp = 8;
+    } else if (plan.normal_texture) {
+      plan.result_bpp = 0x18;
+    } else if (plan.result_bpp < 0x10) {
+      plan.result_bpp = 0x10;
+    }
+  } else if (platform == "none") {
+    plan.result_order = 0;
+  }
+  return plan;
+}
+
+SourceRndTexSetBitmapPlan source_rndtex_set_bitmap_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t type,
+    bool use_mips,
+    int32_t screen_width,
+    int32_t screen_height,
+    int32_t screen_bpp) {
+  SourceRndTexSetBitmapPlan plan;
+  plan.width = width;
+  plan.height = height;
+  plan.bpp = bpp;
+  plan.type = type;
+  plan.use_mips = use_mips;
+  plan.result_width = width;
+  plan.result_height = height;
+  plan.result_bpp = bpp;
+
+  if ((type & 8) != 0) {
+    plan.back_buffer_uses_screen_values = true;
+    plan.result_width = screen_width;
+    plan.result_height = screen_height;
+    plan.result_bpp = screen_bpp;
+  } else if ((type & 2) != 0) {
+    plan.rendered_counts_mips = use_mips;
+    if (use_mips) {
+      for (int32_t i = width, j = height; i > 0x10 && j > 0x10;
+           i >>= 1, j >>= 1) {
+        ++plan.rendered_mip_count;
+      }
+      plan.result_num_mips = plan.rendered_mip_count;
+    }
+  } else {
+    plan.checks_size = true;
+    plan.size_error =
+        source_rndtex_check_size_plan(width, height, bpp, 0, type, false, true)
+            .error;
+    if (plan.size_error.empty()) {
+      plan.skips_bitmap_for_special_type = (type & 0x204) != 0;
+      plan.creates_bitmap = !plan.skips_bitmap_for_special_type;
+      plan.asserts_before_generate_mips = plan.creates_bitmap && use_mips;
+    }
+  }
+  return plan;
+}
+
+SourceRndTexSetBitmapFromBitmapPlan source_rndtex_set_bitmap_from_bitmap_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t order,
+    int32_t num_mips,
+    bool preserve_bitmap_format,
+    const std::string& platform_name,
+    const std::string& path_hint,
+    bool has_alpha) {
+  SourceRndTexSetBitmapFromBitmapPlan plan;
+  plan.platform = platform_name;
+  plan.bitmap_width = width;
+  plan.bitmap_height = height;
+  plan.bitmap_bpp = bpp;
+  plan.bitmap_order = order;
+  plan.bitmap_num_mips = num_mips;
+  plan.preserve_bitmap_format = preserve_bitmap_format;
+  plan.calls_platform_bpp_order = !preserve_bitmap_format;
+  plan.create_bpp = bpp;
+  plan.create_order = order;
+  plan.size_error =
+      source_rndtex_check_size_plan(width, height, bpp, num_mips, 1, false, true)
+          .error;
+  plan.resets_on_size_error = !plan.size_error.empty();
+  if (!plan.resets_on_size_error && plan.calls_platform_bpp_order) {
+    const SourceRndTexPlatformBppOrderPlan platform =
+        source_rndtex_platform_bpp_order_plan(platform_name, path_hint, bpp,
+                                              has_alpha);
+    plan.create_bpp = platform.result_bpp;
+    plan.create_order = platform.result_order;
+  }
+  return plan;
+}
+
+SourceRndTexSetBitmapFromLoaderPlan source_rndtex_set_bitmap_from_loader_plan(
+    bool has_loader,
+    bool has_buffer,
+    bool loader_is_current,
+    bool edit_mode,
+    const std::string& filepath,
+    bool use_bottom_mip,
+    int32_t bitmap_width,
+    int32_t bitmap_height,
+    int32_t bitmap_bpp,
+    int32_t bitmap_num_mips) {
+  SourceRndTexSetBitmapFromLoaderPlan plan;
+  plan.has_loader = has_loader;
+  plan.has_buffer = has_loader && has_buffer;
+  plan.loader_is_current = loader_is_current;
+  plan.edit_mode = edit_mode;
+  plan.filepath = has_loader ? filepath : "";
+  plan.uses_bottom_mip = use_bottom_mip;
+  plan.warns_disc_build_without_keep =
+      has_loader && !edit_mode && !loader_is_current &&
+      filepath.find("_keep") == std::string::npos;
+  if (plan.has_buffer) {
+    plan.creates_bitmap_from_buffer = !use_bottom_mip;
+    plan.copies_bottom_mip = use_bottom_mip;
+    plan.result_width = bitmap_width;
+    plan.result_height = bitmap_height;
+    plan.result_bpp = bitmap_bpp;
+    plan.result_num_mips = bitmap_num_mips;
+  } else {
+    plan.resets_bitmap_and_dimensions = true;
+    plan.result_width = 0;
+    plan.result_height = 0;
+    plan.result_bpp = 0x20;
+    plan.result_num_mips = 0;
+  }
+  return plan;
+}
+
+SourceRndTexCopyBottomMipPlan source_rndtex_copy_bottom_mip_plan(
+    int32_t source_mip_count) {
+  SourceRndTexCopyBottomMipPlan plan;
+  plan.source_mip_count = source_mip_count;
+  plan.walks_to_last_mip = source_mip_count > 0;
+  plan.selected_mip_index = source_mip_count > 0 ? source_mip_count : 0;
+  return plan;
+}
+
+SourceRndTexLockBitmapPlan source_rndtex_lock_bitmap_plan(
+    int32_t bitmap_order,
+    int32_t bitmap_bpp) {
+  SourceRndTexLockBitmapPlan plan;
+  plan.bitmap_order = bitmap_order;
+  plan.converts_ordered_bitmap_to_32bpp = (bitmap_order & 0x38) != 0;
+  plan.creates_direct_bitmap_view = !plan.converts_ordered_bitmap_to_32bpp;
+  plan.create_bpp = plan.converts_ordered_bitmap_to_32bpp ? 0x20 : bitmap_bpp;
+  plan.create_order = plan.converts_ordered_bitmap_to_32bpp ? 0 : bitmap_order;
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

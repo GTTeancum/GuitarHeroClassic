@@ -275,6 +275,99 @@ int main() {
   ok &= expect_strings(prop_sync_plan.modify_alt_props, {"file_path"},
                        "texture modify-alt props");
 
+  const ghogx::character::SourceRndTexPlatformBppOrderPlan wii_alpha =
+      ghogx::character::source_rndtex_platform_bpp_order_plan(
+          "wii", "hair.tex", 4, true);
+  ok &= expect_int(wii_alpha.result_bpp, 8, "wii alpha bpp");
+  ok &= expect_int(wii_alpha.result_order, 0x148, "wii alpha order");
+  const ghogx::character::SourceRndTexPlatformBppOrderPlan pc_norm =
+      ghogx::character::source_rndtex_platform_bpp_order_plan(
+          "pc", "face_norm.tex", 8, false);
+  ok &= expect_bool(pc_norm.normal_texture, true, "pc normal detection");
+  ok &= expect_int(pc_norm.result_bpp, 0x18, "pc normal bpp");
+  ok &= expect_int(pc_norm.result_order, 0, "pc normal order");
+  const ghogx::character::SourceRndTexPlatformBppOrderPlan ps2_order =
+      ghogx::character::source_rndtex_platform_bpp_order_plan(
+          "ps2", "body.tex", 4, false);
+  ok &= expect_bool(ps2_order.ps2_leaves_existing_values, true,
+                    "ps2 leaves bpp/order values");
+
+  const ghogx::character::SourceRndTexSetBitmapPlan back_buffer =
+      ghogx::character::source_rndtex_set_bitmap_plan(
+          64, 64, 16, 8, false, 640, 480, 32);
+  ok &= expect_bool(back_buffer.back_buffer_uses_screen_values, true,
+                    "set bitmap back buffer branch");
+  ok &= expect_int(back_buffer.result_width, 640, "back buffer width");
+  ok &= expect_int(back_buffer.result_height, 480, "back buffer height");
+  ok &= expect_int(back_buffer.result_bpp, 32, "back buffer bpp");
+  const ghogx::character::SourceRndTexSetBitmapPlan rendered_mips =
+      ghogx::character::source_rndtex_set_bitmap_plan(
+          128, 128, 32, 2, true, 640, 480, 32);
+  ok &= expect_bool(rendered_mips.rendered_counts_mips, true,
+                    "rendered set bitmap mip branch");
+  ok &= expect_int(rendered_mips.rendered_mip_count, 3,
+                   "rendered mip count");
+  const ghogx::character::SourceRndTexSetBitmapPlan regular_bitmap =
+      ghogx::character::source_rndtex_set_bitmap_plan(
+          64, 64, 8, 1, false, 640, 480, 32);
+  ok &= expect_bool(regular_bitmap.creates_bitmap, true,
+                    "regular set bitmap creates bitmap");
+  const ghogx::character::SourceRndTexSetBitmapPlan special_bitmap =
+      ghogx::character::source_rndtex_set_bitmap_plan(
+          64, 64, 8, 0x204, false, 640, 480, 32);
+  ok &= expect_bool(special_bitmap.skips_bitmap_for_special_type, true,
+                    "special set bitmap skips bitmap create");
+
+  const ghogx::character::SourceRndTexSetBitmapFromBitmapPlan bitmap_plan =
+      ghogx::character::source_rndtex_set_bitmap_from_bitmap_plan(
+          64, 64, 8, 0, 0, false, "pc", "face_norm.tex", false);
+  ok &= expect_bool(bitmap_plan.calls_platform_bpp_order, true,
+                    "bitmap overload calls platform order");
+  ok &= expect_int(bitmap_plan.create_bpp, 0x18,
+                   "bitmap overload platform bpp");
+  ok &= expect_int(bitmap_plan.create_order, 0,
+                   "bitmap overload platform order");
+  const ghogx::character::SourceRndTexSetBitmapFromBitmapPlan preserve_bitmap =
+      ghogx::character::source_rndtex_set_bitmap_from_bitmap_plan(
+          64, 64, 8, 0x18, 0, true, "pc", "face_norm.tex", true);
+  ok &= expect_bool(preserve_bitmap.calls_platform_bpp_order, false,
+                    "preserve bitmap skips platform order");
+  ok &= expect_int(preserve_bitmap.create_order, 0x18,
+                   "preserve bitmap order");
+
+  const ghogx::character::SourceRndTexSetBitmapFromLoaderPlan loader_buffer =
+      ghogx::character::source_rndtex_set_bitmap_from_loader_plan(
+          true, true, false, false, "hair.tex", true, 128, 64, 8, 0);
+  ok &= expect_bool(loader_buffer.warns_disc_build_without_keep, true,
+                    "loader warns without keep suffix");
+  ok &= expect_bool(loader_buffer.copies_bottom_mip, true,
+                    "loader bottom mip branch");
+  ok &= expect_int(loader_buffer.result_width, 128, "loader bitmap width");
+  const ghogx::character::SourceRndTexSetBitmapFromLoaderPlan no_loader =
+      ghogx::character::source_rndtex_set_bitmap_from_loader_plan(
+          false, false, false, false, "", false, 0, 0, 0, 0);
+  ok &= expect_bool(no_loader.resets_bitmap_and_dimensions, true,
+                    "no loader resets bitmap");
+  ok &= expect_int(no_loader.result_bpp, 0x20, "no loader reset bpp");
+
+  const ghogx::character::SourceRndTexCopyBottomMipPlan bottom_mip =
+      ghogx::character::source_rndtex_copy_bottom_mip_plan(3);
+  ok &= expect_bool(bottom_mip.walks_to_last_mip, true,
+                    "copy bottom mip walks chain");
+  ok &= expect_int(bottom_mip.selected_mip_index, 3,
+                   "copy bottom mip selected index");
+  const ghogx::character::SourceRndTexLockBitmapPlan ordered_lock =
+      ghogx::character::source_rndtex_lock_bitmap_plan(0x18, 8);
+  ok &= expect_bool(ordered_lock.converts_ordered_bitmap_to_32bpp, true,
+                    "lock bitmap ordered conversion");
+  ok &= expect_int(ordered_lock.create_bpp, 0x20,
+                   "lock bitmap converted bpp");
+  const ghogx::character::SourceRndTexLockBitmapPlan direct_lock =
+      ghogx::character::source_rndtex_lock_bitmap_plan(0, 8);
+  ok &= expect_bool(direct_lock.creates_direct_bitmap_view, true,
+                    "lock bitmap direct view");
+  ok &= expect_int(direct_lock.create_order, 0, "lock bitmap direct order");
+
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2
   put_object_fields_minimal(tex);
