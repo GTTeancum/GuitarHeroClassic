@@ -15890,6 +15890,7 @@ struct CameraResultRows {
 };
 
 constexpr float kNativeValidationAspect = 16.0f / 9.0f;
+constexpr float kCamShotSourceFrustumAspect = 1.0f;
 
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
@@ -17994,7 +17995,7 @@ camera_source_screen_offset_translate_result_rows(
     }
     const float tan_y = std::tan(key.fov * 0.5f);
     if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
-    const float tan_x = tan_y * kNativeValidationAspect;
+    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
     rows.source += "+target_list";
     if (target_filtered) rows.source += "+shot_filter";
     rows.source += "+source_screen_offset_translate";

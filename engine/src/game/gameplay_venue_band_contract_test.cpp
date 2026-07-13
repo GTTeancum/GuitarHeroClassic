@@ -8286,6 +8286,12 @@ int main() {
                  "camera_source_screen_offset_translate_result_rows(",
                  "camera result rows expose source-shaped CamShot screen-offset translation rows");
   ok &= contains(gameplay_c,
+                 "constexprfloatkCamShotSourceFrustumAspect=1.0f;",
+                 "CamShot source local-project screen offset uses ihatecompvir SetFrustum aspect");
+  ok &= contains(gameplay_c,
+                 "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
+                 "source-shaped screen-offset translation uses the CamShot local-project aspect");
+  ok &= contains(gameplay_c,
                  "constfloatright_offset=-key.screen_offset[0]*distance*tan_x;"
                  "constfloatup_offset=key.screen_offset[1]*distance*tan_y;",
                  "source-shaped screen-offset result moves camera position in local right/up space");

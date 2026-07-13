@@ -10822,6 +10822,15 @@ Rejected native probe:
   `source_screen_offset_filtered_target_candidate` diagnostics. This keeps the
   traced `shot_filter` state available for target-list/non-same-target work
   without applying it to the source same-target screen-offset translation.
+- 2026-07-13 CamShot local-project aspect for same-target offset:
+  the same ihatecompvir block builds `cam->LocalProjectXfm()` from
+  `cam->SetFrustum(..., 1.0f)` before dividing the local screen-offset
+  translation by that projection scale. Native now uses a dedicated
+  `kCamShotSourceFrustumAspect = 1.0f` in
+  `camera_source_screen_offset_translate_result_rows(...)` instead of the
+  provisional 16:9 validation aspect for this source-shaped same-target
+  branch. The older target-list/projection diagnostics still use the native
+  validation aspect until their PS2 viewport constant is mapped.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,
