@@ -7733,7 +7733,8 @@ int main() {
                  "empty-target camera shots preserve decoded basis as look direction");
   ok &= contains(gameplay_h_c,
                  "floatduration_frames=0.0f;floatblend_frames=0.0f;"
-                 "floatblend_ease=0.0f;boolhas_timing=false;",
+                 "floatblend_ease=0.0f;intblend_ease_mode=0;"
+                 "boolhas_timing=false;",
                  "CameraKey preserves CamShot keyframe timing fields");
   ok &= contains(gameplay_h_c,
                  "std::stringcategory;floatshot_filter=0.0f;"
@@ -9232,8 +9233,24 @@ int main() {
                  "camera debug logs carry shot-level solver inputs");
   ok &= contains(gameplay_c,
                  "key.duration_frames=r.f32();key.blend_frames=r.f32();"
-                 "key.blend_ease=r.f32();key.has_timing=true;",
+                 "key.blend_ease=r.f32();key.has_timing=true;"
+                 "if(camshot_revision>0x2d)key.blend_ease_mode=r.i32();",
                  "CamShot pose parser decodes duration/blend fields before FOV");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_blend_ease_t(floatraw_t,floatblend_ease,"
+                 "intblend_ease_mode)",
+                 "CamShot interpolation has the ihatecompvir ATan blend-ease remap");
+  ok &= contains(gameplay_c,
+                 "constfloatinterp_t=camshot_blend_ease_t(t,a->blend_ease,"
+                 "a->blend_ease_mode);",
+                 "CamShot interpolation uses the outgoing keyframe blend_ease");
+  ok &= contains(gameplay_c,
+                 "camera_lerp_result_rows(source_seed_a,source_seed_b,"
+                 "interp_t);",
+                 "camera source seed rows use the source-shaped eased blend");
+  ok &= contains(gameplay_c,
+                 "camera_lerp_result_rows(result_a,result_b,interp_t);",
+                 "camera submitted result rows use the source-shaped eased blend");
   ok &= contains(gameplay_c,
                  "doubleauthored_camshot_blend_seconds(",
                  "same-shot camera transitions can use authored CamShot blend timing");

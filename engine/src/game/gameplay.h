@@ -148,6 +148,7 @@ class Gameplay {
     float duration_frames = 0.0f;
     float blend_frames = 0.0f;
     float blend_ease = 0.0f;
+    int blend_ease_mode = 0;
     bool has_timing = false;
     bool camshot_looping = false;
     int camshot_loop_keyframe = 0;

@@ -1752,7 +1752,7 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     key.blend_frames = r.f32();
     key.blend_ease = r.f32();
     key.has_timing = true;
-    if (camshot_revision > 0x2d) (void)r.i32();
+    if (camshot_revision > 0x2d) key.blend_ease_mode = r.i32();
     key.fov = r.f32();
     key.has_fov = true;
     const HmxMatrix3x4 world_offset = read_hmx_matrix(r);
@@ -17696,6 +17696,32 @@ std::array<float, 3> camera_authored_eye_for_key(
     return transform_point_game(parent->world, key.eye);
 }
 
+float camshot_blend_ease_t(float raw_t, float blend_ease,
+                           int blend_ease_mode) {
+    const float t = std::clamp(raw_t, 0.0f, 1.0f);
+    if (!std::isfinite(blend_ease) || blend_ease <= 0.001f) return t;
+
+    float y0 = 0.0f;
+    float y1 = 1.0f;
+    float x0 = 0.0f;
+    float x1 = 1.0f;
+    if (blend_ease_mode == 1) {
+        y1 = 2.0f;
+        x1 = 2.0f;
+    } else if (blend_ease_mode == 2) {
+        y0 = -1.0f;
+        x0 = -1.0f;
+    }
+
+    const float run = x1 - x0;
+    const float slope = std::fabs(run) < 0.000001f ? 0.0f : (2.0f * blend_ease) / run;
+    const float x_mapped = slope * t + (-blend_ease - x0 * slope);
+    const float atan_neg = std::atan(-blend_ease);
+    const float scale = (y1 - y0) / ((-atan_neg) - atan_neg);
+    const float offset = (y1 - y0) * 0.5f + y0;
+    return std::clamp(std::atan(x_mapped) * scale + offset, 0.0f, 1.0f);
+}
+
 void camera_authored_up_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
@@ -17760,6 +17786,8 @@ void apply_camera_keys(
     float t = 0.0f;
     if (b->frame > a->frame) t = (frame - a->frame) / (b->frame - a->frame);
     t = std::clamp(t, 0.0f, 1.0f);
+    const float interp_t =
+        camshot_blend_ease_t(t, a->blend_ease, a->blend_ease_mode);
     cam.authored = true;
     float eye_a[3] = {};
     float eye_b[3] = {};
@@ -17768,29 +17796,30 @@ void apply_camera_keys(
     for (int i = 0; i < 3; ++i) {
         eye_a[i] = authored_eye_a[i];
         eye_b[i] = authored_eye_b[i];
-        cam.authored_eye[i] = eye_a[i] + (eye_b[i] - eye_a[i]) * t;
+        cam.authored_eye[i] =
+            eye_a[i] + (eye_b[i] - eye_a[i]) * interp_t;
     }
     const auto at_a = camera_authored_at_for_key(*a, targets, eye_a);
     const auto at_b = camera_authored_at_for_key(*b, targets, eye_b);
     for (int i = 0; i < 3; ++i)
-        cam.authored_at[i] = at_a[i] + (at_b[i] - at_a[i]) * t;
+        cam.authored_at[i] = at_a[i] + (at_b[i] - at_a[i]) * interp_t;
     float up_a[3] = {};
     float up_b[3] = {};
     camera_authored_up_for_key(*a, targets, up_a);
     camera_authored_up_for_key(*b, targets, up_b);
     for (int i = 0; i < 3; ++i)
-        cam.authored_up[i] = up_a[i] + (up_b[i] - up_a[i]) * t;
+        cam.authored_up[i] = up_a[i] + (up_b[i] - up_a[i]) * interp_t;
     if (a->has_fov || b->has_fov) {
         const float fov_a = a->has_fov ? a->fov : (b->has_fov ? b->fov : cam.fov);
         const float fov_b = b->has_fov ? b->fov : fov_a;
-        cam.fov = fov_a + (fov_b - fov_a) * t;
+        cam.fov = fov_a + (fov_b - fov_a) * interp_t;
     }
     const float sx_a = a->has_screen_offset ? a->screen_offset[0] : 0.0f;
     const float sy_a = a->has_screen_offset ? a->screen_offset[1] : 0.0f;
     const float sx_b = b->has_screen_offset ? b->screen_offset[0] : 0.0f;
     const float sy_b = b->has_screen_offset ? b->screen_offset[1] : 0.0f;
-    cam.screen_offset[0] = sx_a + (sx_b - sx_a) * t;
-    cam.screen_offset[1] = sy_a + (sy_b - sy_a) * t;
+    cam.screen_offset[0] = sx_a + (sx_b - sx_a) * interp_t;
+    cam.screen_offset[1] = sy_a + (sy_b - sy_a) * interp_t;
     auto camera_source_seed_rows_for_runtime =
         [&](const Gameplay::CameraKey& key) {
             if (venue_targets) {
@@ -17805,7 +17834,7 @@ void apply_camera_keys(
     const auto source_seed_a = camera_source_seed_rows_for_runtime(*a);
     const auto source_seed_b = camera_source_seed_rows_for_runtime(*b);
     const auto source_seed_result =
-        camera_lerp_result_rows(source_seed_a, source_seed_b, t);
+        camera_lerp_result_rows(source_seed_a, source_seed_b, interp_t);
     const auto ps2_trace_result_a =
         camera_ps2_source_record_trace_result_frame_rows(*a);
     const auto ps2_trace_result_b =
@@ -17892,7 +17921,8 @@ void apply_camera_keys(
             std::string::npos ||
         result_b.source.find("ps2_result_builder_matrix_candidate") !=
             std::string::npos;
-    auto submitted_result = camera_lerp_result_rows(result_a, result_b, t);
+    auto submitted_result =
+        camera_lerp_result_rows(result_a, result_b, interp_t);
     const auto a_target_centroid =
         camera_target_centroid_for_key(*a, targets);
     const auto b_target_centroid =
@@ -17906,11 +17936,14 @@ void apply_camera_keys(
     if (a_target_centroid && b_target_centroid) {
         blended_target_centroid = {
             (*a_target_centroid)[0] +
-                ((*b_target_centroid)[0] - (*a_target_centroid)[0]) * t,
+                ((*b_target_centroid)[0] - (*a_target_centroid)[0]) *
+                    interp_t,
             (*a_target_centroid)[1] +
-                ((*b_target_centroid)[1] - (*a_target_centroid)[1]) * t,
+                ((*b_target_centroid)[1] - (*a_target_centroid)[1]) *
+                    interp_t,
             (*a_target_centroid)[2] +
-                ((*b_target_centroid)[2] - (*a_target_centroid)[2]) * t};
+                ((*b_target_centroid)[2] - (*a_target_centroid)[2]) *
+                    interp_t};
     } else if (a_target_centroid) {
         blended_target_centroid = *a_target_centroid;
     } else if (b_target_centroid) {
@@ -17932,7 +17965,8 @@ void apply_camera_keys(
                 : (b->has_shot_filter ? b->shot_filter : 0.0f);
         const float filter_b =
             b->has_shot_filter ? b->shot_filter : filter_a;
-        result_key.shot_filter = filter_a + (filter_b - filter_a) * t;
+        result_key.shot_filter =
+            filter_a + (filter_b - filter_a) * interp_t;
         result_filter_state_seeded =
             result_builder_state && !result_builder_state->has_filtered_target;
         result_filter_branch =
@@ -17962,8 +17996,8 @@ void apply_camera_keys(
                 ? a->far_plane
                 : (b->has_clip_planes ? b->far_plane : cam.far_z);
         const float far_b = b->has_clip_planes ? b->far_plane : far_a;
-        const float near_z = near_a + (near_b - near_a) * t;
-        const float far_z = far_a + (far_b - far_a) * t;
+        const float near_z = near_a + (near_b - near_a) * interp_t;
+        const float far_z = far_a + (far_b - far_a) * interp_t;
         if (std::isfinite(near_z) && std::isfinite(far_z) &&
             near_z > 0.0f && far_z > near_z) {
             cam.near_z = near_z;
@@ -17982,13 +18016,13 @@ void apply_camera_keys(
             const auto* pb = projection_b ? projection_b : pa;
             const float fov_y =
                 pa->projection_fov_y +
-                (pb->projection_fov_y - pa->projection_fov_y) * t;
+                (pb->projection_fov_y - pa->projection_fov_y) * interp_t;
             const float near_z =
                 pa->projection_near +
-                (pb->projection_near - pa->projection_near) * t;
+                (pb->projection_near - pa->projection_near) * interp_t;
             const float far_z =
                 pa->projection_far +
-                (pb->projection_far - pa->projection_far) * t;
+                (pb->projection_far - pa->projection_far) * interp_t;
             if (std::isfinite(fov_y) && fov_y > 0.05f && fov_y < 2.5f) {
                 cam.fov = fov_y;
             }
@@ -18672,7 +18706,8 @@ void apply_camera_keys(
                     candidate_a ? *candidate_a : *candidate_b;
                 const CameraResultRows& cb =
                     candidate_b ? *candidate_b : ca;
-                log_result_rows(stage, camera_lerp_result_rows(ca, cb, t),
+                log_result_rows(stage,
+                                camera_lerp_result_rows(ca, cb, interp_t),
                                 candidate_a ? 1 : 0, candidate_b ? 1 : 0);
             };
         auto log_target_alias_rows = [&](const char* stage,
@@ -18687,7 +18722,7 @@ void apply_camera_keys(
             if (alias_a && alias_b) {
                 for (int axis = 0; axis < 3; ++axis) {
                     target[axis] = (*alias_a)[axis] +
-                        ((*alias_b)[axis] - (*alias_a)[axis]) * t;
+                        ((*alias_b)[axis] - (*alias_a)[axis]) * interp_t;
                 }
             }
             Gameplay::CameraKey result_key = *a;
@@ -18723,7 +18758,7 @@ void apply_camera_keys(
             const CameraResultRows& tb =
                 target_candidate_b ? *target_candidate_b : ta;
             const auto rejected_target_result =
-                camera_lerp_result_rows(ta, tb, t);
+                camera_lerp_result_rows(ta, tb, interp_t);
             log_result_rows("rejected_target_candidate",
                             rejected_target_result,
                             target_candidate_a ? 1 : 0,
@@ -18888,7 +18923,8 @@ void apply_camera_keys(
             "bone_neck.mesh");
         std::fprintf(
             stderr,
-            "[camera] frame=%.2f t=%.3f a=%s(%.2f) b=%s(%.2f) "
+            "[camera] frame=%.2f t=%.3f eased_t=%.3f "
+            "blend_ease=%.3f mode=%d a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f clip=(%.3f %.3f) "
             "screen_offset=(%.6f %.6f) "
@@ -18897,7 +18933,8 @@ void apply_camera_keys(
             "a_target_eye=(%.2f %.2f %.2f) a_parent_eye=(%.2f %.2f %.2f) "
             "b_target_eye=(%.2f %.2f %.2f) b_parent_eye=(%.2f %.2f %.2f) "
             "targets=%zu\n",
-            frame, t, a->name.c_str(), a->frame, b->name.c_str(), b->frame,
+            frame, t, interp_t, a->blend_ease, a->blend_ease_mode,
+            a->name.c_str(), a->frame, b->name.c_str(), b->frame,
             cam.authored_eye[0], cam.authored_eye[1], cam.authored_eye[2],
             cam.authored_at[0], cam.authored_at[1], cam.authored_at[2],
             cam.authored_up[0], cam.authored_up[1], cam.authored_up[2],
