@@ -11797,6 +11797,9 @@ int run_contract() {
                  "bs>>mTransZ;bs>>mRotation;",
                  "CharBlendBone source Load field order");
   ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "SAVE_OBJ(CharBlendBone,0x44)",
+                 "CharBlendBone source save id");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
                  "COPY_SUPERCLASS(Hmx::Object)CREATE_COPY(CharBlendBone)"
                  "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mTargets)COPY_MEMBER(mSrc1)"
                  "COPY_MEMBER(mSrc2)COPY_MEMBER(mTransX)COPY_MEMBER(mTransY)"
@@ -11847,6 +11850,9 @@ int run_contract() {
                  "std::vector<std::string>read_order;};",
                  "native exposes CharBlendBone load plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneSavePlan{int32_tsave_id=0x44;};",
+                 "native exposes CharBlendBone save plan");
+  ok &= contains(char_mesh_h,
                  "structSourceCharBlendBoneCopyPlan{std::vector<std::string>"
                  "copied_superclasses;std::vector<std::string>copied_members;};",
                  "native exposes CharBlendBone copy plan");
@@ -11881,6 +11887,10 @@ int run_contract() {
                  "\"mSrc1\",\"mSrc2\",\"mTransX\",\"mTransY\",\"mTransZ\","
                  "\"mRotation\"};returnplan;}",
                  "native ports CharBlendBone load order");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBoneSavePlansource_char_blend_bone_save_plan(){"
+                 "returnSourceCharBlendBoneSavePlan{};}",
+                 "native ports CharBlendBone save id");
   ok &= contains(char_mesh,
                  "SourceCharBlendBoneCopyPlansource_char_blend_bone_copy_plan()"
                  "{SourceCharBlendBoneCopyPlanplan;plan.copied_superclasses={"
@@ -11928,6 +11938,9 @@ int run_contract() {
                  "source_char_blend_bone_load_plan(3)",
                  "focused CharBlendBone test covers rev3 load plan");
   ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_save_plan()",
+                 "focused CharBlendBone test covers save plan");
+  ok &= contains(blend_bone_source_test,
                  "source_char_blend_bone_copy_plan()",
                  "focused CharBlendBone test covers copy plan");
   ok &= contains(blend_bone_source_test,
@@ -11945,6 +11958,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_blend_bone_load_plan` and",
                  "document records native CharBlendBone load plan");
+  ok &= contains(doc,
+                 "`source_char_blend_bone_save_plan` records that object id",
+                 "document records native CharBlendBone save plan");
   ok &= contains(doc,
                  "`source_char_blend_bone_copy_plan` records",
                  "document records native CharBlendBone copy plan");

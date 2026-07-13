@@ -2321,6 +2321,8 @@ note, and all report `unreadBytes=0`.
     Native `source_char_blend_bone_load_plan` and
     `source_char_blend_bone_constraint_load_plan` record those exact source
     read orders and revision gates.
+  - `Save` uses source save id `0x44`; native
+    `source_char_blend_bone_save_plan` records that object id only.
   - `Copy` copies `Hmx::Object`, `mTargets`, `mSrc1`, `mSrc2`, `mTransX`,
     `mTransY`, `mTransZ`, and `mRotation`. Native
     `source_char_blend_bone_copy_plan` records that list without adding a blend

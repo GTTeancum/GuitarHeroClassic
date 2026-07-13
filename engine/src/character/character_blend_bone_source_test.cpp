@@ -44,6 +44,7 @@ int main() {
   using ghogx::character::source_char_blend_bone_load_plan;
   using ghogx::character::source_char_blend_bone_poll_deps;
   using ghogx::character::source_char_blend_bone_prop_sync_plan;
+  using ghogx::character::source_char_blend_bone_save_plan;
 
   bool ok = true;
 
@@ -85,6 +86,9 @@ int main() {
   ok &= expect_string(load.read_order[4], "mSrc2", "load source two");
   ok &= expect_string(load.read_order[8], "mRotation",
                       "load rotation last");
+
+  const auto save = source_char_blend_bone_save_plan();
+  ok &= expect_bool(save.save_id == 0x44, true, "save id value");
 
   const auto copy = source_char_blend_bone_copy_plan();
   ok &= expect_size(copy.copied_superclasses.size(), 1,

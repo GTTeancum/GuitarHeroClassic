@@ -2846,6 +2846,10 @@ struct SourceCharBlendBoneLoadPlan {
   std::vector<std::string> read_order;
 };
 
+struct SourceCharBlendBoneSavePlan {
+  int32_t save_id = 0x44;
+};
+
 struct SourceCharBlendBoneCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -3751,6 +3755,7 @@ SourceCharBlendBoneState source_char_blend_bone_default_state();
 SourceCharBlendBoneConstraintLoadPlan
 source_char_blend_bone_constraint_load_plan();
 SourceCharBlendBoneLoadPlan source_char_blend_bone_load_plan(int revision);
+SourceCharBlendBoneSavePlan source_char_blend_bone_save_plan();
 SourceCharBlendBoneCopyPlan source_char_blend_bone_copy_plan();
 SourceCharBlendBoneHandlerPlan source_char_blend_bone_handler_plan();
 SourceCharBlendBoneConstraintPropSyncPlan

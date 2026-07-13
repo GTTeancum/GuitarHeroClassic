@@ -5879,6 +5879,10 @@ SourceCharBlendBoneLoadPlan source_char_blend_bone_load_plan(int revision) {
   return plan;
 }
 
+SourceCharBlendBoneSavePlan source_char_blend_bone_save_plan() {
+  return SourceCharBlendBoneSavePlan{};
+}
+
 SourceCharBlendBoneCopyPlan source_char_blend_bone_copy_plan() {
   SourceCharBlendBoneCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object"};
