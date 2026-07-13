@@ -3849,6 +3849,15 @@ int main() {
                  "venue_light_colors_);",
                  "separate RndDir proxy renderers inherit active venue LightAnim color state");
   ok &= contains(update_venue_proxy_objects_c,
+                 "if(venue_lights_.find(light_name)!=venue_lights_.end()){"
+                 "inherited_light_transforms.emplace(light_name,sample);}",
+                 "separate RndDir proxy renderers inherit active venue LightPreset light transforms");
+  ok &= contains(update_venue_proxy_objects_c,
+                 "if(!proxy.animating){proxy.renderer->"
+                 "set_mesh_transform_offsets(std::move("
+                 "inherited_light_transforms));continue;}",
+                 "non-animating RndDir proxy renderers still receive animated venue light transforms");
+  ok &= contains(update_venue_proxy_objects_c,
                  "venue_camera_hidden_proxy_meshes_.find(object_name)",
                  "separate RndDir proxy renderers receive camera-hidden mesh sets");
   ok &= contains(update_venue_proxy_objects_c,

@@ -23012,6 +23012,14 @@ void Gameplay::update_venue_proxy_objects() {
                                               &venue_environment_fog_enabled_));
         proxy.renderer->set_light_color_overrides(venue_light_colors_);
         proxy.renderer->set_light_state_overrides(venue_light_state_overrides_);
+        std::map<std::string,
+                 ghogx::render::MiloSceneRenderer::MeshTransformSample>
+            inherited_light_transforms;
+        for (const auto& [light_name, sample] : venue_mesh_transform_offsets_) {
+            if (venue_lights_.find(light_name) != venue_lights_.end()) {
+                inherited_light_transforms.emplace(light_name, sample);
+            }
+        }
         std::unordered_set<std::string> hidden_proxy_meshes;
         const auto hidden_it =
             venue_camera_hidden_proxy_meshes_.find(object_name);
@@ -23046,7 +23054,11 @@ void Gameplay::update_venue_proxy_objects() {
             continue;
         }
         proxy.renderer->set_hidden_meshes(std::move(hidden_proxy_meshes));
-        if (!proxy.animating) continue;
+        if (!proxy.animating) {
+            proxy.renderer->set_mesh_transform_offsets(
+                std::move(inherited_light_transforms));
+            continue;
+        }
 
         Gameplay::VenueAnimFilter filter = proxy.directory_anim;
         filter.start_frame = proxy.anim_start_frame;
@@ -23061,7 +23073,7 @@ void Gameplay::update_venue_proxy_objects() {
 
         std::map<std::string,
                  ghogx::render::MiloSceneRenderer::MeshTransformSample>
-            transform_offsets;
+            transform_offsets = std::move(inherited_light_transforms);
         std::map<std::string, std::vector<std::array<float, 3>>>
             position_overrides;
         std::map<std::string, std::vector<std::array<float, 3>>>
