@@ -339,8 +339,12 @@ int run_contract() {
       rb3_latest_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_h = compact(read_file(
       rb3_latest_char_dir / "CharHair.h"));
+  const std::string rb3_latest_char_lookat_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharLookAt.cpp"));
   const std::string rb3_latest_char_lookat_h = compact(read_file(
       rb3_latest_char_dir / "CharLookAt.h"));
+  const std::string rb3_latest_char_eyes_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharEyes.cpp"));
   const std::string rb3_latest_char_blend_bone_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBlendBone.cpp"));
   const std::string rb3_latest_char_blend_bone_h = compact(read_file(
@@ -355,6 +359,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharCollide.h"));
   const std::string rb3_latest_char_ik_hand_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKHand.cpp"));
+  const std::string rb3_latest_char_fore_twist_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharForeTwist.cpp"));
+  const std::string rb3_latest_char_upper_twist_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharUpperTwist.cpp"));
   const std::string rb3_latest_char_cuff_cpp = compact(read_file(
       rb3_latest_char_dir / "CharCuff.cpp"));
   const std::string rb3_latest_char_cuff_h = compact(read_file(
@@ -7932,6 +7940,227 @@ int run_contract() {
                  "`CharIKFingers::Save` uses source save id `0x36A`; native\n"
                  "    `source_char_ik_fingers_save_plan` records that object id only.",
                  "document records CharIKFingers save plan boundary");
+  ok &= contains(rb3_latest_character_cpp,
+                 "SAVE_OBJ(Character,0x495)",
+                 "latest Character source save id");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "SAVE_OBJ(CharBone,0xBF)",
+                 "latest CharBone source save id");
+  ok &= contains(rb3_latest_char_bone_offset_cpp,
+                 "SAVE_OBJ(CharBoneOffset,0x5E)",
+                 "latest CharBoneOffset source save id");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "SAVE_OBJ(CharBoneTwist,0x59)",
+                 "latest CharBoneTwist source save id");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "SAVE_OBJ(CharEyeDartRuleset,0x2B)",
+                 "latest CharEyeDartRuleset source save id");
+  ok &= contains(rb3_latest_char_eyes_cpp,
+                 "SAVE_OBJ(CharEyes,0x575)",
+                 "latest CharEyes source save id");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "SAVE_OBJ(CharFaceServo,0xCE)",
+                 "latest CharFaceServo source save id");
+  ok &= contains(rb3_latest_char_fore_twist_cpp,
+                 "SAVE_OBJ(CharForeTwist,0x79)",
+                 "latest CharForeTwist source save id");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "SAVE_OBJ(CharGuitarString,0x47)",
+                 "latest CharGuitarString source save id");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "SAVE_OBJ(CharInterest,0x52)",
+                 "latest CharInterest source save id");
+  ok &= contains(rb3_latest_char_lookat_cpp,
+                 "SAVE_OBJ(CharLookAt,0x178)",
+                 "latest CharLookAt source save id");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "SAVE_OBJ(CharMirror,0x90)",
+                 "latest CharMirror source save id");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "SAVE_OBJ(CharNeckTwist,0x4A)",
+                 "latest CharNeckTwist source save id");
+  ok &= contains(rb3_latest_char_upper_twist_cpp,
+                 "SAVE_OBJ(CharUpperTwist,0x5D)",
+                 "latest CharUpperTwist source save id");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "SAVE_OBJ(CharWeightSetter,0x73)",
+                 "latest CharWeightSetter source save id");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "SAVE_OBJ(Waypoint,460)",
+                 "latest Waypoint source save id");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterSavePlan{int32_tsave_id=0x495;};",
+                 "native exposes Character save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneSavePlan{int32_tsave_id=0xBF;};",
+                 "native exposes CharBone save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneOffsetSavePlan{int32_tsave_id=0x5E;};",
+                 "native exposes CharBoneOffset save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneTwistSavePlan{int32_tsave_id=0x59;};",
+                 "native exposes CharBoneTwist save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyeDartRulesetSavePlan{int32_tsave_id=0x2B;};",
+                 "native exposes CharEyeDartRuleset save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesSavePlan{int32_tsave_id=0x575;};",
+                 "native exposes CharEyes save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoSavePlan{int32_tsave_id=0xCE;};",
+                 "native exposes CharFaceServo save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharForeTwistSavePlan{int32_tsave_id=0x79;};",
+                 "native exposes CharForeTwist save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringSavePlan{int32_tsave_id=0x47;};",
+                 "native exposes CharGuitarString save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharInterestSavePlan{int32_tsave_id=0x52;};",
+                 "native exposes CharInterest save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLookAtSavePlan{int32_tsave_id=0x178;};",
+                 "native exposes CharLookAt save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharMirrorSavePlan{int32_tsave_id=0x90;};",
+                 "native exposes CharMirror save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharNeckTwistSavePlan{int32_tsave_id=0x4A;};",
+                 "native exposes CharNeckTwist save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharUpperTwistSavePlan{int32_tsave_id=0x5D;};",
+                 "native exposes CharUpperTwist save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterSavePlan{int32_tsave_id=0x73;};",
+                 "native exposes CharWeightSetter save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointSavePlan{int32_tsave_id=460;};",
+                 "native exposes Waypoint save plan");
+  ok &= contains(char_mesh,
+                 "SourceCharacterSavePlansource_character_save_plan(){"
+                 "returnSourceCharacterSavePlan{};}",
+                 "native Character save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharBoneSavePlansource_char_bone_save_plan(){"
+                 "returnSourceCharBoneSavePlan{};}",
+                 "native CharBone save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharBoneOffsetSavePlansource_char_bone_offset_save_plan(){"
+                 "returnSourceCharBoneOffsetSavePlan{};}",
+                 "native CharBoneOffset save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharBoneTwistSavePlansource_char_bone_twist_save_plan(){"
+                 "returnSourceCharBoneTwistSavePlan{};}",
+                 "native CharBoneTwist save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharEyeDartRulesetSavePlansource_char_eye_dart_ruleset_save_plan(){"
+                 "returnSourceCharEyeDartRulesetSavePlan{};}",
+                 "native CharEyeDartRuleset save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesSavePlansource_char_eyes_save_plan(){"
+                 "returnSourceCharEyesSavePlan{};}",
+                 "native CharEyes save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoSavePlansource_char_face_servo_save_plan(){"
+                 "returnSourceCharFaceServoSavePlan{};}",
+                 "native CharFaceServo save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharForeTwistSavePlansource_char_fore_twist_save_plan(){"
+                 "returnSourceCharForeTwistSavePlan{};}",
+                 "native CharForeTwist save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringSavePlansource_char_guitar_string_save_plan(){"
+                 "returnSourceCharGuitarStringSavePlan{};}",
+                 "native CharGuitarString save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestSavePlansource_char_interest_save_plan(){"
+                 "returnSourceCharInterestSavePlan{};}",
+                 "native CharInterest save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtSavePlansource_char_lookat_save_plan(){"
+                 "returnSourceCharLookAtSavePlan{};}",
+                 "native CharLookAt save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharMirrorSavePlansource_char_mirror_save_plan(){"
+                 "returnSourceCharMirrorSavePlan{};}",
+                 "native CharMirror save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharNeckTwistSavePlansource_char_neck_twist_save_plan(){"
+                 "returnSourceCharNeckTwistSavePlan{};}",
+                 "native CharNeckTwist save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharUpperTwistSavePlansource_char_upper_twist_save_plan(){"
+                 "returnSourceCharUpperTwistSavePlan{};}",
+                 "native CharUpperTwist save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterSavePlansource_char_weight_setter_save_plan(){"
+                 "returnSourceCharWeightSetterSavePlan{};}",
+                 "native CharWeightSetter save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceWaypointSavePlansource_waypoint_save_plan(){"
+                 "returnSourceWaypointSavePlan{};}",
+                 "native Waypoint save helper mirrors source id");
+  ok &= contains(character_source_test,
+                 "source_character_save_plan().save_id,0x495",
+                 "focused Character test covers save id");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_save_plan().save_id,0xBF",
+                 "focused CharBone test covers save id");
+  ok &= contains(bone_offset_source_test,
+                 "source_char_bone_offset_save_plan().save_id==0x5E",
+                 "focused CharBoneOffset test covers save id");
+  ok &= contains(bone_twist_source_test,
+                 "source_char_bone_twist_save_plan().save_id==0x59",
+                 "focused CharBoneTwist test covers save id");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_save_plan().save_id,0x2B",
+                 "focused CharEyeDartRuleset test covers save id");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_save_plan().save_id,0x575",
+                 "focused CharEyes test covers save id");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_save_plan().save_id,0xCE",
+                 "focused CharFaceServo test covers save id");
+  ok &= contains(fore_upper_twist_source_test,
+                 "source_char_fore_twist_save_plan().save_id==0x79",
+                 "focused CharForeTwist test covers save id");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_save_plan().save_id==0x47",
+                 "focused CharGuitarString test covers save id");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_save_plan().save_id,0x52",
+                 "focused CharInterest test covers save id");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_save_plan().save_id,0x178",
+                 "focused CharLookAt test covers save id");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_save_plan().save_id==0x90",
+                 "focused CharMirror test covers save id");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_save_plan().save_id,0x4A",
+                 "focused CharNeckTwist test covers save id");
+  ok &= contains(fore_upper_twist_source_test,
+                 "source_char_upper_twist_save_plan().save_id==0x5D",
+                 "focused CharUpperTwist test covers save id");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_save_plan().save_id==0x73",
+                 "focused CharWeightSetter test covers save id");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_save_plan().save_id==460",
+                 "focused Waypoint test covers save id");
+  ok &= contains(doc,
+                 "Native save-plan helpers mirror every checked "
+                 "`rb3-latest/src/system/char`",
+                 "document records completed save row inventory");
+  ok &= contains(doc,
+                 "`Character=0x495`, `CharBone=0xBF`, `CharBoneOffset=0x5E`",
+                 "document lists remaining source save rows");
+  ok &= contains(doc,
+                 "`CharWeightSetter=0x73`, and `Waypoint=460`",
+                 "document lists final source save rows");
+  ok &= contains(doc,
+                 "These helpers do not imply\nnative save writers or runtime behavior.",
+                 "document fences save rows from runtime behavior");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SetCloth(boolb){for(inti=0;"
                  "i<mStrands.size();i++){Strand&strand=mStrands[i];"

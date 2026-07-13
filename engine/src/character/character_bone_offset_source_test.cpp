@@ -44,6 +44,7 @@ int main() {
   using ghogx::character::CharBoneOffset;
   using ghogx::character::source_char_bone_offset_apply_to_local;
   using ghogx::character::source_char_bone_offset_poll_world;
+  using ghogx::character::source_char_bone_offset_save_plan;
 
   CharBoneOffset offset;
   offset.name = "test.offset";
@@ -67,6 +68,8 @@ int main() {
 
   std::array<float, 16> world{};
   bool ok = true;
+  ok &= expect_bool(source_char_bone_offset_save_plan().save_id == 0x5E,
+                    true, "CharBoneOffset save id");
   ok &= expect_bool(source_char_bone_offset_poll_world(
                         offset, false, true, local, parent_world, world),
                     false, "Poll returns false without destination");

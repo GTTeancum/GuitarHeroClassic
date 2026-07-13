@@ -100,6 +100,7 @@ int main() {
   using ghogx::character::source_character_removing_object;
   using ghogx::character::source_character_repoint_sphere_base;
   using ghogx::character::source_character_replace;
+  using ghogx::character::source_character_save_plan;
   using ghogx::character::source_character_set_debug_draw_interest_objects;
   using ghogx::character::source_character_set_sphere_base;
   using ghogx::character::source_character_set_focus_interest;
@@ -455,6 +456,8 @@ int main() {
   ok &= expect_string(handlers.superclass, "RndDir",
                       "Character handler superclass");
   ok &= expect_string(handlers.check, "0x57B", "Character handler check");
+  ok &= expect_int(source_character_save_plan().save_id, 0x495,
+                   "Character save id");
 
   const auto props = source_character_prop_sync_plan();
   ok &= expect_size(props.set_properties.size(), 3,

@@ -63,10 +63,16 @@ int main() {
   using ghogx::character::SourceCharForeTwistPollWorldResult;
   using ghogx::character::SourceCharUpperTwistPollWorldResult;
   using ghogx::character::source_char_fore_twist_poll_world;
+  using ghogx::character::source_char_fore_twist_save_plan;
   using ghogx::character::source_char_upper_twist_poll_world;
+  using ghogx::character::source_char_upper_twist_save_plan;
 
   constexpr float kPi = 3.14159265358979323846f;
   bool ok = true;
+  ok &= expect_bool(source_char_fore_twist_save_plan().save_id == 0x79,
+                    true, "CharForeTwist save id");
+  ok &= expect_bool(source_char_upper_twist_save_plan().save_id == 0x5D,
+                    true, "CharUpperTwist save id");
 
   CharForeTwist fore;
   fore.name = "foreTwist.test";

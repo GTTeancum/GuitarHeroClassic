@@ -47,6 +47,7 @@ int main() {
   using ghogx::character::source_char_eye_dart_ruleset_load_plan;
   using ghogx::character::source_char_eye_dart_ruleset_load_revision_known;
   using ghogx::character::source_char_eye_dart_ruleset_prop_sync_plan;
+  using ghogx::character::source_char_eye_dart_ruleset_save_plan;
 
   bool ok = true;
 
@@ -163,6 +164,8 @@ int main() {
   ok &= expect_string(handlers.superclasses[0], "Hmx::Object",
                       "handler object superclass");
   ok &= expect_int(handlers.check, 0xd4, "handler check");
+  ok &= expect_int(source_char_eye_dart_ruleset_save_plan().save_id, 0x2B,
+                   "CharEyeDartRuleset save id");
 
   return ok ? 0 : 1;
 }

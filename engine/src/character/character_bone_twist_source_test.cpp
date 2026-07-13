@@ -33,6 +33,7 @@ bool expect_bool(bool got, bool want, const char* label) {
 int main() {
   using ghogx::character::CharBoneTwist;
   using ghogx::character::source_char_bone_twist_poll_world;
+  using ghogx::character::source_char_bone_twist_save_plan;
   using ghogx::character::source_char_bone_twist_weight;
 
   CharBoneTwist twist;
@@ -55,6 +56,8 @@ int main() {
   std::unordered_map<std::string, float> weights;
 
   bool ok = true;
+  ok &= expect_bool(source_char_bone_twist_save_plan().save_id == 0x59,
+                    true, "CharBoneTwist save id");
   ok &= near(source_char_bone_twist_weight(twist, weights), 0.5f,
              "local twist weight");
   twist.weight_owner = "owner.weight";

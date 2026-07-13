@@ -2092,6 +2092,10 @@ struct SourceCharFaceServoPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharFaceServoSavePlan {
+  int32_t save_id = 0xCE;
+};
+
 struct SourceCharFaceServoEnterPlan {
   std::vector<std::string> calls;
   bool need_scale_down = true;
@@ -2297,6 +2301,10 @@ struct SourceWaypointPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> set_properties;
   std::vector<std::string> superclasses;
+};
+
+struct SourceWaypointSavePlan {
+  int32_t save_id = 460;
 };
 
 struct SourceWaypointConstrainResult {
@@ -2508,6 +2516,10 @@ struct SourceCharacterPropSyncPlan {
   std::vector<std::string> modify_properties;
   std::vector<std::string> debug_properties;
   std::string superclass;
+};
+
+struct SourceCharacterSavePlan {
+  int32_t save_id = 0x495;
 };
 
 struct SourceCharacterPlayClipDecision {
@@ -2969,6 +2981,10 @@ struct SourceCharGuitarStringPropSyncPlan {
   std::vector<std::string> properties;
 };
 
+struct SourceCharGuitarStringSavePlan {
+  int32_t save_id = 0x47;
+};
+
 struct SourceCharEyesInterest {
   std::string interest;
   bool same_dir = false;
@@ -3101,6 +3117,10 @@ struct SourceCharEyesPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharEyesSavePlan {
+  int32_t save_id = 0x575;
+};
+
 struct SourceCharEyesBitfieldPropResult {
   int flags = 0;
   bool get_value = false;
@@ -3178,6 +3198,10 @@ struct SourceCharEyeDartRulesetHandlerPlan {
   int check = 0;
 };
 
+struct SourceCharEyeDartRulesetSavePlan {
+  int32_t save_id = 0x2B;
+};
+
 struct SourceCharInterestState {
   float max_view_angle = 20.0f;
   float priority = 1.0f;
@@ -3223,6 +3247,10 @@ struct SourceCharInterestCategoryFlagsPropPlan {
 struct SourceCharInterestHandlerPlan {
   std::vector<std::string> superclasses;
   int check = 0;
+};
+
+struct SourceCharInterestSavePlan {
+  int32_t save_id = 0x52;
 };
 
 struct SourceCharInterestHighlightPlan {
@@ -3285,6 +3313,10 @@ struct SourceCharNeckTwistHandlerPlan {
 
 struct SourceCharNeckTwistPropSyncPlan {
   std::vector<std::string> properties;
+};
+
+struct SourceCharNeckTwistSavePlan {
+  int32_t save_id = 0x4A;
 };
 
 struct SourceCharNeckTwistPollPlan {
@@ -3490,6 +3522,7 @@ SourceCharFaceServoLoadPlan source_char_face_servo_load_plan(int revision);
 SourceCharFaceServoCopyPlan source_char_face_servo_copy_plan();
 SourceCharFaceServoHandlerPlan source_char_face_servo_handler_plan();
 SourceCharFaceServoPropSyncPlan source_char_face_servo_prop_sync_plan();
+SourceCharFaceServoSavePlan source_char_face_servo_save_plan();
 SourceCharFaceServoEnterPlan source_char_face_servo_enter_plan();
 SourceCharFaceServoSetClipsPlan source_char_face_servo_set_clips_plan();
 SourceCharFaceServoSetClipTypePlan
@@ -3583,6 +3616,7 @@ SourceWaypointLoadPlan source_waypoint_load_plan(int revision);
 SourceWaypointCopyPlan source_waypoint_copy_plan();
 SourceWaypointHandlerPlan source_waypoint_handler_plan();
 SourceWaypointPropSyncPlan source_waypoint_prop_sync_plan();
+SourceWaypointSavePlan source_waypoint_save_plan();
 std::array<float, 3> source_waypoint_shape_delta_box(
     const milo_scene::Xfm& waypoint_world,
     const std::array<float, 3>& point,
@@ -3658,6 +3692,7 @@ SourceCharacterLoadPlan source_character_load_plan(int revision,
 SourceCharacterCopyPlan source_character_copy_plan();
 SourceCharacterHandlerPlan source_character_handler_plan();
 SourceCharacterPropSyncPlan source_character_prop_sync_plan();
+SourceCharacterSavePlan source_character_save_plan();
 SourceCharacterPlayClipDecision source_character_on_play_clip(
     bool has_driver,
     int32_t message_size,
@@ -3842,6 +3877,7 @@ SourceCharGuitarStringCopyPlan source_char_guitar_string_copy_plan();
 SourceCharGuitarStringHandlerPlan source_char_guitar_string_handler_plan();
 SourceCharGuitarStringPropSyncPlan
 source_char_guitar_string_prop_sync_plan();
+SourceCharGuitarStringSavePlan source_char_guitar_string_save_plan();
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
 bool source_char_eyes_either_eye_clamped(
@@ -3852,6 +3888,7 @@ SourceCharEyesLoadPlan source_char_eyes_load_plan(int32_t revision);
 SourceCharEyesCopyPlan source_char_eyes_copy_plan();
 SourceCharEyesHandlerPlan source_char_eyes_handler_plan();
 SourceCharEyesPropSyncPlan source_char_eyes_prop_sync_plan();
+SourceCharEyesSavePlan source_char_eyes_save_plan();
 SourceCharEyesBitfieldPropResult source_char_eyes_default_interest_categories_sync(
     int current_flags,
     int bit_mask,
@@ -3934,6 +3971,8 @@ SourceCharEyeDartRulesetPropSyncPlan
 source_char_eye_dart_ruleset_prop_sync_plan();
 SourceCharEyeDartRulesetHandlerPlan
 source_char_eye_dart_ruleset_handler_plan();
+SourceCharEyeDartRulesetSavePlan
+source_char_eye_dart_ruleset_save_plan();
 SourceCharInterestState source_char_interest_defaults();
 bool source_char_interest_load_revision_known(int revision);
 SourceCharInterestLoadPlan source_char_interest_load_plan(int revision);
@@ -3952,6 +3991,7 @@ SourceCharInterestPropSyncPlan source_char_interest_prop_sync_plan();
 SourceCharInterestCategoryFlagsPropPlan
 source_char_interest_category_flags_prop_plan();
 SourceCharInterestHandlerPlan source_char_interest_handler_plan();
+SourceCharInterestSavePlan source_char_interest_save_plan();
 SourceCharInterestHighlightPlan source_char_interest_highlight_plan(
     bool world_to_screen_positive,
     bool has_dart_override,
@@ -3976,6 +4016,7 @@ SourceCharNeckTwistLoadPlan source_char_neck_twist_load_plan(int revision);
 SourceCharNeckTwistCopyPlan source_char_neck_twist_copy_plan();
 SourceCharNeckTwistHandlerPlan source_char_neck_twist_handler_plan();
 SourceCharNeckTwistPropSyncPlan source_char_neck_twist_prop_sync_plan();
+SourceCharNeckTwistSavePlan source_char_neck_twist_save_plan();
 void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
                                       const std::string& head,
                                       const std::string& twist);

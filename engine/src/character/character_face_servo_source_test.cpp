@@ -53,6 +53,7 @@ int main() {
   using ghogx::character::source_char_face_servo_poll_plan;
   using ghogx::character::source_char_face_servo_procedural_weights_plan;
   using ghogx::character::source_char_face_servo_prop_sync_plan;
+  using ghogx::character::source_char_face_servo_save_plan;
   using ghogx::character::source_char_face_servo_scale_add_blink;
   using ghogx::character::source_char_face_servo_set_clip_type_plan;
   using ghogx::character::source_char_face_servo_set_clips_plan;
@@ -110,6 +111,8 @@ int main() {
   ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
                       "handler superclass");
   ok &= expect_int(handler_plan.check, 0x119, "handler check");
+  ok &= expect_int(source_char_face_servo_save_plan().save_id, 0xCE,
+                   "CharFaceServo save id");
 
   const auto prop_sync = source_char_face_servo_prop_sync_plan();
   ok &= expect_string(prop_sync.set_properties[0], "clips",

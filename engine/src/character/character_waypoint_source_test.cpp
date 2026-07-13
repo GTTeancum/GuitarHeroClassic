@@ -78,6 +78,7 @@ int main() {
   using ghogx::character::source_waypoint_load_plan;
   using ghogx::character::source_waypoint_load_revision_known;
   using ghogx::character::source_waypoint_prop_sync_plan;
+  using ghogx::character::source_waypoint_save_plan;
   using ghogx::character::source_waypoint_shape_delta_ang;
   using ghogx::character::source_waypoint_shape_delta_box;
   using ghogx::character::source_waypoint_terminate_registry;
@@ -176,6 +177,8 @@ int main() {
                       "Waypoint handler object superclass");
   ok &= near(static_cast<float>(handlers.check), 524.0f,
              "Waypoint handler check");
+  ok &= expect_bool(source_waypoint_save_plan().save_id == 460, true,
+                    "Waypoint save id");
 
   const auto props = source_waypoint_prop_sync_plan();
   ok &= expect_size(props.properties.size(), 5,

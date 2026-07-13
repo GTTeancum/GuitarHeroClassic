@@ -52,6 +52,7 @@ int main() {
   using ghogx::character::source_char_guitar_string_poll;
   using ghogx::character::source_char_guitar_string_poll_deps;
   using ghogx::character::source_char_guitar_string_prop_sync_plan;
+  using ghogx::character::source_char_guitar_string_save_plan;
 
   bool ok = true;
 
@@ -165,6 +166,8 @@ int main() {
                       "guitar string handler superclass");
   ok &= expect_bool(handler_plan.check == 0x70, true,
                     "guitar string handler check row");
+  ok &= expect_bool(source_char_guitar_string_save_plan().save_id == 0x47,
+                    true, "guitar string save id");
 
   const auto prop_plan = source_char_guitar_string_prop_sync_plan();
   ok &= expect_size(prop_plan.properties.size(), 4,

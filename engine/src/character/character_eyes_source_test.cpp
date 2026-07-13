@@ -71,6 +71,7 @@ int main() {
   using ghogx::character::source_char_eyes_poll_deps;
   using ghogx::character::source_char_eyes_prop_sync_plan;
   using ghogx::character::source_char_eyes_runtime_dump_evidence;
+  using ghogx::character::source_char_eyes_save_plan;
   using ghogx::character::source_char_eyes_set_focus_interest;
   using ghogx::character::source_char_eyes_toggle_force_focus;
   using ghogx::character::source_char_eyes_toggle_interest_overlay;
@@ -166,6 +167,8 @@ int main() {
   ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
                       "CharEyes handler superclass");
   ok &= expect_int(handler_plan.check, 0x660, "CharEyes handler check");
+  ok &= expect_int(source_char_eyes_save_plan().save_id, 0x575,
+                   "CharEyes save id");
 
   const auto prop_sync = source_char_eyes_prop_sync_plan();
   ok &= expect_string(prop_sync.eye_desc_properties[0], "eye",

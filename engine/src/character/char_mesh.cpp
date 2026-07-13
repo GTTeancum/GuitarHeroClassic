@@ -4436,6 +4436,10 @@ SourceCharFaceServoPropSyncPlan source_char_face_servo_prop_sync_plan() {
   return plan;
 }
 
+SourceCharFaceServoSavePlan source_char_face_servo_save_plan() {
+  return SourceCharFaceServoSavePlan{};
+}
+
 SourceCharFaceServoEnterPlan source_char_face_servo_enter_plan() {
   SourceCharFaceServoEnterPlan plan;
   plan.calls = {"RndPollable::Enter"};
@@ -5179,6 +5183,10 @@ SourceCharacterPropSyncPlan source_character_prop_sync_plan() {
   plan.debug_properties = {"debug_draw_interest_objects", "CharacterTesting"};
   plan.superclass = "RndDir";
   return plan;
+}
+
+SourceCharacterSavePlan source_character_save_plan() {
+  return SourceCharacterSavePlan{};
 }
 
 SourceCharacterPlayClipDecision source_character_on_play_clip(
@@ -6151,6 +6159,10 @@ SourceWaypointPropSyncPlan source_waypoint_prop_sync_plan() {
   return plan;
 }
 
+SourceWaypointSavePlan source_waypoint_save_plan() {
+  return SourceWaypointSavePlan{};
+}
+
 std::array<float, 3> source_waypoint_shape_delta_box(
     const milo_scene::Xfm& waypoint_world,
     const std::array<float, 3>& point,
@@ -6382,6 +6394,10 @@ source_char_guitar_string_prop_sync_plan() {
   return plan;
 }
 
+SourceCharGuitarStringSavePlan source_char_guitar_string_save_plan() {
+  return SourceCharGuitarStringSavePlan{};
+}
+
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats) {
   std::vector<std::string> children;
@@ -6518,6 +6534,10 @@ SourceCharEyesPropSyncPlan source_char_eyes_prop_sync_plan() {
                            "interest_filter_testing"};
   plan.superclasses = {"CharWeightable"};
   return plan;
+}
+
+SourceCharEyesSavePlan source_char_eyes_save_plan() {
+  return SourceCharEyesSavePlan{};
 }
 
 SourceCharEyesBitfieldPropResult
@@ -6873,6 +6893,11 @@ source_char_eye_dart_ruleset_handler_plan() {
   return plan;
 }
 
+SourceCharEyeDartRulesetSavePlan
+source_char_eye_dart_ruleset_save_plan() {
+  return SourceCharEyeDartRulesetSavePlan{};
+}
+
 float source_char_interest_sync_max_view_angle(float max_view_angle_degrees) {
   return std::cos(max_view_angle_degrees * 0.017453292f);
 }
@@ -7011,6 +7036,10 @@ SourceCharInterestHandlerPlan source_char_interest_handler_plan() {
   plan.superclasses = {"RndTransformable", "Hmx::Object"};
   plan.check = 0x141;
   return plan;
+}
+
+SourceCharInterestSavePlan source_char_interest_save_plan() {
+  return SourceCharInterestSavePlan{};
 }
 
 SourceCharInterestHighlightPlan source_char_interest_highlight_plan(
@@ -7258,6 +7287,10 @@ SourceCharNeckTwistPropSyncPlan source_char_neck_twist_prop_sync_plan() {
   SourceCharNeckTwistPropSyncPlan plan;
   plan.properties = {"head", "twist"};
   return plan;
+}
+
+SourceCharNeckTwistSavePlan source_char_neck_twist_save_plan() {
+  return SourceCharNeckTwistSavePlan{};
 }
 
 void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,

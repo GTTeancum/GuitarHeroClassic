@@ -53,6 +53,7 @@ int main() {
   using ghogx::character::source_char_lookat_poll_plan;
   using ghogx::character::source_char_lookat_prop_sync_plan;
   using ghogx::character::source_char_lookat_range_dir;
+  using ghogx::character::source_char_lookat_save_plan;
   using ghogx::character::source_char_lookat_set_max_pitch;
   using ghogx::character::source_char_lookat_set_max_yaw;
   using ghogx::character::source_char_lookat_set_min_pitch;
@@ -167,6 +168,8 @@ int main() {
   ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
                       "handler second superclass");
   ok &= expect_int(handlers.check, 0x1DF, "handler check");
+  ok &= expect_int(source_char_lookat_save_plan().save_id, 0x178,
+                   "CharLookAt save id");
 
   const auto props = source_char_lookat_prop_sync_plan();
   ok &= expect_size(props.properties.size(), 16,

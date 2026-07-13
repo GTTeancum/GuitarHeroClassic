@@ -52,6 +52,7 @@ int main() {
   using ghogx::character::source_char_neck_twist_prop_sync_plan;
   using ghogx::character::source_char_neck_twist_poll_plan;
   using ghogx::character::source_char_neck_twist_poll_deps;
+  using ghogx::character::source_char_neck_twist_save_plan;
 
   constexpr float kPi = 3.14159265358979323846f;
   const std::array<float, 9> identity = {1.0f, 0.0f, 0.0f,
@@ -105,6 +106,8 @@ int main() {
   ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
                       "handler superclass");
   ok &= expect_int(handler_plan.check, 0x65, "handler check");
+  ok &= expect_int(source_char_neck_twist_save_plan().save_id, 0x4A,
+                   "CharNeckTwist save id");
 
   const auto prop_sync_plan = source_char_neck_twist_prop_sync_plan();
   ok &= expect_size(prop_sync_plan.properties.size(), 2, "prop count");

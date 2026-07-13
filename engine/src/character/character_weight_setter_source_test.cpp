@@ -65,6 +65,7 @@ int main() {
   using ghogx::character::source_char_weight_setter_load_plan;
   using ghogx::character::source_char_weight_setter_prop_sync_plan;
   using ghogx::character::source_char_weight_setter_runtime_dump_evidence;
+  using ghogx::character::source_char_weight_setter_save_plan;
   using ghogx::character::source_char_weightable_copy_plan;
   using ghogx::character::source_char_weightable_handler_plan;
   using ghogx::character::source_char_weightable_load_plan;
@@ -124,6 +125,8 @@ int main() {
                       "weightable prop owner blocked op");
   ok &= expect_bool(source_char_weightable_save_plan().save_id == 0x21,
                     true, "weightable save id");
+  ok &= expect_bool(source_char_weight_setter_save_plan().save_id == 0x73,
+                    true, "weight setter save id");
 
   SourceCharWeightableState weightable =
       source_char_weightable_default_state("self.weight");

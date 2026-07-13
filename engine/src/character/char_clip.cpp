@@ -471,6 +471,10 @@ SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision) {
   return plan;
 }
 
+SourceCharBoneSavePlan source_char_bone_save_plan() {
+  return SourceCharBoneSavePlan{};
+}
+
 SourceCharBoneCopyPlan source_char_bone_copy_plan() {
   SourceCharBoneCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object"};
@@ -1776,6 +1780,10 @@ SourceCharLookAtPropSyncPlan source_char_lookat_prop_sync_plan() {
   plan.set_actions = {"SetMinYaw", "SetMaxYaw", "SetMinPitch", "SetMaxPitch"};
   plan.superclasses = {"CharWeightable"};
   return plan;
+}
+
+SourceCharLookAtSavePlan source_char_lookat_save_plan() {
+  return SourceCharLookAtSavePlan{};
 }
 
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot) {
@@ -5613,6 +5621,10 @@ static std::array<float, 16> source_xfm_to_mat4(
           xfm.pos[0], xfm.pos[1], xfm.pos[2], 1.0f};
 }
 
+SourceCharBoneOffsetSavePlan source_char_bone_offset_save_plan() {
+  return SourceCharBoneOffsetSavePlan{};
+}
+
 bool source_char_bone_offset_poll_world(
     const CharBoneOffset& offset,
     bool has_dest,
@@ -5634,6 +5646,10 @@ void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
   dest_local.pos[0] += offset.offset[0];
   dest_local.pos[1] += offset.offset[1];
   dest_local.pos[2] += offset.offset[2];
+}
+
+SourceCharBoneTwistSavePlan source_char_bone_twist_save_plan() {
+  return SourceCharBoneTwistSavePlan{};
 }
 
 float source_char_bone_twist_weight(
@@ -5915,6 +5931,10 @@ static float source_limit_ang(float radians) {
   return radians;
 }
 
+SourceCharForeTwistSavePlan source_char_fore_twist_save_plan() {
+  return SourceCharForeTwistSavePlan{};
+}
+
 bool source_char_fore_twist_poll_world(
     const CharForeTwist& twist,
     bool has_hand,
@@ -5963,6 +5983,10 @@ bool source_char_fore_twist_poll_world(
   out.applied_rotation_radians = final_angle * 0.33333f;
   out.twist2_position_ratio = ratio;
   return true;
+}
+
+SourceCharUpperTwistSavePlan source_char_upper_twist_save_plan() {
+  return SourceCharUpperTwistSavePlan{};
 }
 
 bool source_char_upper_twist_poll_world(
@@ -6731,6 +6755,10 @@ SourceCharMirrorCopyResult source_char_mirror_copy(
   return result;
 }
 
+SourceCharMirrorSavePlan source_char_mirror_save_plan() {
+  return SourceCharMirrorSavePlan{};
+}
+
 bool source_char_weight_setter_poll(
     const CharWeightSetter& setter,
     const std::unordered_map<std::string, float>& weights_by_name,
@@ -6871,6 +6899,10 @@ source_char_weight_setter_prop_sync_plan() {
                      "beats_per_weight", "min_weights", "max_weights"};
   plan.superclasses = {"CharWeightable"};
   return plan;
+}
+
+SourceCharWeightSetterSavePlan source_char_weight_setter_save_plan() {
+  return SourceCharWeightSetterSavePlan{};
 }
 
 SourceCharWeightSetterRuntimeDumpEvidence

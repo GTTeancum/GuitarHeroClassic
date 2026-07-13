@@ -177,6 +177,10 @@ struct SourceCharBoneLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceCharBoneSavePlan {
+  int32_t save_id = 0xBF;
+};
+
 struct SourceCharBoneCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -796,6 +800,10 @@ struct SourceCharLookAtPropSyncPlan {
   std::vector<std::string> set_properties;
   std::vector<std::string> set_actions;
   std::vector<std::string> superclasses;
+};
+
+struct SourceCharLookAtSavePlan {
+  int32_t save_id = 0x178;
 };
 
 // One channel value for one frame.
@@ -2002,6 +2010,7 @@ SourceCharBonesBlenderPropSyncPlan source_char_bones_blender_prop_sync_plan();
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision);
+SourceCharBoneSavePlan source_char_bone_save_plan();
 SourceCharBoneCopyPlan source_char_bone_copy_plan();
 SourceCharBoneHandlerPlan source_char_bone_handler_plan();
 SourceCharBoneWeightContextPropSyncPlan
@@ -2239,6 +2248,7 @@ SourceCharLookAtLoadPlan source_char_lookat_load_plan(int32_t revision);
 SourceCharLookAtCopyPlan source_char_lookat_copy_plan();
 SourceCharLookAtHandlerPlan source_char_lookat_handler_plan();
 SourceCharLookAtPropSyncPlan source_char_lookat_prop_sync_plan();
+SourceCharLookAtSavePlan source_char_lookat_save_plan();
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot);
 void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
                                   const std::string& source,
@@ -2395,6 +2405,10 @@ struct SourceCharMirrorCopyResult {
   SourceCharMirrorSetServoResult set_servo;
 };
 
+struct SourceCharMirrorSavePlan {
+  int32_t save_id = 0x90;
+};
+
 SourceCharMirrorState source_char_mirror_default_state(
     const std::string& name);
 SourceCharMirrorPollResult source_char_mirror_poll(
@@ -2414,6 +2428,7 @@ SourceCharMirrorCopyResult source_char_mirror_copy(
     const SourceCharMirrorState& source,
     bool shallow_copy,
     float source_owner_weight);
+SourceCharMirrorSavePlan source_char_mirror_save_plan();
 
 // Source-backed CharWeightSetter::Poll helper for rows that do not require the
 // unavailable CharDriver::EvaluateFlags body. Returns false when the row is
@@ -2466,6 +2481,10 @@ struct SourceCharWeightSetterHandlerPlan {
 struct SourceCharWeightSetterPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> superclasses;
+};
+
+struct SourceCharWeightSetterSavePlan {
+  int32_t save_id = 0x73;
 };
 
 struct SourceCharWeightSetterRuntimeDumpEvidence {
@@ -2766,6 +2785,7 @@ SourceCharWeightSetterLoadPlan source_char_weight_setter_load_plan(
 SourceCharWeightSetterCopyPlan source_char_weight_setter_copy_plan();
 SourceCharWeightSetterHandlerPlan source_char_weight_setter_handler_plan();
 SourceCharWeightSetterPropSyncPlan source_char_weight_setter_prop_sync_plan();
+SourceCharWeightSetterSavePlan source_char_weight_setter_save_plan();
 SourceCharWeightSetterRuntimeDumpEvidence
 source_char_weight_setter_runtime_dump_evidence();
 
@@ -3095,8 +3115,25 @@ SourceCharIKFootHandlerPlan source_char_ik_foot_handler_plan();
 SourceCharIKFootPropSyncPlan source_char_ik_foot_prop_sync_plan();
 SourceCharIKFootSavePlan source_char_ik_foot_save_plan();
 
+struct SourceCharBoneOffsetSavePlan {
+  int32_t save_id = 0x5E;
+};
+
+struct SourceCharBoneTwistSavePlan {
+  int32_t save_id = 0x59;
+};
+
+struct SourceCharForeTwistSavePlan {
+  int32_t save_id = 0x79;
+};
+
+struct SourceCharUpperTwistSavePlan {
+  int32_t save_id = 0x5D;
+};
+
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.
+SourceCharBoneOffsetSavePlan source_char_bone_offset_save_plan();
 bool source_char_bone_offset_poll_world(
     const CharBoneOffset& offset,
     bool has_dest,
@@ -3109,6 +3146,7 @@ void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
 
 // Source-backed CharBoneTwist::Poll helpers. Returns false when the source
 // bone or target list would be missing.
+SourceCharBoneTwistSavePlan source_char_bone_twist_save_plan();
 float source_char_bone_twist_weight(
     const CharBoneTwist& twist,
     const std::unordered_map<std::string, float>& weights_by_name);
@@ -3139,6 +3177,7 @@ struct SourceCharUpperTwistPollWorldResult {
 // helpers. These are pure translations of the ihatecompvir routines; callers
 // remain responsible for resolving object pointers and converting SetWorldXfm
 // results back into local rows.
+SourceCharForeTwistSavePlan source_char_fore_twist_save_plan();
 bool source_char_fore_twist_poll_world(
     const CharForeTwist& twist,
     bool has_hand,
@@ -3150,6 +3189,7 @@ bool source_char_fore_twist_poll_world(
     float hand_local_x,
     float twist2_local_x,
     SourceCharForeTwistPollWorldResult& out);
+SourceCharUpperTwistSavePlan source_char_upper_twist_save_plan();
 bool source_char_upper_twist_poll_world(
     bool has_source,
     bool has_twist1,

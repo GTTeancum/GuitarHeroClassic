@@ -560,6 +560,8 @@ int main() {
                       "CharBone Load v10 bake flag");
   ok &= expect_int(source_char_bone_load_plan(11).known_revision ? 1 : 0, 0,
                    "CharBone Load rejects high revision");
+  ok &= expect_int(source_char_bone_save_plan().save_id, 0xBF,
+                   "CharBone save id");
 
   const SourceCharBoneCopyPlan char_bone_copy_plan =
       source_char_bone_copy_plan();

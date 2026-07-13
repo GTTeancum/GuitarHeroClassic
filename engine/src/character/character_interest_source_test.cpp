@@ -48,6 +48,7 @@ int main() {
   using ghogx::character::source_char_interest_load_plan;
   using ghogx::character::source_char_interest_load_revision_known;
   using ghogx::character::source_char_interest_prop_sync_plan;
+  using ghogx::character::source_char_interest_save_plan;
   using ghogx::character::source_char_interest_sync_max_view_angle;
 
   bool ok = true;
@@ -206,6 +207,8 @@ int main() {
   ok &= expect_string(handler_plan.superclasses[1], "Hmx::Object",
                       "handler object superclass");
   ok &= expect_int(handler_plan.check, 0x141, "handler check");
+  ok &= expect_int(source_char_interest_save_plan().save_id, 0x52,
+                   "CharInterest save id");
 
   const auto highlight_plan =
       source_char_interest_highlight_plan(true, true, true, true);

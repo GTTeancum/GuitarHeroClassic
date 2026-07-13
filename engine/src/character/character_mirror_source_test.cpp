@@ -41,12 +41,15 @@ int main() {
   using ghogx::character::source_char_mirror_load_steps;
   using ghogx::character::source_char_mirror_poll;
   using ghogx::character::source_char_mirror_poll_deps;
+  using ghogx::character::source_char_mirror_save_plan;
   using ghogx::character::source_char_mirror_set_mirror_servo;
   using ghogx::character::source_char_mirror_set_servo;
   using ghogx::character::source_char_weightable_set_weight;
   using ghogx::character::source_char_weightable_set_weight_owner;
 
   bool ok = true;
+  ok &= expect_bool(source_char_mirror_save_plan().save_id == 0x90,
+                    true, "CharMirror save id");
 
   auto mirror = source_char_mirror_default_state("mirror.weight");
   ok &= near(mirror.weightable.weight, 1.0f, "default inherited weight");

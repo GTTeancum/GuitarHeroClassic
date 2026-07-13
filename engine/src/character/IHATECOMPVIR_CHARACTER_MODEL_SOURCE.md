@@ -144,6 +144,18 @@ source proves there is no usable runtime class/body to port from that file.
 | `FileMerger.cpp` | `ghogx_character_clip_editor_source_test` | `diagnostic-only` |
 | `Waypoint.cpp` | `ghogx_character_waypoint_source_test` | `fenced-runtime-gap` |
 
+## Source Save Row Inventory
+
+Native save-plan helpers mirror every checked `rb3-latest/src/system/char`
+`SAVE_OBJ` row as object identity only. The remaining batch completed here is:
+`Character=0x495`, `CharBone=0xBF`, `CharBoneOffset=0x5E`,
+`CharBoneTwist=0x59`, `CharEyeDartRuleset=0x2B`, `CharEyes=0x575`,
+`CharFaceServo=0xCE`, `CharForeTwist=0x79`, `CharGuitarString=0x47`,
+`CharInterest=0x52`, `CharLookAt=0x178`, `CharMirror=0x90`,
+`CharNeckTwist=0x4A`, `CharUpperTwist=0x5D`,
+`CharWeightSetter=0x73`, and `Waypoint=460`. These helpers do not imply
+native save writers or runtime behavior.
+
 ## RB2 Dump-Only Character Evidence Inventory
 
 The RB2 dump includes a few character-system files that are not present in the
