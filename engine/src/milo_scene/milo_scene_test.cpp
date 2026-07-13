@@ -392,7 +392,7 @@ void test_cam_projection_fields() {
   put_f32(b, 0.6024157f);        // vertical fov, stored as radians.
   put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
   put_f32(b, 0.0f); put_f32(b, 1.0f);
-  put_str(b, "");
+  put_str(b, "venue_cut.rt");
 
   CamObj cam = decode_cam("meta_proxy.cam", b);
   CHECK(cam.decoded);
@@ -406,10 +406,11 @@ void test_cam_projection_fields() {
   CHECK(approx(cam.screen_rect[3], 1.0f));
   CHECK(approx(cam.z_range[0], 0.0f));
   CHECK(approx(cam.z_range[1], 1.0f));
+  CHECK(cam.target_tex == "venue_cut.rt");
   std::printf(
-      "  [ok] Cam: parent=%s near=%.0f far=%.0f fov=%.6f z=(%.0f,%.0f)\n",
+      "  [ok] Cam: parent=%s near=%.0f far=%.0f fov=%.6f z=(%.0f,%.0f) target=%s\n",
       cam.parent.c_str(), cam.near_plane, cam.far_plane, cam.fov,
-      cam.z_range[0], cam.z_range[1]);
+      cam.z_range[0], cam.z_range[1], cam.target_tex.c_str());
 }
 
 void test_group_transform() {

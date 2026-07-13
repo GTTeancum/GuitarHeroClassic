@@ -164,6 +164,8 @@ int main() {
   const std::string renderer_h_c = compact(milo_scene_renderer_h);
   const std::string app_main_c = compact(app_main);
   const std::string window_d3d9_c = compact(window_d3d9);
+  const std::string decode_cam_c =
+      compact(function_body(milo_scene_cpp, "decode_cam"));
   const std::string camshot_entity_c =
       compact(function_body(gameplay, "camshot_entity_from_name"));
   const std::string regular_camera_loader_c =
@@ -5017,6 +5019,43 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "mesh.mutable_flags=r.u32();",
                  "Mesh decoder reads source RndMesh mMutable before vertices");
+  ok &= contains(milo_scene_h_c,
+                 "floatnear_plane=1.0f;floatfar_plane=1000.0f;"
+                 "floatfov=0.5f;",
+                 "MILO scene decoder exposes authored Cam projection fields");
+  ok &= contains(milo_scene_h_c,
+                 "floatscreen_rect[4]={0.0f,0.0f,1.0f,1.0f};"
+                 "floatz_range[2]={0.0f,1.0f};"
+                 "std::stringtarget_tex;",
+                 "MILO scene decoder preserves authored Cam viewport/z target texture fields");
+  ok &= contains(decode_cam_c,
+                 "constuint32_tcombined_revision=r.u32();"
+                 "constuint16_tversion=static_cast<uint16_t>("
+                 "combined_revision&0xffff);",
+                 "Cam decoder reads the source Cam revision first");
+  ok &= contains(decode_cam_c,
+                 "if(version>10)r.skip(kObjMeta);",
+                 "GH2 Cam decoder consumes source object metadata before Trans");
+  ok &= contains(decode_cam_c,
+                 "constuint32_ttrans_revision=r.u32();"
+                 "c.local=r.matrix();c.world_stored=r.matrix();",
+                 "Cam decoder reads embedded RndTrans matrices in source order");
+  ok &= contains(decode_cam_c,
+                 "c.near_plane=r.f32();c.far_plane=r.f32();c.fov=r.f32();",
+                 "Cam decoder reads near/far/FOV after Trans and optional Draw");
+  ok &= contains(decode_cam_c,
+                 "for(float&v:c.screen_rect)v=r.f32();",
+                 "Cam decoder reads the authored screen rect");
+  ok &= contains(decode_cam_c,
+                 "c.z_range[0]=r.f32();c.z_range[1]=r.f32();",
+                 "Cam decoder reads the authored z range");
+  ok &= contains(decode_cam_c,
+                 "if(version>4)c.target_tex=r.str();",
+                 "Cam decoder preserves the authored target texture string");
+  ok &= contains(renderer_c,
+                 "cam_.fov=authored->fov;cam_.near_z=authored->near_plane;"
+                 "cam_.far_z=authored->far_plane;",
+                 "scene renderer applies authored Cam projection fields");
   ok &= contains(gameplay_c,
                  "source_mesh_allows_mesh_anim(mesh_mutable_flags,anim.mesh",
                  "venue MeshAnim routing honors source mesh mutability");
