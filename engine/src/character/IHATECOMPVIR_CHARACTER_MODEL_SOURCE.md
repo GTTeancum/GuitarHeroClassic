@@ -2062,6 +2062,10 @@ note, and all report `unreadBytes=0`.
     weighted hair bones climb to their top `bone_hair_` ancestor, non-hair bone
     children under hair bones are warnings, branch points end the current
     segment, and weighted descendants keep child segments alive.
+    Native `source_gltf_milo_classify_hair_children` records the shared child
+    rule used by both strand collectors: `bone_hair_` child bones continue the
+    strand, non-hair child bones emit the exporter warning, and non-bone
+    children are ignored for `CharHair` strand generation.
   - The same source keeps the old `CollectHairChains` fallback for
     `--disable-splitting`. Native
     `source_gltf_milo_collect_hair_chains_without_splitting` ports that

@@ -9566,6 +9566,38 @@ bool source_gltf_milo_is_hair_bone_node(
   return lower.rfind("bone_hair_", 0) == 0;
 }
 
+SourceGltfMiloHairChildClassification
+source_gltf_milo_classify_hair_children(
+    const SourceGltfMiloHairNode& parent,
+    const std::vector<SourceGltfMiloHairNode>& children) {
+  SourceGltfMiloHairChildClassification result;
+  for (const SourceGltfMiloHairNode& child : children) {
+    if (source_gltf_milo_is_hair_bone_node(child)) {
+      result.hair_children.push_back(child.name);
+    } else if (child.is_bone) {
+      result.non_hair_bone_children.push_back(child.name);
+      result.warnings.push_back(
+          "Non-hair bone '" + child.name + "' found under hair bone '" +
+          parent.name +
+          "'. It will not be included in CharHair strand generation.");
+    }
+  }
+  return result;
+}
+
+static std::vector<SourceGltfMiloHairNode> source_gltf_milo_child_nodes(
+    const std::vector<SourceGltfMiloHairNode>& nodes,
+    const std::vector<int>& child_indices) {
+  std::vector<SourceGltfMiloHairNode> child_nodes;
+  child_nodes.reserve(child_indices.size());
+  for (int child : child_indices) {
+    if (child >= 0 && static_cast<size_t>(child) < nodes.size()) {
+      child_nodes.push_back(nodes[static_cast<size_t>(child)]);
+    }
+  }
+  return child_nodes;
+}
+
 static bool source_gltf_milo_collect_hair_chains_split_at_branches_impl(
     const std::vector<SourceGltfMiloHairNode>& nodes,
     const std::vector<std::vector<int>>& children,
@@ -9580,17 +9612,18 @@ static bool source_gltf_milo_collect_hair_chains_split_at_branches_impl(
     segment.push_back(current);
 
     std::vector<int> hair_children;
+    const SourceGltfMiloHairChildClassification child_classification =
+        source_gltf_milo_classify_hair_children(
+            nodes[static_cast<size_t>(current)],
+            source_gltf_milo_child_nodes(
+                nodes, children[static_cast<size_t>(current)]));
+    warnings.insert(warnings.end(), child_classification.warnings.begin(),
+                    child_classification.warnings.end());
     for (int child : children[static_cast<size_t>(current)]) {
       const SourceGltfMiloHairNode& child_node =
           nodes[static_cast<size_t>(child)];
       if (source_gltf_milo_is_hair_bone_node(child_node)) {
         hair_children.push_back(child);
-      } else if (child_node.is_bone) {
-        warnings.push_back("Non-hair bone '" + child_node.name +
-                           "' found under hair bone '" +
-                           nodes[static_cast<size_t>(current)].name +
-                           "'. It will not be included in CharHair strand "
-                           "generation.");
       }
     }
 
@@ -9684,16 +9717,17 @@ static void source_gltf_milo_collect_hair_chains_without_splitting_impl(
   current_chain.push_back(node_index);
 
   std::vector<int> hair_children;
+  const SourceGltfMiloHairChildClassification child_classification =
+      source_gltf_milo_classify_hair_children(
+          nodes[static_cast<size_t>(node_index)],
+          source_gltf_milo_child_nodes(
+              nodes, children[static_cast<size_t>(node_index)]));
+  warnings.insert(warnings.end(), child_classification.warnings.begin(),
+                  child_classification.warnings.end());
   for (int child : children[static_cast<size_t>(node_index)]) {
     const SourceGltfMiloHairNode& child_node = nodes[static_cast<size_t>(child)];
     if (source_gltf_milo_is_hair_bone_node(child_node)) {
       hair_children.push_back(child);
-    } else if (child_node.is_bone) {
-      warnings.push_back("Non-hair bone '" + child_node.name +
-                         "' found under hair bone '" +
-                         nodes[static_cast<size_t>(node_index)].name +
-                         "'. It will not be included in CharHair strand "
-                         "generation.");
     }
   }
 

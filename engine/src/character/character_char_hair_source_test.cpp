@@ -105,6 +105,7 @@ int main() {
   using ghogx::character::source_grim_char_hair_collide_type;
   using ghogx::character::source_grim_char_hair_load_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
+  using ghogx::character::source_gltf_milo_classify_hair_children;
   using ghogx::character::source_gltf_milo_export_hair_point;
   using ghogx::character::source_gltf_milo_detect_hair_settings_plan;
   using ghogx::character::source_gltf_milo_hair_collide_name;
@@ -638,6 +639,29 @@ int main() {
   ok &= expect_bool(source_gltf_milo_is_hair_bone_node(
                         {"bone_head", -1, true, false}),
                     false, "glTFMilo rejects non-hair bone");
+
+  const auto child_classification =
+      source_gltf_milo_classify_hair_children(
+          {"bone_hair_root", -1, true, false},
+          {{"bone_hair_tip", 0, true, false},
+           {"bone_face", 0, true, false},
+           {"prop_card", 0, false, false}});
+  ok &= expect_size(child_classification.hair_children.size(), 1,
+                    "glTFMilo child classifier hair count");
+  ok &= expect_string(child_classification.hair_children[0],
+                      "bone_hair_tip",
+                      "glTFMilo child classifier keeps hair child");
+  ok &= expect_size(child_classification.non_hair_bone_children.size(), 1,
+                    "glTFMilo child classifier non-hair bone count");
+  ok &= expect_string(child_classification.non_hair_bone_children[0],
+                      "bone_face",
+                      "glTFMilo child classifier records non-hair bone child");
+  ok &= expect_size(child_classification.warnings.size(), 1,
+                    "glTFMilo child classifier warning count");
+  ok &= expect_bool(child_classification.warnings[0].find(
+                        "Non-hair bone 'bone_face' found under hair bone "
+                        "'bone_hair_root'") != std::string::npos,
+                    true, "glTFMilo child classifier warning text");
 
   const std::vector<SourceGltfMiloHairNode> hair_nodes = {
       {"root", -1, true, false},

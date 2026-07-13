@@ -9217,6 +9217,18 @@ int run_contract() {
                  "List<List<Node>>chains)",
                  "glTFMilo unsplit hair strand collector is visible");
   ok &= contains(gltf_node_processor_cs,
+                 "privatestaticvoidWarnAboutNonHairChildBones(Nodenode,"
+                 "ModelRootmodel)",
+                 "glTFMilo non-hair child warning helper is visible");
+  ok &= contains(gltf_node_processor_cs,
+                 "Logger.Warn($\"Non-hairbone'{child.Name}'foundunderhairbone"
+                 "'{node.Name}'.ItwillnotbeincludedinCharHairstrandgeneration.",
+                 "glTFMilo non-hair child warning text is visible");
+  ok &= contains(gltf_node_processor_cs,
+                 "varhairChildren=node.VisualChildren.Where(child=>"
+                 "IsHairBoneNode(child,model)).ToList();",
+                 "glTFMilo hair child filtering uses IsHairBoneNode");
+  ok &= contains(gltf_node_processor_cs,
                  "if(hairChildren.Count>1){Logger.Warn($\"Hairbone'{node.Name}'"
                  "branchesintomultiplehairchainsandstrandsplittingisdisabled.",
                  "glTFMilo unsplit collector warns at branches");
@@ -9270,10 +9282,21 @@ int run_contract() {
                  "structSourceGltfMiloHairPointExport{std::stringbone;"
                  "std::array<float,3>pos=",
                  "native declares glTFMilo hair point export contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairChildClassification{"
+                 "std::vector<std::string>hair_children;",
+                 "native declares glTFMilo hair child classifier contract");
   ok &= contains(char_mesh,
                  "boolsource_gltf_milo_is_hair_bone_node("
                  "constSourceGltfMiloHairNode&node)",
                  "native ports glTFMilo hair-bone prefix gate");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloHairChildClassification"
+                 "source_gltf_milo_classify_hair_children(",
+                 "native ports glTFMilo hair child classifier");
+  ok &= contains(char_mesh,
+                 "result.non_hair_bone_children.push_back(child.name);",
+                 "native glTFMilo classifier records non-hair bone children");
   ok &= contains(char_mesh,
                  "SourceGltfMiloHairChainsResult"
                  "source_gltf_milo_collect_hair_chains_split_at_branches("
@@ -9325,6 +9348,9 @@ int run_contract() {
                  "hair_nodes)",
                  "focused CharHair source test covers glTFMilo chain splitter");
   ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_classify_hair_children(",
+                 "focused CharHair source test covers glTFMilo child classifier");
+  ok &= contains(char_hair_source_test,
                  "source_gltf_milo_collect_hair_chains_without_splitting("
                  "hair_nodes)",
                  "focused CharHair source test covers glTFMilo unsplit collector");
@@ -9349,6 +9375,9 @@ int run_contract() {
                  "`source_gltf_milo_collect_hair_chains_split_at_branches` "
                  "ports that\n    root-climb and branch-split rule",
                  "document records glTFMilo native hair segment helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_classify_hair_children` records the shared",
+                 "document records glTFMilo child classifier helper");
   ok &= contains(doc,
                  "`source_gltf_milo_collect_hair_chains_without_splitting`",
                  "document records glTFMilo unsplit hair segment helper");
