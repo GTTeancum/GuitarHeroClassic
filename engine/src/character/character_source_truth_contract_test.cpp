@@ -5266,11 +5266,23 @@ int run_contract() {
                  "reader.ReadUInt32();uintvertCount=reader.ReadUInt32();",
                  "RndMesh source group-section row schema");
   ok &= contains(mesh_cs,
+                 "publicvoidWrite(EndianWriterwriter,uintmeshRevision){"
+                 "writer.WriteUInt32((uint)sections.Count);writer.WriteUInt32("
+                 "(uint)vertOffsets.Count);",
+                 "RndMesh source group-section write row schema");
+  ok &= contains(mesh_cs,
                  "if(groupSizesCount>0&&groupSizes[0]>0&&parent.revision<25)"
                  "{for(inti=0;i<groupSizesCount;i++){GroupSectionsection="
                  "newGroupSection();groupSections.Add(section.Read(reader,"
                  "revision));}}",
                  "RndMesh source last-gen group-section gate");
+  ok &= contains(mesh_cs,
+                 "if(groupSizesCount>0&&groupSizes.Count>0&&groupSizes[0]>0&&"
+                 "parent.revision<25){while(groupSections.Count<"
+                 "groupSizesCount){groupSections.Add(newGroupSection());}"
+                 "for(inti=0;i<groupSizesCount;i++){groupSections[i].Write("
+                 "writer,revision);}}",
+                 "RndMesh source last-gen group-section write gate");
   ok &= contains(mesh_cs,
                  "if(revision==27)mat2=Symbol.Read(reader);",
                  "MiloEditor RndMesh reads second material only at rev27");
@@ -5996,6 +6008,10 @@ int run_contract() {
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh bone transform IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshGroupSectionIoPlan{"
+                 "int32_tgroup_sizes_count=0;",
+                 "native declares MiloEditor RndMesh group section IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
                  "type=false;",
                  "native declares glTFMilo run options plan");
@@ -6324,6 +6340,19 @@ int run_contract() {
       "SourceMiloEditorRndMeshBoneTransformIoPlansource_milo_editor_rndmesh_"
       "bone_transform_io_plan(",
       "native ports MiloEditor RndMesh bone transform IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshGroupSectionIoPlansource_milo_editor_rndmesh_"
+      "group_section_io_plan(",
+      "native ports MiloEditor RndMesh group section IO helper");
+  ok &= contains(char_mesh,
+                 "constboolgate=plan.group_sizes_count>0&&"
+                 "group_sizes_first_positive&&parent_dir_revision<25;",
+                 "native group section IO helper preserves source gate");
+  ok &= contains(char_mesh,
+                 "plan.write_pads_to_group_sizes_count=plan."
+                 "existing_group_section_count<plan.group_sizes_count;",
+                 "native group section IO helper records writer padding");
   ok &= contains(char_mesh,
                  "if(read_probe_positive){plan.read_rewinds_probe_when_"
                  "positive=true;",
@@ -6860,6 +6889,15 @@ int run_contract() {
                  "write_legacy_zero_sentinel_when_empty",
                  "focused mesh decode test covers legacy bone transform sentinel");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_group_section_io_plan(",
+                 "focused mesh decode test covers MiloEditor group section IO");
+  ok &= contains(mesh_decode_test,
+                 "gh2_group_section_io.write_pads_to_group_sizes_count",
+                 "focused mesh decode test covers group section writer padding");
+  ok &= contains(mesh_decode_test,
+                 "!new_parent_group_section_io.reads_group_sections",
+                 "focused mesh decode test covers parent-dir group section cutoff");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_add_vertex_to_chunk_mesh(",
                  "focused mesh decode test covers glTFMilo AddVertex helper");
   ok &= contains(mesh_decode_test,
@@ -7120,6 +7158,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh bone transform IO helper");
   ok &= contains(doc, "it does not authorize synthesizing missing legacy skin indices",
                  "document fences legacy bone transform IO from fake indices");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_group_section_io_plan` records",
+                 "document records MiloEditor RndMesh group section IO helper");
+  ok &= contains(doc, "without treating group sections as skin-index or hair-physics",
+                 "document fences group sections from invented runtime behavior");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");

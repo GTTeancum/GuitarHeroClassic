@@ -1134,6 +1134,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_rndmesh_field_gate_plan` ports those gates so GH2 PS2 revision 28
     remains a source-backed material/geom-owner/mutable/volume/BSP/group-size
     and old-four-bone layout, not an inferred newer indexed layout.
+  - MiloEditor `RndMesh.GroupSection` rows serialize a section count, a vertex
+    offset count, all signed section IDs, then all unsigned vertex offsets. The
+    writer uses the same last-gen gate as the reader, additionally requiring a
+    nonempty `groupSizes` list, pads `groupSections` to `groupSizesCount`, and
+    writes exactly `groupSizesCount` rows. Native
+    `source_milo_editor_rndmesh_group_section_io_plan` records that segment row
+    IO contract without treating group sections as skin-index or hair-physics
+    evidence.
   - `glTFMilo/Source/glTFMilo/Program.cs` is source evidence for exporter-side
     skin packing, not GH2 rev28 runtime decoding. It writes the four weights in
     influence order, writes bone slots in influence order for normal vertex

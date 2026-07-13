@@ -219,6 +219,24 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
     int32_t group_sizes_count,
     bool group_sizes_first_positive);
 
+struct SourceMiloEditorRndMeshGroupSectionIoPlan {
+  int32_t group_sizes_count = 0;
+  int32_t existing_group_section_count = 0;
+  bool group_section_row_is_counts_then_sections_then_offsets = true;
+  bool reads_group_sections = false;
+  bool writes_group_sections = false;
+  bool write_pads_to_group_sizes_count = false;
+  int32_t read_group_section_count = 0;
+  int32_t write_group_section_count = 0;
+};
+
+SourceMiloEditorRndMeshGroupSectionIoPlan
+source_milo_editor_rndmesh_group_section_io_plan(
+    int32_t group_sizes_count,
+    bool group_sizes_first_positive,
+    int32_t parent_dir_revision,
+    int32_t existing_group_section_count);
+
 struct SourceGltfMiloSkinInfluence {
   int32_t remapped_bone = -1;
   float weight = 0.0f;

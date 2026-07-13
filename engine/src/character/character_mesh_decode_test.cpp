@@ -1072,6 +1072,36 @@ int main() {
   CHECK(modern_fields.reads_alt_bool3);
   CHECK(!modern_fields.reads_group_sections);
 
+  const auto gh2_group_section_io =
+      ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
+          3, true, 24, 1);
+  CHECK(gh2_group_section_io
+            .group_section_row_is_counts_then_sections_then_offsets);
+  CHECK(gh2_group_section_io.reads_group_sections);
+  CHECK(gh2_group_section_io.writes_group_sections);
+  CHECK(gh2_group_section_io.write_pads_to_group_sizes_count);
+  CHECK(gh2_group_section_io.read_group_section_count == 3);
+  CHECK(gh2_group_section_io.write_group_section_count == 3);
+
+  const auto complete_group_section_io =
+      ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
+          2, true, 24, 2);
+  CHECK(complete_group_section_io.writes_group_sections);
+  CHECK(!complete_group_section_io.write_pads_to_group_sizes_count);
+  CHECK(complete_group_section_io.write_group_section_count == 2);
+
+  const auto new_parent_group_section_io =
+      ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
+          3, true, 25, 0);
+  CHECK(!new_parent_group_section_io.reads_group_sections);
+  CHECK(!new_parent_group_section_io.writes_group_sections);
+
+  const auto zero_first_group_section_io =
+      ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
+          3, false, 24, 0);
+  CHECK(!zero_first_group_section_io.reads_group_sections);
+  CHECK(!zero_first_group_section_io.writes_group_sections);
+
   ghogx::character::SourceGltfMiloBoneNodeInput bone_node;
   bone_node.name = "neutral_bone";
   bone_node.type = "character";

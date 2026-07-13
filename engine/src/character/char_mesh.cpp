@@ -457,6 +457,28 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshGroupSectionIoPlan
+source_milo_editor_rndmesh_group_section_io_plan(
+    int32_t group_sizes_count,
+    bool group_sizes_first_positive,
+    int32_t parent_dir_revision,
+    int32_t existing_group_section_count) {
+  SourceMiloEditorRndMeshGroupSectionIoPlan plan;
+  plan.group_sizes_count = std::max(0, group_sizes_count);
+  plan.existing_group_section_count = std::max(0, existing_group_section_count);
+  const bool gate = plan.group_sizes_count > 0 && group_sizes_first_positive &&
+                    parent_dir_revision < 25;
+  plan.reads_group_sections = gate;
+  plan.writes_group_sections = gate;
+  if (gate) {
+    plan.read_group_section_count = plan.group_sizes_count;
+    plan.write_group_section_count = plan.group_sizes_count;
+    plan.write_pads_to_group_sizes_count =
+        plan.existing_group_section_count < plan.group_sizes_count;
+  }
+  return plan;
+}
+
 SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     bool has_joints,
     bool has_weights,
