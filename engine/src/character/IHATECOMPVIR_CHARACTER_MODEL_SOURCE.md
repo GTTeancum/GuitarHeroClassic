@@ -4499,12 +4499,18 @@ note, and all report `unreadBytes=0`.
     names alone.
   - Native `source_char_clip_runtime_dump_evidence` records the adjacent RB2
     `CharClip` runtime map: `FindNodes`, `FindFirstNode`, `FindLastNode`,
-    `FindNode`, `Replace`, `ClearAllNodes`, `Load`, `CheckStick`, and
-    `SyncProperty`, including the repeated `CharClip::Load` locals and the
-    `CheckStick` stick/arm/bones/down-vector/angle locals. This is still a
-    range/local inventory only. It is not a source body for `CharClip::Load`,
-    `CheckStick`, or `SyncProperty`, and native must not import those behaviors
-    until statement-level source or direct trace evidence exists.
+    `FindNode`, `Replace`, `ClearAllNodes`, `Load`, `SetDefaultBlend`,
+    `SetDefaultLoop`, `SetBeatAlignMode`, `InGroups`, `MakeMRU`,
+    `LockAndDelete`, `Handle`, `OnGroups`, `CheckStick`, and `SyncProperty`.
+    The dump records `CharClip::Load`'s repeated locals, the three default
+    flag setters' single `int f` local, `InGroups`' count/ref-owner locals,
+    `MakeMRU`'s `CharClipGroup* groups[256]` staging array, `LockAndDelete`'s
+    delete-row locals, `OnGroups`' group/ref-owner locals, and the `CheckStick`
+    stick/arm/bones/down-vector/angle locals. This is still a range/local
+    inventory only. It is not a source body for `CharClip::Load`,
+    default-flag mutation, group/MRU mutation, `CheckStick`, or `SyncProperty`,
+    and native must not import those behaviors until statement-level source or
+    direct trace evidence exists.
   - Native `source_char_clip_stuff_bones` and
     `source_char_clip_pose_meshes_steps` port the concrete `StuffBones` /
     `PoseMeshes` call order only: list clip bones, append them into the target

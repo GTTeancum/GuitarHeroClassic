@@ -1408,6 +1408,14 @@ int main() {
       clip_dump.find_last_node_range != "0x803282D0 -> 0x80328348" ||
       clip_dump.find_node_range != "0x80328348 -> 0x80328564" ||
       clip_dump.load_range != "0x80328D70 -> 0x803296AC" ||
+      clip_dump.set_default_blend_range != "0x803298AC -> 0x803298DC" ||
+      clip_dump.set_default_loop_range != "0x803298DC -> 0x8032990C" ||
+      clip_dump.set_beat_align_mode_range != "0x8032990C -> 0x80329944" ||
+      clip_dump.in_groups_range != "0x80329944 -> 0x803299FC" ||
+      clip_dump.make_mru_range != "0x803299FC -> 0x80329B54" ||
+      clip_dump.lock_and_delete_range != "0x80329B54 -> 0x80329C78" ||
+      clip_dump.handle_range != "0x80329C78 -> 0x8032A470" ||
+      clip_dump.on_groups_range != "0x8032A470 -> 0x8032A5DC" ||
       clip_dump.check_stick_range != "0x8032A5DC -> 0x8032A8B8" ||
       clip_dump.sync_property_range != "0x8032AA84 -> 0x8032B76C" ||
       clip_dump.find_node_locals !=
@@ -1419,6 +1427,21 @@ int main() {
       clip_dump.load_locals[17] != "String tmp" ||
       clip_dump.load_locals[21] != "String s" ||
       clip_dump.load_locals[25] != "float frame" ||
+      clip_dump.default_flag_setter_locals !=
+          std::vector<std::string>({"int f"}) ||
+      clip_dump.in_groups_locals !=
+          std::vector<std::string>({"int count", "_List_iterator i",
+                                    "Object* o"}) ||
+      clip_dump.make_mru_locals !=
+          std::vector<std::string>({"CharClipGroup* groups[256]", "int num",
+                                    "_List_iterator i", "Object* o",
+                                    "CharClipGroup* g"}) ||
+      clip_dump.lock_and_delete_locals !=
+          std::vector<std::string>({"int i", "CharClip* c",
+                                    "CharClip* c"}) ||
+      clip_dump.on_groups_locals !=
+          std::vector<std::string>({"_List_iterator i", "Object* o",
+                                    "CharClipGroup* group"}) ||
       clip_dump.check_stick_locals !=
           std::vector<std::string>({"RndTransformable* stick",
                                     "RndTransformable* arm",
@@ -1426,9 +1449,14 @@ int main() {
                                     "Vector3 stickDown", "Vector3 armDown",
                                     "float angle"}) ||
       clip_dump.has_load_statement_body ||
+      clip_dump.has_default_flag_setter_statement_bodies ||
+      clip_dump.has_group_helper_statement_bodies ||
       clip_dump.has_check_stick_statement_body ||
       clip_dump.has_sync_property_statement_body ||
-      clip_dump.safe_to_import_load || clip_dump.safe_to_import_check_stick ||
+      clip_dump.safe_to_import_load ||
+      clip_dump.safe_to_import_default_flag_setters ||
+      clip_dump.safe_to_import_group_helpers ||
+      clip_dump.safe_to_import_check_stick ||
       clip_dump.safe_to_import_sync_property) {
     std::cerr << "CharClip runtime dump evidence mismatch\n";
     ok = false;

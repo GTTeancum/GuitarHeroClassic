@@ -26458,6 +26458,45 @@ int run_contract() {
                  "//Range:0x80328D70->0x803296ACvoidCharClip::Load(",
                  "RB2 dump maps CharClip Load range");
   ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x803298AC->0x803298DCvoidCharClip::"
+                 "SetDefaultBlend()",
+                 "RB2 dump maps CharClip SetDefaultBlend range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x803298DC->0x8032990CvoidCharClip::"
+                 "SetDefaultLoop()",
+                 "RB2 dump maps CharClip SetDefaultLoop range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x8032990C->0x80329944voidCharClip::"
+                 "SetBeatAlignMode()",
+                 "RB2 dump maps CharClip SetBeatAlignMode range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "voidCharClip::SetDefaultBlend(){//Localvariablesintf;",
+                 "RB2 dump maps CharClip default flag setter local");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80329944->0x803299FCintCharClip::InGroups(",
+                 "RB2 dump maps CharClip InGroups range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "intcount;//r31struct_List_iteratori;",
+                 "RB2 dump maps CharClip InGroups locals");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x803299FC->0x80329B54voidCharClip::MakeMRU(",
+                 "RB2 dump maps CharClip MakeMRU range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "classCharClipGroup*groups[256];",
+                 "RB2 dump maps CharClip MakeMRU groups local");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80329B54->0x80329C78voidCharClip::"
+                 "LockAndDelete(",
+                 "RB2 dump maps CharClip LockAndDelete range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x80329C78->0x8032A470classDataNodeCharClip::"
+                 "Handle(",
+                 "RB2 dump maps CharClip Handle range");
+  ok &= contains(rb2_char_clip_cpp,
+                 "//Range:0x8032A470->0x8032A5DCclassDataNodeCharClip::"
+                 "OnGroups(",
+                 "RB2 dump maps CharClip OnGroups range");
+  ok &= contains(rb2_char_clip_cpp,
                  "//Range:0x8032A5DC->0x8032A8B8floatCharClip::CheckStick(",
                  "RB2 dump maps CharClip CheckStick range");
   ok &= contains(rb2_char_clip_cpp,
@@ -26534,7 +26573,18 @@ int run_contract() {
                  "adjacent RB2\n    `CharClip` runtime map",
                  "document records native CharClip runtime dump helper");
   ok &= contains(doc,
-                 "not a source body for `CharClip::Load`,\n    `CheckStick`, "
+                 "`SetDefaultBlend`,\n    `SetDefaultLoop`, "
+                 "`SetBeatAlignMode`, `InGroups`, `MakeMRU`",
+                 "document records expanded CharClip runtime dump map");
+  ok &= contains(doc,
+                 "the three default\n    flag setters' single `int f` local",
+                 "document records CharClip default-flag setter locals");
+  ok &= contains(doc,
+                 "`MakeMRU`'s `CharClipGroup* groups[256]` staging array",
+                 "document records CharClip MakeMRU local evidence");
+  ok &= contains(doc,
+                 "not a source body for `CharClip::Load`,\n    "
+                 "default-flag mutation, group/MRU mutation, `CheckStick`, "
                  "or `SyncProperty`",
                  "document fences CharClip runtime imports");
   ok &= contains(doc,
@@ -27246,15 +27296,56 @@ int run_contract() {
                  "evidence.find_first_node_range=\"0x80328258->0x803282D0\";",
                  "native CharClip runtime dump helper records node-find ranges");
   ok &= contains(char_clip,
-                 "evidence.load_range=\"0x80328D70->0x803296AC\";"
+                 "evidence.load_range=\"0x80328D70->0x803296AC\";",
+                 "native CharClip runtime dump helper records Load range");
+  ok &= contains(char_clip,
+                 "evidence.set_default_blend_range=\"0x803298AC->"
+                 "0x803298DC\";evidence.set_default_loop_range="
+                 "\"0x803298DC->0x8032990C\";evidence.set_beat_align_"
+                 "mode_range=\"0x8032990C->0x80329944\";",
+                 "native CharClip runtime dump helper records default flag ranges");
+  ok &= contains(char_clip,
+                 "evidence.in_groups_range=\"0x80329944->0x803299FC\";"
+                 "evidence.make_mru_range=\"0x803299FC->0x80329B54\";"
+                 "evidence.lock_and_delete_range=\"0x80329B54->"
+                 "0x80329C78\";",
+                 "native CharClip runtime dump helper records group helper ranges");
+  ok &= contains(char_clip,
+                 "evidence.handle_range=\"0x80329C78->0x8032A470\";"
+                 "evidence.on_groups_range=\"0x8032A470->0x8032A5DC\";",
+                 "native CharClip runtime dump helper records handler/group ranges");
+  ok &= contains(char_clip,
                  "evidence.check_stick_range=\"0x8032A5DC->0x8032A8B8\";",
-                 "native CharClip runtime dump helper records Load and CheckStick ranges");
+                 "native CharClip runtime dump helper records CheckStick range");
   ok &= contains(char_clip,
                  "evidence.sync_property_range=\"0x8032AA84->0x8032B76C\";",
                  "native CharClip runtime dump helper records SyncProperty range");
   ok &= contains(char_clip,
+                 "evidence.default_flag_setter_locals={\"intf\"};"
+                 "evidence.in_groups_locals={\"intcount\","
+                 "\"_List_iteratori\",\"Object*o\"};",
+                 "native CharClip runtime dump helper records flag/group locals");
+  ok &= contains(char_clip,
+                 "evidence.make_mru_locals={\"CharClipGroup*groups[256]\","
+                 "\"intnum\",\"_List_iteratori\",\"Object*o\","
+                 "\"CharClipGroup*g\"};",
+                 "native CharClip runtime dump helper records MakeMRU locals");
+  ok &= contains(char_clip,
+                 "evidence.lock_and_delete_locals={\"inti\",\"CharClip*c\","
+                 "\"CharClip*c\"};evidence.on_groups_locals={"
+                 "\"_List_iteratori\",\"Object*o\",\"CharClipGroup*group\"};",
+                 "native CharClip runtime dump helper records lock/on-groups locals");
+  ok &= contains(char_clip,
                  "evidence.safe_to_import_load=false;",
                  "native CharClip runtime dump helper fences Load import");
+  ok &= contains(char_clip,
+                 "evidence.has_default_flag_setter_statement_bodies=false;"
+                 "evidence.has_group_helper_statement_bodies=false;",
+                 "native CharClip runtime dump helper records bodyless helper fences");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_import_default_flag_setters=false;"
+                 "evidence.safe_to_import_group_helpers=false;",
+                 "native CharClip runtime dump helper fences default/group imports");
   ok &= contains(char_clip,
                  "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
                  "conststd::vector<SourceCharBonesBone>&existing_bones,"
@@ -27333,6 +27424,15 @@ int run_contract() {
                  "source_char_clip_prop_sync_plan()",
                  "focused clip driver flags test covers CharClip prop-sync plan");
   ok &= contains(clip_driver_flags_test,
+                 "clip_dump.set_default_blend_range!=",
+                 "focused clip driver flags test covers CharClip default flag range");
+  ok &= contains(clip_driver_flags_test,
+                 "clip_dump.make_mru_locals!=",
+                 "focused clip driver flags test covers CharClip MakeMRU locals");
+  ok &= contains(clip_driver_flags_test,
+                 "clip_dump.safe_to_import_group_helpers",
+                 "focused clip driver flags test fences CharClip group helpers");
+  ok &= contains(clip_driver_flags_test,
                  "prop_sync.sample_subobjects[0]!=\"full\"",
                  "focused clip driver flags test covers CharClip full prop branch");
   ok &= contains(clip_driver_flags_test,
@@ -27369,6 +27469,8 @@ int run_contract() {
                  "focused clip driver flags test covers CharClip runtime dump evidence");
   ok &= contains(clip_driver_flags_test,
                  "clip_dump.safe_to_import_load||"
+                 "clip_dump.safe_to_import_default_flag_setters||"
+                 "clip_dump.safe_to_import_group_helpers||"
                  "clip_dump.safe_to_import_check_stick||",
                  "focused clip driver flags test fences CharClip runtime imports");
   ok &= contains(clip_driver_flags_test,

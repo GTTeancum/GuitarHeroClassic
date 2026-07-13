@@ -3901,6 +3901,14 @@ SourceCharClipRuntimeDumpEvidence source_char_clip_runtime_dump_evidence() {
   evidence.replace_range = "0x80328564 -> 0x80328650";
   evidence.clear_all_nodes_range = "0x80328650 -> 0x803286D0";
   evidence.load_range = "0x80328D70 -> 0x803296AC";
+  evidence.set_default_blend_range = "0x803298AC -> 0x803298DC";
+  evidence.set_default_loop_range = "0x803298DC -> 0x8032990C";
+  evidence.set_beat_align_mode_range = "0x8032990C -> 0x80329944";
+  evidence.in_groups_range = "0x80329944 -> 0x803299FC";
+  evidence.make_mru_range = "0x803299FC -> 0x80329B54";
+  evidence.lock_and_delete_range = "0x80329B54 -> 0x80329C78";
+  evidence.handle_range = "0x80329C78 -> 0x8032A470";
+  evidence.on_groups_range = "0x8032A470 -> 0x8032A5DC";
   evidence.check_stick_range = "0x8032A5DC -> 0x8032A8B8";
   evidence.sync_property_range = "0x8032AA84 -> 0x8032B76C";
   evidence.find_nodes_locals = {"NodeVector* n"};
@@ -3934,6 +3942,15 @@ SourceCharClipRuntimeDumpEvidence source_char_clip_runtime_dump_evidence() {
                           "int num",
                           "int i",
                           "float frame"};
+  evidence.default_flag_setter_locals = {"int f"};
+  evidence.in_groups_locals = {"int count", "_List_iterator i", "Object* o"};
+  evidence.make_mru_locals = {"CharClipGroup* groups[256]", "int num",
+                              "_List_iterator i", "Object* o",
+                              "CharClipGroup* g"};
+  evidence.lock_and_delete_locals = {"int i", "CharClip* c",
+                                     "CharClip* c"};
+  evidence.on_groups_locals = {"_List_iterator i", "Object* o",
+                               "CharClipGroup* group"};
   evidence.check_stick_locals = {"RndTransformable* stick",
                                  "RndTransformable* arm",
                                  "CharBonesMeshes bones",
@@ -3941,9 +3958,13 @@ SourceCharClipRuntimeDumpEvidence source_char_clip_runtime_dump_evidence() {
                                  "Vector3 armDown",
                                  "float angle"};
   evidence.has_load_statement_body = false;
+  evidence.has_default_flag_setter_statement_bodies = false;
+  evidence.has_group_helper_statement_bodies = false;
   evidence.has_check_stick_statement_body = false;
   evidence.has_sync_property_statement_body = false;
   evidence.safe_to_import_load = false;
+  evidence.safe_to_import_default_flag_setters = false;
+  evidence.safe_to_import_group_helpers = false;
   evidence.safe_to_import_check_stick = false;
   evidence.safe_to_import_sync_property = false;
   return evidence;
