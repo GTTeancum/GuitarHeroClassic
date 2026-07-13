@@ -14721,9 +14721,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     std::fprintf(
                         stderr,
                         "[camera-candidate] shot=%s off=0x%zX frame_effects="
-                        "blur=(%s%.3f %.3f %.3f %.3f) focus=%s:%s "
+                        "blur=(%s%.3f %.3f %.3f %.3f) focal_target=%s:%s "
                         "shake=(%s%.3f %.3f %.3f %.3f) zoom_fov=%s%.3f "
-                        "parent_first=%s%d\n",
+                        "parent_first_frame=%s%d\n",
                         de.name.c_str(), pose.second,
                         key.has_dof_fields ? "" : "none/",
                         key.blur_depth, key.max_blur, key.min_blur,
@@ -14865,10 +14865,14 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
+                         key.focus_target_entity.c_str(),
+                         key.focus_target_subpart.c_str(),
+                         key.has_parent_first_frame ? "" : "none/",
+                         key.parent_first_frame ? 1 : 0,
                          key.use_parent_rotation ? 1 : 0,
                          key.camshot_refs_decoded ? 1 : 0, key.positions.size(),
                          key.has_camshot_looping && key.camshot_looping ? 1 : 0,
@@ -19551,6 +19555,8 @@ void apply_camera_keys(
             "target_centroid=a:(%.3f %.3f %.3f) "
             "b:(%.3f %.3f %.3f) "
             "a_parent=%s:%s b_parent=%s:%s use_parent_rotation=a:%d b:%d "
+            "focal_target=a:%s:%s b:%s:%s "
+            "parent_first_frame=a:%s%d b:%s%d "
             "filter=a:%s%.3f b:%s%.3f clamp=a:%s%.3f b:%s%.3f\n",
             frame, a->target_entity.c_str(), a->target_subpart.c_str(),
             b->target_entity.c_str(), b->target_subpart.c_str(),
@@ -19566,6 +19572,12 @@ void apply_camera_keys(
             a->parent_entity.c_str(), a->parent_subpart.c_str(),
             b->parent_entity.c_str(), b->parent_subpart.c_str(),
             a->use_parent_rotation ? 1 : 0, b->use_parent_rotation ? 1 : 0,
+            a->focus_target_entity.c_str(), a->focus_target_subpart.c_str(),
+            b->focus_target_entity.c_str(), b->focus_target_subpart.c_str(),
+            a->has_parent_first_frame ? "" : "none/",
+            a->parent_first_frame ? 1 : 0,
+            b->has_parent_first_frame ? "" : "none/",
+            b->parent_first_frame ? 1 : 0,
             a->has_shot_filter ? "" : "none/",
             a->has_shot_filter ? a->shot_filter : 0.0f,
             b->has_shot_filter ? "" : "none/",

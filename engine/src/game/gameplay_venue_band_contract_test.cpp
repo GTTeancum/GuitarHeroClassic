@@ -8041,6 +8041,12 @@ int main() {
                  "blur=(%s%.3f%.3f%.3f%.3f)",
                  "regular CamShot logs expose decoded frame blur fields");
   ok &= contains(gameplay_c,
+                 "focal_target=%s:%s",
+                 "camera debug logs expose source focal_target refs");
+  ok &= contains(gameplay_c,
+                 "parent_first_frame=%s%d",
+                 "camera debug logs expose source parent_first_frame");
+  ok &= contains(gameplay_c,
                  "zoom_fov=%s%.3f",
                  "camera debug logs expose decoded/applied zoom FOV");
   ok &= contains(gameplay_h_c,
@@ -9580,6 +9586,12 @@ int main() {
                  "\"[camera-solver]frame=%.2fvenue_source_parent_refs\"",
                  "camera debug logs expose venue source-parent diagnostic availability");
   ok &= contains(gameplay_c,
+                 "focal_target=a:%s:%sb:%s:%s",
+                 "camera solver diagnostics expose source focal_target refs");
+  ok &= contains(gameplay_c,
+                 "parent_first_frame=a:%s%db:%s%d",
+                 "camera solver diagnostics expose source parent_first_frame");
+  ok &= contains(gameplay_c,
                  "\"placement_bounds=%dmin=(%.3f%.3f%.3f)\"",
                  "camera debug logs expose decoded WorldCrowd placement bounds");
   ok &= contains(gameplay_c,
@@ -9843,7 +9855,8 @@ int main() {
                  "runtime camera submits authored clip planes to renderer");
   ok &= contains(gameplay_c,
                  "\"[world]regularCamShot%sdistance=%sfacing=%starget=%s:%s"
-                 "parent=%s:%sparent_rot=%drefs=%dposes=%zuloop=%d"
+                 "parent=%s:%sfocal_target=%s:%sparent_first_frame=%s%d"
+                 "parent_rot=%drefs=%dposes=%zuloop=%d"
                  "loop_keyframe=%dposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
