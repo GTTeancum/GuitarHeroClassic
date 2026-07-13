@@ -10374,6 +10374,19 @@ int run_contract() {
                  "mFacingPosDelta=(Vector3*)FindPtr(\"bone_facing_delta.pos\");",
                  "CharServoBone source realloc finds facing delta rows");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "CharBonesMeshes::ReallocateInternal();mFacingRotDelta=0;"
+                 "mFacingPosDelta=(Vector3*)FindPtr(\"bone_facing_delta.pos\");",
+                 "CharServoBone source realloc base and first lookup");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "mFacingPos=(Vector3*)FindPtr(\"bone_facing.pos\");mPelvis="
+                 "CharUtlFindBoneTrans(\"bone_pelvis\",Dir());MILO_ASSERT("
+                 "mFacingPos&&mPelvis,0xB3);",
+                 "CharServoBone source realloc facing and pelvis branch");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "mFacingRot=(float*)FindPtr(\"bone_facing.rotz\");"
+                 "mFacingRotDelta=(float*)FindPtr(\"bone_facing_delta.rotz\");",
+                 "CharServoBone source realloc rotation lookups");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "voidCharServoBone::ZeroDeltas(){if(mFacingPosDelta)"
                  "mFacingPosDelta->Zero();if(!mFacingRotDelta)return;"
                  "*mFacingRotDelta=0.0f;}",
@@ -10429,6 +10442,15 @@ int run_contract() {
                  "boolmove_self=false;booldelta_changed=false;};",
                  "native exposes CharServoBone SetMoveSelf contract");
   ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneReallocatePlan{"
+                 "boolcalls_char_bones_meshes_reallocate=true;"
+                 "boolresets_facing_rot_delta=true;",
+                 "native exposes CharServoBone Reallocate contract");
+  ok &= contains(char_clip_h,
+                 "boollookup_facing_rot_delta=false;"
+                 "std::vector<std::string>lookup_order;};",
+                 "native CharServoBone Reallocate contract tracks lookup order");
+  ok &= contains(char_clip_h,
                  "structSourceCharServoBoneCopyPlan{std::vector<std::string>"
                  "copied_superclasses;std::vector<std::string>copied_members;"
                  "boolcalls_set_clip_type=true;};",
@@ -10478,6 +10500,11 @@ int run_contract() {
                  "boolrequested_move_self);",
                  "native exposes CharServoBone SetMoveSelf helper");
   ok &= contains(char_clip_h,
+                 "SourceCharServoBoneReallocatePlan"
+                 "source_char_servo_bone_reallocate_plan("
+                 "boolfound_facing_pos_delta);",
+                 "native exposes CharServoBone Reallocate helper");
+  ok &= contains(char_clip_h,
                  "SourceCharServoBoneCopyPlansource_char_servo_bone_copy_plan();",
                  "native exposes CharServoBone Copy helper");
   ok &= contains(char_clip_h,
@@ -10525,6 +10552,23 @@ int run_contract() {
                  "step.changed=true;step.move_self=requested_move_self;"
                  "step.delta_changed=true;returnstep;}",
                  "native CharServoBone SetMoveSelf helper marks changed branch");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneReallocatePlan"
+                 "source_char_servo_bone_reallocate_plan("
+                 "boolfound_facing_pos_delta){SourceCharServoBoneReallocatePlan"
+                 "plan;plan.found_facing_pos_delta=found_facing_pos_delta;"
+                 "plan.lookup_order={\"bone_facing_delta.pos\"};",
+                 "native CharServoBone Reallocate helper starts source lookup");
+  ok &= contains(char_clip,
+                 "if(!found_facing_pos_delta)returnplan;plan.lookup_facing_pos=true;"
+                 "plan.lookup_pelvis=true;plan.assert_facing_pos_and_pelvis=true;",
+                 "native CharServoBone Reallocate helper gates facing branch");
+  ok &= contains(char_clip,
+                 "plan.lookup_order.push_back(\"bone_facing.pos\");"
+                 "plan.lookup_order.push_back(\"bone_pelvis\");"
+                 "plan.lookup_order.push_back(\"bone_facing.rotz\");"
+                 "plan.lookup_order.push_back(\"bone_facing_delta.rotz\");",
+                 "native CharServoBone Reallocate helper records lookup order");
   ok &= contains(char_clip,
                  "SourceCharServoBoneCopyPlansource_char_servo_bone_copy_plan(){"
                  "SourceCharServoBoneCopyPlanplan;plan.copied_superclasses="
@@ -10630,6 +10674,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_set_move_self(false,true)",
                  "focused CharBones test covers CharServoBone SetMoveSelf");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_reallocate_plan(false)",
+                 "focused CharBones test covers CharServoBone Reallocate no-delta branch");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_reallocate_plan(true)",
+                 "focused CharBones test covers CharServoBone Reallocate lookup branch");
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_copy_plan()",
                  "focused CharBones test covers CharServoBone Copy");
@@ -13449,6 +13499,12 @@ int run_contract() {
                  "Native GHOGX also records the checked `CharServoBone` "
                  "constructor",
                  "document records CharServoBone constructor/control-flow slice");
+  ok &= contains(doc,
+                 "`source_char_servo_bone_reallocate_plan` ports the source",
+                 "document records CharServoBone Reallocate helper");
+  ok &= contains(doc,
+                 "`bone_facing_delta.pos`, and only then resolves `bone_facing.pos`,",
+                 "document records CharServoBone Reallocate lookup gate");
   ok &= contains(doc,
                  "`SetMoveSelf` only\n    marks `delta_changed` when the "
                  "requested value differs",

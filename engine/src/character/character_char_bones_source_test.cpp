@@ -1283,6 +1283,44 @@ int main() {
   ok &= expect_int(servo_new_move_self.delta_changed ? 1 : 0, 1,
                    "CharServoBone SetMoveSelf marks delta");
 
+  const SourceCharServoBoneReallocatePlan servo_realloc_no_delta =
+      source_char_servo_bone_reallocate_plan(false);
+  ok &= expect_int(servo_realloc_no_delta.calls_char_bones_meshes_reallocate
+                       ? 1
+                       : 0,
+                   1, "CharServoBone Reallocate calls base");
+  ok &= expect_int(servo_realloc_no_delta.resets_facing_rot_delta ? 1 : 0, 1,
+                   "CharServoBone Reallocate resets rot delta");
+  ok &= expect_size(servo_realloc_no_delta.lookup_order.size(), 1,
+                    "CharServoBone Reallocate no delta lookup count");
+  ok &= expect_string(servo_realloc_no_delta.lookup_order[0],
+                      "bone_facing_delta.pos",
+                      "CharServoBone Reallocate first lookup");
+  ok &= expect_int(servo_realloc_no_delta.lookup_pelvis ? 1 : 0, 0,
+                   "CharServoBone Reallocate no delta skips pelvis");
+
+  const SourceCharServoBoneReallocatePlan servo_realloc_delta =
+      source_char_servo_bone_reallocate_plan(true);
+  ok &= expect_int(servo_realloc_delta.lookup_facing_pos ? 1 : 0, 1,
+                   "CharServoBone Reallocate finds facing pos");
+  ok &= expect_int(servo_realloc_delta.lookup_pelvis ? 1 : 0, 1,
+                   "CharServoBone Reallocate finds pelvis");
+  ok &= expect_int(servo_realloc_delta.assert_facing_pos_and_pelvis ? 1 : 0, 1,
+                   "CharServoBone Reallocate asserts facing and pelvis");
+  ok &= expect_int(servo_realloc_delta.lookup_facing_rot ? 1 : 0, 1,
+                   "CharServoBone Reallocate finds facing rot");
+  ok &= expect_int(servo_realloc_delta.lookup_facing_rot_delta ? 1 : 0, 1,
+                   "CharServoBone Reallocate finds facing rot delta");
+  ok &= expect_size(servo_realloc_delta.lookup_order.size(), 5,
+                    "CharServoBone Reallocate delta lookup count");
+  ok &= expect_string(servo_realloc_delta.lookup_order[1], "bone_facing.pos",
+                      "CharServoBone Reallocate facing pos lookup");
+  ok &= expect_string(servo_realloc_delta.lookup_order[2], "bone_pelvis",
+                      "CharServoBone Reallocate pelvis lookup");
+  ok &= expect_string(servo_realloc_delta.lookup_order[4],
+                      "bone_facing_delta.rotz",
+                      "CharServoBone Reallocate facing rot delta lookup");
+
   const SourceCharServoBoneCopyPlan servo_copy =
       source_char_servo_bone_copy_plan();
   ok &= expect_size(servo_copy.copied_superclasses.size(), 1,

@@ -398,6 +398,18 @@ struct SourceCharServoBoneSetMoveSelfStep {
   bool delta_changed = false;
 };
 
+struct SourceCharServoBoneReallocatePlan {
+  bool calls_char_bones_meshes_reallocate = true;
+  bool resets_facing_rot_delta = true;
+  bool found_facing_pos_delta = false;
+  bool lookup_facing_pos = false;
+  bool lookup_pelvis = false;
+  bool assert_facing_pos_and_pelvis = false;
+  bool lookup_facing_rot = false;
+  bool lookup_facing_rot_delta = false;
+  std::vector<std::string> lookup_order;
+};
+
 struct SourceCharServoBoneCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -2111,6 +2123,8 @@ SourceCharServoBoneEnterStep source_char_servo_bone_enter(
 SourceCharServoBoneSetMoveSelfStep source_char_servo_bone_set_move_self(
     bool current_move_self,
     bool requested_move_self);
+SourceCharServoBoneReallocatePlan source_char_servo_bone_reallocate_plan(
+    bool found_facing_pos_delta);
 SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan();
 SourceCharServoBoneLoadPlan source_char_servo_bone_load_plan(int32_t revision);
 SourceCharServoBoneSavePlan source_char_servo_bone_save_plan();

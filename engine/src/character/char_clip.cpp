@@ -5817,6 +5817,25 @@ SourceCharServoBoneSetMoveSelfStep source_char_servo_bone_set_move_self(
   return step;
 }
 
+SourceCharServoBoneReallocatePlan source_char_servo_bone_reallocate_plan(
+    bool found_facing_pos_delta) {
+  SourceCharServoBoneReallocatePlan plan;
+  plan.found_facing_pos_delta = found_facing_pos_delta;
+  plan.lookup_order = {"bone_facing_delta.pos"};
+  if (!found_facing_pos_delta) return plan;
+
+  plan.lookup_facing_pos = true;
+  plan.lookup_pelvis = true;
+  plan.assert_facing_pos_and_pelvis = true;
+  plan.lookup_facing_rot = true;
+  plan.lookup_facing_rot_delta = true;
+  plan.lookup_order.push_back("bone_facing.pos");
+  plan.lookup_order.push_back("bone_pelvis");
+  plan.lookup_order.push_back("bone_facing.rotz");
+  plan.lookup_order.push_back("bone_facing_delta.rotz");
+  return plan;
+}
+
 SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan() {
   SourceCharServoBoneCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object"};

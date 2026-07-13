@@ -3415,13 +3415,19 @@ note, and all report `unreadBytes=0`.
     live model path or port broad `CharBonesMeshes` movement until the
     connected clip/bone source path is implemented as a whole.
   - Native GHOGX also records the checked `CharServoBone` constructor,
-    `SetClipType`, `Enter`, `SetMoveSelf`, and `Copy` decision flow:
+    `SetClipType`, `ReallocateInternal`, `Enter`, `SetMoveSelf`, and `Copy`
+    decision flow:
     constructor pointer members and dirty flags start empty/false; changed
     clip type clears/refills bones through `CharBoneDir::StuffBones`; `Enter`
     zeroes deltas, clears `regulate`, clears `delta_changed`, and mirrors the
     presence of `bone_facing_delta.pos` into `move_self`; `SetMoveSelf` only
     marks `delta_changed` when the requested value differs; `Copy` copies
     `Hmx::Object`, `mMoveSelf`, and calls `SetClipType`.
+    `source_char_servo_bone_reallocate_plan` ports the source
+    `ReallocateInternal` lookup branch: it always calls
+    `CharBonesMeshes::ReallocateInternal`, clears `mFacingRotDelta`, probes
+    `bone_facing_delta.pos`, and only then resolves `bone_facing.pos`,
+    `bone_pelvis`, `bone_facing.rotz`, and `bone_facing_delta.rotz`.
   - Native `source_char_servo_bone_load_plan`,
     `source_char_servo_bone_save_plan`,
     `source_char_servo_bone_handler_plan`, and
