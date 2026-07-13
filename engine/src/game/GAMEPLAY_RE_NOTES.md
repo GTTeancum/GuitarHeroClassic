@@ -10815,6 +10815,17 @@ Rejected native probe:
   body. This keeps the source feature visible and contract-guarded without
   fabricating camera motion.
 
+- 2026-07-13 CamShot DOF focus distance:
+  ihatecompvir `CamShotFrame::Interp` gates DOF on the shot-level
+  `mUseDepthOfField` flag plus either focus/target side, computes start/end
+  focus distances with fallback to the opposite side when one is missing, and
+  feeds the next-frame `d9` distance scaled by `mFocusBlurMultiplier` into
+  `DOFProc::Set`. Native now names that A/B distance pair in
+  `CameraSourceDofResult`, submits `b_distance * (1 + focus_blur_multiplier)`
+  as the source focus distance, and logs the selected source distance in
+  camera diagnostics. This does not claim the final platform DOF postprocess is
+  complete; it keeps the camera pipeline's source focus value auditable.
+
 - 2026-07-13 CamShot path-backed SetFrame proof:
   ihatecompvir `CameraManager::Poll` drives `mCurrentShot->SetFrame(...)` for
   the current CamShot, and source `CamShot` owns both `mPath` and

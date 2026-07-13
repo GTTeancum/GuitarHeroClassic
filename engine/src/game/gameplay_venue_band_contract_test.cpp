@@ -9726,14 +9726,21 @@ int main() {
                  "camera_source_dof_point_for_key(",
                  "CamShot DOF support resolves source focus/target points");
   ok &= contains(gameplay_c,
-                 "constboolsource_dof_active=source_use_depth_of_field&&"
-                 "(a_source_dof_point||b_source_dof_point);",
+                 "structCameraSourceDofResult",
+                 "CamShot DOF support records source A/B focus distances");
+  ok &= contains(gameplay_c,
+                 "result.active=use_depth_of_field&&(a_point||b_point);",
                  "CamShot DOF activates only when the source shot flag and focus/target are present");
   ok &= contains(gameplay_c,
-                 "cam.dof_active=source_dof_active;",
+                 "result.focus_distance=result.b_distance*"
+                 "(1.0f+focus_blur_multiplier);",
+                 "CamShot DOF focus distance follows the ihatecompvir next-frame d9 formula");
+  ok &= contains(gameplay_c,
+                 "cam.dof_active=source_dof.active;",
                  "runtime camera submits source-gated CamShot DOF state");
   ok &= contains(gameplay_c,
-                 "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f",
+                 "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f"
+                 "source_dof=(a:%s%.3fb:%s%.3fselected=%s)",
                  "camera diagnostics distinguish active source DOF from decoded blur fields");
   ok &= contains(gameplay_c,
                  "cam.shake_active=has_shake_fields;"
