@@ -611,6 +611,35 @@ source_milo_editor_rndmesh_group_sizes_io_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshTailFlagsIoPlan
+source_milo_editor_rndmesh_tail_flags_io_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndMeshTailFlagsIoPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.alt_revision = alt_revision;
+  plan.reads_keep_mesh_data = mesh_revision > 34;
+  plan.writes_keep_mesh_data = mesh_revision > 34;
+  plan.reads_has_ao_calculation = mesh_revision > 0x25;
+  plan.writes_has_ao_calculation = mesh_revision > 0x25;
+  plan.reads_no_quant = alt_revision > 1;
+  plan.writes_no_quant = alt_revision > 1;
+  plan.reads_unk_bool3 = alt_revision > 3;
+  plan.writes_unk_bool3 = alt_revision > 3;
+  plan.read_bool_count =
+      (plan.reads_keep_mesh_data ? 1 : 0) +
+      (plan.reads_has_ao_calculation ? 1 : 0) +
+      (plan.reads_no_quant ? 1 : 0) + (plan.reads_unk_bool3 ? 1 : 0);
+  plan.write_bool_count =
+      (plan.writes_keep_mesh_data ? 1 : 0) +
+      (plan.writes_has_ao_calculation ? 1 : 0) +
+      (plan.writes_no_quant ? 1 : 0) + (plan.writes_unk_bool3 ? 1 : 0);
+  plan.gh2_rev28_has_no_tail_flags =
+      mesh_revision == 28 && alt_revision == 0 && plan.read_bool_count == 0 &&
+      plan.write_bool_count == 0;
+  return plan;
+}
+
 SourceMiloEditorRndMeshGroupSectionIoPlan
 source_milo_editor_rndmesh_group_section_io_plan(
     int32_t group_sizes_count,

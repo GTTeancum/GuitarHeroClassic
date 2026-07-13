@@ -5431,6 +5431,18 @@ int run_contract() {
   ok &= contains(mesh_cs,
                  "if(altRevision>3){unkBool3=reader.ReadBoolean();}",
                  "MiloEditor RndMesh alt bool3 gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>34)writer.WriteBoolean(keepMeshData);",
+                 "MiloEditor RndMesh writes keepMeshData gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>0x25)writer.WriteBoolean(hasAOCalculation);",
+                 "MiloEditor RndMesh writes hasAOCalculation gate");
+  ok &= contains(mesh_cs,
+                 "if(altRevision>1)writer.WriteBoolean(noQuant);",
+                 "MiloEditor RndMesh writes noQuant gate");
+  ok &= contains(mesh_cs,
+                 "if(altRevision>3)writer.WriteBoolean(unkBool3);",
+                 "MiloEditor RndMesh writes alt bool3 gate");
   ok &= contains(char_mesh,
                  "constint32_tfirst_bone_len=r.i32();if(first_bone_len>0){"
                  "r.pos=bone_probe;",
@@ -6101,6 +6113,10 @@ int run_contract() {
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh groupSizes IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshTailFlagsIoPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh tail flags IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshFaceIoPlan{"
                  "int32_tface_count=0;",
                  "native declares MiloEditor RndMesh face IO plan");
@@ -6464,6 +6480,11 @@ int run_contract() {
       "native ports MiloEditor RndMesh groupSizes IO helper");
   ok &= contains(
       char_mesh,
+      "SourceMiloEditorRndMeshTailFlagsIoPlansource_milo_editor_rndmesh_"
+      "tail_flags_io_plan(",
+      "native ports MiloEditor RndMesh tail flags IO helper");
+  ok &= contains(
+      char_mesh,
       "SourceMiloEditorRndMeshFaceIoPlansource_milo_editor_rndmesh_"
       "face_io_plan(",
       "native ports MiloEditor RndMesh face IO helper");
@@ -6484,6 +6505,16 @@ int run_contract() {
                  "plan.gh2_rev28_counted_byte_rows=mesh_revision==28&&"
                  "plan.reads_modern_group_sizes",
                  "native groupSizes IO helper pins GH2 counted byte rows");
+  ok &= contains(char_mesh,
+                 "plan.reads_keep_mesh_data=mesh_revision>34;",
+                 "native tail flags helper pins keepMeshData gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_no_quant=alt_revision>1;",
+                 "native tail flags helper pins alt noQuant gate");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_has_no_tail_flags=mesh_revision==28&&"
+                 "alt_revision==0&&",
+                 "native tail flags helper pins GH2 absent tail flags");
   ok &= contains(char_mesh,
                  "plan.write_pads_to_group_sizes_count=plan."
                  "existing_group_section_count<plan.group_sizes_count;",
@@ -7066,6 +7097,12 @@ int run_contract() {
                  "patch_todo_group_sizes_io.leaves_patch_vector_loop_todo",
                  "focused mesh decode test covers groupSizes TODO branch");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_tail_flags_io_plan(",
+                 "focused mesh decode test covers MiloEditor tail flags IO");
+  ok &= contains(mesh_decode_test,
+                 "gh2_tail_flags.gh2_rev28_has_no_tail_flags",
+                 "focused mesh decode test covers GH2 absent tail flags");
+  ok &= contains(mesh_decode_test,
                  "gh2_group_section_io.write_pads_to_group_sizes_count",
                  "focused mesh decode test covers group section writer padding");
   ok &= contains(mesh_decode_test,
@@ -7347,6 +7384,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh groupSizes IO helper");
   ok &= contains(doc, "explicit source TODO",
                  "document fences groupSizes TODO branch");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_tail_flags_io_plan` records",
+                 "document records MiloEditor RndMesh tail flags IO helper");
+  ok &= contains(doc, "GH2 rev28/alt0 has none of these serialized booleans",
+                 "document records absent GH2 tail flags");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_face_io_plan` records",
                  "document records MiloEditor RndMesh face IO helper");

@@ -306,6 +306,29 @@ source_milo_editor_rndmesh_group_sizes_io_plan(
     int32_t mesh_revision,
     int32_t group_sizes_count);
 
+struct SourceMiloEditorRndMeshTailFlagsIoPlan {
+  int32_t mesh_revision = 0;
+  int32_t alt_revision = 0;
+  bool flags_are_serialized_booleans = true;
+  bool order_is_keep_mesh_has_ao_no_quant_unk3 = true;
+  bool reads_keep_mesh_data = false;
+  bool writes_keep_mesh_data = false;
+  bool reads_has_ao_calculation = false;
+  bool writes_has_ao_calculation = false;
+  bool reads_no_quant = false;
+  bool writes_no_quant = false;
+  bool reads_unk_bool3 = false;
+  bool writes_unk_bool3 = false;
+  int32_t read_bool_count = 0;
+  int32_t write_bool_count = 0;
+  bool gh2_rev28_has_no_tail_flags = false;
+};
+
+SourceMiloEditorRndMeshTailFlagsIoPlan
+source_milo_editor_rndmesh_tail_flags_io_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision);
+
 struct SourceMiloEditorRndMeshGroupSectionIoPlan {
   int32_t group_sizes_count = 0;
   int32_t existing_group_section_count = 0;

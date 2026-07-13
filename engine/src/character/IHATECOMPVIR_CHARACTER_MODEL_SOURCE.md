@@ -1140,6 +1140,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     swaps those roles. Native `source_milo_editor_rndmesh_revision_word_plan`
     records that source IO contract so revision-gated model parsing stays tied
     to the visible source split/write logic.
+  - The late MiloEditor `RndMesh` boolean tail reads and writes
+    `keepMeshData` only above mesh revision 34, `hasAOCalculation` only above
+    `0x25`, `noQuant` only above alt revision 1, and `unkBool3` only above alt
+    revision 3, in that order. Native
+    `source_milo_editor_rndmesh_tail_flags_io_plan` records this IO-only tail;
+    GH2 rev28/alt0 has none of these serialized booleans, so native must not
+    infer render, hair, cull, or quantization behavior from absent tail flags.
   - MiloEditor `RndMesh.groupSizes` rows are counted byte lists for mesh
     revisions above `0x17` and for the older `0x11..0x15` branch. The
     `0x16..0x17` branch remains an explicit source TODO and performs no

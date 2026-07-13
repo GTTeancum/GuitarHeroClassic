@@ -1190,6 +1190,44 @@ int main() {
   CHECK(patch_todo_group_sizes_io.read_group_size_rows == 0);
   CHECK(patch_todo_group_sizes_io.write_group_size_rows == 0);
 
+  const auto gh2_tail_flags =
+      ghogx::character::source_milo_editor_rndmesh_tail_flags_io_plan(28, 0);
+  CHECK(gh2_tail_flags.flags_are_serialized_booleans);
+  CHECK(gh2_tail_flags.order_is_keep_mesh_has_ao_no_quant_unk3);
+  CHECK(!gh2_tail_flags.reads_keep_mesh_data);
+  CHECK(!gh2_tail_flags.writes_keep_mesh_data);
+  CHECK(!gh2_tail_flags.reads_has_ao_calculation);
+  CHECK(!gh2_tail_flags.writes_has_ao_calculation);
+  CHECK(!gh2_tail_flags.reads_no_quant);
+  CHECK(!gh2_tail_flags.writes_no_quant);
+  CHECK(!gh2_tail_flags.reads_unk_bool3);
+  CHECK(!gh2_tail_flags.writes_unk_bool3);
+  CHECK(gh2_tail_flags.read_bool_count == 0);
+  CHECK(gh2_tail_flags.write_bool_count == 0);
+  CHECK(gh2_tail_flags.gh2_rev28_has_no_tail_flags);
+
+  const auto modern_tail_flags =
+      ghogx::character::source_milo_editor_rndmesh_tail_flags_io_plan(38, 4);
+  CHECK(modern_tail_flags.reads_keep_mesh_data);
+  CHECK(modern_tail_flags.writes_keep_mesh_data);
+  CHECK(modern_tail_flags.reads_has_ao_calculation);
+  CHECK(modern_tail_flags.writes_has_ao_calculation);
+  CHECK(modern_tail_flags.reads_no_quant);
+  CHECK(modern_tail_flags.writes_no_quant);
+  CHECK(modern_tail_flags.reads_unk_bool3);
+  CHECK(modern_tail_flags.writes_unk_bool3);
+  CHECK(modern_tail_flags.read_bool_count == 4);
+  CHECK(modern_tail_flags.write_bool_count == 4);
+  CHECK(!modern_tail_flags.gh2_rev28_has_no_tail_flags);
+
+  const auto mixed_tail_flags =
+      ghogx::character::source_milo_editor_rndmesh_tail_flags_io_plan(35, 2);
+  CHECK(mixed_tail_flags.reads_keep_mesh_data);
+  CHECK(!mixed_tail_flags.reads_has_ao_calculation);
+  CHECK(mixed_tail_flags.reads_no_quant);
+  CHECK(!mixed_tail_flags.reads_unk_bool3);
+  CHECK(mixed_tail_flags.read_bool_count == 2);
+
   const auto gh2_group_section_io =
       ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
           3, true, 24, 1);
