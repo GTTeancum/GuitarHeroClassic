@@ -25714,6 +25714,22 @@ int run_contract() {
                  "`rockabill2` had only a fret row set",
                  "document records partial local clip variant prefixes");
   ok &= contains(doc,
+                 "focused current audit at\n    "
+                 "`engine/out/source_truth_clip_channels_20260713/"
+                 "focused_clip_channels.stdout.log`",
+                 "document records focused current clip-channel audit");
+  ok &= contains(doc,
+                 "accepted all 359 `CharClipSamples` rows found",
+                 "document records focused current clip-channel accepted rows");
+  ok &= contains(doc,
+                 "Rock1, Rockabill1, and Rockabill2 clip\n    rows all report "
+                 "`rawScale=0`, `rawRotX=0`, `rawRotY=0`, and `fencedRaw=0`",
+                 "document records audited guitarist rows avoid fenced raw channels");
+  ok &= contains(doc,
+                 "Thirteen `metal_drummer` `drummer_main` rows report "
+                 "`rawRotX=2` and\n    `fencedRaw=2`",
+                 "document records real stock raw-axis evaluator gap");
+  ok &= contains(doc,
                  "The matching controller-route audit at\n    "
                  "`analysis/source_clip_inventory_20260711/"
                  "stock_24_base_controller_driver_routes.stdout.log`",

@@ -4514,6 +4514,18 @@ note, and all report `unreadBytes=0`.
     and `rockabill2` had only a fret row set. Treat these as clip-directory
     routing evidence to resolve through source driver data, not as parser
     failures or permission to fabricate copied animation paths.
+  - The 2026-07-13 focused current audit at
+    `engine/out/source_truth_clip_channels_20260713/focused_clip_channels.stdout.log`
+    built `ghogx_character_clip_audit` and scanned stock `rock1`, `rock2`,
+    `rockabill1`, `rockabill2`, and `metal_drummer` prefixes. It visited 26
+    MILOs and accepted all 359 `CharClipSamples` rows found; stdout had no
+    missing/error/accepted-zero rows. The Rock1, Rockabill1, and Rockabill2 clip
+    rows all report `rawScale=0`, `rawRotX=0`, `rawRotY=0`, and `fencedRaw=0`.
+    Rock2 again contributed no private clip rows under `char/rock2/`.
+    Thirteen `metal_drummer` `drummer_main` rows report `rawRotX=2` and
+    `fencedRaw=2`, so the missing raw-axis evaluator remains a real stock
+    character gap, but not the direct explanation for the audited guitarist
+    Rock/Rockabill clip rows.
   - The matching controller-route audit at
     `analysis/source_clip_inventory_20260711/stock_24_base_controller_driver_routes.stdout.log`
     confirms the shared routes are authored `CharDriver` data. It decoded 63
