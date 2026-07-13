@@ -168,6 +168,8 @@ int main() {
       compact(function_body(milo_scene_cpp, "decode_cam"));
   const std::string camshot_entity_c =
       compact(function_body(gameplay, "camshot_entity_from_name"));
+  const std::string camshot_frame_reader_c =
+      compact(function_body(gameplay, "read_camshot_frame_like_miloeditor"));
   const std::string regular_camera_loader_c =
       compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string camera_submit_c =
@@ -7843,7 +7845,7 @@ int main() {
                  "boolhas_timing=false;",
                  "CameraKey preserves CamShot keyframe timing fields");
   ok &= contains(gameplay_h_c,
-                 "floatblur_depth=0.35f;floatmax_blur=255.0f;"
+                 "floatblur_depth=0.35f;floatmax_blur=1.0f;"
                  "floatmin_blur=0.0f;floatfocus_blur_multiplier=0.0f;"
                  "boolhas_dof_fields=false;"
                  "std::stringfocus_target_entity;"
@@ -7859,30 +7861,57 @@ int main() {
                  "boolhas_parent_first_frame=false;",
                  "CameraKey preserves CamShot frame shake/zoom/parent-first fields");
   ok &= contains(gameplay_c,
-                 "constfloatblur_depth=r.f32();"
-                 "key.blur_depth=camshot_revision<0x17?"
-                 "1.0f-blur_depth:blur_depth;",
-                 "CamShot frame reader consumes source blur depth field");
+                 "constexprfloatkCamShotAngleByteScale=81.16902f;"
+                 "constexprfloatkCamShotAngleByteInv=0.012319971f;"
+                 "constexprfloatkCamShotBlurByteScale=255.0f;"
+                 "constexprfloatkCamShotBlurByteInv=0.0039215689f;",
+                 "native CamShot runtime fields use ihatecompvir source byte scales");
   ok &= contains(gameplay_c,
-                 "key.max_blur=camshot_revision>0x17?r.f32():255.0f;"
-                 "key.min_blur=camshot_revision>0x1c?r.f32():0.0f;"
+                 "floatcamshot_source_field_of_view(floatvalue){"
+                 "returncamshot_u8_runtime_field(value,kCamShotAngleByteScale,"
+                 "kCamShotAngleByteInv);}",
+                 "CamShot FOV mirrors source SetFieldOfView/FieldOfView byte storage");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_zoom_field_of_view(floatvalue){"
+                 "returncamshot_s8_runtime_field(value,kCamShotAngleByteScale,"
+                 "kCamShotAngleByteInv);}",
+                 "CamShot zoom FOV mirrors source signed-byte storage");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_blur_field(floatvalue){"
+                 "returncamshot_u8_runtime_field(value,kCamShotBlurByteScale,"
+                 "kCamShotBlurByteInv);}",
+                 "CamShot blur values mirror source byte-backed accessors");
+  ok &= contains(camshot_frame_reader_c,
+                 "key.fov=camshot_source_field_of_view(r.f32());",
+                 "CamShot frame reader stores runtime source FOV, not raw serialized FOV");
+  ok &= contains(camshot_frame_reader_c,
+                 "constfloatblur_depth=r.f32();"
+                 "key.blur_depth=camshot_source_blur_field("
+                 "camshot_revision<0x17?1.0f-blur_depth:blur_depth);",
+                 "CamShot frame reader consumes source blur depth through source byte storage");
+  ok &= contains(camshot_frame_reader_c,
+                 "key.max_blur=camshot_revision>0x17?"
+                 "camshot_source_blur_field(r.f32()):1.0f;"
+                 "key.min_blur=camshot_revision>0x1c?"
+                 "camshot_source_blur_field(r.f32()):0.0f;"
                  "key.focus_blur_multiplier=camshot_revision>0x14?"
                  "r.f32():0.0f;",
-                 "CamShot frame reader consumes source blur range fields");
+                 "CamShot frame reader consumes source blur range fields through source byte storage");
   ok &= contains(gameplay_c,
                  "key.focus_target_entity=std::move(focus.entity);"
                  "key.focus_target_subpart=std::move(focus.subpart);",
                  "CamShot frame reader preserves focus target refs");
-  ok &= contains(gameplay_c,
+  ok &= contains(camshot_frame_reader_c,
                  "key.shake_noise_amp=r.f32();"
                  "key.shake_noise_freq=r.f32();"
-                 "key.max_angular_offset[0]=r.f32();"
-                 "key.max_angular_offset[1]=r.f32();"
+                 "key.max_angular_offset[0]=camshot_source_angular_offset(r.f32());"
+                 "key.max_angular_offset[1]=camshot_source_angular_offset(r.f32());"
                  "key.has_shake_fields=true;",
-                 "CamShot frame reader consumes source shake fields");
-  ok &= contains(gameplay_c,
-                 "key.zoom_fov=r.f32();key.has_zoom_fov=true;",
-                 "CamShot frame reader consumes source zoom FOV field");
+                 "CamShot frame reader consumes source shake fields with source angular byte storage");
+  ok &= contains(camshot_frame_reader_c,
+                 "key.zoom_fov=camshot_source_zoom_field_of_view(r.f32());"
+                 "key.has_zoom_fov=true;",
+                 "CamShot frame reader consumes source zoom FOV through source signed-byte storage");
   ok &= contains(gameplay_c,
                  "key.parent_first_frame=r.boolean();"
                  "key.has_parent_first_frame=true;",

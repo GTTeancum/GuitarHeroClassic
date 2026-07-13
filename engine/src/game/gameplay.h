@@ -156,7 +156,7 @@ class Gameplay {
     float screen_offset[2] = {0.0f, 0.0f};
     bool has_screen_offset = false;
     float blur_depth = 0.35f;
-    float max_blur = 255.0f;
+    float max_blur = 1.0f;
     float min_blur = 0.0f;
     float focus_blur_multiplier = 0.0f;
     bool has_dof_fields = false;

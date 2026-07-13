@@ -1636,6 +1636,43 @@ float convert_fov_like_miloeditor(float fov, float aspect_ratio) {
     return std::atan(aspect_ratio * std::tan(0.5f * fov)) * 2.0f;
 }
 
+constexpr float kCamShotAngleByteScale = 81.16902f;
+constexpr float kCamShotAngleByteInv = 0.012319971f;
+constexpr float kCamShotBlurByteScale = 255.0f;
+constexpr float kCamShotBlurByteInv = 0.0039215689f;
+
+float camshot_u8_runtime_field(float value, float scale, float inv_scale) {
+    if (!std::isfinite(value)) return 0.0f;
+    const int raw = std::clamp(static_cast<int>(value * scale), 0, 255);
+    return static_cast<float>(raw) * inv_scale;
+}
+
+float camshot_s8_runtime_field(float value, float scale, float inv_scale) {
+    if (!std::isfinite(value)) return 0.0f;
+    const int raw = std::clamp(static_cast<int>(value * scale), -128, 127);
+    return static_cast<float>(raw) * inv_scale;
+}
+
+float camshot_source_field_of_view(float value) {
+    return camshot_u8_runtime_field(value, kCamShotAngleByteScale,
+                                    kCamShotAngleByteInv);
+}
+
+float camshot_source_angular_offset(float value) {
+    return camshot_u8_runtime_field(value, kCamShotAngleByteScale,
+                                    kCamShotAngleByteInv);
+}
+
+float camshot_source_zoom_field_of_view(float value) {
+    return camshot_s8_runtime_field(value, kCamShotAngleByteScale,
+                                    kCamShotAngleByteInv);
+}
+
+float camshot_source_blur_field(float value) {
+    return camshot_u8_runtime_field(value, kCamShotBlurByteScale,
+                                    kCamShotBlurByteInv);
+}
+
 std::optional<DecodedRndCamAnim> read_rnd_camanim_like_miloeditor(
     const uint8_t* body, size_t size) {
     try {
@@ -1832,7 +1869,7 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     key.blend_ease = r.f32();
     key.has_timing = true;
     if (camshot_revision > 0x2d) key.blend_ease_mode = r.i32();
-    key.fov = r.f32();
+    key.fov = camshot_source_field_of_view(r.f32());
     key.has_fov = true;
     const HmxMatrix3x4 world_offset = read_hmx_matrix(r);
     for (int axis = 0; axis < 3; ++axis) {
@@ -1847,10 +1884,13 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     key.has_screen_offset = std::abs(key.screen_offset[0]) > 0.0001f ||
                             std::abs(key.screen_offset[1]) > 0.0001f;
     const float blur_depth = r.f32();
-    key.blur_depth = camshot_revision < 0x17 ? 1.0f - blur_depth : blur_depth;
+    key.blur_depth = camshot_source_blur_field(
+        camshot_revision < 0x17 ? 1.0f - blur_depth : blur_depth);
     if (camshot_revision < 0x17) (void)r.i32();
-    key.max_blur = camshot_revision > 0x17 ? r.f32() : 255.0f;
-    key.min_blur = camshot_revision > 0x1c ? r.f32() : 0.0f;
+    key.max_blur =
+        camshot_revision > 0x17 ? camshot_source_blur_field(r.f32()) : 1.0f;
+    key.min_blur =
+        camshot_revision > 0x1c ? camshot_source_blur_field(r.f32()) : 0.0f;
     key.focus_blur_multiplier =
         camshot_revision > 0x14 ? r.f32() : 0.0f;
     if (camshot_revision < 0x17) (void)r.i32();
@@ -1894,12 +1934,14 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     if (camshot_revision > 0x11) {
         key.shake_noise_amp = r.f32();
         key.shake_noise_freq = r.f32();
-        key.max_angular_offset[0] = r.f32();
-        key.max_angular_offset[1] = r.f32();
+        key.max_angular_offset[0] =
+            camshot_source_angular_offset(r.f32());
+        key.max_angular_offset[1] =
+            camshot_source_angular_offset(r.f32());
         key.has_shake_fields = true;
     }
     if (camshot_revision > 0x15) {
-        key.zoom_fov = r.f32();
+        key.zoom_fov = camshot_source_zoom_field_of_view(r.f32());
         key.has_zoom_fov = true;
     }
     if (camshot_revision > 0x28) {
@@ -18058,7 +18100,7 @@ void apply_camera_keys(
         0.35f);
     const float max_blur = lerp_camshot_frame_field(
         a->has_dof_fields, a->max_blur, b->has_dof_fields, b->max_blur,
-        255.0f);
+        1.0f);
     const float min_blur = lerp_camshot_frame_field(
         a->has_dof_fields, a->min_blur, b->has_dof_fields, b->min_blur,
         0.0f);
