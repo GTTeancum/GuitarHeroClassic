@@ -1998,6 +1998,17 @@ struct SourceCharHairHookupPlan {
   bool called_overloaded_hookup = false;
 };
 
+struct SourceCharHairPointCollideResolution {
+  bool has_legacy_inline_rows = false;
+  bool has_collision_name = false;
+  bool has_collide_type = false;
+  bool has_positive_radius = false;
+  bool point_collides_cleared_by_loader = true;
+  bool hookup_overload_body_available = false;
+  bool resolved_runtime_collides = false;
+  bool may_write_world_xfm = false;
+};
+
 struct SourceCharHairHookupDumpEvidence {
   std::string range;
   std::vector<std::string> locals;
@@ -3581,6 +3592,8 @@ source_char_hair_rb2_mapped_body_evidence();
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);
+SourceCharHairPointCollideResolution
+source_char_hair_point_collide_resolution(const CharHairPoint& point);
 SourceCharHairEnterPlan source_char_hair_enter_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);

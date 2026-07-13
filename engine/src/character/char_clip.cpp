@@ -6533,8 +6533,8 @@ static void source_char_hair_do_reset(Character& character, const CharHair& hair
                                       int reset_count);
 
 static bool source_char_hair_has_resolved_collides(const CharHairPoint& point) {
-  (void)point;
-  return false;
+  return source_char_hair_point_collide_resolution(point)
+      .resolved_runtime_collides;
 }
 
 static int source_char_hair_simulate_internal(Character& character,

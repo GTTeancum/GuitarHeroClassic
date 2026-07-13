@@ -4195,6 +4195,19 @@ SourceCharHairHookupPlan source_char_hair_hookup_plan(
   return plan;
 }
 
+SourceCharHairPointCollideResolution
+source_char_hair_point_collide_resolution(const CharHairPoint& point) {
+  SourceCharHairPointCollideResolution resolution;
+  resolution.has_collision_name = !point.collision.empty();
+  resolution.has_collide_type = point.collide_type != 0;
+  resolution.has_positive_radius =
+      point.radius > 0.0f || point.outer_radius > 0.0f;
+  resolution.has_legacy_inline_rows =
+      resolution.has_collision_name || resolution.has_collide_type ||
+      resolution.has_positive_radius;
+  return resolution;
+}
+
 SourceCharHairEnterPlan source_char_hair_enter_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides) {

@@ -27506,6 +27506,31 @@ int run_contract() {
                  "sourcethenclearsPoint.collides;"
                  "//nativelogsthesefieldsbutdoesnotpromotethem",
                  "CharHair point comments keep inline collision rows out of guessed collides");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairPointCollideResolution",
+                 "CharHair exposes point collide resolution boundary");
+  ok &= contains(char_mesh,
+                 "SourceCharHairPointCollideResolution"
+                 "source_char_hair_point_collide_resolution",
+                 "CharHair point collide helper is implemented");
+  ok &= contains(char_mesh,
+                 "resolution.has_legacy_inline_rows="
+                 "resolution.has_collision_name||resolution.has_collide_type||"
+                 "resolution.has_positive_radius;",
+                 "CharHair point collide helper detects legacy inline rows");
+  ok &= contains(char_clip,
+                 "source_char_hair_point_collide_resolution(point)"
+                 ".resolved_runtime_collides",
+                 "CharHair runtime writeback gate uses source boundary helper");
+  ok &= contains(char_hair_source_test,
+                 "legacyinlinerowsdonotpublishCharHairbonetransforms",
+                 "focused CharHair test fences legacy inline writeback");
+  ok &= contains(doc,
+                 "`source_char_hair_point_collide_resolution` makes this boundary explicit",
+                 "document records CharHair point collide resolution boundary");
+  ok &= contains(doc,
+                 "`resolved_runtime_collides=false` and `may_write_world_xfm=false`",
+                 "document records CharHair legacy rows do not authorize writeback");
   ok &= contains(char_clip, "legacyInline=loggedOnly",
                  "CharHair source logs mark legacy inline collision rows as log-only");
   ok &= contains(char_clip,

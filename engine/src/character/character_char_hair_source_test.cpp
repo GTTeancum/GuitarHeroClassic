@@ -79,6 +79,7 @@ int main() {
   using ghogx::character::source_char_hair_hookup_dump_evidence;
   using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_load_plan;
+  using ghogx::character::source_char_hair_point_collide_resolution;
   using ghogx::character::source_char_hair_point_default_state;
   using ghogx::character::source_char_hair_point_load_plan;
   using ghogx::character::source_char_hair_poll_decision;
@@ -1036,6 +1037,51 @@ int main() {
                    "hookup collide count");
   ok &= expect_bool(hookup.collected_collides[0] == "head.collide",
                     true, "hookup collide order");
+
+  ghogx::character::CharHairPoint inline_collision_point;
+  inline_collision_point.collision = "head.collide";
+  inline_collision_point.collide_type = 1;
+  inline_collision_point.radius = 0.25f;
+  inline_collision_point.outer_radius = 0.5f;
+  const auto inline_resolution =
+      source_char_hair_point_collide_resolution(inline_collision_point);
+  ok &= expect_bool(inline_resolution.has_legacy_inline_rows, true,
+                    "legacy inline collision rows are detected");
+  ok &= expect_bool(inline_resolution.has_collision_name, true,
+                    "legacy collision name is diagnostic");
+  ok &= expect_bool(inline_resolution.has_collide_type, true,
+                    "legacy collide type is diagnostic");
+  ok &= expect_bool(inline_resolution.has_positive_radius, true,
+                    "legacy radius is diagnostic");
+  ok &= expect_bool(inline_resolution.point_collides_cleared_by_loader, true,
+                    "source point loader clears Point.collides");
+  ok &= expect_bool(inline_resolution.hookup_overload_body_available, false,
+                    "missing Hookup overload body remains fenced");
+  ok &= expect_bool(inline_resolution.resolved_runtime_collides, false,
+                    "legacy inline rows do not resolve runtime collides");
+  ok &= expect_bool(inline_resolution.may_write_world_xfm, false,
+                    "legacy inline rows do not authorize writeback");
+
+  Character inline_collision_character;
+  add_trans(inline_collision_character, make_trans("parent"));
+  add_trans(inline_collision_character, make_trans("root", "parent"));
+  CharHair inline_collision_hair;
+  inline_collision_hair.name = "inline_collision.hair";
+  inline_collision_hair.simulate = true;
+  inline_collision_hair.strands.resize(1);
+  inline_collision_hair.strands[0].root = "root";
+  inline_collision_hair.strands[0].points.resize(1);
+  inline_collision_hair.strands[0].points[0] = inline_collision_point;
+  inline_collision_hair.strands[0].points[0].bone = "hair_tip";
+  inline_collision_hair.strands[0].points[0].length = 1.0f;
+  inline_collision_character.hairs.push_back(inline_collision_hair);
+  apply_character_controllers(inline_collision_character, 0.0f);
+  apply_character_controllers(inline_collision_character, 1.0f);
+  ok &= expect_bool(
+      inline_collision_character.runtime_world_overrides.find("hair_tip") !=
+          inline_collision_character.runtime_world_overrides.end(),
+      false,
+      "legacy inline rows do not publish CharHair bone transforms");
 
   const auto hookup_dump = source_char_hair_hookup_dump_evidence();
   ok &= expect_bool(hookup_dump.range == "0x80360284 -> 0x80360BE0",

@@ -1833,6 +1833,11 @@ note, and all report `unreadBytes=0`.
     log these legacy inline fields for stock GH2 evidence, but they are not a
     resolved runtime `ObjPtrList<CharCollide>` and must not be promoted into one
     without the missing source hookup body.
+    `source_char_hair_point_collide_resolution` makes this boundary explicit:
+    collision name, collide type, and positive radius rows are diagnostic
+    legacy inline data only; the helper keeps
+    `resolved_runtime_collides=false` and `may_write_world_xfm=false` until the
+    overloaded source `Hookup(ObjPtrList<CharCollide>&)` body is available.
   - `CharHair::Poll` re-runs `Hookup()` while the owning `Character` is syncing,
     resets after teleports, skips simulation for higher LODs, then calls
     `DoReset`, `SimulateLoops`, or `SimulateZeroTime` depending on runtime state.
