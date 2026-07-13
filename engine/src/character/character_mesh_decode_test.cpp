@@ -1207,6 +1207,40 @@ int main() {
   CHECK(rev7_core_fields.read_bool_count == 2);
   CHECK(rev7_core_fields.read_uint32_count == 1);
 
+  const auto gh2_section_order =
+      ghogx::character::source_milo_editor_rndmesh_section_order_plan(
+          28, 0, false);
+  CHECK(gh2_section_order.read_sections.size() == 11);
+  CHECK(gh2_section_order.write_sections == gh2_section_order.read_sections);
+  CHECK(gh2_section_order.read_sections[0] == "combined_revision");
+  CHECK(gh2_section_order.read_sections[1] == "base");
+  CHECK(gh2_section_order.read_sections[2] == "trans");
+  CHECK(gh2_section_order.read_sections[3] == "draw");
+  CHECK(gh2_section_order.read_sections[4] == "core_fields");
+  CHECK(gh2_section_order.read_sections[5] == "vertices");
+  CHECK(gh2_section_order.read_sections[6] == "faces");
+  CHECK(gh2_section_order.read_sections[7] == "group_sizes");
+  CHECK(gh2_section_order.read_sections[8] == "bone_transforms");
+  CHECK(gh2_section_order.read_sections[9] == "tail_flags");
+  CHECK(gh2_section_order.read_sections[10] == "group_sections");
+  CHECK(gh2_section_order.revision_word_first);
+  CHECK(gh2_section_order.base_before_trans_draw);
+  CHECK(gh2_section_order.trans_draw_before_core_fields);
+  CHECK(gh2_section_order.vertices_before_faces);
+  CHECK(gh2_section_order.faces_before_group_sizes);
+  CHECK(gh2_section_order.group_sizes_before_bone_transforms);
+  CHECK(gh2_section_order.tail_flags_before_group_sections);
+  CHECK(gh2_section_order.gh2_rev28_order_is_source_layout);
+
+  const auto standalone_section_order =
+      ghogx::character::source_milo_editor_rndmesh_section_order_plan(
+          28, 0, true);
+  CHECK(standalone_section_order.read_sections.back() ==
+        "standalone_end_bytes");
+  CHECK(standalone_section_order.write_sections.back() ==
+        "standalone_end_bytes");
+  CHECK(!standalone_section_order.gh2_rev28_order_is_source_layout);
+
   const auto gh2_group_sizes_io =
       ghogx::character::source_milo_editor_rndmesh_group_sizes_io_plan(
           28, 3);

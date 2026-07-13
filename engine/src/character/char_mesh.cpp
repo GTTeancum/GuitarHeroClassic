@@ -647,6 +647,32 @@ source_milo_editor_rndmesh_core_fields_io_plan(int32_t mesh_revision) {
   return plan;
 }
 
+SourceMiloEditorRndMeshSectionOrderPlan
+source_milo_editor_rndmesh_section_order_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision,
+    bool standalone) {
+  SourceMiloEditorRndMeshSectionOrderPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.alt_revision = alt_revision;
+  plan.read_sections = {"combined_revision", "base", "trans", "draw",
+                        "core_fields",       "vertices", "faces",
+                        "group_sizes",       "bone_transforms",
+                        "tail_flags",        "group_sections"};
+  plan.write_sections = plan.read_sections;
+  if (standalone) {
+    plan.read_sections.push_back("standalone_end_bytes");
+    plan.write_sections.push_back("standalone_end_bytes");
+  }
+  plan.read_write_orders_match = plan.read_sections == plan.write_sections;
+  plan.gh2_rev28_order_is_source_layout =
+      mesh_revision == 28 && alt_revision == 0 && !standalone &&
+      plan.read_write_orders_match && plan.vertices_before_faces &&
+      plan.group_sizes_before_bone_transforms &&
+      plan.tail_flags_before_group_sections;
+  return plan;
+}
+
 SourceMiloEditorRndMeshGroupSizesIoPlan
 source_milo_editor_rndmesh_group_sizes_io_plan(
     int32_t mesh_revision,

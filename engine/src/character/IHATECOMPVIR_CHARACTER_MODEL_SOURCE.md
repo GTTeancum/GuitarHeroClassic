@@ -1141,6 +1141,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     volume after 17, and BSP after 18. For GH2 rev28 this core block is
     material, geom owner, mutable, volume, and BSP only; native must not infer
     legacy transform parent or alternate owner rows for rev28 meshes.
+  - Native `source_milo_editor_rndmesh_section_order_plan` records the full
+    MiloEditor `RndMesh.Read` / `Write` section order: combined revision word,
+    base object, transform, drawable, core fields, vertices, faces, group sizes,
+    bone transforms, tail flags, group sections, then standalone end bytes when
+    requested. This is a file-layout contract only; it does not infer runtime
+    draw order, skinning order, or hair simulation behavior.
   - MiloEditor packs the `RndMesh` revision word as two 16-bit halves using
     `BitConverter.IsLittleEndian`: on little-endian hosts the low word is
     `revision` and the high word is `altRevision`, while the big-endian branch

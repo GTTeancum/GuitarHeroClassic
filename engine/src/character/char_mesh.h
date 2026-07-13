@@ -331,6 +331,31 @@ struct SourceMiloEditorRndMeshCoreFieldsIoPlan {
 SourceMiloEditorRndMeshCoreFieldsIoPlan
 source_milo_editor_rndmesh_core_fields_io_plan(int32_t mesh_revision);
 
+struct SourceMiloEditorRndMeshSectionOrderPlan {
+  int32_t mesh_revision = 0;
+  int32_t alt_revision = 0;
+  std::vector<std::string> read_sections;
+  std::vector<std::string> write_sections;
+  bool revision_word_first = true;
+  bool base_before_trans_draw = true;
+  bool trans_draw_before_core_fields = true;
+  bool vertices_before_faces = true;
+  bool faces_before_group_sizes = true;
+  bool group_sizes_before_bone_transforms = true;
+  bool bone_transforms_before_tail_flags = true;
+  bool tail_flags_before_group_sections = true;
+  bool group_sections_after_tail_flags = true;
+  bool standalone_end_bytes_last = true;
+  bool read_write_orders_match = true;
+  bool gh2_rev28_order_is_source_layout = false;
+};
+
+SourceMiloEditorRndMeshSectionOrderPlan
+source_milo_editor_rndmesh_section_order_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision,
+    bool standalone);
+
 struct SourceMiloEditorRndMeshGroupSizesIoPlan {
   int32_t mesh_revision = 0;
   int32_t input_group_sizes_count = 0;

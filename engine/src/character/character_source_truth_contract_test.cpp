@@ -5333,6 +5333,35 @@ int run_contract() {
                  "if(revision==27)mat2=Symbol.Read(reader);",
                  "MiloEditor RndMesh reads second material only at rev27");
   ok &= contains(mesh_cs,
+                 "uintcombinedRevision=reader.ReadUInt32();if(BitConverter."
+                 "IsLittleEndian)(revision,altRevision)=((ushort)("
+                 "combinedRevision&0xFFFF),(ushort)((combinedRevision>>16)&"
+                 "0xFFFF));",
+                 "MiloEditor RndMesh Read starts with combined revision");
+  ok &= contains(mesh_cs,
+                 "base.Read(reader,false,parent,entry);trans=trans.Read(reader,"
+                 "false,parent,entry);draw=draw.Read(reader,false,parent,entry);",
+                 "MiloEditor RndMesh Read orders base trans draw");
+  ok &= contains(mesh_cs,
+                 "vertices=vertices.Read(reader,revision);uintfaceCount=reader."
+                 "ReadUInt32();faces=newList<Face>();",
+                 "MiloEditor RndMesh Read orders vertices before faces");
+  ok &= contains(mesh_cs,
+                 "faces.Add(newFace().Read(reader));}if(revision>0x17)",
+                 "MiloEditor RndMesh Read orders faces before groupSizes");
+  ok &= contains(mesh_cs,
+                 "if(reader.ReadInt32()>0){reader.BaseStream.Position-=4;",
+                 "MiloEditor RndMesh Read orders bone probe after groupSizes");
+  ok &= contains(mesh_cs,
+                 "if(altRevision>3){unkBool3=reader.ReadBoolean();}"
+                 "//weirdthingonlast-gen,fromCisco'snotesif(groupSizesCount>0"
+                 "&&groupSizes[0]>0&&parent.revision<25)",
+                 "MiloEditor RndMesh Read orders tail flags before group sections");
+  ok &= contains(mesh_cs,
+                 "if(standalone)if((reader.Endianness==Endian.BigEndian?"
+                 "0xADDEADDE:0xDEADDEAD)!=reader.ReadUInt32())",
+                 "MiloEditor RndMesh Read standalone end marker last");
+  ok &= contains(mesh_cs,
                  "trans=trans.Read(reader,false,parent,entry);draw=draw.Read("
                  "reader,false,parent,entry);mat=Symbol.Read(reader);",
                  "MiloEditor RndMesh reads transform draw and material rows");
@@ -5381,6 +5410,22 @@ int run_contract() {
                  "trans.Write(writer,false,parent,null);draw.Write(writer,"
                  "false,parent,null);Symbol.Write(writer,mat);",
                  "MiloEditor RndMesh writes transform draw and material rows");
+  ok &= contains(mesh_cs,
+                 "base.Write(writer,false,parent,entry);trans.Write(writer,"
+                 "false,parent,null);draw.Write(writer,false,parent,null);",
+                 "MiloEditor RndMesh Write orders base trans draw");
+  ok &= contains(mesh_cs,
+                 "vertices.Write(writer,revision);writer.WriteUInt32((uint)"
+                 "faces.Count);foreach(Facefaceinfaces)",
+                 "MiloEditor RndMesh Write orders vertices before faces");
+  ok &= contains(mesh_cs,
+                 "if(altRevision>3)writer.WriteBoolean(unkBool3);if("
+                 "groupSizesCount>0&&groupSizes.Count>0&&groupSizes[0]>0&&"
+                 "parent.revision<25)",
+                 "MiloEditor RndMesh Write orders tail flags before group sections");
+  ok &= contains(mesh_cs,
+                 "if(standalone)writer.WriteEndBytes();",
+                 "MiloEditor RndMesh Write standalone end bytes last");
   ok &= contains(mesh_cs,
                  "if(revision==27)Symbol.Write(writer,mat2);",
                  "MiloEditor RndMesh writes second material only at rev27");
@@ -6142,6 +6187,10 @@ int run_contract() {
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh core fields IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshSectionOrderPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh section order plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshGroupSectionIoPlan{"
                  "int32_tgroup_sizes_count=0;",
                  "native declares MiloEditor RndMesh group section IO plan");
@@ -6500,6 +6549,16 @@ int run_contract() {
       "SourceMiloEditorRndMeshCoreFieldsIoPlansource_milo_editor_rndmesh_"
       "core_fields_io_plan(",
       "native ports MiloEditor RndMesh core fields IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshSectionOrderPlansource_milo_editor_rndmesh_"
+      "section_order_plan(",
+      "native ports MiloEditor RndMesh section order helper");
+  ok &= contains(char_mesh,
+                 "plan.read_sections={\"combined_revision\",\"base\",\"trans\","
+                 "\"draw\",\"core_fields\",\"vertices\",\"faces\",\"group_sizes\","
+                 "\"bone_transforms\",\"tail_flags\",\"group_sections\"};",
+                 "native section order helper records source order");
   ok &= contains(char_mesh,
                  "plan.revision=static_cast<uint16_t>(combined_word&0xffffu);",
                  "native revision word helper preserves little-endian split");
@@ -7120,6 +7179,12 @@ int run_contract() {
                  "gh2_core_fields.gh2_rev28_core_is_mat_geom_mutable_volume_bsp",
                  "focused mesh decode test covers GH2 core field block");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_section_order_plan(",
+                 "focused mesh decode test covers MiloEditor section order");
+  ok &= contains(mesh_decode_test,
+                 "gh2_section_order.gh2_rev28_order_is_source_layout",
+                 "focused mesh decode test covers GH2 section order");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_face_io_plan(",
                  "focused mesh decode test covers MiloEditor face IO");
   ok &= contains(mesh_decode_test,
@@ -7437,6 +7502,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh core fields IO helper");
   ok &= contains(doc, "material, geom owner, mutable, volume, and BSP only",
                  "document records GH2 rev28 core field block");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_section_order_plan` records",
+                 "document records MiloEditor RndMesh section order helper");
+  ok &= contains(doc, "file-layout contract only",
+                 "document fences section order from runtime behavior");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_group_section_io_plan` records",
                  "document records MiloEditor RndMesh group section IO helper");
