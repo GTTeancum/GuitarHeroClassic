@@ -1757,6 +1757,7 @@ void CharRenderer::draw_impl(bool clear_target) {
   Mat4 proj = Mat4::perspective_lh(cam.fov, aspect, cam.near_z, cam.far_z);
   proj.m[0][0] = -proj.m[0][0];  // RH world -> LH clip (no left/right flip)
   if ((cam.authored || cam.result_frame.valid) &&
+      !(cam.result_frame.valid && cam.result_frame.screen_offset_consumed) &&
       !char_env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
     constexpr float kScreenOffsetToClip = 1.0f / 768.0f;
     proj.m[2][0] += cam.screen_offset[0] * kScreenOffsetToClip;

@@ -3015,6 +3015,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   }
   if ((cam_.authored || cam_.result_frame.valid) &&
       !(cam_.result_frame.valid && cam_.result_frame.has_custom_projection) &&
+      !(cam_.result_frame.valid && cam_.result_frame.screen_offset_consumed) &&
       !env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
     // CamShot stores screen_offset in the same render-camera family that
     // traces showed carrying stable 768.0 screen/projection values, not in

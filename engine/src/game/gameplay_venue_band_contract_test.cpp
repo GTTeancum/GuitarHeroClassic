@@ -8183,18 +8183,24 @@ int main() {
                  "screen offset correction adjusts submitted result forward vector");
   ok &= contains(gameplay_c,
                  "std::optional<CameraResultRows>"
-                 "camera_source_screen_offset_translate_candidate_rows(",
-                 "camera diagnostics expose source-shaped CamShot screen-offset translation rows");
+                 "camera_source_screen_offset_translate_result_rows(",
+                 "camera result rows expose source-shaped CamShot screen-offset translation rows");
   ok &= contains(gameplay_c,
                  "constfloatright_offset=-key.screen_offset[0]*distance*tan_x;"
                  "constfloatup_offset=key.screen_offset[1]*distance*tan_y;",
-                 "source-shaped screen-offset candidate moves camera position in local right/up space");
+                 "source-shaped screen-offset result moves camera position in local right/up space");
+  ok &= contains(gameplay_c,
+                 "rows.screen_offset_consumed=true;",
+                 "source-shaped screen-offset result marks the projection offset consumed");
   ok &= contains(gameplay_c,
                  "camera_targets_match_like_camshot(*a,*b)",
-                 "source-shaped screen-offset candidate is gated to CamShot same-target blends");
+                 "source-shaped screen-offset result is gated to CamShot same-target blends");
   ok &= contains(gameplay_c,
-                 "\"source_screen_offset_translate_candidate\"",
-                 "camera result diagnostics log the source-shaped screen-offset candidate separately");
+                 "submitted_result=*source_screen_offset_translate_result;",
+                 "same-target CamShot blends submit the source-shaped screen-offset result");
+  ok &= contains(gameplay_c,
+                 "\"source_screen_offset_translate_result\"",
+                 "camera result diagnostics log the source-shaped screen-offset result separately");
   ok &= contains(gameplay_c,
                  "floatcamera_result_builder_shot_filter_step(",
                  "camera result rows consume the traced s3+52 shot filter branch");
@@ -8570,6 +8576,10 @@ int main() {
                  "proj.m[2][0]+=cam.screen_offset[0]*"
                  "kScreenOffsetToClip;",
                  "character renderer composites apply CamShot screen offset like venue geometry");
+  ok &= contains(char_renderer_c,
+                 "!(cam.result_frame.valid&&"
+                 "cam.result_frame.screen_offset_consumed)&&",
+                 "character renderer skips projection screen offset once result rows consumed it");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.renderer->set_use_scene_lighting(true);",
                  "WorldCrowd actors inherit venue lighting instead of standalone viewer lighting");
@@ -9335,6 +9345,9 @@ int main() {
                  "structCameraResultFrame{boolvalid=false;std::stringsource;",
                  "renderer camera carries an explicit PS2-shaped result frame");
   ok &= contains(renderer_h_c,
+                 "boolscreen_offset_consumed=false;",
+                 "renderer camera result frame records source-shaped screen-offset consumption");
+  ok &= contains(renderer_h_c,
                  "boolhas_custom_view=false;",
                  "renderer camera result frames can carry an opt-in PS2 matrix diagnostic");
   ok &= contains(renderer_h_c,
@@ -9347,6 +9360,10 @@ int main() {
                  "cam.result_frame.valid=true;"
                  "cam.result_frame.source=rows.source;",
                  "gameplay writes the submitted CamShot result frame to the renderer camera");
+  ok &= contains(gameplay_c,
+                 "cam.result_frame.screen_offset_consumed="
+                 "rows.screen_offset_consumed;",
+                 "gameplay carries source-shaped screen-offset consumption into renderer result frames");
   ok &= contains(renderer_c,
                  "if(result_frame.valid){out[0]=result_frame.position[0];",
                  "renderer eye uses submitted PS2-shaped result-frame position");
@@ -9357,9 +9374,16 @@ int main() {
   ok &= contains(renderer_c,
                  "up=cam_.result_frame.up;",
                  "renderer derives up vector from submitted result-frame rows");
+  ok &= contains(renderer_c,
+                 "!(cam_.result_frame.valid&&"
+                 "cam_.result_frame.screen_offset_consumed)&&",
+                 "venue renderer skips projection screen offset once result rows consumed it");
   ok &= contains(gameplay_c,
                  "\"[camera-result]frame=%.2fps2_result_builder=0x00267008\"",
                  "camera debug logs expose submitted result-frame rows");
+  ok &= contains(gameplay_c,
+                 "\"screen_offset_consumed=%d\"",
+                 "camera debug logs expose source-shaped screen-offset consumption");
   ok &= contains(gameplay_c,
                  "log_optional_result_rows(\"ps2_result_builder_matrix_candidate\",",
                  "camera debug logs expose retained PS2 matrix diagnostics without submitting them by default");

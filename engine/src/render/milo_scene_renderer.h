@@ -39,6 +39,7 @@ struct CameraResultFrame {
   float forward[3] = {0, 1, 0};
   float right[3] = {1, 0, 0};
   float up[3] = {0, 0, 1};
+  bool screen_offset_consumed = false;
   bool has_custom_view = false;
   bool has_custom_projection = false;
   float custom_view[16] = {1, 0, 0, 0,

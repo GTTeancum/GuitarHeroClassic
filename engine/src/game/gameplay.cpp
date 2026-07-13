@@ -15442,6 +15442,7 @@ struct CameraResultRows {
     std::array<float, 3> forward = {0.0f, 1.0f, 0.0f};
     std::array<float, 3> right = {1.0f, 0.0f, 0.0f};
     std::array<float, 3> up = {0.0f, 0.0f, 1.0f};
+    bool screen_offset_consumed = false;
     bool has_custom_view = false;
     bool has_custom_projection = false;
     std::array<float, 16> custom_view = {1.0f, 0.0f, 0.0f, 0.0f,
@@ -17544,10 +17545,11 @@ bool camera_apply_screen_offset_to_result_rows(
 }
 
 std::optional<CameraResultRows>
-camera_source_screen_offset_translate_candidate_rows(
+camera_source_screen_offset_translate_result_rows(
     CameraResultRows rows,
     const Gameplay::CameraKey& key,
-    const std::array<float, 3>& target) {
+    const std::array<float, 3>& target,
+    bool target_filtered) {
     if (!key.has_screen_offset || !key.has_fov ||
         !std::isfinite(key.screen_offset[0]) ||
         !std::isfinite(key.screen_offset[1]) ||
@@ -17559,7 +17561,9 @@ camera_source_screen_offset_translate_candidate_rows(
     const float tan_y = std::tan(key.fov * 0.5f);
     if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
     const float tan_x = tan_y * kNativeValidationAspect;
-    rows.source += "+target_list+source_screen_offset_translate";
+    rows.source += "+target_list";
+    if (target_filtered) rows.source += "+shot_filter";
+    rows.source += "+source_screen_offset_translate";
     rows.forward = {target[0] - rows.position[0],
                     target[1] - rows.position[1],
                     target[2] - rows.position[2]};
@@ -17578,6 +17582,7 @@ camera_source_screen_offset_translate_candidate_rows(
                                rows.up[axis] * up_offset;
     }
     camera_orthonormalize_result_rows(rows);
+    rows.screen_offset_consumed = true;
     return rows;
 }
 
@@ -17744,6 +17749,8 @@ CameraResultRows camera_lerp_result_rows(const CameraResultRows& a,
     rows.has_custom_view = a.has_custom_view || b.has_custom_view;
     rows.has_custom_projection =
         a.has_custom_projection || b.has_custom_projection;
+    rows.screen_offset_consumed =
+        a.screen_offset_consumed || b.screen_offset_consumed;
     if (rows.has_custom_view) {
         const auto& av = a.has_custom_view ? a.custom_view : b.custom_view;
         const auto& bv = b.has_custom_view ? b.custom_view : av;
@@ -17775,6 +17782,7 @@ void apply_camera_result_frame(ghogx::render::OrbitCamera& cam,
     }
     cam.result_frame.has_custom_view = rows.has_custom_view;
     cam.result_frame.has_custom_projection = rows.has_custom_projection;
+    cam.result_frame.screen_offset_consumed = rows.screen_offset_consumed;
     for (size_t i = 0; i < rows.custom_view.size(); ++i) {
         cam.result_frame.custom_view[i] = rows.custom_view[i];
         cam.result_frame.custom_projection[i] = rows.custom_projection[i];
@@ -18353,6 +18361,7 @@ void apply_camera_keys(
         camera_target_centroid_for_key(*b, targets);
     std::optional<std::array<float, 3>> blended_target_centroid;
     std::optional<std::array<float, 3>> filtered_target_centroid;
+    std::optional<CameraResultRows> source_screen_offset_translate_result;
     float result_filter_step = 1.0f;
     float result_filter_projected_delta = 1.0f;
     bool result_filter_state_seeded = false;
@@ -18404,6 +18413,18 @@ void apply_camera_keys(
             filtered_target_centroid =
                 result_builder_state ? result_builder_state->filtered_target
                                      : *blended_target_centroid;
+            if (camera_targets_match_like_camshot(*a, *b)) {
+                const auto& screen_target =
+                    filtered_target_centroid ? *filtered_target_centroid
+                                             : *blended_target_centroid;
+                source_screen_offset_translate_result =
+                    camera_source_screen_offset_translate_result_rows(
+                        source_seed_result, result_key, screen_target,
+                        result_filter_branch);
+                if (source_screen_offset_translate_result) {
+                    submitted_result = *source_screen_offset_translate_result;
+                }
+            }
         }
     }
     apply_camera_result_frame(cam, submitted_result);
@@ -18530,22 +18551,6 @@ void apply_camera_keys(
         const auto source_record_member =
             debug_camera_source_record_member();
         const auto source_probe_forward = debug_camera_source_probe_forward();
-        std::optional<CameraResultRows>
-            source_screen_offset_translate_candidate;
-        if (blended_target_centroid &&
-            camera_targets_match_like_camshot(*a, *b)) {
-            Gameplay::CameraKey result_key = *a;
-            result_key.has_fov = a->has_fov || b->has_fov;
-            result_key.fov = cam.fov;
-            result_key.has_screen_offset =
-                a->has_screen_offset || b->has_screen_offset;
-            result_key.screen_offset[0] = cam.screen_offset[0];
-            result_key.screen_offset[1] = cam.screen_offset[1];
-            source_screen_offset_translate_candidate =
-                camera_source_screen_offset_translate_candidate_rows(
-                    source_seed_result, result_key,
-                    *blended_target_centroid);
-        }
         auto source_record_member_for_key =
             [&](const Gameplay::CameraKey& key) -> std::optional<std::string> {
             if (key.has_ps2_source_record &&
@@ -19125,13 +19130,15 @@ void apply_camera_keys(
                 "[camera-result] frame=%.2f ps2_result_builder=0x00267008 "
                 "stage=%s source=%s valid=a:%d b:%d "
                 "custom_view=%d custom_projection=%d "
+                "screen_offset_consumed=%d "
                 "position=(%.6f %.6f %.6f 1.000000) "
                 "forward=(%.6f %.6f %.6f 0.000000) "
                 "right=(%.6f %.6f %.6f 0.000000) "
                 "up=(%.6f %.6f %.6f 0.000000)\n",
                 frame, stage, rows.source.c_str(), valid_a, valid_b,
                 rows.has_custom_view ? 1 : 0,
-                rows.has_custom_projection ? 1 : 0, rows.position[0],
+                rows.has_custom_projection ? 1 : 0,
+                rows.screen_offset_consumed ? 1 : 0, rows.position[0],
                 rows.position[1], rows.position[2],
                 rows.forward[0], rows.forward[1], rows.forward[2],
                 rows.right[0], rows.right[1], rows.right[2],
@@ -19190,9 +19197,9 @@ void apply_camera_keys(
             };
         log_result_rows("source_seed_candidate", source_seed_result, 1, 1);
         log_result_rows("submitted", submitted_result, 1, 1);
-        if (source_screen_offset_translate_candidate) {
-            log_result_rows("source_screen_offset_translate_candidate",
-                            *source_screen_offset_translate_candidate, 1, 1);
+        if (source_screen_offset_translate_result) {
+            log_result_rows("source_screen_offset_translate_result",
+                            *source_screen_offset_translate_result, 1, 1);
         }
         log_pose_span_shape("a", *a);
         log_pose_span_shape("b", *b);
