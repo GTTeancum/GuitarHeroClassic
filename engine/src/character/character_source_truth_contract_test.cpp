@@ -1582,6 +1582,12 @@ int run_contract() {
                  "`RndTransformable` constructor defaults are source state",
                  "document records RndTransformable constructor defaults");
   ok &= contains(doc,
+                 "`RndTransformable::Load` is a separate checked C++ runtime body",
+                 "document records RndTransformable C++ load boundary");
+  ok &= contains(doc,
+                 "`source_rndtransformable_cpp_load_plan` records those C++ load branches",
+                 "document records RndTransformable C++ load helper");
+  ok &= contains(doc,
                  "`SetTransParent` asserts the new parent is not `this`",
                  "document records RndTransformable parent-change source path");
   ok &= contains(doc,
@@ -2208,6 +2214,15 @@ int run_contract() {
   ok &= contains(scene_h,
                  "structSourceRndTransLoadPlan{",
                  "shared milo_scene exposes source RndTrans load plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableCppLoadPlan{int32_trevision=0;"
+                 "boolloading_proxy_from_disk=false;boolclass_is_static=false;"
+                 "boolaccepted_revision=false;",
+                 "shared milo_scene exposes RndTransformable C++ load plan");
+  ok &= contains(scene_h,
+                 "boolrev6_reads_constraint=false;"
+                 "boolrev6_preserve_scale_from_target_world=false;",
+                 "shared milo_scene exposes RndTransformable revision-6 load branch");
   ok &= contains(scene,
                  "SourceRndTransLoadPlansource_rndtrans_load_plan(",
                  "shared milo_scene implements source RndTrans load plan");
@@ -2222,6 +2237,27 @@ int run_contract() {
                  "plan.reads_constraint=revision>6;plan.reads_target=revision>5;"
                  "plan.reads_preserve_scale=revision>6;",
                  "shared RndTrans plan mirrors constraint target gates");
+  ok &= contains(scene,
+                 "SourceRndTransformableCppLoadPlansource_rndtransformable_"
+                 "cpp_load_plan(int32_trevision,boolloading_proxy_from_disk,"
+                 "boolclass_is_static){",
+                 "shared milo_scene implements RndTransformable C++ load plan");
+  ok &= contains(scene,
+                 "plan.accepted_revision=revision>=0&&revision<=9;if(!plan."
+                 "accepted_revision)returnplan;",
+                 "shared RndTransformable C++ load plan mirrors ASSERT_REVS");
+  ok &= contains(scene,
+                 "plan.reads_proxy_temp_transforms=loading_proxy_from_disk;"
+                 "plan.reads_stored_local_world=!loading_proxy_from_disk;",
+                 "shared RndTransformable C++ load plan mirrors proxy transform branch");
+  ok &= contains(scene,
+                 "plan.rev6_reads_constraint=revision==6;"
+                 "plan.rev6_preserve_scale_from_target_world=revision==6;",
+                 "shared RndTransformable C++ load plan mirrors revision-6 constraint branch");
+  ok &= contains(scene,
+                 "plan.parent_sets_trans_parent=revision>8?!"
+                 "loading_proxy_from_disk:revision>6;",
+                 "shared RndTransformable C++ load plan mirrors parent branch");
   ok &= contains(scene,
                  "std::stringutf8_z(){",
                  "shared RndTrans reader supports source legacy UTF-8 strings");
@@ -2243,6 +2279,15 @@ int run_contract() {
                  "constSourceRndTransLoadPlanrev8_old_parent="
                  "source_rndtrans_load_plan(8,6,false);",
                  "milo_scene test covers legacy RndTrans child-list plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_cpp_load_plan(9,false,true)",
+                 "milo_scene test covers RndTransformable C++ rev9 load plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_cpp_load_plan(9,true,false)",
+                 "milo_scene test covers RndTransformable C++ proxy load plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_cpp_load_plan(6,false,false)",
+                 "milo_scene test covers RndTransformable C++ rev6 load plan");
   ok &= contains(scene_test,
                  "put_utf8_z(legacy,\"legacy_child\");",
                  "milo_scene test covers legacy RndTrans UTF-8 child row");
@@ -3100,6 +3145,48 @@ int run_contract() {
                  "mLocalXfm.Reset();mWorldXfm.Reset();mCache=newDirtyCache();"
                  "mCache->Set((u32)mCache);}",
                  "RB3 RndTransformable constructor defaults");
+  ok &= contains(rb3_trans_cpp,
+                 "BEGIN_LOADS(RndTransformable)LOAD_REVS(bs)ASSERT_REVS(9,0)"
+                 "if(ClassName()==StaticClassName())Hmx::Object::Load(bs);",
+                 "RB3 RndTransformable Load source prefix");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gLoadingProxyFromDisk){Transformt;bs>>t>>t;}else{"
+                 "bs>>mLocalXfm>>mWorldXfm;}",
+                 "RB3 RndTransformable Load proxy transform branch");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gRev<9){ObjPtrList<RndTransformable,ObjectDir>l(this,"
+                 "kObjListNoNull);bs>>l;for(ObjPtrList<RndTransformable,"
+                 "ObjectDir>::iteratorit=l.begin();it!=l.end();++it){"
+                 "(*it)->SetTransParent(this,false);}}",
+                 "RB3 RndTransformable Load old child-list branch");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gRev==6){bs>>(int&)mConstraint;mPreserveScale="
+                 "mConstraint==kTargetWorld;//whatelseishappeninghere?}",
+                 "RB3 RndTransformable Load revision-6 constraint branch");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gRev!=0&&gRev<7){Vector3v;bs>>v;MILO_ASSERT(v,0);}"
+                 "if(gRev==2||gRev==3||gRev==4){boolb3u;bs>>b3u;}",
+                 "RB3 RndTransformable Load legacy vector/bool branches");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gRev==6||gRev==7){Spheres;bs>>s;RndDrawable*d="
+                 "dynamic_cast<RndDrawable*>(this);if(d)d->SetSphere(s);}",
+                 "RB3 RndTransformable Load legacy sphere branch");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gRev>5){if(gLoadingProxyFromDisk){ObjPtr<"
+                 "RndTransformable,ObjectDir>tPtr(this,0);tPtr.Load(bs,false,"
+                 "0);}elsebs>>mTarget;}if(gRev>6)bs>>mPreserveScale;",
+                 "RB3 RndTransformable Load target/preserve branch");
+  ok &= contains(rb3_trans_cpp,
+                 "if(gRev>8){ObjPtr<RndTransformable,ObjectDir>tPtr(this,0);"
+                 "if(!gLoadingProxyFromDisk){bs>>tPtr;SetTransParent(tPtr,"
+                 "false);}elsetPtr.Load(bs,false,0);}",
+                 "RB3 RndTransformable Load revision-9 parent branch");
+  ok &= contains(rb3_trans_cpp,
+                 "elseif(gRev>6){ObjPtr<RndTransformable,ObjectDir>tPtr(this,"
+                 "0);bs>>tPtr;if(tPtr!=this){SetTransParent(tPtr,false);"
+                 "mConstraint=2;}}elseif(gRev==6&&mConstraint==2){"
+                 "SetTransParent(mTarget,false);}",
+                 "RB3 RndTransformable Load legacy parent branches");
   ok &= contains(rb3_trans_cpp,
                  "voidRndTransformable::SetTransParent(RndTransformable*"
                  "newParent,boolb){MILO_ASSERT(newParent!=this,0xBB);"

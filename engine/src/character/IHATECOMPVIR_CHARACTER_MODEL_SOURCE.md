@@ -1560,6 +1560,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
   - `RndTransformable` constructor defaults are source state: parent and target
     null, constraint `kNone`, preserve scale false, local/world transforms reset,
     a `DirtyCache` allocated, and the cache initialized to itself.
+  - `RndTransformable::Load` is a separate checked C++ runtime body from the
+    `MiloEditor` binary row reader above. It accepts revisions `0..9`, reads
+    object fields only for the static class, discards two temporary transforms
+    while loading a proxy from disk, otherwise reads stored local/world rows,
+    reads the pre-9 child list and parents each child to `this`, handles the
+    revision-6 constraint/preserve-scale-from-target-world branch, consumes the
+    legacy assert vector, legacy bool, and revision-6/7 sphere rows, and splits
+    target/parent object-pointer loading by proxy state. Native
+    `source_rndtransformable_cpp_load_plan` records those C++ load branches
+    without replacing the GH2 `RndTrans.Read` byte-order decoder.
   - `SetTransParent` asserts the new parent is not `this`; when the parent is
     unchanged it only marks dirty. Otherwise, the preserve-world branch computes
     the old-parent to new-parent delta, multiplies it into `mLocalXfm`, and
@@ -1611,6 +1621,7 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_rndtransformable_prop_sync_plan` record those rows without adding
     name-based transform repairs.
   - Shared native `source_rndtransformable_default_state`,
+    `source_rndtransformable_cpp_load_plan`,
     `source_rndtransformable_set_dirty_plan`,
     `source_rndtransformable_set_parent_plan`,
     `source_rndtransformable_world_write_plan`,

@@ -276,6 +276,64 @@ void test_trans() {
   CHECK(!rev5.reads_constraint);
   CHECK(rev5.reads_parent);
 
+  const SourceRndTransformableCppLoadPlan cpp_rev9 =
+      source_rndtransformable_cpp_load_plan(9, false, true);
+  CHECK(cpp_rev9.accepted_revision);
+  CHECK(cpp_rev9.reads_object_fields_for_static_class);
+  CHECK(cpp_rev9.reads_stored_local_world);
+  CHECK(!cpp_rev9.reads_proxy_temp_transforms);
+  CHECK(!cpp_rev9.reads_old_child_list);
+  CHECK(!cpp_rev9.rev6_reads_constraint);
+  CHECK(cpp_rev9.reads_target);
+  CHECK(cpp_rev9.reads_preserve_scale);
+  CHECK(cpp_rev9.reads_parent);
+  CHECK(cpp_rev9.parent_sets_trans_parent);
+  CHECK(!cpp_rev9.proxy_loads_parent_ref);
+
+  const SourceRndTransformableCppLoadPlan cpp_rev9_proxy =
+      source_rndtransformable_cpp_load_plan(9, true, false);
+  CHECK(cpp_rev9_proxy.accepted_revision);
+  CHECK(!cpp_rev9_proxy.reads_stored_local_world);
+  CHECK(cpp_rev9_proxy.reads_proxy_temp_transforms);
+  CHECK(cpp_rev9_proxy.proxy_loads_target_ref);
+  CHECK(cpp_rev9_proxy.proxy_loads_parent_ref);
+  CHECK(!cpp_rev9_proxy.parent_sets_trans_parent);
+
+  const SourceRndTransformableCppLoadPlan cpp_rev8 =
+      source_rndtransformable_cpp_load_plan(8, false, false);
+  CHECK(cpp_rev8.reads_old_child_list);
+  CHECK(cpp_rev8.old_child_list_sets_parent);
+  CHECK(cpp_rev8.reads_target);
+  CHECK(cpp_rev8.reads_preserve_scale);
+  CHECK(cpp_rev8.reads_parent);
+  CHECK(cpp_rev8.parent_sets_trans_parent);
+  CHECK(cpp_rev8.rev7_8_parent_sets_constraint_parent_world);
+  CHECK(!cpp_rev8.reads_sphere);
+
+  const SourceRndTransformableCppLoadPlan cpp_rev6 =
+      source_rndtransformable_cpp_load_plan(6, false, false);
+  CHECK(cpp_rev6.rev6_reads_constraint);
+  CHECK(cpp_rev6.rev6_preserve_scale_from_target_world);
+  CHECK(cpp_rev6.reads_legacy_assert_vector);
+  CHECK(!cpp_rev6.reads_legacy_bool);
+  CHECK(cpp_rev6.reads_sphere);
+  CHECK(cpp_rev6.may_set_drawable_sphere);
+  CHECK(cpp_rev6.reads_target);
+  CHECK(!cpp_rev6.reads_preserve_scale);
+  CHECK(!cpp_rev6.reads_parent);
+  CHECK(cpp_rev6.rev6_parent_from_target_when_constraint_parent_world);
+
+  const SourceRndTransformableCppLoadPlan cpp_rev4 =
+      source_rndtransformable_cpp_load_plan(4, false, false);
+  CHECK(cpp_rev4.reads_legacy_assert_vector);
+  CHECK(cpp_rev4.reads_legacy_bool);
+  CHECK(!cpp_rev4.reads_target);
+  CHECK(!cpp_rev4.reads_sphere);
+
+  const SourceRndTransformableCppLoadPlan cpp_bad =
+      source_rndtransformable_cpp_load_plan(10, false, false);
+  CHECK(!cpp_bad.accepted_revision);
+
   std::vector<uint8_t> b;
   put_u32(b, 9);                 // version
   put_zeros(b, 9);               // base metadata

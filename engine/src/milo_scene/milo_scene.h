@@ -117,6 +117,32 @@ struct SourceRndTransLoadPlan {
   bool reads_parent = true;
 };
 
+struct SourceRndTransformableCppLoadPlan {
+  int32_t revision = 0;
+  bool loading_proxy_from_disk = false;
+  bool class_is_static = false;
+  bool accepted_revision = false;
+  bool reads_object_fields_for_static_class = false;
+  bool reads_stored_local_world = true;
+  bool reads_proxy_temp_transforms = false;
+  bool reads_old_child_list = false;
+  bool old_child_list_sets_parent = false;
+  bool rev6_reads_constraint = false;
+  bool rev6_preserve_scale_from_target_world = false;
+  bool reads_legacy_assert_vector = false;
+  bool reads_legacy_bool = false;
+  bool reads_sphere = false;
+  bool may_set_drawable_sphere = false;
+  bool reads_target = false;
+  bool proxy_loads_target_ref = false;
+  bool reads_preserve_scale = false;
+  bool reads_parent = false;
+  bool proxy_loads_parent_ref = false;
+  bool parent_sets_trans_parent = false;
+  bool rev7_8_parent_sets_constraint_parent_world = false;
+  bool rev6_parent_from_target_when_constraint_parent_world = false;
+};
+
 struct SourceRndTransformableDefaultState {
   bool parent_null = true;
   bool target_null = true;
@@ -235,6 +261,10 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t revision,
     int32_t parent_revision,
     bool standalone);
+SourceRndTransformableCppLoadPlan source_rndtransformable_cpp_load_plan(
+    int32_t revision,
+    bool loading_proxy_from_disk,
+    bool class_is_static);
 SourceRndTransformableDefaultState source_rndtransformable_default_state();
 SourceRndTransformableDirtyPlan source_rndtransformable_set_dirty_plan(
     bool cache_already_dirty,

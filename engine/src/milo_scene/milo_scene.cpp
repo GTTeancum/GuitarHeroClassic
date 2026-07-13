@@ -448,6 +448,41 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
   return plan;
 }
 
+SourceRndTransformableCppLoadPlan source_rndtransformable_cpp_load_plan(
+    int32_t revision,
+    bool loading_proxy_from_disk,
+    bool class_is_static) {
+  SourceRndTransformableCppLoadPlan plan;
+  plan.revision = revision;
+  plan.loading_proxy_from_disk = loading_proxy_from_disk;
+  plan.class_is_static = class_is_static;
+  plan.accepted_revision = revision >= 0 && revision <= 9;
+  if (!plan.accepted_revision) return plan;
+
+  plan.reads_object_fields_for_static_class = class_is_static;
+  plan.reads_proxy_temp_transforms = loading_proxy_from_disk;
+  plan.reads_stored_local_world = !loading_proxy_from_disk;
+  plan.reads_old_child_list = revision < 9;
+  plan.old_child_list_sets_parent = revision < 9;
+  plan.rev6_reads_constraint = revision == 6;
+  plan.rev6_preserve_scale_from_target_world = revision == 6;
+  plan.reads_legacy_assert_vector = revision != 0 && revision < 7;
+  plan.reads_legacy_bool = revision >= 2 && revision <= 4;
+  plan.reads_sphere = revision == 6 || revision == 7;
+  plan.may_set_drawable_sphere = plan.reads_sphere;
+  plan.reads_target = revision > 5;
+  plan.proxy_loads_target_ref = plan.reads_target && loading_proxy_from_disk;
+  plan.reads_preserve_scale = revision > 6;
+  plan.reads_parent = revision > 6;
+  plan.proxy_loads_parent_ref = revision > 8 && loading_proxy_from_disk;
+  plan.parent_sets_trans_parent =
+      revision > 8 ? !loading_proxy_from_disk : revision > 6;
+  plan.rev7_8_parent_sets_constraint_parent_world =
+      revision > 6 && revision <= 8;
+  plan.rev6_parent_from_target_when_constraint_parent_world = revision == 6;
+  return plan;
+}
+
 SourceRndTransformableDefaultState source_rndtransformable_default_state() {
   return SourceRndTransformableDefaultState{};
 }
