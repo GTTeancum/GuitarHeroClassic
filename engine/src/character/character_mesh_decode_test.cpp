@@ -736,6 +736,96 @@ int main() {
   CHECK(!accessor_valid.cleared_joints);
   CHECK(!accessor_valid.cleared_weights);
 
+  ghogx::character::SourceGltfMiloPrimitiveReadInput primitive_read;
+  primitive_read.position_accessor_present = true;
+  primitive_read.normal_count = 3;
+  primitive_read.uv_count = 3;
+  primitive_read.source_triangle_count = 1;
+
+  primitive_read.indices_read_failed = true;
+  primitive_read.position_accessor_present = false;
+  const auto gltf_index_failure =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(gltf_index_failure.logs_index_read_error);
+  CHECK(gltf_index_failure.logs_cannot_continue_mesh);
+  CHECK(gltf_index_failure.skips_primitive);
+  CHECK(gltf_index_failure.skip_reason == "indices_read_failed");
+  CHECK(!gltf_index_failure.warns_missing_position);
+  CHECK(!gltf_index_failure.reaches_chunking);
+
+  primitive_read = {};
+  primitive_read.normal_count = 3;
+  primitive_read.uv_count = 3;
+  primitive_read.source_triangle_count = 1;
+  primitive_read.position_accessor_present = false;
+  const auto gltf_missing_positions =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(gltf_missing_positions.warns_missing_position);
+  CHECK(gltf_missing_positions.skips_primitive);
+  CHECK(gltf_missing_positions.skip_reason == "missing_position");
+
+  primitive_read = {};
+  primitive_read.position_accessor_present = true;
+  primitive_read.normal_read_failed = true;
+  primitive_read.uv_count = 3;
+  primitive_read.uvs_all_zero = true;
+  primitive_read.source_triangle_count = 1;
+  const auto gltf_bad_normals_uvs =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(gltf_bad_normals_uvs.logs_normal_read_error);
+  CHECK(gltf_bad_normals_uvs.logs_bad_normals);
+  CHECK(gltf_bad_normals_uvs.logs_bad_uvs);
+  CHECK(!gltf_bad_normals_uvs.skips_primitive);
+  CHECK(gltf_bad_normals_uvs.reaches_chunking);
+
+  primitive_read = {};
+  primitive_read.position_accessor_present = true;
+  primitive_read.normal_count = 3;
+  primitive_read.uv_count = 3;
+  primitive_read.source_triangle_count = 1;
+  primitive_read.has_any_skin_accessors = true;
+  primitive_read.has_skin = false;
+  const auto gltf_skin_without_mesh_skin =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(gltf_skin_without_mesh_skin.warns_skin_accessors_without_skin);
+  CHECK(gltf_skin_without_mesh_skin.clears_skin_accessors);
+  CHECK(gltf_skin_without_mesh_skin.validates_primary_skin_set);
+  CHECK(gltf_skin_without_mesh_skin.validates_secondary_skin_set);
+  CHECK(gltf_skin_without_mesh_skin.builds_empty_vertex_skin_influences);
+  CHECK(gltf_skin_without_mesh_skin.reaches_chunking);
+
+  primitive_read.has_skin = true;
+  primitive_read.primary_skin_set_valid = false;
+  primitive_read.secondary_skin_set_valid = true;
+  const auto gltf_secondary_without_primary =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(gltf_secondary_without_primary.warns_secondary_without_primary);
+  CHECK(gltf_secondary_without_primary.clears_secondary_skin_set);
+  CHECK(gltf_secondary_without_primary.builds_empty_vertex_skin_influences);
+  CHECK(!gltf_secondary_without_primary.builds_vertex_skin_influences);
+
+  primitive_read.primary_skin_set_valid = true;
+  const auto gltf_usable_skin =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(!gltf_usable_skin.warns_secondary_without_primary);
+  CHECK(gltf_usable_skin.builds_vertex_skin_influences);
+  CHECK(!gltf_usable_skin.builds_empty_vertex_skin_influences);
+
+  primitive_read.source_triangle_count = 0;
+  const auto gltf_no_triangles =
+      ghogx::character::source_gltf_milo_primitive_read_plan(
+          primitive_read);
+  CHECK(gltf_no_triangles.warns_no_valid_triangles);
+  CHECK(gltf_no_triangles.skips_primitive);
+  CHECK(gltf_no_triangles.skip_reason == "no_valid_triangles");
+  CHECK(!gltf_no_triangles.reaches_chunking);
+
   const std::vector<ghogx::character::SourceGltfMiloSkinInfluence>
       skin_influences = {{10, 0.40f}, {20, 0.30f}, {30, 0.20f}, {40, 0.10f}};
   const auto gltf_uncompressed_slots =

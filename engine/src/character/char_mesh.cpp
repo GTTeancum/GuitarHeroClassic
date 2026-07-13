@@ -936,6 +936,67 @@ SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
   return plan;
 }
 
+SourceGltfMiloPrimitiveReadPlan source_gltf_milo_primitive_read_plan(
+    const SourceGltfMiloPrimitiveReadInput& input) {
+  SourceGltfMiloPrimitiveReadPlan plan;
+  const bool has_positions =
+      input.position_accessor_present && !input.position_read_failed;
+  plan.logs_position_read_error = input.position_read_failed;
+  plan.logs_normal_read_error = input.normal_read_failed;
+  plan.logs_bad_normals =
+      input.normal_read_failed || input.normal_count == 0 ||
+      input.normals_all_zero;
+  plan.logs_uv_read_error = input.uv_read_failed;
+  plan.logs_bad_uvs =
+      input.uv_read_failed || input.uv_count == 0 || input.uvs_all_zero;
+
+  if (input.indices_read_failed) {
+    plan.logs_index_read_error = true;
+    plan.logs_cannot_continue_mesh = true;
+    plan.skips_primitive = true;
+    plan.skip_reason = "indices_read_failed";
+    return plan;
+  }
+
+  if (!has_positions) {
+    plan.warns_missing_position = true;
+    plan.skips_primitive = true;
+    plan.skip_reason = "missing_position";
+    return plan;
+  }
+
+  if (input.has_any_skin_accessors && !input.has_skin) {
+    plan.warns_skin_accessors_without_skin = true;
+    plan.clears_skin_accessors = true;
+  }
+
+  plan.validates_primary_skin_set = true;
+  plan.validates_secondary_skin_set = true;
+
+  const bool primary_valid = input.has_skin && input.primary_skin_set_valid;
+  bool secondary_valid = input.has_skin && input.secondary_skin_set_valid;
+  if (!primary_valid && secondary_valid) {
+    plan.warns_secondary_without_primary = true;
+    plan.clears_secondary_skin_set = true;
+    secondary_valid = false;
+  }
+
+  plan.builds_vertex_skin_influences =
+      input.has_skin && (primary_valid || secondary_valid);
+  plan.builds_empty_vertex_skin_influences =
+      !plan.builds_vertex_skin_influences;
+
+  if (input.source_triangle_count <= 0) {
+    plan.warns_no_valid_triangles = true;
+    plan.skips_primitive = true;
+    plan.skip_reason = "no_valid_triangles";
+    return plan;
+  }
+
+  plan.reaches_chunking = true;
+  return plan;
+}
+
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
     int32_t skin_joint_count,

@@ -623,6 +623,46 @@ struct SourceGltfMiloSkinAccessorSetPlan {
   bool warned_position_count_mismatch = false;
 };
 
+struct SourceGltfMiloPrimitiveReadInput {
+  bool position_accessor_present = true;
+  bool position_read_failed = false;
+  bool normal_read_failed = false;
+  int32_t normal_count = 0;
+  bool normals_all_zero = false;
+  bool uv_read_failed = false;
+  int32_t uv_count = 0;
+  bool uvs_all_zero = false;
+  bool indices_read_failed = false;
+  bool has_skin = false;
+  bool has_any_skin_accessors = false;
+  bool primary_skin_set_valid = false;
+  bool secondary_skin_set_valid = false;
+  int32_t source_triangle_count = 0;
+};
+
+struct SourceGltfMiloPrimitiveReadPlan {
+  bool logs_position_read_error = false;
+  bool logs_normal_read_error = false;
+  bool logs_bad_normals = false;
+  bool logs_uv_read_error = false;
+  bool logs_bad_uvs = false;
+  bool logs_index_read_error = false;
+  bool logs_cannot_continue_mesh = false;
+  bool skips_primitive = false;
+  std::string skip_reason;
+  bool warns_missing_position = false;
+  bool warns_skin_accessors_without_skin = false;
+  bool clears_skin_accessors = false;
+  bool validates_primary_skin_set = false;
+  bool validates_secondary_skin_set = false;
+  bool warns_secondary_without_primary = false;
+  bool clears_secondary_skin_set = false;
+  bool builds_vertex_skin_influences = false;
+  bool builds_empty_vertex_skin_influences = false;
+  bool warns_no_valid_triangles = false;
+  bool reaches_chunking = false;
+};
+
 struct SourceGltfMiloTriangle {
   uint32_t idx0 = 0;
   uint32_t idx1 = 0;
@@ -1408,6 +1448,8 @@ SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     int32_t joints_count,
     int32_t weights_count,
     int32_t expected_position_count);
+SourceGltfMiloPrimitiveReadPlan source_gltf_milo_primitive_read_plan(
+    const SourceGltfMiloPrimitiveReadInput& input);
 
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,

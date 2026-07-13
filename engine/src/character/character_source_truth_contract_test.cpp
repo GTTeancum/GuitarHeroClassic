@@ -6328,6 +6328,37 @@ int run_contract() {
                  "DirectoryMeta.Entryentry=newDirectoryMeta.Entry("
                  "\"TransAnim\",anim.Name+\".tnm\",transAnim);",
                  "glTFMilo emits TransAnim directory entry");
+  ok &= contains(gltf_program_cs,
+                 "if(normals==null||normals.Count==0||normals.All(n=>n.X==0"
+                 "&&n.Y==0&&n.Z==0))",
+                 "glTFMilo logs bad normals before primitive chunking");
+  ok &= contains(gltf_program_cs,
+                 "if(uvs==null||uvs.Count==0||uvs.All(uv=>uv.X==0&&uv.Y==0))",
+                 "glTFMilo logs bad UVs before primitive chunking");
+  ok &= contains(gltf_program_cs,
+                 "if(indicesReadFailed){primitiveIndex++;continue;}",
+                 "glTFMilo skips primitive after index read failure");
+  ok &= contains(gltf_program_cs,
+                 "if(positions==null){Logger.Warn($\"Mesh{node.Name}hasno"
+                 "POSITIONdata.Itwillbeskipped.\");primitiveIndex++;continue;}",
+                 "glTFMilo skips primitive without POSITION data");
+  ok &= contains(gltf_program_cs,
+                 "if((joints!=null||weights!=null||joints1!=null||weights1!="
+                 "null)&&meshSkin==null){Logger.Warn($\"Mesh{node.Name}has"
+                 "JOINTS/WEIGHTSaccessorsbutnoskin.Skinningdatawillbeignored."
+                 "\");joints=null;weights=null;joints1=null;weights1=null;}",
+                 "glTFMilo clears skin accessors without skin");
+  ok &= contains(gltf_program_cs,
+                 "if(!skinSet0Valid&&joints1!=null){Logger.Warn($\"Mesh{"
+                 "node.Name}hasJOINTS_1/WEIGHTS_1butnousableJOINTS_0/"
+                 "WEIGHTS_0.JOINTS_1/WEIGHTS_1willbeignored.\");joints1=null;"
+                 "weights1=null;}",
+                 "glTFMilo clears secondary skin without usable primary");
+  ok &= contains(gltf_program_cs,
+                 "if(sourceTriangles.Count==0){Logger.Warn($\"Mesh{node.Name}"
+                 "hasnovalidtrianglesafterindexvalidation.Itwillbeskipped.\");"
+                 "primitiveIndex++;continue;}",
+                 "glTFMilo skips primitive without valid triangles");
   ok &= contains(gltf_node_processor_cs,
                  "if(node.Name==\"neutral_bone\")return;",
                  "glTFMilo ProcessBoneNode skips neutral bone");
@@ -6651,6 +6682,14 @@ int run_contract() {
                  "boolhas_weights,int32_tjoints_count,int32_tweights_count,"
                  "int32_texpected_position_count);",
                  "native exposes glTFMilo skin accessor helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloPrimitiveReadPlan{boollogs_position_"
+                 "read_error=false;",
+                 "native declares glTFMilo primitive read plan");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloPrimitiveReadPlansource_gltf_milo_primitive_"
+                 "read_plan(",
+                 "native exposes glTFMilo primitive read helper");
   ok &= contains(char_mesh_h,
                  "source_gltf_milo_build_source_triangles(conststd::vector<"
                  "uint32_t>&indices,int32_tposition_count,boolhas_index_buffer);",
@@ -7663,6 +7702,24 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.entry_type=\"TransAnim\";",
                  "native preserves glTFMilo TransAnim directory type");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloPrimitiveReadPlansource_gltf_milo_primitive_"
+                 "read_plan(",
+                 "native ports glTFMilo primitive read helper");
+  ok &= contains(char_mesh,
+                 "if(input.indices_read_failed){plan.logs_index_read_error=true;",
+                 "native primitive read helper preserves index-failure skip");
+  ok &= contains(char_mesh,
+                 "plan.warns_skin_accessors_without_skin=true;"
+                 "plan.clears_skin_accessors=true;",
+                 "native primitive read helper preserves no-skin clearing");
+  ok &= contains(char_mesh,
+                 "if(!primary_valid&&secondary_valid){",
+                 "native primitive read helper preserves secondary-without-primary gate");
+  ok &= contains(char_mesh,
+                 "plan.builds_vertex_skin_influences=input.has_skin&&"
+                 "(primary_valid||secondary_valid);",
+                 "native primitive read helper preserves influence build gate");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
@@ -8019,6 +8076,15 @@ int run_contract() {
                  "source_gltf_milo_validate_skin_accessor_set(",
                  "focused mesh decode test covers glTFMilo skin accessor gate");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_primitive_read_plan(",
+                 "focused mesh decode test covers glTFMilo primitive read helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_secondary_without_primary.clears_secondary_skin_set",
+                 "focused mesh decode test covers secondary skin clearing");
+  ok &= contains(mesh_decode_test,
+                 "gltf_no_triangles.warns_no_valid_triangles",
+                 "focused mesh decode test covers no-valid-triangle skip");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_build_source_triangles(",
                  "focused mesh decode test covers glTFMilo triangle builder");
   ok &= contains(mesh_decode_test,
@@ -8205,6 +8271,13 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_validate_skin_accessor_set`",
                  "document records glTFMilo skin accessor helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_primitive_read_plan` records",
+                 "document records glTFMilo primitive read helper");
+  ok &= contains(doc,
+                 "clears secondary skin accessors when the primary pair is not "
+                 "usable",
+                 "document records glTFMilo secondary skin clearing");
   ok &= contains(doc,
                  "`source_gltf_milo_build_source_triangles` ports",
                  "document records glTFMilo triangle builder helper");

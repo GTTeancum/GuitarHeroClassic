@@ -1408,6 +1408,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     pairs, mismatched pairs, or wrong-position-count pairs are cleared before
     influence extraction. Native `source_gltf_milo_validate_skin_accessor_set`
     ports that gate.
+  - Before chunking a primitive, glTFMilo logs but continues for failed or
+    all-zero normals/UVs, skips immediately when index reading fails, skips
+    missing `POSITION` data, clears all skin accessors when the node has no
+    skin, clears secondary skin accessors when the primary pair is not usable,
+    builds empty influence rows when no usable skin pair remains, and skips
+    primitives with zero validated source triangles. Native
+    `source_gltf_milo_primitive_read_plan` records that pre-chunk decision tree
+    without reading glTF accessors or changing stock GH2 mesh decode.
   - `BuildSourceTriangles` emits sequential triangles when no index accessor is
     present, warns and drops trailing vertices/indices that cannot form a full
     triangle, and ignores indexed triangles whose indices fall outside the
