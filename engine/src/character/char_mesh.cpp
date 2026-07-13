@@ -2176,6 +2176,47 @@ SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
   return plan;
 }
 
+SourceGltfMiloMeshSplitWarningPlan
+source_gltf_milo_mesh_split_warning_plan(
+    const std::vector<SourceGltfMiloMeshChunk>& chunks,
+    int32_t source_vertex_count) {
+  SourceGltfMiloMeshSplitWarningPlan plan;
+  constexpr int32_t kMaxMeshInfluencingBones = 40;
+  constexpr int32_t kMaxMeshVertices = 65535;
+  plan.max_influencing_bones = kMaxMeshInfluencingBones;
+  plan.max_vertices = kMaxMeshVertices;
+  plan.chunk_count = static_cast<int32_t>(chunks.size());
+  plan.source_vertex_count = source_vertex_count;
+  if (chunks.size() <= 1) return plan;
+
+  std::unordered_set<int32_t> distinct_joints;
+  for (const SourceGltfMiloMeshChunk& chunk : chunks) {
+    for (int32_t joint : chunk.joint_indices) distinct_joints.insert(joint);
+  }
+  plan.total_influencing_bone_count =
+      static_cast<int32_t>(distinct_joints.size());
+
+  if (plan.total_influencing_bone_count > kMaxMeshInfluencingBones) {
+    plan.split_reasons.push_back("more than 40 bones");
+  }
+  if (source_vertex_count > kMaxMeshVertices) {
+    plan.split_reasons.push_back("more than 65535 vertices");
+  }
+
+  if (plan.split_reasons.empty()) {
+    plan.split_reason = "mesh export limits";
+  } else {
+    for (size_t i = 0; i < plan.split_reasons.size(); ++i) {
+      if (i > 0) plan.split_reason += " and ";
+      plan.split_reason += plan.split_reasons[i];
+    }
+  }
+
+  plan.logs_warning = true;
+  plan.exported_chunk_count = plan.chunk_count;
+  return plan;
+}
+
 SourceGltfMiloPopulateMeshChunkPlan
 source_gltf_milo_populate_mesh_chunk_plan(
     const std::vector<SourceGltfMiloTriangle>& triangles,

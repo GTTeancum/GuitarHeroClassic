@@ -1433,6 +1433,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     triangle indices, joint palette order, and unique vertex count. It is
     exporter/format evidence for palette layout, not a change to stock GH2
     runtime skin decoding.
+  - After chunking, glTFMilo only logs a split warning when more than one mesh
+    chunk exists. It computes distinct influencing bones across all chunks,
+    adds `more than 40 bones` and/or `more than 65535 vertices` reasons when
+    those source limits are exceeded, joins both reasons with ` and `, and uses
+    `mesh export limits` when a split happened for neither named reason. Native
+    `source_gltf_milo_mesh_split_warning_plan` records that warning text and
+    gate without changing chunking or runtime mesh loading.
   - `PopulateMeshChunk` builds `jointIndexToLocalBoneIndex` from the chunk joint
     list, clears the target mesh vertices/faces, calls `AddVertexToChunkMesh` in
     each triangle's `idx0` / `idx1` / `idx2` order, and writes each face from

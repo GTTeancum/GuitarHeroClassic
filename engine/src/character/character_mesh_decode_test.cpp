@@ -2278,6 +2278,49 @@ int main() {
   CHECK(rejected_chunk_plan.rejected_triangle_indices[0] == 0);
   CHECK(rejected_chunk_plan.chunks.empty());
 
+  const auto no_split_warning =
+      ghogx::character::source_gltf_milo_mesh_split_warning_plan(
+          small_chunk_plan.chunks, 4);
+  CHECK(!no_split_warning.logs_warning);
+  CHECK(no_split_warning.chunk_count == 1);
+
+  const auto bone_split_warning =
+      ghogx::character::source_gltf_milo_mesh_split_warning_plan(
+          strip_chunk_plan.chunks, 42);
+  CHECK(bone_split_warning.logs_warning);
+  CHECK(bone_split_warning.total_influencing_bone_count == 42);
+  CHECK(bone_split_warning.source_vertex_count == 42);
+  CHECK(bone_split_warning.split_reasons.size() == 1);
+  CHECK(bone_split_warning.split_reasons[0] == "more than 40 bones");
+  CHECK(bone_split_warning.split_reason == "more than 40 bones");
+  CHECK(bone_split_warning.exported_chunk_count == 2);
+
+  const std::vector<ghogx::character::SourceGltfMiloMeshChunk>
+      vertex_split_chunks = {{{0}, {1, 2}, 65535},
+                             {{1}, {2, 3}, 1}};
+  const auto vertex_split_warning =
+      ghogx::character::source_gltf_milo_mesh_split_warning_plan(
+          vertex_split_chunks, 65536);
+  CHECK(vertex_split_warning.logs_warning);
+  CHECK(vertex_split_warning.split_reason == "more than 65535 vertices");
+
+  const auto both_split_warning =
+      ghogx::character::source_gltf_milo_mesh_split_warning_plan(
+          strip_chunk_plan.chunks, 65536);
+  CHECK(both_split_warning.split_reasons.size() == 2);
+  CHECK(both_split_warning.split_reason ==
+        "more than 40 bones and more than 65535 vertices");
+
+  const std::vector<ghogx::character::SourceGltfMiloMeshChunk>
+      fallback_split_chunks = {{{0}, {1, 2}, 3},
+                               {{1}, {2, 3}, 3}};
+  const auto fallback_split_warning =
+      ghogx::character::source_gltf_milo_mesh_split_warning_plan(
+          fallback_split_chunks, 6);
+  CHECK(fallback_split_warning.logs_warning);
+  CHECK(fallback_split_warning.split_reasons.empty());
+  CHECK(fallback_split_warning.split_reason == "mesh export limits");
+
   const auto populate_chunk =
       ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
           {{7, 8, 9}, {9, 8, 10}, {10, 7, 8}}, {22, 11}, true);

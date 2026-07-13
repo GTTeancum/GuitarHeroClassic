@@ -694,6 +694,18 @@ struct SourceGltfMiloMeshChunkPlan {
   std::vector<SourceGltfMiloMeshChunk> chunks;
 };
 
+struct SourceGltfMiloMeshSplitWarningPlan {
+  int32_t max_influencing_bones = 40;
+  int32_t max_vertices = 65535;
+  int32_t chunk_count = 0;
+  int32_t total_influencing_bone_count = 0;
+  int32_t source_vertex_count = 0;
+  bool logs_warning = false;
+  std::vector<std::string> split_reasons;
+  std::string split_reason;
+  int32_t exported_chunk_count = 0;
+};
+
 struct SourceGltfMiloChunkFace {
   uint16_t idx1 = 0;
   uint16_t idx2 = 0;
@@ -1548,6 +1560,10 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
 SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
     const std::vector<SourceGltfMiloTriangle>& triangles,
     const std::vector<std::vector<int32_t>>& vertex_joint_indices);
+SourceGltfMiloMeshSplitWarningPlan
+source_gltf_milo_mesh_split_warning_plan(
+    const std::vector<SourceGltfMiloMeshChunk>& chunks,
+    int32_t source_vertex_count);
 
 SourceGltfMiloPopulateMeshChunkPlan
 source_gltf_milo_populate_mesh_chunk_plan(

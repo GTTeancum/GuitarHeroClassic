@@ -6061,6 +6061,20 @@ int run_contract() {
                  "chunk.uniqueVertexCount<MaxMeshVertices)",
                  "glTFMilo chunk splitter has global fill pass");
   ok &= contains(gltf_program_cs,
+                 "inttotalInfluencingBoneCount=meshChunks.SelectMany(chunk=>"
+                 "chunk.jointIndices).Distinct().Count();",
+                 "glTFMilo split warning counts distinct chunk joints");
+  ok &= contains(gltf_program_cs,
+                 "splitReasons.Add($\"morethan{MaxMeshInfluencingBones}bones\");",
+                 "glTFMilo split warning records bone-limit reason");
+  ok &= contains(gltf_program_cs,
+                 "splitReasons.Add($\"morethan{MaxMeshVertices}vertices\");",
+                 "glTFMilo split warning records vertex-limit reason");
+  ok &= contains(gltf_program_cs,
+                 "stringsplitReason=splitReasons.Count>0?string.Join(\"and\","
+                 "splitReasons):\"meshexportlimits\";",
+                 "glTFMilo split warning joins reasons or falls back");
+  ok &= contains(gltf_program_cs,
                  "privatestaticboolIsHairBone(stringboneName)",
                  "glTFMilo source exposes hair-bone classifier");
   ok &= contains(gltf_program_cs,
@@ -6697,6 +6711,13 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMeshChunkPlansource_gltf_milo_split_mesh_chunks(",
                  "native exposes glTFMilo mesh chunk splitter helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMeshSplitWarningPlan{int32_tmax_"
+                 "influencing_bones=40;",
+                 "native declares glTFMilo mesh split warning plan");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_mesh_split_warning_plan(",
+                 "native exposes glTFMilo mesh split warning helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloPopulateMeshChunkPlan"
                  "source_gltf_milo_populate_mesh_chunk_plan(",
@@ -7720,6 +7741,16 @@ int run_contract() {
                  "plan.builds_vertex_skin_influences=input.has_skin&&"
                  "(primary_valid||secondary_valid);",
                  "native primitive read helper preserves influence build gate");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloMeshSplitWarningPlan"
+                 "source_gltf_milo_mesh_split_warning_plan(",
+                 "native ports glTFMilo split warning helper");
+  ok &= contains(char_mesh,
+                 "plan.split_reasons.push_back(\"morethan40bones\");",
+                 "native split warning helper preserves bone reason text");
+  ok &= contains(char_mesh,
+                 "plan.split_reason=\"meshexportlimits\";",
+                 "native split warning helper preserves fallback reason");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
@@ -8094,6 +8125,16 @@ int run_contract() {
                  "strip_chunk_plan.chunks[0].joint_indices.size()==40",
                  "focused mesh decode test covers forty-bone chunk boundary");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_mesh_split_warning_plan(",
+                 "focused mesh decode test covers glTFMilo split warning helper");
+  ok &= contains(mesh_decode_test,
+                 "both_split_warning.split_reason==\"morethan40bonesandmorethan"
+                 "65535vertices\"",
+                 "focused mesh decode test covers joined split reasons");
+  ok &= contains(mesh_decode_test,
+                 "fallback_split_warning.split_reason==\"meshexportlimits\"",
+                 "focused mesh decode test covers fallback split reason");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_populate_mesh_chunk_plan(",
                  "focused mesh decode test covers glTFMilo PopulateMeshChunk helper");
   ok &= contains(mesh_decode_test,
@@ -8285,6 +8326,12 @@ int run_contract() {
                  "`source_gltf_milo_split_mesh_chunks` ports\n"
                  "    this deterministic exporter chunking rule",
                  "document records glTFMilo mesh chunk splitter helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_mesh_split_warning_plan` records",
+                 "document records glTFMilo mesh split warning helper");
+  ok &= contains(doc,
+                 "`mesh export limits` when a split happened for neither named reason",
+                 "document records glTFMilo split warning fallback");
   ok &= contains(doc,
                  "`source_gltf_milo_populate_mesh_chunk_plan` records",
                  "document records glTFMilo PopulateMeshChunk helper");
