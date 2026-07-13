@@ -3237,6 +3237,10 @@ note, and all report `unreadBytes=0`.
     those source-declared fields, enforces the source revision range, and
     records the row tail byte count so the active asset data can prove which
     branches are actually present.
+  - `CharIKHand::SetHand` assigns the hand pointer and unconditionally marks
+    `mHandChanged=true`. Native `source_char_ik_hand_set_hand` records that
+    setter contract directly so load/copy/property paths keep the source
+    cache-dirty behavior.
   - Native `source_char_ik_hand_load_plan`,
     `source_char_ik_hand_copy_plan`, `source_char_ik_hand_handler_plan`, and
     `source_char_ik_hand_prop_sync_plan` now record the visible source rows:
@@ -3263,9 +3267,9 @@ note, and all report `unreadBytes=0`.
     handLen^2`, `handLen + parentLen`, and the source `ClampEq(-1, 1)` cosine
     step. The runtime single-target slice now uses this named source scalar
     instead of an inline local elbow clamp. Native
-    `source_char_ik_hand_update_measure_lengths` mirrors `SetHand` /
-    `UpdateHand`: the hand length cache starts dirty, non-scalable hands measure
-    once, and scalable hands remeasure each poll. Runtime hand IK now keeps that
+    `source_char_ik_hand_update_measure_lengths` mirrors `UpdateHand`: the hand
+    length cache starts dirty from `SetHand`, non-scalable hands measure once,
+    and scalable hands remeasure each poll. Runtime hand IK now keeps that
     per-controller cache and feeds the cosine helper from the cached source
     fields without pre-clamping target distance.
   - Native `source_char_ik_hand_poll_flow` ports the visible parent and final

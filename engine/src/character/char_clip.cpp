@@ -5412,6 +5412,14 @@ SourceCharIKHandSavePlan source_char_ik_hand_save_plan() {
   return SourceCharIKHandSavePlan{};
 }
 
+SourceCharIKHandSetHandResult source_char_ik_hand_set_hand(
+    const std::string& hand) {
+  SourceCharIKHandSetHandResult result;
+  result.assigned_hand = hand;
+  result.hand_changed = true;
+  return result;
+}
+
 bool source_char_ik_hand_update_measure_lengths(bool scalable,
                                                 bool& hand_changed) {
   if (scalable || hand_changed) {

@@ -19625,6 +19625,10 @@ int run_contract() {
                  "floataa_plus_bb=0.0f;};",
                  "native exposes source CharIKHand MeasureLengths state");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandSetHandResult{"
+                 "std::stringassigned_hand;boolhand_changed=false;};",
+                 "native exposes source CharIKHand SetHand result");
+  ok &= contains(char_clip_h,
                  "structSourceCharIKHandLoadPlan{int32_tmax_revision=0x0c;"
                  "boolknown_revision=false;std::vector<std::string>read_order;",
                  "native exposes source CharIKHand load plan");
@@ -19701,6 +19705,10 @@ int run_contract() {
                  "boolhas_elbow_chain,floathand_local_len,"
                  "floatparent_local_len);",
                  "native API exposes source CharIKHand MeasureLengths helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandSetHandResultsource_char_ik_hand_set_hand("
+                 "conststd::string&hand);",
+                 "native API exposes source CharIKHand SetHand helper");
   ok &= contains(char_clip_h,
                  "boolsource_char_ik_hand_update_measure_lengths("
                  "boolscalable,bool&hand_changed);",
@@ -19809,6 +19817,12 @@ int run_contract() {
                  "out.inv_2ab=1.0f/out.inv_2ab;out.aa_plus_bb="
                  "hand_local_len+parent_local_len;",
                  "native CharIKHand MeasureLengths helper mirrors source fields");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandSetHandResultsource_char_ik_hand_set_hand("
+                 "conststd::string&hand){SourceCharIKHandSetHandResultresult;"
+                 "result.assigned_hand=hand;result.hand_changed=true;"
+                 "returnresult;}",
+                 "native CharIKHand SetHand helper mirrors source dirty flag");
   ok &= contains(char_clip,
                  "boolsource_char_ik_hand_update_measure_lengths("
                  "boolscalable,bool&hand_changed){if(scalable||hand_changed){"
@@ -20000,6 +20014,9 @@ int run_contract() {
                  "false,hand_changed)",
                  "focused CharIKHand source test covers UpdateHand clean gate");
   ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_set_hand(\"bone_l_hand.mesh\")",
+                 "focused CharIKHand source test covers SetHand dirty helper");
+  ok &= contains(ik_hand_source_test,
                  "source_char_ik_hand_load_plan(12)",
                  "focused CharIKHand source test covers modern load plan");
   ok &= contains(ik_hand_source_test,
@@ -20098,8 +20115,11 @@ int run_contract() {
   ok &= contains(doc, "duplicated `mTargets` row and the visible omission of `mFinger`",
                  "document records source CharIKHand copy quirk");
   ok &= contains(doc,
+                 "`CharIKHand::SetHand` assigns the hand pointer",
+                 "document records native CharIKHand SetHand cache slice");
+  ok &= contains(doc,
                  "`source_char_ik_hand_update_measure_lengths` mirrors "
-                 "`SetHand` /",
+                 "`UpdateHand`",
                  "document records native CharIKHand UpdateHand cache slice");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_multi_target_blend` ports the concrete",

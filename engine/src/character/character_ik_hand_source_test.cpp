@@ -52,6 +52,7 @@ int main() {
   using ghogx::character::SourceCharIKHandElbowCollisionInput;
   using ghogx::character::SourceCharIKHandElbowSwingInput;
   using ghogx::character::SourceCharIKHandPollFlowInput;
+  using ghogx::character::SourceCharIKHandSetHandResult;
   using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::SourceCharIKHandWristConstraintInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
@@ -66,6 +67,7 @@ int main() {
   using ghogx::character::source_char_ik_hand_poll_flow;
   using ghogx::character::source_char_ik_hand_prop_sync_plan;
   using ghogx::character::source_char_ik_hand_save_plan;
+  using ghogx::character::source_char_ik_hand_set_hand;
   using ghogx::character::source_char_ik_hand_update_measure_lengths;
   using ghogx::character::source_char_ik_hand_wrist_constraint;
 
@@ -164,6 +166,18 @@ int main() {
                       "IKHand prop superclass");
   ok &= expect_bool(source_char_ik_hand_save_plan().save_id == 0x2A8,
                     true, "IKHand save id");
+  const SourceCharIKHandSetHandResult set_hand =
+      source_char_ik_hand_set_hand("bone_l_hand.mesh");
+  ok &= expect_string(set_hand.assigned_hand, "bone_l_hand.mesh",
+                      "IKHand SetHand assigns source row");
+  ok &= expect_bool(set_hand.hand_changed, true,
+                    "IKHand SetHand marks hand changed");
+  const SourceCharIKHandSetHandResult clear_hand =
+      source_char_ik_hand_set_hand("");
+  ok &= expect_string(clear_hand.assigned_hand, "",
+                      "IKHand SetHand preserves empty hand row");
+  ok &= expect_bool(clear_hand.hand_changed, true,
+                    "IKHand SetHand dirties empty hand row");
 
   const SourceCharIKHandMeasure missing =
       source_char_ik_hand_measure_lengths(false, 4.0f, 3.0f);

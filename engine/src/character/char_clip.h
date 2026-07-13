@@ -3048,6 +3048,11 @@ struct SourceCharIKHandSavePlan {
   int32_t save_id = 0x2A8;
 };
 
+struct SourceCharIKHandSetHandResult {
+  std::string assigned_hand;
+  bool hand_changed = false;
+};
+
 struct SourceCharIKHandTargetInput {
   bool present = true;
   std::array<float, 3> world_pos = {0.0f, 0.0f, 0.0f};
@@ -3250,6 +3255,8 @@ SourceCharIKHandCopyPlan source_char_ik_hand_copy_plan();
 SourceCharIKHandHandlerPlan source_char_ik_hand_handler_plan();
 SourceCharIKHandPropSyncPlan source_char_ik_hand_prop_sync_plan();
 SourceCharIKHandSavePlan source_char_ik_hand_save_plan();
+SourceCharIKHandSetHandResult source_char_ik_hand_set_hand(
+    const std::string& hand);
 SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
     bool has_elbow_chain,
     float hand_local_len,
