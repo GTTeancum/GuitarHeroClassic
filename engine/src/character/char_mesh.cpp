@@ -10192,6 +10192,28 @@ static SourceVec3 source_gltf_milo_transform_point(
               point[2] * matrix[10] + matrix[14]};
 }
 
+SourceGltfMiloHairStrandHeaderPlan
+source_gltf_milo_export_hair_strand_header_plan(
+    const std::vector<SourceGltfMiloHairStrandHeaderNode>& chain,
+    bool convert_coordinates) {
+  SourceGltfMiloHairStrandHeaderPlan plan;
+  plan.convert_coordinates_arg = convert_coordinates;
+  plan.requires_unvendored_matrix_helper_when_converting =
+      convert_coordinates;
+  if (chain.empty()) {
+    plan.skipped_empty_chain = true;
+    return plan;
+  }
+
+  plan.creates_strand = true;
+  plan.root = chain.front().name;
+  plan.copies_first_local_matrix_to_base_mat = true;
+  plan.copies_first_local_matrix_to_root_mat = true;
+  plan.base_mat = chain.front().local_mat;
+  plan.root_mat = chain.front().local_mat;
+  return plan;
+}
+
 SourceGltfMiloHairPointExport source_gltf_milo_export_hair_point(
     const std::vector<SourceGltfMiloHairPointNode>& chain,
     int point_index,

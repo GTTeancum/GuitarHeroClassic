@@ -2140,10 +2140,16 @@ note, and all report `unreadBytes=0`.
     bones across multiple strands. This documents the fallback; it is not a
     reason to prefer the fallback over the source-backed branch splitter.
   - The same `ProcessCharHair` row emits each point from visible exporter
-    rules: non-tip points use the next bone's world position, tip points extend
-    along the current bone's world Y axis with a UnitY fallback, point length
-    comes from next-bone distance, previous-point length, parent distance, then
-    `5.0f`, and non-tip radius/outer-radius taper by point index. Native
+    rules. Empty chains are skipped before strand construction; otherwise
+    `strand.root` is `chain[0].Name`, and both `baseMat` and `rootMat` are
+    copied from `chain[0].LocalMatrix` through `MatrixHelpers.CopyMatrix3`.
+    Native `source_gltf_milo_export_hair_strand_header_plan` records that
+    strand-header contract and explicitly fences the missing axis-conversion
+    math when `convertCoordinates` is true. Non-tip points use the next bone's
+    world position, tip points extend along the current bone's world Y axis
+    with a UnitY fallback, point length comes from next-bone distance,
+    previous-point length, parent distance, then `5.0f`, and non-tip
+    radius/outer-radius taper by point index. Native
     `source_gltf_milo_export_hair_point` ports those deterministic point rows,
     including `sideLength = -1.0f` and `unk5c` as the generated point
     transformed by the strand root parent's inverse world matrix. This is

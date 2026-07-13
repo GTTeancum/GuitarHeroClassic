@@ -2640,6 +2640,31 @@ struct SourceGltfMiloHairPointNode {
   std::array<float, 3> parent_world_pos = {0.0f, 0.0f, 0.0f};
 };
 
+struct SourceGltfMiloHairStrandHeaderNode {
+  std::string name;
+  std::array<float, 9> local_mat = {1.0f, 0.0f, 0.0f,
+                                    0.0f, 1.0f, 0.0f,
+                                    0.0f, 0.0f, 1.0f};
+};
+
+struct SourceGltfMiloHairStrandHeaderPlan {
+  bool skipped_empty_chain = false;
+  bool creates_strand = false;
+  std::string root;
+  bool copy_matrix3_call_site_source_backed = true;
+  bool copies_first_local_matrix_to_base_mat = false;
+  bool copies_first_local_matrix_to_root_mat = false;
+  bool convert_coordinates_arg = false;
+  bool requires_unvendored_matrix_helper_when_converting = false;
+  bool can_port_axis_conversion_math = false;
+  std::array<float, 9> base_mat = {1.0f, 0.0f, 0.0f,
+                                   0.0f, 1.0f, 0.0f,
+                                   0.0f, 0.0f, 1.0f};
+  std::array<float, 9> root_mat = {1.0f, 0.0f, 0.0f,
+                                   0.0f, 1.0f, 0.0f,
+                                   0.0f, 0.0f, 1.0f};
+};
+
 struct SourceGltfMiloHairPointExport {
   std::string bone;
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
@@ -5066,6 +5091,10 @@ source_gltf_milo_collect_hair_chains_split_at_branches(
 SourceGltfMiloHairChainsResult
 source_gltf_milo_collect_hair_chains_without_splitting(
     const std::vector<SourceGltfMiloHairNode>& nodes);
+SourceGltfMiloHairStrandHeaderPlan
+source_gltf_milo_export_hair_strand_header_plan(
+    const std::vector<SourceGltfMiloHairStrandHeaderNode>& chain,
+    bool convert_coordinates);
 SourceGltfMiloHairPointExport source_gltf_milo_export_hair_point(
     const std::vector<SourceGltfMiloHairPointNode>& chain,
     int point_index,

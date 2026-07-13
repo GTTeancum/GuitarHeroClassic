@@ -107,6 +107,7 @@ int main() {
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
   using ghogx::character::source_gltf_milo_classify_hair_children;
   using ghogx::character::source_gltf_milo_discover_hair_roots;
+  using ghogx::character::source_gltf_milo_export_hair_strand_header_plan;
   using ghogx::character::source_gltf_milo_export_hair_point;
   using ghogx::character::source_gltf_milo_detect_hair_settings_plan;
   using ghogx::character::source_gltf_milo_hair_collide_name;
@@ -117,6 +118,7 @@ int main() {
   using ghogx::character::SourceCharHairRootNode;
   using ghogx::character::SourceGltfMiloHairNode;
   using ghogx::character::SourceGltfMiloHairPointNode;
+  using ghogx::character::SourceGltfMiloHairStrandHeaderNode;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -783,6 +785,48 @@ int main() {
                     "glTFMilo unsplit collector uses root de-dupe helper");
   ok &= expect_string(duplicate_unsplit_chains.roots[0], "bone_hair_root",
                       "glTFMilo unsplit collector keeps deduped root");
+
+  const auto empty_strand_header =
+      source_gltf_milo_export_hair_strand_header_plan({}, false);
+  ok &= expect_bool(empty_strand_header.skipped_empty_chain, true,
+                    "glTFMilo strand header skips empty chain");
+  ok &= expect_bool(empty_strand_header.creates_strand, false,
+                    "glTFMilo strand header creates no empty strand");
+
+  SourceGltfMiloHairStrandHeaderNode strand_root;
+  strand_root.name = "bone_hair_root";
+  strand_root.local_mat = {
+      0.0f, 1.0f, 2.0f,
+      3.0f, 4.0f, 5.0f,
+      6.0f, 7.0f, 8.0f};
+  const auto strand_header =
+      source_gltf_milo_export_hair_strand_header_plan({strand_root}, false);
+  ok &= expect_bool(strand_header.creates_strand, true,
+                    "glTFMilo strand header creates strand");
+  ok &= expect_string(strand_header.root, "bone_hair_root",
+                      "glTFMilo strand header root name");
+  ok &= expect_bool(strand_header.copy_matrix3_call_site_source_backed, true,
+                    "glTFMilo strand header CopyMatrix3 source backed");
+  ok &= expect_bool(strand_header.copies_first_local_matrix_to_base_mat,
+                    true, "glTFMilo strand header copies baseMat");
+  ok &= expect_bool(strand_header.copies_first_local_matrix_to_root_mat,
+                    true, "glTFMilo strand header copies rootMat");
+  ok &= near(strand_header.base_mat[4], 4.0f,
+             "glTFMilo strand header baseMat from local");
+  ok &= near(strand_header.root_mat[7], 7.0f,
+             "glTFMilo strand header rootMat from local");
+  ok &= expect_bool(strand_header.requires_unvendored_matrix_helper_when_converting,
+                    false, "glTFMilo strand header no conversion helper when false");
+
+  const auto converting_strand_header =
+      source_gltf_milo_export_hair_strand_header_plan({strand_root}, true);
+  ok &= expect_bool(converting_strand_header.convert_coordinates_arg, true,
+                    "glTFMilo strand header preserves convert flag");
+  ok &= expect_bool(
+      converting_strand_header.requires_unvendored_matrix_helper_when_converting,
+      true, "glTFMilo strand header fences missing conversion helper");
+  ok &= expect_bool(converting_strand_header.can_port_axis_conversion_math,
+                    false, "glTFMilo strand header does not invent conversion math");
 
   const std::array<float, 16> parent_inverse = {
       1.0f, 0.0f, 0.0f, 0.0f,

@@ -9666,6 +9666,10 @@ int run_contract() {
                  "chainNode.Name))){chains.Add(newList<Node>(currentChain));}",
                  "glTFMilo unsplit collector emits weighted root-to-leaf path");
   ok &= contains(gltf_node_processor_cs,
+                 "if(chain.Count==0)continue;varstrand=newMiloLib.Assets."
+                 "Char.CharHair.Strand();",
+                 "glTFMilo skips empty hair chains before strand creation");
+  ok &= contains(gltf_node_processor_cs,
                  "strand.root=chain[0].Name;MatrixHelpers.CopyMatrix3("
                  "chain[0].LocalMatrix,strand.baseMat,convertCoordinates);"
                  "MatrixHelpers.CopyMatrix3(chain[0].LocalMatrix,strand.rootMat,"
@@ -9712,6 +9716,10 @@ int run_contract() {
                  "std::array<float,3>pos=",
                  "native declares glTFMilo hair point export contract");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairStrandHeaderPlan{"
+                 "boolskipped_empty_chain=false;",
+                 "native declares glTFMilo hair strand header contract");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloHairChildClassification{"
                  "std::vector<std::string>hair_children;",
                  "native declares glTFMilo hair child classifier contract");
@@ -9741,6 +9749,21 @@ int run_contract() {
                  "discovered.result.skipped_duplicate_roots.push_back("
                  "root_node.name);",
                  "native glTFMilo root discovery records skipped duplicate roots");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloHairStrandHeaderPlansource_gltf_milo_export_"
+                 "hair_strand_header_plan(",
+                 "native ports glTFMilo hair strand header helper");
+  ok &= contains(char_mesh,
+                 "plan.root=chain.front().name;",
+                 "native glTFMilo strand header copies root name");
+  ok &= contains(char_mesh,
+                 "plan.base_mat=chain.front().local_mat;plan.root_mat="
+                 "chain.front().local_mat;",
+                 "native glTFMilo strand header records CopyMatrix3 source row");
+  ok &= contains(char_mesh,
+                 "plan.requires_unvendored_matrix_helper_when_converting="
+                 "convert_coordinates;",
+                 "native glTFMilo strand header fences missing conversion helper");
   ok &= contains(char_mesh,
                  "SourceGltfMiloHairChainsResult"
                  "source_gltf_milo_collect_hair_chains_split_at_branches("
@@ -9798,6 +9821,10 @@ int run_contract() {
                  "source_gltf_milo_discover_hair_roots("
                  "duplicate_root_nodes)",
                  "focused CharHair source test covers glTFMilo root discovery");
+  ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_export_hair_strand_header_plan({"
+                 "strand_root},true)",
+                 "focused CharHair source test covers glTFMilo strand header conversion boundary");
   ok &= contains(char_hair_source_test,
                  "source_gltf_milo_collect_hair_chains_without_splitting("
                  "hair_nodes)",
