@@ -7442,6 +7442,9 @@ int run_contract() {
                  "{Logger.Error(\"FileisnotaglTFfile.\");return;}",
                  "glTFMilo accepts only lowercase glTF suffixes");
   ok &= contains(gltf_program_cs,
+                 "stringoutfitConfig=opts.OutfitConfig.ToLower();",
+                 "glTFMilo lowercases OutfitConfig before preflight checks");
+  ok &= contains(gltf_program_cs,
                  "if(!string.IsNullOrEmpty(outfitConfig)&&!File.Exists("
                  "outfitConfig)){Logger.Error($\"SpecifiedOutfitConfigfile"
                  "{outfitConfig}doesnotexist.\");return;}",
@@ -7514,8 +7517,12 @@ int run_contract() {
                  "\".gltf\");",
                  "native preflight helper preserves lowercase gltf suffix");
   ok &= contains(char_mesh,
-                 "if(!input.outfit_config_path.empty()){plan.checks_outfit_"
-                 "config_exists=true;",
+                 "plan.normalized_outfit_config_path=input.outfit_config_path;"
+                 "std::transform(plan.normalized_outfit_config_path.begin(),",
+                 "native preflight helper lowercases OutfitConfig path copy");
+  ok &= contains(char_mesh,
+                 "if(!plan.normalized_outfit_config_path.empty()){plan.checks_"
+                 "outfit_config_exists=true;",
                  "native preflight helper preserves outfit config gate");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
@@ -8123,6 +8130,10 @@ int run_contract() {
                  "source_gltf_milo_run_preflight_plan(preflight)",
                  "focused mesh decode test covers glTFMilo preflight helper");
   ok &= contains(mesh_decode_test,
+                 "gltf_missing_outfit.normalized_outfit_config_path=="
+                 "\"missing_outfit.json\"",
+                 "focused mesh decode test covers OutfitConfig lowercasing");
+  ok &= contains(mesh_decode_test,
                  "gltf_uppercase_extension.exits_non_gltf_extension",
                  "focused mesh decode test covers case-sensitive glTF suffix");
   ok &= contains(mesh_decode_test,
@@ -8486,6 +8497,9 @@ int run_contract() {
   ok &= contains(doc,
                  "case-sensitive extension check",
                  "document records glTFMilo lowercase suffix gate");
+  ok &= contains(doc,
+                 "normalized\n    OutfitConfig path",
+                 "document records glTFMilo normalized OutfitConfig path");
   ok &= contains(doc,
                  "`source_gltf_milo_create_base_mesh_plan` mirrors",
                  "document records glTFMilo CreateBaseMesh helper");

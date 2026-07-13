@@ -1002,6 +1002,7 @@ struct SourceGltfMiloRunPreflightPlan {
   bool extension_check_is_case_sensitive = true;
   bool exits_non_gltf_extension = false;
   bool lowercases_outfit_config_path_before_check = true;
+  std::string normalized_outfit_config_path;
   bool checks_outfit_config_exists = false;
   bool exits_missing_outfit_config = false;
   bool reaches_model_load = false;

@@ -1473,6 +1473,13 @@ SourceGltfMiloRunTypePlan source_gltf_milo_run_type_plan(
 SourceGltfMiloRunPreflightPlan source_gltf_milo_run_preflight_plan(
     const SourceGltfMiloRunPreflightInput& input) {
   SourceGltfMiloRunPreflightPlan plan;
+  plan.normalized_outfit_config_path = input.outfit_config_path;
+  std::transform(plan.normalized_outfit_config_path.begin(),
+                 plan.normalized_outfit_config_path.end(),
+                 plan.normalized_outfit_config_path.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
   if (!input.input_file_exists) {
     plan.exits_missing_input = true;
     return plan;
@@ -1491,7 +1498,7 @@ SourceGltfMiloRunPreflightPlan source_gltf_milo_run_preflight_plan(
     return plan;
   }
 
-  if (!input.outfit_config_path.empty()) {
+  if (!plan.normalized_outfit_config_path.empty()) {
     plan.checks_outfit_config_exists = true;
     if (!input.outfit_config_exists) {
       plan.exits_missing_outfit_config = true;

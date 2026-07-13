@@ -1319,21 +1319,26 @@ int main() {
   CHECK(!gltf_missing_input.reaches_model_load);
 
   preflight.input_file_exists = true;
+  preflight.outfit_config_path = "Missing_On_Early_Exit.JSON";
   preflight.input_path = "rock1.GLB";
   const auto gltf_uppercase_extension =
       ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
   CHECK(!gltf_uppercase_extension.accepts_glb_extension);
   CHECK(gltf_uppercase_extension.extension_check_is_case_sensitive);
   CHECK(gltf_uppercase_extension.exits_non_gltf_extension);
+  CHECK(gltf_uppercase_extension.normalized_outfit_config_path ==
+        "missing_on_early_exit.json");
   CHECK(!gltf_uppercase_extension.reaches_model_load);
 
   preflight.input_path = "rock1.glb";
-  preflight.outfit_config_path = "missing_outfit.json";
+  preflight.outfit_config_path = "Missing_Outfit.JSON";
   preflight.outfit_config_exists = false;
   const auto gltf_missing_outfit =
       ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
   CHECK(gltf_missing_outfit.accepts_glb_extension);
   CHECK(gltf_missing_outfit.lowercases_outfit_config_path_before_check);
+  CHECK(gltf_missing_outfit.normalized_outfit_config_path ==
+        "missing_outfit.json");
   CHECK(gltf_missing_outfit.checks_outfit_config_exists);
   CHECK(gltf_missing_outfit.exits_missing_outfit_config);
   CHECK(!gltf_missing_outfit.reaches_model_load);
@@ -1344,6 +1349,7 @@ int main() {
       ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
   CHECK(gltf_valid_preflight.accepts_gltf_extension);
   CHECK(!gltf_valid_preflight.checks_outfit_config_exists);
+  CHECK(gltf_valid_preflight.normalized_outfit_config_path.empty());
   CHECK(gltf_valid_preflight.reaches_model_load);
 
   ghogx::character::SourceGltfMiloBaseMeshInput base_mesh;

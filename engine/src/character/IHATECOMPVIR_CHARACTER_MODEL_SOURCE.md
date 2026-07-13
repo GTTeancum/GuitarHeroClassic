@@ -1312,8 +1312,9 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     rejects paths that do not end exactly in lowercase `.gltf` or `.glb`, and
     exits if a non-empty lowercased OutfitConfig path does not exist. Native
     `source_gltf_milo_run_preflight_plan` records that pre-model-load gate,
-    including the case-sensitive extension check, without adding local
-    filesystem probing or converter-side fallback behavior.
+    including the case-sensitive extension check and the normalized
+    OutfitConfig path, without adding local filesystem probing or
+    converter-side fallback behavior.
   - `CreateBaseMesh` allocates `RndMesh.New(selectedGame.ModelRevision, 0, 0,
     0)`, sets object-fields revision 2, embeds a revision-9 `RndTrans` parented
     to the MILO filename, embeds revision-3 `RndDrawable` with radius `0`,
