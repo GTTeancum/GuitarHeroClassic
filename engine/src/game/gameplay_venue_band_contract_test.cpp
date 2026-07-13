@@ -7876,6 +7876,9 @@ int main() {
                  "boolparent_first_frame=false;"
                  "boolhas_parent_first_frame=false;",
                  "CameraKey preserves CamShot frame shake/zoom/parent-first fields");
+  ok &= contains(gameplay_h_c,
+                 "intforce_char_lod=-1;std::stringnext_shot_ref;",
+                 "CameraKey preserves CamShot next_shot source object ref");
   ok &= contains(gameplay_c,
                  "constexprfloatkCamShotAngleByteScale=81.16902f;"
                  "constexprfloatkCamShotAngleByteInv=0.012319971f;"
@@ -9678,14 +9681,31 @@ int main() {
                  "key.camshot_loop_keyframe=shot.loop_keyframe;",
                  "CamShot source loop fields are preserved on decoded camera keys");
   ok &= contains(gameplay_c,
+                 "key.next_shot_ref=canonical_milo_ref(prop_symbol("
+                 "shot.props,\"next_shot\"));",
+                 "CamShot next_shot object field is decoded from ihatecompvir ObjectFields");
+  ok &= contains(gameplay_c,
                  "poses=%zuloop=%dloop_keyframe=%d",
                  "regular CamShot diagnostics expose decoded source loop fields");
+  ok &= contains(gameplay_c,
+                 "force_char_lod=%dnext_shot=%s",
+                 "regular CamShot diagnostics expose decoded source next_shot refs");
   ok &= contains(gameplay_c,
                  "same_shot?authored_camshot_blend_seconds(*previous,kSweepSeconds)",
                  "authored CamShot blend timing is limited to same-shot position transitions");
   ok &= contains(gameplay_c,
                  "floatsource_camshot_frame_span(constGameplay::CameraKey&key)",
                  "runtime evaluates source CamShot duration plus blend spans");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_check_shot_over(constGameplay::CameraKey&shot",
+                 "runtime exposes a source-shaped CamShot CheckShotOver helper");
+  ok &= contains(gameplay_c,
+                 "if(shot.has_camshot_looping&&shot.camshot_looping)"
+                 "returnfalse;",
+                 "source CheckShotOver bridge refuses looping CamShots");
+  ok &= contains(gameplay_c,
+                 "returnlocal_frame>=duration;",
+                 "source CheckShotOver bridge compares local frame to decoded CamShot duration");
   ok &= contains(gameplay_c,
                  "std::vector<Gameplay::CameraKey>regular_camera_source_frame_keys(",
                  "runtime mirrors CamShot::GetKey by submitting the active source frame pair");
@@ -9881,6 +9901,7 @@ int main() {
                  "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
                  "platform_only=%ddisabled=0x%08xflags=0x%08xhide_crowd=%d"
                  "crowd_face_camera=%dforce_char_lod=%d"
+                 "next_shot=%s"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
                  "postproc=%zuanims=%zuglow=%sshot_fields=%dcategory=%s",
                  "regular camera validation logs decoded shot-level fields including source flags");
@@ -9938,7 +9959,7 @@ int main() {
                  "\"[world]regularcamerasweep:%s->%scategory=%s"
                  "bars_left=%d"
                  "duration=%s[%d,%d]mode=%sfilter_source=ShotMatches"
-                 "flags=0x%08xforced=%dforce_char_lod=%d",
+                 "flags=0x%08xforced=%dsource_next=%dforce_char_lod=%d",
                  "regular camera sweep logs source matcher provenance and selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
@@ -10496,6 +10517,28 @@ int main() {
                  "choose_regular_camera_key_scripted(regular_camera_keys_,"
                  "active_regular_camera_,",
                  "regular camera selector excludes the active shot by authored name");
+  ok &= contains(gameplay_c,
+                 "if(!force_camera&&diagnostic_camera_shot_.empty()&&"
+                 "!active_regular_camera_.empty())",
+                 "source shot_over bridge does not disturb diagnostic camera proofs");
+  ok &= contains(gameplay_c,
+                 "if(!active_key->next_shot_ref.empty())",
+                 "source shot_over bridge is gated to authored CamShot next_shot refs");
+  ok &= contains(gameplay_c,
+                 "camera_source_check_shot_over(*active_key,song_time_,"
+                 "active_regular_camera_start_",
+                 "source shot_over bridge uses decoded CamShot local frame duration");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerashot_over:source_msg=shot_overshot=%s"
+                 "next_shot=%slocal_frame=%.3fduration_frames=%.3f\\n\"",
+                 "source shot_over diagnostics name the ihatecompvir shot_over message");
+  ok &= contains(gameplay_c,
+                 "key=find_camera_key_by_name(regular_camera_keys_,"
+                 "source_forced_camera_shot);",
+                 "source shot_over next_shot forces the authored CamShot by name");
+  ok &= contains(gameplay_c,
+                 "source_next=%d",
+                 "regular camera sweep diagnostics expose source next_shot forcing");
   ok &= absent(gameplay_c, "regular_camera_selection_weight(",
                "regular camera selection must not consume the legacy CamShot category float as a weight");
   ok &= absent(gameplay_c, "choose_weighted_regular_camera_key(",

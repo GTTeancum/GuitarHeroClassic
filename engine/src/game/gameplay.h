@@ -226,6 +226,7 @@ class Gameplay {
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;
+    std::string next_shot_ref;
     bool has_crowd_selection = false;
     std::string crowd_selection_ref;
     std::vector<std::pair<int, int>> crowd_selection_pairs;
@@ -1172,6 +1173,7 @@ class Gameplay {
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
   std::string active_camera_glow_spot_ref_;
+  std::string active_camera_shot_over_reported_;
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       active_camera_glow_spot_;
   std::string active_venue_event_;

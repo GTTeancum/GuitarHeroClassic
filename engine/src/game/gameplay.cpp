@@ -2170,6 +2170,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
                 key.crowd_face_camera ||
                 prop_bool(shot.props, "crowd_face_camera", false);
             key.force_char_lod = prop_int(shot.props, "force_char_lod", -1);
+            key.next_shot_ref =
+                canonical_milo_ref(prop_symbol(shot.props, "next_shot"));
             key.hide_list_refs = shot.hide_list;
             key.show_list_refs = shot.show_list;
             key.gen_hide_list_refs = shot.gen_hide_list;
@@ -2301,6 +2303,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.postproc_override_refs = from.postproc_override_refs;
     to.camera_anim_refs = from.camera_anim_refs;
     to.glow_spot_ref = from.glow_spot_ref;
+    to.next_shot_ref = from.next_shot_ref;
     to.platform_only = from.platform_only;
     to.disabled_flags = from.disabled_flags;
     to.flags = from.flags;
@@ -2349,6 +2352,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.hide_crowd = from.hide_crowd;
     to.crowd_face_camera = from.crowd_face_camera;
     to.force_char_lod = from.force_char_lod;
+    to.next_shot_ref = from.next_shot_ref;
     to.has_crowd_selection = from.has_crowd_selection;
     to.crowd_selection_ref = from.crowd_selection_ref;
     to.crowd_selection_pairs = from.crowd_selection_pairs;
@@ -14821,6 +14825,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.postproc_override_refs = c.key.postproc_override_refs;
                 pos.camera_anim_refs = c.key.camera_anim_refs;
                 pos.glow_spot_ref = c.key.glow_spot_ref;
+                pos.next_shot_ref = c.key.next_shot_ref;
                 pos.path_anim = c.key.path_anim;
                 pos.has_path_anim = c.key.has_path_anim;
                 if (!pos.camshot_shot_fields_decoded &&
@@ -14893,7 +14898,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -14916,6 +14921,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          static_cast<unsigned int>(key.flags),
                          key.hide_crowd ? 1 : 0,
                          key.crowd_face_camera ? 1 : 0, key.force_char_lod,
+                         key.next_shot_ref.c_str(),
                          key.hide_list_refs.size(),
                          key.show_list_refs.size(),
                          key.gen_hide_list_refs.size(),
@@ -15422,6 +15428,25 @@ float source_camshot_frame_total(
         total += source_camshot_frame_span(frames[i]);
     }
     return total;
+}
+
+float source_camshot_duration_frames(const Gameplay::CameraKey& shot) {
+    if (!shot.positions.empty()) return source_camshot_frame_total(shot.positions);
+    return source_camshot_frame_span(shot);
+}
+
+bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
+                                   double song_time, double start_time,
+                                   float* out_local_frame,
+                                   float* out_duration_frames) {
+    const float duration = source_camshot_duration_frames(shot);
+    const float local_frame =
+        static_cast<float>(std::max(0.0, song_time - start_time) * 30.0);
+    if (out_local_frame) *out_local_frame = local_frame;
+    if (out_duration_frames) *out_duration_frames = duration;
+    if (shot.has_camshot_looping && shot.camshot_looping) return false;
+    if (!std::isfinite(duration) || duration < 0.0f) return false;
+    return local_frame >= duration;
 }
 
 std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
@@ -20427,6 +20452,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_anim_event_.clear();
     active_camera_glow_spot_ref_.clear();
     active_camera_glow_spot_.reset();
+    active_camera_shot_over_reported_.clear();
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
     active_camera_position_index_ = 0;
@@ -21201,6 +21227,7 @@ void Gameplay::end_camera_shot_runtime() {
                      active_camera_runtime_shot_.c_str());
     }
     active_camera_runtime_shot_.clear();
+    active_camera_shot_over_reported_.clear();
 }
 
 void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
@@ -30083,6 +30110,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;
+        std::string source_forced_camera_shot;
         if (!in_intro_camera_window) {
             const double forced_camera_event_window =
                 std::max(0.001, dt * 1.5);
@@ -30181,6 +30209,39 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
+            if (!force_camera && diagnostic_camera_shot_.empty() &&
+                !active_regular_camera_.empty()) {
+                if (const CameraKey* active_key =
+                        find_camera_key_by_name(regular_camera_keys_,
+                                                active_regular_camera_)) {
+                    if (!active_key->next_shot_ref.empty()) {
+                        float local_frame = 0.0f;
+                        float duration_frames = 0.0f;
+                        if (camera_source_check_shot_over(
+                                *active_key, song_time_,
+                                active_regular_camera_start_, &local_frame,
+                                &duration_frames)) {
+                            source_forced_camera_shot =
+                                active_key->next_shot_ref;
+                            force_camera = true;
+                            forced_camera_mode.reset();
+                            forced_camera_bars.reset();
+                            if (active_camera_shot_over_reported_ !=
+                                active_key->name) {
+                                active_camera_shot_over_reported_ =
+                                    active_key->name;
+                                std::fprintf(
+                                    stderr,
+                                    "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f\n",
+                                    active_key->name.c_str(),
+                                    source_forced_camera_shot.c_str(),
+                                    local_frame, duration_frames);
+                            }
+                        }
+                    }
+                }
+            }
+
             if (force_camera || camera_bars_left_ <= 0 ||
                 active_regular_camera_.empty()) {
                 auto duration =
@@ -30217,8 +30278,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 constexpr bool kGuitaristWalking = false;
                 const bool guitarist_starpower = star_power_.active;
                 const CameraKey* key = nullptr;
+                bool source_forced_camera_shot_matched = false;
                 bool diagnostic_camera_shot_matched = false;
                 bool diagnostic_camera_shot_missing = false;
+                if (!source_forced_camera_shot.empty()) {
+                    key = find_camera_key_by_name(regular_camera_keys_,
+                                                  source_forced_camera_shot);
+                    if (!key) {
+                        std::fprintf(
+                            stderr,
+                            "[world] camera shot_over missing next_shot: requested=%s current=%s\n",
+                            source_forced_camera_shot.c_str(),
+                            active_regular_camera_.c_str());
+                    } else {
+                        source_forced_camera_shot_matched = true;
+                    }
+                }
                 if (!diagnostic_camera_shot_.empty()) {
                     key = find_camera_key_by_name(regular_camera_keys_,
                                                   diagnostic_camera_shot_);
@@ -30251,9 +30326,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             diagnostic_camera_path_offset_frames_ / 30.0;
                         active_camera_position_start_ = song_time_;
                         active_camera_position_index_ = 0;
+                        active_camera_shot_over_reported_.clear();
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s filter_source=ShotMatches flags=0x%08x forced=%d force_char_lod=%d bar=%u t=%.3f\n",
+                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s filter_source=ShotMatches flags=0x%08x forced=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
                             previous_regular_camera_.c_str(),
                             key->name.c_str(), key->category.c_str(),
                             camera_bars_left_,
@@ -30261,9 +30337,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             duration.second.second,
                             camera_shot_mode_label(camera_mode),
                             static_cast<unsigned int>(key->flags),
-                            (force_camera || diagnostic_camera_shot_matched)
+                            (force_camera || diagnostic_camera_shot_matched ||
+                             source_forced_camera_shot_matched)
                                 ? 1
                                 : 0,
+                            source_forced_camera_shot_matched ? 1 : 0,
                             key->force_char_lod, bar, song_time_);
                         if (diagnostic_camera_shot_matched) {
                             std::fprintf(
