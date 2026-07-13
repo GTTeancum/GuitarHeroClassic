@@ -93,6 +93,7 @@ int main() {
   using ghogx::character::source_char_hair_strand_default_state;
   using ghogx::character::source_char_hair_strand_set_angle;
   using ghogx::character::source_char_hair_strand_set_root;
+  using ghogx::character::source_char_hair_writeback_gate;
   using ghogx::character::source_gltf_milo_collect_hair_chains_without_splitting;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
   using ghogx::character::source_char_hair_simulate_internal_collision_step;
@@ -1061,6 +1062,30 @@ int main() {
                     "legacy inline rows do not resolve runtime collides");
   ok &= expect_bool(inline_resolution.may_write_world_xfm, false,
                     "legacy inline rows do not authorize writeback");
+
+  const auto no_collide_gate = source_char_hair_writeback_gate(true, 0);
+  ok &= expect_bool(no_collide_gate.enters_collision_branch, false,
+                    "zero resolved collides skips writeback branch");
+  ok &= expect_bool(no_collide_gate.may_set_world_xfm, false,
+                    "zero resolved collides cannot set world xfm");
+  ok &= expect_bool(no_collide_gate.updates_force_state, false,
+                    "zero resolved collides skips source force update");
+
+  const auto no_bone_gate = source_char_hair_writeback_gate(false, 2);
+  ok &= expect_bool(no_bone_gate.enters_collision_branch, true,
+                    "resolved collides enter source branch");
+  ok &= expect_bool(no_bone_gate.rebuilds_basis, true,
+                    "resolved collides rebuild source basis");
+  ok &= expect_bool(no_bone_gate.may_set_world_xfm, false,
+                    "source SetWorldXfm still requires a point bone");
+  ok &= expect_bool(no_bone_gate.updates_force_state, true,
+                    "resolved collides run source force update");
+
+  const auto write_gate = source_char_hair_writeback_gate(true, 2);
+  ok &= expect_bool(write_gate.may_set_world_xfm, true,
+                    "resolved collides plus point bone allow writeback");
+  ok &= expect_int(write_gate.resolved_point_collide_count, 2,
+                   "writeback gate records resolved collide count");
 
   Character inline_collision_character;
   add_trans(inline_collision_character, make_trans("parent"));

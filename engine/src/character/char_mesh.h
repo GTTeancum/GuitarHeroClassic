@@ -2019,6 +2019,15 @@ struct SourceCharHairPointCollideResolution {
   bool may_write_world_xfm = false;
 };
 
+struct SourceCharHairWritebackGate {
+  bool has_bone = false;
+  int resolved_point_collide_count = 0;
+  bool enters_collision_branch = false;
+  bool rebuilds_basis = false;
+  bool may_set_world_xfm = false;
+  bool updates_force_state = false;
+};
+
 struct SourceCharHairHookupDumpEvidence {
   std::string range;
   std::vector<std::string> locals;
@@ -3612,6 +3621,9 @@ SourceCharHairHookupPlan source_char_hair_hookup_plan(
     const std::vector<std::string>& dir_collides);
 SourceCharHairPointCollideResolution
 source_char_hair_point_collide_resolution(const CharHairPoint& point);
+SourceCharHairWritebackGate source_char_hair_writeback_gate(
+    bool has_bone,
+    int resolved_point_collide_count);
 SourceCharHairEnterPlan source_char_hair_enter_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);

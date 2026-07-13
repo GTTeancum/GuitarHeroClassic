@@ -5111,6 +5111,20 @@ source_char_hair_point_collide_resolution(const CharHairPoint& point) {
   return resolution;
 }
 
+SourceCharHairWritebackGate source_char_hair_writeback_gate(
+    bool has_bone,
+    int resolved_point_collide_count) {
+  SourceCharHairWritebackGate gate;
+  gate.has_bone = has_bone;
+  gate.resolved_point_collide_count =
+      std::max(0, resolved_point_collide_count);
+  gate.enters_collision_branch = gate.resolved_point_collide_count != 0;
+  gate.rebuilds_basis = gate.enters_collision_branch;
+  gate.updates_force_state = gate.enters_collision_branch;
+  gate.may_set_world_xfm = gate.enters_collision_branch && gate.has_bone;
+  return gate;
+}
+
 SourceCharHairEnterPlan source_char_hair_enter_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides) {

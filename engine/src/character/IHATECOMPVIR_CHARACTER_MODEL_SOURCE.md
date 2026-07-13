@@ -2074,6 +2074,11 @@ note, and all report `unreadBytes=0`.
   - `CharHair::SimulateInternal` only calls `SetWorldXfm` for a point inside the
     `thisPoint.collides.size() != 0` branch. Native GHOGX must not invent a
     partial hair physics bridge from decoded point rows alone.
+    `source_char_hair_writeback_gate` records that exact source gate:
+    point-level resolved collides enter the collision/force/basis branch, and
+    `thisPoint.bone` is still required before `SetWorldXfm` may run. With zero
+    resolved point collides, native keeps `runtimeWriteback=0` even when legacy
+    GH2 inline collide rows were decoded and logged.
   - The latest source includes `CharHair.h`, `CharCollide.h`, default
     `CharHair::Hookup()` gathering all `CharCollide` objects from the object
     directory, and the `CharCollide` shape/radius header plus load path. Native

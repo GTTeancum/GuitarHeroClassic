@@ -9534,6 +9534,46 @@ int run_contract() {
   ok &= contains(rb3_latest_char_hair_cpp,
                  "if(thisPoint.bone)thisPoint.bone->SetWorldXfm(t100);",
                  "RB3 CharHair writes driven Trans rows only from source simulate");
+  ok &= contains(char_mesh_h, "structSourceCharHairWritebackGate{",
+                 "native exposes CharHair writeback gate struct");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairWritebackGatesource_char_hair_writeback_gate("
+                 "boolhas_bone,intresolved_point_collide_count);",
+                 "native declares CharHair writeback gate helper");
+  ok &= contains(char_mesh,
+                 "SourceCharHairWritebackGatesource_char_hair_writeback_gate("
+                 "boolhas_bone,intresolved_point_collide_count){",
+                 "native implements CharHair writeback gate helper");
+  ok &= contains(char_mesh,
+                 "gate.enters_collision_branch="
+                 "gate.resolved_point_collide_count!=0;",
+                 "native CharHair gate mirrors collides branch");
+  ok &= contains(char_mesh,
+                 "gate.may_set_world_xfm="
+                 "gate.enters_collision_branch&&gate.has_bone;",
+                 "native CharHair gate mirrors SetWorldXfm bone guard");
+  ok &= contains(char_clip,
+                 "constSourceCharHairWritebackGatewriteback_gate="
+                 "source_char_hair_writeback_gate(",
+                 "runtime CharHair path uses source writeback gate helper");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_writeback_gate(true,0)",
+                 "focused CharHair test covers zero-collide writeback gate");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_writeback_gate(false,2)",
+                 "focused CharHair test covers no-bone writeback gate");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_writeback_gate(true,2)",
+                 "focused CharHair test covers write-authorized gate");
+  ok &= contains(doc,
+                 "`source_char_hair_writeback_gate` records that exact source gate",
+                 "document records CharHair writeback gate helper");
+  ok &= contains(doc,
+                 "point-level resolved collides enter the collision/force/basis branch",
+                 "document records CharHair resolved-collide branch");
+  ok &= contains(doc,
+                 "`thisPoint.bone` is still required before `SetWorldXfm` may run",
+                 "document records CharHair SetWorldXfm bone guard");
   ok &= contains(rb3_latest_char_hair_h,
                  "voidHookup(ObjPtrList<CharCollide,ObjectDir>&);",
                  "latest CharHair header declares collision-list hookup");

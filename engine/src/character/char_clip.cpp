@@ -6532,9 +6532,12 @@ static void source_char_hair_do_reset(Character& character, const CharHair& hair
                                       SourceCharHairRuntime& state,
                                       int reset_count);
 
-static bool source_char_hair_has_resolved_collides(const CharHairPoint& point) {
+static int source_char_hair_resolved_collide_count(
+    const CharHairPoint& point) {
   return source_char_hair_point_collide_resolution(point)
-      .resolved_runtime_collides;
+             .resolved_runtime_collides
+             ? 1
+             : 0;
 }
 
 static int source_char_hair_simulate_internal(Character& character,
@@ -6630,7 +6633,11 @@ static int source_char_hair_simulate_internal(Character& character,
                       1.0f - hair.torsion),
                vscale(mat_row(t100, 2), hair.torsion));
 
-      if (source_char_hair_has_resolved_collides(point)) {
+      const SourceCharHairWritebackGate writeback_gate =
+          source_char_hair_writeback_gate(
+              !point.bone.empty(),
+              source_char_hair_resolved_collide_count(point));
+      if (writeback_gate.enters_collision_branch) {
         Vec3 y = vscale(m128_y, rsa);
         Vec3 x = vnorm(vcross(y, m128_z), mat_row(t100, 0));
         Vec3 z = vcross(x, y);
@@ -6642,7 +6649,7 @@ static int source_char_hair_simulate_internal(Character& character,
         t100[14] = point_pos.z;
         normalize_mat3_rows(t100);
         array3_from_vec(runtime_point.last_z, mat_row(t100, 2));
-        if (!point.bone.empty()) {
+        if (writeback_gate.may_set_world_xfm) {
           character.runtime_world_overrides[point.bone] = t100;
           ++write_count;
         }
