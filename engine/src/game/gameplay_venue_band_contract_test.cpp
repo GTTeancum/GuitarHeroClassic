@@ -4126,6 +4126,14 @@ int main() {
   ok &= contains(renderer_c,
                  "face_axis=%s\"\"face_dir=(%.1f%.1f%.1f)draw_face=(%.3f%.3f%.3f)",
                  "venue inspector logs picked mesh local face axis and current drawn face vector");
+  ok &= contains(renderer_c,
+                 "draw_debug_pick_face_axis",
+                 "venue inspector can draw a visible picked-mesh face-axis marker");
+  ok &= contains(renderer_c,
+                 "if(debug_venue->axes_enabled){"
+                 "draw_debug_pick_face_axis(dev_,win_->bb_width(),win_->bb_height(),"
+                 "view,proj,debug_venue->pick);}",
+                 "venue inspector only draws the picked-mesh face-axis marker when axes mode is enabled");
   ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"

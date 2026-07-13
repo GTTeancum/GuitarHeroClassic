@@ -1949,6 +1949,99 @@ void draw_debug_crosshair(IDirect3DDevice9* dev, int width, int height,
   dev->DrawPrimitiveUP(D3DPT_LINELIST, 4, verts, sizeof(DebugLineVertex));
 }
 
+bool project_debug_point_to_screen(const Mat4& view, const Mat4& proj,
+                                   const float point[3], int width,
+                                   int height, float out[2]) {
+  const float vx = point[0] * view.m[0][0] + point[1] * view.m[1][0] +
+                   point[2] * view.m[2][0] + view.m[3][0];
+  const float vy = point[0] * view.m[0][1] + point[1] * view.m[1][1] +
+                   point[2] * view.m[2][1] + view.m[3][1];
+  const float vz = point[0] * view.m[0][2] + point[1] * view.m[1][2] +
+                   point[2] * view.m[2][2] + view.m[3][2];
+  const float x = vx * proj.m[0][0] + vy * proj.m[1][0] +
+                  vz * proj.m[2][0] + proj.m[3][0];
+  const float y = vx * proj.m[0][1] + vy * proj.m[1][1] +
+                  vz * proj.m[2][1] + proj.m[3][1];
+  const float w = vx * proj.m[0][3] + vy * proj.m[1][3] +
+                  vz * proj.m[2][3] + proj.m[3][3];
+  if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(w) ||
+      w <= 0.001f) {
+    return false;
+  }
+  const float ndc_x = x / w;
+  const float ndc_y = y / w;
+  if (!std::isfinite(ndc_x) || !std::isfinite(ndc_y)) return false;
+  out[0] = (ndc_x * 0.5f + 0.5f) * static_cast<float>(width);
+  out[1] = (0.5f - ndc_y * 0.5f) * static_cast<float>(height);
+  return true;
+}
+
+void draw_debug_pick_face_axis(IDirect3DDevice9* dev, int width, int height,
+                               const Mat4& view, const Mat4& proj,
+                               const DebugVenuePick& pick) {
+  if (!dev || width <= 0 || height <= 0 || !pick.hit ||
+      !pick.has_axis_diagnostics) {
+    return;
+  }
+  const float face_len =
+      std::sqrt(pick.draw_face[0] * pick.draw_face[0] +
+                pick.draw_face[1] * pick.draw_face[1] +
+                pick.draw_face[2] * pick.draw_face[2]);
+  if (face_len <= 0.001f) return;
+  const float face[3] = {pick.draw_face[0] / face_len,
+                         pick.draw_face[1] / face_len,
+                         pick.draw_face[2] / face_len};
+  const float extent =
+      std::max({pick.shape_extent[0], pick.shape_extent[1],
+                pick.shape_extent[2], 20.0f});
+  const float axis_len = std::clamp(extent * 0.55f, 18.0f, 90.0f);
+  float origin[2], forward[2], back[2];
+  float p0[3] = {pick.point[0], pick.point[1], pick.point[2]};
+  float p1[3] = {pick.point[0] + face[0] * axis_len,
+                 pick.point[1] + face[1] * axis_len,
+                 pick.point[2] + face[2] * axis_len};
+  float p2[3] = {pick.point[0] - face[0] * axis_len * 0.35f,
+                 pick.point[1] - face[1] * axis_len * 0.35f,
+                 pick.point[2] - face[2] * axis_len * 0.35f};
+  if (!project_debug_point_to_screen(view, proj, p0, width, height, origin) ||
+      !project_debug_point_to_screen(view, proj, p1, width, height, forward) ||
+      !project_debug_point_to_screen(view, proj, p2, width, height, back)) {
+    return;
+  }
+
+  constexpr D3DCOLOR kForward = D3DCOLOR_ARGB(245, 80, 255, 255);
+  constexpr D3DCOLOR kBack = D3DCOLOR_ARGB(190, 255, 80, 255);
+  constexpr D3DCOLOR kTip = D3DCOLOR_ARGB(245, 255, 236, 64);
+  const float tick = 7.0f;
+  DebugLineVertex verts[] = {
+      {origin[0], origin[1], 0.0f, 1.0f, kForward},
+      {forward[0], forward[1], 0.0f, 1.0f, kForward},
+      {origin[0], origin[1], 0.0f, 1.0f, kBack},
+      {back[0], back[1], 0.0f, 1.0f, kBack},
+      {forward[0] - tick, forward[1], 0.0f, 1.0f, kTip},
+      {forward[0] + tick, forward[1], 0.0f, 1.0f, kTip},
+      {forward[0], forward[1] - tick, 0.0f, 1.0f, kTip},
+      {forward[0], forward[1] + tick, 0.0f, 1.0f, kTip},
+      {origin[0] - tick * 0.55f, origin[1], 0.0f, 1.0f, kForward},
+      {origin[0] + tick * 0.55f, origin[1], 0.0f, 1.0f, kForward},
+      {origin[0], origin[1] - tick * 0.55f, 0.0f, 1.0f, kForward},
+      {origin[0], origin[1] + tick * 0.55f, 0.0f, 1.0f, kForward},
+  };
+  dev->SetTexture(0, nullptr);
+  dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+  dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+  dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+  dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+  dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+  dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+  dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+  dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+  dev->DrawPrimitiveUP(D3DPT_LINELIST, 6, verts, sizeof(DebugLineVertex));
+}
+
 }  // namespace
 
 MiloSceneRenderer::MaterialUvSamplerDecision choose_material_uv_sampler(
@@ -4424,6 +4517,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   }
 
   if (debug_venue) {
+    if (debug_venue->axes_enabled) {
+      draw_debug_pick_face_axis(dev_, win_->bb_width(), win_->bb_height(),
+                                view, proj, debug_venue->pick);
+    }
     draw_debug_crosshair(dev_, win_->bb_width(), win_->bb_height(),
                          debug_venue->crosshair_ndc_x,
                          debug_venue->crosshair_ndc_y,
