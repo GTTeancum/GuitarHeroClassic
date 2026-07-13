@@ -592,6 +592,27 @@ source_milo_editor_rndmesh_compressed_vertex_io_plan(
   return plan;
 }
 
+SourceMiloEditorCompressedVectorBoundary
+source_milo_editor_compressed_vector_boundary() {
+  SourceMiloEditorCompressedVectorBoundary boundary;
+  boundary.call_sites = {
+      "RndMesh.Vertices type1 normals SignedCompressedVec4",
+      "RndMesh.Vertices type1 tangents SignedCompressedVec4",
+      "RndMesh.Vertices type1 weights UnsignedCompressedVec4",
+      "RndMesh.Vertices type2 normals PS3SignedCompressedVec3",
+      "RndMesh.Vertices type2 tangents PS3SignedCompressedVec3",
+      "RndMesh.Vertices type2 weights PS3UnsignedCompressedVec3",
+  };
+  boundary.missing_helpers = {
+      "MiloLib.Classes.Vertex",
+      "Vertex.SignedCompressedVec4",
+      "Vertex.UnsignedCompressedVec4",
+      "Vertex.PS3SignedCompressedVec3",
+      "Vertex.PS3UnsignedCompressedVec3",
+  };
+  return boundary;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

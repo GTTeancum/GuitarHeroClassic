@@ -269,6 +269,8 @@ int run_contract() {
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs"));
   const std::string mesh_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs"));
+  const bool milo_lib_classes_dir_present =
+      std::filesystem::exists(source_dir / "MiloEditor/MiloLib/Classes");
   const std::string rb3_mesh_cpp = compact(read_file(
       source_dir / "rb3/src/system/rndobj/Mesh.cpp"));
   const std::string rb3_mat_cpp = compact(read_file(
@@ -763,6 +765,12 @@ int run_contract() {
       compact(stock_guitar_string_sweep);
 
   bool ok = true;
+
+  if (milo_lib_classes_dir_present) {
+    std::cerr << "Missing source-truth contract: MiloEditor compressed vector "
+                 "boundary expects absent MiloLib/Classes helper source\n";
+    ok = false;
+  }
 
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs",
                  "document cites RndMesh source");
@@ -5012,6 +5020,9 @@ int run_contract() {
                  "WriteUInt32(vertexSize);writer.WriteUInt32(compressionType);}",
                  "MiloEditor RndMesh Vertices writes counted rows and headers");
   ok &= contains(mesh_cs,
+                 "usingMiloLib.Classes;",
+                 "MiloEditor RndMesh references external MiloLib classes");
+  ok &= contains(mesh_cs,
                  "newVert.nx=reader.ReadFloat();newVert.ny=reader.ReadFloat();"
                  "newVert.nz=reader.ReadFloat();if(meshVersion==34)newVert.nw="
                  "reader.ReadFloat();",
@@ -5104,6 +5115,9 @@ int run_contract() {
                  "Vertex.PS3UnsignedCompressedVec3weights=newVertex."
                  "PS3UnsignedCompressedVec3();weights.Read(reader);",
                  "MiloEditor compressed vertex type 2 reads PS3 unsigned weights");
+  ok &= missing(mesh_cs,
+                "classSignedCompressedVec4",
+                "MiloEditor RndMesh source lacks compressed vector helper bodies");
   ok &= contains(mesh_cs,
                  "newVert.vertexColors.a=(byte)((value>>24)&0xFF);"
                  "newVert.vertexColors.r=(byte)((value>>16)&0xFF);",
@@ -6401,6 +6415,16 @@ int run_contract() {
                  "int32_tmesh_version=0;",
                  "native declares MiloEditor compressed vertex IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorCompressedVectorBoundary{"
+                 "boolrndmesh_call_sites_source_backed=true;",
+                 "native declares MiloEditor compressed vector boundary");
+  ok &= contains(char_mesh_h,
+                 "boolcan_port_bit_packing_math=false;",
+                 "native compressed vector boundary fences pack math");
+  ok &= contains(char_mesh_h,
+                 "source_milo_editor_compressed_vector_boundary();",
+                 "native exposes MiloEditor compressed vector boundary");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
                  "type=false;",
                  "native declares glTFMilo run options plan");
@@ -6869,6 +6893,17 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.writes_bone_indices_as_uint16_with_byte_cast=true;",
                  "native compressed vertex helper records type 2 byte-cast uint16 bones");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorCompressedVectorBoundarysource_milo_editor_compressed_"
+      "vector_boundary()",
+      "native ports MiloEditor compressed vector boundary");
+  ok &= contains(char_mesh,
+                 "\"Vertex.SignedCompressedVec4\",",
+                 "native compressed vector boundary names missing signed helper");
+  ok &= contains(char_mesh,
+                 "\"Vertex.PS3UnsignedCompressedVec3\",",
+                 "native compressed vector boundary names missing PS3 unsigned helper");
   ok &= contains(char_mesh,
                  "constboolgate=plan.group_sizes_count>0&&"
                  "group_sizes_first_positive&&parent_dir_revision<25;",
@@ -7517,6 +7552,16 @@ int run_contract() {
                  "ps3_compressed_vertex_io.compression2_ps3_layout",
                  "focused mesh decode test covers compressed type 2 layout");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_compressed_vector_boundary()",
+                 "focused mesh decode test covers compressed vector boundary");
+  ok &= contains(mesh_decode_test,
+                 "!compressed_vector_boundary.can_port_bit_packing_math",
+                 "focused mesh decode test fences compressed vector pack math");
+  ok &= contains(mesh_decode_test,
+                 "compressed_vector_boundary.missing_helpers[0]=="
+                 "\"MiloLib.Classes.Vertex\"",
+                 "focused mesh decode test records missing compressed vector helpers");
+  ok &= contains(mesh_decode_test,
                  "rev28_milo_editor_vertex_io.gh2_rev28_row_is_skin_vertex_48",
                  "focused mesh decode test covers GH2 rev28 vertex row");
   ok &= contains(mesh_decode_test,
@@ -7897,6 +7942,12 @@ int run_contract() {
   ok &= contains(doc,
                  "fence them away from GH2 rev28",
                  "document fences compressed vertices from GH2 rev28 behavior");
+  ok &= contains(doc,
+                 "`source_milo_editor_compressed_vector_boundary`",
+                 "document records MiloEditor compressed vector boundary");
+  ok &= contains(doc,
+                 "bit-packing math as unavailable",
+                 "document fences missing compressed vector helper bodies");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");

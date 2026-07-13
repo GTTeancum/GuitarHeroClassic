@@ -578,6 +578,26 @@ int main() {
   CHECK(unknown_compressed_vertex_io.unsupported_compression_type);
   CHECK(unknown_compressed_vertex_io.bone_index_storage_bytes_per_slot == 0);
 
+  const auto compressed_vector_boundary =
+      ghogx::character::source_milo_editor_compressed_vector_boundary();
+  CHECK(compressed_vector_boundary.rndmesh_call_sites_source_backed);
+  CHECK(!compressed_vector_boundary.milo_classes_source_present);
+  CHECK(compressed_vector_boundary.can_port_call_order);
+  CHECK(!compressed_vector_boundary.can_port_bit_packing_math);
+  CHECK(!compressed_vector_boundary.safe_to_decode_signed_compressed_values);
+  CHECK(!compressed_vector_boundary.safe_to_decode_unsigned_compressed_values);
+  CHECK(!compressed_vector_boundary.safe_to_decode_ps3_compressed_values);
+  CHECK(!compressed_vector_boundary.safe_to_treat_compressed_vector_names_as_math);
+  CHECK(compressed_vector_boundary.call_sites.size() == 6);
+  CHECK(compressed_vector_boundary.call_sites[0] ==
+        "RndMesh.Vertices type1 normals SignedCompressedVec4");
+  CHECK(compressed_vector_boundary.call_sites[5] ==
+        "RndMesh.Vertices type2 weights PS3UnsignedCompressedVec3");
+  CHECK(compressed_vector_boundary.missing_helpers.size() == 5);
+  CHECK(compressed_vector_boundary.missing_helpers[0] == "MiloLib.Classes.Vertex");
+  CHECK(compressed_vector_boundary.missing_helpers[4] ==
+        "Vertex.PS3UnsignedCompressedVec3");
+
   const auto rev28_milo_editor_bone_io =
       ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
           28, true, 2);

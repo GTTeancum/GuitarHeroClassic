@@ -1562,6 +1562,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     Native `source_milo_editor_rndmesh_compressed_vertex_io_plan` records those
     later layouts only to fence them away from GH2 rev28's 48-byte uncompressed
     row.
+  - The public MiloEditor checkout used here references `MiloLib.Classes` and
+    calls `Vertex.SignedCompressedVec4`, `Vertex.UnsignedCompressedVec4`,
+    `Vertex.PS3SignedCompressedVec3`, and `Vertex.PS3UnsignedCompressedVec3`,
+    but does not include the `MiloLib/Classes` source containing those helper
+    bodies. Native `source_milo_editor_compressed_vector_boundary` therefore
+    treats the `RndMesh.Vertices` call order as source-backed while fencing the
+    bit-packing math as unavailable. The helper names alone are not evidence for
+    decoding, re-encoding, or changing runtime skinning/hair behavior.
   - Native `source_rndmesh_handler_plan`,
     `source_rndmesh_prop_sync_plan`,
     `source_rndmesh_mutable_bit_plan`,

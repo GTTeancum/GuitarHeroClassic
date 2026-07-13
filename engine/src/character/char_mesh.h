@@ -280,6 +280,22 @@ source_milo_editor_rndmesh_compressed_vertex_io_plan(
     bool is_next_gen,
     int32_t compression_type);
 
+struct SourceMiloEditorCompressedVectorBoundary {
+  bool rndmesh_call_sites_source_backed = true;
+  bool milo_classes_source_present = false;
+  bool can_port_call_order = true;
+  bool can_port_bit_packing_math = false;
+  bool safe_to_decode_signed_compressed_values = false;
+  bool safe_to_decode_unsigned_compressed_values = false;
+  bool safe_to_decode_ps3_compressed_values = false;
+  bool safe_to_treat_compressed_vector_names_as_math = false;
+  std::vector<std::string> call_sites;
+  std::vector<std::string> missing_helpers;
+};
+
+SourceMiloEditorCompressedVectorBoundary
+source_milo_editor_compressed_vector_boundary();
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;
