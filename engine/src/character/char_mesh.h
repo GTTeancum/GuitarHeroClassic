@@ -4816,6 +4816,59 @@ struct SourceRndTexRenderedClampPlan {
   bool result_power_of_two = true;
 };
 
+struct SourceRndTexCopyPlan {
+  bool copy_from_max = false;
+  int32_t source_type = 1;
+  int32_t destination_type = 1;
+  bool copies_superclass = true;
+  bool creates_copy = true;
+  bool copies_mip_map_k = true;
+  bool aborts_for_copy_from_max_type_mismatch = false;
+  bool calls_presync_bitmap = false;
+  bool copies_type = false;
+  bool copies_dimensions = false;
+  bool recomputes_power_of_two = false;
+  bool copies_bpp = false;
+  bool copies_filepath = false;
+  bool copies_num_mips = false;
+  bool asserts_no_mips = false;
+  bool copies_optimize_for_ps3 = false;
+  bool creates_bitmap_from_source_bpp_order = false;
+  bool calls_sync_bitmap = false;
+};
+
+struct SourceRndTexPrintPlan {
+  std::vector<std::string> fields;
+};
+
+struct SourceRndTexHandlerPlan {
+  std::vector<std::string> handlers;
+  bool size_kb_formula_uses_width_height_bpp = true;
+  int32_t check_line = 1082;
+};
+
+struct SourceRndTexOnSetBitmapPlan {
+  int32_t data_array_size = 0;
+  bool uses_file_path_overload = false;
+  bool uses_explicit_bitmap_overload = false;
+  std::vector<std::string> explicit_argument_order;
+};
+
+struct SourceRndTexOnSetRenderedPlan {
+  bool is_render_target = false;
+  int32_t num_mips = 0;
+  bool asserts_is_render_target = true;
+  bool calls_set_bitmap = false;
+  bool uses_existing_dimensions_type_and_bpp = true;
+  bool use_mips = false;
+};
+
+struct SourceRndTexPropSyncPlan {
+  std::vector<std::string> get_only_props;
+  std::vector<std::string> direct_props;
+  std::vector<std::string> modify_alt_props;
+};
+
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
     int32_t width,
     int32_t height);
@@ -4838,6 +4891,19 @@ SourceRndTexRenderedClampPlan source_rndtex_rendered_clamp_plan(
     int32_t height,
     int32_t type,
     bool filepath_empty);
+SourceRndTexCopyPlan source_rndtex_copy_plan(
+    bool copy_from_max,
+    int32_t source_type,
+    int32_t destination_type);
+std::string source_rndtex_type_name(int32_t type);
+SourceRndTexPrintPlan source_rndtex_print_plan();
+SourceRndTexHandlerPlan source_rndtex_handler_plan();
+SourceRndTexOnSetBitmapPlan source_rndtex_on_set_bitmap_plan(
+    int32_t data_array_size);
+SourceRndTexOnSetRenderedPlan source_rndtex_on_set_rendered_plan(
+    bool is_render_target,
+    int32_t num_mips);
+SourceRndTexPropSyncPlan source_rndtex_prop_sync_plan();
 
 struct RndTex {
   std::string name;

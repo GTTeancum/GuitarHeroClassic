@@ -1611,6 +1611,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     cap, 16-byte alignment, and no-mip rule. These helpers are validation
     contracts only and do not reject, resize, or replace stock character
     textures at runtime.
+  - Native `source_rndtex_copy_plan`, `source_rndtex_type_name`,
+    `source_rndtex_print_plan`, `source_rndtex_handler_plan`,
+    `source_rndtex_on_set_bitmap_plan`, `source_rndtex_on_set_rendered_plan`,
+    and `source_rndtex_prop_sync_plan` record the visible source copy, type
+    text, print, command, and property rows. They are object-surface contracts
+    only and do not add live texture mutation, bitmap loading, save-bmp, or
+    renderer behavior.
 - `rb3/src/system/rndobj/Bitmap.cpp`
   - `RndBitmap::LoadHeader` reads bitmap revision, bpp, order, mip count,
     width, height, row bytes, and the fixed padding row before pixel chunks.
@@ -1750,7 +1757,8 @@ revision-0 bitmap header. It proves the native decoder follows
 touching renderer upload, material sorting, or runtime texture selection.
 The same test covers the source `SetPowerOf2`, `CheckDim`, and `CheckSize`
 contracts, plus the empty-file rendered texture clamp and movie exceptions,
-without changing stock texture loading.
+copy/handler/property rows, and type text without changing stock texture
+loading.
 
 ## Generic Object Row Authority
 

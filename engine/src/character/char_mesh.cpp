@@ -3331,6 +3331,104 @@ SourceRndTexRenderedClampPlan source_rndtex_rendered_clamp_plan(
   return plan;
 }
 
+SourceRndTexCopyPlan source_rndtex_copy_plan(
+    bool copy_from_max,
+    int32_t source_type,
+    int32_t destination_type) {
+  SourceRndTexCopyPlan plan;
+  plan.copy_from_max = copy_from_max;
+  plan.source_type = source_type;
+  plan.destination_type = destination_type;
+  plan.copies_mip_map_k = !copy_from_max;
+  plan.aborts_for_copy_from_max_type_mismatch =
+      copy_from_max && source_type != destination_type;
+  if (plan.aborts_for_copy_from_max_type_mismatch) return plan;
+
+  plan.calls_presync_bitmap = true;
+  plan.copies_type = true;
+  plan.copies_dimensions = true;
+  plan.recomputes_power_of_two = true;
+  plan.copies_bpp = true;
+  plan.copies_filepath = true;
+  plan.copies_num_mips = true;
+  plan.asserts_no_mips = true;
+  plan.copies_optimize_for_ps3 = true;
+  plan.creates_bitmap_from_source_bpp_order = true;
+  plan.calls_sync_bitmap = true;
+  return plan;
+}
+
+std::string source_rndtex_type_name(int32_t type) {
+  if (type <= 0x22) {
+    if (type <= 4) {
+      if (type <= 2) {
+        if (type < 2 && type > 0) return "Regular";
+        if (type == 2) return "Rendered";
+      } else if (type == 4) {
+        return "Movie";
+      }
+    } else if (type <= 0x18) {
+      if (type < 0x18 && type == 8) return "BackBuffer";
+      if (type == 0x18) return "FrontBuffer";
+    } else if (type == 0x22) {
+      return "RenderedNoZ";
+    }
+  } else if (type <= 0x122) {
+    if (type < 0x0a2 && type == 0x42) return "ShadowMap";
+    if (type == 0x0a2) return "DepthVolumeMap";
+    if (type == 0x122) return "DensityMap";
+  } else if (type == 0x1000) {
+    return "DeviceTexture";
+  } else if (type < 0x1000 && type == 0x200) {
+    return "Scratch";
+  }
+  return "";
+}
+
+SourceRndTexPrintPlan source_rndtex_print_plan() {
+  SourceRndTexPrintPlan plan;
+  plan.fields = {"width", "height", "bpp", "mipMapK", "file", "type"};
+  return plan;
+}
+
+SourceRndTexHandlerPlan source_rndtex_handler_plan() {
+  SourceRndTexHandlerPlan plan;
+  plan.handlers = {"set_bitmap", "set_rendered", "file_path",
+                   "set_file_path", "size_kb", "tex_type", "save_bmp",
+                   "Hmx::Object"};
+  return plan;
+}
+
+SourceRndTexOnSetBitmapPlan source_rndtex_on_set_bitmap_plan(
+    int32_t data_array_size) {
+  SourceRndTexOnSetBitmapPlan plan;
+  plan.data_array_size = data_array_size;
+  plan.uses_file_path_overload = data_array_size == 3;
+  plan.uses_explicit_bitmap_overload = !plan.uses_file_path_overload;
+  plan.explicit_argument_order = {"width", "height", "bpp", "type",
+                                  "use_mips", "null_path"};
+  return plan;
+}
+
+SourceRndTexOnSetRenderedPlan source_rndtex_on_set_rendered_plan(
+    bool is_render_target,
+    int32_t num_mips) {
+  SourceRndTexOnSetRenderedPlan plan;
+  plan.is_render_target = is_render_target;
+  plan.num_mips = num_mips;
+  plan.calls_set_bitmap = is_render_target;
+  plan.use_mips = num_mips > 0;
+  return plan;
+}
+
+SourceRndTexPropSyncPlan source_rndtex_prop_sync_plan() {
+  SourceRndTexPropSyncPlan plan;
+  plan.get_only_props = {"width", "height", "bpp"};
+  plan.direct_props = {"mip_map_k", "optimize_for_ps3"};
+  plan.modify_alt_props = {"file_path"};
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

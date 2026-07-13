@@ -73,6 +73,18 @@ bool expect_string(const std::string& got, const std::string& want,
   return false;
 }
 
+bool expect_strings(const std::vector<std::string>& got,
+                    const std::vector<std::string>& want,
+                    const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got";
+  for (const std::string& s : got) std::cerr << " " << s;
+  std::cerr << " want";
+  for (const std::string& s : want) std::cerr << " " << s;
+  std::cerr << "\n";
+  return false;
+}
+
 bool expect_float(float got, float want, const char* label) {
   if (std::fabs(got - want) < 0.0001f) return true;
   std::cerr << label << " got " << got << " want " << want << "\n";
@@ -190,6 +202,78 @@ int main() {
                    "movie exception width");
   ok &= expect_int(movie_exception.result_height, 1024,
                    "movie exception height");
+
+  const ghogx::character::SourceRndTexCopyPlan normal_copy =
+      ghogx::character::source_rndtex_copy_plan(false, 2, 1);
+  ok &= expect_bool(normal_copy.copies_mip_map_k, true,
+                    "normal copy copies mipMapK");
+  ok &= expect_bool(normal_copy.calls_presync_bitmap, true,
+                    "normal copy presyncs bitmap");
+  ok &= expect_bool(normal_copy.creates_bitmap_from_source_bpp_order, true,
+                    "normal copy creates bitmap");
+  ok &= expect_bool(normal_copy.calls_sync_bitmap, true,
+                    "normal copy syncs bitmap");
+  const ghogx::character::SourceRndTexCopyPlan max_mismatch =
+      ghogx::character::source_rndtex_copy_plan(true, 2, 1);
+  ok &= expect_bool(max_mismatch.copies_mip_map_k, false,
+                    "copy-from-max skips mipMapK");
+  ok &= expect_bool(max_mismatch.aborts_for_copy_from_max_type_mismatch, true,
+                    "copy-from-max mismatched type aborts");
+  ok &= expect_bool(max_mismatch.calls_presync_bitmap, false,
+                    "aborted copy does not presync");
+
+  ok &= expect_string(ghogx::character::source_rndtex_type_name(1),
+                      "Regular", "texture type regular");
+  ok &= expect_string(ghogx::character::source_rndtex_type_name(0x22),
+                      "RenderedNoZ", "texture type rendered no z");
+  ok &= expect_string(ghogx::character::source_rndtex_type_name(0x0a2),
+                      "DepthVolumeMap", "texture type depth volume");
+  ok &= expect_string(ghogx::character::source_rndtex_type_name(0x200),
+                      "Scratch", "texture type scratch");
+  ok &= expect_string(ghogx::character::source_rndtex_type_name(3),
+                      "", "texture type unknown");
+
+  const ghogx::character::SourceRndTexPrintPlan print_plan =
+      ghogx::character::source_rndtex_print_plan();
+  ok &= expect_strings(print_plan.fields,
+                       {"width", "height", "bpp", "mipMapK", "file",
+                        "type"},
+                       "texture print fields");
+  const ghogx::character::SourceRndTexHandlerPlan handler_plan =
+      ghogx::character::source_rndtex_handler_plan();
+  ok &= expect_strings(handler_plan.handlers,
+                       {"set_bitmap", "set_rendered", "file_path",
+                        "set_file_path", "size_kb", "tex_type", "save_bmp",
+                        "Hmx::Object"},
+                       "texture handler rows");
+  ok &= expect_int(handler_plan.check_line, 1082, "texture handler check");
+  const ghogx::character::SourceRndTexOnSetBitmapPlan file_bitmap =
+      ghogx::character::source_rndtex_on_set_bitmap_plan(3);
+  ok &= expect_bool(file_bitmap.uses_file_path_overload, true,
+                    "set_bitmap filepath branch");
+  const ghogx::character::SourceRndTexOnSetBitmapPlan explicit_bitmap =
+      ghogx::character::source_rndtex_on_set_bitmap_plan(7);
+  ok &= expect_bool(explicit_bitmap.uses_explicit_bitmap_overload, true,
+                    "set_bitmap explicit branch");
+  ok &= expect_strings(explicit_bitmap.explicit_argument_order,
+                       {"width", "height", "bpp", "type", "use_mips",
+                        "null_path"},
+                       "set_bitmap explicit argument order");
+  const ghogx::character::SourceRndTexOnSetRenderedPlan rendered_plan =
+      ghogx::character::source_rndtex_on_set_rendered_plan(true, 1);
+  ok &= expect_bool(rendered_plan.calls_set_bitmap, true,
+                    "set_rendered calls SetBitmap");
+  ok &= expect_bool(rendered_plan.use_mips, true,
+                    "set_rendered use mips");
+  const ghogx::character::SourceRndTexPropSyncPlan prop_sync_plan =
+      ghogx::character::source_rndtex_prop_sync_plan();
+  ok &= expect_strings(prop_sync_plan.get_only_props, {"width", "height", "bpp"},
+                       "texture get-only props");
+  ok &= expect_strings(prop_sync_plan.direct_props,
+                       {"mip_map_k", "optimize_for_ps3"},
+                       "texture direct props");
+  ok &= expect_strings(prop_sync_plan.modify_alt_props, {"file_path"},
+                       "texture modify-alt props");
 
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2

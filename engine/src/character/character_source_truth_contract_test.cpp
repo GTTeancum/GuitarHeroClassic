@@ -16582,6 +16582,56 @@ int run_contract() {
   ok &= contains(rb3_latest_tex_cpp,
                  "elsemBitmap.Load(bs);",
                  "latest RndTex source delegates cached payload to RndBitmap");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "BEGIN_COPYS(RndTex)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(RndTex)BEGIN_COPYING_MEMBERS",
+                 "latest RndTex source exposes copy body");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(ty!=kCopyFromMax){COPY_MEMBER(mMipMapK)}"
+                 "if(ty==kCopyFromMax&&mType!=c->mType)return;",
+                 "latest RndTex source backs copy-from-max type gate");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "PresyncBitmap();COPY_MEMBER(mType)COPY_MEMBER(mWidth)"
+                 "COPY_MEMBER(mHeight)SetPowerOf2();COPY_MEMBER(mBpp)",
+                 "latest RndTex source backs copy member order");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "COPY_MEMBER(mOptimizeForPS3)mBitmap.Create(c->mBitmap,"
+                 "c->mBitmap.mBpp,c->mBitmap.mOrder,0);SyncBitmap();",
+                 "latest RndTex source backs copy bitmap recreation");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "TextStream&operator<<(TextStream&ts,RndTex::Typety){",
+                 "latest RndTex source backs type text helper");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::Print(){TheDebug<<\"width:\"<<mWidth",
+                 "latest RndTex source backs print rows");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "BEGIN_HANDLERS(RndTex)HANDLE(set_bitmap,OnSetBitmap)"
+                 "HANDLE(set_rendered,OnSetRendered)",
+                 "latest RndTex source backs handler prefix");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "HANDLE_EXPR(size_kb,(int)((mWidth*mHeight*mBpp)/8/1024))",
+                 "latest RndTex source backs size_kb formula");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "DataNodeRndTex::OnSetBitmap(constDataArray*da){"
+                 "if(da->Size()==3){",
+                 "latest RndTex source backs set_bitmap filepath branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "SetBitmap(da->Int(2),da->Int(3),da->Int(4),"
+                 "(RndTex::Type)da->Int(5),(bool)da->Int(6),NULL);",
+                 "latest RndTex source backs set_bitmap explicit branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "DataNodeRndTex::OnSetRendered(constDataArray*){"
+                 "MILO_ASSERT(IsRenderTarget(),1101);SetBitmap(mWidth,mHeight,"
+                 "mBpp,mType,mNumMips>0,NULL);",
+                 "latest RndTex source backs set_rendered branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "BEGIN_PROPSYNCS(RndTex)",
+                 "latest RndTex source backs prop-sync table");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "SYNC_PROP(mip_map_k,mMipMapK)SYNC_PROP(optimize_for_ps3,"
+                 "mOptimizeForPS3)SYNC_PROP_MODIFY_ALT(file_path,mFilepath,"
+                 "SetBitmap(mFilepath))",
+                 "latest RndTex source backs prop-sync rows");
   ok &= contains(rb3_latest_bitmap_cpp,
                  "BinStream&RndBitmap::LoadHeader(BinStream&bs,u8&test){"
                  "u8ver,h;u8pad[0x13];bs>>ver;bs>>mBpp;",
@@ -16785,6 +16835,13 @@ int run_contract() {
   ok &= contains(doc,
                  "empty-file rendered texture clamp and movie exceptions",
                  "document records RndTex rendered clamp helper");
+  ok &= contains(doc,
+                 "source copy, type\n    text, print, command, and property rows",
+                 "document records RndTex tail helpers");
+  ok &= contains(doc,
+                 "do not add live texture mutation, bitmap loading, save-bmp, or\n"
+                 "    renderer behavior",
+                 "document fences RndTex tail helpers from runtime behavior");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17172,6 +17229,15 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndTexRenderedClampPlan{",
                  "native exposes RndTex rendered clamp source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexCopyPlan{",
+                 "native exposes RndTex copy source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexHandlerPlan{",
+                 "native exposes RndTex handler source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexPropSyncPlan{",
+                 "native exposes RndTex prop-sync source helper");
   ok &= contains(char_mesh,
                  "SourceRndTexRenderedClampPlansource_rndtex_rendered_clamp_plan(",
                  "native implements RndTex rendered clamp source helper");
@@ -17181,6 +17247,43 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.clamped=filepath_empty&&!plan.movie_exception&&plan.rendered_type;",
                  "RndTex rendered clamp helper mirrors source condition");
+  ok &= contains(char_mesh,
+                 "SourceRndTexCopyPlansource_rndtex_copy_plan(",
+                 "native implements RndTex copy source helper");
+  ok &= contains(char_mesh,
+                 "plan.aborts_for_copy_from_max_type_mismatch=copy_from_max&&"
+                 "source_type!=destination_type;",
+                 "RndTex copy helper mirrors copy-from-max type gate");
+  ok &= contains(char_mesh,
+                 "plan.creates_bitmap_from_source_bpp_order=true;",
+                 "RndTex copy helper mirrors bitmap recreation");
+  ok &= contains(char_mesh,
+                 "std::stringsource_rndtex_type_name(int32_ttype){",
+                 "native implements RndTex type text helper");
+  ok &= contains(char_mesh,
+                 "SourceRndTexHandlerPlansource_rndtex_handler_plan(){",
+                 "native implements RndTex handler source helper");
+  ok &= contains(char_mesh,
+                 "plan.handlers={\"set_bitmap\",\"set_rendered\",\"file_path\",",
+                 "RndTex handler helper mirrors handler order");
+  ok &= contains(char_mesh,
+                 "SourceRndTexOnSetBitmapPlansource_rndtex_on_set_bitmap_plan(",
+                 "native implements RndTex set_bitmap helper");
+  ok &= contains(char_mesh,
+                 "plan.uses_file_path_overload=data_array_size==3;",
+                 "RndTex set_bitmap helper mirrors filepath branch");
+  ok &= contains(char_mesh,
+                 "SourceRndTexOnSetRenderedPlansource_rndtex_on_set_rendered_plan(",
+                 "native implements RndTex set_rendered helper");
+  ok &= contains(char_mesh,
+                 "plan.calls_set_bitmap=is_render_target;",
+                 "RndTex set_rendered helper mirrors assert boundary");
+  ok &= contains(char_mesh,
+                 "SourceRndTexPropSyncPlansource_rndtex_prop_sync_plan(){",
+                 "native implements RndTex prop-sync helper");
+  ok &= contains(char_mesh,
+                 "plan.modify_alt_props={\"file_path\"};",
+                 "RndTex prop-sync helper mirrors file_path modify-alt row");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17321,6 +17424,27 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "source_rndtex_rendered_clamp_plan(\"render_target.tex\",512,1024,2,true)",
                  "focused RndTex test covers rendered clamp helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_copy_plan(false,2,1)",
+                 "focused RndTex test covers normal copy helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_copy_plan(true,2,1)",
+                 "focused RndTex test covers copy-from-max mismatch");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_type_name(0x200)",
+                 "focused RndTex test covers source type text helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_handler_plan()",
+                 "focused RndTex test covers handler helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_on_set_bitmap_plan(3)",
+                 "focused RndTex test covers set_bitmap filepath branch");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_on_set_rendered_plan(true,1)",
+                 "focused RndTex test covers set_rendered branch");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_prop_sync_plan()",
+                 "focused RndTex test covers prop-sync helper");
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");
