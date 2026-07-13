@@ -60,6 +60,7 @@ int main() {
   using ghogx::character::source_char_ik_fingers_load_revision_known;
   using ghogx::character::source_char_ik_fingers_prop_sync_plan;
   using ghogx::character::source_char_ik_fingers_release_finger_plan;
+  using ghogx::character::source_char_ik_fingers_save_plan;
   using ghogx::character::source_char_ik_fingers_set_name_refs;
   using ghogx::character::source_char_ik_fingers_set_finger_plan;
   using ghogx::character::source_char_ik_fingers_setup_complete;
@@ -216,6 +217,8 @@ int main() {
                     "prop-sync superclass count");
   ok &= expect_string(props.superclasses[0], "CharWeightable",
                       "prop-sync superclass");
+  ok &= expect_int(source_char_ik_fingers_save_plan().save_id, 0x36A,
+                   "IKFingers save id");
 
   return ok ? 0 : 1;
 }

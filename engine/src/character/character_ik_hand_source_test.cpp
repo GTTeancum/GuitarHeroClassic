@@ -58,6 +58,7 @@ int main() {
   using ghogx::character::source_char_ik_hand_measure_lengths;
   using ghogx::character::source_char_ik_hand_multi_target_blend;
   using ghogx::character::source_char_ik_hand_prop_sync_plan;
+  using ghogx::character::source_char_ik_hand_save_plan;
   using ghogx::character::source_char_ik_hand_update_measure_lengths;
 
   bool ok = true;
@@ -153,6 +154,8 @@ int main() {
                       "IKHand last direct prop");
   ok &= expect_string(props.superclass, "CharWeightable",
                       "IKHand prop superclass");
+  ok &= expect_bool(source_char_ik_hand_save_plan().save_id == 0x2A8,
+                    true, "IKHand save id");
 
   const SourceCharIKHandMeasure missing =
       source_char_ik_hand_measure_lengths(false, 4.0f, 3.0f);

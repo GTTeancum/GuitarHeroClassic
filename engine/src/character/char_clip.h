@@ -2562,6 +2562,10 @@ struct SourceCharIKHeadPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharIKHeadSavePlan {
+  int32_t save_id = 0xF8;
+};
+
 struct SourceCharIKSliderMidiState {
   SourceCharWeightableState weightable;
   std::string target;
@@ -2634,6 +2638,10 @@ struct SourceCharIKSliderMidiPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharIKSliderMidiSavePlan {
+  int32_t save_id = 0xC4;
+};
+
 struct SourceCharIKMidiState {
   std::string bone;
   std::string cur_spot;
@@ -2688,6 +2696,10 @@ struct SourceCharIKMidiHandlerPlan {
 struct SourceCharIKMidiPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> set_properties;
+};
+
+struct SourceCharIKMidiSavePlan {
+  int32_t save_id = 0xEA;
 };
 
 struct SourceCharLipSyncGeneratorState {
@@ -2788,6 +2800,7 @@ SourceCharIKHeadCopyResult source_char_ik_head_copy(
     float source_owner_weight);
 SourceCharIKHeadHandlerPlan source_char_ik_head_handler_plan();
 SourceCharIKHeadPropSyncPlan source_char_ik_head_prop_sync_plan();
+SourceCharIKHeadSavePlan source_char_ik_head_save_plan();
 SourceCharIKSliderMidiState source_char_ik_slider_midi_default_state(
     const std::string& name);
 SourceCharIKSliderMidiEnterResult source_char_ik_slider_midi_enter(
@@ -2812,6 +2825,8 @@ SourceCharIKSliderMidiHandlerPlan
 source_char_ik_slider_midi_handler_plan();
 SourceCharIKSliderMidiPropSyncPlan
 source_char_ik_slider_midi_prop_sync_plan();
+SourceCharIKSliderMidiSavePlan
+source_char_ik_slider_midi_save_plan();
 SourceCharIKMidiState source_char_ik_midi_default_state();
 SourceCharIKMidiEnterResult source_char_ik_midi_enter(
     SourceCharIKMidiState& state);
@@ -2821,6 +2836,7 @@ SourceCharIKMidiLoadSteps source_char_ik_midi_load_steps(int32_t revision);
 SourceCharIKMidiCopyPlan source_char_ik_midi_copy_plan();
 SourceCharIKMidiHandlerPlan source_char_ik_midi_handler_plan();
 SourceCharIKMidiPropSyncPlan source_char_ik_midi_prop_sync_plan();
+SourceCharIKMidiSavePlan source_char_ik_midi_save_plan();
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state();
 SourceCharLipSyncState source_char_lip_sync_default_state();
 SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision);
@@ -2866,6 +2882,10 @@ struct SourceCharIKRodPropSyncPlan {
   std::vector<std::string> modify_actions;
 };
 
+struct SourceCharIKRodSavePlan {
+  int32_t save_id = 0x81;
+};
+
 struct SourceCharIKRodPollDeps {
   std::vector<std::string> change;
   std::vector<std::string> changed_by;
@@ -2878,6 +2898,7 @@ SourceCharIKRodLoadPlan source_char_ik_rod_load_plan(int32_t revision);
 SourceCharIKRodCopyPlan source_char_ik_rod_copy_plan();
 SourceCharIKRodHandlerPlan source_char_ik_rod_handler_plan();
 SourceCharIKRodPropSyncPlan source_char_ik_rod_prop_sync_plan();
+SourceCharIKRodSavePlan source_char_ik_rod_save_plan();
 void source_char_ik_rod_poll_deps(SourceCharIKRodPollDeps& deps,
                                   const CharIKRod& rod);
 bool source_char_ik_rod_compute_world(const CharIKRod& rod,
@@ -2916,6 +2937,10 @@ struct SourceCharIKHandPropSyncPlan {
   std::vector<std::string> set_properties;
   std::vector<std::string> properties;
   std::string superclass;
+};
+
+struct SourceCharIKHandSavePlan {
+  int32_t save_id = 0x2A8;
 };
 
 struct SourceCharIKHandTargetInput {
@@ -3012,12 +3037,17 @@ struct SourceCharIKFootPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharIKFootSavePlan {
+  int32_t save_id = 0x138;
+};
+
 // Source-backed CharIKHand::MeasureLengths / IKElbow scalar helper. The length
 // inputs correspond to mHand->mLocalXfm.v and mHand->TransParent()->mLocalXfm.v.
 SourceCharIKHandLoadPlan source_char_ik_hand_load_plan(int32_t revision);
 SourceCharIKHandCopyPlan source_char_ik_hand_copy_plan();
 SourceCharIKHandHandlerPlan source_char_ik_hand_handler_plan();
 SourceCharIKHandPropSyncPlan source_char_ik_hand_prop_sync_plan();
+SourceCharIKHandSavePlan source_char_ik_hand_save_plan();
 SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
     bool has_elbow_chain,
     float hand_local_len,
@@ -3063,6 +3093,7 @@ SourceCharIKFootCopyResult source_char_ik_foot_copy(
     const SourceCharIKFootState& source);
 SourceCharIKFootHandlerPlan source_char_ik_foot_handler_plan();
 SourceCharIKFootPropSyncPlan source_char_ik_foot_prop_sync_plan();
+SourceCharIKFootSavePlan source_char_ik_foot_save_plan();
 
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.

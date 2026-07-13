@@ -5130,6 +5130,10 @@ SourceCharIKRodPropSyncPlan source_char_ik_rod_prop_sync_plan() {
   return plan;
 }
 
+SourceCharIKRodSavePlan source_char_ik_rod_save_plan() {
+  return SourceCharIKRodSavePlan{};
+}
+
 void source_char_ik_rod_poll_deps(SourceCharIKRodPollDeps& deps,
                                   const CharIKRod& rod) {
   deps.change.push_back(rod.dest);
@@ -5294,6 +5298,10 @@ SourceCharIKHandPropSyncPlan source_char_ik_hand_prop_sync_plan() {
                      "wrist_radians", "elbow_collide",   "clockwise"};
   plan.superclass = "CharWeightable";
   return plan;
+}
+
+SourceCharIKHandSavePlan source_char_ik_hand_save_plan() {
+  return SourceCharIKHandSavePlan{};
 }
 
 bool source_char_ik_hand_update_measure_lengths(bool scalable,
@@ -5591,6 +5599,10 @@ SourceCharIKFootPropSyncPlan source_char_ik_foot_prop_sync_plan() {
   plan.properties = {"data", "data_index"};
   plan.superclasses = {"CharIKHand"};
   return plan;
+}
+
+SourceCharIKFootSavePlan source_char_ik_foot_save_plan() {
+  return SourceCharIKFootSavePlan{};
 }
 
 static std::array<float, 16> source_xfm_to_mat4(
@@ -7026,6 +7038,10 @@ SourceCharIKHeadPropSyncPlan source_char_ik_head_prop_sync_plan() {
   return plan;
 }
 
+SourceCharIKHeadSavePlan source_char_ik_head_save_plan() {
+  return SourceCharIKHeadSavePlan{};
+}
+
 SourceCharIKSliderMidiState source_char_ik_slider_midi_default_state(
     const std::string& name) {
   SourceCharIKSliderMidiState state;
@@ -7129,6 +7145,11 @@ source_char_ik_slider_midi_prop_sync_plan() {
   return plan;
 }
 
+SourceCharIKSliderMidiSavePlan
+source_char_ik_slider_midi_save_plan() {
+  return SourceCharIKSliderMidiSavePlan{};
+}
+
 SourceCharIKMidiState source_char_ik_midi_default_state() {
   SourceCharIKMidiState state;
   source_char_ik_midi_enter(state);
@@ -7186,6 +7207,10 @@ SourceCharIKMidiPropSyncPlan source_char_ik_midi_prop_sync_plan() {
   plan.properties = {"bone", "anim_blend_weightable", "anim_blend_max"};
   plan.set_properties = {"cur_spot"};
   return plan;
+}
+
+SourceCharIKMidiSavePlan source_char_ik_midi_save_plan() {
+  return SourceCharIKMidiSavePlan{};
 }
 
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state() {

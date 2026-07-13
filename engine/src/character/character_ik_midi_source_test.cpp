@@ -24,6 +24,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -42,6 +48,7 @@ int main() {
   using ghogx::character::source_char_ik_midi_load_steps;
   using ghogx::character::source_char_ik_midi_poll_deps;
   using ghogx::character::source_char_ik_midi_prop_sync_plan;
+  using ghogx::character::source_char_ik_midi_save_plan;
 
   bool ok = true;
 
@@ -145,6 +152,8 @@ int main() {
   ok &= expect_size(props.set_properties.size(), 1, "PropSync set count");
   ok &= expect_string(props.set_properties[0], "cur_spot",
                       "PropSync cur spot setter");
+  ok &= expect_int(source_char_ik_midi_save_plan().save_id, 0xEA,
+                   "IKMidi save id");
 
   return ok ? 0 : 1;
 }

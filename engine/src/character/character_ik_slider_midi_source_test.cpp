@@ -48,6 +48,7 @@ int main() {
   using ghogx::character::source_char_ik_slider_midi_load_steps;
   using ghogx::character::source_char_ik_slider_midi_poll_deps;
   using ghogx::character::source_char_ik_slider_midi_prop_sync_plan;
+  using ghogx::character::source_char_ik_slider_midi_save_plan;
   using ghogx::character::source_char_ik_slider_midi_set_name;
   using ghogx::character::source_char_ik_slider_midi_setup_transforms;
   using ghogx::character::source_char_weightable_set_weight_owner;
@@ -190,6 +191,8 @@ int main() {
                       "prop-sync tolerance property");
   ok &= expect_string(props.superclasses[0], "CharWeightable",
                       "prop-sync superclass");
+  ok &= expect_int(source_char_ik_slider_midi_save_plan().save_id, 0xC4,
+                   "IKSliderMidi save id");
 
   return ok ? 0 : 1;
 }

@@ -2269,6 +2269,8 @@ note, and all report `unreadBytes=0`.
     `CharWeightable`.
   - Native `source_char_ik_scale_*` helpers port those complete source-visible
     behaviors only. They do not invent the absent scale-write body.
+  - `CharIKScale::Save` uses source save id `0x93`; native
+    `source_char_ik_scale_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharTransDraw.cpp`,
   `CharTransDraw.h`, and `Character.h`
   - `Character::DrawMode` source values are `kCharDrawNone`,
@@ -2832,6 +2834,8 @@ note, and all report `unreadBytes=0`.
     Prop-sync rows modify-alt `head` and `spine` through
     `UpdatePoints(true)`, then expose `mouth`, `target`, `target_radius`,
     `head_mat`, `offset`, `offset_scale`, and `CharWeightable`.
+  - `CharIKHead::Save` uses source save id `0xF8`; native
+    `source_char_ik_head_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharIKFoot.cpp` and
   `rb3-latest/src/system/char/CharIKFoot.h`
   - `CharIKFoot` inherits `CharIKHand`. Its constructor creates a private
@@ -2859,6 +2863,8 @@ note, and all report `unreadBytes=0`.
     and `mDataIndex`.
   - Handler rows are `CharIKHand`, then check `0x16E`. Prop-sync rows are
     `data`, `data_index`, and `CharIKHand`.
+  - `CharIKFoot::Save` uses source save id `0x138`; native
+    `source_char_ik_foot_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharIKMidi.cpp` and
   `rb3-latest/src/system/char/CharIKMidi.h`
   - `CharIKMidi::Load` accepts source revisions through 5, reads
@@ -2882,6 +2888,8 @@ note, and all report `unreadBytes=0`.
     refreshes stock proof against the current decoder: all 19 stock
     `CharIKMidi` rows are `version=4`, target `bone_fret.mesh`, and report
     `unreadBytes=0`.
+  - `CharIKMidi::Save` uses source save id `0xEA`; native
+    `source_char_ik_midi_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharIKSliderMidi.cpp` and
   `rb3-latest/src/system/char/CharIKSliderMidi.h`
   - `CharIKSliderMidi` inherits `RndHighlightable`, `CharWeightable`, and
@@ -2909,6 +2917,8 @@ note, and all report `unreadBytes=0`.
     behaviors for deterministic coverage. The checked source declares but does
     not include reviewable `Poll` or `SetFraction` bodies, so native does not
     invent slider target solving from these helpers.
+  - `CharIKSliderMidi::Save` uses source save id `0xC4`; native
+    `source_char_ik_slider_midi_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharIKFingers.cpp` and
   `rb3-latest/src/system/char/CharIKFingers.h`
   - Constructor defaults are source data: five fingers, reset-hand flags true,
@@ -2942,6 +2952,8 @@ note, and all report `unreadBytes=0`.
     `CharWeightable`. Native `source_char_ik_fingers_handler_plan` and
     `source_char_ik_fingers_prop_sync_plan` record those rows without adding
     any new finger solver behavior.
+  - `CharIKFingers::Save` uses source save id `0x36A`; native
+    `source_char_ik_fingers_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,
@@ -3126,6 +3138,8 @@ note, and all report `unreadBytes=0`.
     row `measure_lengths`, custom `IKTarget` properties `target` / `extent`,
     and the `CharWeightable` prop-sync superclass. These helpers do not add any
     new live IK solve or promote the fenced branches below.
+  - `CharIKHand::Save` uses source save id `0x2A8`; native
+    `source_char_ik_hand_save_plan` records that object id only.
   - Native GHOGX must not retain the older opt-in free two-bone arm solver or
     its `GHOGX_ENABLE_ARM_IK`/stretch/rotation gates. Any hand or elbow solve
     must be translated from the source-backed `CharIKHand` dataflow above.
@@ -3201,6 +3215,8 @@ note, and all report `unreadBytes=0`.
     the source-required `dest`, `left_end`, and `right_end` transforms resolve.
     Stock Grim rows with `dest=<none>` therefore remain logged/inert instead of
     receiving a substitute destination.
+  - `CharIKRod::Save` uses source save id `0x81`; native
+    `source_char_ik_rod_save_plan` records that object id only.
 
 ## Twist Controller Authorities
 

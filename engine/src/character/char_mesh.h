@@ -2340,6 +2340,10 @@ struct SourceCharIKScalePropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharIKScaleSavePlan {
+  int32_t save_id = 0x93;
+};
+
 enum class SourceCharacterDrawMode : int32_t {
   kNone = 0,
   kOpaque = 1,
@@ -3377,6 +3381,10 @@ struct SourceCharIKFingersPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharIKFingersSavePlan {
+  int32_t save_id = 0x36A;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -3601,6 +3609,7 @@ SourceCharIKScaleLoadPlan source_char_ik_scale_load_plan(int revision);
 SourceCharIKScaleCopyPlan source_char_ik_scale_copy_plan();
 SourceCharIKScaleHandlerPlan source_char_ik_scale_handler_plan();
 SourceCharIKScalePropSyncPlan source_char_ik_scale_prop_sync_plan();
+SourceCharIKScaleSavePlan source_char_ik_scale_save_plan();
 SourceCharacterState source_character_default_state();
 SourceCharacterLodState source_character_lod_default_state();
 SourceCharacterLodState source_character_lod_copy_state(
@@ -3994,6 +4003,7 @@ SourceCharIKFingersLoadPlan source_char_ik_fingers_load_plan(int revision);
 SourceCharIKFingersCopyPlan source_char_ik_fingers_copy_plan();
 SourceCharIKFingersHandlerPlan source_char_ik_fingers_handler_plan();
 SourceCharIKFingersPropSyncPlan source_char_ik_fingers_prop_sync_plan();
+SourceCharIKFingersSavePlan source_char_ik_fingers_save_plan();
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

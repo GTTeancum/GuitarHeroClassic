@@ -48,6 +48,7 @@ int main() {
   using ghogx::character::source_char_ik_head_load_steps;
   using ghogx::character::source_char_ik_head_poll_deps;
   using ghogx::character::source_char_ik_head_prop_sync_plan;
+  using ghogx::character::source_char_ik_head_save_plan;
   using ghogx::character::source_char_ik_head_set_name;
   using ghogx::character::source_char_ik_head_update_points;
   using ghogx::character::source_char_weightable_set_weight_owner;
@@ -236,6 +237,8 @@ int main() {
                       "prop-sync last property");
   ok &= expect_string(props.superclasses[0], "CharWeightable",
                       "prop-sync superclass");
+  ok &= expect_int(source_char_ik_head_save_plan().save_id, 0xF8,
+                   "IKHead save id");
 
   return ok ? 0 : 1;
 }

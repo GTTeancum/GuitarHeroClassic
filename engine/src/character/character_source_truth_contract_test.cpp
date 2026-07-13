@@ -353,6 +353,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharCollide.cpp"));
   const std::string rb3_latest_char_collide_h = compact(read_file(
       rb3_latest_char_dir / "CharCollide.h"));
+  const std::string rb3_latest_char_ik_hand_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKHand.cpp"));
   const std::string rb3_latest_char_cuff_cpp = compact(read_file(
       rb3_latest_char_dir / "CharCuff.cpp"));
   const std::string rb3_latest_char_cuff_h = compact(read_file(
@@ -7770,6 +7772,166 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_hair_save_plan` records that row id only",
                  "document records CharHair save plan boundary");
+  ok &= contains(rb3_latest_char_ik_hand_cpp,
+                 "SAVE_OBJ(CharIKHand,0x2A8)",
+                 "latest CharIKHand source save id");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "SAVE_OBJ(CharIKFoot,0x138)",
+                 "latest CharIKFoot source save id");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "SAVE_OBJ(CharIKHead,0xF8)",
+                 "latest CharIKHead source save id");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "SAVE_OBJ(CharIKMidi,0xEA)",
+                 "latest CharIKMidi source save id");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "SAVE_OBJ(CharIKRod,0x81)",
+                 "latest CharIKRod source save id");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "SAVE_OBJ(CharIKScale,0x93)",
+                 "latest CharIKScale source save id");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "SAVE_OBJ(CharIKSliderMidi,0xC4)",
+                 "latest CharIKSliderMidi source save id");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "SAVE_OBJ(CharIKFingers,0x36A)",
+                 "latest CharIKFingers source save id");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandSavePlan{int32_tsave_id=0x2A8;};",
+                 "native exposes CharIKHand save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKFootSavePlan{int32_tsave_id=0x138;};",
+                 "native exposes CharIKFoot save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHeadSavePlan{int32_tsave_id=0xF8;};",
+                 "native exposes CharIKHead save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiSavePlan{int32_tsave_id=0xEA;};",
+                 "native exposes CharIKMidi save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKRodSavePlan{int32_tsave_id=0x81;};",
+                 "native exposes CharIKRod save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKSliderMidiSavePlan{int32_tsave_id=0xC4;};",
+                 "native exposes CharIKSliderMidi save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKScaleSavePlan{int32_tsave_id=0x93;};",
+                 "native exposes CharIKScale save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersSavePlan{int32_tsave_id=0x36A;};",
+                 "native exposes CharIKFingers save plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandSavePlansource_char_ik_hand_save_plan();",
+                 "native exposes CharIKHand save helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKFootSavePlansource_char_ik_foot_save_plan();",
+                 "native exposes CharIKFoot save helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHeadSavePlansource_char_ik_head_save_plan();",
+                 "native exposes CharIKHead save helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiSavePlansource_char_ik_midi_save_plan();",
+                 "native exposes CharIKMidi save helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKRodSavePlansource_char_ik_rod_save_plan();",
+                 "native exposes CharIKRod save helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKSliderMidiSavePlansource_char_ik_slider_midi_save_plan();",
+                 "native exposes CharIKSliderMidi save helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKScaleSavePlansource_char_ik_scale_save_plan();",
+                 "native exposes CharIKScale save helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersSavePlansource_char_ik_fingers_save_plan();",
+                 "native exposes CharIKFingers save helper");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandSavePlansource_char_ik_hand_save_plan(){"
+                 "returnSourceCharIKHandSavePlan{};}",
+                 "native CharIKHand save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharIKFootSavePlansource_char_ik_foot_save_plan(){"
+                 "returnSourceCharIKFootSavePlan{};}",
+                 "native CharIKFoot save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharIKHeadSavePlansource_char_ik_head_save_plan(){"
+                 "returnSourceCharIKHeadSavePlan{};}",
+                 "native CharIKHead save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharIKMidiSavePlansource_char_ik_midi_save_plan(){"
+                 "returnSourceCharIKMidiSavePlan{};}",
+                 "native CharIKMidi save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharIKRodSavePlansource_char_ik_rod_save_plan(){"
+                 "returnSourceCharIKRodSavePlan{};}",
+                 "native CharIKRod save helper mirrors source id");
+  ok &= contains(char_clip,
+                 "SourceCharIKSliderMidiSavePlansource_char_ik_slider_midi_save_plan(){"
+                 "returnSourceCharIKSliderMidiSavePlan{};}",
+                 "native CharIKSliderMidi save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharIKScaleSavePlansource_char_ik_scale_save_plan(){"
+                 "returnSourceCharIKScaleSavePlan{};}",
+                 "native CharIKScale save helper mirrors source id");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersSavePlansource_char_ik_fingers_save_plan(){"
+                 "returnSourceCharIKFingersSavePlan{};}",
+                 "native CharIKFingers save helper mirrors source id");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_save_plan().save_id==0x2A8",
+                 "focused CharIKHand test covers save id");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_save_plan().save_id,0x138",
+                 "focused CharIKFoot test covers save id");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_save_plan().save_id,0xF8",
+                 "focused CharIKHead test covers save id");
+  ok &= contains(ik_midi_source_test,
+                 "source_char_ik_midi_save_plan().save_id,0xEA",
+                 "focused CharIKMidi test covers save id");
+  ok &= contains(ik_rod_source_test,
+                 "source_char_ik_rod_save_plan().save_id,0x81",
+                 "focused CharIKRod test covers save id");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_save_plan().save_id,0x93",
+                 "focused CharIKScale test covers save id");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_save_plan().save_id,0xC4",
+                 "focused CharIKSliderMidi test covers save id");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_save_plan().save_id,0x36A",
+                 "focused CharIKFingers test covers save id");
+  ok &= contains(doc,
+                 "`CharIKHand::Save` uses source save id `0x2A8`; native\n"
+                 "    `source_char_ik_hand_save_plan` records that object id only.",
+                 "document records CharIKHand save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKFoot::Save` uses source save id `0x138`; native\n"
+                 "    `source_char_ik_foot_save_plan` records that object id only.",
+                 "document records CharIKFoot save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKHead::Save` uses source save id `0xF8`; native\n"
+                 "    `source_char_ik_head_save_plan` records that object id only.",
+                 "document records CharIKHead save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKMidi::Save` uses source save id `0xEA`; native\n"
+                 "    `source_char_ik_midi_save_plan` records that object id only.",
+                 "document records CharIKMidi save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKRod::Save` uses source save id `0x81`; native\n"
+                 "    `source_char_ik_rod_save_plan` records that object id only.",
+                 "document records CharIKRod save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKScale::Save` uses source save id `0x93`; native\n"
+                 "    `source_char_ik_scale_save_plan` records that object id only.",
+                 "document records CharIKScale save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKSliderMidi::Save` uses source save id `0xC4`; native\n"
+                 "    `source_char_ik_slider_midi_save_plan` records that object id only.",
+                 "document records CharIKSliderMidi save plan boundary");
+  ok &= contains(doc,
+                 "`CharIKFingers::Save` uses source save id `0x36A`; native\n"
+                 "    `source_char_ik_fingers_save_plan` records that object id only.",
+                 "document records CharIKFingers save plan boundary");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SetCloth(boolb){for(inti=0;"
                  "i<mStrands.size();i++){Strand&strand=mStrands[i];"

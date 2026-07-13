@@ -51,6 +51,7 @@ int main() {
   using ghogx::character::source_char_ik_scale_poll_deps;
   using ghogx::character::source_char_ik_scale_poll_enters;
   using ghogx::character::source_char_ik_scale_prop_sync_plan;
+  using ghogx::character::source_char_ik_scale_save_plan;
 
   bool ok = true;
 
@@ -114,6 +115,8 @@ int main() {
                       "prop-sync last property");
   ok &= expect_string(prop_sync_plan.superclasses[0], "CharWeightable",
                       "prop-sync superclass");
+  ok &= expect_int(source_char_ik_scale_save_plan().save_id, 0x93,
+                   "IKScale save id");
 
   ok &= expect_bool(source_char_ik_scale_poll_enters(false, 1.0f), false,
                     "missing dest skips poll body");

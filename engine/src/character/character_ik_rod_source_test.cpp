@@ -109,6 +109,7 @@ int main() {
   using ghogx::character::source_char_ik_rod_load_plan;
   using ghogx::character::source_char_ik_rod_poll_deps;
   using ghogx::character::source_char_ik_rod_prop_sync_plan;
+  using ghogx::character::source_char_ik_rod_save_plan;
 
   Character character;
   add_trans(character, make_trans("left", 0.0f, 0.0f, 0.0f));
@@ -163,6 +164,8 @@ int main() {
                       "CharIKRod prop dest");
   ok &= expect_string(props.modify_actions[3], "SyncBones",
                       "CharIKRod prop SyncBones action");
+  ok &= expect_int(source_char_ik_rod_save_plan().save_id, 0x81,
+                   "CharIKRod save id");
 
   CharIKRod rod = make_identity_rod();
   rod.side_axis = "side";

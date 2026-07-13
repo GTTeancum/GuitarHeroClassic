@@ -45,6 +45,7 @@ int main() {
   using ghogx::character::source_char_ik_foot_poll_deps_plan;
   using ghogx::character::source_char_ik_foot_poll_plan;
   using ghogx::character::source_char_ik_foot_prop_sync_plan;
+  using ghogx::character::source_char_ik_foot_save_plan;
   using ghogx::character::source_char_ik_foot_set_name;
 
   bool ok = true;
@@ -180,6 +181,8 @@ int main() {
                       "prop-sync second property");
   ok &= expect_string(props.superclasses[0], "CharIKHand",
                       "prop-sync superclass");
+  ok &= expect_int(source_char_ik_foot_save_plan().save_id, 0x138,
+                   "IKFoot save id");
 
   std::printf("character_ik_foot_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

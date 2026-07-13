@@ -4770,6 +4770,10 @@ SourceCharIKScalePropSyncPlan source_char_ik_scale_prop_sync_plan() {
   return plan;
 }
 
+SourceCharIKScaleSavePlan source_char_ik_scale_save_plan() {
+  return SourceCharIKScaleSavePlan{};
+}
+
 bool source_char_ik_scale_poll_enters(bool has_dest, float weight) {
   return has_dest && weight != 0.0f;
 }
@@ -7435,6 +7439,10 @@ SourceCharIKFingersPropSyncPlan source_char_ik_fingers_prop_sync_plan() {
                      "hand_dest_offset"};
   plan.superclasses = {"CharWeightable"};
   return plan;
+}
+
+SourceCharIKFingersSavePlan source_char_ik_fingers_save_plan() {
+  return SourceCharIKFingersSavePlan{};
 }
 
 SourceCharSleevePollResult source_char_sleeve_poll(
