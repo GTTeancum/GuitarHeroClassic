@@ -10782,15 +10782,17 @@ Rejected native probe:
   tell whether a visual mismatch is from pose/path sampling or projection
   ordering.
 
-- 2026-07-13 CamShot direct-target screen-offset candidate:
+- 2026-07-13 CamShot same-target direct screen-offset target:
   ihatecompvir `CamShotFrame::Interp` uses the frame target positions directly
   for same-target `LookAt`, distance interpolation, and local-space
-  screen-offset translation. The visible public dump loads/syncs `mFilter` but
-  does not consume it in this `Interp` block, while native still has traced
-  PS2 result-builder evidence for carrying shot-filter target state. Native
-  now logs a diagnostic-only `source_screen_offset_direct_target_candidate`
-  beside the submitted `source_screen_offset_translate_result`: it feeds the
-  unfiltered blended target through the same source-shaped screen-offset helper
-  and never submits that candidate as the rendered camera. This separates the
-  visible source target math from the accepted `shot_filter` path until
-  `CamShot::SetFrame`/`mFilter` ownership is proven.
+  screen-offset translation. The visible RB3 source loads/syncs `mFilter` but
+  does not consume it in this `Interp` block, and the RB2 dump places a
+  `filter` local inside `CamShotFrame::BuildTransform`; `Interp` calls
+  `BuildTransform(cam, ..., !sameTargets)`, so that screen-offset/filter
+  branch is explicitly disabled for same-target blends before the direct-target
+  local-space offset block runs. Native now submits the same-target
+  `source_screen_offset_translate_result` with the unfiltered blended target,
+  while retaining the old shot-filtered version only as
+  `source_screen_offset_filtered_target_candidate` diagnostics. This keeps the
+  traced `shot_filter` state available for target-list/non-same-target work
+  without applying it to the source same-target screen-offset translation.

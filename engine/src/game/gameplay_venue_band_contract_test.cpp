@@ -10809,18 +10809,22 @@ int main() {
                  "debug camera logs compare source seed rows before submitted rows");
   ok &= contains(gameplay_c,
                  "std::optional<CameraResultRows>"
-                 "source_screen_offset_direct_target_candidate;",
-                 "same-target screen-offset diagnostics keep the direct target candidate separate");
+                 "source_screen_offset_filtered_target_candidate;",
+                 "same-target screen-offset diagnostics keep the filtered target candidate separate");
   ok &= contains(gameplay_c,
+                 "source_screen_offset_translate_result="
                  "camera_source_screen_offset_translate_result_rows("
-                 "source_seed_result,result_key,*blended_target_centroid,false)",
-                 "direct target candidate uses the ihatecompvir CamShotFrame::Interp target before shot_filter state");
+                 "source_seed_result,result_key,*blended_target_centroid,false);",
+                 "same-target screen-offset submission uses the direct ihatecompvir CamShotFrame::Interp target");
   ok &= contains(gameplay_c,
-                 "\"source_screen_offset_direct_target_candidate\"",
-                 "debug camera logs expose the direct target screen-offset candidate");
+                 "source_screen_offset_filtered_target_candidate=*filtered_candidate;",
+                 "filtered target screen-offset path is retained only as a diagnostic candidate");
+  ok &= contains(gameplay_c,
+                 "\"source_screen_offset_filtered_target_candidate\"",
+                 "debug camera logs expose the filtered target screen-offset candidate");
   ok &= absent(gameplay_c,
-               "submitted_result=*source_screen_offset_direct_target_candidate",
-               "direct target candidate must remain diagnostic-only until source filter ownership is proven");
+               "submitted_result=*source_screen_offset_filtered_target_candidate",
+               "filtered target candidate must remain diagnostic-only for same-target CamShot screen-offset");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]frame=%.2fpose_span_shape=%s\"",
                  "debug camera logs expose targetless no-target pose-span source shape");
