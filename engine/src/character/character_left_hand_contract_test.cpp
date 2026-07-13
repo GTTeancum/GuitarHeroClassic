@@ -111,6 +111,8 @@ int main() {
       compact(function_body(char_clip, "effective_ik_hand_solver_weight"));
   const std::string target_blend_c =
       compact(function_body(char_clip, "effective_ik_hand_target_blend_weight"));
+  const std::string hand_twist_scheduler_c = compact(
+      function_body(char_clip, "apply_source_ik_hands_and_fore_twists"));
 
   bool ok = true;
 
@@ -159,17 +161,31 @@ int main() {
                  "node_driven[i]=true;}}}",
                  "hand output applies authored constant bone_fret_hand rows");
   ok &= contains(char_clip_c,
-                 "staticvoidapply_source_ik_hands(Character&character)",
-                 "source CharIKHand polling path is used");
+                 "staticboolapply_source_ik_hand(Character&character,"
+                 "constCharIKHand&ik)",
+                 "source CharIKHand polling path is used per controller");
   ok &= contains(char_clip_c,
-                 "for(constCharIKHand&ik:character.ik_hands)",
-                 "source CharIKHand polling uses decoded controller order");
+                 "staticvoidapply_source_ik_hands_and_fore_twists("
+                 "Character&character)",
+                 "source hand scheduler pairs IK with matching foretwist");
   ok &= contains(char_clip_c,
-                 "apply_source_ik_hands(character);"
-                 "apply_source_fore_twists(character);"
+                 "apply_source_ik_hands_and_fore_twists(character);"
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",
                  "upper twists stay after CharHair per accepted PS2 cadence");
+  ok &= contains(hand_twist_scheduler_c,
+                 "std::stable_sort(ik_indices.begin(),ik_indices.end(),",
+                 "instrument hand scheduler uses a stable shared role sort");
+  ok &= contains(hand_twist_scheduler_c,
+                 "apply_source_ik_hand(character,ik);",
+                 "source hand scheduler polls each IK hand");
+  ok &= appears_before(hand_twist_scheduler_c,
+                       "apply_source_ik_hand(character,ik);",
+                       "apply_source_fore_twist(character,ft);",
+                       "matching source foretwist immediately follows hand IK");
+  ok &= contains(hand_twist_scheduler_c,
+                 "source_hand_matches_fore_twist(ik,ft)",
+                 "source hand scheduler matches foretwist by source hand row");
   ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",

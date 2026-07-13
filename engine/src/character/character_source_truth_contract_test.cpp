@@ -25563,14 +25563,21 @@ int run_contract() {
                  "`CharForeTwist::PollDeps` publishes `hand`",
                  "document records native CharForeTwist PollDeps helper");
   ok &= contains(char_clip,
-                 "apply_source_ik_hands(character);"
-                 "apply_source_fore_twists(character);"
+                 "apply_source_ik_hands_and_fore_twists(character);"
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",
                  "native keeps upper twists after CharHair per accepted cadence");
   ok &= contains(char_clip,
-                 "for(constCharIKHand&ik:character.ik_hands)",
-                 "native CharIKHand polling uses decoded source order");
+                 "source_hand_matches_fore_twist(ik,ft)",
+                 "native CharIKHand polling pairs matching source hand and foretwist rows");
+  ok &= contains(char_clip,
+                 "apply_source_ik_hand(character,ik);"
+                 "for(size_tft_index=0;ft_index<character.fore_twists.size();",
+                 "native polls each CharIKHand before scanning matching foretwists");
+  ok &= contains(char_clip,
+                 "apply_source_fore_twist(character,ft);"
+                 "fore_applied[ft_index]=true;",
+                 "native marks matched foretwists after the paired source poll");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");
   ok &= contains(doc,

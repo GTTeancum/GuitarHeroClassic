@@ -7031,12 +7031,6 @@ static bool apply_source_fore_twist(Character& character,
   return true;
 }
 
-static void apply_source_fore_twists(Character& character) {
-  for (const auto& ft : character.fore_twists) {
-    apply_source_fore_twist(character, ft);
-  }
-}
-
 static void apply_source_upper_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
   (void)bind_bones;
@@ -8003,11 +7997,10 @@ static float effective_ik_hand_target_blend_weight(const Character& character,
   return effective_ik_hand_solver_weight(character, ik);
 }
 
-static void apply_source_ik_hands(Character& character) {
+static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
   // Bounded single-target slice of ihatecompvir's CharIKHand::Poll/IKElbow
   // dataflow. PullShoulder is a real source function but its body is not in the
   // available ihatecompvir C++, so the remaining branches stay fenced.
-  for (const CharIKHand& ik : character.ik_hands) {
     const int hand_i = find_bone_index(character, ik.hand);
     const float solver_weight =
         effective_ik_hand_solver_weight(character, ik);
@@ -8021,22 +8014,22 @@ static void apply_source_ik_hands(Character& character) {
                      ik.name.c_str(), ik.hand.c_str(), solver_weight,
                      target_blend_weight, hand_i >= 0 ? 1 : 0);
       }
-      continue;
+      return false;
     }
     auto& hand = character.bones[(size_t)hand_i];
-    if (hand.parent.empty()) continue;
+    if (hand.parent.empty()) return false;
     const int fore_i = find_bone_index(character, hand.parent);
-    if (fore_i < 0) continue;
+    if (fore_i < 0) return false;
     auto& fore = character.bones[(size_t)fore_i];
-    if (fore.parent.empty()) continue;
+    if (fore.parent.empty()) return false;
     const int upper_i = find_bone_index(character, fore.parent);
-    if (upper_i < 0) continue;
+    if (upper_i < 0) return false;
     auto& upper = character.bones[(size_t)upper_i];
-    if (upper.parent.empty()) continue;
+    if (upper.parent.empty()) return false;
 
     std::array<float, 16> target_world{};
     if (!transform_local_chain_world(character, ik.target, target_world))
-      continue;
+      return false;
 
     const milo_scene::Xfm upper_local0 = upper.local;
     const milo_scene::Xfm fore_local0 = fore.local;
@@ -8095,7 +8088,7 @@ static void apply_source_ik_hands(Character& character) {
     float cos_elbow = 0.0f;
     if (!source_char_ik_hand_elbow_cosine(source_measure, dist2,
                                           cos_elbow)) {
-      continue;
+      return false;
     }
     const float sin_elbow =
         std::sqrt(std::max(0.0f, 1.0f - cos_elbow * cos_elbow));
@@ -8239,6 +8232,70 @@ static void apply_source_ik_hands(Character& character) {
       log_debug_world_row("ik-source-target", ik.target.c_str(), target_world);
     }
 
+  return true;
+}
+
+static bool source_hand_matches_fore_twist(const CharIKHand& ik,
+                                           const CharForeTwist& ft) {
+  if (ik.hand.empty() || ft.hand.empty()) return false;
+  return ik.hand == ft.hand || channel_matches_bone(ik.hand, ft.hand) ||
+         channel_matches_bone(ft.hand, ik.hand);
+}
+
+static int source_instrument_hand_rank(const CharIKHand& ik) {
+  const std::string key = ik.name + " " + ik.hand + " " + ik.target + " " +
+                          ik.weight_prop;
+  if (key.find("_L-") != std::string::npos ||
+      key.find("bone_L-") != std::string::npos ||
+      key.find("left") != std::string::npos ||
+      key.find("left_") != std::string::npos ||
+      key.find("_left") != std::string::npos) {
+    return 0;
+  }
+  if (key.find("_R-") != std::string::npos ||
+      key.find("bone_R-") != std::string::npos ||
+      key.find("right") != std::string::npos ||
+      key.find("right_") != std::string::npos ||
+      key.find("_right") != std::string::npos) {
+    return 1;
+  }
+  return 2;
+}
+
+static void apply_source_ik_hands_and_fore_twists(Character& character) {
+  // CharForeTwist::PollDeps says it reads mHand and writes mTwist2 plus the
+  // twist parent. Keep each source IK hand tick adjacent to the foretwist that
+  // consumes that same hand, matching the recovered GH2 performer cadence.
+  std::vector<size_t> ik_indices(character.ik_hands.size());
+  for (size_t i = 0; i < ik_indices.size(); ++i) ik_indices[i] = i;
+  std::stable_sort(ik_indices.begin(), ik_indices.end(),
+                   [&](size_t a, size_t b) {
+                     const int ar = source_instrument_hand_rank(
+                         character.ik_hands[a]);
+                     const int br = source_instrument_hand_rank(
+                         character.ik_hands[b]);
+                     if (ar != br) return ar < br;
+                     return a < b;
+                   });
+
+  std::vector<bool> fore_applied(character.fore_twists.size(), false);
+  for (const size_t ik_index : ik_indices) {
+    const CharIKHand& ik = character.ik_hands[ik_index];
+    apply_source_ik_hand(character, ik);
+    for (size_t ft_index = 0; ft_index < character.fore_twists.size();
+         ++ft_index) {
+      if (fore_applied[ft_index]) continue;
+      const CharForeTwist& ft = character.fore_twists[ft_index];
+      if (!source_hand_matches_fore_twist(ik, ft)) continue;
+      apply_source_fore_twist(character, ft);
+      fore_applied[ft_index] = true;
+    }
+  }
+
+  for (size_t ft_index = 0; ft_index < character.fore_twists.size();
+       ++ft_index) {
+    if (fore_applied[ft_index]) continue;
+    apply_source_fore_twist(character, character.fore_twists[ft_index]);
   }
 }
 
@@ -9180,8 +9237,7 @@ void apply_character_controllers(Character& character, float time_seconds) {
     for (const auto& b : character.bones) bind_bones.push_back(b.local);
   }
   apply_source_weight_setters(character, 0.0f);
-  apply_source_ik_hands(character);
-  apply_source_fore_twists(character);
+  apply_source_ik_hands_and_fore_twists(character);
   apply_char_hair(character, time_seconds);
   apply_source_upper_twists(character, bind_bones);
   apply_source_pos_constraints(character);
