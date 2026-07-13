@@ -1559,6 +1559,7 @@ struct DecodedCamShot {
     float path_ease = 0.0f;
     std::string category;
     int platform_only = 0;
+    int flags = 0;
     std::vector<std::string> hide_list;
     std::vector<std::string> show_list;
     std::vector<std::string> gen_hide_list;
@@ -2082,7 +2083,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         }
         if (shot.revision > 0x23 && !(shot.revision >= 47 && shot.revision <= 48))
             (void)r.boolean();
-        if (shot.revision > 0x24) (void)r.i32();
+        if (shot.revision > 0x24) shot.flags = r.i32();
         if (shot.revision >= 40 && shot.revision <= 42) (void)r.symbol();
         if (shot.revision >= 0x2a) {
             const uint32_t crowd_count = r.u32();
@@ -2160,6 +2161,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.jump_ok = prop_bool(shot.props, "jump_ok", true);
             key.lighter = shot.category == "LIGHTER";
             key.platform_only = shot.platform_only;
+            key.flags = shot.flags;
             key.hide_crowd = prop_bool(shot.props, "hide_crowd", false);
             key.crowd_face_camera =
                 key.crowd_face_camera ||
@@ -2297,6 +2299,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.camera_anim_refs = from.camera_anim_refs;
     to.glow_spot_ref = from.glow_spot_ref;
     to.platform_only = from.platform_only;
+    to.flags = from.flags;
     to.camshot_shot_fields_decoded = from.camshot_shot_fields_decoded;
     to.camshot_shot_tail_offset = from.camshot_shot_tail_offset;
     to.has_camshot_shot_tail_offset = from.has_camshot_shot_tail_offset;
@@ -2337,6 +2340,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.jump_ok = from.jump_ok;
     to.lighter = from.lighter;
     to.platform_only = from.platform_only;
+    to.flags = from.flags;
     to.hide_crowd = from.hide_crowd;
     to.crowd_face_camera = from.crowd_face_camera;
     to.force_char_lod = from.force_char_lod;
@@ -14861,7 +14865,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -14874,6 +14878,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.low_excitement_ok ? 1 : 0,
                          key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
                          key.lighter ? 1 : 0, key.platform_only,
+                         static_cast<unsigned int>(key.flags),
                          key.hide_crowd ? 1 : 0,
                          key.crowd_face_camera ? 1 : 0, key.force_char_lod,
                          key.hide_list_refs.size(),

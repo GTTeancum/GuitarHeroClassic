@@ -221,6 +221,7 @@ class Gameplay {
     bool jump_ok = true;
     bool lighter = false;
     int platform_only = 0;
+    int flags = 0;
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;

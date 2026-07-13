@@ -7941,8 +7941,9 @@ int main() {
                  "CameraKey preserves CamShot category/filter/clamp fields");
   ok &= contains(gameplay_h_c,
                  "booljump_ok=true;boollighter=false;"
-                 "intplatform_only=0;boolhide_crowd=false;",
-                 "CameraKey preserves CamShot platform_only beside source shot filters");
+                 "intplatform_only=0;intflags=0;"
+                 "boolhide_crowd=false;",
+                 "CameraKey preserves CamShot platform_only/flags beside source shot filters");
   ok &= contains(gameplay_h_c,
                  "structCameraResultBuilderState{"
                  "boolhas_filtered_target=false;"
@@ -7985,6 +7986,12 @@ int main() {
   ok &= contains(camshot_reader_c,
                  "key.platform_only=shot.platform_only;",
                  "CamShot platform_only is copied into CameraKey shot fields");
+  ok &= contains(camshot_reader_c,
+                 "if(shot.revision>0x24)shot.flags=r.i32();",
+                 "CamShot reader retains source mFlags field for ShotMatches filters");
+  ok &= contains(camshot_reader_c,
+                 "key.flags=shot.flags;",
+                 "CamShot flags are copied into CameraKey shot fields");
   ok &= absent(gameplay_c,
                "decode_camshot_category_tail_fields(",
                "path-backed CamShots no longer use packed-tail recovery scanners");
@@ -7994,6 +8001,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "to.platform_only=from.platform_only;",
                  "TransAnim-backed camera keys inherit source platform_only state");
+  ok &= contains(gameplay_c,
+                 "to.flags=from.flags;",
+                 "TransAnim-backed camera keys inherit source CamShot flags");
   ok &= contains(gameplay_c,
                  "to.blur_depth=from.blur_depth;"
                  "to.max_blur=from.max_blur;"
@@ -9769,11 +9779,11 @@ int main() {
                  "parent=%s:%sparent_rot=%drefs=%dposes=%zuposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
-                 "platform_only=%dhide_crowd=%dcrowd_face_camera=%d"
-                 "force_char_lod=%d"
+                 "platform_only=%dflags=0x%08xhide_crowd=%d"
+                 "crowd_face_camera=%dforce_char_lod=%d"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
                  "postproc=%zuanims=%zuglow=%sshot_fields=%dcategory=%s",
-                 "regular camera validation logs decoded shot-level fields");
+                 "regular camera validation logs decoded shot-level fields including source flags");
   ok &= contains(gameplay_c,
                  "key.hide_crowd=intro_camera.hide_crowd;",
                  "intro TransAnim camera keys inherit selected hide_crowd");
