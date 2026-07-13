@@ -1639,6 +1639,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `mRowBytes * mHeight` base pixel bytes through `ReadChunks`; its mip loop
     halves width/height before reading each mip row. The source `LoadSafely`
     check documents the row-byte relation as `mBpp * mWidth / 8`.
+  - Native `source_rndbitmap_reset_plan`, `source_rndbitmap_create_plan`,
+    `source_rndbitmap_set_mip_plan`, `source_rndbitmap_load_safely_plan`, and
+    `source_read_chunks_plan` record the visible bitmap reset/default state,
+    create assertions/branches, mip compatibility checks, safe-load fallback
+    rules, and chunk-size loop. These helpers are source contracts only and do
+    not allocate buffers, decode pixels, or alter native texture upload.
 - `rb3/src/system/utl/ChunkStream.cpp`
   - `ReadChunks` repeatedly reads `Min(total_len - curr_size, max_chunk_size)`
     until exactly `total_len` bytes have been consumed. This is the source for
@@ -1769,7 +1775,9 @@ The same test covers the source `SetPowerOf2`, `CheckDim`, and `CheckSize`
 contracts, plus the empty-file rendered texture clamp and movie exceptions,
 copy/handler/property rows, and type text without changing stock texture
 loading. It also covers source platform BPP/order, `SetBitmap` branch choices,
-loader reset/bottom-mip behavior, and `LockBitmap` conversion decisions.
+loader reset/bottom-mip behavior, `LockBitmap` conversion decisions,
+`RndBitmap` reset/create/set-mip/safe-load branches, and `ReadChunks` chunk
+sizing.
 
 ## Generic Object Row Authority
 

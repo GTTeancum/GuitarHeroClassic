@@ -3623,6 +3623,108 @@ SourceRndTexLockBitmapPlan source_rndtex_lock_bitmap_plan(
   return plan;
 }
 
+SourceRndBitmapResetPlan source_rndbitmap_reset_plan(
+    bool has_buffer,
+    bool has_mip) {
+  SourceRndBitmapResetPlan plan;
+  plan.frees_buffer_when_present = has_buffer;
+  plan.resets_and_frees_mip_when_present = has_mip;
+  return plan;
+}
+
+SourceRndBitmapCreatePlan source_rndbitmap_create_plan(
+    int32_t width,
+    int32_t height,
+    int32_t row_bytes,
+    int32_t bpp,
+    int32_t order,
+    bool has_palette,
+    bool has_buffer) {
+  SourceRndBitmapCreatePlan plan;
+  plan.width = width;
+  plan.height = height;
+  plan.row_bytes = row_bytes;
+  plan.bpp = bpp;
+  plan.order = order;
+  plan.valid_dimensions = width >= 0 && height >= 0;
+  plan.valid_bpp =
+      bpp == 4 || bpp == 8 || bpp == 16 || bpp == 24 || bpp == 32;
+  plan.frees_palette_argument_after_assignment = has_palette;
+  plan.allocates_when_no_palette_and_no_buffer = !has_palette && !has_buffer;
+  return plan;
+}
+
+SourceRndBitmapSetMipPlan source_rndbitmap_set_mip_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t order,
+    bool has_mip,
+    int32_t mip_width,
+    int32_t mip_height,
+    int32_t mip_bpp,
+    int32_t mip_order) {
+  SourceRndBitmapSetMipPlan plan;
+  plan.width = width;
+  plan.height = height;
+  plan.bpp = bpp;
+  plan.order = order;
+  plan.has_mip = has_mip;
+  plan.mip_width = mip_width;
+  plan.mip_height = mip_height;
+  plan.mip_bpp = mip_bpp;
+  plan.mip_order = mip_order;
+  plan.checks_half_dimensions = has_mip;
+  plan.accepts_mip = has_mip && width / 2 == mip_width &&
+                     height / 2 == mip_height && bpp == mip_bpp &&
+                     order == mip_order;
+  return plan;
+}
+
+SourceRndBitmapLoadSafelyPlan source_rndbitmap_load_safely_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t row_bytes,
+    int32_t max_width,
+    int32_t max_height,
+    int32_t mip_count) {
+  SourceRndBitmapLoadSafelyPlan plan;
+  plan.width = width;
+  plan.height = height;
+  plan.bpp = bpp;
+  plan.row_bytes = row_bytes;
+  plan.max_width = max_width;
+  plan.max_height = max_height;
+  plan.mip_count = mip_count;
+  plan.dimension_fallback = width > max_width || height > max_height;
+  plan.row_bytes_fallback =
+      !plan.dimension_fallback && ((bpp * width) / 8 != row_bytes);
+  plan.creates_8x8_32bpp_fallback =
+      plan.dimension_fallback || plan.row_bytes_fallback;
+  plan.reads_palette_and_pixels = !plan.creates_8x8_32bpp_fallback;
+  plan.builds_mip_chain = plan.reads_palette_and_pixels && mip_count > 0;
+  plan.result = plan.reads_palette_and_pixels;
+  return plan;
+}
+
+SourceReadChunksPlan source_read_chunks_plan(
+    int32_t total_len,
+    int32_t max_chunk_size) {
+  SourceReadChunksPlan plan;
+  plan.total_len = total_len;
+  plan.max_chunk_size = max_chunk_size;
+  if (total_len <= 0 || max_chunk_size <= 0) return plan;
+  int32_t curr_size = 0;
+  while (curr_size != total_len) {
+    const int32_t len_left =
+        std::min(total_len - curr_size, max_chunk_size);
+    plan.chunk_sizes.push_back(len_left);
+    curr_size += len_left;
+  }
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

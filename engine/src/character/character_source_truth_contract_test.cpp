@@ -16702,6 +16702,41 @@ int run_contract() {
                  "return(1<<mBpp)*4;}}return0;}",
                  "latest RndBitmap source backs palette-byte size");
   ok &= contains(rb3_latest_bitmap_cpp,
+                 "intRndBitmap::NumMips()const{constRndBitmap*x=this;"
+                 "inti;for(i=0;x->mMip;i++)x=x->mMip;returni;}",
+                 "latest RndBitmap source backs mip counting");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "intRndBitmap::PixelBytes()const{returnmRowBytes*mHeight;}",
+                 "latest RndBitmap source backs pixel byte count");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "voidRndBitmap::Reset(){mRowBytes=0;mHeight=0;mWidth=0;"
+                 "mBpp=0x20;mOrder=1;mPalette=NULL;mPixels=NULL;",
+                 "latest RndBitmap source backs reset defaults");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "if(mBuffer){_MemFree(mBuffer);mBuffer=NULL;}if(mMip){"
+                 "RndBitmap*m=mMip;m->Reset();_MemFree(m);}mMip=0;}",
+                 "latest RndBitmap source backs reset cleanup");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "voidRndBitmap::Create(intwidth,intheight,introwlen,intbpp,"
+                 "intorder,void*palette,void*pixels,void*buf){"
+                 "MILO_ASSERT(width>=0&&height>=0,454);",
+                 "latest RndBitmap source backs Create dimension assert");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "MILO_ASSERT(bpp==4||bpp==8||bpp==16||bpp==24||bpp==32,455);",
+                 "latest RndBitmap source backs Create bpp assert");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "mPalette=(u8*)palette;deletemMip;mMip=0;",
+                 "latest RndBitmap source backs Create mip reset");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "voidRndBitmap::SetMip(RndBitmap*bm){RndBitmap*mip=mMip;"
+                 "deletemip;mMip=0;if(bm){MILO_ASSERT(mWidth/2==bm->Width(),1101);",
+                 "latest RndBitmap source backs SetMip half-width check");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "MILO_ASSERT(mHeight/2==bm->Height(),1102);"
+                 "MILO_ASSERT(mOrder==bm->Order(),1103);"
+                 "MILO_ASSERT(mBpp==bm->Bpp(),1104);mMip=bm;}",
+                 "latest RndBitmap source backs SetMip format checks");
+  ok &= contains(rb3_latest_bitmap_cpp,
                  "if(mPalette)bs.Read(mPalette,PaletteBytes());"
                  "ReadChunks(bs,mPixels,mRowBytes*mHeight,0x8000);",
                  "latest RndBitmap source backs base payload read length");
@@ -16714,6 +16749,18 @@ int run_contract() {
   ok &= contains(rb3_latest_bitmap_cpp,
                  "elseif(mBpp*mWidth/8!=mRowBytes)",
                  "latest RndBitmap source backs row-byte relation");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "boolRndBitmap::LoadSafely(BinStream&bs,inta,intb){"
+                 "u8test;intmips;LoadHeader(bs,test);if(mWidth>a||mHeight>b){",
+                 "latest RndBitmap source backs LoadSafely dimension gate");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "Create(8,8,0,0x20,0,NULL,NULL,NULL);returnfalse;}"
+                 "elseif(mBpp*mWidth/8!=mRowBytes){",
+                 "latest RndBitmap source backs LoadSafely fallback");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "while(mips--!=0){mp=newRndBitmap;prev_mip->mMip=mp;"
+                 "lw/=2;lh/=2;mp->Create(lw,lh,0,mBpp,mOrder,mPalette,NULL,NULL);",
+                 "latest RndBitmap source backs LoadSafely mip loop");
   ok &= contains(rb3_latest_chunk_stream_h,
                  "BinStream&ReadChunks(BinStream&,void*,int,int);",
                  "latest ChunkStream header exposes ReadChunks");
@@ -16906,6 +16953,12 @@ int run_contract() {
                  "do not call loaders, allocate bitmaps, generate mips, or\n"
                  "    change native texture upload",
                  "document fences RndTex bitmap setup helpers");
+  ok &= contains(doc,
+                 "source_rndbitmap_reset_plan`, `source_rndbitmap_create_plan`",
+                 "document records RndBitmap helper names");
+  ok &= contains(doc,
+                 "do\n    not allocate buffers, decode pixels, or alter native texture upload",
+                 "document fences RndBitmap helpers from runtime upload");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17314,6 +17367,18 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndTexLockBitmapPlan{",
                  "native exposes RndTex LockBitmap helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapResetPlan{",
+                 "native exposes RndBitmap reset helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapCreatePlan{",
+                 "native exposes RndBitmap create helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapLoadSafelyPlan{",
+                 "native exposes RndBitmap LoadSafely helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceReadChunksPlan{",
+                 "native exposes ReadChunks helper");
   ok &= contains(char_mesh,
                  "SourceRndTexRenderedClampPlansource_rndtex_rendered_clamp_plan(",
                  "native implements RndTex rendered clamp source helper");
@@ -17394,6 +17459,37 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.converts_ordered_bitmap_to_32bpp=(bitmap_order&0x38)!=0;",
                  "RndTex LockBitmap helper mirrors ordered conversion branch");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapResetPlansource_rndbitmap_reset_plan(",
+                 "native implements RndBitmap reset helper");
+  ok &= contains(char_mesh,
+                 "plan.frees_buffer_when_present=has_buffer;",
+                 "RndBitmap reset helper mirrors buffer cleanup");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapCreatePlansource_rndbitmap_create_plan(",
+                 "native implements RndBitmap create helper");
+  ok &= contains(char_mesh,
+                 "plan.valid_bpp=bpp==4||bpp==8||bpp==16||bpp==24||bpp==32;",
+                 "RndBitmap create helper mirrors valid bpp set");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapSetMipPlansource_rndbitmap_set_mip_plan(",
+                 "native implements RndBitmap SetMip helper");
+  ok &= contains(char_mesh,
+                 "plan.accepts_mip=has_mip&&width/2==mip_width&&",
+                 "RndBitmap SetMip helper mirrors half-size checks");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapLoadSafelyPlansource_rndbitmap_load_safely_plan(",
+                 "native implements RndBitmap LoadSafely helper");
+  ok &= contains(char_mesh,
+                 "plan.row_bytes_fallback=!plan.dimension_fallback&&"
+                 "((bpp*width)/8!=row_bytes);",
+                 "RndBitmap LoadSafely helper mirrors row-byte fallback");
+  ok &= contains(char_mesh,
+                 "SourceReadChunksPlansource_read_chunks_plan(",
+                 "native implements ReadChunks helper");
+  ok &= contains(char_mesh,
+                 "std::min(total_len-curr_size,max_chunk_size);",
+                 "ReadChunks helper mirrors source min chunk sizing");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17573,6 +17669,21 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "source_rndtex_lock_bitmap_plan(0x18,8)",
                  "focused RndTex test covers LockBitmap conversion helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_reset_plan(true,true)",
+                 "focused RndTex test covers RndBitmap reset helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_create_plan(",
+                 "focused RndTex test covers RndBitmap create helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_set_mip_plan(",
+                 "focused RndTex test covers RndBitmap SetMip helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_load_safely_plan(",
+                 "focused RndTex test covers RndBitmap LoadSafely helper");
+  ok &= contains(tex_source_test,
+                 "source_read_chunks_plan(0x9001,0x8000)",
+                 "focused RndTex test covers ReadChunks helper");
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");

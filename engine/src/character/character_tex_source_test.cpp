@@ -85,6 +85,18 @@ bool expect_strings(const std::vector<std::string>& got,
   return false;
 }
 
+bool expect_ints(const std::vector<int32_t>& got,
+                 const std::vector<int32_t>& want,
+                 const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got";
+  for (int32_t v : got) std::cerr << " " << v;
+  std::cerr << " want";
+  for (int32_t v : want) std::cerr << " " << v;
+  std::cerr << "\n";
+  return false;
+}
+
 bool expect_float(float got, float want, const char* label) {
   if (std::fabs(got - want) < 0.0001f) return true;
   std::cerr << label << " got " << got << " want " << want << "\n";
@@ -367,6 +379,73 @@ int main() {
   ok &= expect_bool(direct_lock.creates_direct_bitmap_view, true,
                     "lock bitmap direct view");
   ok &= expect_int(direct_lock.create_order, 0, "lock bitmap direct order");
+
+  const ghogx::character::SourceRndBitmapResetPlan bitmap_reset =
+      ghogx::character::source_rndbitmap_reset_plan(true, true);
+  ok &= expect_bool(bitmap_reset.frees_buffer_when_present, true,
+                    "bitmap reset frees buffer");
+  ok &= expect_bool(bitmap_reset.resets_and_frees_mip_when_present, true,
+                    "bitmap reset frees mip");
+  ok &= expect_int(bitmap_reset.bpp, 0x20, "bitmap reset bpp");
+  ok &= expect_int(bitmap_reset.order, 1, "bitmap reset order");
+
+  const ghogx::character::SourceRndBitmapCreatePlan create_valid =
+      ghogx::character::source_rndbitmap_create_plan(
+          64, 32, 0, 8, 0, false, false);
+  ok &= expect_bool(create_valid.valid_dimensions, true,
+                    "bitmap create dimensions");
+  ok &= expect_bool(create_valid.valid_bpp, true, "bitmap create bpp");
+  ok &= expect_bool(create_valid.allocates_when_no_palette_and_no_buffer, true,
+                    "bitmap create allocate branch");
+  const ghogx::character::SourceRndBitmapCreatePlan create_palette =
+      ghogx::character::source_rndbitmap_create_plan(
+          64, 32, 0, 8, 0, true, false);
+  ok &= expect_bool(create_palette.frees_palette_argument_after_assignment, true,
+                    "bitmap create palette branch");
+  const ghogx::character::SourceRndBitmapCreatePlan create_bad =
+      ghogx::character::source_rndbitmap_create_plan(
+          -1, 32, 0, 12, 0, false, false);
+  ok &= expect_bool(create_bad.valid_dimensions, false,
+                    "bitmap create invalid dimensions");
+  ok &= expect_bool(create_bad.valid_bpp, false, "bitmap create invalid bpp");
+
+  const ghogx::character::SourceRndBitmapSetMipPlan set_mip =
+      ghogx::character::source_rndbitmap_set_mip_plan(
+          128, 64, 8, 0, true, 64, 32, 8, 0);
+  ok &= expect_bool(set_mip.checks_half_dimensions, true,
+                    "bitmap set mip checks");
+  ok &= expect_bool(set_mip.accepts_mip, true, "bitmap set mip accepts");
+  const ghogx::character::SourceRndBitmapSetMipPlan set_bad_mip =
+      ghogx::character::source_rndbitmap_set_mip_plan(
+          128, 64, 8, 0, true, 32, 32, 8, 0);
+  ok &= expect_bool(set_bad_mip.accepts_mip, false,
+                    "bitmap set mip rejects wrong width");
+
+  const ghogx::character::SourceRndBitmapLoadSafelyPlan safe_dimensions =
+      ghogx::character::source_rndbitmap_load_safely_plan(
+          1024, 64, 8, 1024, 512, 512, 0);
+  ok &= expect_bool(safe_dimensions.dimension_fallback, true,
+                    "bitmap safe dimension fallback");
+  ok &= expect_bool(safe_dimensions.creates_8x8_32bpp_fallback, true,
+                    "bitmap safe creates fallback");
+  const ghogx::character::SourceRndBitmapLoadSafelyPlan safe_row_bytes =
+      ghogx::character::source_rndbitmap_load_safely_plan(
+          64, 64, 8, 4, 512, 512, 0);
+  ok &= expect_bool(safe_row_bytes.row_bytes_fallback, true,
+                    "bitmap safe row byte fallback");
+  const ghogx::character::SourceRndBitmapLoadSafelyPlan safe_ok =
+      ghogx::character::source_rndbitmap_load_safely_plan(
+          64, 64, 8, 64, 512, 512, 2);
+  ok &= expect_bool(safe_ok.reads_palette_and_pixels, true,
+                    "bitmap safe reads payload");
+  ok &= expect_bool(safe_ok.builds_mip_chain, true,
+                    "bitmap safe builds mips");
+  ok &= expect_bool(safe_ok.result, true, "bitmap safe result");
+
+  const ghogx::character::SourceReadChunksPlan chunks =
+      ghogx::character::source_read_chunks_plan(0x9001, 0x8000);
+  ok &= expect_ints(chunks.chunk_sizes, {0x8000, 0x1001},
+                    "read chunks sizes");
 
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2

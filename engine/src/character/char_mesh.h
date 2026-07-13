@@ -4952,6 +4952,68 @@ struct SourceRndTexLockBitmapPlan {
   int32_t create_order = 0;
 };
 
+struct SourceRndBitmapResetPlan {
+  int32_t row_bytes = 0;
+  int32_t height = 0;
+  int32_t width = 0;
+  int32_t bpp = 0x20;
+  int32_t order = 1;
+  bool clears_palette = true;
+  bool clears_pixels = true;
+  bool frees_buffer_when_present = false;
+  bool resets_and_frees_mip_when_present = false;
+};
+
+struct SourceRndBitmapCreatePlan {
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t row_bytes = 0;
+  int32_t bpp = 32;
+  int32_t order = 0;
+  bool valid_dimensions = true;
+  bool valid_bpp = true;
+  bool deletes_existing_mip = true;
+  bool frees_palette_argument_after_assignment = false;
+  bool allocates_when_no_palette_and_no_buffer = false;
+};
+
+struct SourceRndBitmapSetMipPlan {
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t bpp = 32;
+  int32_t order = 0;
+  bool has_mip = false;
+  int32_t mip_width = 0;
+  int32_t mip_height = 0;
+  int32_t mip_bpp = 32;
+  int32_t mip_order = 0;
+  bool deletes_existing_mip = true;
+  bool checks_half_dimensions = false;
+  bool accepts_mip = false;
+};
+
+struct SourceRndBitmapLoadSafelyPlan {
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t bpp = 32;
+  int32_t row_bytes = 0;
+  int32_t max_width = 0;
+  int32_t max_height = 0;
+  int32_t mip_count = 0;
+  bool dimension_fallback = false;
+  bool row_bytes_fallback = false;
+  bool creates_8x8_32bpp_fallback = false;
+  bool reads_palette_and_pixels = false;
+  bool builds_mip_chain = false;
+  bool result = false;
+};
+
+struct SourceReadChunksPlan {
+  int32_t total_len = 0;
+  int32_t max_chunk_size = 0;
+  std::vector<int32_t> chunk_sizes;
+};
+
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
     int32_t width,
     int32_t height);
@@ -5027,6 +5089,38 @@ SourceRndTexCopyBottomMipPlan source_rndtex_copy_bottom_mip_plan(
 SourceRndTexLockBitmapPlan source_rndtex_lock_bitmap_plan(
     int32_t bitmap_order,
     int32_t bitmap_bpp);
+SourceRndBitmapResetPlan source_rndbitmap_reset_plan(
+    bool has_buffer,
+    bool has_mip);
+SourceRndBitmapCreatePlan source_rndbitmap_create_plan(
+    int32_t width,
+    int32_t height,
+    int32_t row_bytes,
+    int32_t bpp,
+    int32_t order,
+    bool has_palette,
+    bool has_buffer);
+SourceRndBitmapSetMipPlan source_rndbitmap_set_mip_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t order,
+    bool has_mip,
+    int32_t mip_width,
+    int32_t mip_height,
+    int32_t mip_bpp,
+    int32_t mip_order);
+SourceRndBitmapLoadSafelyPlan source_rndbitmap_load_safely_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t row_bytes,
+    int32_t max_width,
+    int32_t max_height,
+    int32_t mip_count);
+SourceReadChunksPlan source_read_chunks_plan(
+    int32_t total_len,
+    int32_t max_chunk_size);
 
 struct RndTex {
   std::string name;
