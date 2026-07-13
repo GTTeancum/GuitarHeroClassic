@@ -3754,9 +3754,20 @@ int main() {
                  "diagnostic_camera_shot_);",
                  "diagnostic camera shot pins a decoded regular CamShot by name");
   ok &= contains(gameplay_c,
-                 "pending_regular_camera_start_=song_time_-"
-                 "diagnostic_camera_path_offset_frames_/30.0;",
-                 "diagnostic forced camera queues local TransAnim path-frame alignment through mNextShot");
+                 "doublevenue_anim_time_units_before_seconds(intrate,"
+                 "doubleabsolute_end_seconds,doubleunits,",
+                 "diagnostic camera path offset can invert source beat/second units");
+  ok &= contains(gameplay_c,
+                 "doublecamera_source_start_time_for_local_frame("
+                 "constGameplay::CameraKey&shot,",
+                 "diagnostic camera path offset is derived through the source CamShot clock");
+  ok &= contains(gameplay_c,
+                 "pending_regular_camera_start_=camera_source_start_time_for_local_frame("
+                 "key,song_time_,diagnostic_camera_path_offset_frames_,&chart_);",
+                 "diagnostic forced camera queues source-rate local path-frame alignment through mNextShot");
+  ok &= absent(gameplay_c,
+               "diagnostic_camera_path_offset_frames_/30.0",
+               "diagnostic camera path offset must not assume 30fps source timing");
   ok &= contains(gameplay_c,
                  "active_regular_camera_start_=pending_regular_camera_start_;",
                  "diagnostic forced camera path-frame alignment becomes active when PrePoll consumes mNextShot");
@@ -3766,6 +3777,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "path_offset_frames=%.3f",
                  "diagnostic camera path offset is log-verifiable");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameramNextShotpathoffset:shot=%slocal_frame=%.3f"
+                 "anim_rate=%dfpu=%.1fsource_start=%.3fnow=%.3f"
+                 "source_manager=CameraManager::CalcFrame\\n\"",
+                 "diagnostic camera path offset logs the source CalcFrame alignment");
   ok &= contains(gameplay_h_c,
                  "booldiagnostic_venue_event_applied_=false;",
                  "diagnostic venue event is one-shot per load");

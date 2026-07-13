@@ -12990,6 +12990,29 @@ double venue_anim_time_units_to_seconds(int rate, double absolute_start_seconds,
                              chart->tick_to_sec(start_tick));
 }
 
+double venue_anim_time_units_before_seconds(int rate, double absolute_end_seconds,
+                                            double units,
+                                            const ghogx::chart::Chart* chart) {
+    const double clamped_units = std::max(0.0, units);
+    if (!rnd_animatable_rate_uses_beats(rate) || !chart ||
+        chart->ticks_per_beat == 0) {
+        return clamped_units;
+    }
+    const uint32_t end_tick =
+        chart->sec_to_tick(std::max(0.0, absolute_end_seconds));
+    const double delta_tick_f =
+        clamped_units * static_cast<double>(chart->ticks_per_beat);
+    const uint32_t delta_tick = static_cast<uint32_t>(
+        std::max(0.0, std::min<double>(
+                          delta_tick_f,
+                          static_cast<double>(
+                              std::numeric_limits<uint32_t>::max()))));
+    const uint32_t start_tick =
+        delta_tick >= end_tick ? 0u : end_tick - delta_tick;
+    return std::max(0.0, chart->tick_to_sec(end_tick) -
+                             chart->tick_to_sec(start_tick));
+}
+
 float venue_filter_signed_scale(const Gameplay::VenueAnimFilter& filter) {
     const float start = filter.start_frame;
     const float end = filter.end_frame;
@@ -15624,6 +15647,24 @@ float camera_source_local_frame(const Gameplay::CameraKey& shot,
     return static_cast<float>(
         camera_source_time_units(shot, song_time, start_time, chart) *
         static_cast<double>(camera_source_frames_per_unit(shot)));
+}
+
+double camera_source_start_time_for_local_frame(
+    const Gameplay::CameraKey& shot,
+    double song_time,
+    double local_frame,
+    const ghogx::chart::Chart* chart) {
+    const float frames_per_unit = camera_source_frames_per_unit(shot);
+    if (!std::isfinite(local_frame) || local_frame <= 0.0 ||
+        !std::isfinite(frames_per_unit) || frames_per_unit <= 0.0f) {
+        return song_time;
+    }
+    const int rate = camera_source_anim_rate(shot);
+    const double source_units =
+        local_frame / static_cast<double>(frames_per_unit);
+    const double elapsed_seconds =
+        venue_anim_time_units_before_seconds(rate, song_time, source_units, chart);
+    return song_time - elapsed_seconds;
 }
 
 bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
@@ -21534,8 +21575,8 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
 void Gameplay::queue_regular_camera_shot(const CameraKey& key,
                                          const char* source_handler) {
     pending_regular_camera_ = key.name;
-    pending_regular_camera_start_ =
-        song_time_ - diagnostic_camera_path_offset_frames_ / 30.0;
+    pending_regular_camera_start_ = camera_source_start_time_for_local_frame(
+        key, song_time_, diagnostic_camera_path_offset_frames_, &chart_);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -21543,6 +21584,14 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
             source_handler && source_handler[0] ? source_handler
                                                  : "PickCameraShot",
             active_regular_camera_.c_str(), pending_regular_camera_.c_str());
+        if (diagnostic_camera_path_offset_frames_ != 0.0) {
+            std::fprintf(
+                stderr,
+                "[world] camera mNextShot path offset: shot=%s local_frame=%.3f anim_rate=%d fpu=%.1f source_start=%.3f now=%.3f source_manager=CameraManager::CalcFrame\n",
+                key.name.c_str(), diagnostic_camera_path_offset_frames_,
+                camera_source_anim_rate(key), camera_source_frames_per_unit(key),
+                pending_regular_camera_start_, song_time_);
+        }
     }
 }
 

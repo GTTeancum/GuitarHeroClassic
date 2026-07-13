@@ -10862,6 +10862,14 @@ Rejected native probe:
   instead of raw elapsed 30 FPS, so path sampling follows the same manager
   clock as non-path CamShot frame pairs. This still does not infer the hidden
   `CamShot::SetFrame` body or exact `mPathFrame` consumption.
+- 2026-07-13 diagnostic path offset source clock:
+  the forced CamShot proof hook used to align `path_frame` screenshots with
+  `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures
+  seconds-rate only after the runtime moved to ihatecompvir's
+  `CameraManager::CalcFrame` rule. The hook now converts the requested source
+  local frame through `camera_source_start_time_for_local_frame(...)`, including
+  beat-unit inverse timing when a chart is available, so diagnostics exercise
+  the same `Units()` / `FramesPerUnit()` clock as regular runtime sampling.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives
