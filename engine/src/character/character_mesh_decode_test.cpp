@@ -457,6 +457,60 @@ int main() {
   CHECK(!rev36_milo_editor_vertex_io.uses_last_gen_uncompressed_rows);
   CHECK(rev36_milo_editor_vertex_io.row_reads_packed_next_gen);
 
+  const auto gh2_compressed_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_compressed_vertex_io_plan(
+          28, false, 0);
+  CHECK(!gh2_compressed_vertex_io.uses_next_gen_compressed_branch);
+  CHECK(!gh2_compressed_vertex_io.reads_half_uv);
+  CHECK(gh2_compressed_vertex_io.bone_index_storage_bytes_per_slot == 0);
+  CHECK(gh2_compressed_vertex_io.gh2_rev28_is_not_next_gen_compressed);
+
+  const auto xbox_compressed_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_compressed_vertex_io_plan(
+          36, true, 1);
+  CHECK(xbox_compressed_vertex_io.uses_next_gen_compressed_branch);
+  CHECK(xbox_compressed_vertex_io.compression1_xbox_layout);
+  CHECK(!xbox_compressed_vertex_io.compression2_ps3_layout);
+  CHECK(xbox_compressed_vertex_io.reads_rgba_color_word);
+  CHECK(xbox_compressed_vertex_io.writes_rgba_color_word);
+  CHECK(xbox_compressed_vertex_io.reads_half_uv);
+  CHECK(xbox_compressed_vertex_io.writes_half_uv);
+  CHECK(xbox_compressed_vertex_io.reads_signed_compressed_vec4_normals);
+  CHECK(xbox_compressed_vertex_io.writes_signed_compressed_vec4_normals);
+  CHECK(xbox_compressed_vertex_io.reads_signed_compressed_vec4_tangents);
+  CHECK(xbox_compressed_vertex_io.writes_signed_compressed_vec4_tangents);
+  CHECK(xbox_compressed_vertex_io.reads_unsigned_compressed_vec4_weights);
+  CHECK(xbox_compressed_vertex_io.writes_unsigned_compressed_vec4_weights);
+  CHECK(xbox_compressed_vertex_io.reads_bone_indices_as_bytes);
+  CHECK(xbox_compressed_vertex_io.writes_bone_indices_as_bytes);
+  CHECK(xbox_compressed_vertex_io.bone_index_storage_bytes_per_slot == 1);
+  CHECK(!xbox_compressed_vertex_io.unsupported_compression_type);
+
+  const auto ps3_compressed_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_compressed_vertex_io_plan(
+          36, true, 2);
+  CHECK(ps3_compressed_vertex_io.uses_next_gen_compressed_branch);
+  CHECK(!ps3_compressed_vertex_io.compression1_xbox_layout);
+  CHECK(ps3_compressed_vertex_io.compression2_ps3_layout);
+  CHECK(ps3_compressed_vertex_io.reads_argb_color_word);
+  CHECK(ps3_compressed_vertex_io.writes_argb_color_word);
+  CHECK(ps3_compressed_vertex_io.reads_ps3_signed_compressed_vec3_normals);
+  CHECK(ps3_compressed_vertex_io.writes_ps3_signed_compressed_vec3_normals);
+  CHECK(ps3_compressed_vertex_io.reads_ps3_signed_compressed_vec3_tangents);
+  CHECK(ps3_compressed_vertex_io.writes_ps3_signed_compressed_vec3_tangents);
+  CHECK(ps3_compressed_vertex_io.reads_ps3_unsigned_compressed_vec3_weights);
+  CHECK(ps3_compressed_vertex_io.writes_ps3_unsigned_compressed_vec3_weights);
+  CHECK(ps3_compressed_vertex_io.reads_bone_indices_as_uint16);
+  CHECK(ps3_compressed_vertex_io.writes_bone_indices_as_uint16_with_byte_cast);
+  CHECK(ps3_compressed_vertex_io.bone_index_storage_bytes_per_slot == 2);
+
+  const auto unknown_compressed_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_compressed_vertex_io_plan(
+          36, true, 9);
+  CHECK(unknown_compressed_vertex_io.uses_next_gen_compressed_branch);
+  CHECK(unknown_compressed_vertex_io.unsupported_compression_type);
+  CHECK(unknown_compressed_vertex_io.bone_index_storage_bytes_per_slot == 0);
+
   const auto rev28_milo_editor_bone_io =
       ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
           28, true, 2);

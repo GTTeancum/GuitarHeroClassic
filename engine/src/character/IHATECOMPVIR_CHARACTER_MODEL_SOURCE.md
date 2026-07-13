@@ -1542,6 +1542,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_milo_editor_rndmesh_vertex_io_plan` records that rev28 row as 12
     floats / 48 bytes, matching the native `SkinVertex` stride, without treating
     later next-gen compression paths as decoded GH2 behavior.
+  - MiloEditor next-gen compressed vertex rows are source-visible but not GH2
+    rev28 behavior. Compression type `1` reads/writes a packed RGBA color word,
+    half-float UVs, `SignedCompressedVec4` normals/tangents,
+    `UnsignedCompressedVec4` weights, and byte bone slots; compression type `2`
+    reads/writes half-float UVs, PS3 signed-compressed normals/tangents, PS3
+    unsigned-compressed weights, an ARGB-style color word, and UInt16 bone slots
+    (the writer casts source bone values through byte before writing UInt16).
+    Native `source_milo_editor_rndmesh_compressed_vertex_io_plan` records those
+    later layouts only to fence them away from GH2 rev28's 48-byte uncompressed
+    row.
   - Native `source_rndmesh_handler_plan`,
     `source_rndmesh_prop_sync_plan`,
     `source_rndmesh_mutable_bit_plan`,

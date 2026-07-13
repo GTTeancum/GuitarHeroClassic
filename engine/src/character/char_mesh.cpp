@@ -529,6 +529,54 @@ source_milo_editor_rndmesh_vertex_io_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshCompressedVertexIoPlan
+source_milo_editor_rndmesh_compressed_vertex_io_plan(
+    int32_t mesh_version,
+    bool is_next_gen,
+    int32_t compression_type) {
+  SourceMiloEditorRndMeshCompressedVertexIoPlan plan;
+  plan.mesh_version = mesh_version;
+  plan.is_next_gen = is_next_gen;
+  plan.compression_type = compression_type;
+  plan.uses_next_gen_compressed_branch = mesh_version >= 35 && is_next_gen;
+  plan.gh2_rev28_is_not_next_gen_compressed =
+      mesh_version == 28 && !plan.uses_next_gen_compressed_branch;
+  if (!plan.uses_next_gen_compressed_branch) return plan;
+
+  plan.reads_half_uv = true;
+  plan.writes_half_uv = true;
+  if (compression_type == 1) {
+    plan.compression1_xbox_layout = true;
+    plan.reads_rgba_color_word = true;
+    plan.writes_rgba_color_word = true;
+    plan.reads_signed_compressed_vec4_normals = true;
+    plan.writes_signed_compressed_vec4_normals = true;
+    plan.reads_signed_compressed_vec4_tangents = true;
+    plan.writes_signed_compressed_vec4_tangents = true;
+    plan.reads_unsigned_compressed_vec4_weights = true;
+    plan.writes_unsigned_compressed_vec4_weights = true;
+    plan.reads_bone_indices_as_bytes = true;
+    plan.writes_bone_indices_as_bytes = true;
+    plan.bone_index_storage_bytes_per_slot = 1;
+  } else if (compression_type == 2) {
+    plan.compression2_ps3_layout = true;
+    plan.reads_argb_color_word = true;
+    plan.writes_argb_color_word = true;
+    plan.reads_ps3_signed_compressed_vec3_normals = true;
+    plan.writes_ps3_signed_compressed_vec3_normals = true;
+    plan.reads_ps3_signed_compressed_vec3_tangents = true;
+    plan.writes_ps3_signed_compressed_vec3_tangents = true;
+    plan.reads_ps3_unsigned_compressed_vec3_weights = true;
+    plan.writes_ps3_unsigned_compressed_vec3_weights = true;
+    plan.reads_bone_indices_as_uint16 = true;
+    plan.writes_bone_indices_as_uint16_with_byte_cast = true;
+    plan.bone_index_storage_bytes_per_slot = 2;
+  } else {
+    plan.unsupported_compression_type = true;
+  }
+  return plan;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

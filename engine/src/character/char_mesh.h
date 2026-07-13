@@ -230,6 +230,46 @@ source_milo_editor_rndmesh_vertex_io_plan(
     bool is_next_gen,
     int32_t vertex_count);
 
+struct SourceMiloEditorRndMeshCompressedVertexIoPlan {
+  int32_t mesh_version = 0;
+  bool is_next_gen = false;
+  int32_t compression_type = 0;
+  bool uses_next_gen_compressed_branch = false;
+  bool compression1_xbox_layout = false;
+  bool compression2_ps3_layout = false;
+  bool reads_rgba_color_word = false;
+  bool writes_rgba_color_word = false;
+  bool reads_argb_color_word = false;
+  bool writes_argb_color_word = false;
+  bool reads_half_uv = false;
+  bool writes_half_uv = false;
+  bool reads_signed_compressed_vec4_normals = false;
+  bool writes_signed_compressed_vec4_normals = false;
+  bool reads_signed_compressed_vec4_tangents = false;
+  bool writes_signed_compressed_vec4_tangents = false;
+  bool reads_unsigned_compressed_vec4_weights = false;
+  bool writes_unsigned_compressed_vec4_weights = false;
+  bool reads_ps3_signed_compressed_vec3_normals = false;
+  bool writes_ps3_signed_compressed_vec3_normals = false;
+  bool reads_ps3_signed_compressed_vec3_tangents = false;
+  bool writes_ps3_signed_compressed_vec3_tangents = false;
+  bool reads_ps3_unsigned_compressed_vec3_weights = false;
+  bool writes_ps3_unsigned_compressed_vec3_weights = false;
+  bool reads_bone_indices_as_bytes = false;
+  bool writes_bone_indices_as_bytes = false;
+  bool reads_bone_indices_as_uint16 = false;
+  bool writes_bone_indices_as_uint16_with_byte_cast = false;
+  int32_t bone_index_storage_bytes_per_slot = 0;
+  bool unsupported_compression_type = false;
+  bool gh2_rev28_is_not_next_gen_compressed = false;
+};
+
+SourceMiloEditorRndMeshCompressedVertexIoPlan
+source_milo_editor_rndmesh_compressed_vertex_io_plan(
+    int32_t mesh_version,
+    bool is_next_gen,
+    int32_t compression_type);
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;

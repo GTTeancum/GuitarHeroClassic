@@ -5022,6 +5022,67 @@ int run_contract() {
                  "newVert.weight3=reader.ReadFloat();newVert.u=reader."
                  "ReadFloat();newVert.v=reader.ReadFloat();",
                  "MiloEditor RndMesh GH2-era row reads weights before UV");
+  ok &= contains(mesh_cs,
+                 "if(compressionType==1){uintvalue=reader.ReadUInt32();"
+                 "newVert.vertexColors.r=(byte)((value>>24)&0xFF);",
+                 "MiloEditor compressed vertex type 1 reads RGBA color word");
+  ok &= contains(mesh_cs,
+                 "Vertex.SignedCompressedVec4norms=newVertex."
+                 "SignedCompressedVec4();norms.Read(reader);",
+                 "MiloEditor compressed vertex type 1 reads signed vec4 normals");
+  ok &= contains(mesh_cs,
+                 "Vertex.UnsignedCompressedVec4weights=newVertex."
+                 "UnsignedCompressedVec4();weights.Read(reader);",
+                 "MiloEditor compressed vertex type 1 reads unsigned vec4 weights");
+  ok &= contains(mesh_cs,
+                 "newVert.bone0=reader.ReadByte();newVert.bone1=reader."
+                 "ReadByte();newVert.bone2=reader.ReadByte();newVert.bone3="
+                 "reader.ReadByte();",
+                 "MiloEditor compressed vertex type 1 reads byte bones");
+  ok &= contains(mesh_cs,
+                 "elseif(compressionType==2){newVert.u=reader.ReadHalfFloat();"
+                 "newVert.v=reader.ReadHalfFloat();",
+                 "MiloEditor compressed vertex type 2 reads half UV first");
+  ok &= contains(mesh_cs,
+                 "Vertex.PS3SignedCompressedVec3norms=newVertex."
+                 "PS3SignedCompressedVec3();norms.Read(reader);",
+                 "MiloEditor compressed vertex type 2 reads PS3 signed normals");
+  ok &= contains(mesh_cs,
+                 "Vertex.PS3UnsignedCompressedVec3weights=newVertex."
+                 "PS3UnsignedCompressedVec3();weights.Read(reader);",
+                 "MiloEditor compressed vertex type 2 reads PS3 unsigned weights");
+  ok &= contains(mesh_cs,
+                 "newVert.vertexColors.a=(byte)((value>>24)&0xFF);"
+                 "newVert.vertexColors.r=(byte)((value>>16)&0xFF);",
+                 "MiloEditor compressed vertex type 2 reads ARGB color word");
+  ok &= contains(mesh_cs,
+                 "newVert.bone0=reader.ReadUInt16();newVert.bone1=reader."
+                 "ReadUInt16();newVert.bone2=reader.ReadUInt16();newVert."
+                 "bone3=reader.ReadUInt16();",
+                 "MiloEditor compressed vertex type 2 reads uint16 bones");
+  ok &= contains(mesh_cs,
+                 "if(compressionType==1){//vertexcolorsinRGBA?uintvalue="
+                 "((uint)vertex.vertexColors.r<<24)",
+                 "MiloEditor compressed vertex type 1 writes RGBA color word");
+  ok &= contains(mesh_cs,
+                 "writer.WriteByte((byte)vertex.bone0);writer.WriteByte((byte)"
+                 "vertex.bone1);writer.WriteByte((byte)vertex.bone2);writer."
+                 "WriteByte((byte)vertex.bone3);",
+                 "MiloEditor compressed vertex type 1 writes byte bones");
+  ok &= contains(mesh_cs,
+                 "elseif(compressionType==2){writer.WriteHalfFloat(vertex.u);"
+                 "writer.WriteHalfFloat(vertex.v);",
+                 "MiloEditor compressed vertex type 2 writes half UV first");
+  ok &= contains(mesh_cs,
+                 "uintvalue=((uint)vertex.vertexColors.a<<24)|((uint)vertex."
+                 "vertexColors.r<<16)|((uint)vertex.vertexColors.g<<8)|"
+                 "(uint)vertex.vertexColors.b;",
+                 "MiloEditor compressed vertex type 2 writes ARGB color word");
+  ok &= contains(mesh_cs,
+                 "writer.WriteUInt16((byte)vertex.bone0);writer.WriteUInt16("
+                 "(byte)vertex.bone1);writer.WriteUInt16((byte)vertex.bone2);"
+                 "writer.WriteUInt16((byte)vertex.bone3);",
+                 "MiloEditor compressed vertex type 2 writes byte-cast uint16 bones");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshVertLoadPlan{",
                  "native exposes RndMesh vertex-load source plan");
@@ -6274,6 +6335,10 @@ int run_contract() {
                  "int32_tmesh_version=0;",
                  "native declares MiloEditor RndMesh vertex IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshCompressedVertexIoPlan{"
+                 "int32_tmesh_version=0;",
+                 "native declares MiloEditor compressed vertex IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
                  "type=false;",
                  "native declares glTFMilo run options plan");
@@ -6708,6 +6773,21 @@ int run_contract() {
       "SourceMiloEditorRndMeshVertexIoPlansource_milo_editor_rndmesh_"
       "vertex_io_plan(",
       "native ports MiloEditor RndMesh vertex IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshCompressedVertexIoPlansource_milo_editor_rndmesh_"
+      "compressed_vertex_io_plan(",
+      "native ports MiloEditor compressed vertex IO helper");
+  ok &= contains(char_mesh,
+                 "plan.uses_next_gen_compressed_branch=mesh_version>=35&&"
+                 "is_next_gen;",
+                 "native compressed vertex helper mirrors next-gen branch");
+  ok &= contains(char_mesh,
+                 "plan.reads_bone_indices_as_bytes=true;",
+                 "native compressed vertex helper records type 1 byte bones");
+  ok &= contains(char_mesh,
+                 "plan.writes_bone_indices_as_uint16_with_byte_cast=true;",
+                 "native compressed vertex helper records type 2 byte-cast uint16 bones");
   ok &= contains(char_mesh,
                  "constboolgate=plan.group_sizes_count>0&&"
                  "group_sizes_first_positive&&parent_dir_revision<25;",
@@ -7326,6 +7406,18 @@ int run_contract() {
                  "source_milo_editor_rndmesh_vertex_io_plan(",
                  "focused mesh decode test covers MiloEditor vertex IO");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_compressed_vertex_io_plan(",
+                 "focused mesh decode test covers compressed vertex helper");
+  ok &= contains(mesh_decode_test,
+                 "gh2_compressed_vertex_io.gh2_rev28_is_not_next_gen_compressed",
+                 "focused mesh decode test fences GH2 from compressed vertices");
+  ok &= contains(mesh_decode_test,
+                 "xbox_compressed_vertex_io.compression1_xbox_layout",
+                 "focused mesh decode test covers compressed type 1 layout");
+  ok &= contains(mesh_decode_test,
+                 "ps3_compressed_vertex_io.compression2_ps3_layout",
+                 "focused mesh decode test covers compressed type 2 layout");
+  ok &= contains(mesh_decode_test,
                  "rev28_milo_editor_vertex_io.gh2_rev28_row_is_skin_vertex_48",
                  "focused mesh decode test covers GH2 rev28 vertex row");
   ok &= contains(mesh_decode_test,
@@ -7694,6 +7786,12 @@ int run_contract() {
                  "document records MiloEditor RndMesh vertex IO helper");
   ok &= contains(doc, "rev28 row as 12\n    floats / 48 bytes",
                  "document records GH2 rev28 vertex row size");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_compressed_vertex_io_plan`",
+                 "document records MiloEditor compressed vertex IO helper");
+  ok &= contains(doc,
+                 "fence them away from GH2 rev28",
+                 "document fences compressed vertices from GH2 rev28 behavior");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");
