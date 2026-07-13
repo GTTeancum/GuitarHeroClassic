@@ -5236,13 +5236,28 @@ the selected guitar prop supplies authored `spot_neck_fret01.mesh` through
 `spot_neck_fret20.mesh` rows, while live `bone_fret_hand.mesh` must come from
 the character fret/hand output path. The guitar MILOs have repeated authored
 anchor buckets, not one universal common offset, so do not revive a renderer
-static-anchor band-aid or a character/guitar offset from that old work. The
-compatible hair finding from the same pre-integration chat is also bounded:
+static-anchor band-aid or a character/guitar offset from that old work.
+
+The compatible older fret-hand notes are narrower than a finished visual fix:
+`player*_fret_pos add_sink fret.ik` and `player*_fret add_sink left_hand.drv`
+are separate streams, `fret.ik` serializes `bone_fret.mesh`, and
+`bone_fret_hand.mesh` is the child target consumed by the hand IK pass.
+Pre-integration captures that kept `bone_L-hand` exactly at `bone_fret_hand`
+prove the target path was alive, not that the visible thumb/finger mesh was
+correct. If clipping remains after the target row is correct, look at the
+shared `CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes`
+application path and the skinned mesh consumer, not at per-character hand,
+neck, or guitar offsets.
+
+The compatible hair finding from the same pre-integration chat is also bounded:
 CharHair controller rows were live on the problematic Rock/Funk/Rockabill
 samples, while the visual failures pointed at the weighted card/mesh consumer
 equation rather than simple physics-disable, material-alpha, cull, hiding, or
-name-specific fixes. Keep these as evidence targets to reconcile with current
-ihatecompvir source, not as permission to reapply removed native experiments.
+name-specific fixes. Older probes that snapped hair points, disabled local hair
+attachment, forced hair-material meshes through per-mesh bind skinning, or
+applied name-specific offsets remain rejected. Keep these as evidence targets
+to reconcile with current ihatecompvir source, not as permission to reapply
+removed native experiments.
 
 ## Native Rules
 

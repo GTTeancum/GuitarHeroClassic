@@ -31678,9 +31678,28 @@ int run_contract() {
                  "not one universal common offset",
                  "document rejects global guitar offset theory");
   ok &= contains(doc,
+                 "`player*_fret_pos add_sink fret.ik` and "
+                 "`player*_fret add_sink left_hand.drv`\nare separate streams",
+                 "document preserves pre-integration dual fret streams");
+  ok &= contains(doc,
+                 "prove the target path was alive, not that the visible "
+                 "thumb/finger mesh was\ncorrect",
+                 "document fences target-row proof from mesh visual sign-off");
+  ok &= contains(doc,
+                 "look at the\nshared `CharClipSamples` / "
+                 "`CharBonesSamples` / `CharBones` / `PoseMeshes`\n"
+                 "application path and the skinned mesh consumer",
+                 "document directs remaining clipping toward shared pose consumer");
+  ok &= contains(doc,
                  "CharHair controller rows were live on the problematic "
                  "Rock/Funk/Rockabill\nsamples",
                  "document preserves pre-integration hair consumer clue");
+  ok &= contains(doc,
+                 "Older probes that snapped hair points, disabled local hair\n"
+                 "attachment, forced hair-material meshes through per-mesh "
+                 "bind skinning, or\napplied name-specific offsets remain "
+                 "rejected",
+                 "document keeps rejected pre-integration hair probes fenced");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");
