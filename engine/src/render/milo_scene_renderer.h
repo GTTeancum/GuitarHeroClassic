@@ -68,6 +68,12 @@ struct OrbitCamera {
   float authored_up[3] = {0, 0, 1};
   CameraResultFrame result_frame;
   float screen_offset[2] = {0, 0};
+  bool dof_active = false;
+  float dof_focus_distance = 0.0f;
+  float dof_blur_depth = 0.35f;
+  float dof_max_blur = 1.0f;
+  float dof_min_blur = 0.0f;
+  float dof_focus_blur_multiplier = 0.0f;
 
   // Compute the eye position from yaw/pitch/distance about the target.
   void eye(float out[3]) const;

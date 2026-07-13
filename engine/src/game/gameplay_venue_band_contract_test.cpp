@@ -9619,6 +9619,23 @@ int main() {
                  "constfloatinterp_t=camshot_blend_ease_t(t,a->blend_ease,"
                  "a->blend_ease_mode);",
                  "CamShot interpolation uses the outgoing keyframe blend_ease");
+  ok &= contains(renderer_h_c,
+                 "booldof_active=false;floatdof_focus_distance=0.0f;",
+                 "native camera state carries source-gated depth-of-field state");
+  ok &= contains(gameplay_c,
+                 "std::optional<std::array<float,3>>"
+                 "camera_source_dof_point_for_key(",
+                 "CamShot DOF support resolves source focus/target points");
+  ok &= contains(gameplay_c,
+                 "constboolsource_dof_active=source_use_depth_of_field&&"
+                 "(a_source_dof_point||b_source_dof_point);",
+                 "CamShot DOF activates only when the source shot flag and focus/target are present");
+  ok &= contains(gameplay_c,
+                 "cam.dof_active=source_dof_active;",
+                 "runtime camera submits source-gated CamShot DOF state");
+  ok &= contains(gameplay_c,
+                 "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f",
+                 "camera diagnostics distinguish active source DOF from decoded blur fields");
   ok &= contains(gameplay_c,
                  "camera_lerp_result_rows(source_seed_a,source_seed_b,"
                  "interp_t);",

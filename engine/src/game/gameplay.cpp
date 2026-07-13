@@ -17898,6 +17898,22 @@ std::optional<std::array<float, 3>> camera_target_centroid_for_key(
     return sum;
 }
 
+std::optional<std::array<float, 3>> camera_source_dof_point_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    if (!key.focus_target_entity.empty() || !key.focus_target_subpart.empty()) {
+        if (const auto focus = camera_target_for_ref(
+                key.focus_target_entity, key.focus_target_subpart, targets)) {
+            return mat4_position_game(focus->world);
+        }
+    }
+    if (const auto centroid = camera_target_centroid_for_key(key, targets))
+        return centroid;
+    if (const auto target = camera_target_for_key(key, targets))
+        return mat4_position_game(target->world);
+    return std::nullopt;
+}
+
 std::optional<std::array<float, 3>> camera_entity_only_target_alias_centroid(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
@@ -18480,6 +18496,43 @@ void apply_camera_keys(
                 cam.near_z = near_z;
                 cam.far_z = far_z;
             }
+        }
+    }
+    const bool source_use_depth_of_field =
+        b->has_use_depth_of_field
+            ? b->use_depth_of_field
+            : (a->has_use_depth_of_field ? a->use_depth_of_field : false);
+    const auto a_source_dof_point =
+        camera_source_dof_point_for_key(*a, targets);
+    const auto b_source_dof_point =
+        camera_source_dof_point_for_key(*b, targets);
+    const bool source_dof_active =
+        source_use_depth_of_field &&
+        (a_source_dof_point || b_source_dof_point);
+    const auto source_dof_focus_point =
+        b_source_dof_point ? b_source_dof_point : a_source_dof_point;
+    cam.dof_active = source_dof_active;
+    cam.dof_blur_depth = blur_depth;
+    cam.dof_max_blur = max_blur;
+    cam.dof_min_blur = min_blur;
+    cam.dof_focus_blur_multiplier = focus_blur_multiplier;
+    cam.dof_focus_distance = 0.0f;
+    if (source_dof_active && source_dof_focus_point) {
+        const std::array<float, 3> camera_pos =
+            cam.result_frame.valid
+                ? std::array<float, 3>{cam.result_frame.position[0],
+                                       cam.result_frame.position[1],
+                                       cam.result_frame.position[2]}
+                : std::array<float, 3>{cam.authored_eye[0],
+                                       cam.authored_eye[1],
+                                       cam.authored_eye[2]};
+        const float dx = (*source_dof_focus_point)[0] - camera_pos[0];
+        const float dy = (*source_dof_focus_point)[1] - camera_pos[1];
+        const float dz = (*source_dof_focus_point)[2] - camera_pos[2];
+        const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+        if (std::isfinite(dist)) {
+            cam.dof_focus_distance =
+                dist * (1.0f + focus_blur_multiplier);
         }
     }
     if (debug_camera_enabled()) {
@@ -19383,7 +19436,8 @@ void apply_camera_keys(
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f clip=(%.3f %.3f) "
             "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
-            "dof=%d blur=(%.3f %.3f %.3f %.3f) "
+            "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f "
+            "blur=(%.3f %.3f %.3f %.3f) "
             "shake=%d(%.3f %.3f %.3f %.3f) "
             "a_target=(%.2f %.2f %.2f) a_parent=(%.2f %.2f %.2f) "
             "b_target=(%.2f %.2f %.2f) b_parent=(%.2f %.2f %.2f) "
@@ -19398,8 +19452,10 @@ void apply_camera_keys(
             cam.fov, cam.near_z, cam.far_z,
             has_zoom_fov ? "" : "none/", zoom_fov, cam.screen_offset[0],
             cam.screen_offset[1],
-            has_dof_fields ? 1 : 0, blur_depth, max_blur, min_blur,
-            focus_blur_multiplier, has_shake_fields ? 1 : 0,
+            cam.dof_active ? 1 : 0, has_dof_fields ? 1 : 0,
+            source_use_depth_of_field ? 1 : 0, cam.dof_focus_distance,
+            blur_depth, max_blur, min_blur, focus_blur_multiplier,
+            has_shake_fields ? 1 : 0,
             shake_noise_amp, shake_noise_freq, max_angular_offset_x,
             max_angular_offset_y,
             a_target ? (*a_target)[0] : 0.0f,
