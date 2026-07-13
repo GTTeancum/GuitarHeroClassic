@@ -2333,9 +2333,10 @@ the normal mesh-world route.
   - Restored eye rendering by default; current eye mesh transforms match the
     accepted PS2 head-relative rows, but close-shot eyelid/coverage parity is
     still an active validation item.
-  - Blended weighted hair now draws without depth writes to reduce card
-    self-cutting; remaining shape/attachment issues should be traced through
-    shared hair/render paths, not hidden or offset per character.
+  - Blended weighted hair now follows decoded source `RndMat` z/blend state;
+    the only project-level hair render override is two-sided culling. Remaining
+    shape/attachment issues should be traced through shared source-backed
+    hair/render paths, not hidden or offset per character.
 - `alterna1`
   - Fixed `bootstrap_L.mesh` / `bootstrap_R.mesh` as parent-local ankle
     attachments.
@@ -4636,8 +4637,9 @@ Every outfit audit should capture:
   `analysis/ihatecompvir_milo_samples/source_draworder_rows_20260710r.txt`.
   Native now decodes `SkinnedMesh::draw_order` from the Draw base immediately
   after `showing` and the 16-byte sphere, matching ihatecompvir's MiloLib
-  reader, and `char_renderer` sorts only the hair-render group by decoded
-  `RndDrawable.drawOrder` while preserving the existing eye/body/hair grouping.
+  reader, and `char_renderer` sorts the full submitted mesh list by decoded
+  source LOD group rank and `RndDrawable.drawOrder` without a name-based hair
+  sorting path.
   The app capture logs print the submitted hair/material state including
   `drawOrder`; distilled native rows are in
   `analysis/ihatecompvir_milo_samples/native_render_draworder_rows_unique_20260710r.txt`

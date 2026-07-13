@@ -27791,6 +27791,16 @@ int run_contract() {
                  "  two-sided culling only",
                  "format notes fence hair override to culling only");
   ok &= contains(format_notes,
+                 "Blended weighted hair now follows decoded source `RndMat` z/blend state",
+                 "format notes keep Glam1 hair render state source-backed");
+  ok &= contains(format_notes,
+                 "the only project-level hair render override is two-sided culling",
+                 "format notes keep Glam1 hair override culling-only");
+  ok &= contains(format_notes,
+                 "sorts the full submitted mesh list by decoded\n"
+                 "  source LOD group rank and `RndDrawable.drawOrder`",
+                 "format notes keep mesh ordering source-backed");
+  ok &= contains(format_notes,
                  "Historical PS2 hand-IK A/B toggles",
                  "format notes mark old hand-IK toggles as historical only");
   ok &= contains(format_notes,
@@ -27845,11 +27855,17 @@ int run_contract() {
                 "Native now treats hair-material meshes",
                 "format notes must not claim removed hairRender branch is live");
   ok &= missing(format_notes,
-                "must sort/draw with hair render state",
-                "format notes must not promote hairRender sorting from material name");
+                 "must sort/draw with hair render state",
+                 "format notes must not promote hairRender sorting from material name");
   ok &= missing(format_notes,
-                "Glam1 wrist isolate promoted a narrow render-path correction",
-                "format notes must not describe old hairRender trial as promoted");
+                "sorts only the hair-render group",
+                "format notes must not keep a hair-only sort path");
+  ok &= missing(format_notes,
+                "Blended weighted hair now draws without depth writes",
+                "format notes must not promote old Glam1 no-zwrite route");
+  ok &= missing(format_notes,
+                 "Glam1 wrist isolate promoted a narrow render-path correction",
+                 "format notes must not describe old hairRender trial as promoted");
   ok &= missing(format_notes,
                 "Promoted 2026-06-15 Glam1 hair route",
                 "format notes must not describe old no-zwrite hair route as promoted");
