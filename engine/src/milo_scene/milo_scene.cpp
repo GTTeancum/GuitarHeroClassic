@@ -531,6 +531,78 @@ source_rndtransformable_local_write_plan(const std::string& setter) {
   return plan;
 }
 
+SourceRndTransformableConstraintPlan
+source_rndtransformable_set_constraint_plan(
+    int32_t constraint,
+    const std::string& target,
+    bool preserve_scale) {
+  SourceRndTransformableConstraintPlan plan;
+  plan.constraint = constraint;
+  plan.target = target;
+  plan.preserve_scale = preserve_scale;
+  return plan;
+}
+
+SourceRndTransformableCopyPlan source_rndtransformable_copy_plan() {
+  SourceRndTransformableCopyPlan plan;
+  plan.member_steps = {
+      "COPY_MEMBER(mWorldXfm)",
+      "COPY_MEMBER(mLocalXfm)",
+      "if(ty != kCopyFromMax) COPY_MEMBER(mPreserveScale)",
+      "if(ty != kCopyFromMax) COPY_MEMBER(mConstraint)",
+      "if(ty != kCopyFromMax) COPY_MEMBER(mTarget)",
+      "else if(mConstraint == c->mConstraint) COPY_MEMBER(mTarget)",
+      "SetTransParent(c->mParent, false)",
+  };
+  return plan;
+}
+
+SourceRndTransformableHandlerPlan source_rndtransformable_handler_plan() {
+  SourceRndTransformableHandlerPlan plan;
+  plan.handlers = {
+      "copy_local_to:OnCopyLocalTo",
+      "set_constraint:OnSetTransConstraint",
+      "set_local_rot:OnSetLocalRot",
+      "set_local_rot_index:OnSetLocalRotIndex",
+      "set_local_rot_mat:OnSetLocalRotMat",
+      "set_local_pos:OnSetLocalPos",
+      "set_local_pos_index:OnSetLocalPosIndex",
+      "get_local_rot:OnGetLocalRot",
+      "get_local_rot_index:OnGetLocalRotIndex",
+      "get_local_pos:OnGetLocalPos",
+      "get_local_pos_index:OnGetLocalPosIndex",
+      "set_local_scale:OnSetLocalScale",
+      "set_local_scale_index:OnSetLocalScaleIndex",
+      "get_local_scale:OnGetLocalScale",
+      "get_local_scale_index:OnGetLocalScaleIndex",
+      "get_world_forward:OnGetWorldForward",
+      "get_world_pos:OnGetWorldPos",
+      "get_world_rot:OnGetWorldRot",
+      "get_children:OnGetChildren",
+  };
+  plan.actions = {
+      "normalize_local:Normalize(mLocalXfm.m,mLocalXfm.m)",
+      "set_trans_parent:SetTransParent",
+      "reset_xfm:DirtyLocalXfm().Reset()",
+      "distribute_children:DistributeChildren",
+  };
+  plan.exprs = {"trans_parent:mParent"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndTransformablePropSyncPlan
+source_rndtransformable_prop_sync_plan() {
+  SourceRndTransformablePropSyncPlan plan;
+  plan.set_properties = {
+      "trans_parent:SetTransParent(_val.Obj<RndTransformable>(0), true)",
+      "trans_constraint:SetTransConstraint((Constraint)_val.Int(0), mTarget, mPreserveScale)",
+      "trans_target:SetTransConstraint((Constraint)mConstraint, _val.Obj<RndTransformable>(0), mPreserveScale)",
+      "preserve_scale:SetTransConstraint((Constraint)mConstraint, mTarget, _val.Int(0))",
+  };
+  return plan;
+}
+
 SourceRndTransProxyDefaultState source_rndtrans_proxy_default_state() {
   return SourceRndTransProxyDefaultState{};
 }

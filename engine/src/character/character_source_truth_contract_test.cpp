@@ -1585,6 +1585,12 @@ int run_contract() {
                  "`SetTransParent` asserts the new parent is not `this`",
                  "document records RndTransformable parent-change source path");
   ok &= contains(doc,
+                 "`SetTransConstraint` asserts the target is not `this`",
+                 "document records RndTransformable constraint source path");
+  ok &= contains(doc,
+                 "`RndTransformable::Copy` copies world and local transforms first",
+                 "document records RndTransformable copy source path");
+  ok &= contains(doc,
                  "`SetWorldXfm` writes the full world transform",
                  "document records RndTransformable world write source path");
   ok &= contains(doc,
@@ -1593,6 +1599,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Shared native `source_rndtransformable_default_state`,",
                  "document records RndTransformable source helpers");
+  ok &= contains(doc,
+                 "`source_rndtransformable_prop_sync_plan` record those concrete source",
+                 "document records RndTransformable prop-sync helper");
   ok &= contains(doc, "rb3-latest/src/system/char/CharHair.cpp",
                  "document cites latest CharHair runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharClipGroup.cpp",
@@ -3101,6 +3110,23 @@ int run_contract() {
                  "mCache);}SetDirty();",
                  "RB3 RndTransformable parent cache/link update");
   ok &= contains(rb3_trans_cpp,
+                 "voidRndTransformable::SetTransConstraint(Constraintcst,"
+                 "RndTransformable*t,boolb){MILO_ASSERT(t!=this,0x1C1);"
+                 "mConstraint=cst;mPreserveScale=b;mTarget=t;SetDirty();}",
+                 "RB3 RndTransformable SetTransConstraint source body");
+  ok &= contains(rb3_trans_cpp,
+                 "BEGIN_COPYS(RndTransformable)if(ClassName()=="
+                 "StaticClassName())COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(RndTransformable)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mWorldXfm)COPY_MEMBER(mLocalXfm)",
+                 "RB3 RndTransformable copy member prefix");
+  ok &= contains(rb3_trans_cpp,
+                 "if(ty!=kCopyFromMax){COPY_MEMBER(mPreserveScale)"
+                 "COPY_MEMBER(mConstraint)COPY_MEMBER(mTarget)}elseif("
+                 "mConstraint==c->mConstraint){COPY_MEMBER(mTarget)}"
+                 "SetTransParent(c->mParent,false);",
+                 "RB3 RndTransformable copy constraint branch");
+  ok &= contains(rb3_trans_cpp,
                  "voidDirtyCache::SetDirty_Force(){SetLastBit(1);if(!"
                  "mChildren.empty()){for(std::vector<DirtyCache*>::iteratorit="
                  "mChildren.begin();it!=mChildren.end();it++){(*it)->"
@@ -3126,6 +3152,35 @@ int run_contract() {
   ok &= contains(rb3_trans_cpp,
                  "if(mConstraint==kTargetWorld){mWorldXfm=mTarget->WorldXfm();}",
                  "RB3 RndTransformable target-world dynamic constraint");
+  ok &= contains(rb3_trans_cpp,
+                 "BEGIN_HANDLERS(RndTransformable)HANDLE(copy_local_to,"
+                 "OnCopyLocalTo)HANDLE(set_constraint,OnSetTransConstraint)",
+                 "RB3 RndTransformable handler prefix");
+  ok &= contains(rb3_trans_cpp,
+                 "HANDLE_ACTION(set_trans_parent,SetTransParent(_msg->Obj<"
+                 "RndTransformable>(2),_msg->Size()>3?_msg->Int(3)!=0:false))"
+                 "HANDLE_EXPR(trans_parent,mParent)",
+                 "RB3 RndTransformable parent handler rows");
+  ok &= contains(rb3_trans_cpp,
+                 "HANDLE_ACTION(reset_xfm,DirtyLocalXfm().Reset())"
+                 "HANDLE_ACTION(distribute_children,DistributeChildren("
+                 "_msg->Int(2)!=0,_msg->Float(3)))HANDLE(get_children,"
+                 "OnGetChildren)",
+                 "RB3 RndTransformable reset/distribute handler rows");
+  ok &= contains(rb3_trans_cpp,
+                 "BEGIN_PROPSYNCS(RndTransformable)SYNC_PROP_SET("
+                 "trans_parent,mParent,SetTransParent(_val.Obj<"
+                 "RndTransformable>(0),true))SYNC_PROP_SET("
+                 "trans_constraint,mConstraint,SetTransConstraint("
+                 "(Constraint)_val.Int(0),mTarget,mPreserveScale))",
+                 "RB3 RndTransformable prop-sync prefix");
+  ok &= contains(rb3_trans_cpp,
+                 "SYNC_PROP_SET(trans_target,(Hmx::Object*)mTarget,"
+                 "SetTransConstraint((Constraint)mConstraint,_val.Obj<"
+                 "RndTransformable>(0),mPreserveScale))SYNC_PROP_SET("
+                 "preserve_scale,mPreserveScale,SetTransConstraint("
+                 "(Constraint)mConstraint,mTarget,_val.Int(0)))",
+                 "RB3 RndTransformable prop-sync constraint rows");
   ok &= contains(scene_h,
                  "structSourceRndTransformableDefaultState{"
                  "boolparent_null=true;",
@@ -3136,6 +3191,24 @@ int run_contract() {
   ok &= contains(scene_h,
                  "structSourceRndTransformableWorldWritePlan{std::stringsetter;",
                  "shared milo_scene exposes RndTransformable world write plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableConstraintPlan{int32_tconstraint=0;"
+                 "std::stringtarget;boolpreserve_scale=false;",
+                 "shared milo_scene exposes RndTransformable constraint plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableCopyPlan{"
+                 "boolobject_superclass_only_for_static_class=true;"
+                 "boolcreates_copy=true;std::vector<std::string>member_steps;};",
+                 "shared milo_scene exposes RndTransformable copy plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableHandlerPlan{"
+                 "std::vector<std::string>handlers;"
+                 "std::vector<std::string>actions;",
+                 "shared milo_scene exposes RndTransformable handler plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformablePropSyncPlan{"
+                 "std::vector<std::string>set_properties;};",
+                 "shared milo_scene exposes RndTransformable prop-sync plan");
   ok &= contains(scene,
                  "SourceRndTransformableDefaultStatesource_rndtransformable_"
                  "default_state(){returnSourceRndTransformableDefaultState{};}",
@@ -3168,6 +3241,44 @@ int run_contract() {
                  "elseif(setter==\"DirtyLocalXfm\"){plan.calls_set_dirty=true;"
                  "plan.returns_dirty_local_ref=true;}",
                  "shared RndTransformable local helper mirrors DirtyLocalXfm");
+  ok &= contains(scene,
+                 "SourceRndTransformableConstraintPlansource_rndtransformable_"
+                 "set_constraint_plan(int32_tconstraint,conststd::string&target,"
+                 "boolpreserve_scale){SourceRndTransformableConstraintPlanplan;"
+                 "plan.constraint=constraint;plan.target=target;"
+                 "plan.preserve_scale=preserve_scale;returnplan;}",
+                 "shared RndTransformable constraint helper mirrors setter rows");
+  ok &= contains(scene,
+                 "plan.member_steps={\"COPY_MEMBER(mWorldXfm)\","
+                 "\"COPY_MEMBER(mLocalXfm)\",",
+                 "shared RndTransformable copy helper records source prefix");
+  ok &= contains(scene,
+                 "\"if(ty!=kCopyFromMax)COPY_MEMBER(mPreserveScale)\",",
+                 "shared RndTransformable copy helper records preserve row");
+  ok &= contains(scene,
+                 "\"elseif(mConstraint==c->mConstraint)COPY_MEMBER(mTarget)\",",
+                 "shared RndTransformable copy helper records target branch");
+  ok &= contains(scene,
+                 "\"SetTransParent(c->mParent,false)\",};",
+                 "shared RndTransformable copy helper records target branch");
+  ok &= contains(scene,
+                 "plan.handlers={\"copy_local_to:OnCopyLocalTo\","
+                 "\"set_constraint:OnSetTransConstraint\"",
+                 "shared RndTransformable handler helper records source prefix");
+  ok &= contains(scene,
+                 "plan.actions={\"normalize_local:Normalize(mLocalXfm.m,"
+                 "mLocalXfm.m)\",\"set_trans_parent:SetTransParent\","
+                 "\"reset_xfm:DirtyLocalXfm().Reset()\","
+                 "\"distribute_children:DistributeChildren\",};",
+                 "shared RndTransformable handler helper records source actions");
+  ok &= contains(scene,
+                 "plan.set_properties={\"trans_parent:SetTransParent("
+                 "_val.Obj<RndTransformable>(0),true)\",",
+                 "shared RndTransformable prop-sync helper records parent row");
+  ok &= contains(scene,
+                 "\"preserve_scale:SetTransConstraint((Constraint)mConstraint,"
+                 "mTarget,_val.Int(0))\",};",
+                 "shared RndTransformable prop-sync helper records preserve row");
   ok &= contains(scene_test,
                  "source_rndtransformable_default_state()",
                  "milo_scene test covers RndTransformable defaults");
@@ -3177,6 +3288,19 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndtransformable_world_write_plan(\"SetWorldPos\",true)",
                  "milo_scene test covers RndTransformable SetWorldPos distinction");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_set_constraint_plan(9,"
+                 "\"bone_head.mesh\",true)",
+                 "milo_scene test covers RndTransformable SetTransConstraint plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_copy_plan()",
+                 "milo_scene test covers RndTransformable copy plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_handler_plan()",
+                 "milo_scene test covers RndTransformable handler plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_prop_sync_plan()",
+                 "milo_scene test covers RndTransformable prop-sync plan");
   ok &= contains(char_mesh,
                  "if(xfm.constraint==2){//kParentWorldreturnparent_world;}",
                  "native transform evaluator mirrors kParentWorld");

@@ -126,6 +126,56 @@ void test_trans() {
   CHECK(dirty_local.calls_set_dirty);
   CHECK(dirty_local.returns_dirty_local_ref);
 
+  const SourceRndTransformableConstraintPlan constraint =
+      source_rndtransformable_set_constraint_plan(9, "bone_head.mesh", true);
+  CHECK(constraint.asserts_target_not_self);
+  CHECK(constraint.constraint == 9);
+  CHECK(constraint.target == "bone_head.mesh");
+  CHECK(constraint.preserve_scale);
+  CHECK(constraint.writes_constraint);
+  CHECK(constraint.writes_preserve_scale);
+  CHECK(constraint.writes_target);
+  CHECK(constraint.calls_set_dirty);
+
+  const SourceRndTransformableCopyPlan copy =
+      source_rndtransformable_copy_plan();
+  CHECK(copy.object_superclass_only_for_static_class);
+  CHECK(copy.creates_copy);
+  CHECK(copy.member_steps.size() == 7);
+  CHECK(copy.member_steps[0] == "COPY_MEMBER(mWorldXfm)");
+  CHECK(copy.member_steps[4] ==
+        "if(ty != kCopyFromMax) COPY_MEMBER(mTarget)");
+  CHECK(copy.member_steps[5] ==
+        "else if(mConstraint == c->mConstraint) COPY_MEMBER(mTarget)");
+  CHECK(copy.member_steps[6] == "SetTransParent(c->mParent, false)");
+
+  const SourceRndTransformableHandlerPlan handlers =
+      source_rndtransformable_handler_plan();
+  CHECK(handlers.handlers.size() == 19);
+  CHECK(handlers.handlers[0] == "copy_local_to:OnCopyLocalTo");
+  CHECK(handlers.handlers[1] == "set_constraint:OnSetTransConstraint");
+  CHECK(handlers.handlers[18] == "get_children:OnGetChildren");
+  CHECK(handlers.actions.size() == 4);
+  CHECK(handlers.actions[1] == "set_trans_parent:SetTransParent");
+  CHECK(handlers.exprs.size() == 1);
+  CHECK(handlers.exprs[0] == "trans_parent:mParent");
+  CHECK(handlers.superclasses.size() == 1);
+  CHECK(handlers.superclasses[0] == "Hmx::Object");
+  CHECK(handlers.object_superclass_only_for_static_class);
+  CHECK(handlers.check == 0x357);
+
+  const SourceRndTransformablePropSyncPlan prop_sync =
+      source_rndtransformable_prop_sync_plan();
+  CHECK(prop_sync.set_properties.size() == 4);
+  CHECK(prop_sync.set_properties[0] ==
+        "trans_parent:SetTransParent(_val.Obj<RndTransformable>(0), true)");
+  CHECK(prop_sync.set_properties[1] ==
+        "trans_constraint:SetTransConstraint((Constraint)_val.Int(0), mTarget, mPreserveScale)");
+  CHECK(prop_sync.set_properties[2] ==
+        "trans_target:SetTransConstraint((Constraint)mConstraint, _val.Obj<RndTransformable>(0), mPreserveScale)");
+  CHECK(prop_sync.set_properties[3] ==
+        "preserve_scale:SetTransConstraint((Constraint)mConstraint, mTarget, _val.Int(0))");
+
   const SourceRndTransLoadPlan rev9_standalone =
       source_rndtrans_load_plan(9, 24, true);
   CHECK(rev9_standalone.standalone);

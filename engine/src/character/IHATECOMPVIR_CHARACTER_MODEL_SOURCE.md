@@ -1566,6 +1566,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     calls `TransformTransAnims`; then it removes the old parent links, assigns
     the new parent, updates the cache parent flags, adds new parent links, and
     marks dirty.
+  - `SetTransConstraint` asserts the target is not `this`, assigns
+    `mConstraint`, `mPreserveScale`, and `mTarget`, then marks the transform
+    dirty. Native `source_rndtransformable_set_constraint_plan` records that
+    setter contract directly.
+  - `RndTransformable::Copy` copies world and local transforms first. For
+    non-`kCopyFromMax` copies it also copies preserve-scale, constraint, and
+    target; for `kCopyFromMax` it only copies target when the constraints match,
+    then calls `SetTransParent(c->mParent, false)`. Native
+    `source_rndtransformable_copy_plan` records that source member order.
   - `SetWorldXfm` writes the full world transform, clears the dirty bit, calls
     `UpdatedWorldXfm`, and dirties children. `SetWorldPos` writes only the world
     translation, calls `UpdatedWorldXfm`, and dirties children, but the checked
@@ -1582,11 +1591,24 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     a target row is present. Other dynamic constraints log
     `[source-xfm-unsupported]` with `runtimeWriteback=0` and keep the decoded
     base transform until the matching source runtime path is ported.
+  - The checked handler and prop-sync tables expose transform mutation through
+    named source methods only: `set_constraint` calls `OnSetTransConstraint`,
+    `set_trans_parent` calls `SetTransParent`, `reset_xfm` uses
+    `DirtyLocalXfm().Reset()`, and prop-sync rows for `trans_parent`,
+    `trans_constraint`, `trans_target`, and `preserve_scale` route through
+    `SetTransParent` or `SetTransConstraint`. Native
+    `source_rndtransformable_handler_plan` and
+    `source_rndtransformable_prop_sync_plan` record those rows without adding
+    name-based transform repairs.
   - Shared native `source_rndtransformable_default_state`,
     `source_rndtransformable_set_dirty_plan`,
     `source_rndtransformable_set_parent_plan`,
-    `source_rndtransformable_world_write_plan`, and
-    `source_rndtransformable_local_write_plan` record those concrete source
+    `source_rndtransformable_world_write_plan`,
+    `source_rndtransformable_local_write_plan`,
+    `source_rndtransformable_set_constraint_plan`,
+    `source_rndtransformable_copy_plan`,
+    `source_rndtransformable_handler_plan`, and
+    `source_rndtransformable_prop_sync_plan` record those concrete source
     behaviors as deterministic contracts for character/bone transform work.
 
 ## Rnd Texture Row Authority

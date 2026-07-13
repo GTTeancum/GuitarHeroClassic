@@ -171,6 +171,36 @@ struct SourceRndTransformableLocalWritePlan {
   bool returns_dirty_local_ref = false;
 };
 
+struct SourceRndTransformableConstraintPlan {
+  int32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  bool asserts_target_not_self = true;
+  bool writes_constraint = true;
+  bool writes_preserve_scale = true;
+  bool writes_target = true;
+  bool calls_set_dirty = true;
+};
+
+struct SourceRndTransformableCopyPlan {
+  bool object_superclass_only_for_static_class = true;
+  bool creates_copy = true;
+  std::vector<std::string> member_steps;
+};
+
+struct SourceRndTransformableHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> actions;
+  std::vector<std::string> exprs;
+  std::vector<std::string> superclasses;
+  bool object_superclass_only_for_static_class = true;
+  int32_t check = 0x357;
+};
+
+struct SourceRndTransformablePropSyncPlan {
+  std::vector<std::string> set_properties;
+};
+
 SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t revision,
     int32_t parent_revision,
@@ -189,6 +219,14 @@ SourceRndTransformableWorldWritePlan source_rndtransformable_world_write_plan(
     bool has_children);
 SourceRndTransformableLocalWritePlan source_rndtransformable_local_write_plan(
     const std::string& setter);
+SourceRndTransformableConstraintPlan
+source_rndtransformable_set_constraint_plan(
+    int32_t constraint,
+    const std::string& target,
+    bool preserve_scale);
+SourceRndTransformableCopyPlan source_rndtransformable_copy_plan();
+SourceRndTransformableHandlerPlan source_rndtransformable_handler_plan();
+SourceRndTransformablePropSyncPlan source_rndtransformable_prop_sync_plan();
 
 struct SourceRndTransProxyDefaultState {
   bool proxy_null = true;
