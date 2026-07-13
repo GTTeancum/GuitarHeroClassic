@@ -3301,6 +3301,11 @@ struct SourceCharBoneOffsetSavePlan {
   int32_t save_id = 0x5E;
 };
 
+struct SourceCharBoneOffsetPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 struct SourceCharBoneTwistSavePlan {
   int32_t save_id = 0x59;
 };
@@ -3316,6 +3321,10 @@ struct SourceCharUpperTwistSavePlan {
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.
 SourceCharBoneOffsetSavePlan source_char_bone_offset_save_plan();
+void source_char_bone_offset_poll_deps(
+    SourceCharBoneOffsetPollDeps& deps,
+    const std::string& dest,
+    const std::string& dest_parent);
 bool source_char_bone_offset_poll_world(
     const CharBoneOffset& offset,
     bool has_dest,

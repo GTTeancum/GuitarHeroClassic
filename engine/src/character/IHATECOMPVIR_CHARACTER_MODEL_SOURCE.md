@@ -2752,11 +2752,16 @@ note, and all report `unreadBytes=0`.
     through `SetWorldXfm`.
   - `CharBoneOffset::ApplyToLocal` adds the same offset directly to the
     destination local translation row.
+  - `CharBoneOffset::PollDeps` publishes the destination transform to the
+    `change` list, then publishes the destination parent to `changedBy` only
+    when the destination and parent both resolve.
   - Native GHOGX now decodes and audits `CharBoneOffset` rows, and
     `source_char_bone_offset_poll_world` /
     `source_char_bone_offset_apply_to_local` port those source math paths as
-    deterministic helpers. It does not add a live frame-cadence write until
-    stock data or source poll ordering proves where that controller should run.
+    deterministic helpers. `source_char_bone_offset_poll_deps` mirrors the
+    source dependency publication without adding a live frame-cadence write
+    until stock data or source poll ordering proves where that controller
+    should run.
 
 ## Bone Twist Authorities
 

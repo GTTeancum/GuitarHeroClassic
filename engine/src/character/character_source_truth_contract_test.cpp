@@ -16792,6 +16792,12 @@ int run_contract() {
   ok &= contains(rb3_latest_char_bone_offset_cpp,
                  "if(mDest)mDest->DirtyLocalXfm().v+=mOffset;",
                  "CharBoneOffset source ApplyToLocal offsets local row");
+  ok &= contains(rb3_latest_char_bone_offset_cpp,
+                 "voidCharBoneOffset::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){change.push_back("
+                 "mDest);if(mDest&&mDest->mParent)changedBy.push_back("
+                 "mDest->mParent);}",
+                 "CharBoneOffset source PollDeps dependency publication");
   ok &= contains(char_mesh_h,
                  "structCharBoneOffset{std::stringname;int32_tversion=0;"
                  "std::stringdest;floatoffset[3]={0.0f,0.0f,0.0f};",
@@ -16825,6 +16831,15 @@ int run_contract() {
                  "constCharBoneOffset&offset,boolhas_dest,boolhas_parent,",
                  "native header exposes CharBoneOffset Poll helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharBoneOffsetPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native header exposes CharBoneOffset PollDeps state");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bone_offset_poll_deps("
+                 "SourceCharBoneOffsetPollDeps&deps,conststd::string&dest,"
+                 "conststd::string&dest_parent);",
+                 "native header exposes CharBoneOffset PollDeps helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_bone_offset_apply_to_local("
                  "constCharBoneOffset&offset,milo_scene::Xfm&dest_local);",
                  "native header exposes CharBoneOffset ApplyToLocal helper");
@@ -16839,8 +16854,16 @@ int run_contract() {
                  "dest_world=mat4_mul(source_xfm_to_mat4(local),parent_world);",
                  "native CharBoneOffset helper multiplies adjusted local by parent world");
   ok &= contains(char_clip,
+                 "deps.change.push_back(dest);if(!dest.empty()&&!"
+                 "dest_parent.empty()){deps.changed_by.push_back(dest_parent);}",
+                 "native CharBoneOffset helper mirrors PollDeps publication");
+  ok &= contains(char_clip,
                  "\"[chargraph]boneOffset%sversion=%ddest=%s\"",
                  "character graph logs CharBoneOffset rows");
+  ok &= contains(bone_offset_source_test,
+                 "source_char_bone_offset_poll_deps(deps,offset.dest,"
+                 "\"bone_parent.trans\");",
+                 "focused CharBoneOffset source test covers PollDeps helper");
   ok &= contains(bone_offset_source_test,
                  "source_char_bone_offset_poll_world(",
                  "focused CharBoneOffset source test covers Poll helper");
@@ -16856,6 +16879,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_bone_offset_poll_world`",
                  "document records native CharBoneOffset helper port");
+  ok &= contains(doc,
+                 "`CharBoneOffset::PollDeps` publishes the destination",
+                 "document records CharBoneOffset PollDeps source behavior");
   ok &= contains(rb3_latest_char_bone_twist_h,
                  "ObjPtr<RndTransformable,ObjectDir>mBone;",
                  "latest CharBoneTwist header exposes driven bone pointer");

@@ -28,6 +28,19 @@ bool expect_bool(bool got, bool want, const char* label) {
   return false;
 }
 
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 bool expect_world_pos(const std::array<float, 16>& world,
                       float x, float y, float z,
                       const char* label) {
@@ -42,7 +55,9 @@ bool expect_world_pos(const std::array<float, 16>& world,
 
 int main() {
   using ghogx::character::CharBoneOffset;
+  using ghogx::character::SourceCharBoneOffsetPollDeps;
   using ghogx::character::source_char_bone_offset_apply_to_local;
+  using ghogx::character::source_char_bone_offset_poll_deps;
   using ghogx::character::source_char_bone_offset_poll_world;
   using ghogx::character::source_char_bone_offset_save_plan;
 
@@ -70,6 +85,24 @@ int main() {
   bool ok = true;
   ok &= expect_bool(source_char_bone_offset_save_plan().save_id == 0x5E,
                     true, "CharBoneOffset save id");
+  SourceCharBoneOffsetPollDeps deps;
+  source_char_bone_offset_poll_deps(deps, "", "bone_parent.trans");
+  ok &= expect_size(deps.change.size(), 1,
+                    "PollDeps always publishes destination change row");
+  ok &= expect_string(deps.change[0], "",
+                      "PollDeps preserves missing destination row");
+  ok &= expect_size(deps.changed_by.size(), 0,
+                    "PollDeps skips parent without destination");
+  deps = SourceCharBoneOffsetPollDeps{};
+  source_char_bone_offset_poll_deps(deps, offset.dest, "bone_parent.trans");
+  ok &= expect_size(deps.change.size(), 1,
+                    "PollDeps resolved change count");
+  ok &= expect_string(deps.change[0], offset.dest,
+                      "PollDeps resolved destination row");
+  ok &= expect_size(deps.changed_by.size(), 1,
+                    "PollDeps resolved changed-by count");
+  ok &= expect_string(deps.changed_by[0], "bone_parent.trans",
+                      "PollDeps resolved parent dependency");
   ok &= expect_bool(source_char_bone_offset_poll_world(
                         offset, false, true, local, parent_world, world),
                     false, "Poll returns false without destination");

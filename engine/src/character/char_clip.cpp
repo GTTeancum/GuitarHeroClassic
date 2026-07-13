@@ -5862,6 +5862,16 @@ SourceCharBoneOffsetSavePlan source_char_bone_offset_save_plan() {
   return SourceCharBoneOffsetSavePlan{};
 }
 
+void source_char_bone_offset_poll_deps(
+    SourceCharBoneOffsetPollDeps& deps,
+    const std::string& dest,
+    const std::string& dest_parent) {
+  deps.change.push_back(dest);
+  if (!dest.empty() && !dest_parent.empty()) {
+    deps.changed_by.push_back(dest_parent);
+  }
+}
+
 bool source_char_bone_offset_poll_world(
     const CharBoneOffset& offset,
     bool has_dest,
