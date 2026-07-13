@@ -39,6 +39,8 @@ namespace ghogx::game {
 
 namespace {
 
+constexpr float kMaxAuthoredGameLightColor = 64.0f;
+
 double tempo_bpm_at_tick(const ghogx::chart::Chart& chart, uint32_t tick) {
     uint32_t us_per_beat = 500000;
     for (const auto& tempo : chart.tempo_map) {
@@ -4033,7 +4035,9 @@ bool read_light_color_keys(
         bool ok = true;
         for (int c = 0; c < 4; ++c) {
             ok = ok && read_f32_advance(body, size, pos, key.color[c]);
-            key.color[c] = std::clamp(key.color[c], 0.0f, c == 3 ? 1.0f : 4.0f);
+            key.color[c] =
+                std::clamp(key.color[c], 0.0f,
+                           c == 3 ? 1.0f : kMaxAuthoredGameLightColor);
         }
         ok = ok && read_f32_advance(body, size, pos, key.frame);
         if (!ok || key.frame < 0.0f || key.frame > 100000.0f)
@@ -4520,7 +4524,9 @@ Gameplay::VenueLightAnim::ColorKey read_rnd_lightanim_color_key_like_miloeditor(
     MiloCursor& r) {
     Gameplay::VenueLightAnim::ColorKey key;
     for (int c = 0; c < 4; ++c) {
-        key.color[c] = std::clamp(r.f32(), 0.0f, c == 3 ? 1.0f : 4.0f);
+        key.color[c] =
+            std::clamp(r.f32(), 0.0f,
+                       c == 3 ? 1.0f : kMaxAuthoredGameLightColor);
     }
     key.frame = r.f32();
     if (key.frame < 0.0f || key.frame > 100000.0f)
@@ -6711,17 +6717,19 @@ float clamp_preset_unit_color(float value) {
 
 float clamp_preset_light_color(float value, int component) {
     if (!std::isfinite(value)) return component == 3 ? 1.0f : 0.0f;
-    return std::clamp(value, 0.0f, component == 3 ? 1.0f : 4.0f);
+    return std::clamp(value, 0.0f,
+                      component == 3 ? 1.0f : kMaxAuthoredGameLightColor);
 }
 
 DecodedLightPresetSpotEntry read_light_preset_spot_entry_like_ihatecompvir(
     MiloCursor& r, uint16_t revision) {
     DecodedLightPresetSpotEntry out;
-    out.intensity = std::clamp(r.f32(), 0.0f, 4.0f);
+    out.intensity = std::clamp(r.f32(), 0.0f, kMaxAuthoredGameLightColor);
     for (int i = 0; i < 4; ++i) (void)r.f32();  // direction quaternion
     for (int i = 0; i < 4; ++i) {
         const float c = r.f32();
-        if (i < 3) out.color[i] = std::clamp(c, 0.0f, 4.0f);
+        if (i < 3)
+            out.color[i] = std::clamp(c, 0.0f, kMaxAuthoredGameLightColor);
     }
     out.target = canonical_milo_ref(r.symbol());
     if (revision < 0x13) {
@@ -7342,7 +7350,7 @@ void log_lighting_light_object_coverage(
         environs_by_name[env.name] = &env;
         std::fprintf(
             stderr,
-            "[world] lighting Environ object decoded: %s source_order=%d rev=%u lights=%zu fog=%d animate_preset=%d fade_out=%d fade=(%.3f %.3f) color_a=(%.3f %.3f %.3f %.3f) fog=(%.3f %.3f %.3f %.3f %.3f %.3f) ranges=(%.3f %.3f %.3f) color_b=(%.3f %.3f %.3f %.3f)\n",
+            "[world] lighting Environ object decoded: %s source_order=%d rev=%u lights=%zu fog=%d animate_preset=%d fade_out=%d fade=(%.3f %.3f) color_a=(%.3f %.3f %.3f %.3f) fog=(%.3f %.3f %.3f %.3f %.3f %.3f) ranges=(%.3f %.3f %.3f) color_b=(%.3f %.3f %.3f %.3f) refs=",
             env.name.c_str(), env.source_order_decoded ? 1 : 0,
             env.revision, env.lights.size(), env.fog_enabled ? 1 : 0,
             env.animate_from_preset ? 1 : 0, env.fade_out ? 1 : 0,
@@ -7352,6 +7360,15 @@ void log_lighting_light_object_coverage(
             env.fog_color[3], env.range_a, env.range_b, env.range,
             env.color_b[0], env.color_b[1], env.color_b[2],
             env.color_b[3]);
+        if (env.lights.empty()) {
+            std::fprintf(stderr, "-");
+        } else {
+            for (size_t i = 0; i < env.lights.size(); ++i) {
+                std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                             env.lights[i].c_str());
+            }
+        }
+        std::fprintf(stderr, "\n");
     }
 
     std::map<std::string, bool> lit_refs;
@@ -12100,7 +12117,7 @@ std::array<float, 4> blend_light_color(const std::array<float, 4>& current,
     const float b = normalized_source_blend(blend);
     std::array<float, 4> out{};
     for (int i = 0; i < 4; ++i) {
-        const float hi = i == 3 ? 1.0f : 4.0f;
+        const float hi = i == 3 ? 1.0f : kMaxAuthoredGameLightColor;
         out[i] = std::clamp(current[i] + (sampled[i] - current[i]) * b, 0.0f,
                             hi);
     }
@@ -12509,7 +12526,7 @@ std::array<float, 4> sample_light_color_key(
     const auto* b = &keys[sample.b];
     std::array<float, 4> out{};
     for (int i = 0; i < 4; ++i) {
-        const float hi = i == 3 ? 1.0f : 4.0f;
+        const float hi = i == 3 ? 1.0f : kMaxAuthoredGameLightColor;
         out[i] = std::clamp(a->color[i] + (b->color[i] - a->color[i]) * sample.t,
                             0.0f, hi);
     }

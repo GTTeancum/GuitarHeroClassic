@@ -50,6 +50,7 @@ constexpr DWORD kAuthoredLightFirstSlot =
 constexpr DWORD kAuthoredLightSlotCount = 4;
 constexpr float kMaxAuthoredLightColor = 64.0f;
 constexpr float kApproxDirectionalScale = 1.0f;
+constexpr float kApproxFillScale = 0.45f;
 
 std::array<float, 4> average_particle_color(
     const std::array<float, 4>& low,
@@ -2442,7 +2443,6 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
       ++approx_lights;
     }
     if (has_env_color && approx_lights > 0) {
-      constexpr float kApproxFillScale = 0.45f;
       const float inv_count = 1.0f / static_cast<float>(approx_lights);
       for (int c = 0; c < 3; ++c) {
         env_color[c] = std::clamp(
@@ -2528,9 +2528,24 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
       std::fprintf(stderr,
                    "[milo_scene] Environ lighting state applied: %s "
                    "real_lights=%zu approx_lights=%zu "
-                   "approx_directional=%zu refs=%zu\n",
+                   "approx_directional=%zu refs=%zu ambient=(%.3f %.3f %.3f %.3f)",
                    environment_name.c_str(), enabled_lights, approx_lights,
-                   approx_directional_lights.size(), env->lights.size());
+                   approx_directional_lights.size(), env->lights.size(),
+                   env_color[0], env_color[1], env_color[2], env_color[3]);
+      if (approx_directional_lights.empty()) {
+        std::fprintf(stderr, " approx=-");
+      } else {
+        std::fprintf(stderr, " approx=");
+        for (size_t i = 0; i < approx_directional_lights.size(); ++i) {
+          const auto& a = approx_directional_lights[i];
+          std::fprintf(stderr,
+                       "%s%s:type1 color=(%.3f %.3f %.3f %.3f) dir=(%.3f %.3f %.3f)",
+                       i == 0 ? "" : ";", a.ref.c_str(), a.color[0],
+                       a.color[1], a.color[2], a.color[3], a.direction[0],
+                       a.direction[1], a.direction[2]);
+        }
+      }
+      std::fprintf(stderr, "\n");
     }
   }
   return true;
@@ -3382,7 +3397,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         ++approx_lights;
       }
       if (has_mesh_env_color && approx_lights > 0) {
-        constexpr float kApproxFillScale = 0.45f;
         const float inv_count = 1.0f / static_cast<float>(approx_lights);
         for (int c = 0; c < 3; ++c) {
           mesh_env_color[c] = std::clamp(

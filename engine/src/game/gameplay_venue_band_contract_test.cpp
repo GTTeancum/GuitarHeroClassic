@@ -4914,6 +4914,15 @@ int main() {
                  "keys,floatframe){if(keys.empty())return{1.0f,1.0f,1.0f,1.0f};"
                  "constVecKeySamplesample=source_key_sample(keys,frame);",
                  "venue LightAnim color sampler follows source-shaped key lookup");
+  ok &= contains(gameplay_c,
+                 "constexprfloatkMaxAuthoredGameLightColor=64.0f;",
+                 "gameplay preserves overbright authored light colors");
+  ok &= contains(gameplay_c,
+                 "c==3?1.0f:kMaxAuthoredGameLightColor",
+                 "LightAnim readers keep source overbright RGB while clamping alpha");
+  ok &= contains(gameplay_c,
+                 "constfloathi=i==3?1.0f:kMaxAuthoredGameLightColor;",
+                 "LightAnim samples interpolate overbright source RGB");
   ok &= contains(renderer_h_c,
                  "set_light_color_overrides",
                  "renderer accepts LightAnim light color overrides");
@@ -6222,6 +6231,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "read_light_preset_env_light_entry_like_ihatecompvir(",
                  "LightPreset source reader decodes EnvLightEntry payloads instead of skipping them");
+  ok &= contains(gameplay_c,
+                 "out.intensity=std::clamp(r.f32(),0.0f,"
+                 "kMaxAuthoredGameLightColor);",
+                 "LightPreset spotlight intensity preserves source overbright values");
+  ok &= contains(gameplay_c,
+                 "out.color[i]=std::clamp(c,0.0f,"
+                 "kMaxAuthoredGameLightColor);",
+                 "LightPreset spotlight colors preserve source overbright values");
+  ok &= contains(gameplay_c,
+                 "component==3?1.0f:kMaxAuthoredGameLightColor",
+                 "LightPreset EnvLightEntry colors preserve source overbright RGB");
   ok &= contains(gameplay_c,
                  "out.type=r.i32();if(out.type<0||out.type>4)"
                  "out.type=0;",

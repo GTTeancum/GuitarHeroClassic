@@ -2086,12 +2086,22 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         if (env.decoded) {
           std::fprintf(
               stderr,
-              "[milo_scene]   Environ object decoded: %s:%s source_order=%d rev=%u lights=%zu fog=%d animate_preset=%d fade_out=%d fade=(%.3f %.3f)\n",
+              "[milo_scene]   Environ object decoded: %s:%s source_order=%d rev=%u lights=%zu fog=%d animate_preset=%d fade_out=%d fade=(%.3f %.3f) color_a=(%.3f %.3f %.3f %.3f) refs=",
               milo_path.c_str(), env.name.c_str(),
               env.source_order_decoded ? 1 : 0, env.revision,
               env.lights.size(), env.fog_enabled ? 1 : 0,
               env.animate_from_preset ? 1 : 0, env.fade_out ? 1 : 0,
-              env.fade_start, env.fade_end);
+              env.fade_start, env.fade_end, env.color_a[0], env.color_a[1],
+              env.color_a[2], env.color_a[3]);
+          if (env.lights.empty()) {
+            std::fprintf(stderr, "-");
+          } else {
+            for (size_t i = 0; i < env.lights.size(); ++i) {
+              std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                           env.lights[i].c_str());
+            }
+          }
+          std::fprintf(stderr, "\n");
         } else {
           std::fprintf(stderr,
                        "[milo_scene]   Environ object decode failed: %s:%s %s\n",
