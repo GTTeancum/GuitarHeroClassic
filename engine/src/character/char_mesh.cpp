@@ -5889,6 +5889,20 @@ std::vector<std::string> source_char_cuff_add_bone_children(
   return bones;
 }
 
+SourceCharCuffDeformRuntimeMap source_char_cuff_deform_runtime_map() {
+  SourceCharCuffDeformRuntimeMap map;
+  map.runtime_functions = {"BoneMask(list,RndMesh*)",
+                           "CharCuff::DeformAll(SyncMeshCB*)",
+                           "CharCuff::Deform(SyncMeshCB*)",
+                           "CharCuff::DeformMesh(RndMesh*,int,SyncMeshCB*)"};
+  map.deform_locals = {"meshes", "cuff", "cat",  "ol",
+                       "bones",  "mesh", "mask"};
+  map.deform_mesh_locals = {"changed", "verts", "w",             "inv",
+                            "Plane",   "bottom", "center",        "delta",
+                            "rad2",    "allowedRadius", "frac",   "end"};
+  return map;
+}
+
 SourceCharBlendBoneState source_char_blend_bone_default_state() {
   return SourceCharBlendBoneState{};
 }

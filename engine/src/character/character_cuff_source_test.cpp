@@ -40,6 +40,7 @@ int main() {
   using ghogx::character::source_char_cuff_apply_revision_defaults;
   using ghogx::character::source_char_cuff_copy_plan;
   using ghogx::character::source_char_cuff_default_state;
+  using ghogx::character::source_char_cuff_deform_runtime_map;
   using ghogx::character::source_char_cuff_eccentricity;
   using ghogx::character::source_char_cuff_handler_plan;
   using ghogx::character::source_char_cuff_load_plan;
@@ -213,6 +214,33 @@ int main() {
                       "bone recursion skips spot subtree");
   ok &= expect_string(bones[3], "bone_thumb.mesh",
                       "bone recursion skips plain subtree");
+
+  const auto deform_map = source_char_cuff_deform_runtime_map();
+  ok &= expect_bool(deform_map.rb3_latest_deform_declared, true,
+                    "rb3 latest declares deform");
+  ok &= expect_bool(deform_map.rb3_latest_bone_mask_body_incomplete, true,
+                    "rb3 latest BoneMask body incomplete");
+  ok &= expect_bool(deform_map.rb2_dump_maps_runtime_functions, true,
+                    "rb2 dump maps runtime functions");
+  ok &= expect_bool(deform_map.rb2_dump_has_statement_body, false,
+                    "rb2 dump has no statement body");
+  ok &= expect_bool(deform_map.safe_to_publish_mesh_writes, false,
+                    "mesh writes stay fenced");
+  ok &= expect_size(deform_map.runtime_functions.size(), 4,
+                    "deform runtime function count");
+  ok &= expect_string(deform_map.runtime_functions[0],
+                      "BoneMask(list,RndMesh*)", "BoneMask function row");
+  ok &= expect_string(deform_map.runtime_functions[3],
+                      "CharCuff::DeformMesh(RndMesh*,int,SyncMeshCB*)",
+                      "DeformMesh function row");
+  ok &= expect_string(deform_map.deform_locals[0], "meshes",
+                      "deform local meshes");
+  ok &= expect_string(deform_map.deform_locals[4], "bones",
+                      "deform local bones");
+  ok &= expect_string(deform_map.deform_mesh_locals[1], "verts",
+                      "deform mesh local verts");
+  ok &= expect_string(deform_map.deform_mesh_locals[9], "allowedRadius",
+                      "deform mesh local radius");
 
   return ok ? 0 : 1;
 }

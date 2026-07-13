@@ -2849,6 +2849,17 @@ struct SourceCharCuffTransformNode {
   std::vector<SourceCharCuffTransformNode> children;
 };
 
+struct SourceCharCuffDeformRuntimeMap {
+  bool rb3_latest_deform_declared = true;
+  bool rb3_latest_bone_mask_body_incomplete = true;
+  bool rb2_dump_maps_runtime_functions = true;
+  bool rb2_dump_has_statement_body = false;
+  bool safe_to_publish_mesh_writes = false;
+  std::vector<std::string> runtime_functions;
+  std::vector<std::string> deform_locals;
+  std::vector<std::string> deform_mesh_locals;
+};
+
 struct SourceCharBlendBoneConstraint {
   std::string target;
   float weight = 0.5f;
@@ -3819,6 +3830,7 @@ void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
                                               const std::string& trans_parent);
 std::vector<std::string> source_char_cuff_add_bone_children(
     const SourceCharCuffTransformNode* trans);
+SourceCharCuffDeformRuntimeMap source_char_cuff_deform_runtime_map();
 SourceCharBlendBoneState source_char_blend_bone_default_state();
 SourceCharBlendBoneConstraintLoadPlan
 source_char_blend_bone_constraint_load_plan();

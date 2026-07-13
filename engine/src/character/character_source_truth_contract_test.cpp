@@ -271,6 +271,8 @@ int run_contract() {
       extra_dir / "rb3-latest/src/system/utl";
   const std::filesystem::path rb2_dump_char_dir =
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
+  const std::filesystem::path rb2_dump_cpp =
+      extra_dir / "rb3-retail-old/doc/rb2_dump.cpp";
   const std::filesystem::path grim_scene_dir =
       extra_dir / "grim/core/grim/src/scene";
   const std::filesystem::path grim_dev_scene_dir =
@@ -333,6 +335,7 @@ int run_contract() {
       rb3_latest_rndobj_dir / "MultiMeshProxy.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
+  const std::string rb2_combined_dump_cpp = compact(read_file(rb2_dump_cpp));
   const std::string rb2_char_eyes_cpp = compact(read_file(
       rb2_dump_char_dir / "CharEyes.cpp"));
   const std::string rb3_latest_char_hair_cpp = compact(read_file(
@@ -1099,7 +1102,8 @@ int run_contract() {
                  "coverage matrix cites CharTransDraw source");
   ok &= contains(doc,
                  "| Cuff/accessory deformation rows | `rb3-latest` "
-                 "`CharCuff.cpp` / `CharCuff.h` |",
+                 "`CharCuff.cpp` / `CharCuff.h`, `rb3-retail-old` combined "
+                 "RB2 dump |",
                  "coverage matrix cites CharCuff source");
   ok &= contains(doc,
                  "| Blend-bone constraints | `rb3-latest` "
@@ -11990,6 +11994,41 @@ int run_contract() {
                  "it!=trans->TransChildren().end();++it){AddBoneChildren("
                  "tlist,*it);}}}}",
                  "CharCuff source AddBoneChildren recursion rule");
+  ok &= contains(rb3_latest_char_cuff_h,
+                 "voidDeform(SyncMeshCB*,FileMerger*);",
+                 "latest CharCuff header declares deform");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "unsignedintBoneMask(std::list<RndTransformable*>&tlist,"
+                 "RndMesh*mesh){for(inti=0;i<mesh->mBones.size();i++){}}",
+                 "latest CharCuff BoneMask body is incomplete");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "staticintBoneMask(classlist&bones/*r28*/,classRndMesh*mesh"
+                 "/*r29*/){",
+                 "RB2 dump maps CharCuff BoneMask function");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "voidCharCuff::Deform(classCharCuff*constthis/*r29*/,"
+                 "classSyncMeshCB*cb/*r30*/){",
+                 "RB2 dump maps CharCuff Deform function");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "classlistmeshes;//r1+0x98classObjDirItrcuff;//r1+0xB4",
+                 "RB2 dump maps CharCuff Deform mesh/cuff locals");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "structCategory*cat;//r31classObjDirItrol;//r1+0xA0"
+                 "classlistbones;//r1+0x90",
+                 "RB2 dump maps CharCuff Deform category/bone locals");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "voidCharCuff::DeformMesh(classCharCuff*constthis/*r22*/,"
+                 "classRndMesh*mesh/*r23*/,intboneMask/*r24*/,"
+                 "classSyncMeshCB*cb/*r25*/){",
+                 "RB2 dump maps CharCuff DeformMesh function");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "classVertVector&verts;//r0classTransformw;//r1+0xD0"
+                 "classTransforminv;//r1+0x90",
+                 "RB2 dump maps CharCuff DeformMesh vert/transform locals");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "floatallowedRadius;//f29floatfrac;//f2floatfrac;//f2"
+                 "intend;//r27",
+                 "RB2 dump maps CharCuff DeformMesh radius/end locals");
   ok &= contains(rb3_latest_char_cuff_cpp,
                  "ASSERT_REVS(8,0)LOAD_SUPERCLASS(Hmx::Object)"
                  "LOAD_SUPERCLASS(RndTransformable)for(inti=0;i<3;i++){"
@@ -12070,6 +12109,15 @@ int run_contract() {
                  "std::vector<SourceCharCuffTransformNode>children;};",
                  "native exposes CharCuff transform node");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCuffDeformRuntimeMap{"
+                 "boolrb3_latest_deform_declared=true;"
+                 "boolrb3_latest_bone_mask_body_incomplete=true;",
+                 "native exposes CharCuff deform runtime map");
+  ok &= contains(char_mesh_h,
+                 "boolsafe_to_publish_mesh_writes=false;"
+                 "std::vector<std::string>runtime_functions;",
+                 "native CharCuff deform map fences mesh writes");
+  ok &= contains(char_mesh_h,
                  "SourceCharCuffLoadPlansource_char_cuff_load_plan("
                  "intrevision);",
                  "native exposes CharCuff load-plan helper");
@@ -12086,6 +12134,10 @@ int run_contract() {
                  "std::vector<std::string>source_char_cuff_add_bone_children("
                  "constSourceCharCuffTransformNode*trans);",
                  "native exposes CharCuff AddBoneChildren helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCuffDeformRuntimeMap"
+                 "source_char_cuff_deform_runtime_map();",
+                 "native exposes CharCuff deform runtime map helper");
   ok &= contains(char_mesh,
                  "SourceCharCuffStatesource_char_cuff_default_state(){",
                  "native ports CharCuff default helper");
@@ -12113,6 +12165,23 @@ int run_contract() {
                  "for(constSourceCharCuffTransformNode&child:trans->children){"
                  "source_char_cuff_add_bone_children_impl(&child,bones);}",
                  "native CharCuff helper ports child recursion");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffDeformRuntimeMap"
+                 "source_char_cuff_deform_runtime_map(){"
+                 "SourceCharCuffDeformRuntimeMapmap;",
+                 "native CharCuff deform map helper exists");
+  ok &= contains(char_mesh,
+                 "map.runtime_functions={\"BoneMask(list,RndMesh*)\","
+                 "\"CharCuff::DeformAll(SyncMeshCB*)\","
+                 "\"CharCuff::Deform(SyncMeshCB*)\",",
+                 "native CharCuff deform map records function rows");
+  ok &= contains(char_mesh,
+                 "map.deform_locals={\"meshes\",\"cuff\",\"cat\",\"ol\","
+                 "\"bones\",\"mesh\",\"mask\"};",
+                 "native CharCuff deform map records Deform locals");
+  ok &= contains(char_mesh,
+                 "map.deform_mesh_locals={\"changed\",\"verts\",\"w\",\"inv\",",
+                 "native CharCuff deform map records DeformMesh locals");
   ok &= contains(char_mesh,
                  "SourceCharCuffLoadPlansource_char_cuff_load_plan("
                  "intrevision){SourceCharCuffLoadPlanplan;"
@@ -12210,6 +12279,12 @@ int run_contract() {
   ok &= contains(cuff_source_test,
                  "\"bonerecursionskipsplainsubtree\"",
                  "focused CharCuff test covers AddBoneChildren recursion");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_deform_runtime_map()",
+                 "focused CharCuff test covers deform runtime map");
+  ok &= contains(cuff_source_test,
+                 "deform_map.safe_to_publish_mesh_writes,false",
+                 "focused CharCuff test fences mesh writes");
   ok &= contains(doc,
                  "Native `source_char_cuff_load_plan` records the source read order",
                  "document records native CharCuff load plan");
@@ -12225,6 +12300,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Source `AddBoneChildren` only appends a transform when the current",
                  "document records CharCuff AddBoneChildren source rule");
+  ok &= contains(doc,
+                 "The RB2 combined dump maps `BoneMask`, `CharCuff::DeformAll`,",
+                 "document records CharCuff RB2 deformation function map");
+  ok &= contains(doc,
+                 "`source_char_cuff_deform_runtime_map` records that function/local evidence",
+                 "document records native CharCuff deform runtime map");
   ok &= contains(doc,
                  "Native `source_char_cuff_*` helpers port",
                  "document records native CharCuff helpers");

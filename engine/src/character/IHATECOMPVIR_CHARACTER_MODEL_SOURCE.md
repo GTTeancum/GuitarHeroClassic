@@ -202,7 +202,7 @@ character model playback.
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
 | Mesh deformation rows | `rb3-latest/src/system/rndobj/MeshDeform.cpp` / `MeshDeform.h` | Native helper ports visible defaults, vertex-array resize/clear, `SetMesh`, and handler rows; load/copy/reskin bodies remain fenced because they are declared but not visible in the checked source. |
 | Multi-mesh instancing/proxy rows | `rb3-latest/src/system/rndobj/MultiMesh.cpp` / `MultiMesh.h`, `MultiMeshProxy.cpp` / `MultiMeshProxy.h` | Native helper ports visible defaults, load/copy, `SetMesh`, handlers, prop-sync, proxy draw/update, and proxy failure rows; it does not create live instanced rendering or proxy ownership. |
-| Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, revision defaults, and the source `AddBoneChildren` bone-prefix recursion rule; deformation and mesh hookup remain unwired without complete source bodies/stock rows. |
+| Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h`, `rb3-retail-old` combined RB2 dump | Native helper ports constructor defaults, source eccentricity math, revision defaults, the source `AddBoneChildren` bone-prefix recursion rule, and the RB2 dump deformation function/local map; deformation and mesh hookup remain unwired without complete statement bodies/stock rows. |
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser keeps raw source rows; runtime-active skinning palette follows RB3 `RndMesh` null/invalid bone trimming. |
@@ -2331,6 +2331,12 @@ note, and all report `unreadBytes=0`.
     children. It does not scan below a null or non-`bone_` root. Native
     `source_char_cuff_add_bone_children` ports that exact collection rule for
     deterministic accessory/deformation diagnostics.
+  - The RB2 combined dump maps `BoneMask`, `CharCuff::DeformAll`,
+    `CharCuff::Deform`, and `CharCuff::DeformMesh` plus their local rows
+    (`meshes`, `bones`, `mask`, `verts`, `allowedRadius`, etc.), but it does
+    not expose the statement-level deformation math. Native
+    `source_char_cuff_deform_runtime_map` records that function/local evidence
+    and keeps live mesh writes fenced.
   - Native `source_char_cuff_*` helpers port those complete source-visible data
     rules only. The deformation path, bone mask helper, and mesh callbacks are
     not promoted without source-backed stock rows or a complete runtime owner.
