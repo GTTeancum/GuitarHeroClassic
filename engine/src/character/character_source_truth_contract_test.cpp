@@ -333,6 +333,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "Group.cpp"));
   const std::string rb3_latest_group_h = compact(read_file(
       rb3_latest_rndobj_dir / "Group.h"));
+  const std::string rb3_latest_mat_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Mat.cpp"));
+  const std::string rb3_latest_trans_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Trans.cpp"));
   const std::string rb3_latest_trans_proxy_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "TransProxy.cpp"));
   const std::string rb3_latest_trans_proxy_h = compact(read_file(
@@ -857,6 +861,124 @@ int run_contract() {
                  "document records re-notes source role");
   ok &= contains(doc, "## Source Coverage Matrix",
                  "document includes source coverage matrix");
+  ok &= contains(doc,
+                 "Core stock character-model row identities now covered from "
+                 "ihatecompvir source",
+                 "document records core Rnd/Object SAVE_OBJ source boundary");
+  ok &= contains(doc,
+                 "`ObjectDir=0x1A2`, `RndDir=0x1C1`, "
+                 "`RndTransformable=586`,\n`RndDrawable=0xAE`, "
+                 "`RndGroup=0x30`, `RndMat=159`, `RndMesh=1135`,",
+                 "document records core stock model SAVE_OBJ ids");
+  ok &= contains(doc,
+                 "`RndTex=744`, and `RndLight=0x33`. `RndLight` remains "
+                 "converter/light-source\ncontext only",
+                 "document keeps RndLight save id fenced from live stock rows");
+  ok &= contains(rb3_latest_obj_dir_cpp, "SAVE_OBJ(ObjectDir,0x1A2)",
+                 "latest ObjectDir source save id");
+  ok &= contains(rb3_latest_rnd_dir_cpp, "SAVE_OBJ(RndDir,0x1C1)",
+                 "latest RndDir source save id");
+  ok &= contains(rb3_latest_trans_cpp, "SAVE_OBJ(RndTransformable,586)",
+                 "latest RndTransformable source save id");
+  ok &= contains(rb3_latest_draw_cpp, "SAVE_OBJ(RndDrawable,0xAE)",
+                 "latest RndDrawable source save id");
+  ok &= contains(rb3_latest_group_cpp, "SAVE_OBJ(RndGroup,0x30)",
+                 "latest RndGroup source save id");
+  ok &= contains(rb3_latest_mat_cpp, "SAVE_OBJ(RndMat,159)",
+                 "latest RndMat source save id");
+  ok &= contains(rb3_latest_mesh_cpp, "SAVE_OBJ(RndMesh,1135)",
+                 "latest RndMesh source save id");
+  ok &= contains(rb3_latest_tex_cpp, "SAVE_OBJ(RndTex,744)",
+                 "latest RndTex source save id");
+  ok &= contains(rb3_latest_lit_cpp, "SAVE_OBJ(RndLight,0x33)",
+                 "latest RndLight source save id");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableSavePlan{int32_tsave_id=586;};",
+                 "shared API exposes RndTransformable save plan");
+  ok &= contains(scene_h,
+                 "structSourceRndDrawableSavePlan{int32_tsave_id=0xAE;};",
+                 "shared API exposes RndDrawable save plan");
+  ok &= contains(scene_h,
+                 "structSourceRndGroupSavePlan{int32_tsave_id=0x30;};",
+                 "shared API exposes RndGroup save plan");
+  ok &= contains(scene_h,
+                 "structSourceRndMatSavePlan{int32_tsave_id=159;};",
+                 "shared API exposes RndMat save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndLightSavePlan{int32_tsave_id=0x33;};",
+                 "character API exposes RndLight save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSavePlan{int32_tsave_id=1135;};",
+                 "character API exposes RndMesh save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceObjectDirSavePlan{int32_tsave_id=0x1A2;};",
+                 "character API exposes ObjectDir save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndDirSavePlan{int32_tsave_id=0x1C1;};",
+                 "character API exposes RndDir save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexSavePlan{int32_tsave_id=744;};",
+                 "character API exposes RndTex save plan");
+  ok &= contains(scene,
+                 "SourceRndTransformableSavePlansource_rndtransformable_save_plan(){"
+                 "returnSourceRndTransformableSavePlan{};}",
+                 "shared implementation records RndTransformable save id only");
+  ok &= contains(scene,
+                 "SourceRndDrawableSavePlansource_rnddrawable_save_plan(){"
+                 "returnSourceRndDrawableSavePlan{};}",
+                 "shared implementation records RndDrawable save id only");
+  ok &= contains(scene,
+                 "SourceRndGroupSavePlansource_rndgroup_save_plan(){"
+                 "returnSourceRndGroupSavePlan{};}",
+                 "shared implementation records RndGroup save id only");
+  ok &= contains(scene,
+                 "SourceRndMatSavePlansource_rndmat_save_plan(){"
+                 "returnSourceRndMatSavePlan{};}",
+                 "shared implementation records RndMat save id only");
+  ok &= contains(char_mesh,
+                 "SourceRndLightSavePlansource_rndlight_save_plan(){"
+                 "returnSourceRndLightSavePlan{};}",
+                 "character implementation records RndLight save id only");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshSavePlansource_rndmesh_save_plan(){"
+                 "returnSourceRndMeshSavePlan{};}",
+                 "character implementation records RndMesh save id only");
+  ok &= contains(char_mesh,
+                 "SourceObjectDirSavePlansource_object_dir_save_plan(){"
+                 "returnSourceObjectDirSavePlan{};}",
+                 "character implementation records ObjectDir save id only");
+  ok &= contains(char_mesh,
+                 "SourceRndDirSavePlansource_rnddir_save_plan(){"
+                 "returnSourceRndDirSavePlan{};}",
+                 "character implementation records RndDir save id only");
+  ok &= contains(char_mesh,
+                 "SourceRndTexSavePlansource_rndtex_save_plan(){"
+                 "returnSourceRndTexSavePlan{};}",
+                 "character implementation records RndTex save id only");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_save_plan().save_id==586",
+                 "shared focused test covers RndTransformable save id");
+  ok &= contains(scene_test, "source_rnddrawable_save_plan().save_id==0xAE",
+                 "shared focused test covers RndDrawable save id");
+  ok &= contains(scene_test, "source_rndgroup_save_plan().save_id==0x30",
+                 "shared focused test covers RndGroup save id");
+  ok &= contains(scene_test, "source_rndmat_save_plan().save_id==159",
+                 "shared focused test covers RndMat save id");
+  ok &= contains(character_source_test,
+                 "source_object_dir_save_plan().save_id,0x1A2",
+                 "character focused test covers ObjectDir save id");
+  ok &= contains(character_source_test,
+                 "source_rnddir_save_plan().save_id,0x1C1",
+                 "character focused test covers RndDir save id");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_save_plan().save_id==1135",
+                 "mesh focused test covers RndMesh save id");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_save_plan().save_id,744",
+                 "texture focused test covers RndTex save id");
+  ok &= contains(tex_source_test,
+                 "source_rndlight_save_plan().save_id,0x33",
+                 "texture focused test covers RndLight save id");
   ok &= contains(doc,
                  "| Clip sample/output publishing | `rb3-latest` `CharClip` / "
                  "`CharBones` / `CharBonesSamples` / `CharBone`, `grim` "
@@ -9247,8 +9369,8 @@ int run_contract() {
                  "source_waypoint_save_plan().save_id==460",
                  "focused Waypoint test covers save id");
   ok &= contains(doc,
-                 "Native save-plan helpers mirror every checked "
-                 "`rb3-latest/src/system/char`",
+                 "Native save-plan helpers mirror checked `rb3-latest` "
+                 "`SAVE_OBJ` rows as object\nidentity only",
                  "document records completed save row inventory");
   ok &= contains(doc,
                  "`Character=0x495`, `CharBone=0xBF`, `CharBoneOffset=0x5E`",
@@ -9257,7 +9379,7 @@ int run_contract() {
                  "`CharWeightSetter=0x73`, and `Waypoint=460`",
                  "document lists final source save rows");
   ok &= contains(doc,
-                 "These helpers do not imply\nnative save writers or runtime behavior.",
+                 "They do not imply native save writers or runtime behavior.",
                  "document fences save rows from runtime behavior");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SetCloth(boolb){for(inti=0;"

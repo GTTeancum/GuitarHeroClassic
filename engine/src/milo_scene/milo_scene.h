@@ -154,6 +154,10 @@ struct SourceRndTransformableDefaultState {
   bool cache_set_to_self = true;
 };
 
+struct SourceRndTransformableSavePlan {
+  int32_t save_id = 586;
+};
+
 struct SourceRndTransformableDirtyPlan {
   bool cache_already_dirty = false;
   bool set_dirty_force = false;
@@ -266,6 +270,7 @@ SourceRndTransformableCppLoadPlan source_rndtransformable_cpp_load_plan(
     bool loading_proxy_from_disk,
     bool class_is_static);
 SourceRndTransformableDefaultState source_rndtransformable_default_state();
+SourceRndTransformableSavePlan source_rndtransformable_save_plan();
 SourceRndTransformableDirtyPlan source_rndtransformable_set_dirty_plan(
     bool cache_already_dirty,
     bool has_children);
@@ -1236,6 +1241,12 @@ struct SourceRndDrawableDefaultState {
 
 SourceRndDrawableDefaultState source_rnddrawable_default_state();
 
+struct SourceRndDrawableSavePlan {
+  int32_t save_id = 0xAE;
+};
+
+SourceRndDrawableSavePlan source_rnddrawable_save_plan();
+
 struct SourceRndDrawableDrawPlan {
   bool showing = false;
   bool has_world_sphere = false;
@@ -1329,6 +1340,12 @@ struct SourceRndGroupDefaultState {
 };
 
 SourceRndGroupDefaultState source_rndgroup_default_state();
+
+struct SourceRndGroupSavePlan {
+  int32_t save_id = 0x30;
+};
+
+SourceRndGroupSavePlan source_rndgroup_save_plan();
 
 struct SourceRndGroupCopyPlan {
   std::vector<std::string> superclasses;
@@ -1659,6 +1676,10 @@ struct SourceRndMatDefaultState {
   int32_t color_mod_count = 3;
 };
 
+struct SourceRndMatSavePlan {
+  int32_t save_id = 159;
+};
+
 struct SourceMatShaderOptionsDefaultState {
   bool temp_mat = false;
   uint32_t pack = 0x12;
@@ -1768,6 +1789,7 @@ struct SourceRndMatPropSyncPlan {
 
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
+SourceRndMatSavePlan source_rndmat_save_plan();
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
 SourceMatPerfSettingsDefaultState source_mat_perf_settings_default_state();
 SourceMatPerfSettingsLoadPlan source_mat_perf_settings_load_plan(

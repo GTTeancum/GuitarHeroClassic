@@ -64,12 +64,14 @@ int main() {
   using ghogx::character::source_object_dir_find_object_plan;
   using ghogx::character::source_object_dir_postload_plan;
   using ghogx::character::source_object_dir_preload_plan;
+  using ghogx::character::source_object_dir_save_plan;
   using ghogx::character::source_object_dir_subdir_plan;
   using ghogx::character::source_rnddir_copy_plan;
   using ghogx::character::source_rnddir_default_state;
   using ghogx::character::source_rnddir_handler_plan;
   using ghogx::character::source_rnddir_load_plan;
   using ghogx::character::source_rnddir_prop_sync_plan;
+  using ghogx::character::source_rnddir_save_plan;
   using ghogx::character::source_rnddir_sync_drawables_plan;
   using ghogx::character::source_rnddir_sync_objects_plan;
   using ghogx::character::source_character_added_object;
@@ -132,6 +134,8 @@ int main() {
                     "ObjectDir default always inlined");
   ok &= expect_bool(object_defaults.always_inline_hash_null, true,
                     "ObjectDir default always inline hash");
+  ok &= expect_int(source_object_dir_save_plan().save_id, 0x1A2,
+                   "ObjectDir SAVE_OBJ id");
 
   const auto object_pre_v27 =
       source_object_dir_preload_plan(0x1b, false, false);
@@ -200,6 +204,8 @@ int main() {
   ok &= expect_int(rnd_defaults.draw_count, 0, "RndDir default draw count");
   ok &= expect_int(rnd_defaults.anim_count, 0, "RndDir default anim count");
   ok &= expect_int(rnd_defaults.poll_count, 0, "RndDir default poll count");
+  ok &= expect_int(source_rnddir_save_plan().save_id, 0x1C1,
+                   "RndDir SAVE_OBJ id");
 
   const auto rnd_load_v10 = source_rnddir_load_plan(0x0a, false);
   ok &= expect_bool(rnd_load_v10.known_revision, true,

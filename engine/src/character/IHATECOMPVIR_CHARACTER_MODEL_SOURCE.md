@@ -171,15 +171,23 @@ source proves there is no usable runtime class/body to port from that file.
 
 ## Source Save Row Inventory
 
-Native save-plan helpers mirror every checked `rb3-latest/src/system/char`
-`SAVE_OBJ` row as object identity only. The remaining batch completed here is:
+Native save-plan helpers mirror checked `rb3-latest` `SAVE_OBJ` rows as object
+identity only. They do not imply native save writers or runtime behavior.
+
+Core stock character-model row identities now covered from ihatecompvir source:
+`ObjectDir=0x1A2`, `RndDir=0x1C1`, `RndTransformable=586`,
+`RndDrawable=0xAE`, `RndGroup=0x30`, `RndMat=159`, `RndMesh=1135`,
+`RndTex=744`, and `RndLight=0x33`. `RndLight` remains converter/light-source
+context only for this slice because the focused stock character inventory has
+zero live `Light` / `RndLight` rows.
+
+The checked character-source batch covered here is:
 `Character=0x495`, `CharBone=0xBF`, `CharBoneOffset=0x5E`,
 `CharBoneTwist=0x59`, `CharEyeDartRuleset=0x2B`, `CharEyes=0x575`,
 `CharFaceServo=0xCE`, `CharForeTwist=0x79`, `CharGuitarString=0x47`,
 `CharInterest=0x52`, `CharLookAt=0x178`, `CharMirror=0x90`,
 `CharNeckTwist=0x4A`, `CharUpperTwist=0x5D`,
-`CharWeightSetter=0x73`, and `Waypoint=460`. These helpers do not imply
-native save writers or runtime behavior.
+`CharWeightSetter=0x73`, and `Waypoint=460`.
 
 ## RB2 Dump-Only Character Evidence Inventory
 

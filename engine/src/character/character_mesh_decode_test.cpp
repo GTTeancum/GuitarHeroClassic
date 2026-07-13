@@ -1663,6 +1663,7 @@ int main() {
   CHECK(!mesh_defaults.keep_mesh_data);
   CHECK(mesh_defaults.unk9p2);
   CHECK(!mesh_defaults.force_no_quantize);
+  CHECK(ghogx::character::source_rndmesh_save_plan().save_id == 1135);
 
   const auto mesh_destructor =
       ghogx::character::source_rndmesh_destructor_plan();

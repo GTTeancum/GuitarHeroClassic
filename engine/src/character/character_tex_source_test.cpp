@@ -116,6 +116,11 @@ std::vector<uint8_t> make_bitmap_payload(size_t count) {
 int main() {
   bool ok = true;
 
+  ok &= expect_int(ghogx::character::source_rndtex_save_plan().save_id, 744,
+                   "RndTex SAVE_OBJ id");
+  ok &= expect_int(ghogx::character::source_rndlight_save_plan().save_id, 0x33,
+                   "RndLight SAVE_OBJ id");
+
   const ghogx::character::SourceRndTexLoadPlan rev11_cached =
       ghogx::character::source_rndtex_load_plan(11, 1, true);
   ok &= expect_bool(rev11_cached.accepted_revision, true,

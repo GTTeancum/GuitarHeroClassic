@@ -487,6 +487,10 @@ SourceRndTransformableDefaultState source_rndtransformable_default_state() {
   return SourceRndTransformableDefaultState{};
 }
 
+SourceRndTransformableSavePlan source_rndtransformable_save_plan() {
+  return SourceRndTransformableSavePlan{};
+}
+
 SourceRndTransformableDirtyPlan source_rndtransformable_set_dirty_plan(
     bool cache_already_dirty,
     bool has_children) {
@@ -1927,6 +1931,10 @@ SourceRndDrawableDefaultState source_rnddrawable_default_state() {
   return SourceRndDrawableDefaultState{};
 }
 
+SourceRndDrawableSavePlan source_rnddrawable_save_plan() {
+  return SourceRndDrawableSavePlan{};
+}
+
 SourceRndDrawableDrawPlan source_rnddrawable_draw_plan(
     bool showing,
     bool has_world_sphere,
@@ -2023,6 +2031,10 @@ SourceRndGroupLoadPlan source_rndgroup_load_plan(int32_t revision) {
 
 SourceRndGroupDefaultState source_rndgroup_default_state() {
   return SourceRndGroupDefaultState{};
+}
+
+SourceRndGroupSavePlan source_rndgroup_save_plan() {
+  return SourceRndGroupSavePlan{};
 }
 
 SourceRndGroupCopyPlan source_rndgroup_copy_plan() {
@@ -2252,6 +2264,10 @@ SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
 
 SourceRndMatDefaultState source_rndmat_default_state() {
   return SourceRndMatDefaultState{};
+}
+
+SourceRndMatSavePlan source_rndmat_save_plan() {
+  return SourceRndMatSavePlan{};
 }
 
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state() {

@@ -1006,6 +1006,10 @@ SourceRndLightDefaultState source_rndlight_default_state() {
   return SourceRndLightDefaultState{};
 }
 
+SourceRndLightSavePlan source_rndlight_save_plan() {
+  return SourceRndLightSavePlan{};
+}
+
 SourceRndLightLoadPlan source_rndlight_load_plan(
     int32_t revision,
     int32_t alt_revision,
@@ -1651,6 +1655,10 @@ SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
 
 SourceRndMeshDefaultState source_rndmesh_default_state() {
   return SourceRndMeshDefaultState{};
+}
+
+SourceRndMeshSavePlan source_rndmesh_save_plan() {
+  return SourceRndMeshSavePlan{};
 }
 
 SourceRndMeshDestructorPlan source_rndmesh_destructor_plan() {
@@ -3190,6 +3198,10 @@ SourceRndTexLoadPlan source_rndtex_load_plan(
   plan.reads_optimize_for_ps3 = revision > 10;
   plan.delegates_cached_payload_to_bitmap = stream_cached;
   return plan;
+}
+
+SourceRndTexSavePlan source_rndtex_save_plan() {
+  return SourceRndTexSavePlan{};
 }
 
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
@@ -5943,6 +5955,10 @@ SourceObjectDirDefaultState source_object_dir_default_state() {
   return SourceObjectDirDefaultState{};
 }
 
+SourceObjectDirSavePlan source_object_dir_save_plan() {
+  return SourceObjectDirSavePlan{};
+}
+
 SourceObjectDirPreLoadPlan source_object_dir_preload_plan(
     int revision,
     bool loading_proxy_from_disk,
@@ -6093,6 +6109,10 @@ SourceObjectDirSubDirPlan source_object_dir_subdir_plan(bool add_subdir) {
 
 SourceRndDirDefaultState source_rnddir_default_state() {
   return SourceRndDirDefaultState{};
+}
+
+SourceRndDirSavePlan source_rnddir_save_plan() {
+  return SourceRndDirSavePlan{};
 }
 
 SourceRndDirLoadPlan source_rnddir_load_plan(int revision,

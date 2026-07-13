@@ -72,6 +72,7 @@ void test_trans() {
   CHECK(trans_defaults.world_xfm_reset);
   CHECK(trans_defaults.cache_allocated);
   CHECK(trans_defaults.cache_set_to_self);
+  CHECK(source_rndtransformable_save_plan().save_id == 586);
 
   const SourceRndTransformableDirtyPlan dirty_clean =
       source_rndtransformable_set_dirty_plan(false, true);
@@ -1145,6 +1146,7 @@ void test_mat() {
   CHECK(approx(defaults.emissive_multiplier, 1.0f));
   CHECK(defaults.tex_xfm_reset);
   CHECK(defaults.color_mod_count == 3);
+  CHECK(source_rndmat_save_plan().save_id == 159);
 
   const SourceMatShaderOptionsDefaultState shader_options =
       source_mat_shader_options_default_state();
@@ -1536,6 +1538,7 @@ void test_group() {
   CHECK(drawable_defaults.draw_revision == 3);
   CHECK(drawable_defaults.highlight_style_count == 5);
   CHECK(approx(drawable_defaults.normal_display_length, 1.0f));
+  CHECK(source_rnddrawable_save_plan().save_id == 0xAE);
 
   const SourceRndDrawableDrawPlan draw_visible =
       source_rnddrawable_draw_plan(true, true, false);
@@ -1619,6 +1622,7 @@ void test_group() {
   CHECK(approx(group_defaults.lod_screen_size, 0.0f));
   CHECK(!group_defaults.sort_in_world);
   CHECK(!group_defaults.unkf8);
+  CHECK(source_rndgroup_save_plan().save_id == 0x30);
 
   const SourceRndGroupCopyPlan group_copy = source_rndgroup_copy_plan();
   CHECK(group_copy.superclasses.size() == 4);

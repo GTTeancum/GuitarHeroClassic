@@ -758,6 +758,10 @@ struct SourceRndLightDefaultState {
   bool texture_xfm_reset = true;
 };
 
+struct SourceRndLightSavePlan {
+  int32_t save_id = 0x33;
+};
+
 struct SourceRndLightLoadPlan {
   int32_t revision = 0;
   int32_t alt_revision = 0;
@@ -915,6 +919,7 @@ SourceGltfMiloLightNodePlan source_gltf_milo_process_light_node_plan(
     const SourceGltfMiloLightNodeInput& input);
 
 SourceRndLightDefaultState source_rndlight_default_state();
+SourceRndLightSavePlan source_rndlight_save_plan();
 SourceRndLightLoadPlan source_rndlight_load_plan(
     int32_t revision,
     int32_t alt_revision,
@@ -1107,6 +1112,10 @@ struct SourceRndMeshDefaultState {
   bool keep_mesh_data = false;
   bool unk9p2 = true;
   bool force_no_quantize = false;
+};
+
+struct SourceRndMeshSavePlan {
+  int32_t save_id = 1135;
 };
 
 struct SourceRndMeshDestructorPlan {
@@ -1397,6 +1406,7 @@ struct SourceRndMeshCacheStripsPlan {
 };
 
 SourceRndMeshDefaultState source_rndmesh_default_state();
+SourceRndMeshSavePlan source_rndmesh_save_plan();
 SourceRndMeshDestructorPlan source_rndmesh_destructor_plan();
 SourceRndMeshSetMatPlan source_rndmesh_set_mat_plan(
     bool material_pointer_present);
@@ -2529,6 +2539,10 @@ struct SourceObjectDirDefaultState {
   bool always_inline_hash_null = true;
 };
 
+struct SourceObjectDirSavePlan {
+  int32_t save_id = 0x1A2;
+};
+
 struct SourceObjectDirPreLoadPlan {
   bool known_revision = false;
   std::vector<std::string> read_order;
@@ -2562,6 +2576,10 @@ struct SourceRndDirDefaultState {
   int32_t anim_count = 0;
   int32_t poll_count = 0;
   std::string test_event;
+};
+
+struct SourceRndDirSavePlan {
+  int32_t save_id = 0x1C1;
 };
 
 struct SourceRndDirLoadPlan {
@@ -3804,6 +3822,7 @@ void source_character_lod_assign(SourceCharacterLodState& dest,
 SourceCharacterLodCopyPlan source_character_lod_copy_plan();
 SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan();
 SourceObjectDirDefaultState source_object_dir_default_state();
+SourceObjectDirSavePlan source_object_dir_save_plan();
 SourceObjectDirPreLoadPlan source_object_dir_preload_plan(
     int revision,
     bool loading_proxy_from_disk,
@@ -3827,6 +3846,7 @@ SourceObjectDirFindObjectPlan source_object_dir_find_object_plan(
     bool is_main_dir);
 SourceObjectDirSubDirPlan source_object_dir_subdir_plan(bool add_subdir);
 SourceRndDirDefaultState source_rnddir_default_state();
+SourceRndDirSavePlan source_rnddir_save_plan();
 SourceRndDirLoadPlan source_rnddir_load_plan(int revision,
                                              bool loading_proxy_from_disk);
 SourceRndDirSyncObjectsPlan source_rnddir_sync_objects_plan(
@@ -4756,10 +4776,15 @@ struct SourceRndTexLoadPlan {
   bool delegates_cached_payload_to_bitmap = false;
 };
 
+struct SourceRndTexSavePlan {
+  int32_t save_id = 744;
+};
+
 SourceRndTexLoadPlan source_rndtex_load_plan(
     int32_t revision,
     int32_t alt_revision,
     bool stream_cached);
+SourceRndTexSavePlan source_rndtex_save_plan();
 
 struct SourceRndTexPowerOfTwoPlan {
   int32_t width = 0;
