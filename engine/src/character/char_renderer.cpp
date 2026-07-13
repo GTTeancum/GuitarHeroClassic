@@ -365,6 +365,10 @@ bool debug_meshes_enabled() {
 #endif
 }
 
+bool debug_lighting_enabled() {
+  return char_env_enabled("GHOGX_LOG_PERFORMER_LIGHTING");
+}
+
 bool debug_texture_alpha_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1862,6 +1866,25 @@ void CharRenderer::draw_impl(bool clear_target) {
     dev->SetRenderState(D3DRS_CULLMODE, character_cull_mode(&m));
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     dev->SetRenderState(D3DRS_LIGHTING, scene_lit_mesh ? TRUE : FALSE);
+    if (debug_lighting_enabled()) {
+      static std::set<std::string> logged_character_lighting;
+      const std::string key = m.name + "|" + m.material + "|" +
+                              (impl.use_scene_lighting ? "scene" : "viewer") +
+                              "|" + (scene_lit_mesh ? "lit" : "unlit");
+      if (logged_character_lighting.insert(key).second) {
+        std::fprintf(stderr,
+                     "[char3d] performer lighting mesh=%s material=%s "
+                     "scene=%d use_env=%d prelit=%d lit=%d "
+                     "color_mod=(%.3f %.3f %.3f %.3f)\n",
+                     m.name.c_str(), m.material.c_str(),
+                     impl.use_scene_lighting ? 1 : 0,
+                     material && material->use_environ ? 1 : 0,
+                     material && material->prelit ? 1 : 0,
+                     scene_lit_mesh ? 1 : 0, impl.color_mod[0],
+                     impl.color_mod[1], impl.color_mod[2],
+                     impl.color_mod[3]);
+      }
+    }
 
     // Skin the mesh using linear-blend skinning.
     skin_to_pose(m, impl.character, spos, snrm);
@@ -2305,6 +2328,26 @@ void CharRenderer::draw_impl(bool clear_target) {
           !impl.use_scene_lighting ||
           (prop_material && prop_material->use_environ);
       dev->SetRenderState(D3DRS_LIGHTING, prop_scene_lit ? TRUE : FALSE);
+      if (debug_lighting_enabled()) {
+        static std::set<std::string> logged_prop_lighting;
+        const std::string key =
+            m.name + "|" + m.material + "|" +
+            (impl.use_scene_lighting ? "scene" : "viewer") + "|" +
+            (prop_scene_lit ? "lit" : "unlit");
+        if (logged_prop_lighting.insert(key).second) {
+          std::fprintf(stderr,
+                       "[char3d] prop lighting mesh=%s material=%s scene=%d "
+                       "use_env=%d prelit=%d lit=%d "
+                       "color_mod=(%.3f %.3f %.3f %.3f)\n",
+                       m.name.c_str(), m.material.c_str(),
+                       impl.use_scene_lighting ? 1 : 0,
+                       prop_material && prop_material->use_environ ? 1 : 0,
+                       prop_material && prop_material->prelit ? 1 : 0,
+                       prop_scene_lit ? 1 : 0, impl.color_mod[0],
+                       impl.color_mod[1], impl.color_mod[2],
+                       impl.color_mod[3]);
+        }
+      }
       IDirect3DTexture9* texture = nullptr;
       if (prop_material) {
         auto it = impl.prop_tex.find(prop_material->diffuse_tex);

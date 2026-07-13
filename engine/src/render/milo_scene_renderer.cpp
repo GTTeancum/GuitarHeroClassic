@@ -150,6 +150,11 @@ struct ApproxLightCandidate {
   float score = 0.0f;
 };
 
+struct EnvironLightCounts {
+  size_t real = 0;
+  size_t approx = 0;
+};
+
 BlendState blend_state_for(uint8_t blend) {
   switch (blend) {
     case kBlendDest:
@@ -3126,6 +3131,27 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     return world;
   };
+  auto count_environ_light_paths =
+      [&](const milo_scene::EnvironObj* env) -> EnvironLightCounts {
+    EnvironLightCounts counts;
+    if (!env) return counts;
+    for (const auto& ref : env->lights) {
+      const auto* light = scene_.find_light(ref);
+      if (!light || !light_color_sane(*light)) continue;
+      int light_type = light->type;
+      if (const auto state_it = light_state_overrides_.find(ref);
+          state_it != light_state_overrides_.end() &&
+          state_it->second.has_type) {
+        light_type = state_it->second.type;
+      }
+      if (is_authored_real_environment_light_type(light_type)) {
+        ++counts.real;
+      } else if (is_authored_approx_environment_light_type(light_type)) {
+        ++counts.approx;
+      }
+    }
+    return counts;
+  };
   auto configure_authored_lights =
       [&](const milo_scene::EnvironObj* env) {
     if (!apply_environment_dynamic_lights || !env || env->lights.empty()) {
@@ -3415,6 +3441,26 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     install_approx_scene_lights(dev_, approx_directional_lights);
     configure_authored_fog(mesh_env);
     configure_authored_lights(mesh_env);
+    if (mesh_env && env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
+      static std::unordered_set<std::string> logged_mesh_envs;
+      const auto counts = count_environ_light_paths(mesh_env);
+      const std::string key =
+          mesh_env->name + "|" + std::to_string(counts.real) + "|" +
+          std::to_string(counts.approx) + "|" +
+          std::to_string(approx_directional_lights.size());
+      if (logged_mesh_envs.insert(key).second) {
+        std::fprintf(stderr,
+                     "[milo_scene] Mesh Environ lighting state: mesh=%s "
+                     "env=%s real_lights=%zu approx_lights=%zu "
+                     "approx_directional=%zu refs=%zu "
+                     "ambient=(%.3f %.3f %.3f %.3f)\n",
+                     m.name.c_str(), mesh_env->name.c_str(), counts.real,
+                     counts.approx, approx_directional_lights.size(),
+                     mesh_env->lights.size(), mesh_env_color[0],
+                     mesh_env_color[1], mesh_env_color[2],
+                     mesh_env_color[3]);
+      }
+    }
     bool material_tex_anim = false;
     float rot = 0.0f;
     if (const auto tex_it = material_tex_transforms_.find(material);

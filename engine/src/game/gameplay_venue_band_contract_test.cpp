@@ -6903,6 +6903,12 @@ int main() {
                  "approx_directional=%zu",
                  "runtime Environ lighting diagnostics report normal-aware approximate slots");
   ok &= contains(renderer_c,
+                 "\"[milo_scene]MeshEnvironlightingstate:mesh=%s\"",
+                 "mesh-local Environ lighting diagnostics expose the resolved source environment");
+  ok &= contains(renderer_c,
+                 "constautocounts=count_environ_light_paths(mesh_env);",
+                 "mesh-local Environ diagnostics count source real and approximate lights after LightPreset overrides");
+  ok &= contains(renderer_c,
                  "if(!is_authored_real_environment_light_type(light_type))continue;",
                  "source approximate Environ lights are not counted as real point/fake-spot Environ lights");
   ok &= contains(renderer_c,
@@ -8310,6 +8316,16 @@ int main() {
   ok &= contains(char_renderer_c,
                  "blend=0x%02xuse_env=%dprelit=%dzmode=%u",
                  "character material diagnostics expose source lighting flags");
+  ok &= contains(char_renderer_c,
+                 "booldebug_lighting_enabled(){"
+                 "returnchar_env_enabled(\"GHOGX_LOG_PERFORMER_LIGHTING\");}",
+                 "performer lighting diagnostics have an explicit opt-in gate");
+  ok &= contains(char_renderer_c,
+                 "\"[char3d]performerlightingmesh=%smaterial=%s\"",
+                 "performer lighting diagnostics expose source material lighting state");
+  ok &= contains(char_renderer_c,
+                 "\"[char3d]proplightingmesh=%smaterial=%sscene=%d\"",
+                 "performer prop lighting diagnostics expose source material lighting state");
   ok &= contains(char_renderer_c,
                  "constboolscene_lit_mesh="
                  "!eye_mesh&&(!impl.use_scene_lighting||"
