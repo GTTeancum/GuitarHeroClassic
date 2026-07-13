@@ -345,6 +345,9 @@ int main() {
   ok &= expect_string(bones_dump.scale_add_identity_range,
                       "0x8031D864 -> 0x8031D8B0",
                       "CharBones dump ScaleAddIdentity range");
+  ok &= expect_string(bones_dump.blend_range,
+                      "0x8031F2C0 -> 0x8031F670",
+                      "CharBones dump Blend range");
   ok &= expect_size(bones_dump.scale_down_locals.size(), 9,
                     "CharBones dump ScaleDown locals");
   ok &= expect_string(bones_dump.scale_down_locals[2],
@@ -368,8 +371,12 @@ int main() {
                       "CharBones dump RotateTo short weight local");
   ok &= expect_size(bones_dump.scale_add_identity_locals.size(), 2,
                     "CharBones dump ScaleAddIdentity locals");
-  ok &= expect_int(bones_dump.rb2_dump_maps_blend ? 1 : 0, 0,
-                   "CharBones dump does not map Blend");
+  ok &= expect_int(bones_dump.rb2_dump_maps_blend ? 1 : 0, 1,
+                   "CharBones dump maps Blend");
+  ok &= expect_size(bones_dump.blend_locals.size(), 12,
+                    "CharBones dump Blend locals");
+  ok &= expect_string(bones_dump.blend_locals[7], "float ds",
+                      "CharBones dump Blend delta-scale local");
   ok &= expect_int(bones_dump.has_scale_down_statement_body ? 1 : 0, 0,
                    "CharBones dump lacks ScaleDown statement body");
   ok &= expect_int(bones_dump.has_scale_add_statement_body ? 1 : 0, 0,

@@ -20143,10 +20143,10 @@ int run_contract() {
                  "exact RB2",
                  "document records CharBones runtime dump helper");
   ok &= contains(doc,
-                 "does not map `CharBones::Blend`",
-                 "document records missing CharBones Blend dump map");
+                 "combined RB2\n    dump also maps `CharBones::Blend`",
+                 "document records combined CharBones Blend dump map");
   ok &= contains(doc,
-                 "not\n    permission to apply pose math from local-name inventories",
+                 "not permission\n    to apply pose math from local-name inventories",
                  "document fences CharBones runtime dump from pose math");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete",
@@ -21099,8 +21099,11 @@ int run_contract() {
                  "evidence.rotate_to_range=\"0x8031D118->0x8031D864\";",
                  "native CharBones runtime dump records RotateTo range");
   ok &= contains(char_clip,
-                 "evidence.rb2_dump_maps_blend=false;",
-                 "native CharBones runtime dump records missing Blend map");
+                 "evidence.blend_range=\"0x8031F2C0->0x8031F670\";",
+                 "native CharBones runtime dump records Blend range");
+  ok &= contains(char_clip,
+                 "evidence.rb2_dump_maps_blend=true;",
+                 "native CharBones runtime dump records Blend map");
   ok &= contains(char_clip,
                  "evidence.safe_to_apply_pose_math=false;",
                  "native CharBones runtime dump fences pose math");
@@ -22767,7 +22770,10 @@ int run_contract() {
                  "//Range:0x8031D118->0x8031D864voidCharBones::RotateTo(",
                  "RB2 dump maps CharBones RotateTo range");
   ok &= missing(rb2_char_bones_cpp, "CharBones::Blend(",
-                "RB2 dump does not map CharBones Blend");
+                "per-file RB2 CharBones dump omits CharBones Blend");
+  ok &= contains(rb2_combined_dump_cpp,
+                 "//Range:0x8031F2C0->0x8031F670voidCharBones::Blend(",
+                 "combined RB2 dump maps CharBones Blend range");
   ok &= contains(rb3_latest_char_clip_h,
                  "CharBonesSamplesmFull;//0x64CharBonesSamplesmOne;",
                  "latest CharClip source exposes full/one sample members");

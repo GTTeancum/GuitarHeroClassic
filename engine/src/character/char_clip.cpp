@@ -247,6 +247,7 @@ SourceCharBonesRuntimeDumpEvidence source_char_bones_runtime_dump_evidence() {
   evidence.rotate_by_range = "0x8031CB00 -> 0x8031D118";
   evidence.rotate_to_range = "0x8031D118 -> 0x8031D864";
   evidence.scale_add_identity_range = "0x8031D864 -> 0x8031D8B0";
+  evidence.blend_range = "0x8031F2C0 -> 0x8031F670";
   evidence.scale_down_locals = {"const Bone* name",
                                 "const Bone* endName",
                                 "const Bone* boneName",
@@ -314,7 +315,19 @@ SourceCharBonesRuntimeDumpEvidence source_char_bones_runtime_dump_evidence() {
                                "const signed short* as",
                                "const float* a"};
   evidence.scale_add_identity_locals = {"const Quat* end", "Quat* q"};
-  evidence.rb2_dump_maps_blend = false;
+  evidence.blend_locals = {"const Bone* name",
+                           "const Bone* endName",
+                           "const Bone* boneName",
+                           "const Vector3* p",
+                           "Vector3* pos",
+                           "Quat* quat",
+                           "const Quat* q",
+                           "float ds",
+                           "float fweight",
+                           "Quat s",
+                           "float* ang",
+                           "const float* a"};
+  evidence.rb2_dump_maps_blend = true;
   evidence.has_scale_down_statement_body = false;
   evidence.has_scale_add_statement_body = false;
   evidence.has_rotate_by_statement_body = false;

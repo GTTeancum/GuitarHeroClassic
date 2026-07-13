@@ -89,12 +89,14 @@ struct SourceCharBonesRuntimeDumpEvidence {
   std::string rotate_by_range;
   std::string rotate_to_range;
   std::string scale_add_identity_range;
+  std::string blend_range;
   std::vector<std::string> scale_down_locals;
   std::vector<std::string> scale_add_locals;
   std::vector<std::string> rotate_by_locals;
   std::vector<std::string> rotate_to_locals;
   std::vector<std::string> scale_add_identity_locals;
-  bool rb2_dump_maps_blend = false;
+  std::vector<std::string> blend_locals;
+  bool rb2_dump_maps_blend = true;
   bool has_scale_down_statement_body = false;
   bool has_scale_add_statement_body = false;
   bool has_rotate_by_statement_body = false;
