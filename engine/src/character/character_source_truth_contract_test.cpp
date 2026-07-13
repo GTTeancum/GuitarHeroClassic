@@ -1568,6 +1568,18 @@ int run_contract() {
                  "Shared native `source_rndmat_default_state`,",
                  "document records RndMat default/accessor helper");
   ok &= contains(doc,
+                 "Shared native `source_mat_shader_options_default_state`,",
+                 "document records MatShaderOptions helper");
+  ok &= contains(doc,
+                 "`MatShaderOptions` starts with `mTempMat=false` and packed value",
+                 "document records MatShaderOptions source defaults");
+  ok &= contains(doc,
+                 "`Load` reads\n    projected lights and PS3 trilinear flags first",
+                 "document records MatPerfSettings load order");
+  ok &= contains(doc,
+                 "then reads point-cube\n    texture only when `RndMat::gRev > 0x41`",
+                 "document records MatPerfSettings point-cube gate");
+  ok &= contains(doc,
                  "alpha/color setters dirty color state with bit `1`",
                  "document records RndMat setter dirty bit");
   ok &= contains(doc,
@@ -3687,6 +3699,20 @@ int run_contract() {
                  "ResetColors(mColorMod,3);",
                  "RB3 RndMat runtime constructor tail defaults");
   ok &= contains(rb3_mat_cpp,
+                 "MatShaderOptions::MatShaderOptions():mTempMat(0){"
+                 "pack=mTempMat|0x12;}",
+                 "RB3 MatShaderOptions constructor exposes source pack default");
+  ok &= contains(rb3_mat_cpp,
+                 "MatPerfSettings::MatPerfSettings():mRecvProjLights(0),"
+                 "mRecvPointCubeTex(0),mPS3ForceTrilinear(0){}",
+                 "RB3 MatPerfSettings constructor exposes source defaults");
+  ok &= contains(rb3_mat_cpp,
+                 "voidMatPerfSettings::Load(BinStream&bs){"
+                 "LOAD_BITFIELD(bool,mRecvProjLights)LOAD_BITFIELD(bool,"
+                 "mPS3ForceTrilinear)if(RndMat::gRev>0x41)"
+                 "LOAD_BITFIELD(bool,mRecvPointCubeTex)}",
+                 "RB3 MatPerfSettings load exposes source gate order");
+  ok &= contains(rb3_mat_cpp,
                  "LOAD_BITFIELD_ENUM(int,mBlend,Blend)bs>>mColor;"
                  "LOAD_BITFIELD(bool,mUseEnviron)LOAD_BITFIELD(bool,mPreLit)"
                  "LOAD_BITFIELD_ENUM(int,mZMode,ZMode)",
@@ -3729,6 +3755,21 @@ int run_contract() {
                  "1.0f,1.0f};",
                  "shared milo_scene exposes source RndMat default state");
   ok &= contains(scene_h,
+                 "structSourceMatShaderOptionsDefaultState{booltemp_mat=false;"
+                 "uint32_tpack=0x12;};",
+                 "shared milo_scene exposes MatShaderOptions default state");
+  ok &= contains(scene_h,
+                 "structSourceMatPerfSettingsDefaultState{"
+                 "boolrecv_proj_lights=false;boolrecv_point_cube_tex=false;"
+                 "boolps3_force_trilinear=false;};",
+                 "shared milo_scene exposes MatPerfSettings defaults");
+  ok &= contains(scene_h,
+                 "structSourceMatPerfSettingsLoadPlan{int32_trevision=0;"
+                 "boolreads_recv_proj_lights=true;"
+                 "boolreads_ps3_force_trilinear=true;"
+                 "boolreads_recv_point_cube_tex=false;",
+                 "shared milo_scene exposes MatPerfSettings load plan");
+  ok &= contains(scene_h,
                  "structSourceRndMatSetterPlan{std::stringsetter;"
                  "boolwrites_member=false;",
                  "shared milo_scene exposes source RndMat setter plan");
@@ -3757,6 +3798,29 @@ int run_contract() {
                  "SourceRndMatDefaultStatesource_rndmat_default_state(){"
                  "returnSourceRndMatDefaultState{};}",
                  "shared milo_scene implements source RndMat defaults helper");
+  ok &= contains(scene,
+                 "SourceMatShaderOptionsDefaultState"
+                 "source_mat_shader_options_default_state(){"
+                 "returnSourceMatShaderOptionsDefaultState{};}",
+                 "shared milo_scene implements MatShaderOptions defaults helper");
+  ok &= contains(scene,
+                 "SourceMatPerfSettingsDefaultState"
+                 "source_mat_perf_settings_default_state(){"
+                 "returnSourceMatPerfSettingsDefaultState{};}",
+                 "shared milo_scene implements MatPerfSettings defaults helper");
+  ok &= contains(scene,
+                 "SourceMatPerfSettingsLoadPlan"
+                 "source_mat_perf_settings_load_plan(int32_trevision){"
+                 "SourceMatPerfSettingsLoadPlanplan;plan.revision=revision;",
+                 "shared milo_scene implements MatPerfSettings load helper");
+  ok &= contains(scene,
+                 "plan.read_order={\"recv_proj_lights\","
+                 "\"ps3_force_trilinear\"};"
+                 "plan.reads_recv_point_cube_tex=revision>0x41;",
+                 "shared MatPerfSettings helper mirrors source read order");
+  ok &= contains(scene,
+                 "plan.read_order.push_back(\"recv_point_cube_tex\");",
+                 "shared MatPerfSettings helper mirrors point-cube gate");
   ok &= contains(scene,
                  "SourceRndMatAccessorResultsource_rndmat_accessors("
                  "constMatObj&mat){SourceRndMatAccessorResultout;",
@@ -3799,6 +3863,22 @@ int run_contract() {
                  "constSourceRndMatDefaultStatedefaults="
                  "source_rndmat_default_state();",
                  "milo_scene test covers RndMat source defaults");
+  ok &= contains(scene_test,
+                 "constSourceMatShaderOptionsDefaultStateshader_options="
+                 "source_mat_shader_options_default_state();",
+                 "milo_scene test covers MatShaderOptions defaults");
+  ok &= contains(scene_test,
+                 "constSourceMatPerfSettingsDefaultStateperf_defaults="
+                 "source_mat_perf_settings_default_state();",
+                 "milo_scene test covers MatPerfSettings defaults");
+  ok &= contains(scene_test,
+                 "constSourceMatPerfSettingsLoadPlanperf_rev65="
+                 "source_mat_perf_settings_load_plan(0x41);",
+                 "milo_scene test covers MatPerfSettings pre-pointcube gate");
+  ok &= contains(scene_test,
+                 "constSourceMatPerfSettingsLoadPlanperf_rev66="
+                 "source_mat_perf_settings_load_plan(0x42);",
+                 "milo_scene test covers MatPerfSettings pointcube gate");
   ok &= contains(scene_test,
                  "constSourceRndMatAccessorResultaccessors="
                  "source_rndmat_accessors(m);",

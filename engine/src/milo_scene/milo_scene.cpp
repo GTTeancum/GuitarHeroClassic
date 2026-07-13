@@ -2254,6 +2254,26 @@ SourceRndMatDefaultState source_rndmat_default_state() {
   return SourceRndMatDefaultState{};
 }
 
+SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state() {
+  return SourceMatShaderOptionsDefaultState{};
+}
+
+SourceMatPerfSettingsDefaultState source_mat_perf_settings_default_state() {
+  return SourceMatPerfSettingsDefaultState{};
+}
+
+SourceMatPerfSettingsLoadPlan source_mat_perf_settings_load_plan(
+    int32_t revision) {
+  SourceMatPerfSettingsLoadPlan plan;
+  plan.revision = revision;
+  plan.read_order = {"recv_proj_lights", "ps3_force_trilinear"};
+  plan.reads_recv_point_cube_tex = revision > 0x41;
+  if (plan.reads_recv_point_cube_tex) {
+    plan.read_order.push_back("recv_point_cube_tex");
+  }
+  return plan;
+}
+
 SourceRndMatAccessorResult source_rndmat_accessors(const MatObj& mat) {
   SourceRndMatAccessorResult out;
   out.blend = mat.blend;

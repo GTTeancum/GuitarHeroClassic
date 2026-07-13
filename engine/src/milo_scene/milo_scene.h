@@ -1659,6 +1659,25 @@ struct SourceRndMatDefaultState {
   int32_t color_mod_count = 3;
 };
 
+struct SourceMatShaderOptionsDefaultState {
+  bool temp_mat = false;
+  uint32_t pack = 0x12;
+};
+
+struct SourceMatPerfSettingsDefaultState {
+  bool recv_proj_lights = false;
+  bool recv_point_cube_tex = false;
+  bool ps3_force_trilinear = false;
+};
+
+struct SourceMatPerfSettingsLoadPlan {
+  int32_t revision = 0;
+  bool reads_recv_proj_lights = true;
+  bool reads_ps3_force_trilinear = true;
+  bool reads_recv_point_cube_tex = false;
+  std::vector<std::string> read_order;
+};
+
 struct SourceRndMatAccessorResult {
   uint8_t blend = 1;
   uint8_t z_mode = 1;
@@ -1678,6 +1697,10 @@ struct SourceRndMatSetterPlan {
 
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
+SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
+SourceMatPerfSettingsDefaultState source_mat_perf_settings_default_state();
+SourceMatPerfSettingsLoadPlan source_mat_perf_settings_load_plan(
+    int32_t revision);
 SourceRndMatAccessorResult source_rndmat_accessors(const MatObj& mat);
 SourceRndMatSetterPlan source_rndmat_setter_plan(const std::string& setter);
 

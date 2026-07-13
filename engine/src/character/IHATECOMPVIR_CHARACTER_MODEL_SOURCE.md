@@ -1516,6 +1516,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     alpha/color setters dirty color state with bit `1`, transform/render-state
     setters dirty bit `2`, while `SetAlphaThreshold` and `SetPointLights` write
     their member without changing `mDirty` in the checked header.
+  - Shared native `source_mat_shader_options_default_state`,
+    `source_mat_perf_settings_default_state`, and
+    `source_mat_perf_settings_load_plan` record the adjacent material support
+    rows: `MatShaderOptions` starts with `mTempMat=false` and packed value
+    `0x12`; `MatPerfSettings` starts with all three flags false; `Load` reads
+    projected lights and PS3 trilinear flags first, then reads point-cube
+    texture only when `RndMat::gRev > 0x41`.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
   - The source setters directly write members; they do not encode hair/string

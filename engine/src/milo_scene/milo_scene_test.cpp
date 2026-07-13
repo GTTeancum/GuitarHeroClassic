@@ -1146,6 +1146,29 @@ void test_mat() {
   CHECK(defaults.tex_xfm_reset);
   CHECK(defaults.color_mod_count == 3);
 
+  const SourceMatShaderOptionsDefaultState shader_options =
+      source_mat_shader_options_default_state();
+  CHECK(!shader_options.temp_mat);
+  CHECK(shader_options.pack == 0x12);
+  const SourceMatPerfSettingsDefaultState perf_defaults =
+      source_mat_perf_settings_default_state();
+  CHECK(!perf_defaults.recv_proj_lights);
+  CHECK(!perf_defaults.recv_point_cube_tex);
+  CHECK(!perf_defaults.ps3_force_trilinear);
+  const SourceMatPerfSettingsLoadPlan perf_rev65 =
+      source_mat_perf_settings_load_plan(0x41);
+  CHECK(perf_rev65.reads_recv_proj_lights);
+  CHECK(perf_rev65.reads_ps3_force_trilinear);
+  CHECK(!perf_rev65.reads_recv_point_cube_tex);
+  CHECK(perf_rev65.read_order.size() == 2);
+  CHECK(perf_rev65.read_order[0] == "recv_proj_lights");
+  CHECK(perf_rev65.read_order[1] == "ps3_force_trilinear");
+  const SourceMatPerfSettingsLoadPlan perf_rev66 =
+      source_mat_perf_settings_load_plan(0x42);
+  CHECK(perf_rev66.reads_recv_point_cube_tex);
+  CHECK(perf_rev66.read_order.size() == 3);
+  CHECK(perf_rev66.read_order[2] == "recv_point_cube_tex");
+
   const SourceRndMatLoadPlan v27_plan = source_rndmat_load_plan(27);
   CHECK(v27_plan.reads_blend);
   CHECK(v27_plan.reads_color);
