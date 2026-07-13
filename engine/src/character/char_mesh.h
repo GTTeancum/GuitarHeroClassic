@@ -130,6 +130,27 @@ struct SourceRndMeshSkinIndexPlan {
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision);
 
+struct SourceRndMeshSkinRuntimeBoundary {
+  bool latest_header_declares_skin_vertex = true;
+  bool latest_header_declares_remove_invalid_bones = true;
+  bool latest_header_declares_has_valid_bones = true;
+  bool latest_cpp_calls_skin_vertex_from_collide_showing = true;
+  bool latest_cpp_calls_remove_invalid_bones_from_post_load = true;
+  bool latest_cpp_uses_has_valid_bones_prop_sync = true;
+  bool latest_cpp_has_skin_vertex_body = false;
+  bool latest_cpp_has_remove_invalid_bones_body = false;
+  bool latest_cpp_has_has_valid_bones_body = false;
+  bool rb2_dump_has_skin_vertex_range = false;
+  bool rb2_dump_has_remove_invalid_bones_range = false;
+  bool rb2_dump_has_has_valid_bones_range = false;
+  bool native_skin_to_pose_uses_source_offset_order = true;
+  bool safe_to_claim_source_skin_vertex_body = false;
+  bool safe_to_import_remove_invalid_bones = false;
+  bool safe_to_rewrite_skinning_from_dump = false;
+};
+
+SourceRndMeshSkinRuntimeBoundary source_rndmesh_skin_runtime_boundary();
+
 struct SourceRndMeshFieldGatePlan {
   int32_t mesh_revision = 0;
   int32_t alt_revision = 0;

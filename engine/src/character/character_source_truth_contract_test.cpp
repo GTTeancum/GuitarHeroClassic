@@ -301,6 +301,8 @@ int run_contract() {
       extra_dir / "rb3-latest/src/system/utl";
   const std::filesystem::path rb2_dump_char_dir =
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
+  const std::filesystem::path rb2_dump_rndobj_dir =
+      extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/rndobj";
   const std::filesystem::path rb2_dump_cpp =
       extra_dir / "rb3-retail-old/doc/rb2_dump.cpp";
   const std::filesystem::path grim_scene_dir =
@@ -311,6 +313,8 @@ int run_contract() {
       extra_dir / "re-notes";
   const std::string rb3_latest_mesh_h = compact(read_file(
       rb3_latest_rndobj_dir / "Mesh.h"));
+  const std::string rb3_latest_mesh_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Mesh.cpp"));
   const std::string rb3_latest_lit_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Lit.cpp"));
   const std::string rb3_latest_lit_h = compact(read_file(
@@ -688,6 +692,8 @@ int run_contract() {
       rb2_dump_char_dir / "DisplayDriver.cpp"));
   const std::string rb2_display_ik_midi_cpp = compact(read_file(
       rb2_dump_char_dir / "DisplayIKMidi.cpp"));
+  const std::string rb2_rnd_mesh_cpp = compact(read_file(
+      rb2_dump_rndobj_dir / "Mesh.cpp"));
   const std::string rb2_char_collide_cpp = compact(read_file(
       rb2_dump_char_dir / "CharCollide.cpp"));
   const std::string rb2_char_collide_h = compact(read_file(
@@ -6453,6 +6459,66 @@ int run_contract() {
                  "native renderer consumes source offset then current transform");
   ok &= contains(renderer, "!character.has_transform(mesh.bone_palette[i])",
                  "native renderer skips unresolved source slots");
+  ok &= contains(rb3_latest_mesh_h,
+                 "Vector3SkinVertex(constRndMesh::Vert&,Vector3*);",
+                 "latest RndMesh header declares SkinVertex");
+  ok &= contains(rb3_latest_mesh_h, "voidRemoveInvalidBones();",
+                 "latest RndMesh header declares RemoveInvalidBones");
+  ok &= contains(rb3_latest_mesh_h, "boolHasValidBones(unsignedint*)const;",
+                 "latest RndMesh header declares HasValidBones");
+  ok &= contains(rb3_latest_mesh_cpp,
+                 "tri.Set(SkinVertex(vert0,0),SkinVertex(vert1,0),"
+                 "SkinVertex(vert2,0));",
+                 "latest RndMesh CollideShowing calls SkinVertex");
+  ok &= contains(rb3_latest_mesh_cpp, "RemoveInvalidBones();",
+                 "latest RndMesh PostLoad calls RemoveInvalidBones");
+  ok &= contains(rb3_latest_mesh_cpp, "HasValidBones(0)",
+                 "latest RndMesh prop sync calls HasValidBones");
+  ok &= missing(rb3_latest_mesh_cpp, "Vector3RndMesh::SkinVertex(",
+                "checked RndMesh source lacks SkinVertex body");
+  ok &= missing(rb3_latest_mesh_cpp, "voidRndMesh::RemoveInvalidBones(",
+                "checked RndMesh source lacks RemoveInvalidBones body");
+  ok &= missing(rb3_latest_mesh_cpp, "boolRndMesh::HasValidBones(",
+                "checked RndMesh source lacks HasValidBones body");
+  ok &= missing(rb2_rnd_mesh_cpp, "SkinVertex(",
+                "RB2 RndMesh dump lacks SkinVertex range");
+  ok &= missing(rb2_rnd_mesh_cpp, "RemoveInvalidBones(",
+                "RB2 RndMesh dump lacks RemoveInvalidBones range");
+  ok &= missing(rb2_rnd_mesh_cpp, "HasValidBones(",
+                "RB2 RndMesh dump lacks HasValidBones range");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSkinRuntimeBoundary{"
+                 "boollatest_header_declares_skin_vertex=true;",
+                 "native exposes RndMesh skin runtime boundary");
+  ok &= contains(char_mesh_h,
+                 "boolsafe_to_claim_source_skin_vertex_body=false;",
+                 "native fences unavailable RndMesh SkinVertex body");
+  ok &= contains(char_mesh_h,
+                 "boolsafe_to_import_remove_invalid_bones=false;",
+                 "native fences unavailable RemoveInvalidBones body");
+  ok &= contains(char_mesh_h,
+                 "boolsafe_to_rewrite_skinning_from_dump=false;",
+                 "native fences unavailable skinning rewrite");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshSkinRuntimeBoundary"
+                 "source_rndmesh_skin_runtime_boundary(){return"
+                 "SourceRndMeshSkinRuntimeBoundary{};}",
+                 "native implements RndMesh skin runtime boundary helper");
+  ok &= contains(mesh_decode_test, "source_rndmesh_skin_runtime_boundary()",
+                 "focused mesh decode test covers RndMesh skin boundary");
+  ok &= contains(mesh_decode_test,
+                 "!skin_runtime_boundary.safe_to_claim_source_skin_vertex_body",
+                 "focused mesh decode test fences SkinVertex body claim");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/rndobj/Mesh.h` declares "
+                 "`RndMesh::SkinVertex`",
+                 "document records RndMesh SkinVertex declaration boundary");
+  ok &= contains(doc, "does not contain statement bodies for those three",
+                 "document records missing RndMesh skin bodies");
+  ok &= contains(doc,
+                 "must not claim\n    that as a copied "
+                 "`RndMesh::SkinVertex` body",
+                 "document fences native skin formula from source body claim");
 
   ok &= contains(gltf_node_processor_cs, "CollectHairChainsSplitAtBranches",
                  "glTFMilo current hair strand splitter is visible");

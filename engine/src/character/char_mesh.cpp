@@ -375,6 +375,10 @@ SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
   return plan;
 }
 
+SourceRndMeshSkinRuntimeBoundary source_rndmesh_skin_runtime_boundary() {
+  return SourceRndMeshSkinRuntimeBoundary{};
+}
+
 SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
     int32_t mesh_revision,
     int32_t alt_revision,

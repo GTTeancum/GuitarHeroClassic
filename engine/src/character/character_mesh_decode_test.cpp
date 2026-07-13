@@ -371,6 +371,25 @@ int main() {
   CHECK(rev33_skin_index_plan.rb3_stream_reads_bone_indices);
   CHECK(rev33_skin_index_plan.milo_editor_reads_bone_indices);
 
+  const auto skin_runtime_boundary =
+      ghogx::character::source_rndmesh_skin_runtime_boundary();
+  CHECK(skin_runtime_boundary.latest_header_declares_skin_vertex);
+  CHECK(skin_runtime_boundary.latest_header_declares_remove_invalid_bones);
+  CHECK(skin_runtime_boundary.latest_header_declares_has_valid_bones);
+  CHECK(skin_runtime_boundary.latest_cpp_calls_skin_vertex_from_collide_showing);
+  CHECK(skin_runtime_boundary.latest_cpp_calls_remove_invalid_bones_from_post_load);
+  CHECK(skin_runtime_boundary.latest_cpp_uses_has_valid_bones_prop_sync);
+  CHECK(!skin_runtime_boundary.latest_cpp_has_skin_vertex_body);
+  CHECK(!skin_runtime_boundary.latest_cpp_has_remove_invalid_bones_body);
+  CHECK(!skin_runtime_boundary.latest_cpp_has_has_valid_bones_body);
+  CHECK(!skin_runtime_boundary.rb2_dump_has_skin_vertex_range);
+  CHECK(!skin_runtime_boundary.rb2_dump_has_remove_invalid_bones_range);
+  CHECK(!skin_runtime_boundary.rb2_dump_has_has_valid_bones_range);
+  CHECK(skin_runtime_boundary.native_skin_to_pose_uses_source_offset_order);
+  CHECK(!skin_runtime_boundary.safe_to_claim_source_skin_vertex_body);
+  CHECK(!skin_runtime_boundary.safe_to_import_remove_invalid_bones);
+  CHECK(!skin_runtime_boundary.safe_to_rewrite_skinning_from_dump);
+
   const auto accessor_empty =
       ghogx::character::source_gltf_milo_validate_skin_accessor_set(
           false, false, 0, 0, 4);

@@ -1039,6 +1039,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `SetZeroWeightBones` pass is therefore source evidence for zero-weight
     index cleanup when indices exist, not permission to synthesize fake GH2
     rev28 bone indices for hair, face, neck, or hand fixes.
+  - `rb3-latest/src/system/rndobj/Mesh.h` declares `RndMesh::SkinVertex`,
+    `RemoveInvalidBones`, and `HasValidBones`, and `Mesh.cpp` visibly calls
+    them from skinned collision, `PostLoad`, and `has_valid_bones` prop sync.
+    The checked `Mesh.cpp` does not contain statement bodies for those three
+    functions, and the RB2 dump does not expose separate ranges for them.
+    Native `source_rndmesh_skin_runtime_boundary` records that boundary:
+    `skin_to_pose` currently consumes decoded source offsets in
+    `vertex * storedOffset * currentBoneWorld` order, but GHOGX must not claim
+    that as a copied `RndMesh::SkinVertex` body, import `RemoveInvalidBones`,
+    or rewrite skinning/invalid-bone behavior from the available dump alone.
   - `MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs` records the source field gates
     around the same `RndMesh` rows: `mat2` exists only at mesh revision 27,
     `altGeomOwner` before 13, `transParent` before 15, the two unknown transform
