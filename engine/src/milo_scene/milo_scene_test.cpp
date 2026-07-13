@@ -1330,6 +1330,18 @@ void test_mat() {
   CHECK(allowed_next_pass.allowed_order[0] == "<null>");
   CHECK(allowed_next_pass.allowed_order[1] == "hair_pass1.mat");
   CHECK(allowed_next_pass.allowed_order[2] == "body.mat");
+  const SourceRndMatAllowedNormalMapPlan allowed_normal_map =
+      source_rndmat_allowed_normal_map_plan();
+  CHECK(allowed_normal_map.uses_directory);
+  CHECK(allowed_normal_map.calls_get_normal_map_textures);
+  CHECK(allowed_normal_map.returns_data_node);
+  const SourceRndMatHandlerPlan mat_handlers = source_rndmat_handler_plan();
+  CHECK(mat_handlers.handlers.size() == 2);
+  CHECK(mat_handlers.handlers[0] == "allowed_next_pass");
+  CHECK(mat_handlers.handlers[1] == "allowed_normal_map");
+  CHECK(mat_handlers.superclasses.size() == 1);
+  CHECK(mat_handlers.superclasses[0] == "Hmx::Object");
+  CHECK(mat_handlers.check == 0x305);
   std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),

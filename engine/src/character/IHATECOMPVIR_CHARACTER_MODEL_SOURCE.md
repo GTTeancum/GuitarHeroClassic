@@ -1561,6 +1561,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     materials that are not in the source next-pass chain before resizing. This
     is a material editing/selection contract only; it does not change draw order,
     depth state, or hair-card rendering.
+  - Shared native `source_rndmat_allowed_normal_map_plan` and
+    `source_rndmat_handler_plan` record the adjacent handler surface:
+    `allowed_normal_map` returns `GetNormalMapTextures(Dir())`; the handler
+    table exposes only `allowed_next_pass`, `allowed_normal_map`, superclass
+    `Hmx::Object`, and check `0x305`. This is editor/API surface evidence only
+    and does not authorize normal-map synthesis or name-based material fixes.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
   - The source setters directly write members; they do not encode hair/string

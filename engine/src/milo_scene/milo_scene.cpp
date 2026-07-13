@@ -2381,6 +2381,17 @@ SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
   return plan;
 }
 
+SourceRndMatAllowedNormalMapPlan source_rndmat_allowed_normal_map_plan() {
+  return SourceRndMatAllowedNormalMapPlan{};
+}
+
+SourceRndMatHandlerPlan source_rndmat_handler_plan() {
+  SourceRndMatHandlerPlan plan;
+  plan.handlers = {"allowed_next_pass", "allowed_normal_map"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

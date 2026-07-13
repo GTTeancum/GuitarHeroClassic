@@ -1631,6 +1631,15 @@ int run_contract() {
   ok &= contains(doc,
                  "This\n    is a material editing/selection contract only; it does not change draw order",
                  "document fences RndMat next-pass helper from render behavior");
+  ok &= contains(doc,
+                 "Shared native `source_rndmat_allowed_normal_map_plan` and",
+                 "document records RndMat handler helpers");
+  ok &= contains(doc,
+                 "`allowed_normal_map` returns `GetNormalMapTextures(Dir())`",
+                 "document records RndMat allowed-normal-map source body");
+  ok &= contains(doc,
+                 "does not authorize normal-map synthesis or name-based material fixes",
+                 "document fences RndMat normal-map helper from fabricated fixes");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
@@ -3827,6 +3836,16 @@ int run_contract() {
   ok &= contains(rb3_mat_cpp,
                  "ptr->Resize(thiscount);returnDataNode(ptr);}",
                  "RB3 RndMat allowed-next-pass resizes result");
+  ok &= contains(rb3_mat_cpp,
+                 "BEGIN_HANDLERS(RndMat)HANDLE(allowed_next_pass,"
+                 "OnAllowedNextPass)HANDLE(allowed_normal_map,"
+                 "OnAllowedNormalMap)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x305)END_HANDLERS",
+                 "RB3 RndMat handler table");
+  ok &= contains(rb3_mat_cpp,
+                 "DataNodeRndMat::OnAllowedNormalMap(constDataArray*da){"
+                 "returnGetNormalMapTextures(Dir());}",
+                 "RB3 RndMat allowed-normal-map source body");
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
@@ -3883,6 +3902,15 @@ int run_contract() {
   ok &= contains(scene_h,
                  "SourceRndMatAllowedNextPassPlansource_rndmat_allowed_next_pass_plan(",
                  "shared milo_scene declares RndMat allowed-next-pass helper");
+  ok &= contains(scene_h,
+                 "structSourceRndMatAllowedNormalMapPlan{booluses_directory=true;",
+                 "shared milo_scene exposes RndMat allowed-normal-map helper");
+  ok &= contains(scene_h,
+                 "structSourceRndMatHandlerPlan{std::vector<std::string>handlers;",
+                 "shared milo_scene exposes RndMat handler helper");
+  ok &= contains(scene_h,
+                 "SourceRndMatHandlerPlansource_rndmat_handler_plan();",
+                 "shared milo_scene declares RndMat handler helper");
   ok &= contains(scene_h,
                  "std::stringnext_pass;boolintensify=false;"
                  "floatemissive_multiplier=1.0f;",
@@ -3995,6 +4023,16 @@ int run_contract() {
                  "source_rndmat_is_next_pass_plan(recursive_next_passes,mat);",
                  "shared RndMat allowed-next-pass helper excludes chain rows");
   ok &= contains(scene,
+                 "SourceRndMatAllowedNormalMapPlan"
+                 "source_rndmat_allowed_normal_map_plan(){"
+                 "returnSourceRndMatAllowedNormalMapPlan{};}",
+                 "shared RndMat allowed-normal-map helper returns source plan");
+  ok &= contains(scene,
+                 "SourceRndMatHandlerPlansource_rndmat_handler_plan(){"
+                 "SourceRndMatHandlerPlanplan;plan.handlers={"
+                 "\"allowed_next_pass\",\"allowed_normal_map\"};",
+                 "shared RndMat handler helper mirrors handler rows");
+  ok &= contains(scene,
                  "plan.reads_alpha_threshold=revision>0x25;",
                  "shared RndMat load plan mirrors alpha-threshold gate");
   ok &= contains(scene,
@@ -4061,6 +4099,12 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndmat_allowed_next_pass_plan(",
                  "milo_scene test covers RndMat allowed-next-pass helper");
+  ok &= contains(scene_test,
+                 "source_rndmat_allowed_normal_map_plan()",
+                 "milo_scene test covers RndMat allowed-normal-map helper");
+  ok &= contains(scene_test,
+                 "source_rndmat_handler_plan()",
+                 "milo_scene test covers RndMat handler helper");
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");

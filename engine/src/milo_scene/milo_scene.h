@@ -1735,6 +1735,18 @@ struct SourceRndMatAllowedNextPassPlan {
   std::vector<std::string> allowed_order;
 };
 
+struct SourceRndMatAllowedNormalMapPlan {
+  bool uses_directory = true;
+  bool calls_get_normal_map_textures = true;
+  bool returns_data_node = true;
+};
+
+struct SourceRndMatHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x305;
+};
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
@@ -1758,6 +1770,8 @@ SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
     const std::vector<std::string>& directory_mats,
     const std::string& current_next_pass,
     const std::vector<std::string>& recursive_next_passes);
+SourceRndMatAllowedNormalMapPlan source_rndmat_allowed_normal_map_plan();
+SourceRndMatHandlerPlan source_rndmat_handler_plan();
 
 struct Vertex {
   float px, py, pz;          // position
