@@ -2704,6 +2704,15 @@ note, and all report `unreadBytes=0`.
     `targets`/`src_one`/`src_two`/translation/rotation rows.
   - `PollDeps` pushes `mSrc1` and `mSrc2` into `changedBy`, then pushes every
     constraint target into `change`.
+  - The RB2 dump maps the missing runtime surface: `Replace`
+    `0x8031774C -> 0x80317928` with local `i`, `Poll`
+    `0x80317928 -> 0x80317C24` with locals `Transform dst`, `Quat q`,
+    `weight`, `i`, and `Quat tmp`, `PollDeps`
+    `0x80317C24 -> 0x80317D58` with local `i`, `Load`
+    `0x80317E64 -> 0x80318208` with locals `size`, `i`, and `Transform t`,
+    and `SyncProperty` `0x80318AAC -> 0x80318CC0`. Native
+    `source_char_blend_bone_runtime_dump_evidence` records that map as future
+    trace/source-import evidence only.
   - Native `source_char_blend_bone_*` helpers port those source-visible data and
     dependency rules only. The checked source marks `Poll` but does not include
     its body, so native must not invent blend output math from the field names.

@@ -406,6 +406,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharBlendBone.cpp"));
   const std::string rb3_latest_char_blend_bone_h = compact(read_file(
       rb3_latest_char_dir / "CharBlendBone.h"));
+  const std::string rb2_char_blend_bone_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharBlendBone.cpp"));
   const std::string rb3_latest_char_sleeve_cpp = compact(read_file(
       rb3_latest_char_dir / "CharSleeve.cpp"));
   const std::string rb3_latest_char_sleeve_h = compact(read_file(
@@ -14008,6 +14010,31 @@ int run_contract() {
   ok &= contains(rb3_latest_char_blend_bone_cpp,
                  "//fn_804A4D38-poll",
                  "CharBlendBone source lacks checked Poll body");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "//Range:0x8031774C->0x80317928voidCharBlendBone::"
+                 "Replace(",
+                 "RB2 dump maps CharBlendBone Replace range");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "//Range:0x80317928->0x80317C24voidCharBlendBone::Poll(",
+                 "RB2 dump maps CharBlendBone Poll range");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "classTransformdst;//r1+0x40classQuatq;//r1+0x30"
+                 "floatweight;//f31inti;//r29classQuattmp;",
+                 "RB2 dump maps CharBlendBone Poll locals");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "//Range:0x80317C24->0x80317D58voidCharBlendBone::"
+                 "PollDeps(",
+                 "RB2 dump maps CharBlendBone PollDeps range");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "//Range:0x80317E64->0x80318208voidCharBlendBone::Load(",
+                 "RB2 dump maps CharBlendBone Load range");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "intsize;//r1+0x28inti;//r26classTransformt;",
+                 "RB2 dump maps CharBlendBone Load locals");
+  ok &= contains(rb2_char_blend_bone_cpp,
+                 "//Range:0x80318AAC->0x80318CC0unsignedchar"
+                 "CharBlendBone::SyncProperty(",
+                 "RB2 dump maps CharBlendBone SyncProperty range");
   ok &= contains(char_mesh_h,
                  "structSourceCharBlendBoneConstraint{std::stringtarget;"
                  "floatweight=0.5f;};",
@@ -14045,6 +14072,11 @@ int run_contract() {
                  "structSourceCharBlendBonePropSyncPlan{std::vector<std::string>"
                  "properties;};",
                  "native exposes CharBlendBone prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneRuntimeDumpEvidence{"
+                 "std::stringreplace_range;std::stringpoll_range;"
+                 "std::stringpoll_deps_range;",
+                 "native exposes CharBlendBone runtime dump evidence");
   ok &= contains(char_mesh,
                  "SourceCharBlendBoneStatesource_char_blend_bone_default_state(){"
                  "returnSourceCharBlendBoneState{};}",
@@ -14095,6 +14127,27 @@ int run_contract() {
                  "returnplan;}",
                  "native ports CharBlendBone prop-sync table");
   ok &= contains(char_mesh,
+                 "SourceCharBlendBoneRuntimeDumpEvidence"
+                 "source_char_blend_bone_runtime_dump_evidence(){"
+                 "SourceCharBlendBoneRuntimeDumpEvidenceevidence;",
+                 "native implements CharBlendBone runtime dump helper");
+  ok &= contains(char_mesh,
+                 "evidence.replace_range=\"0x8031774C->0x80317928\";"
+                 "evidence.poll_range=\"0x80317928->0x80317C24\";",
+                 "native CharBlendBone runtime dump records Replace/Poll ranges");
+  ok &= contains(char_mesh,
+                 "evidence.poll_locals={\"Transformdst\",\"Quatq\","
+                 "\"floatweight\",\"inti\",\"Quattmp\"};",
+                 "native CharBlendBone runtime dump records Poll locals");
+  ok &= contains(char_mesh_h,
+                 "boolrb3_latest_declares_poll=true;"
+                 "boolrb3_latest_has_poll_body=false;"
+                 "boolrb2_dump_has_statement_body=false;",
+                 "native CharBlendBone runtime dump records missing bodies");
+  ok &= contains(char_mesh_h,
+                 "boolsafe_to_import_replace=false;boolsafe_to_import_poll=false;",
+                 "native CharBlendBone runtime dump fences imports");
+  ok &= contains(char_mesh,
                  "deps.changed_by.push_back(blend.src1);deps.changed_by."
                  "push_back(blend.src2);for(constSourceCharBlendBoneConstraint&"
                  "target:blend.targets){deps.change.push_back(target.target);}",
@@ -14130,6 +14183,12 @@ int run_contract() {
                  "source_char_blend_bone_prop_sync_plan()",
                  "focused CharBlendBone test covers prop-sync plan");
   ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_runtime_dump_evidence()",
+                 "focused CharBlendBone test covers runtime dump evidence");
+  ok &= contains(blend_bone_source_test,
+                 "runtime_dump.safe_to_import_poll",
+                 "focused CharBlendBone test fences Poll import");
+  ok &= contains(blend_bone_source_test,
                  "source_char_blend_bone_poll_deps(deps,blend)",
                  "focused CharBlendBone test covers PollDeps");
   ok &= contains(doc,
@@ -14147,6 +14206,15 @@ int run_contract() {
   ok &= contains(doc,
                  "constraint `target`/`weight` rows",
                  "document records native CharBlendBone constraint props");
+  ok &= contains(doc,
+                 "The RB2 dump maps the missing runtime surface: `Replace`",
+                 "document records CharBlendBone runtime dump map");
+  ok &= contains(doc,
+                 "`0x80317928 -> 0x80317C24` with locals `Transform dst`,",
+                 "document records CharBlendBone Poll runtime evidence");
+  ok &= contains(doc,
+                 "`source_char_blend_bone_runtime_dump_evidence` records that map",
+                 "document records native CharBlendBone runtime dump helper");
   ok &= contains(doc,
                  "Native `source_char_blend_bone_*` helpers port",
                  "document records native CharBlendBone helpers");

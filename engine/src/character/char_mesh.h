@@ -3126,6 +3126,24 @@ struct SourceCharBlendBonePropSyncPlan {
   std::vector<std::string> properties;
 };
 
+struct SourceCharBlendBoneRuntimeDumpEvidence {
+  std::string replace_range;
+  std::string poll_range;
+  std::string poll_deps_range;
+  std::string load_range;
+  std::string sync_property_range;
+  std::vector<std::string> replace_locals;
+  std::vector<std::string> poll_locals;
+  std::vector<std::string> poll_deps_locals;
+  std::vector<std::string> load_locals;
+  std::vector<std::string> sync_property_symbols;
+  bool rb3_latest_declares_poll = true;
+  bool rb3_latest_has_poll_body = false;
+  bool rb2_dump_has_statement_body = false;
+  bool safe_to_import_replace = false;
+  bool safe_to_import_poll = false;
+};
+
 struct SourceCharSleeveState {
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> last_pos = {0.0f, 0.0f, 0.0f};
@@ -4087,6 +4105,8 @@ SourceCharBlendBoneHandlerPlan source_char_blend_bone_handler_plan();
 SourceCharBlendBoneConstraintPropSyncPlan
 source_char_blend_bone_constraint_prop_sync_plan();
 SourceCharBlendBonePropSyncPlan source_char_blend_bone_prop_sync_plan();
+SourceCharBlendBoneRuntimeDumpEvidence
+source_char_blend_bone_runtime_dump_evidence();
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend);

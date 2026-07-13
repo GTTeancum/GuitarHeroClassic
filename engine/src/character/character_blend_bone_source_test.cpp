@@ -44,6 +44,7 @@ int main() {
   using ghogx::character::source_char_blend_bone_load_plan;
   using ghogx::character::source_char_blend_bone_poll_deps;
   using ghogx::character::source_char_blend_bone_prop_sync_plan;
+  using ghogx::character::source_char_blend_bone_runtime_dump_evidence;
   using ghogx::character::source_char_blend_bone_save_plan;
 
   bool ok = true;
@@ -124,6 +125,38 @@ int main() {
   ok &= expect_string(props.properties[1], "src_one", "prop-sync src_one");
   ok &= expect_string(props.properties[5], "trans_z", "prop-sync trans_z");
   ok &= expect_string(props.properties[6], "rotation", "prop-sync rotation");
+
+  const auto runtime_dump = source_char_blend_bone_runtime_dump_evidence();
+  ok &= expect_string(runtime_dump.replace_range, "0x8031774C -> 0x80317928",
+                      "runtime dump Replace range");
+  ok &= expect_string(runtime_dump.poll_range, "0x80317928 -> 0x80317C24",
+                      "runtime dump Poll range");
+  ok &= expect_string(runtime_dump.poll_deps_range,
+                      "0x80317C24 -> 0x80317D58",
+                      "runtime dump PollDeps range");
+  ok &= expect_string(runtime_dump.load_range, "0x80317E64 -> 0x80318208",
+                      "runtime dump Load range");
+  ok &= expect_string(runtime_dump.sync_property_range,
+                      "0x80318AAC -> 0x80318CC0",
+                      "runtime dump SyncProperty range");
+  ok &= expect_size(runtime_dump.poll_locals.size(), 5,
+                    "runtime dump Poll local count");
+  ok &= expect_string(runtime_dump.poll_locals[0], "Transform dst",
+                      "runtime dump Poll dst local");
+  ok &= expect_string(runtime_dump.poll_locals[2], "float weight",
+                      "runtime dump Poll weight local");
+  ok &= expect_string(runtime_dump.load_locals[2], "Transform t",
+                      "runtime dump Load transform local");
+  ok &= expect_bool(runtime_dump.rb3_latest_declares_poll, true,
+                    "runtime dump latest declares Poll");
+  ok &= expect_bool(runtime_dump.rb3_latest_has_poll_body, false,
+                    "runtime dump latest lacks Poll body");
+  ok &= expect_bool(runtime_dump.rb2_dump_has_statement_body, false,
+                    "runtime dump lacks statement body");
+  ok &= expect_bool(runtime_dump.safe_to_import_replace, false,
+                    "runtime dump fences Replace import");
+  ok &= expect_bool(runtime_dump.safe_to_import_poll, false,
+                    "runtime dump fences Poll import");
 
   blend.src1 = "source.one";
   blend.src2 = "source.two";

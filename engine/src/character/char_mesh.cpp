@@ -7186,6 +7186,23 @@ SourceCharBlendBonePropSyncPlan source_char_blend_bone_prop_sync_plan() {
   return plan;
 }
 
+SourceCharBlendBoneRuntimeDumpEvidence
+source_char_blend_bone_runtime_dump_evidence() {
+  SourceCharBlendBoneRuntimeDumpEvidence evidence;
+  evidence.replace_range = "0x8031774C -> 0x80317928";
+  evidence.poll_range = "0x80317928 -> 0x80317C24";
+  evidence.poll_deps_range = "0x80317C24 -> 0x80317D58";
+  evidence.load_range = "0x80317E64 -> 0x80318208";
+  evidence.sync_property_range = "0x80318AAC -> 0x80318CC0";
+  evidence.replace_locals = {"int i"};
+  evidence.poll_locals = {"Transform dst", "Quat q", "float weight", "int i",
+                          "Quat tmp"};
+  evidence.poll_deps_locals = {"int i"};
+  evidence.load_locals = {"int size", "int i", "Transform t"};
+  evidence.sync_property_symbols = {"targets", "src_one", "src_two"};
+  return evidence;
+}
+
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend) {
