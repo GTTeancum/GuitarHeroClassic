@@ -15304,6 +15304,23 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     return true;
 }
 
+std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
+    return mode == CameraShotMode::Lighter ? "LIGHTER"
+                                           : "NORMAL_CAMSHOT_CATEGORIES";
+}
+
+void camera_source_first_shot_ok(std::string_view category) {
+    // ihatecompvir CameraManager::FindCameraShot sends first_shot_ok(category)
+    // once before scanning the category list. Keep the source call order
+    // observable while the GH2-specific handler remains unrecovered.
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera first_shot_ok: source_msg=first_shot_ok category=%s result=deferred\n",
+            std::string(category).c_str());
+    }
+}
+
 template <typename Predicate>
 std::optional<size_t> choose_regular_camera_key_index_by_category(
     const std::vector<Gameplay::CameraKey>& keys,
@@ -15346,6 +15363,7 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
             break;
         }
     }
+    camera_source_first_shot_ok(camera_source_pick_shot_category(mode));
     std::optional<size_t> selected =
         choose_regular_camera_key_index_by_category(
             keys, previous, mode, [&](const Gameplay::CameraKey& key) {

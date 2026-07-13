@@ -10568,6 +10568,21 @@ int main() {
                  "constGameplay::CameraKey*previous)",
                  "regular camera selector exposes ihatecompvir CamShot::ShotOk hook");
   ok &= contains(gameplay_c,
+                 "voidcamera_source_first_shot_ok(std::string_viewcategory)",
+                 "regular camera selector exposes ihatecompvir CameraManager::FirstShotOk hook");
+  ok &= contains(gameplay_c,
+                 "camera_source_first_shot_ok("
+                 "camera_source_pick_shot_category(mode));",
+                 "regular camera selector sends first_shot_ok before source shot filtering");
+  ok &= contains(gameplay_c,
+                 "returnmode==CameraShotMode::Lighter?\"LIGHTER\""
+                 ":\"NORMAL_CAMSHOT_CATEGORIES\";",
+                 "regular camera selector preserves the source pick_shot category token");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerafirst_shot_ok:source_msg=first_shot_ok"
+                 "category=%sresult=deferred\\n\"",
+                 "regular camera diagnostics expose deferred source first_shot_ok hook");
+  ok &= contains(gameplay_c,
                  "if(!camera_source_shot_ok(key,previous))continue;",
                  "regular camera selector runs source shot_ok after ShotMatches filters");
   ok &= contains(gameplay_c,

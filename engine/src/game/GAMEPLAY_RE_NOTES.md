@@ -60,6 +60,13 @@ Open work:
   but the hook currently accepts until GH2's native `cam_shot_ok` predicate is
   recovered. This preserves the source selection shape without inventing
   hidden script behavior.
+- 2026-07-13 CameraManager `first_shot_ok` hook: ihatecompvir sends
+  `first_shot_ok(category)` at the start of `FindCameraShot`, before any
+  category scan or `shot_ok` calls. Native regular selection now logs and
+  preserves that call-order point using the source category requested by the
+  GH2 world scripts (`NORMAL_CAMSHOT_CATEGORIES` for regular/solo/jump and
+  `LIGHTER` for lighter shots). The hook is intentionally diagnostic/deferred
+  until the GH2 handler behavior is recovered.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that
