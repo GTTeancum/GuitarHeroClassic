@@ -2855,6 +2855,21 @@ bool debug_leg_pose_enabled() {
 #endif
 }
 
+bool debug_arm_pose_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_ARM_POSE") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_ARM_POSE");
+  return value && value[0];
+#endif
+}
+
 bool controller_audit_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -5266,6 +5281,54 @@ static void dump_leg_pose(const Character& character) {
   dump("bone_R-knee");
   dump("bone_R-foot");
   dump("bone_R-toe");
+}
+
+static void dump_arm_pose(const Character& character, const char* tag) {
+  if (!debug_arm_pose_enabled()) return;
+  auto dump = [&](const char* name) {
+    const int i = find_bone_index(character, name);
+    if (i < 0 || static_cast<size_t>(i) >= character.bones.size()) {
+      std::fprintf(stderr, "[armpose] %s %-22s missing\n", tag, name);
+      return;
+    }
+    const auto& bone = character.bones[static_cast<size_t>(i)];
+    const auto cur = character.bone_world_local_chain(bone.name);
+    const auto bind = character.bone_world_bind_local_chain(bone.name);
+    std::fprintf(
+        stderr,
+        "[armpose] %s %-22s exact=%-28s parent=%-24s "
+        "localPos=(%.4f %.4f %.4f) world=(%.4f %.4f %.4f) "
+        "bind=(%.4f %.4f %.4f) "
+        "rows=[%.5f %.5f %.5f|%.5f %.5f %.5f|%.5f %.5f %.5f]\n",
+        tag, name, bone.name.c_str(), bone.parent.c_str(), bone.local.pos[0],
+        bone.local.pos[1], bone.local.pos[2], cur[12], cur[13], cur[14],
+        bind[12], bind[13], bind[14], bone.local.rot[0][0],
+        bone.local.rot[0][1], bone.local.rot[0][2], bone.local.rot[1][0],
+        bone.local.rot[1][1], bone.local.rot[1][2], bone.local.rot[2][0],
+        bone.local.rot[2][1], bone.local.rot[2][2]);
+  };
+  dump("bone_pelvis");
+  dump("bone_spine1");
+  dump("bone_spine2");
+  dump("bone_spine3");
+  dump("bone_neck");
+  dump("bone_head");
+  dump("bone_L-clavicle");
+  dump("bone_L-upperArm");
+  dump("bone_L-upperTwist1");
+  dump("bone_L-upperTwist2");
+  dump("bone_L-foreArm");
+  dump("bone_L-foreTwist1");
+  dump("bone_L-foreTwist2");
+  dump("bone_L-hand");
+  dump("bone_R-clavicle");
+  dump("bone_R-upperArm");
+  dump("bone_R-upperTwist1");
+  dump("bone_R-upperTwist2");
+  dump("bone_R-foreArm");
+  dump("bone_R-foreTwist1");
+  dump("bone_R-foreTwist2");
+  dump("bone_R-hand");
 }
 
 static bool transform_local_chain_world(const Character& character,
@@ -9230,6 +9293,7 @@ void apply_character_controllers(Character& character, float time_seconds) {
   (void)time_seconds;
   character.runtime_world_overrides.clear();
   log_character_controller_graph_once(character);
+  dump_arm_pose(character, "controllers-pre");
   std::vector<milo_scene::Xfm> bind_bones = character.bind_bone_local;
   if (bind_bones.size() != character.bones.size()) {
     bind_bones.clear();
@@ -9242,6 +9306,7 @@ void apply_character_controllers(Character& character, float time_seconds) {
   apply_source_upper_twists(character, bind_bones);
   apply_source_pos_constraints(character);
   apply_source_ik_rods(character);
+  dump_arm_pose(character, "controllers-post");
 
   if (debug_face_enabled()) {
     for (const auto& b : character.bones) {
@@ -9348,6 +9413,7 @@ void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character)
     apply_clip_pose_sampled_direct(clip.frames[(size_t)fi], 1.0f, character,
                                    clip.relative);
   }
+  dump_arm_pose(character, "clip-frame-post");
 }
 
 void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
@@ -9359,6 +9425,7 @@ void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
     apply_clip_pose_sampled_direct(clip.frames[(size_t)fi], weight, character,
                                    clip.relative);
   }
+  dump_arm_pose(character, "clip-frame-weighted-post");
 }
 
 float CharClip::duration_seconds() const {

@@ -31569,6 +31569,27 @@ int run_contract() {
                  "\"GHOGX_ENABLE_CHARBONE_FACE_OUTPUT\"",
                  "face CharBone output bridge uses explicit enable");
   ok &= contains(char_clip,
+                 "\"GHOGX_DEBUG_ARM_POSE\"",
+                 "arm pose trace is opt-in diagnostic only");
+  ok &= contains(char_clip,
+                 "staticvoiddump_arm_pose(constCharacter&character,constchar*tag)",
+                 "native arm pose trace has a bounded diagnostic helper");
+  ok &= contains(char_clip,
+                 "dump_arm_pose(character,\"clip-frame-post\");",
+                 "arm pose trace captures post-clip pose state");
+  ok &= contains(char_clip,
+                 "dump_arm_pose(character,\"controllers-pre\");",
+                 "arm pose trace captures pre-controller pose state");
+  ok &= contains(char_clip,
+                 "dump_arm_pose(character,\"controllers-post\");",
+                 "arm pose trace captures post-controller pose state");
+  ok &= contains(char_clip,
+                 "dump(\"bone_L-upperTwist1\");",
+                 "arm pose trace includes left upper twist bone");
+  ok &= contains(char_clip,
+                 "dump(\"bone_R-upperTwist1\");",
+                 "arm pose trace includes right upper twist bone");
+  ok &= contains(char_clip,
                  "constboollower_body_output=lower_body_only&&"
                  "output_map_lower_body_bone(it->first);",
                  "lower-body CharBone rows require the lower-body diagnostic opt-in");
@@ -31594,6 +31615,13 @@ int run_contract() {
                  "must require explicit enable switches and must not have "
                  "default-on disable\n  switches",
                  "native rules reject default-on CharBone bridge switches");
+  ok &= contains(doc,
+                 "engine/out/visual_proofs/twist_trace_20260713/",
+                 "document records direct-app arm pose trace proof");
+  ok &= contains(doc,
+                 "Treat the visible star-power shoulder/twist problem as\n"
+                 "upstream of `CharForeTwist` / `CharUpperTwist`",
+                 "document keeps current arm issue out of twist-controller guesses");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");

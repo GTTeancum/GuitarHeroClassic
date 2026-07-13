@@ -5188,6 +5188,19 @@ always-on. For example, current proof logs in
 has `flags=0x00c00001`, both rows write `1.0`, and the hand IK rows solve.
 This is a source flag path, not a distance, pose, or guitar-specific override.
 
+`engine/out/visual_proofs/twist_trace_20260713/` records a direct-app
+Rockabill2 `special_02` frame 95 trace with the new opt-in arm pose logger.
+The paired controller-on and controller-off captures have the same final
+clip-frame `bone_L/R-clavicle`, `bone_L/R-upperArm`, and hand world positions
+before any character controller can change them. The controller-on log then
+runs ihatecompvir-backed `CharForeTwist` and `CharUpperTwist` rows, but the
+upper-arm world positions remain unchanged from `controllers-pre` to
+`controllers-post`. Treat the visible star-power shoulder/twist problem as
+upstream of `CharForeTwist` / `CharUpperTwist`: the remaining source-truth gap
+is the `CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes`
+runtime application path, not a reason to invent per-character twist or neck
+offsets.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
