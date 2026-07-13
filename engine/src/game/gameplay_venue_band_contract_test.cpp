@@ -6785,6 +6785,15 @@ int main() {
                  "constautolight_world=sampled_light_world(*light,ref);",
                  "authored Environ lights consume sampled .lit transforms");
   ok &= contains(renderer_c,
+                 "constexprfloatkMaxAuthoredLightColor=64.0f;",
+                 "renderer accepts source-authored overbright RndLight colors");
+  ok &= contains(renderer_c,
+                 "light.color[i]>kMaxAuthoredLightColor",
+                 "overbright RndLight colors are bounded without dropping valid rim lights");
+  ok &= contains(renderer_c,
+                 "std::clamp(light_color[0],0.0f,kMaxAuthoredLightColor)",
+                 "authored D3D light setup preserves overbright source intensity");
+  ok &= contains(renderer_c,
                  "std::array<float,3>authored_light_direction_from_world(",
                  "renderer centralizes authored directional .lit aim");
   ok &= contains(renderer_c,

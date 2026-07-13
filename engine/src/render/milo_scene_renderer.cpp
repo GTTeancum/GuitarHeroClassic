@@ -44,6 +44,7 @@ constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_PSIZE | D3DFVF_DIFFUSE;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kAuthoredLightFirstSlot = 2;
 constexpr DWORD kAuthoredLightSlotCount = 6;
+constexpr float kMaxAuthoredLightColor = 64.0f;
 
 std::array<float, 4> average_particle_color(
     const std::array<float, 4>& low,
@@ -1303,7 +1304,7 @@ bool environ_color_sane(const milo_scene::EnvironObj& env) {
 bool light_color_sane(const milo_scene::LightObj& light) {
   for (int i = 0; i < 4; ++i) {
     if (!std::isfinite(light.color[i]) || light.color[i] < 0.0f ||
-        light.color[i] > 4.0f) {
+        light.color[i] > kMaxAuthoredLightColor) {
       return false;
     }
   }
@@ -2349,9 +2350,12 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
       apply_mesh_transform_sample(light_world, xfm_it->second);
     }
     D3DLIGHT9 dl{};
-    dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
-    dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
-    dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
+    dl.Diffuse.r =
+        std::clamp(light_color[0], 0.0f, kMaxAuthoredLightColor);
+    dl.Diffuse.g =
+        std::clamp(light_color[1], 0.0f, kMaxAuthoredLightColor);
+    dl.Diffuse.b =
+        std::clamp(light_color[2], 0.0f, kMaxAuthoredLightColor);
     dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
     if (light_type == 1) {
       const auto direction = authored_light_direction_from_world(light_world);
@@ -2997,9 +3001,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       const auto light_world = sampled_light_world(*light, ref);
       D3DLIGHT9 dl{};
-      dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
-      dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
-      dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
+      dl.Diffuse.r =
+          std::clamp(light_color[0], 0.0f, kMaxAuthoredLightColor);
+      dl.Diffuse.g =
+          std::clamp(light_color[1], 0.0f, kMaxAuthoredLightColor);
+      dl.Diffuse.b =
+          std::clamp(light_color[2], 0.0f, kMaxAuthoredLightColor);
       dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
       if (light_type == 1) {
         const auto direction = authored_light_direction_from_world(light_world);
