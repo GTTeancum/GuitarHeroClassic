@@ -5280,6 +5280,16 @@ old static fret anchor, global guitar offset, approximate twist writer, broad
 hand-IK A/B gates, point-snap hair, no-zwrite hair, or name-specific hair/mesh
 offset experiments.
 
+Second pass over the pre-integration notes and archived chat artifacts did not
+add a fourth safe implementation direction. The compatible details refine those
+same three leads: GH2DXu/GHDX `player*_fret_pos` and `player*_fret` are
+separate accepted streams, the final hand world bridge must not be fed back into
+the foretwist roll source, upper twists stay after the hair/look-at portion of
+the accepted cadence, and Rock/Rockabill hair failures remain controller-row /
+weighted-card consumer issues. This recheck is a guardrail for the next source
+implementation pass, not a license to restore removed diagnostics or old visual
+experiments.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

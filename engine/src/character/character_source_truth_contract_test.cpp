@@ -31728,6 +31728,19 @@ int run_contract() {
                  "does not revive the\nold static fret anchor, global guitar "
                  "offset, approximate twist writer",
                  "document rejects resurrecting old pre-integration experiments");
+  ok &= contains(doc,
+                 "Second pass over the pre-integration notes and archived "
+                 "chat artifacts did not\nadd a fourth safe implementation "
+                 "direction.",
+                 "document records second pre-integration chat pass boundary");
+  ok &= contains(doc,
+                 "the final hand world bridge must not be fed back into\n"
+                 "the foretwist roll source",
+                 "document preserves final-hand bridge and foretwist source split");
+  ok &= contains(doc,
+                 "Rock/Rockabill hair failures remain controller-row /\n"
+                 "weighted-card consumer issues",
+                 "document preserves old hair trace as consumer-path evidence");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");
