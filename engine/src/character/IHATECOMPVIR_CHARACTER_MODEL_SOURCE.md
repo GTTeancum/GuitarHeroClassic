@@ -45,6 +45,19 @@ records the upstream commits for the copied files:
   The imported `grim-dev` snapshot adds reviewable Rust source for GH2
   `CharHair` version 2 file-structure details that were missing from the
   checked C++ bodies.
+- 2026-07-13 live upstream refresh:
+  `third_party/ihatecompvir-live/rb3` was fetched and still matches GitHub
+  `ihatecompvir/rb3` master `41719f248995f677ffa39bd394706b5d18ef70c6`.
+  Fresh shallow live mirrors under `third_party/ihatecompvir-live/` resolved
+  `glTFMilo` main `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`,
+  `grim` master `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb`, and
+  `re-notes` master `5c486fd6e5e5186c0797df9c84182b056672b3f0`; direct
+  upstream checks also confirmed `MiloEditor` main
+  `3ebffb1c4391dd83c5765cb428eef433dffaff51`, `re-gh2` main
+  `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`, and `band3_recomp` main
+  `c51944bd13dfd4cb6df918159fb7136c20f74fb0`. The `ihatecompvir-live`
+  folders are verification mirrors for this worktree; do not treat older
+  wording such as `rb3-latest` as meaning newer than the hashes listed here.
 
 The contract test verifies that every copied
 `ihatecompvir-extra/rb3-latest/src/system/char` `.cpp`/`.h` file is named in
@@ -5200,6 +5213,31 @@ upstream of `CharForeTwist` / `CharUpperTwist`: the remaining source-truth gap
 is the `CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes`
 runtime application path, not a reason to invent per-character twist or neck
 offsets.
+
+2026-07-13 history recheck: checkpoint `96f64b5` restored the accepted
+Rock1/Rock2 source cadence by keeping `CharUpperTwist` after `CharHair`, and
+the later `CHARACTER_FORMAT_NOTES.md` rechecks narrowed one apparent front-view
+regression to deterministic capture timing. Those notes also explicitly leave
+Rock1/Rock2 side-profile arm/neck posture unsigned-off until the
+`CharClipSamples` / `CharBonesSamples` / driver sample path is source-backed
+further or original-game runtime proof selects the exact reviewed frame. Do not
+treat the old front-view cadence proof as closure for the current star-power or
+side-profile twist/neck issue.
+
+2026-07-13 pre-ihatecompvir chat recheck: the earlier left-hand trace found
+the renderer's static `bone_fret_hand` replacement was a misplaced live
+animation row. Static guitar prop rows and live hand-target rows are separate:
+the selected guitar prop supplies authored `spot_neck_fret01.mesh` through
+`spot_neck_fret20.mesh` rows, while live `bone_fret_hand.mesh` must come from
+the character fret/hand output path. The guitar MILOs have repeated authored
+anchor buckets, not one universal common offset, so do not revive a renderer
+static-anchor band-aid or a character/guitar offset from that old work. The
+compatible hair finding from the same pre-integration chat is also bounded:
+CharHair controller rows were live on the problematic Rock/Funk/Rockabill
+samples, while the visual failures pointed at the weighted card/mesh consumer
+equation rather than simple physics-disable, material-alpha, cull, hiding, or
+name-specific fixes. Keep these as evidence targets to reconcile with current
+ihatecompvir source, not as permission to reapply removed native experiments.
 
 ## Native Rules
 

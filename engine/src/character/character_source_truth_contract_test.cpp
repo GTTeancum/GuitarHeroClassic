@@ -852,6 +852,20 @@ int run_contract() {
                  "snapshot",
                  "document records current upstream source checks");
   ok &= contains(doc,
+                 "2026-07-13 live upstream refresh",
+                 "document records refreshed live upstream source checks");
+  ok &= contains(doc,
+                 "`third_party/ihatecompvir-live/rb3` was fetched and still "
+                 "matches GitHub",
+                 "document records live rb3 verification mirror");
+  ok &= contains(doc,
+                 "`ihatecompvir-live`\n  folders are verification mirrors",
+                 "document fences live mirrors from committed source paths");
+  ok &= contains(doc,
+                 "do not treat older\n  wording such as `rb3-latest` as "
+                 "meaning newer than the hashes listed here",
+                 "document clarifies latest folder-name ambiguity");
+  ok &= contains(doc,
                  "`MiloEditor` main "
                  "`3ebffb1c4391dd83c5765cb428eef433dffaff51`",
                  "document records current MiloEditor upstream check");
@@ -31622,6 +31636,29 @@ int run_contract() {
                  "Treat the visible star-power shoulder/twist problem as\n"
                  "upstream of `CharForeTwist` / `CharUpperTwist`",
                  "document keeps current arm issue out of twist-controller guesses");
+  ok &= contains(doc,
+                 "2026-07-13 history recheck: checkpoint `96f64b5` restored "
+                 "the accepted\nRock1/Rock2 source cadence",
+                 "document records prior Rock cadence checkpoint scope");
+  ok &= contains(doc,
+                 "Do not\ntreat the old front-view cadence proof as closure "
+                 "for the current star-power or\nside-profile twist/neck issue.",
+                 "document fences old Rock proof from current issue");
+  ok &= contains(doc,
+                 "2026-07-13 pre-ihatecompvir chat recheck: the earlier "
+                 "left-hand trace found",
+                 "document records compatible pre-integration chat evidence");
+  ok &= contains(doc,
+                 "Static guitar prop rows and live hand-target rows are "
+                 "separate",
+                 "document preserves static-vs-live hand target split");
+  ok &= contains(doc,
+                 "not one universal common offset",
+                 "document rejects global guitar offset theory");
+  ok &= contains(doc,
+                 "CharHair controller rows were live on the problematic "
+                 "Rock/Funk/Rockabill\nsamples",
+                 "document preserves pre-integration hair consumer clue");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");
