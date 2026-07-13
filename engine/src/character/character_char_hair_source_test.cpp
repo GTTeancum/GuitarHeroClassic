@@ -872,26 +872,60 @@ int main() {
   set_pos(parent.local, 10.0f, 20.0f, 30.0f);
   add_trans(freeze_character, parent);
   add_trans(freeze_character, make_trans("root", "parent"));
+  add_trans(freeze_character, make_trans("orphan"));
+  add_trans(freeze_character, make_trans("dangling", "missing_parent"));
 
   CharHair freeze_hair;
   freeze_hair.name = "freeze.hair";
-  freeze_hair.strands.resize(1);
+  freeze_hair.strands.resize(4);
   freeze_hair.strands[0].root = "root";
-  freeze_hair.strands[0].points.resize(1);
+  freeze_hair.strands[0].points.resize(2);
+  freeze_hair.strands[0].points[1].unk5c[0] = 99.0f;
+  freeze_hair.strands[1].root = "missing_root";
+  freeze_hair.strands[1].points.resize(1);
+  freeze_hair.strands[2].root = "orphan";
+  freeze_hair.strands[2].points.resize(1);
+  freeze_hair.strands[3].root = "dangling";
+  freeze_hair.strands[3].points.resize(1);
   ghogx::character::SourceCharHairRuntime freeze_state;
-  freeze_state.strands.resize(1);
+  freeze_state.strands.resize(4);
   freeze_state.strands[0].points.resize(1);
   freeze_state.strands[0].points[0].pos = {12.0f, 23.0f, 34.0f};
+  freeze_state.strands[1].points.resize(1);
+  freeze_state.strands[1].points[0].pos = {1.0f, 2.0f, 3.0f};
+  freeze_state.strands[2].points.resize(1);
+  freeze_state.strands[2].points[0].pos = {4.0f, 5.0f, 6.0f};
+  freeze_state.strands[3].points.resize(1);
+  freeze_state.strands[3].points[0].pos = {7.0f, 8.0f, 9.0f};
   const int freeze_writes =
       source_char_hair_freeze_pose_raw(freeze_character, freeze_hair,
                                        freeze_state);
-  ok &= freeze_writes == 1;
+  ok &= expect_int(freeze_writes, 1,
+                   "FreezePoseRaw writes only parented matching points");
   ok &= near(freeze_hair.strands[0].points[0].unk5c[0], 2.0f,
              "freeze-local x");
   ok &= near(freeze_hair.strands[0].points[0].unk5c[1], 3.0f,
              "freeze-local y");
   ok &= near(freeze_hair.strands[0].points[0].unk5c[2], 4.0f,
              "freeze-local z");
+  ok &= near(freeze_hair.strands[0].points[1].unk5c[0], 99.0f,
+             "FreezePoseRaw leaves unmatched hair point");
+  ok &= near(freeze_hair.strands[1].points[0].unk5c[0], 0.0f,
+             "FreezePoseRaw skips missing root");
+  ok &= near(freeze_hair.strands[2].points[0].unk5c[0], 0.0f,
+             "FreezePoseRaw skips unparented root");
+  ok &= near(freeze_hair.strands[3].points[0].unk5c[0], 0.0f,
+             "FreezePoseRaw skips unresolved parent transform");
+
+  CharHair no_state_freeze_hair;
+  no_state_freeze_hair.strands.resize(1);
+  no_state_freeze_hair.strands[0].root = "root";
+  no_state_freeze_hair.strands[0].points.resize(1);
+  ghogx::character::SourceCharHairRuntime no_state_freeze;
+  ok &= expect_int(source_char_hair_freeze_pose_raw(
+                       freeze_character, no_state_freeze_hair,
+                       no_state_freeze),
+                   0, "FreezePoseRaw skips absent runtime strand");
 
   const auto sync_decision =
       source_char_hair_poll_decision(true, true, false, 0, 0, 0.25f);

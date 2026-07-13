@@ -1858,8 +1858,10 @@ note, and all report `unreadBytes=0`.
     200 loops at 60 Hz, restores the previous simulate flag, then freezes those
     rows. Native `source_char_hair_freeze_pose_plan` ports the call order and
     restore behavior, and `source_char_hair_freeze_pose_raw` ports the raw
-    local-row write. Full `FreezePose` remains bounded by the unresolved source
-    `Hookup(ObjPtrList<CharCollide>&)` path.
+    local-row write. Focused coverage now exercises the source skip gates for
+    missing roots, unparented roots, unresolved parent transforms, absent runtime
+    strands, and shorter runtime point vectors. Full `FreezePose` remains
+    bounded by the unresolved source `Hookup(ObjPtrList<CharCollide>&)` path.
   - `SetName` detects whether the owning directory is a `Character` or
     `WorldDir` and enables post-process FPS emulation accordingly. `GetFPS`
     returns the post-process emulated rate when available, otherwise 60 Hz. The
