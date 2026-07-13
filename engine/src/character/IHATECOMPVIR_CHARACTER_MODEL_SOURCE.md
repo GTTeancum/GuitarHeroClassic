@@ -1652,6 +1652,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     mip detach, pixel-format/palette compare, and blit bounds/mismatch rows.
     These are still passive contracts and do not write bitmaps, compare palette
     contents, or blit pixels.
+  - Native `source_bitmap_file_header_stream_plan`,
+    `source_bitmap_info_header_stream_plan`, `source_premultiply_alpha_plan`,
+    and `source_rndbitmap_column_nontransparent_plan` record the BMP header
+    stream row order plus the visible empty alpha-premultiply and always-false
+    column scan utility bodies. These are passive format contracts only.
 - `rb3/src/system/utl/ChunkStream.cpp`
   - `ReadChunks` repeatedly reads `Min(total_len - curr_size, max_chunk_size)`
     until exactly `total_len` bytes have been consumed. This is the source for
@@ -1784,7 +1789,8 @@ copy/handler/property rows, and type text without changing stock texture
 loading. It also covers source platform BPP/order, `SetBitmap` branch choices,
 loader reset/bottom-mip behavior, `LockBitmap` conversion decisions,
 `RndBitmap` reset/create/set-mip/safe-load branches, and `ReadChunks` chunk
-sizing, plus bitmap save/detach/pixel-format/blit source rows.
+sizing, bitmap save/detach/pixel-format/blit source rows, and BMP header/
+alpha/column utility rows.
 
 ## Generic Object Row Authority
 

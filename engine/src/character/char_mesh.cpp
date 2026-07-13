@@ -3827,6 +3827,50 @@ SourceRndBitmapBltPlan source_rndbitmap_blt_plan(
   return plan;
 }
 
+SourceBitmapFileHeaderStreamPlan source_bitmap_file_header_stream_plan() {
+  SourceBitmapFileHeaderStreamPlan plan;
+  plan.read_order = {"bfSize", "bfReserved1", "bfReserved2", "bfOffBits"};
+  plan.write_order = plan.read_order;
+  return plan;
+}
+
+SourceBitmapInfoHeaderStreamPlan source_bitmap_info_header_stream_plan() {
+  SourceBitmapInfoHeaderStreamPlan plan;
+  plan.read_order = {"biSize", "biWidth", "biHeight", "biPlanes",
+                     "biBitCount", "biCompression", "biSizeImage",
+                     "biXPelsPerMeter", "biYPelsPerMeter", "biClrUsed",
+                     "biClrImportant"};
+  plan.write_order = plan.read_order;
+  return plan;
+}
+
+SourcePreMultiplyAlphaPlan source_premultiply_alpha_plan() {
+  return SourcePreMultiplyAlphaPlan{};
+}
+
+SourceRndBitmapColumnNonTransparentPlan
+source_rndbitmap_column_nontransparent_plan(
+    int32_t x,
+    int32_t y,
+    const std::vector<uint8_t>& alpha_samples) {
+  SourceRndBitmapColumnNonTransparentPlan plan;
+  plan.x = x;
+  plan.y = y;
+  plan.height = static_cast<int32_t>(alpha_samples.size());
+  plan.alpha_samples = alpha_samples;
+  plan.last_transparent_y = y;
+  for (uint8_t alpha : alpha_samples) {
+    if (alpha != 0) {
+      plan.returns_true = false;
+      return plan;
+    }
+    plan.writes_last_transparent_y = true;
+    plan.last_transparent_y = y;
+  }
+  plan.returns_true = false;
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

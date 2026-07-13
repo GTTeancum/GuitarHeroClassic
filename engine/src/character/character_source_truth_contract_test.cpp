@@ -16705,6 +16705,19 @@ int run_contract() {
                  "bs<<mRowBytes;bs.Write(pad,0x13);returnbs;}",
                  "latest RndBitmap source backs save-header padding");
   ok &= contains(rb3_latest_bitmap_cpp,
+                 "BinStream&operator>>(BinStream&bs,tagBITMAPFILEHEADER&bmfh){"
+                 "bs>>bmfh.bfSize;bs>>bmfh.bfReserved1;"
+                 "bs>>bmfh.bfReserved2;bs>>bmfh.bfOffBits;returnbs;}",
+                 "latest RndBitmap source backs BMP file header read order");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "BinStream&operator>>(BinStream&bs,tagBITMAPINFOHEADER&bmih){"
+                 "bs>>bmih.biSize;bs>>bmih.biWidth;bs>>bmih.biHeight;",
+                 "latest RndBitmap source backs BMP info header read prefix");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "bs>>bmih.biYPelsPerMeter;bs>>bmih.biClrUsed;"
+                 "bs>>bmih.biClrImportant;returnbs;}",
+                 "latest RndBitmap source backs BMP info header read suffix");
+  ok &= contains(rb3_latest_bitmap_cpp,
                  "intRndBitmap::PaletteBytes()const{if(mBpp<=8){"
                  "if((mOrder&0x38)==0&&(mOrder&0x80)==0){"
                  "return(1<<mBpp)*4;}}return0;}",
@@ -16749,6 +16762,9 @@ int run_contract() {
                  "mMip=NULL;returnm;}",
                  "latest RndBitmap source backs DetachMip");
   ok &= contains(rb3_latest_bitmap_cpp,
+                 "voidPreMultiplyAlpha(u8&,u8&,u8&,u8){}",
+                 "latest RndBitmap source backs empty PreMultiplyAlpha");
+  ok &= contains(rb3_latest_bitmap_cpp,
                  "voidRndBitmap::Blt(constRndBitmap&bm,intdX,intdY,intsX,intsY,"
                  "intwidth,intheight){MILO_ASSERT(dX+width<=mWidth,1728);",
                  "latest RndBitmap source backs Blt bounds prefix");
@@ -16764,6 +16780,13 @@ int run_contract() {
                  "if(mPalette&&bm.Palette()){returnSamePaletteColors(bm);}"
                  "elsereturntrue;}",
                  "latest RndBitmap source backs SamePixelFormat palette branch");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "intRndBitmap::ColumnNonTransparent(intx,inty,inth,int*d){"
+                 "for(inti;i<h;i++){u8r,g,b,a;PixelColor(x,y,r,g,b,a);",
+                 "latest RndBitmap source backs ColumnNonTransparent scan prefix");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "if(a!=0)returnfalse;else*d=y;}returnfalse;}",
+                 "latest RndBitmap source backs ColumnNonTransparent return rows");
   ok &= contains(rb3_latest_bitmap_cpp,
                  "if(mPalette)bs.Read(mPalette,PaletteBytes());"
                  "ReadChunks(bs,mPixels,mRowBytes*mHeight,0x8000);",
@@ -17003,6 +17026,14 @@ int run_contract() {
                  "do not write bitmaps, compare palette\n"
                  "    contents, or blit pixels",
                  "document fences RndBitmap save/format helpers");
+  ok &= contains(doc,
+                 "source_bitmap_file_header_stream_plan`,\n"
+                 "    `source_bitmap_info_header_stream_plan`",
+                 "document records RndBitmap BMP utility helpers");
+  ok &= contains(doc,
+                 "empty alpha-premultiply and always-false\n"
+                 "    column scan utility bodies",
+                 "document records RndBitmap utility body behavior");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17432,6 +17463,15 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndBitmapBltPlan{",
                  "native exposes RndBitmap Blt helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceBitmapFileHeaderStreamPlan{",
+                 "native exposes BMP file header stream helper");
+  ok &= contains(char_mesh_h,
+                 "structSourcePreMultiplyAlphaPlan{",
+                 "native exposes PreMultiplyAlpha helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapColumnNonTransparentPlan{",
+                 "native exposes RndBitmap ColumnNonTransparent helper");
   ok &= contains(char_mesh,
                  "SourceRndTexRenderedClampPlansource_rndtex_rendered_clamp_plan(",
                  "native implements RndTex rendered clamp source helper");
@@ -17571,6 +17611,21 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.reaches_empty_mismatch_body=!same_pixel_format;",
                  "RndBitmap Blt helper mirrors empty mismatch body");
+  ok &= contains(char_mesh,
+                 "SourceBitmapFileHeaderStreamPlansource_bitmap_file_header_stream_plan()",
+                 "native implements BMP file header stream helper");
+  ok &= contains(char_mesh,
+                 "SourceBitmapInfoHeaderStreamPlansource_bitmap_info_header_stream_plan()",
+                 "native implements BMP info header stream helper");
+  ok &= contains(char_mesh,
+                 "SourcePreMultiplyAlphaPlansource_premultiply_alpha_plan()",
+                 "native implements PreMultiplyAlpha helper");
+  ok &= contains(char_mesh,
+                 "source_rndbitmap_column_nontransparent_plan(",
+                 "native implements RndBitmap ColumnNonTransparent helper");
+  ok &= contains(char_mesh,
+                 "plan.returns_true=false;",
+                 "RndBitmap ColumnNonTransparent helper mirrors false return");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17780,6 +17835,18 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "source_rndbitmap_blt_plan(",
                  "focused RndTex test covers RndBitmap Blt helper");
+  ok &= contains(tex_source_test,
+                 "source_bitmap_file_header_stream_plan()",
+                 "focused RndTex test covers BMP file header helper");
+  ok &= contains(tex_source_test,
+                 "source_bitmap_info_header_stream_plan()",
+                 "focused RndTex test covers BMP info header helper");
+  ok &= contains(tex_source_test,
+                 "source_premultiply_alpha_plan()",
+                 "focused RndTex test covers PreMultiplyAlpha helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_column_nontransparent_plan(",
+                 "focused RndTex test covers ColumnNonTransparent helper");
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");

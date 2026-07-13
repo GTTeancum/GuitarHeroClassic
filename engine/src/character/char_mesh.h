@@ -5072,6 +5072,32 @@ struct SourceRndBitmapBltPlan {
   bool reaches_empty_mismatch_body = false;
 };
 
+struct SourceBitmapFileHeaderStreamPlan {
+  std::vector<std::string> read_order;
+  std::vector<std::string> write_order;
+};
+
+struct SourceBitmapInfoHeaderStreamPlan {
+  std::vector<std::string> read_order;
+  std::vector<std::string> write_order;
+};
+
+struct SourcePreMultiplyAlphaPlan {
+  bool has_empty_body = true;
+  bool mutates_channels = false;
+};
+
+struct SourceRndBitmapColumnNonTransparentPlan {
+  int32_t x = 0;
+  int32_t y = 0;
+  int32_t height = 0;
+  std::vector<uint8_t> alpha_samples;
+  bool samples_pixel_color = true;
+  bool writes_last_transparent_y = false;
+  int32_t last_transparent_y = 0;
+  bool returns_true = false;
+};
+
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
     int32_t width,
     int32_t height);
@@ -5213,6 +5239,14 @@ SourceRndBitmapBltPlan source_rndbitmap_blt_plan(
     int32_t width,
     int32_t height,
     bool same_pixel_format);
+SourceBitmapFileHeaderStreamPlan source_bitmap_file_header_stream_plan();
+SourceBitmapInfoHeaderStreamPlan source_bitmap_info_header_stream_plan();
+SourcePreMultiplyAlphaPlan source_premultiply_alpha_plan();
+SourceRndBitmapColumnNonTransparentPlan
+source_rndbitmap_column_nontransparent_plan(
+    int32_t x,
+    int32_t y,
+    const std::vector<uint8_t>& alpha_samples);
 
 struct RndTex {
   std::string name;

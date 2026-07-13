@@ -501,6 +501,44 @@ int main() {
   ok &= expect_bool(blt_plan.reaches_empty_mismatch_body, true,
                     "bitmap blt mismatch body");
 
+  const ghogx::character::SourceBitmapFileHeaderStreamPlan file_header =
+      ghogx::character::source_bitmap_file_header_stream_plan();
+  ok &= expect_strings(file_header.read_order,
+                       {"bfSize", "bfReserved1", "bfReserved2", "bfOffBits"},
+                       "bitmap file header read order");
+  ok &= expect_strings(file_header.write_order, file_header.read_order,
+                       "bitmap file header write order");
+  const ghogx::character::SourceBitmapInfoHeaderStreamPlan info_header =
+      ghogx::character::source_bitmap_info_header_stream_plan();
+  ok &= expect_strings(info_header.read_order,
+                       {"biSize", "biWidth", "biHeight", "biPlanes",
+                        "biBitCount", "biCompression", "biSizeImage",
+                        "biXPelsPerMeter", "biYPelsPerMeter", "biClrUsed",
+                        "biClrImportant"},
+                       "bitmap info header read order");
+  ok &= expect_strings(info_header.write_order, info_header.read_order,
+                       "bitmap info header write order");
+  const ghogx::character::SourcePreMultiplyAlphaPlan premultiply =
+      ghogx::character::source_premultiply_alpha_plan();
+  ok &= expect_bool(premultiply.has_empty_body, true,
+                    "premultiply alpha empty body");
+  ok &= expect_bool(premultiply.mutates_channels, false,
+                    "premultiply alpha no mutation");
+  const ghogx::character::SourceRndBitmapColumnNonTransparentPlan transparent =
+      ghogx::character::source_rndbitmap_column_nontransparent_plan(
+          4, 9, {0, 0, 0});
+  ok &= expect_bool(transparent.writes_last_transparent_y, true,
+                    "column transparent writes y");
+  ok &= expect_bool(transparent.returns_true, false,
+                    "column transparent return");
+  const ghogx::character::SourceRndBitmapColumnNonTransparentPlan opaque =
+      ghogx::character::source_rndbitmap_column_nontransparent_plan(
+          4, 9, {0, 3, 0});
+  ok &= expect_bool(opaque.samples_pixel_color, true,
+                    "column samples pixel color");
+  ok &= expect_bool(opaque.returns_true, false,
+                    "column opaque return");
+
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2
   put_object_fields_minimal(tex);
