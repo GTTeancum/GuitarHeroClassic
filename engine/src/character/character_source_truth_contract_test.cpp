@@ -19152,6 +19152,22 @@ int run_contract() {
                  "mWorldDst)-mInv2ab);ClampEq(loc210,-1.0f,1.0f);",
                  "RB3 CharIKHand source clamps IKElbow cosine");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(mElbowSwing>0){Vector2v200(v118.y,v118.z);"
+                 "Vector2v208(v10c.y,v10c.z);",
+                 "RB3 CharIKHand source enters elbow swing branch");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "floatmax208=Max(LengthSquared(v208),16.0f);"
+                 "floatmax200=Max(LengthSquared(v200),16.0f);",
+                 "RB3 CharIKHand source floors elbow swing lengths");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "floatcrossed=Cross(v208,v200);floatclamped=Clamp("
+                 "-mElbowSwing,mElbowSwing,crossed/sqrted2);",
+                 "RB3 CharIKHand source clamps elbow swing cross ratio");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "RotateAboutX(dirty_temp.m,-clamped,dirty_temp.m);"
+                 "Multiply(trans2->WorldXfm(),mHand->WorldXfm().v,v118);",
+                 "RB3 CharIKHand source rotates elbow and recomputes current vector");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "voidCharIKHand::SetHand(RndTransformable*t){mHand=t;"
                  "mHandChanged=true;}",
                  "RB3 CharIKHand source marks hand length cache dirty");
@@ -19303,6 +19319,15 @@ int run_contract() {
                  "floatraw_angle=0.0f;floatcorrection_angle=0.0f;",
                  "native exposes source CharIKHand wrist result");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandElbowSwingInput{"
+                 "floatelbow_swing=0.0f;std::array<float,2>current_yz="
+                 "{0.0f,0.0f};std::array<float,2>target_yz={0.0f,0.0f};};",
+                 "native exposes source CharIKHand elbow swing input");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandElbowSwingResult{boolentered=false;"
+                 "floatcurrent_len_sq=0.0f;floattarget_len_sq=0.0f;",
+                 "native exposes source CharIKHand elbow swing result");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
                  "int32_trevision);",
                  "native API exposes source CharIKHand load plan helper");
@@ -19348,6 +19373,11 @@ int run_contract() {
                  "source_char_ik_hand_wrist_constraint("
                  "constSourceCharIKHandWristConstraintInput&input);",
                  "native API exposes source CharIKHand wrist helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandElbowSwingResult"
+                 "source_char_ik_hand_elbow_swing("
+                 "constSourceCharIKHandElbowSwingInput&input);",
+                 "native API exposes source CharIKHand elbow swing helper");
   ok &= contains(char_clip,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
                  "boolhas_elbow_chain,floathand_local_len,"
@@ -19514,6 +19544,27 @@ int run_contract() {
                  "result.rewrites_hand_after_elbow=true;",
                  "native CharIKHand wrist helper records elbow follow-up");
   ok &= contains(char_clip,
+                 "SourceCharIKHandElbowSwingResult"
+                 "source_char_ik_hand_elbow_swing("
+                 "constSourceCharIKHandElbowSwingInput&input){",
+                 "native CharIKHand elbow swing helper exists");
+  ok &= contains(char_clip,
+                 "if(input.elbow_swing<=0.0f)returnresult;",
+                 "native CharIKHand elbow swing helper ports source gate");
+  ok &= contains(char_clip,
+                 "result.current_len_sq=std::max(current_len_sq,16.0f);"
+                 "result.target_len_sq=std::max(target_len_sq,16.0f);",
+                 "native CharIKHand elbow swing helper ports source length floor");
+  ok &= contains(char_clip,
+                 "result.cross=input.target_yz[0]*input.current_yz[1]-"
+                 "input.target_yz[1]*input.current_yz[0];",
+                 "native CharIKHand elbow swing helper ports source 2D cross");
+  ok &= contains(char_clip,
+                 "result.clamped=std::clamp(result.unclamped,"
+                 "-input.elbow_swing,input.elbow_swing);"
+                 "result.rotate_about_x=-result.clamped;",
+                 "native CharIKHand elbow swing helper ports source clamp and rotate");
+  ok &= contains(char_clip,
                  "RuntimeIKHandMeasureState&measure_state="
                  "character.runtime_ik_hand_measures[live_key];",
                  "runtime CharIKHand slice uses persistent source length cache");
@@ -19582,6 +19633,18 @@ int run_contract() {
   ok &= contains(ik_hand_source_test,
                  "wrist_exceeded_result.final_hand_pos[2],27.75f",
                  "focused CharIKHand source test covers wrist finger compensation");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_elbow_swing(",
+                 "focused CharIKHand source test covers elbow swing helper");
+  ok &= contains(ik_hand_source_test,
+                 "elbow_swing_floor.current_len_sq,16.0f",
+                 "focused CharIKHand source test covers elbow swing length floor");
+  ok &= contains(ik_hand_source_test,
+                 "elbow_swing_negative_clamp.rotate_about_x,0.5f",
+                 "focused CharIKHand source test covers negative elbow swing clamp");
+  ok &= contains(ik_hand_source_test,
+                 "elbow_swing_positive_clamp.rotate_about_x,-0.25f",
+                 "focused CharIKHand source test covers positive elbow swing clamp");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
@@ -19626,6 +19689,19 @@ int run_contract() {
   ok &= contains(doc,
                  "so this helper is not wired into live runtime solving",
                  "document fences CharIKHand wrist helper from live runtime");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_elbow_swing` ports the visible",
+                 "document records native CharIKHand elbow swing helper");
+  ok &= contains(doc,
+                 "floors both squared lengths to `16.0`",
+                 "document records CharIKHand elbow swing floor");
+  ok &= contains(doc,
+                 "rotates the forearm dirty matrix about X by\n"
+                 "    the negative clamped value",
+                 "document records CharIKHand elbow swing rotate direction");
+  ok &= contains(doc,
+                 "Stock GH2 `CharIKHand` rows currently have `elbowSwing=0`",
+                 "document fences CharIKHand elbow swing helper from live runtime");
   ok &= contains(doc,
                  "live multi-target publishing",
                  "document keeps live CharIKHand multi-target publishing fenced");

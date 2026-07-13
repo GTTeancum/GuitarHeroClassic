@@ -49,10 +49,12 @@ bool has(const std::vector<std::string>& values, const std::string& value) {
 
 int main() {
   using ghogx::character::SourceCharIKHandMeasure;
+  using ghogx::character::SourceCharIKHandElbowSwingInput;
   using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::SourceCharIKHandWristConstraintInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
+  using ghogx::character::source_char_ik_hand_elbow_swing;
   using ghogx::character::source_char_ik_hand_finger_target;
   using ghogx::character::source_char_ik_hand_handler_plan;
   using ghogx::character::source_char_ik_hand_load_plan;
@@ -360,6 +362,51 @@ int main() {
                     "wrist constraint requests elbow solve");
   ok &= expect_bool(wrist_exceeded_result.rewrites_hand_after_elbow, true,
                     "wrist constraint rewrites hand after elbow");
+
+  const auto elbow_swing_disabled = source_char_ik_hand_elbow_swing(
+      SourceCharIKHandElbowSwingInput{0.0f, {4.0f, 0.0f}, {0.0f, 4.0f}});
+  ok &= expect_bool(elbow_swing_disabled.entered, false,
+                    "elbow swing disabled skips source branch");
+
+  const auto elbow_swing_floor = source_char_ik_hand_elbow_swing(
+      SourceCharIKHandElbowSwingInput{1.0f, {1.0f, 0.0f}, {0.0f, 1.0f}});
+  ok &= expect_bool(elbow_swing_floor.entered, true,
+                    "elbow swing enters for positive swing");
+  ok &= expect_float(elbow_swing_floor.current_len_sq, 16.0f,
+                     "elbow swing floors current length");
+  ok &= expect_float(elbow_swing_floor.target_len_sq, 16.0f,
+                     "elbow swing floors target length");
+  ok &= expect_float(elbow_swing_floor.denom, 16.0f,
+                     "elbow swing floor denominator");
+  ok &= expect_float(elbow_swing_floor.cross, -1.0f,
+                     "elbow swing 2D cross");
+  ok &= expect_float(elbow_swing_floor.unclamped, -0.0625f,
+                     "elbow swing unclamped floor ratio");
+  ok &= expect_float(elbow_swing_floor.clamped, -0.0625f,
+                     "elbow swing unclamped within limit");
+  ok &= expect_float(elbow_swing_floor.rotate_about_x, 0.0625f,
+                     "elbow swing rotates by negative clamped");
+
+  const auto elbow_swing_negative_clamp = source_char_ik_hand_elbow_swing(
+      SourceCharIKHandElbowSwingInput{0.5f, {4.0f, 0.0f}, {0.0f, 4.0f}});
+  ok &= expect_float(elbow_swing_negative_clamp.unclamped, -1.0f,
+                     "elbow swing negative unclamped");
+  ok &= expect_float(elbow_swing_negative_clamp.clamped, -0.5f,
+                     "elbow swing negative clamp");
+  ok &= expect_float(elbow_swing_negative_clamp.rotate_about_x, 0.5f,
+                     "elbow swing negative clamp rotate");
+  ok &= expect_bool(
+      elbow_swing_negative_clamp.recompute_current_after_rotation, true,
+      "elbow swing recomputes current vector");
+
+  const auto elbow_swing_positive_clamp = source_char_ik_hand_elbow_swing(
+      SourceCharIKHandElbowSwingInput{0.25f, {0.0f, 4.0f}, {4.0f, 0.0f}});
+  ok &= expect_float(elbow_swing_positive_clamp.unclamped, 1.0f,
+                     "elbow swing positive unclamped");
+  ok &= expect_float(elbow_swing_positive_clamp.clamped, 0.25f,
+                     "elbow swing positive clamp");
+  ok &= expect_float(elbow_swing_positive_clamp.rotate_about_x, -0.25f,
+                     "elbow swing positive clamp rotate");
 
   std::printf("character_ik_hand_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

@@ -5499,6 +5499,31 @@ SourceCharIKHandWristConstraintResult source_char_ik_hand_wrist_constraint(
   return result;
 }
 
+SourceCharIKHandElbowSwingResult source_char_ik_hand_elbow_swing(
+    const SourceCharIKHandElbowSwingInput& input) {
+  SourceCharIKHandElbowSwingResult result;
+  if (input.elbow_swing <= 0.0f) return result;
+
+  result.entered = true;
+  const float current_len_sq =
+      input.current_yz[0] * input.current_yz[0] +
+      input.current_yz[1] * input.current_yz[1];
+  const float target_len_sq =
+      input.target_yz[0] * input.target_yz[0] +
+      input.target_yz[1] * input.target_yz[1];
+  result.current_len_sq = std::max(current_len_sq, 16.0f);
+  result.target_len_sq = std::max(target_len_sq, 16.0f);
+  result.denom = std::sqrt(result.current_len_sq * result.target_len_sq);
+  result.cross = input.target_yz[0] * input.current_yz[1] -
+                 input.target_yz[1] * input.current_yz[0];
+  result.unclamped = result.cross / result.denom;
+  result.clamped =
+      std::clamp(result.unclamped, -input.elbow_swing, input.elbow_swing);
+  result.rotate_about_x = -result.clamped;
+  result.recompute_current_after_rotation = true;
+  return result;
+}
+
 static float source_distance3(const std::array<float, 3>& a,
                               const std::array<float, 3>& b) {
   const float dx = a[0] - b[0];

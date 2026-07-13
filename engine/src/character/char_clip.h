@@ -3053,6 +3053,24 @@ struct SourceCharIKHandWristConstraintResult {
   bool rewrites_hand_after_elbow = false;
 };
 
+struct SourceCharIKHandElbowSwingInput {
+  float elbow_swing = 0.0f;
+  std::array<float, 2> current_yz = {0.0f, 0.0f};
+  std::array<float, 2> target_yz = {0.0f, 0.0f};
+};
+
+struct SourceCharIKHandElbowSwingResult {
+  bool entered = false;
+  float current_len_sq = 0.0f;
+  float target_len_sq = 0.0f;
+  float denom = 0.0f;
+  float cross = 0.0f;
+  float unclamped = 0.0f;
+  float clamped = 0.0f;
+  float rotate_about_x = 0.0f;
+  bool recompute_current_after_rotation = false;
+};
+
 struct SourceCharIKFootState {
   bool helper_target_created = true;
   bool helper_target_local_reset = true;
@@ -3156,6 +3174,8 @@ SourceCharIKHandFingerTargetResult source_char_ik_hand_finger_target(
     std::array<float, 4> target_quat);
 SourceCharIKHandWristConstraintResult source_char_ik_hand_wrist_constraint(
     const SourceCharIKHandWristConstraintInput& input);
+SourceCharIKHandElbowSwingResult source_char_ik_hand_elbow_swing(
+    const SourceCharIKHandElbowSwingInput& input);
 SourceCharIKFootState source_char_ik_foot_default_state();
 SourceCharIKFootEnterResult source_char_ik_foot_enter(
     SourceCharIKFootState& state);
