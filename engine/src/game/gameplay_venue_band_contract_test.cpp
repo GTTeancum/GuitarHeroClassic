@@ -8072,6 +8072,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "normalperformer/crowdsymbolsshouldnotblackenmaterials",
                  "normal symbolic LightPreset refs no longer dim performers as a fake material blackout");
+  ok &= absent(gameplay_c,
+               "lower.find(\"low\")!=std::string::npos",
+               "low-named decoded performer/crowd light refs stay authored light/env state, not material blackout");
+  ok &= contains(gameplay_c,
+                 "lower.find(\"blackout\")!=std::string::npos",
+                 "only explicit blackout refs activate the performer/crowd material-darkening fallback");
   ok &= contains(gameplay_c,
                  "mod.intensity=1.00f;",
                  "normal excitement performer/crowd material modulation remains readable");

@@ -8254,8 +8254,10 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
             mod.symbolic = true;
             const std::string lower = lower_ascii(ref);
             append_tone_text(lower);
-            if (lower.find("low") != std::string::npos ||
-                lower.find("blackout") != std::string::npos) {
+            // ihatecompvir LightPreset::Animate applies low-named
+            // performer/crowd refs as RndLight/RndEnviron state. Only an
+            // explicit blackout should fall back to material darkening here.
+            if (lower.find("blackout") != std::string::npos) {
                 mod.low = true;
             }
         }
