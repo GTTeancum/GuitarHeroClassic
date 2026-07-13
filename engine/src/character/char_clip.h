@@ -913,6 +913,14 @@ struct SourceCharClipGroupSavePlan {
   int32_t save_id = 0x127;
 };
 
+struct SourceCharClipGroupDeleteRemainingPlan {
+  int requested_remaining = 0;
+  size_t visited_clip_count = 0;
+  bool increments_local_clip_pointer = true;
+  bool calls_lock_and_delete = false;
+  bool mutates_group = false;
+};
+
 struct SourceCharClipRefOwner {
   bool is_clip_group = false;
   std::vector<std::string> group_clips;
@@ -1013,6 +1021,9 @@ SourceCharClipGroupLoadPlan source_char_clip_group_load_plan(int revision);
 SourceCharClipGroupHandlerPlan source_char_clip_group_handler_plan();
 SourceCharClipGroupPropSyncPlan source_char_clip_group_prop_sync_plan();
 SourceCharClipGroupSavePlan source_char_clip_group_save_plan();
+SourceCharClipGroupDeleteRemainingPlan
+source_char_clip_group_delete_remaining_plan(size_t clip_count,
+                                             int requested_remaining);
 
 struct SourceCharClipDriverState {
   uint32_t play_flags = 0;

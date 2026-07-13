@@ -3528,6 +3528,11 @@ note, and all report `unreadBytes=0`.
     the `else` branch and once again by the loop. Deterministic coverage keeps
     that source skip behavior explicit instead of replacing it with a cleaner
     remove-all helper.
+  - Native `source_char_clip_group_delete_remaining_plan` records the visible
+    `CharClipGroup::DeleteRemaining` body exactly as a no-delete boundary: the
+    source loops over `mClips`, assigns each clip to a local pointer, increments
+    that local pointer, and leaves the `LockAndDelete` call commented out. This
+    is not active cleanup behavior.
   - `CharClipGroup.h` still declares `GetClip(int)`, `HasClip`,
     `SetClipFlags`, `Randomize`, `RandomizeIndex`, `Copy`, and `Replace`, but
     the checked `CharClipGroup.cpp` snapshot does not expose those bodies.

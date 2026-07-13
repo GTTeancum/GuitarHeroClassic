@@ -3550,6 +3550,15 @@ SourceCharClipGroupSavePlan source_char_clip_group_save_plan() {
   return SourceCharClipGroupSavePlan{};
 }
 
+SourceCharClipGroupDeleteRemainingPlan
+source_char_clip_group_delete_remaining_plan(size_t clip_count,
+                                             int requested_remaining) {
+  SourceCharClipGroupDeleteRemainingPlan plan;
+  plan.requested_remaining = requested_remaining;
+  plan.visited_clip_count = clip_count;
+  return plan;
+}
+
 uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask) {
   uint32_t play_flags = clip_play_flags;

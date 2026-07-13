@@ -912,6 +912,15 @@ bool expect_clip_group_source_plans() {
     std::cerr << "CharClipGroup save id mismatch\n";
     ok = false;
   }
+  const ghogx::character::SourceCharClipGroupDeleteRemainingPlan delete_plan =
+      ghogx::character::source_char_clip_group_delete_remaining_plan(3, 2);
+  if (delete_plan.requested_remaining != 2 ||
+      delete_plan.visited_clip_count != 3 ||
+      !delete_plan.increments_local_clip_pointer ||
+      delete_plan.calls_lock_and_delete || delete_plan.mutates_group) {
+    std::cerr << "CharClipGroup DeleteRemaining plan mismatch\n";
+    ok = false;
+  }
   return ok;
 }
 

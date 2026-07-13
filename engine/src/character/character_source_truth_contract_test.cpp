@@ -25147,6 +25147,11 @@ int run_contract() {
                  "mClips.push_back(ObjOwnerPtr<CharClip,ObjectDir>(this,clip));}",
                  "latest CharClipGroup source exposes AddClip duplicate gate");
   ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "voidCharClipGroup::DeleteRemaining(intx){CharClip*clip;"
+                 "for(inti=0;i<mClips.size();i++){clip=mClips[i];clip++;}"
+                 "//clip->LockAndDelete(&mClips[0].Ptr(),x,0);}",
+                 "latest CharClipGroup source exposes inactive DeleteRemaining body");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
                  "voidCharClipGroup::RemoveClip(CharClip*clip){",
                  "latest CharClipGroup source exposes RemoveClip body");
   ok &= contains(rb3_latest_char_clip_group_cpp,
@@ -25171,6 +25176,12 @@ int run_contract() {
                  "structSourceCharClipGroupPropSyncPlan{"
                  "std::vector<std::string>properties;};",
                  "native character API exposes CharClipGroup prop-sync plan state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipGroupDeleteRemainingPlan{"
+                 "intrequested_remaining=0;size_tvisited_clip_count=0;"
+                 "boolincrements_local_clip_pointer=true;"
+                 "boolcalls_lock_and_delete=false;boolmutates_group=false;};",
+                 "native character API exposes CharClipGroup DeleteRemaining boundary");
   ok &= contains(char_clip_h,
                  "CharClipGroupload_clip_group("
                  "conststd::string&hdr_path,conststd::string&ark_path,"
@@ -25209,6 +25220,11 @@ int run_contract() {
                  "SourceCharClipGroupPropSyncPlan"
                  "source_char_clip_group_prop_sync_plan();",
                  "native character API exposes source-backed CharClipGroup prop-sync plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipGroupDeleteRemainingPlan"
+                 "source_char_clip_group_delete_remaining_plan("
+                 "size_tclip_count,intrequested_remaining);",
+                 "native character API exposes source-backed CharClipGroup DeleteRemaining helper");
   ok &= contains(char_clip,
                  "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
@@ -25253,6 +25269,14 @@ int run_contract() {
                  "clip_names.end()){clip_names.push_back(clip_name);}return"
                  "clip_names;}",
                  "native clip group AddClip helper mirrors source duplicate gate");
+  ok &= contains(char_clip,
+                 "SourceCharClipGroupDeleteRemainingPlan"
+                 "source_char_clip_group_delete_remaining_plan("
+                 "size_tclip_count,intrequested_remaining){"
+                 "SourceCharClipGroupDeleteRemainingPlanplan;"
+                 "plan.requested_remaining=requested_remaining;"
+                 "plan.visited_clip_count=clip_count;returnplan;}",
+                 "native clip group DeleteRemaining helper records no-delete source boundary");
   ok &= contains(char_clip,
                  "std::vector<std::string>source_char_clip_group_remove_clip("
                  "std::vector<std::string>clip_names,conststd::string&clip_name){"
@@ -25315,6 +25339,9 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_group_prop_sync_plan()",
                  "focused flag-mask test covers CharClipGroup prop-sync plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_delete_remaining_plan(3,2)",
+                 "focused flag-mask test covers CharClipGroup DeleteRemaining boundary");
   ok &= contains(doc,
                  "Native `source_char_clip_group_num_flag_duplicates` ports",
                  "document records native CharClipGroup duplicate helper");
@@ -25327,6 +25354,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_group_remove_clip` ports the visible",
                  "document records native CharClipGroup RemoveClip helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_group_delete_remaining_plan` records",
+                 "document records native CharClipGroup DeleteRemaining boundary");
   ok &= contains(doc,
                  "`CharClipGroup.h` still declares `GetClip(int)`, `HasClip`,",
                  "document records CharClipGroup bodyless declaration boundary");
