@@ -277,6 +277,23 @@ void test_trans() {
   CHECK(!rev5.reads_constraint);
   CHECK(rev5.reads_parent);
 
+  const SourceMiloEditorRndTransNewPlan trans_new =
+      source_milo_editor_rndtrans_new_plan(9, 2);
+  CHECK(trans_new.revision == 9);
+  CHECK(trans_new.alt_revision == 2);
+  CHECK(trans_new.sets_revision);
+  CHECK(trans_new.sets_alt_revision);
+  CHECK(trans_new.local_xfm_identity);
+  CHECK(trans_new.world_xfm_identity);
+  CHECK(approx(trans_new.local_xfm.rot[0][0], 1.0f));
+  CHECK(approx(trans_new.local_xfm.rot[1][1], 1.0f));
+  CHECK(approx(trans_new.local_xfm.rot[2][2], 1.0f));
+  CHECK(approx(trans_new.local_xfm.pos[0], 0.0f));
+  CHECK(approx(trans_new.world_xfm.rot[0][0], 1.0f));
+  CHECK(approx(trans_new.world_xfm.rot[1][1], 1.0f));
+  CHECK(approx(trans_new.world_xfm.rot[2][2], 1.0f));
+  CHECK(approx(trans_new.world_xfm.pos[2], 0.0f));
+
   const SourceRndTransformableCppLoadPlan cpp_rev9 =
       source_rndtransformable_cpp_load_plan(9, false, true);
   CHECK(cpp_rev9.accepted_revision);
@@ -1671,6 +1688,16 @@ void test_group() {
   CHECK(drawable_defaults.draw_revision == 3);
   CHECK(drawable_defaults.highlight_style_count == 5);
   CHECK(approx(drawable_defaults.normal_display_length, 1.0f));
+
+  const SourceMiloEditorRndDrawableNewPlan drawable_new =
+      source_milo_editor_rnddrawable_new_plan(3, 1);
+  CHECK(drawable_new.revision == 3);
+  CHECK(drawable_new.alt_revision == 1);
+  CHECK(drawable_new.sets_revision);
+  CHECK(drawable_new.sets_alt_revision);
+  CHECK(drawable_new.relies_on_constructor_defaults);
+  CHECK(drawable_new.does_not_initialize_sphere_or_draw_order);
+
   CHECK(source_rnddrawable_save_plan().save_id == 0xAE);
 
   const SourceRndDrawableDrawPlan draw_visible =

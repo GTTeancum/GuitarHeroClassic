@@ -117,6 +117,21 @@ struct SourceRndTransLoadPlan {
   bool reads_parent = true;
 };
 
+struct SourceMiloEditorRndTransNewPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool sets_revision = true;
+  bool sets_alt_revision = true;
+  bool local_xfm_identity = true;
+  bool world_xfm_identity = true;
+  Xfm local_xfm;
+  Xfm world_xfm;
+};
+
+SourceMiloEditorRndTransNewPlan source_milo_editor_rndtrans_new_plan(
+    int32_t revision,
+    int32_t alt_revision);
+
 struct SourceRndTransformableCppLoadPlan {
   int32_t revision = 0;
   bool loading_proxy_from_disk = false;
@@ -1240,6 +1255,19 @@ struct SourceRndDrawableDefaultState {
 };
 
 SourceRndDrawableDefaultState source_rnddrawable_default_state();
+
+struct SourceMiloEditorRndDrawableNewPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool sets_revision = true;
+  bool sets_alt_revision = true;
+  bool relies_on_constructor_defaults = true;
+  bool does_not_initialize_sphere_or_draw_order = true;
+};
+
+SourceMiloEditorRndDrawableNewPlan source_milo_editor_rnddrawable_new_plan(
+    int32_t revision,
+    int32_t alt_revision);
 
 struct SourceRndDrawableSavePlan {
   int32_t save_id = 0xAE;

@@ -2516,9 +2516,25 @@ int run_contract() {
                  "if(revision>5)target=Symbol.Read(reader);if(revision>6)"
                  "preserveScale=reader.ReadBoolean();parentObj=Symbol.Read(reader);",
                  "RndTrans source constraint target preserve-scale parent order");
+  ok &= contains(trans_cs,
+                 "publicstaticRndTransNew(ushortrevision,ushortaltRevision){"
+                 "RndTranstrans=newRndTrans();trans.revision=revision;"
+                 "trans.altRevision=altRevision;",
+                 "MiloEditor RndTrans New sets revision fields");
+  ok &= contains(trans_cs,
+                 "trans.localXfm=newMatrix();trans.localXfm.m11=1.0f;"
+                 "trans.localXfm.m12=0.0f;",
+                 "MiloEditor RndTrans New initializes local matrix");
+  ok &= contains(trans_cs,
+                 "trans.worldXfm=newMatrix();trans.worldXfm.m11=1.0f;"
+                 "trans.worldXfm.m12=0.0f;",
+                 "MiloEditor RndTrans New initializes world matrix");
   ok &= contains(scene_h,
                  "structSourceRndTransLoadPlan{",
                  "shared milo_scene exposes source RndTrans load plan");
+  ok &= contains(scene_h,
+                 "structSourceMiloEditorRndTransNewPlan{",
+                 "shared milo_scene exposes MiloEditor RndTrans New plan");
   ok &= contains(scene_h,
                  "structSourceRndTransformableCppLoadPlan{int32_trevision=0;"
                  "boolloading_proxy_from_disk=false;boolclass_is_static=false;"
@@ -2531,6 +2547,13 @@ int run_contract() {
   ok &= contains(scene,
                  "SourceRndTransLoadPlansource_rndtrans_load_plan(",
                  "shared milo_scene implements source RndTrans load plan");
+  ok &= contains(scene,
+                 "SourceMiloEditorRndTransNewPlansource_milo_editor_rndtrans_"
+                 "new_plan(",
+                 "shared milo_scene implements MiloEditor RndTrans New plan");
+  ok &= contains(scene,
+                 "plan.local_xfm=Xfm{};plan.world_xfm=Xfm{};",
+                 "shared RndTrans New plan mirrors identity matrices");
   ok &= contains(scene,
                  "plan.reads_old_child_list=revision<9;",
                  "shared RndTrans plan mirrors old child-list gate");
@@ -2585,6 +2608,9 @@ int run_contract() {
                  "source_rndtrans_load_plan(8,6,false);",
                  "milo_scene test covers legacy RndTrans child-list plan");
   ok &= contains(scene_test,
+                 "source_milo_editor_rndtrans_new_plan(9,2)",
+                 "milo_scene test covers MiloEditor RndTrans New plan");
+  ok &= contains(scene_test,
                  "source_rndtransformable_cpp_load_plan(9,false,true)",
                  "milo_scene test covers RndTransformable C++ rev9 load plan");
   ok &= contains(scene_test,
@@ -2600,6 +2626,9 @@ int run_contract() {
                  "pass the actual parent directory revision into their embedded\n"
                  "    `RndTrans` reader",
                  "document records RndTrans parent-revision plumbing");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndtrans_new_plan` records",
+                 "document records MiloEditor RndTrans New helper");
   ok &= contains(doc,
                  "| Transform proxy attachment | `rb3-latest/src/system/rndobj/"
                  "TransProxy.cpp` / `TransProxy.h` |",
@@ -3824,6 +3853,11 @@ int run_contract() {
                  "drawablesNullTerminated.Add(reader.ReadUTF8());}}else{"
                  "for(inti=0;i<drawableCount;i++){drawables.Add(Symbol.Read(reader));}}",
                  "RndDrawable source old drawable-list parent gate");
+  ok &= contains(drawable_cs,
+                 "publicstaticRndDrawableNew(ushortrevision,ushortaltRevision){"
+                 "RndDrawabledrawable=newRndDrawable();drawable.revision=revision;"
+                 "drawable.altRevision=altRevision;returndrawable;}",
+                 "MiloEditor RndDrawable New sets only revision fields");
   ok &= contains(rb3_latest_draw_cpp,
                  "voidRndDrawable::Load(BinStream&bs){intrev;bs>>rev;"
                  "ASSERT_GLOBAL_REV(rev,DRAW_REV);",
@@ -3878,6 +3912,9 @@ int run_contract() {
                  "structSourceRndDrawableDefaultState{",
                  "shared milo_scene exposes RndDrawable default state plan");
   ok &= contains(scene_h,
+                 "structSourceMiloEditorRndDrawableNewPlan{",
+                 "shared milo_scene exposes MiloEditor RndDrawable New plan");
+  ok &= contains(scene_h,
                  "structSourceRndDrawableCollidePlan{",
                  "shared milo_scene exposes RndDrawable collide plan");
   ok &= contains(scene,
@@ -3903,6 +3940,10 @@ int run_contract() {
   ok &= contains(scene,
                  "SourceRndDrawableDefaultStatesource_rnddrawable_default_state()",
                  "shared RndDrawable helper records defaults");
+  ok &= contains(scene,
+                 "SourceMiloEditorRndDrawableNewPlansource_milo_editor_"
+                 "rnddrawable_new_plan(",
+                 "shared milo_scene implements MiloEditor RndDrawable New plan");
   ok &= contains(scene,
                  "plan.calls_draw_showing=!has_world_sphere||!sphere_culled;",
                  "shared RndDrawable helper mirrors Draw culling gate");
@@ -3934,6 +3975,9 @@ int run_contract() {
                  "CHECK(!drawable_v4.accepted_revision);",
                  "milo_scene test rejects source-unsupported RndDrawable revision");
   ok &= contains(scene_test,
+                 "source_milo_editor_rnddrawable_new_plan(3,1)",
+                 "milo_scene test covers MiloEditor RndDrawable New plan");
+  ok &= contains(scene_test,
                  "source_rnddrawable_draw_plan(true,true,false)",
                  "milo_scene test covers RndDrawable Draw gate");
   ok &= contains(scene_test,
@@ -3953,6 +3997,9 @@ int run_contract() {
                  "older local rev4\n    clip-plane interpretation is not "
                  "source-backed by `Draw.cpp`",
                  "document records RndDrawable rev4 correction");
+  ok &= contains(doc,
+                 "`source_milo_editor_rnddrawable_new_plan` records",
+                 "document records MiloEditor RndDrawable New helper");
 
   ok &= contains(mat_cs,
                  "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"

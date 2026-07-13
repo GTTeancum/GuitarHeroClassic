@@ -759,6 +759,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
   - `RndTrans.Read` reads combined revision, optional object fields for
     standalone objects, local matrix, world matrix, old child references for
     revisions below 9, constraint, target, preserve-scale, then parent.
+  - `RndTrans.New(revision, altRevision)` assigns those two revision fields and
+    explicitly initializes both local and world matrices to identity 4x3
+    transforms. Shared native `source_milo_editor_rndtrans_new_plan` records
+    those factory defaults for converter/source-contract tests only; it does not
+    overwrite decoded runtime transforms.
   - Shared native `source_rndtrans_load_plan` records the same gates: standalone
     rows read Object fields while embedded bases do not; local/world matrices
     are always read; revision `< 9` reads the old child list, using
@@ -987,6 +992,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
   - `RndDrawable::RndDrawable` defaults `mShowing` true, zeroes `mSphere`, and
     clears `mOrder`; the source revision ceiling is `DRAW_REV = 3`.
     Native `source_rnddrawable_default_state` records these defaults.
+  - MiloEditor `RndDrawable.New(revision, altRevision)` only assigns those two
+    revision fields and returns the new object, so sphere/draw-order defaults
+    come from the object defaults rather than the factory body. Shared native
+    `source_milo_editor_rnddrawable_new_plan` records that boundary without
+    inventing extra renderer, material, or depth behavior.
   - `RndDrawable.Read` / `RndDrawable::Load` read combined revision, showing,
     optional old drawable list, optional sphere, and draw order for revisions
     greater than 2. Native `source_rnddrawable_load_plan` records the same

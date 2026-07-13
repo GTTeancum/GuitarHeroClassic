@@ -448,6 +448,17 @@ SourceRndTransLoadPlan source_rndtrans_load_plan(
   return plan;
 }
 
+SourceMiloEditorRndTransNewPlan source_milo_editor_rndtrans_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndTransNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  plan.local_xfm = Xfm{};
+  plan.world_xfm = Xfm{};
+  return plan;
+}
+
 SourceRndTransformableCppLoadPlan source_rndtransformable_cpp_load_plan(
     int32_t revision,
     bool loading_proxy_from_disk,
@@ -1929,6 +1940,15 @@ SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
 
 SourceRndDrawableDefaultState source_rnddrawable_default_state() {
   return SourceRndDrawableDefaultState{};
+}
+
+SourceMiloEditorRndDrawableNewPlan source_milo_editor_rnddrawable_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndDrawableNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  return plan;
 }
 
 SourceRndDrawableSavePlan source_rnddrawable_save_plan() {
