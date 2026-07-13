@@ -4113,6 +4113,8 @@ int run_contract() {
                  "Read(reader);diffuseTex=Symbol.Read(reader);"
                  "nextPass=Symbol.Read(reader);intensify=reader.ReadBoolean();",
                  "RndMat source texture transform/diffuse/next-pass order");
+  ok &= contains(scene_h, "12xf32tex_xfmtransform",
+                 "native material format notes keep MiloLib 12-float texXfm Matrix");
   ok &= contains(mat_cs,
                  "cull=reader.ReadBoolean();emissiveMultiplier=reader.ReadFloat();",
                  "RndMat source cull/emissive order");
@@ -4376,6 +4378,9 @@ int run_contract() {
                  "m.diffuse_tex_offset=static_cast<uint32_t>(r.pos);"
                  "m.diffuse_tex=r.str();",
                  "native Mat decode reads diffuse texture at source cursor");
+  ok &= contains(scene,
+                 "constfloattex_xfm[12]={r.f32(),r.f32(),r.f32(),",
+                 "native Mat decode consumes MiloLib 12-float texXfm Matrix");
   ok &= contains(scene,
                  "m.next_pass=r.str();m.intensify=r.u8()!=0;"
                  "m.has_cull=true;m.cull=r.u8()!=0;m.emissive_multiplier=r.f32();",

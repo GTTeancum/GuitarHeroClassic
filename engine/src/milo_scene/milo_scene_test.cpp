@@ -1293,7 +1293,8 @@ void test_mat() {
   put_u32(b, 4);                 // tex_wrap = kTexWrapMirror
   put_f32(b, 2.0f); put_f32(b, 0.0f); put_f32(b, 0.0f);
   put_f32(b, 0.0f); put_f32(b, 3.0f); put_f32(b, 0.0f);
-  put_f32(b, 0.25f); put_f32(b, 0.5f); put_f32(b, 1.0f);
+  put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f);
+  put_f32(b, 0.25f); put_f32(b, 0.5f); put_f32(b, 0.0f);
   put_str(b, "gem.tex");         // diffuse texture
   put_u32(b, 0);                 // empty next_pass ref
   b.push_back(0);                // trailing state byte before ng.cull
@@ -1319,6 +1320,7 @@ void test_mat() {
   CHECK(approx(m.tex_scale[1], 3.0f));
   CHECK(approx(m.tex_offset[0], 0.25f));
   CHECK(approx(m.tex_offset[1], 0.5f));
+  CHECK(m.diffuse_tex_offset == 0x61);
   CHECK(m.next_pass.empty());
   CHECK(!m.intensify);
   CHECK(m.has_cull);

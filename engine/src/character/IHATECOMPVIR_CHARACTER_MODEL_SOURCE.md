@@ -1030,7 +1030,7 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMat.cs`
   - For material revisions above 21, `RndMat.Read` reads `useEnviron`,
     `preLit`, `zMode`, `alphaCut`, optional `alphaThreshold`, `alphaWrite`,
-    `texGen`, `texWrap`, texture transform, diffuse texture, next pass,
+    `texGen`, `texWrap`, 12-float texture transform, diffuse texture, next pass,
     intensify, cull, and emissive multiplier in that order.
 - `MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs`
   - `RndGroup.Read` reads Object fields for revisions above 7, then
@@ -1822,7 +1822,7 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     by character rendering: blend and color are first, revisions above 21 read
     `use_environ`, `prelit`, `z_mode`, `alpha_cut`, optional
     `alpha_threshold` for revisions above `0x25`, `alpha_write`, `tex_gen`,
-    `tex_wrap`, `tex_xfm`, `diffuse_tex`, `next_pass`, `intensify`, `cull`,
+    `tex_wrap`, 12-float `tex_xfm`, `diffuse_tex`, `next_pass`, `intensify`, `cull`,
     and `emissive_multiplier` in source order. GH2 PS2 v27 therefore has no
     serialized alpha-threshold row. Native now reads `diffuse_tex`,
     `next_pass`, `intensify`, `cull`, and `emissive_multiplier` directly from

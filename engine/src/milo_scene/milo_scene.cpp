@@ -2697,9 +2697,10 @@ MatObj decode_mat(const std::string& entry_name,
     const int32_t tex_wrap = r.i32();
     m.tex_wrap = static_cast<uint8_t>(
         (tex_wrap >= 0 && tex_wrap <= 4) ? tex_wrap : 1);
-    const float tex_xfm[9] = {r.f32(), r.f32(), r.f32(),
-                              r.f32(), r.f32(), r.f32(),
-                              r.f32(), r.f32(), r.f32()};
+    const float tex_xfm[12] = {r.f32(), r.f32(), r.f32(),
+                               r.f32(), r.f32(), r.f32(),
+                               r.f32(), r.f32(), r.f32(),
+                               r.f32(), r.f32(), r.f32()};
     const float m22 = tex_xfm[8];
     const float su = tex_xfm[0];
     const float sv = tex_xfm[4];
@@ -2707,8 +2708,8 @@ MatObj decode_mat(const std::string& entry_name,
         sv > 0.01f && sv < 64.0f) {
       m.tex_scale[0] = su;
       m.tex_scale[1] = sv;
-      m.tex_offset[0] = tex_xfm[6];
-      m.tex_offset[1] = tex_xfm[7];
+      m.tex_offset[0] = tex_xfm[9];
+      m.tex_offset[1] = tex_xfm[10];
     }
     m.diffuse_tex_offset = static_cast<uint32_t>(r.pos);
     m.diffuse_tex = r.str();

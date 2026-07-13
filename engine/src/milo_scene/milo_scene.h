@@ -33,7 +33,7 @@
 //     u8    alpha_write      (GH2 v27; later revs insert alpha_threshold first)
 //     i32   tex_gen
 //     i32   tex_wrap
-//     9xf32 tex_xfm transform
+//     12xf32 tex_xfm transform
 //     str   diffuse texture name (".tex")
 //     ...   trailing source-schema render-state / next-pass bytes
 //

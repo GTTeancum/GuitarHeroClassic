@@ -1081,7 +1081,7 @@ Glam1 hair:
   `glTFMilo/external/MiloEditor`
   `RndMat` reads GH2-era material state in this source order after color:
   `useEnviron`, `preLit`, `zMode`, `alphaCut`, `alphaWrite`, `texGen`,
-  `texWrap`, `texXfm`, `diffuseTex`, `nextPass`, `intensify`, `cull`,
+  `texWrap`, 12-float `texXfm`, `diffuseTex`, `nextPass`, `intensify`, `cull`,
   `emissiveMultiplier`. That supports the native blend/cull render-state path
   and gives the string-scanning Mat decoder a concrete schema target. Public
   source does not by itself prove the final Rock1 or Rockabill2 hair-card
@@ -4892,7 +4892,7 @@ Viewer hand-overlay validation:
 - MiloLib's GH2-rev `RndMat` reader is source-backed field order for this
   slice: `blend`, color, `useEnviron`, `preLit`, `zMode`, `alphaCut`,
   optional later-rev `alphaThreshold`, `alphaWrite`, `texGen`, `texWrap`,
-  `texXfm`, diffuse texture, next pass, `intensify`, and `cull`. Native
+  12-float `texXfm`, diffuse texture, next pass, `intensify`, and `cull`. Native
   `milo_scene::MatObj` now decodes those render-state fields directly from the
   source cursor instead of scanning forward for a filename-shaped texture row.
   The hermetic
