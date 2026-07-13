@@ -2449,6 +2449,12 @@ bool source_char_weight_setter_poll(
     const std::unordered_map<std::string, float>& weights_by_name,
     float delta_beats,
     float& out_weight);
+bool source_char_weight_setter_poll_with_driver_result(
+    const CharWeightSetter& setter,
+    const std::unordered_map<std::string, float>& weights_by_name,
+    float delta_beats,
+    std::optional<float> driver_evaluate_flags,
+    float& out_weight);
 
 struct SourceCharWeightSetterRefOwner {
   std::string name;
@@ -2508,6 +2514,8 @@ struct SourceCharWeightSetterRuntimeDumpEvidence {
   std::vector<std::string> load_locals;
   bool rb2_dump_has_statement_body = false;
   bool safe_to_run_driver_branch = false;
+  bool safe_to_run_driver_branch_with_supplied_evaluate_flags = true;
+  bool requires_external_evaluate_flags = true;
   bool safe_to_publish_driver_weight = false;
 };
 

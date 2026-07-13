@@ -13715,6 +13715,12 @@ int run_contract() {
                  "weights_by_name,floatdelta_beats,float&out_weight);",
                  "native exposes source CharWeightSetter poll helper");
   ok &= contains(char_clip_h,
+                 "boolsource_char_weight_setter_poll_with_driver_result("
+                 "constCharWeightSetter&setter,conststd::unordered_map<"
+                 "std::string,float>&weights_by_name,floatdelta_beats,"
+                 "std::optional<float>driver_evaluate_flags,float&out_weight);",
+                 "native exposes source CharWeightSetter supplied-driver helper");
+  ok &= contains(char_clip_h,
                  "structSourceCharWeightSetterRefOwner{std::stringname;"
                  "boolweight_owner_is_setter=false;};",
                  "native exposes source CharWeightSetter ref-owner row");
@@ -13755,6 +13761,8 @@ int run_contract() {
                  "std::vector<std::string>load_locals;"
                  "boolrb2_dump_has_statement_body=false;"
                  "boolsafe_to_run_driver_branch=false;"
+                 "boolsafe_to_run_driver_branch_with_supplied_evaluate_flags=true;"
+                 "boolrequires_external_evaluate_flags=true;"
                  "boolsafe_to_publish_driver_weight=false;};",
                  "native exposes CharWeightSetter runtime dump evidence");
   ok &= contains(char_clip_h,
@@ -14001,12 +14009,23 @@ int run_contract() {
                  "native CharWeightSetter runtime dump records Load range");
   ok &= contains(char_clip,
                  "evidence.safe_to_run_driver_branch=false;"
+                 "evidence.safe_to_run_driver_branch_with_supplied_evaluate_flags=true;"
+                 "evidence.requires_external_evaluate_flags=true;"
                  "evidence.safe_to_publish_driver_weight=false;",
                  "native CharWeightSetter runtime dump fences driver branch");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
                  "native CharWeightSetter helper fences missing driver evaluator");
+  ok &= contains(char_clip,
+                 "source_char_weight_setter_poll_with_driver_result("
+                 "setter,weights_by_name,delta_beats,std::nullopt,out_weight);",
+                 "native CharWeightSetter wrapper delegates to supplied-driver helper");
+  ok &= contains(char_clip,
+                 "if(!setter.driver.empty()){if(!driver_evaluate_flags)"
+                 "returnfalse;base_weight=setter.scale**driver_evaluate_flags+"
+                 "setter.offset;}elseif(!setter.base.empty()){",
+                 "native CharWeightSetter supplied-driver helper ports driver scale/offset");
   ok &= contains(char_clip,
                  "base_weight=setter.scale*base->second+setter.offset;",
                  "native CharWeightSetter helper ports base scale/offset");
@@ -14096,11 +14115,21 @@ int run_contract() {
                  "source_char_weight_setter_runtime_dump_evidence()",
                  "focused CharWeightSetter test covers runtime dump evidence");
   ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_poll_with_driver_result(",
+                 "focused CharWeightSetter test covers supplied-driver helper");
+  ok &= contains(weight_setter_source_test,
                  "runtime_dump.safe_to_run_driver_branch,false",
                  "focused CharWeightSetter test fences runtime dump driver branch");
   ok &= contains(weight_setter_source_test,
+                 "runtime_dump.safe_to_run_driver_branch_with_supplied_"
+                 "evaluate_flags,true",
+                 "focused CharWeightSetter test covers supplied driver boundary");
+  ok &= contains(weight_setter_source_test,
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
+  ok &= contains(weight_setter_source_test,
+                 "near(out,0.50f,\"driverEvaluateFlagsscaleoffset\")",
+                 "focused CharWeightSetter test covers driver scale/offset math");
   ok &= contains(weight_setter_source_test,
                  "apply_character_controllers(character,0.0f);",
                  "focused CharWeightSetter test covers controller writeback");
@@ -15837,7 +15866,10 @@ int run_contract() {
                  "Native `source_char_weight_setter_poll` ports the source non-driver path",
                  "document records native CharWeightSetter source poll slice");
   ok &= contains(doc,
-                 "`CharDriver::EvaluateFlags` body is available",
+                 "`source_char_weight_setter_poll_with_driver_result` also ports the source",
+                 "document records native CharWeightSetter supplied-driver helper");
+  ok &= contains(doc,
+                 "`CharDriver::EvaluateFlags` body is\n    available",
                  "document records CharWeightSetter driver fence");
   ok &= contains(doc,
                  "Native `source_char_weight_setter_runtime_dump_evidence` records",

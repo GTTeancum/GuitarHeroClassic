@@ -64,6 +64,7 @@ int main() {
   using ghogx::character::source_char_weight_setter_handler_plan;
   using ghogx::character::source_char_weight_setter_load_plan;
   using ghogx::character::source_char_weight_setter_prop_sync_plan;
+  using ghogx::character::source_char_weight_setter_poll_with_driver_result;
   using ghogx::character::source_char_weight_setter_runtime_dump_evidence;
   using ghogx::character::source_char_weight_setter_save_plan;
   using ghogx::character::source_char_weightable_copy_plan;
@@ -285,6 +286,11 @@ int main() {
                     "weight setter dump is not statement body");
   ok &= expect_bool(runtime_dump.safe_to_run_driver_branch, false,
                     "weight setter driver branch remains fenced");
+  ok &= expect_bool(
+      runtime_dump.safe_to_run_driver_branch_with_supplied_evaluate_flags, true,
+      "weight setter driver math safe with supplied EvaluateFlags");
+  ok &= expect_bool(runtime_dump.requires_external_evaluate_flags, true,
+                    "weight setter driver branch needs external EvaluateFlags");
   ok &= expect_bool(runtime_dump.safe_to_publish_driver_weight, false,
                     "weight setter driver output remains fenced");
 
@@ -327,6 +333,11 @@ int main() {
   CharWeightSetter driver = make_setter("driver.weight");
   driver.driver = "main.drv";
   ok &= !source_char_weight_setter_poll(driver, weights, 0.0f, out);
+  driver.offset = 0.20f;
+  driver.scale = 0.50f;
+  ok &= source_char_weight_setter_poll_with_driver_result(
+      driver, weights, 0.0f, 0.60f, out);
+  ok &= near(out, 0.50f, "driver EvaluateFlags scale offset");
 
   Character character;
   character.weight_setters.push_back(make_setter("live.weight"));

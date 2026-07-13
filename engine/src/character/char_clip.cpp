@@ -6773,11 +6773,24 @@ bool source_char_weight_setter_poll(
     const std::unordered_map<std::string, float>& weights_by_name,
     float delta_beats,
     float& out_weight) {
-  float base_weight = setter.base_weight;
   if (!setter.driver.empty()) {
     return false;
   }
-  if (!setter.base.empty()) {
+  return source_char_weight_setter_poll_with_driver_result(
+      setter, weights_by_name, delta_beats, std::nullopt, out_weight);
+}
+
+bool source_char_weight_setter_poll_with_driver_result(
+    const CharWeightSetter& setter,
+    const std::unordered_map<std::string, float>& weights_by_name,
+    float delta_beats,
+    std::optional<float> driver_evaluate_flags,
+    float& out_weight) {
+  float base_weight = setter.base_weight;
+  if (!setter.driver.empty()) {
+    if (!driver_evaluate_flags) return false;
+    base_weight = setter.scale * *driver_evaluate_flags + setter.offset;
+  } else if (!setter.base.empty()) {
     const auto base = weights_by_name.find(setter.base);
     if (base == weights_by_name.end()) return false;
     base_weight = setter.scale * base->second + setter.offset;
@@ -6926,6 +6939,8 @@ source_char_weight_setter_runtime_dump_evidence() {
   evidence.load_locals = {"w", "it"};
   evidence.rb2_dump_has_statement_body = false;
   evidence.safe_to_run_driver_branch = false;
+  evidence.safe_to_run_driver_branch_with_supplied_evaluate_flags = true;
+  evidence.requires_external_evaluate_flags = true;
   evidence.safe_to_publish_driver_weight = false;
   return evidence;
 }

@@ -2799,9 +2799,12 @@ note, and all report `unreadBytes=0`.
     or beat-smooths `mWeight`.
   - Native `source_char_weight_setter_poll` ports the source non-driver path:
     `CharWeightable::Weight()` owner lookup, optional `base` weighting,
-    min/max setter clamps, snap, and `beats_per_weight` smoothing. Rows with
-    `driver` set remain logged/skipped until a source-backed
-    `CharDriver::EvaluateFlags` body is available.
+    min/max setter clamps, snap, and `beats_per_weight` smoothing. Native
+    `source_char_weight_setter_poll_with_driver_result` also ports the source
+    driver branch when the caller supplies the already source-backed result of
+    `CharDriver::EvaluateFlags(mFlags)`. Live rows with `driver` set remain
+    logged/skipped until a source-backed `CharDriver::EvaluateFlags` body is
+    available.
   - Native `source_char_weight_setter_poll_deps` ports the concrete
     `CharWeightSetter::PollDeps` dependency publication: `mDriver`, `mBase`,
     every `mMinWeights` row, and every `mMaxWeights` row are appended to
@@ -2816,8 +2819,9 @@ note, and all report `unreadBytes=0`.
     `Poll` local `delta`, `PollDeps` locals `it`/`w`, and `Load` locals
     `w`/`it`. This evidence object keeps `safe_to_run_driver_branch=false`
     and `safe_to_publish_driver_weight=false`: the latest source shows the
-    driver call site, but native still cannot evaluate the driver-backed branch
-    without a source-backed `CharDriver::EvaluateFlags` body.
+    driver call site, and the native helper can apply a supplied
+    `EvaluateFlags` result, but native still cannot produce that result without
+    a source-backed `CharDriver::EvaluateFlags` body.
   - `engine/out/source_weightsetter_20260711/stock_weightsetter_controllers.stdout.log`
     refreshes stock proof against the current decoder: all 38 stock
     `CharWeightSetter` rows are `version=2`, use `CharWeightable` revision 2,
