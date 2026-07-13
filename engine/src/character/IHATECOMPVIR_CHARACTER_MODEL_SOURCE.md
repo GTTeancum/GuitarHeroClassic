@@ -1153,12 +1153,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     emitted face count, calls `MiloExtras.AddToMesh`, suffixes split chunk
     filenames as `.<chunkIndex:00>` before the extension, creates a `Mesh`
     directory entry, and assigns `mesh.geomOwner = entry.name`. The same pass
-    records hair-collision meshes when extras `ObjectType` is `CharCollide` or
-    the entry/node name ends in `.coll` / `.collide` or contains
-    `hair_collide`. Native `source_gltf_milo_finalize_mesh_chunk_plan` ports
-    these finalization rules around the still-external `MiloExtras.AddToMesh`
-    hook; it is source evidence for mesh ownership, naming, group-size rows,
-    and hair-related mesh classification only.
+    records hair-collision meshes when the parsed extras `ObjectType` equals
+    `CharCollide`, when the final entry name ends in `.coll` or `.collide`,
+    when the original node name ends in `.coll` or `.collide`, or when the
+    original node name contains `hair_collide`, all case-insensitively. Native
+    `source_gltf_milo_hair_collision_mesh_decision` exposes those branches
+    separately, and `source_gltf_milo_finalize_mesh_chunk_plan` ports these
+    finalization rows by consuming that helper after split-suffix naming. This
+    ports the source classification
+    around the still-external `MiloExtras.AddToMesh` hook; it is evidence for
+    mesh ownership, naming, group-size rows, and hair-related mesh routing only.
   - `PopulateMeshChunk` then builds `jointIndexToLocalBoneIndex` from each
     chunk's `jointIndices` in order and emits exactly one `RndMesh::BoneTransform`
     per chunk joint, because vertex bone indices point into this list by

@@ -293,6 +293,16 @@ struct SourceGltfMiloMeshChunkFinalizeInput {
   std::string object_type_from_extras;
 };
 
+struct SourceGltfMiloHairCollisionMeshDecision {
+  bool object_type_char_collide = false;
+  bool entry_suffix_coll = false;
+  bool entry_suffix_collide = false;
+  bool node_suffix_coll = false;
+  bool node_suffix_collide = false;
+  bool node_contains_hair_collide = false;
+  bool records_hair_collision_mesh = false;
+};
+
 struct SourceGltfMiloMeshChunkFinalizePlan {
   bool calls_milo_extras_add_to_mesh = true;
   std::vector<uint8_t> group_sizes;
@@ -300,6 +310,7 @@ struct SourceGltfMiloMeshChunkFinalizePlan {
   std::string entry_type;
   std::string entry_name;
   std::string geom_owner;
+  SourceGltfMiloHairCollisionMeshDecision hair_collision_decision;
   bool records_hair_collision_mesh = false;
 };
 
@@ -763,6 +774,12 @@ source_gltf_milo_populate_mesh_chunk_plan(
     bool mesh_has_skin);
 
 bool source_gltf_milo_is_hair_bone_name(const std::string& bone_name);
+
+SourceGltfMiloHairCollisionMeshDecision
+source_gltf_milo_hair_collision_mesh_decision(
+    const std::string& entry_name,
+    const std::string& node_name,
+    const std::string& object_type_from_extras);
 
 SourceGltfMiloMeshChunkFinalizePlan
 source_gltf_milo_finalize_mesh_chunk_plan(

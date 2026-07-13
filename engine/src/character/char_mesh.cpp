@@ -1401,6 +1401,35 @@ std::string source_gltf_milo_insert_chunk_suffix(std::string filename,
 
 }  // namespace
 
+SourceGltfMiloHairCollisionMeshDecision
+source_gltf_milo_hair_collision_mesh_decision(
+    const std::string& entry_name,
+    const std::string& node_name,
+    const std::string& object_type_from_extras) {
+  SourceGltfMiloHairCollisionMeshDecision decision;
+  const std::string entry_lower = source_gltf_milo_lower_ascii(entry_name);
+  const std::string node_lower = source_gltf_milo_lower_ascii(node_name);
+  const std::string object_type_lower =
+      source_gltf_milo_lower_ascii(object_type_from_extras);
+
+  decision.object_type_char_collide = object_type_lower == "charcollide";
+  decision.entry_suffix_coll =
+      source_gltf_milo_ends_with_ascii(entry_lower, ".coll");
+  decision.entry_suffix_collide =
+      source_gltf_milo_ends_with_ascii(entry_lower, ".collide");
+  decision.node_suffix_coll =
+      source_gltf_milo_ends_with_ascii(node_lower, ".coll");
+  decision.node_suffix_collide =
+      source_gltf_milo_ends_with_ascii(node_lower, ".collide");
+  decision.node_contains_hair_collide =
+      node_lower.find("hair_collide") != std::string::npos;
+  decision.records_hair_collision_mesh =
+      decision.object_type_char_collide || decision.entry_suffix_coll ||
+      decision.entry_suffix_collide || decision.node_suffix_coll ||
+      decision.node_suffix_collide || decision.node_contains_hair_collide;
+  return decision;
+}
+
 SourceGltfMiloMeshChunkFinalizePlan
 source_gltf_milo_finalize_mesh_chunk_plan(
     const SourceGltfMiloMeshChunkFinalizeInput& input) {
@@ -1433,20 +1462,11 @@ source_gltf_milo_finalize_mesh_chunk_plan(
   plan.entry_type = "Mesh";
   plan.entry_name = overridden_filename;
   plan.geom_owner = plan.entry_name;
-
-  const std::string entry_lower =
-      source_gltf_milo_lower_ascii(plan.entry_name);
-  const std::string node_lower =
-      source_gltf_milo_lower_ascii(input.node_name);
-  const std::string object_type_lower =
-      source_gltf_milo_lower_ascii(input.object_type_from_extras);
+  plan.hair_collision_decision =
+      source_gltf_milo_hair_collision_mesh_decision(
+          plan.entry_name, input.node_name, input.object_type_from_extras);
   plan.records_hair_collision_mesh =
-      object_type_lower == "charcollide" ||
-      source_gltf_milo_ends_with_ascii(entry_lower, ".coll") ||
-      source_gltf_milo_ends_with_ascii(entry_lower, ".collide") ||
-      source_gltf_milo_ends_with_ascii(node_lower, ".coll") ||
-      source_gltf_milo_ends_with_ascii(node_lower, ".collide") ||
-      node_lower.find("hair_collide") != std::string::npos;
+      plan.hair_collision_decision.records_hair_collision_mesh;
   return plan;
 }
 

@@ -1226,6 +1226,51 @@ int main() {
   CHECK(!ghogx::character::source_gltf_milo_is_hair_bone_name(
       "bone_head"));
 
+  const auto hair_collide_by_type =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "body.mesh", "plain_node", "CharCollide");
+  CHECK(hair_collide_by_type.object_type_char_collide);
+  CHECK(hair_collide_by_type.records_hair_collision_mesh);
+
+  const auto hair_collide_by_entry_coll =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "bang.COLL", "plain_node", "");
+  CHECK(hair_collide_by_entry_coll.entry_suffix_coll);
+  CHECK(!hair_collide_by_entry_coll.entry_suffix_collide);
+  CHECK(hair_collide_by_entry_coll.records_hair_collision_mesh);
+
+  const auto hair_collide_by_entry_collide =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "tail.COLLIDE", "plain_node", "");
+  CHECK(!hair_collide_by_entry_collide.entry_suffix_coll);
+  CHECK(hair_collide_by_entry_collide.entry_suffix_collide);
+  CHECK(hair_collide_by_entry_collide.records_hair_collision_mesh);
+
+  const auto hair_collide_by_node_coll =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "body.mesh", "hood.COLL", "");
+  CHECK(hair_collide_by_node_coll.node_suffix_coll);
+  CHECK(!hair_collide_by_node_coll.node_suffix_collide);
+  CHECK(hair_collide_by_node_coll.records_hair_collision_mesh);
+
+  const auto hair_collide_by_node_collide =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "body.mesh", "hood.COLLIDE", "");
+  CHECK(!hair_collide_by_node_collide.node_suffix_coll);
+  CHECK(hair_collide_by_node_collide.node_suffix_collide);
+  CHECK(hair_collide_by_node_collide.records_hair_collision_mesh);
+
+  const auto hair_collide_by_node_contains =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "body.mesh", "upper_hair_collide_probe", "");
+  CHECK(hair_collide_by_node_contains.node_contains_hair_collide);
+  CHECK(hair_collide_by_node_contains.records_hair_collision_mesh);
+
+  const auto hair_collide_negative =
+      ghogx::character::source_gltf_milo_hair_collision_mesh_decision(
+          "body.mesh", "bone_head", "");
+  CHECK(!hair_collide_negative.records_hair_collision_mesh);
+
   ghogx::character::SourceGltfMiloMeshChunkFinalizeInput finalize_input;
   finalize_input.base_filename = "hair.mesh";
   finalize_input.filename_after_milo_extras = "rock1_hair.mesh";
@@ -1251,6 +1296,7 @@ int main() {
   CHECK(final_split_mesh.entry_type == "Mesh");
   CHECK(final_split_mesh.entry_name == "rock1_hair.02.mesh");
   CHECK(final_split_mesh.geom_owner == "rock1_hair.02.mesh");
+  CHECK(final_split_mesh.hair_collision_decision.node_contains_hair_collide);
   CHECK(final_split_mesh.records_hair_collision_mesh);
 
   finalize_input.filename_after_milo_extras = "grim_accessory";
@@ -1266,6 +1312,7 @@ int main() {
   CHECK(final_no_extension.group_sizes.size() == 1);
   CHECK(final_no_extension.group_sizes[0] == 254);
   CHECK(final_no_extension.entry_name == "grim_accessory.01");
+  CHECK(final_no_extension.hair_collision_decision.object_type_char_collide);
   CHECK(final_no_extension.records_hair_collision_mesh);
 
   finalize_input.filename_after_milo_extras = "";
@@ -1280,6 +1327,7 @@ int main() {
   CHECK(final_single_mesh.group_sizes.empty());
   CHECK(final_single_mesh.entry_name == "body.mesh");
   CHECK(final_single_mesh.geom_owner == "body.mesh");
+  CHECK(!final_single_mesh.hair_collision_decision.records_hair_collision_mesh);
   CHECK(!final_single_mesh.records_hair_collision_mesh);
 
   const std::array<float, 16> gltf_mesh_world = {

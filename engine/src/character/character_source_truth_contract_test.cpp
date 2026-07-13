@@ -4499,6 +4499,10 @@ int run_contract() {
                  "base_filename;",
                  "native declares glTFMilo mesh chunk finalize input");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairCollisionMeshDecision{bool"
+                 "object_type_char_collide=false;",
+                 "native declares glTFMilo hair collision mesh decision row");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMeshChunkFinalizePlan{bool"
                  "calls_milo_extras_add_to_mesh=true;",
                  "native declares glTFMilo mesh chunk finalize plan");
@@ -4565,6 +4569,10 @@ int run_contract() {
                  "boolsource_gltf_milo_is_hair_bone_name(conststd::string&"
                  "bone_name);",
                  "native exposes glTFMilo hair-bone classifier");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloHairCollisionMeshDecision"
+                 "source_gltf_milo_hair_collision_mesh_decision(",
+                 "native exposes glTFMilo hair collision mesh classifier");
   ok &= contains(char_mesh_h,
                  "source_gltf_milo_finalize_mesh_chunk_plan("
                  "constSourceGltfMiloMeshChunkFinalizeInput&input);",
@@ -4730,6 +4738,22 @@ int run_contract() {
                  "std::tolower(c)!=kPrefix[i]",
                  "native hair-bone classifier preserves case-insensitive prefix");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloHairCollisionMeshDecision"
+                 "source_gltf_milo_hair_collision_mesh_decision(",
+                 "native ports glTFMilo hair collision mesh classifier");
+  ok &= contains(char_mesh,
+                 "decision.object_type_char_collide=object_type_lower=="
+                 "\"charcollide\";",
+                 "native preserves glTFMilo CharCollide object-type branch");
+  ok &= contains(char_mesh,
+                 "decision.entry_suffix_coll=source_gltf_milo_ends_with_ascii("
+                 "entry_lower,\".coll\");",
+                 "native preserves glTFMilo entry .coll branch");
+  ok &= contains(char_mesh,
+                 "decision.node_contains_hair_collide=node_lower.find("
+                 "\"hair_collide\")!=std::string::npos;",
+                 "native preserves glTFMilo hair_collide node branch");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloMeshChunkFinalizePlan"
                  "source_gltf_milo_finalize_mesh_chunk_plan(",
                  "native ports glTFMilo mesh chunk finalizer helper");
@@ -4746,11 +4770,9 @@ int run_contract() {
                  "plan.geom_owner=plan.entry_name;",
                  "native finalizer sets mesh geom owner to entry name");
   ok &= contains(char_mesh,
-                 "object_type_lower==\"charcollide\"||",
-                 "native finalizer preserves CharCollide extras detection");
-  ok &= contains(char_mesh,
-                 "node_lower.find(\"hair_collide\")!=std::string::npos;",
-                 "native finalizer preserves hair_collide node detection");
+                 "plan.hair_collision_decision="
+                 "source_gltf_milo_hair_collision_mesh_decision(",
+                 "native finalizer uses source hair collision classifier");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBoneTransformPlansource_gltf_milo_build_bone_transforms(",
                  "native implements glTFMilo bone transform helper");
@@ -4947,6 +4969,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_add_vertex_to_chunk_mesh(",
                  "focused mesh decode test covers glTFMilo AddVertex helper");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_hair_collision_mesh_decision(",
+                 "focused mesh decode test covers glTFMilo hair collision classifier");
+  ok &= contains(mesh_decode_test,
+                 "hair_collide_by_node_contains.node_contains_hair_collide",
+                 "focused mesh decode test covers hair_collide node branch");
   ok &= contains(mesh_decode_test,
                  "gltf_ao_vertex.applied_ao_color_override",
                  "focused mesh decode test covers glTFMilo AO color override");
