@@ -285,6 +285,52 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
     int32_t group_sizes_count,
     bool group_sizes_first_positive);
 
+struct SourceMiloEditorRndMeshCoreFieldsIoPlan {
+  int32_t mesh_revision = 0;
+  bool reads_material_symbol = true;
+  bool writes_material_symbol = true;
+  bool reads_second_material_symbol = false;
+  bool writes_second_material_symbol = false;
+  bool reads_geom_owner_symbol = true;
+  bool writes_geom_owner_symbol = true;
+  bool reads_alt_geom_owner_symbol = false;
+  bool writes_alt_geom_owner_symbol = false;
+  bool reads_trans_parent_symbol = false;
+  bool writes_trans_parent_symbol = false;
+  bool reads_unknown_transform_refs = false;
+  bool writes_unknown_transform_refs = false;
+  bool reads_unknown_vector3 = false;
+  bool writes_unknown_vector3 = false;
+  bool reads_legacy_sphere = false;
+  bool writes_legacy_sphere = false;
+  bool reads_legacy_bool = false;
+  bool writes_legacy_bool = false;
+  bool reads_unknown_symbol_float = false;
+  bool writes_unknown_symbol_float = false;
+  bool reads_legacy_bool1 = false;
+  bool writes_legacy_bool1 = false;
+  bool reads_mutable_uint32 = false;
+  bool writes_mutable_uint32 = false;
+  bool reads_volume_uint32 = false;
+  bool writes_volume_uint32 = false;
+  bool reads_bsp_node = false;
+  bool writes_bsp_node = false;
+  bool reads_rev7_bool = false;
+  bool writes_rev7_bool = false;
+  bool reads_legacy_int = false;
+  bool writes_legacy_int = false;
+  int32_t read_symbol_count = 0;
+  int32_t write_symbol_count = 0;
+  int32_t read_bool_count = 0;
+  int32_t write_bool_count = 0;
+  int32_t read_uint32_count = 0;
+  int32_t write_uint32_count = 0;
+  bool gh2_rev28_core_is_mat_geom_mutable_volume_bsp = false;
+};
+
+SourceMiloEditorRndMeshCoreFieldsIoPlan
+source_milo_editor_rndmesh_core_fields_io_plan(int32_t mesh_revision);
+
 struct SourceMiloEditorRndMeshGroupSizesIoPlan {
   int32_t mesh_revision = 0;
   int32_t input_group_sizes_count = 0;

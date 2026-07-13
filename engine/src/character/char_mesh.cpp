@@ -581,6 +581,72 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshCoreFieldsIoPlan
+source_milo_editor_rndmesh_core_fields_io_plan(int32_t mesh_revision) {
+  SourceMiloEditorRndMeshCoreFieldsIoPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.reads_second_material_symbol = mesh_revision == 27;
+  plan.writes_second_material_symbol = mesh_revision == 27;
+  plan.reads_alt_geom_owner_symbol = mesh_revision < 13;
+  plan.writes_alt_geom_owner_symbol = mesh_revision < 13;
+  plan.reads_trans_parent_symbol = mesh_revision < 15;
+  plan.writes_trans_parent_symbol = mesh_revision < 15;
+  plan.reads_unknown_transform_refs = mesh_revision < 14;
+  plan.writes_unknown_transform_refs = mesh_revision < 14;
+  plan.reads_unknown_vector3 = mesh_revision < 3;
+  plan.writes_unknown_vector3 = mesh_revision < 3;
+  plan.reads_legacy_sphere = mesh_revision < 15;
+  plan.writes_legacy_sphere = mesh_revision < 15;
+  plan.reads_legacy_bool = mesh_revision < 8;
+  plan.writes_legacy_bool = mesh_revision < 8;
+  plan.reads_unknown_symbol_float = mesh_revision < 15;
+  plan.writes_unknown_symbol_float = mesh_revision < 15;
+  plan.reads_legacy_bool1 = mesh_revision < 16 && mesh_revision > 11;
+  plan.writes_legacy_bool1 = mesh_revision < 16 && mesh_revision > 11;
+  plan.reads_mutable_uint32 = mesh_revision >= 16;
+  plan.writes_mutable_uint32 = mesh_revision >= 16;
+  plan.reads_volume_uint32 = mesh_revision > 17;
+  plan.writes_volume_uint32 = mesh_revision > 17;
+  plan.reads_bsp_node = mesh_revision > 18;
+  plan.writes_bsp_node = mesh_revision > 18;
+  plan.reads_rev7_bool = mesh_revision == 7;
+  plan.writes_rev7_bool = mesh_revision == 7;
+  plan.reads_legacy_int = mesh_revision < 11;
+  plan.writes_legacy_int = mesh_revision < 11;
+
+  plan.read_symbol_count = 2 + (plan.reads_second_material_symbol ? 1 : 0) +
+                           (plan.reads_alt_geom_owner_symbol ? 1 : 0) +
+                           (plan.reads_trans_parent_symbol ? 1 : 0) +
+                           (plan.reads_unknown_transform_refs ? 2 : 0) +
+                           (plan.reads_unknown_symbol_float ? 1 : 0);
+  plan.write_symbol_count = 2 + (plan.writes_second_material_symbol ? 1 : 0) +
+                            (plan.writes_alt_geom_owner_symbol ? 1 : 0) +
+                            (plan.writes_trans_parent_symbol ? 1 : 0) +
+                            (plan.writes_unknown_transform_refs ? 2 : 0) +
+                            (plan.writes_unknown_symbol_float ? 1 : 0);
+  plan.read_bool_count = (plan.reads_legacy_bool ? 1 : 0) +
+                         (plan.reads_legacy_bool1 ? 1 : 0) +
+                         (plan.reads_rev7_bool ? 1 : 0);
+  plan.write_bool_count = (plan.writes_legacy_bool ? 1 : 0) +
+                          (plan.writes_legacy_bool1 ? 1 : 0) +
+                          (plan.writes_rev7_bool ? 1 : 0);
+  plan.read_uint32_count = (plan.reads_mutable_uint32 ? 1 : 0) +
+                           (plan.reads_volume_uint32 ? 1 : 0) +
+                           (plan.reads_legacy_int ? 1 : 0);
+  plan.write_uint32_count = (plan.writes_mutable_uint32 ? 1 : 0) +
+                            (plan.writes_volume_uint32 ? 1 : 0) +
+                            (plan.writes_legacy_int ? 1 : 0);
+  plan.gh2_rev28_core_is_mat_geom_mutable_volume_bsp =
+      mesh_revision == 28 && plan.read_symbol_count == 2 &&
+      plan.read_bool_count == 0 && plan.read_uint32_count == 2 &&
+      plan.reads_material_symbol && plan.reads_geom_owner_symbol &&
+      plan.reads_mutable_uint32 && plan.reads_volume_uint32 &&
+      plan.reads_bsp_node && !plan.reads_second_material_symbol &&
+      !plan.reads_alt_geom_owner_symbol && !plan.reads_trans_parent_symbol &&
+      !plan.reads_unknown_transform_refs;
+  return plan;
+}
+
 SourceMiloEditorRndMeshGroupSizesIoPlan
 source_milo_editor_rndmesh_group_sizes_io_plan(
     int32_t mesh_revision,

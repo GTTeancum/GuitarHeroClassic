@@ -1134,6 +1134,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_rndmesh_field_gate_plan` ports those gates so GH2 PS2 revision 28
     remains a source-backed material/geom-owner/mutable/volume/BSP/group-size
     and old-four-bone layout, not an inferred newer indexed layout.
+  - Native `source_milo_editor_rndmesh_core_fields_io_plan` records the
+    MiloEditor read/write gates for the core symbol/flag rows before vertices:
+    material and geom owner always, `mat2` only at revision 27, legacy owner and
+    transform-reference rows only in older revisions, mutable from revision 16,
+    volume after 17, and BSP after 18. For GH2 rev28 this core block is
+    material, geom owner, mutable, volume, and BSP only; native must not infer
+    legacy transform parent or alternate owner rows for rev28 meshes.
   - MiloEditor packs the `RndMesh` revision word as two 16-bit halves using
     `BitConverter.IsLittleEndian`: on little-endian hosts the low word is
     `revision` and the high word is `altRevision`, while the big-endian branch

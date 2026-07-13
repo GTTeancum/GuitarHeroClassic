@@ -1154,6 +1154,59 @@ int main() {
   CHECK(modern_fields.reads_alt_bool3);
   CHECK(!modern_fields.reads_group_sections);
 
+  const auto gh2_core_fields =
+      ghogx::character::source_milo_editor_rndmesh_core_fields_io_plan(28);
+  CHECK(gh2_core_fields.reads_material_symbol);
+  CHECK(gh2_core_fields.reads_geom_owner_symbol);
+  CHECK(!gh2_core_fields.reads_second_material_symbol);
+  CHECK(!gh2_core_fields.reads_alt_geom_owner_symbol);
+  CHECK(!gh2_core_fields.reads_trans_parent_symbol);
+  CHECK(!gh2_core_fields.reads_unknown_transform_refs);
+  CHECK(!gh2_core_fields.reads_unknown_vector3);
+  CHECK(!gh2_core_fields.reads_legacy_sphere);
+  CHECK(!gh2_core_fields.reads_legacy_bool);
+  CHECK(!gh2_core_fields.reads_unknown_symbol_float);
+  CHECK(!gh2_core_fields.reads_legacy_bool1);
+  CHECK(gh2_core_fields.reads_mutable_uint32);
+  CHECK(gh2_core_fields.reads_volume_uint32);
+  CHECK(gh2_core_fields.reads_bsp_node);
+  CHECK(!gh2_core_fields.reads_rev7_bool);
+  CHECK(!gh2_core_fields.reads_legacy_int);
+  CHECK(gh2_core_fields.read_symbol_count == 2);
+  CHECK(gh2_core_fields.write_symbol_count == 2);
+  CHECK(gh2_core_fields.read_bool_count == 0);
+  CHECK(gh2_core_fields.write_bool_count == 0);
+  CHECK(gh2_core_fields.read_uint32_count == 2);
+  CHECK(gh2_core_fields.write_uint32_count == 2);
+  CHECK(gh2_core_fields.gh2_rev28_core_is_mat_geom_mutable_volume_bsp);
+
+  const auto rev27_core_fields =
+      ghogx::character::source_milo_editor_rndmesh_core_fields_io_plan(27);
+  CHECK(rev27_core_fields.reads_second_material_symbol);
+  CHECK(rev27_core_fields.reads_mutable_uint32);
+  CHECK(rev27_core_fields.reads_volume_uint32);
+  CHECK(rev27_core_fields.reads_bsp_node);
+  CHECK(rev27_core_fields.read_symbol_count == 3);
+  CHECK(!rev27_core_fields.gh2_rev28_core_is_mat_geom_mutable_volume_bsp);
+
+  const auto rev7_core_fields =
+      ghogx::character::source_milo_editor_rndmesh_core_fields_io_plan(7);
+  CHECK(rev7_core_fields.reads_alt_geom_owner_symbol);
+  CHECK(rev7_core_fields.reads_trans_parent_symbol);
+  CHECK(rev7_core_fields.reads_unknown_transform_refs);
+  CHECK(!rev7_core_fields.reads_unknown_vector3);
+  CHECK(rev7_core_fields.reads_legacy_sphere);
+  CHECK(rev7_core_fields.reads_legacy_bool);
+  CHECK(rev7_core_fields.reads_unknown_symbol_float);
+  CHECK(!rev7_core_fields.reads_mutable_uint32);
+  CHECK(!rev7_core_fields.reads_volume_uint32);
+  CHECK(!rev7_core_fields.reads_bsp_node);
+  CHECK(rev7_core_fields.reads_rev7_bool);
+  CHECK(rev7_core_fields.reads_legacy_int);
+  CHECK(rev7_core_fields.read_symbol_count == 7);
+  CHECK(rev7_core_fields.read_bool_count == 2);
+  CHECK(rev7_core_fields.read_uint32_count == 1);
+
   const auto gh2_group_sizes_io =
       ghogx::character::source_milo_editor_rndmesh_group_sizes_io_plan(
           28, 3);

@@ -5333,6 +5333,13 @@ int run_contract() {
                  "if(revision==27)mat2=Symbol.Read(reader);",
                  "MiloEditor RndMesh reads second material only at rev27");
   ok &= contains(mesh_cs,
+                 "trans=trans.Read(reader,false,parent,entry);draw=draw.Read("
+                 "reader,false,parent,entry);mat=Symbol.Read(reader);",
+                 "MiloEditor RndMesh reads transform draw and material rows");
+  ok &= contains(mesh_cs,
+                 "geomOwner=Symbol.Read(reader);",
+                 "MiloEditor RndMesh reads geom owner row");
+  ok &= contains(mesh_cs,
                  "publicclassFace{publicushortidx1;publicushortidx2;"
                  "publicushortidx3;publicFaceRead(EndianReaderreader){"
                  "idx1=reader.ReadUInt16();idx2=reader.ReadUInt16();"
@@ -5370,6 +5377,32 @@ int run_contract() {
   ok &= contains(mesh_cs,
                  "if(revision>18)bspNode=bspNode.Read(reader);",
                  "MiloEditor RndMesh BSP gate");
+  ok &= contains(mesh_cs,
+                 "trans.Write(writer,false,parent,null);draw.Write(writer,"
+                 "false,parent,null);Symbol.Write(writer,mat);",
+                 "MiloEditor RndMesh writes transform draw and material rows");
+  ok &= contains(mesh_cs,
+                 "if(revision==27)Symbol.Write(writer,mat2);",
+                 "MiloEditor RndMesh writes second material only at rev27");
+  ok &= contains(mesh_cs,
+                 "Symbol.Write(writer,geomOwner);",
+                 "MiloEditor RndMesh writes geom owner row");
+  ok &= contains(mesh_cs,
+                 "if(revision<13)Symbol.Write(writer,altGeomOwner);",
+                 "MiloEditor RndMesh writes legacy alt geom owner");
+  ok &= contains(mesh_cs,
+                 "if(revision<14){Symbol.Write(writer,unkTransReference1);"
+                 "Symbol.Write(writer,unkTransReference2);}",
+                 "MiloEditor RndMesh writes legacy transform references");
+  ok &= contains(mesh_cs,
+                 "elsewriter.WriteUInt32((uint)mutable);",
+                 "MiloEditor RndMesh writes mutable gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>17)writer.WriteUInt32((uint)volume);",
+                 "MiloEditor RndMesh writes volume gate");
+  ok &= contains(mesh_cs,
+                 "if(revision>18)bspNode.Write(writer);",
+                 "MiloEditor RndMesh writes BSP gate");
   ok &= contains(mesh_cs,
                  "elseif(revision>0x15){//todo}",
                  "MiloEditor RndMesh leaves groupSizes 0x16-0x17 TODO");
@@ -6105,6 +6138,10 @@ int run_contract() {
                  "uint32_tcombined_word=0;",
                  "native declares MiloEditor RndMesh revision word plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshCoreFieldsIoPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh core fields IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshGroupSectionIoPlan{"
                  "int32_tgroup_sizes_count=0;",
                  "native declares MiloEditor RndMesh group section IO plan");
@@ -6458,6 +6495,11 @@ int run_contract() {
       "SourceMiloEditorRndMeshRevisionWordPlansource_milo_editor_rndmesh_"
       "revision_word_plan(",
       "native ports MiloEditor RndMesh revision word helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshCoreFieldsIoPlansource_milo_editor_rndmesh_"
+      "core_fields_io_plan(",
+      "native ports MiloEditor RndMesh core fields IO helper");
   ok &= contains(char_mesh,
                  "plan.revision=static_cast<uint16_t>(combined_word&0xffffu);",
                  "native revision word helper preserves little-endian split");
@@ -6505,6 +6547,16 @@ int run_contract() {
                  "plan.gh2_rev28_counted_byte_rows=mesh_revision==28&&"
                  "plan.reads_modern_group_sizes",
                  "native groupSizes IO helper pins GH2 counted byte rows");
+  ok &= contains(char_mesh,
+                 "plan.reads_second_material_symbol=mesh_revision==27;",
+                 "native core fields helper pins mat2 gate");
+  ok &= contains(char_mesh,
+                 "plan.reads_alt_geom_owner_symbol=mesh_revision<13;",
+                 "native core fields helper pins legacy owner gate");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_core_is_mat_geom_mutable_volume_bsp="
+                 "mesh_revision==28&&",
+                 "native core fields helper pins GH2 rev28 core block");
   ok &= contains(char_mesh,
                  "plan.reads_keep_mesh_data=mesh_revision>34;",
                  "native tail flags helper pins keepMeshData gate");
@@ -7062,6 +7114,12 @@ int run_contract() {
                  "source_milo_editor_rndmesh_revision_word_plan(",
                  "focused mesh decode test covers MiloEditor revision word IO");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_core_fields_io_plan(",
+                 "focused mesh decode test covers MiloEditor core fields IO");
+  ok &= contains(mesh_decode_test,
+                 "gh2_core_fields.gh2_rev28_core_is_mat_geom_mutable_volume_bsp",
+                 "focused mesh decode test covers GH2 core field block");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_face_io_plan(",
                  "focused mesh decode test covers MiloEditor face IO");
   ok &= contains(mesh_decode_test,
@@ -7374,6 +7432,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh revision word helper");
   ok &= contains(doc, "revision-gated model parsing stays tied",
                  "document fences revision gates to source split/write logic");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_core_fields_io_plan` records",
+                 "document records MiloEditor RndMesh core fields IO helper");
+  ok &= contains(doc, "material, geom owner, mutable, volume, and BSP only",
+                 "document records GH2 rev28 core field block");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_group_section_io_plan` records",
                  "document records MiloEditor RndMesh group section IO helper");
