@@ -9808,6 +9808,22 @@ source_gltf_milo_game_revisions_boundary() {
   return boundary;
 }
 
+SourceGltfMiloDirectoryBuilderBoundary
+source_gltf_milo_directory_builder_boundary() {
+  SourceGltfMiloDirectoryBuilderBoundary boundary;
+  boundary.finalizer_call_sites = {
+      "Program finalizer OutfitConfigBuilder.BuildOutfitConfig",
+      "Program finalizer DirBuilder.BuildCharacterDirectory",
+      "Program finalizer DirBuilder.BuildRndDirectory",
+      "Program finalizer MiloFile.Save uncompressed 0x810"};
+  boundary.missing_helpers = {"OutfitConfigBuilder",
+                              "OutfitConfigBuilder.BuildOutfitConfig",
+                              "DirBuilder",
+                              "DirBuilder.BuildCharacterDirectory",
+                              "DirBuilder.BuildRndDirectory"};
+  return boundary;
+}
+
 SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale) {

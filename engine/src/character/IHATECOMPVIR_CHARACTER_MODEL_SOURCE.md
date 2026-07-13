@@ -1217,6 +1217,10 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     and big-endian object data. Native `source_gltf_milo_scene_assembly_plan`
     records that final directory/save contract; it does not invent missing
     `DirBuilder` or `OutfitConfigBuilder` internals.
+    `source_gltf_milo_directory_builder_boundary` records those finalizer call
+    sites separately and fences the missing builder bodies: native must not infer character-directory assembly,
+    Rnd-directory assembly, or outfit config mutation from unvendored
+    `DirBuilder` / `OutfitConfigBuilder` helpers.
   - `NodeProcessor.ProcessBoneNode` skips `neutral_bone`, skips RB3 skeleton
     bones only when exporting a `character`, otherwise emits a revision-9
     `Trans` row with object-fields revision 2, local/world matrices copied from

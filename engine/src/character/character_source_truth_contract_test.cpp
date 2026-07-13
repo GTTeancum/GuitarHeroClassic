@@ -299,6 +299,17 @@ int run_contract() {
           source_dir / "glTFMilo/Source/glTFMilo/Core/CharHairExtras.cs") ||
       std::filesystem::is_regular_file(
           source_dir / "glTFMilo/Source/glTFMilo/CharHairExtras.cs");
+  const bool gltf_dir_builder_cs_exists =
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/Core/DirBuilder.cs") ||
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/DirBuilder.cs");
+  const bool gltf_outfit_config_builder_cs_exists =
+      std::filesystem::is_regular_file(
+          source_dir /
+          "glTFMilo/Source/glTFMilo/Core/OutfitConfigBuilder.cs") ||
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/OutfitConfigBuilder.cs");
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
   const std::string rb3_char_lookat_cpp = compact(read_file(
@@ -6442,6 +6453,13 @@ int run_contract() {
                  "MiloLib.Utils.Endian.LittleEndian,MiloLib.Utils.Endian."
                  "BigEndian);",
                  "glTFMilo finalizer save type and endian contract");
+  if (gltf_dir_builder_cs_exists || gltf_outfit_config_builder_cs_exists) {
+    std::cerr << "Forbidden source-truth contract match: "
+              << "directory builder source appeared and boundary must be "
+                 "reassessed"
+              << "\n";
+    ok = false;
+  }
   ok &= contains(char_mesh,
                  "SourceGltfMiloSceneAssemblyPlansource_gltf_milo_scene_"
                  "assembly_plan(",
@@ -6622,6 +6640,32 @@ int run_contract() {
                  "\"GroupRevision\",\"TransRevision\",\"DrawableRevision\","
                  "\"AnimatableRevision\",\"LightRevision\"};",
                  "native GameRevisions boundary records missing helper source");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloDirectoryBuilderBoundary{"
+                 "booldir_builder_source_present=false;",
+                 "native API exposes glTFMilo directory builder boundary");
+  ok &= contains(
+      char_mesh_h,
+      "SourceGltfMiloDirectoryBuilderBoundarysource_gltf_milo_"
+      "directory_builder_boundary();",
+      "native API exposes glTFMilo directory builder boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloDirectoryBuilderBoundarysource_gltf_milo_"
+                 "directory_builder_boundary(){",
+                 "native ports glTFMilo directory builder boundary helper");
+  ok &= contains(char_mesh,
+                 "\"ProgramfinalizerOutfitConfigBuilder.BuildOutfitConfig\"",
+                 "native directory builder boundary records outfit call site");
+  ok &= contains(char_mesh,
+                 "\"ProgramfinalizerMiloFile.Saveuncompressed0x810\"",
+                 "native directory builder boundary records final save call site");
+  ok &= contains(
+      char_mesh,
+      "boundary.missing_helpers={\"OutfitConfigBuilder\","
+      "\"OutfitConfigBuilder.BuildOutfitConfig\",\"DirBuilder\","
+      "\"DirBuilder.BuildCharacterDirectory\","
+      "\"DirBuilder.BuildRndDirectory\"};",
+      "native directory builder boundary records missing helper source");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloCharHairExtrasBoundary{"
                  "boolchar_hair_extras_source_present=false;",
@@ -6846,6 +6890,17 @@ int run_contract() {
                  "!game_revisions_boundary"
                  ".safe_to_select_runtime_revisions_from_missing_table",
                  "focused mesh decode test fences runtime revision selection");
+  ok &= contains(
+      mesh_decode_test, "source_gltf_milo_directory_builder_boundary()",
+      "focused mesh decode test covers glTFMilo directory builder boundary");
+  ok &= contains(mesh_decode_test,
+                 "!directory_builder_boundary.can_port_character_directory_"
+                 "internals",
+                 "focused mesh decode test fences character directory internals");
+  ok &= contains(mesh_decode_test,
+                 "!directory_builder_boundary"
+                 ".safe_to_rewrite_directory_assembly_from_missing_builders",
+                 "focused mesh decode test fences missing directory builders");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_char_hair_extras_boundary()",
                  "focused mesh decode test covers glTFMilo CharHairExtras boundary");
@@ -6961,6 +7016,10 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_scene_assembly_plan` records",
                  "document records glTFMilo scene assembly helper");
+  ok &= contains(doc, "`source_gltf_milo_directory_builder_boundary` records",
+                 "document records glTFMilo directory builder boundary");
+  ok &= contains(doc, "native must not infer character-directory assembly",
+                 "document fences unvendored directory builder internals");
   ok &= contains(doc,
                  "`source_gltf_milo_node_traversal_plan` records",
                  "document records glTFMilo node traversal helper");

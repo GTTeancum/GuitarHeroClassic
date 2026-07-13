@@ -402,6 +402,19 @@ struct SourceGltfMiloGameRevisionsBoundary {
   std::vector<std::string> missing_helpers;
 };
 
+struct SourceGltfMiloDirectoryBuilderBoundary {
+  bool dir_builder_source_present = false;
+  bool outfit_config_builder_source_present = false;
+  bool finalizer_call_sites_source_backed = true;
+  bool can_port_finalizer_call_order = true;
+  bool can_port_character_directory_internals = false;
+  bool can_port_rnd_directory_internals = false;
+  bool can_port_outfit_config_internals = false;
+  bool safe_to_rewrite_directory_assembly_from_missing_builders = false;
+  std::vector<std::string> finalizer_call_sites;
+  std::vector<std::string> missing_helpers;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
@@ -1107,6 +1120,9 @@ source_gltf_milo_milo_extras_boundary();
 
 SourceGltfMiloGameRevisionsBoundary
 source_gltf_milo_game_revisions_boundary();
+
+SourceGltfMiloDirectoryBuilderBoundary
+source_gltf_milo_directory_builder_boundary();
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};

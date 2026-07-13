@@ -1622,6 +1622,27 @@ int main() {
   CHECK(game_revisions_boundary.missing_helpers[0] == "GameRevisions");
   CHECK(game_revisions_boundary.missing_helpers[10] == "LightRevision");
 
+  const auto directory_builder_boundary =
+      ghogx::character::source_gltf_milo_directory_builder_boundary();
+  CHECK(!directory_builder_boundary.dir_builder_source_present);
+  CHECK(!directory_builder_boundary.outfit_config_builder_source_present);
+  CHECK(directory_builder_boundary.finalizer_call_sites_source_backed);
+  CHECK(directory_builder_boundary.can_port_finalizer_call_order);
+  CHECK(!directory_builder_boundary.can_port_character_directory_internals);
+  CHECK(!directory_builder_boundary.can_port_rnd_directory_internals);
+  CHECK(!directory_builder_boundary.can_port_outfit_config_internals);
+  CHECK(!directory_builder_boundary
+             .safe_to_rewrite_directory_assembly_from_missing_builders);
+  CHECK(directory_builder_boundary.finalizer_call_sites.size() == 4);
+  CHECK(directory_builder_boundary.finalizer_call_sites[0] ==
+        "Program finalizer OutfitConfigBuilder.BuildOutfitConfig");
+  CHECK(directory_builder_boundary.finalizer_call_sites[3] ==
+        "Program finalizer MiloFile.Save uncompressed 0x810");
+  CHECK(directory_builder_boundary.missing_helpers.size() == 5);
+  CHECK(directory_builder_boundary.missing_helpers[0] == "OutfitConfigBuilder");
+  CHECK(directory_builder_boundary.missing_helpers[4] ==
+        "DirBuilder.BuildRndDirectory");
+
   const auto char_hair_extras_boundary =
       ghogx::character::source_gltf_milo_char_hair_extras_boundary();
   CHECK(!char_hair_extras_boundary.char_hair_extras_source_present);
