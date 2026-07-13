@@ -729,7 +729,8 @@ class Gameplay {
   bool try_apply_diagnostic_venue_event();
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   std::map<std::string, float> composed_venue_material_alpha() const;
-  void apply_camera_crowd_visibility(const CameraKey& key);
+  void apply_camera_crowd_visibility(const CameraKey& key,
+                                     bool skip_script_crowd_update = false);
   void start_camera_shot_anims(const CameraKey& key,
                                const std::string& runtime_name);
   void end_camera_shot_anims();
@@ -737,7 +738,7 @@ class Gameplay {
                                  const char* source_handler);
   bool consume_pending_regular_camera_shot();
   void start_camera_shot_runtime(const CameraKey& key);
-  void end_camera_shot_runtime();
+  void end_camera_shot_runtime(bool skip_script_crowd_update = false);
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       camera_glow_spot_state_for_ref(const std::string& raw_ref) const;
   void set_camera_glow_spot_ref(const std::string& raw_ref);
@@ -1185,6 +1186,7 @@ class Gameplay {
   std::string active_camera_frame_pair_reported_;
   std::string active_camera_shot_over_reported_;
   bool active_camera_shot_over_ = false;
+  bool active_camera_skip_next_crowd_update_ = false;
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       active_camera_glow_spot_;
   std::string active_venue_event_;

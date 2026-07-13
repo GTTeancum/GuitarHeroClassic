@@ -20548,6 +20548,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_ = false;
+    active_camera_skip_next_crowd_update_ = false;
     pending_regular_camera_start_ = 0.0;
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
@@ -21028,7 +21029,8 @@ std::map<std::string, float> Gameplay::composed_venue_material_alpha() const {
     return out;
 }
 
-void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
+void Gameplay::apply_camera_crowd_visibility(
+    const CameraKey& key, bool skip_script_crowd_update) {
     if (!world_) return;
     std::unordered_set<std::string> next_hidden;
     std::unordered_set<std::string> next_shown;
@@ -21153,7 +21155,9 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
         for (const auto& mesh : shown_meshes) hidden_it->second.erase(mesh);
         if (hidden_it->second.empty()) next_hidden_proxy_meshes.erase(hidden_it);
     }
-    const bool next_face_camera = key.crowd_face_camera;
+    const bool next_face_camera =
+        skip_script_crowd_update ? venue_camera_crowd_face_camera_
+                                 : key.crowd_face_camera;
     if (next_hidden == venue_camera_hidden_meshes_ &&
         next_shown == venue_camera_shown_meshes_ &&
         next_hidden_proxy_meshes == venue_camera_hidden_proxy_meshes_ &&
@@ -21193,6 +21197,7 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
                      "shown_meshes=%zu proxy_objects=%zu proxy_meshes=%zu "
                      "shown_proxy_objects=%zu shown_proxy_meshes=%zu "
                      "actor_hide=%d face_camera=%d face_meshes=%zu "
+                     "script_crowd_update_skipped=%d "
                      "crowd_select=%d crowd_ref=%s crowd_pairs=%zu "
                      "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
@@ -21209,6 +21214,7 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
                       venue_camera_crowd_face_camera_
                           ? venue_crowd_meshes_.size()
                           : 0u,
+                      skip_script_crowd_update ? 1 : 0,
                       venue_camera_has_crowd_selection_ ? 1 : 0,
                       venue_camera_crowd_selection_ref_.c_str(),
                       venue_camera_crowd_selection_pairs_.size(),
@@ -21311,13 +21317,13 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
     update_active_venue_anim_filters();
 }
 
-void Gameplay::end_camera_shot_runtime() {
+void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     if (active_camera_runtime_shot_.empty()) return;
     end_camera_shot_anims();
     set_camera_glow_spot_ref({});
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
-    apply_camera_crowd_visibility(clear);
+    apply_camera_crowd_visibility(clear, skip_script_crowd_update);
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
                      "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1\n",
@@ -21328,6 +21334,7 @@ void Gameplay::end_camera_shot_runtime() {
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_ = false;
+    active_camera_skip_next_crowd_update_ = false;
 }
 
 void Gameplay::queue_regular_camera_shot(const CameraKey& key,
@@ -21375,10 +21382,21 @@ bool Gameplay::consume_pending_regular_camera_shot() {
 void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
     const std::string runtime_name = camera_runtime_name_for_key(key);
     if (active_camera_runtime_shot_ == runtime_name) return;
-    end_camera_shot_runtime();
+    const bool skip_script_crowd_update =
+        active_camera_skip_next_crowd_update_;
+    end_camera_shot_runtime(skip_script_crowd_update);
     camera_result_builder_state_.reset();
     active_camera_runtime_shot_ = runtime_name;
-    apply_camera_crowd_visibility(key);
+    apply_camera_crowd_visibility(key, skip_script_crowd_update);
+    if (skip_script_crowd_update) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera start_shot crowd_update skipped: source_var=camshot_skip_next_update shot=%s result=cleared\n",
+                active_camera_runtime_shot_.c_str());
+        }
+        active_camera_skip_next_crowd_update_ = false;
+    }
     start_camera_shot_anims(key, active_camera_runtime_shot_);
     set_camera_glow_spot_ref(key.glow_spot_ref);
     if (debug_venue_filters_enabled()) {
@@ -26206,6 +26224,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     pending_regular_camera_.clear();
     pending_regular_camera_start_ = 0.0;
     active_camera_shot_over_ = false;
+    active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
@@ -28249,6 +28268,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 pending_regular_camera_start_ = 0.0;
                 active_camera_runtime_shot_.clear();
                 active_camera_shot_over_ = false;
+                active_camera_skip_next_crowd_update_ = false;
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
                 venue_camera_has_crowd_selection_ = false;
@@ -28455,6 +28475,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
                 last_camera_beat_ = UINT32_MAX;
+                active_camera_skip_next_crowd_update_ = false;
                 const IntroCameraSelection intro_camera =
                     select_intro_camera_anim(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
@@ -30391,6 +30412,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 active_camera_shot_over_, &local_frame,
                                 &duration_frames)) {
                             active_camera_shot_over_ = true;
+                            active_camera_skip_next_crowd_update_ = true;
                             source_forced_camera_shot =
                                 active_key->next_shot_ref;
                             force_camera = true;

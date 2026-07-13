@@ -6043,7 +6043,8 @@ int main() {
                  "boolshot_scoped=false;",
                  "camera-linked anim filters can live until CamShot EndAnim");
   ok &= contains(gameplay_c,
-                 "voidGameplay::end_camera_shot_runtime(){"
+                 "voidGameplay::end_camera_shot_runtime("
+                 "boolskip_script_crowd_update){"
                  "if(active_camera_runtime_shot_.empty())return;",
                  "camera EndAnim path is explicit");
   ok &= contains(gameplay_c,
@@ -6058,7 +6059,7 @@ int main() {
                  "camera EndAnim removes only the active shot-scoped anim event");
   ok &= contains(gameplay_c,
                  "clear.name=active_camera_runtime_shot_;"
-                 "apply_camera_crowd_visibility(clear);",
+                 "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
                  "camera EndAnim clears only camera-owned visibility state");
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_runtime(constCameraKey&key)",
@@ -6081,18 +6082,24 @@ int main() {
                  "active_filter.shot_scoped=true;",
                  "camera StartAnim starts decoded linked mAnims as shot-scoped filters");
   ok &= contains(gameplay_c,
-                 "end_camera_shot_runtime();"
+                 "constboolskip_script_crowd_update="
+                 "active_camera_skip_next_crowd_update_;"
+                 "end_camera_shot_runtime(skip_script_crowd_update);"
                  "camera_result_builder_state_.reset();"
                  "active_camera_runtime_shot_=runtime_name;"
-                 "apply_camera_crowd_visibility(key);",
+                 "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
                  "camera StartAnim resets carried result-builder state before applying the authored CamShot payload");
   ok &= contains(gameplay_c,
                  "reset_result_builder=1",
                  "camera StartAnim diagnostics expose the source-shaped result-builder reset");
   ok &= contains(gameplay_c,
-                 "apply_camera_crowd_visibility(key);"
+                 "apply_camera_crowd_visibility(key,skip_script_crowd_update);"
+                 "if(skip_script_crowd_update){",
+                 "camera StartAnim honors the source camshot_skip_next_update latch before linked mAnims");
+  ok &= contains(gameplay_c,
+                 "active_camera_skip_next_crowd_update_=false;}"
                  "start_camera_shot_anims(key,active_camera_runtime_shot_);",
-                 "camera StartAnim starts linked mAnims after applying shot visibility");
+                 "camera StartAnim clears the source skip latch before linked mAnims");
   ok &= contains(gameplay_c,
                  "voidGameplay::queue_regular_camera_shot(constCameraKey&key,"
                  "constchar*source_handler)",
@@ -10061,7 +10068,8 @@ int main() {
                  "hidden.insert(venue_camera_hidden_meshes_.begin(),",
                  "camera crowd hides compose with venue visibility state");
   ok &= contains(gameplay_c,
-                 "voidGameplay::apply_camera_crowd_visibility(constCameraKey&key)",
+                 "voidGameplay::apply_camera_crowd_visibility("
+                 "constCameraKey&key,boolskip_script_crowd_update)",
                  "camera runtime owns source-backed crowd visibility");
   ok &= contains(gameplay_c,
                  "if(key.hide_crowd)next_hidden=venue_crowd_meshes_;",
@@ -10204,8 +10212,9 @@ int main() {
                  "venue_camera_hide_crowd_=next_hide_crowd;",
                  "camera hide_crowd state is committed beside hidden mesh state");
   ok &= contains(gameplay_c,
-                 "constboolnext_face_camera=key.crowd_face_camera;",
-                 "crowd_face_camera state follows the authored CamShot for skinned actors");
+                 "constboolnext_face_camera=skip_script_crowd_update?"
+                 "venue_camera_crowd_face_camera_:key.crowd_face_camera;",
+                 "crowd_face_camera state follows the authored CamShot unless the source skip latch is active");
   ok &= contains(gameplay_c,
                  "world_->set_face_camera_meshes(venue_camera_crowd_face_camera_",
                  "camera-facing crowd meshes are sent to the venue renderer");
@@ -10698,8 +10707,24 @@ int main() {
                  "source shot_over bridge passes the active CamShot mShotOver flag");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=true;"
+                 "active_camera_skip_next_crowd_update_=true;"
                  "source_forced_camera_shot=active_key->next_shot_ref;",
-                 "source shot_over bridge sets mShotOver when shot_over fires");
+                 "source shot_over bridge sets mShotOver and camshot_skip_next_update when shot_over fires");
+  ok &= contains(gameplay_h_c,
+                 "boolactive_camera_skip_next_crowd_update_=false;",
+                 "regular camera runtime carries the GH2 camshot_skip_next_update latch");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::apply_camera_crowd_visibility("
+                 "constCameraKey&key,boolskip_script_crowd_update)",
+                 "camera crowd visibility exposes the source script crowd-update skip");
+  ok &= contains(gameplay_c,
+                 "skip_script_crowd_update?venue_camera_crowd_face_camera_"
+                 ":key.crowd_face_camera",
+                 "camshot_skip_next_update preserves the existing crowd rotate state");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerastart_shotcrowd_updateskipped:"
+                 "source_var=camshot_skip_next_updateshot=%sresult=cleared\\n\"",
+                 "camera diagnostics expose the source camshot_skip_next_update clear");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=false;",
                  "source shot_over state resets with the active CamShot lifecycle");

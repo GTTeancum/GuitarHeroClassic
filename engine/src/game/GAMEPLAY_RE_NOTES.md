@@ -104,6 +104,14 @@ Open work:
   `active_camera_shot_over_` for the regular CamShot lifetime so an authored
   `next_shot` chain can fire once per active shot instead of repeatedly forcing
   the same source `shot_over` bridge on later frames.
+- 2026-07-13 `camshot_skip_next_update` bridge: GH2 `camshot.dta` sets
+  `$camshot_skip_next_update TRUE` before `world do_force_shot [next_shot]`;
+  the next `start_shot` skips the script-level `[crowd] crowd_update` /
+  `crowd_face_camera` rotate block once and then clears the variable. Native
+  now carries the same one-shot latch when `shot_over` forces an authored
+  `next_shot`: CamShot visibility, hides/shows, crowd selection, anims, and
+  glow still follow the source `StartAnim` lifetime, while only the scripted
+  crowd-update/rotate bridge is skipped for that forced handoff.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that
