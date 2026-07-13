@@ -295,6 +295,8 @@ int run_contract() {
       source_dir / "rb3/src/system/char/CharForeTwist.cpp"));
   const std::filesystem::path rb3_latest_char_dir =
       extra_dir / "rb3-latest/src/system/char";
+  const std::string rb3_char_eyes_h = compact(read_file(
+      rb3_latest_char_dir / "CharEyes.h"));
   const std::filesystem::path rb3_latest_rndobj_dir =
       extra_dir / "rb3-latest/src/system/rndobj";
   const std::filesystem::path rb3_latest_obj_dir =
@@ -18627,6 +18629,14 @@ int run_contract() {
                  "CharInterest*CharEyes::GetCurrentInterest(){if(unkd4)"
                  "returnunkd4;if(unkc8)returnunkc8;return0;}",
                  "RB3 CharEyes GetCurrentInterest focus fallback");
+  ok &= contains(rb3_char_eyes_h,
+                 "voidSetInterestFilterFlags(inti){mInterestFilterFlags=i;"
+                 "unk150=true;}",
+                 "RB3 CharEyes SetInterestFilterFlags inline marks changed");
+  ok &= contains(rb3_char_eyes_h,
+                 "voidClearInterestFilterFlags(){mInterestFilterFlags="
+                 "mDefaultFilterFlags;}",
+                 "RB3 CharEyes ClearInterestFilterFlags restores defaults");
   ok &= missing(rb3_char_eyes_cpp,
                 "CharEyes::GetTarget(",
                 "RB3 CharEyes source does not include GetTarget body");
@@ -19355,6 +19365,10 @@ int run_contract() {
                  "boolget_value=false;};",
                  "native exposes CharEyes bitfield prop result");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesFilterFlagsResult{intflags=0;"
+                 "boolmarked_changed=false;};",
+                 "native exposes CharEyes interest-filter flag result");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesEnterState{std::array<float,3>unka4="
                  "{0.0f,0.0f,0.0f};intunkb4=0;intunkbc=0;floatunkb0=1.0f;"
                  "floatunkc0=-1.0f;intunkc4=0;boolunk124=false;"
@@ -19403,6 +19417,16 @@ int run_contract() {
                  "intcurrent_flags,intbit_mask,boolget_operation,"
                  "boolrequested_enabled);",
                  "native exposes CharEyes default-interest bitfield helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesFilterFlagsResult"
+                 "source_char_eyes_set_interest_filter_flags("
+                 "intrequested_flags);",
+                 "native exposes CharEyes interest-filter set helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesFilterFlagsResult"
+                 "source_char_eyes_clear_interest_filter_flags("
+                 "intdefault_flags);",
+                 "native exposes CharEyes interest-filter clear helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state();",
                  "native exposes CharEyes default state helper");
@@ -19591,6 +19615,19 @@ int run_contract() {
                  "if(requested_enabled){result.flags=current_flags|bit_mask;}"
                  "else{result.flags=current_flags&~bit_mask;}",
                  "native CharEyes bitfield helper records set/clear branch");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesFilterFlagsResult"
+                 "source_char_eyes_set_interest_filter_flags("
+                 "intrequested_flags){SourceCharEyesFilterFlagsResultresult;"
+                 "result.flags=requested_flags;result.marked_changed=true;"
+                 "returnresult;}",
+                 "native CharEyes interest-filter set helper mirrors source");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesFilterFlagsResult"
+                 "source_char_eyes_clear_interest_filter_flags("
+                 "intdefault_flags){SourceCharEyesFilterFlagsResultresult;"
+                 "result.flags=default_flags;returnresult;}",
+                 "native CharEyes interest-filter clear helper mirrors source");
   ok &= contains(char_mesh,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state(){"
                  "SourceCharEyesDefaultStatestate;state.unkb8=std::cos("
@@ -19831,6 +19868,12 @@ int run_contract() {
                  "0x24,0x20,false,false)",
                  "focused CharEyes source test covers default-interest clear");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_set_interest_filter_flags(0x1234)",
+                 "focused CharEyes source test covers interest-filter set");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_clear_interest_filter_flags(0x55)",
+                 "focused CharEyes source test covers interest-filter clear");
+  ok &= contains(eyes_source_test,
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
   ok &= contains(eyes_source_test,
@@ -19975,6 +20018,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_eyes_default_interest_categories_sync`",
                  "document records native CharEyes default-interest bitfield helper");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_set_interest_filter_flags` and",
+                 "document records native CharEyes interest-filter helper");
   ok &= contains(doc,
                  "macro lookup remains source context, not a native parser invention",
                  "document fences CharEyes bitfield macro parsing");

@@ -2223,6 +2223,10 @@ note, and all report `unreadBytes=0`.
     the conditional debug properties, and the source bitfield rule for
     `default_interest_categories`. The helper takes an already-resolved bit mask;
     macro lookup remains source context, not a native parser invention.
+  - Native `source_char_eyes_set_interest_filter_flags` and
+    `source_char_eyes_clear_interest_filter_flags` port the two inline source
+    flag mutators: setting writes `mInterestFilterFlags` and marks `unk150`,
+    while clearing restores `mDefaultFilterFlags` without toggling that marker.
   - `CharEyes::ListPollChildren` delegates poll children to the referenced
     `CharLookAt` controllers. It is not evidence for a native bridge that copies
     eye mesh world rows into ad-hoc controller overrides.

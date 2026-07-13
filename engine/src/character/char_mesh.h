@@ -3250,6 +3250,11 @@ struct SourceCharEyesBitfieldPropResult {
   bool get_value = false;
 };
 
+struct SourceCharEyesFilterFlagsResult {
+  int flags = 0;
+  bool marked_changed = false;
+};
+
 struct SourceCharEyesEnterState {
   std::array<float, 3> unka4 = {0.0f, 0.0f, 0.0f};
   int unkb4 = 0;
@@ -4034,6 +4039,10 @@ SourceCharEyesBitfieldPropResult source_char_eyes_default_interest_categories_sy
     int bit_mask,
     bool get_operation,
     bool requested_enabled);
+SourceCharEyesFilterFlagsResult source_char_eyes_set_interest_filter_flags(
+    int requested_flags);
+SourceCharEyesFilterFlagsResult source_char_eyes_clear_interest_filter_flags(
+    int default_flags);
 SourceCharEyesDefaultState source_char_eyes_default_state();
 SourceCharEyesDefaultState source_char_eyes_copy_state(
     const SourceCharEyesDefaultState& source);

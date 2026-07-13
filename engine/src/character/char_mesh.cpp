@@ -6797,6 +6797,21 @@ source_char_eyes_default_interest_categories_sync(
   return result;
 }
 
+SourceCharEyesFilterFlagsResult source_char_eyes_set_interest_filter_flags(
+    int requested_flags) {
+  SourceCharEyesFilterFlagsResult result;
+  result.flags = requested_flags;
+  result.marked_changed = true;
+  return result;
+}
+
+SourceCharEyesFilterFlagsResult source_char_eyes_clear_interest_filter_flags(
+    int default_flags) {
+  SourceCharEyesFilterFlagsResult result;
+  result.flags = default_flags;
+  return result;
+}
+
 SourceCharEyesDefaultState source_char_eyes_default_state() {
   SourceCharEyesDefaultState state;
   state.unkb8 = std::cos(0.52359879f);

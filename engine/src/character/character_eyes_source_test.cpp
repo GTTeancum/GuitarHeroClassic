@@ -52,6 +52,7 @@ int main() {
   using ghogx::character::source_char_eyes_default_interest_categories_sync;
   using ghogx::character::source_char_eyes_default_state;
   using ghogx::character::source_char_eyes_either_eye_clamped;
+  using ghogx::character::source_char_eyes_clear_interest_filter_flags;
   using ghogx::character::source_char_eyes_eye_desc_assign;
   using ghogx::character::source_char_eyes_eye_desc_copy;
   using ghogx::character::source_char_eyes_eye_desc_default;
@@ -73,6 +74,7 @@ int main() {
   using ghogx::character::source_char_eyes_runtime_dump_evidence;
   using ghogx::character::source_char_eyes_save_plan;
   using ghogx::character::source_char_eyes_set_focus_interest;
+  using ghogx::character::source_char_eyes_set_interest_filter_flags;
   using ghogx::character::source_char_eyes_toggle_force_focus;
   using ghogx::character::source_char_eyes_toggle_interest_overlay;
 
@@ -238,6 +240,18 @@ int main() {
                    "CharEyes category set clears bit");
   ok &= expect_bool(category_clear.get_value, false,
                     "CharEyes category clear reports disabled bit");
+  const auto filter_set =
+      source_char_eyes_set_interest_filter_flags(0x1234);
+  ok &= expect_int(filter_set.flags, 0x1234,
+                   "CharEyes SetInterestFilterFlags stores requested flags");
+  ok &= expect_bool(filter_set.marked_changed, true,
+                    "CharEyes SetInterestFilterFlags marks changed");
+  const auto filter_clear =
+      source_char_eyes_clear_interest_filter_flags(0x55);
+  ok &= expect_int(filter_clear.flags, 0x55,
+                   "CharEyes ClearInterestFilterFlags restores defaults");
+  ok &= expect_bool(filter_clear.marked_changed, false,
+                    "CharEyes ClearInterestFilterFlags does not mark changed");
 
   SourceCharEyesPollDeps deps;
   source_char_eyes_poll_deps(
