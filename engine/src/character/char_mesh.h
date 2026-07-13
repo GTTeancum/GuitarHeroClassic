@@ -162,6 +162,20 @@ source_milo_editor_rndmesh_bone_transform_io_plan(
     bool read_probe_positive,
     int32_t bone_transform_count);
 
+struct SourceMiloEditorRndMeshFaceIoPlan {
+  int32_t face_count = 0;
+  bool row_is_three_uint16_indices = true;
+  bool reads_face_count_before_rows = true;
+  bool writes_face_count_before_rows = true;
+  bool reads_faces_in_count_order = false;
+  bool writes_faces_in_vector_order = false;
+  int32_t read_face_rows = 0;
+  int32_t write_face_rows = 0;
+};
+
+SourceMiloEditorRndMeshFaceIoPlan source_milo_editor_rndmesh_face_io_plan(
+    int32_t face_count);
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;

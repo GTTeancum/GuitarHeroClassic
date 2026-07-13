@@ -417,6 +417,17 @@ source_milo_editor_rndmesh_bone_transform_io_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshFaceIoPlan source_milo_editor_rndmesh_face_io_plan(
+    int32_t face_count) {
+  SourceMiloEditorRndMeshFaceIoPlan plan;
+  plan.face_count = std::max(0, face_count);
+  plan.reads_faces_in_count_order = plan.face_count > 0;
+  plan.writes_faces_in_vector_order = plan.face_count > 0;
+  plan.read_face_rows = plan.face_count;
+  plan.write_face_rows = plan.face_count;
+  return plan;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

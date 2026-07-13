@@ -1475,6 +1475,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `operator>>(RndMesh::Face&)` reads three face indices and reads one legacy
     vector only when `RndMesh::gRev < 1`; `FaceCenter` sums the three indexed
     vertex positions and multiplies by `0.33333333f`.
+  - MiloEditor `RndMesh.Face` rows store exactly three unsigned 16-bit indices
+    (`idx1`, `idx2`, `idx3`). The mesh reader consumes a `UInt32` face count
+    before reading that many rows, and the writer emits `faces.Count` before
+    writing each row in vector order. Native
+    `source_milo_editor_rndmesh_face_io_plan` records this counted face-list
+    contract. This is face topology IO only; it does not imply skin-index,
+    hair, cull, depth, blend, or accessory behavior.
   - Native `source_rndmesh_handler_plan`,
     `source_rndmesh_prop_sync_plan`,
     `source_rndmesh_mutable_bit_plan`,

@@ -5287,6 +5287,24 @@ int run_contract() {
                  "if(revision==27)mat2=Symbol.Read(reader);",
                  "MiloEditor RndMesh reads second material only at rev27");
   ok &= contains(mesh_cs,
+                 "publicclassFace{publicushortidx1;publicushortidx2;"
+                 "publicushortidx3;publicFaceRead(EndianReaderreader){"
+                 "idx1=reader.ReadUInt16();idx2=reader.ReadUInt16();"
+                 "idx3=reader.ReadUInt16();returnthis;}",
+                 "MiloEditor RndMesh Face reads three uint16 indices");
+  ok &= contains(mesh_cs,
+                 "publicvoidWrite(EndianWriterwriter){writer.WriteUInt16(idx1);"
+                 "writer.WriteUInt16(idx2);writer.WriteUInt16(idx3);}",
+                 "MiloEditor RndMesh Face writes three uint16 indices");
+  ok &= contains(mesh_cs,
+                 "uintfaceCount=reader.ReadUInt32();faces=newList<Face>();"
+                 "for(inti=0;i<faceCount;i++){faces.Add(newFace().Read(reader));}",
+                 "MiloEditor RndMesh reads counted face list");
+  ok &= contains(mesh_cs,
+                 "writer.WriteUInt32((uint)faces.Count);foreach(Facefaceinfaces)"
+                 "{face.Write(writer);}",
+                 "MiloEditor RndMesh writes counted face list");
+  ok &= contains(mesh_cs,
                  "if(revision<13)altGeomOwner=Symbol.Read(reader);",
                  "MiloEditor RndMesh reads legacy alt geom owner");
   ok &= contains(mesh_cs,
@@ -6033,6 +6051,10 @@ int run_contract() {
                  "int32_tgroup_sizes_count=0;",
                  "native declares MiloEditor RndMesh group section IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshFaceIoPlan{"
+                 "int32_tface_count=0;",
+                 "native declares MiloEditor RndMesh face IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
                  "type=false;",
                  "native declares glTFMilo run options plan");
@@ -6381,6 +6403,11 @@ int run_contract() {
       "SourceMiloEditorRndMeshGroupSectionIoPlansource_milo_editor_rndmesh_"
       "group_section_io_plan(",
       "native ports MiloEditor RndMesh group section IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshFaceIoPlansource_milo_editor_rndmesh_"
+      "face_io_plan(",
+      "native ports MiloEditor RndMesh face IO helper");
   ok &= contains(char_mesh,
                  "constboolgate=plan.group_sizes_count>0&&"
                  "group_sizes_first_positive&&parent_dir_revision<25;",
@@ -6389,6 +6416,10 @@ int run_contract() {
                  "plan.write_pads_to_group_sizes_count=plan."
                  "existing_group_section_count<plan.group_sizes_count;",
                  "native group section IO helper records writer padding");
+  ok &= contains(char_mesh,
+                 "plan.read_face_rows=plan.face_count;plan.write_face_rows="
+                 "plan.face_count;",
+                 "native face IO helper preserves counted rows");
   ok &= contains(char_mesh,
                  "if(read_probe_positive){plan.read_rewinds_probe_when_"
                  "positive=true;",
@@ -6920,6 +6951,12 @@ int run_contract() {
                  "source_milo_editor_rndmesh_revision_word_plan(",
                  "focused mesh decode test covers MiloEditor revision word IO");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_face_io_plan(",
+                 "focused mesh decode test covers MiloEditor face IO");
+  ok &= contains(mesh_decode_test,
+                 "face_io.row_is_three_uint16_indices",
+                 "focused mesh decode test covers face row indices");
+  ok &= contains(mesh_decode_test,
                  "revision_word_little.read_low_word_as_revision",
                  "focused mesh decode test covers little-endian revision split");
   ok &= contains(mesh_decode_test,
@@ -7213,6 +7250,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh group section IO helper");
   ok &= contains(doc, "without treating group sections as skin-index or hair-physics",
                  "document fences group sections from invented runtime behavior");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_face_io_plan` records",
+                 "document records MiloEditor RndMesh face IO helper");
+  ok &= contains(doc, "face topology IO only",
+                 "document fences face IO from skin or hair behavior");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");

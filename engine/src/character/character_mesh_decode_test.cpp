@@ -378,6 +378,28 @@ int main() {
   CHECK(revision_word_big.write_revision_high_word);
   CHECK(revision_word_big.written_word == 0x001c0004u);
 
+  const auto face_io =
+      ghogx::character::source_milo_editor_rndmesh_face_io_plan(3);
+  CHECK(face_io.face_count == 3);
+  CHECK(face_io.row_is_three_uint16_indices);
+  CHECK(face_io.reads_face_count_before_rows);
+  CHECK(face_io.writes_face_count_before_rows);
+  CHECK(face_io.reads_faces_in_count_order);
+  CHECK(face_io.writes_faces_in_vector_order);
+  CHECK(face_io.read_face_rows == 3);
+  CHECK(face_io.write_face_rows == 3);
+
+  const auto empty_face_io =
+      ghogx::character::source_milo_editor_rndmesh_face_io_plan(-2);
+  CHECK(empty_face_io.face_count == 0);
+  CHECK(empty_face_io.row_is_three_uint16_indices);
+  CHECK(empty_face_io.reads_face_count_before_rows);
+  CHECK(empty_face_io.writes_face_count_before_rows);
+  CHECK(!empty_face_io.reads_faces_in_count_order);
+  CHECK(!empty_face_io.writes_faces_in_vector_order);
+  CHECK(empty_face_io.read_face_rows == 0);
+  CHECK(empty_face_io.write_face_rows == 0);
+
   const auto rev28_milo_editor_bone_io =
       ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
           28, true, 2);
