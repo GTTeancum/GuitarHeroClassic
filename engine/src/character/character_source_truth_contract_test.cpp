@@ -285,22 +285,31 @@ int run_contract() {
       source_dir / "glTFMilo/Source/glTFMilo/Program.cs"));
   const std::string gltf_node_processor_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs"));
+  const std::string gltf_matrix_helpers_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/Shared/MatrixHelpers.cs"));
+  const std::string gltf_node_helpers_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/Shared/NodeHelpers.cs"));
+  const std::string gltf_milo_extras_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/MiloExtras.cs"));
+  const std::string gltf_game_revisions_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/Shared/GameRevisions.cs"));
+  const std::string gltf_dir_builder_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/DirBuilder.cs"));
+  const std::string gltf_outfit_config_builder_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/OutfitConfigBuilder.cs"));
+  const std::string gltf_report_generator_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/ReportGenerator.cs"));
   const bool gltf_matrix_helpers_cs_exists = std::filesystem::is_regular_file(
-      source_dir / "glTFMilo/Source/glTFMilo/Core/MatrixHelpers.cs");
+      source_dir / "glTFMilo/Source/Shared/MatrixHelpers.cs");
   const bool gltf_node_helpers_cs_exists = std::filesystem::is_regular_file(
-      source_dir / "glTFMilo/Source/glTFMilo/Core/NodeHelpers.cs");
+      source_dir / "glTFMilo/Source/Shared/NodeHelpers.cs");
   const bool gltf_milo_extras_cs_exists = std::filesystem::is_regular_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/MiloExtras.cs");
   const bool gltf_game_revisions_cs_exists =
       std::filesystem::is_regular_file(
-          source_dir / "glTFMilo/Source/glTFMilo/Core/GameRevisions.cs") ||
-      std::filesystem::is_regular_file(
-          source_dir / "glTFMilo/Source/glTFMilo/GameRevisions.cs");
+          source_dir / "glTFMilo/Source/Shared/GameRevisions.cs");
   const bool gltf_char_hair_extras_cs_exists =
-      std::filesystem::is_regular_file(
-          source_dir / "glTFMilo/Source/glTFMilo/Core/CharHairExtras.cs") ||
-      std::filesystem::is_regular_file(
-          source_dir / "glTFMilo/Source/glTFMilo/CharHairExtras.cs");
+      gltf_milo_extras_cs.find("classCharHairExtras") != std::string::npos;
   const bool gltf_dir_builder_cs_exists =
       std::filesystem::is_regular_file(
           source_dir / "glTFMilo/Source/glTFMilo/Core/DirBuilder.cs") ||
@@ -770,6 +779,15 @@ int run_contract() {
       compact(stock_guitar_string_sweep);
 
   bool ok = true;
+
+  ok &= gltf_matrix_helpers_cs_exists;
+  ok &= gltf_node_helpers_cs_exists;
+  ok &= gltf_milo_extras_cs_exists;
+  ok &= gltf_game_revisions_cs_exists;
+  ok &= gltf_char_hair_extras_cs_exists;
+  ok &= gltf_dir_builder_cs_exists;
+  ok &= gltf_outfit_config_builder_cs_exists;
+  ok &= gltf_report_generator_cs_exists;
 
   if (milo_lib_classes_dir_present) {
     std::cerr << "Missing source-truth contract: MiloEditor compressed vector "
@@ -1783,24 +1801,24 @@ int run_contract() {
                  "document cites glTFMilo skinning source");
   ok &= contains(doc, "glTFMilo transform copy boundary",
                  "document records glTFMilo MatrixHelpers boundary");
-  ok &= contains(doc, "native must not infer axis-conversion or bind-pose",
-                 "document fences unvendored MatrixHelpers math");
+  ok &= contains(doc, "exact glTF-to-Milo vector/quaternion/scale axis remaps",
+                 "document records vendored MatrixHelpers math");
   ok &= contains(doc, "glTFMilo node hierarchy boundary",
                  "document records glTFMilo NodeHelpers boundary");
-  ok &= contains(doc, "native must not infer node classification, parent search",
-                 "document fences unvendored NodeHelpers logic");
+  ok &= contains(doc, "NodeHelpers` is vendored",
+                 "document records vendored NodeHelpers logic");
   ok &= contains(doc, "glTFMilo object extras boundary",
                  "document records glTFMilo MiloExtras boundary");
-  ok &= contains(doc, "native must not infer filename override, group/object",
-                 "document fences unvendored MiloExtras logic");
+  ok &= contains(doc, "filename override, object type/note writes",
+                 "document records vendored MiloExtras logic");
   ok &= contains(doc, "glTFMilo game revision boundary",
                  "document records glTFMilo GameRevisions boundary");
-  ok &= contains(doc, "native must not infer revision table values",
-                 "document fences unvendored GameRevisions values");
+  ok &= contains(doc, "vendored revision table values",
+                 "document records vendored GameRevisions values");
   ok &= contains(doc, "glTFMilo hair extras boundary",
                  "document records glTFMilo CharHairExtras boundary");
-  ok &= contains(doc, "native must not infer default hair physics numbers",
-                 "document fences unvendored CharHairExtras defaults");
+  ok &= contains(doc, "exact default physics values",
+                 "document records vendored CharHairExtras defaults");
   ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
                  "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.cpp",
@@ -5946,12 +5964,18 @@ int run_contract() {
   ok &= contains(gltf_node_processor_cs,
                  "MatrixHelpers.ConvertGltfVectorToMilo(pointPosition);",
                  "glTFMilo references vector coordinate conversion helper");
-  if (gltf_matrix_helpers_cs_exists) {
-    std::cerr << "Forbidden source-truth contract match: "
-              << "MatrixHelpers source appeared and boundary must be reassessed"
-              << "\n";
-    ok = false;
-  }
+  ok &= contains(gltf_matrix_helpers_cs,
+                 "returnnewVector3(value.X,-value.Z,value.Y);",
+                 "glTFMilo MatrixHelpers vector conversion is source-backed");
+  ok &= contains(gltf_matrix_helpers_cs,
+                 "returnnewQuaternion(value.X,-value.Z,value.Y,value.W);",
+                 "glTFMilo MatrixHelpers quaternion conversion is source-backed");
+  ok &= contains(gltf_matrix_helpers_cs,
+                 "returnnewVector3(value.X,value.Z,value.Y);",
+                 "glTFMilo MatrixHelpers scale conversion is source-backed");
+  ok &= contains(gltf_matrix_helpers_cs,
+                 "source=MiloToGltfBasis*source*GltfToMiloBasis;",
+                 "glTFMilo MatrixHelpers matrix basis conversion is source-backed");
   ok &= contains(gltf_program_cs,
                  "if(NodeHelpers.IsPrimitive(node))",
                  "glTFMilo traversal uses NodeHelpers primitive classification");
@@ -5977,12 +6001,21 @@ int run_contract() {
   ok &= contains(gltf_node_processor_cs,
                  "varparent=NodeHelpers.GetParentNode(strandRoot,model);",
                  "glTFMilo CharHair uses NodeHelpers strand parent lookup");
-  if (gltf_node_helpers_cs_exists) {
-    std::cerr << "Forbidden source-truth contract match: "
-              << "NodeHelpers source appeared and boundary must be reassessed"
-              << "\n";
-    ok = false;
-  }
+  ok &= contains(gltf_node_helpers_cs,
+                 "returnmodel.LogicalSkins.Any(skin=>skin.Joints.Contains(node));",
+                 "glTFMilo NodeHelpers IsBone source is present");
+  ok &= contains(gltf_node_helpers_cs,
+                 "returnnode.Mesh!=null;",
+                 "glTFMilo NodeHelpers IsPrimitive source is present");
+  ok &= contains(gltf_node_helpers_cs,
+                 "return!hasMesh&&!isBone&&hasChildren;",
+                 "glTFMilo NodeHelpers IsGroupNode source is present");
+  ok &= contains(gltf_node_helpers_cs,
+                 "if(node.VisualChildren.Contains(targetNode)){returnnode;}",
+                 "glTFMilo NodeHelpers parent search source is present");
+  ok &= contains(gltf_node_helpers_cs,
+                 "names.AddRange(GetAllDescendantNames(child));",
+                 "glTFMilo NodeHelpers descendant recursion source is present");
   ok &= contains(gltf_program_cs,
                  "newVert.weight0=vertexInfluences.Count>0?"
                  "vertexInfluences[0].weight:0.0f;",
@@ -6120,13 +6153,27 @@ int run_contract() {
                  "hair.wind=string.IsNullOrEmpty(physicsSettings.Wind)?"
                  "CharHairExtras.DefaultWind:physicsSettings.Wind;",
                  "glTFMilo ProcessCharHair reads CharHairExtras default wind");
-  if (gltf_char_hair_extras_cs_exists) {
-    std::cerr << "Forbidden source-truth contract match: "
-              << "CharHairExtras source appeared and boundary must be "
-                 "reassessed"
-              << "\n";
-    ok = false;
-  }
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicconststringDefaultWind=\"world.wind\";",
+                 "glTFMilo CharHairExtras default wind is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicfloatStiffness{get;set;}=0.04f;",
+                 "glTFMilo CharHairExtras stiffness default is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicfloatTorsion{get;set;}=0.1f;",
+                 "glTFMilo CharHairExtras torsion default is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicfloatInertia{get;set;}=0.7f;",
+                 "glTFMilo CharHairExtras inertia default is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicfloatGravity{get;set;}=1.0f;",
+                 "glTFMilo CharHairExtras gravity default is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicfloatFriction{get;set;}=0.3f;",
+                 "glTFMilo CharHairExtras friction default is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "publicfloatWeight{get;set;}=0.5f;",
+                 "glTFMilo CharHairExtras weight default is source-backed");
   ok &= contains(gltf_program_cs,
                  "uintnumFaces=(uint)mesh.faces.Count;mesh.groupSizes.Clear();"
                  "while(numFaces>0)",
@@ -6163,12 +6210,26 @@ int run_contract() {
   ok &= contains(gltf_node_processor_cs,
                  "MiloExtras.AddToObject(node,light,refoverriddenFilename);",
                  "glTFMilo ProcessLightNode calls MiloExtras AddToObject");
-  if (gltf_milo_extras_cs_exists) {
-    std::cerr << "Forbidden source-truth contract match: "
-              << "MiloExtras source appeared and boundary must be reassessed"
-              << "\n";
-    ok = false;
-  }
+  ok &= contains(gltf_milo_extras_cs,
+                 "[JsonPropertyName(\"milo_filename\")]publicstringFilename",
+                 "glTFMilo MiloExtras filename property is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "[JsonPropertyName(\"milo_obj_type\")]publicstringObjectType",
+                 "glTFMilo MiloExtras object type property is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "if(miloExtras.Filename!=null&&miloExtras.Filename!="
+                 "string.Empty){fileName=miloExtras.Filename;}",
+                 "glTFMilo MiloExtras filename override is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "if(miloExtras.ObjectType!=null&&miloExtras.ObjectType!="
+                 "string.Empty)mesh.objFields.type=miloExtras.ObjectType;",
+                 "glTFMilo MiloExtras mesh object type write is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "mesh.draw.showing=miloExtras?.IsShowing==1;",
+                 "glTFMilo MiloExtras mesh showing write is source-backed");
+  ok &= contains(gltf_milo_extras_cs,
+                 "mesh.draw.sphere.radius=miloExtras?.SphereRadius??10000.0f;",
+                 "glTFMilo MiloExtras mesh sphere radius write is source-backed");
   ok &= contains(gltf_program_cs,
                  "string.Equals(objectType,\"CharCollide\",StringComparison."
                  "OrdinalIgnoreCase)||",
@@ -6298,12 +6359,21 @@ int run_contract() {
   ok &= contains(gltf_node_processor_cs,
                  "collide.trans=RndTrans.New(rev.TransRevision,0);",
                  "glTFMilo empty hair collides read trans revision");
-  if (gltf_game_revisions_cs_exists) {
-    std::cerr << "Forbidden source-truth contract match: "
-              << "GameRevisions source appeared and boundary must be reassessed"
-              << "\n";
-    ok = false;
-  }
+  ok &= contains(gltf_game_revisions_cs,
+                 "publicenumMiloGame{RockBand3=0,DanceCentral1=0,"
+                 "TheBeatlesRockBand=1,RockBand2=2,RockBand1=3,"
+                 "GreenDayRockBand=4}",
+                 "glTFMilo GameRevisions game enum is source-backed");
+  ok &= contains(gltf_game_revisions_cs,
+                 "newGameRevisions(MiloGame.RockBand3,rndDir:10,model:38,"
+                 "objDir:27,trans:9,draw:3,tex:11,bmp:1,mat:0x44,"
+                 "character:17,anim:4,group:0xE,charTest:15,milo:28,"
+                 "outfit:27,light:0x10)",
+                 "glTFMilo RockBand3 revision row is source-backed");
+  ok &= contains(gltf_game_revisions_cs,
+                 "publicstaticGameRevisionsGetRevision(MiloGamegame){"
+                 "returnrevs.FirstOrDefault(x=>x.Game==game);}",
+                 "glTFMilo GameRevisions lookup is source-backed");
   ok &= contains(gltf_program_cs,
                  "mesh.objFields.revision=2;",
                  "glTFMilo CreateBaseMesh sets object fields revision");
@@ -7617,14 +7687,26 @@ int run_contract() {
                  "if(report==\"true\"){ReportGenerator.Generate(meta,"
                  "selectedGame,type);}",
                  "glTFMilo finalizer runs report generator after save");
-  if (gltf_dir_builder_cs_exists || gltf_outfit_config_builder_cs_exists ||
-      gltf_report_generator_cs_exists) {
-    std::cerr << "Forbidden source-truth contract match: "
-              << "finalizer helper source appeared and boundary must be "
-                 "reassessed"
-              << "\n";
-    ok = false;
-  }
+  ok &= contains(gltf_dir_builder_cs,
+                 "publicstaticvoidBuildCharacterDirectory(Optionsopts,"
+                 "MiloGameselectedGame,DirectoryMetameta)",
+                 "glTFMilo DirBuilder character directory source is present");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.inlineProxy=opts.Type==\"instrument\";",
+                 "glTFMilo DirBuilder instrument inline proxy is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.subDirs.Add(\"../../shared/char_shared.milo\");",
+                 "glTFMilo DirBuilder character shared subdir is source-backed");
+  ok &= contains(gltf_outfit_config_builder_cs,
+                 "publicstaticvoidBuildOutfitConfig(Optionsopts,"
+                 "MiloGameselectedGame,DirectoryMetameta)",
+                 "glTFMilo OutfitConfigBuilder source is present");
+  ok &= contains(gltf_report_generator_cs,
+                 "intmeshCount=meta.entries.Count(e=>e.type==\"Mesh\");",
+                 "glTFMilo ReportGenerator mesh count source is present");
+  ok &= contains(gltf_report_generator_cs,
+                 "Logger.Info(\"=====glTFMiloReport=====\");",
+                 "glTFMilo ReportGenerator header source is present");
   ok &= contains(char_mesh,
                  "SourceGltfMiloSceneAssemblyPlansource_gltf_milo_scene_"
                  "assembly_plan(",
@@ -7633,8 +7715,8 @@ int run_contract() {
                  "structSourceGltfMiloReportGeneratorPlan{std::stringraw_report;",
                  "native declares glTFMilo report generator branch contract");
   ok &= contains(char_mesh_h,
-                 "boolreport_generator_source_present=false;",
-                 "native report generator branch fences missing helper source");
+                 "boolreport_generator_source_present=true;",
+                 "native report generator branch records present helper source");
   ok &= contains(char_mesh,
                  "SourceGltfMiloReportGeneratorPlansource_gltf_milo_report_"
                  "generator_plan(",
@@ -7732,12 +7814,18 @@ int run_contract() {
                  "native preserves ProcessLightNode spot mapping");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMatrixHelpersBoundary{"
-                 "boolmatrix_helpers_source_present=false;",
+                 "boolmatrix_helpers_source_present=true;",
                  "native API exposes glTFMilo MatrixHelpers boundary");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloCoordinateConversionPlan{",
+                 "native API exposes glTFMilo coordinate conversion plan");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMatrixHelpersBoundarysource_gltf_milo_"
                  "matrix_helpers_boundary();",
                  "native API exposes glTFMilo MatrixHelpers boundary helper");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_coordinate_conversion_plan(",
+                 "native API exposes glTFMilo coordinate conversion helper");
   ok &= contains(char_mesh,
                  "SourceGltfMiloMatrixHelpersBoundarysource_gltf_milo_"
                  "matrix_helpers_boundary(){",
@@ -7746,14 +7834,18 @@ int run_contract() {
                  "\"PopulateMeshChunkboneWorldInverse*node.WorldMatrix\"",
                  "native MatrixHelpers boundary records bone transform order");
   ok &= contains(char_mesh,
-                 "boundary.missing_helpers={\"MatrixHelpers.CopyMatrix\","
-                 "\"MatrixHelpers.CopyMatrix3\","
-                 "\"MatrixHelpers.ConvertGltfVectorToMilo\","
-                 "\"MatrixHelpers.ConvertGltfScaleToMilo\"};",
-                 "native MatrixHelpers boundary records missing helper source");
+                 "plan.milo_vector={vector[0],-vector[2],vector[1]};",
+                 "native MatrixHelpers helper ports vector conversion");
+  ok &= contains(char_mesh,
+                 "plan.milo_quaternion={quaternion[0],-quaternion[2],"
+                 "quaternion[1],quaternion[3]};",
+                 "native MatrixHelpers helper ports quaternion conversion");
+  ok &= contains(char_mesh,
+                 "plan.milo_scale={scale[0],scale[2],scale[1]};",
+                 "native MatrixHelpers helper ports scale conversion");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloNodeHelpersBoundary{"
-                 "boolnode_helpers_source_present=false;",
+                 "boolnode_helpers_source_present=true;",
                  "native API exposes glTFMilo NodeHelpers boundary");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloNodeHelpersBoundarysource_gltf_milo_"
@@ -7769,18 +7861,13 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "\"ProcessBoneNodeNodeHelpers.GetParentBoneName\"",
                  "native NodeHelpers boundary records parent lookup");
-  ok &= contains(char_mesh,
-                 "boundary.missing_helpers={\"NodeHelpers.IsPrimitive\","
-                 "\"NodeHelpers.IsBone\",\"NodeHelpers.IsGroupNode\","
-                 "\"NodeHelpers.IsLightNode\","
-                 "\"NodeHelpers.GetParentBoneName\","
-                 "\"NodeHelpers.GetAllDescendantNames\","
-                 "\"NodeHelpers.GetParentNode\"};",
-                 "native NodeHelpers boundary records missing helper source");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMiloExtrasBoundary{"
-                 "boolmilo_extras_source_present=false;",
+                 "boolmilo_extras_source_present=true;",
                  "native API exposes glTFMilo MiloExtras boundary");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMiloExtrasApplyPlan{",
+                 "native API exposes glTFMilo MiloExtras apply plan");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMiloExtrasBoundarysource_gltf_milo_"
                  "milo_extras_boundary();",
@@ -7796,13 +7883,17 @@ int run_contract() {
                  "\"ProcessLightNodeMiloExtras.AddToObject\"",
                  "native MiloExtras boundary records light call site");
   ok &= contains(char_mesh,
-                 "boundary.missing_helpers={\"MiloExtras\","
-                 "\"MiloExtras.AddToMesh\",\"MiloExtras.AddToGroup\","
-                 "\"MiloExtras.AddToObject\",\"MiloExtras.ObjectType\"};",
-                 "native MiloExtras boundary records missing helper source");
+                 "plan.overrides_filename=true;plan.filename=input.filename;",
+                 "native MiloExtras helper ports filename override");
+  ok &= contains(char_mesh,
+                 "plan.writes_object_type=true;plan.object_type=input.object_type;",
+                 "native MiloExtras helper ports object type write");
+  ok &= contains(char_mesh,
+                 "plan.writes_drawable_fields=drawable_target;",
+                 "native MiloExtras helper ports drawable target gate");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloGameRevisionsBoundary{"
-                 "boolgame_revisions_source_present=false;",
+                 "boolgame_revisions_source_present=true;",
                  "native API exposes glTFMilo GameRevisions boundary");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloGameRevisionsBoundarysource_gltf_milo_"
@@ -7818,16 +7909,9 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "\"ProcessEmptyHairCollidesTransRevision\"",
                  "native GameRevisions boundary records hair collide revision call site");
-  ok &= contains(char_mesh,
-                 "boundary.missing_helpers={\"GameRevisions\","
-                 "\"GameRevisions.GetRevision\",\"MiloRevision\","
-                 "\"ModelRevision\",\"MatRevision\",\"TextureRevision\","
-                 "\"GroupRevision\",\"TransRevision\",\"DrawableRevision\","
-                 "\"AnimatableRevision\",\"LightRevision\"};",
-                 "native GameRevisions boundary records missing helper source");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloDirectoryBuilderBoundary{"
-                 "booldir_builder_source_present=false;",
+                 "booldir_builder_source_present=true;",
                  "native API exposes glTFMilo directory builder boundary");
   ok &= contains(
       char_mesh_h,
@@ -7844,17 +7928,13 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "\"ProgramfinalizerMiloFile.Saveuncompressed0x810\"",
                  "native directory builder boundary records final save call site");
-  ok &= contains(
-      char_mesh,
-      "boundary.missing_helpers={\"OutfitConfigBuilder\","
-      "\"OutfitConfigBuilder.BuildOutfitConfig\",\"DirBuilder\","
-      "\"DirBuilder.BuildCharacterDirectory\","
-      "\"DirBuilder.BuildRndDirectory\"};",
-      "native directory builder boundary records missing helper source");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloCharHairExtrasBoundary{"
-                 "boolchar_hair_extras_source_present=false;",
+                 "boolchar_hair_extras_source_present=true;",
                  "native API exposes glTFMilo CharHairExtras boundary");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloCharHairExtrasDefaults{",
+                 "native API exposes glTFMilo CharHairExtras defaults");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloCharHairExtrasBoundarysource_gltf_milo_"
                  "char_hair_extras_boundary();",
@@ -7867,12 +7947,8 @@ int run_contract() {
                  "\"ProcessCharHairCharHairExtras.DefaultWind\"",
                  "native CharHairExtras boundary records default wind call site");
   ok &= contains(char_mesh,
-                 "boundary.missing_helpers={\"CharHairExtras\","
-                 "\"CharHairExtras.DefaultWind\",\"CharHairExtras.Stiffness\","
-                 "\"CharHairExtras.Torsion\",\"CharHairExtras.Inertia\","
-                 "\"CharHairExtras.Gravity\",\"CharHairExtras.Weight\","
-                 "\"CharHairExtras.Friction\",\"CharHairExtras.Wind\"};",
-                 "native CharHairExtras boundary records missing helper source");
+                 "returnSourceGltfMiloCharHairExtrasDefaults{};",
+                 "native CharHairExtras helper ports source defaults");
   ok &= contains(char_mesh,
                  "SourceRndLightDefaultStatesource_rndlight_default_state(){"
                  "returnSourceRndLightDefaultState{};}",
@@ -8264,56 +8340,65 @@ int run_contract() {
                  "source_gltf_milo_matrix_helpers_boundary()",
                  "focused mesh decode test covers glTFMilo MatrixHelpers boundary");
   ok &= contains(mesh_decode_test,
-                 "!matrix_boundary.can_port_axis_conversion_math",
-                 "focused mesh decode test fences unvendored axis conversion math");
+                 "matrix_boundary.can_port_axis_conversion_math",
+                 "focused mesh decode test covers vendored axis conversion math");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_coordinate_conversion_plan(",
+                 "focused mesh decode test covers coordinate conversion helper");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_node_helpers_boundary()",
                  "focused mesh decode test covers glTFMilo NodeHelpers boundary");
   ok &= contains(mesh_decode_test,
-                 "!node_helpers_boundary.can_port_node_classification_logic",
-                 "focused mesh decode test fences unvendored node classification logic");
+                 "node_helpers_boundary.can_port_node_classification_logic",
+                 "focused mesh decode test covers vendored node classification logic");
   ok &= contains(mesh_decode_test,
-                 "!node_helpers_boundary.can_port_parent_bone_search_logic",
-                 "focused mesh decode test fences unvendored parent search logic");
+                 "node_helpers_boundary.can_port_parent_bone_search_logic",
+                 "focused mesh decode test covers vendored parent search logic");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_milo_extras_boundary()",
                  "focused mesh decode test covers glTFMilo MiloExtras boundary");
   ok &= contains(mesh_decode_test,
-                 "!milo_extras_boundary.can_port_filename_override_logic",
-                 "focused mesh decode test fences unvendored filename override logic");
+                 "milo_extras_boundary.can_port_filename_override_logic",
+                 "focused mesh decode test covers vendored filename override logic");
   ok &= contains(mesh_decode_test,
-                 "!milo_extras_boundary.can_port_object_mutation_logic",
-                 "focused mesh decode test fences unvendored object mutation logic");
+                 "milo_extras_boundary.can_port_object_mutation_logic",
+                 "focused mesh decode test covers vendored object mutation logic");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_milo_extras_apply_plan(",
+                 "focused mesh decode test covers MiloExtras apply helper");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_game_revisions_boundary()",
                  "focused mesh decode test covers glTFMilo GameRevisions boundary");
   ok &= contains(mesh_decode_test,
-                 "!game_revisions_boundary.can_port_revision_values",
-                 "focused mesh decode test fences unvendored revision values");
+                 "game_revisions_boundary.can_port_revision_values",
+                 "focused mesh decode test covers vendored revision values");
   ok &= contains(mesh_decode_test,
-                 "!game_revisions_boundary"
+                 "game_revisions_boundary"
                  ".safe_to_select_runtime_revisions_from_missing_table",
-                 "focused mesh decode test fences runtime revision selection");
+                 "focused mesh decode test covers runtime revision selection");
   ok &= contains(
       mesh_decode_test, "source_gltf_milo_directory_builder_boundary()",
       "focused mesh decode test covers glTFMilo directory builder boundary");
   ok &= contains(mesh_decode_test,
-                 "!directory_builder_boundary.can_port_character_directory_"
+                 "directory_builder_boundary.can_port_character_directory_"
                  "internals",
-                 "focused mesh decode test fences character directory internals");
+                 "focused mesh decode test covers character directory internals");
   ok &= contains(mesh_decode_test,
-                 "!directory_builder_boundary"
+                 "directory_builder_boundary"
                  ".safe_to_rewrite_directory_assembly_from_missing_builders",
-                 "focused mesh decode test fences missing directory builders");
+                 "focused mesh decode test covers present directory builders");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_char_hair_extras_boundary()",
                  "focused mesh decode test covers glTFMilo CharHairExtras boundary");
   ok &= contains(mesh_decode_test,
-                 "!char_hair_extras_boundary.can_port_default_physics_values",
-                 "focused mesh decode test fences unvendored hair physics defaults");
+                 "char_hair_extras_boundary.can_port_default_physics_values",
+                 "focused mesh decode test covers vendored hair physics defaults");
   ok &= contains(mesh_decode_test,
-                 "!char_hair_extras_boundary.can_port_default_wind_value",
-                 "focused mesh decode test fences unvendored hair default wind");
+                 "char_hair_extras_boundary.can_port_default_wind_value",
+                 "focused mesh decode test covers vendored hair default wind");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_char_hair_extras_defaults()",
+                 "focused mesh decode test covers CharHairExtras defaults");
   ok &= contains(mesh_decode_test,
                  "source_rndlight_default_state()",
                  "focused mesh decode test covers RndLight defaults");
@@ -8559,8 +8644,8 @@ int run_contract() {
                  "document records glTFMilo report branch helper");
   ok &= contains(doc, "`source_gltf_milo_directory_builder_boundary` records",
                  "document records glTFMilo directory builder boundary");
-  ok &= contains(doc, "native must not infer character-directory assembly",
-                 "document fences unvendored directory builder internals");
+  ok &= contains(doc, "helper bodies as present source",
+                 "document records vendored directory builder internals");
   ok &= contains(doc,
                  "`source_gltf_milo_node_traversal_plan` records",
                  "document records glTFMilo node traversal helper");
@@ -9865,9 +9950,8 @@ int run_contract() {
                  "chain.front().local_mat;",
                  "native glTFMilo strand header records CopyMatrix3 source row");
   ok &= contains(char_mesh,
-                 "plan.requires_unvendored_matrix_helper_when_converting="
-                 "convert_coordinates;",
-                 "native glTFMilo strand header fences missing conversion helper");
+                 "plan.uses_matrix_helper_when_converting=convert_coordinates;",
+                 "native glTFMilo strand header records conversion helper gate");
   ok &= contains(char_mesh,
                  "SourceGltfMiloHairChainsResult"
                  "source_gltf_milo_collect_hair_chains_split_at_branches("

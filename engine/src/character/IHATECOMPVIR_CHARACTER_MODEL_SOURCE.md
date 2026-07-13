@@ -262,11 +262,11 @@ loader body or direct original-game trace proves the serialized behavior.
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser keeps raw source rows; runtime-active skinning palette follows RB3 `RndMesh` null/invalid bone trimming. |
-| glTFMilo transform copy boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs` | Native helper records the source call sites that copy local/world matrices and the mesh-bone transform order `boneWorldInverse * node.WorldMatrix`, but the local ihatecompvir snapshot does not include `MatrixHelpers`; native must not infer axis-conversion or bind-pose adjustment math from that missing helper. |
-| glTFMilo node hierarchy boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs` | Native helper records the source call sites for `NodeHelpers` traversal classification, parent-bone lookup, descendant enumeration, and hair parent lookup, but the local ihatecompvir snapshot does not include `NodeHelpers`; native must not infer node classification, parent search, or hierarchy adjustment logic from that missing helper. |
-| glTFMilo object extras boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs` | Native helper records the source call sites for `MiloExtras.AddToMesh`, `AddToGroup`, `AddToObject`, and `ObjectType` hair-collision detection, but the local ihatecompvir snapshot does not include `MiloExtras`; native must not infer filename override, group/object mutation, or object-type parsing logic from that missing helper. |
-| glTFMilo game revision boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs` | Native helper records the source call sites for `GameRevisions.GetRevision(...)` revision fields, but the local ihatecompvir snapshot does not include `GameRevisions`; native must not infer revision table values or choose runtime object revisions from that missing helper. |
-| glTFMilo hair extras boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs` | Native helper records the source call sites for `CharHairExtras` discovery, physics-field reads, and `CharHairExtras.DefaultWind`, but the local ihatecompvir snapshot does not include `CharHairExtras`; native must not infer default hair physics numbers or default wind values from that missing helper. |
+| glTFMilo transform copy boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs`, `Shared/MatrixHelpers.cs` | Native helper records the source call sites that copy local/world matrices, the mesh-bone transform order `boneWorldInverse * node.WorldMatrix`, and the exact glTF-to-Milo vector/quaternion/scale axis remaps. Character-family exports still pass `convertWorldCoordinates=false`, so this is importer evidence, not permission to adjust stock GH2 bind poses. |
+| glTFMilo node hierarchy boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs`, `Shared/NodeHelpers.cs` | Native helper records the source traversal classification, parent-bone lookup, descendant enumeration, and hair parent lookup now that `NodeHelpers` is vendored. |
+| glTFMilo object extras boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs`, `Core/MiloExtras.cs` | Native helper records `MiloExtras.AddToMesh`, `AddToGroup`, `AddToObject`, filename override, object type/note writes, drawable rows, and `ObjectType` hair-collision detection from source. |
+| glTFMilo game revision boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs`, `Shared/GameRevisions.cs` | Native helper records the source call sites for `GameRevisions.GetRevision(...)` and the vendored revision table values as exporter-side evidence. |
+| glTFMilo hair extras boundary | `glTFMilo` `Program.cs`, `Core/NodeProcessor.cs`, `Core/MiloExtras.cs` | Native helper records `CharHairExtras` discovery, exact default physics values, and `CharHairExtras.DefaultWind = "world.wind"` from source. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows and mirror the source-visible filter math/bookkeeping as passive contracts; no trigger or animation runtime hookup. |
@@ -1350,18 +1350,18 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     or `dancer`, otherwise uses `DirBuilder.BuildRndDirectory`, and saves a
     `MiloFile` as uncompressed version `0x810` with little-endian stream data
     and big-endian object data. Native `source_gltf_milo_scene_assembly_plan`
-    records that final directory/save contract; it does not invent missing
-    `DirBuilder` or `OutfitConfigBuilder` internals.
+    records that final directory/save contract. The refreshed glTFMilo snapshot
+    now includes `DirBuilder` and `OutfitConfigBuilder`, so native records those
+    helper bodies as present source while keeping them separate from stock GH2
+    runtime directory loading.
     `source_gltf_milo_report_generator_plan` records the post-save report
     branch separately: `opts.Report` is lowercased, only exact `true` calls
     `ReportGenerator.Generate(meta, selectedGame, type)`, and the `type`
-    argument is the lowercased run type. The local ihatecompvir snapshot does
-    not include `ReportGenerator`, so native records only the branch and
-    arguments, not report contents.
+    argument is the lowercased run type. The refreshed snapshot includes
+    `ReportGenerator`, so native records the helper as present source and pins
+    its report-count/header rows.
     `source_gltf_milo_directory_builder_boundary` records those finalizer call
-    sites separately and fences the missing builder bodies: native must not infer character-directory assembly,
-    Rnd-directory assembly, or outfit config mutation from unvendored
-    `DirBuilder` / `OutfitConfigBuilder` helpers.
+    sites separately as source-backed exporter assembly evidence.
   - `NodeProcessor.ProcessBoneNode` skips `neutral_bone`, skips RB3 skeleton
     bones only when exporting a `character`, otherwise emits a revision-9
     `Trans` row with object-fields revision 2, local/world matrices copied from
@@ -1502,10 +1502,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     original node name contains `hair_collide`, all case-insensitively. Native
     `source_gltf_milo_hair_collision_mesh_decision` exposes those branches
     separately, and `source_gltf_milo_finalize_mesh_chunk_plan` ports these
-    finalization rows by consuming that helper after split-suffix naming. This
-    ports the source classification
-    around the still-external `MiloExtras.AddToMesh` hook; it is evidence for
-    mesh ownership, naming, group-size rows, and hair-related mesh routing only.
+    finalization rows by consuming that helper after split-suffix naming. The
+    refreshed `MiloExtras.cs` source also proves filename override, object
+    type/note writes, and drawable sphere/showing rows; this is evidence for
+    exporter mesh ownership, naming, group-size rows, and hair-related mesh
+    routing only.
   - The top-level glTFMilo node traversal aborts conversion when a mesh node has
     no mesh payload; otherwise mesh nodes run `CreateBaseMesh` /
     `PopulateMeshChunk`, bone nodes run `ProcessBoneNode`, group nodes run
@@ -1517,7 +1518,8 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     using `detectedHairSettings ?? new CharHairExtras()` and
     `!opts.DisableSplitting`. Native
     `source_gltf_milo_node_traversal_plan` records that control flow without
-    changing live GH2 decode or inventing missing `MiloExtras` behavior.
+    changing live GH2 decode; `source_gltf_milo_milo_extras_apply_plan` records
+    the now-vendored `MiloExtras` mutation rows separately.
   - `PopulateMeshChunk` then builds `jointIndexToLocalBoneIndex` from each
     chunk's `jointIndices` in order and emits exactly one `RndMesh::BoneTransform`
     per chunk joint, because vertex bone indices point into this list by
@@ -2106,6 +2108,9 @@ note, and all report `unreadBytes=0`.
 ## Hair Authorities
 
 - `glTFMilo/Source/glTFMilo/Program.cs`
+  - The refreshed in-tree glTFMilo snapshot is pinned by
+    `third_party/ihatecompvir-public-milo-sources/glTFMilo/SOURCE_COMMIT.txt`
+    to upstream commit `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`.
   - Current exporter source identifies hair bones by names beginning with
     `bone_hair_`.
   - The same source defines mesh skin export packing and the compressed-layout
@@ -2115,8 +2120,13 @@ note, and all report `unreadBytes=0`.
     JSON contains the exact `milo_hair_` marker, keeps the first valid settings
     object, and catches bad extras because hair extras are optional. Native
     `source_gltf_milo_detect_hair_settings_plan` records that discovery path as
-    source-backed gating for physics settings; it does not invent default
-    physics values absent from the checked source.
+    source-backed gating for physics settings.
+- `glTFMilo/Source/glTFMilo/Core/MiloExtras.cs`
+  - `CharHairExtras` supplies the exporter default hair settings:
+    stiffness `0.04`, torsion `0.1`, inertia `0.7`, gravity `1.0`, friction
+    `0.3`, weight `0.5`, and wind `"world.wind"`. Native
+    `source_gltf_milo_char_hair_extras_defaults` records those exact source
+    defaults for importer evidence.
 - `glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs`
   - `ProcessCharHair` starts by building a case-insensitive weighted hair-bone
     set and returns without a `CharHair` object when the set is empty. When the

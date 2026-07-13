@@ -10162,16 +10162,12 @@ source_gltf_milo_char_hair_extras_boundary() {
       "ProcessCharHair physicsSettings.Weight",
       "ProcessCharHair physicsSettings.Friction",
       "ProcessCharHair CharHairExtras.DefaultWind"};
-  boundary.missing_helpers = {"CharHairExtras",
-                              "CharHairExtras.DefaultWind",
-                              "CharHairExtras.Stiffness",
-                              "CharHairExtras.Torsion",
-                              "CharHairExtras.Inertia",
-                              "CharHairExtras.Gravity",
-                              "CharHairExtras.Weight",
-                              "CharHairExtras.Friction",
-                              "CharHairExtras.Wind"};
   return boundary;
+}
+
+SourceGltfMiloCharHairExtrasDefaults
+source_gltf_milo_char_hair_extras_defaults() {
+  return SourceGltfMiloCharHairExtrasDefaults{};
 }
 
 SourceGltfMiloHairSettingsDetectionPlan
@@ -10247,8 +10243,7 @@ source_gltf_milo_export_hair_strand_header_plan(
     bool convert_coordinates) {
   SourceGltfMiloHairStrandHeaderPlan plan;
   plan.convert_coordinates_arg = convert_coordinates;
-  plan.requires_unvendored_matrix_helper_when_converting =
-      convert_coordinates;
+  plan.uses_matrix_helper_when_converting = convert_coordinates;
   if (chain.empty()) {
     plan.skipped_empty_chain = true;
     return plan;
@@ -10609,11 +10604,23 @@ source_gltf_milo_matrix_helpers_boundary() {
       "ProcessCharHair strand.rootMat",
       "ProcessEmptyHairCollides collide.trans.localXfm",
       "ProcessEmptyHairCollides collide.trans.worldXfm"};
-  boundary.missing_helpers = {"MatrixHelpers.CopyMatrix",
-                              "MatrixHelpers.CopyMatrix3",
-                              "MatrixHelpers.ConvertGltfVectorToMilo",
-                              "MatrixHelpers.ConvertGltfScaleToMilo"};
   return boundary;
+}
+
+SourceGltfMiloCoordinateConversionPlan
+source_gltf_milo_coordinate_conversion_plan(
+    const std::array<float, 3>& vector,
+    const std::array<float, 4>& quaternion,
+    const std::array<float, 3>& scale) {
+  SourceGltfMiloCoordinateConversionPlan plan;
+  plan.input_vector = vector;
+  plan.milo_vector = {vector[0], -vector[2], vector[1]};
+  plan.input_quaternion = quaternion;
+  plan.milo_quaternion = {quaternion[0], -quaternion[2], quaternion[1],
+                          quaternion[3]};
+  plan.input_scale = scale;
+  plan.milo_scale = {scale[0], scale[2], scale[1]};
+  return plan;
 }
 
 SourceGltfMiloNodeHelpersBoundary
@@ -10631,13 +10638,6 @@ source_gltf_milo_node_helpers_boundary() {
       "ProcessGroupNode NodeHelpers.GetAllDescendantNames",
       "ProcessCharHair root NodeHelpers.GetParentNode",
       "ProcessCharHair strand NodeHelpers.GetParentNode"};
-  boundary.missing_helpers = {"NodeHelpers.IsPrimitive",
-                              "NodeHelpers.IsBone",
-                              "NodeHelpers.IsGroupNode",
-                              "NodeHelpers.IsLightNode",
-                              "NodeHelpers.GetParentBoneName",
-                              "NodeHelpers.GetAllDescendantNames",
-                              "NodeHelpers.GetParentNode"};
   return boundary;
 }
 
@@ -10650,12 +10650,42 @@ source_gltf_milo_milo_extras_boundary() {
       "Program mesh MiloExtras.ObjectType",
       "ProcessGroupNode MiloExtras.AddToGroup",
       "ProcessLightNode MiloExtras.AddToObject"};
-  boundary.missing_helpers = {"MiloExtras",
-                              "MiloExtras.AddToMesh",
-                              "MiloExtras.AddToGroup",
-                              "MiloExtras.AddToObject",
-                              "MiloExtras.ObjectType"};
   return boundary;
+}
+
+SourceGltfMiloMiloExtrasApplyPlan source_gltf_milo_milo_extras_apply_plan(
+    const SourceGltfMiloMiloExtrasInput& input,
+    bool drawable_target) {
+  SourceGltfMiloMiloExtrasApplyPlan plan;
+  plan.reads_node_extras = input.node_extras_present;
+  if (!plan.reads_node_extras) return plan;
+
+  if (!input.deserialize_succeeds) {
+    plan.warns_deserialize_failed = true;
+    return plan;
+  }
+
+  if (!input.filename.empty()) {
+    plan.overrides_filename = true;
+    plan.filename = input.filename;
+  }
+  if (!input.object_type.empty()) {
+    plan.writes_object_type = true;
+    plan.object_type = input.object_type;
+  }
+  if (!input.note.empty()) {
+    plan.writes_note = true;
+    plan.note = input.note;
+  }
+
+  plan.writes_drawable_fields = drawable_target;
+  if (drawable_target) {
+    plan.showing = input.is_showing == 1;
+    plan.draw_order = input.draw_order;
+    plan.sphere_radius = input.sphere_radius;
+    plan.sphere_center = input.sphere_center;
+  }
+  return plan;
 }
 
 SourceGltfMiloGameRevisionsBoundary
@@ -10679,17 +10709,6 @@ source_gltf_milo_game_revisions_boundary() {
       "ProcessLightNode LightRevision",
       "ProcessLightNode TransRevision",
       "ProcessEmptyHairCollides TransRevision"};
-  boundary.missing_helpers = {"GameRevisions",
-                              "GameRevisions.GetRevision",
-                              "MiloRevision",
-                              "ModelRevision",
-                              "MatRevision",
-                              "TextureRevision",
-                              "GroupRevision",
-                              "TransRevision",
-                              "DrawableRevision",
-                              "AnimatableRevision",
-                              "LightRevision"};
   return boundary;
 }
 
@@ -10701,11 +10720,6 @@ source_gltf_milo_directory_builder_boundary() {
       "Program finalizer DirBuilder.BuildCharacterDirectory",
       "Program finalizer DirBuilder.BuildRndDirectory",
       "Program finalizer MiloFile.Save uncompressed 0x810"};
-  boundary.missing_helpers = {"OutfitConfigBuilder",
-                              "OutfitConfigBuilder.BuildOutfitConfig",
-                              "DirBuilder",
-                              "DirBuilder.BuildCharacterDirectory",
-                              "DirBuilder.BuildRndDirectory"};
   return boundary;
 }
 

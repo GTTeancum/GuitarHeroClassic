@@ -1553,8 +1553,8 @@ int main() {
   CHECK(gltf_report_true.passes_meta);
   CHECK(gltf_report_true.passes_selected_game);
   CHECK(gltf_report_true.report_type_arg == "character");
-  CHECK(!gltf_report_true.report_generator_source_present);
-  CHECK(!gltf_report_true.can_port_report_contents);
+  CHECK(gltf_report_true.report_generator_source_present);
+  CHECK(gltf_report_true.can_port_report_contents);
 
   report_input.raw_report = "false";
   const auto gltf_report_false =
@@ -2585,11 +2585,11 @@ int main() {
 
   const auto matrix_boundary =
       ghogx::character::source_gltf_milo_matrix_helpers_boundary();
-  CHECK(!matrix_boundary.matrix_helpers_source_present);
+  CHECK(matrix_boundary.matrix_helpers_source_present);
   CHECK(matrix_boundary.copy_matrix_call_sites_source_backed);
   CHECK(matrix_boundary.bone_transform_order_source_backed);
   CHECK(matrix_boundary.can_port_copy_matrix_order);
-  CHECK(!matrix_boundary.can_port_axis_conversion_math);
+  CHECK(matrix_boundary.can_port_axis_conversion_math);
   CHECK(!matrix_boundary.safe_to_adjust_bind_pose_from_axis_conversion);
   CHECK(matrix_boundary.copy_matrix_call_sites.size() == 13);
   CHECK(matrix_boundary.copy_matrix_call_sites[0] ==
@@ -2598,20 +2598,35 @@ int main() {
         "PopulateMeshChunk boneWorldInverse * node.WorldMatrix");
   CHECK(matrix_boundary.copy_matrix_call_sites[12] ==
         "ProcessEmptyHairCollides collide.trans.worldXfm");
-  CHECK(matrix_boundary.missing_helpers.size() == 4);
-  CHECK(matrix_boundary.missing_helpers[0] == "MatrixHelpers.CopyMatrix");
-  CHECK(matrix_boundary.missing_helpers[3] ==
-        "MatrixHelpers.ConvertGltfScaleToMilo");
+  CHECK(matrix_boundary.missing_helpers.empty());
+
+  const auto coordinate_conversion =
+      ghogx::character::source_gltf_milo_coordinate_conversion_plan(
+          {1.0f, 2.0f, 3.0f}, {0.1f, 0.2f, 0.3f, 0.4f},
+          {4.0f, 5.0f, 6.0f});
+  CHECK(coordinate_conversion.vector_rule_x_negz_y);
+  CHECK(coordinate_conversion.milo_vector[0] == 1.0f);
+  CHECK(coordinate_conversion.milo_vector[1] == -3.0f);
+  CHECK(coordinate_conversion.milo_vector[2] == 2.0f);
+  CHECK(coordinate_conversion.quaternion_rule_x_negz_y_w);
+  CHECK(coordinate_conversion.milo_quaternion[0] == 0.1f);
+  CHECK(coordinate_conversion.milo_quaternion[1] == -0.3f);
+  CHECK(coordinate_conversion.milo_quaternion[2] == 0.2f);
+  CHECK(coordinate_conversion.milo_quaternion[3] == 0.4f);
+  CHECK(coordinate_conversion.scale_rule_x_z_y);
+  CHECK(coordinate_conversion.milo_scale[0] == 4.0f);
+  CHECK(coordinate_conversion.milo_scale[1] == 6.0f);
+  CHECK(coordinate_conversion.milo_scale[2] == 5.0f);
 
   const auto node_helpers_boundary =
       ghogx::character::source_gltf_milo_node_helpers_boundary();
-  CHECK(!node_helpers_boundary.node_helpers_source_present);
+  CHECK(node_helpers_boundary.node_helpers_source_present);
   CHECK(node_helpers_boundary.traversal_call_sites_source_backed);
   CHECK(node_helpers_boundary.parent_lookup_call_sites_source_backed);
   CHECK(node_helpers_boundary.can_port_call_order);
-  CHECK(!node_helpers_boundary.can_port_node_classification_logic);
-  CHECK(!node_helpers_boundary.can_port_parent_bone_search_logic);
-  CHECK(!node_helpers_boundary.safe_to_adjust_hierarchy_from_node_helpers);
+  CHECK(node_helpers_boundary.can_port_node_classification_logic);
+  CHECK(node_helpers_boundary.can_port_parent_bone_search_logic);
+  CHECK(node_helpers_boundary.safe_to_adjust_hierarchy_from_node_helpers);
   CHECK(node_helpers_boundary.traversal_call_sites.size() == 6);
   CHECK(node_helpers_boundary.traversal_call_sites[0] ==
         "Program Run NodeHelpers.IsPrimitive");
@@ -2622,37 +2637,66 @@ int main() {
         "ProcessBoneNode NodeHelpers.GetParentBoneName");
   CHECK(node_helpers_boundary.parent_call_sites[3] ==
         "ProcessCharHair strand NodeHelpers.GetParentNode");
-  CHECK(node_helpers_boundary.missing_helpers.size() == 7);
-  CHECK(node_helpers_boundary.missing_helpers[1] == "NodeHelpers.IsBone");
-  CHECK(node_helpers_boundary.missing_helpers[6] ==
-        "NodeHelpers.GetParentNode");
+  CHECK(node_helpers_boundary.missing_helpers.empty());
 
   const auto milo_extras_boundary =
       ghogx::character::source_gltf_milo_milo_extras_boundary();
-  CHECK(!milo_extras_boundary.milo_extras_source_present);
+  CHECK(milo_extras_boundary.milo_extras_source_present);
   CHECK(milo_extras_boundary.mesh_group_light_call_sites_source_backed);
   CHECK(milo_extras_boundary.object_type_call_site_source_backed);
   CHECK(milo_extras_boundary.can_port_call_order);
-  CHECK(!milo_extras_boundary.can_port_filename_override_logic);
-  CHECK(!milo_extras_boundary.can_port_object_mutation_logic);
-  CHECK(!milo_extras_boundary.safe_to_adjust_names_or_groups_from_milo_extras);
+  CHECK(milo_extras_boundary.can_port_filename_override_logic);
+  CHECK(milo_extras_boundary.can_port_object_mutation_logic);
+  CHECK(milo_extras_boundary.safe_to_adjust_names_or_groups_from_milo_extras);
   CHECK(milo_extras_boundary.call_sites.size() == 5);
   CHECK(milo_extras_boundary.call_sites[0] ==
         "Program mesh MiloExtras.AddToMesh");
   CHECK(milo_extras_boundary.call_sites[4] ==
         "ProcessLightNode MiloExtras.AddToObject");
-  CHECK(milo_extras_boundary.missing_helpers.size() == 5);
-  CHECK(milo_extras_boundary.missing_helpers[0] == "MiloExtras");
-  CHECK(milo_extras_boundary.missing_helpers[4] == "MiloExtras.ObjectType");
+  CHECK(milo_extras_boundary.missing_helpers.empty());
+
+  ghogx::character::SourceGltfMiloMiloExtrasInput extras_input;
+  extras_input.node_extras_present = true;
+  extras_input.deserialize_succeeds = true;
+  extras_input.filename = "override.mesh";
+  extras_input.object_type = "CharCollide";
+  extras_input.note = "source note";
+  extras_input.is_showing = 1;
+  extras_input.draw_order = 4.5f;
+  extras_input.sphere_radius = 12.0f;
+  extras_input.sphere_center = {1.0f, 2.0f, 3.0f};
+  const auto mesh_extras =
+      ghogx::character::source_gltf_milo_milo_extras_apply_plan(
+          extras_input, true);
+  CHECK(mesh_extras.reads_node_extras);
+  CHECK(mesh_extras.overrides_filename);
+  CHECK(mesh_extras.filename == "override.mesh");
+  CHECK(mesh_extras.writes_object_type);
+  CHECK(mesh_extras.object_type == "CharCollide");
+  CHECK(mesh_extras.writes_note);
+  CHECK(mesh_extras.note == "source note");
+  CHECK(mesh_extras.writes_drawable_fields);
+  CHECK(mesh_extras.showing);
+  CHECK(approx(mesh_extras.draw_order, 4.5f));
+  CHECK(approx(mesh_extras.sphere_radius, 12.0f));
+  CHECK(approx(mesh_extras.sphere_center[2], 3.0f));
+
+  extras_input.deserialize_succeeds = false;
+  const auto bad_extras =
+      ghogx::character::source_gltf_milo_milo_extras_apply_plan(
+          extras_input, true);
+  CHECK(bad_extras.reads_node_extras);
+  CHECK(bad_extras.warns_deserialize_failed);
+  CHECK(!bad_extras.overrides_filename);
 
   const auto game_revisions_boundary =
       ghogx::character::source_gltf_milo_game_revisions_boundary();
-  CHECK(!game_revisions_boundary.game_revisions_source_present);
+  CHECK(game_revisions_boundary.game_revisions_source_present);
   CHECK(game_revisions_boundary.revision_lookup_call_sites_source_backed);
   CHECK(game_revisions_boundary.can_port_lookup_call_order);
-  CHECK(!game_revisions_boundary.can_port_revision_values);
-  CHECK(!game_revisions_boundary
-             .safe_to_select_runtime_revisions_from_missing_table);
+  CHECK(game_revisions_boundary.can_port_revision_values);
+  CHECK(game_revisions_boundary
+            .safe_to_select_runtime_revisions_from_missing_table);
   CHECK(game_revisions_boundary.revision_call_sites.size() == 17);
   CHECK(game_revisions_boundary.revision_call_sites[0] ==
         "Program CreateBaseMesh ModelRevision");
@@ -2660,50 +2704,52 @@ int main() {
         "ProcessLightNode TransRevision");
   CHECK(game_revisions_boundary.revision_call_sites[16] ==
         "ProcessEmptyHairCollides TransRevision");
-  CHECK(game_revisions_boundary.missing_helpers.size() == 11);
-  CHECK(game_revisions_boundary.missing_helpers[0] == "GameRevisions");
-  CHECK(game_revisions_boundary.missing_helpers[10] == "LightRevision");
+  CHECK(game_revisions_boundary.missing_helpers.empty());
 
   const auto directory_builder_boundary =
       ghogx::character::source_gltf_milo_directory_builder_boundary();
-  CHECK(!directory_builder_boundary.dir_builder_source_present);
-  CHECK(!directory_builder_boundary.outfit_config_builder_source_present);
+  CHECK(directory_builder_boundary.dir_builder_source_present);
+  CHECK(directory_builder_boundary.outfit_config_builder_source_present);
   CHECK(directory_builder_boundary.finalizer_call_sites_source_backed);
   CHECK(directory_builder_boundary.can_port_finalizer_call_order);
-  CHECK(!directory_builder_boundary.can_port_character_directory_internals);
-  CHECK(!directory_builder_boundary.can_port_rnd_directory_internals);
-  CHECK(!directory_builder_boundary.can_port_outfit_config_internals);
-  CHECK(!directory_builder_boundary
-             .safe_to_rewrite_directory_assembly_from_missing_builders);
+  CHECK(directory_builder_boundary.can_port_character_directory_internals);
+  CHECK(directory_builder_boundary.can_port_rnd_directory_internals);
+  CHECK(directory_builder_boundary.can_port_outfit_config_internals);
+  CHECK(directory_builder_boundary
+            .safe_to_rewrite_directory_assembly_from_missing_builders);
   CHECK(directory_builder_boundary.finalizer_call_sites.size() == 4);
   CHECK(directory_builder_boundary.finalizer_call_sites[0] ==
         "Program finalizer OutfitConfigBuilder.BuildOutfitConfig");
   CHECK(directory_builder_boundary.finalizer_call_sites[3] ==
         "Program finalizer MiloFile.Save uncompressed 0x810");
-  CHECK(directory_builder_boundary.missing_helpers.size() == 5);
-  CHECK(directory_builder_boundary.missing_helpers[0] == "OutfitConfigBuilder");
-  CHECK(directory_builder_boundary.missing_helpers[4] ==
-        "DirBuilder.BuildRndDirectory");
+  CHECK(directory_builder_boundary.missing_helpers.empty());
 
   const auto char_hair_extras_boundary =
       ghogx::character::source_gltf_milo_char_hair_extras_boundary();
-  CHECK(!char_hair_extras_boundary.char_hair_extras_source_present);
+  CHECK(char_hair_extras_boundary.char_hair_extras_source_present);
   CHECK(char_hair_extras_boundary.detection_call_sites_source_backed);
   CHECK(char_hair_extras_boundary.process_char_hair_call_sites_source_backed);
   CHECK(char_hair_extras_boundary.can_port_discovery_gates);
-  CHECK(!char_hair_extras_boundary.can_port_default_physics_values);
-  CHECK(!char_hair_extras_boundary.can_port_default_wind_value);
-  CHECK(!char_hair_extras_boundary
-             .safe_to_tune_hair_physics_from_extras_defaults);
+  CHECK(char_hair_extras_boundary.can_port_default_physics_values);
+  CHECK(char_hair_extras_boundary.can_port_default_wind_value);
+  CHECK(char_hair_extras_boundary
+            .safe_to_tune_hair_physics_from_extras_defaults);
   CHECK(char_hair_extras_boundary.process_call_sites.size() == 10);
   CHECK(char_hair_extras_boundary.process_call_sites[0] ==
         "Program detectedHairSettings CharHairExtras");
   CHECK(char_hair_extras_boundary.process_call_sites[9] ==
         "ProcessCharHair CharHairExtras.DefaultWind");
-  CHECK(char_hair_extras_boundary.missing_helpers.size() == 9);
-  CHECK(char_hair_extras_boundary.missing_helpers[0] == "CharHairExtras");
-  CHECK(char_hair_extras_boundary.missing_helpers[8] ==
-        "CharHairExtras.Wind");
+  CHECK(char_hair_extras_boundary.missing_helpers.empty());
+
+  const auto gltf_hair_extras_defaults =
+      ghogx::character::source_gltf_milo_char_hair_extras_defaults();
+  CHECK(approx(gltf_hair_extras_defaults.stiffness, 0.04f));
+  CHECK(approx(gltf_hair_extras_defaults.torsion, 0.1f));
+  CHECK(approx(gltf_hair_extras_defaults.inertia, 0.7f));
+  CHECK(approx(gltf_hair_extras_defaults.gravity, 1.0f));
+  CHECK(approx(gltf_hair_extras_defaults.friction, 0.3f));
+  CHECK(approx(gltf_hair_extras_defaults.weight, 0.5f));
+  CHECK(gltf_hair_extras_defaults.wind == "world.wind");
 
   const auto populate_unskinned =
       ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(

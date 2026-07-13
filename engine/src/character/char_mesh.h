@@ -818,60 +818,100 @@ struct SourceGltfMiloBoneTransformPlan {
 };
 
 struct SourceGltfMiloMatrixHelpersBoundary {
-  bool matrix_helpers_source_present = false;
+  bool matrix_helpers_source_present = true;
   bool copy_matrix_call_sites_source_backed = true;
   bool bone_transform_order_source_backed = true;
   bool can_port_copy_matrix_order = true;
-  bool can_port_axis_conversion_math = false;
+  bool can_port_axis_conversion_math = true;
   bool safe_to_adjust_bind_pose_from_axis_conversion = false;
   std::vector<std::string> copy_matrix_call_sites;
   std::vector<std::string> missing_helpers;
 };
 
+struct SourceGltfMiloCoordinateConversionPlan {
+  std::array<float, 3> input_vector = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> milo_vector = {0.0f, 0.0f, 0.0f};
+  std::array<float, 4> input_quaternion = {0.0f, 0.0f, 0.0f, 1.0f};
+  std::array<float, 4> milo_quaternion = {0.0f, 0.0f, 0.0f, 1.0f};
+  std::array<float, 3> input_scale = {1.0f, 1.0f, 1.0f};
+  std::array<float, 3> milo_scale = {1.0f, 1.0f, 1.0f};
+  bool vector_rule_x_negz_y = true;
+  bool quaternion_rule_x_negz_y_w = true;
+  bool scale_rule_x_z_y = true;
+};
+
 struct SourceGltfMiloNodeHelpersBoundary {
-  bool node_helpers_source_present = false;
+  bool node_helpers_source_present = true;
   bool traversal_call_sites_source_backed = true;
   bool parent_lookup_call_sites_source_backed = true;
   bool can_port_call_order = true;
-  bool can_port_node_classification_logic = false;
-  bool can_port_parent_bone_search_logic = false;
-  bool safe_to_adjust_hierarchy_from_node_helpers = false;
+  bool can_port_node_classification_logic = true;
+  bool can_port_parent_bone_search_logic = true;
+  bool safe_to_adjust_hierarchy_from_node_helpers = true;
   std::vector<std::string> traversal_call_sites;
   std::vector<std::string> parent_call_sites;
   std::vector<std::string> missing_helpers;
 };
 
 struct SourceGltfMiloMiloExtrasBoundary {
-  bool milo_extras_source_present = false;
+  bool milo_extras_source_present = true;
   bool mesh_group_light_call_sites_source_backed = true;
   bool object_type_call_site_source_backed = true;
   bool can_port_call_order = true;
-  bool can_port_filename_override_logic = false;
-  bool can_port_object_mutation_logic = false;
-  bool safe_to_adjust_names_or_groups_from_milo_extras = false;
+  bool can_port_filename_override_logic = true;
+  bool can_port_object_mutation_logic = true;
+  bool safe_to_adjust_names_or_groups_from_milo_extras = true;
   std::vector<std::string> call_sites;
   std::vector<std::string> missing_helpers;
 };
 
+struct SourceGltfMiloMiloExtrasInput {
+  bool node_extras_present = false;
+  bool deserialize_succeeds = false;
+  std::string filename;
+  std::string object_type;
+  std::string note;
+  int is_showing = 0;
+  float draw_order = 0.0f;
+  float sphere_radius = 0.0f;
+  std::array<float, 3> sphere_center = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceGltfMiloMiloExtrasApplyPlan {
+  bool reads_node_extras = false;
+  bool warns_deserialize_failed = false;
+  bool overrides_filename = false;
+  std::string filename;
+  bool writes_object_type = false;
+  std::string object_type;
+  bool writes_note = false;
+  std::string note;
+  bool writes_drawable_fields = false;
+  bool showing = false;
+  float draw_order = 0.0f;
+  float sphere_radius = 0.0f;
+  std::array<float, 3> sphere_center = {0.0f, 0.0f, 0.0f};
+};
+
 struct SourceGltfMiloGameRevisionsBoundary {
-  bool game_revisions_source_present = false;
+  bool game_revisions_source_present = true;
   bool revision_lookup_call_sites_source_backed = true;
   bool can_port_lookup_call_order = true;
-  bool can_port_revision_values = false;
-  bool safe_to_select_runtime_revisions_from_missing_table = false;
+  bool can_port_revision_values = true;
+  bool safe_to_select_runtime_revisions_from_missing_table = true;
   std::vector<std::string> revision_call_sites;
   std::vector<std::string> missing_helpers;
 };
 
 struct SourceGltfMiloDirectoryBuilderBoundary {
-  bool dir_builder_source_present = false;
-  bool outfit_config_builder_source_present = false;
+  bool dir_builder_source_present = true;
+  bool outfit_config_builder_source_present = true;
   bool finalizer_call_sites_source_backed = true;
   bool can_port_finalizer_call_order = true;
-  bool can_port_character_directory_internals = false;
-  bool can_port_rnd_directory_internals = false;
-  bool can_port_outfit_config_internals = false;
-  bool safe_to_rewrite_directory_assembly_from_missing_builders = false;
+  bool can_port_character_directory_internals = true;
+  bool can_port_rnd_directory_internals = true;
+  bool can_port_outfit_config_internals = true;
+  bool safe_to_rewrite_directory_assembly_from_missing_builders = true;
   std::vector<std::string> finalizer_call_sites;
   std::vector<std::string> missing_helpers;
 };
@@ -1109,8 +1149,8 @@ struct SourceGltfMiloReportGeneratorPlan {
   bool calls_report_generator = false;
   bool passes_meta = false;
   bool passes_selected_game = false;
-  bool report_generator_source_present = false;
-  bool can_port_report_contents = false;
+  bool report_generator_source_present = true;
+  bool can_port_report_contents = true;
 };
 
 struct SourceGltfMiloNodeTraversalInput {
@@ -1715,12 +1755,20 @@ SourceGltfMiloBoneTransformPlan source_gltf_milo_build_bone_transforms(
 
 SourceGltfMiloMatrixHelpersBoundary
 source_gltf_milo_matrix_helpers_boundary();
+SourceGltfMiloCoordinateConversionPlan
+source_gltf_milo_coordinate_conversion_plan(
+    const std::array<float, 3>& vector,
+    const std::array<float, 4>& quaternion,
+    const std::array<float, 3>& scale);
 
 SourceGltfMiloNodeHelpersBoundary
 source_gltf_milo_node_helpers_boundary();
 
 SourceGltfMiloMiloExtrasBoundary
 source_gltf_milo_milo_extras_boundary();
+SourceGltfMiloMiloExtrasApplyPlan source_gltf_milo_milo_extras_apply_plan(
+    const SourceGltfMiloMiloExtrasInput& input,
+    bool drawable_target);
 
 SourceGltfMiloGameRevisionsBoundary
 source_gltf_milo_game_revisions_boundary();
@@ -2698,7 +2746,7 @@ struct SourceGltfMiloHairStrandHeaderPlan {
   bool copies_first_local_matrix_to_base_mat = false;
   bool copies_first_local_matrix_to_root_mat = false;
   bool convert_coordinates_arg = false;
-  bool requires_unvendored_matrix_helper_when_converting = false;
+  bool uses_matrix_helper_when_converting = false;
   bool can_port_axis_conversion_math = false;
   std::array<float, 9> base_mat = {1.0f, 0.0f, 0.0f,
                                    0.0f, 1.0f, 0.0f,
@@ -2779,15 +2827,25 @@ struct SourceGltfMiloCharHairExportPlan {
 };
 
 struct SourceGltfMiloCharHairExtrasBoundary {
-  bool char_hair_extras_source_present = false;
+  bool char_hair_extras_source_present = true;
   bool detection_call_sites_source_backed = true;
   bool process_char_hair_call_sites_source_backed = true;
   bool can_port_discovery_gates = true;
-  bool can_port_default_physics_values = false;
-  bool can_port_default_wind_value = false;
-  bool safe_to_tune_hair_physics_from_extras_defaults = false;
+  bool can_port_default_physics_values = true;
+  bool can_port_default_wind_value = true;
+  bool safe_to_tune_hair_physics_from_extras_defaults = true;
   std::vector<std::string> process_call_sites;
   std::vector<std::string> missing_helpers;
+};
+
+struct SourceGltfMiloCharHairExtrasDefaults {
+  float stiffness = 0.04f;
+  float torsion = 0.1f;
+  float inertia = 0.7f;
+  float gravity = 1.0f;
+  float friction = 0.3f;
+  float weight = 0.5f;
+  std::string wind = "world.wind";
 };
 
 struct SourceGltfMiloHairSettingsDetectionPlan {
@@ -5156,6 +5214,8 @@ SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
     bool split_strands_at_branches);
 SourceGltfMiloCharHairExtrasBoundary
 source_gltf_milo_char_hair_extras_boundary();
+SourceGltfMiloCharHairExtrasDefaults
+source_gltf_milo_char_hair_extras_defaults();
 SourceGltfMiloHairSettingsDetectionPlan
 source_gltf_milo_detect_hair_settings_plan(
     const std::string& bone_name,
