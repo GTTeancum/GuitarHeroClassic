@@ -736,6 +736,22 @@ int main() {
   CHECK(!accessor_valid.cleared_joints);
   CHECK(!accessor_valid.cleared_weights);
 
+  const auto gltf_first_primitive_name =
+      ghogx::character::source_gltf_milo_primitive_filename_plan(
+          "rock1_hair", 0);
+  CHECK(gltf_first_primitive_name.first_primitive_uses_plain_node_name);
+  CHECK(!gltf_first_primitive_name.later_primitive_uses_index_suffix);
+  CHECK(gltf_first_primitive_name.base_filename == "rock1_hair.mesh");
+  CHECK(gltf_first_primitive_name.index_is_original_primitive_ordinal);
+
+  const auto gltf_later_primitive_name =
+      ghogx::character::source_gltf_milo_primitive_filename_plan(
+          "rock1_hair", 2);
+  CHECK(!gltf_later_primitive_name.first_primitive_uses_plain_node_name);
+  CHECK(gltf_later_primitive_name.later_primitive_uses_index_suffix);
+  CHECK(gltf_later_primitive_name.base_filename == "rock1_hair_2.mesh");
+  CHECK(gltf_later_primitive_name.primitive_index == 2);
+
   ghogx::character::SourceGltfMiloPrimitiveReadInput primitive_read;
   primitive_read.position_accessor_present = true;
   primitive_read.normal_count = 3;

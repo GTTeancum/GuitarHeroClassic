@@ -6343,6 +6343,10 @@ int run_contract() {
                  "\"TransAnim\",anim.Name+\".tnm\",transAnim);",
                  "glTFMilo emits TransAnim directory entry");
   ok &= contains(gltf_program_cs,
+                 "stringbaseFilename=primitiveIndex==0?$\"{node.Name}.mesh\":"
+                 "$\"{node.Name}_{primitiveIndex}.mesh\";",
+                 "glTFMilo names primitive mesh bases from primitive ordinal");
+  ok &= contains(gltf_program_cs,
                  "if(normals==null||normals.Count==0||normals.All(n=>n.X==0"
                  "&&n.Y==0&&n.Z==0))",
                  "glTFMilo logs bad normals before primitive chunking");
@@ -6704,6 +6708,13 @@ int run_contract() {
                  "SourceGltfMiloPrimitiveReadPlansource_gltf_milo_primitive_"
                  "read_plan(",
                  "native exposes glTFMilo primitive read helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloPrimitiveFilenamePlan{std::stringnode_"
+                 "name;",
+                 "native declares glTFMilo primitive filename plan");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_primitive_filename_plan(",
+                 "native exposes glTFMilo primitive filename helper");
   ok &= contains(char_mesh_h,
                  "source_gltf_milo_build_source_triangles(conststd::vector<"
                  "uint32_t>&indices,int32_tposition_count,boolhas_index_buffer);",
@@ -7742,6 +7753,16 @@ int run_contract() {
                  "(primary_valid||secondary_valid);",
                  "native primitive read helper preserves influence build gate");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloPrimitiveFilenamePlan"
+                 "source_gltf_milo_primitive_filename_plan(",
+                 "native ports glTFMilo primitive filename helper");
+  ok &= contains(char_mesh,
+                 "plan.base_filename=node_name+\".mesh\";",
+                 "native primitive filename helper preserves first primitive name");
+  ok &= contains(char_mesh,
+                 "node_name+\"_\"+std::to_string(primitive_index)+\".mesh\";",
+                 "native primitive filename helper preserves indexed primitive name");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloMeshSplitWarningPlan"
                  "source_gltf_milo_mesh_split_warning_plan(",
                  "native ports glTFMilo split warning helper");
@@ -8116,6 +8137,12 @@ int run_contract() {
                  "gltf_no_triangles.warns_no_valid_triangles",
                  "focused mesh decode test covers no-valid-triangle skip");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_primitive_filename_plan(",
+                 "focused mesh decode test covers glTFMilo primitive filenames");
+  ok &= contains(mesh_decode_test,
+                 "gltf_later_primitive_name.base_filename==\"rock1_hair_2.mesh\"",
+                 "focused mesh decode test covers indexed primitive filename");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_build_source_triangles(",
                  "focused mesh decode test covers glTFMilo triangle builder");
   ok &= contains(mesh_decode_test,
@@ -8319,6 +8346,12 @@ int run_contract() {
                  "clears secondary skin accessors when the primary pair is not "
                  "usable",
                  "document records glTFMilo secondary skin clearing");
+  ok &= contains(doc,
+                 "`source_gltf_milo_primitive_filename_plan` records",
+                 "document records glTFMilo primitive filename helper");
+  ok &= contains(doc,
+                 "source primitive ordinal, not a compacted emitted-mesh counter",
+                 "document records primitive ordinal filename rule");
   ok &= contains(doc,
                  "`source_gltf_milo_build_source_triangles` ports",
                  "document records glTFMilo triangle builder helper");

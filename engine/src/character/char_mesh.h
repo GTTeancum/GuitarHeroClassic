@@ -663,6 +663,15 @@ struct SourceGltfMiloPrimitiveReadPlan {
   bool reaches_chunking = false;
 };
 
+struct SourceGltfMiloPrimitiveFilenamePlan {
+  std::string node_name;
+  int32_t primitive_index = 0;
+  std::string base_filename;
+  bool first_primitive_uses_plain_node_name = false;
+  bool later_primitive_uses_index_suffix = false;
+  bool index_is_original_primitive_ordinal = true;
+};
+
 struct SourceGltfMiloTriangle {
   uint32_t idx0 = 0;
   uint32_t idx1 = 0;
@@ -1462,6 +1471,10 @@ SourceGltfMiloSkinAccessorSetPlan source_gltf_milo_validate_skin_accessor_set(
     int32_t expected_position_count);
 SourceGltfMiloPrimitiveReadPlan source_gltf_milo_primitive_read_plan(
     const SourceGltfMiloPrimitiveReadInput& input);
+SourceGltfMiloPrimitiveFilenamePlan
+source_gltf_milo_primitive_filename_plan(
+    const std::string& node_name,
+    int32_t primitive_index);
 
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,

@@ -1416,6 +1416,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     primitives with zero validated source triangles. Native
     `source_gltf_milo_primitive_read_plan` records that pre-chunk decision tree
     without reading glTF accessors or changing stock GH2 mesh decode.
+  - glTFMilo names primitive meshes from the original primitive index:
+    primitive `0` becomes `<node>.mesh`, and later primitives become
+    `<node>_<primitiveIndex>.mesh`. Skip paths increment `primitiveIndex`, so
+    this is the source primitive ordinal, not a compacted emitted-mesh counter.
+    Native `source_gltf_milo_primitive_filename_plan` records that base-name
+    rule before `MiloExtras.AddToMesh` or split-chunk suffixing can alter the
+    final directory entry name.
   - `BuildSourceTriangles` emits sequential triangles when no index accessor is
     present, warns and drops trailing vertices/indices that cannot form a full
     triangle, and ignores indexed triangles whose indices fall outside the

@@ -997,6 +997,24 @@ SourceGltfMiloPrimitiveReadPlan source_gltf_milo_primitive_read_plan(
   return plan;
 }
 
+SourceGltfMiloPrimitiveFilenamePlan
+source_gltf_milo_primitive_filename_plan(
+    const std::string& node_name,
+    int32_t primitive_index) {
+  SourceGltfMiloPrimitiveFilenamePlan plan;
+  plan.node_name = node_name;
+  plan.primitive_index = primitive_index;
+  if (primitive_index == 0) {
+    plan.first_primitive_uses_plain_node_name = true;
+    plan.base_filename = node_name + ".mesh";
+  } else {
+    plan.later_primitive_uses_index_suffix = true;
+    plan.base_filename =
+        node_name + "_" + std::to_string(primitive_index) + ".mesh";
+  }
+  return plan;
+}
+
 SourceGltfMiloSkinValidationResult source_gltf_milo_validate_skin_influences(
     const std::vector<SourceGltfMiloRawSkinInfluence>& raw_influences,
     int32_t skin_joint_count,
