@@ -3538,6 +3538,10 @@ SourceCharClipGroupPropSyncPlan source_char_clip_group_prop_sync_plan() {
   return plan;
 }
 
+SourceCharClipGroupSavePlan source_char_clip_group_save_plan() {
+  return SourceCharClipGroupSavePlan{};
+}
+
 uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask) {
   uint32_t play_flags = clip_play_flags;
@@ -4190,6 +4194,10 @@ SourceCharDriverMidiCopyPlan source_char_driver_midi_copy_plan() {
   return plan;
 }
 
+SourceCharDriverMidiSavePlan source_char_driver_midi_save_plan() {
+  return SourceCharDriverMidiSavePlan{};
+}
+
 SourceCharClipSetState source_char_clip_set_default_state() {
   SourceCharClipSetState state;
   source_char_clip_set_reset_preview_state(state);
@@ -4395,6 +4403,10 @@ SourceCharClipSetHandlerPlan source_char_clip_set_handler_plan() {
   plan.superclasses = {"ObjectDir"};
   plan.check = "0x2F0";
   return plan;
+}
+
+SourceCharClipSetSavePlan source_char_clip_set_save_plan() {
+  return SourceCharClipSetSavePlan{};
 }
 
 void source_char_clip_display_init(SourceCharClipDisplayGlobals& globals,
@@ -4657,6 +4669,10 @@ SourceClipCollidePropSyncPlan source_clip_collide_prop_sync_plan() {
                {"world_lines", "mWorldLines", "", false},
                {"move_camera", "mMoveCamera", "", false}};
   return plan;
+}
+
+SourceClipCollideSavePlan source_clip_collide_save_plan() {
+  return SourceClipCollideSavePlan{};
 }
 
 SourceFileMergerState source_file_merger_default_state() {
@@ -6556,6 +6572,10 @@ SourceCharWeightablePropSyncPlan source_char_weightable_prop_sync_plan() {
   return plan;
 }
 
+SourceCharWeightableSavePlan source_char_weightable_save_plan() {
+  return SourceCharWeightableSavePlan{};
+}
+
 SourceCharWeightableState source_char_weightable_default_state(
     const std::string& name) {
   SourceCharWeightableState state;
@@ -7196,6 +7216,10 @@ SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
   SourceCharLipSyncDriverState state;
   state.weightable = source_char_weightable_default_state(name);
   return state;
+}
+
+SourceCharLipSyncDriverSavePlan source_char_lip_sync_driver_save_plan() {
+  return SourceCharLipSyncDriverSavePlan{};
 }
 
 void source_char_lip_sync_driver_poll_deps(

@@ -340,6 +340,8 @@ or runtime task graph rendering.
     source-visible side effects `SyncChar`, `SyncWaypoint`, `SyncMode`, and
     `PickReport`. Native `source_clip_collide_handler_plan` and
     `source_clip_collide_prop_sync_plan` record only those table rows.
+  - `ClipCollide::Save` uses source save id `0x19D`; native
+    `source_clip_collide_save_plan` records that object id only.
 - `rb3-latest/src/system/char/FileMerger.cpp` and
   `rb3-latest/src/system/char/FileMerger.h`
   - The checked source exposes constructor/default row behavior and property
@@ -2475,6 +2477,8 @@ note, and all report `unreadBytes=0`.
     `PollDeps` body. Native `source_char_lip_sync_*` helpers therefore port
     defaults/save id/load gates/dependency publication/directory selection as
     source context only and do not promote any live GH2 mouth or viseme controller behavior.
+  - `CharLipSyncDriver::Save` uses source save id `0x111`; native
+    `source_char_lip_sync_driver_save_plan` records that object id only.
 
 ## Rnd Utility Row Authorities
 
@@ -2723,6 +2727,8 @@ note, and all report `unreadBytes=0`.
     chain, check value `0x43`, `weight`/`weight_owner` property rows,
     `SetWeight`/`SetWeightOwner` set branches, get branches, and the source
     `0x40` blocked-op behavior.
+  - `CharWeightable::Save` uses source save id `0x21`; native
+    `source_char_weightable_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharMirror.cpp` and
   `rb3-latest/src/system/char/CharMirror.h`
   - `CharMirror` inherits `CharWeightable` and `CharPollable`; its constructor
@@ -3075,6 +3081,8 @@ note, and all report `unreadBytes=0`.
     list: copy `CharDriver`, `unk89`, `mParser`, `mFlagParser`, and
     `mBlendOverridePct`. The source copy body does not name `mClipFlags`, so
     native records that absence as copy-plan evidence only.
+  - `CharDriverMidi::Save` uses source save id `0x58`; native
+    `source_char_driver_midi_save_plan` records that object id only.
   - Native `source_char_driver_midi_handler_plan` records the checked message
     rows `midi_parser`, `midi_parser_group`, and `midi_parser_flags` before the
     `CharDriver` superclass. Native `source_char_driver_midi_prop_sync_plan`
@@ -3451,6 +3459,8 @@ note, and all report `unreadBytes=0`.
     expose those bodies. This is why `CharClipSet.cpp` remains
     `fenced-runtime-gap` in the implementation inventory even though every
     visible body in the checked `.cpp` file has a deterministic native helper.
+  - `CharClipSet::Save` uses source save id `0x8E`; native
+    `source_char_clip_set_save_plan` records that object id only.
 - `rb3-latest/src/system/char/CharClipGroup.cpp` and
   `rb3-latest/src/system/char/CharClipGroup.h`
   - `CharClipGroup::Load` reads the object prefix through
@@ -3466,6 +3476,8 @@ note, and all report `unreadBytes=0`.
     by superclass `Hmx::Object` and check `0x179`.
   - Native `source_char_clip_group_prop_sync_plan` records the exact source
     prop-sync rows: `clips` and `flags`.
+  - `CharClipGroup::Save` uses source save id `0x127`; native
+    `source_char_clip_group_save_plan` records that object id only.
   - `CharClipGroup::GetClip` advances `mWhich`, wraps it against
     `mClips.size()`, and returns the stored clip pointer. Native
     `char_clip_group_get_clip_index` ports that exact cycling step and mutates

@@ -40,6 +40,7 @@ int main() {
   using ghogx::character::source_char_lip_sync_driver_default_state;
   using ghogx::character::source_char_lip_sync_driver_override_dir;
   using ghogx::character::source_char_lip_sync_driver_poll_deps;
+  using ghogx::character::source_char_lip_sync_driver_save_plan;
   using ghogx::character::source_char_lip_sync_generator_default_state;
   using ghogx::character::source_char_lip_sync_load_steps;
   using ghogx::character::source_char_lip_sync_save_plan;
@@ -98,6 +99,8 @@ int main() {
   ok &= expect_bool(driver.apply_override_additively, false,
                     "Driver override additive default");
   ok &= expect_string(driver.alternate_driver, "", "Driver alternate driver");
+  ok &= near(static_cast<float>(source_char_lip_sync_driver_save_plan().save_id),
+             static_cast<float>(0x111), "CharLipSyncDriver save id");
 
   driver.bones = "tmp_viseme_bones";
   SourceCharLipSyncDriverPollDeps deps;

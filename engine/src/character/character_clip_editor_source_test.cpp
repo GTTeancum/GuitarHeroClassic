@@ -53,6 +53,7 @@ int main() {
   using ghogx::character::source_clip_collide_load_plan;
   using ghogx::character::source_clip_collide_load_revision_known;
   using ghogx::character::source_clip_collide_prop_sync_plan;
+  using ghogx::character::source_clip_collide_save_plan;
   using ghogx::character::source_clip_collide_set_type_def_step;
   using ghogx::character::source_clip_collide_sync_mode_step;
   using ghogx::character::source_clip_collide_sync_char_step;
@@ -322,6 +323,8 @@ int main() {
                       "ClipCollide prop-sync pick report side effect");
   ok &= expect_string(prop_sync.rows[9].property, "move_camera",
                       "ClipCollide prop-sync final row");
+  ok &= expect_int(source_clip_collide_save_plan().save_id, 0x19D,
+                   "ClipCollide save id");
 
   const auto merger_defaults = source_file_merger_default_state();
   ok &= expect_bool(merger_defaults.async_load, false,

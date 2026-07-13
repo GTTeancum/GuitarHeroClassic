@@ -25366,6 +25366,103 @@ int run_contract() {
   ok &= missing(char_clip, "GHOGX_ENABLE_IK_HAND_ROT",
                 "unsupported native IK rotation gate removed");
 
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "SAVE_OBJ(CharClipGroup,0x127)",
+                 "CharClipGroup source save id");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "SAVE_OBJ(CharDriverMidi,0x58)",
+                 "CharDriverMidi source save id");
+  ok &= contains(rb3_latest_char_lip_sync_driver_cpp,
+                 "SAVE_OBJ(CharLipSyncDriver,0x111)",
+                 "CharLipSyncDriver source save id");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "SAVE_OBJ(CharClipSet,0x8E)",
+                 "CharClipSet source save id");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "SAVE_OBJ(CharWeightable,0x21)",
+                 "CharWeightable source save id");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "SAVE_OBJ(ClipCollide,0x19D)",
+                 "ClipCollide source save id");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipGroupSavePlan{int32_tsave_id=0x127;};",
+                 "native exposes CharClipGroup save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiSavePlan{int32_tsave_id=0x58;};",
+                 "native exposes CharDriverMidi save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLipSyncDriverSavePlan{int32_tsave_id=0x111;};",
+                 "native exposes CharLipSyncDriver save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipSetSavePlan{int32_tsave_id=0x8E;};",
+                 "native exposes CharClipSet save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightableSavePlan{int32_tsave_id=0x21;};",
+                 "native exposes CharWeightable save plan");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollideSavePlan{int32_tsave_id=0x19D;};",
+                 "native exposes ClipCollide save plan");
+  ok &= contains(char_clip,
+                 "SourceCharClipGroupSavePlansource_char_clip_group_save_plan(){"
+                 "returnSourceCharClipGroupSavePlan{};}",
+                 "native implements CharClipGroup save plan");
+  ok &= contains(char_clip,
+                 "SourceCharDriverMidiSavePlansource_char_driver_midi_save_plan(){"
+                 "returnSourceCharDriverMidiSavePlan{};}",
+                 "native implements CharDriverMidi save plan");
+  ok &= contains(char_clip,
+                 "SourceCharLipSyncDriverSavePlansource_char_lip_sync_driver_save_plan(){"
+                 "returnSourceCharLipSyncDriverSavePlan{};}",
+                 "native implements CharLipSyncDriver save plan");
+  ok &= contains(char_clip,
+                 "SourceCharClipSetSavePlansource_char_clip_set_save_plan(){"
+                 "returnSourceCharClipSetSavePlan{};}",
+                 "native implements CharClipSet save plan");
+  ok &= contains(char_clip,
+                 "SourceCharWeightableSavePlansource_char_weightable_save_plan(){"
+                 "returnSourceCharWeightableSavePlan{};}",
+                 "native implements CharWeightable save plan");
+  ok &= contains(char_clip,
+                 "SourceClipCollideSavePlansource_clip_collide_save_plan(){"
+                 "returnSourceClipCollideSavePlan{};}",
+                 "native implements ClipCollide save plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_save_plan()",
+                 "focused clip driver test covers CharClipGroup save id");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_save_plan()",
+                 "focused clip driver test covers CharDriverMidi save id");
+  ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_driver_save_plan()",
+                 "focused lip-sync test covers CharLipSyncDriver save id");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_save_plan()",
+                 "focused clip-set test covers CharClipSet save id");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_save_plan()",
+                 "focused weightable test covers CharWeightable save id");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_save_plan()",
+                 "focused clip editor test covers ClipCollide save id");
+  ok &= contains(doc,
+                 "`source_char_clip_group_save_plan` records that object id only",
+                 "document records CharClipGroup save id");
+  ok &= contains(doc,
+                 "`source_char_driver_midi_save_plan` records that object id only",
+                 "document records CharDriverMidi save id");
+  ok &= contains(doc,
+                 "`source_char_lip_sync_driver_save_plan` records that object id only",
+                 "document records CharLipSyncDriver save id");
+  ok &= contains(doc,
+                 "`source_char_clip_set_save_plan` records that object id only",
+                 "document records CharClipSet save id");
+  ok &= contains(doc,
+                 "`source_char_weightable_save_plan` records that object id only",
+                 "document records CharWeightable save id");
+  ok &= contains(doc,
+                 "`source_clip_collide_save_plan` records that object id only",
+                 "document records ClipCollide save id");
+
   if (!ok) {
     std::cerr
         << "Character model code must stay aligned with ihatecompvir source, "

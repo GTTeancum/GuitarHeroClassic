@@ -901,6 +901,10 @@ struct SourceCharClipGroupPropSyncPlan {
   std::vector<std::string> properties;
 };
 
+struct SourceCharClipGroupSavePlan {
+  int32_t save_id = 0x127;
+};
+
 struct SourceCharClipRefOwner {
   bool is_clip_group = false;
   std::vector<std::string> group_clips;
@@ -1000,6 +1004,7 @@ std::vector<std::string> source_char_clip_group_remove_clip(
 SourceCharClipGroupLoadPlan source_char_clip_group_load_plan(int revision);
 SourceCharClipGroupHandlerPlan source_char_clip_group_handler_plan();
 SourceCharClipGroupPropSyncPlan source_char_clip_group_prop_sync_plan();
+SourceCharClipGroupSavePlan source_char_clip_group_save_plan();
 
 struct SourceCharClipDriverState {
   uint32_t play_flags = 0;
@@ -1367,6 +1372,10 @@ struct SourceCharDriverMidiCopyPlan {
   std::vector<std::string> not_in_source_copy_members;
 };
 
+struct SourceCharDriverMidiSavePlan {
+  int32_t save_id = 0x58;
+};
+
 struct SourceCharClipSetState {
   std::string char_file_root;
   bool has_preview_char = false;
@@ -1469,6 +1478,10 @@ struct SourceCharClipSetHandlerPlan {
   std::vector<std::string> handlers;
   std::vector<std::string> superclasses;
   std::string check;
+};
+
+struct SourceCharClipSetSavePlan {
+  int32_t save_id = 0x8E;
 };
 
 struct SourceCharClipDisplayGlobals {
@@ -1626,6 +1639,10 @@ struct SourceClipCollidePropSyncPlan {
   std::vector<SourceClipCollidePropSyncRow> rows;
 };
 
+struct SourceClipCollideSavePlan {
+  int32_t save_id = 0x19D;
+};
+
 struct SourceFileMergerMergerState {
   bool proxy = false;
   bool pre_clear = false;
@@ -1760,6 +1777,7 @@ SourceCharDriverMidiLoadPlan source_char_driver_midi_load_plan(int revision);
 SourceCharDriverMidiHandlerPlan source_char_driver_midi_handler_plan();
 SourceCharDriverMidiPropSyncPlan source_char_driver_midi_prop_sync_plan();
 SourceCharDriverMidiCopyPlan source_char_driver_midi_copy_plan();
+SourceCharDriverMidiSavePlan source_char_driver_midi_save_plan();
 SourceCharClipSetState source_char_clip_set_default_state();
 void source_char_clip_set_reset_preview_state(
     SourceCharClipSetState& state);
@@ -1803,6 +1821,7 @@ SourceCharClipSetSetBpmResult source_char_clip_set_set_bpm(
     bool milo_found);
 const char* source_char_clip_set_recenter_all_warning();
 SourceCharClipSetHandlerPlan source_char_clip_set_handler_plan();
+SourceCharClipSetSavePlan source_char_clip_set_save_plan();
 void source_char_clip_display_init(SourceCharClipDisplayGlobals& globals,
                                    const std::string& dir,
                                    float draw_empty_y);
@@ -1872,6 +1891,7 @@ SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
     size_t valid_clip_count);
 SourceClipCollideHandlerPlan source_clip_collide_handler_plan();
 SourceClipCollidePropSyncPlan source_clip_collide_prop_sync_plan();
+SourceClipCollideSavePlan source_clip_collide_save_plan();
 SourceFileMergerState source_file_merger_default_state();
 SourceFileMergerMergerState source_file_merger_merger_default_state();
 SourceFileMergerCopyPlan source_file_merger_merger_copy_plan();
@@ -2304,11 +2324,16 @@ struct SourceCharWeightablePropSyncPlan {
   std::vector<std::string> blocked_ops;
 };
 
+struct SourceCharWeightableSavePlan {
+  int32_t save_id = 0x21;
+};
+
 SourceCharWeightableLoadPlan source_char_weightable_load_plan(
     int32_t revision);
 SourceCharWeightableCopyPlan source_char_weightable_copy_plan();
 SourceCharWeightableHandlerPlan source_char_weightable_handler_plan();
 SourceCharWeightablePropSyncPlan source_char_weightable_prop_sync_plan();
+SourceCharWeightableSavePlan source_char_weightable_save_plan();
 SourceCharWeightableState source_char_weightable_default_state(
     const std::string& name);
 void source_char_weightable_set_weight(SourceCharWeightableState& state,
@@ -2716,6 +2741,10 @@ struct SourceCharLipSyncDriverPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharLipSyncDriverSavePlan {
+  int32_t save_id = 0x111;
+};
+
 SourceCharWeightSetterState source_char_weight_setter_default_state(
     const std::string& name);
 void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
@@ -2798,6 +2827,7 @@ SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision);
 SourceCharLipSyncSavePlan source_char_lip_sync_save_plan();
 SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
     const std::string& name);
+SourceCharLipSyncDriverSavePlan source_char_lip_sync_driver_save_plan();
 void source_char_lip_sync_driver_poll_deps(
     SourceCharLipSyncDriverPollDeps& deps,
     const SourceCharLipSyncDriverState& state);

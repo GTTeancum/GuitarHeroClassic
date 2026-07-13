@@ -727,6 +727,13 @@ bool expect_driver_midi_helpers() {
     ok = false;
   }
 
+  const ghogx::character::SourceCharDriverMidiSavePlan save_plan =
+      ghogx::character::source_char_driver_midi_save_plan();
+  if (save_plan.save_id != 0x58) {
+    std::cerr << "driver MIDI save id mismatch\n";
+    ok = false;
+  }
+
   midi.parser = "note.parser";
   midi.flag_parser = "flag.parser";
   midi.has_default_clip = true;
@@ -896,6 +903,13 @@ bool expect_clip_group_source_plans() {
   if (props.properties.size() != 2 || props.properties[0] != "clips" ||
       props.properties[1] != "flags") {
     std::cerr << "CharClipGroup prop-sync plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharClipGroupSavePlan save_plan =
+      ghogx::character::source_char_clip_group_save_plan();
+  if (save_plan.save_id != 0x127) {
+    std::cerr << "CharClipGroup save id mismatch\n";
     ok = false;
   }
   return ok;

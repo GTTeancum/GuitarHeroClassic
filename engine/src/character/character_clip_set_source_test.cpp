@@ -56,6 +56,7 @@ int main() {
   using ghogx::character::source_char_clip_set_recenter_all_warning;
   using ghogx::character::source_char_clip_set_reset_editor_state;
   using ghogx::character::source_char_clip_set_reset_preview_state;
+  using ghogx::character::source_char_clip_set_save_plan;
   using ghogx::character::source_char_clip_set_set_bpm;
   using ghogx::character::source_char_clip_set_sort_groups;
   using ghogx::character::source_char_clip_set_start_frame;
@@ -297,6 +298,8 @@ int main() {
   ok &= expect_string(handlers.superclasses[0], "ObjectDir",
                       "handler ObjectDir superclass");
   ok &= expect_string(handlers.check, "0x2F0", "handler check");
+  ok &= expect_int(source_char_clip_set_save_plan().save_id, 0x8E,
+                   "CharClipSet save id");
 
   return ok ? 0 : 1;
 }
