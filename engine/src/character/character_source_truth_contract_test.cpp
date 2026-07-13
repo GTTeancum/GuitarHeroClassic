@@ -381,6 +381,12 @@ int run_contract() {
       rb3_latest_rndobj_dir / "Wind.cpp"));
   const std::string rb3_latest_wind_h = compact(read_file(
       rb3_latest_rndobj_dir / "Wind.h"));
+  const std::string rb3_latest_fur_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Fur.cpp"));
+  const std::string rb3_latest_fur_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Fur.h"));
+  const std::string rb2_dump_rnd_fur_cpp = compact(read_file(
+      rb2_dump_rndobj_dir / "Fur.cpp"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb2_combined_dump_cpp = compact(read_file(rb2_dump_cpp));
@@ -875,7 +881,8 @@ int run_contract() {
                  "`RndGroup=0x30`, `RndMat=159`, `RndMesh=1135`,",
                  "document records core stock model SAVE_OBJ ids");
   ok &= contains(doc,
-                 "`RndTex=744`, `RndLight=0x33`, and `RndWind=0x96`",
+                 "`RndTex=744`, `RndFur=29`, `RndLight=0x33`, and "
+                 "`RndWind=0x96`",
                  "document records stock texture/light/wind save row identities");
   ok &= contains(doc,
                  "focused stock\n`CharHair` rows are GH2 revision 2 and do not read `mWind`",
@@ -896,6 +903,8 @@ int run_contract() {
                  "latest RndMesh source save id");
   ok &= contains(rb3_latest_tex_cpp, "SAVE_OBJ(RndTex,744)",
                  "latest RndTex source save id");
+  ok &= contains(rb3_latest_fur_cpp, "SAVE_OBJ(RndFur,29)",
+                 "latest RndFur source save id");
   ok &= contains(rb3_latest_lit_cpp, "SAVE_OBJ(RndLight,0x33)",
                  "latest RndLight source save id");
   ok &= contains(rb3_latest_wind_cpp, "SAVE_OBJ(RndWind,0x96)",
@@ -915,6 +924,9 @@ int run_contract() {
   ok &= contains(scene_h,
                  "structSourceRndWindSavePlan{int32_tsave_id=0x96;};",
                  "shared API exposes RndWind save plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndFurSavePlan{int32_tsave_id=29;};",
+                 "character API exposes RndFur save plan");
   ok &= contains(char_mesh_h,
                  "structSourceRndLightSavePlan{int32_tsave_id=0x33;};",
                  "character API exposes RndLight save plan");
@@ -951,6 +963,10 @@ int run_contract() {
                  "returnSourceRndWindSavePlan{};}",
                  "shared implementation records RndWind save id only");
   ok &= contains(char_mesh,
+                 "SourceRndFurSavePlansource_rndfur_save_plan(){"
+                 "returnSourceRndFurSavePlan{};}",
+                 "character implementation records RndFur save id only");
+  ok &= contains(char_mesh,
                  "SourceRndLightSavePlansource_rndlight_save_plan(){"
                  "returnSourceRndLightSavePlan{};}",
                  "character implementation records RndLight save id only");
@@ -981,6 +997,9 @@ int run_contract() {
                  "shared focused test covers RndMat save id");
   ok &= contains(scene_test, "source_rndwind_save_plan().save_id==0x96",
                  "shared focused test covers RndWind save id");
+  ok &= contains(mesh_decode_test,
+                 "rnd_fur_save.save_id==29",
+                 "focused mesh decode test covers RndFur save id");
   ok &= contains(character_source_test,
                  "source_object_dir_save_plan().save_id,0x1A2",
                  "character focused test covers ObjectDir save id");
@@ -4485,6 +4504,75 @@ int run_contract() {
   ok &= contains(doc,
                  "`Wind.cpp` snapshot does not provide reviewable bodies for `GetWind(float)`",
                  "document records RndWind missing runtime body boundary");
+
+  ok &= contains(rb3_latest_fur_h,
+                 "classRndFur:publicHmx::Object{",
+                 "latest RndFur header declares Hmx::Object base");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "BEGIN_COPYS(RndFur)CREATE_COPY_AS(RndFur,m)"
+                 "MILO_ASSERT(m,23);COPY_SUPERCLASS(Hmx::Object)END_COPYS",
+                 "latest RndFur copy only delegates Hmx::Object");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "LOAD_REVS(bs);ASSERT_REVS(3,0)Hmx::Object::Load(bs);",
+                 "latest RndFur Load revision gate and object row");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "bs>>filler2>>filler1>>filler1;",
+                 "latest RndFur base filler row");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "if(gRev>1){bs>>filler1>>filler1;}",
+                 "latest RndFur revision-two filler row");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "bs>>filler1>>filler1>>filler1>>filler1;bs>>color>>color;"
+                 "bs>>texPtr>>filler1;",
+                 "latest RndFur tint texture tiling row");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "if(gRev>2){ObjPtr<RndWind,ObjectDir>windPtr(this,0);"
+                 "bs>>windPtr;}",
+                 "latest RndFur optional wind row");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "BEGIN_HANDLERS(RndFur);HANDLE_SUPERCLASS(Hmx::Object);"
+                 "HANDLE_CHECK(0x3C);END_HANDLERS;",
+                 "latest RndFur handler table");
+  ok &= contains(rb3_latest_fur_cpp,
+                 "BEGIN_PROPSYNCS(RndFur);END_PROPSYNCS;",
+                 "latest RndFur empty prop sync table");
+  ok &= contains(rb2_dump_rnd_fur_cpp, "intmNumPasses;",
+                 "RB2 dump records RndFur pass count member");
+  ok &= contains(rb2_dump_rnd_fur_cpp, "floatmFurTiling;",
+                 "RB2 dump records RndFur tiling member");
+  ok &= contains(char_mesh_h, "structSourceRndFurLoadPlan{",
+                 "character API exposes RndFur load plan");
+  ok &= contains(char_mesh_h, "structSourceRndFurRuntimeBoundary{",
+                 "character API exposes RndFur runtime boundary");
+  ok &= contains(char_mesh,
+                 "SourceRndFurLoadPlansource_rndfur_load_plan(",
+                 "character implementation records RndFur load helper");
+  ok &= contains(char_mesh,
+                 "plan.reads_rev2_extra_fillers=revision>1;",
+                 "character RndFur helper preserves revision-two gate");
+  ok &= contains(char_mesh, "plan.reads_wind=revision>2;",
+                 "character RndFur helper preserves optional wind gate");
+  ok &= contains(char_mesh,
+                 "SourceRndFurRuntimeBoundarysource_rndfur_runtime_boundary(){"
+                 "returnSourceRndFurRuntimeBoundary{};}",
+                 "character RndFur helper fences runtime behavior");
+  ok &= contains(char_mesh,
+                 "layout.members={\"mNumPasses\",\"mThickness\",",
+                 "character RndFur helper records RB2 dump layout names");
+  ok &= contains(mesh_decode_test,
+                 "source_rndfur_load_plan(3,0)",
+                 "focused mesh decode test covers RndFur wind revision gate");
+  ok &= contains(mesh_decode_test,
+                 "!rnd_fur_boundary.permits_material_change",
+                 "focused mesh decode test fences RndFur material edits");
+  ok &= contains(doc,
+                 "| Fur material row boundary | `rb3-latest/src/system/rndobj/Fur.cpp`",
+                 "document records RndFur coverage matrix row");
+  ok &= contains(doc,
+                 "`Fur` rows and native does not promote renderer, material, or hair-physics",
+                 "document fences RndFur from runtime fixes");
+  ok &= contains(doc, "`Fur` / `RndFur`: zero stock rows",
+                 "document records zero stock RndFur rows");
 
   ok &= contains(group_cs,
                  "anim=newRndAnimatable().Read(reader,parent,entry);"

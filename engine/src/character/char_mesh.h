@@ -846,6 +846,55 @@ struct SourceRndLightPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceRndFurSavePlan {
+  int32_t save_id = 29;
+};
+
+struct SourceRndFurCopyPlan {
+  std::vector<std::string> superclasses;
+  bool asserts_source_fur = true;
+  bool copies_visible_members = false;
+};
+
+struct SourceRndFurLoadPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool accepted_revision = false;
+  bool accepted_alt_revision = false;
+  bool reads_object = false;
+  bool reads_base_filler_block = false;
+  bool reads_rev2_extra_fillers = false;
+  bool reads_second_filler_block = false;
+  bool reads_base_tint = false;
+  bool reads_end_tint = false;
+  bool reads_fur_detail_tex = false;
+  bool reads_fur_tiling = false;
+  bool reads_wind = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceRndFurHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0x3C;
+};
+
+struct SourceRndFurPropSyncPlan {
+  bool empty = true;
+};
+
+struct SourceRndFurRuntimeBoundary {
+  bool source_is_format_contract_only = true;
+  bool stock_character_inventory_has_no_rows = true;
+  bool permits_renderer_change = false;
+  bool permits_material_change = false;
+  bool permits_hair_physics_change = false;
+};
+
+struct SourceRndFurRb2DumpLayout {
+  std::vector<std::string> members;
+  bool statement_level_load_body = false;
+};
+
 struct SourceGltfMiloTransAnimChannelInput {
   std::string target_node;
   std::string target_path;
@@ -950,6 +999,16 @@ SourceRndLightIntensityPlan source_rndlight_intensity_plan(
     std::array<float, 3> color);
 SourceRndLightHandlerPlan source_rndlight_handler_plan();
 SourceRndLightPropSyncPlan source_rndlight_prop_sync_plan();
+
+SourceRndFurSavePlan source_rndfur_save_plan();
+SourceRndFurCopyPlan source_rndfur_copy_plan();
+SourceRndFurLoadPlan source_rndfur_load_plan(
+    int32_t revision,
+    int32_t alt_revision);
+SourceRndFurHandlerPlan source_rndfur_handler_plan();
+SourceRndFurPropSyncPlan source_rndfur_prop_sync_plan();
+SourceRndFurRuntimeBoundary source_rndfur_runtime_boundary();
+SourceRndFurRb2DumpLayout source_rndfur_rb2_dump_layout();
 
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(

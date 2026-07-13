@@ -1139,6 +1139,81 @@ SourceRndLightPropSyncPlan source_rndlight_prop_sync_plan() {
   return plan;
 }
 
+SourceRndFurSavePlan source_rndfur_save_plan() {
+  return SourceRndFurSavePlan{};
+}
+
+SourceRndFurCopyPlan source_rndfur_copy_plan() {
+  SourceRndFurCopyPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndFurLoadPlan source_rndfur_load_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceRndFurLoadPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  plan.accepted_revision = revision >= 0 && revision <= 3;
+  plan.accepted_alt_revision = alt_revision == 0;
+  if (!plan.accepted_revision || !plan.accepted_alt_revision) return plan;
+
+  plan.reads_object = true;
+  plan.reads_base_filler_block = true;
+  plan.reads_rev2_extra_fillers = revision > 1;
+  plan.reads_second_filler_block = true;
+  plan.reads_base_tint = true;
+  plan.reads_end_tint = true;
+  plan.reads_fur_detail_tex = true;
+  plan.reads_fur_tiling = true;
+  plan.reads_wind = revision > 2;
+
+  plan.read_order = {"LOAD_REVS",
+                     "Hmx::Object",
+                     "filler2",
+                     "filler1",
+                     "filler1"};
+  if (plan.reads_rev2_extra_fillers) {
+    plan.read_order.push_back("rev2_filler1");
+    plan.read_order.push_back("rev2_filler1");
+  }
+  plan.read_order.push_back("filler1");
+  plan.read_order.push_back("filler1");
+  plan.read_order.push_back("filler1");
+  plan.read_order.push_back("filler1");
+  plan.read_order.push_back("base_tint");
+  plan.read_order.push_back("end_tint");
+  plan.read_order.push_back("fur_detail_tex");
+  plan.read_order.push_back("fur_tiling");
+  if (plan.reads_wind) plan.read_order.push_back("wind");
+  return plan;
+}
+
+SourceRndFurHandlerPlan source_rndfur_handler_plan() {
+  SourceRndFurHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndFurPropSyncPlan source_rndfur_prop_sync_plan() {
+  return SourceRndFurPropSyncPlan{};
+}
+
+SourceRndFurRuntimeBoundary source_rndfur_runtime_boundary() {
+  return SourceRndFurRuntimeBoundary{};
+}
+
+SourceRndFurRb2DumpLayout source_rndfur_rb2_dump_layout() {
+  SourceRndFurRb2DumpLayout layout;
+  layout.members = {"mNumPasses",  "mThickness", "mCurvature",
+                    "mShellOut",   "mAlphaFalloff",
+                    "mStretch",    "mSlide",     "mGravity",
+                    "mFluidity",   "mBaseTint",  "mEndTint",
+                    "mFurDetail",  "mFurTiling"};
+  return layout;
+}
+
 SourceGltfMiloTransAnimExportPlan
 source_gltf_milo_export_trans_anim_plan(
     const std::string& anim_name,

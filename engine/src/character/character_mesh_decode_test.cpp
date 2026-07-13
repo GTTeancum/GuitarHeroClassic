@@ -1248,6 +1248,74 @@ int main() {
   CHECK(rnd_light_props.set_props.back() == "projected_blend");
   CHECK(rnd_light_props.superclasses[0] == "RndTransformable");
 
+  const auto rnd_fur_save = ghogx::character::source_rndfur_save_plan();
+  CHECK(rnd_fur_save.save_id == 29);
+
+  const auto rnd_fur_copy = ghogx::character::source_rndfur_copy_plan();
+  CHECK(rnd_fur_copy.asserts_source_fur);
+  CHECK(rnd_fur_copy.superclasses.size() == 1);
+  CHECK(rnd_fur_copy.superclasses[0] == "Hmx::Object");
+  CHECK(!rnd_fur_copy.copies_visible_members);
+
+  const auto rnd_fur_rev1 =
+      ghogx::character::source_rndfur_load_plan(1, 0);
+  CHECK(rnd_fur_rev1.accepted_revision);
+  CHECK(rnd_fur_rev1.accepted_alt_revision);
+  CHECK(rnd_fur_rev1.reads_object);
+  CHECK(rnd_fur_rev1.reads_base_filler_block);
+  CHECK(!rnd_fur_rev1.reads_rev2_extra_fillers);
+  CHECK(rnd_fur_rev1.reads_second_filler_block);
+  CHECK(rnd_fur_rev1.reads_base_tint);
+  CHECK(rnd_fur_rev1.reads_end_tint);
+  CHECK(rnd_fur_rev1.reads_fur_detail_tex);
+  CHECK(rnd_fur_rev1.reads_fur_tiling);
+  CHECK(!rnd_fur_rev1.reads_wind);
+  CHECK(rnd_fur_rev1.read_order[0] == "LOAD_REVS");
+  CHECK(rnd_fur_rev1.read_order[1] == "Hmx::Object");
+  CHECK(rnd_fur_rev1.read_order.back() == "fur_tiling");
+
+  const auto rnd_fur_rev2 =
+      ghogx::character::source_rndfur_load_plan(2, 0);
+  CHECK(rnd_fur_rev2.reads_rev2_extra_fillers);
+  CHECK(!rnd_fur_rev2.reads_wind);
+
+  const auto rnd_fur_rev3 =
+      ghogx::character::source_rndfur_load_plan(3, 0);
+  CHECK(rnd_fur_rev3.reads_wind);
+  CHECK(rnd_fur_rev3.read_order.back() == "wind");
+
+  const auto rnd_fur_bad_rev =
+      ghogx::character::source_rndfur_load_plan(4, 0);
+  CHECK(!rnd_fur_bad_rev.accepted_revision);
+
+  const auto rnd_fur_bad_alt =
+      ghogx::character::source_rndfur_load_plan(3, 1);
+  CHECK(!rnd_fur_bad_alt.accepted_alt_revision);
+
+  const auto rnd_fur_handler =
+      ghogx::character::source_rndfur_handler_plan();
+  CHECK(rnd_fur_handler.superclasses.size() == 1);
+  CHECK(rnd_fur_handler.superclasses[0] == "Hmx::Object");
+  CHECK(rnd_fur_handler.check == 0x3C);
+
+  const auto rnd_fur_props =
+      ghogx::character::source_rndfur_prop_sync_plan();
+  CHECK(rnd_fur_props.empty);
+
+  const auto rnd_fur_boundary =
+      ghogx::character::source_rndfur_runtime_boundary();
+  CHECK(rnd_fur_boundary.source_is_format_contract_only);
+  CHECK(rnd_fur_boundary.stock_character_inventory_has_no_rows);
+  CHECK(!rnd_fur_boundary.permits_renderer_change);
+  CHECK(!rnd_fur_boundary.permits_material_change);
+  CHECK(!rnd_fur_boundary.permits_hair_physics_change);
+
+  const auto rnd_fur_rb2_layout =
+      ghogx::character::source_rndfur_rb2_dump_layout();
+  CHECK(rnd_fur_rb2_layout.members.front() == "mNumPasses");
+  CHECK(rnd_fur_rb2_layout.members.back() == "mFurTiling");
+  CHECK(!rnd_fur_rb2_layout.statement_level_load_body);
+
   const auto gltf_trans_anim =
       ghogx::character::source_gltf_milo_export_trans_anim_plan(
           "hair_sway",

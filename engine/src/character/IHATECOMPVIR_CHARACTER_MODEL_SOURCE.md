@@ -177,12 +177,16 @@ identity only. They do not imply native save writers or runtime behavior.
 Core stock character-model row identities now covered from ihatecompvir source:
 `ObjectDir=0x1A2`, `RndDir=0x1C1`, `RndTransformable=586`,
 `RndDrawable=0xAE`, `RndGroup=0x30`, `RndMat=159`, `RndMesh=1135`,
-`RndTex=744`, `RndLight=0x33`, and `RndWind=0x96`. `RndLight` remains
+`RndTex=744`, `RndFur=29`, `RndLight=0x33`, and `RndWind=0x96`. `RndLight` remains
 converter/light-source context only for this slice because the focused stock
 character inventory has zero live `Light` / `RndLight` rows. `RndWind` remains
 CharHair v11 / converter context only for this stock GH2 slice: focused stock
 `CharHair` rows are GH2 revision 2 and do not read `mWind`, and the focused
-base-MILO inventory currently has zero live `Wind` / `RndWind` rows.
+base-MILO inventory currently has zero live `Wind` / `RndWind` rows. `RndFur`
+is covered as a passive format contract from `rb3-latest` `Fur.cpp` and the
+RB2 dump layout only; the focused stock base-MILO inventory has zero live
+`Fur` rows and native does not promote renderer, material, or hair-physics
+changes from this evidence.
 
 The checked character-source batch covered here is:
 `Character=0x495`, `CharBone=0xBF`, `CharBoneOffset=0x5E`,
@@ -249,6 +253,7 @@ character model playback.
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Native records opaque row names, types, sizes, and byte prefixes, but does not decode or run them unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Hair wind dependency | `rb3-latest/src/system/rndobj/Wind.cpp` / `Wind.h`, `CharHair.cpp` `mWind` row | Native helper ports `RndWind` defaults, load/copy/owner/loop-rate rows, handlers, and prop-sync contracts; stock GH2 character `CharHair` revision 2 rows do not read `mWind`, and native does not synthesize wind force without `SelfGetWind` body evidence. |
+| Fur material row boundary | `rb3-latest/src/system/rndobj/Fur.cpp` / `Fur.h`, RB2 dump `rndobj/Fur.cpp` | Native helper mirrors `RndFur` save/load/copy/handler/empty prop-sync rows and the RB2 dump member layout as format evidence only; stock GH2 character inventory has no `Fur` rows and native does not change renderer, material, or hair physics from this row. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharLookAt` poll gating, `CharEyes` load/copy/state/dependency/handler/property rows, plus `CharInterest` / `CharEyeDartRuleset` data decisions; no synthetic eye runtime bridge. |
 | Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
 | FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
@@ -4738,6 +4743,11 @@ bounded as follows:
 - `Light` / `RndLight`: zero stock rows in the focused 24-character base-MILO
   type inventory. The native RndLight helpers remain source-backed converter
   and glTFMilo context, not a missing live character-model lighting path.
+- `Fur` / `RndFur`: zero stock rows in the focused 24-character base-MILO type
+  inventory. The native RndFur helper records the source save id, revision-3
+  load gates, optional wind pointer, copy/handler rows, empty prop sync, and
+  RB2 dump member names as format evidence only. It is not a material, depth,
+  renderer, or hair-physics fix.
 
 The larger `rb3-latest/src/system/rndobj` source snapshot includes many
 render/effect classes that are real ihatecompvir source, but the focused GH2
