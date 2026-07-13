@@ -70,6 +70,8 @@ int main() {
   using ghogx::character::source_char_hair_enter_plan;
   using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
+  using ghogx::character::source_char_hair_get_fps;
+  using ghogx::character::source_char_hair_get_fps_result;
   using ghogx::character::source_char_hair_default_state;
   using ghogx::character::source_char_hair_destructor_plan;
   using ghogx::character::source_char_hair_do_reset_plan;
@@ -471,6 +473,34 @@ int main() {
                     "set name world no character owner");
   ok &= expect_bool(set_name_world.use_post_proc, true,
                     "set name world postproc");
+
+  const auto fps_no_postproc = source_char_hair_get_fps_result(false, 20.0f);
+  ok &= expect_bool(fps_no_postproc.used_post_proc, false,
+                    "GetFPS ignores emulation when postproc disabled");
+  ok &= near(fps_no_postproc.fps, 60.0f,
+             "GetFPS disabled postproc returns 60");
+
+  const auto fps_zero_emulation = source_char_hair_get_fps_result(true, 0.0f);
+  ok &= expect_bool(fps_zero_emulation.used_post_proc, false,
+                    "GetFPS ignores zero emulated fps");
+  ok &= near(fps_zero_emulation.fps, 60.0f,
+             "GetFPS zero emulation returns 60");
+
+  const auto fps_sixty = source_char_hair_get_fps_result(true, 60.0f);
+  ok &= expect_bool(fps_sixty.used_post_proc, true,
+                    "GetFPS uses sixty fps emulation");
+  ok &= expect_bool(fps_sixty.adjusted_non_sixty, false,
+                    "GetFPS leaves sixty unadjusted");
+  ok &= near(fps_sixty.fps, 60.0f, "GetFPS sixty emulation");
+
+  const auto fps_twenty = source_char_hair_get_fps_result(true, 20.0f);
+  ok &= expect_bool(fps_twenty.used_post_proc, true,
+                    "GetFPS uses non-sixty emulation");
+  ok &= expect_bool(fps_twenty.adjusted_non_sixty, true,
+                    "GetFPS adjusts non-sixty emulation");
+  ok &= near(fps_twenty.fps, 40.0f, "GetFPS non-sixty emulation");
+  ok &= near(source_char_hair_get_fps(true, 20.0f), fps_twenty.fps,
+             "GetFPS scalar delegates to result helper");
 
   ok &= expect_bool(source_gltf_milo_is_hair_bone_node(
                         {"Bone_Hair_root", -1, true, false}),

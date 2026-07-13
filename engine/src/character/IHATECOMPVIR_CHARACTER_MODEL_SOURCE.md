@@ -1791,7 +1791,9 @@ note, and all report `unreadBytes=0`.
     Native ports the constructor constants, SetName ownership branch, the
     `SetManagedHookup` state change, and the `GetFPS` branch into
     deterministic helpers so those source defaults remain explicit without
-    guessing a post-process runtime.
+    guessing a post-process runtime. `source_char_hair_get_fps_result` records
+    the exact branch taken: disabled/no emulation returns 60 Hz, 60 Hz emulation
+    stays 60, and other positive emulated values return `60 - emulated_fps`.
   - `SimulateLoops` is gated by `mSimulate` and a non-empty strand list, runs
     collide-list maintenance, then calls `SimulateInternal` for each requested
     loop. Native `source_char_hair_simulate_loops_plan` ports that gate and

@@ -1951,6 +1951,13 @@ struct SourceCharHairPollDecision {
   int next_reset = 0;
 };
 
+struct SourceCharHairGetFpsResult {
+  bool used_post_proc = false;
+  bool adjusted_non_sixty = false;
+  float emulated_fps = 0.0f;
+  float fps = 60.0f;
+};
+
 struct SourceCharHairHookupPlan {
   bool returned_for_managed_hookup = false;
   std::vector<std::string> collected_collides;
@@ -3507,6 +3514,9 @@ bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir);
 void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
                                          bool managed_hookup);
+SourceCharHairGetFpsResult source_char_hair_get_fps_result(
+    bool use_post_proc,
+    float emulated_fps);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence();
 SourceCharHairSimulateZeroTimeDumpEvidence

@@ -7095,6 +7095,15 @@ int run_contract() {
                  "structSourceCharHairRuntime{boolinitialized=false;"
                  "booluse_post_proc=true;",
                  "native carries CharHair SetName postproc state into runtime");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairGetFpsResult{"
+                 "boolused_post_proc=false;booladjusted_non_sixty=false;"
+                 "floatemulated_fps=0.0f;floatfps=60.0f;};",
+                 "native exposes CharHair GetFPS branch result");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairGetFpsResultsource_char_hair_get_fps_result("
+                 "booluse_post_proc,floatemulated_fps);",
+                 "native exposes CharHair GetFPS result helper");
   ok &= contains(char_mesh,
                  "SourceCharHairDefaultStatesource_char_hair_default_state(){"
                  "returnSourceCharHairDefaultState{};}",
@@ -7350,11 +7359,20 @@ int run_contract() {
                  "state.managed_hookup=managed_hookup;}",
                  "native CharHair managed-hookup helper follows source setter");
   ok &= contains(char_mesh,
+                 "SourceCharHairGetFpsResultsource_char_hair_get_fps_result("
+                 "booluse_post_proc,floatemulated_fps){"
+                 "SourceCharHairGetFpsResultresult;result.emulated_fps="
+                 "emulated_fps;if(use_post_proc&&emulated_fps>0.0f){"
+                 "result.used_post_proc=true;result.fps=emulated_fps;"
+                 "if(result.fps!=60.0f){result.adjusted_non_sixty=true;"
+                 "result.fps=60.0f-result.fps;}returnresult;}"
+                 "result.fps=60.0f;returnresult;}",
+                 "native CharHair GetFPS result helper follows source branch");
+  ok &= contains(char_mesh,
                  "floatsource_char_hair_get_fps(booluse_post_proc,"
-                 "floatemulated_fps){if(use_post_proc&&emulated_fps>0.0f){"
-                 "floatret=emulated_fps;if(ret!=60.0f)ret=60.0f-ret;"
-                 "returnret;}return60.0f;}",
-                 "native CharHair GetFPS helper follows source branch");
+                 "floatemulated_fps){returnsource_char_hair_get_fps_result("
+                 "use_post_proc,emulated_fps).fps;}",
+                 "native CharHair scalar GetFPS delegates to branch result");
   ok &= contains(rb2_dump_char_hair_cpp,
                  "//Range:0x8035E3B0->0x8035E618voidCharHair::DoReset"
                  "(classCharHair*constthis/*r27*/,intloops/*r28*/){",
@@ -7623,6 +7641,12 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "source_char_hair_set_name_plan(true,false)",
                  "focused CharHair source test covers SetName Character branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_get_fps_result(true,20.0f)",
+                 "focused CharHair source test covers GetFPS branch result");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_get_fps(true,20.0f),fps_twenty.fps",
+                 "focused CharHair source test covers scalar GetFPS delegation");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_handler_plan()",
                  "focused CharHair source test covers handler plan");

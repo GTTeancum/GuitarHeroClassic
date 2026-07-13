@@ -3965,13 +3965,26 @@ void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
   state.managed_hookup = managed_hookup;
 }
 
-float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
+SourceCharHairGetFpsResult source_char_hair_get_fps_result(
+    bool use_post_proc,
+    float emulated_fps) {
+  SourceCharHairGetFpsResult result;
+  result.emulated_fps = emulated_fps;
   if (use_post_proc && emulated_fps > 0.0f) {
-    float ret = emulated_fps;
-    if (ret != 60.0f) ret = 60.0f - ret;
-    return ret;
+    result.used_post_proc = true;
+    result.fps = emulated_fps;
+    if (result.fps != 60.0f) {
+      result.adjusted_non_sixty = true;
+      result.fps = 60.0f - result.fps;
+    }
+    return result;
   }
-  return 60.0f;
+  result.fps = 60.0f;
+  return result;
+}
+
+float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
+  return source_char_hair_get_fps_result(use_post_proc, emulated_fps).fps;
 }
 
 SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence() {
