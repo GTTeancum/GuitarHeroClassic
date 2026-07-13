@@ -6217,6 +6217,17 @@ SourceCharForeTwistSavePlan source_char_fore_twist_save_plan() {
   return SourceCharForeTwistSavePlan{};
 }
 
+void source_char_fore_twist_poll_deps(
+    SourceCharForeTwistPollDeps& deps,
+    const std::string& hand,
+    const std::string& twist2,
+    bool has_twist2,
+    const std::string& twist2_parent) {
+  deps.changed_by.push_back(hand);
+  deps.change.push_back(twist2);
+  if (has_twist2) deps.change.push_back(twist2_parent);
+}
+
 bool source_char_fore_twist_poll_world(
     const CharForeTwist& twist,
     bool has_hand,
@@ -6269,6 +6280,16 @@ bool source_char_fore_twist_poll_world(
 
 SourceCharUpperTwistSavePlan source_char_upper_twist_save_plan() {
   return SourceCharUpperTwistSavePlan{};
+}
+
+void source_char_upper_twist_poll_deps(
+    SourceCharUpperTwistPollDeps& deps,
+    const std::string& upper_arm,
+    const std::string& twist1,
+    const std::string& twist2) {
+  deps.changed_by.push_back(upper_arm);
+  deps.change.push_back(twist1);
+  deps.change.push_back(twist2);
 }
 
 bool source_char_upper_twist_poll_world(

@@ -3331,6 +3331,16 @@ struct SourceCharUpperTwistSavePlan {
   int32_t save_id = 0x5D;
 };
 
+struct SourceCharForeTwistPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+struct SourceCharUpperTwistPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.
 SourceCharBoneOffsetSavePlan source_char_bone_offset_save_plan();
@@ -3381,11 +3391,17 @@ struct SourceCharUpperTwistPollWorldResult {
   std::array<float, 16> twist2_world = {};
 };
 
-// Source-backed CharForeTwist::Poll and CharUpperTwist::Poll world-row
-// helpers. These are pure translations of the ihatecompvir routines; callers
-// remain responsible for resolving object pointers and converting SetWorldXfm
-// results back into local rows.
+// Source-backed CharForeTwist::Poll/PollDeps and
+// CharUpperTwist::Poll/PollDeps helpers. These are pure translations of the
+// ihatecompvir routines; callers remain responsible for resolving object
+// pointers and converting SetWorldXfm results back into local rows.
 SourceCharForeTwistSavePlan source_char_fore_twist_save_plan();
+void source_char_fore_twist_poll_deps(
+    SourceCharForeTwistPollDeps& deps,
+    const std::string& hand,
+    const std::string& twist2,
+    bool has_twist2,
+    const std::string& twist2_parent);
 bool source_char_fore_twist_poll_world(
     const CharForeTwist& twist,
     bool has_hand,
@@ -3398,6 +3414,11 @@ bool source_char_fore_twist_poll_world(
     float twist2_local_x,
     SourceCharForeTwistPollWorldResult& out);
 SourceCharUpperTwistSavePlan source_char_upper_twist_save_plan();
+void source_char_upper_twist_poll_deps(
+    SourceCharUpperTwistPollDeps& deps,
+    const std::string& upper_arm,
+    const std::string& twist1,
+    const std::string& twist2);
 bool source_char_upper_twist_poll_world(
     bool has_source,
     bool has_twist1,

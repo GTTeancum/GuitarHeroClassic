@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <string>
 
 namespace {
 
@@ -35,6 +36,19 @@ bool expect_bool(bool got, bool want, const char* label) {
   return false;
 }
 
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 bool expect_upper_rows(const std::array<float, 16>& world, float weight,
                        float px, float py, float pz, const char* label) {
   const float y = 1.0f - weight;
@@ -60,10 +74,14 @@ bool expect_upper_rows(const std::array<float, 16>& world, float weight,
 
 int main() {
   using ghogx::character::CharForeTwist;
+  using ghogx::character::SourceCharForeTwistPollDeps;
   using ghogx::character::SourceCharForeTwistPollWorldResult;
+  using ghogx::character::SourceCharUpperTwistPollDeps;
   using ghogx::character::SourceCharUpperTwistPollWorldResult;
+  using ghogx::character::source_char_fore_twist_poll_deps;
   using ghogx::character::source_char_fore_twist_poll_world;
   using ghogx::character::source_char_fore_twist_save_plan;
+  using ghogx::character::source_char_upper_twist_poll_deps;
   using ghogx::character::source_char_upper_twist_poll_world;
   using ghogx::character::source_char_upper_twist_save_plan;
 
@@ -78,6 +96,26 @@ int main() {
   fore.name = "foreTwist.test";
   fore.offset_degrees = 90.0f;
   fore.bias_degrees = 30.0f;
+  SourceCharForeTwistPollDeps fore_deps;
+  source_char_fore_twist_poll_deps(
+      fore_deps, "bone_l_hand", "bone_l_foretwist2", false,
+      "bone_l_foretwist2_parent");
+  ok &= expect_size(fore_deps.changed_by.size(), 1,
+                    "ForeTwist PollDeps changed-by count");
+  ok &= expect_string(fore_deps.changed_by[0], "bone_l_hand",
+                      "ForeTwist PollDeps hand dependency");
+  ok &= expect_size(fore_deps.change.size(), 1,
+                    "ForeTwist PollDeps missing twist2 change count");
+  ok &= expect_string(fore_deps.change[0], "bone_l_foretwist2",
+                      "ForeTwist PollDeps twist2 change row");
+  fore_deps = SourceCharForeTwistPollDeps{};
+  source_char_fore_twist_poll_deps(
+      fore_deps, "bone_l_hand", "bone_l_foretwist2", true,
+      "bone_l_foretwist2_parent");
+  ok &= expect_size(fore_deps.change.size(), 2,
+                    "ForeTwist PollDeps parent change count");
+  ok &= expect_string(fore_deps.change[1], "bone_l_foretwist2_parent",
+                      "ForeTwist PollDeps twist2 parent change row");
   SourceCharForeTwistPollWorldResult fore_out;
   ok &= expect_bool(source_char_fore_twist_poll_world(
                         fore, false, true, true, true, world_row(0, 0, 0),
@@ -119,6 +157,21 @@ int main() {
              "ForeTwist twist2 z.z");
   ok &= near(fore_out.twist2_world[12], 20.0f,
              "ForeTwist interpolates twist2 toward hand position");
+
+  SourceCharUpperTwistPollDeps upper_deps;
+  source_char_upper_twist_poll_deps(
+      upper_deps, "bone_l_upper_arm", "bone_l_upper_twist1",
+      "bone_l_upper_twist2");
+  ok &= expect_size(upper_deps.changed_by.size(), 1,
+                    "UpperTwist PollDeps changed-by count");
+  ok &= expect_string(upper_deps.changed_by[0], "bone_l_upper_arm",
+                      "UpperTwist PollDeps source dependency");
+  ok &= expect_size(upper_deps.change.size(), 2,
+                    "UpperTwist PollDeps change count");
+  ok &= expect_string(upper_deps.change[0], "bone_l_upper_twist1",
+                      "UpperTwist PollDeps first output");
+  ok &= expect_string(upper_deps.change[1], "bone_l_upper_twist2",
+                      "UpperTwist PollDeps second output");
 
   SourceCharUpperTwistPollWorldResult upper_out;
   ok &= expect_bool(source_char_upper_twist_poll_world(

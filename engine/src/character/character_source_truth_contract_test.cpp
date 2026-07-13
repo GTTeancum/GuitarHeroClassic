@@ -20285,6 +20285,12 @@ int run_contract() {
                  "SYNC_PROP(upper_arm,mTwist2)SYNC_PROP(twist1,mUpperArm)"
                  "SYNC_PROP(twist2,mTwist1)",
                  "RB3 CharUpperTwist property/member crosswalk");
+  ok &= contains(rb3_char_upper_twist_cpp,
+                 "voidCharUpperTwist::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){"
+                 "changedBy.push_back(mTwist2);change.push_back(mUpperArm);"
+                 "change.push_back(mTwist1);}",
+                 "RB3 CharUpperTwist source PollDeps order");
   ok &= contains(rb3_char_fore_twist_cpp,
                  "bs>>mOffset;bs>>mHand;bs>>mTwist2;if(gRev==2){"
                  "intdummy;bs>>dummy;}if(gRev>3)bs>>mBias;",
@@ -20297,6 +20303,12 @@ int run_contract() {
                  "Interp(tf88.v,handxfm.v,twist2->mLocalXfm.v.x/"
                  "hand->mLocalXfm.v.x,tf88.v);",
                  "RB3 CharForeTwist source twist2 position interpolation");
+  ok &= contains(rb3_char_fore_twist_cpp,
+                 "voidCharForeTwist::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){"
+                 "changedBy.push_back(mHand);change.push_back(mTwist2);"
+                 "if(mTwist2)change.push_back(mTwist2->mParent);}",
+                 "RB3 CharForeTwist source PollDeps order");
   ok &= contains(rb3_latest_char_neck_twist_h,
                  "ObjPtr<RndTransformable,ObjectDir>mTwist;",
                  "latest CharNeckTwist header exposes twist pointer");
@@ -20338,6 +20350,25 @@ int run_contract() {
                  "if(t.version==2&&r.pos+4<=r.n)(void)r.i32();"
                  "if(t.version>3&&r.pos+4<=r.n)t.bias_degrees=r.f32();",
                  "native CharForeTwist decoder follows source revision fields");
+  ok &= contains(char_clip_h,
+                 "structSourceCharForeTwistPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native exposes CharForeTwist PollDeps state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharUpperTwistPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native exposes CharUpperTwist PollDeps state");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_fore_twist_poll_deps("
+                 "SourceCharForeTwistPollDeps&deps,conststd::string&hand,"
+                 "conststd::string&twist2,boolhas_twist2,"
+                 "conststd::string&twist2_parent);",
+                 "native exposes CharForeTwist PollDeps helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_upper_twist_poll_deps("
+                 "SourceCharUpperTwistPollDeps&deps,conststd::string&upper_arm,"
+                 "conststd::string&twist1,conststd::string&twist2);",
+                 "native exposes CharUpperTwist PollDeps helper");
   ok &= contains(char_mesh_h,
                  "structCharNeckTwist{std::stringname;int32_tversion=0;"
                  "std::stringhead;std::stringtwist;size_tunread_bytes=0;};",
@@ -20572,6 +20603,14 @@ int run_contract() {
                  "constCharForeTwist&twist,boolhas_hand,boolhas_twist2,",
                  "native CharForeTwist source helper body exists");
   ok &= contains(char_clip,
+                 "voidsource_char_fore_twist_poll_deps("
+                 "SourceCharForeTwistPollDeps&deps,conststd::string&hand,"
+                 "conststd::string&twist2,boolhas_twist2,"
+                 "conststd::string&twist2_parent){deps.changed_by.push_back("
+                 "hand);deps.change.push_back(twist2);if(has_twist2)"
+                 "deps.change.push_back(twist2_parent);}",
+                 "native CharForeTwist PollDeps helper mirrors source order");
+  ok &= contains(char_clip,
                  "constfloatratio=twist2_local_x/hand_local_x;",
                  "native CharForeTwist source helper keeps source ratio division");
   ok &= contains(char_clip,
@@ -20586,6 +20625,13 @@ int run_contract() {
                  "boolsource_char_upper_twist_poll_world("
                  "boolhas_source,boolhas_twist1,boolhas_twist2,",
                  "native CharUpperTwist source helper body exists");
+  ok &= contains(char_clip,
+                 "voidsource_char_upper_twist_poll_deps("
+                 "SourceCharUpperTwistPollDeps&deps,conststd::string&upper_arm,"
+                 "conststd::string&twist1,conststd::string&twist2){"
+                 "deps.changed_by.push_back(upper_arm);deps.change.push_back("
+                 "twist1);deps.change.push_back(twist2);}",
+                 "native CharUpperTwist PollDeps helper mirrors source order");
   ok &= contains(char_clip,
                  "out.twist1_world=make_output(twist1_current_world,0.333f);"
                  "out.twist2_world=make_output(twist2_current_world,0.666f);",
@@ -20607,8 +20653,14 @@ int run_contract() {
                  "source_char_fore_twist_poll_world(",
                  "focused fore/upper twist test covers CharForeTwist helper");
   ok &= contains(fore_upper_twist_source_test,
+                 "source_char_fore_twist_poll_deps(",
+                 "focused fore/upper twist test covers CharForeTwist PollDeps");
+  ok &= contains(fore_upper_twist_source_test,
                  "source_char_upper_twist_poll_world(",
                  "focused fore/upper twist test covers CharUpperTwist helper");
+  ok &= contains(fore_upper_twist_source_test,
+                 "source_char_upper_twist_poll_deps(",
+                 "focused fore/upper twist test covers CharUpperTwist PollDeps");
   ok &= contains(fore_upper_twist_source_test,
                  "fore_out.source_angle_radians,kPi*2.0f/3.0f",
                  "focused fore twist test covers source angle with bias");
@@ -20622,8 +20674,14 @@ int run_contract() {
                  "Native `source_char_upper_twist_poll_world` ports that world-row `Poll`",
                  "document records native CharUpperTwist source helper");
   ok &= contains(doc,
+                 "`CharUpperTwist::PollDeps` publishes the decoded `upper_arm`",
+                 "document records native CharUpperTwist PollDeps helper");
+  ok &= contains(doc,
                  "Native `source_char_fore_twist_poll_world` ports that world-row `Poll`",
                  "document records native CharForeTwist source helper");
+  ok &= contains(doc,
+                 "`CharForeTwist::PollDeps` publishes `hand`",
+                 "document records native CharForeTwist PollDeps helper");
   ok &= contains(char_clip,
                  "apply_source_ik_hands(character);"
                  "apply_source_fore_twists(character);"

@@ -255,7 +255,7 @@ character model playback.
 | Mirror servo controller | `rb3-latest` `CharMirror.cpp` / `CharMirror.h` | Native helper ports constructor defaults, nonzero-weight/nonempty-bones `Poll` gate, servo setter `SyncBones` triggers, dependency publication, load order, and copy flow; `SyncBones` bone rebuilding remains fenced because the body is absent from `rb3-latest`. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Native helper ports source `Poll` projection/open-string math and `PollDeps`, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
-| Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log source load order and port the source `Poll` gates, dependency order, and quaternion-effect angle math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
+| Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines and dependency order; neck twist rows decode/log source load order and port the source `Poll` gates, dependency order, and quaternion-effect angle math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `grim` `char_bones_samples/io.rs` / `mod.rs`, `char_clip/io.rs`, `char_clip_samples/io.rs`, `re-notes` `char_bones_samples.bt` / `char_clip_samples.bt` / `charclipsamples.txt`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, Grim GH2 `CharClipSamples` version gates, legacy full/one/duplicate header order, version-gated weights, raw sample-byte sizing, serialized bone-order sample walking, re-notes active template order `.pos` / `.quat` / `.rotz`, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; `.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose publishing remain fenced where source bodies are incomplete. |
@@ -3381,12 +3381,17 @@ note, and all report `unreadBytes=0`.
     parent Y row through that quaternion, interpolates toward the source Y row
     at `0.333` and `0.666`, runs `LookAt` on the matrix rows, and writes the two
     driven transforms through `SetWorldXfm`.
+  - `CharUpperTwist::PollDeps` publishes the decoded `upper_arm` row as the
+    changed-by/source dependency, then publishes decoded `twist1` and `twist2`
+    as changed output rows, matching ihatecompvir's odd member/property
+    crosswalk.
   - Native `source_char_upper_twist_poll_world` ports that world-row `Poll`
     behavior directly: it returns the two source `SetWorldXfm` matrices with
     the source transform's X row, the previous driven positions, and the exact
     `0.333f` / `0.666f` interpolation constants. Runtime code only resolves
     decoded object names and converts those source world rows back to local
-    rows.
+    rows. `source_char_upper_twist_poll_deps` mirrors the source dependency
+    order without changing runtime cadence.
 - `rb3/src/system/char/CharForeTwist.cpp`
   - `CharForeTwist::Load` reads `offset`, `hand`, `twist2`, an old revision-2
     dummy int, and `bias` for revisions above 3.
@@ -3394,11 +3399,15 @@ note, and all report `unreadBytes=0`.
     the hand parent world X/Y rows, applies authored `offset` and `bias`, writes
     the `twist2` parent transform, then interpolates toward the hand position
     using `twist2.local.x / hand.local.x` and writes `twist2` itself.
+  - `CharForeTwist::PollDeps` publishes `hand` as the changed-by row, publishes
+    `twist2` as changed, and publishes `twist2`'s parent as changed only when
+    `twist2` resolves.
   - Native `source_char_fore_twist_poll_world` ports that world-row `Poll`
     behavior directly: it computes the source angle, applies one third of the
     final angle to the `twist2` parent, applies the same rotation again to
     `twist2`, and keeps the source position ratio
     `twist2.local.x / hand.local.x` instead of inserting a native fallback.
+    `source_char_fore_twist_poll_deps` mirrors the source dependency order.
   - `CharIKHand::Poll` does not inline or consume `CharForeTwist` rows. Native
     GHOGX therefore runs decoded `CharForeTwist` controllers as their own source
     poll pass after hand IK instead of marking them handled inside the hand IK
