@@ -10771,3 +10771,13 @@ Rejected native probe:
   `path_ease` name; this turn renames the stored field and debug logs without
   changing path sampling behavior. The next camera-angle fixes should continue
   from source evidence for how `mPathFrame` is consumed at runtime.
+
+- 2026-07-13 CamShot zoom/screen-offset FOV order:
+  ihatecompvir `CamShotFrame::Interp` sets the base frustum, builds and blends
+  transforms, applies same-target screen-offset translation, then adds the
+  interpolated `ZoomFieldOfView()` in a second `SetFrustum` call. Native now
+  preserves that base `source_screen_offset_fov` for target-list and
+  source-shaped screen-offset math, then keeps the final render FOV zoomed.
+  Camera diagnostics log both `fov` and `screen_fov` so future angle work can
+  tell whether a visual mismatch is from pose/path sampling or projection
+  ordering.

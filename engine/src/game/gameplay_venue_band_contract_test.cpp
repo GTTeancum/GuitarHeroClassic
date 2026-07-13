@@ -8096,8 +8096,8 @@ int main() {
                  "floatzoom_fov=0.0f;if(has_zoom_fov)",
                  "camera interpolation evaluates CamShot zoom FOV");
   ok &= contains(gameplay_c,
-                 "cam.fov+=zoom_fov;",
-                 "camera interpolation adds CamShot zoom FOV to the frustum FOV");
+                 "cam.fov=source_screen_offset_fov+zoom_fov;",
+                 "camera interpolation adds CamShot zoom FOV after preserving the source screen-offset frustum");
   ok &= contains(gameplay_c,
                  "source_ref=%s",
                  "regular CamShot logs expose decoded source refs");
@@ -8275,6 +8275,15 @@ int main() {
                  "constboolsame_targets_like_camshot="
                  "camera_targets_match_like_camshot(*a,*b);",
                  "source-shaped screen-offset result computes the CamShot SameTargets gate once");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_screen_offset_fov=cam.fov;",
+                 "source-shaped screen-offset result captures the pre-zoom CamShot frustum");
+  ok &= contains(gameplay_c,
+                 "result_key.fov=source_screen_offset_fov;",
+                 "source-shaped screen-offset result uses CamShot pre-zoom FOV like ihatecompvir Interp");
+  ok &= contains(gameplay_c,
+                 "cam.fov=source_screen_offset_fov+zoom_fov;",
+                 "runtime applies CamShot zoom FOV after preserving the screen-offset frustum");
   ok &= contains(gameplay_c,
                  "if(same_targets_like_camshot){",
                  "source-shaped screen-offset result is gated to CamShot same-target blends");
@@ -9722,6 +9731,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f",
                  "camera diagnostics distinguish active source DOF from decoded blur fields");
+  ok &= contains(gameplay_c,
+                 "fov=%.3fscreen_fov=%.3fclip=",
+                 "camera diagnostics expose final zoomed FOV and source screen-offset FOV separately");
   ok &= contains(gameplay_c,
                  "camera_lerp_result_rows(source_seed_a,source_seed_b,"
                  "interp_t);",

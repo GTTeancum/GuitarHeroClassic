@@ -18509,6 +18509,7 @@ void apply_camera_keys(
         const float fov_b = b->has_fov ? b->fov : fov_a;
         cam.fov = fov_a + (fov_b - fov_a) * interp_t;
     }
+    const float source_screen_offset_fov = cam.fov;
     const bool has_zoom_fov = a->has_zoom_fov || b->has_zoom_fov;
     float zoom_fov = 0.0f;
     if (has_zoom_fov) {
@@ -18516,7 +18517,7 @@ void apply_camera_keys(
         const float zoom_b = b->has_zoom_fov ? b->zoom_fov : zoom_a;
         zoom_fov = zoom_a + (zoom_b - zoom_a) * interp_t;
         if (std::isfinite(zoom_fov)) {
-            cam.fov += zoom_fov;
+            cam.fov = source_screen_offset_fov + zoom_fov;
         }
     }
     const auto lerp_camshot_frame_field =
@@ -18693,7 +18694,7 @@ void apply_camera_keys(
     if (!submitted_result_from_ps2_trace && blended_target_centroid) {
         Gameplay::CameraKey result_key = *a;
         result_key.has_fov = a->has_fov || b->has_fov;
-        result_key.fov = cam.fov;
+        result_key.fov = source_screen_offset_fov;
         result_key.has_screen_offset =
             a->has_screen_offset || b->has_screen_offset;
         result_key.screen_offset[0] = cam.screen_offset[0];
@@ -19519,7 +19520,7 @@ void apply_camera_keys(
             }
             Gameplay::CameraKey result_key = *a;
             result_key.has_fov = a->has_fov || b->has_fov;
-            result_key.fov = cam.fov;
+            result_key.fov = source_screen_offset_fov;
             result_key.has_screen_offset =
                 a->has_screen_offset || b->has_screen_offset;
             result_key.screen_offset[0] = cam.screen_offset[0];
@@ -19722,7 +19723,7 @@ void apply_camera_keys(
             "[camera] frame=%.2f t=%.3f eased_t=%.3f "
             "blend_ease=%.3f mode=%d a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
-            "up=(%.3f %.3f %.3f) fov=%.3f clip=(%.3f %.3f) "
+            "up=(%.3f %.3f %.3f) fov=%.3f screen_fov=%.3f clip=(%.3f %.3f) "
             "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
             "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f "
             "blur=(%.3f %.3f %.3f %.3f) "
@@ -19737,7 +19738,7 @@ void apply_camera_keys(
             cam.authored_eye[0], cam.authored_eye[1], cam.authored_eye[2],
             cam.authored_at[0], cam.authored_at[1], cam.authored_at[2],
             cam.authored_up[0], cam.authored_up[1], cam.authored_up[2],
-            cam.fov, cam.near_z, cam.far_z,
+            cam.fov, source_screen_offset_fov, cam.near_z, cam.far_z,
             has_zoom_fov ? "" : "none/", zoom_fov, cam.screen_offset[0],
             cam.screen_offset[1],
             cam.dof_active ? 1 : 0, has_dof_fields ? 1 : 0,
