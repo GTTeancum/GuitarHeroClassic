@@ -11066,6 +11066,9 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceCharHairHookupPlan{boolreturned_for_managed_hookup="
                  "false;std::vector<std::string>collected_collides;"
+                 "boolcollected_from_object_dir=false;"
+                 "boolhas_overload_declaration=true;"
+                 "booloverload_body_statement_visible=false;"
                  "boolcalled_overloaded_hookup=false;};",
                  "native exposes CharHair Hookup plan");
   ok &= contains(char_mesh_h,
@@ -11122,6 +11125,9 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "if(managed_hookup){plan.returned_for_managed_hookup=true;"
                  "returnplan;}plan.collected_collides=dir_collides;"
+                 "plan.collected_from_object_dir=true;"
+                 "plan.has_overload_declaration=true;"
+                 "plan.overload_body_statement_visible=false;"
                  "plan.called_overloaded_hookup=true;",
                  "native CharHair Hookup plan ports managed gate and collection");
   ok &= contains(char_mesh,
@@ -12127,6 +12133,12 @@ int run_contract() {
                  "\"neck.collide\"})",
                  "focused CharHair test covers Hookup collide collection");
   ok &= contains(char_hair_source_test,
+                 "hookup.collected_from_object_dir,true",
+                 "focused CharHair test covers default Hookup object-dir collection");
+  ok &= contains(char_hair_source_test,
+                 "hookup.overload_body_statement_visible,false",
+                 "focused CharHair test fences Hookup overload body");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_point_load_plan(2)",
                  "focused CharHair test covers legacy Point load plan");
   ok &= contains(char_hair_source_test,
@@ -12170,6 +12182,12 @@ int run_contract() {
                  "`source_char_hair_hookup_plan` ports the managed-hookup "
                  "early return",
                  "document records native CharHair Hookup plan");
+  ok &= contains(doc,
+                 "non-managed default `Hookup()` path builds an object-directory",
+                 "document records source-visible default Hookup collection");
+  ok &= contains(doc,
+                 "the overload body is\n     declaration-only in the checked source",
+                 "document keeps Hookup overload body fenced");
   ok &= contains(doc,
                  "Native `source_char_hair_simulate_loops_plan` ports that gate",
                  "document records native CharHair SimulateLoops plan");
@@ -12863,6 +12881,9 @@ int run_contract() {
                  "`Hookup(ObjPtrList<CharCollide>&)` body is still declared",
                  "document records missing CharHair hookup body boundary");
   ok &= contains(doc,
+                 "default `Hookup()` path builds an object-directory",
+                 "document records default Hookup body boundary refinement");
+  ok &= contains(doc,
                  "`rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharHair.cpp`",
                  "document records RB2 CharHair Hookup dump source");
   ok &= contains(doc,
@@ -12888,8 +12909,9 @@ int run_contract() {
                  "document records band3 CharHair symbol-only evidence");
   ok &= contains(char_clip, "runtimeWriteback=%dresolvedPointCollides=0",
                  "native CharHair path logs unresolved point-collide write count");
-  ok &= contains(char_clip, "missingHookupObjPtrList=1",
-                 "native CharHair path keeps missing hookup boundary explicit");
+  ok &= contains(char_clip,
+                 "defaultHookupDirCollect=1missingHookupObjPtrList=1",
+                 "native CharHair path logs default hookup and missing overload boundary");
   ok &= contains(rb3_latest_char_ik_rod_h,
                  "ObjPtr<RndTransformable,ObjectDir>mLeftEnd;",
                  "latest CharIKRod source header exposes left endpoint");
@@ -31823,8 +31845,8 @@ int run_contract() {
                  "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal",
                  "CharHair simulation log names the upstream poll/reset/sim path");
   ok &= contains(char_clip,
-                 "missingHookupObjPtrList=1",
-                 "CharHair simulation log keeps missing hookup boundary explicit");
+                 "defaultHookupDirCollect=1missingHookupObjPtrList=1",
+                 "CharHair simulation log keeps hookup boundary explicit");
   ok &= contains(format_notes,
                  "Current native `CharHair` behavior ports the checked ihatecompvir",
                  "format notes describe current CharHair source poll path");

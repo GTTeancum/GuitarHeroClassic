@@ -2799,6 +2799,7 @@ struct SourceGltfMiloHairStrandHeaderPlan {
   bool copies_first_local_matrix_to_root_mat = false;
   bool convert_coordinates_arg = false;
   bool uses_matrix_helper_when_converting = false;
+  bool requires_unvendored_matrix_helper_when_converting = false;
   bool can_port_axis_conversion_math = false;
   std::array<float, 9> base_mat = {1.0f, 0.0f, 0.0f,
                                    0.0f, 1.0f, 0.0f,
@@ -2951,6 +2952,9 @@ struct SourceCharHairGetFpsResult {
 struct SourceCharHairHookupPlan {
   bool returned_for_managed_hookup = false;
   std::vector<std::string> collected_collides;
+  bool collected_from_object_dir = false;
+  bool has_overload_declaration = true;
+  bool overload_body_statement_visible = false;
   bool called_overloaded_hookup = false;
 };
 
@@ -2960,6 +2964,7 @@ struct SourceCharHairPointCollideResolution {
   bool has_collide_type = false;
   bool has_positive_radius = false;
   bool point_collides_cleared_by_loader = true;
+  bool hookup_default_collects_dir_collides = true;
   bool hookup_overload_body_available = false;
   bool resolved_runtime_collides = false;
   bool may_write_world_xfm = false;

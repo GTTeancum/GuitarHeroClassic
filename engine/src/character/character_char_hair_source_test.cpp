@@ -1124,6 +1124,8 @@ int main() {
                     "managed hookup returns");
   ok &= expect_bool(managed_hookup.called_overloaded_hookup, false,
                     "managed hookup skips overloaded hookup");
+  ok &= expect_bool(managed_hookup.collected_from_object_dir, false,
+                    "managed hookup skips object-dir collection");
   ok &= expect_int(static_cast<int>(managed_hookup.collected_collides.size()),
                    0, "managed hookup collects none");
 
@@ -1146,6 +1148,12 @@ int main() {
                     "hookup not managed");
   ok &= expect_bool(hookup.called_overloaded_hookup, true,
                     "hookup calls overloaded hookup");
+  ok &= expect_bool(hookup.collected_from_object_dir, true,
+                    "default hookup collects from object dir");
+  ok &= expect_bool(hookup.has_overload_declaration, true,
+                    "hookup overload declaration is visible");
+  ok &= expect_bool(hookup.overload_body_statement_visible, false,
+                    "hookup overload body remains fenced");
   ok &= expect_int(static_cast<int>(hookup.collected_collides.size()), 2,
                    "hookup collide count");
   ok &= expect_bool(hookup.collected_collides[0] == "head.collide",
@@ -1168,6 +1176,8 @@ int main() {
                     "legacy radius is diagnostic");
   ok &= expect_bool(inline_resolution.point_collides_cleared_by_loader, true,
                     "source point loader clears Point.collides");
+  ok &= expect_bool(inline_resolution.hookup_default_collects_dir_collides,
+                    true, "default hookup collection is source-visible");
   ok &= expect_bool(inline_resolution.hookup_overload_body_available, false,
                     "missing Hookup overload body remains fenced");
   ok &= expect_bool(inline_resolution.resolved_runtime_collides, false,

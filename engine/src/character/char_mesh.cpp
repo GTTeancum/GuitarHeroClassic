@@ -6061,6 +6061,9 @@ SourceCharHairHookupPlan source_char_hair_hookup_plan(
     return plan;
   }
   plan.collected_collides = dir_collides;
+  plan.collected_from_object_dir = true;
+  plan.has_overload_declaration = true;
+  plan.overload_body_statement_visible = false;
   plan.called_overloaded_hookup = true;
   return plan;
 }
@@ -10271,6 +10274,7 @@ source_gltf_milo_export_hair_strand_header_plan(
   SourceGltfMiloHairStrandHeaderPlan plan;
   plan.convert_coordinates_arg = convert_coordinates;
   plan.uses_matrix_helper_when_converting = convert_coordinates;
+  plan.requires_unvendored_matrix_helper_when_converting = convert_coordinates;
   if (chain.empty()) {
     plan.skipped_empty_chain = true;
     return plan;

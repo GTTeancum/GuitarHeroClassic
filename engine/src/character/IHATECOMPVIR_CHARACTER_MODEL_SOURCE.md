@@ -564,6 +564,11 @@ into final transform rows.
      collide-list population, and `SimulateZeroTime` behavior from reviewable
      source or direct original-game trace. The source `Hookup()` wrapper and
      `SimulateLoops` gate are already ported as deterministic plans.
+     The current live `rb3` `CharHair.cpp` body is enough to confirm the
+     non-managed default `Hookup()` path builds an object-directory
+     `CharCollide` list before calling the declared overload; it is still not
+     enough to populate per-point `Point.collides` because the overload body is
+     declaration-only in the checked source.
    - The project hair rule is two-sided culling only. It is not permission to
      change depth priority, material sorting, or material state from mesh names.
 

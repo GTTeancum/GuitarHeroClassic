@@ -9191,7 +9191,8 @@ static void apply_char_hair(Character& character, float time_seconds) {
           "[charhair-source-sim] character=%s hair=%s "
           "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal "
           "runtimeWriteback=%d resolvedPointCollides=0 "
-          "missingHookupObjPtrList=1 zeroTimeBodyAvailable=0 "
+          "defaultHookupDirCollect=1 missingHookupObjPtrList=1 "
+          "zeroTimeBodyAvailable=0 "
           "usePostProc=%d nonzeroDelta=%d firstPoll=%d pollHookup=%d "
           "pollReset=%d pollZeroTime=%d time=%.4f\n",
           character.dir_name.c_str(), hair.name.c_str(), write_count,
