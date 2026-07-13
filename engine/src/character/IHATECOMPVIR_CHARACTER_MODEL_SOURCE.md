@@ -5290,6 +5290,15 @@ weighted-card consumer issues. This recheck is a guardrail for the next source
 implementation pass, not a license to restore removed diagnostics or old visual
 experiments.
 
+The raw pre-integration chat adds only clarifying boundaries around the same
+hair lead: static/no-CharHair was already answered as unlikely to solve the
+broken placement, and hair was described as separate `.mesh` objects that can
+still be parented under the character hierarchy. The pre-source PCSX2
+owner-node/list-copy traces are useful negative bounds because they reached live
+Rockabill2/hair state and still did not identify the visible draw/skin consumer.
+They point future work away from physics-disable and owner-list guesses, and
+toward the source-backed mesh/skin/controller consumer path.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

@@ -31741,6 +31741,21 @@ int run_contract() {
                  "Rock/Rockabill hair failures remain controller-row /\n"
                  "weighted-card consumer issues",
                  "document preserves old hair trace as consumer-path evidence");
+  ok &= contains(doc,
+                 "static/no-CharHair was already answered as unlikely to solve "
+                 "the\nbroken placement",
+                 "document preserves static hair as a rejected complete fix");
+  ok &= contains(doc,
+                 "hair was described as separate `.mesh` objects that can\n"
+                 "still be parented under the character hierarchy",
+                 "document preserves separate-mesh plus hierarchy boundary");
+  ok &= contains(doc,
+                 "pre-source PCSX2\nowner-node/list-copy traces are useful "
+                 "negative bounds",
+                 "document preserves pre-source owner/list trace boundary");
+  ok &= contains(doc,
+                 "toward the source-backed mesh/skin/controller consumer path",
+                 "document keeps compatible chat leads on source consumer path");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");
