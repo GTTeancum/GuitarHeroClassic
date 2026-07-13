@@ -2287,6 +2287,11 @@ void MiloSceneRenderer::set_light_color_overrides(
   light_color_overrides_ = std::move(light_colors);
 }
 
+void MiloSceneRenderer::set_light_state_overrides(
+    std::map<std::string, LightStateOverride> light_states) {
+  light_state_overrides_ = std::move(light_states);
+}
+
 bool MiloSceneRenderer::apply_environment_lighting_state(
     const std::string& environment_name) {
   if (!dev_) return false;
@@ -2323,13 +2328,25 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
         color_it != light_color_overrides_.end()) {
       light_color = color_it->second;
     }
-    const auto light_world = xfm_to_mat4(light->world_stored);
+    float light_range = light->range;
+    int light_type = light->type;
+    if (const auto state_it = light_state_overrides_.find(ref);
+        state_it != light_state_overrides_.end()) {
+      if (state_it->second.has_color) light_color = state_it->second.color;
+      if (state_it->second.has_range) light_range = state_it->second.range;
+      if (state_it->second.has_type) light_type = state_it->second.type;
+    }
+    auto light_world = xfm_to_mat4(light->world_stored);
+    if (const auto xfm_it = mesh_transform_offsets_.find(ref);
+        xfm_it != mesh_transform_offsets_.end()) {
+      apply_mesh_transform_sample(light_world, xfm_it->second);
+    }
     D3DLIGHT9 dl{};
     dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
     dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
     dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
     dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
-    if (light->type == 1) {
+    if (light_type == 1) {
       const float dx = light_world[4];
       const float dy = light_world[5];
       const float dz = light_world[6];
@@ -2337,10 +2354,10 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
       if (len <= 0.0001f) continue;
       dl.Type = D3DLIGHT_DIRECTIONAL;
       dl.Direction = {dx / len, dy / len, dz / len};
-    } else if (light->type == 0) {
+    } else if (light_type == 0) {
       dl.Type = D3DLIGHT_POINT;
       dl.Position = {light_world[12], light_world[13], light_world[14]};
-      dl.Range = std::max(light->range, 1.0f);
+      dl.Range = std::max(light_range, 1.0f);
       dl.Attenuation0 = 1.0f;
     } else {
       continue;
@@ -2962,13 +2979,21 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           color_it != light_color_overrides_.end()) {
         light_color = color_it->second;
       }
+      float light_range = light->range;
+      int light_type = light->type;
+      if (const auto state_it = light_state_overrides_.find(ref);
+          state_it != light_state_overrides_.end()) {
+        if (state_it->second.has_color) light_color = state_it->second.color;
+        if (state_it->second.has_range) light_range = state_it->second.range;
+        if (state_it->second.has_type) light_type = state_it->second.type;
+      }
       const auto light_world = sampled_light_world(*light, ref);
       D3DLIGHT9 dl{};
       dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
       dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
       dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
       dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
-      if (light->type == 1) {
+      if (light_type == 1) {
         float dx = light_world[4];
         float dy = light_world[5];
         float dz = light_world[6];
@@ -2976,10 +3001,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         if (len <= 0.0001f) continue;
         dl.Type = D3DLIGHT_DIRECTIONAL;
         dl.Direction = {dx / len, dy / len, dz / len};
-      } else if (light->type == 0) {
+      } else if (light_type == 0) {
         dl.Type = D3DLIGHT_POINT;
         dl.Position = {light_world[12], light_world[13], light_world[14]};
-        dl.Range = std::max(light->range, 1.0f);
+        dl.Range = std::max(light_range, 1.0f);
         dl.Attenuation0 = 1.0f;
       } else {
         continue;

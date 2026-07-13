@@ -172,6 +172,16 @@ class MiloSceneRenderer {
       std::map<std::string, EnvironmentFogOverride> environment_fog);
   void set_light_color_overrides(
       std::map<std::string, std::array<float, 4>> light_colors);
+  struct LightStateOverride {
+    bool has_color = false;
+    std::array<float, 4> color = {1.0f, 1.0f, 1.0f, 1.0f};
+    bool has_range = false;
+    float range = 0.0f;
+    bool has_type = false;
+    int type = 0;
+  };
+  void set_light_state_overrides(
+      std::map<std::string, LightStateOverride> light_states);
   bool apply_environment_lighting_state(const std::string& environment_name);
   void set_mesh_translation_offsets(
       std::map<std::string, std::array<float, 3>> offsets);
@@ -260,6 +270,7 @@ class MiloSceneRenderer {
   std::map<std::string, std::array<float, 4>> environment_color_overrides_;
   std::map<std::string, EnvironmentFogOverride> environment_fog_overrides_;
   std::map<std::string, std::array<float, 4>> light_color_overrides_;
+  std::map<std::string, LightStateOverride> light_state_overrides_;
   std::map<std::string, std::array<float, 3>> mesh_translation_offsets_;
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>

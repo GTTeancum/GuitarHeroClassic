@@ -921,6 +921,8 @@ class Gameplay {
   std::map<std::string, float> lighting_environment_frames_;
   std::vector<ActiveVenueEnvironmentAnim> active_lighting_environment_anims_;
   std::map<std::string, std::array<float, 4>> lighting_light_colors_;
+  std::map<std::string, ghogx::render::MiloSceneRenderer::LightStateOverride>
+      lighting_light_state_overrides_;
   std::vector<ActiveVenueLightAnim> active_lighting_light_anims_;
   std::map<std::string, ghogx::milo_scene::LightObj> lighting_lights_;
   std::map<std::string, ghogx::milo_scene::EnvironObj> lighting_environs_;
@@ -1010,6 +1012,8 @@ class Gameplay {
   std::map<std::string, float> venue_environment_frames_;
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
   std::map<std::string, std::array<float, 4>> venue_light_colors_;
+  std::map<std::string, ghogx::render::MiloSceneRenderer::LightStateOverride>
+      venue_light_state_overrides_;
   std::vector<ActiveVenueLightAnim> active_venue_light_anims_;
   double last_venue_env_anim_debug_time_ = -1.0;
   double last_venue_light_anim_debug_time_ = -1.0;

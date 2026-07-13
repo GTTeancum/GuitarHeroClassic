@@ -6198,6 +6198,12 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::vector<LightState>light_states;",
                  "LightPreset keyframes retain decoded Light state entries");
+  ok &= contains(gameplay_h_c,
+                 "lighting_light_state_overrides_;",
+                 "gameplay keeps decoded LightPreset lighting-layer range/type overrides");
+  ok &= contains(gameplay_h_c,
+                 "venue_light_state_overrides_;",
+                 "gameplay keeps decoded LightPreset venue-layer range/type overrides");
   ok &= contains(gameplay_c,
                  "out.keyframe.duration=r.f32();",
                  "LightPreset duration comes from the source keyframe field");
@@ -6216,6 +6222,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "read_light_preset_env_light_entry_like_ihatecompvir(",
                  "LightPreset source reader decodes EnvLightEntry payloads instead of skipping them");
+  ok &= contains(gameplay_c,
+                 "out.type=r.i32();if(out.type<0||out.type>4)"
+                 "out.type=0;",
+                 "LightPreset EnvLightEntry light type is decoded and sanitized");
   ok &= absent(gameplay_c,
                "skip_light_preset_environment_entry_like_ihatecompvir",
                "LightPreset EnvironmentEntry payloads must not be discarded");
@@ -6268,6 +6278,14 @@ int main() {
                  "\"[world]LightPresetstateapplied:preset=%skeyframe=%s"
                  "env_states=%llulight_states=%llu",
                  "LightPreset state application emits compact runtime proof rows");
+  ok &= contains(gameplay_c,
+                 "lighting_->set_light_state_overrides("
+                 "lighting_light_state_overrides_);",
+                 "active LightPreset keyframes push decoded lighting-layer light range/type state");
+  ok &= contains(gameplay_c,
+                 "world_->set_light_state_overrides("
+                 "venue_light_state_overrides_);",
+                 "active LightPreset keyframes push decoded venue-layer light range/type state");
   ok &= contains(gameplay_c,
                  "suffix!=\"_target.mesh\"&&suffix!=\".target.mesh\"",
                  "LightPreset target rows accept PS2 .Target.mesh spelling");
@@ -6718,6 +6736,26 @@ int main() {
                  "if(fog_it->second.has_enabled)fog_enabled="
                  "fog_it->second.enabled;",
                  "renderer applies decoded LightPreset fog-enable overrides");
+  ok &= contains(renderer_h_c,
+                 "structLightStateOverride{boolhas_color=false;",
+                 "renderer exposes full decoded LightPreset Light state overrides");
+  ok &= contains(renderer_c,
+                 "voidMiloSceneRenderer::set_light_state_overrides(",
+                 "renderer accepts decoded LightPreset light range/type state");
+  ok &= contains(renderer_c,
+                 "constautostate_it=light_state_overrides_.find(ref);",
+                 "authored D3D lights look up decoded LightPreset EnvLightEntry state");
+  ok &= contains(renderer_c,
+                 "if(state_it->second.has_range)light_range="
+                 "state_it->second.range;",
+                 "authored D3D point lights use decoded LightPreset range");
+  ok &= contains(renderer_c,
+                 "if(state_it->second.has_type)light_type="
+                 "state_it->second.type;",
+                 "authored D3D lights use decoded LightPreset type");
+  ok &= contains(renderer_c,
+                 "dl.Range=std::max(light_range,1.0f);",
+                 "D3D point-light range comes from decoded LightPreset state when present");
   ok &= contains(renderer_c,
                  "autosampled_light_world=[&](constmilo_scene::LightObj&light,"
                  "conststd::string&ref)",

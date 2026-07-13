@@ -30,6 +30,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -6730,6 +6731,7 @@ DecodedLightPresetEnvLightEntry read_light_preset_env_light_entry_like_ihatecomp
     out.range = r.f32();
     if (!std::isfinite(out.range) || out.range < 0.0f) out.range = 0.0f;
     out.type = r.i32();
+    if (out.type < 0 || out.type > 4) out.type = 0;
     return out;
 }
 
@@ -12154,6 +12156,8 @@ struct LightPresetEnvLightApplyCounts {
     size_t venue_environments = 0;
     size_t lighting_lights = 0;
     size_t venue_lights = 0;
+    size_t lighting_light_states = 0;
+    size_t venue_light_states = 0;
     size_t lighting_light_transforms = 0;
     size_t venue_light_transforms = 0;
 };
@@ -12172,6 +12176,8 @@ LightPresetEnvLightApplyCounts apply_lighting_preset_environment_light_state(
         lighting_environment_fog_ranges,
     std::map<std::string, bool>& lighting_environment_fog_enabled,
     std::map<std::string, std::array<float, 4>>& lighting_light_colors,
+    std::map<std::string, ghogx::render::MiloSceneRenderer::LightStateOverride>&
+        lighting_light_states,
     std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>&
         lighting_light_transforms,
     std::map<std::string, std::array<float, 4>>& venue_environment_colors,
@@ -12179,6 +12185,8 @@ LightPresetEnvLightApplyCounts apply_lighting_preset_environment_light_state(
     std::map<std::string, std::array<float, 2>>& venue_environment_fog_ranges,
     std::map<std::string, bool>& venue_environment_fog_enabled,
     std::map<std::string, std::array<float, 4>>& venue_light_colors,
+    std::map<std::string, ghogx::render::MiloSceneRenderer::LightStateOverride>&
+        venue_light_states,
     std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>&
         venue_light_transforms) {
     LightPresetEnvLightApplyCounts counts;
@@ -12225,16 +12233,28 @@ LightPresetEnvLightApplyCounts apply_lighting_preset_environment_light_state(
             const std::map<std::string, ghogx::milo_scene::LightObj>& lights,
             std::map<std::string, std::array<float, 4>>& light_colors,
             std::map<std::string,
+                     ghogx::render::MiloSceneRenderer::LightStateOverride>&
+                light_states,
+            std::map<std::string,
                      ghogx::render::MiloSceneRenderer::MeshTransformSample>&
-                light_transforms) -> std::pair<bool, bool> {
+                light_transforms) -> std::tuple<bool, bool, bool> {
         const auto it = lights.find(state.target);
-        if (it == lights.end()) return {false, false};
+        if (it == lights.end()) return {false, false, false};
         bool color_applied = false;
+        bool state_applied = false;
         bool transform_applied = false;
+        ghogx::render::MiloSceneRenderer::LightStateOverride override_state;
         if (it->second.animate_color_from_preset) {
             light_colors[state.target] = {state.color[0], state.color[1],
                                           state.color[2], state.color[3]};
             color_applied = true;
+        }
+        if (it->second.animate_range_from_preset ||
+            it->second.animate_color_from_preset) {
+            override_state.has_range = true;
+            override_state.range = state.range;
+            override_state.has_type = true;
+            override_state.type = state.type;
         }
         if (it->second.animate_position_from_preset) {
             auto& sample = light_transforms[state.target];
@@ -12250,21 +12270,31 @@ LightPresetEnvLightApplyCounts apply_lighting_preset_environment_light_state(
                                     state.rotation_xyzw[3]};
             transform_applied = true;
         }
-        return {color_applied, transform_applied};
+        if (override_state.has_color || override_state.has_range ||
+            override_state.has_type) {
+            light_states[state.target] = override_state;
+            state_applied = true;
+        }
+        return {color_applied, state_applied, transform_applied};
     };
 
     for (const auto& state : keyframe.light_states) {
         const auto lighting_applied =
             apply_light(state, lighting_lights, lighting_light_colors,
+                        lighting_light_states,
                         lighting_light_transforms);
-        if (lighting_applied.first) ++counts.lighting_lights;
-        if (lighting_applied.second) ++counts.lighting_light_transforms;
+        if (std::get<0>(lighting_applied)) ++counts.lighting_lights;
+        if (std::get<1>(lighting_applied)) ++counts.lighting_light_states;
+        if (std::get<2>(lighting_applied))
+            ++counts.lighting_light_transforms;
 
         const auto venue_applied =
             apply_light(state, venue_lights, venue_light_colors,
+                        venue_light_states,
                         venue_light_transforms);
-        if (venue_applied.first) ++counts.venue_lights;
-        if (venue_applied.second) ++counts.venue_light_transforms;
+        if (std::get<0>(venue_applied)) ++counts.venue_lights;
+        if (std::get<1>(venue_applied)) ++counts.venue_light_states;
+        if (std::get<2>(venue_applied)) ++counts.venue_light_transforms;
     }
     return counts;
 }
@@ -19599,6 +19629,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_environment_frames_.clear();
     active_lighting_environment_anims_.clear();
     lighting_light_colors_.clear();
+    lighting_light_state_overrides_.clear();
     active_lighting_light_anims_.clear();
     lighting_lights_.clear();
     lighting_environs_.clear();
@@ -19630,6 +19661,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_light_anims_.clear();
     venue_event_light_anims_.clear();
     venue_light_colors_.clear();
+    venue_light_state_overrides_.clear();
     active_venue_light_anims_.clear();
     last_venue_env_anim_debug_time_ = -1.0;
     last_venue_light_anim_debug_time_ = -1.0;
@@ -21255,6 +21287,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     bool environment_color_changed = false;
     bool environment_fog_changed = false;
     bool light_color_changed = false;
+    bool light_state_changed = false;
     bool venue_route_applied = false;
     if (persistent) {
         venue_mesh_translation_offsets_.clear();
@@ -21267,7 +21300,9 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         venue_environment_fog_ranges_.clear();
         venue_environment_fog_enabled_.clear();
         light_color_changed = !venue_light_colors_.empty();
+        light_state_changed = !venue_light_state_overrides_.empty();
         venue_light_colors_.clear();
+        venue_light_state_overrides_.clear();
     }
     if (peak_transition) {
         if (debug_venue_filters_enabled()) {
@@ -21844,6 +21879,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                     &venue_environment_fog_enabled_));
         if (light_color_changed)
             world_->set_light_color_overrides(venue_light_colors_);
+        if (light_state_changed)
+            world_->set_light_state_overrides(venue_light_state_overrides_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
     if (lighting_) {
@@ -21912,6 +21949,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_environment_frames_.clear();
     active_lighting_environment_anims_.clear();
     lighting_light_colors_.clear();
+    lighting_light_state_overrides_.clear();
     active_lighting_light_anims_.clear();
     last_lighting_env_anim_debug_time_ = -1.0;
     last_lighting_light_anim_debug_time_ = -1.0;
@@ -21945,6 +21983,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_environment_frames_.clear();
     active_venue_environment_anims_.clear();
     venue_light_colors_.clear();
+    venue_light_state_overrides_.clear();
     active_venue_light_anims_.clear();
     next_venue_proxy_draw_log_time_ = 0.0;
     last_venue_env_anim_debug_time_ = -1.0;
@@ -22007,6 +22046,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
                                               venue_environment_fog_ranges_,
                                               &venue_environment_fog_enabled_));
         world_->set_light_color_overrides(venue_light_colors_);
+        world_->set_light_state_overrides(venue_light_state_overrides_);
         world_->set_active_particle_systems(venue_active_particle_systems_);
         world_->set_particle_intensities(venue_particle_intensities_);
         world_->set_particle_sizes(venue_particle_sizes_);
@@ -22039,6 +22079,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
                                               lighting_environment_fog_ranges_,
                                               &lighting_environment_fog_enabled_));
         lighting_->set_light_color_overrides(lighting_light_colors_);
+        lighting_->set_light_state_overrides(lighting_light_state_overrides_);
         lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
         lighting_->set_active_particle_systems(lighting_active_particle_systems_);
         lighting_->set_particle_intensities(lighting_particle_intensities_);
@@ -22675,6 +22716,7 @@ void Gameplay::update_venue_proxy_objects() {
                                               venue_environment_fog_ranges_,
                                               &venue_environment_fog_enabled_));
         proxy.renderer->set_light_color_overrides(venue_light_colors_);
+        proxy.renderer->set_light_state_overrides(venue_light_state_overrides_);
         std::unordered_set<std::string> hidden_proxy_meshes;
         const auto hidden_it =
             venue_camera_hidden_proxy_meshes_.find(object_name);
@@ -27220,6 +27262,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_environment_color_overrides({});
                 lighting_->set_environment_fog_overrides({});
                 lighting_->set_light_color_overrides({});
+                lighting_->set_light_state_overrides({});
                 lighting_->set_active_particle_systems({});
                 lighting_->set_particle_intensities({});
                 lighting_->set_particle_sizes({});
@@ -29340,12 +29383,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 lighting_environment_fog_ranges_,
                                 lighting_environment_fog_enabled_,
                                 lighting_light_colors_,
+                                lighting_light_state_overrides_,
                                 lighting_mesh_transform_offsets_,
                                 venue_environment_colors_,
                                 venue_environment_fog_colors_,
                                 venue_environment_fog_ranges_,
                                 venue_environment_fog_enabled_,
                                 venue_light_colors_,
+                                venue_light_state_overrides_,
                                 venue_mesh_transform_offsets_);
                         if (lighting_ &&
                             env_light_counts.lighting_environments > 0) {
@@ -29360,6 +29405,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         if (lighting_ && env_light_counts.lighting_lights > 0) {
                             lighting_->set_light_color_overrides(
                                 lighting_light_colors_);
+                        }
+                        if (lighting_ &&
+                            env_light_counts.lighting_light_states > 0) {
+                            lighting_->set_light_state_overrides(
+                                lighting_light_state_overrides_);
                         }
                         if (lighting_ &&
                             env_light_counts.lighting_light_transforms > 0) {
@@ -29378,6 +29428,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         if (world_ && env_light_counts.venue_lights > 0) {
                             world_->set_light_color_overrides(
                                 venue_light_colors_);
+                        }
+                        if (world_ &&
+                            env_light_counts.venue_light_states > 0) {
+                            world_->set_light_state_overrides(
+                                venue_light_state_overrides_);
                         }
                         if (world_ &&
                             env_light_counts.venue_light_transforms > 0) {
@@ -29408,7 +29463,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             env_light_counts.light_states > 0) {
                             std::fprintf(
                                 stderr,
-                                "[world] LightPreset state applied: preset=%s keyframe=%s env_states=%llu light_states=%llu lighting_env=%llu venue_env=%llu lighting_light=%llu venue_light=%llu lighting_xfm=%llu venue_xfm=%llu\n",
+                                "[world] LightPreset state applied: preset=%s keyframe=%s env_states=%llu light_states=%llu lighting_env=%llu venue_env=%llu lighting_light=%llu venue_light=%llu lighting_light_state=%llu venue_light_state=%llu lighting_xfm=%llu venue_xfm=%llu\n",
                                 preset->name.c_str(), keyframe.name.c_str(),
                                 static_cast<unsigned long long>(
                                     env_light_counts.environment_states),
@@ -29422,6 +29477,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     env_light_counts.lighting_lights),
                                 static_cast<unsigned long long>(
                                     env_light_counts.venue_lights),
+                                static_cast<unsigned long long>(
+                                    env_light_counts.lighting_light_states),
+                                static_cast<unsigned long long>(
+                                    env_light_counts.venue_light_states),
                                 static_cast<unsigned long long>(
                                     env_light_counts
                                         .lighting_light_transforms),
