@@ -3708,6 +3708,24 @@ SourceRndBitmapLoadSafelyPlan source_rndbitmap_load_safely_plan(
   return plan;
 }
 
+SourceRndBitmapNumMipsPlan source_rndbitmap_num_mips_plan(
+    int32_t linked_mip_count) {
+  SourceRndBitmapNumMipsPlan plan;
+  plan.linked_mip_count = std::max(0, linked_mip_count);
+  plan.returned_mip_count = plan.linked_mip_count;
+  return plan;
+}
+
+SourceRndBitmapPixelBytesPlan source_rndbitmap_pixel_bytes_plan(
+    int32_t row_bytes,
+    int32_t height) {
+  SourceRndBitmapPixelBytesPlan plan;
+  plan.row_bytes = row_bytes;
+  plan.height = height;
+  plan.result = row_bytes * height;
+  return plan;
+}
+
 SourceReadChunksPlan source_read_chunks_plan(
     int32_t total_len,
     int32_t max_chunk_size) {

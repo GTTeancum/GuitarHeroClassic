@@ -1635,6 +1635,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     decode pixel chunks in the character model decoder.
   - `RndBitmap::PaletteBytes` returns `(1 << bpp) * 4` only for bpp <= 8 when
     neither the `0x38` nor `0x80` order masks are set.
+  - `RndBitmap::NumMips` starts from the current bitmap, walks linked `mMip`
+    nodes, and returns the linked mip count; `PixelBytes` is exactly
+    `mRowBytes * mHeight`. Native `source_rndbitmap_num_mips_plan` and
+    `source_rndbitmap_pixel_bytes_plan` record those utility rows for bitmap
+    save/load payload accounting.
   - `RndBitmap::Load` reads palette bytes first, then reads exactly
     `mRowBytes * mHeight` base pixel bytes through `ReadChunks`; its mip loop
     halves width/height before reading each mip row. The source `LoadSafely`

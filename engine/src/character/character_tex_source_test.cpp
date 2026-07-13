@@ -442,6 +442,22 @@ int main() {
                     "bitmap safe builds mips");
   ok &= expect_bool(safe_ok.result, true, "bitmap safe result");
 
+  const ghogx::character::SourceRndBitmapNumMipsPlan no_mips =
+      ghogx::character::source_rndbitmap_num_mips_plan(0);
+  ok &= expect_int(no_mips.returned_mip_count, 0,
+                   "bitmap NumMips no linked mip");
+  const ghogx::character::SourceRndBitmapNumMipsPlan three_mips =
+      ghogx::character::source_rndbitmap_num_mips_plan(3);
+  ok &= expect_int(three_mips.returned_mip_count, 3,
+                   "bitmap NumMips linked chain");
+  ok &= expect_bool(three_mips.walks_mip_links, true,
+                    "bitmap NumMips walks links");
+
+  const ghogx::character::SourceRndBitmapPixelBytesPlan pixel_bytes =
+      ghogx::character::source_rndbitmap_pixel_bytes_plan(96, 12);
+  ok &= expect_int(pixel_bytes.result, 1152,
+                   "bitmap PixelBytes row times height");
+
   const ghogx::character::SourceReadChunksPlan chunks =
       ghogx::character::source_read_chunks_plan(0x9001, 0x8000);
   ok &= expect_ints(chunks.chunk_sizes, {0x8000, 0x1001},

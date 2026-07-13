@@ -5008,6 +5008,19 @@ struct SourceRndBitmapLoadSafelyPlan {
   bool result = false;
 };
 
+struct SourceRndBitmapNumMipsPlan {
+  int32_t linked_mip_count = 0;
+  int32_t returned_mip_count = 0;
+  bool starts_from_this_bitmap = true;
+  bool walks_mip_links = true;
+};
+
+struct SourceRndBitmapPixelBytesPlan {
+  int32_t row_bytes = 0;
+  int32_t height = 0;
+  int32_t result = 0;
+};
+
 struct SourceReadChunksPlan {
   int32_t total_len = 0;
   int32_t max_chunk_size = 0;
@@ -5202,6 +5215,11 @@ SourceRndBitmapLoadSafelyPlan source_rndbitmap_load_safely_plan(
     int32_t max_width,
     int32_t max_height,
     int32_t mip_count);
+SourceRndBitmapNumMipsPlan source_rndbitmap_num_mips_plan(
+    int32_t linked_mip_count);
+SourceRndBitmapPixelBytesPlan source_rndbitmap_pixel_bytes_plan(
+    int32_t row_bytes,
+    int32_t height);
 SourceReadChunksPlan source_read_chunks_plan(
     int32_t total_len,
     int32_t max_chunk_size);

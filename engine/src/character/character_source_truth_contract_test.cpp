@@ -17016,6 +17016,10 @@ int run_contract() {
                  "source_rndbitmap_reset_plan`, `source_rndbitmap_create_plan`",
                  "document records RndBitmap helper names");
   ok &= contains(doc,
+                 "source_rndbitmap_num_mips_plan` and\n"
+                 "    `source_rndbitmap_pixel_bytes_plan`",
+                 "document records RndBitmap mip and pixel-byte helpers");
+  ok &= contains(doc,
                  "do\n    not allocate buffers, decode pixels, or alter native texture upload",
                  "document fences RndBitmap helpers from runtime upload");
   ok &= contains(doc,
@@ -17577,6 +17581,19 @@ int run_contract() {
                  "plan.row_bytes_fallback=!plan.dimension_fallback&&"
                  "((bpp*width)/8!=row_bytes);",
                  "RndBitmap LoadSafely helper mirrors row-byte fallback");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapNumMipsPlansource_rndbitmap_num_mips_plan(",
+                 "native implements RndBitmap NumMips helper");
+  ok &= contains(char_mesh,
+                 "plan.returned_mip_count=plan.linked_mip_count;",
+                 "RndBitmap NumMips helper mirrors linked mip count");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapPixelBytesPlan"
+                 "source_rndbitmap_pixel_bytes_plan(",
+                 "native implements RndBitmap PixelBytes helper");
+  ok &= contains(char_mesh,
+                 "plan.result=row_bytes*height;",
+                 "RndBitmap PixelBytes helper mirrors source formula");
   ok &= contains(char_mesh,
                  "SourceReadChunksPlansource_read_chunks_plan(",
                  "native implements ReadChunks helper");
