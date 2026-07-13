@@ -1657,6 +1657,57 @@ SourceRndMeshDestructorPlan source_rndmesh_destructor_plan() {
   return SourceRndMeshDestructorPlan{};
 }
 
+SourceRndMeshSetMatPlan source_rndmesh_set_mat_plan(
+    bool material_pointer_present) {
+  SourceRndMeshSetMatPlan plan;
+  plan.material_pointer_present = material_pointer_present;
+  return plan;
+}
+
+SourceRndMeshDebugCountsPlan source_rndmesh_debug_counts_plan(
+    int32_t face_count,
+    int32_t vert_count) {
+  SourceRndMeshDebugCountsPlan plan;
+  plan.face_count = face_count;
+  plan.vert_count = vert_count;
+  plan.num_faces_result = face_count;
+  plan.num_verts_result = vert_count;
+  return plan;
+}
+
+SourceRndMeshVolumeTextPlan source_rndmesh_volume_text_plan(int32_t volume) {
+  SourceRndMeshVolumeTextPlan plan;
+  plan.volume = volume;
+  switch (volume) {
+    case 0:
+      plan.known_volume = true;
+      plan.label = "Empty";
+      break;
+    case 1:
+      plan.known_volume = true;
+      plan.label = "Triangles";
+      break;
+    case 2:
+      plan.known_volume = true;
+      plan.label = "BSP";
+      break;
+    case 3:
+      plan.known_volume = true;
+      plan.label = "Box";
+      break;
+    default:
+      break;
+  }
+  return plan;
+}
+
+SourceRndMeshPrintPlan source_rndmesh_print_plan() {
+  SourceRndMeshPrintPlan plan;
+  plan.rows = {"mat", "geomOwner", "mutable", "volume", "bones:TODO",
+               "geometry:TODO"};
+  return plan;
+}
+
 int32_t source_rndmesh_max_bones() {
   return 40;
 }

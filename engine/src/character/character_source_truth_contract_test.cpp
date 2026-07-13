@@ -4036,6 +4036,24 @@ int run_contract() {
                  "RELEASE(mBSPTree);RELEASE(mMultiMesh);"
                  "ClearCompressedVerts();}",
                  "RB3 RndMesh destructor exposes cleanup body");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::SetMat(RndMat*m){mMat=m;}",
+                 "RB3 RndMesh SetMat is direct assignment");
+  ok &= contains(rb3_mesh_cpp,
+                 "intRndMesh::NumFaces()const{returnmFaces.size();}"
+                 "intRndMesh::NumVerts()const{returnmVerts.size();}",
+                 "RB3 RndMesh debug count accessors return vector sizes");
+  ok &= contains(rb3_mesh_cpp,
+                 "if(v==RndMesh::kVolumeEmpty)ts<<\"Empty\";elseif(v=="
+                 "RndMesh::kVolumeTriangles)ts<<\"Triangles\";",
+                 "RB3 RndMesh volume text writer exposes labels");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::Print(){TextStream&t=TheDebug;t<<\"mat:\""
+                 "<<mMat<<\"\\n\";",
+                 "RB3 RndMesh Print writes material row");
+  ok &= contains(rb3_mesh_cpp,
+                 "t<<\"bones:TODO\\n\";t<<\"geometry:TODO\\n\";}",
+                 "RB3 RndMesh Print keeps bone and geometry TODO rows");
   ok &= contains(rb3_mesh_cpp, "intRndMesh::MaxBones(){returnMAX_BONES;}",
                  "RB3 RndMesh MaxBones helper is visible");
   ok &= contains(rb3_latest_mesh_h, "#defineMAX_BONES40",
@@ -4209,11 +4227,46 @@ int run_contract() {
                  "booldirectly_releases_geom_owner=false;};",
                  "native RndMesh destructor fences ownership assumptions");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshSetMatPlan{"
+                 "boolmaterial_pointer_present=false;"
+                 "boolassigns_material_pointer=true;boolsyncs_mesh=false;"
+                 "boolmutates_render_state=false;"
+                 "boolhas_name_special_case=false;};",
+                 "native exposes RndMesh SetMat source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshDebugCountsPlan{int32_tface_count=0;"
+                 "int32_tvert_count=0;boolmilo_debug_only=true;"
+                 "int32_tnum_faces_result=0;int32_tnum_verts_result=0;};",
+                 "native exposes RndMesh debug count source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshVolumeTextPlan{int32_tvolume=0;"
+                 "boolknown_volume=false;std::stringlabel;};",
+                 "native exposes RndMesh volume text source plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshPrintPlan{booluses_debug_stream=true;"
+                 "std::vector<std::string>rows;};",
+                 "native exposes RndMesh Print source plan");
+  ok &= contains(char_mesh_h,
                  "SourceRndMeshDefaultStatesource_rndmesh_default_state();",
                  "native exposes RndMesh default state helper");
   ok &= contains(char_mesh_h,
                  "SourceRndMeshDestructorPlansource_rndmesh_destructor_plan();",
                  "native exposes RndMesh destructor helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshSetMatPlansource_rndmesh_set_mat_plan("
+                 "boolmaterial_pointer_present);",
+                 "native exposes RndMesh SetMat helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshDebugCountsPlansource_rndmesh_debug_counts_plan("
+                 "int32_tface_count,int32_tvert_count);",
+                 "native exposes RndMesh debug count helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshVolumeTextPlansource_rndmesh_volume_text_plan("
+                 "int32_tvolume);",
+                 "native exposes RndMesh volume text helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshPrintPlansource_rndmesh_print_plan();",
+                 "native exposes RndMesh Print helper");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSyncPlan{int32_tinput_mask=0;"
                  "boolkeep_mesh_data=false;int32_ton_sync_mask=0;};",
@@ -4232,6 +4285,34 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "returnSourceRndMeshClearCompressedVertsPlan{};",
                  "native ports RndMesh compressed-vert clear result");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshSetMatPlansource_rndmesh_set_mat_plan("
+                 "boolmaterial_pointer_present){SourceRndMeshSetMatPlanplan;"
+                 "plan.material_pointer_present=material_pointer_present;"
+                 "returnplan;}",
+                 "native ports RndMesh SetMat assignment contract");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshDebugCountsPlansource_rndmesh_debug_counts_plan("
+                 "int32_tface_count,int32_tvert_count){"
+                 "SourceRndMeshDebugCountsPlanplan;plan.face_count=face_count;",
+                 "native ports RndMesh debug count helper");
+  ok &= contains(char_mesh,
+                 "plan.num_faces_result=face_count;"
+                 "plan.num_verts_result=vert_count;returnplan;}",
+                 "native RndMesh debug count helper returns vector sizes");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshVolumeTextPlansource_rndmesh_volume_text_plan("
+                 "int32_tvolume){SourceRndMeshVolumeTextPlanplan;",
+                 "native ports RndMesh volume text helper");
+  ok &= contains(char_mesh,
+                 "case1:plan.known_volume=true;plan.label=\"Triangles\";"
+                 "break;case2:plan.known_volume=true;plan.label=\"BSP\";",
+                 "native RndMesh volume text helper maps source labels");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshPrintPlansource_rndmesh_print_plan(){"
+                 "SourceRndMeshPrintPlanplan;plan.rows={\"mat\","
+                 "\"geomOwner\",\"mutable\",\"volume\",\"bones:TODO\",",
+                 "native ports RndMesh Print row list");
   ok &= contains(char_mesh,
                  "plan.sync_input_mask,keep_mesh_data).on_sync_mask;",
                  "native SetNumVerts/SetNumFaces use source Sync mask");
@@ -4338,6 +4419,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_destructor_plan()",
                  "focused mesh decode test covers RndMesh destructor cleanup");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_set_mat_plan(true)",
+                 "focused mesh decode test covers RndMesh SetMat helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_debug_counts_plan(7,11)",
+                 "focused mesh decode test covers RndMesh debug counts");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_volume_text_plan(3).label==\"Box\"",
+                 "focused mesh decode test covers RndMesh volume text");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_print_plan()",
+                 "focused mesh decode test covers RndMesh Print helper");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_field_gate_plan(28,0,24,1,true)",
                  "focused mesh decode test covers GH2 rev28 RndMesh field gates");
@@ -5810,6 +5903,24 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_rndmesh_destructor_plan` records the checked",
                  "document records RndMesh destructor cleanup helper");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_set_mat_plan`,",
+                 "document records RndMesh SetMat helper");
+  ok &= contains(doc,
+                 "`SetMat` only assigns `mMat`",
+                 "document records RndMesh SetMat direct assignment");
+  ok &= contains(doc,
+                 "debug `NumFaces`/`NumVerts` return the source\n"
+                 "    vector sizes under `MILO_DEBUG`",
+                 "document records RndMesh debug count accessors");
+  ok &= contains(doc,
+                 "the volume text writer maps only Empty,\n"
+                 "    Triangles, BSP, and Box",
+                 "document records RndMesh volume text labels");
+  ok &= contains(doc,
+                 "These rows do not introduce\n"
+                 "    mesh-name, material-name, hair-name, cull, depth, or blend policy changes",
+                 "document fences RndMesh support rows from render policy");
   ok &= contains(doc,
                  "`source_gltf_milo_export_trans_anim_plan` records",
                  "document records glTFMilo TransAnim export helper");

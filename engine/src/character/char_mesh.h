@@ -1119,6 +1119,33 @@ struct SourceRndMeshDestructorPlan {
   bool directly_releases_geom_owner = false;
 };
 
+struct SourceRndMeshSetMatPlan {
+  bool material_pointer_present = false;
+  bool assigns_material_pointer = true;
+  bool syncs_mesh = false;
+  bool mutates_render_state = false;
+  bool has_name_special_case = false;
+};
+
+struct SourceRndMeshDebugCountsPlan {
+  int32_t face_count = 0;
+  int32_t vert_count = 0;
+  bool milo_debug_only = true;
+  int32_t num_faces_result = 0;
+  int32_t num_verts_result = 0;
+};
+
+struct SourceRndMeshVolumeTextPlan {
+  int32_t volume = 0;
+  bool known_volume = false;
+  std::string label;
+};
+
+struct SourceRndMeshPrintPlan {
+  bool uses_debug_stream = true;
+  std::vector<std::string> rows;
+};
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;
@@ -1371,6 +1398,13 @@ struct SourceRndMeshCacheStripsPlan {
 
 SourceRndMeshDefaultState source_rndmesh_default_state();
 SourceRndMeshDestructorPlan source_rndmesh_destructor_plan();
+SourceRndMeshSetMatPlan source_rndmesh_set_mat_plan(
+    bool material_pointer_present);
+SourceRndMeshDebugCountsPlan source_rndmesh_debug_counts_plan(
+    int32_t face_count,
+    int32_t vert_count);
+SourceRndMeshVolumeTextPlan source_rndmesh_volume_text_plan(int32_t volume);
+SourceRndMeshPrintPlan source_rndmesh_print_plan();
 int32_t source_rndmesh_max_bones();
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
                                                bool keep_mesh_data);

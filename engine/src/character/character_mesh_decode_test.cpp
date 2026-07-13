@@ -1674,6 +1674,35 @@ int main() {
   CHECK(!mesh_destructor.directly_releases_material);
   CHECK(!mesh_destructor.directly_releases_geom_owner);
 
+  const auto set_mat_present =
+      ghogx::character::source_rndmesh_set_mat_plan(true);
+  CHECK(set_mat_present.material_pointer_present);
+  CHECK(set_mat_present.assigns_material_pointer);
+  CHECK(!set_mat_present.syncs_mesh);
+  CHECK(!set_mat_present.mutates_render_state);
+  CHECK(!set_mat_present.has_name_special_case);
+  const auto set_mat_null = ghogx::character::source_rndmesh_set_mat_plan(false);
+  CHECK(!set_mat_null.material_pointer_present);
+  CHECK(set_mat_null.assigns_material_pointer);
+
+  const auto debug_counts =
+      ghogx::character::source_rndmesh_debug_counts_plan(7, 11);
+  CHECK(debug_counts.milo_debug_only);
+  CHECK(debug_counts.num_faces_result == 7);
+  CHECK(debug_counts.num_verts_result == 11);
+  CHECK(ghogx::character::source_rndmesh_volume_text_plan(0).label == "Empty");
+  CHECK(ghogx::character::source_rndmesh_volume_text_plan(1).label ==
+        "Triangles");
+  CHECK(ghogx::character::source_rndmesh_volume_text_plan(2).label == "BSP");
+  CHECK(ghogx::character::source_rndmesh_volume_text_plan(3).label == "Box");
+  CHECK(!ghogx::character::source_rndmesh_volume_text_plan(99).known_volume);
+  const auto print_plan = ghogx::character::source_rndmesh_print_plan();
+  CHECK(print_plan.uses_debug_stream);
+  CHECK(print_plan.rows.size() == 6);
+  CHECK(print_plan.rows[0] == "mat");
+  CHECK(print_plan.rows[4] == "bones:TODO");
+  CHECK(print_plan.rows[5] == "geometry:TODO");
+
   ghogx::milo_scene::Xfm mesh_world;
   mesh_world.pos[0] = 10.0f;
   ghogx::milo_scene::Xfm bone_world;

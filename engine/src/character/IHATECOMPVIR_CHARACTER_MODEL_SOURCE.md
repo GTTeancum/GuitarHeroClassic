@@ -1306,6 +1306,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `ClearCompressedVerts()`. The destructor body does not directly release the
     material pointer or geometry owner pointer, so native must not infer
     renderer or ownership changes from it.
+  - Native `source_rndmesh_set_mat_plan`,
+    `source_rndmesh_debug_counts_plan`, `source_rndmesh_volume_text_plan`, and
+    `source_rndmesh_print_plan` record the adjacent source support rows:
+    `SetMat` only assigns `mMat`, debug `NumFaces`/`NumVerts` return the source
+    vector sizes under `MILO_DEBUG`, the volume text writer maps only Empty,
+    Triangles, BSP, and Box, and `Print` emits `mat`, `geomOwner`, `mutable`,
+    `volume`, plus TODO rows for bones and geometry. These rows do not introduce
+    mesh-name, material-name, hair-name, cull, depth, or blend policy changes.
   - The visible RB3 `RndMesh` ownership helpers are now mirrored as source
     plans: `MaxBones()` is 40 from ihatecompvir's `MAX_BONES`; `Sync(mask)` ORs `0x200` only while
     `mKeepMeshData` is true; `ClearCompressedVerts()` releases the compressed
