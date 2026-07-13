@@ -51,6 +51,15 @@ Open work:
   keys, and regular CamShot diagnostics. This intentionally does not reject
   shots on either field yet; that must wait until the native `cam_shot_ok`
   predicate is recovered rather than inferred from field names.
+- 2026-07-13 CamShot `shot_ok` selection hook: native regular camera
+  selection no longer rejects the active CamShot by authored name before
+  source approval. ihatecompvir's `CameraManager::FindCameraShot` scans the
+  category list, checks `Disabled()` and `ShotMatches`, then calls
+  `CamShot::ShotOk(mCurrentShot)` before moving the accepted shot to the end of
+  the category list. Native now has the same explicit hook point and debug log,
+  but the hook currently accepts until GH2's native `cam_shot_ok` predicate is
+  recovered. This preserves the source selection shape without inventing
+  hidden script behavior.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that

@@ -10562,7 +10562,21 @@ int main() {
   ok &= contains(gameplay_c,
                  "choose_regular_camera_key_scripted(regular_camera_keys_,"
                  "active_regular_camera_,",
-                 "regular camera selector excludes the active shot by authored name");
+                 "regular camera selector receives the active shot as source previous context");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
+                 "constGameplay::CameraKey*previous)",
+                 "regular camera selector exposes ihatecompvir CamShot::ShotOk hook");
+  ok &= contains(gameplay_c,
+                 "if(!camera_source_shot_ok(key,previous))continue;",
+                 "regular camera selector runs source shot_ok after ShotMatches filters");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerashot_ok:source_msg=shot_okshot=%s"
+                 "previous=%scam_shot_ok=native_deferredresult=accept\\n\"",
+                 "regular camera diagnostics expose deferred source shot_ok hook");
+  ok &= absent(gameplay_c,
+               "if(previous&&key.name==previous->name)continue;",
+               "regular camera selector must not pre-reject the active shot before source shot_ok");
   ok &= contains(gameplay_c,
                  "if(!force_camera&&diagnostic_camera_shot_.empty()&&"
                  "!active_regular_camera_.empty())",

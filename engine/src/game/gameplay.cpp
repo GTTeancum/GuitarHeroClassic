@@ -15290,6 +15290,20 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     return true;
 }
 
+bool camera_source_shot_ok(const Gameplay::CameraKey& key,
+                           const Gameplay::CameraKey* previous) {
+    // ihatecompvir CamShot::ShotOk sends shot_ok(prev_shot). GH2 then routes
+    // that script to native cam_shot_ok. Keep the source hook point explicit,
+    // but do not infer rejection behavior until cam_shot_ok itself is pinned.
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=native_deferred result=accept\n",
+            key.name.c_str(), previous ? previous->name.c_str() : "");
+    }
+    return true;
+}
+
 template <typename Predicate>
 std::optional<size_t> choose_regular_camera_key_index_by_category(
     const std::vector<Gameplay::CameraKey>& keys,
@@ -15301,8 +15315,9 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
         for (size_t i = 0; i < keys.size(); ++i) {
             const auto& key = keys[i];
             if (key.category != category) continue;
-            if (previous && key.name == previous->name) continue;
-            if (predicate(key)) return i;
+            if (!predicate(key)) continue;
+            if (!camera_source_shot_ok(key, previous)) continue;
+            return i;
         }
         return std::nullopt;
     };
