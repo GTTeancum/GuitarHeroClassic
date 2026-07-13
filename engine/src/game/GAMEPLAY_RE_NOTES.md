@@ -10807,3 +10807,13 @@ Rejected native probe:
   the RB2 dump exposes the function name and locals but not a trustworthy
   body. This keeps the source feature visible and contract-guarded without
   fabricating camera motion.
+
+- 2026-07-13 CamShot path-backed SetFrame proof:
+  ihatecompvir `CameraManager::Poll` drives `mCurrentShot->SetFrame(...)` for
+  the current CamShot, and source `CamShot` owns both `mPath` and
+  `mPathFrame/path_frame`. Native now emits a debug-only
+  `[world] camera source path frame pair ...]` row for path-backed regular
+  CamShots, selecting the active A/B path keys for the current Poll frame and
+  reporting each key's decoded `path_frame`. This does not change rendered
+  camera behavior; it makes path-backed angle work auditable against the same
+  source-shaped cadence as non-path frame-pair shots.

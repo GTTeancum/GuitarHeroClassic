@@ -9832,6 +9832,15 @@ int main() {
                  "if(source_frame_key_route&&selected_camera.size()>=2&&",
                  "source frame-pair diagnostics remain limited to non-path CamShot frame timing");
   ok &= contains(gameplay_c,
+                 "\"[world]camerasourcepathframepair:shot=%slocal_frame=%.3f"
+                 "keys=%zua_frame=%.3fb_frame=%.3f"
+                 "a_path_frame=%s%.3fb_path_frame=%s%.3f"
+                 "route=regular_camera_path_keyspath=%s\\n\"",
+                 "path-backed camera diagnostics expose active TransAnim frame pair and source path_frame values");
+  ok &= contains(gameplay_c,
+                 "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
+                 "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");
+  ok &= contains(gameplay_c,
                  "regular_camera_path_keys(*key,active_regular_camera_start_,camera_targets)",
                  "runtime samples path-backed regular cameras with shot-local frames and target context");
   ok &= absent(gameplay_c,

@@ -30641,6 +30641,35 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             selected_camera.size(), selected_camera[0].frame,
                             selected_camera[1].frame);
                     }
+                    if (!source_frame_key_route && key->has_path_anim &&
+                        selected_camera.size() >= 2 &&
+                        active_camera_frame_pair_reported_ !=
+                            key->name + ":path") {
+                        const float world_frame =
+                            static_cast<float>(song_time_ * 30.0);
+                        size_t b_index = selected_camera.size() - 1;
+                        for (size_t i = 1; i < selected_camera.size(); ++i) {
+                            if (selected_camera[i].frame >= world_frame) {
+                                b_index = i;
+                                break;
+                            }
+                        }
+                        const size_t a_index = b_index > 0 ? b_index - 1 : 0;
+                        const CameraKey& a_key = selected_camera[a_index];
+                        const CameraKey& b_key = selected_camera[b_index];
+                        active_camera_frame_pair_reported_ =
+                            key->name + ":path";
+                        std::fprintf(
+                            stderr,
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f route=regular_camera_path_keys path=%s\n",
+                            key->name.c_str(), local_frame,
+                            selected_camera.size(), a_key.frame, b_key.frame,
+                            a_key.has_path_frame ? "" : "none/",
+                            a_key.has_path_frame ? a_key.path_frame : 0.0f,
+                            b_key.has_path_frame ? "" : "none/",
+                            b_key.has_path_frame ? b_key.path_frame : 0.0f,
+                            key->path_anim.c_str());
+                    }
                 }
                 const CameraKey& visibility_key =
                     selected_camera.empty() ? current_position
