@@ -1161,6 +1161,26 @@ struct SourceGltfMiloMaterialExtras {
   int shader_variation = 0;
 };
 
+struct SourceGltfMiloPrelitOptionInput {
+  std::string raw_prelit;
+  bool has_base_color_texture = false;
+  bool extras_present = false;
+  int extras_prelit = 0;
+};
+
+struct SourceGltfMiloPrelitOptionPlan {
+  std::string raw_prelit;
+  std::string normalized_prelit;
+  bool lowercases_prelit_option = true;
+  bool base_branch_uses_raw_case_sensitive_prelit = true;
+  bool extras_branch_uses_normalized_empty_prelit = true;
+  bool base_color_branch_entered = false;
+  bool base_branch_sets_pre_lit = false;
+  bool extras_branch_reads_prelit = false;
+  bool extras_branch_sets_pre_lit = false;
+  bool final_pre_lit = false;
+};
+
 struct SourceGltfMiloMaterialInput {
   std::string name;
   std::string platform;
@@ -1584,6 +1604,8 @@ SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
 
 SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input);
+SourceGltfMiloPrelitOptionPlan source_gltf_milo_prelit_option_plan(
+    const SourceGltfMiloPrelitOptionInput& input);
 SourceGltfMiloTextureTempOutputPlan
 source_gltf_milo_texture_temp_output_plan(
     const SourceGltfMiloTextureTempOutputInput& input);

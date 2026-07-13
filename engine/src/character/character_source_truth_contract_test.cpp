@@ -6341,6 +6341,15 @@ int run_contract() {
                  "mat.cull=!material.DoubleSided;",
                  "glTFMilo material cull follows glTF DoubleSided");
   ok &= contains(gltf_program_cs,
+                 "stringpreLit=opts.Prelit.ToLower();",
+                 "glTFMilo lowercases Prelit option");
+  ok &= contains(gltf_program_cs,
+                 "if(opts.Prelit!=\"false\"){mat.preLit=true;}",
+                 "glTFMilo base material Prelit branch uses raw option text");
+  ok &= contains(gltf_program_cs,
+                 "if(preLit==string.Empty)mat.preLit=matExtras?.Prelit==1;",
+                 "glTFMilo material extras Prelit branch uses lowercased empty option");
+  ok &= contains(gltf_program_cs,
                  "if(material.Name.Contains(\"_skin\")){mat.shaderVariation="
                  "RndMat.ShaderVariation.kShaderVariationSkin;",
                  "glTFMilo material pass selects skin shader variation");
@@ -6698,6 +6707,13 @@ int run_contract() {
                  "structSourceGltfMiloMaterialExtras{boolpresent=false;",
                  "native declares glTFMilo material extras row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloPrelitOptionInput{std::string"
+                 "raw_prelit;",
+                 "native declares glTFMilo Prelit option input");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloPrelitOptionPlan{std::stringraw_prelit;",
+                 "native declares glTFMilo Prelit option plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialInput{std::stringname;",
                  "native declares glTFMilo material input row");
   ok &= contains(char_mesh_h,
@@ -6822,6 +6838,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
                  "native exposes glTFMilo material base helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloPrelitOptionPlansource_gltf_milo_prelit_"
+                 "option_plan(",
+                 "native exposes glTFMilo Prelit option helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloMaterialRuntimeBoundary"
                  "source_gltf_milo_material_runtime_boundary();",
@@ -7304,6 +7324,19 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
                  "native ports glTFMilo material base helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloPrelitOptionPlansource_gltf_milo_prelit_"
+                 "option_plan(",
+                 "native ports glTFMilo Prelit option helper");
+  ok &= contains(char_mesh,
+                 "plan.normalized_prelit=input.raw_prelit;std::transform(",
+                 "native Prelit helper lowercases option copy");
+  ok &= contains(char_mesh,
+                 "input.raw_prelit!=\"false\"",
+                 "native Prelit helper preserves raw false comparison");
+  ok &= contains(char_mesh,
+                 "input.extras_present&&plan.normalized_prelit.empty()",
+                 "native Prelit helper preserves extras empty gate");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloTextureTempOutputInput{"
                  "int32_tcurmat=0;",
@@ -8094,6 +8127,15 @@ int run_contract() {
                  "source_gltf_milo_material_base_plan(material_input)",
                  "focused mesh decode test covers glTFMilo material helper");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_prelit_option_plan(prelit_input)",
+                 "focused mesh decode test covers glTFMilo Prelit option helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_raw_upper_false_prelit.base_branch_sets_pre_lit",
+                 "focused mesh decode test covers raw uppercase Prelit false quirk");
+  ok &= contains(mesh_decode_test,
+                 "gltf_empty_prelit_extras_off.extras_branch_reads_prelit",
+                 "focused mesh decode test covers empty Prelit extras branch");
+  ok &= contains(mesh_decode_test,
                  "gltf_hair_material.shader_variation==2",
                  "focused mesh decode test covers glTFMilo hair shader variation");
   ok &= contains(mesh_decode_test,
@@ -8483,6 +8525,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_prelit_option_plan` records",
+                 "document records glTFMilo Prelit option helper");
   ok &= contains(doc,
                  "`source_gltf_milo_material_runtime_boundary` records the "
                  "executable\n    boundary",

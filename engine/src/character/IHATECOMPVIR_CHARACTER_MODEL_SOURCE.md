@@ -1261,6 +1261,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     formula, optimize flags, and byte-swap gates in
     `SourceGltfMiloMaterialPlan`; it does not change live GH2 material upload
     or renderer behavior.
+  - `Program.Run` lowercases `opts.Prelit` into `preLit`, but the base
+    material path checks the raw `opts.Prelit != "false"` before setting
+    `mat.preLit = true`. Only the material-extras fallback uses the lowercased
+    `preLit == string.Empty` gate before reading `MaterialExtras.Prelit`.
+    Native `source_gltf_milo_prelit_option_plan` records that casing split,
+    including the raw `"FALSE"` case, as exporter-side behavior only.
   - glTFMilo's temporary DDS naming is also deterministic: `curmat` starts at
     `0` before the material loop, increments only when a base-color texture is
     present, and then the base, normal, emissive, and specular conversion,

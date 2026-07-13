@@ -1362,6 +1362,32 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
   return plan;
 }
 
+SourceGltfMiloPrelitOptionPlan source_gltf_milo_prelit_option_plan(
+    const SourceGltfMiloPrelitOptionInput& input) {
+  SourceGltfMiloPrelitOptionPlan plan;
+  plan.raw_prelit = input.raw_prelit;
+  plan.normalized_prelit = input.raw_prelit;
+  std::transform(plan.normalized_prelit.begin(), plan.normalized_prelit.end(),
+                 plan.normalized_prelit.begin(), [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+
+  plan.base_color_branch_entered = input.has_base_color_texture;
+  if (plan.base_color_branch_entered && input.raw_prelit != "false") {
+    plan.base_branch_sets_pre_lit = true;
+    plan.final_pre_lit = true;
+  }
+
+  plan.extras_branch_reads_prelit =
+      input.extras_present && plan.normalized_prelit.empty();
+  if (plan.extras_branch_reads_prelit) {
+    plan.extras_branch_sets_pre_lit = input.extras_prelit == 1;
+    plan.final_pre_lit = plan.extras_branch_sets_pre_lit;
+  }
+
+  return plan;
+}
+
 SourceGltfMiloTextureTempOutputPlan
 source_gltf_milo_texture_temp_output_plan(
     const SourceGltfMiloTextureTempOutputInput& input) {

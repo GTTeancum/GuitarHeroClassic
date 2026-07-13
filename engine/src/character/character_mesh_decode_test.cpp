@@ -1016,6 +1016,60 @@ int main() {
   CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
   CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
 
+  ghogx::character::SourceGltfMiloPrelitOptionInput prelit_input;
+  prelit_input.has_base_color_texture = true;
+  prelit_input.extras_present = true;
+  prelit_input.extras_prelit = 0;
+
+  prelit_input.raw_prelit = "FALSE";
+  const auto gltf_raw_upper_false_prelit =
+      ghogx::character::source_gltf_milo_prelit_option_plan(prelit_input);
+  CHECK(gltf_raw_upper_false_prelit.raw_prelit == "FALSE");
+  CHECK(gltf_raw_upper_false_prelit.normalized_prelit == "false");
+  CHECK(gltf_raw_upper_false_prelit.lowercases_prelit_option);
+  CHECK(gltf_raw_upper_false_prelit.base_branch_uses_raw_case_sensitive_prelit);
+  CHECK(gltf_raw_upper_false_prelit.base_color_branch_entered);
+  CHECK(gltf_raw_upper_false_prelit.base_branch_sets_pre_lit);
+  CHECK(!gltf_raw_upper_false_prelit.extras_branch_reads_prelit);
+  CHECK(gltf_raw_upper_false_prelit.final_pre_lit);
+
+  prelit_input.raw_prelit = "false";
+  const auto gltf_raw_false_prelit =
+      ghogx::character::source_gltf_milo_prelit_option_plan(prelit_input);
+  CHECK(gltf_raw_false_prelit.normalized_prelit == "false");
+  CHECK(gltf_raw_false_prelit.base_color_branch_entered);
+  CHECK(!gltf_raw_false_prelit.base_branch_sets_pre_lit);
+  CHECK(!gltf_raw_false_prelit.extras_branch_reads_prelit);
+  CHECK(!gltf_raw_false_prelit.final_pre_lit);
+
+  prelit_input.raw_prelit = "";
+  prelit_input.extras_prelit = 0;
+  const auto gltf_empty_prelit_extras_off =
+      ghogx::character::source_gltf_milo_prelit_option_plan(prelit_input);
+  CHECK(gltf_empty_prelit_extras_off.normalized_prelit.empty());
+  CHECK(gltf_empty_prelit_extras_off.base_branch_sets_pre_lit);
+  CHECK(gltf_empty_prelit_extras_off.extras_branch_uses_normalized_empty_prelit);
+  CHECK(gltf_empty_prelit_extras_off.extras_branch_reads_prelit);
+  CHECK(!gltf_empty_prelit_extras_off.extras_branch_sets_pre_lit);
+  CHECK(!gltf_empty_prelit_extras_off.final_pre_lit);
+
+  prelit_input.extras_prelit = 1;
+  const auto gltf_empty_prelit_extras_on =
+      ghogx::character::source_gltf_milo_prelit_option_plan(prelit_input);
+  CHECK(gltf_empty_prelit_extras_on.extras_branch_reads_prelit);
+  CHECK(gltf_empty_prelit_extras_on.extras_branch_sets_pre_lit);
+  CHECK(gltf_empty_prelit_extras_on.final_pre_lit);
+
+  prelit_input.has_base_color_texture = false;
+  prelit_input.extras_present = false;
+  prelit_input.extras_prelit = 0;
+  const auto gltf_empty_no_texture_no_extras =
+      ghogx::character::source_gltf_milo_prelit_option_plan(prelit_input);
+  CHECK(!gltf_empty_no_texture_no_extras.base_color_branch_entered);
+  CHECK(!gltf_empty_no_texture_no_extras.base_branch_sets_pre_lit);
+  CHECK(!gltf_empty_no_texture_no_extras.extras_branch_reads_prelit);
+  CHECK(!gltf_empty_no_texture_no_extras.final_pre_lit);
+
   ghogx::character::SourceGltfMiloMaterialInput material_maps_input;
   material_maps_input.name = "rock1_hair";
   material_maps_input.platform = "xbox";
