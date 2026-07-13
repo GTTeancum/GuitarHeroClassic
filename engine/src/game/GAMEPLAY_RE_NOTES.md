@@ -10854,6 +10854,14 @@ Rejected native probe:
   reporting each key's decoded `path_frame`. This does not change rendered
   camera behavior; it makes path-backed angle work auditable against the same
   source-shaped cadence as non-path frame-pair shots.
+- 2026-07-13 path-backed CamShot source clock:
+  ihatecompvir `CameraManager::CalcFrame` computes the frame sent to every
+  current shot from `TheTaskMgr.Time(mCurrentShot->Units())` and
+  `mCurrentShot->FramesPerUnit()`. Native path-backed regular CamShots now
+  rebase authored TransAnim keys around `camera_source_local_frame(...)`
+  instead of raw elapsed 30 FPS, so path sampling follows the same manager
+  clock as non-path CamShot frame pairs. This still does not infer the hidden
+  `CamShot::SetFrame` body or exact `mPathFrame` consumption.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives

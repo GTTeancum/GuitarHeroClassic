@@ -18210,7 +18210,9 @@ std::vector<Gameplay::CameraKey> regular_camera_sweep_keys(
 
 std::vector<Gameplay::CameraKey> regular_camera_path_keys(
     const Gameplay::CameraKey& shot,
+    double song_time,
     double start_time,
+    const ghogx::chart::Chart* chart,
     const std::unordered_map<std::string, CameraTarget>& targets) {
     std::vector<Gameplay::CameraKey> keys;
     if (!shot.has_path_anim || shot.positions.empty()) {
@@ -18219,10 +18221,12 @@ std::vector<Gameplay::CameraKey> regular_camera_path_keys(
     }
     const auto shape = camera_pose_span_debug_shape_for_key(shot, targets);
     keys.reserve(shot.positions.size());
-    const float start_frame = static_cast<float>(start_time * 30.0);
+    const float now_frame = static_cast<float>(song_time * 30.0);
+    const float source_frame =
+        camera_source_local_frame(shot, song_time, start_time, chart);
     const float first_frame = shot.positions.front().frame;
     for (auto key : shot.positions) {
-        key.frame = start_frame + (key.frame - first_frame);
+        key.frame = now_frame + ((key.frame - first_frame) - source_frame);
         if (shape.has_sample) {
             for (int axis = 0; axis < 3; ++axis) {
                 key.path_pose_span[axis] = shape.span[axis];
@@ -30776,7 +30780,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (key->has_path_anim && !key->positions.empty()) {
                     selected_camera =
                         regular_camera_path_keys(*key,
+                                                 song_time_,
                                                  active_regular_camera_start_,
+                                                 &chart_,
                                                  camera_targets);
                 } else {
                     source_frame_key_route = true;

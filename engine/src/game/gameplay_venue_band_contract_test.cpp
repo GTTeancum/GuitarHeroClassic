@@ -9827,8 +9827,12 @@ int main() {
                  "std::vector<Gameplay::CameraKey>regular_camera_path_keys(",
                  "path-backed regular CamShots keep the authored TransAnim sequence");
   ok &= contains(gameplay_c,
-                 "key.frame=start_frame+(key.frame-first_frame);",
-                 "path-backed regular CamShot frames are sampled relative to shot start");
+                 "constfloatsource_frame=camera_source_local_frame("
+                 "shot,song_time,start_time,chart);",
+                 "path-backed CamShots are clocked by CameraManager CalcFrame source timing");
+  ok &= contains(gameplay_c,
+                 "key.frame=now_frame+((key.frame-first_frame)-source_frame);",
+                 "path-backed regular CamShot frames are sampled relative to the active source frame");
   ok &= contains(gameplay_c,
                  "selected_camera=regular_camera_source_frame_keys("
                  "*key,song_time_,active_regular_camera_start_,&chart_);",
@@ -9864,8 +9868,9 @@ int main() {
                  "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
                  "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");
   ok &= contains(gameplay_c,
-                 "regular_camera_path_keys(*key,active_regular_camera_start_,camera_targets)",
-                 "runtime samples path-backed regular cameras with shot-local frames and target context");
+                 "regular_camera_path_keys(*key,song_time_,"
+                 "active_regular_camera_start_,&chart_,camera_targets)",
+                 "runtime samples path-backed regular cameras with source-timed shot-local frames and target context");
   ok &= absent(gameplay_c,
                "\"[world]post_switch_cam:",
                "old discrete post_switch camera stepping is removed");
