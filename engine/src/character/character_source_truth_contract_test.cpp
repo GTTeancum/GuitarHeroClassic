@@ -312,6 +312,11 @@ int run_contract() {
           "glTFMilo/Source/glTFMilo/Core/OutfitConfigBuilder.cs") ||
       std::filesystem::is_regular_file(
           source_dir / "glTFMilo/Source/glTFMilo/OutfitConfigBuilder.cs");
+  const bool gltf_report_generator_cs_exists =
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/Core/ReportGenerator.cs") ||
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/ReportGenerator.cs");
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
   const std::string rb3_char_lookat_cpp = compact(read_file(
@@ -7565,9 +7570,17 @@ int run_contract() {
                  "MiloLib.Utils.Endian.LittleEndian,MiloLib.Utils.Endian."
                  "BigEndian);",
                  "glTFMilo finalizer save type and endian contract");
-  if (gltf_dir_builder_cs_exists || gltf_outfit_config_builder_cs_exists) {
+  ok &= contains(gltf_program_cs,
+                 "stringreport=opts.Report.ToLower();",
+                 "glTFMilo lowercases report option");
+  ok &= contains(gltf_program_cs,
+                 "if(report==\"true\"){ReportGenerator.Generate(meta,"
+                 "selectedGame,type);}",
+                 "glTFMilo finalizer runs report generator after save");
+  if (gltf_dir_builder_cs_exists || gltf_outfit_config_builder_cs_exists ||
+      gltf_report_generator_cs_exists) {
     std::cerr << "Forbidden source-truth contract match: "
-              << "directory builder source appeared and boundary must be "
+              << "finalizer helper source appeared and boundary must be "
                  "reassessed"
               << "\n";
     ok = false;
@@ -7576,6 +7589,26 @@ int run_contract() {
                  "SourceGltfMiloSceneAssemblyPlansource_gltf_milo_scene_"
                  "assembly_plan(",
                  "native ports glTFMilo scene assembly helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloReportGeneratorPlan{std::stringraw_report;",
+                 "native declares glTFMilo report generator branch contract");
+  ok &= contains(char_mesh_h,
+                 "boolreport_generator_source_present=false;",
+                 "native report generator branch fences missing helper source");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloReportGeneratorPlansource_gltf_milo_report_"
+                 "generator_plan(",
+                 "native ports glTFMilo report generator branch helper");
+  ok &= contains(char_mesh,
+                 "plan.normalized_report=input.raw_report;std::transform("
+                 "plan.normalized_report.begin(),plan.normalized_report.end(),",
+                 "native report generator branch lowercases report option");
+  ok &= contains(char_mesh,
+                 "plan.calls_report_generator=plan.normalized_report==\"true\";",
+                 "native report generator branch preserves exact true gate");
+  ok &= contains(char_mesh,
+                 "plan.report_type_arg=input.normalized_type;",
+                 "native report generator branch passes normalized type");
   ok &= contains(char_mesh,
                  "plan.band_configuration.entry_name=input.filename;",
                  "native scene assembly records inactive BandConfiguration name");
@@ -8129,6 +8162,15 @@ int run_contract() {
                  "source_gltf_milo_scene_assembly_plan(",
                  "focused mesh decode test covers glTFMilo scene assembly helper");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_report_generator_plan(",
+                 "focused mesh decode test covers glTFMilo report branch helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_report_true.calls_report_generator",
+                 "focused mesh decode test covers report true branch");
+  ok &= contains(mesh_decode_test,
+                 "!gltf_report_one.calls_report_generator",
+                 "focused mesh decode test covers report exact true gate");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_node_traversal_plan(traversal)",
                  "focused mesh decode test covers glTFMilo node traversal helper");
   ok &= contains(mesh_decode_test,
@@ -8453,6 +8495,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_scene_assembly_plan` records",
                  "document records glTFMilo scene assembly helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_report_generator_plan` records",
+                 "document records glTFMilo report branch helper");
   ok &= contains(doc, "`source_gltf_milo_directory_builder_boundary` records",
                  "document records glTFMilo directory builder boundary");
   ok &= contains(doc, "native must not infer character-directory assembly",

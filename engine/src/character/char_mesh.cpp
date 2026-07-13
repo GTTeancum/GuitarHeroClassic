@@ -1583,6 +1583,22 @@ SourceGltfMiloSceneAssemblyPlan source_gltf_milo_scene_assembly_plan(
   return plan;
 }
 
+SourceGltfMiloReportGeneratorPlan source_gltf_milo_report_generator_plan(
+    const SourceGltfMiloReportGeneratorInput& input) {
+  SourceGltfMiloReportGeneratorPlan plan;
+  plan.raw_report = input.raw_report;
+  plan.normalized_report = input.raw_report;
+  std::transform(plan.normalized_report.begin(), plan.normalized_report.end(),
+                 plan.normalized_report.begin(), [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  plan.report_type_arg = input.normalized_type;
+  plan.calls_report_generator = plan.normalized_report == "true";
+  plan.passes_meta = plan.calls_report_generator;
+  plan.passes_selected_game = plan.calls_report_generator;
+  return plan;
+}
+
 SourceGltfMiloNodeTraversalPlan source_gltf_milo_node_traversal_plan(
     const SourceGltfMiloNodeTraversalInput& input) {
   SourceGltfMiloNodeTraversalPlan plan;

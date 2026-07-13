@@ -1094,6 +1094,24 @@ struct SourceGltfMiloSceneAssemblyPlan {
   bool report_generator_runs_after_save_when_requested = true;
 };
 
+struct SourceGltfMiloReportGeneratorInput {
+  std::string raw_report;
+  std::string normalized_type;
+};
+
+struct SourceGltfMiloReportGeneratorPlan {
+  std::string raw_report;
+  std::string normalized_report;
+  std::string report_type_arg;
+  bool lowercases_report_option = true;
+  bool branch_after_milo_file_save = true;
+  bool calls_report_generator = false;
+  bool passes_meta = false;
+  bool passes_selected_game = false;
+  bool report_generator_source_present = false;
+  bool can_port_report_contents = false;
+};
+
 struct SourceGltfMiloNodeTraversalInput {
   SourceGltfMiloNodeTraversalKind kind =
       SourceGltfMiloNodeTraversalKind::kOther;
@@ -1583,6 +1601,8 @@ SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
 
 SourceGltfMiloSceneAssemblyPlan source_gltf_milo_scene_assembly_plan(
     const SourceGltfMiloSceneAssemblyInput& input);
+SourceGltfMiloReportGeneratorPlan source_gltf_milo_report_generator_plan(
+    const SourceGltfMiloReportGeneratorInput& input);
 
 SourceGltfMiloNodeTraversalPlan source_gltf_milo_node_traversal_plan(
     const SourceGltfMiloNodeTraversalInput& input);

@@ -1479,6 +1479,38 @@ int main() {
   CHECK(gltf_dancer_scene.calls_character_directory_builder);
   CHECK(!gltf_dancer_scene.calls_rnd_directory_builder);
 
+  ghogx::character::SourceGltfMiloReportGeneratorInput report_input;
+  report_input.raw_report = "TRUE";
+  report_input.normalized_type = "character";
+  const auto gltf_report_true =
+      ghogx::character::source_gltf_milo_report_generator_plan(
+          report_input);
+  CHECK(gltf_report_true.raw_report == "TRUE");
+  CHECK(gltf_report_true.normalized_report == "true");
+  CHECK(gltf_report_true.lowercases_report_option);
+  CHECK(gltf_report_true.branch_after_milo_file_save);
+  CHECK(gltf_report_true.calls_report_generator);
+  CHECK(gltf_report_true.passes_meta);
+  CHECK(gltf_report_true.passes_selected_game);
+  CHECK(gltf_report_true.report_type_arg == "character");
+  CHECK(!gltf_report_true.report_generator_source_present);
+  CHECK(!gltf_report_true.can_port_report_contents);
+
+  report_input.raw_report = "false";
+  const auto gltf_report_false =
+      ghogx::character::source_gltf_milo_report_generator_plan(
+          report_input);
+  CHECK(!gltf_report_false.calls_report_generator);
+  CHECK(!gltf_report_false.passes_meta);
+  CHECK(!gltf_report_false.passes_selected_game);
+
+  report_input.raw_report = "1";
+  const auto gltf_report_one =
+      ghogx::character::source_gltf_milo_report_generator_plan(
+          report_input);
+  CHECK(gltf_report_one.normalized_report == "1");
+  CHECK(!gltf_report_one.calls_report_generator);
+
   ghogx::character::SourceGltfMiloNodeTraversalInput traversal;
   traversal.kind = ghogx::character::SourceGltfMiloNodeTraversalKind::kMesh;
   traversal.mesh_present = true;

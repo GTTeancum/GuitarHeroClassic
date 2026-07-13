@@ -1345,6 +1345,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     and big-endian object data. Native `source_gltf_milo_scene_assembly_plan`
     records that final directory/save contract; it does not invent missing
     `DirBuilder` or `OutfitConfigBuilder` internals.
+    `source_gltf_milo_report_generator_plan` records the post-save report
+    branch separately: `opts.Report` is lowercased, only exact `true` calls
+    `ReportGenerator.Generate(meta, selectedGame, type)`, and the `type`
+    argument is the lowercased run type. The local ihatecompvir snapshot does
+    not include `ReportGenerator`, so native records only the branch and
+    arguments, not report contents.
     `source_gltf_milo_directory_builder_boundary` records those finalizer call
     sites separately and fences the missing builder bodies: native must not infer character-directory assembly,
     Rnd-directory assembly, or outfit config mutation from unvendored
