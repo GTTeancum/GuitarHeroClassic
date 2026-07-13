@@ -4547,6 +4547,21 @@ std::array<float, 9> source_char_hair_set_angle_root_mat(
   return out;
 }
 
+SourceCharFaceServoTryScaleDownResult source_char_face_servo_try_scale_down(
+    SourceCharFaceServoBlinkState& state,
+    bool has_base_clip,
+    bool clip_type_valid) {
+  SourceCharFaceServoTryScaleDownResult result;
+  if (!state.need_scale_down) return result;
+  state.need_scale_down = false;
+  result.consumed_need_scale_down = true;
+  result.invoked_base_scale_down = has_base_clip && clip_type_valid;
+  state.left = 0.0f;
+  state.right = 0.0f;
+  result.reset_blink_weights = true;
+  return result;
+}
+
 SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     SourceCharFaceServoBlinkState& state,
     const SourceCharFaceServoBlinkClips& clips,
@@ -4557,12 +4572,9 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
   if (!clip_is_relative || weight < 0.0f) return result;
 
   result.accepted = true;
-  if (state.need_scale_down) {
-    state.left = 0.0f;
-    state.right = 0.0f;
-    state.need_scale_down = false;
-    result.scale_down = true;
-  }
+  result.scale_down =
+      source_char_face_servo_try_scale_down(state, false, false)
+          .consumed_need_scale_down;
 
   const bool left_match =
       clip_name == clips.left || (!clips.left2.empty() && clip_name == clips.left2);
@@ -4687,12 +4699,9 @@ source_char_face_servo_apply_procedural_weights(
   if (procedural_weight <= 0.0f || already_applied) return result;
 
   result.accepted = true;
-  if (state.need_scale_down) {
-    state.need_scale_down = false;
-    state.left = 0.0f;
-    state.right = 0.0f;
-    result.scale_down = true;
-  }
+  result.scale_down =
+      source_char_face_servo_try_scale_down(state, false, false)
+          .consumed_need_scale_down;
 
   if (has_left_clip) {
     result.left_applied = true;

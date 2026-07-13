@@ -57,6 +57,7 @@ int main() {
   using ghogx::character::source_char_face_servo_scale_add_blink;
   using ghogx::character::source_char_face_servo_set_clip_type_plan;
   using ghogx::character::source_char_face_servo_set_clips_plan;
+  using ghogx::character::source_char_face_servo_try_scale_down;
 
   bool ok = true;
   const auto load_unknown = source_char_face_servo_load_plan(5);
@@ -133,6 +134,36 @@ int main() {
                     "enter sets scale-down");
   ok &= near(enter_plan.procedural_blink_weight, 0.0f,
              "enter clears procedural weight");
+
+  SourceCharFaceServoBlinkState try_scale_state;
+  try_scale_state.left = 0.4f;
+  try_scale_state.right = 0.7f;
+  auto try_scale_result =
+      source_char_face_servo_try_scale_down(try_scale_state, true, true);
+  ok &= expect_bool(try_scale_result.consumed_need_scale_down, false,
+                    "TryScaleDown skips when not requested");
+  ok &= near(try_scale_state.left, 0.4f,
+             "TryScaleDown preserves left when skipped");
+  try_scale_state.need_scale_down = true;
+  try_scale_result =
+      source_char_face_servo_try_scale_down(try_scale_state, true, false);
+  ok &= expect_bool(try_scale_result.consumed_need_scale_down, true,
+                    "TryScaleDown consumes requested reset");
+  ok &= expect_bool(try_scale_result.invoked_base_scale_down, false,
+                    "TryScaleDown requires clip type for base scale");
+  ok &= expect_bool(try_scale_result.reset_blink_weights, true,
+                    "TryScaleDown resets blink weights");
+  ok &= near(try_scale_state.left, 0.0f, "TryScaleDown clears left weight");
+  ok &= near(try_scale_state.right, 0.0f, "TryScaleDown clears right weight");
+  ok &= expect_bool(try_scale_state.need_scale_down, false,
+                    "TryScaleDown clears flag");
+  try_scale_state.left = 0.9f;
+  try_scale_state.right = 0.2f;
+  try_scale_state.need_scale_down = true;
+  try_scale_result =
+      source_char_face_servo_try_scale_down(try_scale_state, true, true);
+  ok &= expect_bool(try_scale_result.invoked_base_scale_down, true,
+                    "TryScaleDown calls base ScaleDown when ready");
 
   const auto set_clips_plan = source_char_face_servo_set_clips_plan();
   ok &= expect_bool(set_clips_plan.assigns_clips, true,

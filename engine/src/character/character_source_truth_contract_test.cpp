@@ -14005,6 +14005,12 @@ int run_contract() {
                  "mClipType);mNeedScaleDown=true;}}",
                  "CharFaceServo source exposes SetClipType rebuild");
   ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::TryScaleDown(){if(mNeedScaleDown){"
+                 "mNeedScaleDown=false;if(mBaseClip&&!mClipType.Null()){"
+                 "mBaseClip->ScaleDown(*this,0.0f);}mBlinkWeightRight=0.0f;"
+                 "mBlinkWeightLeft=0.0f;}}",
+                 "CharFaceServo source exposes TryScaleDown reset branch");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
                  "voidCharFaceServo::ApplyProceduralWeights(){if("
                  "mProceduralBlinkWeight>0.0f&&!mAppliedProceduralBlink){",
                  "CharFaceServo source exposes procedural blink gate");
@@ -14032,6 +14038,18 @@ int run_contract() {
                  "structSourceCharFaceServoBlinkState{floatleft=0.0f;"
                  "floatright=0.0f;boolneed_scale_down=false;};",
                  "native exposes source CharFaceServo blink state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoTryScaleDownResult{"
+                 "boolconsumed_need_scale_down=false;"
+                 "boolinvoked_base_scale_down=false;"
+                 "boolreset_blink_weights=false;};",
+                 "native exposes CharFaceServo TryScaleDown result");
+  ok &= contains(char_mesh_h,
+                 "SourceCharFaceServoTryScaleDownResult"
+                 "source_char_face_servo_try_scale_down("
+                 "SourceCharFaceServoBlinkState&state,boolhas_base_clip,"
+                 "boolclip_type_valid);",
+                 "native exposes CharFaceServo TryScaleDown helper");
   ok &= contains(char_mesh_h,
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink(",
@@ -14135,9 +14153,20 @@ int run_contract() {
                  "if(!clip_is_relative||weight<0.0f)returnresult;",
                  "native CharFaceServo helper keeps source relative/assert boundary");
   ok &= contains(char_mesh,
-                 "if(state.need_scale_down){state.left=0.0f;state.right=0.0f;"
-                 "state.need_scale_down=false;result.scale_down=true;}",
-                 "native CharFaceServo helper ports TryScaleDown blink reset");
+                 "SourceCharFaceServoTryScaleDownResult"
+                 "source_char_face_servo_try_scale_down("
+                 "SourceCharFaceServoBlinkState&state,boolhas_base_clip,"
+                 "boolclip_type_valid){SourceCharFaceServoTryScaleDownResult"
+                 "result;if(!state.need_scale_down)returnresult;"
+                 "state.need_scale_down=false;result.consumed_need_scale_down=true;"
+                 "result.invoked_base_scale_down=has_base_clip&&clip_type_valid;"
+                 "state.left=0.0f;state.right=0.0f;"
+                 "result.reset_blink_weights=true;returnresult;}",
+                 "native CharFaceServo helper ports TryScaleDown reset branch");
+  ok &= contains(char_mesh,
+                 "result.scale_down=source_char_face_servo_try_scale_down("
+                 "state,false,false).consumed_need_scale_down;",
+                 "native CharFaceServo blink helpers consume TryScaleDown helper");
   ok &= contains(char_mesh,
                  "if(left_match){state.left=std::clamp(state.left+weight,"
                  "0.0f,1.0f);result.matched_left=true;}elseif(right_match){"
@@ -14156,6 +14185,10 @@ int run_contract() {
   ok &= contains(face_servo_source_test,
                  "source_char_face_servo_copy_plan()",
                  "focused CharFaceServo test covers copy plan");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_try_scale_down(try_scale_state,true,"
+                 "true)",
+                 "focused CharFaceServo test covers TryScaleDown helper");
   ok &= contains(face_servo_source_test,
                  "source_char_face_servo_prop_sync_plan()",
                  "focused CharFaceServo test covers prop-sync plan");
@@ -14189,6 +14222,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_face_servo_apply_procedural_weights` ports the concrete",
                  "document records native CharFaceServo procedural blink helper");
+  ok &= contains(doc,
+                 "Native `source_char_face_servo_try_scale_down` ports the exact reset branch",
+                 "document records native CharFaceServo TryScaleDown helper");
   ok &= contains(doc,
                  "right blink applies\n    `(1 - mBlinkWeightRight) * mProceduralBlinkWeight` only when a right clip",
                  "document records procedural right blink gate");

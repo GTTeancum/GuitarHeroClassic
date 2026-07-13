@@ -2581,6 +2581,7 @@ note, and all report `unreadBytes=0`.
     `source_char_face_servo_enter_plan`,
     `source_char_face_servo_set_clips_plan`,
     `source_char_face_servo_set_clip_type_plan`,
+    `source_char_face_servo_try_scale_down`,
     `source_char_face_servo_poll_plan`,
     `source_char_face_servo_procedural_weights_plan`, and
     `source_char_face_servo_poll_deps_plan` record the visible source
@@ -2597,6 +2598,11 @@ note, and all report `unreadBytes=0`.
     `(1 - mBlinkWeightRight) * mProceduralBlinkWeight` only when a right clip
     exists and is not the same object as the left clip, and the source marks
     procedural blink applied after the gated update.
+  - Native `source_char_face_servo_try_scale_down` ports the exact reset branch:
+    the source only acts when `mNeedScaleDown` is set, clears that flag, calls
+    `mBaseClip->ScaleDown(*this, 0.0f)` only when both base clip and clip type
+    are present, then zeros both blink weights. This remains a face-servo
+    contract only; it is not evidence for `FaceFxLipSyncServo` mesh placement.
   - Native `source_char_face_servo_scale_add_blink` ports the bounded,
     complete blink-weight part of `CharFaceServo::ScaleAdd`: non-relative clips
     do not enter the source update path; accepted relative clips first consume

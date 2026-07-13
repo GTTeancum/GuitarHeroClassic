@@ -2142,6 +2142,12 @@ struct SourceCharFaceServoBlinkState {
   bool need_scale_down = false;
 };
 
+struct SourceCharFaceServoTryScaleDownResult {
+  bool consumed_need_scale_down = false;
+  bool invoked_base_scale_down = false;
+  bool reset_blink_weights = false;
+};
+
 struct SourceCharFaceServoScaleAddResult {
   bool accepted = false;
   bool scale_down = false;
@@ -3633,6 +3639,10 @@ SourceCharHairPollDecision source_char_hair_poll_decision(
     float delta_seconds);
 std::array<float, 9> source_char_hair_set_angle_root_mat(
     float angle_degrees, const float base_mat[9]);
+SourceCharFaceServoTryScaleDownResult source_char_face_servo_try_scale_down(
+    SourceCharFaceServoBlinkState& state,
+    bool has_base_clip,
+    bool clip_type_valid);
 SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     SourceCharFaceServoBlinkState& state,
     const SourceCharFaceServoBlinkClips& clips,
