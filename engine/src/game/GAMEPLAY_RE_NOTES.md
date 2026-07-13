@@ -19,6 +19,13 @@
   source-shaped pose-span and parent/source-seed gates instead of treating a
   merely authored target token as a live CamShot target. The older authored-ref
   helper remains for metadata/debug routing.
+- 2026-07-13 CamShot resolved SameTargets gate: ihatecompvir
+  `CamShotFrame::Interp` evaluates `SameTargets(frame)` beside the resolved
+  `HasTargets()` checks before applying the local-space screen-offset
+  translation. Native now builds the SameTargets signature from target refs
+  that resolve in the live target table, including the same subpart-to-entity
+  fallback used by the resolved target lookup, instead of matching merely
+  authored target strings.
 - 2026-07-13 CameraManager same-shot restart: ihatecompvir
   `CameraManager::PrePoll()` calls `StartShot_(mNextShot)` whenever
   `mNextShot` is set, and `StartShot_` always runs the current shot's
@@ -10798,8 +10805,11 @@ Rejected native probe:
 - ihatecompvir `CamShotFrame::Interp` only applies the local-space
   same-target screen-offset translation when `SameTargets(frame)` is true.
   The public RB2 dump for `CamShotFrame::SameTargets` shows nested `i/j`
-  locals over the target list, so native now compares sorted target signatures
-  as a target multiset instead of requiring authored list order to match.
+  locals over the target list. Native originally compared sorted authored
+  target strings as a target multiset; after the resolved-target pass it now
+  compares sorted live target-table identities so unresolved authored refs do
+  not satisfy the source gate and aliases/subpart fallback can still match the
+  same resolved target object.
 - `apply_camera_keys()` computes that gate once as
   `same_targets_like_camshot`, uses it for the source-shaped
   `source_screen_offset_translate_result` branch, and logs `same_targets=`

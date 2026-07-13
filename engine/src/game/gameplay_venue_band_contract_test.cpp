@@ -8317,12 +8317,22 @@ int main() {
                  "rows.screen_offset_consumed=true;",
                  "source-shaped screen-offset result marks the projection offset consumed");
   ok &= contains(gameplay_c,
+                 "std::optional<std::string>camera_resolved_target_id_for_ref(",
+                 "CamShot same-target signatures are built from resolved target objects");
+  ok &= contains(gameplay_c,
+                 "if(targets.find(id)!=targets.end())returnid;",
+                 "CamShot same-target signatures use live target table hits");
+  ok &= contains(gameplay_c,
+                 "id=camera_target_id(entity,{});"
+                 "if(targets.find(id)!=targets.end())returnid;",
+                 "CamShot same-target signatures mirror resolved subpart fallback");
+  ok &= contains(gameplay_c,
                  "std::sort(refs.begin(),refs.end());",
-                 "CamShot same-target signatures compare the target set, not authoring order");
+                 "CamShot same-target signatures compare the resolved target set, not authoring order");
   ok &= contains(gameplay_c,
                  "constboolsame_targets_like_camshot="
-                 "camera_targets_match_like_camshot(*a,*b);",
-                 "source-shaped screen-offset result computes the CamShot SameTargets gate once");
+                 "camera_targets_match_like_camshot(*a,*b,targets);",
+                 "source-shaped screen-offset result computes the resolved CamShot SameTargets gate once");
   ok &= contains(gameplay_c,
                  "constfloatsource_screen_offset_fov=cam.fov;",
                  "source-shaped screen-offset result captures the pre-zoom CamShot frustum");

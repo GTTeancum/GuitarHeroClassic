@@ -18522,27 +18522,48 @@ std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {
     return out.empty() ? std::string("none") : out;
 }
 
-std::vector<std::string> camera_target_signature_for_key(
-    const Gameplay::CameraKey& key) {
+std::optional<std::string> camera_resolved_target_id_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    if (entity.empty()) return std::nullopt;
+    std::string id = camera_target_id(entity, subpart);
+    if (targets.find(id) != targets.end()) return id;
+    if (!subpart.empty()) {
+        id = camera_target_id(entity, {});
+        if (targets.find(id) != targets.end()) return id;
+    }
+    return std::nullopt;
+}
+
+std::vector<std::string> camera_resolved_target_signature_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
     std::vector<std::string> refs;
     if (!key.target_refs.empty()) {
         refs.reserve(key.target_refs.size());
         for (const auto& ref : key.target_refs) {
-            if (ref.entity.empty() && ref.subpart.empty()) continue;
-            refs.push_back(ref.entity + ":" + ref.subpart);
+            if (auto id = camera_resolved_target_id_for_ref(
+                    ref.entity, ref.subpart, targets)) {
+                refs.push_back(std::move(*id));
+            }
         }
     } else if (!key.target_entity.empty() || !key.target_subpart.empty()) {
-        refs.push_back(key.target_entity + ":" + key.target_subpart);
+        if (auto id = camera_resolved_target_id_for_ref(
+                key.target_entity, key.target_subpart, targets)) {
+            refs.push_back(std::move(*id));
+        }
     }
     std::sort(refs.begin(), refs.end());
     return refs;
 }
 
 bool camera_targets_match_like_camshot(const Gameplay::CameraKey& a,
-                                       const Gameplay::CameraKey& b) {
-    const auto a_refs = camera_target_signature_for_key(a);
+                                       const Gameplay::CameraKey& b,
+                                       const std::unordered_map<std::string, CameraTarget>& targets) {
+    const auto a_refs = camera_resolved_target_signature_for_key(a, targets);
     if (a_refs.empty()) return false;
-    return a_refs == camera_target_signature_for_key(b);
+    return a_refs == camera_resolved_target_signature_for_key(b, targets);
 }
 
 std::array<float, 3> camera_authored_at_for_key(
@@ -18899,7 +18920,7 @@ void apply_camera_keys(
     const auto b_target_centroid =
         camera_target_centroid_for_key(*b, targets);
     const bool same_targets_like_camshot =
-        camera_targets_match_like_camshot(*a, *b);
+        camera_targets_match_like_camshot(*a, *b, targets);
     std::optional<std::array<float, 3>> blended_target_centroid;
     std::optional<std::array<float, 3>> filtered_target_centroid;
     std::optional<CameraResultRows> source_screen_offset_translate_result;
