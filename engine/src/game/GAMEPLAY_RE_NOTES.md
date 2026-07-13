@@ -52,6 +52,14 @@ Open work:
   stock `lighter` CamShot can be selected by the `LIGHTER` route; regular,
   solo, and jump modes still reject `special` and `lighter` through the source
   mode filters instead of losing the authored shot during load.
+- 2026-07-13 regular CamShot disabled gate ordering: ihatecompvir
+  `CameraManager::SyncObjects` adds every `PlatformOk()` CamShot to its
+  category list without checking `Disabled()`, while
+  `CameraManager::FindCameraShot` checks `!cur->Disabled()` immediately before
+  `ShotMatches(...)` and `ShotOk(...)`. Native now keeps decoded disabled
+  regular CamShots in the category pool and logs/skips them only during the
+  source-shaped selection scan. This preserves source category ordering and
+  avoids a loader-side filter that the camera manager does not have.
 - 2026-07-13 CamShot `shot_ok` support metadata: ihatecompvir routes
   selection-time approval through `CamShot::ShotOk`, which sends the
   `shot_ok` message with the previous shot. GH2 `world/camshot.dta` maps that

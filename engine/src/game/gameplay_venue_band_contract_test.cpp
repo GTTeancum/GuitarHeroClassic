@@ -176,6 +176,8 @@ int main() {
       compact(function_body(gameplay, "select_intro_camera_anim"));
   const std::string regular_camera_loader_c =
       compact(function_body(gameplay, "load_regular_camera_keys"));
+  const std::string regular_camera_selector_c = compact(
+      function_body(gameplay, "choose_regular_camera_key_index_by_category"));
   const std::string camera_submit_c =
       compact(function_body(gameplay, "camera_submitted_result_rows_for_key"));
   const std::string rnd_camanim_reader_c =
@@ -10621,12 +10623,15 @@ int main() {
                  "decoded_shot->platform_only)){"
                  "if(debug_camera_enabled())",
                  "regular camera loader mirrors CameraManager PlatformOk before category buckets");
-  ok &= contains(regular_camera_loader_c,
-                 "if(decoded_shot->disabled_flags!=0){",
-                 "regular camera loader mirrors CameraManager Disabled gate before category buckets");
-  ok &= contains(regular_camera_loader_c,
-                 "skippeddisabled=0x%08x",
-                 "regular camera diagnostics expose skipped source disabled CamShots");
+  ok &= absent(regular_camera_loader_c,
+               "if(decoded_shot->disabled_flags!=0){",
+               "regular camera loader keeps source-disabled CamShots in category buckets");
+  ok &= contains(regular_camera_selector_c,
+                 "if(key.disabled_flags!=0){",
+                 "regular camera selector mirrors CameraManager Disabled gate before ShotMatches");
+  ok &= contains(regular_camera_selector_c,
+                 "FindCameraShot:shot=%sskippeddisabled=0x%08x",
+                 "regular camera diagnostics expose source disabled CamShots at selection time");
   ok &= contains(regular_camera_loader_c,
                  "platform_only=%d",
                  "regular CamShot diagnostics expose source platform_only state");

@@ -14714,16 +14714,6 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 }
                 continue;
             }
-            if (decoded_shot->disabled_flags != 0) {
-                if (debug_camera_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] regular CamShot %s skipped disabled=0x%08x\n",
-                        de.name.c_str(),
-                        static_cast<unsigned int>(decoded_shot->disabled_flags));
-                }
-                continue;
-            }
             const std::string& category = decoded_shot->category;
             const bool normal_category =
                 category == "flr_near_lft" || category == "flr_near_rt" ||
@@ -15418,6 +15408,16 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
         for (size_t i = 0; i < keys.size(); ++i) {
             const auto& key = keys[i];
             if (key.category != category) continue;
+            if (key.disabled_flags != 0) {
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] camera FindCameraShot: shot=%s skipped disabled=0x%08x\n",
+                        key.name.c_str(),
+                        static_cast<unsigned int>(key.disabled_flags));
+                }
+                continue;
+            }
             if (!predicate(key)) continue;
             if (!camera_source_shot_ok(key, previous)) continue;
             return i;
