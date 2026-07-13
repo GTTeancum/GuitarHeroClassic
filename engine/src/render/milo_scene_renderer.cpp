@@ -198,6 +198,36 @@ D3DCOLOR d3d_color_from_rgba(const std::array<float, 4>& color) {
                        color_channel(color[2]));
 }
 
+void install_scene_fill_lighting(IDirect3DDevice9* dev) {
+  if (!dev) return;
+  dev->SetRenderState(D3DRS_LIGHTING, TRUE);
+  dev->SetRenderState(D3DRS_AMBIENT, kDefaultSceneAmbient);
+  dev->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
+  dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+  dev->SetRenderState(D3DRS_FOGENABLE, FALSE);
+  auto set_dir_light = [&](DWORD idx, float x, float y, float z, float bright) {
+    D3DLIGHT9 light{};
+    light.Type = D3DLIGHT_DIRECTIONAL;
+    light.Diffuse.r = light.Diffuse.g = light.Diffuse.b = bright;
+    float ll = std::sqrt(x * x + y * y + z * z);
+    light.Direction = {x / ll, y / ll, z / ll};
+    dev->SetLight(idx, &light);
+    dev->LightEnable(idx, TRUE);
+  };
+  set_dir_light(0, 0.3f, 0.5f, -0.8f, 0.55f);
+  set_dir_light(1, -0.4f, -0.6f, -0.5f, 0.30f);
+  for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
+    dev->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
+  }
+  D3DMATERIAL9 mtrl{};
+  mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
+  mtrl.Ambient.r = mtrl.Ambient.g = mtrl.Ambient.b = mtrl.Ambient.a = 1.0f;
+  dev->SetMaterial(&mtrl);
+  dev->SetRenderState(D3DRS_COLORVERTEX, TRUE);
+  dev->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+  dev->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
+}
+
 bool fog_values_sane(bool enabled, float start, float end,
                      const std::array<float, 4>& color) {
   if (!enabled) return false;
@@ -2257,6 +2287,83 @@ void MiloSceneRenderer::set_light_color_overrides(
   light_color_overrides_ = std::move(light_colors);
 }
 
+bool MiloSceneRenderer::apply_environment_lighting_state(
+    const std::string& environment_name) {
+  if (!dev_) return false;
+  install_scene_fill_lighting(dev_);
+  if (!environment_lighting_enabled_ ||
+      env_enabled("GHOGX_DISABLE_ENVIRON_LIGHTING")) {
+    return false;
+  }
+
+  const auto* env = scene_.find_environ(environment_name);
+  if (!env || !env->decoded) return false;
+
+  if (environ_color_sane(*env)) {
+    std::array<float, 4> env_color = {env->color_a[0], env->color_a[1],
+                                      env->color_a[2], env->color_a[3]};
+    if (const auto color_it = environment_color_overrides_.find(env->name);
+        color_it != environment_color_overrides_.end()) {
+      env_color = color_it->second;
+    }
+    dev_->SetRenderState(D3DRS_AMBIENT, d3d_color_from_rgba(env_color));
+  }
+
+  if (env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS")) return true;
+
+  DWORD slot = kAuthoredLightFirstSlot;
+  size_t enabled_lights = 0;
+  for (const auto& ref : env->lights) {
+    if (slot >= kAuthoredLightFirstSlot + kAuthoredLightSlotCount) break;
+    const auto* light = scene_.find_light(ref);
+    if (!light || !light_color_sane(*light)) continue;
+    std::array<float, 4> light_color = {light->color[0], light->color[1],
+                                        light->color[2], light->color[3]};
+    if (const auto color_it = light_color_overrides_.find(ref);
+        color_it != light_color_overrides_.end()) {
+      light_color = color_it->second;
+    }
+    const auto light_world = xfm_to_mat4(light->world_stored);
+    D3DLIGHT9 dl{};
+    dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
+    dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
+    dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
+    dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
+    if (light->type == 1) {
+      const float dx = light_world[4];
+      const float dy = light_world[5];
+      const float dz = light_world[6];
+      const float len = vec_len3(dx, dy, dz);
+      if (len <= 0.0001f) continue;
+      dl.Type = D3DLIGHT_DIRECTIONAL;
+      dl.Direction = {dx / len, dy / len, dz / len};
+    } else if (light->type == 0) {
+      dl.Type = D3DLIGHT_POINT;
+      dl.Position = {light_world[12], light_world[13], light_world[14]};
+      dl.Range = std::max(light->range, 1.0f);
+      dl.Attenuation0 = 1.0f;
+    } else {
+      continue;
+    }
+    dev_->SetLight(slot, &dl);
+    dev_->LightEnable(slot, TRUE);
+    ++slot;
+    ++enabled_lights;
+  }
+  if (env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
+    static std::unordered_set<std::string> logged_overlay_envs;
+    const std::string key =
+        environment_name + "|" + std::to_string(enabled_lights);
+    if (logged_overlay_envs.insert(key).second) {
+      std::fprintf(stderr,
+                   "[milo_scene] Environ lighting state applied: %s lights=%zu refs=%zu\n",
+                   environment_name.c_str(), enabled_lights,
+                   env->lights.size());
+    }
+  }
+  return true;
+}
+
 void MiloSceneRenderer::set_mesh_translation_offsets(
     std::map<std::string, std::array<float, 3>> offsets) {
   mesh_translation_offsets_ = std::move(offsets);
@@ -2771,33 +2878,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   // textured surfaces readable (venues bake their own light into the textures;
   // we just need enough fill that nothing is pure black), plus two opposed
   // directional lights so geometry still has shape regardless of facing.
-  dev_->SetRenderState(D3DRS_LIGHTING, TRUE);
-  dev_->SetRenderState(D3DRS_AMBIENT, kDefaultSceneAmbient);
-  dev_->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
-  dev_->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-  dev_->SetRenderState(D3DRS_FOGENABLE, FALSE);
-  auto set_dir_light = [&](DWORD idx, float x, float y, float z, float bright) {
-    D3DLIGHT9 light{};
-    light.Type = D3DLIGHT_DIRECTIONAL;
-    light.Diffuse.r = light.Diffuse.g = light.Diffuse.b = bright;
-    float ll = std::sqrt(x * x + y * y + z * z);
-    light.Direction = {x / ll, y / ll, z / ll};
-    dev_->SetLight(idx, &light);
-    dev_->LightEnable(idx, TRUE);
-  };
-  set_dir_light(0, 0.3f, 0.5f, -0.8f, 0.55f);   // key, from above-front
-  set_dir_light(1, -0.4f, -0.6f, -0.5f, 0.30f);  // fill, opposite
-  for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
-    dev_->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
-  }
-  // Material: white diffuse + ambient so texture colour shows through fully.
-  D3DMATERIAL9 mtrl{};
-  mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
-  mtrl.Ambient.r = mtrl.Ambient.g = mtrl.Ambient.b = mtrl.Ambient.a = 1.0f;
-  dev_->SetMaterial(&mtrl);
-  dev_->SetRenderState(D3DRS_COLORVERTEX, TRUE);
-  dev_->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
-  dev_->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
+  install_scene_fill_lighting(dev_);
 
   dev_->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
   dev_->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);

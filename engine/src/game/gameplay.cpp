@@ -8209,6 +8209,11 @@ std::string worldcrowd_clip_group_for_event(
     return worldcrowd_clip_group_for_event(venue_event);
 }
 
+const char* performer_lighting_environment_for_role(std::string_view role) {
+    if (role == "drummer") return "drummer.env";
+    return "band.env";
+}
+
 float worldcrowd_fullness_for_event(std::string_view venue_event) {
     // Source: world/crowd.dta crowd_update set_fullness rows.
     switch (venue_excitement_level(venue_event)) {
@@ -8269,24 +8274,39 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
 
     if (!mod.symbolic) return mod;
 
-    switch (venue_excitement_level(venue_event)) {
-        case 0:
-            mod.intensity = 0.08f;
-            break;
-        case 1:
-            mod.intensity = 0.16f;
-            break;
-        case 2:
-            mod.intensity = 0.30f;
-            break;
-        case 3:
-            mod.intensity = 0.48f;
-            break;
-        default:
-            mod.intensity = 0.65f;
-            break;
+    if (mod.low) {
+        switch (venue_excitement_level(venue_event)) {
+            case 0:
+                mod.intensity = 0.08f;
+                break;
+            case 1:
+                mod.intensity = 0.16f;
+                break;
+            default:
+                mod.intensity = 0.18f;
+                break;
+        }
+    } else {
+        // ihatecompvir LightPreset::Animate applies these refs to light/env
+        // state; normal performer/crowd symbols should not blacken materials.
+        switch (venue_excitement_level(venue_event)) {
+            case 0:
+                mod.intensity = 0.65f;
+                break;
+            case 1:
+                mod.intensity = 0.78f;
+                break;
+            case 2:
+                mod.intensity = 1.00f;
+                break;
+            case 3:
+                mod.intensity = 1.08f;
+                break;
+            default:
+                mod.intensity = 1.15f;
+                break;
+        }
     }
-    if (mod.low) mod.intensity = std::min(mod.intensity, 0.18f);
     if (preset && preset->adjective == "blackout") mod.intensity = 0.04f;
     mod.r = mod.g = mod.b = mod.intensity;
 
@@ -10648,6 +10668,32 @@ void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
     dst.world_crowds.insert(dst.world_crowds.end(),
                             std::make_move_iterator(src.world_crowds.begin()),
                             std::make_move_iterator(src.world_crowds.end()));
+}
+
+void append_scene_lighting_objects(ghogx::milo_scene::Scene& dst,
+                                   const ghogx::milo_scene::Scene& src) {
+    auto has_light = [&](const std::string& name) {
+        return std::any_of(dst.lights.begin(), dst.lights.end(),
+                           [&](const ghogx::milo_scene::LightObj& light) {
+                               return light.name == name;
+                           });
+    };
+    auto has_environ = [&](const std::string& name) {
+        return std::any_of(dst.environs.begin(), dst.environs.end(),
+                           [&](const ghogx::milo_scene::EnvironObj& env) {
+                               return env.name == name;
+                           });
+    };
+    for (const auto& light : src.lights) {
+        if (!light.name.empty() && !has_light(light.name)) {
+            dst.lights.push_back(light);
+        }
+    }
+    for (const auto& env : src.environs) {
+        if (!env.name.empty() && !has_environ(env.name)) {
+            dst.environs.push_back(env);
+        }
+    }
 }
 
 size_t append_worldcrowd_floor_meshes_for_venue_chars(
@@ -25040,6 +25086,7 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     size_t culled_fullness = 0;
     size_t culled_camera = 0;
     size_t culled_foreground = 0;
+    if (world_) world_->apply_environment_lighting_state("crowd.env");
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
         if (!runtime.renderer) continue;
@@ -26441,6 +26488,21 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
                     hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
                 if (chars_scene_loaded) {
+                    const size_t lights_before = venue_scene.lights.size();
+                    const size_t environs_before = venue_scene.environs.size();
+                    append_scene_lighting_objects(venue_scene,
+                                                  venue_chars_scene_for_load);
+                    const size_t lights_added =
+                        venue_scene.lights.size() - lights_before;
+                    const size_t environs_added =
+                        venue_scene.environs.size() - environs_before;
+                    if ((lights_added > 0 || environs_added > 0) &&
+                        debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue character lighting objects appended: lights=%zu environs=%zu source=%s\n",
+                            lights_added, environs_added, chars_milo.c_str());
+                    }
                     const size_t worldcrowd_floor_meshes =
                         append_worldcrowd_floor_meshes_for_venue_chars(
                             venue_scene, venue_chars_scene_for_load);
@@ -29090,6 +29152,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (!only_role.empty() && perf.role != only_role) continue;
             if (!perf.renderer) continue;
             perf.renderer->set_min_lod(active_force_char_lod_);
+            world_->apply_environment_lighting_state(
+                performer_lighting_environment_for_role(perf.role));
             perf.renderer->draw_over_scene(world_->camera());
         }
         if (lighting_ && late_lighting_overlay_enabled()) {

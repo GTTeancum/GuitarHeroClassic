@@ -1781,7 +1781,8 @@ void CharRenderer::draw_impl(bool clear_target) {
   dev->SetRenderState(D3DRS_ALPHAREF, 96);
 
   // Standalone viewer lighting uses bright ambient plus two opposed directional
-  // lights. Venue composites can opt into the existing scene light state.
+  // lights. Venue composites reuse the existing scene light state instead of
+  // installing unrelated viewer lights.
   dev->SetRenderState(D3DRS_LIGHTING, TRUE);
   dev->SetRenderState(D3DRS_COLORVERTEX, TRUE);
   dev->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
@@ -1854,9 +1855,7 @@ void CharRenderer::draw_impl(bool clear_target) {
     const bool eye_mesh = is_eye_mesh(m.name);
     dev->SetRenderState(D3DRS_CULLMODE, character_cull_mode(&m));
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    dev->SetRenderState(
-        D3DRS_LIGHTING,
-        impl.use_scene_lighting ? FALSE : (eye_mesh ? FALSE : TRUE));
+    dev->SetRenderState(D3DRS_LIGHTING, eye_mesh ? FALSE : TRUE);
 
     // Skin the mesh using linear-blend skinning.
     skin_to_pose(m, impl.character, spos, snrm);
@@ -2214,6 +2213,7 @@ void CharRenderer::draw_impl(bool clear_target) {
     // prop texture alpha decodes as low/zero, so carrying the character alpha
     // test into prop drawing can discard a correctly loaded guitar entirely.
     dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+    dev->SetRenderState(D3DRS_LIGHTING, TRUE);
     dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);

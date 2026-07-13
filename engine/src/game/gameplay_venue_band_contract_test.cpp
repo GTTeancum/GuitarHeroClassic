@@ -6627,6 +6627,10 @@ int main() {
   ok &= contains(renderer_h_c,
                  "mesh_environments_;",
                  "renderer tracks mesh-to-Environ assignment");
+  ok &= contains(renderer_h_c,
+                 "boolapply_environment_lighting_state("
+                 "conststd::string&environment_name);",
+                 "renderer exposes source Environ lighting for character overlays");
   ok &= contains(renderer_c,
                  "mat_obj&&mat_obj->use_environ",
                  "renderer gates Environ lighting on the decoded material flag");
@@ -6672,6 +6676,16 @@ int main() {
   ok &= contains(renderer_c,
                  "light_color_overrides_.find(ref)",
                  "sampled LightAnim colors only feed decoded Environ light refs");
+  ok &= contains(renderer_c,
+                 "install_scene_fill_lighting(dev_);",
+                 "overlay Environ lighting starts from the same scene-fill state as venue geometry");
+  ok &= contains(renderer_c,
+                 "constauto*env=scene_.find_environ(environment_name);",
+                 "overlay Environ lighting resolves a named decoded source environment");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_AMBIENT,"
+                 "d3d_color_from_rgba(env_color));",
+                 "overlay Environ lighting applies authored ambient color");
   ok &= contains(renderer_c,
                  "autosampled_light_world=[&](constmilo_scene::LightObj&light,"
                  "conststd::string&ref)",
@@ -8008,8 +8022,14 @@ int main() {
                  "if(!impl.use_scene_lighting){",
                  "scene-lighting character composites do not install standalone viewer lights");
   ok &= contains(char_renderer_c,
-                 "impl.use_scene_lighting?FALSE:(eye_mesh?FALSE:TRUE)",
-                 "scene-lighting character composites use symbolic vertex color instead of overriding it with D3D mesh lights");
+                 "dev->SetRenderState(D3DRS_LIGHTING,eye_mesh?FALSE:TRUE);",
+                 "scene-lighting character composites preserve inherited venue lighting for body meshes");
+  ok &= absent(char_renderer_c,
+               "impl.use_scene_lighting?FALSE:(eye_mesh?FALSE:TRUE)",
+               "scene-lighting character composites must not disable inherited venue lights");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_LIGHTING,TRUE);",
+                 "attached performer props also inherit active venue lighting");
   ok &= contains(char_renderer_c,
                  "char_env_float_or(\"GHOGX_CAMERA_ASPECT\","
                  "backbuffer_aspect,0.5f,3.0f)",
@@ -8040,6 +8060,22 @@ int main() {
                  "performer_crowd_lighting_mod_for(",
                  "performer and crowd lighting share one source-backed modulation helper");
   ok &= contains(gameplay_c,
+                 "append_scene_lighting_objects(venue_scene,"
+                 "venue_chars_scene_for_load);",
+                 "venue character-scene Environ/Light objects are available for band lighting");
+  ok &= contains(gameplay_c,
+                 "if(role==\"drummer\")return\"drummer.env\";",
+                 "drummer performers use the decoded drummer source environment");
+  ok &= contains(gameplay_c,
+                 "return\"band.env\";",
+                 "non-drummer performers use the decoded band source environment");
+  ok &= contains(gameplay_c,
+                 "normalperformer/crowdsymbolsshouldnotblackenmaterials",
+                 "normal symbolic LightPreset refs no longer dim performers as a fake material blackout");
+  ok &= contains(gameplay_c,
+                 "mod.intensity=1.00f;",
+                 "normal excitement performer/crowd material modulation remains readable");
+  ok &= contains(gameplay_c,
                  "boolperformer_scene_lighting_enabled(){"
                  "returnenv_value(\"GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING\")"
                  "==nullptr;}",
@@ -8061,6 +8097,9 @@ int main() {
   ok &= contains(update_worldcrowd_lighting_c,
                  "\"[world]WorldCrowdlighting:preset=%skeyframe=%s\"",
                  "WorldCrowd actor lighting emits compact source-backed proof rows");
+  ok &= contains(gameplay_c,
+                 "world_->apply_environment_lighting_state(\"crowd.env\");",
+                 "WorldCrowd actors draw under the decoded crowd source environment");
   ok &= contains(update_performer_lighting_c,
                  "performer_crowd_lighting_mod_for("
                  "preset,keyframe,active_venue_event_",
@@ -8076,6 +8115,15 @@ int main() {
                        "update_performer_lighting();",
                        "perf.renderer->draw_over_scene(world_->camera());",
                        "performer lighting is refreshed before the band is drawn");
+  ok &= contains(gameplay_c,
+                 "world_->apply_environment_lighting_state("
+                 "performer_lighting_environment_for_role(perf.role));",
+                 "performers draw under the decoded band/drummer source environment");
+  ok &= appears_before(gameplay_c,
+                       "world_->apply_environment_lighting_state("
+                       "performer_lighting_environment_for_role(perf.role));",
+                       "perf.renderer->draw_over_scene(world_->camera());",
+                       "performer source Environ lighting is applied before each band draw");
   ok &= contains(update_worldcrowd_lighting_c,
                  "mod.low?1:0",
                  "WorldCrowd lighting reports decoded low/bad symbolic rig state");
