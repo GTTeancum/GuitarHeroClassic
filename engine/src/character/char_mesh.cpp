@@ -3424,6 +3424,138 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
 
 }  // namespace
 
+SourceRndAnimFilterSetAnimPlan source_rnd_anim_filter_set_anim(
+    RndAnimFilter& filter,
+    const std::string& anim,
+    const SourceRndAnimFilterAnimInfo& anim_info) {
+  SourceRndAnimFilterSetAnimPlan plan;
+  filter.anim = anim;
+  plan.anim_present = anim_info.present;
+  if (anim_info.present) {
+    filter.rate = anim_info.rate;
+    filter.start = anim_info.start;
+    filter.end = anim_info.end;
+    plan.copies_rate = true;
+    plan.copies_start_end = true;
+  }
+  return plan;
+}
+
+bool source_rnd_anim_filter_loop(int32_t type) {
+  return type >= 1;
+}
+
+SourceRndAnimFilterScaleResult source_rnd_anim_filter_scale(
+    float start,
+    float end,
+    float scale,
+    float period,
+    float frames_per_unit) {
+  SourceRndAnimFilterScaleResult result;
+  if (period != 0.0f) {
+    result.period_path = true;
+    result.scale = (end - start) / (period * frames_per_unit);
+  } else {
+    result.reversed_range = end < start;
+    result.scale = result.reversed_range ? -scale : scale;
+  }
+  return result;
+}
+
+SourceRndAnimFilterFrameOffsetResult source_rnd_anim_filter_frame_offset(
+    float start,
+    float end,
+    float offset) {
+  SourceRndAnimFilterFrameOffsetResult result;
+  float range_offset = start;
+  if (end >= start) {
+    range_offset = 0.0f;
+  } else {
+    range_offset -= end;
+    result.reversed_range = true;
+  }
+  result.frame_offset = offset + range_offset;
+  return result;
+}
+
+SourceRndAnimFilterFrameBoundsResult source_rnd_anim_filter_frame_bounds(
+    const RndAnimFilter& filter,
+    float frames_per_unit) {
+  SourceRndAnimFilterFrameBoundsResult result;
+  result.has_anim = !filter.anim.empty();
+  if (!result.has_anim) return result;
+
+  result.scale = source_rnd_anim_filter_scale(
+                     filter.start, filter.end, filter.scale, filter.period,
+                     frames_per_unit)
+                     .scale;
+  if (result.scale == 0.0f) {
+    result.scale_was_zero = true;
+    result.scale = 1.0f;
+  }
+  result.frame_offset =
+      source_rnd_anim_filter_frame_offset(filter.start, filter.end,
+                                          filter.offset)
+          .frame_offset;
+  result.start_frame = (filter.start - result.frame_offset) / result.scale;
+  result.end_frame = (filter.end - result.frame_offset) / result.scale;
+  result.shuttle = filter.type == 2;
+  if (result.shuttle) result.end_frame *= 2.0f;
+  return result;
+}
+
+std::string source_rnd_anim_filter_anim_target(const RndAnimFilter& filter) {
+  return filter.anim;
+}
+
+std::vector<std::string> source_rnd_anim_filter_list_anim_children(
+    const RndAnimFilter& filter) {
+  if (filter.anim.empty()) return {};
+  return {filter.anim};
+}
+
+SourceRndAnimFilterCopyPlan source_rnd_anim_filter_copy_plan(
+    bool copy_from_max) {
+  SourceRndAnimFilterCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.copy_from_max = copy_from_max;
+  if (!copy_from_max) {
+    plan.copied_members = {"mScale", "mOffset", "mStart",  "mEnd",
+                           "mType",  "mAnim",   "mPeriod", "mSnap",
+                           "mJitter"};
+  }
+  return plan;
+}
+
+SourceRndAnimFilterSafeAnimsResult source_rnd_anim_filter_safe_anims(
+    const std::vector<std::pair<std::string, bool>>& anim_contains_self) {
+  SourceRndAnimFilterSafeAnimsResult result;
+  for (const auto& [anim, contains_self] : anim_contains_self) {
+    if (!contains_self) result.safe_anims.push_back(anim);
+  }
+  return result;
+}
+
+SourceRndAnimFilterHandlerPlan source_rnd_anim_filter_handler_plan() {
+  SourceRndAnimFilterHandlerPlan plan;
+  plan.handlers = {"safe_anims"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndAnimFilterPropSyncPlan source_rnd_anim_filter_prop_sync_plan() {
+  SourceRndAnimFilterPropSyncPlan plan;
+  plan.set_properties = {"anim:SetAnim", "scale:abs"};
+  plan.properties = {"offset", "period", "start", "end", "snap", "type"};
+  plan.modify_properties = {"jitter:reset_jitter_frame"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
+SourceRndAnimFilterSavePlan source_rnd_anim_filter_save_plan() {
+  return SourceRndAnimFilterSavePlan{};
+}
+
 SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision) {
   SourceEventTriggerLoadPlan plan;
   plan.known_revision = revision >= 0 && revision <= 0x11;

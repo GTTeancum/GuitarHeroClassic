@@ -233,7 +233,7 @@ character model playback.
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser keeps raw source rows; runtime-active skinning palette follows RB3 `RndMesh` null/invalid bone trimming. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
-| Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
+| Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows and mirror the source-visible filter math/bookkeeping as passive contracts; no trigger or animation runtime hookup. |
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Native records opaque row names, types, sizes, and byte prefixes, but does not decode or run them unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
@@ -2698,8 +2698,19 @@ note, and all report `unreadBytes=0`.
     `mOffset`, `mStart`, and `mEnd`. Nonzero revisions read `mType` and
     `mPeriod`; revision 0 reads a legacy loop byte. Revisions above 1 read
     `mSnap` and `mJitter`.
-  - Native GHOGX decodes and logs this row for stock-model evidence only. It
-    does not schedule `RndAnimFilter`, attach it to `EventTrigger`, or mutate
+  - The source also exposes deterministic behavior outside the scheduler:
+    `SetAnim` copies a child anim's rate/start/end when a child exists,
+    `Loop` is `mType >= kLoop`, `Scale` uses period-based range scaling or
+    flips the sign for reversed ranges, `FrameOffset` adds the reversed-range
+    offset, `StartFrame`/`EndFrame` divide by `Scale` with a zero-scale
+    fallback and double the end frame for `kShuttle`, `ListAnimChildren`
+    publishes only `mAnim`, `safe_anims` filters anims that already contain
+    the filter, copy skips filter members for `kCopyFromMax`, and prop sync
+    routes `anim` through `SetAnim`, `scale` through absolute value, and
+    `jitter` through a `mJitterFrame=0` reset.
+  - Native GHOGX now mirrors those rows as `source_rnd_anim_filter_*`
+    deterministic contracts and decodes/logs stock rows for evidence. It does
+    not schedule `RndAnimFilter`, attach it to `EventTrigger`, or mutate
     `RndAnimatable` playback.
 
 ## Event Trigger Row Authority

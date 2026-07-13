@@ -177,6 +177,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_collide_source_test.cpp"));
   const std::string event_trigger_source_test = compact(
       read_file(char_dir / "character_event_trigger_source_test.cpp"));
+  const std::string anim_filter_source_test = compact(
+      read_file(char_dir / "character_anim_filter_source_test.cpp"));
   const std::string tex_source_test =
       compact(read_file(char_dir / "character_tex_source_test.cpp"));
   const std::string face_servo_source_test =
@@ -15819,6 +15821,49 @@ int run_contract() {
   ok &= contains(rb3_latest_anim_filter_cpp,
                  "if(gRev>1){bs>>mSnap>>mJitter;}",
                  "RndAnimFilter source load gates snap and jitter");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "voidRndAnimFilter::SetAnim(RndAnimatable*anim){mAnim=anim;"
+                 "if(mAnim.operator->()){SetRate(mAnim->GetRate());mStart="
+                 "mAnim->StartFrame();mEnd=mAnim->EndFrame();}}",
+                 "RndAnimFilter source SetAnim copies child range");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "floatRndAnimFilter::Scale(){floatret;if(mPeriod){ret="
+                 "(mEnd-mStart)/(mPeriod*FramesPerUnit());}else{if(mEnd>="
+                 "mStart)ret=mScale;elseret=-mScale;}returnret;}",
+                 "RndAnimFilter source Scale formula");
+  ok &= contains(rb3_latest_anim_filter_h,
+                 "virtualboolLoop(){returnmType>=kLoop;}",
+                 "RndAnimFilter source Loop type gate");
+  ok &= contains(rb3_latest_anim_filter_h,
+                 "floatFrameOffset(){floatret=mStart;if(mEnd>=mStart)ret="
+                 "0.0f;elseret-=mEnd;returnmOffset+ret;}",
+                 "RndAnimFilter source FrameOffset formula");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "floatRndAnimFilter::StartFrame(){if(!mAnim)return0.0f;"
+                 "else{floatdenom=Scale();if(denom==0.0f)denom=1.0f;"
+                 "return(mStart-FrameOffset())/denom;}}",
+                 "RndAnimFilter source StartFrame formula");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "floatret=(mEnd-FrameOffset())/denom;if(mType==kShuttle){"
+                 "ret*=2.0f;}returnret;",
+                 "RndAnimFilter source EndFrame shuttle formula");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "if(!AnimContains(it,this)){ptr.Node(containsCount++)="
+                 "DataNode(it);}",
+                 "RndAnimFilter source safe_anims filters self-containing anims");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "if(ty!=kCopyFromMax){COPY_MEMBER(mScale)COPY_MEMBER(mOffset)"
+                 "COPY_MEMBER(mStart)COPY_MEMBER(mEnd)COPY_MEMBER(mType)"
+                 "COPY_MEMBER(mAnim)COPY_MEMBER(mPeriod)COPY_MEMBER(mSnap)"
+                 "COPY_MEMBER(mJitter)}",
+                 "RndAnimFilter source copy skips members for CopyFromMax");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "SYNC_PROP_SET(anim,mAnim,SetAnim(_val.Obj<RndAnimatable>(0)))"
+                 "SYNC_PROP_SET(scale,mScale,mScale=__fabs(_val.Float(0)))",
+                 "RndAnimFilter source prop sync setter rows");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "SYNC_PROP_MODIFY(jitter,mJitter,mJitterFrame=0.0f)",
+                 "RndAnimFilter source prop sync jitter reset");
   ok &= contains(rb3_latest_anim_cpp,
                  "RndAnimatable::RndAnimatable():mFrame(0.0f),mRate(k30_fps)",
                  "RndAnimatable source defaults frame and rate");
@@ -15917,6 +15962,33 @@ int run_contract() {
                  "filter.anim=r.str();filter.scale=r.f32();filter.offset=r.f32();"
                  "filter.start=r.f32();filter.end=r.f32();",
                  "native RndAnimFilter decoder mirrors source range rows");
+  ok &= contains(char_mesh_h,
+                 "SourceRndAnimFilterSetAnimPlansource_rnd_anim_filter_set_anim(",
+                 "native exposes RndAnimFilter SetAnim helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndAnimFilterFrameBoundsResultsource_rnd_anim_filter_"
+                 "frame_bounds(",
+                 "native exposes RndAnimFilter frame-bound helper");
+  ok &= contains(char_mesh,
+                 "filter.rate=anim_info.rate;filter.start=anim_info.start;"
+                 "filter.end=anim_info.end;",
+                 "native RndAnimFilter SetAnim helper copies child range");
+  ok &= contains(char_mesh,
+                 "result.scale=(end-start)/(period*frames_per_unit);",
+                 "native RndAnimFilter Scale helper ports period formula");
+  ok &= contains(char_mesh,
+                 "result.start_frame=(filter.start-result.frame_offset)/"
+                 "result.scale;",
+                 "native RndAnimFilter frame helper ports StartFrame formula");
+  ok &= contains(char_mesh,
+                 "if(result.shuttle)result.end_frame*=2.0f;",
+                 "native RndAnimFilter frame helper ports shuttle end");
+  ok &= contains(char_mesh,
+                 "if(!contains_self)result.safe_anims.push_back(anim);",
+                 "native RndAnimFilter safe_anims helper filters self-containing anims");
+  ok &= contains(char_mesh,
+                 "plan.set_properties={\"anim:SetAnim\",\"scale:abs\"};",
+                 "native RndAnimFilter prop-sync helper ports setters");
   ok &= contains(char_mesh,
                  "elseif(de.type==\"AnimFilter\"){handled=true;"
                  "out.anim_filters.push_back",
@@ -15927,9 +15999,27 @@ int run_contract() {
   ok &= contains(bind_audit,
                  "\"animatableVersion=%danim=%sframe=%.4frate=%dscale=%.4f",
                  "controller audit logs AnimFilter source fields");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_anim_filter_source_test",
+                 "CMake builds RndAnimFilter source test");
+  ok &= contains(anim_filter_source_test,
+                 "source_rnd_anim_filter_set_anim(",
+                 "focused RndAnimFilter test covers SetAnim");
+  ok &= contains(anim_filter_source_test,
+                 "source_rnd_anim_filter_frame_bounds(",
+                 "focused RndAnimFilter test covers StartFrame and EndFrame");
+  ok &= contains(anim_filter_source_test,
+                 "source_rnd_anim_filter_safe_anims(",
+                 "focused RndAnimFilter test covers safe_anims");
   ok &= contains(doc,
                  "`RndAnimFilter::Load` accepts source revisions through 2",
                  "document records RndAnimFilter source load");
+  ok &= contains(doc,
+                 "source-visible filter math/bookkeeping",
+                 "document records RndAnimFilter passive helper scope");
+  ok &= contains(doc,
+                 "`SetAnim` copies a child anim's rate/start/end",
+                 "document records RndAnimFilter SetAnim behavior");
   ok &= contains(doc,
                  "shows one stock `AnimFilter` row, on `metal_drummer`",
                  "document records stock AnimFilter inventory");

@@ -4476,6 +4476,98 @@ struct RndAnimFilter {
   size_t unread_bytes = 0;
 };
 
+struct SourceRndAnimFilterAnimInfo {
+  bool present = false;
+  int32_t rate = 0;
+  float start = 0.0f;
+  float end = 0.0f;
+};
+
+struct SourceRndAnimFilterSetAnimPlan {
+  bool assigns_anim = true;
+  bool anim_present = false;
+  bool copies_rate = false;
+  bool copies_start_end = false;
+};
+
+struct SourceRndAnimFilterScaleResult {
+  bool period_path = false;
+  bool reversed_range = false;
+  float scale = 0.0f;
+};
+
+struct SourceRndAnimFilterFrameOffsetResult {
+  bool reversed_range = false;
+  float frame_offset = 0.0f;
+};
+
+struct SourceRndAnimFilterFrameBoundsResult {
+  bool has_anim = false;
+  float scale = 0.0f;
+  bool scale_was_zero = false;
+  float frame_offset = 0.0f;
+  bool shuttle = false;
+  float start_frame = 0.0f;
+  float end_frame = 0.0f;
+};
+
+struct SourceRndAnimFilterCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  bool copy_from_max = false;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceRndAnimFilterSafeAnimsResult {
+  std::vector<std::string> safe_anims;
+  bool appends_null = true;
+};
+
+struct SourceRndAnimFilterHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int32_t check = 0xe3;
+};
+
+struct SourceRndAnimFilterPropSyncPlan {
+  std::vector<std::string> set_properties;
+  std::vector<std::string> properties;
+  std::vector<std::string> modify_properties;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceRndAnimFilterSavePlan {
+  int32_t save_id = 0x4a;
+};
+
+SourceRndAnimFilterSetAnimPlan source_rnd_anim_filter_set_anim(
+    RndAnimFilter& filter,
+    const std::string& anim,
+    const SourceRndAnimFilterAnimInfo& anim_info);
+bool source_rnd_anim_filter_loop(int32_t type);
+SourceRndAnimFilterScaleResult source_rnd_anim_filter_scale(
+    float start,
+    float end,
+    float scale,
+    float period,
+    float frames_per_unit);
+SourceRndAnimFilterFrameOffsetResult source_rnd_anim_filter_frame_offset(
+    float start,
+    float end,
+    float offset);
+SourceRndAnimFilterFrameBoundsResult source_rnd_anim_filter_frame_bounds(
+    const RndAnimFilter& filter,
+    float frames_per_unit);
+std::string source_rnd_anim_filter_anim_target(const RndAnimFilter& filter);
+std::vector<std::string> source_rnd_anim_filter_list_anim_children(
+    const RndAnimFilter& filter);
+SourceRndAnimFilterCopyPlan source_rnd_anim_filter_copy_plan(
+    bool copy_from_max);
+SourceRndAnimFilterSafeAnimsResult source_rnd_anim_filter_safe_anims(
+    const std::vector<std::pair<std::string, bool>>& anim_contains_self);
+SourceRndAnimFilterHandlerPlan source_rnd_anim_filter_handler_plan();
+SourceRndAnimFilterPropSyncPlan source_rnd_anim_filter_prop_sync_plan();
+SourceRndAnimFilterSavePlan source_rnd_anim_filter_save_plan();
+
 struct EventTriggerAnim {
   std::string anim;
   float blend = 0.0f;
