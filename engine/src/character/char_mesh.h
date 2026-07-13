@@ -1203,6 +1203,25 @@ struct SourceGltfMiloMaterialPlan {
   bool obj_fields_revision2 = false;
 };
 
+struct SourceGltfMiloTextureTempOutputInput {
+  int32_t curmat = 0;
+  bool has_base_color_texture = false;
+  bool has_normal_texture = false;
+  bool has_emissive_texture = false;
+  bool has_specular_color_texture = false;
+};
+
+struct SourceGltfMiloTextureTempOutputPlan {
+  int32_t curmat_start = 0;
+  int32_t curmat_after_base = 0;
+  int32_t curmat_final = 0;
+  bool base_texture_increments_curmat = false;
+  bool side_maps_reuse_current_curmat = true;
+  std::vector<std::string> convert_temp_paths;
+  std::vector<std::string> parse_temp_paths;
+  std::vector<std::string> delete_temp_paths;
+};
+
 struct SourceGltfMiloMaterialRuntimeBoundary {
   bool gltf_material_plan_is_exporter_side = true;
   bool stock_runtime_authority_is_decoded_rndmat = true;
@@ -1503,6 +1522,9 @@ SourceGltfMiloAddVertexResult source_gltf_milo_add_vertex_to_chunk_mesh(
 
 SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input);
+SourceGltfMiloTextureTempOutputPlan
+source_gltf_milo_texture_temp_output_plan(
+    const SourceGltfMiloTextureTempOutputInput& input);
 SourceGltfMiloMaterialRuntimeBoundary
 source_gltf_milo_material_runtime_boundary();
 

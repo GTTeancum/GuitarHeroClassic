@@ -1261,6 +1261,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     formula, optimize flags, and byte-swap gates in
     `SourceGltfMiloMaterialPlan`; it does not change live GH2 material upload
     or renderer behavior.
+  - glTFMilo's temporary DDS naming is also deterministic: `curmat` starts at
+    `0` before the material loop, increments only when a base-color texture is
+    present, and then the base, normal, emissive, and specular conversion,
+    parse, and delete steps use `output_{curmat}.dds`,
+    `output_{curmat}_norm.dds`, `output_{curmat}_emissive.dds`, and
+    `output_{curmat}_spec.dds`. Native
+    `source_gltf_milo_texture_temp_output_plan` records that exporter-side
+    sequencing only; it does not create temporary DDS files or alter runtime
+    texture upload.
   - glTFMilo also assigns `mat.specularRGB` from the `SpecularColor` channel
     and `mat.specularPower` from `SpecularFactor`. Native records those
     deterministic rows in the material plan so character hair/skin material

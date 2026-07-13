@@ -1362,6 +1362,36 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
   return plan;
 }
 
+SourceGltfMiloTextureTempOutputPlan
+source_gltf_milo_texture_temp_output_plan(
+    const SourceGltfMiloTextureTempOutputInput& input) {
+  SourceGltfMiloTextureTempOutputPlan plan;
+  int32_t curmat = input.curmat;
+  plan.curmat_start = curmat;
+
+  auto record_temp_path = [&](const std::string& path) {
+    plan.convert_temp_paths.push_back(path);
+    plan.parse_temp_paths.push_back(path);
+    plan.delete_temp_paths.push_back(path);
+  };
+
+  if (input.has_base_color_texture) {
+    ++curmat;
+    plan.base_texture_increments_curmat = true;
+    record_temp_path("output_" + std::to_string(curmat) + ".dds");
+  }
+
+  plan.curmat_after_base = curmat;
+  const std::string prefix = "output_" + std::to_string(curmat);
+  if (input.has_normal_texture) record_temp_path(prefix + "_norm.dds");
+  if (input.has_emissive_texture) record_temp_path(prefix + "_emissive.dds");
+  if (input.has_specular_color_texture) record_temp_path(prefix + "_spec.dds");
+
+  plan.curmat_final = curmat;
+  plan.side_maps_reuse_current_curmat = plan.curmat_after_base == curmat;
+  return plan;
+}
+
 SourceGltfMiloMaterialRuntimeBoundary
 source_gltf_milo_material_runtime_boundary() {
   SourceGltfMiloMaterialRuntimeBoundary boundary;

@@ -6250,6 +6250,34 @@ int run_contract() {
                  ".TextureRevision,0);",
                  "glTFMilo texture export uses selected texture revision");
   ok &= contains(gltf_program_cs,
+                 "intcurmat=0;",
+                 "glTFMilo texture temp naming starts curmat at zero");
+  ok &= contains(gltf_program_cs,
+                 "curmat++;mat.diffuseTex=material.Name+\".tex\";",
+                 "glTFMilo advances curmat only in base texture block");
+  ok &= contains(gltf_program_cs,
+                 "TextureUtils.ConvertToDDS(str,$\"output_{curmat}.dds\","
+                 "format,ignoreLimits);",
+                 "glTFMilo diffuse temp DDS uses current curmat");
+  ok &= contains(gltf_program_cs,
+                 "TextureUtils.ParseDDS($\"output_{curmat}.dds\");",
+                 "glTFMilo diffuse temp DDS is parsed from current curmat");
+  ok &= contains(gltf_program_cs,
+                 "File.Delete($\"output_{curmat}.dds\");",
+                 "glTFMilo diffuse temp DDS is deleted after parse");
+  ok &= contains(gltf_program_cs,
+                 "TextureUtils.ConvertToDDS(str,$\"output_{curmat}_norm.dds\","
+                 "CompressionFormat.BC5,ignoreLimits);",
+                 "glTFMilo normal temp DDS reuses current curmat on Xbox");
+  ok &= contains(gltf_program_cs,
+                 "TextureUtils.ConvertToDDS(str,$\"output_{curmat}_"
+                 "emissive.dds\",CompressionFormat.BC1,ignoreLimits);",
+                 "glTFMilo emissive temp DDS reuses current curmat");
+  ok &= contains(gltf_program_cs,
+                 "TextureUtils.ConvertToDDS(str,$\"output_{curmat}_spec.dds\","
+                 "CompressionFormat.BC3,ignoreLimits);",
+                 "glTFMilo specular temp DDS reuses current curmat");
+  ok &= contains(gltf_program_cs,
                  "RndGroupallGeomGrp=RndGroup.New(GameRevisions.GetRevision("
                  "selectedGame).GroupRevision,0);",
                  "glTFMilo all-geom group uses selected group revision");
@@ -7218,6 +7246,31 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceGltfMiloMaterialPlansource_gltf_milo_material_base_plan(",
                  "native ports glTFMilo material base helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloTextureTempOutputInput{"
+                 "int32_tcurmat=0;",
+                 "native records glTFMilo temp DDS curmat input");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloTextureTempOutputPlan"
+                 "source_gltf_milo_texture_temp_output_plan(",
+                 "native ports glTFMilo temp DDS naming helper");
+  ok &= contains(char_mesh,
+                 "++curmat;plan.base_texture_increments_curmat=true;"
+                 "record_temp_path(\"output_\"+std::to_string(curmat)+"
+                 "\".dds\");",
+                 "native preserves glTFMilo base temp curmat increment");
+  ok &= contains(char_mesh,
+                 "if(input.has_normal_texture)record_temp_path(prefix+"
+                 "\"_norm.dds\");",
+                 "native preserves glTFMilo normal temp suffix");
+  ok &= contains(char_mesh,
+                 "if(input.has_emissive_texture)record_temp_path(prefix+"
+                 "\"_emissive.dds\");",
+                 "native preserves glTFMilo emissive temp suffix");
+  ok &= contains(char_mesh,
+                 "if(input.has_specular_color_texture)record_temp_path(prefix+"
+                 "\"_spec.dds\");",
+                 "native preserves glTFMilo specular temp suffix");
   ok &= contains(char_mesh,
                  "plan.cull=!input.double_sided;",
                  "native preserves glTFMilo DoubleSided cull rule");

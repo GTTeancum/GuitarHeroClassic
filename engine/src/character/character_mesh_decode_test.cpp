@@ -1076,6 +1076,45 @@ int main() {
   CHECK(approx(gltf_map_material.specular_rgb[3], 0.40f));
   CHECK(approx(gltf_map_material.specular_power, 12.5f));
 
+  ghogx::character::SourceGltfMiloTextureTempOutputInput temp_output_input;
+  temp_output_input.curmat = 2;
+  temp_output_input.has_base_color_texture = true;
+  temp_output_input.has_normal_texture = true;
+  temp_output_input.has_emissive_texture = true;
+  temp_output_input.has_specular_color_texture = true;
+  const auto gltf_temp_output =
+      ghogx::character::source_gltf_milo_texture_temp_output_plan(
+          temp_output_input);
+  CHECK(gltf_temp_output.curmat_start == 2);
+  CHECK(gltf_temp_output.curmat_after_base == 3);
+  CHECK(gltf_temp_output.curmat_final == 3);
+  CHECK(gltf_temp_output.base_texture_increments_curmat);
+  CHECK(gltf_temp_output.side_maps_reuse_current_curmat);
+  const std::vector<std::string> expected_all_temp_paths = {
+      "output_3.dds", "output_3_norm.dds", "output_3_emissive.dds",
+      "output_3_spec.dds"};
+  CHECK(gltf_temp_output.convert_temp_paths == expected_all_temp_paths);
+  CHECK(gltf_temp_output.parse_temp_paths == gltf_temp_output.convert_temp_paths);
+  CHECK(gltf_temp_output.delete_temp_paths ==
+        gltf_temp_output.convert_temp_paths);
+
+  ghogx::character::SourceGltfMiloTextureTempOutputInput side_only_input;
+  side_only_input.curmat = 5;
+  side_only_input.has_normal_texture = true;
+  side_only_input.has_specular_color_texture = true;
+  const auto gltf_side_only_temp_output =
+      ghogx::character::source_gltf_milo_texture_temp_output_plan(
+          side_only_input);
+  CHECK(gltf_side_only_temp_output.curmat_start == 5);
+  CHECK(gltf_side_only_temp_output.curmat_after_base == 5);
+  CHECK(gltf_side_only_temp_output.curmat_final == 5);
+  CHECK(!gltf_side_only_temp_output.base_texture_increments_curmat);
+  CHECK(gltf_side_only_temp_output.side_maps_reuse_current_curmat);
+  const std::vector<std::string> expected_side_only_temp_paths = {
+      "output_5_norm.dds", "output_5_spec.dds"};
+  CHECK(gltf_side_only_temp_output.convert_temp_paths ==
+        expected_side_only_temp_paths);
+
   material_maps_input.platform = "ps3";
   const auto gltf_ps3_map_material =
       ghogx::character::source_gltf_milo_material_base_plan(
