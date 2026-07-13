@@ -9726,6 +9726,17 @@ int main() {
                  "*key,song_time_,active_regular_camera_start_);",
                  "non-path regular CamShots use source frame-pair timing");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraSetPreFrame:source_msg=shot_started"
+                 "source_manager=PrePollshot=%slocal_frame=%.3f"
+                 "duration_frames=%.3fsource_frame_keys=%zu"
+                 "source_poll=SetFrame\\n\"",
+                 "regular camera diagnostics expose ihatecompvir PrePoll SetPreFrame cadence");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerasourceframepair:shot=%slocal_frame=%.3f"
+                 "keys=%zua_frame=%.3fb_frame=%.3f"
+                 "route=regular_camera_source_frame_keys\\n\"",
+                 "regular camera diagnostics prove source frame-pair submission");
+  ok &= contains(gameplay_c,
                  "regular_camera_path_keys(*key,active_regular_camera_start_,camera_targets)",
                  "runtime samples path-backed regular cameras with shot-local frames and target context");
   ok &= absent(gameplay_c,
@@ -9737,6 +9748,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_shot_started_reported_;",
+                 "camera runtime reports each source shot_started bridge once per shot");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_frame_pair_reported_;",
+                 "camera runtime reports each source frame pair bridge once per shot");
   ok &= contains(gameplay_h_c,
                  "boolhide_crowd=false;boolcrowd_face_camera=false;"
                  "intforce_char_lod=-1;",

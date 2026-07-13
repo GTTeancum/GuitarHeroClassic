@@ -10639,3 +10639,27 @@ Rejected native probe:
   PCSX2 oracle. The next source-backed code pass should target the exact source
   material/combine interpretation for `amp_inside_bar.mesh`,
   `amp_tube_glow_meter.mesh`, and `amp_glass.mesh`.
+
+2026-07-13 camera SetPreFrame/frame-pair proof bridge:
+- Added debug-only camera rows that make the ihatecompvir manager cadence
+  explicit without changing rendered behavior: non-path regular CamShots now
+  report one `[world] camera SetPreFrame: source_msg=shot_started ...` row for
+  the source `CameraManager::PrePoll -> SetPreFrame` / `Poll -> SetFrame`
+  cadence, and one `[world] camera source frame pair ...` row when
+  `regular_camera_source_frame_keys()` submits the two decoded CamShot frame
+  rows used for blending.
+- This is intentionally a proof surface, not a revival of the old discrete
+  `post_switch_cam` stepping. The source contract still forbids the removed
+  `[world] post_switch_cam:` row while pinning the new manager-cadence and
+  frame-pair diagnostics.
+- Validation:
+  `engine/out/camera_setpreframe_framepair_20260713_002/` builds
+  `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`, then runs stock
+  PS2 `GEN` assets with `--diagnostic-venue big`,
+  `--diagnostic-camera-shot flr_far_rt04`, fixed-step autoplay from `16.0s`,
+  and a screenshot at frame `30`. Runtime exits `0`, selects
+  `flr_far_rt04`, logs `source_frame_keys=2`, logs
+  `camera source frame pair ... a_frame=480.500 b_frame=481.500`, keeps
+  lighting Light/Environ coverage at `failed=0`, and ends with zero gameplay
+  misses. The contract still reports only the known unrelated ROCK/star-power
+  HUD gaps.

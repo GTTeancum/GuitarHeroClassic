@@ -1173,6 +1173,8 @@ class Gameplay {
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
   std::string active_camera_glow_spot_ref_;
+  std::string active_camera_shot_started_reported_;
+  std::string active_camera_frame_pair_reported_;
   std::string active_camera_shot_over_reported_;
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       active_camera_glow_spot_;

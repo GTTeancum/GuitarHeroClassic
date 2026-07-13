@@ -20452,6 +20452,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_anim_event_.clear();
     active_camera_glow_spot_ref_.clear();
     active_camera_glow_spot_.reset();
+    active_camera_shot_started_reported_.clear();
+    active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
@@ -21227,6 +21229,8 @@ void Gameplay::end_camera_shot_runtime() {
                      active_camera_runtime_shot_.c_str());
     }
     active_camera_runtime_shot_.clear();
+    active_camera_shot_started_reported_.clear();
+    active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
 }
 
@@ -30326,6 +30330,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             diagnostic_camera_path_offset_frames_ / 30.0;
                         active_camera_position_start_ = song_time_;
                         active_camera_position_index_ = 0;
+                        active_camera_shot_started_reported_.clear();
+                        active_camera_frame_pair_reported_.clear();
                         active_camera_shot_over_reported_.clear();
                         std::fprintf(
                             stderr,
@@ -30380,12 +30386,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                             previous_camera_position_index_);
                 }
                 std::vector<CameraKey> selected_camera;
+                bool source_frame_key_route = false;
                 if (key->has_path_anim && !key->positions.empty()) {
                     selected_camera =
                         regular_camera_path_keys(*key,
                                                  active_regular_camera_start_,
                                                  camera_targets);
                 } else {
+                    source_frame_key_route = true;
                     selected_camera = regular_camera_source_frame_keys(
                         *key, song_time_, active_regular_camera_start_);
                     if (selected_camera.empty()) {
@@ -30393,6 +30401,31 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             current_position,
                             previous_position ? &*previous_position : nullptr,
                             song_time_, active_camera_position_start_);
+                    }
+                }
+                if (source_frame_key_route &&
+                    (debug_camera_enabled() || debug_venue_filters_enabled())) {
+                    const float local_frame = static_cast<float>(
+                        std::max(0.0, song_time_ - active_regular_camera_start_) *
+                        30.0);
+                    if (active_camera_shot_started_reported_ != key->name) {
+                        active_camera_shot_started_reported_ = key->name;
+                        std::fprintf(
+                            stderr,
+                            "[world] camera SetPreFrame: source_msg=shot_started source_manager=PrePoll shot=%s local_frame=%.3f duration_frames=%.3f source_frame_keys=%zu source_poll=SetFrame\n",
+                            key->name.c_str(), local_frame,
+                            source_camshot_duration_frames(*key),
+                            selected_camera.size());
+                    }
+                    if (selected_camera.size() >= 2 &&
+                        active_camera_frame_pair_reported_ != key->name) {
+                        active_camera_frame_pair_reported_ = key->name;
+                        std::fprintf(
+                            stderr,
+                            "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f route=regular_camera_source_frame_keys\n",
+                            key->name.c_str(), local_frame,
+                            selected_camera.size(), selected_camera[0].frame,
+                            selected_camera[1].frame);
                     }
                 }
                 const CameraKey& visibility_key =
