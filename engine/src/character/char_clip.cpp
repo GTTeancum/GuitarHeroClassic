@@ -5524,6 +5524,33 @@ SourceCharIKHandElbowSwingResult source_char_ik_hand_elbow_swing(
   return result;
 }
 
+SourceCharIKHandElbowCollisionResult source_char_ik_hand_elbow_collision_gate(
+    const SourceCharIKHandElbowCollisionInput& input) {
+  SourceCharIKHandElbowCollisionResult result;
+  if (!input.has_elbow_collide) return result;
+
+  result.entered = true;
+  result.needs_source_shoulder_offset = true;
+  if (!input.collide_shape_is_sphere) {
+    result.warn_non_sphere = true;
+    return result;
+  }
+
+  result.sphere_branch = true;
+  result.inside_sphere = input.distance_to_elbow < input.sphere_radius;
+  if (!result.inside_sphere) return result;
+
+  result.needs_collision_rotation = true;
+  result.updates_upper_arm_matrix = true;
+  result.updates_forearm_matrix = true;
+  if (input.clockwise) {
+    result.uses_clockwise_candidate = true;
+  } else {
+    result.uses_counterclockwise_candidate = true;
+  }
+  return result;
+}
+
 SourceCharIKHandPollFlowResult source_char_ik_hand_poll_flow(
     const SourceCharIKHandPollFlowInput& input) {
   SourceCharIKHandPollFlowResult result;

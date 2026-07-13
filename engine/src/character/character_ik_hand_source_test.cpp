@@ -49,12 +49,14 @@ bool has(const std::vector<std::string>& values, const std::string& value) {
 
 int main() {
   using ghogx::character::SourceCharIKHandMeasure;
+  using ghogx::character::SourceCharIKHandElbowCollisionInput;
   using ghogx::character::SourceCharIKHandElbowSwingInput;
   using ghogx::character::SourceCharIKHandPollFlowInput;
   using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::SourceCharIKHandWristConstraintInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
+  using ghogx::character::source_char_ik_hand_elbow_collision_gate;
   using ghogx::character::source_char_ik_hand_elbow_swing;
   using ghogx::character::source_char_ik_hand_finger_target;
   using ghogx::character::source_char_ik_hand_handler_plan;
@@ -409,6 +411,55 @@ int main() {
                      "elbow swing positive clamp");
   ok &= expect_float(elbow_swing_positive_clamp.rotate_about_x, -0.25f,
                      "elbow swing positive clamp rotate");
+
+  const auto elbow_collide_none = source_char_ik_hand_elbow_collision_gate(
+      SourceCharIKHandElbowCollisionInput{false, true, 0.0f, 1.0f, false});
+  ok &= expect_bool(elbow_collide_none.entered, false,
+                    "elbow collision skips without object");
+  ok &= expect_bool(elbow_collide_none.final_shoulder_repull, true,
+                    "elbow collision records final shoulder repull");
+
+  const auto elbow_collide_non_sphere = source_char_ik_hand_elbow_collision_gate(
+      SourceCharIKHandElbowCollisionInput{true, false, 0.0f, 1.0f, false});
+  ok &= expect_bool(elbow_collide_non_sphere.entered, true,
+                    "elbow collision enters with object");
+  ok &= expect_bool(elbow_collide_non_sphere.needs_source_shoulder_offset, true,
+                    "elbow collision needs source shoulder offset");
+  ok &= expect_bool(elbow_collide_non_sphere.warn_non_sphere, true,
+                    "elbow collision warns non-sphere");
+  ok &= expect_bool(elbow_collide_non_sphere.sphere_branch, false,
+                    "elbow collision rejects non-sphere branch");
+
+  const auto elbow_collide_outside = source_char_ik_hand_elbow_collision_gate(
+      SourceCharIKHandElbowCollisionInput{true, true, 4.0f, 4.0f, false});
+  ok &= expect_bool(elbow_collide_outside.sphere_branch, true,
+                    "elbow collision enters sphere branch");
+  ok &= expect_bool(elbow_collide_outside.inside_sphere, false,
+                    "elbow collision outside radius uses strict less-than");
+  ok &= expect_bool(elbow_collide_outside.needs_collision_rotation, false,
+                    "elbow collision outside radius skips rotation");
+
+  const auto elbow_collide_ccw = source_char_ik_hand_elbow_collision_gate(
+      SourceCharIKHandElbowCollisionInput{true, true, 2.0f, 4.0f, false});
+  ok &= expect_bool(elbow_collide_ccw.inside_sphere, true,
+                    "elbow collision detects inside sphere");
+  ok &= expect_bool(elbow_collide_ccw.needs_collision_rotation, true,
+                    "elbow collision inside sphere needs rotation");
+  ok &= expect_bool(elbow_collide_ccw.uses_counterclockwise_candidate, true,
+                    "elbow collision default candidate");
+  ok &= expect_bool(elbow_collide_ccw.uses_clockwise_candidate, false,
+                    "elbow collision default skips clockwise candidate");
+  ok &= expect_bool(elbow_collide_ccw.updates_upper_arm_matrix, true,
+                    "elbow collision updates upper arm matrix");
+  ok &= expect_bool(elbow_collide_ccw.updates_forearm_matrix, true,
+                    "elbow collision updates forearm matrix");
+
+  const auto elbow_collide_clockwise = source_char_ik_hand_elbow_collision_gate(
+      SourceCharIKHandElbowCollisionInput{true, true, 2.0f, 4.0f, true});
+  ok &= expect_bool(elbow_collide_clockwise.uses_clockwise_candidate, true,
+                    "elbow collision clockwise candidate");
+  ok &= expect_bool(elbow_collide_clockwise.uses_counterclockwise_candidate,
+                    false, "elbow collision clockwise skips default candidate");
 
   const auto poll_no_hand = source_char_ik_hand_poll_flow(
       SourceCharIKHandPollFlowInput{false, true, true, true, true, false,

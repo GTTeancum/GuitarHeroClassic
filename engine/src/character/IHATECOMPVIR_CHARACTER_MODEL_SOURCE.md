@@ -3261,6 +3261,17 @@ note, and all report `unreadBytes=0`.
     the negative clamped value, and then recomputes the current hand vector.
     Stock GH2 `CharIKHand` rows currently have `elbowSwing=0`, so this helper
     is not wired into live runtime solving.
+  - Native `source_char_ik_hand_elbow_collision_gate` ports the visible
+    `mElbowCollide` branch gates inside `CharIKHand::IKElbow` as deterministic
+    source evidence only: entering the branch requires an elbow collision
+    object, requires the collision object to be a sphere, warns on non-sphere
+    collision shapes, applies the strict `Distance(elbow, sphere_center) <
+    sphereRadius` inside-sphere gate, marks the source's upper-arm and forearm
+    matrix writes only after that gate passes, and uses `mClockwise` only to
+    choose between the two computed collision candidates. This helper does not
+    attempt the unported collision rotation solve or shoulder offset; stock GH2
+    `CharIKHand` rows currently have `elbowCollide=<none>` and `clockwise=0`,
+    so it is not wired into live runtime solving.
   - `CharIKHand::PullShoulder` is source-real but not yet source-importable:
     `CharIKHand.cpp` calls it from `IKElbow`, and
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a

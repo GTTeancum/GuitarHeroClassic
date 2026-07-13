@@ -3071,6 +3071,28 @@ struct SourceCharIKHandElbowSwingResult {
   bool recompute_current_after_rotation = false;
 };
 
+struct SourceCharIKHandElbowCollisionInput {
+  bool has_elbow_collide = false;
+  bool collide_shape_is_sphere = false;
+  float distance_to_elbow = 0.0f;
+  float sphere_radius = 0.0f;
+  bool clockwise = false;
+};
+
+struct SourceCharIKHandElbowCollisionResult {
+  bool entered = false;
+  bool needs_source_shoulder_offset = false;
+  bool warn_non_sphere = false;
+  bool sphere_branch = false;
+  bool inside_sphere = false;
+  bool needs_collision_rotation = false;
+  bool uses_counterclockwise_candidate = false;
+  bool uses_clockwise_candidate = false;
+  bool updates_upper_arm_matrix = false;
+  bool updates_forearm_matrix = false;
+  bool final_shoulder_repull = true;
+};
+
 struct SourceCharIKHandPollFlowInput {
   bool has_hand = false;
   bool has_targets = false;
@@ -3202,6 +3224,8 @@ SourceCharIKHandWristConstraintResult source_char_ik_hand_wrist_constraint(
     const SourceCharIKHandWristConstraintInput& input);
 SourceCharIKHandElbowSwingResult source_char_ik_hand_elbow_swing(
     const SourceCharIKHandElbowSwingInput& input);
+SourceCharIKHandElbowCollisionResult source_char_ik_hand_elbow_collision_gate(
+    const SourceCharIKHandElbowCollisionInput& input);
 SourceCharIKHandPollFlowResult source_char_ik_hand_poll_flow(
     const SourceCharIKHandPollFlowInput& input);
 SourceCharIKFootState source_char_ik_foot_default_state();

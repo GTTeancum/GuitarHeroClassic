@@ -19186,6 +19186,21 @@ int run_contract() {
                  "Multiply(trans2->WorldXfm(),mHand->WorldXfm().v,v118);",
                  "RB3 CharIKHand source rotates elbow and recomputes current vector");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(mElbowCollide){PullShoulder(v100,trans2->WorldXfm(),"
+                 "mWorldDst,mAAPlusBB);",
+                 "RB3 CharIKHand source enters elbow collision branch");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(mElbowCollide->GetShape()!=CharCollide::kSphere)"
+                 "MILO_WARN(\"%s:elbowcollisionobjectnotsphere.\\n\",Name());",
+                 "RB3 CharIKHand source warns for non-sphere elbow collision");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(Distance(v134,trans1->WorldXfm().v)<sphereRadius){",
+                 "RB3 CharIKHand source gates elbow collision by sphere radius");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(mClockwise)Multiply(trans2->WorldXfm(),v1d0,v1dc);"
+                 "elseMultiply(trans2->WorldXfm(),v1c4,v1dc);",
+                 "RB3 CharIKHand source selects clockwise collision candidate");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "voidCharIKHand::SetHand(RndTransformable*t){mHand=t;"
                  "mHandChanged=true;}",
                  "RB3 CharIKHand source marks hand length cache dirty");
@@ -19406,6 +19421,11 @@ int run_contract() {
                  "constSourceCharIKHandElbowSwingInput&input);",
                  "native API exposes source CharIKHand elbow swing helper");
   ok &= contains(char_clip_h,
+                 "SourceCharIKHandElbowCollisionResult"
+                 "source_char_ik_hand_elbow_collision_gate("
+                 "constSourceCharIKHandElbowCollisionInput&input);",
+                 "native API exposes source CharIKHand elbow collision helper");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandPollFlowResult"
                  "source_char_ik_hand_poll_flow("
                  "constSourceCharIKHandPollFlowInput&input);",
@@ -19597,6 +19617,27 @@ int run_contract() {
                  "result.rotate_about_x=-result.clamped;",
                  "native CharIKHand elbow swing helper ports source clamp and rotate");
   ok &= contains(char_clip,
+                 "SourceCharIKHandElbowCollisionResult"
+                 "source_char_ik_hand_elbow_collision_gate("
+                 "constSourceCharIKHandElbowCollisionInput&input){",
+                 "native CharIKHand elbow collision helper exists");
+  ok &= contains(char_clip,
+                 "if(!input.has_elbow_collide)returnresult;result.entered=true;"
+                 "result.needs_source_shoulder_offset=true;",
+                 "native CharIKHand elbow collision helper ports collide gate");
+  ok &= contains(char_clip,
+                 "if(!input.collide_shape_is_sphere){"
+                 "result.warn_non_sphere=true;returnresult;}",
+                 "native CharIKHand elbow collision helper ports sphere warning gate");
+  ok &= contains(char_clip,
+                 "result.inside_sphere=input.distance_to_elbow<"
+                 "input.sphere_radius;if(!result.inside_sphere)returnresult;",
+                 "native CharIKHand elbow collision helper ports radius gate");
+  ok &= contains(char_clip,
+                 "if(input.clockwise){result.uses_clockwise_candidate=true;}"
+                 "else{result.uses_counterclockwise_candidate=true;}",
+                 "native CharIKHand elbow collision helper ports clockwise branch");
+  ok &= contains(char_clip,
                  "SourceCharIKHandPollFlowResult"
                  "source_char_ik_hand_poll_flow("
                  "constSourceCharIKHandPollFlowInput&input){",
@@ -19699,6 +19740,18 @@ int run_contract() {
                  "elbow_swing_positive_clamp.rotate_about_x,-0.25f",
                  "focused CharIKHand source test covers positive elbow swing clamp");
   ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_elbow_collision_gate(",
+                 "focused CharIKHand source test covers elbow collision helper");
+  ok &= contains(ik_hand_source_test,
+                 "elbow_collide_non_sphere.warn_non_sphere,true",
+                 "focused CharIKHand source test covers elbow collision non-sphere");
+  ok &= contains(ik_hand_source_test,
+                 "elbow_collide_outside.inside_sphere,false",
+                 "focused CharIKHand source test covers elbow collision radius gate");
+  ok &= contains(ik_hand_source_test,
+                 "elbow_collide_clockwise.uses_clockwise_candidate,true",
+                 "focused CharIKHand source test covers elbow collision clockwise branch");
+  ok &= contains(ik_hand_source_test,
                  "source_char_ik_hand_poll_flow(",
                  "focused CharIKHand source test covers poll-flow helper");
   ok &= contains(ik_hand_source_test,
@@ -19779,6 +19832,20 @@ int run_contract() {
   ok &= contains(doc,
                  "Stock GH2 `CharIKHand` rows currently have `elbowSwing=0`",
                  "document fences CharIKHand elbow swing helper from live runtime");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_elbow_collision_gate` ports the "
+                 "visible",
+                 "document records native CharIKHand elbow collision helper");
+  ok &= contains(doc,
+                 "requires the collision object to be a sphere",
+                 "document records CharIKHand elbow collision sphere gate");
+  ok &= contains(doc,
+                 "uses `mClockwise` only to\n    choose between the two "
+                 "computed collision candidates",
+                 "document records CharIKHand elbow collision clockwise branch");
+  ok &= contains(doc,
+                 "does not\n    attempt the unported collision rotation solve",
+                 "document fences CharIKHand elbow collision helper from live solve");
   ok &= contains(doc,
                  "live multi-target publishing",
                  "document keeps live CharIKHand multi-target publishing fenced");
