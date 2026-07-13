@@ -1195,11 +1195,12 @@ std::array<float, 4> fast_interp_quat_xyzw(std::array<float, 4> a,
                                            std::array<float, 4> b, float t);
 
 struct MiloValue {
-    enum class Kind { None, Int, Float, Symbol };
+    enum class Kind { None, Int, Float, Symbol, Array };
     Kind kind = Kind::None;
     int32_t i = 0;
     float f = 0.0f;
     std::string s;
+    std::vector<MiloValue> children;
 };
 
 struct MiloCursor {
@@ -1314,6 +1315,8 @@ MiloValue read_dtb_node(MiloCursor& r,
                 !children[0].s.empty()) {
                 (*props)[children[0].s] = children[1];
             }
+            v.kind = MiloValue::Kind::Array;
+            v.children = std::move(children);
             return v;
         }
         default:
@@ -1542,6 +1545,26 @@ int prop_int(const std::unordered_map<std::string, MiloValue>& props,
     if (it == props.end()) return fallback;
     if (it->second.kind == MiloValue::Kind::Int) return it->second.i;
     return fallback;
+}
+
+std::vector<std::string> prop_refs(
+    const std::unordered_map<std::string, MiloValue>& props,
+    std::string_view key) {
+    std::vector<std::string> refs;
+    const auto add_ref = [&](const MiloValue& value, const auto& self) -> void {
+        if (value.kind == MiloValue::Kind::Symbol) {
+            std::string ref = canonical_milo_ref(value.s);
+            if (!ref.empty()) refs.push_back(std::move(ref));
+            return;
+        }
+        if (value.kind == MiloValue::Kind::Array) {
+            for (const auto& child : value.children) self(child, self);
+        }
+    };
+    auto it = props.find(std::string(key));
+    if (it == props.end()) return refs;
+    add_ref(it->second, add_ref);
+    return refs;
 }
 
 struct DecodedCamShot {
@@ -2158,6 +2181,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.special = prop_bool(shot.props, "special", false);
             key.walk_ok = prop_bool(shot.props, "walk_ok", true);
             key.starpower_ok = prop_bool(shot.props, "starpower_ok", false);
+            key.far_starpower_ok =
+                prop_bool(shot.props, "far_starpower_ok", false);
             key.low_excitement_ok =
                 prop_bool(shot.props, "low_excitement_ok", true);
             key.jump_ok = prop_bool(shot.props, "jump_ok", true);
@@ -2175,6 +2200,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.hide_list_refs = shot.hide_list;
             key.show_list_refs = shot.show_list;
             key.gen_hide_list_refs = shot.gen_hide_list;
+            key.bad_waypoint_refs = prop_refs(shot.props, "bad_waypoints");
             key.draw_override_refs = shot.draw_overrides;
             key.postproc_override_refs = shot.postproc_overrides;
             key.camera_anim_refs = shot.anims;
@@ -2343,6 +2369,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.special = from.special;
     to.walk_ok = from.walk_ok;
     to.starpower_ok = from.starpower_ok;
+    to.far_starpower_ok = from.far_starpower_ok;
     to.low_excitement_ok = from.low_excitement_ok;
     to.jump_ok = from.jump_ok;
     to.lighter = from.lighter;
@@ -2359,6 +2386,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.hide_list_refs = from.hide_list_refs;
     to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
+    to.bad_waypoint_refs = from.bad_waypoint_refs;
     to.draw_override_refs = from.draw_override_refs;
     to.postproc_override_refs = from.postproc_override_refs;
     to.camera_anim_refs = from.camera_anim_refs;
@@ -14812,6 +14840,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.special = c.key.special;
                 pos.walk_ok = c.key.walk_ok;
                 pos.starpower_ok = c.key.starpower_ok;
+                pos.far_starpower_ok = c.key.far_starpower_ok;
                 pos.low_excitement_ok = c.key.low_excitement_ok;
                 pos.jump_ok = c.key.jump_ok;
                 pos.lighter = c.key.lighter;
@@ -14821,6 +14850,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.hide_list_refs = c.key.hide_list_refs;
                 pos.show_list_refs = c.key.show_list_refs;
                 pos.gen_hide_list_refs = c.key.gen_hide_list_refs;
+                pos.bad_waypoint_refs = c.key.bad_waypoint_refs;
                 pos.draw_override_refs = c.key.draw_override_refs;
                 pos.postproc_override_refs = c.key.postproc_override_refs;
                 pos.camera_anim_refs = c.key.camera_anim_refs;
@@ -14898,7 +14928,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -14915,7 +14945,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.blend_ease, c.order,
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
                          key.low_excitement_ok ? 1 : 0,
-                         key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
+                         key.starpower_ok ? 1 : 0,
+                         key.far_starpower_ok ? 1 : 0,
+                         key.bad_waypoint_refs.size(),
+                         key.jump_ok ? 1 : 0,
                          key.lighter ? 1 : 0, key.platform_only,
                          static_cast<unsigned int>(key.disabled_flags),
                          static_cast<unsigned int>(key.flags),

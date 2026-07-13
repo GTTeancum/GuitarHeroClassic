@@ -41,6 +41,16 @@ Open work:
   `GHOGX_DEBUG_CAMERA=1`, native logs emit `camera-candidate` rows for each
   plausible decoded `CamShot` pose and final `[camera]` rows for the selected
   render-camera eye/aim/up.
+- 2026-07-13 CamShot `shot_ok` support metadata: ihatecompvir routes
+  selection-time approval through `CamShot::ShotOk`, which sends the
+  `shot_ok` message with the previous shot. GH2 `world/camshot.dta` maps that
+  script to native `cam_shot_ok $this`, and the GH2 `world_objects.dta`
+  CamShot editor schema defines `bad_waypoints` plus `far_starpower_ok` as
+  authored shot-approval properties. Native now preserves those source fields
+  through ObjectFields decode, regular CamShot metadata, path-backed camera
+  keys, and regular CamShot diagnostics. This intentionally does not reject
+  shots on either field yet; that must wait until the native `cam_shot_ok`
+  predicate is recovered rather than inferred from field names.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that

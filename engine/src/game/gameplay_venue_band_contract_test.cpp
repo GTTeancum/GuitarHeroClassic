@@ -9759,6 +9759,10 @@ int main() {
                  "intforce_char_lod=-1;",
                  "CameraKey keeps authored crowd/LOD CamShot flags");
   ok &= contains(gameplay_h_c,
+                 "boolstarpower_ok=false;boolfar_starpower_ok=false;"
+                 "boollow_excitement_ok=true;",
+                 "CameraKey keeps authored CamShot far-starpower support flag");
+  ok &= contains(gameplay_h_c,
                  "std::vector<std::string>hide_list_refs;",
                  "CameraKey keeps authored CamShot hide_list refs");
   ok &= contains(gameplay_h_c,
@@ -9767,6 +9771,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::vector<std::string>gen_hide_list_refs;",
                  "CameraKey keeps authored generated CamShot hide refs");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>bad_waypoint_refs;",
+                 "CameraKey keeps authored CamShot bad_waypoints refs");
   ok &= contains(gameplay_h_c,
                  "std::vector<std::string>draw_override_refs;",
                  "CameraKey keeps authored CamShot draw override refs");
@@ -9803,6 +9810,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "intprop_int(conststd::unordered_map<std::string,MiloValue>&props,",
                  "CamShot int properties use parsed ObjectFields type props");
+  ok &= contains(gameplay_c,
+                 "enumclassKind{None,Int,Float,Symbol,Array};",
+                 "CamShot ObjectFields parser preserves list values for source metadata");
+  ok &= contains(gameplay_c,
+                 "std::vector<std::string>prop_refs("
+                 "conststd::unordered_map<std::string,MiloValue>&props,",
+                 "CamShot ObjectFields parser exposes source ref-list properties");
   ok &= contains(gameplay_c,
                  "structIntroCameraSelection{std::stringshot;"
                  "std::stringanim=\"Intro.tnm\";boolhide_crowd=false;"
@@ -9915,7 +9929,8 @@ int main() {
                  "parent_rot=%drefs=%dposes=%zuloop=%d"
                  "loop_keyframe=%dposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
-                 "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
+                 "low_excitement_ok=%dstarpower_ok=%d"
+                 "far_starpower_ok=%dbad_waypoints=%zujump_ok=%dlighter=%d"
                  "platform_only=%ddisabled=0x%08xflags=0x%08xhide_crowd=%d"
                  "crowd_face_camera=%dforce_char_lod=%d"
                  "next_shot=%s"
@@ -10484,6 +10499,20 @@ int main() {
   ok &= contains(regular_camera_loader_c,
                  "platform_only=%d",
                  "regular CamShot diagnostics expose source platform_only state");
+  ok &= contains(gameplay_c,
+                 "key.far_starpower_ok=prop_bool(shot.props,"
+                 "\"far_starpower_ok\",false);",
+                 "CamShot loader decodes authored far_starpower_ok");
+  ok &= contains(gameplay_c,
+                 "key.bad_waypoint_refs=prop_refs(shot.props,"
+                 "\"bad_waypoints\");",
+                 "CamShot loader decodes authored bad_waypoints refs");
+  ok &= contains(gameplay_c,
+                 "to.far_starpower_ok=from.far_starpower_ok;",
+                 "path-backed CamShot runtime metadata carries far_starpower_ok");
+  ok &= contains(gameplay_c,
+                 "to.bad_waypoint_refs=from.bad_waypoint_refs;",
+                 "path-backed CamShot runtime metadata carries bad_waypoints refs");
   ok &= contains(gameplay_c,
                  "structCameraShotSourceFilter",
                  "regular camera selection uses a source-shaped ShotMatches filter carrier");

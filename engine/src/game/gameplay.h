@@ -217,6 +217,7 @@ class Gameplay {
     bool special = false;
     bool walk_ok = true;
     bool starpower_ok = false;
+    bool far_starpower_ok = false;
     bool low_excitement_ok = true;
     bool jump_ok = true;
     bool lighter = false;
@@ -233,6 +234,7 @@ class Gameplay {
     std::vector<std::string> hide_list_refs;
     std::vector<std::string> show_list_refs;
     std::vector<std::string> gen_hide_list_refs;
+    std::vector<std::string> bad_waypoint_refs;
     std::vector<std::string> draw_override_refs;
     std::vector<std::string> postproc_override_refs;
     std::vector<std::string> camera_anim_refs;
