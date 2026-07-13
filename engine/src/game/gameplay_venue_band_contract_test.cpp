@@ -6903,6 +6903,21 @@ int main() {
                  "approx_directional=%zu",
                  "runtime Environ lighting diagnostics report normal-aware approximate slots");
   ok &= contains(renderer_c,
+                 "std::stringenviron_lighting_debug_signature(",
+                 "runtime Environ lighting diagnostics key on source light state, not just counts");
+  ok &= contains(renderer_c,
+                 "for(floatvalue:ambient)append_debug_float(key,value);",
+                 "runtime Environ lighting diagnostics include sampled ambient color");
+  ok &= contains(renderer_c,
+                 "for(constauto&light:approx_directional_lights)",
+                 "runtime Environ lighting diagnostics include sampled approximate lights");
+  ok &= contains(renderer_c,
+                 "conststd::stringkey=environ_lighting_debug_signature(",
+                 "overlay Environ lighting diagnostics resample repeated LightPreset states");
+  ok &= contains(renderer_c,
+                 "m.name+\"|\"+environ_lighting_debug_signature(",
+                 "mesh Environ lighting diagnostics are keyed per mesh and sampled source state");
+  ok &= contains(renderer_c,
                  "\"[milo_scene]MeshEnvironlightingstate:mesh=%s\"",
                  "mesh-local Environ lighting diagnostics expose the resolved source environment");
   ok &= contains(renderer_c,

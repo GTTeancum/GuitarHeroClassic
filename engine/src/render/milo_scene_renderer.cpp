@@ -217,6 +217,32 @@ D3DCOLOR d3d_color_from_rgba(const std::array<float, 4>& color) {
                        color_channel(color[2]));
 }
 
+void append_debug_float(std::string& out, float value) {
+  char buf[32];
+  std::snprintf(buf, sizeof(buf), "|%.3f",
+                std::isfinite(value) ? value : 0.0f);
+  out += buf;
+}
+
+std::string environ_lighting_debug_signature(
+    const std::string& environment_name, size_t real_lights,
+    size_t approx_lights, const std::array<float, 4>& ambient,
+    const std::vector<ApproxLightCandidate>& approx_directional_lights) {
+  std::string key = environment_name + "|real=" + std::to_string(real_lights) +
+                    "|approx=" + std::to_string(approx_lights) +
+                    "|dir=" +
+                    std::to_string(approx_directional_lights.size()) +
+                    "|ambient";
+  for (float value : ambient) append_debug_float(key, value);
+  for (const auto& light : approx_directional_lights) {
+    key += "|ref=" + light.ref + "|color";
+    for (float value : light.color) append_debug_float(key, value);
+    key += "|dir";
+    for (float value : light.direction) append_debug_float(key, value);
+  }
+  return key;
+}
+
 std::array<float, 3> authored_light_direction_from_world(
     const std::array<float, 16>& light_world) {
   // RndLight aim follows the Trans -Z axis. The RedOctane band/drummer lights
@@ -2526,9 +2552,9 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
   }
   if (env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
     static std::unordered_set<std::string> logged_overlay_envs;
-    const std::string key =
-        environment_name + "|" + std::to_string(enabled_lights) + "|" +
-        std::to_string(approx_directional_lights.size());
+    const std::string key = environ_lighting_debug_signature(
+        environment_name, enabled_lights, approx_lights, env_color,
+        approx_directional_lights);
     if (logged_overlay_envs.insert(key).second) {
       std::fprintf(stderr,
                    "[milo_scene] Environ lighting state applied: %s "
@@ -3444,10 +3470,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (mesh_env && env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
       static std::unordered_set<std::string> logged_mesh_envs;
       const auto counts = count_environ_light_paths(mesh_env);
-      const std::string key =
-          mesh_env->name + "|" + std::to_string(counts.real) + "|" +
-          std::to_string(counts.approx) + "|" +
-          std::to_string(approx_directional_lights.size());
+      const std::string key = m.name + "|" +
+                              environ_lighting_debug_signature(
+                                  mesh_env->name, counts.real, counts.approx,
+                                  mesh_env_color,
+                                  approx_directional_lights);
       if (logged_mesh_envs.insert(key).second) {
         std::fprintf(stderr,
                      "[milo_scene] Mesh Environ lighting state: mesh=%s "
