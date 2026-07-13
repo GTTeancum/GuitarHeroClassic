@@ -49,7 +49,7 @@ constexpr DWORD kAuthoredLightFirstSlot =
     kSceneFillLightFirstSlot + kSceneFillLightSlotCount;
 constexpr DWORD kAuthoredLightSlotCount = 4;
 constexpr float kMaxAuthoredLightColor = 64.0f;
-constexpr float kApproxDirectionalScale = 0.20f;
+constexpr float kApproxDirectionalScale = 1.0f;
 
 std::array<float, 4> average_particle_color(
     const std::array<float, 4>& low,

@@ -6833,8 +6833,8 @@ int main() {
                  "structApproxLightCandidate",
                  "renderer keeps source approximate light candidates separate from real Environ lights");
   ok &= contains(renderer_c,
-                 "constexprfloatkApproxDirectionalScale=0.20f;",
-                 "approximate Environ lights have an explicit normal-aware scale");
+                 "constexprfloatkApproxDirectionalScale=1.0f;",
+                 "approximate Environ lights preserve source-authored intensity");
   ok &= contains(renderer_c,
                  "constexprDWORDkDefaultSceneFillLightSlotCount=2;",
                  "fallback scene fill remains the two legacy viewer lights");
