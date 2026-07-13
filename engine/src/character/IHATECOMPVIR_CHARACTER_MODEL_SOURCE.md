@@ -318,6 +318,11 @@ or runtime task graph rendering.
     syncs the waypoint and calls `Play(mClip, 2, -1.0f, 1e30f, 0.0f)`. Native
     `source_clip_collide_demonstrate_step` ports those call parameters without
     starting playback.
+  - `ClearReport` resets the graph, clears `mReports`, clears
+    `mReportString`, then calls `SyncMode`. `SyncMode` only sends `set_mode`
+    when `mMode` is non-null. Native `source_clip_collide_clear_report_step`
+    and `source_clip_collide_sync_mode_step` port those source-visible
+    decisions as diagnostic evidence only.
   - `TestClips` runs every valid clip through the four source directions
     `front`, `back`, `left`, and `right`. Native
     `source_clip_collide_test_clips_plan` records that deterministic call plan.
@@ -327,6 +332,14 @@ or runtime task graph rendering.
     source-visible allocation/index plan as diagnostic evidence rather than
     using it as a runtime container implementation. `OnListReport` is separate
     and allocates `reports + 1`.
+  - `BEGIN_HANDLERS(ClipCollide)` exposes `list_clips`, `list_waypoints`,
+    `list_report`, `venue_name`, the six action handlers through
+    `clear_report`, superclass `Hmx::Object`, and check `0x1DC`. The prop-sync
+    table exposes `character`, `pick_character`, `waypoint`, `position`, `mode`,
+    `clip`, `clips`, `pick_report`, `world_lines`, and `move_camera`, with
+    source-visible side effects `SyncChar`, `SyncWaypoint`, `SyncMode`, and
+    `PickReport`. Native `source_clip_collide_handler_plan` and
+    `source_clip_collide_prop_sync_plan` record only those table rows.
 - `rb3-latest/src/system/char/FileMerger.cpp` and
   `rb3-latest/src/system/char/FileMerger.h`
   - The checked source exposes constructor/default row behavior and property

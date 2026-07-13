@@ -24158,6 +24158,14 @@ int run_contract() {
                  "mChar->mDriver->Play(mClip,2,-1.0f,1e+30f,0.0f);",
                  "latest ClipCollide Demonstrate play call");
   ok &= contains(rb3_latest_clip_collide_cpp,
+                 "voidClipCollide::ClearReport(){mGraph->Reset();"
+                 "mReports.clear();mReportString=\"\";SyncMode();}",
+                 "latest ClipCollide ClearReport reset source");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "voidClipCollide::SyncMode(){if(!mMode.Null()){"
+                 "Messagemsg(\"set_mode\",DataNode(mMode));Handle(msg,true);}}",
+                 "latest ClipCollide SyncMode message source");
+  ok &= contains(rb3_latest_clip_collide_cpp,
                  "ASSERT_REVS(1,0)",
                  "latest ClipCollide source load accepts revisions through 1");
   ok &= contains(rb3_latest_clip_collide_cpp,
@@ -24189,6 +24197,26 @@ int run_contract() {
                  "DataArray*arr=newDataArray(listsize);"
                  "arr->Node(0)=DataNode((Hmx::Object*)0);",
                  "latest ClipCollide object list allocation plan");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "BEGIN_HANDLERS(ClipCollide)HANDLE(list_clips,OnListClips)"
+                 "HANDLE(list_waypoints,OnListWaypoints)"
+                 "HANDLE(list_report,OnListReport)",
+                 "latest ClipCollide handler rows start with source lists");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "HANDLE_ACTION(clear_report,ClearReport())"
+                 "HANDLE(venue_name,OnVenueName)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x1DC)END_HANDLERS",
+                 "latest ClipCollide handler rows end with check");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "BEGIN_PROPSYNCS(ClipCollide)"
+                 "SYNC_PROP_MODIFY_ALT(character,mChar,SyncChar())"
+                 "SYNC_PROP_MODIFY_ALT(pick_character,mCharPath,SyncChar())",
+                 "latest ClipCollide prop-sync character rows");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "SYNC_PROP_MODIFY(mode,mMode,SyncMode())SYNC_PROP(clip,mClip)"
+                 "SYNC_PROP_SET(clips,Clips(),)"
+                 "SYNC_PROP_SET(pick_report,mReportString,PickReport(_val.Str(0)))",
+                 "latest ClipCollide prop-sync mode and set rows");
   ok &= contains(rb3_latest_file_merger_cpp,
                  "FileMerger::FileMerger():mMergers(this),mAsyncLoad(0),"
                  "mLoadingLoad(0),unk44(0),unk50(0),mHeap(GetCurrentHeapNum()),"
@@ -24228,6 +24256,20 @@ int run_contract() {
                  "structSourceClipCollideValidationStep{boolsend_message=false;"
                  "boolvalid=true;std::stringmessage;};",
                  "native exposes ClipCollide validation step");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollideClearReportStep{boolreset_graph=true;"
+                 "boolclear_reports=true;boolclear_report_string=true;"
+                 "boolsync_mode=true;};",
+                 "native exposes ClipCollide ClearReport plan");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollideHandlerPlan{"
+                 "std::vector<std::string>handlers;"
+                 "std::vector<std::string>action_handlers;",
+                 "native exposes ClipCollide handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollidePropSyncRow{std::stringproperty;"
+                 "std::stringtarget;std::stringside_effect;boolset_only=false;};",
+                 "native exposes ClipCollide prop-sync rows");
   ok &= contains(char_clip_h,
                  "structSourceFileMergerState{boolasync_load=false;",
                  "native exposes FileMerger default state");
@@ -24288,8 +24330,28 @@ int run_contract() {
                  "true;step.play_clip=true;}",
                  "native ClipCollide helper mirrors Demonstrate gate");
   ok &= contains(char_clip,
+                 "SourceClipCollideClearReportStep"
+                 "source_clip_collide_clear_report_step(){"
+                 "returnSourceClipCollideClearReportStep{};}",
+                 "native ClipCollide helper mirrors ClearReport reset plan");
+  ok &= contains(char_clip,
+                 "SourceClipCollideSyncModeStep"
+                 "source_clip_collide_sync_mode_step(boolmode_null){"
+                 "SourceClipCollideSyncModeStepstep;step.send_set_mode="
+                 "!mode_null;returnstep;}",
+                 "native ClipCollide helper mirrors SyncMode gate");
+  ok &= contains(char_clip,
                  "plan.directions={\"front\",\"back\",\"left\",\"right\"};",
                  "native ClipCollide helper mirrors direction order");
+  ok &= contains(char_clip,
+                 "SourceClipCollideHandlerPlansource_clip_collide_handler_plan()",
+                 "native implements ClipCollide handler plan");
+  ok &= contains(char_clip,
+                 "plan.rows={{\"character\",\"mChar\",\"SyncChar\",false},",
+                 "native implements ClipCollide prop-sync first row");
+  ok &= contains(char_clip,
+                 "{\"move_camera\",\"mMoveCamera\",\"\",false}};",
+                 "native implements ClipCollide prop-sync final row");
   ok &= contains(char_clip,
                  "SourceFileMergerCopyPlansource_file_merger_merger_copy_plan()",
                  "native implements FileMerger copy-plan helper");
@@ -24318,6 +24380,18 @@ int run_contract() {
                  "source_clip_collide_valid_clip(false,false,false)",
                  "focused clip editor test covers ClipCollide ValidClip");
   ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_clear_report_step()",
+                 "focused clip editor test covers ClipCollide ClearReport");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_sync_mode_step(false)",
+                 "focused clip editor test covers ClipCollide SyncMode");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_handler_plan()",
+                 "focused clip editor test covers ClipCollide handlers");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_prop_sync_plan()",
+                 "focused clip editor test covers ClipCollide prop-sync table");
+  ok &= contains(clip_editor_source_test,
                  "source_file_merger_merger_copy_plan()",
                  "focused clip editor test covers FileMerger copy plan");
   ok &= contains(clip_editor_source_test,
@@ -24339,6 +24413,14 @@ int run_contract() {
                  "`source_clip_collide_valid_waypoint` and\n"
                  "    `source_clip_collide_valid_clip` port those handler-default decisions",
                  "document records ClipCollide validation helpers");
+  ok &= contains(doc,
+                 "`source_clip_collide_clear_report_step`\n"
+                 "    and `source_clip_collide_sync_mode_step` port those source-visible",
+                 "document records ClipCollide ClearReport and SyncMode helpers");
+  ok &= contains(doc,
+                 "`source_clip_collide_handler_plan` and\n"
+                 "    `source_clip_collide_prop_sync_plan` record only those table rows",
+                 "document records ClipCollide handler and prop-sync helpers");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

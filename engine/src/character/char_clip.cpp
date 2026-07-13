@@ -4593,6 +4593,17 @@ SourceClipCollideDemonstrateStep source_clip_collide_demonstrate_step(
   return step;
 }
 
+SourceClipCollideClearReportStep source_clip_collide_clear_report_step() {
+  return SourceClipCollideClearReportStep{};
+}
+
+SourceClipCollideSyncModeStep source_clip_collide_sync_mode_step(
+    bool mode_null) {
+  SourceClipCollideSyncModeStep step;
+  step.send_set_mode = !mode_null;
+  return step;
+}
+
 SourceClipCollideListPlan source_clip_collide_list_objects_plan(
     const std::vector<std::string>& valid_objects) {
   SourceClipCollideListPlan plan;
@@ -4614,6 +4625,31 @@ SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
   SourceClipCollideTestClipsPlan plan;
   plan.directions = {"front", "back", "left", "right"};
   plan.collide_calls = valid_clip_count * plan.directions.size();
+  return plan;
+}
+
+SourceClipCollideHandlerPlan source_clip_collide_handler_plan() {
+  SourceClipCollideHandlerPlan plan;
+  plan.handlers = {"list_clips", "list_waypoints", "list_report",
+                   "venue_name"};
+  plan.action_handlers = {"demonstrate",    "collide",       "test_clips",
+                          "test_waypoints", "test_chars",    "clear_report"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceClipCollidePropSyncPlan source_clip_collide_prop_sync_plan() {
+  SourceClipCollidePropSyncPlan plan;
+  plan.rows = {{"character", "mChar", "SyncChar", false},
+               {"pick_character", "mCharPath", "SyncChar", false},
+               {"waypoint", "mWaypoint", "SyncWaypoint", false},
+               {"position", "mPosition", "SyncWaypoint", false},
+               {"mode", "mMode", "SyncMode", false},
+               {"clip", "mClip", "", false},
+               {"clips", "Clips()", "", true},
+               {"pick_report", "mReportString", "PickReport", true},
+               {"world_lines", "mWorldLines", "", false},
+               {"move_camera", "mMoveCamera", "", false}};
   return plan;
 }
 

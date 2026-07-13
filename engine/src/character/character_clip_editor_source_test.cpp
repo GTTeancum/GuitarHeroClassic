@@ -45,12 +45,16 @@ bool near(float got, float want, const char* label) {
 int main() {
   using ghogx::character::SourceClipGraphTransitionInputs;
   using ghogx::character::source_clip_collide_default_state;
+  using ghogx::character::source_clip_collide_clear_report_step;
   using ghogx::character::source_clip_collide_demonstrate_step;
+  using ghogx::character::source_clip_collide_handler_plan;
   using ghogx::character::source_clip_collide_list_objects_plan;
   using ghogx::character::source_clip_collide_list_report_plan;
   using ghogx::character::source_clip_collide_load_plan;
   using ghogx::character::source_clip_collide_load_revision_known;
+  using ghogx::character::source_clip_collide_prop_sync_plan;
   using ghogx::character::source_clip_collide_set_type_def_step;
+  using ghogx::character::source_clip_collide_sync_mode_step;
   using ghogx::character::source_clip_collide_sync_char_step;
   using ghogx::character::source_clip_collide_test_clips_plan;
   using ghogx::character::source_clip_collide_valid_clip;
@@ -245,6 +249,25 @@ int main() {
   ok &= expect_bool(demonstrate_missing.play_clip, false,
                     "ClipCollide Demonstrate skips incomplete setup");
 
+  const auto clear_report = source_clip_collide_clear_report_step();
+  ok &= expect_bool(clear_report.reset_graph, true,
+                    "ClipCollide ClearReport resets graph");
+  ok &= expect_bool(clear_report.clear_reports, true,
+                    "ClipCollide ClearReport clears report vector");
+  ok &= expect_bool(clear_report.clear_report_string, true,
+                    "ClipCollide ClearReport clears report string");
+  ok &= expect_bool(clear_report.sync_mode, true,
+                    "ClipCollide ClearReport syncs mode");
+
+  const auto sync_mode_null = source_clip_collide_sync_mode_step(true);
+  ok &= expect_bool(sync_mode_null.send_set_mode, false,
+                    "ClipCollide SyncMode skips null mode");
+  const auto sync_mode_set = source_clip_collide_sync_mode_step(false);
+  ok &= expect_bool(sync_mode_set.send_set_mode, true,
+                    "ClipCollide SyncMode sends non-null mode");
+  ok &= expect_string(sync_mode_set.message, "set_mode",
+                      "ClipCollide SyncMode source message");
+
   const auto list_objects =
       source_clip_collide_list_objects_plan({"clip_a", "clip_b"});
   ok &= expect_size(list_objects.source_array_size, 2,
@@ -268,6 +291,37 @@ int main() {
                       "ClipCollide TestClips source direction order");
   ok &= expect_size(test_clips.collide_calls, 12,
                     "ClipCollide TestClips collide call count");
+
+  const auto handler_plan = source_clip_collide_handler_plan();
+  ok &= expect_size(handler_plan.handlers.size(), 4,
+                    "ClipCollide handler source count");
+  ok &= expect_string(handler_plan.handlers[2], "list_report",
+                      "ClipCollide handler source list report");
+  ok &= expect_size(handler_plan.action_handlers.size(), 6,
+                    "ClipCollide action handler source count");
+  ok &= expect_string(handler_plan.action_handlers[5], "clear_report",
+                      "ClipCollide action handler clear report");
+  ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
+                      "ClipCollide handler superclass");
+  ok &= expect_int(handler_plan.check, 0x1DC, "ClipCollide handler check");
+
+  const auto prop_sync = source_clip_collide_prop_sync_plan();
+  ok &= expect_size(prop_sync.rows.size(), 10,
+                    "ClipCollide prop-sync row count");
+  ok &= expect_string(prop_sync.rows[0].property, "character",
+                      "ClipCollide prop-sync character row");
+  ok &= expect_string(prop_sync.rows[0].side_effect, "SyncChar",
+                      "ClipCollide prop-sync character side effect");
+  ok &= expect_string(prop_sync.rows[4].property, "mode",
+                      "ClipCollide prop-sync mode row");
+  ok &= expect_string(prop_sync.rows[4].side_effect, "SyncMode",
+                      "ClipCollide prop-sync mode side effect");
+  ok &= expect_bool(prop_sync.rows[6].set_only, true,
+                    "ClipCollide prop-sync clips set row");
+  ok &= expect_string(prop_sync.rows[7].side_effect, "PickReport",
+                      "ClipCollide prop-sync pick report side effect");
+  ok &= expect_string(prop_sync.rows[9].property, "move_camera",
+                      "ClipCollide prop-sync final row");
 
   const auto merger_defaults = source_file_merger_default_state();
   ok &= expect_bool(merger_defaults.async_load, false,

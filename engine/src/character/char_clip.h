@@ -1580,6 +1580,18 @@ struct SourceClipCollideDemonstrateStep {
   float play_blend = 0.0f;
 };
 
+struct SourceClipCollideClearReportStep {
+  bool reset_graph = true;
+  bool clear_reports = true;
+  bool clear_report_string = true;
+  bool sync_mode = true;
+};
+
+struct SourceClipCollideSyncModeStep {
+  bool send_set_mode = false;
+  std::string message = "set_mode";
+};
+
 struct SourceClipCollideListPlan {
   size_t source_array_size = 0;
   bool writes_null_first = true;
@@ -1590,6 +1602,24 @@ struct SourceClipCollideListPlan {
 struct SourceClipCollideTestClipsPlan {
   std::vector<std::string> directions;
   size_t collide_calls = 0;
+};
+
+struct SourceClipCollideHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> action_handlers;
+  std::vector<std::string> superclasses;
+  int check = 0x1DC;
+};
+
+struct SourceClipCollidePropSyncRow {
+  std::string property;
+  std::string target;
+  std::string side_effect;
+  bool set_only = false;
+};
+
+struct SourceClipCollidePropSyncPlan {
+  std::vector<SourceClipCollidePropSyncRow> rows;
 };
 
 struct SourceFileMergerMergerState {
@@ -1827,12 +1857,17 @@ SourceClipCollideDemonstrateStep source_clip_collide_demonstrate_step(
     bool has_character,
     bool has_waypoint,
     bool has_clip);
+SourceClipCollideClearReportStep source_clip_collide_clear_report_step();
+SourceClipCollideSyncModeStep source_clip_collide_sync_mode_step(
+    bool mode_null);
 SourceClipCollideListPlan source_clip_collide_list_objects_plan(
     const std::vector<std::string>& valid_objects);
 SourceClipCollideListPlan source_clip_collide_list_report_plan(
     const std::vector<std::string>& reports);
 SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
     size_t valid_clip_count);
+SourceClipCollideHandlerPlan source_clip_collide_handler_plan();
+SourceClipCollidePropSyncPlan source_clip_collide_prop_sync_plan();
 SourceFileMergerState source_file_merger_default_state();
 SourceFileMergerMergerState source_file_merger_merger_default_state();
 SourceFileMergerCopyPlan source_file_merger_merger_copy_plan();
