@@ -331,6 +331,52 @@ struct SourceMiloEditorRndMeshCoreFieldsIoPlan {
 SourceMiloEditorRndMeshCoreFieldsIoPlan
 source_milo_editor_rndmesh_core_fields_io_plan(int32_t mesh_revision);
 
+struct SourceMiloEditorRndMeshEnumPlan {
+  uint32_t mutable_none = 0;
+  uint32_t mutable_verts = 31;
+  uint32_t mutable_faces = 32;
+  uint32_t mutable_all = 63;
+  uint32_t volume_empty = 0;
+  uint32_t volume_triangles = 1;
+  uint32_t volume_bsp = 2;
+  uint32_t volume_box = 3;
+  bool mutable_serializes_as_uint32 = true;
+  bool volume_serializes_as_uint32 = true;
+  bool volume_values_are_empty_triangles_bsp_box = true;
+  bool gh2_rev28_volume_value_is_triangles = false;
+};
+
+SourceMiloEditorRndMeshEnumPlan source_milo_editor_rndmesh_enum_plan(
+    int32_t mesh_revision,
+    uint32_t volume_value);
+
+struct SourceMiloEditorRndMeshBspNodeIoPlan {
+  int32_t mesh_revision = 0;
+  bool has_value = false;
+  bool left_present = false;
+  bool right_present = false;
+  bool reads_bsp_node = false;
+  bool writes_bsp_node = false;
+  bool row_starts_with_has_value_bool = true;
+  bool reads_vector4_when_has_value = false;
+  bool reads_left_right_children_when_has_value = false;
+  bool writes_vector4_when_has_value = false;
+  bool writes_left_child_only_if_present = false;
+  bool writes_right_child_only_if_present = false;
+  bool write_does_not_allocate_missing_children = true;
+  bool empty_node_is_bool_only = false;
+  int32_t read_child_count = 0;
+  int32_t write_child_count = 0;
+  bool gh2_rev28_bsp_node_is_source_bool_tree = false;
+};
+
+SourceMiloEditorRndMeshBspNodeIoPlan
+source_milo_editor_rndmesh_bsp_node_io_plan(
+    int32_t mesh_revision,
+    bool has_value,
+    bool left_present,
+    bool right_present);
+
 struct SourceMiloEditorRndMeshSectionOrderPlan {
   int32_t mesh_revision = 0;
   int32_t alt_revision = 0;

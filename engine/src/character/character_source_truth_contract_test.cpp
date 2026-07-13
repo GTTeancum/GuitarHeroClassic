@@ -5407,6 +5407,29 @@ int run_contract() {
                  "if(revision>18)bspNode=bspNode.Read(reader);",
                  "MiloEditor RndMesh BSP gate");
   ok &= contains(mesh_cs,
+                 "publicenumMutable:uint{kMutableNone=0,kMutableVerts=31,"
+                 "kMutableFaces=32,kMutableAll=63,}",
+                 "MiloEditor RndMesh mutable enum values");
+  ok &= contains(mesh_cs,
+                 "publicenumVolume:uint{kVolumeEmpty,kVolumeTriangles,"
+                 "kVolumeBSP,kVolumeBox,}",
+                 "MiloEditor RndMesh volume enum order");
+  ok &= contains(mesh_cs,
+                 "publicclassBSPNode{publicboolhasValue;publicMiloLib."
+                 "Classes.Vector4vec=new();publicBSPNode?left;publicBSPNode?"
+                 "right;",
+                 "MiloEditor RndMesh BSPNode fields");
+  ok &= contains(mesh_cs,
+                 "hasValue=reader.ReadBoolean();if(hasValue){vec=vec.Read("
+                 "reader);left=newBSPNode().Read(reader);right=newBSPNode()."
+                 "Read(reader);}",
+                 "MiloEditor RndMesh BSPNode read bool vector children");
+  ok &= contains(mesh_cs,
+                 "writer.WriteBoolean(hasValue);if(hasValue){vec.Write(writer);"
+                 "if(left!=null)left.Write(writer);if(right!=null)right.Write("
+                 "writer);}",
+                 "MiloEditor RndMesh BSPNode write nullable children");
+  ok &= contains(mesh_cs,
                  "trans.Write(writer,false,parent,null);draw.Write(writer,"
                  "false,parent,null);Symbol.Write(writer,mat);",
                  "MiloEditor RndMesh writes transform draw and material rows");
@@ -6187,6 +6210,13 @@ int run_contract() {
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh core fields IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshEnumPlan{uint32_tmutable_none=0;",
+                 "native declares MiloEditor RndMesh enum plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshBspNodeIoPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh BSPNode IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshSectionOrderPlan{"
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh section order plan");
@@ -6549,6 +6579,28 @@ int run_contract() {
       "SourceMiloEditorRndMeshCoreFieldsIoPlansource_milo_editor_rndmesh_"
       "core_fields_io_plan(",
       "native ports MiloEditor RndMesh core fields IO helper");
+  ok &= contains(char_mesh,
+                 "SourceMiloEditorRndMeshEnumPlansource_milo_editor_rndmesh_"
+                 "enum_plan(",
+                 "native ports MiloEditor RndMesh enum helper");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_volume_value_is_triangles=mesh_revision==28&&"
+                 "volume_value==plan.volume_triangles;",
+                 "native enum helper pins GH2 triangles volume value");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshBspNodeIoPlansource_milo_editor_rndmesh_"
+      "bsp_node_io_plan(",
+      "native ports MiloEditor RndMesh BSPNode IO helper");
+  ok &= contains(char_mesh,
+                 "plan.reads_bsp_node=mesh_revision>18;",
+                 "native BSPNode helper mirrors revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_child_count=2;",
+                 "native BSPNode helper records source read children");
+  ok &= contains(char_mesh,
+                 "plan.write_child_count=(left_present?1:0)+(right_present?1:0);",
+                 "native BSPNode helper records nullable write children");
   ok &= contains(
       char_mesh,
       "SourceMiloEditorRndMeshSectionOrderPlansource_milo_editor_rndmesh_"
@@ -7179,6 +7231,18 @@ int run_contract() {
                  "gh2_core_fields.gh2_rev28_core_is_mat_geom_mutable_volume_bsp",
                  "focused mesh decode test covers GH2 core field block");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_enum_plan(28,1)",
+                 "focused mesh decode test covers MiloEditor RndMesh enums");
+  ok &= contains(mesh_decode_test,
+                 "gh2_enums.gh2_rev28_volume_value_is_triangles",
+                 "focused mesh decode test covers GH2 triangles volume value");
+  ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_bsp_node_io_plan(",
+                 "focused mesh decode test covers MiloEditor BSPNode IO");
+  ok &= contains(mesh_decode_test,
+                 "gh2_bsp_node.gh2_rev28_bsp_node_is_source_bool_tree",
+                 "focused mesh decode test covers GH2 BSPNode bool tree");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_section_order_plan(",
                  "focused mesh decode test covers MiloEditor section order");
   ok &= contains(mesh_decode_test,
@@ -7502,6 +7566,15 @@ int run_contract() {
                  "document records MiloEditor RndMesh core fields IO helper");
   ok &= contains(doc, "material, geom owner, mutable, volume, and BSP only",
                  "document records GH2 rev28 core field block");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_enum_plan`",
+                 "document records MiloEditor RndMesh enum helper");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_bsp_node_io_plan`",
+                 "document records MiloEditor RndMesh BSPNode IO helper");
+  ok &= contains(doc,
+                 "without promoting BSP tree parsing into runtime collision",
+                 "document fences BSPNode IO from runtime behavior");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_section_order_plan` records",
                  "document records MiloEditor RndMesh section order helper");

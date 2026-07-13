@@ -647,6 +647,50 @@ source_milo_editor_rndmesh_core_fields_io_plan(int32_t mesh_revision) {
   return plan;
 }
 
+SourceMiloEditorRndMeshEnumPlan source_milo_editor_rndmesh_enum_plan(
+    int32_t mesh_revision,
+    uint32_t volume_value) {
+  SourceMiloEditorRndMeshEnumPlan plan;
+  plan.gh2_rev28_volume_value_is_triangles =
+      mesh_revision == 28 && volume_value == plan.volume_triangles;
+  return plan;
+}
+
+SourceMiloEditorRndMeshBspNodeIoPlan
+source_milo_editor_rndmesh_bsp_node_io_plan(
+    int32_t mesh_revision,
+    bool has_value,
+    bool left_present,
+    bool right_present) {
+  SourceMiloEditorRndMeshBspNodeIoPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.has_value = has_value;
+  plan.left_present = left_present;
+  plan.right_present = right_present;
+  plan.reads_bsp_node = mesh_revision > 18;
+  plan.writes_bsp_node = mesh_revision > 18;
+  if (!plan.reads_bsp_node) return plan;
+
+  if (!has_value) {
+    plan.empty_node_is_bool_only = true;
+    return plan;
+  }
+
+  plan.reads_vector4_when_has_value = true;
+  plan.reads_left_right_children_when_has_value = true;
+  plan.writes_vector4_when_has_value = true;
+  plan.writes_left_child_only_if_present = left_present;
+  plan.writes_right_child_only_if_present = right_present;
+  plan.read_child_count = 2;
+  plan.write_child_count = (left_present ? 1 : 0) + (right_present ? 1 : 0);
+  plan.gh2_rev28_bsp_node_is_source_bool_tree =
+      mesh_revision == 28 && plan.row_starts_with_has_value_bool &&
+      plan.reads_vector4_when_has_value &&
+      plan.reads_left_right_children_when_has_value &&
+      plan.write_does_not_allocate_missing_children;
+  return plan;
+}
+
 SourceMiloEditorRndMeshSectionOrderPlan
 source_milo_editor_rndmesh_section_order_plan(
     int32_t mesh_revision,

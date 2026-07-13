@@ -1207,6 +1207,53 @@ int main() {
   CHECK(rev7_core_fields.read_bool_count == 2);
   CHECK(rev7_core_fields.read_uint32_count == 1);
 
+  const auto gh2_enums =
+      ghogx::character::source_milo_editor_rndmesh_enum_plan(28, 1);
+  CHECK(gh2_enums.mutable_none == 0);
+  CHECK(gh2_enums.mutable_verts == 31);
+  CHECK(gh2_enums.mutable_faces == 32);
+  CHECK(gh2_enums.mutable_all == 63);
+  CHECK(gh2_enums.volume_empty == 0);
+  CHECK(gh2_enums.volume_triangles == 1);
+  CHECK(gh2_enums.volume_bsp == 2);
+  CHECK(gh2_enums.volume_box == 3);
+  CHECK(gh2_enums.mutable_serializes_as_uint32);
+  CHECK(gh2_enums.volume_serializes_as_uint32);
+  CHECK(gh2_enums.volume_values_are_empty_triangles_bsp_box);
+  CHECK(gh2_enums.gh2_rev28_volume_value_is_triangles);
+
+  const auto gh2_bsp_node =
+      ghogx::character::source_milo_editor_rndmesh_bsp_node_io_plan(
+          28, true, true, false);
+  CHECK(gh2_bsp_node.reads_bsp_node);
+  CHECK(gh2_bsp_node.writes_bsp_node);
+  CHECK(gh2_bsp_node.row_starts_with_has_value_bool);
+  CHECK(gh2_bsp_node.reads_vector4_when_has_value);
+  CHECK(gh2_bsp_node.reads_left_right_children_when_has_value);
+  CHECK(gh2_bsp_node.writes_vector4_when_has_value);
+  CHECK(gh2_bsp_node.writes_left_child_only_if_present);
+  CHECK(!gh2_bsp_node.writes_right_child_only_if_present);
+  CHECK(gh2_bsp_node.write_does_not_allocate_missing_children);
+  CHECK(gh2_bsp_node.read_child_count == 2);
+  CHECK(gh2_bsp_node.write_child_count == 1);
+  CHECK(gh2_bsp_node.gh2_rev28_bsp_node_is_source_bool_tree);
+
+  const auto gh2_empty_bsp_node =
+      ghogx::character::source_milo_editor_rndmesh_bsp_node_io_plan(
+          28, false, true, true);
+  CHECK(gh2_empty_bsp_node.reads_bsp_node);
+  CHECK(gh2_empty_bsp_node.empty_node_is_bool_only);
+  CHECK(!gh2_empty_bsp_node.reads_vector4_when_has_value);
+  CHECK(gh2_empty_bsp_node.read_child_count == 0);
+  CHECK(gh2_empty_bsp_node.write_child_count == 0);
+
+  const auto legacy_bsp_node =
+      ghogx::character::source_milo_editor_rndmesh_bsp_node_io_plan(
+          18, true, true, true);
+  CHECK(!legacy_bsp_node.reads_bsp_node);
+  CHECK(!legacy_bsp_node.writes_bsp_node);
+  CHECK(legacy_bsp_node.read_child_count == 0);
+
   const auto gh2_section_order =
       ghogx::character::source_milo_editor_rndmesh_section_order_plan(
           28, 0, false);

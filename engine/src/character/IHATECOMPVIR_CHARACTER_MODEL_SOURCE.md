@@ -1141,6 +1141,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     volume after 17, and BSP after 18. For GH2 rev28 this core block is
     material, geom owner, mutable, volume, and BSP only; native must not infer
     legacy transform parent or alternate owner rows for rev28 meshes.
+  - MiloEditor `RndMesh.Mutable` is a `uint` enum with values
+    none/verts/faces/all = `0`/`31`/`32`/`63`; `RndMesh.Volume` is a `uint`
+    enum ordered empty/triangles/BSP/box = `0`/`1`/`2`/`3`. Its `BSPNode`
+    row starts with a `hasValue` bool, reads a `Vector4` plus two child nodes
+    only when true, and writes child nodes only when the nullable child refs are
+    present. Native `source_milo_editor_rndmesh_enum_plan` and
+    `source_milo_editor_rndmesh_bsp_node_io_plan` record those file-format
+    rows without promoting BSP tree parsing into runtime collision, culling, or
+    render behavior.
   - Native `source_milo_editor_rndmesh_section_order_plan` records the full
     MiloEditor `RndMesh.Read` / `Write` section order: combined revision word,
     base object, transform, drawable, core fields, vertices, faces, group sizes,
