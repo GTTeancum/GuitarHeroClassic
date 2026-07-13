@@ -2120,15 +2120,149 @@ struct Cur {
   Cur(const uint8_t* d, size_t l) : p(d), n(l) {}
 
   bool can(size_t k) const { return pos + k <= n; }
-  uint8_t  u8()  { uint8_t v = p[pos]; pos += 1; return v; }
-  uint16_t u16() { uint16_t v; std::memcpy(&v, p + pos, 2); pos += 2; return v; }
+  void need(size_t k) const {
+    if (pos + k > n) throw std::runtime_error("char_clip: read past end");
+  }
+  void skip(size_t k) { need(k); pos += k; }
+  uint8_t  u8()  { need(1); uint8_t v = p[pos]; pos += 1; return v; }
+  uint16_t u16() { need(2); uint16_t v; std::memcpy(&v, p + pos, 2); pos += 2; return v; }
   int16_t  i16() { return (int16_t)u16(); }
-  uint32_t u32() { uint32_t v; std::memcpy(&v, p + pos, 4); pos += 4; return v; }
-  float    f32() { float v; std::memcpy(&v, p + pos, 4); pos += 4; return v; }
+  uint32_t u32() { need(4); uint32_t v; std::memcpy(&v, p + pos, 4); pos += 4; return v; }
+  float    f32() { need(4); float v; std::memcpy(&v, p + pos, 4); pos += 4; return v; }
+  std::string str() {
+    const uint32_t len = u32();
+    if (len > n - pos || len > (1u << 20)) {
+      throw std::runtime_error("char_clip: implausible string length");
+    }
+    std::string s(reinterpret_cast<const char*>(p + pos), len);
+    pos += len;
+    return s;
+  }
   uint32_t peek_u32(size_t at) const {
     uint32_t v; std::memcpy(&v, p + at, 4); return v;
   }
 };
+
+void read_clip_dtb_node(Cur& c);
+
+void read_clip_dtb_array_parent(Cur& c) {
+  const uint16_t child_count = c.u16();
+  (void)c.u32();
+  for (uint16_t i = 0; i < child_count; ++i) read_clip_dtb_node(c);
+}
+
+void read_clip_dtb_parent(Cur& c) {
+  if (c.u8() == 0) return;
+  read_clip_dtb_array_parent(c);
+}
+
+void read_clip_dtb_node(Cur& c) {
+  const uint32_t type = c.u32();
+  const milo_scene::SourceMiloEditorDtbNodePayloadPlan plan =
+      milo_scene::source_milo_editor_dtb_node_payload_plan(
+          static_cast<int32_t>(type));
+  if (plan.reads_uint32) {
+    (void)c.u32();
+  } else if (plan.reads_float) {
+    (void)c.f32();
+  } else if (plan.reads_symbol) {
+    (void)c.str();
+  } else if (plan.reads_array_parent) {
+    read_clip_dtb_array_parent(c);
+  }
+}
+
+void read_clip_object_fields(Cur& c) {
+  const uint32_t combined_revision = c.u32();
+  const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffffu);
+  (void)c.str();
+  read_clip_dtb_parent(c);
+  if (revision > 0) (void)c.str();
+}
+
+struct CharClipMetadata {
+  bool valid = false;
+  uint32_t samples_version = 0;
+  uint32_t clip_version = 0;
+  float start_beat = 0.0f;
+  float end_beat = 0.0f;
+  float beats_per_sec = 0.0f;
+  uint32_t flags = 0;
+  uint32_t play_flags = 0;
+  float blend_width = 0.0f;
+  float range = 0.0f;
+  bool gh2_unknown_bool = false;
+  std::string relative;
+  size_t samples_offset = SIZE_MAX;
+};
+
+CharClipMetadata read_char_clip_metadata(const uint8_t* d, size_t n) {
+  CharClipMetadata out;
+  try {
+    Cur c(d, n);
+    if (!c.can(8)) return out;
+    out.samples_version = c.u32();
+    if (!source_grim_char_clip_samples_version_known(
+            static_cast<int>(out.samples_version))) {
+      return out;
+    }
+    out.clip_version = c.u32();
+    if (!source_grim_char_clip_version_known(
+            static_cast<int>(out.clip_version))) {
+      return out;
+    }
+
+    read_clip_object_fields(c);
+    out.start_beat = c.f32();
+    out.end_beat = c.f32();
+    out.beats_per_sec = c.f32();
+    out.flags = c.u32();
+    out.play_flags = c.u32();
+    out.blend_width = c.f32();
+    if (out.clip_version > 3) out.range = c.f32();
+    if (out.clip_version == 5) {
+      out.gh2_unknown_bool = c.u8() != 0;
+    } else if (out.clip_version > 5) {
+      out.relative = c.str();
+    }
+    if (out.clip_version > 9) (void)c.u32();
+    if (out.clip_version > 11) (void)c.u8();
+
+    uint32_t node_count = 0;
+    if (out.clip_version < 8) {
+      node_count = c.u32();
+    } else {
+      c.skip(4);
+      node_count = c.u32();
+    }
+    if (node_count > 10000u) return CharClipMetadata{};
+    for (uint32_t i = 0; i < node_count; ++i) {
+      (void)c.str();
+      const uint32_t value_count = c.u32();
+      if (value_count > 100000u) return CharClipMetadata{};
+      const size_t bytes = static_cast<size_t>(value_count) * 8u;
+      c.skip(bytes);
+    }
+
+    if (out.clip_version < 7) {
+      (void)c.str();
+      (void)c.str();
+    }
+
+    const uint32_t event_count = c.u32();
+    if (event_count > 10000u) return CharClipMetadata{};
+    for (uint32_t i = 0; i < event_count; ++i) {
+      (void)c.f32();
+      (void)c.str();
+    }
+
+    out.samples_offset = c.pos;
+    out.valid = true;
+    return out;
+  } catch (...) {
+    return CharClipMetadata{};
+  }
+}
 
 // Is there a valid length-prefixed bone name at byte offset `at`?
 bool is_bone_name_at(const uint8_t* d, size_t n, size_t at) {
@@ -2446,8 +2580,10 @@ void add_raw_channel_count(CharClip::RawChannelCounts& counts, int type) {
 // Parse the whole clip entry into frames.
 std::vector<std::vector<ClipChannel>> parse_all(
     const uint8_t* d, size_t n, int& num_samples_out,
-    CharClip::RawChannelCounts* raw_channel_counts) {
+    CharClip::RawChannelCounts* raw_channel_counts,
+    size_t* sample_header_offset_out = nullptr) {
   num_samples_out = 0;
+  if (sample_header_offset_out) *sample_header_offset_out = SIZE_MAX;
   if (n < 4) return {};
   uint32_t samples_version = 0;
   std::memcpy(&samples_version, d, 4);
@@ -2492,6 +2628,7 @@ std::vector<std::vector<ClipChannel>> parse_all(
     if (sample_bytes == n - q) {
       candidate.resize(2);
       lists = std::move(candidate);
+      if (sample_header_offset_out) *sample_header_offset_out = at;
       p = q;
       break;
     }
@@ -3313,21 +3450,42 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
       const uint8_t* body = payload.data() + de.offset;
       size_t sz = (size_t)de.size;
       int ns = 0;
-      result.frames = parse_all(body, sz, ns, &result.raw_channel_counts);
+      const CharClipMetadata metadata = read_char_clip_metadata(body, sz);
+      size_t sample_header_offset = SIZE_MAX;
+      result.frames = parse_all(body, sz, ns, &result.raw_channel_counts,
+                                &sample_header_offset);
       result.fps = 30;  // CharClipSamples are authored at 30 fps; refine if needed.
       result.start_frame = 0.0f;
       result.end_frame = result.frames.empty()
                              ? 0.0f
                              : static_cast<float>(result.frames.size() - 1);
-      result.default_play_flags = kCharPlayLoop;
-      result.relative = clip_name == "visemes";
+      if (metadata.valid) {
+        result.flags = metadata.flags;
+        result.default_play_flags = metadata.play_flags;
+        result.blend_width = metadata.blend_width;
+        result.range = metadata.range;
+        if (!metadata.relative.empty()) result.relative = true;
+      } else {
+        result.default_play_flags = kCharPlayLoop;
+      }
+      result.relative = result.relative || clip_name == "visemes";
       result.loaded = !result.frames.empty();
       if (result.loaded) {
         std::fprintf(stderr,
-                     "[clip] '%s': %zu frames, %zu channels/frame, %zu output bones\n",
+                     "[clip] '%s': %zu frames, %zu channels/frame, %zu output bones "
+                     "flags=0x%08x playFlags=0x%08x blend=%.3f range=%.3f\n",
                      clip_name.c_str(), result.frames.size(),
                      result.frames.empty() ? 0 : result.frames[0].size(),
-                     result.output_bones.size());
+                     result.output_bones.size(), result.flags,
+                     result.default_play_flags, result.blend_width,
+                     result.range);
+        if (debug_clip_enabled() && metadata.valid &&
+            metadata.samples_offset != sample_header_offset) {
+          std::fprintf(stderr,
+                       "[clip] '%s': metadata sample header 0x%zx, scanner 0x%zx\n",
+                       clip_name.c_str(), metadata.samples_offset,
+                       sample_header_offset);
+        }
         if (debug_clip_enabled() && !result.frames.empty()) {
           const auto& frame0 = result.frames[0];
           const size_t limit = std::min<size_t>(frame0.size(), 128);
@@ -3622,6 +3780,12 @@ uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask) {
   return source_char_clip_driver_masked_play_flags(clip.default_play_flags,
                                                    mask);
+}
+
+float source_char_driver_evaluate_flags_from_clip_flags(uint32_t clip_flags,
+                                                        uint32_t flags) {
+  if (flags == 0) return 0.0f;
+  return (clip_flags & flags) == flags ? 1.0f : 0.0f;
 }
 
 SourceCharClipDriverState source_char_clip_driver_construct(
@@ -7731,15 +7895,33 @@ static void apply_source_weight_setters(Character& character,
 
   for (const auto& setter : character.weight_setters) {
     float weight = setter.weight;
-    if (!source_char_weight_setter_poll(setter, weights_by_name, delta_beats,
-                                        weight)) {
+    std::optional<float> driver_evaluate_flags;
+    if (!setter.driver.empty()) {
+      const auto driver = character.runtime_driver_flag_weights.find(setter.driver);
+      if (driver != character.runtime_driver_flag_weights.end()) {
+        const auto flag = driver->second.find(setter.flags);
+        if (flag != driver->second.end()) {
+          driver_evaluate_flags = flag->second;
+        }
+      }
+    }
+    if (!source_char_weight_setter_poll_with_driver_result(
+            setter, weights_by_name, delta_beats, driver_evaluate_flags,
+            weight)) {
       if (controller_audit_enabled()) {
-        std::fprintf(stderr,
-                     "[weightsetter-source-skip] %s driver=%s base=%s "
-                     "reason=missing-source-CharDriver-EvaluateFlags\n",
-                     setter.name.c_str(),
-                     setter.driver.empty() ? "<none>" : setter.driver.c_str(),
-                     setter.base.empty() ? "<none>" : setter.base.c_str());
+        if (!setter.driver.empty()) {
+          std::fprintf(stderr,
+                       "[weightsetter-source-skip] %s driver=%s base=%s "
+                       "reason=missing-source-CharDriver-EvaluateFlags\n",
+                       setter.name.c_str(), setter.driver.c_str(),
+                       setter.base.empty() ? "<none>" : setter.base.c_str());
+        } else {
+          std::fprintf(stderr,
+                       "[weightsetter-source-skip] %s driver=%s base=%s "
+                       "reason=missing-source-base-or-clamp-weight\n",
+                       setter.name.c_str(), "<none>",
+                       setter.base.empty() ? "<none>" : setter.base.c_str());
+        }
       }
       continue;
     }
@@ -7750,11 +7932,15 @@ static void apply_source_weight_setters(Character& character,
       character.runtime_weight_props[setter.weight_owner] = weight;
     }
     if (controller_audit_enabled()) {
+      const std::string driver_eval_text =
+          driver_evaluate_flags ? std::to_string(*driver_evaluate_flags)
+                                : std::string("<none>");
       std::fprintf(stderr,
-                   "[weightsetter-source] %s weight=%.5f driver=%s base=%s "
-                   "mins=%zu maxs=%zu beatsPerWeight=%.5f\n",
+                   "[weightsetter-source] %s weight=%.5f driver=%s flags=0x%08x "
+                   "driverEval=%s base=%s mins=%zu maxs=%zu beatsPerWeight=%.5f\n",
                    setter.name.c_str(), weight,
                    setter.driver.empty() ? "<none>" : setter.driver.c_str(),
+                   setter.flags, driver_eval_text.c_str(),
                    setter.base.empty() ? "<none>" : setter.base.c_str(),
                    setter.min_weights.size(), setter.max_weights.size(),
                    setter.beats_per_weight);
@@ -8960,6 +9146,7 @@ void apply_ik_midi_fret_target(Character& character,
 
 void clear_runtime_ik_weights(Character& character) {
   character.runtime_weight_props.clear();
+  character.runtime_driver_flag_weights.clear();
   character.runtime_world_overrides.clear();
 }
 
@@ -8967,6 +9154,15 @@ void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
                            float weight) {
   if (weight_prop.empty()) return;
   character.runtime_weight_props[weight_prop] = std::clamp(weight, 0.0f, 1.0f);
+}
+
+void set_runtime_driver_evaluate_flags(Character& character,
+                                       const std::string& driver_name,
+                                       uint32_t flags,
+                                       float weight) {
+  if (driver_name.empty() || flags == 0) return;
+  character.runtime_driver_flag_weights[driver_name][flags] =
+      std::clamp(weight, 0.0f, 1.0f);
 }
 
 void clear_runtime_trans_worlds(Character& character) {
@@ -9645,6 +9841,26 @@ float CharClipPlayer::current_blend_weight() const {
   if (current.blend_width <= 0.0f) return 1.0f;
   return std::clamp(current.blend_progress / current.blend_width, 0.0f,
                     1.0f);
+}
+
+float CharClipPlayer::evaluate_flags(uint32_t flags) const {
+  if (layers_.empty()) return 0.0f;
+  const Layer& current = layers_.back();
+  const float current_flag =
+      current.clip ? source_char_driver_evaluate_flags_from_clip_flags(
+                         current.clip->flags, flags)
+                   : 0.0f;
+  if (layers_.size() <= 1) return current_flag;
+
+  const Layer& previous = layers_[layers_.size() - 2];
+  const float previous_flag =
+      previous.clip ? source_char_driver_evaluate_flags_from_clip_flags(
+                          previous.clip->flags, flags)
+                    : 0.0f;
+  const float current_weight = current_blend_weight();
+  return std::clamp(previous_flag * (1.0f - current_weight) +
+                        current_flag * current_weight,
+                    0.0f, 1.0f);
 }
 
 bool CharClipPlayer::source_starved() const {

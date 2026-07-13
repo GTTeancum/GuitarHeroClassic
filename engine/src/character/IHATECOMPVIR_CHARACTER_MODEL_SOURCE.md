@@ -5175,6 +5175,19 @@ through the generic `source-trans-world` path, while `l-eye.mesh` and
 rows. This is evidence for the shared source transform path, not for a
 Rockabill2-specific face attachment override.
 
+The source-backed special-pose hand release path is:
+`CharClipSamples` loads CharClip `mFlags`/`mPlayFlags` in Grim's
+`load_char_clip` order, `CharClipDriver::EvaluateFlags` evaluates the active
+clip stack against `mFlags`, `CharWeightSetter::Poll` writes
+`right.weight`/`left.weight`, and `CharIKHand::Poll` uses that live
+`CharWeightable` scalar. Native therefore must not treat guitar hand IK as
+always-on. For example, current proof logs in
+`engine/out/visual_proofs/driver_flags_release_20260713/` show
+`rockabill2` `special_02` frame 95 has `flags=0x00000000`, both hand
+`CharWeightSetter` rows write `0.0`, and both hand IK rows skip; the idle proof
+has `flags=0x00c00001`, both rows write `1.0`, and the hand IK rows solve.
+This is a source flag path, not a distance, pose, or guitar-specific override.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

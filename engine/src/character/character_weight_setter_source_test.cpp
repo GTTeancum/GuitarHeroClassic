@@ -67,6 +67,7 @@ int main() {
   using ghogx::character::source_char_weight_setter_poll_with_driver_result;
   using ghogx::character::source_char_weight_setter_runtime_dump_evidence;
   using ghogx::character::source_char_weight_setter_save_plan;
+  using ghogx::character::set_runtime_driver_evaluate_flags;
   using ghogx::character::source_char_weightable_copy_plan;
   using ghogx::character::source_char_weightable_handler_plan;
   using ghogx::character::source_char_weightable_load_plan;
@@ -346,6 +347,24 @@ int main() {
   ok &= runtime != character.runtime_weight_props.end();
   if (runtime != character.runtime_weight_props.end()) {
     ok &= near(runtime->second, 0.75f, "controller writeback");
+  }
+
+  Character driver_character;
+  CharWeightSetter release_setter = make_setter("left.weight");
+  release_setter.driver = "main.drv";
+  release_setter.flags = 0x00400000u;
+  release_setter.offset = 0.0f;
+  release_setter.scale = 1.0f;
+  release_setter.weight_owner = "left.weight";
+  driver_character.weight_setters.push_back(release_setter);
+  set_runtime_driver_evaluate_flags(driver_character, "main.drv",
+                                    0x00400000u, 0.0f);
+  apply_character_controllers(driver_character, 0.0f);
+  const auto released =
+      driver_character.runtime_weight_props.find("left.weight");
+  ok &= released != driver_character.runtime_weight_props.end();
+  if (released != driver_character.runtime_weight_props.end()) {
+    ok &= near(released->second, 0.0f, "driver flag release writeback");
   }
 
   CharWeightSetter deps_setter = make_setter("deps.weight");

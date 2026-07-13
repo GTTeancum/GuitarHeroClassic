@@ -791,6 +791,29 @@ bool viewer_auto_hand_overlays_enabled() {
 #endif
 }
 
+bool controller_audit_env_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_AUDIT_CHARACTER_GRAPH") == 0 &&
+      value && value[0];
+  std::free(value);
+  value = nullptr;
+  len = 0;
+  enabled = enabled ||
+            (_dupenv_s(&value, &len, "GHOGX_CONTROLLER_AUDIT") == 0 &&
+             value && value[0]);
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_AUDIT_CHARACTER_GRAPH");
+  if (value && value[0]) return true;
+  value = std::getenv("GHOGX_CONTROLLER_AUDIT");
+  return value && value[0];
+#endif
+}
+
 int run_scene_mode(const std::string& hdr, const std::string& ark,
                    const std::string& milo_path,
                    const std::string& screenshot_path, int screenshot_frame,
@@ -1481,6 +1504,36 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // standalone transform poses.
     ghogx::character::clear_runtime_ik_weights(renderer.character());
     if (character_controllers) {
+      if (!viewer_hand_ik_weights_active) {
+        std::unordered_set<uint32_t> main_driver_flags_seen;
+        for (const auto& setter : renderer.character().weight_setters) {
+          if (setter.driver != "main.drv" || setter.flags == 0) continue;
+          if (!main_driver_flags_seen.insert(setter.flags).second) continue;
+          float flag_weight = 0.0f;
+          bool have_flag_weight = false;
+          if (clip_frame_override >= 0 && loaded_clip.loaded) {
+            flag_weight =
+                ghogx::character::source_char_driver_evaluate_flags_from_clip_flags(
+                    loaded_clip.flags, setter.flags);
+            have_flag_weight = true;
+          } else if (main_player.active()) {
+            flag_weight = main_player.evaluate_flags(setter.flags);
+            have_flag_weight = true;
+          }
+          if (!have_flag_weight) continue;
+          ghogx::character::set_runtime_driver_evaluate_flags(
+              renderer.character(), setter.driver, setter.flags, flag_weight);
+          if (controller_audit_env_enabled()) {
+            std::fprintf(stderr,
+                         "[driver-flags] %s flags=0x%08x weight=%.5f "
+                         "clipFlags=0x%08x source=%s\n",
+                         setter.driver.c_str(), setter.flags, flag_weight,
+                         loaded_clip.loaded ? loaded_clip.flags : 0u,
+                         clip_frame_override >= 0 ? "frame-override"
+                                                  : "player");
+          }
+        }
+      }
       if (viewer_hand_ik_weights_active) {
         if (right_hand_weight_override || strum_clip.loaded) {
           ghogx::character::set_runtime_ik_weight(renderer.character(),

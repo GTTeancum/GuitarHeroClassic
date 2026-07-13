@@ -202,9 +202,15 @@ int main() {
                        "MIDI fret target is applied before CharIKHand solve");
   ok &= contains(app_main_c,
                  "ghogx::character::clear_runtime_ik_weights("
-                 "renderer.character());"
-                  "if(character_controllers){",
+                 "renderer.character());if(character_controllers){",
                  "character viewer clears stale IK weights every frame");
+  ok &= contains(app_main_c,
+                 "if(!viewer_hand_ik_weights_active){",
+                 "character viewer lets main.drv flags drive release poses when no hand overlay is active");
+  ok &= contains(app_main_c,
+                 "set_runtime_driver_evaluate_flags(renderer.character(),"
+                 "setter.driver,setter.flags,flag_weight);",
+                 "character viewer feeds active main.drv EvaluateFlags into source WeightSetter polling");
   ok &= lacks(app_main_c,
               "set_runtime_ik_weight(renderer.character(),ik.weight_prop,0.0f)",
               "character viewer must not force decoded hand IK rows to zero");

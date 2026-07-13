@@ -1016,6 +1016,7 @@ class CharClipPlayer {
   std::vector<ClipChannel> sampled_pose() const;
   bool sampled_pose_relative() const;
   float current_blend_weight() const;
+  float evaluate_flags(uint32_t flags) const;
   bool source_starved() const;
   bool active() const { return !layers_.empty(); }
   const CharClip* current_clip() const;
@@ -1139,6 +1140,8 @@ uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask);
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
+float source_char_driver_evaluate_flags_from_clip_flags(uint32_t clip_flags,
+                                                        uint32_t flags);
 SourceCharClipDriverState source_char_clip_driver_construct(
     uint32_t clip_play_flags,
     bool has_clip,
@@ -3541,6 +3544,10 @@ void apply_character_controllers(Character& character, float time_seconds);
 void clear_runtime_ik_weights(Character& character);
 void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
                            float weight);
+void set_runtime_driver_evaluate_flags(Character& character,
+                                       const std::string& driver_name,
+                                       uint32_t flags,
+                                       float weight);
 void clear_runtime_trans_worlds(Character& character);
 
 // CharIKMidi bridge. GHDX/PS2 player*_fret_pos maps MIDI pitches 40..59 to

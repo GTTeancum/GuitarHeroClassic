@@ -6421,6 +6421,7 @@ struct Character {
   std::vector<CharWeightSetter> weight_setters;
   std::map<std::string, int> object_type_counts;
   std::map<std::string, float> runtime_weight_props;
+  std::map<std::string, std::map<uint32_t, float>> runtime_driver_flag_weights;
   std::map<std::string, RuntimeIKMidiState> runtime_ik_midi_states;
   // Persistent CharIKHand controller +0x50 vectors. PS2 blends the destination
   // Trans world position into this row and uses it for the hand solve/stretch

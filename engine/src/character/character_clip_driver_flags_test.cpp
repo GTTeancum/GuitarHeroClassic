@@ -1045,6 +1045,36 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  if (ghogx::character::source_char_driver_evaluate_flags_from_clip_flags(
+          0x00c00000u, 0x00400000u) != 1.0f ||
+      ghogx::character::source_char_driver_evaluate_flags_from_clip_flags(
+          0x00800000u, 0x00400000u) != 0.0f) {
+    std::cerr << "driver EvaluateFlags clip flag helper mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClip held_clip;
+  held_clip.loaded = true;
+  held_clip.frames.resize(1);
+  held_clip.flags = 0x00400000u;
+  ghogx::character::CharClip release_clip;
+  release_clip.loaded = true;
+  release_clip.frames.resize(1);
+  release_clip.flags = 0x00000000u;
+  ghogx::character::CharClipPlayer player;
+  player.play(held_clip, ghogx::character::kCharPlayLoop |
+                             ghogx::character::kCharPlayNoBlend);
+  if (!nearf(player.evaluate_flags(0x00400000u), 1.0f)) {
+    std::cerr << "driver EvaluateFlags active clip mismatch\n";
+    ok = false;
+  }
+  player.set_source_driver_blend_width(1.0f);
+  player.play(release_clip, ghogx::character::kCharPlayLoop);
+  player.advance(0.5f);
+  if (!nearf(player.evaluate_flags(0x00400000u), 0.5f)) {
+    std::cerr << "driver EvaluateFlags blend mismatch\n";
+    ok = false;
+  }
+
   ok &= expect_indices(
       ghogx::character::source_char_clip_driver_delete_stack_order(3),
       {2, 1, 0}, "DeleteStack tail-first order");
