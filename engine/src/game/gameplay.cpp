@@ -21123,7 +21123,7 @@ void Gameplay::end_camera_shot_anims() {
     const size_t removed = before - active_venue_anim_filters_.size();
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera EndAnim: anim_event=%s filters_ended=%zu\n",
+                     "[world] camera EndAnim: source_msg=stop_shot anim_event=%s filters_ended=%zu\n",
                      event_name.c_str(), removed);
     }
     active_camera_anim_event_.clear();
@@ -21152,7 +21152,7 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
         if (debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera StartAnim: shot=%s anim_refs=%zu resolved=0 unsupported=%zu\n",
+                "[world] camera StartAnim: source_msg=start_shot shot=%s anim_refs=%zu resolved=0 unsupported=%zu\n",
                 runtime_name.c_str(), key.camera_anim_refs.size(),
                 unsupported.size());
             for (const auto& ref : unsupported) {
@@ -21176,7 +21176,7 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: shot=%s anim_event=%s anim_refs=%zu filters_started=%zu unsupported=%zu\n",
+            "[world] camera StartAnim: source_msg=start_shot shot=%s anim_event=%s anim_refs=%zu filters_started=%zu unsupported=%zu\n",
             runtime_name.c_str(), active_camera_anim_event_.c_str(),
             key.camera_anim_refs.size(), resolved, unsupported.size());
         for (const auto& ref : unsupported) {
@@ -21197,7 +21197,7 @@ void Gameplay::end_camera_shot_runtime() {
     apply_camera_crowd_visibility(clear);
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera EndAnim: shot=%s restore_visibility=1\n",
+                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1\n",
                      active_camera_runtime_shot_.c_str());
     }
     active_camera_runtime_shot_.clear();
@@ -21215,7 +21215,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: shot=%s hide_crowd=%d face_camera=%d "
+            "[world] camera StartAnim: source_msg=start_shot shot=%s hide_crowd=%d face_camera=%d "
             "reset_result_builder=1 force_char_lod=%d "
             "hide_list=%zu show_list=%zu gen_hide=%zu "
             "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",

@@ -6041,6 +6041,9 @@ int main() {
                  "if(active_camera_runtime_shot_.empty())return;",
                  "camera EndAnim path is explicit");
   ok &= contains(gameplay_c,
+                 "cameraEndAnim:source_msg=stop_shot",
+                 "camera EndAnim diagnostics name ihatecompvir stop_shot message");
+  ok &= contains(gameplay_c,
                  "voidGameplay::end_camera_shot_anims(){"
                  "if(active_camera_anim_event_.empty())return;",
                  "camera EndAnim has an explicit linked-mAnims shutdown path");
@@ -6054,6 +6057,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_runtime(constCameraKey&key)",
                  "camera StartAnim path is explicit");
+  ok &= contains(gameplay_c,
+                 "cameraStartAnim:source_msg=start_shot",
+                 "camera StartAnim diagnostics name ihatecompvir start_shot message");
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_anims"
                  "(constCameraKey&key,conststd::string&runtime_name)",
