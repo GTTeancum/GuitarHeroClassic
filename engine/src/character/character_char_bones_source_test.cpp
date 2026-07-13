@@ -1257,6 +1257,22 @@ int main() {
   ok &= expect_int(servo_defaults.regulate_empty ? 1 : 0, 1,
                    "CharServoBone default regulate empty");
 
+  const SourceCharServoBoneSetNameStep servo_set_name_non_character =
+      source_char_servo_bone_set_name(false);
+  ok &= expect_int(
+      servo_set_name_non_character.calls_hmx_object_set_name ? 1 : 0, 1,
+      "CharServoBone SetName calls object SetName");
+  ok &= expect_int(
+      servo_set_name_non_character.reads_current_dir_after_set_name ? 1 : 0, 1,
+      "CharServoBone SetName reads Dir after SetName");
+  ok &= expect_int(
+      servo_set_name_non_character.assigns_character_owner ? 1 : 0, 0,
+      "CharServoBone SetName non-character owner");
+  const SourceCharServoBoneSetNameStep servo_set_name_character =
+      source_char_servo_bone_set_name(true);
+  ok &= expect_int(servo_set_name_character.assigns_character_owner ? 1 : 0, 1,
+                   "CharServoBone SetName character owner");
+
   const SourceCharServoBoneSetClipTypeStep same_servo_clip =
       source_char_servo_bone_set_clip_type_step(false);
   ok &= expect_int(same_servo_clip.changed ? 1 : 0, 0,

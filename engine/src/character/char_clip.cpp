@@ -6046,6 +6046,13 @@ SourceCharServoBoneDefaultState source_char_servo_bone_default_state() {
   return {};
 }
 
+SourceCharServoBoneSetNameStep source_char_servo_bone_set_name(
+    bool dir_is_character) {
+  SourceCharServoBoneSetNameStep step;
+  step.assigns_character_owner = dir_is_character;
+  return step;
+}
+
 SourceCharServoBoneSetClipTypeStep source_char_servo_bone_set_clip_type_step(
     bool clip_type_changed) {
   SourceCharServoBoneSetClipTypeStep step;

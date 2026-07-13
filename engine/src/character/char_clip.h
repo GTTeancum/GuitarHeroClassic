@@ -385,6 +385,12 @@ struct SourceCharServoBoneDefaultState {
   bool regulate_empty = true;
 };
 
+struct SourceCharServoBoneSetNameStep {
+  bool calls_hmx_object_set_name = true;
+  bool reads_current_dir_after_set_name = true;
+  bool assigns_character_owner = false;
+};
+
 struct SourceCharServoBoneSetClipTypeStep {
   bool changed = false;
   bool assign_clip_type = false;
@@ -2168,6 +2174,8 @@ source_char_bones_meshes_pose_dump_evidence();
 // Source-backed CharServoBone movement helpers. These port the isolated math
 // bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.
 SourceCharServoBoneDefaultState source_char_servo_bone_default_state();
+SourceCharServoBoneSetNameStep source_char_servo_bone_set_name(
+    bool dir_is_character);
 SourceCharServoBoneSetClipTypeStep source_char_servo_bone_set_clip_type_step(
     bool clip_type_changed);
 SourceCharServoBoneEnterStep source_char_servo_bone_enter(

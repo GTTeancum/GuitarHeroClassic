@@ -10923,6 +10923,11 @@ int run_contract() {
                  "mRegulate(this,0){}",
                  "latest CharServoBone source constructor defaults");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "voidCharServoBone::SetName(constchar*cc,ObjectDir*dir){"
+                 "Hmx::Object::SetName(cc,dir);mMe=dynamic_cast<Character*>"
+                 "(Dir());}",
+                 "CharServoBone source SetName captures current dir character");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "if(gRev>1)bs>>s;SetClipType(s);",
                  "CharServoBone source load gates clip type");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
@@ -11019,6 +11024,12 @@ int run_contract() {
                  "boolfacing_rot_delta_null=true;boolfacing_pos_delta_null=true;",
                  "native exposes CharServoBone default-state contract");
   ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneSetNameStep{"
+                 "boolcalls_hmx_object_set_name=true;"
+                 "boolreads_current_dir_after_set_name=true;"
+                 "boolassigns_character_owner=false;};",
+                 "native exposes CharServoBone SetName contract");
+  ok &= contains(char_clip_h,
                  "structSourceCharServoBoneSetClipTypeStep{boolchanged=false;"
                  "boolassign_clip_type=false;boolclear_bones=false;"
                  "boolstuff_bones_from_dir=false;};",
@@ -11077,6 +11088,10 @@ int run_contract() {
                  "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state();",
                  "native exposes CharServoBone default-state helper");
   ok &= contains(char_clip_h,
+                 "SourceCharServoBoneSetNameStep"
+                 "source_char_servo_bone_set_name(booldir_is_character);",
+                 "native exposes CharServoBone SetName helper");
+  ok &= contains(char_clip_h,
                  "SourceCharServoBoneSetClipTypeStep"
                  "source_char_servo_bone_set_clip_type_step("
                  "boolclip_type_changed);",
@@ -11117,6 +11132,12 @@ int run_contract() {
                  "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state(){"
                  "return{};}",
                  "native CharServoBone default-state helper follows source");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneSetNameStep"
+                 "source_char_servo_bone_set_name(booldir_is_character){"
+                 "SourceCharServoBoneSetNameStepstep;"
+                 "step.assigns_character_owner=dir_is_character;returnstep;}",
+                 "native CharServoBone SetName helper mirrors source owner capture");
   ok &= contains(char_clip,
                  "SourceCharServoBoneSetClipTypeStep"
                  "source_char_servo_bone_set_clip_type_step("
@@ -11256,6 +11277,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_default_state()",
                  "focused CharBones test covers CharServoBone defaults");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_set_name(false)",
+                 "focused CharBones test covers CharServoBone SetName non-character");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_set_name(true)",
+                 "focused CharBones test covers CharServoBone SetName character");
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_set_clip_type_step(true)",
                  "focused CharBones test covers CharServoBone SetClipType");
@@ -14090,6 +14117,9 @@ int run_contract() {
                  "Native GHOGX also records the checked `CharServoBone` "
                  "constructor",
                  "document records CharServoBone constructor/control-flow slice");
+  ok &= contains(doc,
+                 "captures\n    `mMe` from `dynamic_cast<Character*>(Dir())`",
+                 "document records CharServoBone SetName owner capture");
   ok &= contains(doc,
                  "`source_char_servo_bone_reallocate_plan` ports the source",
                  "document records CharServoBone Reallocate helper");
