@@ -287,6 +287,8 @@ int run_contract() {
       source_dir / "glTFMilo/Source/glTFMilo/Core/MatrixHelpers.cs");
   const bool gltf_node_helpers_cs_exists = std::filesystem::is_regular_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeHelpers.cs");
+  const bool gltf_milo_extras_cs_exists = std::filesystem::is_regular_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/MiloExtras.cs");
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
   const std::string rb3_char_lookat_cpp = compact(read_file(
@@ -1750,6 +1752,10 @@ int run_contract() {
                  "document records glTFMilo NodeHelpers boundary");
   ok &= contains(doc, "native must not infer node classification, parent search",
                  "document fences unvendored NodeHelpers logic");
+  ok &= contains(doc, "glTFMilo object extras boundary",
+                 "document records glTFMilo MiloExtras boundary");
+  ok &= contains(doc, "native must not infer filename override, group/object",
+                 "document fences unvendored MiloExtras logic");
   ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
                  "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.cpp",
@@ -5562,6 +5568,23 @@ int run_contract() {
                  "meta.entries.Add(entry);",
                  "glTFMilo final mesh pass sets geom owner");
   ok &= contains(gltf_program_cs,
+                 "varextras=JsonSerializer.Deserialize<MiloExtras>("
+                 "node.Extras.ToString());objectType=string.IsNullOrWhiteSpace("
+                 "extras?.ObjectType)?null:extras.ObjectType;",
+                 "glTFMilo hair collision path reads MiloExtras ObjectType");
+  ok &= contains(gltf_node_processor_cs,
+                 "MiloExtras.AddToGroup(node,group,refoverriddenFilename);",
+                 "glTFMilo ProcessGroupNode calls MiloExtras AddToGroup");
+  ok &= contains(gltf_node_processor_cs,
+                 "MiloExtras.AddToObject(node,light,refoverriddenFilename);",
+                 "glTFMilo ProcessLightNode calls MiloExtras AddToObject");
+  if (gltf_milo_extras_cs_exists) {
+    std::cerr << "Forbidden source-truth contract match: "
+              << "MiloExtras source appeared and boundary must be reassessed"
+              << "\n";
+    ok = false;
+  }
+  ok &= contains(gltf_program_cs,
                  "string.Equals(objectType,\"CharCollide\",StringComparison."
                  "OrdinalIgnoreCase)||",
                  "glTFMilo hair-collision detection checks extras object type");
@@ -6479,6 +6502,29 @@ int run_contract() {
                  "\"NodeHelpers.GetAllDescendantNames\","
                  "\"NodeHelpers.GetParentNode\"};",
                  "native NodeHelpers boundary records missing helper source");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMiloExtrasBoundary{"
+                 "boolmilo_extras_source_present=false;",
+                 "native API exposes glTFMilo MiloExtras boundary");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloMiloExtrasBoundarysource_gltf_milo_"
+                 "milo_extras_boundary();",
+                 "native API exposes glTFMilo MiloExtras boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloMiloExtrasBoundarysource_gltf_milo_"
+                 "milo_extras_boundary(){",
+                 "native ports glTFMilo MiloExtras boundary helper");
+  ok &= contains(char_mesh,
+                 "\"ProgrammeshMiloExtras.AddToMesh\"",
+                 "native MiloExtras boundary records mesh call site");
+  ok &= contains(char_mesh,
+                 "\"ProcessLightNodeMiloExtras.AddToObject\"",
+                 "native MiloExtras boundary records light call site");
+  ok &= contains(char_mesh,
+                 "boundary.missing_helpers={\"MiloExtras\","
+                 "\"MiloExtras.AddToMesh\",\"MiloExtras.AddToGroup\","
+                 "\"MiloExtras.AddToObject\",\"MiloExtras.ObjectType\"};",
+                 "native MiloExtras boundary records missing helper source");
   ok &= contains(char_mesh,
                  "SourceRndLightDefaultStatesource_rndlight_default_state(){"
                  "returnSourceRndLightDefaultState{};}",
@@ -6662,6 +6708,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "!node_helpers_boundary.can_port_parent_bone_search_logic",
                  "focused mesh decode test fences unvendored parent search logic");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_milo_extras_boundary()",
+                 "focused mesh decode test covers glTFMilo MiloExtras boundary");
+  ok &= contains(mesh_decode_test,
+                 "!milo_extras_boundary.can_port_filename_override_logic",
+                 "focused mesh decode test fences unvendored filename override logic");
+  ok &= contains(mesh_decode_test,
+                 "!milo_extras_boundary.can_port_object_mutation_logic",
+                 "focused mesh decode test fences unvendored object mutation logic");
   ok &= contains(mesh_decode_test,
                  "source_rndlight_default_state()",
                  "focused mesh decode test covers RndLight defaults");

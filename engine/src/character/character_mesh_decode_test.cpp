@@ -1585,6 +1585,24 @@ int main() {
   CHECK(node_helpers_boundary.missing_helpers[6] ==
         "NodeHelpers.GetParentNode");
 
+  const auto milo_extras_boundary =
+      ghogx::character::source_gltf_milo_milo_extras_boundary();
+  CHECK(!milo_extras_boundary.milo_extras_source_present);
+  CHECK(milo_extras_boundary.mesh_group_light_call_sites_source_backed);
+  CHECK(milo_extras_boundary.object_type_call_site_source_backed);
+  CHECK(milo_extras_boundary.can_port_call_order);
+  CHECK(!milo_extras_boundary.can_port_filename_override_logic);
+  CHECK(!milo_extras_boundary.can_port_object_mutation_logic);
+  CHECK(!milo_extras_boundary.safe_to_adjust_names_or_groups_from_milo_extras);
+  CHECK(milo_extras_boundary.call_sites.size() == 5);
+  CHECK(milo_extras_boundary.call_sites[0] ==
+        "Program mesh MiloExtras.AddToMesh");
+  CHECK(milo_extras_boundary.call_sites[4] ==
+        "ProcessLightNode MiloExtras.AddToObject");
+  CHECK(milo_extras_boundary.missing_helpers.size() == 5);
+  CHECK(milo_extras_boundary.missing_helpers[0] == "MiloExtras");
+  CHECK(milo_extras_boundary.missing_helpers[4] == "MiloExtras.ObjectType");
+
   const auto populate_unskinned =
       ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
           {{1, 2, 3}}, {}, false);

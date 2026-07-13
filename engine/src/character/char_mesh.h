@@ -380,6 +380,18 @@ struct SourceGltfMiloNodeHelpersBoundary {
   std::vector<std::string> missing_helpers;
 };
 
+struct SourceGltfMiloMiloExtrasBoundary {
+  bool milo_extras_source_present = false;
+  bool mesh_group_light_call_sites_source_backed = true;
+  bool object_type_call_site_source_backed = true;
+  bool can_port_call_order = true;
+  bool can_port_filename_override_logic = false;
+  bool can_port_object_mutation_logic = false;
+  bool safe_to_adjust_names_or_groups_from_milo_extras = false;
+  std::vector<std::string> call_sites;
+  std::vector<std::string> missing_helpers;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
@@ -1079,6 +1091,9 @@ source_gltf_milo_matrix_helpers_boundary();
 
 SourceGltfMiloNodeHelpersBoundary
 source_gltf_milo_node_helpers_boundary();
+
+SourceGltfMiloMiloExtrasBoundary
+source_gltf_milo_milo_extras_boundary();
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};

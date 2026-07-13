@@ -9730,6 +9730,23 @@ source_gltf_milo_node_helpers_boundary() {
   return boundary;
 }
 
+SourceGltfMiloMiloExtrasBoundary
+source_gltf_milo_milo_extras_boundary() {
+  SourceGltfMiloMiloExtrasBoundary boundary;
+  boundary.call_sites = {
+      "Program mesh MiloExtras.AddToMesh",
+      "Program mesh JsonSerializer.Deserialize<MiloExtras>",
+      "Program mesh MiloExtras.ObjectType",
+      "ProcessGroupNode MiloExtras.AddToGroup",
+      "ProcessLightNode MiloExtras.AddToObject"};
+  boundary.missing_helpers = {"MiloExtras",
+                              "MiloExtras.AddToMesh",
+                              "MiloExtras.AddToGroup",
+                              "MiloExtras.AddToObject",
+                              "MiloExtras.ObjectType"};
+  return boundary;
+}
+
 SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale) {
