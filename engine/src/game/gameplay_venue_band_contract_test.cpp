@@ -9780,10 +9780,17 @@ int main() {
                  "source_prep=SetPreFrame\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");
   ok &= contains(gameplay_c,
+                 "if(debug_camera_enabled()||debug_venue_filters_enabled()){"
+                 "constfloatlocal_frame=",
+                 "regular camera SetFrame diagnostics are not gated to one native camera route");
+  ok &= contains(gameplay_c,
                  "\"[world]camerasourceframepair:shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"
                  "route=regular_camera_source_frame_keys\\n\"",
                  "regular camera diagnostics prove source frame-pair submission");
+  ok &= contains(gameplay_c,
+                 "if(source_frame_key_route&&selected_camera.size()>=2&&",
+                 "source frame-pair diagnostics remain limited to non-path CamShot frame timing");
   ok &= contains(gameplay_c,
                  "regular_camera_path_keys(*key,active_regular_camera_start_,camera_targets)",
                  "runtime samples path-backed regular cameras with shot-local frames and target context");

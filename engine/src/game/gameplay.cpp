@@ -30528,8 +30528,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             song_time_, active_camera_position_start_);
                     }
                 }
-                if (source_frame_key_route &&
-                    (debug_camera_enabled() || debug_venue_filters_enabled())) {
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                     const float local_frame = static_cast<float>(
                         std::max(0.0, song_time_ - active_regular_camera_start_) *
                         30.0);
@@ -30542,7 +30541,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             source_camshot_duration_frames(*key),
                             selected_camera.size());
                     }
-                    if (selected_camera.size() >= 2 &&
+                    if (source_frame_key_route && selected_camera.size() >= 2 &&
                         active_camera_frame_pair_reported_ != key->name) {
                         active_camera_frame_pair_reported_ = key->name;
                         std::fprintf(

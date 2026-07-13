@@ -10713,6 +10713,12 @@ Rejected native probe:
   frame rows used for blending. Base ihatecompvir `CamShot::SetPreFrame` is a
   no-op, so the shot-start proof belongs to the `SetFrame`/`Poll` side of the
   manager cadence.
+- 2026-07-13 follow-up: the `SetFrame` proof row now sits outside the native
+  non-path frame-pair route. ihatecompvir `CameraManager::Poll` calls
+  `mCurrentShot->SetFrame(...)` for the current CamShot regardless of whether
+  the native route is decoded frame pairs or a path-backed `TransAnim`; only the
+  `camera source frame pair` diagnostic remains gated to the non-path timing
+  helper.
 - This is intentionally a proof surface, not a revival of the old discrete
   `post_switch_cam` stepping. The source contract still forbids the removed
   `[world] post_switch_cam:` row while pinning the new manager-cadence and
