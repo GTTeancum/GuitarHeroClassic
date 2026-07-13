@@ -16508,6 +16508,45 @@ int run_contract() {
   ok &= contains(rb3_latest_tex_cpp,
                  "bs>>mWidth>>mHeight;SetPowerOf2();bs>>mBpp;bs>>mFilepath;",
                  "latest RndTex source reads texture metadata");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "constchar*CheckDim(intdim,RndTex::Typety,boolb){"
+                 "constchar*ret=0;if(dim==0)returnret;",
+                 "latest RndTex source exposes CheckDim prefix");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(ty==RndTex::Movie&&(dim%16!=0)){ret=\"%s:dimensionsnotmultipleof16\";}",
+                 "latest RndTex source checks movie dimension multiple");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(b&&dim>0x400){ret=\"%s:dimensionsgreaterthan1024\";}"
+                 "elseif(dim>0x800){ret=\"%s:dimensionsgreaterthan2048\";}",
+                 "latest RndTex source checks gfx size caps");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(dim%8!=0){ret=\"%s:dimensionsnotmultipleof8\";}",
+                 "latest RndTex source checks gfx multiple-of-eight");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(!bbb)ret=\"%s:dimensionsarenotpower-of-2\";",
+                 "latest RndTex source checks file power of two");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "constchar*RndTex::CheckSize(intwidth,intheight,intbpp,"
+                 "intnumMips,Typety,boolfile){constchar*ret;if(ty=="
+                 "DepthVolumeMap||ty==DensityMap||(ty&DeviceTexture))return0;",
+                 "latest RndTex source exposes CheckSize bypass");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(!ret&&bpp!=4&&bpp!=8&&bpp!=0x10&&bpp!=0x18&&bpp!=0x20){"
+                 "ret=\"%s:invalidbpp\";}",
+                 "latest RndTex source checks valid bpp set");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(!ret&&u3>0x7FFF0){ret=\"%s:sizeover524,272bytes\";}",
+                 "latest RndTex source checks byte-size cap");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(!ret&&(u3&0xf)){ret=\"%s:sizenotmultipleof16bytes\";}",
+                 "latest RndTex source checks byte alignment");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(!ret&&numMips>0){ret=\"%s:morethan0miplevels\";}",
+                 "latest RndTex source checks mip count");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::SetPowerOf2(){boolset;if(mWidth<0)set=false;"
+                 "elseif(mWidth==0)set=true;elseset=(mWidth&(mWidth-1))==0;",
+                 "latest RndTex source exposes SetPowerOf2 width rule");
   ok &= contains(rb3_latest_tex_h,
                  "enumType{Regular=1,Rendered=2,Movie=4,BackBuffer=8,"
                  "FrontBuffer=0x18,RenderedNoZ=0x22",
@@ -16728,6 +16767,15 @@ int run_contract() {
                  "document keeps Tex rows in asset texture path");
   ok &= contains(doc, "## Rnd Texture Row Authority",
                  "document records RndTex source authority section");
+  ok &= contains(doc,
+                 "Native `source_rndtex_power_of_two_plan`,",
+                 "document records RndTex validation helpers");
+  ok &= contains(doc,
+                 "including later checks overwriting earlier warning strings",
+                 "document records RndTex CheckDim overwrite order");
+  ok &= contains(doc,
+                 "These helpers are validation\n    contracts only and do not reject, resize, or replace stock character",
+                 "document fences RndTex validation helpers from runtime policy");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17052,9 +17100,18 @@ int run_contract() {
                  "native header exposes passive RndTex inventory row");
   ok &= contains(char_mesh_h, "structSourceRndTexLoadPlan{",
                  "native header exposes RndTex source load plan");
+  ok &= contains(char_mesh_h, "structSourceRndTexPowerOfTwoPlan{",
+                 "native header exposes RndTex power-of-two helper");
+  ok &= contains(char_mesh_h, "structSourceRndTexCheckDimPlan{",
+                 "native header exposes RndTex CheckDim helper");
+  ok &= contains(char_mesh_h, "structSourceRndTexCheckSizePlan{",
+                 "native header exposes RndTex CheckSize helper");
   ok &= contains(char_mesh_h,
                  "SourceRndTexLoadPlansource_rndtex_load_plan(",
                  "native header exposes RndTex load plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndTexCheckSizePlansource_rndtex_check_size_plan(",
+                 "native header exposes RndTex CheckSize helper declaration");
   ok &= contains(char_mesh_h,
                  "RndTexdecode_rnd_tex(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body);",
@@ -17079,6 +17136,30 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.delegates_cached_payload_to_bitmap=stream_cached;",
                  "RndTex load plan mirrors cached bitmap delegation");
+  ok &= contains(char_mesh,
+                 "SourceRndTexPowerOfTwoPlansource_rndtex_power_of_two_plan(",
+                 "native implements RndTex power-of-two helper");
+  ok &= contains(char_mesh,
+                 "plan.width_is_power_of_two=source_power_of_two_dim(width);",
+                 "RndTex power helper mirrors source width rule");
+  ok &= contains(char_mesh,
+                 "SourceRndTexCheckDimPlansource_rndtex_check_dim_plan(",
+                 "native implements RndTex CheckDim helper");
+  ok &= contains(char_mesh,
+                 "plan.error=\"%s:dimensionsnotmultipleof16\";",
+                 "RndTex CheckDim helper mirrors movie error");
+  ok &= contains(char_mesh,
+                 "plan.error=\"%s:dimensionsarenotpower-of-2\";",
+                 "RndTex CheckDim helper mirrors file power error");
+  ok &= contains(char_mesh,
+                 "SourceRndTexCheckSizePlansource_rndtex_check_size_plan(",
+                 "native implements RndTex CheckSize helper");
+  ok &= contains(char_mesh,
+                 "if(type==0x0a2||type==0x122||(type&0x1000)){",
+                 "RndTex CheckSize helper mirrors source bypass");
+  ok &= contains(char_mesh,
+                 "plan.bpp_valid=bpp==4||bpp==8||bpp==0x10||bpp==0x18||bpp==0x20;",
+                 "RndTex CheckSize helper mirrors valid bpp set");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17199,6 +17280,15 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "source_rndtex_load_plan(11,1,true)",
                  "focused RndTex test covers current source load plan");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_power_of_two_plan(16,0)",
+                 "focused RndTex test covers source power-of-two helper");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_check_dim_plan(24,4,false,true)",
+                 "focused RndTex test covers CheckDim movie branch");
+  ok &= contains(tex_source_test,
+                 "source_rndtex_check_size_plan(1024,1024,8,0,",
+                 "focused RndTex test covers CheckSize byte cap");
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");

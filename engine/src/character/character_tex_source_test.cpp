@@ -129,6 +129,49 @@ int main() {
   ok &= expect_bool(rev6_uncached.reads_rendered_bool_type, false,
                     "rev6 no rendered bool");
 
+  const ghogx::character::SourceRndTexPowerOfTwoPlan pot_zero =
+      ghogx::character::source_rndtex_power_of_two_plan(16, 0);
+  ok &= expect_bool(pot_zero.result, true, "power-of-two zero dimension");
+  const ghogx::character::SourceRndTexPowerOfTwoPlan pot_negative =
+      ghogx::character::source_rndtex_power_of_two_plan(-1, 16);
+  ok &= expect_bool(pot_negative.result, false, "power-of-two negative dim");
+
+  const ghogx::character::SourceRndTexCheckDimPlan movie_dim =
+      ghogx::character::source_rndtex_check_dim_plan(24, 4, false, true);
+  ok &= expect_string(movie_dim.error, "%s: dimensions not multiple of 16",
+                      "movie dimension error");
+  const ghogx::character::SourceRndTexCheckDimPlan file_cap =
+      ghogx::character::source_rndtex_check_dim_plan(2048, 1, true, true);
+  ok &= expect_string(file_cap.error, "%s: dimensions greater than 1024",
+                      "file dimension cap");
+  const ghogx::character::SourceRndTexCheckDimPlan power_override =
+      ghogx::character::source_rndtex_check_dim_plan(1032, 1, true, true);
+  ok &= expect_string(power_override.error,
+                      "%s: dimensions are not power-of-2",
+                      "file power-of-two override");
+
+  const ghogx::character::SourceRndTexCheckSizePlan device_bypass =
+      ghogx::character::source_rndtex_check_size_plan(7, 7, 12, 3,
+                                                      0x1000, true, true);
+  ok &= expect_bool(device_bypass.bypass_device_or_density, true,
+                    "device texture size bypass");
+  ok &= expect_string(device_bypass.error, "", "device bypass no error");
+  const ghogx::character::SourceRndTexCheckSizePlan invalid_bpp =
+      ghogx::character::source_rndtex_check_size_plan(64, 64, 12, 0,
+                                                      1, false, true);
+  ok &= expect_string(invalid_bpp.error, "%s: invalid bpp",
+                      "invalid bpp error");
+  const ghogx::character::SourceRndTexCheckSizePlan size_over =
+      ghogx::character::source_rndtex_check_size_plan(1024, 1024, 8, 0,
+                                                      1, false, true);
+  ok &= expect_string(size_over.error, "%s: size over 524,272 bytes",
+                      "texture size cap");
+  const ghogx::character::SourceRndTexCheckSizePlan mip_error =
+      ghogx::character::source_rndtex_check_size_plan(64, 64, 8, 1,
+                                                      1, false, true);
+  ok &= expect_string(mip_error.error, "%s: more than 0 mip levels",
+                      "texture mip count error");
+
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2
   put_object_fields_minimal(tex);

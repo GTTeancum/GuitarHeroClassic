@@ -4761,6 +4761,64 @@ SourceRndTexLoadPlan source_rndtex_load_plan(
     int32_t alt_revision,
     bool stream_cached);
 
+struct SourceRndTexPowerOfTwoPlan {
+  int32_t width = 0;
+  int32_t height = 0;
+  bool width_is_power_of_two = true;
+  bool height_is_power_of_two = true;
+  bool result = true;
+};
+
+struct SourceRndTexCheckDimPlan {
+  int32_t dim = 0;
+  int32_t type = 1;
+  bool file = false;
+  bool gfx_mode_zero = true;
+  bool zero_dimension_ok = false;
+  bool movie_multiple_of_16_required = false;
+  bool gfx_max_1024_required = false;
+  bool gfx_max_2048_required = false;
+  bool gfx_multiple_of_8_required = false;
+  bool file_power_of_two_required = false;
+  std::string error;
+};
+
+struct SourceRndTexCheckSizePlan {
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t bpp = 32;
+  int32_t num_mips = 0;
+  int32_t type = 1;
+  bool file = false;
+  bool gfx_mode_zero = true;
+  bool bypass_device_or_density = false;
+  bool checked_width = false;
+  bool checked_height = false;
+  bool checked_bpp = false;
+  bool bpp_valid = false;
+  bool checked_total_size = false;
+  int64_t byte_size = 0;
+  bool checked_mip_count = false;
+  std::string error;
+};
+
+SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
+    int32_t width,
+    int32_t height);
+SourceRndTexCheckDimPlan source_rndtex_check_dim_plan(
+    int32_t dim,
+    int32_t type,
+    bool file,
+    bool gfx_mode_zero);
+SourceRndTexCheckSizePlan source_rndtex_check_size_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t num_mips,
+    int32_t type,
+    bool file,
+    bool gfx_mode_zero);
+
 struct RndTex {
   std::string name;
   int32_t version = 0;

@@ -1598,6 +1598,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
   - Native `source_rndtex_load_plan` records the same `PreLoad` / `PostLoad`
     revision gates and cached-stream branches, and `decode_rnd_tex` consumes
     its rows instead of repeating raw revision comparisons inline.
+  - Native `source_rndtex_power_of_two_plan`,
+    `source_rndtex_check_dim_plan`, and `source_rndtex_check_size_plan` record
+    the source validation helpers. The dimension helper preserves source check
+    order, including later checks overwriting earlier warning strings; the size
+    helper preserves the device/density bypass, valid bpp set, `0x7fff0` byte
+    cap, 16-byte alignment, and no-mip rule. These helpers are validation
+    contracts only and do not reject, resize, or replace stock character
+    textures at runtime.
 - `rb3/src/system/rndobj/Bitmap.cpp`
   - `RndBitmap::LoadHeader` reads bitmap revision, bpp, order, mip count,
     width, height, row bytes, and the fixed padding row before pixel chunks.
@@ -1735,6 +1743,8 @@ current revision cached texture, a legacy cubemap-suffix texture, and a
 revision-0 bitmap header. It proves the native decoder follows
 `RndTex::PreLoad`/`PostLoad` and `RndBitmap::LoadHeader`/payload sizing without
 touching renderer upload, material sorting, or runtime texture selection.
+The same test covers the source `SetPowerOf2`, `CheckDim`, and `CheckSize`
+contracts without changing stock texture loading.
 
 ## Generic Object Row Authority
 

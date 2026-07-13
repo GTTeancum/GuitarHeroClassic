@@ -3192,6 +3192,118 @@ SourceRndTexLoadPlan source_rndtex_load_plan(
   return plan;
 }
 
+SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
+    int32_t width,
+    int32_t height) {
+  SourceRndTexPowerOfTwoPlan plan;
+  plan.width = width;
+  plan.height = height;
+  plan.width_is_power_of_two = source_power_of_two_dim(width);
+  plan.height_is_power_of_two = source_power_of_two_dim(height);
+  plan.result = plan.width_is_power_of_two && plan.height_is_power_of_two;
+  return plan;
+}
+
+SourceRndTexCheckDimPlan source_rndtex_check_dim_plan(
+    int32_t dim,
+    int32_t type,
+    bool file,
+    bool gfx_mode_zero) {
+  SourceRndTexCheckDimPlan plan;
+  plan.dim = dim;
+  plan.type = type;
+  plan.file = file;
+  plan.gfx_mode_zero = gfx_mode_zero;
+  if (dim == 0) {
+    plan.zero_dimension_ok = true;
+    return plan;
+  }
+
+  if (type == 4 && (dim % 16 != 0)) {
+    plan.movie_multiple_of_16_required = true;
+    plan.error = "%s: dimensions not multiple of 16";
+  }
+  if (gfx_mode_zero) {
+    if (file && dim > 0x400) {
+      plan.gfx_max_1024_required = true;
+      plan.error = "%s: dimensions greater than 1024";
+    } else if (dim > 0x800) {
+      plan.gfx_max_2048_required = true;
+      plan.error = "%s: dimensions greater than 2048";
+    }
+    if (dim % 8 != 0) {
+      plan.gfx_multiple_of_8_required = true;
+      plan.error = "%s: dimensions not multiple of 8";
+    }
+  }
+  if (file) {
+    plan.file_power_of_two_required = true;
+    if (!source_power_of_two_dim(dim)) {
+      plan.error = "%s: dimensions are not power-of-2";
+    }
+  }
+  return plan;
+}
+
+SourceRndTexCheckSizePlan source_rndtex_check_size_plan(
+    int32_t width,
+    int32_t height,
+    int32_t bpp,
+    int32_t num_mips,
+    int32_t type,
+    bool file,
+    bool gfx_mode_zero) {
+  SourceRndTexCheckSizePlan plan;
+  plan.width = width;
+  plan.height = height;
+  plan.bpp = bpp;
+  plan.num_mips = num_mips;
+  plan.type = type;
+  plan.file = file;
+  plan.gfx_mode_zero = gfx_mode_zero;
+  if (type == 0x0a2 || type == 0x122 || (type & 0x1000)) {
+    plan.bypass_device_or_density = true;
+    return plan;
+  }
+
+  plan.checked_width = true;
+  const SourceRndTexCheckDimPlan width_check =
+      source_rndtex_check_dim_plan(width, type, file, gfx_mode_zero);
+  plan.error = width_check.error;
+  if (plan.error.empty()) {
+    plan.checked_height = true;
+    const SourceRndTexCheckDimPlan height_check =
+        source_rndtex_check_dim_plan(height, type, file, gfx_mode_zero);
+    plan.error = height_check.error;
+  }
+
+  if (plan.error.empty()) {
+    plan.checked_bpp = true;
+    plan.bpp_valid =
+        bpp == 4 || bpp == 8 || bpp == 0x10 || bpp == 0x18 || bpp == 0x20;
+    if (!plan.bpp_valid) plan.error = "%s: invalid bpp";
+  }
+
+  plan.byte_size =
+      (static_cast<int64_t>(width) * static_cast<int64_t>(height) *
+       static_cast<int64_t>(bpp)) >>
+      3;
+  if (gfx_mode_zero) {
+    plan.checked_total_size = true;
+    if (plan.error.empty() && plan.byte_size > 0x7fff0) {
+      plan.error = "%s: size over 524,272 bytes";
+    }
+    if (plan.error.empty() && (plan.byte_size & 0x0f) != 0) {
+      plan.error = "%s: size not multiple of 16 bytes";
+    }
+    plan.checked_mip_count = true;
+    if (plan.error.empty() && num_mips > 0) {
+      plan.error = "%s: more than 0 mip levels";
+    }
+  }
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
