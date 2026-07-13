@@ -413,6 +413,32 @@ int main() {
                  "ClipCompressor absence remains explicit");
   ok &= contains(doc, "`CharWalk.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-bodyless-runtime-gap`",
                  "CharWalk RB2 bodyless gap remains explicit");
+  ok &= contains(doc, "`CharWalk::Load` is named at range",
+                 "CharWalk Load range is documented as dump-only evidence");
+  ok &= contains(doc, "`0x8039BCA4 -> 0x8039BD64`",
+                 "CharWalk Load dump range remains documented");
+  ok &= contains(doc, "`Debug TheDebug` plus static\n`gRev`",
+                 "CharWalk Load bodyless references remain documented");
+  ok &= contains(doc, "`CharWalk::Poll`\n(`0x8039ADB4 -> 0x8039AF6C`)",
+                 "CharWalk Poll dump range remains documented");
+  ok &= contains(doc, "`ForwardPredict`\n(`0x8039AF6C -> 0x8039B0EC`)",
+                 "CharWalk ForwardPredict dump range remains documented");
+  ok &= contains(doc, "`BackPredict`\n(`0x8039B0EC -> 0x8039B290`)",
+                 "CharWalk BackPredict dump range remains documented");
+  ok &= contains(doc, "`RegulateWalk`\n(`0x8039B290 -> 0x8039B930`)",
+                 "CharWalk RegulateWalk dump range remains documented");
+  ok &= contains(doc, "`OutfitLoader::Load` is an empty/bodyless row at",
+                 "OutfitLoader Load bodyless boundary remains documented");
+  ok &= contains(doc, "`0x803AC8F4 -> 0x803AC950`",
+                 "OutfitLoader Load dump range remains documented");
+  ok &= contains(doc, "`OutfitLoader::PostLoad` is empty at",
+                 "OutfitLoader PostLoad empty boundary remains documented");
+  ok &= contains(doc, "`0x803AC8F0 -> 0x803AC8F4`",
+                 "OutfitLoader PostLoad dump range remains documented");
+  ok &= contains(doc, "`OutfitLoader::Save`\n(`0x803AC728 -> 0x803AC8F0`)",
+                 "OutfitLoader Save dump range remains documented");
+  ok &= contains(doc, "Native keeps both rows opaque until a reviewable\nloader body or direct original-game trace",
+                 "CharWalk and OutfitLoader stay opaque without source loader body");
   ok &= contains(doc, "`CharClipSamples.cpp` | `ghogx_character_char_bones_source_test` | `rb2-dump-runtime-map`",
                  "CharClipSamples RB2 runtime map remains explicit");
   ok &= contains(doc, "`src/arkless.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-arkless-file-hook-only`",

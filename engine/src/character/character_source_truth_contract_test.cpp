@@ -16718,6 +16718,45 @@ int run_contract() {
                  "`ghogx_character_ihatecompvir_inventory_test` | "
                  "`rb2-dump-bodyless-runtime-gap`",
                  "document inventories RB2-only OutfitLoader");
+  ok &= contains(doc,
+                 "`CharWalk::Load` is named at range\n"
+                 "`0x8039BCA4 -> 0x8039BD64`",
+                 "document records CharWalk Load dump range");
+  ok &= contains(doc,
+                 "`Debug TheDebug` plus static\n`gRev`",
+                 "document records CharWalk bodyless Load references");
+  ok &= contains(doc,
+                 "`CharWalk::Poll`\n"
+                 "(`0x8039ADB4 -> 0x8039AF6C`)",
+                 "document records CharWalk Poll dump range");
+  ok &= contains(doc,
+                 "`ForwardPredict`\n"
+                 "(`0x8039AF6C -> 0x8039B0EC`)",
+                 "document records CharWalk ForwardPredict dump range");
+  ok &= contains(doc,
+                 "`BackPredict`\n"
+                 "(`0x8039B0EC -> 0x8039B290`)",
+                 "document records CharWalk BackPredict dump range");
+  ok &= contains(doc,
+                 "`RegulateWalk`\n"
+                 "(`0x8039B290 -> 0x8039B930`)",
+                 "document records CharWalk RegulateWalk dump range");
+  ok &= contains(doc,
+                 "`OutfitLoader::Load` is an empty/bodyless row at\n"
+                 "`0x803AC8F4 -> 0x803AC950`",
+                 "document records OutfitLoader Load dump range");
+  ok &= contains(doc,
+                 "`OutfitLoader::PostLoad` is empty at\n"
+                 "`0x803AC8F0 -> 0x803AC8F4`",
+                 "document records OutfitLoader PostLoad dump range");
+  ok &= contains(doc,
+                 "`OutfitLoader::Save`\n"
+                 "(`0x803AC728 -> 0x803AC8F0`)",
+                 "document records OutfitLoader Save dump range");
+  ok &= contains(doc,
+                 "Native keeps both rows opaque until a reviewable\n"
+                 "loader body or direct original-game trace",
+                 "document keeps CharWalk and OutfitLoader opaque");
   ok &= contains(rb2_char_walk_cpp,
                  "voidCharWalk::Load(classCharWalk*constthis/*r29*/,"
                  "classBinStream&d/*r30*/){",
@@ -16725,10 +16764,48 @@ int run_contract() {
   ok &= contains(rb2_char_walk_cpp,
                  "classDebugTheDebug;//->staticintgRev;",
                  "RB2 dump CharWalk Load has no field-read body");
+  ok &= contains(rb2_char_walk_cpp,
+                 "//Range:0x8039ADB4->0x8039AF6CvoidCharWalk::Poll"
+                 "(classCharWalk*constthis/*r31*/){",
+                 "RB2 dump exposes CharWalk Poll range");
+  ok &= contains(rb2_char_walk_cpp,
+                 "classCharClipDriver*most;",
+                 "RB2 dump CharWalk Poll only names most driver local");
+  ok &= contains(rb2_char_walk_cpp,
+                 "//Range:0x8039AF6C->0x8039B0ECvoidCharWalk::"
+                 "ForwardPredict",
+                 "RB2 dump exposes CharWalk ForwardPredict range");
+  ok &= contains(rb2_char_walk_cpp,
+                 "floatnextFrame;",
+                 "RB2 dump CharWalk ForwardPredict local map remains bodyless");
+  ok &= contains(rb2_char_walk_cpp,
+                 "//Range:0x8039B0EC->0x8039B290voidCharWalk::"
+                 "BackPredict",
+                 "RB2 dump exposes CharWalk BackPredict range");
+  ok &= contains(rb2_char_walk_cpp,
+                 "classClipPredictbackPred;",
+                 "RB2 dump CharWalk BackPredict local map remains bodyless");
+  ok &= contains(rb2_char_walk_cpp,
+                 "//Range:0x8039B290->0x8039B930voidCharWalk::"
+                 "RegulateWalk",
+                 "RB2 dump exposes CharWalk RegulateWalk range");
+  ok &= contains(rb2_char_walk_cpp,
+                 "constclassCharClipDriver*mostPlaying;",
+                 "RB2 dump CharWalk RegulateWalk local map remains bodyless");
   ok &= contains(rb2_outfit_loader_cpp,
                  "voidOutfitLoader::Load(classOutfitLoader*constthis/*r30*/,"
                  "classBinStream&d/*r31*/){}",
                  "RB2 dump OutfitLoader Load has no serialized field body");
+  ok &= contains(rb2_outfit_loader_cpp,
+                 "//Range:0x803AC8F0->0x803AC8F4voidOutfitLoader::"
+                 "PostLoad(){}",
+                 "RB2 dump OutfitLoader PostLoad is empty");
+  ok &= contains(rb2_outfit_loader_cpp,
+                 "//Range:0x803AC728->0x803AC8F0voidOutfitLoader::Save",
+                 "RB2 dump exposes OutfitLoader Save range");
+  ok &= contains(rb2_outfit_loader_cpp,
+                 "conststructCategory&cat;",
+                 "RB2 dump OutfitLoader Save names category local");
   ok &= contains(rb2_char_clip_filter_cpp,
                  "voidCharClipFilter::Load(classCharClipFilter*constthis"
                  "/*r31*/){",

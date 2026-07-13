@@ -219,6 +219,22 @@ character model playback.
 | `DisplayIKMidi.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-diagnostic-only` |
 | `OutfitLoader.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-bodyless-runtime-gap` |
 
+`CharWalk` and `OutfitLoader` are live stock GH2 character row families, but
+the reviewable ihatecompvir evidence for both is RB2 dump-only and not enough
+to port a serialized loader. `CharWalk::Load` is named at range
+`0x8039BCA4 -> 0x8039BD64` and only exposes `Debug TheDebug` plus static
+`gRev` references; `CharWalk::Save` is empty, while `CharWalk::Poll`
+(`0x8039ADB4 -> 0x8039AF6C`), `ForwardPredict`
+(`0x8039AF6C -> 0x8039B0EC`), `BackPredict`
+(`0x8039B0EC -> 0x8039B290`), and `RegulateWalk`
+(`0x8039B290 -> 0x8039B930`) map runtime names and locals without the full
+statement body. `OutfitLoader::Load` is an empty/bodyless row at
+`0x803AC8F4 -> 0x803AC950`, `OutfitLoader::PostLoad` is empty at
+`0x803AC8F0 -> 0x803AC8F4`, and `OutfitLoader::Save`
+(`0x803AC728 -> 0x803AC8F0`) maps category/file-path loop locals without
+proving the load layout. Native keeps both rows opaque until a reviewable
+loader body or direct original-game trace proves the serialized behavior.
+
 ## Source Coverage Matrix
 
 | Area | ihatecompvir evidence | Native status |
@@ -4706,14 +4722,16 @@ The refreshed stock type inventory at
 still reports undecoded non-mesh rows in stock character MILOs. These are
 bounded as follows:
 
-- `CharWalk`: 19 stock rows. The RB2 dump includes `CharWalk.cpp` and runtime
-  function names, but `CharWalk::Load` only exposes `Debug TheDebug` and
-  `gRev` references, not a field read order. Native does not decode or run
-  these rows.
-- `OutfitLoader`: 20 stock rows. The RB2 dump exposes the loader/change-outfit
-  runtime surface, while `OutfitLoader::Load` is an empty/bodyless dump row and
-  `PreLoad` belongs to broader loader state. Native does not treat these rows
-  as character mesh or controller data.
+- `CharWalk`: 19 stock rows. The RB2 dump includes `CharWalk.cpp` and maps
+  runtime functions such as `Poll`, `ForwardPredict`, `BackPredict`, and
+  `RegulateWalk`, but `CharWalk::Load` at `0x8039BCA4 -> 0x8039BD64` only
+  exposes `Debug TheDebug` and `gRev` references, not a field read order.
+  Native does not decode or run these rows.
+- `OutfitLoader`: 20 stock rows. The RB2 dump exposes loader/change-outfit
+  runtime surfaces and a `Save` loop over categories, but `OutfitLoader::Load`
+  at `0x803AC8F4 -> 0x803AC950` is an empty/bodyless dump row and
+  `OutfitLoader::PostLoad` is also empty. Native does not treat these rows as
+  character mesh or controller data.
 - `CharPollGroup`: zero stock rows in the focused 24-character base-MILO type
   inventory. ihatecompvir source is sufficient to decode and poll a future
   verified row, but the current GH2 stock base-character data does not justify
