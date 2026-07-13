@@ -2399,6 +2399,25 @@ SourceRndMatCopyPlan source_rndmat_copy_plan(bool copy_from_max) {
   return plan;
 }
 
+SourceRndMatPropSyncPlan source_rndmat_prop_sync_plan() {
+  SourceRndMatPropSyncPlan plan;
+  plan.dirty_color_rows = {"color", "alpha"};
+  plan.dirty_render_rows = {
+      "intensify",       "use_environ",      "blend",
+      "z_mode",          "stencil_mode",     "tex_gen",
+      "tex_wrap",        "shader_variation", "tex_xfm",
+      "diffuse_tex",     "prelit",           "alpha_cut",
+      "alpha_threshold", "alpha_write",      "cull",
+      "per_pixel_lit",   "emissive_multiplier",
+      "emissive_map",    "refract_enabled",  "refract_strength",
+      "refract_normal_map", "screen_aligned"};
+  plan.direct_no_dirty_rows = {"next_pass", "point_lights", "fog",
+                               "fade_out", "color_adjust"};
+  plan.perf_setting_rows = {"recv_proj_lights", "recv_point_cube_tex",
+                            "ps3_force_trilinear"};
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

@@ -1573,6 +1573,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     branch has no material-specific member copy body in this source snapshot,
     and `mDirty` is set to `3`. This helper does not infer broad material copy
     semantics beyond those visible source rows.
+  - Shared native `source_rndmat_prop_sync_plan` records the visible
+    `BEGIN_PROPSYNCS(RndMat)` surface. `color` and `alpha` dirty color state
+    with mask `1`; render/material rows from `intensify` through
+    `screen_aligned` dirty mask `2`; `next_pass`, `point_lights`, `fog`,
+    `fade_out`, and `color_adjust` are direct no-dirty rows; the three perf
+    settings write `mPerfSettings` directly. This is property-row evidence only
+    and does not synthesize renderer or hair-material policy.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
   - The source setters directly write members; they do not encode hair/string

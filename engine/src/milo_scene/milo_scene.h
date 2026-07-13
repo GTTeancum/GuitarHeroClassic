@@ -1756,6 +1756,16 @@ struct SourceRndMatCopyPlan {
   int32_t dirty_value = 3;
 };
 
+struct SourceRndMatPropSyncPlan {
+  std::vector<std::string> dirty_color_rows;
+  std::vector<std::string> dirty_render_rows;
+  std::vector<std::string> direct_no_dirty_rows;
+  std::vector<std::string> perf_setting_rows;
+  int32_t color_dirty_or_mask = 1;
+  int32_t render_dirty_or_mask = 2;
+  bool custom_bit_rows_skip_size_or_get_dirty = true;
+};
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
@@ -1782,6 +1792,7 @@ SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
 SourceRndMatAllowedNormalMapPlan source_rndmat_allowed_normal_map_plan();
 SourceRndMatHandlerPlan source_rndmat_handler_plan();
 SourceRndMatCopyPlan source_rndmat_copy_plan(bool copy_from_max);
+SourceRndMatPropSyncPlan source_rndmat_prop_sync_plan();
 
 struct Vertex {
   float px, py, pz;          // position

@@ -1649,6 +1649,18 @@ int run_contract() {
   ok &= contains(doc,
                  "does not infer broad material copy\n    semantics beyond those visible source rows",
                  "document fences RndMat copy helper from broad copy assumptions");
+  ok &= contains(doc,
+                 "Shared native `source_rndmat_prop_sync_plan` records the visible",
+                 "document records RndMat propsync helper");
+  ok &= contains(doc,
+                 "`color` and `alpha` dirty color state\n    with mask `1`",
+                 "document records RndMat propsync color dirty rows");
+  ok &= contains(doc,
+                 "`next_pass`, `point_lights`, `fog`,\n    `fade_out`, and `color_adjust` are direct no-dirty rows",
+                 "document records RndMat propsync no-dirty rows");
+  ok &= contains(doc,
+                 "does not synthesize renderer or hair-material policy",
+                 "document fences RndMat propsync helper from render policy");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
@@ -3863,6 +3875,42 @@ int run_contract() {
                  "if(ty==kCopyFromMax){COPY_MEMBER_FROM(m,mDiffuseTex)}"
                  "else{}mDirty=3;END_COPYS",
                  "RB3 RndMat CopyFromMax diffuse branch and dirty state");
+  ok &= contains(rb3_mat_cpp,
+                 "BEGIN_PROPSYNCS(RndMat){staticSymbol_s(\"intensify\");"
+                 "boolbit=mIntensify;if(sym==_s){boolret=PropSync(bit,_val,"
+                 "_prop,_i+1,_op);mIntensify=bit;if(!(_op&("
+                 "kPropSize|kPropGet))){mDirty|=2;}returnret;}}",
+                 "RB3 RndMat propsync intensify dirty row");
+  ok &= contains(rb3_mat_cpp,
+                 "SYNC_PROP_MODIFY_ALT(color,mColor,mDirty|=1)"
+                 "SYNC_PROP_MODIFY(alpha,mColor.alpha,mDirty|=1)",
+                 "RB3 RndMat propsync color dirty rows");
+  ok &= contains(rb3_mat_cpp,
+                 "SYNC_PROP_MODIFY_ALT(tex_xfm,mTexXfm,mDirty|=2)"
+                 "SYNC_PROP_MODIFY_ALT(diffuse_tex,mDiffuseTex,mDirty|=2)",
+                 "RB3 RndMat propsync texture dirty rows");
+  ok &= contains(rb3_mat_cpp,
+                 "SYNC_PROP(next_pass,mNextPass)",
+                 "RB3 RndMat propsync next pass no-dirty row");
+  ok &= contains(rb3_mat_cpp,
+                 "SYNC_PROP_MODIFY(emissive_multiplier,mEmissiveMultiplier,"
+                 "mDirty|=2)SYNC_PROP_MODIFY_ALT(emissive_map,mEmissiveMap,"
+                 "mDirty|=2)",
+                 "RB3 RndMat propsync emissive dirty rows");
+  ok &= contains(rb3_mat_cpp,
+                 "SYNC_PROP_MODIFY(refract_strength,mRefractStrength,mDirty|=2)"
+                 "SYNC_PROP_MODIFY_ALT(refract_normal_map,mRefractNormalMap,"
+                 "mDirty|=2)",
+                 "RB3 RndMat propsync refract dirty rows");
+  ok &= contains(rb3_mat_cpp,
+                 "staticSymbol_s(\"point_lights\");if(sym==_s){if(_op==kPropSet)"
+                 "mPointLights=_val.Int(0);else_val=DataNode(mPointLights);"
+                 "returntrue;}",
+                 "RB3 RndMat propsync point lights direct row");
+  ok &= contains(rb3_mat_cpp,
+                 "SYNC_PROP_SET(recv_proj_lights,mPerfSettings.mRecvProjLights,"
+                 "mPerfSettings.mRecvProjLights=_val.Int(0)>0)",
+                 "RB3 RndMat propsync perf setting row");
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
@@ -3934,6 +3982,13 @@ int run_contract() {
   ok &= contains(scene_h,
                  "SourceRndMatCopyPlansource_rndmat_copy_plan(boolcopy_from_max);",
                  "shared milo_scene declares RndMat copy helper");
+  ok &= contains(scene_h,
+                 "structSourceRndMatPropSyncPlan{std::vector<std::string>"
+                 "dirty_color_rows;",
+                 "shared milo_scene exposes RndMat propsync helper");
+  ok &= contains(scene_h,
+                 "SourceRndMatPropSyncPlansource_rndmat_prop_sync_plan();",
+                 "shared milo_scene declares RndMat propsync helper");
   ok &= contains(scene_h,
                  "std::stringnext_pass;boolintensify=false;"
                  "floatemissive_multiplier=1.0f;",
@@ -4062,6 +4117,20 @@ int run_contract() {
                  "plan.copy_from_max=copy_from_max;plan.copies_diffuse_tex=copy_from_max;",
                  "shared RndMat copy helper mirrors CopyFromMax diffuse gate");
   ok &= contains(scene,
+                 "SourceRndMatPropSyncPlansource_rndmat_prop_sync_plan(){",
+                 "shared milo_scene implements RndMat propsync helper");
+  ok &= contains(scene,
+                 "plan.dirty_color_rows={\"color\",\"alpha\"};",
+                 "shared RndMat propsync helper records color dirty rows");
+  ok &= contains(scene,
+                 "plan.direct_no_dirty_rows={\"next_pass\",\"point_lights\","
+                 "\"fog\",\"fade_out\",\"color_adjust\"};",
+                 "shared RndMat propsync helper records no-dirty rows");
+  ok &= contains(scene,
+                 "plan.perf_setting_rows={\"recv_proj_lights\","
+                 "\"recv_point_cube_tex\",\"ps3_force_trilinear\"};",
+                 "shared RndMat propsync helper records perf setting rows");
+  ok &= contains(scene,
                  "plan.reads_alpha_threshold=revision>0x25;",
                  "shared RndMat load plan mirrors alpha-threshold gate");
   ok &= contains(scene,
@@ -4140,6 +4209,12 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndmat_copy_plan(false)",
                  "milo_scene test covers RndMat non-CopyFromMax helper");
+  ok &= contains(scene_test,
+                 "source_rndmat_prop_sync_plan()",
+                 "milo_scene test covers RndMat propsync helper");
+  ok &= contains(scene_test,
+                 "prop_sync.direct_no_dirty_rows[0]==\"next_pass\"",
+                 "milo_scene test covers RndMat propsync no-dirty rows");
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");

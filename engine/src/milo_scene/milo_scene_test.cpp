@@ -1354,6 +1354,25 @@ void test_mat() {
   CHECK(!normal_copy.copies_diffuse_tex);
   CHECK(!normal_copy.copies_other_material_members);
   CHECK(normal_copy.dirty_value == 3);
+  const SourceRndMatPropSyncPlan prop_sync =
+      source_rndmat_prop_sync_plan();
+  CHECK(prop_sync.dirty_color_rows.size() == 2);
+  CHECK(prop_sync.dirty_color_rows[0] == "color");
+  CHECK(prop_sync.dirty_color_rows[1] == "alpha");
+  CHECK(prop_sync.color_dirty_or_mask == 1);
+  CHECK(prop_sync.dirty_render_rows.size() == 22);
+  CHECK(prop_sync.dirty_render_rows[0] == "intensify");
+  CHECK(prop_sync.dirty_render_rows[10] == "prelit");
+  CHECK(prop_sync.dirty_render_rows[16] == "emissive_multiplier");
+  CHECK(prop_sync.dirty_render_rows[21] == "screen_aligned");
+  CHECK(prop_sync.render_dirty_or_mask == 2);
+  CHECK(prop_sync.direct_no_dirty_rows.size() == 5);
+  CHECK(prop_sync.direct_no_dirty_rows[0] == "next_pass");
+  CHECK(prop_sync.direct_no_dirty_rows[4] == "color_adjust");
+  CHECK(prop_sync.perf_setting_rows.size() == 3);
+  CHECK(prop_sync.perf_setting_rows[0] == "recv_proj_lights");
+  CHECK(prop_sync.perf_setting_rows[2] == "ps3_force_trilinear");
+  CHECK(prop_sync.custom_bit_rows_skip_size_or_get_dirty);
   std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),
