@@ -428,6 +428,90 @@ SourceMiloEditorRndMeshFaceIoPlan source_milo_editor_rndmesh_face_io_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshVertexIoPlan
+source_milo_editor_rndmesh_vertex_io_plan(
+    int32_t mesh_version,
+    bool is_next_gen,
+    int32_t vertex_count) {
+  SourceMiloEditorRndMeshVertexIoPlan plan;
+  plan.mesh_version = mesh_version;
+  plan.vertex_count = std::max(0, vertex_count);
+  plan.read_vertex_rows = plan.vertex_count;
+  plan.write_vertex_rows = plan.vertex_count;
+  plan.reads_next_gen_header = mesh_version >= 36;
+  plan.writes_next_gen_header = mesh_version >= 36;
+  plan.next_gen_header_has_vertex_size_and_compression =
+      mesh_version >= 36 && is_next_gen;
+  plan.uses_last_gen_uncompressed_rows = mesh_version < 35 || !is_next_gen;
+
+  if (!plan.uses_last_gen_uncompressed_rows) {
+    plan.row_reads_packed_next_gen = true;
+    return plan;
+  }
+
+  plan.row_float_count = 3;
+  if (mesh_version == 34) {
+    plan.row_reads_position_w = true;
+    plan.row_float_count += 1;
+  }
+
+  if (mesh_version <= 10) {
+    plan.row_reads_normal_xyz = true;
+    plan.row_reads_uv = true;
+    plan.row_reads_weights = true;
+    plan.row_reads_bone_indices = true;
+    plan.row_float_count += 3 + 2 + 4;
+    plan.row_uint16_count = 4;
+  } else if (mesh_version <= 22) {
+    plan.row_reads_bone_indices = true;
+    plan.row_reads_normal_xyz = true;
+    plan.row_reads_weights = true;
+    plan.row_reads_uv = true;
+    plan.row_float_count += 3 + 4 + 2;
+    plan.row_uint16_count = 4;
+  } else {
+    if (mesh_version >= 38) {
+      plan.row_reads_packed_next_gen = true;
+      plan.row_float_count += 2;
+    }
+    plan.row_reads_normal_xyz = true;
+    plan.row_float_count += 3;
+    if (mesh_version == 34) {
+      plan.row_reads_normal_w = true;
+      plan.row_float_count += 1;
+    }
+    plan.row_reads_weights = true;
+    plan.row_reads_uv = true;
+    plan.row_reads_weights_before_uv = mesh_version < 38;
+    plan.row_float_count += 4 + 2;
+    if (mesh_version >= 33) {
+      plan.row_reads_bone_indices = true;
+      plan.row_uint16_count = 4;
+      if (mesh_version >= 38) {
+        plan.row_reads_packed_next_gen = true;
+        plan.row_float_count += 2;
+      } else {
+        plan.row_reads_tangent = true;
+        plan.row_float_count += 4;
+        if (mesh_version > 34) {
+          plan.row_float_count += 2;
+        }
+      }
+    }
+  }
+
+  plan.row_byte_size = plan.row_float_count * 4 + plan.row_uint16_count * 2;
+  plan.gh2_rev28_row_is_skin_vertex_48 =
+      mesh_version == 28 && !is_next_gen &&
+      plan.uses_last_gen_uncompressed_rows && plan.row_reads_position_xyz &&
+      plan.row_reads_normal_xyz && plan.row_reads_weights &&
+      plan.row_reads_weights_before_uv && plan.row_reads_uv &&
+      !plan.row_reads_bone_indices && !plan.row_reads_tangent &&
+      plan.row_float_count == 12 && plan.row_uint16_count == 0 &&
+      plan.row_byte_size == 48;
+  return plan;
+}
+
 SourceRndMeshSkinIndexPlan source_rndmesh_skin_index_plan(
     int32_t mesh_revision) {
   SourceRndMeshSkinIndexPlan plan;

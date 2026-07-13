@@ -176,6 +176,39 @@ struct SourceMiloEditorRndMeshFaceIoPlan {
 SourceMiloEditorRndMeshFaceIoPlan source_milo_editor_rndmesh_face_io_plan(
     int32_t face_count);
 
+struct SourceMiloEditorRndMeshVertexIoPlan {
+  int32_t mesh_version = 0;
+  int32_t vertex_count = 0;
+  bool reads_vertex_count_before_rows = true;
+  bool writes_vertex_count_before_rows = true;
+  bool reads_next_gen_header = false;
+  bool writes_next_gen_header = false;
+  bool next_gen_header_has_vertex_size_and_compression = false;
+  bool uses_last_gen_uncompressed_rows = false;
+  bool row_reads_position_xyz = true;
+  bool row_reads_position_w = false;
+  bool row_reads_normal_xyz = false;
+  bool row_reads_normal_w = false;
+  bool row_reads_weights = false;
+  bool row_reads_weights_before_uv = false;
+  bool row_reads_uv = false;
+  bool row_reads_bone_indices = false;
+  bool row_reads_tangent = false;
+  bool row_reads_packed_next_gen = false;
+  int32_t row_float_count = 0;
+  int32_t row_uint16_count = 0;
+  int32_t row_byte_size = 0;
+  int32_t read_vertex_rows = 0;
+  int32_t write_vertex_rows = 0;
+  bool gh2_rev28_row_is_skin_vertex_48 = false;
+};
+
+SourceMiloEditorRndMeshVertexIoPlan
+source_milo_editor_rndmesh_vertex_io_plan(
+    int32_t mesh_version,
+    bool is_next_gen,
+    int32_t vertex_count);
+
 struct SourceRndMeshSkinIndexPlan {
   bool rb3_stream_reads_bone_indices = false;
   bool milo_editor_reads_bone_indices = false;

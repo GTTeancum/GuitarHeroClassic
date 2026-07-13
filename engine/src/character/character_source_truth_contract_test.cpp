@@ -4998,6 +4998,30 @@ int run_contract() {
   ok &= contains(mesh_cs,
                  "elseif(meshVersion<35||isNextGen==false){",
                  "MiloEditor RndMesh legacy non-next-gen vertex path");
+  ok &= contains(mesh_cs,
+                 "count=reader.ReadUInt32();if(meshVersion>=36){"
+                 "isNextGen=reader.ReadBoolean();if(isNextGen){"
+                 "vertexSize=reader.ReadUInt32();compressionType=reader."
+                 "ReadUInt32();}ReadVertices(reader,meshVersion,isNextGen,"
+                 "compressionType);returnthis;}else{ReadVertices(reader,"
+                 "meshVersion,isNextGen,0);}",
+                 "MiloEditor RndMesh Vertices reads counted rows and headers");
+  ok &= contains(mesh_cs,
+                 "writer.WriteUInt32((uint)vertices.Count);if(meshVersion>=36)"
+                 "{writer.WriteBoolean(isNextGen);if(isNextGen){writer."
+                 "WriteUInt32(vertexSize);writer.WriteUInt32(compressionType);}",
+                 "MiloEditor RndMesh Vertices writes counted rows and headers");
+  ok &= contains(mesh_cs,
+                 "newVert.nx=reader.ReadFloat();newVert.ny=reader.ReadFloat();"
+                 "newVert.nz=reader.ReadFloat();if(meshVersion==34)newVert.nw="
+                 "reader.ReadFloat();",
+                 "MiloEditor RndMesh last-gen vertex row reads normal");
+  ok &= contains(mesh_cs,
+                 "newVert.weight0=reader.ReadFloat();newVert.weight1=reader."
+                 "ReadFloat();newVert.weight2=reader.ReadFloat();"
+                 "newVert.weight3=reader.ReadFloat();newVert.u=reader."
+                 "ReadFloat();newVert.v=reader.ReadFloat();",
+                 "MiloEditor RndMesh GH2-era row reads weights before UV");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshVertLoadPlan{",
                  "native exposes RndMesh vertex-load source plan");
@@ -6055,6 +6079,10 @@ int run_contract() {
                  "int32_tface_count=0;",
                  "native declares MiloEditor RndMesh face IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshVertexIoPlan{"
+                 "int32_tmesh_version=0;",
+                 "native declares MiloEditor RndMesh vertex IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
                  "type=false;",
                  "native declares glTFMilo run options plan");
@@ -6408,6 +6436,11 @@ int run_contract() {
       "SourceMiloEditorRndMeshFaceIoPlansource_milo_editor_rndmesh_"
       "face_io_plan(",
       "native ports MiloEditor RndMesh face IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshVertexIoPlansource_milo_editor_rndmesh_"
+      "vertex_io_plan(",
+      "native ports MiloEditor RndMesh vertex IO helper");
   ok &= contains(char_mesh,
                  "constboolgate=plan.group_sizes_count>0&&"
                  "group_sizes_first_positive&&parent_dir_revision<25;",
@@ -6420,6 +6453,14 @@ int run_contract() {
                  "plan.read_face_rows=plan.face_count;plan.write_face_rows="
                  "plan.face_count;",
                  "native face IO helper preserves counted rows");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_row_is_skin_vertex_48=mesh_version==28&&"
+                 "!is_next_gen&&",
+                 "native vertex IO helper pins GH2 rev28 skin row");
+  ok &= contains(char_mesh,
+                 "plan.row_byte_size=plan.row_float_count*4+"
+                 "plan.row_uint16_count*2;",
+                 "native vertex IO helper records row byte size");
   ok &= contains(char_mesh,
                  "if(read_probe_positive){plan.read_rewinds_probe_when_"
                  "positive=true;",
@@ -6957,6 +6998,12 @@ int run_contract() {
                  "face_io.row_is_three_uint16_indices",
                  "focused mesh decode test covers face row indices");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_vertex_io_plan(",
+                 "focused mesh decode test covers MiloEditor vertex IO");
+  ok &= contains(mesh_decode_test,
+                 "rev28_milo_editor_vertex_io.gh2_rev28_row_is_skin_vertex_48",
+                 "focused mesh decode test covers GH2 rev28 vertex row");
+  ok &= contains(mesh_decode_test,
                  "revision_word_little.read_low_word_as_revision",
                  "focused mesh decode test covers little-endian revision split");
   ok &= contains(mesh_decode_test,
@@ -7255,6 +7302,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh face IO helper");
   ok &= contains(doc, "face topology IO only",
                  "document fences face IO from skin or hair behavior");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_vertex_io_plan` records",
+                 "document records MiloEditor RndMesh vertex IO helper");
+  ok &= contains(doc, "rev28 row as 12\n    floats / 48 bytes",
+                 "document records GH2 rev28 vertex row size");
   ok &= contains(doc,
                  "`source_gltf_milo_add_vertex_to_chunk_mesh` mirrors",
                  "document records glTFMilo AddVertex helper");

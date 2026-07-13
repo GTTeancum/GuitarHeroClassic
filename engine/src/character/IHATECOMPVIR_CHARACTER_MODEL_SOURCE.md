@@ -1482,6 +1482,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_milo_editor_rndmesh_face_io_plan` records this counted face-list
     contract. This is face topology IO only; it does not imply skin-index,
     hair, cull, depth, blend, or accessory behavior.
+  - MiloEditor `RndMesh.Vertices` rows are also count-prefixed. For GH2 rev28,
+    the source takes the last-gen uncompressed row path: position `x/y/z`, normal
+    `nx/ny/nz`, weights `weight0..3`, then UV `u/v`. It does not read
+    per-vertex bone indices, tangents, next-gen vertex-size headers, or
+    compressed rows for this revision. Native
+    `source_milo_editor_rndmesh_vertex_io_plan` records that rev28 row as 12
+    floats / 48 bytes, matching the native `SkinVertex` stride, without treating
+    later next-gen compression paths as decoded GH2 behavior.
   - Native `source_rndmesh_handler_plan`,
     `source_rndmesh_prop_sync_plan`,
     `source_rndmesh_mutable_bit_plan`,

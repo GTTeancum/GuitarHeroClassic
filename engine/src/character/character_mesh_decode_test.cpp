@@ -400,6 +400,42 @@ int main() {
   CHECK(empty_face_io.read_face_rows == 0);
   CHECK(empty_face_io.write_face_rows == 0);
 
+  const auto rev28_milo_editor_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          28, false, 4);
+  CHECK(rev28_milo_editor_vertex_io.vertex_count == 4);
+  CHECK(rev28_milo_editor_vertex_io.reads_vertex_count_before_rows);
+  CHECK(rev28_milo_editor_vertex_io.writes_vertex_count_before_rows);
+  CHECK(!rev28_milo_editor_vertex_io.reads_next_gen_header);
+  CHECK(!rev28_milo_editor_vertex_io
+             .next_gen_header_has_vertex_size_and_compression);
+  CHECK(rev28_milo_editor_vertex_io.uses_last_gen_uncompressed_rows);
+  CHECK(rev28_milo_editor_vertex_io.row_reads_position_xyz);
+  CHECK(!rev28_milo_editor_vertex_io.row_reads_position_w);
+  CHECK(rev28_milo_editor_vertex_io.row_reads_normal_xyz);
+  CHECK(!rev28_milo_editor_vertex_io.row_reads_normal_w);
+  CHECK(rev28_milo_editor_vertex_io.row_reads_weights);
+  CHECK(rev28_milo_editor_vertex_io.row_reads_weights_before_uv);
+  CHECK(rev28_milo_editor_vertex_io.row_reads_uv);
+  CHECK(!rev28_milo_editor_vertex_io.row_reads_bone_indices);
+  CHECK(!rev28_milo_editor_vertex_io.row_reads_tangent);
+  CHECK(rev28_milo_editor_vertex_io.row_float_count == 12);
+  CHECK(rev28_milo_editor_vertex_io.row_uint16_count == 0);
+  CHECK(rev28_milo_editor_vertex_io.row_byte_size == 48);
+  CHECK(rev28_milo_editor_vertex_io.read_vertex_rows == 4);
+  CHECK(rev28_milo_editor_vertex_io.write_vertex_rows == 4);
+  CHECK(rev28_milo_editor_vertex_io.gh2_rev28_row_is_skin_vertex_48);
+
+  const auto rev36_milo_editor_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          36, true, 2);
+  CHECK(rev36_milo_editor_vertex_io.reads_next_gen_header);
+  CHECK(rev36_milo_editor_vertex_io.writes_next_gen_header);
+  CHECK(rev36_milo_editor_vertex_io
+            .next_gen_header_has_vertex_size_and_compression);
+  CHECK(!rev36_milo_editor_vertex_io.uses_last_gen_uncompressed_rows);
+  CHECK(rev36_milo_editor_vertex_io.row_reads_packed_next_gen);
+
   const auto rev28_milo_editor_bone_io =
       ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
           28, true, 2);
