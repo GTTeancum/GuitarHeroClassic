@@ -2279,6 +2279,43 @@ int main() {
   CHECK(gltf_indexed_triangles.triangles[0].idx1 == 1);
   CHECK(gltf_indexed_triangles.triangles[0].idx2 == 2);
 
+  ghogx::character::SourceGltfMiloMeshChunkBuilderInput chunk_builder_input;
+  chunk_builder_input.existing_triangle_indices = {0};
+  chunk_builder_input.existing_joint_indices = {2, 5};
+  chunk_builder_input.existing_vertex_indices = {10, 11};
+  chunk_builder_input.triangle = {10, 12, 12};
+  chunk_builder_input.triangle_joint_indices = {5, 7, 2, 7};
+  chunk_builder_input.triangle_index = 4;
+  chunk_builder_input.max_joint_count = 4;
+  chunk_builder_input.max_vertex_count = 3;
+  const auto chunk_builder =
+      ghogx::character::source_gltf_milo_mesh_chunk_builder_plan(
+          chunk_builder_input);
+  CHECK(chunk_builder.starting_joint_count == 2);
+  CHECK(chunk_builder.starting_unique_vertex_count == 2);
+  CHECK(chunk_builder.additional_joint_count == 2);
+  CHECK(chunk_builder.additional_vertex_count == 1);
+  CHECK(chunk_builder.can_add_triangle);
+  CHECK(chunk_builder.duplicate_vertex_indices_count_once);
+  CHECK(chunk_builder.duplicate_joint_indices_append_once);
+  CHECK(chunk_builder.triangle_indices_after_add.size() == 2);
+  CHECK(chunk_builder.triangle_indices_after_add[1] == 4);
+  CHECK(chunk_builder.joint_indices_after_add.size() == 3);
+  CHECK(chunk_builder.joint_indices_after_add[0] == 2);
+  CHECK(chunk_builder.joint_indices_after_add[1] == 5);
+  CHECK(chunk_builder.joint_indices_after_add[2] == 7);
+  CHECK(chunk_builder.unique_vertex_count_after_add == 3);
+
+  chunk_builder_input.add_triangle = false;
+  chunk_builder_input.max_joint_count = 3;
+  const auto rejected_chunk_builder =
+      ghogx::character::source_gltf_milo_mesh_chunk_builder_plan(
+          chunk_builder_input);
+  CHECK(!rejected_chunk_builder.can_add_triangle);
+  CHECK(rejected_chunk_builder.triangle_indices_after_add.size() == 1);
+  CHECK(rejected_chunk_builder.joint_indices_after_add.size() == 2);
+  CHECK(rejected_chunk_builder.unique_vertex_count_after_add == 2);
+
   const std::vector<ghogx::character::SourceGltfMiloTriangle>
       small_chunk_tris = {{0, 1, 2}, {2, 1, 3}};
   const std::vector<std::vector<int32_t>> small_chunk_joints = {

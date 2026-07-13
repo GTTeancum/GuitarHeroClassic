@@ -2060,6 +2060,44 @@ std::vector<int32_t> source_gltf_milo_triangle_joint_indices(
 
 }  // namespace
 
+SourceGltfMiloMeshChunkBuilderPlan source_gltf_milo_mesh_chunk_builder_plan(
+    const SourceGltfMiloMeshChunkBuilderInput& input) {
+  SourceGltfMiloMeshChunkBuilder builder;
+  builder.triangle_indices = input.existing_triangle_indices;
+  for (int32_t joint : input.existing_joint_indices) {
+    if (builder.joint_set.insert(joint).second) {
+      builder.joint_indices.push_back(joint);
+    }
+  }
+  for (uint32_t vertex : input.existing_vertex_indices) {
+    builder.vertex_set.insert(vertex);
+  }
+
+  SourceGltfMiloMeshChunkBuilderPlan plan;
+  plan.starting_joint_count =
+      static_cast<int32_t>(builder.joint_indices.size());
+  plan.starting_unique_vertex_count =
+      static_cast<int32_t>(builder.vertex_set.size());
+  plan.additional_joint_count =
+      builder.additional_joint_count(input.triangle_joint_indices);
+  plan.additional_vertex_count =
+      builder.additional_vertex_count(input.triangle);
+  plan.can_add_triangle =
+      builder.can_add_triangle(input.triangle, input.triangle_joint_indices,
+                               input.max_joint_count, input.max_vertex_count);
+
+  if (input.add_triangle) {
+    builder.add_triangle(input.triangle_index, input.triangle,
+                         input.triangle_joint_indices);
+  }
+
+  const SourceGltfMiloMeshChunk chunk = builder.finish();
+  plan.triangle_indices_after_add = chunk.triangle_indices;
+  plan.joint_indices_after_add = chunk.joint_indices;
+  plan.unique_vertex_count_after_add = chunk.unique_vertex_count;
+  return plan;
+}
+
 SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
     const std::vector<SourceGltfMiloTriangle>& triangles,
     const std::vector<std::vector<int32_t>>& vertex_joint_indices) {

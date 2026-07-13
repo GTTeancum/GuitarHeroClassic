@@ -703,6 +703,31 @@ struct SourceGltfMiloMeshChunkPlan {
   std::vector<SourceGltfMiloMeshChunk> chunks;
 };
 
+struct SourceGltfMiloMeshChunkBuilderInput {
+  std::vector<int32_t> existing_triangle_indices;
+  std::vector<int32_t> existing_joint_indices;
+  std::vector<uint32_t> existing_vertex_indices;
+  SourceGltfMiloTriangle triangle;
+  std::vector<int32_t> triangle_joint_indices;
+  int32_t triangle_index = 0;
+  int32_t max_joint_count = 40;
+  int32_t max_vertex_count = 65535;
+  bool add_triangle = true;
+};
+
+struct SourceGltfMiloMeshChunkBuilderPlan {
+  int32_t starting_joint_count = 0;
+  int32_t starting_unique_vertex_count = 0;
+  int32_t additional_joint_count = 0;
+  int32_t additional_vertex_count = 0;
+  bool can_add_triangle = false;
+  bool duplicate_vertex_indices_count_once = true;
+  bool duplicate_joint_indices_append_once = true;
+  std::vector<int32_t> triangle_indices_after_add;
+  std::vector<int32_t> joint_indices_after_add;
+  int32_t unique_vertex_count_after_add = 0;
+};
+
 struct SourceGltfMiloMeshSplitWarningPlan {
   int32_t max_influencing_bones = 40;
   int32_t max_vertices = 65535;
@@ -1592,6 +1617,8 @@ SourceGltfMiloBuildTrianglesResult source_gltf_milo_build_source_triangles(
     int32_t position_count,
     bool has_index_buffer);
 
+SourceGltfMiloMeshChunkBuilderPlan source_gltf_milo_mesh_chunk_builder_plan(
+    const SourceGltfMiloMeshChunkBuilderInput& input);
 SourceGltfMiloMeshChunkPlan source_gltf_milo_split_mesh_chunks(
     const std::vector<SourceGltfMiloTriangle>& triangles,
     const std::vector<std::vector<int32_t>>& vertex_joint_indices);

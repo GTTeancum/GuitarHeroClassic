@@ -6405,6 +6405,31 @@ int run_contract() {
                  "hasnovalidtrianglesafterindexvalidation.Itwillbeskipped.\");"
                  "primitiveIndex++;continue;}",
                  "glTFMilo skips primitive without valid triangles");
+  ok &= contains(gltf_program_cs,
+                 "publicintAdditionalJointCount(IReadOnlyCollection<int>"
+                 "triangleJointIndices)",
+                 "glTFMilo MeshChunk exposes additional joint count");
+  ok &= contains(gltf_program_cs,
+                 "if(!_jointIndexSet.Contains(jointIndex)){"
+                 "additionalJointCount++;}",
+                 "glTFMilo MeshChunk counts only new joint indices");
+  ok &= contains(gltf_program_cs,
+                 "publicintAdditionalVertexCount(SourceTriangletriangle)",
+                 "glTFMilo MeshChunk exposes additional vertex count");
+  ok &= contains(gltf_program_cs,
+                 "if(triangle.idx1!=triangle.idx0&&!"
+                 "_vertexIndexSet.Contains(triangle.idx1))"
+                 "additionalVertexCount++;",
+                 "glTFMilo MeshChunk counts duplicate triangle vertices once");
+  ok &= contains(gltf_program_cs,
+                 "returnjointIndices.Count+AdditionalJointCount("
+                 "triangleJointIndices)<=maxJointCount&&uniqueVertexCount+"
+                 "AdditionalVertexCount(triangle)<=maxVertexCount;",
+                 "glTFMilo MeshChunk gates triangle admission by joints and vertices");
+  ok &= contains(gltf_program_cs,
+                 "if(_jointIndexSet.Add(jointIndex)){jointIndices.Add("
+                 "jointIndex);}",
+                 "glTFMilo MeshChunk appends joint palette entries once");
   ok &= contains(gltf_node_processor_cs,
                  "if(node.Name==\"neutral_bone\")return;",
                  "glTFMilo ProcessBoneNode skips neutral bone");
@@ -6891,6 +6916,25 @@ int run_contract() {
                  "source_gltf_milo_build_source_triangles(conststd::vector<"
                  "uint32_t>&indices,int32_tposition_count,boolhas_index_buffer)",
                  "native ports glTFMilo triangle builder helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMeshChunkBuilderInput{",
+                 "native declares glTFMilo MeshChunk builder input");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloMeshChunkBuilderPlansource_gltf_milo_mesh_"
+                 "chunk_builder_plan(",
+                 "native ports glTFMilo MeshChunk builder helper");
+  ok &= contains(char_mesh,
+                 "plan.additional_joint_count=builder.additional_joint_count("
+                 "input.triangle_joint_indices);",
+                 "native records glTFMilo MeshChunk additional joint count");
+  ok &= contains(char_mesh,
+                 "plan.additional_vertex_count=builder.additional_vertex_count("
+                 "input.triangle);",
+                 "native records glTFMilo MeshChunk additional vertex count");
+  ok &= contains(char_mesh,
+                 "builder.add_triangle(input.triangle_index,input.triangle,"
+                 "input.triangle_joint_indices);",
+                 "native records glTFMilo MeshChunk add triangle state update");
   ok &= contains(char_mesh,
                  "if(!has_index_buffer||indices.empty()){",
                  "native mirrors glTFMilo unindexed triangle branch");
@@ -8199,6 +8243,12 @@ int run_contract() {
                  "source_gltf_milo_build_source_triangles(",
                  "focused mesh decode test covers glTFMilo triangle builder");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_mesh_chunk_builder_plan(",
+                 "focused mesh decode test covers glTFMilo MeshChunk builder");
+  ok &= contains(mesh_decode_test,
+                 "chunk_builder.additional_joint_count==2",
+                 "focused mesh decode test covers MeshChunk additional joints");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_split_mesh_chunks(",
                  "focused mesh decode test covers glTFMilo chunk splitter");
   ok &= contains(mesh_decode_test,
@@ -8408,6 +8458,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_build_source_triangles` ports",
                  "document records glTFMilo triangle builder helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_mesh_chunk_builder_plan` records",
+                 "document records glTFMilo MeshChunk builder helper");
   ok &= contains(doc,
                  "`source_gltf_milo_split_mesh_chunks` ports\n"
                  "    this deterministic exporter chunking rule",

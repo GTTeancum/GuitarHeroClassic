@@ -1449,6 +1449,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     triangle indices, joint palette order, and unique vertex count. It is
     exporter/format evidence for palette layout, not a change to stock GH2
     runtime skin decoding.
+  - The `MeshChunk` helper underneath that splitter counts incoming triangle
+    joint rows that are not already in the chunk palette, counts duplicate
+    triangle vertex indices once, admits a triangle only when both joint and
+    vertex limits still fit, and appends new joint palette entries only on first
+    sight. Native
+    `source_gltf_milo_mesh_chunk_builder_plan` records those helper-level rows
+    directly so the split algorithm's admission math cannot drift from the
+    ihatecompvir implementation.
   - After chunking, glTFMilo only logs a split warning when more than one mesh
     chunk exists. It computes distinct influencing bones across all chunks,
     adds `more than 40 bones` and/or `more than 65535 vertices` reasons when
