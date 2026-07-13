@@ -278,35 +278,35 @@ ghogx::character::CharHair make_two_strand_hair() {
 int main() {
   std::printf("character_mesh_decode_test\n");
   const auto dtb_int =
-      ghogx::character::source_milo_editor_dtb_node_payload_plan(0x00);
+      ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x00);
   CHECK(dtb_int.known_node_type);
   CHECK(dtb_int.node_type_name == "Int");
   CHECK(dtb_int.reads_uint32);
   CHECK(!dtb_int.reads_symbol);
 
   const auto dtb_float =
-      ghogx::character::source_milo_editor_dtb_node_payload_plan(0x01);
+      ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x01);
   CHECK(dtb_float.node_type_name == "Float");
   CHECK(dtb_float.reads_float);
 
   const auto dtb_symbol =
-      ghogx::character::source_milo_editor_dtb_node_payload_plan(0x05);
+      ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x05);
   CHECK(dtb_symbol.node_type_name == "Symbol");
   CHECK(dtb_symbol.reads_symbol);
 
   const auto dtb_array =
-      ghogx::character::source_milo_editor_dtb_node_payload_plan(0x10);
+      ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x10);
   CHECK(dtb_array.node_type_name == "Array");
   CHECK(dtb_array.reads_array_parent);
 
   const auto dtb_func =
-      ghogx::character::source_milo_editor_dtb_node_payload_plan(0x03);
+      ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x03);
   CHECK(dtb_func.node_type_name == "Func");
   CHECK(dtb_func.known_node_type);
   CHECK(dtb_func.consumes_no_payload);
 
   const auto dtb_unknown =
-      ghogx::character::source_milo_editor_dtb_node_payload_plan(0x7f);
+      ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x7f);
   CHECK(!dtb_unknown.known_node_type);
   CHECK(dtb_unknown.consumes_no_payload);
 

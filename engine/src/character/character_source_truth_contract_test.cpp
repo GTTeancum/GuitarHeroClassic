@@ -2511,30 +2511,19 @@ int run_contract() {
         "case0x09:", "case0x10:", "case0x11:", "case0x12:",
         "case0x13:", "case0x20:", "case0x21:", "case0x22:",
         "case0x23:", "case0x24:", "case0x25:"}) {
-    ok &= contains(char_mesh, type_case,
-                   std::string("character DTB skip handles ") + type_case);
     ok &= contains(scene, type_case,
                    std::string("scene DTB skip handles ") + type_case);
   }
-  ok &= contains(char_mesh_h,
-                 "structSourceMiloEditorDtbNodePayloadPlan{int32_tnode_type=0;",
-                 "character API exposes MiloEditor DTB node payload plan");
   ok &= contains(char_mesh,
-                 "SourceMiloEditorDtbNodePayloadPlan"
-                 "source_milo_editor_dtb_node_payload_plan(",
-                 "character implements MiloEditor DTB node payload plan");
-  ok &= contains(char_mesh,
-                 "case0x03:plan.node_type_name=\"Func\";"
-                 "plan.known_node_type=true;plan.consumes_no_payload=true;",
-                 "character DTB plan preserves Func no-payload row");
-  ok &= contains(char_mesh,
-                 "default:plan.node_type_name=\"Unknown\";"
-                 "plan.consumes_no_payload=true;",
-                 "character DTB plan fences unknown node rows");
-  ok &= contains(char_mesh,
-                 "constSourceMiloEditorDtbNodePayloadPlanplan="
-                 "source_milo_editor_dtb_node_payload_plan(",
-                 "character DTB reader delegates to source payload helper");
+                 "constmilo_scene::SourceMiloEditorDtbNodePayloadPlanplan="
+                 "milo_scene::source_milo_editor_dtb_node_payload_plan(",
+                 "character DTB reader delegates to shared source payload helper");
+  ok &= missing(char_mesh_h,
+                "structSourceMiloEditorDtbNodePayloadPlan{",
+                "character API no longer duplicates shared DTB payload plan");
+  ok &= missing(char_mesh,
+                "case0x03:plan.node_type_name=\"Func\";",
+                "character implementation no longer duplicates shared DTB enum table");
   ok &= contains(scene_h,
                  "structSourceMiloEditorDtbNodePayloadPlan{int32_tnode_type=0;",
                  "shared milo_scene exposes MiloEditor DTB node payload plan");
@@ -2551,10 +2540,10 @@ int run_contract() {
                  "source_milo_editor_dtb_node_payload_plan(",
                  "shared milo_scene DTB reader delegates to source payload helper");
   ok &= contains(mesh_decode_test,
-                 "source_milo_editor_dtb_node_payload_plan(0x03)",
+                 "ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x03)",
                  "focused mesh decode test covers DTB Func no-payload row");
   ok &= contains(mesh_decode_test,
-                 "source_milo_editor_dtb_node_payload_plan(0x7f)",
+                 "ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x7f)",
                  "focused mesh decode test covers unknown DTB no-payload row");
   ok &= contains(scene_test,
                  "source_milo_editor_dtb_node_payload_plan(0x03)",

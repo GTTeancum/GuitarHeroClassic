@@ -593,8 +593,9 @@ into final transform rows.
     payload classes explicitly: int nodes read a `uint32`, float nodes read a
     float, symbol-like nodes read a `Symbol`, array/command/property nodes read
     nested DTB parents, and `Func`/unknown nodes consume no visible payload.
-    Both the character parser and shared `milo_scene` parser delegate their
-    object-field DTB skip path to this source-shaped plan.
+    The shared `milo_scene` helper owns this table; both the character parser
+    and shared scene parser delegate their object-field DTB skip path to it so
+    the enum cannot drift between model readers.
   - Native generic `Object` rows decode the same `ObjectFields` prefix and log
     unread tails instead of promoting any runtime behavior.
 - `rb3-latest/src/system/char/Character.cpp`
