@@ -10835,3 +10835,16 @@ Rejected native probe:
   reporting each key's decoded `path_frame`. This does not change rendered
   camera behavior; it makes path-backed angle work auditable against the same
   source-shaped cadence as non-path frame-pair shots.
+
+- 2026-07-13 first regular CamShot source previous:
+  GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives
+  previous `facing` and `distance` from `world current_shot`, falling back to
+  `world get intro_camera_facing` / `world get intro_camera_distance` only when
+  no current shot exists. Native was starting the first post-intro regular
+  selection with no previous source context, so the initial facing and far/behind
+  distance guards could be skipped. The intro CamShot selector now preserves the
+  decoded intro shot's `distance`/`facing`, stamps that source metadata onto the
+  loaded intro camera keys, and passes the intro key as the source previous
+  context until a regular CamShot is active. This changes selection metadata
+  only; it does not infer the still-deferred native `cam_shot_ok` or
+  `cam_check_shot` bodies.

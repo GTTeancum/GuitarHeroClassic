@@ -9930,7 +9930,9 @@ int main() {
                  "CamShot ObjectFields parser exposes source ref-list properties");
   ok &= contains(gameplay_c,
                  "structIntroCameraSelection{std::stringshot;"
-                 "std::stringanim=\"Intro.tnm\";boolhide_crowd=false;"
+                 "std::stringanim=\"Intro.tnm\";"
+                 "std::stringdistance;std::stringfacing;"
+                 "boolhide_crowd=false;"
                  "boolcrowd_face_camera=false;intforce_char_lod=-1;"
                  "std::vector<std::string>hide_list_refs;"
                  "std::vector<std::string>show_list_refs;",
@@ -10106,7 +10108,8 @@ int main() {
                  "regular camera sweep logs source matcher provenance and selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
-                 "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
+                 "distance=%sfacing=%shide_crowd=%d"
+                 "crowd_face_camera=%dforce_char_lod=%d"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
                  "postproc=%zuanims=%zuglow=%s\\n\"",
                  "intro TransAnim camera flag/LOD stamping is runtime-verifiable");
@@ -10598,6 +10601,18 @@ int main() {
                  "decoded_shot->platform_only)){"
                  "if(debug_camera_enabled())",
                  "intro camera selector mirrors CameraManager PlatformOk before accepting CamShots");
+  ok &= contains(intro_camera_selector_c,
+                 "c.distance=prop_symbol(decoded_shot->props,\"distance\");",
+                 "intro camera selector preserves source distance metadata");
+  ok &= contains(intro_camera_selector_c,
+                 "c.facing=prop_symbol(decoded_shot->props,\"facing\");",
+                 "intro camera selector preserves source facing metadata");
+  ok &= contains(gameplay_c,
+                 "key.distance=intro_camera.distance;",
+                 "loaded intro camera keys carry source distance metadata");
+  ok &= contains(gameplay_c,
+                 "key.facing=intro_camera.facing;",
+                 "loaded intro camera keys carry source facing metadata");
   ok &= contains(regular_camera_loader_c,
                  "if(!camshot_platform_ok_for_source("
                  "decoded_shot->platform_only)){"
@@ -10691,6 +10706,16 @@ int main() {
                  "choose_regular_camera_key_scripted(regular_camera_keys_,"
                  "active_regular_camera_,",
                  "regular camera selector receives the active shot as source previous context");
+  ok &= contains(gameplay_c,
+                 "constGameplay::CameraKey*source_previous_fallback",
+                 "regular camera selector accepts source previous fallback context");
+  ok &= contains(gameplay_c,
+                 "previous?previous:source_previous_fallback;",
+                 "regular camera selector uses the active regular shot before fallback metadata");
+  ok &= contains(gameplay_c,
+                 "active_regular_camera_.empty()&&!camera_keys_.empty()"
+                 "?&camera_keys_.front():nullptr;",
+                 "first regular camera pick uses the intro CamShot as source previous context");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
                  "constGameplay::CameraKey*previous)",

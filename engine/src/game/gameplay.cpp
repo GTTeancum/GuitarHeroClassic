@@ -3026,6 +3026,8 @@ VenueCameraPolicy load_venue_camera_policy(const std::string& hdr_path,
 struct IntroCameraSelection {
     std::string shot;
     std::string anim = "Intro.tnm";
+    std::string distance;
+    std::string facing;
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;
@@ -3056,6 +3058,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             std::string shot;
             std::string anim;
             bool direct_camshot_pose = false;
+            std::string distance;
+            std::string facing;
             bool hide_crowd = false;
             bool crowd_face_camera = false;
             int force_char_lod = -1;
@@ -3117,6 +3121,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             c.postproc_override_refs = decoded_shot->postproc_overrides;
             c.camera_anim_refs = decoded_shot->anims;
             c.glow_spot_ref = decoded_shot->glow_spot;
+            c.distance = prop_symbol(decoded_shot->props, "distance");
+            c.facing = prop_symbol(decoded_shot->props, "facing");
             c.hide_crowd = prop_bool(decoded_shot->props, "hide_crowd", false);
             c.crowd_face_camera =
                 prop_bool(decoded_shot->props, "crowd_face_camera", false);
@@ -3152,6 +3158,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             IntroCameraSelection selected;
             selected.shot = candidates.front().shot;
             selected.anim = candidates.front().anim;
+            selected.distance = candidates.front().distance;
+            selected.facing = candidates.front().facing;
             selected.hide_crowd = candidates.front().hide_crowd;
             selected.crowd_face_camera = candidates.front().crowd_face_camera;
             selected.force_char_lod = candidates.front().force_char_lod;
@@ -15430,6 +15438,7 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
 const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     std::vector<Gameplay::CameraKey>& keys,
     std::string_view previous_name,
+    const Gameplay::CameraKey* source_previous_fallback,
     bool low_excitement,
     bool walking,
     bool starpower,
@@ -15442,12 +15451,15 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
             break;
         }
     }
+    const Gameplay::CameraKey* source_previous =
+        previous ? previous : source_previous_fallback;
     camera_source_first_shot_ok(camera_source_pick_shot_category(mode));
     std::optional<size_t> selected =
         choose_regular_camera_key_index_by_category(
-            keys, previous, mode, [&](const Gameplay::CameraKey& key) {
-                return regular_camera_filter_ok(key, previous, low_excitement,
-                                                walking, starpower, mode);
+            keys, source_previous, mode, [&](const Gameplay::CameraKey& key) {
+                return regular_camera_filter_ok(key, source_previous,
+                                                low_excitement, walking,
+                                                starpower, mode);
             });
     if (!selected) {
         camera_source_no_acceptable_shot(camera_source_pick_shot_category(mode),
@@ -28621,6 +28633,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     intro_camera.anim);
                 for (auto& key : camera_keys_) {
+                    if (key.name.empty()) key.name = intro_camera.shot;
+                    key.distance = intro_camera.distance;
+                    key.facing = intro_camera.facing;
                     key.hide_crowd = intro_camera.hide_crowd;
                     key.crowd_face_camera = intro_camera.crowd_face_camera;
                     key.force_char_lod = intro_camera.force_char_lod;
@@ -28634,20 +28649,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     key.glow_spot_ref = intro_camera.glow_spot_ref;
                 }
                 if (debug_venue_filters_enabled()) {
-                    std::fprintf(stderr,
-                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
-                                 intro_camera.shot.c_str(),
-                                 intro_camera.anim.c_str(), camera_keys_.size(),
-                                 intro_camera.hide_crowd ? 1 : 0,
-                                 intro_camera.crowd_face_camera ? 1 : 0,
-                                 intro_camera.force_char_lod,
-                                 intro_camera.hide_list_refs.size(),
-                                 intro_camera.show_list_refs.size(),
-                                 intro_camera.gen_hide_list_refs.size(),
-                                 intro_camera.draw_override_refs.size(),
-                                 intro_camera.postproc_override_refs.size(),
-                                 intro_camera.camera_anim_refs.size(),
-                                 intro_camera.glow_spot_ref.c_str());
+                        std::fprintf(
+                            stderr,
+                            "[world] intro camera flags: shot=%s anim=%s keys=%zu distance=%s facing=%s hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
+                            intro_camera.shot.c_str(),
+                            intro_camera.anim.c_str(), camera_keys_.size(),
+                            intro_camera.distance.c_str(),
+                            intro_camera.facing.c_str(),
+                            intro_camera.hide_crowd ? 1 : 0,
+                            intro_camera.crowd_face_camera ? 1 : 0,
+                            intro_camera.force_char_lod,
+                            intro_camera.hide_list_refs.size(),
+                            intro_camera.show_list_refs.size(),
+                            intro_camera.gen_hide_list_refs.size(),
+                            intro_camera.draw_override_refs.size(),
+                            intro_camera.postproc_override_refs.size(),
+                            intro_camera.camera_anim_refs.size(),
+                            intro_camera.glow_spot_ref.c_str());
                 }
                 regular_camera_keys_ = load_regular_camera_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue);
@@ -30637,9 +30655,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
                 if (!key) {
+                    const CameraKey* source_previous_fallback =
+                        active_regular_camera_.empty() && !camera_keys_.empty()
+                            ? &camera_keys_.front()
+                            : nullptr;
                     key = choose_regular_camera_key_scripted(
                         regular_camera_keys_, active_regular_camera_,
-                        low_excitement, kGuitaristWalking,
+                        source_previous_fallback, low_excitement, kGuitaristWalking,
                         guitarist_starpower, camera_mode);
                 }
                 if (key) {
