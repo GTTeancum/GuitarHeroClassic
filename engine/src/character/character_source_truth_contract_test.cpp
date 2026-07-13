@@ -222,6 +222,17 @@ int run_contract() {
       "out/source_truth_controller_inventory_20260710/"
       "stock_character_type_inventory_latest.log");
   const std::string source_readme = read_file(source_dir / "README.md");
+  const std::filesystem::path re_gh2_dir = extra_dir / "re-gh2";
+  const std::string re_gh2_readme =
+      read_file(re_gh2_dir / "README.md");
+  const std::string re_gh2_main_cpp =
+      compact(read_file(re_gh2_dir / "src" / "main.cpp"));
+  const std::string re_gh2_arkless_cpp =
+      compact(read_file(re_gh2_dir / "src" / "arkless.cpp"));
+  const std::string re_gh2_cmake =
+      compact(read_file(re_gh2_dir / "CMakeLists.txt"));
+  const std::string re_gh2_config =
+      read_file(re_gh2_dir / "gh2test_config.toml");
 
   const std::string object_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Object.cs"));
@@ -731,6 +742,56 @@ int run_contract() {
                  "`re-gh2` main "
                  "`2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`",
                  "document records current re-gh2 upstream check");
+  ok &= contains(doc, "## re-gh2 Runtime Shell Boundary",
+                 "document records re-gh2 evidence boundary");
+  ok &= contains(doc,
+                 "The local `ihatecompvir-extra/re-gh2` copy currently "
+                 "proves a ReXGlue runtime\nshell and ARK file-hook path only.",
+                 "document limits re-gh2 to runtime shell evidence");
+  ok &= contains(doc,
+                 "MILO scene parser, skinning writer, or hair "
+                 "segment/controller code",
+                 "document rejects re-gh2 character-model inference");
+  ok &= contains(doc,
+                 "`src/arkless.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`re-gh2-arkless-file-hook-only`",
+                 "document maps re-gh2 ARK hook source boundary");
+  ok &= contains(doc,
+                 "`src/main.cpp` | "
+                 "`ghogx_character_ihatecompvir_inventory_test` | "
+                 "`re-gh2-runtime-shell-only`",
+                 "document maps re-gh2 runtime shell source boundary");
+  ok &= contains(re_gh2_readme, "proof of concept",
+                 "re-gh2 README identifies proof-of-concept scope");
+  ok &= contains(re_gh2_readme, "ReXGlue SDK",
+                 "re-gh2 README identifies ReXGlue dependency");
+  ok &= contains(re_gh2_cmake,
+                 "set(GH2TEST_SOURCESsrc/main.cppsrc/arkless.cpp)",
+                 "re-gh2 CMake only wires shell sources");
+  ok &= contains(re_gh2_config, "project_name = \"gh2test\"",
+                 "re-gh2 config names gh2test project");
+  ok &= contains(re_gh2_config, "file_path = \"assets/default.xex\"",
+                 "re-gh2 config targets default.xex");
+  ok &= contains(re_gh2_main_cpp,
+                 "runtime_->LoadXexImage(\"game:\\\\default.xex\")",
+                 "re-gh2 main launches the XEX through ReXGlue");
+  ok &= contains(re_gh2_main_cpp,
+                 "XE_DEFINE_WINDOWED_APP(gh2test,Gh2testApp::Create)",
+                 "re-gh2 main defines the windowed runtime shell");
+  ok &= contains(re_gh2_arkless_cpp,
+                 "voidNewFileHook(PPCRegister&r3,PPCRegister&r4)",
+                 "re-gh2 arkless file implements NewFileHook");
+  ok &= contains(re_gh2_arkless_cpp, "r4.u64=r4.u32|0x10000",
+                 "re-gh2 arkless hook only adjusts asset-file flags");
+  ok &= missing(re_gh2_main_cpp, "CharHair",
+                "re-gh2 main has no CharHair implementation");
+  ok &= missing(re_gh2_main_cpp, "RndMesh",
+                "re-gh2 main has no RndMesh implementation");
+  ok &= missing(re_gh2_arkless_cpp, "CharHair",
+                "re-gh2 arkless hook has no CharHair implementation");
+  ok &= missing(re_gh2_arkless_cpp, "RndMesh",
+                "re-gh2 arkless hook has no RndMesh implementation");
   ok &= contains(doc,
                  "`band3_recomp` main "
                  "`c51944bd13dfd4cb6df918159fb7136c20f74fb0`",

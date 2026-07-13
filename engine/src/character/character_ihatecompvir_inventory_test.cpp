@@ -161,6 +161,30 @@ constexpr SourceCoverage kRb2OnlyCoverage[] = {
      "rb2-dump-bodyless-runtime-gap"},
 };
 
+constexpr SourceCoverage kReGh2BoundaryCoverage[] = {
+    {"README.md", "ghogx_character_ihatecompvir_inventory_test",
+     "re-gh2-runtime-shell-only"},
+    {"CMakeLists.txt", "ghogx_character_ihatecompvir_inventory_test",
+     "re-gh2-build-shell-only"},
+    {"CMakePresets.json", "ghogx_character_ihatecompvir_inventory_test",
+     "re-gh2-build-shell-only"},
+    {"gh2test_config.toml", "ghogx_character_ihatecompvir_inventory_test",
+     "re-gh2-config-only"},
+    {"src/main.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "re-gh2-runtime-shell-only"},
+    {"src/arkless.cpp", "ghogx_character_ihatecompvir_inventory_test",
+     "re-gh2-arkless-file-hook-only"},
+};
+
+constexpr const char* kReGh2ExpectedFiles[] = {
+    ".gitattributes",      ".gitignore",
+    "assets/.gitignore",   "CMakeLists.txt",
+    "CMakePresets.json",   "generated/.gitignore",
+    "gh2test_config.toml", "gitignore.txt",
+    "out/.gitignore",      "README.md",
+    "src/arkless.cpp",     "src/main.cpp",
+};
+
 std::string read_file(const std::filesystem::path& path) {
   std::ifstream in(path, std::ios::binary);
   if (!in) {
@@ -193,6 +217,13 @@ bool is_known_rb2_status(const std::string& status) {
   return kKnown.count(status) != 0;
 }
 
+bool is_known_re_gh2_status(const std::string& status) {
+  static const std::set<std::string> kKnown = {
+      "re-gh2-runtime-shell-only", "re-gh2-build-shell-only",
+      "re-gh2-config-only", "re-gh2-arkless-file-hook-only"};
+  return kKnown.count(status) != 0;
+}
+
 }  // namespace
 
 int main() {
@@ -203,6 +234,7 @@ int main() {
   const std::filesystem::path rb2_source_dir =
       extra_dir / "rb3-retail-old" / "doc" / "rb2_dump" / "rockband2" /
       "system" / "src" / "char";
+  const std::filesystem::path re_gh2_dir = extra_dir / "re-gh2";
   const std::filesystem::path doc_path =
       char_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md";
   const std::filesystem::path cmake_path = char_dir / "CMakeLists.txt";
@@ -219,6 +251,12 @@ int main() {
                  "documentation names source absence evidence status");
   ok &= contains(doc, "## RB2 Dump-Only Character Evidence Inventory",
                  "documentation has RB2 dump-only inventory section");
+  ok &= contains(doc, "## re-gh2 Runtime Shell Boundary",
+                 "documentation has re-gh2 boundary section");
+  ok &= contains(doc, "re-gh2-runtime-shell-only",
+                 "documentation names re-gh2 runtime shell status");
+  ok &= contains(doc, "re-gh2-arkless-file-hook-only",
+                 "documentation names re-gh2 ARK hook status");
 
   std::set<std::string> mapped_sources;
   std::set<std::string> mapped_targets;
@@ -291,6 +329,60 @@ int main() {
                    "documentation lists RB2-only status for " + source);
   }
 
+  std::set<std::string> expected_re_gh2_files;
+  for (const char* file : kReGh2ExpectedFiles) {
+    expected_re_gh2_files.insert(file);
+  }
+  std::set<std::string> actual_re_gh2_files;
+  for (const auto& entry :
+       std::filesystem::recursive_directory_iterator(re_gh2_dir)) {
+    if (!entry.is_regular_file()) continue;
+    actual_re_gh2_files.insert(
+        std::filesystem::relative(entry.path(), re_gh2_dir).generic_string());
+  }
+
+  for (const std::string& actual : actual_re_gh2_files) {
+    if (expected_re_gh2_files.count(actual) == 0) {
+      std::cerr << "Unmapped re-gh2 boundary file: " << actual << "\n";
+      ok = false;
+    }
+  }
+  for (const std::string& expected : expected_re_gh2_files) {
+    if (actual_re_gh2_files.count(expected) == 0) {
+      std::cerr << "Missing re-gh2 boundary file: " << expected << "\n";
+      ok = false;
+    }
+    ok &= contains(doc, "`" + expected + "`",
+                   "documentation lists re-gh2 file " + expected);
+  }
+
+  for (const SourceCoverage& row : kReGh2BoundaryCoverage) {
+    const std::string source(row.source_file);
+    const std::string target(row.owner_target);
+    const std::string status(row.status);
+
+    mapped_targets.insert(target);
+
+    if (!is_known_re_gh2_status(status)) {
+      std::cerr << "Unknown re-gh2 boundary status for " << source << ": "
+                << status << "\n";
+      ok = false;
+    }
+    if (!std::filesystem::is_regular_file(re_gh2_dir / source)) {
+      std::cerr << "Missing re-gh2 source boundary file: "
+                << (re_gh2_dir / source).string() << "\n";
+      ok = false;
+    }
+    ok &= contains(cmake, "add_executable(" + target,
+                   "owner target exists for re-gh2 boundary " + source);
+    ok &= contains(doc, "`" + source + "`",
+                   "documentation lists re-gh2 boundary source " + source);
+    ok &= contains(doc, "`" + target + "`",
+                   "documentation lists re-gh2 owner target for " + source);
+    ok &= contains(doc, status,
+                   "documentation lists re-gh2 status for " + source);
+  }
+
   std::set<std::string> actual_sources;
   for (const auto& entry : std::filesystem::directory_iterator(source_dir)) {
     if (!entry.is_regular_file()) continue;
@@ -323,12 +415,17 @@ int main() {
                  "CharWalk RB2 bodyless gap remains explicit");
   ok &= contains(doc, "`CharClipSamples.cpp` | `ghogx_character_char_bones_source_test` | `rb2-dump-runtime-map`",
                  "CharClipSamples RB2 runtime map remains explicit");
+  ok &= contains(doc, "`src/arkless.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-arkless-file-hook-only`",
+                 "re-gh2 ARK hook boundary remains explicit");
+  ok &= contains(doc, "`src/main.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-runtime-shell-only`",
+                 "re-gh2 runtime shell boundary remains explicit");
 
   if (!ok) return 1;
 
   std::cout << "ihatecompvir character source inventory covers "
             << mapped_sources.size() << " source files across "
             << mapped_targets.size() << " owner targets plus "
-            << rb2_only_sources.size() << " RB2-only dump files\n";
+            << rb2_only_sources.size() << " RB2-only dump files and "
+            << actual_re_gh2_files.size() << " re-gh2 boundary files\n";
   return 0;
 }

@@ -71,6 +71,31 @@ missing runtime bodies are accounted for explicitly here: `CharBoneDir.h`,
 ownership only; they do not promote an undecompiled `Poll`, `Load`, or pose
 writer body.
 
+## re-gh2 Runtime Shell Boundary
+
+The local `ihatecompvir-extra/re-gh2` copy currently proves a ReXGlue runtime
+shell and ARK file-hook path only. It is source-truth for those integration
+rows, but it is not character-model evidence: this snapshot contains no
+`src/system/char` tree, `RndMesh` implementation, `CharHair` implementation,
+MILO scene parser, skinning writer, or hair segment/controller code to port.
+If a later update adds any of those files, update this section and the
+inventory contract before using `re-gh2` as model-format authority.
+
+The complete local file list is intentionally small and guarded:
+`.gitattributes`, `.gitignore`, `assets/.gitignore`, `CMakeLists.txt`,
+`CMakePresets.json`, `generated/.gitignore`, `gh2test_config.toml`,
+`gitignore.txt`, `out/.gitignore`, `README.md`, `src/arkless.cpp`, and
+`src/main.cpp`.
+
+| re-gh2 file | Native owner | Status | Evidence boundary |
+| --- | --- | --- | --- |
+| `README.md` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-runtime-shell-only` | ReXGlue proof-of-concept setup and crash/performance caveat only. |
+| `CMakeLists.txt` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-build-shell-only` | Builds/generated-code shell for `gh2test`; no character loader body. |
+| `CMakePresets.json` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-build-shell-only` | Configure preset only. |
+| `gh2test_config.toml` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-config-only` | ReXGlue mapping/config input only. |
+| `src/main.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-runtime-shell-only` | Window/runtime/XEX launch shell plus guest hooks/stubs; no model decode. |
+| `src/arkless.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-arkless-file-hook-only` | `NewFileHook` path sanitization and asset-file flag override only; no mesh, hair, eye, or skinning path. |
+
 ## ihatecompvir Character Implementation Inventory
 
 This inventory is the current ownership map for the copied
