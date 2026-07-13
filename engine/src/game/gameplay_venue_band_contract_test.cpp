@@ -9918,8 +9918,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]regularcamerasweep:%s->%scategory=%s"
                  "bars_left=%d"
-                 "duration=%s[%d,%d]mode=%sforced=%dforce_char_lod=%d",
-                 "regular camera sweep logs selected character LOD");
+                 "duration=%s[%d,%d]mode=%sfilter_source=ShotMatches"
+                 "flags=0x%08xforced=%dforce_char_lod=%d",
+                 "regular camera sweep logs source matcher provenance and selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
                  "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
@@ -10103,24 +10104,31 @@ int main() {
                  "enumclassCameraShotMode{Regular,Solo,Jump,Lighter};",
                  "camera director has distinct regular/solo/jump/lighter modes");
   ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Jump){returnkey.jump_ok;}",
+                 "if(mode==CameraShotMode::Jump){"
+                 "returncamera_shot_matches_source_filters("
+                 "key,{camera_bool_filter(\"jump_ok\",true)});}",
                  "band_jump camera mode mirrors the jump_ok shot predicate");
   ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Lighter){returnkey.lighter;}",
+                 "if(mode==CameraShotMode::Lighter){"
+                 "returncamera_shot_matches_source_filters("
+                 "key,{camera_bool_filter(\"lighter\",true)});}",
                  "crowd lighter camera mode picks only authored LIGHTER CamShots");
   ok &= appears_before(gameplay_c,
-                       "if(mode==CameraShotMode::Lighter){returnkey.lighter;}",
-                       "if(key.special)returnfalse;",
+                       "if(mode==CameraShotMode::Lighter){"
+                       "returncamera_shot_matches_source_filters(",
+                       "camera_bool_filter(\"special\",false)",
                        "LIGHTER CamShots remain selectable even when authored special");
   ok &= contains(gameplay_c,
-                 "if(key.lighter)returnfalse;",
+                 "camera_bool_filter(\"lighter\",false)",
                  "regular/solo/jump camera modes reject LIGHTER CamShots");
   ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Solo){returnstring_in(key.solo,"
-                 "{\"\",\"ok\",\"only\"});}",
+                 "if(mode==CameraShotMode::Solo){"
+                 "returncamera_shot_matches_source_filters("
+                 "key,{camera_symbol_filter(\"solo\",{\"\",\"ok\",\"only\"})});}",
                  "solo camera mode mirrors pick_solo_camera_shot solo filter");
   ok &= contains(gameplay_c,
-                 "returnstring_in(key.solo,{\"\",\"ok\",\"never\"});",
+                 "returncamera_shot_matches_source_filters("
+                 "key,{camera_symbol_filter(\"solo\",{\"\",\"ok\",\"never\"})});",
                  "regular camera mode mirrors pick_regular_camera_shot solo filter");
   ok &= contains(gameplay_c,
                  "constboolsolo_camera=camera_section_is_solo_at(",
@@ -10413,6 +10421,26 @@ int main() {
   ok &= contains(regular_camera_loader_c,
                  "platform_only=%d",
                  "regular CamShot diagnostics expose source platform_only state");
+  ok &= contains(gameplay_c,
+                 "structCameraShotSourceFilter",
+                 "regular camera selection uses a source-shaped ShotMatches filter carrier");
+  ok &= contains(gameplay_c,
+                 "caseCameraShotSourceFilterKind::FlagsAny:",
+                 "regular camera filters mirror CameraManager flags_any semantics");
+  ok &= contains(gameplay_c,
+                 "return((key.flags&filter.mask)!=0)==filter.bool_match;",
+                 "regular camera filters mirror CameraManager flags_any result");
+  ok &= contains(gameplay_c,
+                 "caseCameraShotSourceFilterKind::FlagsExact:",
+                 "regular camera filters mirror CameraManager flags_exact semantics");
+  ok &= contains(gameplay_c,
+                 "return(key.flags&filter.mask)==filter.int_match;",
+                 "regular camera filters mirror CameraManager flags_exact result");
+  ok &= contains(gameplay_c,
+                 "camera_shot_matches_source_filters("
+                 "key,{camera_bool_filter(\"special\",false),"
+                 "camera_bool_filter(\"lighter\",false)})",
+                 "regular camera mode filters run through the source-shaped matcher");
   ok &= contains(gameplay_c,
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");

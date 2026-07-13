@@ -14965,6 +14965,119 @@ bool string_in(std::string_view value,
     return false;
 }
 
+bool string_in(std::string_view value,
+               const std::vector<std::string_view>& allowed) {
+    for (std::string_view s : allowed) {
+        if (value == s) return true;
+    }
+    return false;
+}
+
+enum class CameraShotSourceFilterKind {
+    Bool,
+    SymbolAny,
+    FlagsAny,
+    FlagsExact,
+};
+
+struct CameraShotSourceFilter {
+    CameraShotSourceFilterKind kind = CameraShotSourceFilterKind::Bool;
+    std::string_view prop;
+    std::vector<std::string_view> symbol_matches;
+    bool bool_match = false;
+    int mask = -1;
+    int int_match = 0;
+};
+
+CameraShotSourceFilter camera_bool_filter(std::string_view prop, bool match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Bool;
+    filter.prop = prop;
+    filter.bool_match = match;
+    return filter;
+}
+
+CameraShotSourceFilter camera_symbol_filter(
+    std::string_view prop,
+    std::initializer_list<std::string_view> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::SymbolAny;
+    filter.prop = prop;
+    filter.symbol_matches.assign(matches.begin(), matches.end());
+    return filter;
+}
+
+CameraShotSourceFilter camera_flags_any_filter(int mask) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::FlagsAny;
+    filter.prop = "flags_any";
+    filter.mask = mask;
+    filter.bool_match = true;
+    return filter;
+}
+
+CameraShotSourceFilter camera_flags_exact_filter(int mask, int match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::FlagsExact;
+    filter.prop = "flags_exact";
+    filter.mask = mask;
+    filter.int_match = match;
+    return filter;
+}
+
+std::optional<bool> camera_filter_bool_property(
+    const Gameplay::CameraKey& key,
+    std::string_view prop) {
+    if (prop == "special") return key.special;
+    if (prop == "lighter") return key.lighter;
+    if (prop == "jump_ok") return key.jump_ok;
+    if (prop == "walk_ok") return key.walk_ok;
+    if (prop == "starpower_ok") return key.starpower_ok;
+    if (prop == "low_excitement_ok") return key.low_excitement_ok;
+    return std::nullopt;
+}
+
+std::optional<std::string_view> camera_filter_symbol_property(
+    const Gameplay::CameraKey& key,
+    std::string_view prop) {
+    if (prop == "solo") return std::string_view(key.solo);
+    if (prop == "distance") return std::string_view(key.distance);
+    if (prop == "facing") return std::string_view(key.facing);
+    if (prop == "category") return std::string_view(key.category);
+    return std::nullopt;
+}
+
+bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
+                                       const CameraShotSourceFilter& filter) {
+    switch (filter.kind) {
+        case CameraShotSourceFilterKind::Bool: {
+            const auto value = camera_filter_bool_property(key, filter.prop);
+            return value && *value == filter.bool_match;
+        }
+        case CameraShotSourceFilterKind::SymbolAny: {
+            const auto value = camera_filter_symbol_property(key, filter.prop);
+            if (!value) return false;
+            return string_in(*value, filter.symbol_matches);
+        }
+        case CameraShotSourceFilterKind::FlagsAny:
+            // CameraManager::ShotMatches maps flags_any to (Flags() & mask) != 0.
+            return ((key.flags & filter.mask) != 0) == filter.bool_match;
+        case CameraShotSourceFilterKind::FlagsExact:
+            // CameraManager::ShotMatches maps flags_exact to Flags() & mask.
+            return (key.flags & filter.mask) == filter.int_match;
+    }
+    return false;
+}
+
+bool camera_shot_matches_source_filters(
+    const Gameplay::CameraKey& key,
+    std::initializer_list<CameraShotSourceFilter> filters) {
+    for (const auto& filter : filters) {
+        if (!camera_shot_matches_source_filter(key, filter)) return false;
+    }
+    return true;
+}
+
 enum class CameraShotMode { Regular, Solo, Jump, Lighter };
 
 constexpr std::array<std::string_view, 9> kNormalCamShotCategoryOrder = {
@@ -15030,26 +15143,45 @@ bool camera_mode_filter_ok(const Gameplay::CameraKey& key,
                            CameraShotMode mode) {
     if (!camera_category_filter_ok(key, mode)) return false;
     if (mode == CameraShotMode::Lighter) {
-        return key.lighter;
+        return camera_shot_matches_source_filters(
+            key, {camera_bool_filter("lighter", true)});
     }
-    if (key.special) return false;
-    if (key.lighter) return false;
+    if (!camera_shot_matches_source_filters(
+            key, {camera_bool_filter("special", false),
+                  camera_bool_filter("lighter", false)})) {
+        return false;
+    }
     if (mode == CameraShotMode::Jump) {
-        return key.jump_ok;
+        return camera_shot_matches_source_filters(
+            key, {camera_bool_filter("jump_ok", true)});
     }
     if (mode == CameraShotMode::Solo) {
-        return string_in(key.solo, {"", "ok", "only"});
+        return camera_shot_matches_source_filters(
+            key, {camera_symbol_filter("solo", {"", "ok", "only"})});
     }
-    return string_in(key.solo, {"", "ok", "never"});
+    return camera_shot_matches_source_filters(
+        key, {camera_symbol_filter("solo", {"", "ok", "never"})});
 }
 
 bool camera_state_filter_ok(const Gameplay::CameraKey& key,
                             bool low_excitement,
                             bool walking,
                             bool starpower) {
-    if (low_excitement && !key.low_excitement_ok) return false;
-    if (walking && !key.walk_ok) return false;
-    if (starpower && !key.starpower_ok) return false;
+    if (low_excitement &&
+        !camera_shot_matches_source_filters(
+            key, {camera_bool_filter("low_excitement_ok", true)})) {
+        return false;
+    }
+    if (walking &&
+        !camera_shot_matches_source_filters(
+            key, {camera_bool_filter("walk_ok", true)})) {
+        return false;
+    }
+    if (starpower &&
+        !camera_shot_matches_source_filters(
+            key, {camera_bool_filter("starpower_ok", true)})) {
+        return false;
+    }
     return true;
 }
 
@@ -15069,16 +15201,20 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
 
     if (previous) {
         if (previous->facing == "left" &&
-            !string_in(key.facing, {"right", "null", ""})) {
+            !camera_shot_matches_source_filters(
+                key, {camera_symbol_filter("facing", {"right", "null", ""})})) {
             return false;
         }
         if (previous->facing == "right" &&
-            !string_in(key.facing, {"left", "null", ""})) {
+            !camera_shot_matches_source_filters(
+                key, {camera_symbol_filter("facing", {"left", "null", ""})})) {
             return false;
         }
         if (mode == CameraShotMode::Regular &&
             (previous->distance == "far" || previous->distance == "behind")) {
-            if (!string_in(key.distance, {"null", "near", "closeup", ""})) {
+            if (!camera_shot_matches_source_filters(
+                    key, {camera_symbol_filter(
+                             "distance", {"null", "near", "closeup", ""})})) {
                 return false;
             }
         }
@@ -30088,13 +30224,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_position_index_ = 0;
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s forced=%d force_char_lod=%d bar=%u t=%.3f\n",
+                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s filter_source=ShotMatches flags=0x%08x forced=%d force_char_lod=%d bar=%u t=%.3f\n",
                             previous_regular_camera_.c_str(),
                             key->name.c_str(), key->category.c_str(),
                             camera_bars_left_,
                             duration.first.c_str(), duration.second.first,
                             duration.second.second,
                             camera_shot_mode_label(camera_mode),
+                            static_cast<unsigned int>(key->flags),
                             (force_camera || diagnostic_camera_shot_matched)
                                 ? 1
                                 : 0,
