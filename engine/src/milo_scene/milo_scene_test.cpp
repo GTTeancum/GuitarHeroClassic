@@ -176,6 +176,64 @@ void test_trans() {
   CHECK(prop_sync.set_properties[3] ==
         "preserve_scale:SetTransConstraint((Constraint)mConstraint, mTarget, _val.Int(0))");
 
+  const SourceRndTransformableDistributeChildrenPlan distribute_horizontal =
+      source_rndtransformable_distribute_children_plan(
+          true, 2.5f, {{"right", 4.0f, 0.0f},
+                       {"left", 1.0f, 3.0f},
+                       {"middle", 2.0f, 8.0f}});
+  CHECK(distribute_horizontal.entered);
+  CHECK(distribute_horizontal.horizontal);
+  CHECK(distribute_horizontal.axis == 0);
+  CHECK(approx(distribute_horizontal.base_axis_value, 1.0f));
+  CHECK(distribute_horizontal.sorted_children.size() == 3);
+  CHECK(distribute_horizontal.sorted_children[0] == "left");
+  CHECK(distribute_horizontal.sorted_children[1] == "middle");
+  CHECK(distribute_horizontal.sorted_children[2] == "right");
+  CHECK(distribute_horizontal.writes.size() == 2);
+  CHECK(distribute_horizontal.writes[0].name == "middle");
+  CHECK(distribute_horizontal.writes[0].source_index == 2);
+  CHECK(approx(distribute_horizontal.writes[0].assigned_axis_value, 3.5f));
+  CHECK(distribute_horizontal.writes[0].calls_set_local_xfm);
+  CHECK(distribute_horizontal.writes[1].name == "right");
+  CHECK(approx(distribute_horizontal.writes[1].assigned_axis_value, 6.0f));
+
+  const SourceRndTransformableDistributeChildrenPlan distribute_vertical =
+      source_rndtransformable_distribute_children_plan(
+          false, 1.25f, {{"low", 9.0f, -1.0f},
+                         {"high", 0.0f, 5.0f},
+                         {"mid", 4.0f, 2.0f}});
+  CHECK(distribute_vertical.entered);
+  CHECK(!distribute_vertical.horizontal);
+  CHECK(distribute_vertical.axis == 2);
+  CHECK(approx(distribute_vertical.base_axis_value, 5.0f));
+  CHECK(distribute_vertical.sorted_children[0] == "high");
+  CHECK(distribute_vertical.sorted_children[1] == "mid");
+  CHECK(distribute_vertical.sorted_children[2] == "low");
+  CHECK(distribute_vertical.writes.size() == 2);
+  CHECK(distribute_vertical.writes[0].name == "mid");
+  CHECK(approx(distribute_vertical.writes[0].original_axis_value, 2.0f));
+  CHECK(approx(distribute_vertical.writes[0].assigned_axis_value, 6.25f));
+  CHECK(distribute_vertical.writes[1].name == "low");
+  CHECK(approx(distribute_vertical.writes[1].assigned_axis_value, 7.5f));
+
+  const SourceRndTransformableDistributeChildrenPlan distribute_single =
+      source_rndtransformable_distribute_children_plan(
+          true, 3.0f, {{"only", 10.0f, 20.0f}});
+  CHECK(!distribute_single.entered);
+  CHECK(distribute_single.axis == 0);
+  CHECK(distribute_single.sorted_children.empty());
+  CHECK(distribute_single.writes.empty());
+
+  const SourceRndTransformableCopyLocalToPlan copy_local =
+      source_rndtransformable_copy_local_to_plan(
+          {"first", "second", "third"});
+  CHECK(copy_local.iterates_reverse);
+  CHECK(copy_local.calls_set_local_xfm);
+  CHECK(copy_local.write_order.size() == 3);
+  CHECK(copy_local.write_order[0] == "third");
+  CHECK(copy_local.write_order[1] == "second");
+  CHECK(copy_local.write_order[2] == "first");
+
   const SourceRndTransLoadPlan rev9_standalone =
       source_rndtrans_load_plan(9, 24, true);
   CHECK(rev9_standalone.standalone);

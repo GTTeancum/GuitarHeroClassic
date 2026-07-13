@@ -1591,6 +1591,12 @@ int run_contract() {
                  "`RndTransformable::Copy` copies world and local transforms first",
                  "document records RndTransformable copy source path");
   ok &= contains(doc,
+                 "`DistributeChildren` copies the child list",
+                 "document records RndTransformable DistributeChildren source path");
+  ok &= contains(doc,
+                 "`OnCopyLocalTo` iterates the provided array from last element to first",
+                 "document records RndTransformable copy-local source path");
+  ok &= contains(doc,
                  "`SetWorldXfm` writes the full world transform",
                  "document records RndTransformable world write source path");
   ok &= contains(doc,
@@ -1600,8 +1606,11 @@ int run_contract() {
                  "Shared native `source_rndtransformable_default_state`,",
                  "document records RndTransformable source helpers");
   ok &= contains(doc,
-                 "`source_rndtransformable_prop_sync_plan` record those concrete source",
-                 "document records RndTransformable prop-sync helper");
+                 "`source_rndtransformable_distribute_children_plan`, and",
+                 "document records RndTransformable distribute helper");
+  ok &= contains(doc,
+                 "`source_rndtransformable_copy_local_to_plan` record those concrete source",
+                 "document records RndTransformable copy-local helper");
   ok &= contains(doc, "rb3-latest/src/system/char/CharHair.cpp",
                  "document cites latest CharHair runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharClipGroup.cpp",
@@ -3127,6 +3136,26 @@ int run_contract() {
                  "SetTransParent(c->mParent,false);",
                  "RB3 RndTransformable copy constraint branch");
   ok &= contains(rb3_trans_cpp,
+                 "voidRndTransformable::DistributeChildren(boolb,floatf){"
+                 "std::vector<RndTransformable*>vec;for(std::vector<"
+                 "RndTransformable*>::iteratorit=mChildren.begin();it!="
+                 "mChildren.end();++it){vec.push_back(*it);}intcount="
+                 "vec.size();if(count<2)return;else{if(b)std::sort("
+                 "vec.begin(),vec.end(),HorizontalCmp);elsestd::sort("
+                 "vec.begin(),vec.end(),VerticalCmp);}",
+                 "RB3 RndTransformable DistributeChildren sort body");
+  ok &= contains(rb3_trans_cpp,
+                 "floatat=vec[0]->LocalXfm().v[~-b&2];for(inti=1;i<count;"
+                 "i++){Transformt=vec[i]->LocalXfm();t.v[~-b&2]=f*i+at;"
+                 "vec[i]->SetLocalXfm(t);}",
+                 "RB3 RndTransformable DistributeChildren write body");
+  ok &= contains(rb3_trans_cpp,
+                 "DataNodeRndTransformable::OnCopyLocalTo(constDataArray*da){"
+                 "DataArray*arr=da->Array(2);for(inti=arr->Size()-1;i>=0;"
+                 "i--){RndTransformable*t=arr->Obj<RndTransformable>(i);"
+                 "t->SetLocalXfm(LocalXfm());}returnDataNode(0);}",
+                 "RB3 RndTransformable OnCopyLocalTo reverse body");
+  ok &= contains(rb3_trans_cpp,
                  "voidDirtyCache::SetDirty_Force(){SetLastBit(1);if(!"
                  "mChildren.empty()){for(std::vector<DirtyCache*>::iteratorit="
                  "mChildren.begin();it!=mChildren.end();it++){(*it)->"
@@ -3209,6 +3238,18 @@ int run_contract() {
                  "structSourceRndTransformablePropSyncPlan{"
                  "std::vector<std::string>set_properties;};",
                  "shared milo_scene exposes RndTransformable prop-sync plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableChildRow{std::stringname;"
+                 "floatlocal_x=0.0f;floatlocal_z=0.0f;};",
+                 "shared milo_scene exposes RndTransformable child row");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableDistributeChildrenPlan{"
+                 "boolhorizontal=false;floatspacing=0.0f;int32_taxis=2;",
+                 "shared milo_scene exposes RndTransformable distribute plan");
+  ok &= contains(scene_h,
+                 "structSourceRndTransformableCopyLocalToPlan{"
+                 "booliterates_reverse=true;boolcalls_set_local_xfm=true;",
+                 "shared milo_scene exposes RndTransformable copy-local plan");
   ok &= contains(scene,
                  "SourceRndTransformableDefaultStatesource_rndtransformable_"
                  "default_state(){returnSourceRndTransformableDefaultState{};}",
@@ -3279,6 +3320,34 @@ int run_contract() {
                  "\"preserve_scale:SetTransConstraint((Constraint)mConstraint,"
                  "mTarget,_val.Int(0))\",};",
                  "shared RndTransformable prop-sync helper records preserve row");
+  ok &= contains(scene,
+                 "SourceRndTransformableDistributeChildrenPlan"
+                 "source_rndtransformable_distribute_children_plan("
+                 "boolhorizontal,floatspacing,conststd::vector<"
+                 "SourceRndTransformableChildRow>&children){",
+                 "shared RndTransformable distribute helper entry");
+  ok &= contains(scene,
+                 "plan.axis=horizontal?0:2;std::vector<size_t>order("
+                 "children.size());for(size_ti=0;i<children.size();++i)"
+                 "order[i]=i;if(children.size()<2)returnplan;",
+                 "shared RndTransformable distribute helper records source gate");
+  ok &= contains(scene,
+                 "if(horizontal){std::sort(order.begin(),order.end(),[&]"
+                 "(size_ta,size_tb){returnchildren[a].local_x<children[b]."
+                 "local_x;});}else{std::sort(order.begin(),order.end(),[&]"
+                 "(size_ta,size_tb){returnchildren[a].local_z>children[b]."
+                 "local_z;});}",
+                 "shared RndTransformable distribute helper mirrors source sort");
+  ok &= contains(scene,
+                 "write.assigned_axis_value=spacing*static_cast<float>(i)+"
+                 "plan.base_axis_value;plan.writes.push_back(write);",
+                 "shared RndTransformable distribute helper records source writes");
+  ok &= contains(scene,
+                 "SourceRndTransformableCopyLocalToPlansource_rndtransformable_"
+                 "copy_local_to_plan(conststd::vector<std::string>&targets){"
+                 "SourceRndTransformableCopyLocalToPlanplan;for(autoit="
+                 "targets.rbegin();it!=targets.rend();++it){",
+                 "shared RndTransformable copy-local helper mirrors reverse loop");
   ok &= contains(scene_test,
                  "source_rndtransformable_default_state()",
                  "milo_scene test covers RndTransformable defaults");
@@ -3301,6 +3370,15 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndtransformable_prop_sync_plan()",
                  "milo_scene test covers RndTransformable prop-sync plan");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_distribute_children_plan(true,2.5f",
+                 "milo_scene test covers RndTransformable horizontal distribution");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_distribute_children_plan(false,1.25f",
+                 "milo_scene test covers RndTransformable vertical distribution");
+  ok &= contains(scene_test,
+                 "source_rndtransformable_copy_local_to_plan(",
+                 "milo_scene test covers RndTransformable copy-local reverse plan");
   ok &= contains(char_mesh,
                  "if(xfm.constraint==2){//kParentWorldreturnparent_world;}",
                  "native transform evaluator mirrors kParentWorld");

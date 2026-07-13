@@ -201,6 +201,36 @@ struct SourceRndTransformablePropSyncPlan {
   std::vector<std::string> set_properties;
 };
 
+struct SourceRndTransformableChildRow {
+  std::string name;
+  float local_x = 0.0f;
+  float local_z = 0.0f;
+};
+
+struct SourceRndTransformableDistributedChild {
+  std::string name;
+  int32_t source_index = 0;
+  float original_axis_value = 0.0f;
+  float assigned_axis_value = 0.0f;
+  bool calls_set_local_xfm = true;
+};
+
+struct SourceRndTransformableDistributeChildrenPlan {
+  bool horizontal = false;
+  float spacing = 0.0f;
+  int32_t axis = 2;
+  bool entered = false;
+  float base_axis_value = 0.0f;
+  std::vector<std::string> sorted_children;
+  std::vector<SourceRndTransformableDistributedChild> writes;
+};
+
+struct SourceRndTransformableCopyLocalToPlan {
+  bool iterates_reverse = true;
+  bool calls_set_local_xfm = true;
+  std::vector<std::string> write_order;
+};
+
 SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t revision,
     int32_t parent_revision,
@@ -227,6 +257,14 @@ source_rndtransformable_set_constraint_plan(
 SourceRndTransformableCopyPlan source_rndtransformable_copy_plan();
 SourceRndTransformableHandlerPlan source_rndtransformable_handler_plan();
 SourceRndTransformablePropSyncPlan source_rndtransformable_prop_sync_plan();
+SourceRndTransformableDistributeChildrenPlan
+source_rndtransformable_distribute_children_plan(
+    bool horizontal,
+    float spacing,
+    const std::vector<SourceRndTransformableChildRow>& children);
+SourceRndTransformableCopyLocalToPlan
+source_rndtransformable_copy_local_to_plan(
+    const std::vector<std::string>& targets);
 
 struct SourceRndTransProxyDefaultState {
   bool proxy_null = true;

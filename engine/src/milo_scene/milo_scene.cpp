@@ -603,6 +603,60 @@ source_rndtransformable_prop_sync_plan() {
   return plan;
 }
 
+SourceRndTransformableDistributeChildrenPlan
+source_rndtransformable_distribute_children_plan(
+    bool horizontal,
+    float spacing,
+    const std::vector<SourceRndTransformableChildRow>& children) {
+  SourceRndTransformableDistributeChildrenPlan plan;
+  plan.horizontal = horizontal;
+  plan.spacing = spacing;
+  plan.axis = horizontal ? 0 : 2;
+  std::vector<size_t> order(children.size());
+  for (size_t i = 0; i < children.size(); ++i) order[i] = i;
+  if (children.size() < 2) return plan;
+
+  plan.entered = true;
+  if (horizontal) {
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+      return children[a].local_x < children[b].local_x;
+    });
+  } else {
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+      return children[a].local_z > children[b].local_z;
+    });
+  }
+
+  auto axis_value = [&](size_t index) {
+    return horizontal ? children[index].local_x : children[index].local_z;
+  };
+  plan.base_axis_value = axis_value(order.front());
+  for (size_t sorted_index : order) {
+    plan.sorted_children.push_back(children[sorted_index].name);
+  }
+  for (size_t i = 1; i < order.size(); ++i) {
+    const size_t source_index = order[i];
+    SourceRndTransformableDistributedChild write;
+    write.name = children[source_index].name;
+    write.source_index = static_cast<int32_t>(source_index);
+    write.original_axis_value = axis_value(source_index);
+    write.assigned_axis_value =
+        spacing * static_cast<float>(i) + plan.base_axis_value;
+    plan.writes.push_back(write);
+  }
+  return plan;
+}
+
+SourceRndTransformableCopyLocalToPlan
+source_rndtransformable_copy_local_to_plan(
+    const std::vector<std::string>& targets) {
+  SourceRndTransformableCopyLocalToPlan plan;
+  for (auto it = targets.rbegin(); it != targets.rend(); ++it) {
+    plan.write_order.push_back(*it);
+  }
+  return plan;
+}
+
 SourceRndTransProxyDefaultState source_rndtrans_proxy_default_state() {
   return SourceRndTransProxyDefaultState{};
 }

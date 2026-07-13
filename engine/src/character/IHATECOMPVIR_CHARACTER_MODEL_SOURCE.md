@@ -1575,6 +1575,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     target; for `kCopyFromMax` it only copies target when the constraints match,
     then calls `SetTransParent(c->mParent, false)`. Native
     `source_rndtransformable_copy_plan` records that source member order.
+  - `DistributeChildren` copies the child list, returns without writes below
+    two children, sorts by local X ascending for the horizontal branch or local
+    Z descending for the vertical branch, computes the source axis with
+    `~-b & 2`, and writes only children after the first through `SetLocalXfm`.
+    Native `source_rndtransformable_distribute_children_plan` records that
+    axis/sort/write order.
+  - `OnCopyLocalTo` iterates the provided array from last element to first and
+    calls `SetLocalXfm(LocalXfm())` on each target. Native
+    `source_rndtransformable_copy_local_to_plan` records that reverse write
+    order.
   - `SetWorldXfm` writes the full world transform, clears the dirty bit, calls
     `UpdatedWorldXfm`, and dirties children. `SetWorldPos` writes only the world
     translation, calls `UpdatedWorldXfm`, and dirties children, but the checked
@@ -1607,8 +1617,10 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_rndtransformable_local_write_plan`,
     `source_rndtransformable_set_constraint_plan`,
     `source_rndtransformable_copy_plan`,
-    `source_rndtransformable_handler_plan`, and
-    `source_rndtransformable_prop_sync_plan` record those concrete source
+    `source_rndtransformable_handler_plan`,
+    `source_rndtransformable_prop_sync_plan`,
+    `source_rndtransformable_distribute_children_plan`, and
+    `source_rndtransformable_copy_local_to_plan` record those concrete source
     behaviors as deterministic contracts for character/bone transform work.
 
 ## Rnd Texture Row Authority
