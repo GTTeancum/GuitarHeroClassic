@@ -853,6 +853,73 @@ int main() {
   CHECK(gltf_dancer_scene.calls_character_directory_builder);
   CHECK(!gltf_dancer_scene.calls_rnd_directory_builder);
 
+  ghogx::character::SourceGltfMiloNodeTraversalInput traversal;
+  traversal.kind = ghogx::character::SourceGltfMiloNodeTraversalKind::kMesh;
+  traversal.mesh_present = true;
+  traversal.node_name = "rock1_hair";
+  traversal.chunk_joint_names = {"bone_head", "bone_hair_front",
+                                 "BONE_HAIR_TIP"};
+  const auto gltf_mesh_traversal =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(gltf_mesh_traversal.calls_create_base_mesh);
+  CHECK(gltf_mesh_traversal.calls_populate_mesh_chunk);
+  CHECK(!gltf_mesh_traversal.aborts_meshless_mesh_node);
+  CHECK(gltf_mesh_traversal.hair_strand_bones_added.size() == 2);
+  CHECK(gltf_mesh_traversal.hair_strand_bones_added[0] ==
+        "bone_hair_front");
+  CHECK(gltf_mesh_traversal.hair_strand_bones_added[1] ==
+        "BONE_HAIR_TIP");
+  CHECK(gltf_mesh_traversal.calls_process_char_hair_after_traversal);
+  CHECK(gltf_mesh_traversal
+            .calls_process_empty_hair_collides_after_traversal);
+  CHECK(gltf_mesh_traversal.split_strands_at_branches);
+  CHECK(gltf_mesh_traversal.uses_default_char_hair_extras_when_missing);
+
+  traversal.mesh_present = false;
+  const auto gltf_meshless =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(gltf_meshless.aborts_meshless_mesh_node);
+  CHECK(!gltf_meshless.calls_create_base_mesh);
+  CHECK(!gltf_meshless.calls_process_char_hair_after_traversal);
+
+  traversal = {};
+  traversal.kind = ghogx::character::SourceGltfMiloNodeTraversalKind::kBone;
+  traversal.node_name = "bone_hair_front";
+  traversal.node_extras_present = true;
+  traversal.extras_contains_hair_marker = true;
+  traversal.parsed_hair_settings = true;
+  traversal.disable_splitting = true;
+  traversal.has_hair_strand_bones_before = true;
+  const auto gltf_hair_bone_traversal =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(gltf_hair_bone_traversal.calls_process_bone_node);
+  CHECK(gltf_hair_bone_traversal.tries_hair_settings_detection);
+  CHECK(gltf_hair_bone_traversal.bad_hair_extras_are_nonfatal);
+  CHECK(gltf_hair_bone_traversal.sets_detected_hair_settings);
+  CHECK(gltf_hair_bone_traversal.calls_process_char_hair_after_traversal);
+  CHECK(!gltf_hair_bone_traversal.split_strands_at_branches);
+
+  traversal.settings_already_detected = true;
+  const auto gltf_hair_bone_second_settings =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(!gltf_hair_bone_second_settings.sets_detected_hair_settings);
+
+  traversal = {};
+  traversal.kind = ghogx::character::SourceGltfMiloNodeTraversalKind::kGroup;
+  const auto gltf_group_traversal =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(gltf_group_traversal.calls_process_group_node);
+
+  traversal.kind = ghogx::character::SourceGltfMiloNodeTraversalKind::kLight;
+  const auto gltf_light_traversal =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(gltf_light_traversal.calls_process_light_node);
+
+  traversal.kind = ghogx::character::SourceGltfMiloNodeTraversalKind::kOther;
+  const auto gltf_other_traversal =
+      ghogx::character::source_gltf_milo_node_traversal_plan(traversal);
+  CHECK(gltf_other_traversal.ignores_node);
+
   const auto gh2_rev28_fields =
       ghogx::character::source_rndmesh_field_gate_plan(28, 0, 24, 1, true);
   CHECK(gh2_rev28_fields.reads_material);

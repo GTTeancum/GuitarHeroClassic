@@ -1202,6 +1202,18 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     ports the source classification
     around the still-external `MiloExtras.AddToMesh` hook; it is evidence for
     mesh ownership, naming, group-size rows, and hair-related mesh routing only.
+  - The top-level glTFMilo node traversal aborts conversion when a mesh node has
+    no mesh payload; otherwise mesh nodes run `CreateBaseMesh` /
+    `PopulateMeshChunk`, bone nodes run `ProcessBoneNode`, group nodes run
+    `ProcessGroupNode`, light nodes run `ProcessLightNode`, and unmatched nodes
+    do nothing. Hair-bone extras are only considered on `bone_hair_` bone nodes,
+    require the `milo_hair_` marker, keep the first valid `CharHairExtras`, and
+    treat bad optional extras as nonfatal. After traversal, `ProcessCharHair`
+    and `ProcessEmptyHairCollides` run only when `hairStrandBones.Count > 0`,
+    using `detectedHairSettings ?? new CharHairExtras()` and
+    `!opts.DisableSplitting`. Native
+    `source_gltf_milo_node_traversal_plan` records that control flow without
+    changing live GH2 decode or inventing missing `MiloExtras` behavior.
   - `PopulateMeshChunk` then builds `jointIndexToLocalBoneIndex` from each
     chunk's `jointIndices` in order and emits exactly one `RndMesh::BoneTransform`
     per chunk joint, because vertex bone indices point into this list by

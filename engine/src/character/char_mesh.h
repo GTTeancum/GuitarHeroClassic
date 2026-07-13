@@ -398,6 +398,14 @@ enum class SourceGltfMiloSceneType {
   kOther,
 };
 
+enum class SourceGltfMiloNodeTraversalKind {
+  kMesh,
+  kBone,
+  kGroup,
+  kLight,
+  kOther,
+};
+
 struct SourceGltfMiloDirectoryEntryInput {
   std::string type;
   std::string name;
@@ -484,6 +492,38 @@ struct SourceGltfMiloSceneAssemblyPlan {
   std::string save_stream_endian = "LittleEndian";
   std::string save_object_endian = "BigEndian";
   bool report_generator_runs_after_save_when_requested = true;
+};
+
+struct SourceGltfMiloNodeTraversalInput {
+  SourceGltfMiloNodeTraversalKind kind =
+      SourceGltfMiloNodeTraversalKind::kOther;
+  bool mesh_present = false;
+  std::string node_name;
+  std::vector<std::string> chunk_joint_names;
+  bool node_extras_present = false;
+  bool extras_contains_hair_marker = false;
+  bool parsed_hair_settings = false;
+  bool settings_already_detected = false;
+  bool has_hair_strand_bones_before = false;
+  bool disable_splitting = false;
+};
+
+struct SourceGltfMiloNodeTraversalPlan {
+  bool calls_create_base_mesh = false;
+  bool calls_populate_mesh_chunk = false;
+  bool aborts_meshless_mesh_node = false;
+  bool calls_process_bone_node = false;
+  bool calls_process_group_node = false;
+  bool calls_process_light_node = false;
+  bool ignores_node = false;
+  std::vector<std::string> hair_strand_bones_added;
+  bool tries_hair_settings_detection = false;
+  bool bad_hair_extras_are_nonfatal = true;
+  bool sets_detected_hair_settings = false;
+  bool calls_process_char_hair_after_traversal = false;
+  bool calls_process_empty_hair_collides_after_traversal = false;
+  bool split_strands_at_branches = true;
+  bool uses_default_char_hair_extras_when_missing = true;
 };
 
 struct SourceGltfMiloMaterialExtras {
@@ -840,6 +880,9 @@ SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
 
 SourceGltfMiloSceneAssemblyPlan source_gltf_milo_scene_assembly_plan(
     const SourceGltfMiloSceneAssemblyInput& input);
+
+SourceGltfMiloNodeTraversalPlan source_gltf_milo_node_traversal_plan(
+    const SourceGltfMiloNodeTraversalInput& input);
 
 SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
     const SourceGltfMiloBoneNodeInput& input);

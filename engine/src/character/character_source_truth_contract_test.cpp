@@ -4252,6 +4252,31 @@ int run_contract() {
                  "OrdinalIgnoreCase)",
                  "glTFMilo hair-collision detection checks node name");
   ok &= contains(gltf_program_cs,
+                 "else{Logger.Error($\"{node.Name}hasnomeshbutisameshnode."
+                 "CannotconvertglTF.\");return;}",
+                 "glTFMilo traversal aborts mesh nodes without mesh data");
+  ok &= contains(gltf_program_cs,
+                 "elseif(NodeHelpers.IsBone(node,model)){NodeProcessor."
+                 "ProcessBoneNode(node,model,meta,type,filename,"
+                 "convertWorldCoordinates);",
+                 "glTFMilo traversal delegates bone nodes");
+  ok &= contains(gltf_program_cs,
+                 "elseif(NodeHelpers.IsGroupNode(node,model)){NodeProcessor."
+                 "ProcessGroupNode(node,model,meta,selectedGame,"
+                 "convertWorldCoordinates);}",
+                 "glTFMilo traversal delegates group nodes");
+  ok &= contains(gltf_program_cs,
+                 "elseif(NodeHelpers.IsLightNode(node,model)){NodeProcessor."
+                 "ProcessLightNode(node,meta,selectedGame,"
+                 "convertWorldCoordinates);}",
+                 "glTFMilo traversal delegates light nodes");
+  ok &= contains(gltf_program_cs,
+                 "if(hairStrandBones.Count>0){NodeProcessor.ProcessCharHair("
+                 "meta,selectedGame,model,hairStrandBones,detectedHairSettings"
+                 "??newCharHairExtras(),convertWorldCoordinates,"
+                 "!opts.DisableSplitting);NodeProcessor.ProcessEmptyHairCollides(",
+                 "glTFMilo traversal gates post-pass CharHair generation");
+  ok &= contains(gltf_program_cs,
                  "varjointIndexToLocalBoneIndex=newDictionary<int,ushort>("
                  "meshChunk.jointIndices.Count);",
                  "glTFMilo builds per-chunk joint palette map");
@@ -4560,6 +4585,17 @@ int run_contract() {
                  "structSourceGltfMiloBaseMeshPlan{boolcreates_mesh=true;",
                  "native declares glTFMilo base mesh plan row");
   ok &= contains(char_mesh_h,
+                 "enumclassSourceGltfMiloNodeTraversalKind{",
+                 "native declares glTFMilo node traversal kind");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloNodeTraversalInput{"
+                 "SourceGltfMiloNodeTraversalKindkind=",
+                 "native declares glTFMilo node traversal input");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloNodeTraversalPlan{boolcalls_create_"
+                 "base_mesh=false;",
+                 "native declares glTFMilo node traversal plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloBoneNodeInput{std::stringname;",
                  "native declares glTFMilo bone node input row");
   ok &= contains(char_mesh_h,
@@ -4614,6 +4650,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native exposes glTFMilo CreateBaseMesh helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloNodeTraversalPlansource_gltf_milo_node_"
+                 "traversal_plan(",
+                 "native exposes glTFMilo node traversal helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBoneNodePlan"
                  "source_gltf_milo_process_bone_node_plan(",
@@ -4994,6 +5034,33 @@ int run_contract() {
                  "SourceGltfMiloSceneType::kDancer;",
                  "native scene assembly preserves character directory branch");
   ok &= contains(char_mesh,
+                 "SourceGltfMiloNodeTraversalPlansource_gltf_milo_node_"
+                 "traversal_plan(",
+                 "native ports glTFMilo node traversal helper");
+  ok &= contains(char_mesh,
+                 "if(!input.mesh_present){plan.aborts_meshless_mesh_node=true;"
+                 "returnplan;}",
+                 "native traversal helper preserves meshless abort");
+  ok &= contains(char_mesh,
+                 "plan.calls_create_base_mesh=true;plan.calls_populate_mesh_"
+                 "chunk=true;",
+                 "native traversal helper preserves mesh processing calls");
+  ok &= contains(char_mesh,
+                 "if(source_gltf_milo_is_hair_bone_name(joint_name)){"
+                 "plan.hair_strand_bones_added.push_back(joint_name);}",
+                 "native traversal helper preserves hair joint collection");
+  ok &= contains(char_mesh,
+                 "plan.sets_detected_hair_settings=input.extras_contains_"
+                 "hair_marker&&input.parsed_hair_settings&&!"
+                 "input.settings_already_detected;",
+                 "native traversal helper preserves first-valid hair settings gate");
+  ok &= contains(char_mesh,
+                 "plan.calls_process_char_hair_after_traversal=true;",
+                 "native traversal helper preserves post-pass CharHair gate");
+  ok &= contains(char_mesh,
+                 "plan.split_strands_at_branches=!input.disable_splitting;",
+                 "native traversal helper preserves disable-splitting inversion");
+  ok &= contains(char_mesh,
                  "SourceGltfMiloBoneNodePlansource_gltf_milo_process_bone_node_plan(",
                  "native ports glTFMilo ProcessBoneNode helper");
   ok &= contains(char_mesh,
@@ -5159,6 +5226,12 @@ int run_contract() {
                  "source_gltf_milo_scene_assembly_plan(",
                  "focused mesh decode test covers glTFMilo scene assembly helper");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_node_traversal_plan(traversal)",
+                 "focused mesh decode test covers glTFMilo node traversal helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_hair_bone_traversal.sets_detected_hair_settings",
+                 "focused mesh decode test covers hair settings first-valid gate");
+  ok &= contains(mesh_decode_test,
                  "gltf_venue_scene.venue_all_geom_group.objects[1]=="
                  "\"stage_lights.mesh\"",
                  "focused mesh decode test covers venue mesh-only group membership");
@@ -5291,6 +5364,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_scene_assembly_plan` records",
                  "document records glTFMilo scene assembly helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_node_traversal_plan` records",
+                 "document records glTFMilo node traversal helper");
   ok &= contains(doc,
                  "`source_gltf_milo_process_bone_node_plan` and",
                  "document records glTFMilo node processor helpers");

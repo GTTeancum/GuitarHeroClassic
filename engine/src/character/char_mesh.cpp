@@ -875,6 +875,55 @@ SourceGltfMiloSceneAssemblyPlan source_gltf_milo_scene_assembly_plan(
   return plan;
 }
 
+SourceGltfMiloNodeTraversalPlan source_gltf_milo_node_traversal_plan(
+    const SourceGltfMiloNodeTraversalInput& input) {
+  SourceGltfMiloNodeTraversalPlan plan;
+  switch (input.kind) {
+    case SourceGltfMiloNodeTraversalKind::kMesh:
+      if (!input.mesh_present) {
+        plan.aborts_meshless_mesh_node = true;
+        return plan;
+      }
+      plan.calls_create_base_mesh = true;
+      plan.calls_populate_mesh_chunk = true;
+      for (const std::string& joint_name : input.chunk_joint_names) {
+        if (source_gltf_milo_is_hair_bone_name(joint_name)) {
+          plan.hair_strand_bones_added.push_back(joint_name);
+        }
+      }
+      break;
+    case SourceGltfMiloNodeTraversalKind::kBone:
+      plan.calls_process_bone_node = true;
+      if (source_gltf_milo_is_hair_bone_name(input.node_name) &&
+          input.node_extras_present) {
+        plan.tries_hair_settings_detection = true;
+        plan.sets_detected_hair_settings =
+            input.extras_contains_hair_marker && input.parsed_hair_settings &&
+            !input.settings_already_detected;
+      }
+      break;
+    case SourceGltfMiloNodeTraversalKind::kGroup:
+      plan.calls_process_group_node = true;
+      break;
+    case SourceGltfMiloNodeTraversalKind::kLight:
+      plan.calls_process_light_node = true;
+      break;
+    case SourceGltfMiloNodeTraversalKind::kOther:
+      plan.ignores_node = true;
+      break;
+  }
+
+  const bool has_hair_strand_bones =
+      input.has_hair_strand_bones_before ||
+      !plan.hair_strand_bones_added.empty();
+  if (has_hair_strand_bones) {
+    plan.calls_process_char_hair_after_traversal = true;
+    plan.calls_process_empty_hair_collides_after_traversal = true;
+    plan.split_strands_at_branches = !input.disable_splitting;
+  }
+  return plan;
+}
+
 SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
     const SourceGltfMiloBoneNodeInput& input) {
   SourceGltfMiloBoneNodePlan plan;
