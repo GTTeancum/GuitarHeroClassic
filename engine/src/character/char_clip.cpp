@@ -440,6 +440,12 @@ source_char_bones_blender_prop_sync_plan() {
   return plan;
 }
 
+void source_char_bones_blender_poll_deps(
+    SourceCharBonesBlenderPollDeps& deps,
+    const std::string& dest) {
+  deps.change.push_back(dest);
+}
+
 SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision) {
   SourceCharBoneLoadPlan plan;
   plan.known_revision = revision >= 0 && revision <= 10;

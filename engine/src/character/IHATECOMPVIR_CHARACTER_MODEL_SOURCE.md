@@ -3974,6 +3974,9 @@ note, and all report `unreadBytes=0`.
     copy-member setter order, `CharPollable` / `Hmx::Object` handler chain,
     check value `0x81`, and `dest` / `clip_type` property setters above the
     `CharBonesObject` superclass.
+  - `CharBonesBlender::PollDeps` publishes only `mDest` to the `change` list.
+    Native `source_char_bones_blender_poll_deps` mirrors that dependency row
+    without inventing changed-by dependencies or low-level blend math.
   - This slice is still call-flow only; it does not claim the missing low-level
     `CharBones::Blend` math.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample

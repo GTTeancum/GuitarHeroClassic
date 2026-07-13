@@ -20872,6 +20872,9 @@ int run_contract() {
                  "    `CharBonesObject` superclass",
                  "document records concrete CharBonesBlender prop-sync slice");
   ok &= contains(doc,
+                 "`CharBonesBlender::PollDeps` publishes only `mDest`",
+                 "document records concrete CharBonesBlender PollDeps slice");
+  ok &= contains(doc,
                  "it does not claim the missing low-level\n"
                  "    `CharBones::Blend` math",
                  "document fences missing CharBones Blend math");
@@ -21383,6 +21386,9 @@ int run_contract() {
                  "source_char_bones_blender_prop_sync_plan()",
                  "focused CharBones source test covers CharBonesBlender prop sync");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_poll_deps(blender_deps,\"bones.dest\");",
+                 "focused CharBones source test covers CharBonesBlender PollDeps");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
   ok &= contains(char_bones_source_test,
@@ -21607,6 +21613,11 @@ int run_contract() {
                  "SYNC_PROP_SET(clip_type,mClipType,SetClipType(_val.Sym(0)))"
                  "SYNC_SUPERCLASS(CharBonesObject)END_PROPSYNCS",
                  "latest CharBonesBlender source defines prop-sync rows");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "voidCharBonesBlender::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){change.push_back("
+                 "mDest);}",
+                 "latest CharBonesBlender source defines PollDeps row");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");
@@ -21733,6 +21744,14 @@ int run_contract() {
                  "SourceCharBonesBlenderPropSyncPlan"
                  "source_char_bones_blender_prop_sync_plan();",
                  "native exposes CharBonesBlender prop-sync helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesBlenderPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native API exposes CharBonesBlender PollDeps row");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bones_blender_poll_deps("
+                 "SourceCharBonesBlenderPollDeps&deps,conststd::string&dest);",
+                 "native exposes CharBonesBlender PollDeps helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
                  "conststd::string&channel){constinttype=source_char_bones_type_of"
@@ -21871,6 +21890,11 @@ int run_contract() {
                  "{\"dest\",\"clip_type\"};plan.superclasses="
                  "{\"CharBonesObject\"};returnplan;}",
                  "native CharBonesBlender prop-sync helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "voidsource_char_bones_blender_poll_deps("
+                 "SourceCharBonesBlenderPollDeps&deps,conststd::string&dest){"
+                 "deps.change.push_back(dest);}",
+                 "native CharBonesBlender PollDeps helper mirrors source row");
   ok &= contains(char_clip, "offset+=type_size;",
                  "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,

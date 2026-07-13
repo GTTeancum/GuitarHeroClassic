@@ -523,6 +523,20 @@ int main() {
                       "CharBonesBlender prop sync clip type");
   ok &= expect_string(blender_props.superclasses[0], "CharBonesObject",
                       "CharBonesBlender prop sync superclass");
+  SourceCharBonesBlenderPollDeps blender_deps;
+  source_char_bones_blender_poll_deps(blender_deps, "");
+  ok &= expect_size(blender_deps.change.size(), 1,
+                    "CharBonesBlender PollDeps always publishes dest row");
+  ok &= expect_string(blender_deps.change[0], "",
+                      "CharBonesBlender PollDeps preserves empty dest row");
+  ok &= expect_size(blender_deps.changed_by.size(), 0,
+                    "CharBonesBlender PollDeps has no changed-by rows");
+  blender_deps = SourceCharBonesBlenderPollDeps{};
+  source_char_bones_blender_poll_deps(blender_deps, "bones.dest");
+  ok &= expect_size(blender_deps.change.size(), 1,
+                    "CharBonesBlender PollDeps resolved change count");
+  ok &= expect_string(blender_deps.change[0], "bones.dest",
+                      "CharBonesBlender PollDeps resolved dest row");
 
   const SourceCharBoneLoadPlan char_bone_v1 = source_char_bone_load_plan(1);
   ok &= expect_int(char_bone_v1.known_revision ? 1 : 0, 1,

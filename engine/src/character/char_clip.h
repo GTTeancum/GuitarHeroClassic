@@ -173,6 +173,11 @@ struct SourceCharBonesBlenderPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharBonesBlenderPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 struct SourceCharBoneLoadPlan {
   bool known_revision = false;
   std::vector<std::string> read_order;
@@ -2074,6 +2079,9 @@ SourceCharBonesBlenderSavePlan source_char_bones_blender_save_plan();
 SourceCharBonesBlenderCopyPlan source_char_bones_blender_copy_plan();
 SourceCharBonesBlenderHandlerPlan source_char_bones_blender_handler_plan();
 SourceCharBonesBlenderPropSyncPlan source_char_bones_blender_prop_sync_plan();
+void source_char_bones_blender_poll_deps(
+    SourceCharBonesBlenderPollDeps& deps,
+    const std::string& dest);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision);
