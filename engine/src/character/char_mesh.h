@@ -1951,6 +1951,7 @@ struct SourceCharHairHookupDumpEvidence {
 
 struct SourceCharHairSimulateZeroTimeDumpEvidence {
   std::string range;
+  std::vector<std::string> locals;
   bool has_outer_loop_counter = true;
   bool has_transform_local = true;
   bool has_point_vector = true;
@@ -1963,9 +1964,13 @@ struct SourceCharHairRb2MappedBodyEvidence {
   bool latest_header_declares_poll_deps = true;
   bool latest_cpp_has_poll_deps_statement_body = false;
   std::string poll_deps_range;
+  std::vector<std::string> poll_deps_locals;
+  std::vector<std::string> poll_deps_references;
   bool poll_deps_has_loop_counter = true;
   bool poll_deps_has_statement_body = false;
   std::string copy_range;
+  std::vector<std::string> copy_locals;
+  std::vector<std::string> copy_references;
   bool copy_has_source_hair_local = true;
   bool copy_has_statement_body = false;
 };

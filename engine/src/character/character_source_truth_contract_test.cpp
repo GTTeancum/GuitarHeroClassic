@@ -7350,7 +7350,8 @@ int run_contract() {
                  "native exposes CharHair Hookup dump evidence");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairSimulateZeroTimeDumpEvidence{"
-                 "std::stringrange;boolhas_outer_loop_counter=true;"
+                 "std::stringrange;std::vector<std::string>locals;"
+                 "boolhas_outer_loop_counter=true;"
                  "boolhas_transform_local=true;",
                  "native exposes CharHair SimulateZeroTime dump evidence");
   ok &= contains(char_mesh_h,
@@ -7358,7 +7359,9 @@ int run_contract() {
                  "boollatest_header_declares_poll_deps=true;"
                  "boollatest_cpp_has_poll_deps_statement_body=false;"
                  "std::string"
-                 "poll_deps_range;boolpoll_deps_has_loop_counter=true;"
+                 "poll_deps_range;std::vector<std::string>poll_deps_locals;"
+                 "std::vector<std::string>poll_deps_references;"
+                 "boolpoll_deps_has_loop_counter=true;"
                  "boolpoll_deps_has_statement_body=false;",
                  "native exposes CharHair RB2 mapped-body evidence");
   ok &= contains(char_mesh_h,
@@ -7408,8 +7411,13 @@ int run_contract() {
                  "SourceCharHairSimulateZeroTimeDumpEvidence"
                  "source_char_hair_simulate_zero_time_dump_evidence(){"
                  "SourceCharHairSimulateZeroTimeDumpEvidenceevidence;"
-                 "evidence.range=\"0x8035FC8C->0x80360144\";returnevidence;}",
+                 "evidence.range=\"0x8035FC8C->0x80360144\";",
                  "native CharHair SimulateZeroTime dump evidence records RB2 range");
+  ok &= contains(char_mesh,
+                 "evidence.locals={\"intir31\",\"Transformtr1+0x70\","
+                 "\"ObjVector&psr0\",\"intjr27\",\"Matrix3mr1+0x40\",};"
+                 "returnevidence;}",
+                 "native CharHair SimulateZeroTime dump evidence records locals");
   ok &= contains(char_mesh,
                  "SourceCharHairRb2MappedBodyEvidence"
                  "source_char_hair_rb2_mapped_body_evidence(){"
@@ -7417,7 +7425,16 @@ int run_contract() {
                  "evidence.poll_deps_range=\"0x80360144->0x80360284\";",
                  "native CharHair mapped-body evidence records PollDeps range");
   ok &= contains(char_mesh,
+                 "evidence.poll_deps_locals={\"intir31\"};"
+                 "evidence.poll_deps_references={\"constchar*gStlAllocName\","
+                 "\"__RTTI__PQ211stlpmtx_std26_List_node<PQ23Hmx6Object>\","
+                 "\"unsignedchargStlAllocNameLookup\",};",
+                 "native CharHair mapped-body evidence records PollDeps locals");
+  ok &= contains(char_mesh,
                  "evidence.copy_range=\"0x803616E8->0x8036181C\";"
+                 "evidence.copy_locals={\"constCharHair*hr0\"};"
+                 "evidence.copy_references={\"__RTTI__Q23Hmx6Object\","
+                 "\"__RTTI__8CharHair\",};"
                  "returnevidence;}",
                  "native CharHair mapped-body evidence records Copy range");
   ok &= contains(char_mesh,

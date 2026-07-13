@@ -1895,19 +1895,23 @@ note, and all report `unreadBytes=0`.
     body at `0x8035FC8C -> 0x80360144`. Its local inventory names an outer loop
     counter, `Transform t`, an `ObjVector` point list, an inner loop counter,
     and `Matrix3 m`. Native
-    `source_char_hair_simulate_zero_time_dump_evidence` records those facts and
-    also records `has_statement_body=false`: the dump is enough to prove
-    zero-delta hair has its own transform path, but not enough to copy that path
-    or use it for live native point writeback.
+    `source_char_hair_simulate_zero_time_dump_evidence` records those facts as
+    exact local/register rows (`int i r31`, `Transform t r1+0x70`,
+    `ObjVector& ps r0`, `int j r27`, and `Matrix3 m r1+0x40`) and also records
+    `has_statement_body=false`: the dump is enough to prove zero-delta hair has
+    its own transform path, but not enough to copy that path or use it for live
+    native point writeback.
   - The latest header declares `CharHair::PollDeps`, but the checked latest
     `CharHair.cpp` does not provide a statement body for it. The RB2 dump maps
     `CharHair::PollDeps` at `0x80360144 -> 0x80360284` and `CharHair::Copy` at
     `0x803616E8 -> 0x8036181C`. Native
     `source_char_hair_rb2_mapped_body_evidence` records the latest
-    declaration/body boundary, those ranges, and the visible locals, while
-    explicitly marking both as lacking statement bodies. Do not infer
-    dependency rows or copy-member behavior from those ranges without a
-    reviewable source body or direct original-game trace.
+    declaration/body boundary, those ranges, and the visible locals/references:
+    `PollDeps` exposes only `int i r31` plus STL list-allocation references, and
+    `Copy` exposes only `const CharHair* h r0` plus `Hmx::Object`/`CharHair`
+    RTTI references. Both are explicitly marked as lacking statement bodies. Do
+    not infer dependency rows or copy-member behavior from those ranges without
+    a reviewable source body or direct original-game trace.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,

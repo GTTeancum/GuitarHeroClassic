@@ -894,6 +894,16 @@ int main() {
                     "zero-time dump matrix local");
   ok &= expect_bool(zero_time_dump.has_statement_body, false,
                     "zero-time dump no statement body");
+  ok &= expect_size(zero_time_dump.locals.size(), 5,
+                    "zero-time dump local inventory count");
+  ok &= expect_string(zero_time_dump.locals[0], "int i r31",
+                      "zero-time dump outer counter local");
+  ok &= expect_string(zero_time_dump.locals[1], "Transform t r1+0x70",
+                      "zero-time dump transform local name");
+  ok &= expect_string(zero_time_dump.locals[2], "ObjVector& ps r0",
+                      "zero-time dump point vector local name");
+  ok &= expect_string(zero_time_dump.locals[4], "Matrix3 m r1+0x40",
+                      "zero-time dump matrix local name");
 
   const auto mapped_bodies = source_char_hair_rb2_mapped_body_evidence();
   ok &= expect_bool(mapped_bodies.latest_header_declares_poll_deps, true,
@@ -907,12 +917,36 @@ int main() {
                     "poll deps dump loop counter");
   ok &= expect_bool(mapped_bodies.poll_deps_has_statement_body, false,
                     "poll deps dump no statement body");
+  ok &= expect_size(mapped_bodies.poll_deps_locals.size(), 1,
+                    "poll deps dump local inventory count");
+  ok &= expect_string(mapped_bodies.poll_deps_locals[0], "int i r31",
+                      "poll deps dump loop local name");
+  ok &= expect_size(mapped_bodies.poll_deps_references.size(), 3,
+                    "poll deps dump reference inventory count");
+  ok &= expect_string(mapped_bodies.poll_deps_references[0],
+                      "const char * gStlAllocName",
+                      "poll deps dump STL alloc reference");
+  ok &= expect_string(mapped_bodies.poll_deps_references[1],
+                      "__RTTI__PQ211stlpmtx_std26_List_node<PQ23Hmx6Object>",
+                      "poll deps dump list-node RTTI reference");
   ok &= expect_bool(mapped_bodies.copy_range == "0x803616E8 -> 0x8036181C",
                     true, "copy dump range");
   ok &= expect_bool(mapped_bodies.copy_has_source_hair_local, true,
                     "copy dump source-hair local");
   ok &= expect_bool(mapped_bodies.copy_has_statement_body, false,
                     "copy dump no statement body");
+  ok &= expect_size(mapped_bodies.copy_locals.size(), 1,
+                    "copy dump local inventory count");
+  ok &= expect_string(mapped_bodies.copy_locals[0], "const CharHair* h r0",
+                      "copy dump source hair local name");
+  ok &= expect_size(mapped_bodies.copy_references.size(), 2,
+                    "copy dump reference inventory count");
+  ok &= expect_string(mapped_bodies.copy_references[0],
+                      "__RTTI__Q23Hmx6Object",
+                      "copy dump object RTTI reference");
+  ok &= expect_string(mapped_bodies.copy_references[1],
+                      "__RTTI__8CharHair",
+                      "copy dump CharHair RTTI reference");
 
   const auto enter_plan =
       source_char_hair_enter_plan(false, {"head.collide", "neck.collide"});

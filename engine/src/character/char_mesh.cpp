@@ -4000,6 +4000,13 @@ SourceCharHairSimulateZeroTimeDumpEvidence
 source_char_hair_simulate_zero_time_dump_evidence() {
   SourceCharHairSimulateZeroTimeDumpEvidence evidence;
   evidence.range = "0x8035FC8C -> 0x80360144";
+  evidence.locals = {
+      "int i r31",
+      "Transform t r1+0x70",
+      "ObjVector& ps r0",
+      "int j r27",
+      "Matrix3 m r1+0x40",
+  };
   return evidence;
 }
 
@@ -4007,7 +4014,18 @@ SourceCharHairRb2MappedBodyEvidence
 source_char_hair_rb2_mapped_body_evidence() {
   SourceCharHairRb2MappedBodyEvidence evidence;
   evidence.poll_deps_range = "0x80360144 -> 0x80360284";
+  evidence.poll_deps_locals = {"int i r31"};
+  evidence.poll_deps_references = {
+      "const char * gStlAllocName",
+      "__RTTI__PQ211stlpmtx_std26_List_node<PQ23Hmx6Object>",
+      "unsigned char gStlAllocNameLookup",
+  };
   evidence.copy_range = "0x803616E8 -> 0x8036181C";
+  evidence.copy_locals = {"const CharHair* h r0"};
+  evidence.copy_references = {
+      "__RTTI__Q23Hmx6Object",
+      "__RTTI__8CharHair",
+  };
   return evidence;
 }
 
