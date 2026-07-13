@@ -6192,6 +6192,12 @@ int main() {
                  "decoded_keyframes.push_back("
                  "read_light_preset_keyframe_like_ihatecompvir(",
                  "LightPreset source reader uses the counted keyframe vector");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<EnvironmentState>environment_states;",
+                 "LightPreset keyframes retain decoded Environ state entries");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<LightState>light_states;",
+                 "LightPreset keyframes retain decoded Light state entries");
   ok &= contains(gameplay_c,
                  "out.keyframe.duration=r.f32();",
                  "LightPreset duration comes from the source keyframe field");
@@ -6204,6 +6210,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(!plausible_lighting_frame_count(out.keyframe.fade_out))",
                  "LightPreset source fade is sanitized before transition use");
+  ok &= contains(gameplay_c,
+                 "read_light_preset_environment_entry_like_ihatecompvir(",
+                 "LightPreset source reader decodes EnvironmentEntry payloads instead of skipping them");
+  ok &= contains(gameplay_c,
+                 "read_light_preset_env_light_entry_like_ihatecompvir(",
+                 "LightPreset source reader decodes EnvLightEntry payloads instead of skipping them");
+  ok &= absent(gameplay_c,
+               "skip_light_preset_environment_entry_like_ihatecompvir",
+               "LightPreset EnvironmentEntry payloads must not be discarded");
+  ok &= absent(gameplay_c,
+               "skip_light_preset_env_light_entry_like_ihatecompvir",
+               "LightPreset EnvLightEntry payloads must not be discarded");
   ok &= contains(gameplay_c,
                  "preset.source_order_decoded=true;",
                  "LightPreset marks successful source-order decode");
@@ -6243,6 +6261,13 @@ int main() {
                  "set_lighting_spot_targets(std::move(active_spots),"
                  "transition_fade_seconds);",
                  "lighting keyframes update the shared transition target");
+  ok &= contains(gameplay_c,
+                 "apply_lighting_preset_environment_light_state(",
+                 "lighting keyframes apply decoded Environ/Light state like ihatecompvir LightPreset::Animate");
+  ok &= contains(gameplay_c,
+                 "\"[world]LightPresetstateapplied:preset=%skeyframe=%s"
+                 "env_states=%llulight_states=%llu",
+                 "LightPreset state application emits compact runtime proof rows");
   ok &= contains(gameplay_c,
                  "suffix!=\"_target.mesh\"&&suffix!=\".target.mesh\"",
                  "LightPreset target rows accept PS2 .Target.mesh spelling");
@@ -6686,6 +6711,13 @@ int main() {
                  "dev_->SetRenderState(D3DRS_AMBIENT,"
                  "d3d_color_from_rgba(env_color));",
                  "overlay Environ lighting applies authored ambient color");
+  ok &= contains(renderer_h_c,
+                 "boolhas_enabled=false;boolenabled=false;",
+                 "renderer fog overrides can carry LightPreset EnvironmentEntry fog enable state");
+  ok &= contains(renderer_c,
+                 "if(fog_it->second.has_enabled)fog_enabled="
+                 "fog_it->second.enabled;",
+                 "renderer applies decoded LightPreset fog-enable overrides");
   ok &= contains(renderer_c,
                  "autosampled_light_world=[&](constmilo_scene::LightObj&light,"
                  "conststd::string&ref)",

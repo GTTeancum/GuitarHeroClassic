@@ -161,6 +161,8 @@ class MiloSceneRenderer {
   void set_environment_color_overrides(
       std::map<std::string, std::array<float, 4>> environment_colors);
   struct EnvironmentFogOverride {
+    bool has_enabled = false;
+    bool enabled = false;
     bool has_color = false;
     std::array<float, 4> color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool has_range = false;

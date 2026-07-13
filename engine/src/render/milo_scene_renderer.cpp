@@ -3005,17 +3005,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     std::array<float, 4> fog_color = {
         env->fog_color[0], env->fog_color[1], env->fog_color[2],
         env->fog_color[3]};
+    bool fog_enabled = env->fog_enabled;
     float fog_start = env->fog_start;
     float fog_end = env->fog_end;
     if (const auto fog_it = environment_fog_overrides_.find(env->name);
         fog_it != environment_fog_overrides_.end()) {
+      if (fog_it->second.has_enabled) fog_enabled = fog_it->second.enabled;
       if (fog_it->second.has_color) fog_color = fog_it->second.color;
       if (fog_it->second.has_range) {
         fog_start = fog_it->second.range[0];
         fog_end = fog_it->second.range[1];
       }
     }
-    if (!fog_values_sane(env->fog_enabled, fog_start, fog_end, fog_color)) {
+    if (!fog_values_sane(fog_enabled, fog_start, fog_end, fog_color)) {
       disable_authored_fog();
       return;
     }
