@@ -1162,6 +1162,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     swaps those roles. Native `source_milo_editor_rndmesh_revision_word_plan`
     records that source IO contract so revision-gated model parsing stays tied
     to the visible source split/write logic.
+  - MiloEditor `RndMesh.New(revision, altRevision, vertexCount, faceCount)`
+    constructs a mesh, assigns only `revision` and `altRevision`, and returns
+    it; the visible factory body does not use `vertexCount` or `faceCount`.
+    Native `source_milo_editor_rndmesh_new_plan` records that factory contract
+    so native importer work does not infer preallocated vertices, faces, or
+    topology from the factory signature.
   - The late MiloEditor `RndMesh` boolean tail reads and writes
     `keepMeshData` only above mesh revision 34, `hasAOCalculation` only above
     `0x25`, `noQuant` only above alt revision 1, and `unkBool3` only above alt
@@ -1265,7 +1271,9 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `<material>.mat` when a material exists, warns when diffuse is missing, and
     enables AO calculation when a normal map exists. Native
     `source_gltf_milo_create_base_mesh_plan` mirrors that exporter-side mesh
-    setup as a contract; it does not change stock GH2 runtime mesh decode.
+    setup as a contract, including the zero-count `RndMesh.New` call and the
+    MiloEditor factory's ignored requested counts; it does not change stock GH2
+    runtime mesh decode.
   - The same `Program.cs` keeps a `BandConfiguration` block in a commented
     `TODO: finish this` section. The visible rows set object-fields revision 2,
     create `BandConfiguration.TargTransform` rows, and would add a

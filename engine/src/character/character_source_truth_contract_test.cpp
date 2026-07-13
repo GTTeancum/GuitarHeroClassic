@@ -5928,6 +5928,12 @@ int run_contract() {
                  "varmesh=RndMesh.New(GameRevisions.GetRevision(selectedGame)"
                  ".ModelRevision,0,0,0);",
                  "glTFMilo CreateBaseMesh uses selected model revision");
+  ok &= contains(mesh_cs,
+                 "publicstaticRndMeshNew(ushortrevision,ushortaltRevision,"
+                 "uintvertexCount,uintfaceCount){RndMeshnewRndMesh=newRndMesh();"
+                 "newRndMesh.revision=revision;newRndMesh.altRevision="
+                 "altRevision;returnnewRndMesh;}",
+                 "MiloEditor RndMesh New assigns only revisions");
   ok &= contains(gltf_program_cs,
                  "meta.revision=GameRevisions.GetRevision(selectedGame)"
                  ".MiloRevision;",
@@ -6206,6 +6212,10 @@ int run_contract() {
                  "uint32_tcombined_word=0;",
                  "native declares MiloEditor RndMesh revision word plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshNewPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh New plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshCoreFieldsIoPlan{"
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh core fields IO plan");
@@ -6357,6 +6367,9 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native exposes glTFMilo CreateBaseMesh helper");
+  ok &= contains(char_mesh_h,
+                 "SourceMiloEditorRndMeshNewPlansource_milo_editor_rndmesh_new_plan(",
+                 "native exposes MiloEditor RndMesh New helper");
   ok &= contains(char_mesh_h,
                  "SourceGltfMiloNodeTraversalPlansource_gltf_milo_node_"
                  "traversal_plan(",
@@ -6579,6 +6592,17 @@ int run_contract() {
       "SourceMiloEditorRndMeshCoreFieldsIoPlansource_milo_editor_rndmesh_"
       "core_fields_io_plan(",
       "native ports MiloEditor RndMesh core fields IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshNewPlansource_milo_editor_rndmesh_new_plan(",
+      "native ports MiloEditor RndMesh New helper");
+  ok &= contains(char_mesh,
+                 "plan.requested_vertex_count=requested_vertex_count;",
+                 "native New helper records requested vertex count");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_factory_is_revision_only=mesh_revision==28&&"
+                 "alt_revision==0&&",
+                 "native New helper pins GH2 revision-only factory");
   ok &= contains(char_mesh,
                  "SourceMiloEditorRndMeshEnumPlansource_milo_editor_rndmesh_"
                  "enum_plan(",
@@ -7225,6 +7249,12 @@ int run_contract() {
                  "source_milo_editor_rndmesh_revision_word_plan(",
                  "focused mesh decode test covers MiloEditor revision word IO");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_new_plan(28,0,6,2)",
+                 "focused mesh decode test covers MiloEditor New helper");
+  ok &= contains(mesh_decode_test,
+                 "gh2_new_mesh.gh2_rev28_factory_is_revision_only",
+                 "focused mesh decode test covers GH2 revision-only factory");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_core_fields_io_plan(",
                  "focused mesh decode test covers MiloEditor core fields IO");
   ok &= contains(mesh_decode_test,
@@ -7562,6 +7592,12 @@ int run_contract() {
   ok &= contains(doc, "revision-gated model parsing stays tied",
                  "document fences revision gates to source split/write logic");
   ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_new_plan` records",
+                 "document records MiloEditor RndMesh New helper");
+  ok &= contains(doc,
+                 "does not use `vertexCount` or `faceCount`",
+                 "document fences RndMesh New counts from inferred topology");
+  ok &= contains(doc,
                  "`source_milo_editor_rndmesh_core_fields_io_plan` records",
                  "document records MiloEditor RndMesh core fields IO helper");
   ok &= contains(doc, "material, geom owner, mutable, volume, and BSP only",
@@ -7622,6 +7658,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_create_base_mesh_plan` mirrors",
                  "document records glTFMilo CreateBaseMesh helper");
+  ok &= contains(doc,
+                 "zero-count `RndMesh.New` call",
+                 "document records glTFMilo zero-count RndMesh factory call");
   ok &= contains(doc,
                  "`source_gltf_milo_scene_assembly_plan` records",
                  "document records glTFMilo scene assembly helper");

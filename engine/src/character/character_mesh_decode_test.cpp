@@ -378,6 +378,27 @@ int main() {
   CHECK(revision_word_big.write_revision_high_word);
   CHECK(revision_word_big.written_word == 0x001c0004u);
 
+  const auto gh2_new_mesh =
+      ghogx::character::source_milo_editor_rndmesh_new_plan(28, 0, 6, 2);
+  CHECK(gh2_new_mesh.mesh_revision == 28);
+  CHECK(gh2_new_mesh.alt_revision == 0);
+  CHECK(gh2_new_mesh.requested_vertex_count == 6);
+  CHECK(gh2_new_mesh.requested_face_count == 2);
+  CHECK(gh2_new_mesh.sets_revision);
+  CHECK(gh2_new_mesh.sets_alt_revision);
+  CHECK(gh2_new_mesh.ignores_requested_vertex_count);
+  CHECK(gh2_new_mesh.ignores_requested_face_count);
+  CHECK(gh2_new_mesh.leaves_vertices_default_constructed);
+  CHECK(gh2_new_mesh.leaves_faces_empty);
+  CHECK(gh2_new_mesh.factory_only_sets_revision_fields);
+  CHECK(gh2_new_mesh.gh2_rev28_factory_is_revision_only);
+
+  const auto rb3_new_mesh =
+      ghogx::character::source_milo_editor_rndmesh_new_plan(33, 0, 0, 0);
+  CHECK(rb3_new_mesh.ignores_requested_vertex_count);
+  CHECK(rb3_new_mesh.ignores_requested_face_count);
+  CHECK(!rb3_new_mesh.gh2_rev28_factory_is_revision_only);
+
   const auto face_io =
       ghogx::character::source_milo_editor_rndmesh_face_io_plan(3);
   CHECK(face_io.face_count == 3);
@@ -924,8 +945,12 @@ int main() {
   const auto rb3_xbox_base_mesh =
       ghogx::character::source_gltf_milo_create_base_mesh_plan(base_mesh);
   CHECK(rb3_xbox_base_mesh.creates_mesh);
+  CHECK(rb3_xbox_base_mesh.calls_milo_editor_rndmesh_new);
   CHECK(rb3_xbox_base_mesh.mesh_revision == 33);
   CHECK(rb3_xbox_base_mesh.mesh_alt_revision == 0);
+  CHECK(rb3_xbox_base_mesh.factory_requested_zero_vertices);
+  CHECK(rb3_xbox_base_mesh.factory_requested_zero_faces);
+  CHECK(rb3_xbox_base_mesh.factory_ignores_requested_counts);
   CHECK(rb3_xbox_base_mesh.object_fields_revision == 2);
   CHECK(rb3_xbox_base_mesh.trans_revision == 9);
   CHECK(rb3_xbox_base_mesh.parent_name == "rock1.milo");

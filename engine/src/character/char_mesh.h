@@ -139,6 +139,27 @@ source_milo_editor_rndmesh_revision_word_plan(
     uint16_t alt_revision_to_write,
     bool host_little_endian);
 
+struct SourceMiloEditorRndMeshNewPlan {
+  int32_t mesh_revision = 0;
+  int32_t alt_revision = 0;
+  uint32_t requested_vertex_count = 0;
+  uint32_t requested_face_count = 0;
+  bool sets_revision = true;
+  bool sets_alt_revision = true;
+  bool ignores_requested_vertex_count = true;
+  bool ignores_requested_face_count = true;
+  bool leaves_vertices_default_constructed = true;
+  bool leaves_faces_empty = true;
+  bool factory_only_sets_revision_fields = true;
+  bool gh2_rev28_factory_is_revision_only = false;
+};
+
+SourceMiloEditorRndMeshNewPlan source_milo_editor_rndmesh_new_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision,
+    uint32_t requested_vertex_count,
+    uint32_t requested_face_count);
+
 struct SourceMiloEditorRndMeshBoneTransformIoPlan {
   int32_t mesh_revision = 0;
   int32_t input_bone_transform_count = 0;
@@ -787,8 +808,12 @@ struct SourceGltfMiloBaseMeshInput {
 
 struct SourceGltfMiloBaseMeshPlan {
   bool creates_mesh = true;
+  bool calls_milo_editor_rndmesh_new = false;
   int32_t mesh_revision = 0;
   int32_t mesh_alt_revision = 0;
+  bool factory_requested_zero_vertices = false;
+  bool factory_requested_zero_faces = false;
+  bool factory_ignores_requested_counts = false;
   int32_t object_fields_revision = 0;
   int32_t trans_revision = 0;
   std::string parent_name;

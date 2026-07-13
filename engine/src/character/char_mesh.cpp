@@ -383,6 +383,23 @@ source_milo_editor_rndmesh_revision_word_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshNewPlan source_milo_editor_rndmesh_new_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision,
+    uint32_t requested_vertex_count,
+    uint32_t requested_face_count) {
+  SourceMiloEditorRndMeshNewPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.alt_revision = alt_revision;
+  plan.requested_vertex_count = requested_vertex_count;
+  plan.requested_face_count = requested_face_count;
+  plan.gh2_rev28_factory_is_revision_only =
+      mesh_revision == 28 && alt_revision == 0 &&
+      plan.ignores_requested_vertex_count &&
+      plan.ignores_requested_face_count && plan.factory_only_sets_revision_fields;
+  return plan;
+}
+
 SourceMiloEditorRndMeshBoneTransformIoPlan
 source_milo_editor_rndmesh_bone_transform_io_plan(
     int32_t mesh_revision,
@@ -1220,8 +1237,12 @@ SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input) {
   SourceGltfMiloBaseMeshPlan plan;
+  plan.calls_milo_editor_rndmesh_new = true;
   plan.mesh_revision = input.model_revision;
   plan.mesh_alt_revision = 0;
+  plan.factory_requested_zero_vertices = true;
+  plan.factory_requested_zero_faces = true;
+  plan.factory_ignores_requested_counts = true;
   plan.object_fields_revision = 2;
   plan.trans_revision = 9;
   plan.parent_name = input.parent_name;
