@@ -31700,6 +31700,18 @@ int run_contract() {
                  "bind skinning, or\napplied name-specific offsets remain "
                  "rejected",
                  "document keeps rejected pre-integration hair probes fenced");
+  ok &= contains(doc,
+                 "Actual chat-log spot check before the ihatecompvir "
+                 "integration leaves three\nsafe leads",
+                 "document records actual pre-integration chat-log recheck");
+  ok &= contains(doc,
+                 "the live `CharIKHand` -> `CharForeTwist` -> later\n"
+                 "`CharUpperTwist` controller cadence",
+                 "document preserves compatible pre-integration controller cadence");
+  ok &= contains(doc,
+                 "does not revive the\nold static fret anchor, global guitar "
+                 "offset, approximate twist writer",
+                 "document rejects resurrecting old pre-integration experiments");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");

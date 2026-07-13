@@ -5259,6 +5259,15 @@ applied name-specific offsets remain rejected. Keep these as evidence targets
 to reconcile with current ihatecompvir source, not as permission to reapply
 removed native experiments.
 
+Actual chat-log spot check before the ihatecompvir integration leaves three
+safe leads that agree with the current source-backed model: the dual fret
+streams above, the live `CharIKHand` -> `CharForeTwist` -> later
+`CharUpperTwist` controller cadence from the accepted PS2 traces, and live
+`CharHair` rows feeding weighted hair-card consumers. It does not revive the
+old static fret anchor, global guitar offset, approximate twist writer, broad
+hand-IK A/B gates, point-snap hair, no-zwrite hair, or name-specific hair/mesh
+offset experiments.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
