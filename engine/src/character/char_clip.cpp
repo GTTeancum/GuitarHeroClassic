@@ -520,6 +520,31 @@ source_char_bone_weight_context_prop_sync_plan() {
   return plan;
 }
 
+SourceCharBoneWeightContextDefaultState
+source_char_bone_weight_context_default_state() {
+  return SourceCharBoneWeightContextDefaultState{};
+}
+
+SourceCharBoneWeightContextLoadPlan source_char_bone_weight_context_load_plan() {
+  SourceCharBoneWeightContextLoadPlan plan;
+  plan.read_order = {"mContext", "mWeight"};
+  return plan;
+}
+
+SourceCharBoneContextFlagsStep source_char_bone_get_context_flags_step(
+    bool parent_is_char_bone_dir) {
+  SourceCharBoneContextFlagsStep step;
+  step.parent_is_char_bone_dir = parent_is_char_bone_dir;
+  if (parent_is_char_bone_dir) {
+    step.returns_dir_context_flags = true;
+  } else {
+    step.warns_no_char_bone_dir = true;
+    step.returns_empty_array = true;
+    step.warning = "CharBone: No CharBoneDir for context flags.";
+  }
+  return step;
+}
+
 SourceCharBonePropSyncPlan source_char_bone_prop_sync_plan() {
   SourceCharBonePropSyncPlan plan;
   plan.properties = {"position_context", "scale_context",

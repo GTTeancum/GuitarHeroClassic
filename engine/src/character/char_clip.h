@@ -204,6 +204,23 @@ struct SourceCharBoneWeightContextPropSyncPlan {
   std::vector<std::string> properties;
 };
 
+struct SourceCharBoneWeightContextDefaultState {
+  int context = 0;
+  float weight = 0.0f;
+};
+
+struct SourceCharBoneWeightContextLoadPlan {
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharBoneContextFlagsStep {
+  bool parent_is_char_bone_dir = false;
+  bool returns_dir_context_flags = false;
+  bool warns_no_char_bone_dir = false;
+  bool returns_empty_array = false;
+  std::string warning;
+};
+
 struct SourceCharBonePropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> superclasses;
@@ -2128,6 +2145,11 @@ SourceCharBoneCopyPlan source_char_bone_copy_plan();
 SourceCharBoneHandlerPlan source_char_bone_handler_plan();
 SourceCharBoneWeightContextPropSyncPlan
 source_char_bone_weight_context_prop_sync_plan();
+SourceCharBoneWeightContextDefaultState
+source_char_bone_weight_context_default_state();
+SourceCharBoneWeightContextLoadPlan source_char_bone_weight_context_load_plan();
+SourceCharBoneContextFlagsStep source_char_bone_get_context_flags_step(
+    bool parent_is_char_bone_dir);
 SourceCharBonePropSyncPlan source_char_bone_prop_sync_plan();
 SourceCharBonesBonePropSyncPlan source_char_bones_bone_prop_sync_plan();
 SourceCharBonesObjectPropSyncPlan source_char_bones_object_prop_sync_plan();

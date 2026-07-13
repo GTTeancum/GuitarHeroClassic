@@ -619,6 +619,37 @@ int main() {
                       "CharBone WeightContext context");
   ok &= expect_string(weight_prop_sync.properties[1], "weight",
                       "CharBone WeightContext weight");
+  const auto weight_default =
+      source_char_bone_weight_context_default_state();
+  ok &= expect_int(weight_default.context, 0,
+                   "CharBone WeightContext default context");
+  ok &= expect_float(weight_default.weight, 0.0f,
+                     "CharBone WeightContext default weight");
+  const auto weight_load = source_char_bone_weight_context_load_plan();
+  ok &= expect_size(weight_load.read_order.size(), 2,
+                    "CharBone WeightContext load row count");
+  ok &= expect_string(weight_load.read_order[0], "mContext",
+                      "CharBone WeightContext load context first");
+  ok &= expect_string(weight_load.read_order[1], "mWeight",
+                      "CharBone WeightContext load weight second");
+
+  const auto context_flags_dir =
+      source_char_bone_get_context_flags_step(true);
+  ok &= expect_int(context_flags_dir.returns_dir_context_flags ? 1 : 0, 1,
+                   "CharBone context flags returns parent dir flags");
+  ok &= expect_int(context_flags_dir.warns_no_char_bone_dir ? 1 : 0, 0,
+                   "CharBone context flags dir no warning");
+  const auto context_flags_no_dir =
+      source_char_bone_get_context_flags_step(false);
+  ok &= expect_int(context_flags_no_dir.returns_dir_context_flags ? 1 : 0, 0,
+                   "CharBone context flags no dir skips dir flags");
+  ok &= expect_int(context_flags_no_dir.warns_no_char_bone_dir ? 1 : 0, 1,
+                   "CharBone context flags no dir warns");
+  ok &= expect_int(context_flags_no_dir.returns_empty_array ? 1 : 0, 1,
+                   "CharBone context flags no dir empty array");
+  ok &= expect_string(context_flags_no_dir.warning,
+                      "CharBone: No CharBoneDir for context flags.",
+                      "CharBone context flags warning");
   const SourceCharBonePropSyncPlan char_bone_prop_sync =
       source_char_bone_prop_sync_plan();
   ok &= expect_size(char_bone_prop_sync.properties.size(), 8,

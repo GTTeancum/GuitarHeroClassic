@@ -3986,6 +3986,15 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_bone_handler_plan` records the checked handler table:
     action `clear_context`, handler `get_context_flags`,
     `Hmx::Object` superclass dispatch, and source check value `0x152`.
+    `CharBone::OnGetContextFlags` returns the parent `CharBoneDir` context flags
+    when the row lives under a `CharBoneDir`; otherwise it warns
+    `CharBone: No CharBoneDir for context flags.` and returns an empty data
+    array. Native `source_char_bone_get_context_flags_step` records that
+    parent-directory branch only.
+  - `CharBone::WeightContext` defaults `mContext=0`, `mWeight=0`, and its
+    stream operator reads `mContext` then `mWeight`. Native
+    `source_char_bone_weight_context_default_state` and
+    `source_char_bone_weight_context_load_plan` record those row facts.
     Native `source_char_bone_weight_context_prop_sync_plan`,
     `source_char_bone_prop_sync_plan`, `source_char_bones_bone_prop_sync_plan`,
     and `source_char_bones_object_prop_sync_plan` record the checked
