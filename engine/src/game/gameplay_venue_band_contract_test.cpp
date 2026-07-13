@@ -9774,11 +9774,11 @@ int main() {
                  "*key,song_time_,active_regular_camera_start_);",
                  "non-path regular CamShots use source frame-pair timing");
   ok &= contains(gameplay_c,
-                 "\"[world]cameraSetPreFrame:source_msg=shot_started"
-                 "source_manager=PrePollshot=%slocal_frame=%.3f"
+                 "\"[world]cameraSetFrame:source_msg=shot_started"
+                 "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fsource_frame_keys=%zu"
-                 "source_poll=SetFrame\\n\"",
-                 "regular camera diagnostics expose ihatecompvir PrePoll SetPreFrame cadence");
+                 "source_prep=SetPreFrame\\n\"",
+                 "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframepair:shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"

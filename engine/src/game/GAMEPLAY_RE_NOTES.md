@@ -87,8 +87,8 @@ Open work:
   `StartAnim` and records `mCamStartTime`, before calling `SetPreFrame` on the
   current shot. Native regular gameplay cameras now enter
   `start_camera_shot_runtime` before sampling source-frame rows or logging the
-  `SetPreFrame` bridge, keeping visibility/anims/result-builder reset in the
-  same source order as the camera manager.
+  `Poll -> SetFrame` shot-start proof, keeping visibility/anims/result-builder
+  reset in the same source order as the camera manager.
 - 2026-07-13 CameraManager pending-shot bridge: ihatecompvir
   `PickCameraShot` and `ForceCameraShot` both assign `mNextShot`, while
   `current_shot` remains `mCurrentShot` until `CameraManager::PrePoll` consumes
@@ -10703,14 +10703,16 @@ Rejected native probe:
   material/combine interpretation for `amp_inside_bar.mesh`,
   `amp_tube_glow_meter.mesh`, and `amp_glass.mesh`.
 
-2026-07-13 camera SetPreFrame/frame-pair proof bridge:
+2026-07-13 camera SetFrame/frame-pair proof bridge:
 - Added debug-only camera rows that make the ihatecompvir manager cadence
   explicit without changing rendered behavior: non-path regular CamShots now
-  report one `[world] camera SetPreFrame: source_msg=shot_started ...` row for
-  the source `CameraManager::PrePoll -> SetPreFrame` / `Poll -> SetFrame`
-  cadence, and one `[world] camera source frame pair ...` row when
-  `regular_camera_source_frame_keys()` submits the two decoded CamShot frame
-  rows used for blending.
+  report one `[world] camera SetFrame: source_msg=shot_started ...` row for
+  the source `CameraManager::Poll -> SetFrame` call after the preceding
+  `PrePoll -> SetPreFrame` prep, and one `[world] camera source frame pair ...`
+  row when `regular_camera_source_frame_keys()` submits the two decoded CamShot
+  frame rows used for blending. Base ihatecompvir `CamShot::SetPreFrame` is a
+  no-op, so the shot-start proof belongs to the `SetFrame`/`Poll` side of the
+  manager cadence.
 - This is intentionally a proof surface, not a revival of the old discrete
   `post_switch_cam` stepping. The source contract still forbids the removed
   `[world] post_switch_cam:` row while pinning the new manager-cadence and
