@@ -121,8 +121,7 @@ bool authored_gameplay_cameras_disabled() {
 }
 
 bool authored_gameplay_cameras_enabled() {
-    return env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr &&
-           !authored_gameplay_cameras_disabled();
+    return !authored_gameplay_cameras_disabled();
 }
 
 bool fallback_gameplay_backing_camera_disabled() {
@@ -25546,7 +25545,6 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
 
 bool Gameplay::worldcrowd_actor_runtime_enabled() const {
     return !diagnostic_camera_shot_.empty() ||
-           env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr ||
            env_value("GHOGX_ENABLE_WORLDCROWD_ACTORS") != nullptr ||
            env_value("GHOGX_DISABLE_NORMAL_WORLDCROWD_ACTORS") == nullptr;
 }
@@ -29327,9 +29325,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
         active_force_char_lod_ = -1;
         refresh_worldcrowd_actor_source_targets_for_camera();
-        // The decoded GH2 CamShot path is still opt-in while venue fidelity is
-        // being validated, so the audience floor is judged through the stable
-        // source-venue backing camera until the native camera pass lands.
+        // Match WorldDir/CameraManager: decoded GH2 CamShots drive normal
+        // gameplay, with the backing camera retained only for explicit A/B.
         const bool authored_gameplay_cameras_active =
             !diagnostic_camera_shot_.empty() ||
             authored_gameplay_cameras_enabled();

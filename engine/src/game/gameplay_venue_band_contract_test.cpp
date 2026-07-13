@@ -9707,9 +9707,8 @@ int main() {
                  "authored PS2 gameplay cameras keep an explicit disable gate");
   ok &= contains(gameplay_c,
                  "boolauthored_gameplay_cameras_enabled(){"
-                 "returnenv_value(\"GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS\")!="
-                 "nullptr&&!authored_gameplay_cameras_disabled();}",
-                 "authored PS2 gameplay cameras stay opt-in during venue validation");
+                 "return!authored_gameplay_cameras_disabled();}",
+                 "authored PS2 gameplay cameras are the default gameplay route");
   ok &= contains(gameplay_c,
                  "boolfallback_gameplay_backing_camera_disabled(){"
                  "returnenv_value(\"GHOGX_DISABLE_FALLBACK_GAMEPLAY_BACKING_CAMERA\")"
@@ -9729,7 +9728,7 @@ int main() {
                  "constboolauthored_gameplay_cameras_active="
                  "!diagnostic_camera_shot_.empty()||"
                  "authored_gameplay_cameras_enabled();",
-                 "authored gameplay cameras do not hide venue floor by default");
+                 "authored gameplay cameras drive normal gameplay unless explicitly disabled");
   ok &= contains(gameplay_c,
                  "debug_gameplay_camera_enabled()",
                  "manual gameplay camera diagnostics bypass the fallback backing camera");
@@ -10136,7 +10135,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(authored_gameplay_cameras_active&&!in_intro_camera_window&&"
                  "!regular_camera_keys_.empty())",
-                 "authored gameplay camera cuts remain opt-in after cue scanning");
+                 "authored gameplay camera cuts run in the default playable 3D path");
   ok &= contains(gameplay_c,
                  "forced_camera_mode=CameraShotMode::Lighter;",
                  "crowd lighter messages force the LIGHTER camera category");
@@ -10163,7 +10162,7 @@ int main() {
                  "active_worldcrowd_lighter_group_.clear();"
                  "cue_forced_camera=authored_gameplay_cameras_active;"
                  "if(cue_forced_camera){force_camera=true;",
-                 "crowd_lighters_off clears WorldCrowd state while keeping camera force opt-in");
+                 "crowd_lighters_off clears WorldCrowd state and can force the default authored camera path");
   ok &= contains(gameplay_c,
                  "crowd_lighter_on_=false;"
                  "active_worldcrowd_lighter_group_.clear();",
