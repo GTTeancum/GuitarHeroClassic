@@ -85,6 +85,7 @@ int main() {
   using ghogx::character::source_char_hair_prop_sync_plan;
   using ghogx::character::source_char_hair_rb2_mapped_body_evidence;
   using ghogx::character::source_char_hair_save_plan;
+  using ghogx::character::source_char_hair_set_cloth;
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
@@ -170,6 +171,45 @@ int main() {
              "native point outer radius default");
   ok &= near(native_point.side_length, -1.0f,
              "native point side length default");
+
+  CharHair cloth_hair;
+  cloth_hair.strands.resize(3);
+  cloth_hair.strands[0].points.resize(2);
+  cloth_hair.strands[0].points[0].pos[0] = 0.0f;
+  cloth_hair.strands[0].points[0].pos[1] = 0.0f;
+  cloth_hair.strands[0].points[0].pos[2] = 0.0f;
+  cloth_hair.strands[0].points[1].pos[0] = 1.0f;
+  cloth_hair.strands[0].points[1].pos[1] = 1.0f;
+  cloth_hair.strands[0].points[1].pos[2] = 1.0f;
+  cloth_hair.strands[1].points.resize(1);
+  cloth_hair.strands[1].points[0].pos[0] = 3.0f;
+  cloth_hair.strands[1].points[0].pos[1] = 4.0f;
+  cloth_hair.strands[1].points[0].pos[2] = 0.0f;
+  cloth_hair.strands[2].points.resize(2);
+  cloth_hair.strands[2].points[0].pos[0] = 0.0f;
+  cloth_hair.strands[2].points[0].pos[1] = 0.0f;
+  cloth_hair.strands[2].points[0].pos[2] = 12.0f;
+  cloth_hair.strands[2].points[1].pos[0] = 5.0f;
+  cloth_hair.strands[2].points[1].pos[1] = 5.0f;
+  cloth_hair.strands[2].points[1].pos[2] = 5.0f;
+  source_char_hair_set_cloth(cloth_hair, true);
+  ok &= near(cloth_hair.strands[0].points[0].side_length, 5.0f,
+             "SetCloth pairs next strand");
+  ok &= near(cloth_hair.strands[0].points[1].side_length, -1.0f,
+             "SetCloth disables unmatched next point");
+  ok &= near(cloth_hair.strands[1].points[0].side_length, 13.0f,
+             "SetCloth pairs middle strand");
+  ok &= near(cloth_hair.strands[2].points[0].side_length, 12.0f,
+             "SetCloth wraps to first strand");
+  ok &= near(cloth_hair.strands[2].points[1].side_length, std::sqrt(48.0f),
+             "SetCloth wraps matching second point");
+  source_char_hair_set_cloth(cloth_hair, false);
+  ok &= near(cloth_hair.strands[0].points[0].side_length, -1.0f,
+             "SetCloth disabled clears first point");
+  ok &= near(cloth_hair.strands[1].points[0].side_length, -1.0f,
+             "SetCloth disabled clears middle point");
+  ok &= near(cloth_hair.strands[2].points[1].side_length, -1.0f,
+             "SetCloth disabled clears wrapped point");
 
   const auto strand_defaults = source_char_hair_strand_default_state();
   ok &= expect_bool(strand_defaults.show_spheres, false,

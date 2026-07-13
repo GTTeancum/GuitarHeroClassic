@@ -1940,7 +1940,8 @@ note, and all report `unreadBytes=0`.
     next strand when cloth mode is enabled and otherwise forces `sideLength` to
     `-1.0f`. Native ports this exactly as `source_char_hair_set_cloth`; it is
     a deterministic side-length helper only, not a guessed hair placement or
-    writeback path.
+    writeback path. Focused coverage now checks next-strand pairing,
+    wraparound pairing, missing matching points, and the disabled clear path.
   - `BEGIN_HANDLERS(CharHair)` exposes only `reset`, `hookup`, `set_cloth`,
     and `freeze_pose`, then delegates to `RndPollable` and `Hmx::Object`.
     Native `source_char_hair_handler_plan` records those source-visible message
