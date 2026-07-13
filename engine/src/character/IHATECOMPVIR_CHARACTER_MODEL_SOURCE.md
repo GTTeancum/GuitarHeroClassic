@@ -1902,16 +1902,27 @@ note, and all report `unreadBytes=0`.
     its own transform path, but not enough to copy that path or use it for live
     native point writeback.
   - The latest header declares `CharHair::PollDeps`, but the checked latest
-    `CharHair.cpp` does not provide a statement body for it. The RB2 dump maps
-    `CharHair::PollDeps` at `0x80360144 -> 0x80360284` and `CharHair::Copy` at
+    `CharHair.cpp` does not provide a statement body for it. The RB2 dump also
+    maps the PS2-era runtime hair rows that the native helpers use as
+    boundaries: `Strand::SetRoot` `0x8035D848 -> 0x8035DA2C`,
+    `CharHair::SetCloth` `0x8035DA2C -> 0x8035DB64`, `Strand::SetAngle`
+    `0x8035DB64 -> 0x8035DDD8`, `CharHair::DoReset`
+    `0x8035E3B0 -> 0x8035E618`, `CharHair::Poll`
+    `0x8035F448 -> 0x8035F510`, `CharHair::Simulate`
+    `0x8035F510 -> 0x8035FC8C`, `CharHair::PollDeps`
+    `0x80360144 -> 0x80360284`, and `CharHair::Copy`
     `0x803616E8 -> 0x8036181C`. Native
-    `source_char_hair_rb2_mapped_body_evidence` records the latest
-    declaration/body boundary, those ranges, and the visible locals/references:
-    `PollDeps` exposes only `int i r31` plus STL list-allocation references, and
-    `Copy` exposes only `const CharHair* h r0` plus `Hmx::Object`/`CharHair`
-    RTTI references. Both are explicitly marked as lacking statement bodies. Do
-    not infer dependency rows or copy-member behavior from those ranges without
-    a reviewable source body or direct original-game trace.
+    `source_char_hair_rb2_mapped_body_evidence` records those ranges plus the
+    visible local/reference inventories. Key rows include `DoReset` locals
+    `oldSimulate`, `oldInertia`, and `oldFriction`; `Poll` local `kFPS` and
+    `TheTaskMgr`; and `Simulate` locals for time correction, gravity/weight,
+    strand/point loops, `CharCollide* coll`, radius/outer-radius, friction, and
+    `TheDebugNotifier`. `PollDeps` still exposes only `int i r31` plus STL
+    list-allocation references, and `Copy` exposes only `const CharHair* h r0`
+    plus `Hmx::Object`/`CharHair` RTTI references. These rows document the
+    mapped body boundaries and inventories, not permission to infer dependency
+    rows, collision hookup, copy-member behavior, or native live writeback
+    without a reviewable source body or direct original-game trace.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,

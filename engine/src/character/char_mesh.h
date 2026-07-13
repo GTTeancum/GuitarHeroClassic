@@ -1963,6 +1963,20 @@ struct SourceCharHairSimulateZeroTimeDumpEvidence {
 struct SourceCharHairRb2MappedBodyEvidence {
   bool latest_header_declares_poll_deps = true;
   bool latest_cpp_has_poll_deps_statement_body = false;
+  std::string set_root_range;
+  std::vector<std::string> set_root_locals;
+  std::string set_cloth_range;
+  std::vector<std::string> set_cloth_locals;
+  std::string set_angle_range;
+  std::vector<std::string> set_angle_locals;
+  std::string do_reset_range;
+  std::vector<std::string> do_reset_locals;
+  std::string poll_range;
+  std::vector<std::string> poll_locals;
+  std::vector<std::string> poll_references;
+  std::string simulate_range;
+  std::vector<std::string> simulate_locals;
+  std::vector<std::string> simulate_references;
   std::string poll_deps_range;
   std::vector<std::string> poll_deps_locals;
   std::vector<std::string> poll_deps_references;

@@ -7288,6 +7288,36 @@ int run_contract() {
                  "returnret;}return60.0f;}",
                  "native CharHair GetFPS helper follows source branch");
   ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x8035E3B0->0x8035E618voidCharHair::DoReset"
+                 "(classCharHair*constthis/*r27*/,intloops/*r28*/){",
+                 "RB2 dump maps CharHair DoReset range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "unsignedcharoldSimulate;//r31inti;//r30classObjVector&ps;"
+                 "//r0classTransformt;//r1+0x10intj;//r29",
+                 "RB2 dump maps CharHair DoReset reset locals");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "floatoldInertia;//f31floatoldFriction;//f30inti;//r25",
+                 "RB2 dump maps CharHair DoReset restore locals");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x8035F448->0x8035F510voidCharHair::Poll"
+                 "(classCharHair*constthis/*r30*/){",
+                 "RB2 dump maps CharHair Poll range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "floatkFPS;//f1//References//->classTaskMgrTheTaskMgr;",
+                 "RB2 dump maps CharHair Poll fps local and TaskMgr reference");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x8035F510->0x8035FC8CvoidCharHair::Simulate"
+                 "(classCharHair*constthis/*r25*/){",
+                 "RB2 dump maps CharHair Simulate range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "floatkTimeDelta;//f2floatkTimeCorrection;//f3floatkGrav;"
+                 "//f31floatkWeight;//f30",
+                 "RB2 dump maps CharHair Simulate time/gravity locals");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "classCharCollide*coll;//r26classVector3delta;//r1+0x40"
+                 "floatdot;//f0floatradius;//f29floatouterRadius;//f27",
+                 "RB2 dump maps CharHair Simulate collide locals");
+  ok &= contains(rb2_dump_char_hair_cpp,
                  "//Range:0x80360284->0x80360BE0voidCharHair::Hookup("
                  "classCharHair*constthis/*r24*/){",
                  "RB2 dump names CharHair Hookup runtime range");
@@ -7358,6 +7388,15 @@ int run_contract() {
                  "structSourceCharHairRb2MappedBodyEvidence{"
                  "boollatest_header_declares_poll_deps=true;"
                  "boollatest_cpp_has_poll_deps_statement_body=false;"
+                 "std::stringset_root_range;"
+                 "std::vector<std::string>set_root_locals;"
+                 "std::stringset_cloth_range;"
+                 "std::vector<std::string>set_cloth_locals;",
+                 "native exposes CharHair RB2 mapped setup evidence");
+  ok &= contains(char_mesh_h,
+                 "std::stringsimulate_range;"
+                 "std::vector<std::string>simulate_locals;"
+                 "std::vector<std::string>simulate_references;"
                  "std::string"
                  "poll_deps_range;std::vector<std::string>poll_deps_locals;"
                  "std::vector<std::string>poll_deps_references;"
@@ -7422,6 +7461,44 @@ int run_contract() {
                  "SourceCharHairRb2MappedBodyEvidence"
                  "source_char_hair_rb2_mapped_body_evidence(){"
                  "SourceCharHairRb2MappedBodyEvidenceevidence;"
+                 "evidence.set_root_range=\"0x8035D848->0x8035DA2C\";",
+                 "native CharHair mapped-body evidence records SetRoot range");
+  ok &= contains(char_mesh,
+                 "evidence.set_root_locals={\"intir31\","
+                 "\"RndTransformable*rr30\",\"RndTransformable*rr30\","
+                 "\"Point*lastr30\",\"intir31\",\"RndTransformable*boner29\","
+                 "\"Point&pr29\",};",
+                 "native CharHair mapped-body evidence records SetRoot locals");
+  ok &= contains(char_mesh,
+                 "evidence.set_cloth_range=\"0x8035DA2C->0x8035DB64\";"
+                 "evidence.set_cloth_locals={\"intir5\",\"Strand&sr11\","
+                 "\"Strand&lastStrandr0\",\"intjr12\",};",
+                 "native CharHair mapped-body evidence records SetCloth locals");
+  ok &= contains(char_mesh,
+                 "evidence.do_reset_range=\"0x8035E3B0->0x8035E618\";"
+                 "evidence.do_reset_locals={\"unsignedcharoldSimulater31\","
+                 "\"intir30\",\"ObjVector&psr0\",\"Transformtr1+0x10\","
+                 "\"intjr29\",\"floatoldInertiaf31\",",
+                 "native CharHair mapped-body evidence records DoReset locals");
+  ok &= contains(char_mesh,
+                 "evidence.poll_range=\"0x8035F448->0x8035F510\";"
+                 "evidence.poll_locals={\"floatkFPSf1\"};"
+                 "evidence.poll_references={\"TaskMgrTheTaskMgr\"};",
+                 "native CharHair mapped-body evidence records Poll locals");
+  ok &= contains(char_mesh,
+                 "evidence.simulate_range=\"0x8035F510->0x8035FC8C\";"
+                 "evidence.simulate_locals={\"floatkTimeDeltaf2\",",
+                 "native CharHair mapped-body evidence records Simulate range");
+  ok &= contains(char_mesh,
+                 "\"CharCollide*collr26\",\"Vector3deltar1+0x40\","
+                 "\"floatdotf0\",\"floatradiusf29\","
+                 "\"floatouterRadiusf27\",",
+                 "native CharHair mapped-body evidence records Simulate collide locals");
+  ok &= contains(char_mesh,
+                 "\"Vector3frictionr1+0x30\",\"Vector3deltar1+0x20\",};"
+                 "evidence.simulate_references={\"DebugNotifierTheDebugNotifier\"};",
+                 "native CharHair mapped-body evidence records Simulate tail locals");
+  ok &= contains(char_mesh,
                  "evidence.poll_deps_range=\"0x80360144->0x80360284\";",
                  "native CharHair mapped-body evidence records PollDeps range");
   ok &= contains(char_mesh,
@@ -8376,6 +8453,15 @@ int run_contract() {
                  "source_char_hair_rb2_mapped_body_evidence()",
                  "focused CharHair test covers RB2 mapped body evidence");
   ok &= contains(char_hair_source_test,
+                 "mapped_bodies.do_reset_range,",
+                 "focused CharHair test covers DoReset dump range");
+  ok &= contains(char_hair_source_test,
+                 "mapped_bodies.simulate_locals.size(),41",
+                 "focused CharHair test covers Simulate local inventory");
+  ok &= contains(char_hair_source_test,
+                 "\"CharCollide*collr26\"",
+                 "focused CharHair test covers Simulate collide local");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_loops_plan(true,2,3,4,30.0f)",
                  "focused CharHair test covers SimulateLoops gate");
   ok &= contains(doc,
@@ -8392,10 +8478,15 @@ int run_contract() {
                  "`CharHair.cpp` does not provide a statement body for it",
                  "document records latest CharHair PollDeps missing body");
   ok &= contains(doc,
-                 "`source_char_hair_rb2_mapped_body_evidence` records the latest",
+                 "`source_char_hair_rb2_mapped_body_evidence` records those ranges",
                  "document records native CharHair RB2 mapped body evidence");
-  ok &= contains(doc, "declaration/body boundary, those ranges",
-                 "document records native CharHair PollDeps boundary/ranges");
+  ok &= contains(doc, "`CharHair::DoReset`\n    `0x8035E3B0 -> 0x8035E618`",
+                 "document records CharHair DoReset RB2 range");
+  ok &= contains(doc,
+                 "`CharHair::Simulate`\n    `0x8035F510 -> 0x8035FC8C`",
+                 "document records CharHair Simulate RB2 range");
+  ok &= contains(doc, "`CharCollide* coll`",
+                 "document records CharHair Simulate collide local");
   ok &= contains(doc,
                  "`CharHair::Strand::~Strand` and `CharHair::~CharHair` are empty checked",
                  "document records CharHair destructor no-op bodies");

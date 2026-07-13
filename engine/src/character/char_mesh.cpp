@@ -4013,6 +4013,84 @@ source_char_hair_simulate_zero_time_dump_evidence() {
 SourceCharHairRb2MappedBodyEvidence
 source_char_hair_rb2_mapped_body_evidence() {
   SourceCharHairRb2MappedBodyEvidence evidence;
+  evidence.set_root_range = "0x8035D848 -> 0x8035DA2C";
+  evidence.set_root_locals = {
+      "int i r31",
+      "RndTransformable* r r30",
+      "RndTransformable* r r30",
+      "Point* last r30",
+      "int i r31",
+      "RndTransformable* bone r29",
+      "Point& p r29",
+  };
+  evidence.set_cloth_range = "0x8035DA2C -> 0x8035DB64";
+  evidence.set_cloth_locals = {
+      "int i r5",
+      "Strand& s r11",
+      "Strand& lastStrand r0",
+      "int j r12",
+  };
+  evidence.set_angle_range = "0x8035DB64 -> 0x8035DDD8";
+  evidence.set_angle_locals = {"Matrix3 m r1+0x40"};
+  evidence.do_reset_range = "0x8035E3B0 -> 0x8035E618";
+  evidence.do_reset_locals = {
+      "unsigned char oldSimulate r31",
+      "int i r30",
+      "ObjVector& ps r0",
+      "Transform t r1+0x10",
+      "int j r29",
+      "float oldInertia f31",
+      "float oldFriction f30",
+      "int i r25",
+  };
+  evidence.poll_range = "0x8035F448 -> 0x8035F510";
+  evidence.poll_locals = {"float kFPS f1"};
+  evidence.poll_references = {"TaskMgr TheTaskMgr"};
+  evidence.simulate_range = "0x8035F510 -> 0x8035FC8C";
+  evidence.simulate_locals = {
+      "float kTimeDelta f2",
+      "float kTimeCorrection f3",
+      "float kGrav f31",
+      "float kWeight f30",
+      "int i r30",
+      "Strand& lastStrand r29",
+      "Strand& s r28",
+      "Transform t r1+0xB0",
+      "ObjVector& ps r28",
+      "int j r31",
+      "Point& p r27",
+      "Vector3 lastPos r1+0x70",
+      "Vector3 delta r1+0x60",
+      "Point& lastP r26",
+      "float l2 f0",
+      "float min2 f3",
+      "float v2 f1",
+      "float max2 f2",
+      "float v2 f1",
+      "Matrix3 m r1+0x80",
+      "float l f0",
+      "float rat f28",
+      "Vector3 ideal r1+0x50",
+      "iterator it r1+0x18",
+      "CharCollide* coll r26",
+      "Vector3 delta r1+0x40",
+      "float dot f0",
+      "float radius f29",
+      "float outerRadius f27",
+      "float l2 f0",
+      "float l f0",
+      "float frac f1",
+      "float l f0",
+      "float dot f0",
+      "float radius f27",
+      "float innerRadius f28",
+      "float l2 f0",
+      "float l f0",
+      "float frac f1",
+      "Vector3 friction r1+0x30",
+      "Vector3 delta r1+0x20",
+  };
+  evidence.simulate_references = {"DebugNotifier TheDebugNotifier"};
   evidence.poll_deps_range = "0x80360144 -> 0x80360284";
   evidence.poll_deps_locals = {"int i r31"};
   evidence.poll_deps_references = {

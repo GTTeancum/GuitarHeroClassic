@@ -910,6 +910,56 @@ int main() {
                     "latest header declares PollDeps");
   ok &= expect_bool(mapped_bodies.latest_cpp_has_poll_deps_statement_body,
                     false, "latest cpp omits PollDeps body");
+  ok &= expect_string(mapped_bodies.set_root_range,
+                      "0x8035D848 -> 0x8035DA2C",
+                      "set-root dump range");
+  ok &= expect_size(mapped_bodies.set_root_locals.size(), 7,
+                    "set-root dump local inventory count");
+  ok &= expect_string(mapped_bodies.set_root_locals[0], "int i r31",
+                      "set-root first local");
+  ok &= expect_string(mapped_bodies.set_root_locals[6], "Point& p r29",
+                      "set-root point local");
+  ok &= expect_string(mapped_bodies.set_cloth_range,
+                      "0x8035DA2C -> 0x8035DB64",
+                      "set-cloth dump range");
+  ok &= expect_size(mapped_bodies.set_cloth_locals.size(), 4,
+                    "set-cloth dump local inventory count");
+  ok &= expect_string(mapped_bodies.set_cloth_locals[2],
+                      "Strand& lastStrand r0", "set-cloth next strand local");
+  ok &= expect_string(mapped_bodies.set_angle_range,
+                      "0x8035DB64 -> 0x8035DDD8",
+                      "set-angle dump range");
+  ok &= expect_string(mapped_bodies.set_angle_locals[0],
+                      "Matrix3 m r1+0x40", "set-angle matrix local");
+  ok &= expect_string(mapped_bodies.do_reset_range,
+                      "0x8035E3B0 -> 0x8035E618",
+                      "do-reset dump range");
+  ok &= expect_size(mapped_bodies.do_reset_locals.size(), 8,
+                    "do-reset dump local inventory count");
+  ok &= expect_string(mapped_bodies.do_reset_locals[0],
+                      "unsigned char oldSimulate r31",
+                      "do-reset simulate local");
+  ok &= expect_string(mapped_bodies.do_reset_locals[5],
+                      "float oldInertia f31", "do-reset inertia local");
+  ok &= expect_string(mapped_bodies.poll_range,
+                      "0x8035F448 -> 0x8035F510", "poll dump range");
+  ok &= expect_string(mapped_bodies.poll_locals[0], "float kFPS f1",
+                      "poll FPS local");
+  ok &= expect_string(mapped_bodies.poll_references[0],
+                      "TaskMgr TheTaskMgr", "poll task manager reference");
+  ok &= expect_string(mapped_bodies.simulate_range,
+                      "0x8035F510 -> 0x8035FC8C", "simulate dump range");
+  ok &= expect_size(mapped_bodies.simulate_locals.size(), 41,
+                    "simulate dump local inventory count");
+  ok &= expect_string(mapped_bodies.simulate_locals[0],
+                      "float kTimeDelta f2", "simulate time delta local");
+  ok &= expect_string(mapped_bodies.simulate_locals[24],
+                      "CharCollide* coll r26", "simulate collide local");
+  ok &= expect_string(mapped_bodies.simulate_locals[40],
+                      "Vector3 delta r1+0x20", "simulate final delta local");
+  ok &= expect_string(mapped_bodies.simulate_references[0],
+                      "DebugNotifier TheDebugNotifier",
+                      "simulate debug notifier reference");
   ok &= expect_bool(mapped_bodies.poll_deps_range ==
                         "0x80360144 -> 0x80360284",
                     true, "poll deps dump range");
