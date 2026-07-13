@@ -3973,6 +3973,26 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
 SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence() {
   SourceCharHairHookupDumpEvidence evidence;
   evidence.range = "0x80360284 -> 0x80360BE0";
+  evidence.locals = {
+      "vector collides r1+0x60",
+      "ObjDirItr c r1+0x6C",
+      "int i r28",
+      "int j r27",
+      "int k r27",
+      "CharCollide* c r26",
+      "Vector3 delta r1+0x50",
+      "float rootDist f31",
+      "Vector3 d r1+0x40",
+      "float length f30",
+      "int j r25",
+      "float maxRadius f1",
+  };
+  evidence.references = {
+      "Debug TheDebug",
+      "const char * kAssertStr",
+      "__RTTI__Q23Hmx6Object",
+      "__RTTI__11CharCollide",
+  };
   return evidence;
 }
 

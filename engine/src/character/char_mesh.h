@@ -1938,6 +1938,8 @@ struct SourceCharHairHookupPlan {
 
 struct SourceCharHairHookupDumpEvidence {
   std::string range;
+  std::vector<std::string> locals;
+  std::vector<std::string> references;
   bool has_vector_collides = true;
   bool has_obj_dir_iterator = true;
   bool has_nested_loop_counters = true;

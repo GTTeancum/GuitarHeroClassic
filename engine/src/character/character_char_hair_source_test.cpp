@@ -862,6 +862,22 @@ int main() {
                     "hookup dump max radius local");
   ok &= expect_bool(hookup_dump.has_statement_body, false,
                     "hookup dump no statement body");
+  ok &= expect_size(hookup_dump.locals.size(), 12,
+                    "hookup dump local inventory count");
+  ok &= expect_string(hookup_dump.locals[0], "vector collides r1+0x60",
+                      "hookup dump vector local");
+  ok &= expect_string(hookup_dump.locals[5], "CharCollide* c r26",
+                      "hookup dump collide local");
+  ok &= expect_string(hookup_dump.locals[7], "float rootDist f31",
+                      "hookup dump root distance local");
+  ok &= expect_string(hookup_dump.locals[11], "float maxRadius f1",
+                      "hookup dump max radius local name");
+  ok &= expect_size(hookup_dump.references.size(), 4,
+                    "hookup dump reference inventory count");
+  ok &= expect_string(hookup_dump.references[2], "__RTTI__Q23Hmx6Object",
+                      "hookup dump object RTTI reference");
+  ok &= expect_string(hookup_dump.references[3], "__RTTI__11CharCollide",
+                      "hookup dump collide RTTI reference");
 
   const auto zero_time_dump = source_char_hair_simulate_zero_time_dump_evidence();
   ok &= expect_bool(zero_time_dump.range == "0x8035FC8C -> 0x80360144",

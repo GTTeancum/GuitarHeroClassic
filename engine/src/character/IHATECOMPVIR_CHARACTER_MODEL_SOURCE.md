@@ -1884,9 +1884,13 @@ note, and all report `unreadBytes=0`.
     `ObjDirItr`, nested loop counters, `CharCollide* c`, `delta`, `rootDist`,
     `d`, `length`, and `maxRadius`, with references to `Hmx::Object` and
     `CharCollide` RTTI. Native `source_char_hair_hookup_dump_evidence` records
-    those facts and also records `has_statement_body=false`: the dump is enough
-    to prove Hookup is doing geometric collide filtering, but not enough to copy
-    the filtering statements or live point collide-list population.
+    those facts, the exact local/register inventory (`vector collides r1+0x60`,
+    `ObjDirItr c r1+0x6C`, loop counters, `CharCollide* c r26`,
+    `Vector3 delta r1+0x50`, `rootDist`, `length`, and `maxRadius`), and the
+    four visible references (`TheDebug`, `kAssertStr`, `Hmx::Object` RTTI, and
+    `CharCollide` RTTI). It also records `has_statement_body=false`: the dump is
+    enough to prove Hookup is doing geometric collide filtering, but not enough
+    to copy the filtering statements or live point collide-list population.
   - The same RB2 dump confirms `CharHair::SimulateZeroTime` is a real runtime
     body at `0x8035FC8C -> 0x80360144`. Its local inventory names an outer loop
     counter, `Transform t`, an `ObjVector` point list, an inner loop counter,

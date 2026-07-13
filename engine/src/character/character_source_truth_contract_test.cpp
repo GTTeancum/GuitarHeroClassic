@@ -7344,7 +7344,9 @@ int run_contract() {
                  "native exposes CharHair Hookup plan");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairHookupDumpEvidence{std::stringrange;"
-                 "boolhas_vector_collides=true;boolhas_obj_dir_iterator=true;",
+                 "std::vector<std::string>locals;std::vector<std::string>"
+                 "references;boolhas_vector_collides=true;"
+                 "boolhas_obj_dir_iterator=true;",
                  "native exposes CharHair Hookup dump evidence");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairSimulateZeroTimeDumpEvidence{"
@@ -7387,8 +7389,21 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "SourceCharHairHookupDumpEvidencesource_char_hair_hookup_dump_evidence(){"
                  "SourceCharHairHookupDumpEvidenceevidence;evidence.range="
-                 "\"0x80360284->0x80360BE0\";returnevidence;}",
+                 "\"0x80360284->0x80360BE0\";",
                  "native CharHair Hookup dump evidence records RB2 range");
+  ok &= contains(char_mesh,
+                 "evidence.locals={\"vectorcollidesr1+0x60\","
+                 "\"ObjDirItrcr1+0x6C\",\"intir28\",\"intjr27\","
+                 "\"intkr27\",\"CharCollide*cr26\","
+                 "\"Vector3deltar1+0x50\",\"floatrootDistf31\","
+                 "\"Vector3dr1+0x40\",\"floatlengthf30\","
+                 "\"intjr25\",\"floatmaxRadiusf1\",};",
+                 "native CharHair Hookup dump evidence records locals");
+  ok &= contains(char_mesh,
+                 "evidence.references={\"DebugTheDebug\","
+                 "\"constchar*kAssertStr\",\"__RTTI__Q23Hmx6Object\","
+                 "\"__RTTI__11CharCollide\",};returnevidence;}",
+                 "native CharHair Hookup dump evidence records references");
   ok &= contains(char_mesh,
                  "SourceCharHairSimulateZeroTimeDumpEvidence"
                  "source_char_hair_simulate_zero_time_dump_evidence(){"
