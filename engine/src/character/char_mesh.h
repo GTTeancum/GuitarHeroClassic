@@ -1317,7 +1317,11 @@ struct SourceGltfMiloMaterialPlan {
   bool use_environment = false;
   float emissive_multiplier = 1.0f;
   float normal_detail_tiling = 1.0f;
+  bool rim_power_zeroed_before_final = false;
+  bool rim_power_final_overrides_zero = false;
   float rim_power = 4.0f;
+  bool rim_rgb_zeroed = false;
+  std::array<float, 4> rim_rgb = {0.0f, 0.0f, 0.0f, 0.0f};
   float specular_power = 0.0f;
   float specular2_power = 0.0f;
   bool has_specular_rgb = false;

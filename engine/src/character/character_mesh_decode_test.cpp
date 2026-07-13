@@ -973,6 +973,12 @@ int main() {
   CHECK(!gltf_hair_material.alpha_write);
   CHECK(gltf_hair_material.blend == 1);
   CHECK(gltf_hair_material.texture_compression == 3);
+  CHECK(gltf_hair_material.rim_power_zeroed_before_final);
+  CHECK(gltf_hair_material.rim_power_final_overrides_zero);
+  CHECK(gltf_hair_material.rim_rgb_zeroed);
+  CHECK(approx(gltf_hair_material.rim_power, 4.0f));
+  CHECK(approx(gltf_hair_material.rim_rgb[0], 0.0f));
+  CHECK(approx(gltf_hair_material.rim_rgb[3], 0.0f));
   CHECK(gltf_hair_material.obj_fields_revision2);
 
   material_input.name = "body_skin";
@@ -1015,6 +1021,9 @@ int main() {
   CHECK(gltf_no_texture_material.creates_mat_entry);
   CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
   CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
+  CHECK(!gltf_no_texture_material.rim_power_zeroed_before_final);
+  CHECK(!gltf_no_texture_material.rim_power_final_overrides_zero);
+  CHECK(!gltf_no_texture_material.rim_rgb_zeroed);
 
   ghogx::character::SourceGltfMiloPrelitOptionInput prelit_input;
   prelit_input.has_base_color_texture = true;

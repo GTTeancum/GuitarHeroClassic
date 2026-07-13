@@ -6411,6 +6411,15 @@ int run_contract() {
                  "mat.cull=!material.DoubleSided;",
                  "glTFMilo material cull follows glTF DoubleSided");
   ok &= contains(gltf_program_cs,
+                 "mat.rimPower=0.0f;",
+                 "glTFMilo material pass first zeroes rim power");
+  ok &= contains(gltf_program_cs,
+                 "mat.rimRGB=newHmxColor3(0.0f,0.0f,0.0f,0.0f);",
+                 "glTFMilo material pass zeroes rim color");
+  ok &= contains(gltf_program_cs,
+                 "mat.rimPower=4.0f;",
+                 "glTFMilo material pass overwrites rim power to four");
+  ok &= contains(gltf_program_cs,
                  "stringpreLit=opts.Prelit.ToLower();",
                  "glTFMilo lowercases Prelit option");
   ok &= contains(gltf_program_cs,
@@ -6821,6 +6830,15 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "boolextras_material_type_declared=false;",
                  "native material plan records MaterialType declaration");
+  ok &= contains(char_mesh_h,
+                 "boolrim_power_zeroed_before_final=false;",
+                 "native material plan records source rim power zero row");
+  ok &= contains(char_mesh_h,
+                 "boolrim_power_final_overrides_zero=false;",
+                 "native material plan records source rim power overwrite row");
+  ok &= contains(char_mesh_h,
+                 "boolrim_rgb_zeroed=false;",
+                 "native material plan records zero rim color row");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialRuntimeBoundary{boolgltf_"
                  "material_plan_is_exporter_side=true;",
@@ -7473,6 +7491,18 @@ int run_contract() {
                  "if(input.alpha_mode==SourceGltfMiloAlphaMode::kMask){"
                  "plan.alpha_cut=true;",
                  "native preserves glTFMilo alpha-mask branch");
+  ok &= contains(char_mesh,
+                 "plan.rim_power_zeroed_before_final=true;",
+                 "native records glTFMilo rim power zero row");
+  ok &= contains(char_mesh,
+                 "plan.rim_rgb_zeroed=true;",
+                 "native records glTFMilo zero rim color row");
+  ok &= contains(char_mesh,
+                 "plan.rim_rgb={0.0f,0.0f,0.0f,0.0f};",
+                 "native records glTFMilo zero rim color values");
+  ok &= contains(char_mesh,
+                 "plan.rim_power_final_overrides_zero=true;",
+                 "native records glTFMilo rim power overwrite row");
   ok &= contains(char_mesh,
                  "plan.diffuse_bitmap_encoding=input.image_has_alpha?"
                  "\"DXT5_BC3\":\"DXT1_BC1\";",
@@ -8265,6 +8295,15 @@ int run_contract() {
                  "gltf_xbox_diffuse.diffuse_xbox_byte_swap",
                  "focused mesh decode test covers glTFMilo diffuse Xbox swap");
   ok &= contains(mesh_decode_test,
+                 "gltf_hair_material.rim_power_zeroed_before_final",
+                 "focused mesh decode test covers glTFMilo rim zero row");
+  ok &= contains(mesh_decode_test,
+                 "gltf_hair_material.rim_power_final_overrides_zero",
+                 "focused mesh decode test covers glTFMilo rim overwrite row");
+  ok &= contains(mesh_decode_test,
+                 "gltf_hair_material.rim_rgb_zeroed",
+                 "focused mesh decode test covers glTFMilo zero rim color");
+  ok &= contains(mesh_decode_test,
                  "gltf_extras_material.extras_projected_lights_declared",
                  "focused mesh decode test covers declared ProjectedLights");
   ok &= contains(mesh_decode_test,
@@ -8661,6 +8700,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "zeroes rim color",
+                 "document records glTFMilo rim color row");
   ok &= contains(doc,
                  "declared-only rows",
                  "document records MaterialExtras declared-only rows");

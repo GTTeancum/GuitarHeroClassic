@@ -1245,6 +1245,8 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     image has alpha, otherwise BC1 / `DXT1_BC1`; it sets `mipMapK=-8`,
     `type=kRegular`, `optimizeForPS3=true`, bitmap mipmaps to zero, and stores
     `bpl` as `width * bpp / 8`, byte-swapping the texture payload only on Xbox.
+    The source also zeroes rim power, zeroes rim color, and then overwrites rim
+    power to `4.0f` in that same base-color branch.
     Native `source_gltf_milo_material_base_plan` mirrors those deterministic
     exporter rows for evidence only; live GH2 character material behavior still
     comes from decoded stock `RndMat` rows plus the separate project hair

@@ -1281,6 +1281,12 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.texture_compression = input.image_has_alpha ? 3 : 1;
     plan.emissive_multiplier = 1.0f;
     plan.normal_detail_tiling = 1.0f;
+    plan.rim_power_zeroed_before_final = true;
+    plan.rim_power = 0.0f;
+    plan.specular2_power = 0.0f;
+    plan.rim_rgb_zeroed = true;
+    plan.rim_rgb = {0.0f, 0.0f, 0.0f, 0.0f};
+    plan.rim_power_final_overrides_zero = true;
     plan.rim_power = 4.0f;
     plan.specular_power = 0.0f;
     plan.specular2_power = 0.0f;
