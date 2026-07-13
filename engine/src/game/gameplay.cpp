@@ -17543,6 +17543,44 @@ bool camera_apply_screen_offset_to_result_rows(
     return true;
 }
 
+std::optional<CameraResultRows>
+camera_source_screen_offset_translate_candidate_rows(
+    CameraResultRows rows,
+    const Gameplay::CameraKey& key,
+    const std::array<float, 3>& target) {
+    if (!key.has_screen_offset || !key.has_fov ||
+        !std::isfinite(key.screen_offset[0]) ||
+        !std::isfinite(key.screen_offset[1]) ||
+        (std::abs(key.screen_offset[0]) <= 0.0001f &&
+         std::abs(key.screen_offset[1]) <= 0.0001f) ||
+        !std::isfinite(key.fov) || key.fov <= 0.05f || key.fov >= 2.5f) {
+        return std::nullopt;
+    }
+    const float tan_y = std::tan(key.fov * 0.5f);
+    if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
+    const float tan_x = tan_y * kNativeValidationAspect;
+    rows.source += "+target_list+source_screen_offset_translate";
+    rows.forward = {target[0] - rows.position[0],
+                    target[1] - rows.position[1],
+                    target[2] - rows.position[2]};
+    const float dist2 = rows.forward[0] * rows.forward[0] +
+                        rows.forward[1] * rows.forward[1] +
+                        rows.forward[2] * rows.forward[2];
+    if (!std::isfinite(dist2) || dist2 <= 0.000001f) return std::nullopt;
+    const float distance = std::sqrt(dist2);
+    camera_orthonormalize_result_rows(rows);
+    // CamShotFrame::Interp offsets tf130.v in camera local space by
+    // screen_offset * target distance / LocalProjectXfm scale.
+    const float right_offset = -key.screen_offset[0] * distance * tan_x;
+    const float up_offset = key.screen_offset[1] * distance * tan_y;
+    for (int axis = 0; axis < 3; ++axis) {
+        rows.position[axis] += rows.right[axis] * right_offset +
+                               rows.up[axis] * up_offset;
+    }
+    camera_orthonormalize_result_rows(rows);
+    return rows;
+}
+
 bool camera_apply_clamp_height_to_result_rows(
     CameraResultRows& rows,
     const Gameplay::CameraKey& key,
@@ -17942,6 +17980,28 @@ std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {
         out += key.target_refs[i].subpart;
     }
     return out.empty() ? std::string("none") : out;
+}
+
+std::vector<std::string> camera_target_signature_for_key(
+    const Gameplay::CameraKey& key) {
+    std::vector<std::string> refs;
+    if (!key.target_refs.empty()) {
+        refs.reserve(key.target_refs.size());
+        for (const auto& ref : key.target_refs) {
+            if (ref.entity.empty() && ref.subpart.empty()) continue;
+            refs.push_back(ref.entity + ":" + ref.subpart);
+        }
+    } else if (!key.target_entity.empty() || !key.target_subpart.empty()) {
+        refs.push_back(key.target_entity + ":" + key.target_subpart);
+    }
+    return refs;
+}
+
+bool camera_targets_match_like_camshot(const Gameplay::CameraKey& a,
+                                       const Gameplay::CameraKey& b) {
+    const auto a_refs = camera_target_signature_for_key(a);
+    if (a_refs.empty()) return false;
+    return a_refs == camera_target_signature_for_key(b);
 }
 
 std::array<float, 3> camera_authored_at_for_key(
@@ -18470,6 +18530,22 @@ void apply_camera_keys(
         const auto source_record_member =
             debug_camera_source_record_member();
         const auto source_probe_forward = debug_camera_source_probe_forward();
+        std::optional<CameraResultRows>
+            source_screen_offset_translate_candidate;
+        if (blended_target_centroid &&
+            camera_targets_match_like_camshot(*a, *b)) {
+            Gameplay::CameraKey result_key = *a;
+            result_key.has_fov = a->has_fov || b->has_fov;
+            result_key.fov = cam.fov;
+            result_key.has_screen_offset =
+                a->has_screen_offset || b->has_screen_offset;
+            result_key.screen_offset[0] = cam.screen_offset[0];
+            result_key.screen_offset[1] = cam.screen_offset[1];
+            source_screen_offset_translate_candidate =
+                camera_source_screen_offset_translate_candidate_rows(
+                    source_seed_result, result_key,
+                    *blended_target_centroid);
+        }
         auto source_record_member_for_key =
             [&](const Gameplay::CameraKey& key) -> std::optional<std::string> {
             if (key.has_ps2_source_record &&
@@ -19114,6 +19190,10 @@ void apply_camera_keys(
             };
         log_result_rows("source_seed_candidate", source_seed_result, 1, 1);
         log_result_rows("submitted", submitted_result, 1, 1);
+        if (source_screen_offset_translate_candidate) {
+            log_result_rows("source_screen_offset_translate_candidate",
+                            *source_screen_offset_translate_candidate, 1, 1);
+        }
         log_pose_span_shape("a", *a);
         log_pose_span_shape("b", *b);
         if (target_candidate_a || target_candidate_b) {

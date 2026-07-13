@@ -8182,6 +8182,20 @@ int main() {
                  "rows.up[0]*key.screen_offset[1]*tan_y",
                  "screen offset correction adjusts submitted result forward vector");
   ok &= contains(gameplay_c,
+                 "std::optional<CameraResultRows>"
+                 "camera_source_screen_offset_translate_candidate_rows(",
+                 "camera diagnostics expose source-shaped CamShot screen-offset translation rows");
+  ok &= contains(gameplay_c,
+                 "constfloatright_offset=-key.screen_offset[0]*distance*tan_x;"
+                 "constfloatup_offset=key.screen_offset[1]*distance*tan_y;",
+                 "source-shaped screen-offset candidate moves camera position in local right/up space");
+  ok &= contains(gameplay_c,
+                 "camera_targets_match_like_camshot(*a,*b)",
+                 "source-shaped screen-offset candidate is gated to CamShot same-target blends");
+  ok &= contains(gameplay_c,
+                 "\"source_screen_offset_translate_candidate\"",
+                 "camera result diagnostics log the source-shaped screen-offset candidate separately");
+  ok &= contains(gameplay_c,
                  "floatcamera_result_builder_shot_filter_step(",
                  "camera result rows consume the traced s3+52 shot filter branch");
   ok &= contains(gameplay_c,
