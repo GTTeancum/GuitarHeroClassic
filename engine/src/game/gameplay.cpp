@@ -30444,6 +30444,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (const auto* key =
                     find_camera_key_by_name(regular_camera_keys_,
                                             active_regular_camera_)) {
+                start_camera_shot_runtime(*key);
                 const CameraKey current_position =
                     camera_position_for(*key, active_camera_position_index_);
                 const CameraKey* previous_shot =
@@ -30502,7 +30503,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     selected_camera.empty() ? current_position
                                             : selected_camera.front();
                 active_force_char_lod_ = visibility_key.force_char_lod;
-                start_camera_shot_runtime(*key);
                 apply_camera_keys(world_->camera(), selected_camera, song_time_,
                                   camera_targets,
                                   &camera_result_builder_state_,

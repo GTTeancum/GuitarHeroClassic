@@ -6089,8 +6089,13 @@ int main() {
                  "camera StartAnim starts linked mAnims after applying shot visibility");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key);"
-                 "apply_camera_keys(world_->camera(),selected_camera,",
-                 "regular gameplay cameras enter StartAnim before evaluating source-shaped camera rows");
+                 "constCameraKeycurrent_position=",
+                 "regular gameplay cameras enter StartAnim before source-shaped camera row sampling");
+  ok &= contains(gameplay_c,
+                 "start_camera_shot_runtime(*key);"
+                 "constCameraKeycurrent_position="
+                 "camera_position_for(*key,active_camera_position_index_);",
+                 "regular gameplay cameras mirror CameraManager PrePoll StartShot before SetPreFrame");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(camera_keys_.front());"
                  "apply_camera_keys(world_->camera(),camera_keys_,",
