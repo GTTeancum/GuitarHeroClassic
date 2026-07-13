@@ -8302,8 +8302,17 @@ int main() {
                  "constfloatmat_r=prop_material?prop_material->color[0]:1.0f;",
                  "attached performer props retain original MILO material diffuse color");
   ok &= contains(char_renderer_c,
-                 "color_byte(mat_r*v.r*impl.color_mod[0])",
-                 "attached performer props combine MILO material color with active venue-light modulation");
+                 "constboolprop_prelit=prop_material&&prop_material->prelit;",
+                 "attached performer props gate vertex tint on source Mat.prelit");
+  ok &= contains(char_renderer_c,
+                 "constfloatsrc_r=prop_prelit?v.r:1.0f;",
+                 "attached performer props use vertex RGB only for source-prelit materials");
+  ok &= contains(char_renderer_c,
+                 "constfloatsrc_a=prop_prelit?v.a:1.0f;",
+                 "attached performer props use vertex alpha only for source-prelit materials");
+  ok &= contains(char_renderer_c,
+                 "color_byte(mat_r*src_r*impl.color_mod[0])",
+                 "attached performer props combine source material/prelit color with active venue-light modulation");
   ok &= contains(char_renderer_c,
                  "D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1",
                  "character renderer routes vertex diffuse modulation through fixed-function lighting");

@@ -2372,15 +2372,20 @@ void CharRenderer::draw_impl(bool clear_target) {
       const float mat_r = prop_material ? prop_material->color[0] : 1.0f;
       const float mat_g = prop_material ? prop_material->color[1] : 1.0f;
       const float mat_b = prop_material ? prop_material->color[2] : 1.0f;
+      const bool prop_prelit = prop_material && prop_material->prelit;
       for (const auto& v : m.verts) {
+        const float src_r = prop_prelit ? v.r : 1.0f;
+        const float src_g = prop_prelit ? v.g : 1.0f;
+        const float src_b = prop_prelit ? v.b : 1.0f;
+        const float src_a = prop_prelit ? v.a : 1.0f;
         SVtx s;
         s.x = v.px; s.y = v.py; s.z = v.pz;
         s.nx = v.nx; s.ny = v.ny; s.nz = v.nz;
         s.color = D3DCOLOR_ARGB(
-            color_byte(mat_alpha * impl.color_mod[3]),
-            color_byte(mat_r * v.r * impl.color_mod[0]),
-            color_byte(mat_g * v.g * impl.color_mod[1]),
-            color_byte(mat_b * v.b * impl.color_mod[2]));
+            color_byte(mat_alpha * src_a * impl.color_mod[3]),
+            color_byte(mat_r * src_r * impl.color_mod[0]),
+            color_byte(mat_g * src_g * impl.color_mod[1]),
+            color_byte(mat_b * src_b * impl.color_mod[2]));
         s.u = v.u; s.v = v.v;
         vb.push_back(s);
       }
