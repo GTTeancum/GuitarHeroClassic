@@ -29,6 +29,7 @@ VENUE_ANIMATION_TYPES = {
     "PropAnim",
     "TransAnim",
 }
+CAMERA_CLASS_MARKERS = ("Cam", "Shot")
 
 
 def u8(b: bytes, o: int) -> int:
@@ -587,6 +588,70 @@ def audit_venue_classes(hdr: Path, ark: Path, venues: set[str] | None = None) ->
     return result
 
 
+def camera_class_like(typ: str) -> bool:
+    return any(marker in typ for marker in CAMERA_CLASS_MARKERS)
+
+
+def audit_camera_classes(hdr: Path, ark: Path, venues: set[str] | None = None) -> dict[str, Any]:
+    selected_venues = set(venues or GAMEPLAY_VENUES)
+    result: dict[str, Any] = {
+        "venues": sorted(selected_venues),
+        "milos": 0,
+        "types": {},
+        "samples": {},
+        "world_venue_types": {},
+        "per_venue_types": {},
+        "failures": [],
+    }
+    type_counts: Counter[str] = Counter()
+    world_venue_counts: Counter[str] = Counter()
+    per_venue: dict[str, Counter[str]] = {venue: Counter() for venue in selected_venues}
+    samples: dict[str, list[str]] = {}
+    for e in ark_entries(hdr):
+        path = e.full_path.replace("\\", "/")
+        lower_path = path.lower()
+        if not lower_path.endswith(".milo_ps2"):
+            continue
+        result["milos"] += 1
+        parts = lower_path.split("/")
+        venue = ""
+        is_world_venue = (
+            len(parts) >= 4 and parts[0] == "world" and parts[1] in selected_venues
+        )
+        if is_world_venue:
+            venue = parts[1]
+        try:
+            payload = inflate_milo(read_ark_entry(ark, e))
+            _dv, _dt, _dn, ents = parse_dir(payload)
+            resync_classic(payload, ents)
+        except Exception as ex:
+            result["failures"].append({"path": e.full_path, "error": str(ex)})
+            continue
+        for me in ents:
+            if not camera_class_like(me.typ):
+                continue
+            type_counts[me.typ] += 1
+            samples.setdefault(me.typ, [])
+            if len(samples[me.typ]) < 12:
+                samples[me.typ].append(f"{e.full_path}:{me.name}")
+            if is_world_venue:
+                world_venue_counts[me.typ] += 1
+                per_venue[venue][me.typ] += 1
+    for required in ("BandCamShot", "CamShot", "Cam", "CamAnim"):
+        type_counts.setdefault(required, 0)
+        world_venue_counts.setdefault(required, 0)
+    result["types"] = dict(sorted(type_counts.items()))
+    result["samples"] = {
+        typ: values for typ, values in sorted(samples.items())
+    }
+    result["world_venue_types"] = dict(sorted(world_venue_counts.items()))
+    result["per_venue_types"] = {
+        venue: dict(sorted(counts.items()))
+        for venue, counts in sorted(per_venue.items())
+    }
+    return result
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hdr", default=r"C:\Programming\GitHub\Guitar Hero II\Guitar Hero II PS2 (USA)\GEN\MAIN.HDR")
@@ -595,10 +660,15 @@ def main() -> None:
     ap.add_argument("--anims", action="store_true")
     ap.add_argument("--venue-classes", action="store_true",
                     help="summarize object classes inside gameplay venue MILOs")
+    ap.add_argument("--camera-classes", action="store_true",
+                    help="summarize camera-like object classes in all MILOs and gameplay venues")
     ap.add_argument("--venues", default=",".join(GAMEPLAY_VENUES),
-                    help="comma-separated venue short names for --venue-classes")
+                    help="comma-separated venue short names for --venue-classes/--camera-classes")
     ns = ap.parse_args()
-    if ns.venue_classes:
+    if ns.camera_classes:
+        venues = {v.strip().lower() for v in ns.venues.split(",") if v.strip()}
+        res = audit_camera_classes(Path(ns.hdr), Path(ns.ark), venues)
+    elif ns.venue_classes:
         venues = {v.strip().lower() for v in ns.venues.split(",") if v.strip()}
         res = audit_venue_classes(Path(ns.hdr), Path(ns.ark), venues)
     elif ns.anims:
