@@ -14738,7 +14738,6 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             if (intro_category || (!normal_category && !lighter_category)) continue;
 
             const bool special = prop_bool(decoded_shot->props, "special", false);
-            if (special) continue;
             const std::string solo = prop_symbol(decoded_shot->props, "solo");
             if (!solo.empty() && solo != "ok" && solo != "never" &&
                 solo != "only")

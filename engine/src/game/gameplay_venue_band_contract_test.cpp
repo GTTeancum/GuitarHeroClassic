@@ -10306,6 +10306,9 @@ int main() {
                        "returncamera_shot_matches_source_filters(",
                        "camera_bool_filter(\"special\",false)",
                        "LIGHTER CamShots remain selectable even when authored special");
+  ok &= absent(regular_camera_loader_c,
+               "if(special)continue;",
+               "regular CamShot loader keeps source-special LIGHTER shots in the pool");
   ok &= contains(gameplay_c,
                  "camera_bool_filter(\"lighter\",false)",
                  "regular/solo/jump camera modes reject LIGHTER CamShots");

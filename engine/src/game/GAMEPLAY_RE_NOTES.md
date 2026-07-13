@@ -41,6 +41,17 @@ Open work:
   `GHOGX_DEBUG_CAMERA=1`, native logs emit `camera-candidate` rows for each
   plausible decoded `CamShot` pose and final `[camera]` rows for the selected
   render-camera eye/aim/up.
+- 2026-07-13 regular CamShot special/lighter pool: GH2
+  `world/crowd.dta` routes `[crowd_lighters_slow]` and
+  `[crowd_lighters_fast]` to `world pick_lighter_shot`, and
+  `world_objects_worldbase.dta` implements that by calling `pick_shot LIGHTER`.
+  ihatecompvir `CameraManager::SyncObjects` only gates `CamShot`s by
+  `PlatformOk()` before adding them to the category lists; `special` is a
+  selection-time `ShotMatches` property filter, not a sync/load-time rejection.
+  Native now keeps decoded `special` CamShots in the regular camera pool so the
+  stock `lighter` CamShot can be selected by the `LIGHTER` route; regular,
+  solo, and jump modes still reject `special` and `lighter` through the source
+  mode filters instead of losing the authored shot during load.
 - 2026-07-13 CamShot `shot_ok` support metadata: ihatecompvir routes
   selection-time approval through `CamShot::ShotOk`, which sends the
   `shot_ok` message with the previous shot. GH2 `world/camshot.dta` maps that
