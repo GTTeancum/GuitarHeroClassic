@@ -899,6 +899,10 @@ SourceCharBonesMeshesReallocateStep source_char_bones_meshes_reallocate_step(
   return step;
 }
 
+SourceCharBonesMeshesLifetimePlan source_char_bones_meshes_lifetime_plan() {
+  return SourceCharBonesMeshesLifetimePlan{};
+}
+
 std::vector<std::string> source_char_bones_meshes_stuff_meshes(
     const std::vector<std::string>& existing_objects,
     const std::vector<std::string>& meshes) {

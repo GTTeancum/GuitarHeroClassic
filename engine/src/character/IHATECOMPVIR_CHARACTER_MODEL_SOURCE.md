@@ -3641,10 +3641,13 @@ note, and all report `unreadBytes=0`.
     `safe_to_publish_servo_motion=false`.
   - `rb3-latest/src/system/char/CharBonesMeshes.cpp` is concrete for mesh-slot
     ownership and target resolution. Native
+    `source_char_bones_meshes_lifetime_plan`,
     `source_char_bones_meshes_replace_step`,
     `source_char_bones_meshes_reallocate_step`, and
     `source_char_bones_meshes_stuff_meshes` port the source-visible behavior:
-    `Replace` scans only when `from != mDummyMesh`, replaces the first matching
+    construction creates an owned mesh-vector and a new dummy transform,
+    destruction clears mesh slots and deletes the dummy; `Replace` scans only
+    when `from != mDummyMesh`, replaces the first matching
     mesh with `to` when it is transformable or `mDummyMesh` otherwise;
     `ReallocateInternal` calls `CharBonesAlloc::ReallocateInternal`, resizes
     `mMeshes` to `mBones.size()`, resolves each row with `CharUtlFindBoneTrans`,

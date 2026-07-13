@@ -22711,6 +22711,14 @@ int run_contract() {
                  "missing_non_facing_bones;boolacquire_pose=false;};",
                  "native API exposes source CharBonesMeshes Reallocate row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesMeshesLifetimePlan{"
+                 "boolconstructs_mesh_vector_with_owner=true;"
+                 "boolcreates_dummy_mesh_transform=true;"
+                 "booldestructor_clears_mesh_vector=true;"
+                 "booldestructor_deletes_dummy_mesh=true;"
+                 "booldummy_mesh_is_fallback_target=true;};",
+                 "native API exposes source CharBonesMeshes lifetime row");
+  ok &= contains(char_clip_h,
                  "structSourceCharBonesMeshesPoseDumpEvidence{"
                  "std::stringpose_meshes_range;std::stringprop_sync_range;"
                  "std::vector<std::string>pose_meshes_locals;"
@@ -22733,6 +22741,10 @@ int run_contract() {
                  "conststd::unordered_map<std::string,std::string>&"
                  "transform_lookup,conststd::string&dummy_mesh);",
                  "native API exposes source CharBonesMeshes Reallocate helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesMeshesLifetimePlan"
+                 "source_char_bones_meshes_lifetime_plan();",
+                 "native API exposes source CharBonesMeshes lifetime helper");
   ok &= contains(char_clip_h,
                  "std::vector<std::string>source_char_bones_meshes_stuff_meshes("
                  "conststd::vector<std::string>&existing_objects,"
@@ -23068,6 +23080,11 @@ int run_contract() {
                  "step.acquire_pose=!step.meshes.empty();returnstep;}",
                  "native CharBonesMeshes Reallocate helper mirrors AcquirePose gate");
   ok &= contains(char_clip,
+                 "SourceCharBonesMeshesLifetimePlan"
+                 "source_char_bones_meshes_lifetime_plan(){return"
+                 "SourceCharBonesMeshesLifetimePlan{};}",
+                 "native CharBonesMeshes lifetime helper mirrors source ownership");
+  ok &= contains(char_clip,
                  "std::vector<std::string>source_char_bones_meshes_stuff_meshes("
                  "conststd::vector<std::string>&existing_objects,"
                  "conststd::vector<std::string>&meshes){"
@@ -23184,6 +23201,15 @@ int run_contract() {
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharBonesMeshes.cpp` is concrete",
                  "document cites latest CharBonesMeshes source");
+  ok &= contains(doc,
+                 "`source_char_bones_meshes_lifetime_plan`,",
+                 "document records native CharBonesMeshes lifetime helper");
+  ok &= contains(doc,
+                 "construction creates an owned mesh-vector and a new dummy transform",
+                 "document records CharBonesMeshes dummy construction");
+  ok &= contains(doc,
+                 "destruction clears mesh slots and deletes the dummy",
+                 "document records CharBonesMeshes dummy cleanup");
   ok &= contains(doc,
                  "`source_char_bones_meshes_replace_step`,",
                  "document records native CharBonesMeshes Replace helper");
@@ -23346,6 +23372,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "\"CharBoneDirMergeCharacterbodyremainsfenced\"",
                  "focused CharBones source test covers CharBoneDir MergeCharacter fenced body");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_meshes_lifetime_plan()",
+                 "focused CharBones source test covers CharBonesMeshes lifetime");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_meshes_replace_step({\"mesh_a\",\"mesh_b\"},",
                  "focused CharBones source test covers CharBonesMeshes Replace dummy skip");

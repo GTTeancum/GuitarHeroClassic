@@ -1148,6 +1148,18 @@ int main() {
                       "CharBoneDir MergeCharacter preserves source order");
   ok &= expect_int(merge_plan.merge_body_fenced ? 1 : 0, 1,
                    "CharBoneDir MergeCharacter body remains fenced");
+  const SourceCharBonesMeshesLifetimePlan meshes_lifetime =
+      source_char_bones_meshes_lifetime_plan();
+  ok &= expect_int(meshes_lifetime.constructs_mesh_vector_with_owner ? 1 : 0, 1,
+                   "CharBonesMeshes constructor owns mesh vector");
+  ok &= expect_int(meshes_lifetime.creates_dummy_mesh_transform ? 1 : 0, 1,
+                   "CharBonesMeshes constructor creates dummy mesh");
+  ok &= expect_int(meshes_lifetime.destructor_clears_mesh_vector ? 1 : 0, 1,
+                   "CharBonesMeshes destructor clears meshes");
+  ok &= expect_int(meshes_lifetime.destructor_deletes_dummy_mesh ? 1 : 0, 1,
+                   "CharBonesMeshes destructor deletes dummy");
+  ok &= expect_int(meshes_lifetime.dummy_mesh_is_fallback_target ? 1 : 0, 1,
+                   "CharBonesMeshes dummy is fallback target");
   const SourceCharBonesMeshesReplaceStep replace_dummy_from =
       source_char_bones_meshes_replace_step({"mesh_a", "mesh_b"}, "dummy_mesh",
                                             "mesh_c", true, "dummy_mesh");

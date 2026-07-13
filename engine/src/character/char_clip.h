@@ -364,6 +364,14 @@ struct SourceCharBonesMeshesReallocateStep {
   bool acquire_pose = false;
 };
 
+struct SourceCharBonesMeshesLifetimePlan {
+  bool constructs_mesh_vector_with_owner = true;
+  bool creates_dummy_mesh_transform = true;
+  bool destructor_clears_mesh_vector = true;
+  bool destructor_deletes_dummy_mesh = true;
+  bool dummy_mesh_is_fallback_target = true;
+};
+
 struct SourceCharBonesMeshesPoseDumpEvidence {
   std::string pose_meshes_range;
   std::string prop_sync_range;
@@ -2165,6 +2173,7 @@ SourceCharBonesMeshesReallocateStep source_char_bones_meshes_reallocate_step(
     const std::vector<SourceCharBonesBone>& bones,
     const std::unordered_map<std::string, std::string>& transform_lookup,
     const std::string& dummy_mesh);
+SourceCharBonesMeshesLifetimePlan source_char_bones_meshes_lifetime_plan();
 std::vector<std::string> source_char_bones_meshes_stuff_meshes(
     const std::vector<std::string>& existing_objects,
     const std::vector<std::string>& meshes);
