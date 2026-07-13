@@ -120,6 +120,25 @@ SourceRndMeshBoneTailPlan source_rndmesh_bone_tail_plan(
     int32_t mesh_revision,
     const std::vector<bool>& resolved_slots);
 
+struct SourceMiloEditorRndMeshRevisionWordPlan {
+  uint32_t combined_word = 0;
+  uint16_t revision = 0;
+  uint16_t alt_revision = 0;
+  uint32_t written_word = 0;
+  bool host_little_endian = true;
+  bool read_low_word_as_revision = false;
+  bool read_low_word_as_alt_revision = false;
+  bool write_alt_revision_high_word = false;
+  bool write_revision_high_word = false;
+};
+
+SourceMiloEditorRndMeshRevisionWordPlan
+source_milo_editor_rndmesh_revision_word_plan(
+    uint32_t combined_word,
+    uint16_t revision_to_write,
+    uint16_t alt_revision_to_write,
+    bool host_little_endian);
+
 struct SourceMiloEditorRndMeshBoneTransformIoPlan {
   int32_t mesh_revision = 0;
   int32_t input_bone_transform_count = 0;

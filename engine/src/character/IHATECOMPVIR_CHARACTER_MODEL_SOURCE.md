@@ -1134,6 +1134,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_rndmesh_field_gate_plan` ports those gates so GH2 PS2 revision 28
     remains a source-backed material/geom-owner/mutable/volume/BSP/group-size
     and old-four-bone layout, not an inferred newer indexed layout.
+  - MiloEditor packs the `RndMesh` revision word as two 16-bit halves using
+    `BitConverter.IsLittleEndian`: on little-endian hosts the low word is
+    `revision` and the high word is `altRevision`, while the big-endian branch
+    swaps those roles. Native `source_milo_editor_rndmesh_revision_word_plan`
+    records that source IO contract so revision-gated model parsing stays tied
+    to the visible source split/write logic.
   - MiloEditor `RndMesh.GroupSection` rows serialize a section count, a vertex
     offset count, all signed section IDs, then all unsigned vertex offsets. The
     writer uses the same last-gen gate as the reader, additionally requiring a

@@ -354,6 +354,35 @@ SourceRndMeshBoneTailPlan source_rndmesh_bone_tail_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshRevisionWordPlan
+source_milo_editor_rndmesh_revision_word_plan(
+    uint32_t combined_word,
+    uint16_t revision_to_write,
+    uint16_t alt_revision_to_write,
+    bool host_little_endian) {
+  SourceMiloEditorRndMeshRevisionWordPlan plan;
+  plan.combined_word = combined_word;
+  plan.host_little_endian = host_little_endian;
+  if (host_little_endian) {
+    plan.revision = static_cast<uint16_t>(combined_word & 0xffffu);
+    plan.alt_revision = static_cast<uint16_t>((combined_word >> 16) & 0xffffu);
+    plan.read_low_word_as_revision = true;
+    plan.write_alt_revision_high_word = true;
+    plan.written_word =
+        (static_cast<uint32_t>(alt_revision_to_write) << 16) |
+        static_cast<uint32_t>(revision_to_write);
+  } else {
+    plan.alt_revision = static_cast<uint16_t>(combined_word & 0xffffu);
+    plan.revision = static_cast<uint16_t>((combined_word >> 16) & 0xffffu);
+    plan.read_low_word_as_alt_revision = true;
+    plan.write_revision_high_word = true;
+    plan.written_word =
+        (static_cast<uint32_t>(revision_to_write) << 16) |
+        static_cast<uint32_t>(alt_revision_to_write);
+  }
+  return plan;
+}
+
 SourceMiloEditorRndMeshBoneTransformIoPlan
 source_milo_editor_rndmesh_bone_transform_io_plan(
     int32_t mesh_revision,

@@ -354,6 +354,30 @@ int main() {
   CHECK(rev24_bone_tail.recomputes_pre25_legacy_weights);
   CHECK(rev24_bone_tail.active_bone_count == 4);
 
+  const auto revision_word_little =
+      ghogx::character::source_milo_editor_rndmesh_revision_word_plan(
+          0x0004001cu, 28, 4, true);
+  CHECK(revision_word_little.host_little_endian);
+  CHECK(revision_word_little.revision == 28);
+  CHECK(revision_word_little.alt_revision == 4);
+  CHECK(revision_word_little.read_low_word_as_revision);
+  CHECK(!revision_word_little.read_low_word_as_alt_revision);
+  CHECK(revision_word_little.write_alt_revision_high_word);
+  CHECK(!revision_word_little.write_revision_high_word);
+  CHECK(revision_word_little.written_word == 0x0004001cu);
+
+  const auto revision_word_big =
+      ghogx::character::source_milo_editor_rndmesh_revision_word_plan(
+          0x001c0004u, 28, 4, false);
+  CHECK(!revision_word_big.host_little_endian);
+  CHECK(revision_word_big.revision == 28);
+  CHECK(revision_word_big.alt_revision == 4);
+  CHECK(!revision_word_big.read_low_word_as_revision);
+  CHECK(revision_word_big.read_low_word_as_alt_revision);
+  CHECK(!revision_word_big.write_alt_revision_high_word);
+  CHECK(revision_word_big.write_revision_high_word);
+  CHECK(revision_word_big.written_word == 0x001c0004u);
+
   const auto rev28_milo_editor_bone_io =
       ghogx::character::source_milo_editor_rndmesh_bone_transform_io_plan(
           28, true, 2);

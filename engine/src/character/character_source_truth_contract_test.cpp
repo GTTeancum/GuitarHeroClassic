@@ -5313,6 +5313,23 @@ int run_contract() {
                  "if(revision>=33){boneCount=reader.ReadUInt32();",
                  "MiloEditor RndMesh reads modern bone transform vector");
   ok &= contains(mesh_cs,
+                 "uintcombinedRevision=reader.ReadUInt32();",
+                 "MiloEditor RndMesh reads combined revision word");
+  ok &= contains(mesh_cs,
+                 "if(BitConverter.IsLittleEndian)(revision,altRevision)=("
+                 "(ushort)(combinedRevision&0xFFFF),(ushort)("
+                 "(combinedRevision>>16)&0xFFFF));",
+                 "MiloEditor RndMesh little-endian revision split");
+  ok &= contains(mesh_cs,
+                 "else(altRevision,revision)=((ushort)(combinedRevision&"
+                 "0xFFFF),(ushort)((combinedRevision>>16)&0xFFFF));",
+                 "MiloEditor RndMesh big-endian revision split");
+  ok &= contains(mesh_cs,
+                 "writer.WriteUInt32(BitConverter.IsLittleEndian?(uint)("
+                 "(altRevision<<16)|revision):(uint)((revision<<16)|"
+                 "altRevision));",
+                 "MiloEditor RndMesh writes combined revision word");
+  ok &= contains(mesh_cs,
                  "for(inti=0;i<4;i++){boneTransforms.Add(newBoneTransform());"
                  "boneTransforms[i].name=Symbol.Read(reader);}",
                  "MiloEditor RndMesh reads old four bone names");
@@ -6008,6 +6025,10 @@ int run_contract() {
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh bone transform IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshRevisionWordPlan{"
+                 "uint32_tcombined_word=0;",
+                 "native declares MiloEditor RndMesh revision word plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshGroupSectionIoPlan{"
                  "int32_tgroup_sizes_count=0;",
                  "native declares MiloEditor RndMesh group section IO plan");
@@ -6340,6 +6361,21 @@ int run_contract() {
       "SourceMiloEditorRndMeshBoneTransformIoPlansource_milo_editor_rndmesh_"
       "bone_transform_io_plan(",
       "native ports MiloEditor RndMesh bone transform IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshRevisionWordPlansource_milo_editor_rndmesh_"
+      "revision_word_plan(",
+      "native ports MiloEditor RndMesh revision word helper");
+  ok &= contains(char_mesh,
+                 "plan.revision=static_cast<uint16_t>(combined_word&0xffffu);",
+                 "native revision word helper preserves little-endian split");
+  ok &= contains(char_mesh,
+                 "plan.alt_revision=static_cast<uint16_t>(combined_word&0xffffu);",
+                 "native revision word helper preserves big-endian split");
+  ok &= contains(char_mesh,
+                 "(static_cast<uint32_t>(alt_revision_to_write)<<16)|"
+                 "static_cast<uint32_t>(revision_to_write);",
+                 "native revision word helper preserves little-endian write");
   ok &= contains(
       char_mesh,
       "SourceMiloEditorRndMeshGroupSectionIoPlansource_milo_editor_rndmesh_"
@@ -6881,6 +6917,15 @@ int run_contract() {
                  "source_milo_editor_rndmesh_bone_transform_io_plan(",
                  "focused mesh decode test covers MiloEditor bone transform IO");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_revision_word_plan(",
+                 "focused mesh decode test covers MiloEditor revision word IO");
+  ok &= contains(mesh_decode_test,
+                 "revision_word_little.read_low_word_as_revision",
+                 "focused mesh decode test covers little-endian revision split");
+  ok &= contains(mesh_decode_test,
+                 "revision_word_big.read_low_word_as_alt_revision",
+                 "focused mesh decode test covers big-endian revision split");
+  ok &= contains(mesh_decode_test,
                  "rev28_milo_editor_bone_io."
                  "read_legacy_four_names_then_four_transforms",
                  "focused mesh decode test covers legacy bone transform read");
@@ -7158,6 +7203,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh bone transform IO helper");
   ok &= contains(doc, "it does not authorize synthesizing missing legacy skin indices",
                  "document fences legacy bone transform IO from fake indices");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_revision_word_plan`",
+                 "document records MiloEditor RndMesh revision word helper");
+  ok &= contains(doc, "revision-gated model parsing stays tied",
+                 "document fences revision gates to source split/write logic");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_group_section_io_plan` records",
                  "document records MiloEditor RndMesh group section IO helper");
