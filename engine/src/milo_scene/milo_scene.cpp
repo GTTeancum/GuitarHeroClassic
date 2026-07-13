@@ -2038,6 +2038,39 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
             spot.error.c_str());
       }
     }
+    if (!out.lights.empty()) {
+      size_t decoded = 0;
+      size_t source_order = 0;
+      for (const auto& light : out.lights) {
+        if (!light.decoded) continue;
+        ++decoded;
+        if (light.source_order_decoded) ++source_order;
+      }
+      std::fprintf(stderr,
+                   "[milo_scene]   %zu lights decoded (%zu source-order)\n",
+                   decoded, source_order);
+      for (const auto& light : out.lights) {
+        if (light.decoded) {
+          std::fprintf(
+              stderr,
+              "[milo_scene]   Light object decoded: %s:%s source_order=%d type=%d anim_color=%d anim_pos=%d anim_range=%d parent=%s pos=(%.3f %.3f %.3f) color=(%.3f %.3f %.3f %.3f) range=%.3f\n",
+              milo_path.c_str(), light.name.c_str(),
+              light.source_order_decoded ? 1 : 0, light.type,
+              light.animate_color_from_preset ? 1 : 0,
+              light.animate_position_from_preset ? 1 : 0,
+              light.animate_range_from_preset ? 1 : 0,
+              light.parent.empty() ? "-" : light.parent.c_str(),
+              light.world_stored.pos[0], light.world_stored.pos[1],
+              light.world_stored.pos[2], light.color[0], light.color[1],
+              light.color[2], light.color[3], light.range);
+        } else {
+          std::fprintf(stderr,
+                       "[milo_scene]   Light object decode failed: %s:%s %s\n",
+                       milo_path.c_str(), light.name.c_str(),
+                       light.error.c_str());
+        }
+      }
+    }
     if (!out.environs.empty()) {
       size_t decoded = 0;
       size_t source_order = 0;

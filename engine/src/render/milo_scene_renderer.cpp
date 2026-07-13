@@ -42,9 +42,12 @@ struct PVtx {
 };
 constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_PSIZE | D3DFVF_DIFFUSE;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
+constexpr DWORD kSceneFillLightFirstSlot = 0;
+constexpr DWORD kSceneFillLightSlotCount = 2;
 constexpr DWORD kAuthoredLightFirstSlot = 2;
 constexpr DWORD kAuthoredLightSlotCount = 6;
 constexpr float kMaxAuthoredLightColor = 64.0f;
+constexpr float kApproxDirectionalScale = 0.20f;
 
 std::array<float, 4> average_particle_color(
     const std::array<float, 4>& low,
@@ -137,6 +140,13 @@ struct BlendState {
   bool additive = false;
 };
 
+struct ApproxLightCandidate {
+  std::string ref;
+  std::array<float, 3> direction = {0.0f, 0.0f, -1.0f};
+  std::array<float, 4> color = {0.0f, 0.0f, 0.0f, 1.0f};
+  float score = 0.0f;
+};
+
 BlendState blend_state_for(uint8_t blend) {
   switch (blend) {
     case kBlendDest:
@@ -209,7 +219,7 @@ std::array<float, 3> authored_light_direction_from_world(
 bool is_authored_real_environment_light_type(int light_type) {
   // ihatecompvir rb3 RndEnviron::IsValidRealLight classifies only point and
   // fake-spot lights as real environment lights. Directional lights live in
-  // mLightsApprox and should not be treated as normal-based D3D real lights.
+  // mLightsApprox and are handled by the separate approximate-light path.
   return light_type == 0 || light_type == 2;
 }
 
@@ -217,13 +227,8 @@ bool is_authored_approx_environment_light_type(int light_type) {
   return light_type == 1;
 }
 
-void install_scene_fill_lighting(IDirect3DDevice9* dev) {
+void install_default_scene_fill_lights(IDirect3DDevice9* dev) {
   if (!dev) return;
-  dev->SetRenderState(D3DRS_LIGHTING, TRUE);
-  dev->SetRenderState(D3DRS_AMBIENT, kDefaultSceneAmbient);
-  dev->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
-  dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-  dev->SetRenderState(D3DRS_FOGENABLE, FALSE);
   auto set_dir_light = [&](DWORD idx, float x, float y, float z, float bright) {
     D3DLIGHT9 light{};
     light.Type = D3DLIGHT_DIRECTIONAL;
@@ -233,8 +238,58 @@ void install_scene_fill_lighting(IDirect3DDevice9* dev) {
     dev->SetLight(idx, &light);
     dev->LightEnable(idx, TRUE);
   };
-  set_dir_light(0, 0.3f, 0.5f, -0.8f, 0.55f);
-  set_dir_light(1, -0.4f, -0.6f, -0.5f, 0.30f);
+  set_dir_light(kSceneFillLightFirstSlot + 0, 0.3f, 0.5f, -0.8f, 0.55f);
+  set_dir_light(kSceneFillLightFirstSlot + 1, -0.4f, -0.6f, -0.5f, 0.30f);
+}
+
+void install_approx_scene_lights(
+    IDirect3DDevice9* dev,
+    std::vector<ApproxLightCandidate> candidates) {
+  if (!dev) return;
+  if (candidates.empty()) {
+    install_default_scene_fill_lights(dev);
+    return;
+  }
+  std::sort(candidates.begin(), candidates.end(),
+            [](const ApproxLightCandidate& a,
+               const ApproxLightCandidate& b) { return a.score > b.score; });
+  for (DWORD i = 0; i < kSceneFillLightSlotCount; ++i) {
+    dev->LightEnable(kSceneFillLightFirstSlot + i, FALSE);
+  }
+  const size_t count =
+      std::min<size_t>(candidates.size(), kSceneFillLightSlotCount);
+  for (size_t i = 0; i < count; ++i) {
+    const auto& candidate = candidates[i];
+    const float len =
+        std::sqrt(candidate.direction[0] * candidate.direction[0] +
+                  candidate.direction[1] * candidate.direction[1] +
+                  candidate.direction[2] * candidate.direction[2]);
+    if (len <= 0.0001f) continue;
+    D3DLIGHT9 light{};
+    light.Type = D3DLIGHT_DIRECTIONAL;
+    light.Direction = {candidate.direction[0] / len,
+                       candidate.direction[1] / len,
+                       candidate.direction[2] / len};
+    light.Diffuse.r = std::clamp(candidate.color[0] * kApproxDirectionalScale,
+                                 0.0f, kMaxAuthoredLightColor);
+    light.Diffuse.g = std::clamp(candidate.color[1] * kApproxDirectionalScale,
+                                 0.0f, kMaxAuthoredLightColor);
+    light.Diffuse.b = std::clamp(candidate.color[2] * kApproxDirectionalScale,
+                                 0.0f, kMaxAuthoredLightColor);
+    light.Diffuse.a = std::clamp(candidate.color[3], 0.0f, 1.0f);
+    dev->SetLight(kSceneFillLightFirstSlot + static_cast<DWORD>(i), &light);
+    dev->LightEnable(kSceneFillLightFirstSlot + static_cast<DWORD>(i), TRUE);
+  }
+}
+
+void install_scene_fill_lighting(IDirect3DDevice9* dev) {
+  if (!dev) return;
+  dev->SetRenderState(D3DRS_LIGHTING, TRUE);
+  dev->SetRenderState(D3DRS_AMBIENT, kDefaultSceneAmbient);
+  dev->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
+  dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+  dev->SetRenderState(D3DRS_FOGENABLE, FALSE);
+  install_default_scene_fill_lights(dev);
   for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
     dev->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
   }
@@ -2340,8 +2395,9 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
   }
 
   std::array<float, 3> approx_fill = {0.0f, 0.0f, 0.0f};
+  std::vector<ApproxLightCandidate> approx_directional_lights;
   size_t approx_lights = 0;
-  if (has_env_color && !env_enabled("GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS")) {
+  if (!env_enabled("GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS")) {
     for (const auto& ref : env->lights) {
       const auto* light = scene_.find_light(ref);
       if (!light || !light_color_sane(*light)) continue;
@@ -2364,9 +2420,22 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
           std::clamp(light_color[1], 0.0f, kMaxAuthoredLightColor);
       approx_fill[2] +=
           std::clamp(light_color[2], 0.0f, kMaxAuthoredLightColor);
+      auto light_world = xfm_to_mat4(light->world_stored);
+      if (const auto xfm_it = mesh_transform_offsets_.find(ref);
+          xfm_it != mesh_transform_offsets_.end()) {
+        apply_mesh_transform_sample(light_world, xfm_it->second);
+      }
+      ApproxLightCandidate candidate;
+      candidate.ref = ref;
+      candidate.direction = authored_light_direction_from_world(light_world);
+      candidate.color = light_color;
+      candidate.score = std::max({std::fabs(light_color[0]),
+                                  std::fabs(light_color[1]),
+                                  std::fabs(light_color[2])});
+      approx_directional_lights.push_back(candidate);
       ++approx_lights;
     }
-    if (approx_lights > 0) {
+    if (has_env_color && approx_lights > 0) {
       constexpr float kApproxFillScale = 0.45f;
       const float inv_count = 1.0f / static_cast<float>(approx_lights);
       for (int c = 0; c < 3; ++c) {
@@ -2378,6 +2447,7 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
   }
   if (has_env_color) dev_->SetRenderState(D3DRS_AMBIENT,
                                           d3d_color_from_rgba(env_color));
+  install_approx_scene_lights(dev_, approx_directional_lights);
 
   if (env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS")) return true;
 
@@ -2446,13 +2516,15 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
   if (env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
     static std::unordered_set<std::string> logged_overlay_envs;
     const std::string key =
-        environment_name + "|" + std::to_string(enabled_lights);
+        environment_name + "|" + std::to_string(enabled_lights) + "|" +
+        std::to_string(approx_directional_lights.size());
     if (logged_overlay_envs.insert(key).second) {
       std::fprintf(stderr,
                    "[milo_scene] Environ lighting state applied: %s "
-                   "real_lights=%zu approx_lights=%zu refs=%zu\n",
+                   "real_lights=%zu approx_lights=%zu "
+                   "approx_directional=%zu refs=%zu\n",
                    environment_name.c_str(), enabled_lights, approx_lights,
-                   env->lights.size());
+                   approx_directional_lights.size(), env->lights.size());
     }
   }
   return true;
@@ -3249,6 +3321,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     std::array<float, 4> mesh_env_color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool has_mesh_env_color = false;
     DWORD mesh_ambient = kDefaultSceneAmbient;
+    std::vector<ApproxLightCandidate> approx_directional_lights;
     if (mesh_env && environ_color_sane(*mesh_env)) {
         mesh_env_color = {mesh_env->color_a[0], mesh_env->color_a[1],
                           mesh_env->color_a[2], mesh_env->color_a[3]};
@@ -3266,8 +3339,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                                      cc_env(mesh_env_color[1]),
                                      cc_env(mesh_env_color[2]));
     }
-    if (mesh_env && has_mesh_env_color &&
-        !env_enabled("GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS")) {
+    if (mesh_env && !env_enabled("GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS")) {
       std::array<float, 3> approx_fill = {0.0f, 0.0f, 0.0f};
       size_t approx_lights = 0;
       for (const auto& ref : mesh_env->lights) {
@@ -3292,9 +3364,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             std::clamp(light_color[1], 0.0f, kMaxAuthoredLightColor);
         approx_fill[2] +=
             std::clamp(light_color[2], 0.0f, kMaxAuthoredLightColor);
+        const auto light_world = sampled_light_world(*light, ref);
+        ApproxLightCandidate candidate;
+        candidate.ref = ref;
+        candidate.direction = authored_light_direction_from_world(light_world);
+        candidate.color = light_color;
+        candidate.score = std::max({std::fabs(light_color[0]),
+                                    std::fabs(light_color[1]),
+                                    std::fabs(light_color[2])});
+        approx_directional_lights.push_back(candidate);
         ++approx_lights;
       }
-      if (approx_lights > 0) {
+      if (has_mesh_env_color && approx_lights > 0) {
         constexpr float kApproxFillScale = 0.45f;
         const float inv_count = 1.0f / static_cast<float>(approx_lights);
         for (int c = 0; c < 3; ++c) {
@@ -3313,6 +3394,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
+    install_approx_scene_lights(dev_, approx_directional_lights);
     configure_authored_fog(mesh_env);
     configure_authored_lights(mesh_env);
     bool material_tex_anim = false;

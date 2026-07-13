@@ -6830,8 +6830,29 @@ int main() {
                  "approx_fill[c]*inv_count*kApproxFillScale",
                  "source approximate Environ lights contribute clamped fill instead of normal-only darkness");
   ok &= contains(renderer_c,
+                 "structApproxLightCandidate",
+                 "renderer keeps source approximate light candidates separate from real Environ lights");
+  ok &= contains(renderer_c,
+                 "constexprfloatkApproxDirectionalScale=0.20f;",
+                 "approximate Environ lights have an explicit normal-aware scale");
+  ok &= contains(renderer_c,
+                 "install_approx_scene_lights(",
+                 "source approximate Environ lights feed a separate normal-aware install path");
+  ok &= contains(renderer_c,
+                 "light.Type=D3DLIGHT_DIRECTIONAL;",
+                 "approximate Environ lights are applied as directional lighting, not point/fake-spot real lights");
+  ok &= contains(renderer_c,
+                 "candidate.direction=authored_light_direction_from_world(light_world);",
+                 "overlay approximate Environ lights use the authored Trans -Z axis");
+  ok &= contains(renderer_c,
+                 "constautolight_world=sampled_light_world(*light,ref);",
+                 "venue approximate Environ lights use sampled source Light transforms");
+  ok &= contains(renderer_c,
+                 "approx_directional=%zu",
+                 "runtime Environ lighting diagnostics report normal-aware approximate slots");
+  ok &= contains(renderer_c,
                  "if(!is_authored_real_environment_light_type(light_type))continue;",
-                 "source approximate Environ lights are not installed as real D3D lights");
+                 "source approximate Environ lights are not counted as real point/fake-spot Environ lights");
   ok &= contains(renderer_c,
                  "constautodirection=authored_light_direction_from_world("
                  "light_world);",
