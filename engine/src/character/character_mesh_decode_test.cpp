@@ -1264,6 +1264,52 @@ int main() {
         ghogx::character::SourceGltfMiloGame::kRockBand3);
   CHECK(gltf_venue_options.warns_invalid_game);
 
+  ghogx::character::SourceGltfMiloRunTypeInput run_type;
+  run_type.raw_type = "character";
+  const auto lower_character_type =
+      ghogx::character::source_gltf_milo_run_type_plan(run_type);
+  CHECK(lower_character_type.raw_type == "character");
+  CHECK(lower_character_type.normalized_type == "character");
+  CHECK(lower_character_type.normalized_character_family);
+  CHECK(!lower_character_type.convert_world_coordinates);
+  CHECK(lower_character_type.meta_type_uses_raw_case_sensitive_type);
+  CHECK(lower_character_type.meta_type_character);
+  CHECK(lower_character_type.meta_type == "Character");
+  CHECK(lower_character_type.finalizer_uses_raw_case_sensitive_type);
+  CHECK(!lower_character_type.finalizer_uses_normalized_type);
+  CHECK(lower_character_type.calls_character_directory_builder);
+  CHECK(!lower_character_type.calls_rnd_directory_builder);
+
+  run_type.raw_type = "Character";
+  const auto mixed_case_character_type =
+      ghogx::character::source_gltf_milo_run_type_plan(run_type);
+  CHECK(mixed_case_character_type.raw_type == "Character");
+  CHECK(mixed_case_character_type.normalized_type == "character");
+  CHECK(mixed_case_character_type.normalized_character_family);
+  CHECK(!mixed_case_character_type.convert_world_coordinates);
+  CHECK(mixed_case_character_type.meta_type_uses_raw_case_sensitive_type);
+  CHECK(!mixed_case_character_type.meta_type_character);
+  CHECK(mixed_case_character_type.meta_type == "RndDir");
+  CHECK(mixed_case_character_type.finalizer_uses_raw_case_sensitive_type);
+  CHECK(!mixed_case_character_type.finalizer_uses_normalized_type);
+  CHECK(!mixed_case_character_type.calls_character_directory_builder);
+  CHECK(mixed_case_character_type.calls_rnd_directory_builder);
+
+  run_type.raw_type = "venue";
+  const auto venue_type =
+      ghogx::character::source_gltf_milo_run_type_plan(run_type);
+  CHECK(venue_type.raw_type == "venue");
+  CHECK(venue_type.normalized_type == "venue");
+  CHECK(!venue_type.normalized_character_family);
+  CHECK(venue_type.convert_world_coordinates);
+  CHECK(venue_type.meta_type_uses_raw_case_sensitive_type);
+  CHECK(!venue_type.meta_type_character);
+  CHECK(venue_type.meta_type == "RndDir");
+  CHECK(venue_type.finalizer_uses_raw_case_sensitive_type);
+  CHECK(!venue_type.finalizer_uses_normalized_type);
+  CHECK(!venue_type.calls_character_directory_builder);
+  CHECK(venue_type.calls_rnd_directory_builder);
+
   ghogx::character::SourceGltfMiloRunPreflightInput preflight;
   preflight.input_file_exists = false;
   preflight.input_path = "rock1.glb";

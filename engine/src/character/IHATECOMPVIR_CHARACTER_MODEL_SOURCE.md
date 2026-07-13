@@ -1301,6 +1301,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     Native `source_gltf_milo_run_options_plan` records that run-level gate so
     character-space matrix rows are not converted by exporter evidence meant
     for non-character `RndDir` outputs.
+  - `Program.Run` has a casing split that must stay explicit in native
+    contracts: `convertWorldCoordinates` is driven by a lowercased copy of
+    `opts.Type`, but both `meta.type` and the final `DirBuilder` branch compare
+    the raw `opts.Type` string against lowercase `character`, `instrument`, and
+    `dancer`. Native `source_gltf_milo_run_type_plan` records this exactly; for
+    example raw `Character` still disables coordinate conversion, but falls
+    through the raw metadata and directory-builder checks as `RndDir`.
   - Before loading the model, glTFMilo exits if the input file is missing,
     rejects paths that do not end exactly in lowercase `.gltf` or `.glb`, and
     exits if a non-empty lowercased OutfitConfig path does not exist. Native

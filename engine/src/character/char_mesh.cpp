@@ -1447,6 +1447,29 @@ SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
   return plan;
 }
 
+SourceGltfMiloRunTypePlan source_gltf_milo_run_type_plan(
+    const SourceGltfMiloRunTypeInput& input) {
+  SourceGltfMiloRunTypePlan plan;
+  plan.raw_type = input.raw_type;
+  plan.normalized_type = input.raw_type;
+  std::transform(plan.normalized_type.begin(), plan.normalized_type.end(),
+                 plan.normalized_type.begin(), [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  const auto is_character_family = [](const std::string& value) {
+    return value == "character" || value == "instrument" ||
+           value == "dancer";
+  };
+  plan.normalized_character_family =
+      is_character_family(plan.normalized_type);
+  plan.convert_world_coordinates = !plan.normalized_character_family;
+  plan.meta_type_character = is_character_family(input.raw_type);
+  plan.meta_type = plan.meta_type_character ? "Character" : "RndDir";
+  plan.calls_character_directory_builder = is_character_family(input.raw_type);
+  plan.calls_rnd_directory_builder = !plan.calls_character_directory_builder;
+  return plan;
+}
+
 SourceGltfMiloRunPreflightPlan source_gltf_milo_run_preflight_plan(
     const SourceGltfMiloRunPreflightInput& input) {
   SourceGltfMiloRunPreflightPlan plan;

@@ -970,6 +970,24 @@ struct SourceGltfMiloRunOptionsPlan {
   bool warns_invalid_game = false;
 };
 
+struct SourceGltfMiloRunTypeInput {
+  std::string raw_type;
+};
+
+struct SourceGltfMiloRunTypePlan {
+  std::string raw_type;
+  std::string normalized_type;
+  bool normalized_character_family = false;
+  bool convert_world_coordinates = true;
+  bool meta_type_uses_raw_case_sensitive_type = true;
+  bool meta_type_character = false;
+  std::string meta_type = "RndDir";
+  bool finalizer_uses_raw_case_sensitive_type = true;
+  bool finalizer_uses_normalized_type = false;
+  bool calls_character_directory_builder = false;
+  bool calls_rnd_directory_builder = true;
+};
+
 struct SourceGltfMiloRunPreflightInput {
   bool input_file_exists = true;
   std::string input_path;
@@ -1555,6 +1573,8 @@ source_gltf_milo_material_runtime_boundary();
 
 SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
     const SourceGltfMiloRunOptionsInput& input);
+SourceGltfMiloRunTypePlan source_gltf_milo_run_type_plan(
+    const SourceGltfMiloRunTypeInput& input);
 SourceGltfMiloRunPreflightPlan source_gltf_milo_run_preflight_plan(
     const SourceGltfMiloRunPreflightInput& input);
 

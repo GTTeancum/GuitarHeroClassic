@@ -6673,6 +6673,15 @@ int run_contract() {
                  "type=false;",
                  "native declares glTFMilo run options plan");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloRunTypeInput{std::stringraw_type;};",
+                 "native declares glTFMilo raw run type input");
+  ok &= contains(char_mesh_h,
+                 "boolfinalizer_uses_raw_case_sensitive_type=true;",
+                 "native run type plan records raw finalizer branch");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloRunTypePlansource_gltf_milo_run_type_plan(",
+                 "native API exposes glTFMilo raw run type helper");
+  ok &= contains(char_mesh_h,
                  "SourceGltfMiloGameselected_game=SourceGltfMiloGame::"
                  "kRockBand3;",
                  "native run options plan records default game");
@@ -7401,6 +7410,9 @@ int run_contract() {
                  "\"synthesized_skin_indices\"};",
                  "native boundary forbids invented material and skin edits");
   ok &= contains(gltf_program_cs,
+                 "stringtype=opts.Type.ToLower();",
+                 "glTFMilo lowercases opts.Type into run type");
+  ok &= contains(gltf_program_cs,
                  "boolconvertWorldCoordinates=type!=\"character\"&&type!="
                  "\"instrument\"&&type!=\"dancer\";",
                  "glTFMilo disables coordinate conversion for character types");
@@ -7469,6 +7481,25 @@ int run_contract() {
                  "plan.meta_type=plan.character_directory_type?\"Character\":"
                  "\"RndDir\";",
                  "native run options helper preserves directory type gate");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloRunTypePlansource_gltf_milo_run_type_plan("
+                 "constSourceGltfMiloRunTypeInput&input){",
+                 "native ports glTFMilo raw run type helper");
+  ok &= contains(char_mesh,
+                 "plan.normalized_type=input.raw_type;std::transform("
+                 "plan.normalized_type.begin(),plan.normalized_type.end(),",
+                 "native raw run type helper lowercases opts.Type copy");
+  ok &= contains(char_mesh,
+                 "plan.convert_world_coordinates=!plan.normalized_character_"
+                 "family;",
+                 "native raw run type helper preserves normalized convert gate");
+  ok &= contains(char_mesh,
+                 "plan.meta_type_character=is_character_family(input.raw_type);",
+                 "native raw run type helper preserves raw meta branch");
+  ok &= contains(char_mesh,
+                 "plan.calls_character_directory_builder=is_character_family("
+                 "input.raw_type);",
+                 "native raw run type helper preserves raw finalizer branch");
   ok &= contains(char_mesh,
                  "SourceGltfMiloRunPreflightPlansource_gltf_milo_run_"
                  "preflight_plan(",
@@ -8038,8 +8069,17 @@ int run_contract() {
                  "source_gltf_milo_run_options_plan(run_options)",
                  "focused mesh decode test covers glTFMilo run options helper");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_run_type_plan(run_type)",
+                 "focused mesh decode test covers glTFMilo raw run type helper");
+  ok &= contains(mesh_decode_test,
                  "!gltf_character_options.convert_world_coordinates",
                  "focused mesh decode test covers character no-convert gate");
+  ok &= contains(mesh_decode_test,
+                 "mixed_case_character_type.meta_type==\"RndDir\"",
+                 "focused mesh decode test covers raw meta type casing");
+  ok &= contains(mesh_decode_test,
+                 "!mixed_case_character_type.calls_character_directory_builder",
+                 "focused mesh decode test covers raw finalizer casing");
   ok &= contains(mesh_decode_test,
                  "gltf_venue_options.warns_invalid_platform",
                  "focused mesh decode test covers invalid platform fallback");
