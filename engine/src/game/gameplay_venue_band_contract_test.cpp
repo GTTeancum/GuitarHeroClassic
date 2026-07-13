@@ -9248,8 +9248,25 @@ int main() {
                  "venue_texture_sources",
                  "venue textures resolve across merged visual subdir sources");
   ok &= contains(gameplay_c,
-                 "\"[world]venuedependency:%sdir=%sentries=%zuvisual=%zubank=%zu\\n\"",
-                 "venue dependency diagnostics expose RB-style subdir categories");
+                 "boolvenue_milo_entry_is_animation_route(std::string_viewtype)",
+                 "venue dependency audit separates animation-route entries from scene geometry");
+  ok &= contains(gameplay_c,
+                 "type==\"AnimFilter\"||type==\"EventTrigger\"||"
+                 "type==\"TransAnim\"||type==\"MeshAnim\"||",
+                 "venue dependency audit classifies core Rnd animation route types");
+  ok &= contains(gameplay_c,
+                 "type==\"MatAnim\"||type==\"EnvAnim\"||"
+                 "type==\"LightAnim\"||type==\"ParticleSysAnim\"||",
+                 "venue dependency audit classifies lighting/material/particle animation route types");
+  ok &= contains(gameplay_c,
+                 "type==\"PollAnim\"||type==\"LightPreset\"||type==\"Set\"",
+                 "venue dependency audit classifies always-running and lighting preset route types");
+  ok &= contains(gameplay_c,
+                 "boolvenue_milo_entry_is_camera(std::string_viewtype)",
+                 "venue dependency audit keeps Cam/CamShot/CamAnim as the camera phase bucket");
+  ok &= contains(gameplay_c,
+                 "\"[world]venuedependency:%sdir=%sentries=%zuvisual=%zuanim=%zucamera=%zubank=%zu\\n\"",
+                 "venue dependency diagnostics expose visual, animation, camera, and bank categories");
   ok &= contains(gameplay_c,
                  "\"[world]venuesourcesubdirtree:geom=%zulighting=%zu\"",
                  "venue source diagnostics expose the full recursive subdir tree");

@@ -10559,6 +10559,18 @@ bool venue_milo_entry_is_visual(std::string_view type) {
            type == "WorldCrowd";
 }
 
+bool venue_milo_entry_is_animation_route(std::string_view type) {
+    return type == "AnimFilter" || type == "EventTrigger" ||
+           type == "TransAnim" || type == "MeshAnim" ||
+           type == "MatAnim" || type == "EnvAnim" ||
+           type == "LightAnim" || type == "ParticleSysAnim" ||
+           type == "PollAnim" || type == "LightPreset" || type == "Set";
+}
+
+bool venue_milo_entry_is_camera(std::string_view type) {
+    return type == "Cam" || type == "CamShot" || type == "CamAnim";
+}
+
 bool venue_milo_entry_is_bank(std::string_view type) {
     return type == "SynthSample" || type == "Sfx" || type == "SfxSeq" ||
            type == "RandomGroupSeq" || type == "SerialGroupSeq" ||
@@ -10570,6 +10582,8 @@ struct VenueMiloDependencyInfo {
     std::string dir_type;
     size_t entries = 0;
     size_t visual_entries = 0;
+    size_t animation_entries = 0;
+    size_t camera_entries = 0;
     size_t bank_entries = 0;
 };
 
@@ -10590,6 +10604,9 @@ std::optional<VenueMiloDependencyInfo> inspect_venue_milo_dependency(
     info.entries = dir.entries.size();
     for (const auto& de : dir.entries) {
         if (venue_milo_entry_is_visual(de.type)) ++info.visual_entries;
+        if (venue_milo_entry_is_animation_route(de.type))
+            ++info.animation_entries;
+        if (venue_milo_entry_is_camera(de.type)) ++info.camera_entries;
         if (venue_milo_entry_is_bank(de.type)) ++info.bank_entries;
     }
     return info;
@@ -11108,9 +11125,10 @@ void log_venue_dependencies(const std::string& hdr_path,
             if (!info) continue;
             std::fprintf(
                 stderr,
-                "[world] venue dependency: %s dir=%s entries=%zu visual=%zu bank=%zu\n",
+                "[world] venue dependency: %s dir=%s entries=%zu visual=%zu anim=%zu camera=%zu bank=%zu\n",
                 info->path.c_str(), info->dir_type.c_str(), info->entries,
-                info->visual_entries, info->bank_entries);
+                info->visual_entries, info->animation_entries,
+                info->camera_entries, info->bank_entries);
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] venue dependency audit: %s\n", ex.what());
