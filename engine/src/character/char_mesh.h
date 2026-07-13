@@ -3705,6 +3705,21 @@ struct SourceCharIKFingersPropSyncPlan {
   std::vector<std::string> superclasses;
 };
 
+struct SourceCharIKFingersRuntimeBoundary {
+  bool rb3_latest_has_set_finger_body = true;
+  bool rb3_latest_set_finger_transform_math_incomplete = true;
+  bool rb3_latest_has_poll_body = true;
+  bool rb3_latest_poll_body_is_stub = true;
+  bool rb3_latest_declares_measure_lengths = true;
+  bool rb3_latest_has_measure_lengths_body = false;
+  bool rb3_latest_declares_poll_deps = true;
+  bool rb3_latest_has_poll_deps_body = false;
+  bool rb2_dump_has_char_ik_fingers_cpp = false;
+  bool safe_to_import_finger_solve = false;
+  bool safe_to_publish_runtime_finger_transforms = false;
+  std::vector<std::string> unresolved_bodies;
+};
+
 struct SourceCharIKFingersSavePlan {
   int32_t save_id = 0x36A;
 };
@@ -4365,6 +4380,8 @@ SourceCharIKFingersLoadPlan source_char_ik_fingers_load_plan(int revision);
 SourceCharIKFingersCopyPlan source_char_ik_fingers_copy_plan();
 SourceCharIKFingersHandlerPlan source_char_ik_fingers_handler_plan();
 SourceCharIKFingersPropSyncPlan source_char_ik_fingers_prop_sync_plan();
+SourceCharIKFingersRuntimeBoundary
+source_char_ik_fingers_runtime_boundary();
 SourceCharIKFingersSavePlan source_char_ik_fingers_save_plan();
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);

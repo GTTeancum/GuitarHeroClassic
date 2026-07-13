@@ -60,6 +60,7 @@ int main() {
   using ghogx::character::source_char_ik_fingers_load_revision_known;
   using ghogx::character::source_char_ik_fingers_prop_sync_plan;
   using ghogx::character::source_char_ik_fingers_release_finger_plan;
+  using ghogx::character::source_char_ik_fingers_runtime_boundary;
   using ghogx::character::source_char_ik_fingers_save_plan;
   using ghogx::character::source_char_ik_fingers_set_name_refs;
   using ghogx::character::source_char_ik_fingers_set_finger_plan;
@@ -217,6 +218,40 @@ int main() {
                     "prop-sync superclass count");
   ok &= expect_string(props.superclasses[0], "CharWeightable",
                       "prop-sync superclass");
+
+  const auto runtime_boundary = source_char_ik_fingers_runtime_boundary();
+  ok &= expect_bool(runtime_boundary.rb3_latest_has_set_finger_body, true,
+                    "runtime boundary has SetFinger body");
+  ok &= expect_bool(
+      runtime_boundary.rb3_latest_set_finger_transform_math_incomplete, true,
+      "runtime boundary SetFinger transform math incomplete");
+  ok &= expect_bool(runtime_boundary.rb3_latest_has_poll_body, true,
+                    "runtime boundary has Poll body");
+  ok &= expect_bool(runtime_boundary.rb3_latest_poll_body_is_stub, true,
+                    "runtime boundary Poll body is stub");
+  ok &= expect_bool(runtime_boundary.rb3_latest_declares_measure_lengths, true,
+                    "runtime boundary declares MeasureLengths");
+  ok &= expect_bool(runtime_boundary.rb3_latest_has_measure_lengths_body, false,
+                    "runtime boundary lacks MeasureLengths body");
+  ok &= expect_bool(runtime_boundary.rb3_latest_declares_poll_deps, true,
+                    "runtime boundary declares PollDeps");
+  ok &= expect_bool(runtime_boundary.rb3_latest_has_poll_deps_body, false,
+                    "runtime boundary lacks PollDeps body");
+  ok &= expect_bool(runtime_boundary.rb2_dump_has_char_ik_fingers_cpp, false,
+                    "runtime boundary lacks RB2 dump file");
+  ok &= expect_bool(runtime_boundary.safe_to_import_finger_solve, false,
+                    "runtime boundary forbids solve import");
+  ok &= expect_bool(runtime_boundary.safe_to_publish_runtime_finger_transforms,
+                    false,
+                    "runtime boundary forbids runtime transform publish");
+  ok &= expect_size(runtime_boundary.unresolved_bodies.size(), 4,
+                    "runtime boundary unresolved body count");
+  ok &= expect_string(runtime_boundary.unresolved_bodies[0], "MeasureLengths",
+                      "runtime boundary first unresolved body");
+  ok &= expect_string(runtime_boundary.unresolved_bodies.back(),
+                      "full Poll solve",
+                      "runtime boundary last unresolved body");
+
   ok &= expect_int(source_char_ik_fingers_save_plan().save_id, 0x36A,
                    "IKFingers save id");
 

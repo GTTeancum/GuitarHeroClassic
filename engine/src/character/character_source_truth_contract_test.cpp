@@ -450,6 +450,9 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKFingers.cpp"));
   const std::string rb3_latest_char_ik_fingers_h = compact(read_file(
       rb3_latest_char_dir / "CharIKFingers.h"));
+  const bool rb2_dump_char_ik_fingers_exists =
+      std::filesystem::is_regular_file(rb2_dump_char_dir /
+                                       "CharIKFingers.cpp");
   const std::string rb3_latest_char_neck_twist_cpp = compact(read_file(
       rb3_latest_char_dir / "CharNeckTwist.cpp"));
   const std::string rb3_latest_char_neck_twist_h = compact(read_file(
@@ -11749,6 +11752,18 @@ int run_contract() {
   ok &= missing(rb3_latest_char_ik_fingers_cpp,
                 "voidCharIKFingers::MeasureLengths(){",
                 "available CharIKFingers source lacks MeasureLengths body");
+  ok &= contains(rb3_latest_char_ik_fingers_h,
+                 "voidMeasureLengths();voidSetFinger(Vector3,Vector3,"
+                 "FingerNum);voidReleaseFinger(FingerNum);",
+                 "CharIKFingers header declares unresolved runtime helpers");
+  ok &= missing(rb3_latest_char_ik_fingers_cpp,
+                "voidCharIKFingers::PollDeps(",
+                "available CharIKFingers source lacks PollDeps body");
+  if (rb2_dump_char_ik_fingers_exists) {
+    std::cerr << "Forbidden source-truth contract match: RB2 dump unexpectedly "
+                 "has CharIKFingers.cpp\n";
+    ok = false;
+  }
   ok &= contains(char_mesh_h,
                  "structSourceCharIKFingersState{intblend_in_frames=0;"
                  "intblend_out_frames=0;boolreset_hand_dest=true;",
@@ -11788,6 +11803,10 @@ int run_contract() {
                  "superclasses;};",
                  "native exposes CharIKFingers prop-sync plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersRuntimeBoundary{"
+                 "boolrb3_latest_has_set_finger_body=true;",
+                 "native exposes CharIKFingers runtime boundary");
+  ok &= contains(char_mesh_h,
                  "SourceCharIKFingersSetFingerPlansource_char_ik_fingers_set_finger_plan("
                  "intfinger);",
                  "native API exposes CharIKFingers SetFinger helper");
@@ -11800,6 +11819,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceCharIKFingersPropSyncPlansource_char_ik_fingers_prop_sync_plan();",
                  "native API exposes CharIKFingers prop-sync helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersRuntimeBoundary"
+                 "source_char_ik_fingers_runtime_boundary();",
+                 "native API exposes CharIKFingers runtime boundary helper");
   ok &= contains(char_mesh,
                  "SourceCharIKFingersStatesource_char_ik_fingers_defaults(){"
                  "returnSourceCharIKFingersState{};}",
@@ -11875,6 +11898,15 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.superclasses={\"CharWeightable\"};",
                  "native CharIKFingers prop-sync superclass mirrors source");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersRuntimeBoundary"
+                 "source_char_ik_fingers_runtime_boundary(){"
+                 "SourceCharIKFingersRuntimeBoundaryboundary;",
+                 "native CharIKFingers runtime boundary helper exists");
+  ok &= contains(char_mesh,
+                 "boundary.unresolved_bodies={\"MeasureLengths\",\"PollDeps\","
+                 "\"SetFingertransformmath\",\"fullPollsolve\"};",
+                 "native CharIKFingers runtime boundary records unresolved bodies");
   ok &= missing(char_mesh, "present(refs.hand)",
                 "native CharIKFingers setup helper must not require hand ref");
   ok &= contains(cmake,
@@ -11911,6 +11943,9 @@ int run_contract() {
   ok &= contains(ik_fingers_source_test,
                  "source_char_ik_fingers_prop_sync_plan()",
                  "focused CharIKFingers test covers prop-sync plan");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_runtime_boundary()",
+                 "focused CharIKFingers test covers runtime boundary");
   ok &= contains(doc, "CharIKFingers.cpp",
                  "document cites CharIKFingers source");
   ok &= contains(doc,
@@ -11941,6 +11976,16 @@ int run_contract() {
   ok &= contains(doc,
                  "must\n    not be promoted into live fretting-finger behavior",
                  "document fences incomplete CharIKFingers runtime");
+  ok &= contains(doc,
+                 "source_char_ik_fingers_runtime_boundary",
+                 "document records CharIKFingers runtime boundary helper");
+  ok &= contains(doc,
+                 "checked RB2 dump has no\n    `CharIKFingers.cpp` "
+                 "runtime-map file",
+                 "document records missing RB2 CharIKFingers dump");
+  ok &= contains(doc,
+                 "must not publish runtime fretting-finger\n    transforms",
+                 "document fences CharIKFingers runtime transform publish");
   ok &= missing(doc, "IK fingers helpers port source defaults and left/right "
                          "finger transform names only",
                 "coverage matrix must not understate CharIKFingers helper slice");

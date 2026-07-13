@@ -3376,6 +3376,13 @@ note, and all report `unreadBytes=0`.
     current-hand transform step marker. `MeasureLengths`, the missing transform
     math inside `SetFinger`, and the real `Poll` solve remain fenced and must
     not be promoted into live fretting-finger behavior from this data slice.
+    Native `source_char_ik_fingers_runtime_boundary` records the matching
+    negative evidence: the checked `rb3-latest` source has a stub `Poll`, an
+    incomplete `SetFinger` math section, declarations but no reviewable bodies
+    for `MeasureLengths` and `PollDeps`, and the checked RB2 dump has no
+    `CharIKFingers.cpp` runtime-map file. Therefore native may decode and log
+    the source rows above, but it must not publish runtime fretting-finger
+    transforms or import a finger solve from this evidence.
   - `BEGIN_HANDLERS(CharIKFingers)` delegates to `CharWeightable` then
     `Hmx::Object` and checks `0x3AB`. `BEGIN_PROPSYNCS(CharIKFingers)` exposes
     `is_right_hand`, `output_trans`, `keyboard_ref_bone`,

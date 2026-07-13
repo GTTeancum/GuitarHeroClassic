@@ -8803,6 +8803,16 @@ SourceCharIKFingersPropSyncPlan source_char_ik_fingers_prop_sync_plan() {
   return plan;
 }
 
+SourceCharIKFingersRuntimeBoundary
+source_char_ik_fingers_runtime_boundary() {
+  SourceCharIKFingersRuntimeBoundary boundary;
+  boundary.unresolved_bodies = {"MeasureLengths",
+                                "PollDeps",
+                                "SetFinger transform math",
+                                "full Poll solve"};
+  return boundary;
+}
+
 SourceCharIKFingersSavePlan source_char_ik_fingers_save_plan() {
   return SourceCharIKFingersSavePlan{};
 }
