@@ -1767,12 +1767,15 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     key.screen_offset[1] = r.f32();
     key.has_screen_offset = std::abs(key.screen_offset[0]) > 0.0001f ||
                             std::abs(key.screen_offset[1]) > 0.0001f;
-    (void)r.f32();  // blurDepth
+    const float blur_depth = r.f32();
+    key.blur_depth = camshot_revision < 0x17 ? 1.0f - blur_depth : blur_depth;
     if (camshot_revision < 0x17) (void)r.i32();
-    if (camshot_revision > 0x17) (void)r.f32();
-    if (camshot_revision > 0x1c) (void)r.f32();
-    if (camshot_revision > 0x14) (void)r.f32();
+    key.max_blur = camshot_revision > 0x17 ? r.f32() : 255.0f;
+    key.min_blur = camshot_revision > 0x1c ? r.f32() : 0.0f;
+    key.focus_blur_multiplier =
+        camshot_revision > 0x14 ? r.f32() : 0.0f;
     if (camshot_revision < 0x17) (void)r.i32();
+    key.has_dof_fields = true;
     key.camshot_refs_decoded = true;
     if (camshot_revision > 0x2b) {
         const uint32_t target_count = r.u32();
@@ -1792,9 +1795,12 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     sync_primary_camshot_target(key);
     if (camshot_revision > 0x1a) {
         if (camshot_revision > 0x2b) {
-            (void)r.symbol();
+            key.focus_target_subpart = r.symbol();
         } else {
-            (void)read_camshot_subpart_like_miloeditor(r, camshot_revision);
+            Gameplay::CameraKey::TargetRef focus =
+                read_camshot_subpart_like_miloeditor(r, camshot_revision);
+            key.focus_target_entity = std::move(focus.entity);
+            key.focus_target_subpart = std::move(focus.subpart);
         }
     }
     if (camshot_revision > 0x2b) {
@@ -1807,13 +1813,20 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     }
     key.use_parent_rotation = r.boolean();
     if (camshot_revision > 0x11) {
-        (void)r.f32();
-        (void)r.f32();
-        (void)r.f32();
-        (void)r.f32();
+        key.shake_noise_amp = r.f32();
+        key.shake_noise_freq = r.f32();
+        key.max_angular_offset[0] = r.f32();
+        key.max_angular_offset[1] = r.f32();
+        key.has_shake_fields = true;
     }
-    if (camshot_revision > 0x15) (void)r.f32();
-    if (camshot_revision > 0x28) (void)r.boolean();
+    if (camshot_revision > 0x15) {
+        key.zoom_fov = r.f32();
+        key.has_zoom_fov = true;
+    }
+    if (camshot_revision > 0x28) {
+        key.parent_first_frame = r.boolean();
+        key.has_parent_first_frame = true;
+    }
     return key;
 }
 
@@ -2208,6 +2221,30 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         to.screen_offset[0] = from.screen_offset[0];
         to.screen_offset[1] = from.screen_offset[1];
         to.has_screen_offset = true;
+    }
+    if (!to.has_dof_fields && from.has_dof_fields) {
+        to.blur_depth = from.blur_depth;
+        to.max_blur = from.max_blur;
+        to.min_blur = from.min_blur;
+        to.focus_blur_multiplier = from.focus_blur_multiplier;
+        to.focus_target_entity = from.focus_target_entity;
+        to.focus_target_subpart = from.focus_target_subpart;
+        to.has_dof_fields = true;
+    }
+    if (!to.has_shake_fields && from.has_shake_fields) {
+        to.shake_noise_amp = from.shake_noise_amp;
+        to.shake_noise_freq = from.shake_noise_freq;
+        to.max_angular_offset[0] = from.max_angular_offset[0];
+        to.max_angular_offset[1] = from.max_angular_offset[1];
+        to.has_shake_fields = true;
+    }
+    if (!to.has_zoom_fov && from.has_zoom_fov) {
+        to.zoom_fov = from.zoom_fov;
+        to.has_zoom_fov = true;
+    }
+    if (!to.has_parent_first_frame && from.has_parent_first_frame) {
+        to.parent_first_frame = from.parent_first_frame;
+        to.has_parent_first_frame = true;
     }
     if (!to.has_clip_planes && from.has_clip_planes) {
         to.near_plane = from.near_plane;
@@ -14419,6 +14456,26 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                             key.has_path_ease ? "" : "none/",
                             key.has_path_ease ? key.path_ease : 0.0f);
                     }
+                    std::fprintf(
+                        stderr,
+                        "[camera-candidate] shot=%s off=0x%zX frame_effects="
+                        "blur=(%s%.3f %.3f %.3f %.3f) focus=%s:%s "
+                        "shake=(%s%.3f %.3f %.3f %.3f) zoom_fov=%s%.3f "
+                        "parent_first=%s%d\n",
+                        de.name.c_str(), pose.second,
+                        key.has_dof_fields ? "" : "none/",
+                        key.blur_depth, key.max_blur, key.min_blur,
+                        key.focus_blur_multiplier,
+                        key.focus_target_entity.c_str(),
+                        key.focus_target_subpart.c_str(),
+                        key.has_shake_fields ? "" : "none/",
+                        key.shake_noise_amp, key.shake_noise_freq,
+                        key.max_angular_offset[0],
+                        key.max_angular_offset[1],
+                        key.has_zoom_fov ? "" : "none/",
+                        key.has_zoom_fov ? key.zoom_fov : 0.0f,
+                        key.has_parent_first_frame ? "" : "none/",
+                        key.parent_first_frame ? 1 : 0);
                     if (key.has_screen_offset) {
                         std::fprintf(stderr,
                                      "[camera-candidate] shot=%s off=0x%zX screen_offset=(%.6f %.6f)\n",
@@ -17814,6 +17871,49 @@ void apply_camera_keys(
         const float fov_b = b->has_fov ? b->fov : fov_a;
         cam.fov = fov_a + (fov_b - fov_a) * interp_t;
     }
+    const bool has_zoom_fov = a->has_zoom_fov || b->has_zoom_fov;
+    float zoom_fov = 0.0f;
+    if (has_zoom_fov) {
+        const float zoom_a = a->has_zoom_fov ? a->zoom_fov : 0.0f;
+        const float zoom_b = b->has_zoom_fov ? b->zoom_fov : zoom_a;
+        zoom_fov = zoom_a + (zoom_b - zoom_a) * interp_t;
+        if (std::isfinite(zoom_fov)) {
+            cam.fov += zoom_fov;
+        }
+    }
+    const auto lerp_camshot_frame_field =
+        [interp_t](bool has_a, float a_value, bool has_b, float b_value,
+                   float fallback) {
+            const float value_a = has_a ? a_value : (has_b ? b_value : fallback);
+            const float value_b = has_b ? b_value : value_a;
+            return value_a + (value_b - value_a) * interp_t;
+        };
+    const bool has_dof_fields = a->has_dof_fields || b->has_dof_fields;
+    const float blur_depth = lerp_camshot_frame_field(
+        a->has_dof_fields, a->blur_depth, b->has_dof_fields, b->blur_depth,
+        0.35f);
+    const float max_blur = lerp_camshot_frame_field(
+        a->has_dof_fields, a->max_blur, b->has_dof_fields, b->max_blur,
+        255.0f);
+    const float min_blur = lerp_camshot_frame_field(
+        a->has_dof_fields, a->min_blur, b->has_dof_fields, b->min_blur,
+        0.0f);
+    const float focus_blur_multiplier = lerp_camshot_frame_field(
+        a->has_dof_fields, a->focus_blur_multiplier, b->has_dof_fields,
+        b->focus_blur_multiplier, 0.0f);
+    const bool has_shake_fields = a->has_shake_fields || b->has_shake_fields;
+    const float shake_noise_amp = lerp_camshot_frame_field(
+        a->has_shake_fields, a->shake_noise_amp, b->has_shake_fields,
+        b->shake_noise_amp, 0.0f);
+    const float shake_noise_freq = lerp_camshot_frame_field(
+        a->has_shake_fields, a->shake_noise_freq, b->has_shake_fields,
+        b->shake_noise_freq, 0.0f);
+    const float max_angular_offset_x = lerp_camshot_frame_field(
+        a->has_shake_fields, a->max_angular_offset[0], b->has_shake_fields,
+        b->max_angular_offset[0], 0.0f);
+    const float max_angular_offset_y = lerp_camshot_frame_field(
+        a->has_shake_fields, a->max_angular_offset[1], b->has_shake_fields,
+        b->max_angular_offset[1], 0.0f);
     const float sx_a = a->has_screen_offset ? a->screen_offset[0] : 0.0f;
     const float sy_a = a->has_screen_offset ? a->screen_offset[1] : 0.0f;
     const float sx_b = b->has_screen_offset ? b->screen_offset[0] : 0.0f;
@@ -18927,7 +19027,9 @@ void apply_camera_keys(
             "blend_ease=%.3f mode=%d a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f clip=(%.3f %.3f) "
-            "screen_offset=(%.6f %.6f) "
+            "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
+            "dof=%d blur=(%.3f %.3f %.3f %.3f) "
+            "shake=%d(%.3f %.3f %.3f %.3f) "
             "a_target=(%.2f %.2f %.2f) a_parent=(%.2f %.2f %.2f) "
             "b_target=(%.2f %.2f %.2f) b_parent=(%.2f %.2f %.2f) "
             "a_target_eye=(%.2f %.2f %.2f) a_parent_eye=(%.2f %.2f %.2f) "
@@ -18938,8 +19040,13 @@ void apply_camera_keys(
             cam.authored_eye[0], cam.authored_eye[1], cam.authored_eye[2],
             cam.authored_at[0], cam.authored_at[1], cam.authored_at[2],
             cam.authored_up[0], cam.authored_up[1], cam.authored_up[2],
-            cam.fov, cam.near_z, cam.far_z, cam.screen_offset[0],
+            cam.fov, cam.near_z, cam.far_z,
+            has_zoom_fov ? "" : "none/", zoom_fov, cam.screen_offset[0],
             cam.screen_offset[1],
+            has_dof_fields ? 1 : 0, blur_depth, max_blur, min_blur,
+            focus_blur_multiplier, has_shake_fields ? 1 : 0,
+            shake_noise_amp, shake_noise_freq, max_angular_offset_x,
+            max_angular_offset_y,
             a_target ? (*a_target)[0] : 0.0f,
             a_target ? (*a_target)[1] : 0.0f,
             a_target ? (*a_target)[2] : 0.0f,

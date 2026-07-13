@@ -7737,6 +7737,51 @@ int main() {
                  "boolhas_timing=false;",
                  "CameraKey preserves CamShot keyframe timing fields");
   ok &= contains(gameplay_h_c,
+                 "floatblur_depth=0.35f;floatmax_blur=255.0f;"
+                 "floatmin_blur=0.0f;floatfocus_blur_multiplier=0.0f;"
+                 "boolhas_dof_fields=false;"
+                 "std::stringfocus_target_entity;"
+                 "std::stringfocus_target_subpart;",
+                 "CameraKey preserves CamShot frame depth-of-field fields");
+  ok &= contains(gameplay_h_c,
+                 "floatshake_noise_amp=0.0f;"
+                 "floatshake_noise_freq=0.0f;"
+                 "floatmax_angular_offset[2]={0.0f,0.0f};"
+                 "boolhas_shake_fields=false;"
+                 "floatzoom_fov=0.0f;boolhas_zoom_fov=false;"
+                 "boolparent_first_frame=false;"
+                 "boolhas_parent_first_frame=false;",
+                 "CameraKey preserves CamShot frame shake/zoom/parent-first fields");
+  ok &= contains(gameplay_c,
+                 "constfloatblur_depth=r.f32();"
+                 "key.blur_depth=camshot_revision<0x17?"
+                 "1.0f-blur_depth:blur_depth;",
+                 "CamShot frame reader consumes source blur depth field");
+  ok &= contains(gameplay_c,
+                 "key.max_blur=camshot_revision>0x17?r.f32():255.0f;"
+                 "key.min_blur=camshot_revision>0x1c?r.f32():0.0f;"
+                 "key.focus_blur_multiplier=camshot_revision>0x14?"
+                 "r.f32():0.0f;",
+                 "CamShot frame reader consumes source blur range fields");
+  ok &= contains(gameplay_c,
+                 "key.focus_target_entity=std::move(focus.entity);"
+                 "key.focus_target_subpart=std::move(focus.subpart);",
+                 "CamShot frame reader preserves focus target refs");
+  ok &= contains(gameplay_c,
+                 "key.shake_noise_amp=r.f32();"
+                 "key.shake_noise_freq=r.f32();"
+                 "key.max_angular_offset[0]=r.f32();"
+                 "key.max_angular_offset[1]=r.f32();"
+                 "key.has_shake_fields=true;",
+                 "CamShot frame reader consumes source shake fields");
+  ok &= contains(gameplay_c,
+                 "key.zoom_fov=r.f32();key.has_zoom_fov=true;",
+                 "CamShot frame reader consumes source zoom FOV field");
+  ok &= contains(gameplay_c,
+                 "key.parent_first_frame=r.boolean();"
+                 "key.has_parent_first_frame=true;",
+                 "CamShot frame reader consumes source parent-first-frame field");
+  ok &= contains(gameplay_h_c,
                  "std::stringcategory;floatshot_filter=0.0f;"
                  "boolhas_shot_filter=false;floatclamp_height=0.0f;"
                  "boolhas_clamp_height=false;",
@@ -7778,8 +7823,38 @@ int main() {
                  "to.source_ref=from.source_ref;",
                  "TransAnim-backed camera keys inherit source refs");
   ok &= contains(gameplay_c,
+                 "to.blur_depth=from.blur_depth;"
+                 "to.max_blur=from.max_blur;"
+                 "to.min_blur=from.min_blur;"
+                 "to.focus_blur_multiplier=from.focus_blur_multiplier;",
+                 "TransAnim-backed camera keys inherit frame blur fields");
+  ok &= contains(gameplay_c,
+                 "to.focus_target_entity=from.focus_target_entity;"
+                 "to.focus_target_subpart=from.focus_target_subpart;",
+                 "TransAnim-backed camera keys inherit focus target refs");
+  ok &= contains(gameplay_c,
+                 "to.shake_noise_amp=from.shake_noise_amp;"
+                 "to.shake_noise_freq=from.shake_noise_freq;",
+                 "TransAnim-backed camera keys inherit frame shake fields");
+  ok &= contains(gameplay_c,
+                 "to.zoom_fov=from.zoom_fov;to.has_zoom_fov=true;",
+                 "TransAnim-backed camera keys inherit zoom FOV");
+  ok &= contains(gameplay_c,
+                 "constboolhas_zoom_fov=a->has_zoom_fov||b->has_zoom_fov;"
+                 "floatzoom_fov=0.0f;if(has_zoom_fov)",
+                 "camera interpolation evaluates CamShot zoom FOV");
+  ok &= contains(gameplay_c,
+                 "cam.fov+=zoom_fov;",
+                 "camera interpolation adds CamShot zoom FOV to the frustum FOV");
+  ok &= contains(gameplay_c,
                  "source_ref=%s",
                  "regular CamShot logs expose decoded source refs");
+  ok &= contains(gameplay_c,
+                 "blur=(%s%.3f%.3f%.3f%.3f)",
+                 "regular CamShot logs expose decoded frame blur fields");
+  ok &= contains(gameplay_c,
+                 "zoom_fov=%s%.3f",
+                 "camera debug logs expose decoded/applied zoom FOV");
   ok &= contains(gameplay_h_c,
                  "std::stringpath_anim;boolhas_path_anim=false;",
                  "CameraKey preserves authored CamShot TransAnim path refs");
