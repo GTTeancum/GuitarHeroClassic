@@ -2148,6 +2148,37 @@ struct SourceCharMeshHideObject {
   std::vector<SourceCharMeshHideRow> hides;
 };
 
+struct SourceCharMeshHideRowLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharMeshHideLoadPlan {
+  int32_t max_revision = 2;
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharMeshHideSavePlan {
+  int32_t save_id = 0x6A;
+};
+
+struct SourceCharMeshHideCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  bool guards_hides_self_copy = true;
+};
+
+struct SourceCharMeshHideHandlerPlan {
+  std::vector<std::string> superclasses;
+  int32_t check = 0xA1;
+};
+
+struct SourceCharMeshHidePropSyncPlan {
+  std::vector<std::string> hide_properties;
+  std::vector<std::string> properties;
+};
+
 struct SourceCharTransCopyPollDeps {
   std::vector<std::string> changed_by;
   std::vector<std::string> change;
@@ -3445,6 +3476,13 @@ source_char_face_servo_apply_procedural_weights(
     bool has_right_clip,
     bool right_same_as_left);
 SourceCharFaceServoPollDepsPlan source_char_face_servo_poll_deps_plan();
+SourceCharMeshHideRowLoadPlan source_char_mesh_hide_row_load_plan(
+    int32_t revision);
+SourceCharMeshHideLoadPlan source_char_mesh_hide_load_plan(int32_t revision);
+SourceCharMeshHideSavePlan source_char_mesh_hide_save_plan();
+SourceCharMeshHideCopyPlan source_char_mesh_hide_copy_plan();
+SourceCharMeshHideHandlerPlan source_char_mesh_hide_handler_plan();
+SourceCharMeshHidePropSyncPlan source_char_mesh_hide_prop_sync_plan();
 int32_t source_char_mesh_hide_combined_flags(
     const std::vector<SourceCharMeshHideObject>& objects,
     int32_t initial_flags);

@@ -12260,6 +12260,28 @@ int run_contract() {
                  "voidCharMeshHide::Load(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(2,0);Hmx::Object::Load(bs);bs>>mFlags>>mHides;}",
                  "CharMeshHide source Load reads flags and hides");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "SAVE_OBJ(CharMeshHide,0x6A);",
+                 "CharMeshHide source save id");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "BEGIN_COPYS(CharMeshHide)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharMeshHide)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mFlags)if(&mHides!=&c->mHides)"
+                 "COPY_MEMBER(mHides)",
+                 "CharMeshHide source Copy guards hides self-copy");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "BEGIN_HANDLERS(CharMeshHide)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0xA1)END_HANDLERS",
+                 "CharMeshHide source handler rows");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharMeshHide::Hide)"
+                 "SYNC_PROP(drawable,o.mDraw)SYNC_PROP(flags,o.mFlags)"
+                 "SYNC_PROP(show,o.mShow)END_CUSTOM_PROPSYNC",
+                 "CharMeshHide source hide row prop sync");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "BEGIN_PROPSYNCS(CharMeshHide)SYNC_PROP(flags,mFlags)"
+                 "SYNC_PROP(hides,mHides)END_PROPSYNCS",
+                 "CharMeshHide source object prop sync");
   ok &= contains(char_mesh_h,
                  "structSourceCharMeshHideRow{int32_tflags=0;"
                  "booldraw_showing=false;boolhas_draw=false;boolshow=false;};",
@@ -12268,6 +12290,54 @@ int run_contract() {
                  "structSourceCharMeshHideObject{int32_tflags=0;"
                  "std::vector<SourceCharMeshHideRow>hides;};",
                  "native exposes CharMeshHide owner helper state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharMeshHideLoadPlan{int32_tmax_revision=2;"
+                 "boolknown_revision=false;",
+                 "native exposes CharMeshHide load plan state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharMeshHideSavePlan{int32_tsave_id=0x6A;};",
+                 "native exposes CharMeshHide save plan state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharMeshHideCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;"
+                 "boolguards_hides_self_copy=true;};",
+                 "native exposes CharMeshHide copy plan state");
+  ok &= contains(char_mesh_h,
+                 "SourceCharMeshHideRowLoadPlansource_char_mesh_hide_row_load_plan("
+                 "int32_trevision);",
+                 "native exposes CharMeshHide row load helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharMeshHidePropSyncPlansource_char_mesh_hide_prop_sync_plan();",
+                 "native exposes CharMeshHide prop-sync helper");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshHideRowLoadPlansource_char_mesh_hide_row_load_plan("
+                 "int32_trevision){SourceCharMeshHideRowLoadPlanplan;"
+                 "if(revision<0||revision>2)returnplan;plan.known_revision=true;",
+                 "native CharMeshHide row load helper gates source revisions");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"mDraw\",\"mFlags\"};if(revision>1)"
+                 "plan.read_order.push_back(\"mShow\");",
+                 "native CharMeshHide row load helper mirrors mShow gate");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshHideLoadPlansource_char_mesh_hide_load_plan("
+                 "int32_trevision){SourceCharMeshHideLoadPlanplan;"
+                 "if(revision<0||revision>plan.max_revision)returnplan;",
+                 "native CharMeshHide load helper gates revisions");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\",\"mFlags\","
+                 "\"mHides\"};",
+                 "native CharMeshHide load helper mirrors read order");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshHideCopyPlansource_char_mesh_hide_copy_plan(){"
+                 "SourceCharMeshHideCopyPlanplan;plan.copied_superclasses="
+                 "{\"Hmx::Object\"};plan.copied_members={\"mFlags\",\"mHides\"};",
+                 "native CharMeshHide copy helper mirrors source members");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshHidePropSyncPlansource_char_mesh_hide_prop_sync_plan(){"
+                 "SourceCharMeshHidePropSyncPlanplan;plan.hide_properties="
+                 "{\"drawable\",\"flags\",\"show\"};plan.properties={"
+                 "\"flags\",\"hides\"};",
+                 "native CharMeshHide prop-sync helper mirrors source rows");
   ok &= contains(char_mesh,
                  "int32_tsource_char_mesh_hide_combined_flags("
                  "conststd::vector<SourceCharMeshHideObject>&objects,",
@@ -12293,10 +12363,25 @@ int run_contract() {
   ok &= contains(mesh_hide_source_test,
                  "HideAllpreservesrowwithnodraw",
                  "focused CharMeshHide test covers no-draw row preservation");
+  ok &= contains(mesh_hide_source_test,
+                 "source_char_mesh_hide_row_load_plan(2)",
+                 "focused CharMeshHide test covers row mShow gate");
+  ok &= contains(mesh_hide_source_test,
+                 "source_char_mesh_hide_save_plan()",
+                 "focused CharMeshHide test covers save plan");
+  ok &= contains(mesh_hide_source_test,
+                 "source_char_mesh_hide_copy_plan()",
+                 "focused CharMeshHide test covers copy plan");
+  ok &= contains(mesh_hide_source_test,
+                 "source_char_mesh_hide_prop_sync_plan()",
+                 "focused CharMeshHide test covers prop-sync plan");
   ok &= contains(doc,
                  "Native `source_char_mesh_hide_all` / "
                  "`source_char_mesh_hide_draws` ports",
                  "document records native CharMeshHide helper");
+  ok &= contains(doc,
+                 "source_char_mesh_hide_*_plan` helpers mirror",
+                 "document records native CharMeshHide metadata helpers");
   ok &= contains(rb3_latest_char_face_servo_h,
                  "classCharFaceServo:publicCharPollable,publicCharBonesMeshes",
                  "latest CharFaceServo header exposes source inheritance");

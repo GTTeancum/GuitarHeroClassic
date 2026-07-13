@@ -4511,6 +4511,48 @@ SourceCharFaceServoPollDepsPlan source_char_face_servo_poll_deps_plan() {
   return SourceCharFaceServoPollDepsPlan{};
 }
 
+SourceCharMeshHideRowLoadPlan source_char_mesh_hide_row_load_plan(
+    int32_t revision) {
+  SourceCharMeshHideRowLoadPlan plan;
+  if (revision < 0 || revision > 2) return plan;
+  plan.known_revision = true;
+  plan.read_order = {"mDraw", "mFlags"};
+  if (revision > 1) plan.read_order.push_back("mShow");
+  return plan;
+}
+
+SourceCharMeshHideLoadPlan source_char_mesh_hide_load_plan(int32_t revision) {
+  SourceCharMeshHideLoadPlan plan;
+  if (revision < 0 || revision > plan.max_revision) return plan;
+  plan.known_revision = true;
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "mFlags", "mHides"};
+  return plan;
+}
+
+SourceCharMeshHideSavePlan source_char_mesh_hide_save_plan() {
+  return SourceCharMeshHideSavePlan{};
+}
+
+SourceCharMeshHideCopyPlan source_char_mesh_hide_copy_plan() {
+  SourceCharMeshHideCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mFlags", "mHides"};
+  return plan;
+}
+
+SourceCharMeshHideHandlerPlan source_char_mesh_hide_handler_plan() {
+  SourceCharMeshHideHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceCharMeshHidePropSyncPlan source_char_mesh_hide_prop_sync_plan() {
+  SourceCharMeshHidePropSyncPlan plan;
+  plan.hide_properties = {"drawable", "flags", "show"};
+  plan.properties = {"flags", "hides"};
+  return plan;
+}
+
 int32_t source_char_mesh_hide_combined_flags(
     const std::vector<SourceCharMeshHideObject>& objects,
     int32_t initial_flags) {

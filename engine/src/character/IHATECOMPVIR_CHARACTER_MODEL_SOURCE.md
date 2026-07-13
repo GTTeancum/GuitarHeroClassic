@@ -2371,8 +2371,17 @@ note, and all report `unreadBytes=0`.
   - `CharMeshHide::HideDraws` only mutates rows with a valid drawable pointer;
     their stored `show` state becomes `((combinedFlags & rowFlags) == 0) &
     drawable->Showing()`. Rows without a drawable are left untouched.
+  - The checked load path accepts revisions `0..2`, reads `Hmx::Object`,
+    `mFlags`, and `mHides`; each hide row reads `mDraw`, `mFlags`, and only
+    reads stored `mShow` for revisions above `1`. Save id is `0x6A`.
+  - Copy clones `mFlags` and conditionally copies `mHides` only when source and
+    destination hide vectors differ. Handler rows delegate to `Hmx::Object` and
+    check `0xA1`; prop sync exposes hide row `drawable`/`flags`/`show` plus
+    object `flags`/`hides`.
   - Native `source_char_mesh_hide_all` / `source_char_mesh_hide_draws` ports
-    that complete flag and drawable-showing behavior as a deterministic helper.
+    that complete flag and drawable-showing behavior as a deterministic helper,
+    and `source_char_mesh_hide_*_plan` helpers mirror the visible load/save/copy/
+    handler/prop-sync metadata.
     This is visibility-row source behavior only; renderer wiring must wait for
     proven stock `CharMeshHide` rows or an equivalent source-backed data path.
 - `rb3-latest/src/system/char/CharFaceServo.cpp` and
