@@ -1282,15 +1282,18 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     contracts include the full visible source material pass, not just diffuse
     texture setup.
   - The same glTFMilo pass then applies `material.Extras` after the base-color
-    block. The mirrored source tree does not include a `MaterialExtras` class
-    definition, but `Program.cs` shows the consumed rows: optional prelit
-    override when the command-line prelit option is empty, alpha cut,
-    alpha-threshold cast, alpha write, z mode, blend mode, environment use,
-    emissive multiplier, cull, point lights, normal-detail map, and shader
-    variation. Native `SourceGltfMiloMaterialExtras` records only those
-    observed use-site fields and applies them after texture-backed material
-    rows, so no-texture materials can still carry the source extras override
-    just as the converter orders it.
+    block. The vendored `MaterialExtras` class declares prelit, alpha, z/blend,
+    environment, emissive, cull, point-light, projected-light, material-type,
+    shader-variation, and normal-detail-map rows. `Program.cs` consumes only a
+    subset there: optional prelit override when the command-line prelit option
+    is empty, alpha cut, alpha-threshold cast, alpha write, z mode, blend mode,
+    environment use, emissive multiplier, cull, point lights, normal-detail
+    map, and shader variation. `ProjectedLights` and `MaterialType` are
+    declared by source but not applied by the extras block. Native
+    `SourceGltfMiloMaterialExtras` records both the applied rows and those
+    declared-only rows, so no-texture materials can still carry the source
+    extras override just as the converter orders it without inventing a
+    projected-light/material-type override.
   - Native `source_gltf_milo_material_runtime_boundary` records the executable
     boundary around those material rows: glTFMilo material data is
     exporter-side evidence, stock runtime character material state still comes

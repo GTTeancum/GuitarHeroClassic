@@ -6420,6 +6420,20 @@ int run_contract() {
                  "if(preLit==string.Empty)mat.preLit=matExtras?.Prelit==1;",
                  "glTFMilo material extras Prelit branch uses lowercased empty option");
   ok &= contains(gltf_program_cs,
+                 "mat.projLights=true;",
+                 "glTFMilo base material branch enables projected lights");
+  ok &= missing(gltf_program_cs,
+                "mat.projLights=matExtras?.ProjectedLights",
+                "glTFMilo material extras do not apply ProjectedLights");
+  ok &= contains(gltf_milo_extras_cs,
+                 "[JsonPropertyName(\"milo_proj_lights\")]publicint"
+                 "ProjectedLights{get;set;}",
+                 "glTFMilo MaterialExtras declares ProjectedLights");
+  ok &= contains(gltf_milo_extras_cs,
+                 "[JsonPropertyName(\"milo_material_type\")]publicstring"
+                 "MaterialType{get;set;}=string.Empty;",
+                 "glTFMilo MaterialExtras declares MaterialType");
+  ok &= contains(gltf_program_cs,
                  "if(material.Name.Contains(\"_skin\")){mat.shaderVariation="
                  "RndMat.ShaderVariation.kShaderVariationSkin;",
                  "glTFMilo material pass selects skin shader variation");
@@ -6777,6 +6791,12 @@ int run_contract() {
                  "structSourceGltfMiloMaterialExtras{boolpresent=false;",
                  "native declares glTFMilo material extras row");
   ok &= contains(char_mesh_h,
+                 "intprojected_lights=0;",
+                 "native material extras records declared ProjectedLights row");
+  ok &= contains(char_mesh_h,
+                 "std::stringmaterial_type;",
+                 "native material extras records declared MaterialType row");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloPrelitOptionInput{std::string"
                  "raw_prelit;",
                  "native declares glTFMilo Prelit option input");
@@ -6795,6 +6815,12 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
                  "native declares glTFMilo material plan row");
+  ok &= contains(char_mesh_h,
+                 "boolextras_projected_lights_declared=false;",
+                 "native material plan records ProjectedLights declaration");
+  ok &= contains(char_mesh_h,
+                 "boolextras_material_type_declared=false;",
+                 "native material plan records MaterialType declaration");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialRuntimeBoundary{boolgltf_"
                  "material_plan_is_exporter_side=true;",
@@ -7508,6 +7534,21 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.normal_detail_map=input.extras.normal_detail_map;",
                  "native preserves glTFMilo extras normal detail map row");
+  ok &= contains(char_mesh,
+                 "plan.extras_projected_lights_declared=true;",
+                 "native records glTFMilo extras ProjectedLights declaration");
+  ok &= contains(char_mesh,
+                 "plan.extras_projected_lights=input.extras.projected_lights;",
+                 "native records glTFMilo extras ProjectedLights value");
+  ok &= contains(char_mesh,
+                 "plan.extras_material_type_declared=true;",
+                 "native records glTFMilo extras MaterialType declaration");
+  ok &= contains(char_mesh,
+                 "plan.extras_material_type=input.extras.material_type;",
+                 "native records glTFMilo extras MaterialType value");
+  ok &= missing(char_mesh,
+                "plan.projected_lights=input.extras.projected_lights",
+                "native must not invent a ProjectedLights extras override");
   ok &= contains(char_mesh,
                  "SourceGltfMiloMaterialRuntimeBoundary"
                  "source_gltf_milo_material_runtime_boundary(){",
@@ -8224,6 +8265,16 @@ int run_contract() {
                  "gltf_xbox_diffuse.diffuse_xbox_byte_swap",
                  "focused mesh decode test covers glTFMilo diffuse Xbox swap");
   ok &= contains(mesh_decode_test,
+                 "gltf_extras_material.extras_projected_lights_declared",
+                 "focused mesh decode test covers declared ProjectedLights");
+  ok &= contains(mesh_decode_test,
+                 "!gltf_extras_material.extras_projected_lights_applied",
+                 "focused mesh decode test covers unapplied ProjectedLights");
+  ok &= contains(mesh_decode_test,
+                 "gltf_no_texture_extras.extras_material_type=="
+                 "\"declared_only\"",
+                 "focused mesh decode test covers declared MaterialType");
+  ok &= contains(mesh_decode_test,
                  "source_gltf_milo_run_options_plan(run_options)",
                  "focused mesh decode test covers glTFMilo run options helper");
   ok &= contains(mesh_decode_test,
@@ -8610,6 +8661,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "declared-only rows",
+                 "document records MaterialExtras declared-only rows");
   ok &= contains(doc,
                  "`source_gltf_milo_prelit_option_plan` records",
                  "document records glTFMilo Prelit option helper");

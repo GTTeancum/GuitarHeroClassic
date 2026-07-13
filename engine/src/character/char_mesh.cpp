@@ -1355,6 +1355,10 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.emissive_multiplier = input.extras.emissive_multiplier;
     plan.cull = input.extras.cull == 1;
     plan.point_lights = input.extras.point_lights == 1;
+    plan.extras_projected_lights_declared = true;
+    plan.extras_projected_lights = input.extras.projected_lights;
+    plan.extras_material_type_declared = true;
+    plan.extras_material_type = input.extras.material_type;
     plan.normal_detail_map = input.extras.normal_detail_map;
     plan.shader_variation = input.extras.shader_variation;
   }

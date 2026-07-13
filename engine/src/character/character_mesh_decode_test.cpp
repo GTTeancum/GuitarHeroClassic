@@ -1211,6 +1211,8 @@ int main() {
   material_extras_input.extras.emissive_multiplier = 2.5f;
   material_extras_input.extras.cull = 1;
   material_extras_input.extras.point_lights = 0;
+  material_extras_input.extras.projected_lights = 0;
+  material_extras_input.extras.material_type = "ignored_material_type";
   material_extras_input.extras.normal_detail_map = "detail_hair.tex";
   material_extras_input.extras.shader_variation = 7;
   const auto gltf_extras_material =
@@ -1228,6 +1230,13 @@ int main() {
   CHECK(approx(gltf_extras_material.emissive_multiplier, 2.5f));
   CHECK(gltf_extras_material.cull);
   CHECK(!gltf_extras_material.point_lights);
+  CHECK(gltf_extras_material.projected_lights);
+  CHECK(gltf_extras_material.extras_projected_lights_declared);
+  CHECK(!gltf_extras_material.extras_projected_lights_applied);
+  CHECK(gltf_extras_material.extras_projected_lights == 0);
+  CHECK(gltf_extras_material.extras_material_type_declared);
+  CHECK(!gltf_extras_material.extras_material_type_applied);
+  CHECK(gltf_extras_material.extras_material_type == "ignored_material_type");
   CHECK(gltf_extras_material.normal_detail_map == "detail_hair.tex");
   CHECK(gltf_extras_material.shader_variation == 7);
 
@@ -1239,6 +1248,8 @@ int main() {
   no_texture_extras_input.extras.z_mode = 2;
   no_texture_extras_input.extras.blend_mode = 6;
   no_texture_extras_input.extras.cull = 0;
+  no_texture_extras_input.extras.projected_lights = 1;
+  no_texture_extras_input.extras.material_type = "declared_only";
   no_texture_extras_input.extras.shader_variation = 3;
   const auto gltf_no_texture_extras =
       ghogx::character::source_gltf_milo_material_base_plan(
@@ -1252,6 +1263,13 @@ int main() {
   CHECK(gltf_no_texture_extras.z_mode == 2);
   CHECK(gltf_no_texture_extras.blend == 6);
   CHECK(!gltf_no_texture_extras.cull);
+  CHECK(!gltf_no_texture_extras.projected_lights);
+  CHECK(gltf_no_texture_extras.extras_projected_lights_declared);
+  CHECK(!gltf_no_texture_extras.extras_projected_lights_applied);
+  CHECK(gltf_no_texture_extras.extras_projected_lights == 1);
+  CHECK(gltf_no_texture_extras.extras_material_type_declared);
+  CHECK(!gltf_no_texture_extras.extras_material_type_applied);
+  CHECK(gltf_no_texture_extras.extras_material_type == "declared_only");
   CHECK(gltf_no_texture_extras.shader_variation == 3);
 
   const auto gltf_material_boundary =

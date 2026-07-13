@@ -1197,6 +1197,8 @@ struct SourceGltfMiloMaterialExtras {
   float emissive_multiplier = 1.0f;
   int cull = 0;
   int point_lights = 0;
+  int projected_lights = 0;
+  std::string material_type;
   std::string normal_detail_map;
   int shader_variation = 0;
 };
@@ -1322,6 +1324,12 @@ struct SourceGltfMiloMaterialPlan {
   std::array<float, 4> specular_rgb = {0.0f, 0.0f, 0.0f, 0.0f};
   std::string normal_detail_map;
   bool extras_applied = false;
+  bool extras_projected_lights_declared = false;
+  bool extras_projected_lights_applied = false;
+  int extras_projected_lights = 0;
+  bool extras_material_type_declared = false;
+  bool extras_material_type_applied = false;
+  std::string extras_material_type;
   bool obj_fields_revision2 = false;
 };
 
