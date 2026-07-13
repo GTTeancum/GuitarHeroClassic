@@ -3132,7 +3132,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       disable_authored_lights();
       return;
     }
-    if (active_authored_light_key == env->name) return;
     for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
       dev_->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
     }
@@ -3227,7 +3226,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       disable_authored_fog();
       return;
     }
-    if (active_authored_fog_key == env->name) return;
     dev_->SetRenderState(D3DRS_FOGENABLE, TRUE);
     dev_->SetRenderState(D3DRS_FOGCOLOR, d3d_color_from_rgba(fog_color));
     dev_->SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_NONE);

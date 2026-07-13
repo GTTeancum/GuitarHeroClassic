@@ -6811,6 +6811,12 @@ int main() {
   ok &= contains(renderer_c,
                  "constautostate_it=light_state_overrides_.find(ref);",
                  "authored D3D lights look up decoded LightPreset EnvLightEntry state");
+  ok &= absent(renderer_c,
+               "if(active_authored_light_key==env->name)return;",
+               "authored D3D lights must resample LightPreset state even when the Environ name is unchanged");
+  ok &= absent(renderer_c,
+               "if(active_authored_fog_key==env->name)return;",
+               "authored fog must resample LightPreset EnvironmentEntry state even when the Environ name is unchanged");
   ok &= contains(renderer_c,
                  "if(state_it->second.has_range)light_range="
                  "state_it->second.range;",
