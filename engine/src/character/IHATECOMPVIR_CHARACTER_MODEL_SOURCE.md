@@ -363,6 +363,13 @@ or runtime task graph rendering.
   - `TestClips` runs every valid clip through the four source directions
     `front`, `back`, `left`, and `right`. Native
     `source_clip_collide_test_clips_plan` records that deterministic call plan.
+  - `TestWaypoints` is gated on a selected character; it assigns each valid
+    waypoint before calling `TestClips`. `TestChars` is gated on character,
+    type definition, and the type-def `chars` array; it skips empty character
+    paths and calls `SyncChar` plus `TestWaypoints` for each non-empty path.
+    Native `source_clip_collide_test_waypoints_plan` and
+    `source_clip_collide_test_chars_plan` record those diagnostic loop shapes
+    only.
   - `OnListClips` and `OnListWaypoints` count valid objects, allocate that
     count, write a null first slot, then write valid entries starting at index
     one. Native `source_clip_collide_list_objects_plan` preserves this

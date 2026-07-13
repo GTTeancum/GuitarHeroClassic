@@ -57,7 +57,9 @@ int main() {
   using ghogx::character::source_clip_collide_set_type_def_step;
   using ghogx::character::source_clip_collide_sync_mode_step;
   using ghogx::character::source_clip_collide_sync_char_step;
+  using ghogx::character::source_clip_collide_test_chars_plan;
   using ghogx::character::source_clip_collide_test_clips_plan;
+  using ghogx::character::source_clip_collide_test_waypoints_plan;
   using ghogx::character::source_clip_collide_valid_clip;
   using ghogx::character::source_clip_collide_valid_waypoint;
   using ghogx::character::source_clip_compressor_evidence;
@@ -292,6 +294,37 @@ int main() {
                       "ClipCollide TestClips source direction order");
   ok &= expect_size(test_clips.collide_calls, 12,
                     "ClipCollide TestClips collide call count");
+
+  const auto test_waypoints_missing_char =
+      source_clip_collide_test_waypoints_plan(false, 5);
+  ok &= expect_size(test_waypoints_missing_char.test_clips_calls, 0,
+                    "ClipCollide TestWaypoints gates on character");
+  const auto test_waypoints =
+      source_clip_collide_test_waypoints_plan(true, 3);
+  ok &= expect_size(test_waypoints.valid_waypoint_count, 3,
+                    "ClipCollide TestWaypoints valid waypoint count");
+  ok &= expect_size(test_waypoints.waypoint_assignments, 3,
+                    "ClipCollide TestWaypoints assigns each valid waypoint");
+  ok &= expect_size(test_waypoints.test_clips_calls, 3,
+                    "ClipCollide TestWaypoints calls TestClips per waypoint");
+
+  const auto test_chars_missing_type =
+      source_clip_collide_test_chars_plan(true, false, true, {"a.milo"});
+  ok &= expect_size(test_chars_missing_type.sync_char_calls, 0,
+                    "ClipCollide TestChars gates on type definition");
+  const auto test_chars =
+      source_clip_collide_test_chars_plan(
+          true, true, true, {"", "chars/rock1.milo", "chars/rock2.milo"});
+  ok &= expect_size(test_chars.tested_char_paths.size(), 2,
+                    "ClipCollide TestChars skips empty paths");
+  ok &= expect_string(test_chars.tested_char_paths[0], "chars/rock1.milo",
+                      "ClipCollide TestChars preserves first source path");
+  ok &= expect_string(test_chars.tested_char_paths[1], "chars/rock2.milo",
+                      "ClipCollide TestChars preserves second source path");
+  ok &= expect_size(test_chars.sync_char_calls, 2,
+                    "ClipCollide TestChars syncs each non-empty path");
+  ok &= expect_size(test_chars.test_waypoints_calls, 2,
+                    "ClipCollide TestChars tests waypoints per path");
 
   const auto handler_plan = source_clip_collide_handler_plan();
   ok &= expect_size(handler_plan.handlers.size(), 4,

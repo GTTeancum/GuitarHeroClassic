@@ -4758,6 +4758,33 @@ SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
   return plan;
 }
 
+SourceClipCollideTestWaypointsPlan source_clip_collide_test_waypoints_plan(
+    bool has_character,
+    size_t valid_waypoint_count) {
+  SourceClipCollideTestWaypointsPlan plan;
+  if (!has_character) return plan;
+  plan.valid_waypoint_count = valid_waypoint_count;
+  plan.waypoint_assignments = valid_waypoint_count;
+  plan.test_clips_calls = valid_waypoint_count;
+  return plan;
+}
+
+SourceClipCollideTestCharsPlan source_clip_collide_test_chars_plan(
+    bool has_character,
+    bool has_type_def,
+    bool has_chars_array,
+    const std::vector<std::string>& char_paths) {
+  SourceClipCollideTestCharsPlan plan;
+  if (!has_character || !has_type_def || !has_chars_array) return plan;
+  for (const std::string& char_path : char_paths) {
+    if (char_path.empty()) continue;
+    plan.tested_char_paths.push_back(char_path);
+  }
+  plan.sync_char_calls = plan.tested_char_paths.size();
+  plan.test_waypoints_calls = plan.tested_char_paths.size();
+  return plan;
+}
+
 SourceClipCollideHandlerPlan source_clip_collide_handler_plan() {
   SourceClipCollideHandlerPlan plan;
   plan.handlers = {"list_clips", "list_waypoints", "list_report",

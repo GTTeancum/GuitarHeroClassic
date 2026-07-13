@@ -1712,6 +1712,22 @@ struct SourceClipCollideTestClipsPlan {
   size_t collide_calls = 0;
 };
 
+struct SourceClipCollideTestWaypointsPlan {
+  bool requires_character = true;
+  size_t valid_waypoint_count = 0;
+  size_t waypoint_assignments = 0;
+  size_t test_clips_calls = 0;
+};
+
+struct SourceClipCollideTestCharsPlan {
+  bool requires_character = true;
+  bool requires_type_def = true;
+  bool requires_chars_array = true;
+  std::vector<std::string> tested_char_paths;
+  size_t sync_char_calls = 0;
+  size_t test_waypoints_calls = 0;
+};
+
 struct SourceClipCollideHandlerPlan {
   std::vector<std::string> handlers;
   std::vector<std::string> action_handlers;
@@ -1983,6 +1999,14 @@ SourceClipCollideListPlan source_clip_collide_list_report_plan(
     const std::vector<std::string>& reports);
 SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
     size_t valid_clip_count);
+SourceClipCollideTestWaypointsPlan source_clip_collide_test_waypoints_plan(
+    bool has_character,
+    size_t valid_waypoint_count);
+SourceClipCollideTestCharsPlan source_clip_collide_test_chars_plan(
+    bool has_character,
+    bool has_type_def,
+    bool has_chars_array,
+    const std::vector<std::string>& char_paths);
 SourceClipCollideHandlerPlan source_clip_collide_handler_plan();
 SourceClipCollidePropSyncPlan source_clip_collide_prop_sync_plan();
 SourceClipCollideSavePlan source_clip_collide_save_plan();
