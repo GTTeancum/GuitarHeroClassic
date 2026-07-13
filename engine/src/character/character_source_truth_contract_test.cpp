@@ -16877,6 +16877,13 @@ int run_contract() {
                  "document fences refreshed inventory from fabricated imports");
   ok &= contains(doc, "`CharPollGroup`: zero stock rows",
                  "document records stock CharPollGroup absence");
+  ok &= contains(doc, "`Light` / `RndLight`: zero stock rows",
+                 "document records stock RndLight absence");
+  ok &= contains(doc,
+                 "type inventory. The native RndLight helpers remain "
+                 "source-backed converter\n  and glTFMilo context, not a "
+                 "missing live character-model lighting path",
+                 "document fences RndLight from live character model path");
   ok &= contains(doc,
                  "source_truth_poll_inventory_20260710/"
                  "stock_character_type_inventory.log",
@@ -17057,7 +17064,8 @@ int run_contract() {
                  "document records broader rndobj source boundary");
   ok &= contains(doc,
                  "do not count `Cam`, `CamAnim`, `Env`, `EnvAnim`,\n"
-                 "`Lit`, `LitAnim`, `Flare`, `Fur`, `Wind`, `Part`, `PartAnim`,",
+                 "`Light`, `Lit`, `LitAnim`, `Flare`, `Fur`, `Wind`, `Part`, "
+                 "`PartAnim`,",
                  "document records absent stock render/effect row classes");
   ok &= contains(doc,
                  "`PartLauncher`, `TexRenderer`, `TexBlendController`, "
@@ -17072,6 +17080,10 @@ int run_contract() {
                 "stock character inventory has no Env rows");
   ok &= missing(stock_character_type_inventory_latest, "type=EnvAnim count=",
                 "stock character inventory has no EnvAnim rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=Light count=",
+                "stock character inventory has no Light rows");
+  ok &= missing(stock_character_type_inventory_latest, "type=RndLight count=",
+                "stock character inventory has no RndLight rows");
   ok &= missing(stock_character_type_inventory_latest, "type=Lit count=",
                 "stock character inventory has no Lit rows");
   ok &= missing(stock_character_type_inventory_latest, "type=LitAnim count=",

@@ -4669,12 +4669,15 @@ bounded as follows:
   `DirLoader::FixClassName`/symbol references for `WorldFx`; there is no
   checked `WorldFx::Load` source body. Native keeps these rows as inventory
   evidence only.
+- `Light` / `RndLight`: zero stock rows in the focused 24-character base-MILO
+  type inventory. The native RndLight helpers remain source-backed converter
+  and glTFMilo context, not a missing live character-model lighting path.
 
 The larger `rb3-latest/src/system/rndobj` source snapshot includes many
 render/effect classes that are real ihatecompvir source, but the focused GH2
 base-character inventories above show zero stock character rows for them. In
 this character-model slice, do not count `Cam`, `CamAnim`, `Env`, `EnvAnim`,
-`Lit`, `LitAnim`, `Flare`, `Fur`, `Wind`, `Part`, `PartAnim`,
+`Light`, `Lit`, `LitAnim`, `Flare`, `Fur`, `Wind`, `Part`, `PartAnim`,
 `PartLauncher`, `TexRenderer`, `TexBlendController`, `TexBlender`, `CubeTex`,
 `ColorXfm`, `Line`, `PostProc`, `ScreenMask`, or `SoftParticles` as remaining
 character-model implementation unless a later stock inventory proves such rows
