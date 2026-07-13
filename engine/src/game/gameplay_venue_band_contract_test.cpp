@@ -6807,14 +6807,35 @@ int main() {
                  "authored D3D light setup preserves overbright source intensity");
   ok &= contains(renderer_c,
                  "std::array<float,3>authored_light_direction_from_world(",
-                 "renderer centralizes authored directional .lit aim");
+                 "renderer centralizes authored fake-spot .lit aim");
   ok &= contains(renderer_c,
                  "return{-light_world[8],-light_world[9],-light_world[10]};",
-                 "directional .lit aim uses the authored Trans -Z axis");
+                 "fake-spot .lit aim uses the authored Trans -Z axis");
+  ok &= contains(renderer_c,
+                 "boolis_authored_real_environment_light_type(intlight_type)",
+                 "renderer classifies source real Environ lights explicitly");
+  ok &= contains(renderer_c,
+                 "returnlight_type==0||light_type==2;",
+                 "renderer treats only point/fake-spot lights as source real Environ lights");
+  ok &= contains(renderer_c,
+                 "boolis_authored_approx_environment_light_type(intlight_type)",
+                 "renderer classifies source approximate Environ lights explicitly");
+  ok &= contains(renderer_c,
+                 "returnlight_type==1;",
+                 "renderer treats directional lights as source approximate Environ lights");
+  ok &= contains(renderer_c,
+                 "GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS",
+                 "approximate Environ fill remains A/B switchable");
+  ok &= contains(renderer_c,
+                 "approx_fill[c]*inv_count*kApproxFillScale",
+                 "source approximate Environ lights contribute clamped fill instead of normal-only darkness");
+  ok &= contains(renderer_c,
+                 "if(!is_authored_real_environment_light_type(light_type))continue;",
+                 "source approximate Environ lights are not installed as real D3D lights");
   ok &= contains(renderer_c,
                  "constautodirection=authored_light_direction_from_world("
                  "light_world);",
-                 "directional .lit TransAnim updates authored light direction");
+                 "fake-spot .lit TransAnim updates authored light direction");
   ok &= contains(renderer_c,
                  "dl.Position={light_world[12],light_world[13],light_world[14]};",
                  "point .lit TransAnim updates authored light position");
@@ -8138,14 +8159,29 @@ int main() {
                  "if(!impl.use_scene_lighting){",
                  "scene-lighting character composites do not install standalone viewer lights");
   ok &= contains(char_renderer_c,
-                 "dev->SetRenderState(D3DRS_LIGHTING,eye_mesh?FALSE:TRUE);",
-                 "scene-lighting character composites preserve inherited venue lighting for body meshes");
+                 "blend=0x%02xuse_env=%dprelit=%dzmode=%u",
+                 "character material diagnostics expose source lighting flags");
+  ok &= contains(char_renderer_c,
+                 "constboolscene_lit_mesh="
+                 "!eye_mesh&&(!impl.use_scene_lighting||"
+                 "(material&&material->use_environ));",
+                 "scene-lighting character composites honor source material use-environment flags");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_LIGHTING,"
+                 "scene_lit_mesh?TRUE:FALSE);",
+                 "source use-environment materials inherit active venue lighting");
   ok &= absent(char_renderer_c,
                "impl.use_scene_lighting?FALSE:(eye_mesh?FALSE:TRUE)",
                "scene-lighting character composites must not disable inherited venue lights");
   ok &= contains(char_renderer_c,
-                 "dev->SetRenderState(D3DRS_LIGHTING,TRUE);",
-                 "attached performer props also inherit active venue lighting");
+                 "constboolprop_scene_lit="
+                 "!impl.use_scene_lighting||"
+                 "(prop_material&&prop_material->use_environ);",
+                 "attached performer props honor source material use-environment flags");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_LIGHTING,"
+                 "prop_scene_lit?TRUE:FALSE);",
+                 "attached performer props inherit active venue lighting when source materials request it");
   ok &= contains(char_renderer_c,
                  "char_env_float_or(\"GHOGX_CAMERA_ASPECT\","
                  "backbuffer_aspect,0.5f,3.0f)",

@@ -1565,9 +1565,11 @@ void CharRenderer::set_character(
     for (const auto& mat : impl_->character.mats) {
       std::fprintf(stderr,
                    "[mat] %-24s tex=%-24s color=(%.3f %.3f %.3f %.3f) "
-                   "blend=0x%02x\n",
+                   "blend=0x%02x use_env=%d prelit=%d zmode=%u\n",
                    mat.name.c_str(), mat.diffuse_tex.c_str(), mat.color[0],
-                   mat.color[1], mat.color[2], mat.color[3], mat.blend);
+                   mat.color[1], mat.color[2], mat.color[3], mat.blend,
+                   mat.use_environ ? 1 : 0, mat.prelit ? 1 : 0,
+                   static_cast<unsigned>(mat.z_mode));
     }
     for (const auto& group : impl_->character.groups) {
       std::fprintf(stderr, "[char-group] %s children=%zu", group.name.c_str(),
@@ -1853,9 +1855,13 @@ void CharRenderer::draw_impl(bool clear_target) {
         is_unsupported_dynamic_hair(m.name) ||
         is_terminal_leg_overlay_duplicate(m)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);
+    const milo_scene::MatObj* material = impl.character.find_mat(m.material);
+    const bool scene_lit_mesh =
+        !eye_mesh &&
+        (!impl.use_scene_lighting || (material && material->use_environ));
     dev->SetRenderState(D3DRS_CULLMODE, character_cull_mode(&m));
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    dev->SetRenderState(D3DRS_LIGHTING, eye_mesh ? FALSE : TRUE);
+    dev->SetRenderState(D3DRS_LIGHTING, scene_lit_mesh ? TRUE : FALSE);
 
     // Skin the mesh using linear-blend skinning.
     skin_to_pose(m, impl.character, spos, snrm);
@@ -2129,7 +2135,6 @@ void CharRenderer::draw_impl(bool clear_target) {
       int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
       return i < 0 ? 0 : (i > 255 ? 255 : i);
     };
-    const milo_scene::MatObj* material = impl.character.find_mat(m.material);
     const bool highlight_mesh = highlight_mesh_enabled(m.name);
     const bool blended_hair =
         material && material->blend != 0 && is_hair_render_mesh(m);
@@ -2296,6 +2301,10 @@ void CharRenderer::draw_impl(bool clear_target) {
 
       const milo_scene::MatObj* prop_material =
           impl.prop_scene.find_mat(m.material);
+      const bool prop_scene_lit =
+          !impl.use_scene_lighting ||
+          (prop_material && prop_material->use_environ);
+      dev->SetRenderState(D3DRS_LIGHTING, prop_scene_lit ? TRUE : FALSE);
       IDirect3DTexture9* texture = nullptr;
       if (prop_material) {
         auto it = impl.prop_tex.find(prop_material->diffuse_tex);
