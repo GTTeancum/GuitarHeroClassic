@@ -182,6 +182,7 @@ class MiloSceneRenderer {
   };
   void set_light_state_overrides(
       std::map<std::string, LightStateOverride> light_states);
+  void set_default_environment(std::string environment_name);
   bool apply_environment_lighting_state(const std::string& environment_name);
   void set_mesh_translation_offsets(
       std::map<std::string, std::array<float, 3>> offsets);
@@ -267,6 +268,7 @@ class MiloSceneRenderer {
   std::map<std::string, MaterialTexTransformSample> material_tex_transforms_;
   bool environment_lighting_enabled_ = true;
   std::map<std::string, std::string> mesh_environments_;
+  std::string default_environment_;
   std::map<std::string, std::array<float, 4>> environment_color_overrides_;
   std::map<std::string, EnvironmentFogOverride> environment_fog_overrides_;
   std::map<std::string, std::array<float, 4>> light_color_overrides_;

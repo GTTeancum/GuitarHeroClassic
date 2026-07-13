@@ -28527,6 +28527,21 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     ghogx::milo_scene::Scene drums_scene;
                     if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_,
                                                       drums_milo, drums_scene)) {
+                        if (venue_chars_scene_loaded_) {
+                            const size_t lights_before = drums_scene.lights.size();
+                            const size_t environs_before =
+                                drums_scene.environs.size();
+                            append_scene_lighting_objects(drums_scene,
+                                                          venue_chars_scene_);
+                            if (debug_venue_filters_enabled()) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] drums character lighting objects appended: lights=%zu environs=%zu source=%s env=drummer.env\n",
+                                    drums_scene.lights.size() - lights_before,
+                                    drums_scene.environs.size() - environs_before,
+                                    chars_milo.c_str());
+                            }
+                        }
                         auto drum_textures = ghogx::asset::load_milo_textures(
                             hdr_path_, ark_path_, drums_milo,
                             texture_names_for_scene(drums_scene));
@@ -28535,6 +28550,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 win);
                         drum_kit_->set_scene(std::move(drums_scene),
                                              drum_textures);
+                        drum_kit_->set_default_environment("drummer.env");
                         drum_kit_->set_world_transform(xfm_to_mat4(*start));
                         auto drum_anim_data =
                             load_drum_anim_data(hdr_path_, ark_path_,
@@ -29964,6 +29980,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
         }
         update_performer_lighting();
         if (drum_kit_) {
+            drum_kit_->set_environment_color_overrides(
+                venue_environment_colors_);
+            drum_kit_->set_environment_fog_overrides(
+                compose_environment_fog_overrides(
+                    venue_environment_fog_colors_,
+                    venue_environment_fog_ranges_,
+                    &venue_environment_fog_enabled_));
+            drum_kit_->set_light_color_overrides(venue_light_colors_);
+            drum_kit_->set_light_state_overrides(venue_light_state_overrides_);
             drum_kit_->draw_over_scene(world_->camera());
         }
         const std::string_view only_role = only_draw_performer_role();

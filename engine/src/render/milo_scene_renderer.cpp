@@ -2300,6 +2300,10 @@ void MiloSceneRenderer::set_light_state_overrides(
   light_state_overrides_ = std::move(light_states);
 }
 
+void MiloSceneRenderer::set_default_environment(std::string environment_name) {
+  default_environment_ = std::move(environment_name);
+}
+
 bool MiloSceneRenderer::apply_environment_lighting_state(
     const std::string& environment_name) {
   if (!dev_) return false;
@@ -3169,10 +3173,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const milo_scene::EnvironObj* mesh_env = nullptr;
     if (apply_environment_lighting && mat_obj && mat_obj->use_environ) {
+      std::string env_name = default_environment_;
       const auto env_it = mesh_environments_.find(m.name);
-      mesh_env = env_it == mesh_environments_.end()
-                     ? nullptr
-                     : scene_.find_environ(env_it->second);
+      if (env_it != mesh_environments_.end()) env_name = env_it->second;
+      mesh_env = env_name.empty() ? nullptr : scene_.find_environ(env_name);
     }
     std::array<float, 4> mesh_env_color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool has_mesh_env_color = false;

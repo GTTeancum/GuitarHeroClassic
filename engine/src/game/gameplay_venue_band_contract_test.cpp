@@ -6686,8 +6686,14 @@ int main() {
                  "fog=%danimate_preset=%d",
                  "runtime logs Environ fog and preset-animation flags");
   ok &= contains(renderer_h_c,
-                 "mesh_environments_;",
-                 "renderer tracks mesh-to-Environ assignment");
+                  "mesh_environments_;",
+                  "renderer tracks mesh-to-Environ assignment");
+  ok &= contains(renderer_h_c,
+                 "voidset_default_environment(std::stringenvironment_name);",
+                 "renderer can supply a source Environ fallback for ungrouped use-environ meshes");
+  ok &= contains(renderer_h_c,
+                 "std::stringdefault_environment_;",
+                 "renderer stores the fallback source Environ by name");
   ok &= contains(renderer_h_c,
                  "boolapply_environment_lighting_state("
                  "conststd::string&environment_name);",
@@ -6696,8 +6702,14 @@ int main() {
                  "mat_obj&&mat_obj->use_environ",
                  "renderer gates Environ lighting on the decoded material flag");
   ok &= contains(renderer_c,
-                 "scene_.find_environ(env_it->second)",
-                 "renderer resolves authored Environ refs before applying ambient");
+                 "std::stringenv_name=default_environment_;",
+                 "renderer starts ungrouped use-environ meshes from the fallback source Environ");
+  ok &= contains(renderer_c,
+                 "if(env_it!=mesh_environments_.end())env_name=env_it->second;",
+                 "authored Group Environ refs override the renderer fallback");
+  ok &= contains(renderer_c,
+                 "mesh_env=env_name.empty()?nullptr:scene_.find_environ(env_name);",
+                 "renderer resolves fallback or Group Environ refs before applying ambient");
   ok &= contains(renderer_c,
                  "boolfog_values_sane(boolenabled,floatstart,floatend,"
                  "conststd::array<float,4>&color)",
@@ -8168,6 +8180,13 @@ int main() {
                  "venue_chars_scene_for_load);",
                  "venue character-scene Environ/Light objects are available for band lighting");
   ok &= contains(gameplay_c,
+                 "append_scene_lighting_objects(drums_scene,"
+                 "venue_chars_scene_);",
+                 "drum kit scene borrows the decoded venue character Environ/Light objects");
+  ok &= contains(gameplay_c,
+                 "drum_kit_->set_default_environment(\"drummer.env\");",
+                 "drum kit use-environ meshes default to the decoded drummer source environment");
+  ok &= contains(gameplay_c,
                  "if(role==\"drummer\")return\"drummer.env\";",
                  "drummer performers use the decoded drummer source environment");
   ok &= contains(gameplay_c,
@@ -8238,6 +8257,24 @@ int main() {
                  "world_->apply_environment_lighting_state("
                  "performer_lighting_environment_for_role(perf.role));",
                  "performers draw under the decoded band/drummer source environment");
+  ok &= contains(gameplay_c,
+                 "drum_kit_->set_environment_color_overrides("
+                 "venue_environment_colors_);",
+                 "drum kit receives live LightPreset environment color overrides");
+  ok &= contains(gameplay_c,
+                 "drum_kit_->set_environment_fog_overrides("
+                 "compose_environment_fog_overrides("
+                 "venue_environment_fog_colors_,"
+                 "venue_environment_fog_ranges_,"
+                 "&venue_environment_fog_enabled_));",
+                 "drum kit receives live LightPreset environment fog overrides");
+  ok &= contains(gameplay_c,
+                 "drum_kit_->set_light_color_overrides(venue_light_colors_);",
+                 "drum kit receives live LightPreset light color overrides");
+  ok &= contains(gameplay_c,
+                 "drum_kit_->set_light_state_overrides("
+                 "venue_light_state_overrides_);",
+                 "drum kit receives live LightPreset light state overrides");
   ok &= appears_before(gameplay_c,
                        "world_->apply_environment_lighting_state("
                        "performer_lighting_environment_for_role(perf.role));",
@@ -8290,8 +8327,7 @@ int main() {
                  "draw_worldcrowd_actor_runtime(world_->camera());",
                  "WorldCrowd actors draw after active lighting preset/keyframe selection and before the lighting overlay");
   ok &= appears_before(gameplay_c,
-                       "if(drum_kit_){drum_kit_->draw_over_scene("
-                       "world_->camera());}",
+                       "drum_kit_->draw_over_scene(world_->camera());",
                        "lighting_->draw_over_scene(world_->camera());"
                        "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
                        "\"[world]lightingoverlaycomposite:order=after_band",
