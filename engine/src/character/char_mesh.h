@@ -444,6 +444,7 @@ struct SourceGltfMiloMaterialExtras {
 
 struct SourceGltfMiloMaterialInput {
   std::string name;
+  std::string platform;
   bool has_base_color_texture = false;
   bool double_sided = false;
   bool prelit_option_equals_false = false;
@@ -456,6 +457,13 @@ struct SourceGltfMiloMaterialInput {
   bool image_has_alpha = false;
   SourceGltfMiloAlphaMode alpha_mode = SourceGltfMiloAlphaMode::kOpaque;
   float alpha_cutoff = 0.5f;
+  bool has_normal_texture = false;
+  bool has_emissive_texture = false;
+  bool has_specular_color_texture = false;
+  bool has_specular_color = false;
+  std::array<float, 4> specular_color = {0.0f, 0.0f, 0.0f, 0.0f};
+  bool has_specular_factor = false;
+  float specular_factor = 0.0f;
   SourceGltfMiloMaterialExtras extras;
 };
 
@@ -466,6 +474,30 @@ struct SourceGltfMiloMaterialPlan {
   std::string diffuse_tex;
   std::string diffuse_tex_entry_name;
   std::string texture_external_path;
+  bool creates_normal_tex_entry = false;
+  std::string normal_map;
+  std::string normal_tex_entry_name;
+  std::string normal_texture_external_path;
+  std::string normal_compression_format;
+  std::string normal_bitmap_encoding;
+  bool normal_optimize_for_ps3 = false;
+  bool normal_xbox_byte_swap = false;
+  bool creates_emissive_tex_entry = false;
+  std::string emissive_map;
+  std::string emissive_tex_entry_name;
+  std::string emissive_texture_external_path;
+  std::string emissive_compression_format;
+  std::string emissive_bitmap_encoding;
+  bool emissive_optimize_for_ps3 = false;
+  bool emissive_xbox_byte_swap = false;
+  bool creates_specular_tex_entry = false;
+  std::string specular_map;
+  std::string specular_tex_entry_name;
+  std::string specular_texture_external_path;
+  std::string specular_compression_format;
+  std::string specular_bitmap_encoding;
+  bool specular_optimize_for_ps3 = false;
+  bool specular_xbox_byte_swap = false;
   bool stencil_ignore = false;
   bool per_pixel_lit = false;
   bool pre_lit = false;
@@ -487,6 +519,8 @@ struct SourceGltfMiloMaterialPlan {
   float rim_power = 4.0f;
   float specular_power = 0.0f;
   float specular2_power = 0.0f;
+  bool has_specular_rgb = false;
+  std::array<float, 4> specular_rgb = {0.0f, 0.0f, 0.0f, 0.0f};
   std::string normal_detail_map;
   bool extras_applied = false;
   bool obj_fields_revision2 = false;

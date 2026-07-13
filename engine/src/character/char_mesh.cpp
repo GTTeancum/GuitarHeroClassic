@@ -648,6 +648,12 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input) {
   SourceGltfMiloMaterialPlan plan;
   plan.mat_entry_name = input.name + ".mat";
+  std::string platform_lower = input.platform;
+  for (char& c : platform_lower) {
+    c = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(c)));
+  }
+  const bool xbox_platform = platform_lower == "xbox";
 
   if (input.has_base_color_texture) {
     plan.creates_diffuse_tex_entry = true;
@@ -707,6 +713,50 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.specular_power = 0.0f;
     plan.specular2_power = 0.0f;
     plan.obj_fields_revision2 = true;
+  }
+
+  if (input.has_normal_texture) {
+    plan.creates_normal_tex_entry = true;
+    plan.normal_map = input.name + "_norm.tex";
+    plan.normal_tex_entry_name = input.name + "_norm.tex";
+    plan.normal_texture_external_path = input.name + "_norm.png";
+    plan.normal_compression_format = xbox_platform ? "BC5" : "BC1";
+    plan.normal_bitmap_encoding =
+        xbox_platform ? "ATI2_BC5" : "DXT1_BC1";
+    plan.normal_optimize_for_ps3 = true;
+    plan.normal_xbox_byte_swap = xbox_platform;
+  }
+
+  if (input.has_emissive_texture) {
+    plan.creates_emissive_tex_entry = true;
+    plan.emissive_map = input.name + "_emissive.tex";
+    plan.emissive_tex_entry_name = input.name + "_emissive.tex";
+    plan.emissive_texture_external_path = input.name + "_emissive.png";
+    plan.emissive_compression_format = "BC1";
+    plan.emissive_bitmap_encoding = "DXT1_BC1";
+    plan.emissive_optimize_for_ps3 = !xbox_platform;
+    plan.emissive_xbox_byte_swap = xbox_platform;
+    plan.emissive_multiplier = 1.0f;
+  }
+
+  if (input.has_specular_color_texture) {
+    plan.creates_specular_tex_entry = true;
+    plan.specular_map = input.name + "_spec.tex";
+    plan.specular_tex_entry_name = input.name + "_spec.tex";
+    plan.specular_texture_external_path = input.name + "_spec.png";
+    plan.specular_compression_format = "BC3";
+    plan.specular_bitmap_encoding = "DXT5_BC3";
+    plan.specular_optimize_for_ps3 = !xbox_platform;
+    plan.specular_xbox_byte_swap = xbox_platform;
+  }
+
+  if (input.has_specular_color) {
+    plan.has_specular_rgb = true;
+    plan.specular_rgb = input.specular_color;
+  }
+
+  if (input.has_specular_factor) {
+    plan.specular_power = input.specular_factor;
   }
 
   if (input.extras.present) {

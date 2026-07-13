@@ -4527,8 +4527,20 @@ int run_contract() {
                  "structSourceGltfMiloMaterialInput{std::stringname;",
                  "native declares glTFMilo material input row");
   ok &= contains(char_mesh_h,
+                 "boolhas_normal_texture=false;",
+                 "native material input records normal texture channel");
+  ok &= contains(char_mesh_h,
+                 "boolhas_specular_factor=false;",
+                 "native material input records specular factor channel");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
                  "native declares glTFMilo material plan row");
+  ok &= contains(char_mesh_h,
+                 "boolcreates_normal_tex_entry=false;",
+                 "native material plan records normal Tex row");
+  ok &= contains(char_mesh_h,
+                 "boolcreates_specular_tex_entry=false;",
+                 "native material plan records specular Tex row");
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloBaseMeshInput{SourceGltfMiloGamegame=",
                  "native declares glTFMilo base mesh input row");
@@ -4835,6 +4847,31 @@ int run_contract() {
                  "plan.alpha_cut=true;",
                  "native preserves glTFMilo alpha-mask branch");
   ok &= contains(char_mesh,
+                 "if(input.has_normal_texture){plan.creates_normal_tex_entry="
+                 "true;",
+                 "native preserves glTFMilo normal texture branch");
+  ok &= contains(char_mesh,
+                 "plan.normal_compression_format=xbox_platform?\"BC5\":\"BC1\";",
+                 "native preserves glTFMilo normal compression branch");
+  ok &= contains(char_mesh,
+                 "if(input.has_emissive_texture){plan.creates_emissive_tex_"
+                 "entry=true;",
+                 "native preserves glTFMilo emissive texture branch");
+  ok &= contains(char_mesh,
+                 "plan.emissive_optimize_for_ps3=!xbox_platform;",
+                 "native preserves glTFMilo emissive optimize branch");
+  ok &= contains(char_mesh,
+                 "if(input.has_specular_color_texture){plan.creates_specular_"
+                 "tex_entry=true;",
+                 "native preserves glTFMilo specular texture branch");
+  ok &= contains(char_mesh,
+                 "if(input.has_specular_color){plan.has_specular_rgb=true;",
+                 "native preserves glTFMilo specular color branch");
+  ok &= contains(char_mesh,
+                 "if(input.has_specular_factor){plan.specular_power=input."
+                 "specular_factor;}",
+                 "native preserves glTFMilo specular factor branch");
+  ok &= contains(char_mesh,
                  "if(input.extras.present){plan.extras_applied=true;",
                  "native preserves glTFMilo material extras override block");
   ok &= contains(char_mesh,
@@ -4990,6 +5027,18 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "gltf_hair_material.tex_wrap==0",
                  "focused mesh decode test covers glTFMilo wrap priority");
+  ok &= contains(mesh_decode_test,
+                 "gltf_map_material.creates_normal_tex_entry",
+                 "focused mesh decode test covers glTFMilo normal map row");
+  ok &= contains(mesh_decode_test,
+                 "gltf_map_material.creates_emissive_tex_entry",
+                 "focused mesh decode test covers glTFMilo emissive map row");
+  ok &= contains(mesh_decode_test,
+                 "gltf_map_material.creates_specular_tex_entry",
+                 "focused mesh decode test covers glTFMilo specular map row");
+  ok &= contains(mesh_decode_test,
+                 "gltf_ps3_map_material.normal_compression_format==\"BC1\"",
+                 "focused mesh decode test covers glTFMilo non-Xbox normal compression");
   ok &= contains(mesh_decode_test,
                  "gltf_extras_material.extras_applied",
                  "focused mesh decode test covers glTFMilo material extras");

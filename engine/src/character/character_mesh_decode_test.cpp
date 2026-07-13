@@ -569,6 +569,66 @@ int main() {
   CHECK(!gltf_no_texture_material.creates_diffuse_tex_entry);
   CHECK(gltf_no_texture_material.mat_entry_name == "plain_mat.mat");
 
+  ghogx::character::SourceGltfMiloMaterialInput material_maps_input;
+  material_maps_input.name = "rock1_hair";
+  material_maps_input.platform = "xbox";
+  material_maps_input.has_normal_texture = true;
+  material_maps_input.has_emissive_texture = true;
+  material_maps_input.has_specular_color_texture = true;
+  material_maps_input.has_specular_color = true;
+  material_maps_input.specular_color = {0.10f, 0.20f, 0.30f, 0.40f};
+  material_maps_input.has_specular_factor = true;
+  material_maps_input.specular_factor = 12.5f;
+  const auto gltf_map_material =
+      ghogx::character::source_gltf_milo_material_base_plan(
+          material_maps_input);
+  CHECK(gltf_map_material.creates_mat_entry);
+  CHECK(!gltf_map_material.creates_diffuse_tex_entry);
+  CHECK(gltf_map_material.creates_normal_tex_entry);
+  CHECK(gltf_map_material.normal_map == "rock1_hair_norm.tex");
+  CHECK(gltf_map_material.normal_tex_entry_name == "rock1_hair_norm.tex");
+  CHECK(gltf_map_material.normal_texture_external_path ==
+        "rock1_hair_norm.png");
+  CHECK(gltf_map_material.normal_compression_format == "BC5");
+  CHECK(gltf_map_material.normal_bitmap_encoding == "ATI2_BC5");
+  CHECK(gltf_map_material.normal_optimize_for_ps3);
+  CHECK(gltf_map_material.normal_xbox_byte_swap);
+  CHECK(gltf_map_material.creates_emissive_tex_entry);
+  CHECK(gltf_map_material.emissive_map == "rock1_hair_emissive.tex");
+  CHECK(gltf_map_material.emissive_tex_entry_name ==
+        "rock1_hair_emissive.tex");
+  CHECK(gltf_map_material.emissive_texture_external_path ==
+        "rock1_hair_emissive.png");
+  CHECK(gltf_map_material.emissive_compression_format == "BC1");
+  CHECK(gltf_map_material.emissive_bitmap_encoding == "DXT1_BC1");
+  CHECK(!gltf_map_material.emissive_optimize_for_ps3);
+  CHECK(gltf_map_material.emissive_xbox_byte_swap);
+  CHECK(gltf_map_material.creates_specular_tex_entry);
+  CHECK(gltf_map_material.specular_map == "rock1_hair_spec.tex");
+  CHECK(gltf_map_material.specular_tex_entry_name == "rock1_hair_spec.tex");
+  CHECK(gltf_map_material.specular_texture_external_path ==
+        "rock1_hair_spec.png");
+  CHECK(gltf_map_material.specular_compression_format == "BC3");
+  CHECK(gltf_map_material.specular_bitmap_encoding == "DXT5_BC3");
+  CHECK(!gltf_map_material.specular_optimize_for_ps3);
+  CHECK(gltf_map_material.specular_xbox_byte_swap);
+  CHECK(gltf_map_material.has_specular_rgb);
+  CHECK(approx(gltf_map_material.specular_rgb[0], 0.10f));
+  CHECK(approx(gltf_map_material.specular_rgb[3], 0.40f));
+  CHECK(approx(gltf_map_material.specular_power, 12.5f));
+
+  material_maps_input.platform = "ps3";
+  const auto gltf_ps3_map_material =
+      ghogx::character::source_gltf_milo_material_base_plan(
+          material_maps_input);
+  CHECK(gltf_ps3_map_material.normal_compression_format == "BC1");
+  CHECK(gltf_ps3_map_material.normal_bitmap_encoding == "DXT1_BC1");
+  CHECK(!gltf_ps3_map_material.normal_xbox_byte_swap);
+  CHECK(gltf_ps3_map_material.emissive_optimize_for_ps3);
+  CHECK(!gltf_ps3_map_material.emissive_xbox_byte_swap);
+  CHECK(gltf_ps3_map_material.specular_optimize_for_ps3);
+  CHECK(!gltf_ps3_map_material.specular_xbox_byte_swap);
+
   ghogx::character::SourceGltfMiloMaterialInput material_extras_input;
   material_extras_input.name = "override_hair";
   material_extras_input.has_base_color_texture = true;

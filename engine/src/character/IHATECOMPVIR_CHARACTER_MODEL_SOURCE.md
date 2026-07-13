@@ -1028,6 +1028,21 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     those deterministic exporter rows for evidence only; live GH2 character
     material behavior still comes from decoded stock `RndMat` rows plus the
     separate project hair two-sided culling override.
+  - The same material pass can emit normal, emissive, and specular texture rows
+    independent of the base-color texture. Normal maps use BC5 / `ATI2_BC5` on
+    Xbox and BC1 / `DXT1_BC1` otherwise, always marking the generated texture
+    as optimized for PS3. Emissive maps use BC1 / `DXT1_BC1`, specular maps
+    use BC3 / `DXT5_BC3`, and both mark optimize-for-PS3 only on non-Xbox
+    output. The source byte-swaps each of those texture payloads only when the
+    directory platform is Xbox. Native records those map names, entry names,
+    external paths, compression/encoding choices, optimize flags, and byte-swap
+    gates in `SourceGltfMiloMaterialPlan`; it does not change live GH2 material
+    upload or renderer behavior.
+  - glTFMilo also assigns `mat.specularRGB` from the `SpecularColor` channel
+    and `mat.specularPower` from `SpecularFactor`. Native records those
+    deterministic rows in the material plan so character hair/skin material
+    contracts include the full visible source material pass, not just diffuse
+    texture setup.
   - The same glTFMilo pass then applies `material.Extras` after the base-color
     block. The mirrored source tree does not include a `MaterialExtras` class
     definition, but `Program.cs` shows the consumed rows: optional prelit
