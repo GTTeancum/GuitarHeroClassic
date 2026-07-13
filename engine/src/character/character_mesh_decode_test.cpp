@@ -1603,6 +1603,25 @@ int main() {
   CHECK(milo_extras_boundary.missing_helpers[0] == "MiloExtras");
   CHECK(milo_extras_boundary.missing_helpers[4] == "MiloExtras.ObjectType");
 
+  const auto game_revisions_boundary =
+      ghogx::character::source_gltf_milo_game_revisions_boundary();
+  CHECK(!game_revisions_boundary.game_revisions_source_present);
+  CHECK(game_revisions_boundary.revision_lookup_call_sites_source_backed);
+  CHECK(game_revisions_boundary.can_port_lookup_call_order);
+  CHECK(!game_revisions_boundary.can_port_revision_values);
+  CHECK(!game_revisions_boundary
+             .safe_to_select_runtime_revisions_from_missing_table);
+  CHECK(game_revisions_boundary.revision_call_sites.size() == 17);
+  CHECK(game_revisions_boundary.revision_call_sites[0] ==
+        "Program CreateBaseMesh ModelRevision");
+  CHECK(game_revisions_boundary.revision_call_sites[15] ==
+        "ProcessLightNode TransRevision");
+  CHECK(game_revisions_boundary.revision_call_sites[16] ==
+        "ProcessEmptyHairCollides TransRevision");
+  CHECK(game_revisions_boundary.missing_helpers.size() == 11);
+  CHECK(game_revisions_boundary.missing_helpers[0] == "GameRevisions");
+  CHECK(game_revisions_boundary.missing_helpers[10] == "LightRevision");
+
   const auto char_hair_extras_boundary =
       ghogx::character::source_gltf_milo_char_hair_extras_boundary();
   CHECK(!char_hair_extras_boundary.char_hair_extras_source_present);

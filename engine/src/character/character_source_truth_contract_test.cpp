@@ -289,6 +289,11 @@ int run_contract() {
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeHelpers.cs");
   const bool gltf_milo_extras_cs_exists = std::filesystem::is_regular_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/MiloExtras.cs");
+  const bool gltf_game_revisions_cs_exists =
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/Core/GameRevisions.cs") ||
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/GameRevisions.cs");
   const bool gltf_char_hair_extras_cs_exists =
       std::filesystem::is_regular_file(
           source_dir / "glTFMilo/Source/glTFMilo/Core/CharHairExtras.cs") ||
@@ -1761,6 +1766,10 @@ int run_contract() {
                  "document records glTFMilo MiloExtras boundary");
   ok &= contains(doc, "native must not infer filename override, group/object",
                  "document fences unvendored MiloExtras logic");
+  ok &= contains(doc, "glTFMilo game revision boundary",
+                 "document records glTFMilo GameRevisions boundary");
+  ok &= contains(doc, "native must not infer revision table values",
+                 "document fences unvendored GameRevisions values");
   ok &= contains(doc, "glTFMilo hair extras boundary",
                  "document records glTFMilo CharHairExtras boundary");
   ok &= contains(doc, "native must not infer default hair physics numbers",
@@ -5681,6 +5690,40 @@ int run_contract() {
                  ".ModelRevision,0,0,0);",
                  "glTFMilo CreateBaseMesh uses selected model revision");
   ok &= contains(gltf_program_cs,
+                 "meta.revision=GameRevisions.GetRevision(selectedGame)"
+                 ".MiloRevision;",
+                 "glTFMilo scene metadata uses selected milo revision");
+  ok &= contains(gltf_program_cs,
+                 "RndMatmat=RndMat.New(GameRevisions.GetRevision(selectedGame)"
+                 ".MatRevision,0);",
+                 "glTFMilo material export uses selected mat revision");
+  ok &= contains(gltf_program_cs,
+                 "RndTextex=RndTex.New(GameRevisions.GetRevision(selectedGame)"
+                 ".TextureRevision,0);",
+                 "glTFMilo texture export uses selected texture revision");
+  ok &= contains(gltf_program_cs,
+                 "RndGroupallGeomGrp=RndGroup.New(GameRevisions.GetRevision("
+                 "selectedGame).GroupRevision,0);",
+                 "glTFMilo all-geom group uses selected group revision");
+  ok &= contains(gltf_node_processor_cs,
+                 "varrev=GameRevisions.GetRevision(game);",
+                 "glTFMilo NodeProcessor uses selected game revision table");
+  ok &= contains(gltf_node_processor_cs,
+                 "vargroup=RndGroup.New(rev.GroupRevision,0);",
+                 "glTFMilo ProcessGroupNode reads group revision");
+  ok &= contains(gltf_node_processor_cs,
+                 "SetValue(light,rev.LightRevision);",
+                 "glTFMilo ProcessLightNode reads light revision");
+  ok &= contains(gltf_node_processor_cs,
+                 "collide.trans=RndTrans.New(rev.TransRevision,0);",
+                 "glTFMilo empty hair collides read trans revision");
+  if (gltf_game_revisions_cs_exists) {
+    std::cerr << "Forbidden source-truth contract match: "
+              << "GameRevisions source appeared and boundary must be reassessed"
+              << "\n";
+    ok = false;
+  }
+  ok &= contains(gltf_program_cs,
                  "mesh.objFields.revision=2;",
                  "glTFMilo CreateBaseMesh sets object fields revision");
   ok &= contains(gltf_program_cs,
@@ -6555,6 +6598,31 @@ int run_contract() {
                  "\"MiloExtras.AddToObject\",\"MiloExtras.ObjectType\"};",
                  "native MiloExtras boundary records missing helper source");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloGameRevisionsBoundary{"
+                 "boolgame_revisions_source_present=false;",
+                 "native API exposes glTFMilo GameRevisions boundary");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloGameRevisionsBoundarysource_gltf_milo_"
+                 "game_revisions_boundary();",
+                 "native API exposes glTFMilo GameRevisions boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloGameRevisionsBoundarysource_gltf_milo_"
+                 "game_revisions_boundary(){",
+                 "native ports glTFMilo GameRevisions boundary helper");
+  ok &= contains(char_mesh,
+                 "\"ProgramCreateBaseMeshModelRevision\"",
+                 "native GameRevisions boundary records mesh revision call site");
+  ok &= contains(char_mesh,
+                 "\"ProcessEmptyHairCollidesTransRevision\"",
+                 "native GameRevisions boundary records hair collide revision call site");
+  ok &= contains(char_mesh,
+                 "boundary.missing_helpers={\"GameRevisions\","
+                 "\"GameRevisions.GetRevision\",\"MiloRevision\","
+                 "\"ModelRevision\",\"MatRevision\",\"TextureRevision\","
+                 "\"GroupRevision\",\"TransRevision\",\"DrawableRevision\","
+                 "\"AnimatableRevision\",\"LightRevision\"};",
+                 "native GameRevisions boundary records missing helper source");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloCharHairExtrasBoundary{"
                  "boolchar_hair_extras_source_present=false;",
                  "native API exposes glTFMilo CharHairExtras boundary");
@@ -6768,6 +6836,16 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "!milo_extras_boundary.can_port_object_mutation_logic",
                  "focused mesh decode test fences unvendored object mutation logic");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_game_revisions_boundary()",
+                 "focused mesh decode test covers glTFMilo GameRevisions boundary");
+  ok &= contains(mesh_decode_test,
+                 "!game_revisions_boundary.can_port_revision_values",
+                 "focused mesh decode test fences unvendored revision values");
+  ok &= contains(mesh_decode_test,
+                 "!game_revisions_boundary"
+                 ".safe_to_select_runtime_revisions_from_missing_table",
+                 "focused mesh decode test fences runtime revision selection");
   ok &= contains(mesh_decode_test,
                  "source_gltf_milo_char_hair_extras_boundary()",
                  "focused mesh decode test covers glTFMilo CharHairExtras boundary");

@@ -392,6 +392,16 @@ struct SourceGltfMiloMiloExtrasBoundary {
   std::vector<std::string> missing_helpers;
 };
 
+struct SourceGltfMiloGameRevisionsBoundary {
+  bool game_revisions_source_present = false;
+  bool revision_lookup_call_sites_source_backed = true;
+  bool can_port_lookup_call_order = true;
+  bool can_port_revision_values = false;
+  bool safe_to_select_runtime_revisions_from_missing_table = false;
+  std::vector<std::string> revision_call_sites;
+  std::vector<std::string> missing_helpers;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
@@ -1094,6 +1104,9 @@ source_gltf_milo_node_helpers_boundary();
 
 SourceGltfMiloMiloExtrasBoundary
 source_gltf_milo_milo_extras_boundary();
+
+SourceGltfMiloGameRevisionsBoundary
+source_gltf_milo_game_revisions_boundary();
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};

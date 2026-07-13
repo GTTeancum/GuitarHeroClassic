@@ -9773,6 +9773,41 @@ source_gltf_milo_milo_extras_boundary() {
   return boundary;
 }
 
+SourceGltfMiloGameRevisionsBoundary
+source_gltf_milo_game_revisions_boundary() {
+  SourceGltfMiloGameRevisionsBoundary boundary;
+  boundary.revision_call_sites = {
+      "Program CreateBaseMesh ModelRevision",
+      "Program Run MiloRevision",
+      "Program TransAnim AnimatableRevision",
+      "Program TransAnim DrawableRevision",
+      "Program material MatRevision",
+      "Program texture TextureRevision",
+      "Program venue group GroupRevision",
+      "Program venue group TransRevision",
+      "Program venue group DrawableRevision",
+      "Program venue group AnimatableRevision",
+      "ProcessGroupNode GroupRevision",
+      "ProcessGroupNode TransRevision",
+      "ProcessGroupNode DrawableRevision",
+      "ProcessGroupNode AnimatableRevision",
+      "ProcessLightNode LightRevision",
+      "ProcessLightNode TransRevision",
+      "ProcessEmptyHairCollides TransRevision"};
+  boundary.missing_helpers = {"GameRevisions",
+                              "GameRevisions.GetRevision",
+                              "MiloRevision",
+                              "ModelRevision",
+                              "MatRevision",
+                              "TextureRevision",
+                              "GroupRevision",
+                              "TransRevision",
+                              "DrawableRevision",
+                              "AnimatableRevision",
+                              "LightRevision"};
+  return boundary;
+}
+
 SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale) {
