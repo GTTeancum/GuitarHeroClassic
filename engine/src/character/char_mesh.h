@@ -1479,6 +1479,30 @@ struct SourceRndMeshCacheStripsPlan {
   bool cache_strips = false;
 };
 
+struct SourceRndMeshStriperResultReadPlan {
+  int32_t nb_strips = 0;
+  int32_t runs = 0;
+  bool reads_nb_strips = true;
+  bool reads_runs = true;
+  bool allocates_lengths_and_runs = false;
+  int32_t strip_lengths_bytes = 0;
+  int32_t strip_runs_bytes = 0;
+};
+
+struct SourceRndMeshCreateStripPlan {
+  int32_t face_start = 0;
+  int32_t face_count = 0;
+  bool wfaces_points_to_face_idx0 = true;
+  bool connect_all_strips = false;
+  bool one_sided = false;
+  bool sgi_algorithm = false;
+  bool asserts_striper_init = true;
+  bool asserts_striper_compute = true;
+  int32_t loop_start_index = 1;
+  int32_t final_nb_strips = 0;
+  bool missing_strip_length = false;
+};
+
 SourceRndMeshDefaultState source_rndmesh_default_state();
 SourceRndMeshSavePlan source_rndmesh_save_plan();
 SourceRndMeshDestructorPlan source_rndmesh_destructor_plan();
@@ -1581,6 +1605,15 @@ SourceRndMeshCacheStripsPlan source_rndmesh_cache_strips_plan(
     int32_t face_count,
     int32_t vert_count,
     uint32_t mutable_flags);
+SourceRndMeshStriperResultReadPlan source_rndmesh_striper_result_read_plan(
+    int32_t nb_strips,
+    int32_t runs);
+SourceRndMeshCreateStripPlan source_rndmesh_create_strip_plan(
+    int32_t face_start,
+    int32_t face_count,
+    int32_t nb_strips_after_compute,
+    const std::vector<int32_t>& strip_lengths,
+    bool one_sided);
 
 struct RndMeshGroupSection {
   std::vector<int32_t> sections;

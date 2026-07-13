@@ -2408,6 +2408,36 @@ int main() {
   CHECK(!cache_no_faces.has_faces);
   CHECK(!cache_no_faces.cache_strips);
 
+  const auto striper_read =
+      ghogx::character::source_rndmesh_striper_result_read_plan(3, 5);
+  CHECK(striper_read.reads_nb_strips);
+  CHECK(striper_read.reads_runs);
+  CHECK(striper_read.allocates_lengths_and_runs);
+  CHECK(striper_read.strip_lengths_bytes == 12);
+  CHECK(striper_read.strip_runs_bytes == 10);
+
+  const auto create_strip =
+      ghogx::character::source_rndmesh_create_strip_plan(
+          2, 7, 3, {0, 1, 0, 0}, true);
+  CHECK(create_strip.face_start == 2);
+  CHECK(create_strip.face_count == 7);
+  CHECK(create_strip.wfaces_points_to_face_idx0);
+  CHECK(!create_strip.connect_all_strips);
+  CHECK(create_strip.one_sided);
+  CHECK(!create_strip.sgi_algorithm);
+  CHECK(create_strip.asserts_striper_init);
+  CHECK(create_strip.asserts_striper_compute);
+  CHECK(create_strip.loop_start_index == 1);
+  CHECK(create_strip.final_nb_strips == 4);
+  CHECK(!create_strip.missing_strip_length);
+
+  const auto create_strip_missing =
+      ghogx::character::source_rndmesh_create_strip_plan(
+          0, 1, 4, {0, 0}, false);
+  CHECK(!create_strip_missing.one_sided);
+  CHECK(create_strip_missing.missing_strip_length);
+  CHECK(create_strip_missing.final_nb_strips == 4);
+
   const auto bytes = make_rev28_mesh_with_group_section();
   const ghogx::character::SkinnedMesh mesh =
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);

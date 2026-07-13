@@ -1485,6 +1485,17 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     mesh to the owner, clears instances, and returns the owner multimesh;
     `CacheStrips` returns true only for cached Wii streams on self-owned meshes
     with nonempty faces/verts and without mutable bit `0x20`.
+    Native `source_rndmesh_striper_result_read_plan` records the adjacent
+    `operator>>(STRIPERRESULT&)` read order: `NbStrips`, `runs`,
+    `AllocLengthsAndRuns(NbStrips, runs)`, `NbStrips * 4` bytes of
+    `StripLengths`, then `runs * 2` bytes of `StripRuns`. Native
+    `source_rndmesh_create_strip_plan` records `CreateStrip` without executing
+    strip generation: `WFaces` points at `mFaces[i].idx0`, `NbFaces` is the
+    requested face count, `ConnectAllStrips=false`, `OneSided` mirrors the
+    caller argument, `SGIAlgorithm=false`, and source asserts both
+    `striper.Init` and `striper.Compute` before increasing `NbStrips` by each
+    following `StripLengths[i]` row. These helpers are cache-format contracts,
+    not a renderer culling or hair two-sided policy.
 - `rb3-latest/src/system/rndobj/MeshDeform.cpp` and
   `rb3-latest/src/system/rndobj/MeshDeform.h`
   - `RndMeshDeform::VertArray::VertArray` starts with size `0`, data `0`, and

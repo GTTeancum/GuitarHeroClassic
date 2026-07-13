@@ -2285,6 +2285,39 @@ SourceRndMeshCacheStripsPlan source_rndmesh_cache_strips_plan(
   return plan;
 }
 
+SourceRndMeshStriperResultReadPlan source_rndmesh_striper_result_read_plan(
+    int32_t nb_strips,
+    int32_t runs) {
+  SourceRndMeshStriperResultReadPlan plan;
+  plan.nb_strips = nb_strips;
+  plan.runs = runs;
+  plan.allocates_lengths_and_runs = true;
+  plan.strip_lengths_bytes = nb_strips * 4;
+  plan.strip_runs_bytes = runs * 2;
+  return plan;
+}
+
+SourceRndMeshCreateStripPlan source_rndmesh_create_strip_plan(
+    int32_t face_start,
+    int32_t face_count,
+    int32_t nb_strips_after_compute,
+    const std::vector<int32_t>& strip_lengths,
+    bool one_sided) {
+  SourceRndMeshCreateStripPlan plan;
+  plan.face_start = face_start;
+  plan.face_count = face_count;
+  plan.one_sided = one_sided;
+  plan.final_nb_strips = nb_strips_after_compute;
+  for (int32_t i = plan.loop_start_index; i < plan.final_nb_strips; ++i) {
+    if (i < 0 || static_cast<size_t>(i) >= strip_lengths.size()) {
+      plan.missing_strip_length = true;
+      break;
+    }
+    plan.final_nb_strips += strip_lengths[static_cast<size_t>(i)];
+  }
+  return plan;
+}
+
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
                                 const std::vector<uint8_t>& body,
                                 int32_t parent_dir_revision) {

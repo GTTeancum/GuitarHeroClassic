@@ -6857,6 +6857,23 @@ int run_contract() {
                  "mPtr==this&&mFaces.size()!=0&&mVerts.size()!=0&&"
                  "!(mMutable&0x20))ret=true;returnret;}",
                  "RB3 runtime CacheStrips Wii strip-cache gate");
+  ok &= contains(rb3_mesh_cpp,
+                 "BinStream&operator>>(BinStream&bs,STRIPERRESULT&sr){"
+                 "bs>>sr.NbStrips;intruns;bs>>runs;"
+                 "sr.AllocLengthsAndRuns(sr.NbStrips,runs);"
+                 "bs.Read(sr.StripLengths,sr.NbStrips*4);"
+                 "bs.Read(sr.StripRuns,runs*2);returnbs;}",
+                 "RB3 runtime STRIPERRESULT load order");
+  ok &= contains(rb3_mesh_cpp,
+                 "voidRndMesh::CreateStrip(inti,intj,Striper&striper,"
+                 "STRIPERRESULT&sr,boolonesided){STRIPERCREATEsc;"
+                 "sc.WFaces=&mFaces[i].idx0;sc.NbFaces=j;"
+                 "sc.ConnectAllStrips=false;sc.OneSided=onesided;"
+                 "sc.SGIAlgorithm=false;MILO_ASSERT(striper.Init(sc),1115);"
+                 "MILO_ASSERT(striper.Compute(sr),1116);"
+                 "for(inti=1;i<sr.NbStrips;i++){sr.NbStrips+="
+                 "sr.StripLengths[i];}}",
+                 "RB3 runtime CreateStrip setup and strip count fold");
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshSetBonePlan{",
                  "native exposes RndMesh SetBone source helper");
@@ -6947,6 +6964,12 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceRndMeshCacheStripsPlan{boolstream_cached=false;",
                  "native exposes RndMesh CacheStrips source helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshStriperResultReadPlan{int32_tnb_strips=0;",
+                 "native exposes RndMesh STRIPERRESULT read helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshCreateStripPlan{int32_tface_start=0;",
+                 "native exposes RndMesh CreateStrip helper");
   ok &= contains(char_mesh,
                  "SourceRndMeshSetBonePlansource_rndmesh_set_bone_plan(",
                  "native implements RndMesh SetBone source helper");
@@ -7079,6 +7102,17 @@ int run_contract() {
                  "boolstream_cached,boolplatform_wii,boolowner_is_self,"
                  "int32_tface_count,int32_tvert_count,uint32_tmutable_flags)",
                  "native implements RndMesh CacheStrips source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshStriperResultReadPlan"
+                 "source_rndmesh_striper_result_read_plan("
+                 "int32_tnb_strips,int32_truns)",
+                 "native implements RndMesh STRIPERRESULT read helper");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshCreateStripPlansource_rndmesh_create_strip_plan("
+                 "int32_tface_start,int32_tface_count,"
+                 "int32_tnb_strips_after_compute,"
+                 "conststd::vector<int32_t>&strip_lengths,boolone_sided)",
+                 "native implements RndMesh CreateStrip helper");
   ok &= contains(char_mesh,
                  "mat4_to_xfm(mat4_mul(xfm_to_mat4(mesh_world),"
                  "affine_inverse(xfm_to_mat4(bone_world))),plan.offset);",
@@ -7273,6 +7307,16 @@ int run_contract() {
                  "plan.cache_strips=stream_cached&&platform_wii&&owner_is_self&&"
                  "plan.has_faces&&plan.has_verts&&!plan.mutable_strip_disabled;",
                  "native CacheStrips helper mirrors Wii strip-cache gate");
+  ok &= contains(char_mesh,
+                 "plan.strip_lengths_bytes=nb_strips*4;"
+                 "plan.strip_runs_bytes=runs*2;",
+                 "native STRIPERRESULT helper mirrors byte-count reads");
+  ok &= contains(char_mesh,
+                 "for(int32_ti=plan.loop_start_index;i<plan.final_nb_strips;++i){"
+                 "if(i<0||static_cast<size_t>(i)>=strip_lengths.size()){"
+                 "plan.missing_strip_length=true;break;}"
+                 "plan.final_nb_strips+=strip_lengths[static_cast<size_t>(i)];}",
+                 "native CreateStrip helper mirrors strip-count fold");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_bone_plan(",
                  "focused mesh decode test covers RndMesh SetBone helper");
@@ -7360,6 +7404,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_cache_strips_plan(",
                  "focused mesh decode test covers RndMesh CacheStrips helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_striper_result_read_plan(",
+                 "focused mesh decode test covers STRIPERRESULT read helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_create_strip_plan(",
+                 "focused mesh decode test covers RndMesh CreateStrip helper");
   ok &= contains(doc,
                  "Native `source_rndmesh_handler_plan`,",
                  "document records RndMesh handler helper");
@@ -7426,6 +7476,15 @@ int run_contract() {
                  "`source_rndmesh_create_multi_mesh_plan` and\n"
                  "    `source_rndmesh_cache_strips_plan`",
                  "document records RndMesh multimesh/cache helpers");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_striper_result_read_plan` records",
+                 "document records RndMesh STRIPERRESULT helper");
+  ok &= contains(doc,
+                 "`source_rndmesh_create_strip_plan` records `CreateStrip`",
+                 "document records RndMesh CreateStrip helper");
+  ok &= contains(doc,
+                 "not a renderer culling or hair two-sided policy",
+                 "document fences CreateStrip helper from renderer policy");
   ok &= contains(doc,
                  "| Mesh deformation rows | `rb3-latest/src/system/rndobj/"
                  "MeshDeform.cpp` / `MeshDeform.h` |",
