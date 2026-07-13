@@ -739,7 +739,8 @@ class Gameplay {
   void queue_regular_camera_shot(const CameraKey& key,
                                  const char* source_handler);
   bool consume_pending_regular_camera_shot();
-  void start_camera_shot_runtime(const CameraKey& key);
+  void start_camera_shot_runtime(const CameraKey& key,
+                                 bool source_restart = false);
   void end_camera_shot_runtime(bool skip_script_crowd_update = false);
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       camera_glow_spot_state_for_ref(const std::string& raw_ref) const;

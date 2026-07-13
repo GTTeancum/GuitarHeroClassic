@@ -21621,24 +21621,26 @@ bool Gameplay::consume_pending_regular_camera_shot() {
             next_shot.c_str(), active_regular_camera_.c_str(),
             shot_changed ? 1 : 0);
     }
-    if (shot_changed) {
-        previous_regular_camera_ = active_regular_camera_;
-        previous_camera_position_index_ = active_camera_position_index_;
-        active_regular_camera_ = next_shot;
-        active_regular_camera_start_ = pending_regular_camera_start_;
-        active_camera_position_start_ = song_time_;
-        active_camera_position_index_ = 0;
-        active_camera_shot_started_reported_.clear();
-        active_camera_frame_pair_reported_.clear();
-        active_camera_shot_over_reported_.clear();
-        active_camera_shot_over_ = false;
-    }
-    return shot_changed;
+    // CameraManager::PrePoll always calls StartShot_(mNextShot) when mNextShot
+    // is set, even if it points to the same CamShot. Preserve that restart so
+    // source-local frame timing and StartAnim state reset on repeated picks.
+    previous_regular_camera_ = active_regular_camera_;
+    previous_camera_position_index_ = active_camera_position_index_;
+    active_regular_camera_ = next_shot;
+    active_regular_camera_start_ = pending_regular_camera_start_;
+    active_camera_position_start_ = song_time_;
+    active_camera_position_index_ = 0;
+    active_camera_shot_started_reported_.clear();
+    active_camera_frame_pair_reported_.clear();
+    active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_ = false;
+    return true;
 }
 
-void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
+void Gameplay::start_camera_shot_runtime(const CameraKey& key,
+                                         bool source_restart) {
     const std::string runtime_name = camera_runtime_name_for_key(key);
-    if (active_camera_runtime_shot_ == runtime_name) return;
+    if (!source_restart && active_camera_runtime_shot_ == runtime_name) return;
     const bool skip_script_crowd_update =
         active_camera_skip_next_crowd_update_;
     end_camera_shot_runtime(skip_script_crowd_update);
@@ -30822,11 +30824,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
             }
-            consume_pending_regular_camera_shot();
+            const bool source_restarted_shot =
+                consume_pending_regular_camera_shot();
             if (const auto* key =
                     find_camera_key_by_name(regular_camera_keys_,
                                             active_regular_camera_)) {
-                start_camera_shot_runtime(*key);
+                start_camera_shot_runtime(*key, source_restarted_shot);
                 const CameraKey current_position =
                     camera_position_for(*key, active_camera_position_index_);
                 const CameraKey* previous_shot =

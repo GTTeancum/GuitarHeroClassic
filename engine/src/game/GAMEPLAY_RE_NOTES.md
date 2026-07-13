@@ -19,6 +19,14 @@
   source-shaped pose-span and parent/source-seed gates instead of treating a
   merely authored target token as a live CamShot target. The older authored-ref
   helper remains for metadata/debug routing.
+- 2026-07-13 CameraManager same-shot restart: ihatecompvir
+  `CameraManager::PrePoll()` calls `StartShot_(mNextShot)` whenever
+  `mNextShot` is set, and `StartShot_` always runs the current shot's
+  `EndAnim()`, installs the shot, runs `StartAnim()`, and resets
+  `mCamStartTime` from `TheTaskMgr.Time(shot->Units())`. Native pending-shot
+  consumption now restarts source timing and StartAnim state even when the
+  pending CamShot name matches the active CamShot; the `changed` flag remains
+  diagnostic only.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level

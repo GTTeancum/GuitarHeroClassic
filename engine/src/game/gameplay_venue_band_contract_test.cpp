@@ -6037,7 +6037,7 @@ int main() {
                  "resend_active_venue_event();",
                  "regular camera shot start consumes the resend-excitement latch");
   ok &= contains(gameplay_c,
-                 "if(shot_changed){previous_regular_camera_=active_regular_camera_;",
+                 "constboolshot_changed=active_regular_camera_!=key->name;",
                  "regular camera shot change is tracked separately from shot-start effects");
   ok &= contains(gameplay_c,
                  "}if(should_resend_excitement_){"
@@ -6079,9 +6079,18 @@ int main() {
                  "clear.name=active_camera_runtime_shot_;"
                  "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
                  "camera EndAnim clears only camera-owned visibility state");
+  ok &= contains(gameplay_h_c,
+                 "voidstart_camera_shot_runtime(constCameraKey&key,"
+                 "boolsource_restart=false);",
+                 "camera StartAnim path accepts source StartShot restarts");
   ok &= contains(gameplay_c,
-                 "voidGameplay::start_camera_shot_runtime(constCameraKey&key)",
+                 "voidGameplay::start_camera_shot_runtime("
+                 "constCameraKey&key,boolsource_restart)",
                  "camera StartAnim path is explicit");
+  ok &= contains(gameplay_c,
+                 "if(!source_restart&&active_camera_runtime_shot_=="
+                 "runtime_name)return;",
+                 "camera StartAnim only suppresses same-shot work without a source restart");
   ok &= contains(gameplay_c,
                  "cameraStartAnim:source_msg=start_shot",
                  "camera StartAnim diagnostics name ihatecompvir start_shot message");
@@ -6137,21 +6146,30 @@ int main() {
                  "source_field=mNextShotshot=%sprevious=%schanged=%d\\n\"",
                  "regular camera diagnostics expose CameraManager PrePoll pending-shot consumption");
   ok &= contains(gameplay_c,
-                 "if(shot_changed){previous_regular_camera_=active_regular_camera_;",
-                 "regular camera active shot is updated only when pending mNextShot is consumed");
+                 "previous_regular_camera_=active_regular_camera_;"
+                 "previous_camera_position_index_=active_camera_position_index_;"
+                 "active_regular_camera_=next_shot;"
+                 "active_regular_camera_start_=pending_regular_camera_start_;"
+                 "active_camera_position_start_=song_time_;"
+                 "active_camera_position_index_=0;",
+                 "regular camera pending mNextShot always restarts source shot timing");
+  ok &= contains(gameplay_c,
+                 "active_camera_shot_over_=false;returntrue;",
+                 "regular camera pending mNextShot returns consumed even for same-shot restarts");
   ok &= contains(gameplay_c,
                  "queue_regular_camera_shot(*key,source_handler);",
                  "regular camera selector writes mNextShot instead of changing the active shot immediately");
   ok &= contains(gameplay_c,
+                 "constboolsource_restarted_shot="
                  "consume_pending_regular_camera_shot();"
                  "if(constauto*key=find_camera_key_by_name(",
                  "regular gameplay cameras consume mNextShot before source-shaped camera row sampling");
   ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(*key);"
+                 "start_camera_shot_runtime(*key,source_restarted_shot);"
                  "constCameraKeycurrent_position=",
                  "regular gameplay cameras enter StartAnim before source-shaped camera row sampling");
   ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(*key);"
+                 "start_camera_shot_runtime(*key,source_restarted_shot);"
                  "constCameraKeycurrent_position="
                  "camera_position_for(*key,active_camera_position_index_);",
                  "regular gameplay cameras mirror CameraManager PrePoll StartShot before SetPreFrame");
@@ -10327,7 +10345,7 @@ int main() {
                  "material==\"invisible.mat\"||material==\"ray_blocker.mat\"",
                  "renderer suppresses authored ray blockers instead of painting venue floor gaps");
   ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(*key);",
+                 "start_camera_shot_runtime(*key,source_restarted_shot);",
                  "regular camera path applies CamShot visibility through StartAnim lifetime");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(camera_keys_.front());",
