@@ -8438,6 +8438,10 @@ int main() {
                  "drum_kit_->set_light_state_overrides("
                  "venue_light_state_overrides_);",
                  "drum kit receives live LightPreset light state overrides");
+  ok &= contains(gameplay_c,
+                 "drum_kit_->set_mesh_transform_offsets("
+                 "venue_mesh_transform_offsets_);",
+                 "drum kit receives live LightPreset animated light transforms");
   ok &= appears_before(gameplay_c,
                        "world_->apply_environment_lighting_state("
                        "performer_lighting_environment_for_role(perf.role));",

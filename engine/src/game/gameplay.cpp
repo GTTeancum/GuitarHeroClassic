@@ -30147,6 +30147,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     &venue_environment_fog_enabled_));
             drum_kit_->set_light_color_overrides(venue_light_colors_);
             drum_kit_->set_light_state_overrides(venue_light_state_overrides_);
+            drum_kit_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
             drum_kit_->draw_over_scene(world_->camera());
         }
         const std::string_view only_role = only_draw_performer_role();
