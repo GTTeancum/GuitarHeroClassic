@@ -172,6 +172,25 @@ int main() {
   ok &= expect_string(mip_error.error, "%s: more than 0 mip levels",
                       "texture mip count error");
 
+  const ghogx::character::SourceRndTexRenderedClampPlan rendered_clamp =
+      ghogx::character::source_rndtex_rendered_clamp_plan(
+          "render_target.tex", 512, 1024, 2, true);
+  ok &= expect_bool(rendered_clamp.clamped, true,
+                    "empty rendered texture clamps");
+  ok &= expect_int(rendered_clamp.result_width, 256,
+                   "empty rendered clamp width");
+  ok &= expect_int(rendered_clamp.result_height, 256,
+                   "empty rendered clamp height");
+  const ghogx::character::SourceRndTexRenderedClampPlan movie_exception =
+      ghogx::character::source_rndtex_rendered_clamp_plan(
+          "movie.tex", 512, 1024, 2, true);
+  ok &= expect_bool(movie_exception.clamped, false,
+                    "movie texture skips rendered clamp");
+  ok &= expect_int(movie_exception.result_width, 512,
+                   "movie exception width");
+  ok &= expect_int(movie_exception.result_height, 1024,
+                   "movie exception height");
+
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2
   put_object_fields_minimal(tex);
@@ -284,6 +303,32 @@ int main() {
                     "old bitmap palette bytes");
   ok &= expect_bool(old_header_decoded.bitmap_payload_size_matches, false,
                     "old bitmap intentionally short payload");
+
+  std::vector<uint8_t> render_target;
+  put_u32(render_target, 11);
+  put_object_fields_minimal(render_target);
+  put_i32(render_target, 512);
+  put_i32(render_target, 1024);
+  put_i32(render_target, 32);
+  put_str(render_target, "");
+  put_f32(render_target, -8.0f);
+  put_i32(render_target, 2);
+  put_u8(render_target, 0);
+  put_u8(render_target, 0);
+  const ghogx::character::RndTex render_target_decoded =
+      ghogx::character::decode_rnd_tex("render_target.tex", render_target);
+  ok &= expect_int(render_target_decoded.width, 256,
+                   "render target clamp decoded width");
+  ok &= expect_int(render_target_decoded.height, 256,
+                   "render target clamp decoded height");
+
+  std::vector<uint8_t> movie_target = render_target;
+  const ghogx::character::RndTex movie_target_decoded =
+      ghogx::character::decode_rnd_tex("movie.tex", movie_target);
+  ok &= expect_int(movie_target_decoded.width, 512,
+                   "movie target keeps decoded width");
+  ok &= expect_int(movie_target_decoded.height, 1024,
+                   "movie target keeps decoded height");
 
   std::cout << "character_tex_source_test " << (ok ? "OK" : "FAIL") << "\n";
   return ok ? 0 : 1;

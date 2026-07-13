@@ -1592,6 +1592,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     legacy bools for revisions 1 and 2, `mipMapK` as either float or fixed
     integer/16, type flags, the post flag for revisions above 7, and
     `optimize_for_ps3` for revisions above 10.
+  - After the type is known, source clamps empty-file rendered textures down to
+    256x256 by repeatedly halving width/height, except for `movie.tex` and
+    `movie_splash.tex`. Native `source_rndtex_rendered_clamp_plan` records that
+    exact post-load rule and `decode_rnd_tex` uses it for passive texture row
+    evidence.
   - When the stream is cached, `PostLoad` delegates the remaining stream to
     `RndBitmap::Load`; native records that boundary instead of treating the
     remaining bytes as anonymous padding.
@@ -1744,7 +1749,8 @@ revision-0 bitmap header. It proves the native decoder follows
 `RndTex::PreLoad`/`PostLoad` and `RndBitmap::LoadHeader`/payload sizing without
 touching renderer upload, material sorting, or runtime texture selection.
 The same test covers the source `SetPowerOf2`, `CheckDim`, and `CheckSize`
-contracts without changing stock texture loading.
+contracts, plus the empty-file rendered texture clamp and movie exceptions,
+without changing stock texture loading.
 
 ## Generic Object Row Authority
 

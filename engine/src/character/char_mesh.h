@@ -4802,6 +4802,20 @@ struct SourceRndTexCheckSizePlan {
   std::string error;
 };
 
+struct SourceRndTexRenderedClampPlan {
+  std::string name;
+  int32_t initial_width = 0;
+  int32_t initial_height = 0;
+  int32_t type = 1;
+  bool filepath_empty = false;
+  bool rendered_type = false;
+  bool movie_exception = false;
+  bool clamped = false;
+  int32_t result_width = 0;
+  int32_t result_height = 0;
+  bool result_power_of_two = true;
+};
+
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
     int32_t width,
     int32_t height);
@@ -4818,6 +4832,12 @@ SourceRndTexCheckSizePlan source_rndtex_check_size_plan(
     int32_t type,
     bool file,
     bool gfx_mode_zero);
+SourceRndTexRenderedClampPlan source_rndtex_rendered_clamp_plan(
+    const std::string& name,
+    int32_t width,
+    int32_t height,
+    int32_t type,
+    bool filepath_empty);
 
 struct RndTex {
   std::string name;

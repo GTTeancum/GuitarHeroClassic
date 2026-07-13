@@ -16568,6 +16568,12 @@ int run_contract() {
                  "Typetypes[5]={Regular,Rendered,Movie,BackBuffer,FrontBuffer};",
                  "latest RndTex source backs texture type gates");
   ok &= contains(rb3_latest_tex_cpp,
+                 "if(mFilepath.empty()){if(strcmp(Name(),\"movie.tex\")!=0&&"
+                 "strcmp(Name(),\"movie_splash.tex\")!=0&&(mType&Rendered)){"
+                 "while(mWidth>0x100)mWidth/=2;"
+                 "while(mHeight>0x100)mHeight/=2;}}",
+                 "latest RndTex source backs empty rendered clamp");
+  ok &= contains(rb3_latest_tex_cpp,
                  "if(gRev>10){boolb;bs>>b;mOptimizeForPS3=b;}",
                  "latest RndTex source backs optimize flag gate");
   ok &= contains(rb3_latest_tex_cpp,
@@ -16776,6 +16782,9 @@ int run_contract() {
   ok &= contains(doc,
                  "These helpers are validation\n    contracts only and do not reject, resize, or replace stock character",
                  "document fences RndTex validation helpers from runtime policy");
+  ok &= contains(doc,
+                 "empty-file rendered texture clamp and movie exceptions",
+                 "document records RndTex rendered clamp helper");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17160,6 +17169,18 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.bpp_valid=bpp==4||bpp==8||bpp==0x10||bpp==0x18||bpp==0x20;",
                  "RndTex CheckSize helper mirrors valid bpp set");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndTexRenderedClampPlan{",
+                 "native exposes RndTex rendered clamp source helper");
+  ok &= contains(char_mesh,
+                 "SourceRndTexRenderedClampPlansource_rndtex_rendered_clamp_plan(",
+                 "native implements RndTex rendered clamp source helper");
+  ok &= contains(char_mesh,
+                 "plan.movie_exception=name==\"movie.tex\"||name==\"movie_splash.tex\";",
+                 "RndTex rendered clamp helper mirrors movie exceptions");
+  ok &= contains(char_mesh,
+                 "plan.clamped=filepath_empty&&!plan.movie_exception&&plan.rendered_type;",
+                 "RndTex rendered clamp helper mirrors source condition");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17190,6 +17211,14 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "if(plan.reads_direct_type){tex.type=r.i32();}",
                  "RndTex decoder reads source type gate");
+  ok &= contains(char_mesh,
+                 "constSourceRndTexRenderedClampPlanclamp_plan="
+                 "source_rndtex_rendered_clamp_plan(",
+                 "RndTex decoder builds rendered clamp plan");
+  ok &= contains(char_mesh,
+                 "tex.width=clamp_plan.result_width;"
+                 "tex.height=clamp_plan.result_height;",
+                 "RndTex decoder applies source rendered clamp result");
   ok &= contains(char_mesh,
                  "tex.optimize_for_ps3=r.u8()!=0;",
                  "RndTex decoder reads source PS3 optimize flag");
@@ -17290,6 +17319,9 @@ int run_contract() {
                  "source_rndtex_check_size_plan(1024,1024,8,0,",
                  "focused RndTex test covers CheckSize byte cap");
   ok &= contains(tex_source_test,
+                 "source_rndtex_rendered_clamp_plan(\"render_target.tex\",512,1024,2,true)",
+                 "focused RndTex test covers rendered clamp helper");
+  ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");
   ok &= contains(tex_source_test,
@@ -17310,6 +17342,12 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "expect_size(old_header_decoded.bitmap_palette_bytes,1024",
                  "focused RndTex test covers bitmap palette byte rule");
+  ok &= contains(tex_source_test,
+                 "decode_rnd_tex(\"render_target.tex\",render_target)",
+                 "focused RndTex test decodes rendered clamp row");
+  ok &= contains(tex_source_test,
+                 "decode_rnd_tex(\"movie.tex\",movie_target)",
+                 "focused RndTex test covers movie rendered clamp exception");
   ok &= missing(char_mesh, "OutfitLoader",
                 "native character graph must not promote OutfitLoader yet");
   ok &= missing(char_mesh, "WorldFx",

@@ -3304,6 +3304,33 @@ SourceRndTexCheckSizePlan source_rndtex_check_size_plan(
   return plan;
 }
 
+SourceRndTexRenderedClampPlan source_rndtex_rendered_clamp_plan(
+    const std::string& name,
+    int32_t width,
+    int32_t height,
+    int32_t type,
+    bool filepath_empty) {
+  SourceRndTexRenderedClampPlan plan;
+  plan.name = name;
+  plan.initial_width = width;
+  plan.initial_height = height;
+  plan.result_width = width;
+  plan.result_height = height;
+  plan.type = type;
+  plan.filepath_empty = filepath_empty;
+  plan.rendered_type = (type & 2) != 0;
+  plan.movie_exception = name == "movie.tex" || name == "movie_splash.tex";
+  plan.clamped =
+      filepath_empty && !plan.movie_exception && plan.rendered_type;
+  if (plan.clamped) {
+    while (plan.result_width > 0x100) plan.result_width /= 2;
+    while (plan.result_height > 0x100) plan.result_height /= 2;
+  }
+  plan.result_power_of_two =
+      source_power_of_two(plan.result_width, plan.result_height);
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
@@ -3368,11 +3395,13 @@ RndTex decode_rnd_tex(const std::string& entry_name,
     tex.type = rendered ? 2 : 1;
   }
 
-  if (tex.filepath.empty() && tex.name != "movie.tex" &&
-      tex.name != "movie_splash.tex" && (tex.type & 2)) {
-    while (tex.width > 0x100) tex.width /= 2;
-    while (tex.height > 0x100) tex.height /= 2;
-    tex.power_of_two = source_power_of_two(tex.width, tex.height);
+  const SourceRndTexRenderedClampPlan clamp_plan =
+      source_rndtex_rendered_clamp_plan(tex.name, tex.width, tex.height,
+                                        tex.type, tex.filepath.empty());
+  if (clamp_plan.clamped) {
+    tex.width = clamp_plan.result_width;
+    tex.height = clamp_plan.result_height;
+    tex.power_of_two = clamp_plan.result_power_of_two;
   }
   if (plan.reads_post_flag) {
     tex.has_post_flag = true;
