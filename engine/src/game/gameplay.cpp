@@ -15244,17 +15244,15 @@ bool camera_mode_filter_ok(const Gameplay::CameraKey& key,
                            CameraShotMode mode) {
     if (!camera_category_filter_ok(key, mode)) return false;
     if (mode == CameraShotMode::Lighter) {
-        return camera_shot_matches_source_filters(
-            key, {camera_bool_filter("lighter", true)});
-    }
-    if (!camera_shot_matches_source_filters(
-            key, {camera_bool_filter("special", false),
-                  camera_bool_filter("lighter", false)})) {
-        return false;
+        return true;
     }
     if (mode == CameraShotMode::Jump) {
         return camera_shot_matches_source_filters(
             key, {camera_bool_filter("jump_ok", true)});
+    }
+    if (!camera_shot_matches_source_filters(
+            key, {camera_bool_filter("special", false)})) {
+        return false;
     }
     if (mode == CameraShotMode::Solo) {
         return camera_shot_matches_source_filters(
@@ -15297,6 +15295,10 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     // and the far/behind distance repeat guard. band_jump and crowd lighters
     // use separate predicates over the same decoded CamShot pool.
     if (!camera_mode_filter_ok(key, mode)) return false;
+    if (mode == CameraShotMode::Jump ||
+        mode == CameraShotMode::Lighter) {
+        return true;
+    }
     if (!camera_state_filter_ok(key, low_excitement, walking, starpower))
         return false;
 

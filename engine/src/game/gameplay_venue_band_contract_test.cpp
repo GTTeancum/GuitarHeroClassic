@@ -10341,20 +10341,19 @@ int main() {
                  "band_jump camera mode mirrors the jump_ok shot predicate");
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Lighter){"
-                 "returncamera_shot_matches_source_filters("
-                 "key,{camera_bool_filter(\"lighter\",true)});}",
-                 "crowd lighter camera mode picks only authored LIGHTER CamShots");
+                 "returntrue;}",
+                 "crowd lighter camera mode uses the authored LIGHTER category without extra script filters");
   ok &= appears_before(gameplay_c,
                        "if(mode==CameraShotMode::Lighter){"
-                       "returncamera_shot_matches_source_filters(",
+                       "returntrue;",
                        "camera_bool_filter(\"special\",false)",
                        "LIGHTER CamShots remain selectable even when authored special");
   ok &= absent(regular_camera_loader_c,
                "if(special)continue;",
                "regular CamShot loader keeps source-special LIGHTER shots in the pool");
-  ok &= contains(gameplay_c,
-                 "camera_bool_filter(\"lighter\",false)",
-                 "regular/solo/jump camera modes reject LIGHTER CamShots");
+  ok &= absent(gameplay_c,
+               "camera_bool_filter(\"lighter\",false)",
+               "camera selection relies on source categories instead of an invented lighter property filter");
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Solo){"
                  "returncamera_shot_matches_source_filters("
@@ -10707,12 +10706,17 @@ int main() {
                  "regular camera filters mirror CameraManager flags_exact result");
   ok &= contains(gameplay_c,
                  "camera_shot_matches_source_filters("
-                 "key,{camera_bool_filter(\"special\",false),"
-                 "camera_bool_filter(\"lighter\",false)})",
-                 "regular camera mode filters run through the source-shaped matcher");
+                 "key,{camera_bool_filter(\"special\",false)})",
+                 "regular/solo camera modes mirror the source special FALSE filter");
   ok &= contains(gameplay_c,
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");
+  ok &= appears_before(gameplay_c,
+                       "if(mode==CameraShotMode::Jump||"
+                       "mode==CameraShotMode::Lighter){returntrue;}",
+                       "if(!camera_state_filter_ok(key,low_excitement,"
+                       "walking,starpower))",
+                       "band_jump and LIGHTER pick_shot routes bypass regular/solo state filters");
   ok &= contains(gameplay_c,
                  "voidcamera_source_no_acceptable_shot(std::string_viewcategory,",
                  "regular camera selector exposes source no-acceptable-shot warning");

@@ -49,9 +49,11 @@ Open work:
   `PlatformOk()` before adding them to the category lists; `special` is a
   selection-time `ShotMatches` property filter, not a sync/load-time rejection.
   Native now keeps decoded `special` CamShots in the regular camera pool so the
-  stock `lighter` CamShot can be selected by the `LIGHTER` route; regular,
-  solo, and jump modes still reject `special` and `lighter` through the source
-  mode filters instead of losing the authored shot during load.
+  stock `lighter` CamShot can be selected by the `LIGHTER` route. The regular
+  and solo routes apply the script-authored `special FALSE` filter during
+  selection; `band_jump` and `pick_lighter_shot` now use only the filters their
+  source script calls pass (`jump_ok TRUE` in the normal categories for
+  `band_jump`, and the `LIGHTER` category with no extra filter for lighters).
 - 2026-07-13 regular CamShot disabled gate ordering: ihatecompvir
   `CameraManager::SyncObjects` adds every `PlatformOk()` CamShot to its
   category list without checking `Disabled()`, while
@@ -2064,9 +2066,9 @@ Rejected native probe:
   `pick_new_shot`.
 - Native implication: authored `LIGHTER` CamShots must live in the decoded
   camera pool even though the stock PS2 `lighter` CamShot is authored
-  `special=1`. The regular, solo, and jump routes reject `lighter` shots; the
-  lighter route accepts only `lighter` shots and deliberately checks that
-  before the regular `special` rejection.
+  `special=1`. The regular and solo routes reject `special` shots through their
+  script filters, while the lighter route is category-only because
+  `pick_lighter_shot` calls `pick_shot LIGHTER` with no filter array.
 - Stock PS2 `shoutatthedevil` EVENTS MIDI timing used for the native check:
   `[crowd_lighters_fast]` at `156.941s`, `[band_jump]` at `159.481s`, and
   `[crowd_lighters_off]` with `[sync_wag]` at `161.997s`.
@@ -10892,3 +10894,13 @@ Rejected native probe:
   context until a regular CamShot is active. This changes selection metadata
   only; it does not infer the still-deferred native `cam_shot_ok` or
   `cam_check_shot` bodies.
+
+- 2026-07-13 source-script forced camera predicates:
+  the recovered GH2 `world_objects_worldbase.dta` routes `band_jump` through
+  `pick_shot NORMAL_CAMSHOT_CATEGORIES ((jump_ok TRUE))` and
+  `pick_lighter_shot` through `pick_shot LIGHTER` with no additional filter.
+  Native forced camera selection now preserves that split: jump shots bypass
+  the regular/solo previous-shot, low-excitement, walking, starpower, and
+  `special FALSE` filters, while lighter shots are accepted by the `LIGHTER`
+  category alone. This removes an over-filtered native predicate; it does not
+  invent `cam_shot_ok` or `cam_check_shot` behavior.
