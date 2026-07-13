@@ -283,6 +283,8 @@ int run_contract() {
       source_dir / "glTFMilo/Source/glTFMilo/Program.cs"));
   const std::string gltf_node_processor_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs"));
+  const bool gltf_matrix_helpers_cs_exists = std::filesystem::is_regular_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/MatrixHelpers.cs");
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
   const std::string rb3_char_lookat_cpp = compact(read_file(
@@ -1738,6 +1740,10 @@ int run_contract() {
                  "document cites RndGroup source");
   ok &= contains(doc, "glTFMilo/Source/glTFMilo/Program.cs",
                  "document cites glTFMilo skinning source");
+  ok &= contains(doc, "glTFMilo transform copy boundary",
+                 "document records glTFMilo MatrixHelpers boundary");
+  ok &= contains(doc, "native must not infer axis-conversion or bind-pose",
+                 "document fences unvendored MatrixHelpers math");
   ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
                  "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.cpp",
@@ -5363,6 +5369,27 @@ int run_contract() {
                  "convertCoordinates);",
                  "glTFMilo writes inverse bone world times mesh world");
   ok &= contains(gltf_program_cs,
+                 "MatrixHelpers.CopyMatrix(node.LocalMatrix,mesh.trans.localXfm,"
+                 "convertCoordinates);",
+                 "glTFMilo copies mesh local transform through MatrixHelpers");
+  ok &= contains(gltf_node_processor_cs,
+                 "MatrixHelpers.CopyMatrix(node.LocalMatrix,trans.localXfm,"
+                 "convertCoordinates);",
+                 "glTFMilo copies Trans local transform through MatrixHelpers");
+  ok &= contains(gltf_node_processor_cs,
+                 "MatrixHelpers.CopyMatrix3(chain[0].LocalMatrix,strand.baseMat,"
+                 "convertCoordinates);",
+                 "glTFMilo copies CharHair base matrix through MatrixHelpers");
+  ok &= contains(gltf_node_processor_cs,
+                 "MatrixHelpers.ConvertGltfVectorToMilo(pointPosition);",
+                 "glTFMilo references vector coordinate conversion helper");
+  if (gltf_matrix_helpers_cs_exists) {
+    std::cerr << "Forbidden source-truth contract match: "
+              << "MatrixHelpers source appeared and boundary must be reassessed"
+              << "\n";
+    ok = false;
+  }
+  ok &= contains(gltf_program_cs,
                  "newVert.weight0=vertexInfluences.Count>0?"
                  "vertexInfluences[0].weight:0.0f;",
                  "glTFMilo writes skin weights in influence order");
@@ -6368,6 +6395,27 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "if(input.punctual_light_type==\"Spot\"){plan.light_type=\"kSpot\";",
                  "native preserves ProcessLightNode spot mapping");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloMatrixHelpersBoundary{"
+                 "boolmatrix_helpers_source_present=false;",
+                 "native API exposes glTFMilo MatrixHelpers boundary");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloMatrixHelpersBoundarysource_gltf_milo_"
+                 "matrix_helpers_boundary();",
+                 "native API exposes glTFMilo MatrixHelpers boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloMatrixHelpersBoundarysource_gltf_milo_"
+                 "matrix_helpers_boundary(){",
+                 "native ports glTFMilo MatrixHelpers boundary helper");
+  ok &= contains(char_mesh,
+                 "\"PopulateMeshChunkboneWorldInverse*node.WorldMatrix\"",
+                 "native MatrixHelpers boundary records bone transform order");
+  ok &= contains(char_mesh,
+                 "boundary.missing_helpers={\"MatrixHelpers.CopyMatrix\","
+                 "\"MatrixHelpers.CopyMatrix3\","
+                 "\"MatrixHelpers.ConvertGltfVectorToMilo\","
+                 "\"MatrixHelpers.ConvertGltfScaleToMilo\"};",
+                 "native MatrixHelpers boundary records missing helper source");
   ok &= contains(char_mesh,
                  "SourceRndLightDefaultStatesource_rndlight_default_state(){"
                  "returnSourceRndLightDefaultState{};}",
@@ -6536,6 +6584,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "fallback_light.light_type==\"kPoint\"",
                  "focused mesh decode test covers glTFMilo light fallback");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_matrix_helpers_boundary()",
+                 "focused mesh decode test covers glTFMilo MatrixHelpers boundary");
+  ok &= contains(mesh_decode_test,
+                 "!matrix_boundary.can_port_axis_conversion_math",
+                 "focused mesh decode test fences unvendored axis conversion math");
   ok &= contains(mesh_decode_test,
                  "source_rndlight_default_state()",
                  "focused mesh decode test covers RndLight defaults");

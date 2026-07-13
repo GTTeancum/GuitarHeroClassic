@@ -356,6 +356,17 @@ struct SourceGltfMiloBoneTransformPlan {
   std::vector<SourceGltfMiloBoneTransform> bone_transforms;
 };
 
+struct SourceGltfMiloMatrixHelpersBoundary {
+  bool matrix_helpers_source_present = false;
+  bool copy_matrix_call_sites_source_backed = true;
+  bool bone_transform_order_source_backed = true;
+  bool can_port_copy_matrix_order = true;
+  bool can_port_axis_conversion_math = false;
+  bool safe_to_adjust_bind_pose_from_axis_conversion = false;
+  std::vector<std::string> copy_matrix_call_sites;
+  std::vector<std::string> missing_helpers;
+};
+
 struct SourceGltfMiloPackedSkinSlots {
   std::array<float, 4> weights = {0.0f, 0.0f, 0.0f, 0.0f};
   std::array<uint16_t, 4> bones = {0, 0, 0, 0};
@@ -1049,6 +1060,9 @@ SourceGltfMiloBoneTransformPlan source_gltf_milo_build_bone_transforms(
     const std::vector<SourceGltfMiloChunkJoint>& joints,
     const std::vector<int32_t>& chunk_joint_indices,
     std::array<float, 16> mesh_world_matrix);
+
+SourceGltfMiloMatrixHelpersBoundary
+source_gltf_milo_matrix_helpers_boundary();
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};

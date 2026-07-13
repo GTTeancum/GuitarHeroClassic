@@ -1541,6 +1541,26 @@ int main() {
   CHECK(populate_chunk.bone_transform_joint_indices[0] == 22);
   CHECK(populate_chunk.bone_transform_joint_indices[1] == 11);
 
+  const auto matrix_boundary =
+      ghogx::character::source_gltf_milo_matrix_helpers_boundary();
+  CHECK(!matrix_boundary.matrix_helpers_source_present);
+  CHECK(matrix_boundary.copy_matrix_call_sites_source_backed);
+  CHECK(matrix_boundary.bone_transform_order_source_backed);
+  CHECK(matrix_boundary.can_port_copy_matrix_order);
+  CHECK(!matrix_boundary.can_port_axis_conversion_math);
+  CHECK(!matrix_boundary.safe_to_adjust_bind_pose_from_axis_conversion);
+  CHECK(matrix_boundary.copy_matrix_call_sites.size() == 13);
+  CHECK(matrix_boundary.copy_matrix_call_sites[0] ==
+        "CreateBaseMesh mesh.trans.localXfm");
+  CHECK(matrix_boundary.copy_matrix_call_sites[2] ==
+        "PopulateMeshChunk boneWorldInverse * node.WorldMatrix");
+  CHECK(matrix_boundary.copy_matrix_call_sites[12] ==
+        "ProcessEmptyHairCollides collide.trans.worldXfm");
+  CHECK(matrix_boundary.missing_helpers.size() == 4);
+  CHECK(matrix_boundary.missing_helpers[0] == "MatrixHelpers.CopyMatrix");
+  CHECK(matrix_boundary.missing_helpers[3] ==
+        "MatrixHelpers.ConvertGltfScaleToMilo");
+
   const auto populate_unskinned =
       ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
           {{1, 2, 3}}, {}, false);

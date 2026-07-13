@@ -9681,6 +9681,30 @@ SourceGltfMiloBoneTransformPlan source_gltf_milo_build_bone_transforms(
   return plan;
 }
 
+SourceGltfMiloMatrixHelpersBoundary
+source_gltf_milo_matrix_helpers_boundary() {
+  SourceGltfMiloMatrixHelpersBoundary boundary;
+  boundary.copy_matrix_call_sites = {
+      "CreateBaseMesh mesh.trans.localXfm",
+      "CreateBaseMesh mesh.trans.worldXfm",
+      "PopulateMeshChunk boneWorldInverse * node.WorldMatrix",
+      "ProcessBoneNode trans.localXfm",
+      "ProcessBoneNode trans.worldXfm",
+      "ProcessGroupNode group.trans.localXfm",
+      "ProcessGroupNode group.trans.worldXfm",
+      "ProcessLightNode light.trans.localXfm",
+      "ProcessLightNode light.trans.worldXfm",
+      "ProcessCharHair strand.baseMat",
+      "ProcessCharHair strand.rootMat",
+      "ProcessEmptyHairCollides collide.trans.localXfm",
+      "ProcessEmptyHairCollides collide.trans.worldXfm"};
+  boundary.missing_helpers = {"MatrixHelpers.CopyMatrix",
+                              "MatrixHelpers.CopyMatrix3",
+                              "MatrixHelpers.ConvertGltfVectorToMilo",
+                              "MatrixHelpers.ConvertGltfScaleToMilo"};
+  return boundary;
+}
+
 SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale) {
