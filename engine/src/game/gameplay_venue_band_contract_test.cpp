@@ -10537,15 +10537,24 @@ int main() {
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");
   ok &= contains(gameplay_c,
-                 "if(!camera_mode_filter_ok(key,mode))returnfalse;"
-                 "returncamera_state_filter_ok(key,low_excitement,walking,",
-                 "camera fallback can relax transition filters without crossing modes");
+                 "voidcamera_source_no_acceptable_shot(std::string_viewcategory,",
+                 "regular camera selector exposes source no-acceptable-shot warning");
   ok &= contains(gameplay_c,
-                 "returncamera_mode_filter_ok(key,mode);",
-                 "last camera fallback still refuses wrong authored camera modes");
+                 "camera_source_no_acceptable_shot("
+                 "camera_source_pick_shot_category(mode),",
+                 "regular camera selector warns instead of relaxing source filters");
   ok &= contains(gameplay_c,
-                 "if(!selected)returnnullptr;",
-                 "camera selection does not invent a wrong-category fallback shot");
+                 "source_warn=\\\"Noacceptablecamerashot\\\"",
+                 "regular camera diagnostics mirror CameraManager PickCameraShot warning");
+  ok &= absent(gameplay_c,
+               "returncamera_state_filter_ok(key,low_excitement,walking,",
+               "regular camera selector must not relax transition filters after source pick_shot fails");
+  ok &= absent(gameplay_c,
+               "returncamera_mode_filter_ok(key,mode);",
+               "regular camera selector must not fall back to mode-only camera picks");
+  ok &= contains(gameplay_c,
+                 "if(!selected){camera_source_no_acceptable_shot(",
+                 "camera selection does not invent a fallback shot after source pick_shot fails");
   ok &= contains(gameplay_c,
                  "choose_regular_camera_key_index_by_category(",
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");

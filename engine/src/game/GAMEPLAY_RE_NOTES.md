@@ -67,6 +67,14 @@ Open work:
   GH2 world scripts (`NORMAL_CAMSHOT_CATEGORIES` for regular/solo/jump and
   `LIGHTER` for lighter shots). The hook is intentionally diagnostic/deferred
   until the GH2 handler behavior is recovered.
+- 2026-07-13 CameraManager no-acceptable-shot behavior: ihatecompvir
+  `PickCameraShot` calls `FindCameraShot` once, warns "No acceptable camera
+  shot" when it returns null, and does not relax filters before setting
+  `mNextShot`. Native regular selection now follows that source shape: one
+  category scan with the GH2 world-script filters, then a deferred source
+  warning and no shot change if no candidate survives. The previous native
+  mode/state relaxation was removed because it selected cameras the source
+  scripts did not request.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that

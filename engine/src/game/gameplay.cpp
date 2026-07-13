@@ -15321,6 +15321,20 @@ void camera_source_first_shot_ok(std::string_view category) {
     }
 }
 
+void camera_source_no_acceptable_shot(std::string_view category,
+                                      CameraShotMode mode,
+                                      bool low_excitement,
+                                      bool walking,
+                                      bool starpower) {
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot\" category=%s mode=%s low_excitement=%d walking=%d starpower=%d result=0\n",
+            std::string(category).c_str(), camera_shot_mode_label(mode),
+            low_excitement ? 1 : 0, walking ? 1 : 0, starpower ? 1 : 0);
+    }
+}
+
 template <typename Predicate>
 std::optional<size_t> choose_regular_camera_key_index_by_category(
     const std::vector<Gameplay::CameraKey>& keys,
@@ -15371,20 +15385,11 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
                                                 walking, starpower, mode);
             });
     if (!selected) {
-        selected = choose_regular_camera_key_index_by_category(
-            keys, previous, mode, [&](const Gameplay::CameraKey& key) {
-                if (!camera_mode_filter_ok(key, mode)) return false;
-                return camera_state_filter_ok(key, low_excitement, walking,
-                                              starpower);
-            });
+        camera_source_no_acceptable_shot(camera_source_pick_shot_category(mode),
+                                         mode, low_excitement, walking,
+                                         starpower);
+        return nullptr;
     }
-    if (!selected) {
-        selected = choose_regular_camera_key_index_by_category(
-            keys, previous, mode, [&](const Gameplay::CameraKey& key) {
-                return camera_mode_filter_ok(key, mode);
-            });
-    }
-    if (!selected) return nullptr;
     const size_t selected_index = *selected;
     const std::string selected_category = keys[selected_index].category;
     Gameplay::CameraKey chosen = std::move(keys[selected_index]);
