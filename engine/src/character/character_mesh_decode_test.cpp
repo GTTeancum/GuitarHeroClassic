@@ -513,6 +513,14 @@ int main() {
   CHECK(gltf_hair_material.mat_entry_name == "rock1_hair.mat");
   CHECK(gltf_hair_material.diffuse_tex == "rock1_hair.tex");
   CHECK(gltf_hair_material.texture_external_path == "rock1_hair.png");
+  CHECK(gltf_hair_material.diffuse_compression_format == "BC3");
+  CHECK(gltf_hair_material.diffuse_bitmap_encoding == "DXT5_BC3");
+  CHECK(approx(gltf_hair_material.diffuse_mip_map_k, -8.0f));
+  CHECK(gltf_hair_material.diffuse_type_regular);
+  CHECK(gltf_hair_material.diffuse_optimize_for_ps3);
+  CHECK(gltf_hair_material.diffuse_bitmap_mip_maps_zero);
+  CHECK(gltf_hair_material.diffuse_bpl_width_bpp_over_8);
+  CHECK(!gltf_hair_material.diffuse_xbox_byte_swap);
   CHECK(gltf_hair_material.stencil_ignore);
   CHECK(gltf_hair_material.per_pixel_lit);
   CHECK(gltf_hair_material.pre_lit);
@@ -561,6 +569,8 @@ int main() {
   CHECK(!gltf_plain_material.alpha_write);
   CHECK(gltf_plain_material.blend == 1);
   CHECK(gltf_plain_material.texture_compression == 1);
+  CHECK(gltf_plain_material.diffuse_compression_format == "BC1");
+  CHECK(gltf_plain_material.diffuse_bitmap_encoding == "DXT1_BC1");
 
   material_input.has_base_color_texture = false;
   const auto gltf_no_texture_material =
@@ -591,7 +601,11 @@ int main() {
         "rock1_hair_norm.png");
   CHECK(gltf_map_material.normal_compression_format == "BC5");
   CHECK(gltf_map_material.normal_bitmap_encoding == "ATI2_BC5");
+  CHECK(approx(gltf_map_material.normal_mip_map_k, -8.0f));
+  CHECK(gltf_map_material.normal_type_regular);
   CHECK(gltf_map_material.normal_optimize_for_ps3);
+  CHECK(gltf_map_material.normal_bitmap_mip_maps_zero);
+  CHECK(gltf_map_material.normal_bpl_width_bpp_over_8);
   CHECK(gltf_map_material.normal_xbox_byte_swap);
   CHECK(gltf_map_material.creates_emissive_tex_entry);
   CHECK(gltf_map_material.emissive_map == "rock1_hair_emissive.tex");
@@ -601,7 +615,11 @@ int main() {
         "rock1_hair_emissive.png");
   CHECK(gltf_map_material.emissive_compression_format == "BC1");
   CHECK(gltf_map_material.emissive_bitmap_encoding == "DXT1_BC1");
+  CHECK(approx(gltf_map_material.emissive_mip_map_k, -8.0f));
+  CHECK(gltf_map_material.emissive_type_regular);
   CHECK(!gltf_map_material.emissive_optimize_for_ps3);
+  CHECK(gltf_map_material.emissive_bitmap_mip_maps_zero);
+  CHECK(gltf_map_material.emissive_bpl_width_bpp_over_8);
   CHECK(gltf_map_material.emissive_xbox_byte_swap);
   CHECK(gltf_map_material.creates_specular_tex_entry);
   CHECK(gltf_map_material.specular_map == "rock1_hair_spec.tex");
@@ -610,7 +628,11 @@ int main() {
         "rock1_hair_spec.png");
   CHECK(gltf_map_material.specular_compression_format == "BC3");
   CHECK(gltf_map_material.specular_bitmap_encoding == "DXT5_BC3");
+  CHECK(approx(gltf_map_material.specular_mip_map_k, -8.0f));
+  CHECK(gltf_map_material.specular_type_regular);
   CHECK(!gltf_map_material.specular_optimize_for_ps3);
+  CHECK(gltf_map_material.specular_bitmap_mip_maps_zero);
+  CHECK(gltf_map_material.specular_bpl_width_bpp_over_8);
   CHECK(gltf_map_material.specular_xbox_byte_swap);
   CHECK(gltf_map_material.has_specular_rgb);
   CHECK(approx(gltf_map_material.specular_rgb[0], 0.10f));
@@ -628,6 +650,16 @@ int main() {
   CHECK(!gltf_ps3_map_material.emissive_xbox_byte_swap);
   CHECK(gltf_ps3_map_material.specular_optimize_for_ps3);
   CHECK(!gltf_ps3_map_material.specular_xbox_byte_swap);
+
+  ghogx::character::SourceGltfMiloMaterialInput xbox_diffuse_input;
+  xbox_diffuse_input.name = "xbox_body";
+  xbox_diffuse_input.platform = "xbox";
+  xbox_diffuse_input.has_base_color_texture = true;
+  const auto gltf_xbox_diffuse =
+      ghogx::character::source_gltf_milo_material_base_plan(
+          xbox_diffuse_input);
+  CHECK(gltf_xbox_diffuse.diffuse_xbox_byte_swap);
+  CHECK(gltf_xbox_diffuse.diffuse_optimize_for_ps3);
 
   ghogx::character::SourceGltfMiloMaterialInput material_extras_input;
   material_extras_input.name = "override_hair";

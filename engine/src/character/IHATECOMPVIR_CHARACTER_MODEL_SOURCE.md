@@ -1024,10 +1024,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `stencilMode=kStencilIgnore`, per-pixel/prelit/point/projected lighting,
     `fog=false`, `cull=!material.DoubleSided`, `_skin` / `_hair` shader
     variation selection, source blend/z/wrap/alpha decisions, and a matching
-    diffuse `Tex` row. Native `source_gltf_milo_material_base_plan` mirrors
-    those deterministic exporter rows for evidence only; live GH2 character
-    material behavior still comes from decoded stock `RndMat` rows plus the
-    separate project hair two-sided culling override.
+    diffuse `Tex` row. That diffuse row uses BC3 / `DXT5_BC3` when the source
+    image has alpha, otherwise BC1 / `DXT1_BC1`; it sets `mipMapK=-8`,
+    `type=kRegular`, `optimizeForPS3=true`, bitmap mipmaps to zero, and stores
+    `bpl` as `width * bpp / 8`, byte-swapping the texture payload only on Xbox.
+    Native `source_gltf_milo_material_base_plan` mirrors those deterministic
+    exporter rows for evidence only; live GH2 character material behavior still
+    comes from decoded stock `RndMat` rows plus the separate project hair
+    two-sided culling override.
   - The same material pass can emit normal, emissive, and specular texture rows
     independent of the base-color texture. Normal maps use BC5 / `ATI2_BC5` on
     Xbox and BC1 / `DXT1_BC1` otherwise, always marking the generated texture
@@ -1035,9 +1039,11 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     use BC3 / `DXT5_BC3`, and both mark optimize-for-PS3 only on non-Xbox
     output. The source byte-swaps each of those texture payloads only when the
     directory platform is Xbox. Native records those map names, entry names,
-    external paths, compression/encoding choices, optimize flags, and byte-swap
-    gates in `SourceGltfMiloMaterialPlan`; it does not change live GH2 material
-    upload or renderer behavior.
+    external paths, compression/encoding choices, `mipMapK=-8`,
+    `type=kRegular`, zero bitmap mipmaps, `width * bpp / 8` bytes-per-line
+    formula, optimize flags, and byte-swap gates in
+    `SourceGltfMiloMaterialPlan`; it does not change live GH2 material upload
+    or renderer behavior.
   - glTFMilo also assigns `mat.specularRGB` from the `SpecularColor` channel
     and `mat.specularPower` from `SpecularFactor`. Native records those
     deterministic rows in the material plan so character hair/skin material

@@ -660,6 +660,15 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.diffuse_tex = input.name + ".tex";
     plan.diffuse_tex_entry_name = input.name + ".tex";
     plan.texture_external_path = input.name + ".png";
+    plan.diffuse_compression_format = input.image_has_alpha ? "BC3" : "BC1";
+    plan.diffuse_bitmap_encoding =
+        input.image_has_alpha ? "DXT5_BC3" : "DXT1_BC1";
+    plan.diffuse_mip_map_k = -8.0f;
+    plan.diffuse_type_regular = true;
+    plan.diffuse_optimize_for_ps3 = true;
+    plan.diffuse_bitmap_mip_maps_zero = true;
+    plan.diffuse_bpl_width_bpp_over_8 = true;
+    plan.diffuse_xbox_byte_swap = xbox_platform;
     plan.stencil_ignore = true;
     plan.per_pixel_lit = true;
     plan.pre_lit = !input.prelit_option_equals_false;
@@ -723,7 +732,11 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.normal_compression_format = xbox_platform ? "BC5" : "BC1";
     plan.normal_bitmap_encoding =
         xbox_platform ? "ATI2_BC5" : "DXT1_BC1";
+    plan.normal_mip_map_k = -8.0f;
+    plan.normal_type_regular = true;
     plan.normal_optimize_for_ps3 = true;
+    plan.normal_bitmap_mip_maps_zero = true;
+    plan.normal_bpl_width_bpp_over_8 = true;
     plan.normal_xbox_byte_swap = xbox_platform;
   }
 
@@ -734,7 +747,11 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.emissive_texture_external_path = input.name + "_emissive.png";
     plan.emissive_compression_format = "BC1";
     plan.emissive_bitmap_encoding = "DXT1_BC1";
+    plan.emissive_mip_map_k = -8.0f;
+    plan.emissive_type_regular = true;
     plan.emissive_optimize_for_ps3 = !xbox_platform;
+    plan.emissive_bitmap_mip_maps_zero = true;
+    plan.emissive_bpl_width_bpp_over_8 = true;
     plan.emissive_xbox_byte_swap = xbox_platform;
     plan.emissive_multiplier = 1.0f;
   }
@@ -746,7 +763,11 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     plan.specular_texture_external_path = input.name + "_spec.png";
     plan.specular_compression_format = "BC3";
     plan.specular_bitmap_encoding = "DXT5_BC3";
+    plan.specular_mip_map_k = -8.0f;
+    plan.specular_type_regular = true;
     plan.specular_optimize_for_ps3 = !xbox_platform;
+    plan.specular_bitmap_mip_maps_zero = true;
+    plan.specular_bpl_width_bpp_over_8 = true;
     plan.specular_xbox_byte_swap = xbox_platform;
   }
 
