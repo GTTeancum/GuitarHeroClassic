@@ -8361,6 +8361,17 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
 
     if (!mod.symbolic) return mod;
 
+    const bool explicit_blackout =
+        mod.low || (preset && preset->adjective == "blackout");
+    if (!explicit_blackout) {
+        // ihatecompvir LightPreset::Animate applies these refs to light/env
+        // state; normal performer/crowd symbols should not blacken materials.
+        // Keep the material path at identity instead of faking darker lights.
+        mod.intensity = 1.0f;
+        mod.r = mod.g = mod.b = 1.0f;
+        return mod;
+    }
+
     if (mod.low) {
         switch (venue_excitement_level(venue_event)) {
             case 0:
@@ -8371,26 +8382,6 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
                 break;
             default:
                 mod.intensity = 0.18f;
-                break;
-        }
-    } else {
-        // ihatecompvir LightPreset::Animate applies these refs to light/env
-        // state; normal performer/crowd symbols should not blacken materials.
-        switch (venue_excitement_level(venue_event)) {
-            case 0:
-                mod.intensity = 0.65f;
-                break;
-            case 1:
-                mod.intensity = 0.78f;
-                break;
-            case 2:
-                mod.intensity = 1.00f;
-                break;
-            case 3:
-                mod.intensity = 1.08f;
-                break;
-            default:
-                mod.intensity = 1.15f;
                 break;
         }
     }

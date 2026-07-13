@@ -8183,8 +8183,17 @@ int main() {
                  "lower.find(\"blackout\")!=std::string::npos",
                  "only explicit blackout refs activate the performer/crowd material-darkening fallback");
   ok &= contains(gameplay_c,
-                 "mod.intensity=1.00f;",
+                 "mod.intensity=1.0f;",
                  "normal excitement performer/crowd material modulation remains readable");
+  ok &= contains(gameplay_c,
+                 "mod.r=mod.g=mod.b=1.0f;",
+                 "normal symbolic performer/crowd refs use identity material modulation");
+  ok &= absent(gameplay_c,
+               "mod.intensity=0.65f;",
+               "normal symbolic performer/crowd refs must not dim band materials at low excitement");
+  ok &= absent(gameplay_c,
+               "mod.intensity=0.78f;",
+               "normal symbolic performer/crowd refs must not dim band materials at okay excitement");
   ok &= contains(gameplay_c,
                  "boolperformer_scene_lighting_enabled(){"
                  "returnenv_value(\"GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING\")"
