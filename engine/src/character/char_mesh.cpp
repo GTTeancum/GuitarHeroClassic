@@ -3502,6 +3502,66 @@ SourceEventTriggerDefaultState source_event_trigger_default_state() {
   return {};
 }
 
+SourceEventTriggerSupportedEventsPlan source_event_trigger_supported_events_plan(
+    bool type_is_endgame_action) {
+  SourceEventTriggerSupportedEventsPlan plan;
+  plan.uses_endgame_action_type_path = type_is_endgame_action;
+  plan.config_path = type_is_endgame_action
+                         ? std::vector<std::string>{"objects", "EventTrigger",
+                                                    "types", "endgame_action",
+                                                    "supported_events"}
+                         : std::vector<std::string>{"objects", "EventTrigger",
+                                                    "supported_events"};
+  return plan;
+}
+
+namespace {
+
+void append_event_trigger_sink_rows(std::vector<SourceEventTriggerSinkRow>& rows,
+                                    const std::vector<std::string>& events,
+                                    const std::string& message) {
+  for (const std::string& event : events) {
+    rows.push_back(SourceEventTriggerSinkRow{event, message, "kHandle"});
+  }
+}
+
+}  // namespace
+
+SourceEventTriggerEventRegistrationPlan source_event_trigger_register_events_plan(
+    const EventTrigger& trigger,
+    bool dir_is_msg_source) {
+  SourceEventTriggerEventRegistrationPlan plan;
+  plan.dir_is_msg_source = dir_is_msg_source;
+  if (!dir_is_msg_source) return plan;
+  append_event_trigger_sink_rows(plan.add_sinks, trigger.trigger_events,
+                                 "trigger");
+  append_event_trigger_sink_rows(plan.add_sinks, trigger.enable_events,
+                                 "enable");
+  append_event_trigger_sink_rows(plan.add_sinks, trigger.disable_events,
+                                 "disable");
+  append_event_trigger_sink_rows(plan.add_sinks, trigger.wait_for_events,
+                                 "wait_for");
+  plan.clears_enabled_at_start = true;
+  return plan;
+}
+
+SourceEventTriggerEventRegistrationPlan
+source_event_trigger_unregister_events_plan(const EventTrigger& trigger,
+                                            bool dir_is_msg_source) {
+  SourceEventTriggerEventRegistrationPlan plan;
+  plan.dir_is_msg_source = dir_is_msg_source;
+  if (!dir_is_msg_source) return plan;
+  append_event_trigger_sink_rows(plan.remove_sinks, trigger.trigger_events,
+                                 "trigger");
+  append_event_trigger_sink_rows(plan.remove_sinks, trigger.enable_events,
+                                 "enable");
+  append_event_trigger_sink_rows(plan.remove_sinks, trigger.disable_events,
+                                 "disable");
+  append_event_trigger_sink_rows(plan.remove_sinks, trigger.wait_for_events,
+                                 "wait_for");
+  return plan;
+}
+
 SourceEventTriggerCopyPlan source_event_trigger_copy_plan() {
   SourceEventTriggerCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object", "RndAnimatable"};

@@ -2744,6 +2744,18 @@ note, and all report `unreadBytes=0`.
   source member list, then runs `RegisterEvents` and `CleanupHideShow`.
   Runtime-only fields such as spawned tasks and enabled state are documented as
   not copied by that source body.
+- Native `source_event_trigger_supported_events_plan` records the concrete
+  `SupportedEvents` config lookup: ordinary rows use
+  `objects/EventTrigger/supported_events`, while type `endgame_action` uses
+  `objects/EventTrigger/types/endgame_action/supported_events`; both read
+  array index `1`.
+- Native `source_event_trigger_register_events_plan` and
+  `source_event_trigger_unregister_events_plan` record only the source
+  `MsgSource` sink wiring: trigger events add/remove `trigger`, enable events
+  add/remove `enable`, disable events add/remove `disable`, and wait-for events
+  add/remove `wait_for`, all with `MsgSource::kHandle`. Registering against a
+  `MsgSource` also clears `mEnabledAtStart`. These helpers do not execute
+  events or schedule triggered work.
 - Native `source_event_trigger_handler_plan` and
   `source_event_trigger_prop_sync_plan` record the checked handler and property
   rows: `trigger`, `enable`, `disable`, `wait_for`, `proxy_calls`,

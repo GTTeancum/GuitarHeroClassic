@@ -40,6 +40,9 @@ int main() {
   using ghogx::character::source_event_trigger_handler_plan;
   using ghogx::character::source_event_trigger_load_plan;
   using ghogx::character::source_event_trigger_prop_sync_plan;
+  using ghogx::character::source_event_trigger_register_events_plan;
+  using ghogx::character::source_event_trigger_supported_events_plan;
+  using ghogx::character::source_event_trigger_unregister_events_plan;
 
   bool ok = true;
 
@@ -65,6 +68,72 @@ int main() {
   ok &= expect_string(std::to_string(native_default.anim_frame),
                       std::to_string(defaults.anim_frame),
                       "native anim-frame default");
+
+  const auto supported_general =
+      source_event_trigger_supported_events_plan(false);
+  ok &= expect_bool(supported_general.uses_endgame_action_type_path, false,
+                    "general supported events path");
+  ok &= expect_size(supported_general.config_path.size(), 3,
+                    "general supported events path size");
+  ok &= expect_string(supported_general.config_path[0], "objects",
+                      "general supported events root");
+  ok &= expect_string(supported_general.config_path[2], "supported_events",
+                      "general supported events leaf");
+  ok &= expect_string(std::to_string(supported_general.array_index), "1",
+                      "supported events array index");
+
+  const auto supported_endgame =
+      source_event_trigger_supported_events_plan(true);
+  ok &= expect_bool(supported_endgame.uses_endgame_action_type_path, true,
+                    "endgame supported events path");
+  ok &= expect_size(supported_endgame.config_path.size(), 5,
+                    "endgame supported events path size");
+  ok &= expect_string(supported_endgame.config_path[2], "types",
+                      "endgame supported events types branch");
+  ok &= expect_string(supported_endgame.config_path[3], "endgame_action",
+                      "endgame supported events type");
+
+  EventTrigger event_rows;
+  event_rows.trigger_events = {"game_over"};
+  event_rows.enable_events = {"enable_fx"};
+  event_rows.disable_events = {"disable_fx"};
+  event_rows.wait_for_events = {"beat_wait"};
+  const auto no_source_register =
+      source_event_trigger_register_events_plan(event_rows, false);
+  ok &= expect_bool(no_source_register.dir_is_msg_source, false,
+                    "register no MsgSource dir");
+  ok &= expect_size(no_source_register.add_sinks.size(), 0,
+                    "register skips non-MsgSource dir");
+
+  const auto register_plan =
+      source_event_trigger_register_events_plan(event_rows, true);
+  ok &= expect_bool(register_plan.clears_enabled_at_start, true,
+                    "register clears enabled-at-start");
+  ok &= expect_size(register_plan.add_sinks.size(), 4,
+                    "register sink count");
+  ok &= expect_string(register_plan.add_sinks[0].event, "game_over",
+                      "register trigger event");
+  ok &= expect_string(register_plan.add_sinks[0].message, "trigger",
+                      "register trigger message");
+  ok &= expect_string(register_plan.add_sinks[0].mode, "kHandle",
+                      "register trigger mode");
+  ok &= expect_string(register_plan.add_sinks[1].message, "enable",
+                      "register enable message");
+  ok &= expect_string(register_plan.add_sinks[2].message, "disable",
+                      "register disable message");
+  ok &= expect_string(register_plan.add_sinks[3].message, "wait_for",
+                      "register wait-for message");
+
+  const auto unregister_plan =
+      source_event_trigger_unregister_events_plan(event_rows, true);
+  ok &= expect_bool(unregister_plan.clears_enabled_at_start, false,
+                    "unregister does not touch enabled-at-start");
+  ok &= expect_size(unregister_plan.remove_sinks.size(), 4,
+                    "unregister sink count");
+  ok &= expect_string(unregister_plan.remove_sinks[0].event, "game_over",
+                      "unregister trigger event");
+  ok &= expect_string(unregister_plan.remove_sinks[3].message, "wait_for",
+                      "unregister wait-for message");
 
   const auto copy = source_event_trigger_copy_plan();
   ok &= expect_size(copy.copied_superclasses.size(), 2,

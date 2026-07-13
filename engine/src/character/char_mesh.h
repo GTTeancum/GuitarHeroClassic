@@ -4538,6 +4538,12 @@ struct SourceEventTriggerProxyCallLoadPlan {
   std::vector<std::string> read_order;
 };
 
+struct SourceEventTriggerSupportedEventsPlan {
+  std::vector<std::string> config_path;
+  int32_t array_index = 1;
+  bool uses_endgame_action_type_path = false;
+};
+
 struct SourceEventTriggerLoadPlan {
   bool known_revision = false;
   std::vector<std::string> load_steps;
@@ -4555,6 +4561,19 @@ struct SourceEventTriggerDefaultState {
   bool enabled = true;
   bool enabled_at_start = true;
   bool constructor_registers_events = true;
+};
+
+struct SourceEventTriggerSinkRow {
+  std::string event;
+  std::string message;
+  std::string mode;
+};
+
+struct SourceEventTriggerEventRegistrationPlan {
+  bool dir_is_msg_source = false;
+  bool clears_enabled_at_start = false;
+  std::vector<SourceEventTriggerSinkRow> add_sinks;
+  std::vector<SourceEventTriggerSinkRow> remove_sinks;
 };
 
 struct SourceEventTriggerCopyPlan {
@@ -4586,6 +4605,14 @@ struct SourceEventTriggerPropSyncPlan {
 
 SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision);
 SourceEventTriggerDefaultState source_event_trigger_default_state();
+SourceEventTriggerSupportedEventsPlan source_event_trigger_supported_events_plan(
+    bool type_is_endgame_action);
+SourceEventTriggerEventRegistrationPlan source_event_trigger_register_events_plan(
+    const EventTrigger& trigger,
+    bool dir_is_msg_source);
+SourceEventTriggerEventRegistrationPlan
+source_event_trigger_unregister_events_plan(const EventTrigger& trigger,
+                                            bool dir_is_msg_source);
 SourceEventTriggerCopyPlan source_event_trigger_copy_plan();
 SourceEventTriggerHandlerPlan source_event_trigger_handler_plan();
 SourceEventTriggerPropSyncPlan source_event_trigger_prop_sync_plan();

@@ -16057,6 +16057,21 @@ int run_contract() {
                  "mEnabled(1),mEnabledAtStart(1){RegisterEvents();}",
                  "EventTrigger source constructor defaults runtime state");
   ok &= contains(rb3_latest_event_trigger_cpp,
+                 "if(Type()==\"endgame_action\"){returnSystemConfig("
+                 "\"objects\",\"EventTrigger\",\"types\",\"endgame_action\","
+                 "\"supported_events\")->Array(1);}else{returnSystemConfig("
+                 "\"objects\",\"EventTrigger\",\"supported_events\")->Array(1);}",
+                 "EventTrigger source supported-events path branch");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "src->AddSink(this,*it,trigger,MsgSource::kHandle);",
+                 "EventTrigger source RegisterEvents adds trigger sinks");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "src->AddSink(this,*it,wait_for,MsgSource::kHandle);",
+                 "EventTrigger source RegisterEvents adds wait-for sinks");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "src->RemoveSink(this,*it);",
+                 "EventTrigger source UnregisterEvents removes sinks");
+  ok &= contains(rb3_latest_event_trigger_cpp,
                  "BEGIN_COPYS(EventTrigger)COPY_SUPERCLASS(Hmx::Object)"
                  "COPY_SUPERCLASS(RndAnimatable)CREATE_COPY(EventTrigger)",
                  "EventTrigger source exposes copy body");
@@ -16336,6 +16351,19 @@ int run_contract() {
                  "  `source_event_trigger_copy_plan` record",
                  "document records EventTrigger default/copy helpers");
   ok &= contains(doc,
+                 "Native `source_event_trigger_supported_events_plan` records",
+                 "document records EventTrigger supported-events helper");
+  ok &= contains(doc,
+                 "ordinary rows use\n  `objects/EventTrigger/supported_events`, "
+                 "while type `endgame_action`",
+                 "document records EventTrigger supported-events branch");
+  ok &= contains(doc,
+                 "Native `source_event_trigger_register_events_plan` and",
+                 "document records EventTrigger register/unregister helpers");
+  ok &= contains(doc,
+                 "These helpers do not execute\n  events or schedule triggered work",
+                 "document fences EventTrigger event sink helpers");
+  ok &= contains(doc,
                  "Native `source_event_trigger_handler_plan` and\n"
                  "  `source_event_trigger_prop_sync_plan` record",
                  "document records EventTrigger handler/prop-sync helpers");
@@ -16485,11 +16513,29 @@ int run_contract() {
                  "structSourceEventTriggerPropSyncPlan{",
                  "native exposes EventTrigger prop-sync plan type");
   ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerSupportedEventsPlan{",
+                 "native exposes EventTrigger supported-events plan type");
+  ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerEventRegistrationPlan{",
+                 "native exposes EventTrigger registration plan type");
+  ok &= contains(char_mesh_h,
                  "SourceEventTriggerHandlerPlansource_event_trigger_handler_plan();",
                  "native exposes EventTrigger handler plan helper");
   ok &= contains(char_mesh_h,
                  "SourceEventTriggerPropSyncPlansource_event_trigger_prop_sync_plan();",
                  "native exposes EventTrigger prop-sync plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceEventTriggerSupportedEventsPlan"
+                 "source_event_trigger_supported_events_plan(",
+                 "native exposes EventTrigger supported-events helper");
+  ok &= contains(char_mesh_h,
+                 "source_event_trigger_register_events_plan("
+                 "constEventTrigger&trigger,booldir_is_msg_source);",
+                 "native exposes EventTrigger RegisterEvents helper");
+  ok &= contains(char_mesh_h,
+                 "source_event_trigger_unregister_events_plan("
+                 "constEventTrigger&trigger,booldir_is_msg_source);",
+                 "native exposes EventTrigger UnregisterEvents helper");
   ok &= contains(char_mesh,
                  "SourceEventTriggerLoadPlansource_event_trigger_load_plan("
                  "intrevision){",
@@ -16498,6 +16544,27 @@ int run_contract() {
                  "SourceEventTriggerDefaultState"
                  "source_event_trigger_default_state(){return{};}",
                  "native implements EventTrigger source default helper");
+  ok &= contains(char_mesh,
+                 "SourceEventTriggerSupportedEventsPlan"
+                 "source_event_trigger_supported_events_plan("
+                 "booltype_is_endgame_action){",
+                 "native implements EventTrigger supported-events helper");
+  ok &= contains(char_mesh,
+                 "\"objects\",\"EventTrigger\",\"types\",\"endgame_action\","
+                 "\"supported_events\"",
+                 "native EventTrigger supported-events helper records endgame path");
+  ok &= contains(char_mesh,
+                 "append_event_trigger_sink_rows(plan.add_sinks,"
+                 "trigger.trigger_events,\"trigger\");",
+                 "native EventTrigger RegisterEvents helper records trigger sinks");
+  ok &= contains(char_mesh,
+                 "append_event_trigger_sink_rows(plan.add_sinks,"
+                 "trigger.wait_for_events,\"wait_for\");",
+                 "native EventTrigger RegisterEvents helper records wait-for sinks");
+  ok &= contains(char_mesh,
+                 "append_event_trigger_sink_rows(plan.remove_sinks,"
+                 "trigger.wait_for_events,\"wait_for\");",
+                 "native EventTrigger UnregisterEvents helper records wait-for sinks");
   ok &= contains(char_mesh,
                  "SourceEventTriggerCopyPlansource_event_trigger_copy_plan(){",
                  "native implements EventTrigger source copy helper");
@@ -16559,6 +16626,15 @@ int run_contract() {
   ok &= contains(event_trigger_source_test,
                  "constautodefaults=source_event_trigger_default_state();",
                  "EventTrigger source test covers constructor defaults");
+  ok &= contains(event_trigger_source_test,
+                 "source_event_trigger_supported_events_plan(true)",
+                 "EventTrigger source test covers supported-events type branch");
+  ok &= contains(event_trigger_source_test,
+                 "source_event_trigger_register_events_plan(event_rows,true)",
+                 "EventTrigger source test covers RegisterEvents sink rows");
+  ok &= contains(event_trigger_source_test,
+                 "source_event_trigger_unregister_events_plan(event_rows,true)",
+                 "EventTrigger source test covers UnregisterEvents sink rows");
   ok &= contains(event_trigger_source_test,
                  "constautocopy=source_event_trigger_copy_plan();",
                  "EventTrigger source test covers copy plan");
