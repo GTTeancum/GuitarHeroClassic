@@ -3071,6 +3071,32 @@ struct SourceCharIKHandElbowSwingResult {
   bool recompute_current_after_rotation = false;
 };
 
+struct SourceCharIKHandPollFlowInput {
+  bool has_hand = false;
+  bool has_targets = false;
+  bool has_parent = false;
+  bool has_grandparent = false;
+  bool move_elbow = true;
+  bool always_ik_elbow = false;
+  bool orientation = true;
+  bool stretch = true;
+  float char_weight = 0.0f;
+};
+
+struct SourceCharIKHandPollFlowResult {
+  bool early_out = false;
+  bool parent1_initial = false;
+  bool parent1_after_move_elbow = false;
+  bool parent2_resolved = false;
+  bool parent1_after_grandparent_gate = false;
+  bool calls_ik_elbow = false;
+  bool ik_elbow_has_chain = false;
+  bool final_hand_write = false;
+  bool final_position_from_world_dst = false;
+  bool final_orientation_from_target = false;
+  bool interpolates_orientation = false;
+};
+
 struct SourceCharIKFootState {
   bool helper_target_created = true;
   bool helper_target_local_reset = true;
@@ -3176,6 +3202,8 @@ SourceCharIKHandWristConstraintResult source_char_ik_hand_wrist_constraint(
     const SourceCharIKHandWristConstraintInput& input);
 SourceCharIKHandElbowSwingResult source_char_ik_hand_elbow_swing(
     const SourceCharIKHandElbowSwingInput& input);
+SourceCharIKHandPollFlowResult source_char_ik_hand_poll_flow(
+    const SourceCharIKHandPollFlowInput& input);
 SourceCharIKFootState source_char_ik_foot_default_state();
 SourceCharIKFootEnterResult source_char_ik_foot_enter(
     SourceCharIKFootState& state);

@@ -19079,6 +19079,24 @@ int run_contract() {
                  "Interp(mHand->WorldXfm().v,vec,charWeight,mWorldDst);",
                  "RB3 CharIKHand source blends world destination");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "RndTransformable*parent2=0;RndTransformable*parent1="
+                 "mHand->TransParent();if(!mMoveElbow)parent1=0;",
+                 "RB3 CharIKHand source resolves move-elbow parent gate");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(charWeight!=0||mAlwaysIKElbow){if(parent1){parent2="
+                 "parent1->TransParent();if(!parent2)parent1=0;}"
+                 "IKElbow(parent1,parent2);}",
+                 "RB3 CharIKHand source gates IKElbow call");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(charWeight!=0&&(!parent1||mOrientation||mStretch)){"
+                 "Transformtf(mHand->WorldXfm());",
+                 "RB3 CharIKHand source gates final hand write");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(!parent1||mStretch){tf.v=mWorldDst;}if(mOrientation){"
+                 "if(charWeight<1.0f){Hmx::Quatq(mHand->WorldXfm().m);"
+                 "Interp(q,quat,charWeight,quat);}",
+                 "RB3 CharIKHand source gates final position and orientation");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "else{floatsumfloat=0.0f;float*locfloats;"
                  "float*startlocfloats=locfloats;",
                  "RB3 CharIKHand source enters multi-target branch");
@@ -19328,6 +19346,15 @@ int run_contract() {
                  "floatcurrent_len_sq=0.0f;floattarget_len_sq=0.0f;",
                  "native exposes source CharIKHand elbow swing result");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandPollFlowInput{boolhas_hand=false;"
+                 "boolhas_targets=false;boolhas_parent=false;"
+                 "boolhas_grandparent=false;boolmove_elbow=true;",
+                 "native exposes source CharIKHand poll-flow input");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandPollFlowResult{boolearly_out=false;"
+                 "boolparent1_initial=false;boolparent1_after_move_elbow=false;",
+                 "native exposes source CharIKHand poll-flow result");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
                  "int32_trevision);",
                  "native API exposes source CharIKHand load plan helper");
@@ -19378,6 +19405,11 @@ int run_contract() {
                  "source_char_ik_hand_elbow_swing("
                  "constSourceCharIKHandElbowSwingInput&input);",
                  "native API exposes source CharIKHand elbow swing helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandPollFlowResult"
+                 "source_char_ik_hand_poll_flow("
+                 "constSourceCharIKHandPollFlowInput&input);",
+                 "native API exposes source CharIKHand poll-flow helper");
   ok &= contains(char_clip,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
                  "boolhas_elbow_chain,floathand_local_len,"
@@ -19565,6 +19597,27 @@ int run_contract() {
                  "result.rotate_about_x=-result.clamped;",
                  "native CharIKHand elbow swing helper ports source clamp and rotate");
   ok &= contains(char_clip,
+                 "SourceCharIKHandPollFlowResult"
+                 "source_char_ik_hand_poll_flow("
+                 "constSourceCharIKHandPollFlowInput&input){",
+                 "native CharIKHand poll-flow helper exists");
+  ok &= contains(char_clip,
+                 "if(!input.has_hand||!input.has_targets){"
+                 "result.early_out=true;returnresult;}",
+                 "native CharIKHand poll-flow helper ports early out");
+  ok &= contains(char_clip,
+                 "result.parent1_after_move_elbow=input.move_elbow&&"
+                 "input.has_parent;",
+                 "native CharIKHand poll-flow helper ports move-elbow gate");
+  ok &= contains(char_clip,
+                 "if(input.char_weight!=0.0f||input.always_ik_elbow){",
+                 "native CharIKHand poll-flow helper ports elbow call gate");
+  ok &= contains(char_clip,
+                 "result.final_hand_write=input.char_weight!=0.0f&&"
+                 "(!result.parent1_after_grandparent_gate||input.orientation||"
+                 "input.stretch);",
+                 "native CharIKHand poll-flow helper ports final write gate");
+  ok &= contains(char_clip,
                  "RuntimeIKHandMeasureState&measure_state="
                  "character.runtime_ik_hand_measures[live_key];",
                  "runtime CharIKHand slice uses persistent source length cache");
@@ -19645,10 +19698,34 @@ int run_contract() {
   ok &= contains(ik_hand_source_test,
                  "elbow_swing_positive_clamp.rotate_about_x,-0.25f",
                  "focused CharIKHand source test covers positive elbow swing clamp");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_poll_flow(",
+                 "focused CharIKHand source test covers poll-flow helper");
+  ok &= contains(ik_hand_source_test,
+                 "poll_no_grandparent.parent1_after_grandparent_gate,false",
+                 "focused CharIKHand source test covers missing grandparent gate");
+  ok &= contains(ik_hand_source_test,
+                 "poll_elbow_only.final_hand_write,false",
+                 "focused CharIKHand source test covers parented elbow-only branch");
+  ok &= contains(ik_hand_source_test,
+                 "poll_always_elbow.calls_ik_elbow,true",
+                 "focused CharIKHand source test covers always-elbow zero weight");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
                  "document records native CharIKHand MeasureLengths slice");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_poll_flow` ports the visible parent",
+                 "document records native CharIKHand poll-flow helper");
+  ok &= contains(doc,
+                 "`mAlwaysIKElbow` still calls `IKElbow` at zero character weight",
+                 "document records CharIKHand always-elbow poll gate");
+  ok &= contains(doc,
+                 "final hand `SetWorldXfm` only runs for nonzero weight",
+                 "document records CharIKHand final write gate");
+  ok &= contains(doc,
+                 "does not publish another live\n    hand transform path",
+                 "document fences CharIKHand poll-flow helper from live runtime");
   ok &= contains(doc, "Native `source_char_ik_hand_load_plan`,",
                  "document records native CharIKHand row-plan helpers");
   ok &= contains(doc, "duplicated `mTargets` row and the visible omission of `mFinger`",

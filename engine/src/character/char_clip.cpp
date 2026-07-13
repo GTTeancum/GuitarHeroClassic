@@ -5524,6 +5524,43 @@ SourceCharIKHandElbowSwingResult source_char_ik_hand_elbow_swing(
   return result;
 }
 
+SourceCharIKHandPollFlowResult source_char_ik_hand_poll_flow(
+    const SourceCharIKHandPollFlowInput& input) {
+  SourceCharIKHandPollFlowResult result;
+  if (!input.has_hand || !input.has_targets) {
+    result.early_out = true;
+    return result;
+  }
+
+  result.parent1_initial = input.has_parent;
+  result.parent1_after_move_elbow = input.move_elbow && input.has_parent;
+  result.parent1_after_grandparent_gate = result.parent1_after_move_elbow;
+  if (input.char_weight != 0.0f || input.always_ik_elbow) {
+    if (result.parent1_after_move_elbow) {
+      result.parent2_resolved = input.has_grandparent;
+      if (!result.parent2_resolved) {
+        result.parent1_after_grandparent_gate = false;
+      }
+    }
+    result.calls_ik_elbow = true;
+    result.ik_elbow_has_chain =
+        result.parent1_after_grandparent_gate && result.parent2_resolved;
+  }
+
+  result.final_hand_write =
+      input.char_weight != 0.0f &&
+      (!result.parent1_after_grandparent_gate || input.orientation ||
+       input.stretch);
+  if (result.final_hand_write) {
+    result.final_position_from_world_dst =
+        !result.parent1_after_grandparent_gate || input.stretch;
+    result.final_orientation_from_target = input.orientation;
+    result.interpolates_orientation =
+        input.orientation && input.char_weight < 1.0f;
+  }
+  return result;
+}
+
 static float source_distance3(const std::array<float, 3>& a,
                               const std::array<float, 3>& b) {
   const float dx = a[0] - b[0];

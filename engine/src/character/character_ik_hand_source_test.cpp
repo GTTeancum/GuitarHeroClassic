@@ -50,6 +50,7 @@ bool has(const std::vector<std::string>& values, const std::string& value) {
 int main() {
   using ghogx::character::SourceCharIKHandMeasure;
   using ghogx::character::SourceCharIKHandElbowSwingInput;
+  using ghogx::character::SourceCharIKHandPollFlowInput;
   using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::SourceCharIKHandWristConstraintInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
@@ -60,6 +61,7 @@ int main() {
   using ghogx::character::source_char_ik_hand_load_plan;
   using ghogx::character::source_char_ik_hand_measure_lengths;
   using ghogx::character::source_char_ik_hand_multi_target_blend;
+  using ghogx::character::source_char_ik_hand_poll_flow;
   using ghogx::character::source_char_ik_hand_prop_sync_plan;
   using ghogx::character::source_char_ik_hand_save_plan;
   using ghogx::character::source_char_ik_hand_update_measure_lengths;
@@ -407,6 +409,58 @@ int main() {
                      "elbow swing positive clamp");
   ok &= expect_float(elbow_swing_positive_clamp.rotate_about_x, -0.25f,
                      "elbow swing positive clamp rotate");
+
+  const auto poll_no_hand = source_char_ik_hand_poll_flow(
+      SourceCharIKHandPollFlowInput{false, true, true, true, true, false,
+                                    true, true, 1.0f});
+  ok &= expect_bool(poll_no_hand.early_out, true,
+                    "IKHand poll flow early-outs with no hand");
+
+  const auto poll_no_grandparent = source_char_ik_hand_poll_flow(
+      SourceCharIKHandPollFlowInput{true, true, true, false, true, false,
+                                    false, false, 1.0f});
+  ok &= expect_bool(poll_no_grandparent.calls_ik_elbow, true,
+                    "IKHand poll flow still calls IKElbow");
+  ok &= expect_bool(poll_no_grandparent.parent1_after_grandparent_gate, false,
+                    "IKHand poll flow clears parent without grandparent");
+  ok &= expect_bool(poll_no_grandparent.ik_elbow_has_chain, false,
+                    "IKHand poll flow marks missing elbow chain");
+  ok &= expect_bool(poll_no_grandparent.final_hand_write, true,
+                    "IKHand poll flow writes final hand without parent");
+  ok &= expect_bool(poll_no_grandparent.final_position_from_world_dst, true,
+                    "IKHand poll flow writes mWorldDst without parent");
+  ok &= expect_bool(poll_no_grandparent.final_orientation_from_target, false,
+                    "IKHand poll flow skips orientation when disabled");
+
+  const auto poll_elbow_only = source_char_ik_hand_poll_flow(
+      SourceCharIKHandPollFlowInput{true, true, true, true, true, false,
+                                    false, false, 1.0f});
+  ok &= expect_bool(poll_elbow_only.calls_ik_elbow, true,
+                    "IKHand poll flow calls elbow with chain");
+  ok &= expect_bool(poll_elbow_only.ik_elbow_has_chain, true,
+                    "IKHand poll flow marks elbow chain");
+  ok &= expect_bool(poll_elbow_only.final_hand_write, false,
+                    "IKHand poll flow skips final write for parented no orient/stretch");
+
+  const auto poll_orient_stretch = source_char_ik_hand_poll_flow(
+      SourceCharIKHandPollFlowInput{true, true, true, true, true, false,
+                                    true, true, 0.5f});
+  ok &= expect_bool(poll_orient_stretch.final_hand_write, true,
+                    "IKHand poll flow writes final hand with orient/stretch");
+  ok &= expect_bool(poll_orient_stretch.final_position_from_world_dst, true,
+                    "IKHand poll flow stretch writes mWorldDst");
+  ok &= expect_bool(poll_orient_stretch.final_orientation_from_target, true,
+                    "IKHand poll flow orientation writes target rot");
+  ok &= expect_bool(poll_orient_stretch.interpolates_orientation, true,
+                    "IKHand poll flow interpolates partial orientation");
+
+  const auto poll_always_elbow = source_char_ik_hand_poll_flow(
+      SourceCharIKHandPollFlowInput{true, true, true, true, true, true,
+                                    false, false, 0.0f});
+  ok &= expect_bool(poll_always_elbow.calls_ik_elbow, true,
+                    "IKHand poll flow always IK elbow calls at zero weight");
+  ok &= expect_bool(poll_always_elbow.final_hand_write, false,
+                    "IKHand poll flow zero weight skips final hand write");
 
   std::printf("character_ik_hand_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

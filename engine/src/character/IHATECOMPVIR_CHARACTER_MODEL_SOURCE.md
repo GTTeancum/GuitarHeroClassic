@@ -3213,6 +3213,17 @@ note, and all report `unreadBytes=0`.
     once, and scalable hands remeasure each poll. Runtime hand IK now keeps that
     per-controller cache and feeds the cosine helper from the cached source
     fields without pre-clamping target distance.
+  - Native `source_char_ik_hand_poll_flow` ports the visible parent and final
+    write gates from `CharIKHand::Poll` as deterministic source evidence only:
+    missing hand or target rows return early, `mMoveElbow=false` clears the
+    parent before elbow solving, missing grandparents clear the parent passed to
+    `IKElbow`, `mAlwaysIKElbow` still calls `IKElbow` at zero character weight,
+    and the final hand `SetWorldXfm` only runs for nonzero weight when there is
+    no valid parent chain, orientation is enabled, or stretch is enabled.
+    Stretch/no-parent selects `mWorldDst` for the final position; orientation
+    writes the target rotation and interpolates when weight is below `1.0`.
+    This helper records control flow only and does not publish another live
+    hand transform path.
   - Native `source_char_ik_hand_multi_target_blend` ports the concrete
     multi-target weighting branch from `CharIKHand::Poll`: present targets get
     `144 / max(0.001, LengthSquared(worldPos))`, positive extents either use
