@@ -1070,6 +1070,24 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     enables AO calculation when a normal map exists. Native
     `source_gltf_milo_create_base_mesh_plan` mirrors that exporter-side mesh
     setup as a contract; it does not change stock GH2 runtime mesh decode.
+  - The same `Program.cs` keeps a `BandConfiguration` block in a commented
+    `TODO: finish this` section. The visible rows set object-fields revision 2,
+    create `BandConfiguration.TargTransform` rows, and would add a
+    `BandConfiguration` entry named by `filename`, but that block is not active
+    converter behavior. Native `source_gltf_milo_scene_assembly_plan` records
+    it as present-but-commented evidence and does not promote it to runtime or
+    exporter behavior.
+  - The live glTFMilo final assembly path creates a venue-only all-geometry
+    `Group` named `<filename>_geom.grp`, with selected-game group/trans/draw/
+    anim revisions, draw sphere radius `0`, object-fields revision 2, and only
+    existing entries whose type is exactly `Mesh`. It then calls
+    `OutfitConfigBuilder.BuildOutfitConfig`, uses
+    `DirBuilder.BuildCharacterDirectory` only for `character`, `instrument`,
+    or `dancer`, otherwise uses `DirBuilder.BuildRndDirectory`, and saves a
+    `MiloFile` as uncompressed version `0x810` with little-endian stream data
+    and big-endian object data. Native `source_gltf_milo_scene_assembly_plan`
+    records that final directory/save contract; it does not invent missing
+    `DirBuilder` or `OutfitConfigBuilder` internals.
   - `NodeProcessor.ProcessBoneNode` skips `neutral_bone`, skips RB3 skeleton
     bones only when exporting a `character`, otherwise emits a revision-9
     `Trans` row with object-fields revision 2, local/world matrices copied from

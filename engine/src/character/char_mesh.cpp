@@ -841,6 +841,40 @@ SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
   return plan;
 }
 
+SourceGltfMiloSceneAssemblyPlan source_gltf_milo_scene_assembly_plan(
+    const SourceGltfMiloSceneAssemblyInput& input) {
+  SourceGltfMiloSceneAssemblyPlan plan;
+  plan.band_configuration.entry_name = input.filename;
+
+  if (input.type == SourceGltfMiloSceneType::kVenue) {
+    SourceGltfMiloVenueAllGeomGroupPlan& group =
+        plan.venue_all_geom_group;
+    group.creates_group = true;
+    group.entry_type = "Group";
+    group.entry_name = input.filename + "_geom.grp";
+    group.group_revision = input.group_revision;
+    group.trans_revision = input.trans_revision;
+    group.drawable_revision = input.drawable_revision;
+    group.initializes_draw_sphere = true;
+    group.draw_sphere_radius = 0.0f;
+    group.animatable_revision = input.animatable_revision;
+    group.object_fields_revision = 2;
+    for (const SourceGltfMiloDirectoryEntryInput& entry :
+         input.existing_entries) {
+      if (entry.type == "Mesh") {
+        group.objects.push_back(entry.name);
+      }
+    }
+  }
+
+  plan.calls_character_directory_builder =
+      input.type == SourceGltfMiloSceneType::kCharacter ||
+      input.type == SourceGltfMiloSceneType::kInstrument ||
+      input.type == SourceGltfMiloSceneType::kDancer;
+  plan.calls_rnd_directory_builder = !plan.calls_character_directory_builder;
+  return plan;
+}
+
 SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
     const SourceGltfMiloBoneNodeInput& input) {
   SourceGltfMiloBoneNodePlan plan;

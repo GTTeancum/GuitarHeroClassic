@@ -782,6 +782,77 @@ int main() {
   CHECK(!ps2_base_mesh.has_ao_calculation);
   CHECK(!ps2_base_mesh.logs_missing_diffuse_or_maps);
 
+  ghogx::character::SourceGltfMiloSceneAssemblyInput scene_assembly;
+  scene_assembly.type = ghogx::character::SourceGltfMiloSceneType::kVenue;
+  scene_assembly.filename = "small2";
+  scene_assembly.group_revision = 17;
+  scene_assembly.trans_revision = 9;
+  scene_assembly.drawable_revision = 3;
+  scene_assembly.animatable_revision = 7;
+  scene_assembly.existing_entries = {
+      {"Mesh", "floor.mesh"},
+      {"Mat", "floor.mat"},
+      {"Mesh", "stage_lights.mesh"},
+      {"Trans", "bone_head"}};
+  const auto gltf_venue_scene =
+      ghogx::character::source_gltf_milo_scene_assembly_plan(
+          scene_assembly);
+  CHECK(gltf_venue_scene.band_configuration.source_block_present);
+  CHECK(gltf_venue_scene.band_configuration.source_block_is_commented_todo);
+  CHECK(!gltf_venue_scene.band_configuration.emits_directory_entry);
+  CHECK(gltf_venue_scene.band_configuration.object_fields_revision == 2);
+  CHECK(gltf_venue_scene.band_configuration.entry_type == "BandConfiguration");
+  CHECK(gltf_venue_scene.band_configuration.entry_name == "small2");
+  CHECK(gltf_venue_scene.venue_all_geom_group.creates_group);
+  CHECK(gltf_venue_scene.venue_all_geom_group.entry_type == "Group");
+  CHECK(gltf_venue_scene.venue_all_geom_group.entry_name == "small2_geom.grp");
+  CHECK(gltf_venue_scene.venue_all_geom_group.group_revision == 17);
+  CHECK(gltf_venue_scene.venue_all_geom_group.trans_revision == 9);
+  CHECK(gltf_venue_scene.venue_all_geom_group.drawable_revision == 3);
+  CHECK(gltf_venue_scene.venue_all_geom_group.initializes_draw_sphere);
+  CHECK(approx(gltf_venue_scene.venue_all_geom_group.draw_sphere_radius,
+               0.0f));
+  CHECK(gltf_venue_scene.venue_all_geom_group.animatable_revision == 7);
+  CHECK(gltf_venue_scene.venue_all_geom_group.object_fields_revision == 2);
+  CHECK(gltf_venue_scene.venue_all_geom_group.objects.size() == 2);
+  CHECK(gltf_venue_scene.venue_all_geom_group.objects[0] == "floor.mesh");
+  CHECK(gltf_venue_scene.venue_all_geom_group.objects[1] ==
+        "stage_lights.mesh");
+  CHECK(gltf_venue_scene.calls_outfit_config_builder);
+  CHECK(!gltf_venue_scene.calls_character_directory_builder);
+  CHECK(gltf_venue_scene.calls_rnd_directory_builder);
+  CHECK(gltf_venue_scene.creates_milo_file);
+  CHECK(gltf_venue_scene.save_type == "Uncompressed");
+  CHECK(gltf_venue_scene.save_version == 0x810);
+  CHECK(gltf_venue_scene.save_stream_endian == "LittleEndian");
+  CHECK(gltf_venue_scene.save_object_endian == "BigEndian");
+  CHECK(gltf_venue_scene.report_generator_runs_after_save_when_requested);
+
+  scene_assembly.type =
+      ghogx::character::SourceGltfMiloSceneType::kCharacter;
+  scene_assembly.filename = "rock1";
+  const auto gltf_character_scene =
+      ghogx::character::source_gltf_milo_scene_assembly_plan(
+          scene_assembly);
+  CHECK(!gltf_character_scene.venue_all_geom_group.creates_group);
+  CHECK(gltf_character_scene.calls_character_directory_builder);
+  CHECK(!gltf_character_scene.calls_rnd_directory_builder);
+
+  scene_assembly.type =
+      ghogx::character::SourceGltfMiloSceneType::kInstrument;
+  const auto gltf_instrument_scene =
+      ghogx::character::source_gltf_milo_scene_assembly_plan(
+          scene_assembly);
+  CHECK(gltf_instrument_scene.calls_character_directory_builder);
+  CHECK(!gltf_instrument_scene.calls_rnd_directory_builder);
+
+  scene_assembly.type = ghogx::character::SourceGltfMiloSceneType::kDancer;
+  const auto gltf_dancer_scene =
+      ghogx::character::source_gltf_milo_scene_assembly_plan(
+          scene_assembly);
+  CHECK(gltf_dancer_scene.calls_character_directory_builder);
+  CHECK(!gltf_dancer_scene.calls_rnd_directory_builder);
+
   const auto gh2_rev28_fields =
       ghogx::character::source_rndmesh_field_gate_plan(28, 0, 24, 1, true);
   CHECK(gh2_rev28_fields.reads_material);

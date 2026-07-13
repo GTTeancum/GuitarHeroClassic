@@ -4935,6 +4935,64 @@ int run_contract() {
                  "plan.logs_missing_diffuse_or_maps=!input."
                  "material_has_diffuse||",
                  "native CreateBaseMesh helper preserves diffuse warning gate");
+  ok &= contains(gltf_program_cs,
+                 "/*//TODO:finishthisif(bandConfigurationPositions.Count!=0)",
+                 "glTFMilo BandConfiguration block is commented TODO source");
+  ok &= contains(gltf_program_cs,
+                 "DirectoryMeta.Entryentry=newDirectoryMeta.Entry("
+                 "\"BandConfiguration\",filename,bandConfig);",
+                 "glTFMilo inactive BandConfiguration entry shape is visible");
+  ok &= contains(gltf_program_cs,
+                 "if(opts.Type==\"venue\"){",
+                 "glTFMilo venue finalizer has venue-only branch");
+  ok &= contains(gltf_program_cs,
+                 "RndGroupallGeomGrp=RndGroup.New(GameRevisions.GetRevision("
+                 "selectedGame).GroupRevision,0);",
+                 "glTFMilo venue finalizer creates all-geometry group");
+  ok &= contains(gltf_program_cs,
+                 "if(entry.type==\"Mesh\"){allGeomGrp.objects.Add(entry.name);}",
+                 "glTFMilo venue finalizer appends mesh entries only");
+  ok &= contains(gltf_program_cs,
+                 "DirectoryMeta.EntrygrpEntry=newDirectoryMeta.Entry(\"Group\","
+                 "filename+\"_geom.grp\",allGeomGrp);",
+                 "glTFMilo venue finalizer emits filename geom group");
+  ok &= contains(gltf_program_cs,
+                 "OutfitConfigBuilder.BuildOutfitConfig(opts,selectedGame,meta);",
+                 "glTFMilo finalizer calls OutfitConfigBuilder");
+  ok &= contains(gltf_program_cs,
+                 "if(opts.Type==\"character\"||opts.Type==\"instrument\"||"
+                 "opts.Type==\"dancer\"){DirBuilder.BuildCharacterDirectory("
+                 "opts,selectedGame,meta);}",
+                 "glTFMilo finalizer branches character directory types");
+  ok &= contains(gltf_program_cs,
+                 "else{DirBuilder.BuildRndDirectory(opts,selectedGame,meta);}",
+                 "glTFMilo finalizer branches non-character directory types");
+  ok &= contains(gltf_program_cs,
+                 "miloFile.Save(opts.Output,MiloFile.Type.Uncompressed,0x810,"
+                 "MiloLib.Utils.Endian.LittleEndian,MiloLib.Utils.Endian."
+                 "BigEndian);",
+                 "glTFMilo finalizer save type and endian contract");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloSceneAssemblyPlansource_gltf_milo_scene_"
+                 "assembly_plan(",
+                 "native ports glTFMilo scene assembly helper");
+  ok &= contains(char_mesh,
+                 "plan.band_configuration.entry_name=input.filename;",
+                 "native scene assembly records inactive BandConfiguration name");
+  ok &= contains(char_mesh,
+                 "if(input.type==SourceGltfMiloSceneType::kVenue){",
+                 "native scene assembly preserves venue group branch");
+  ok &= contains(char_mesh,
+                 "if(entry.type==\"Mesh\"){group.objects.push_back(entry.name);}",
+                 "native scene assembly preserves mesh-only group membership");
+  ok &= contains(char_mesh,
+                 "group.entry_name=input.filename+\"_geom.grp\";",
+                 "native scene assembly preserves all-geometry group name");
+  ok &= contains(char_mesh,
+                 "input.type==SourceGltfMiloSceneType::kCharacter||input.type=="
+                 "SourceGltfMiloSceneType::kInstrument||input.type=="
+                 "SourceGltfMiloSceneType::kDancer;",
+                 "native scene assembly preserves character directory branch");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBoneNodePlansource_gltf_milo_process_bone_node_plan(",
                  "native ports glTFMilo ProcessBoneNode helper");
@@ -5098,6 +5156,16 @@ int run_contract() {
                  "source_gltf_milo_create_base_mesh_plan(base_mesh)",
                  "focused mesh decode test covers glTFMilo CreateBaseMesh helper");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_scene_assembly_plan(",
+                 "focused mesh decode test covers glTFMilo scene assembly helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_venue_scene.venue_all_geom_group.objects[1]=="
+                 "\"stage_lights.mesh\"",
+                 "focused mesh decode test covers venue mesh-only group membership");
+  ok &= contains(mesh_decode_test,
+                 "gltf_character_scene.calls_character_directory_builder",
+                 "focused mesh decode test covers character directory branch");
+  ok &= contains(mesh_decode_test,
                  "rb3_xbox_base_mesh.vertex_compression_type==1",
                  "focused mesh decode test covers Xbox CreateBaseMesh layout");
   ok &= contains(mesh_decode_test,
@@ -5220,6 +5288,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_create_base_mesh_plan` mirrors",
                  "document records glTFMilo CreateBaseMesh helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_scene_assembly_plan` records",
+                 "document records glTFMilo scene assembly helper");
   ok &= contains(doc,
                  "`source_gltf_milo_process_bone_node_plan` and",
                  "document records glTFMilo node processor helpers");

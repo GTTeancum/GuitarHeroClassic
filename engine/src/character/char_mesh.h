@@ -390,6 +390,19 @@ enum class SourceGltfMiloGame {
   kDanceCentral1,
 };
 
+enum class SourceGltfMiloSceneType {
+  kCharacter,
+  kInstrument,
+  kDancer,
+  kVenue,
+  kOther,
+};
+
+struct SourceGltfMiloDirectoryEntryInput {
+  std::string type;
+  std::string name;
+};
+
 struct SourceGltfMiloBaseMeshInput {
   SourceGltfMiloGame game = SourceGltfMiloGame::kOther;
   std::string platform;
@@ -424,6 +437,53 @@ struct SourceGltfMiloBaseMeshPlan {
   bool binds_material = false;
   std::string material_name;
   bool logs_missing_diffuse_or_maps = false;
+};
+
+struct SourceGltfMiloBandConfigurationBlockPlan {
+  bool source_block_present = true;
+  bool source_block_is_commented_todo = true;
+  bool emits_directory_entry = false;
+  int32_t object_fields_revision = 2;
+  std::string entry_type = "BandConfiguration";
+  std::string entry_name;
+};
+
+struct SourceGltfMiloVenueAllGeomGroupPlan {
+  bool creates_group = false;
+  std::string entry_type;
+  std::string entry_name;
+  int32_t group_revision = 0;
+  int32_t trans_revision = 0;
+  int32_t drawable_revision = 0;
+  bool initializes_draw_sphere = false;
+  float draw_sphere_radius = 0.0f;
+  int32_t animatable_revision = 0;
+  int32_t object_fields_revision = 0;
+  std::vector<std::string> objects;
+};
+
+struct SourceGltfMiloSceneAssemblyInput {
+  SourceGltfMiloSceneType type = SourceGltfMiloSceneType::kOther;
+  std::string filename;
+  int32_t group_revision = 0;
+  int32_t trans_revision = 0;
+  int32_t drawable_revision = 0;
+  int32_t animatable_revision = 0;
+  std::vector<SourceGltfMiloDirectoryEntryInput> existing_entries;
+};
+
+struct SourceGltfMiloSceneAssemblyPlan {
+  SourceGltfMiloBandConfigurationBlockPlan band_configuration;
+  SourceGltfMiloVenueAllGeomGroupPlan venue_all_geom_group;
+  bool calls_outfit_config_builder = true;
+  bool calls_character_directory_builder = false;
+  bool calls_rnd_directory_builder = false;
+  bool creates_milo_file = true;
+  std::string save_type = "Uncompressed";
+  int32_t save_version = 0x810;
+  std::string save_stream_endian = "LittleEndian";
+  std::string save_object_endian = "BigEndian";
+  bool report_generator_runs_after_save_when_requested = true;
 };
 
 struct SourceGltfMiloMaterialExtras {
@@ -777,6 +837,9 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
 
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input);
+
+SourceGltfMiloSceneAssemblyPlan source_gltf_milo_scene_assembly_plan(
+    const SourceGltfMiloSceneAssemblyInput& input);
 
 SourceGltfMiloBoneNodePlan source_gltf_milo_process_bone_node_plan(
     const SourceGltfMiloBoneNodeInput& input);
