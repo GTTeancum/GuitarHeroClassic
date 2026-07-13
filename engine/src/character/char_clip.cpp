@@ -630,6 +630,12 @@ source_char_bone_dir_recenter_prop_sync_plan() {
   return plan;
 }
 
+SourceCharBoneDirRecenterLoadPlan source_char_bone_dir_recenter_load_plan() {
+  SourceCharBoneDirRecenterLoadPlan plan;
+  plan.read_order = {"mTargets", "mAverage", "mSlide"};
+  return plan;
+}
+
 SourceCharBoneDirPropSyncPlan source_char_bone_dir_prop_sync_plan() {
   SourceCharBoneDirPropSyncPlan plan;
   plan.properties = {"recenter", "move_context", "bake_out_facing",

@@ -3333,6 +3333,9 @@ note, and all report `unreadBytes=0`.
     check value `0x1D1`, recenter rows `targets`/`average`/`slide`, direct
     rows for recenter/move/bake/filter lists, `merge_character` as a set prop,
     and `filter_context` as a modify prop that calls `SyncFilter`.
+    Native `source_char_bone_dir_recenter_load_plan` records the matching
+    `operator>>` stream order for `Recenter`: `mTargets`, `mAverage`, then
+    `mSlide`.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
     byte count. Native exposes bounded source helpers for `ZeroDeltas`,

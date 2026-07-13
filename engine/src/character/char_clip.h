@@ -249,6 +249,10 @@ struct SourceCharBoneDirRecenterPropSyncPlan {
   std::vector<std::string> properties;
 };
 
+struct SourceCharBoneDirRecenterLoadPlan {
+  std::vector<std::string> read_order;
+};
+
 struct SourceCharBoneDirPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> set_properties;
@@ -2003,6 +2007,7 @@ SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan();
 SourceCharBoneDirHandlerPlan source_char_bone_dir_handler_plan();
 SourceCharBoneDirRecenterPropSyncPlan
 source_char_bone_dir_recenter_prop_sync_plan();
+SourceCharBoneDirRecenterLoadPlan source_char_bone_dir_recenter_load_plan();
 SourceCharBoneDirPropSyncPlan source_char_bone_dir_prop_sync_plan();
 SourceCharBoneDirInitPlan source_char_bone_dir_init_plan(
     const std::string& resource_path,

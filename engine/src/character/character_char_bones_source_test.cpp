@@ -835,6 +835,16 @@ int main() {
                       "CharBoneDir Recenter average");
   ok &= expect_string(recenter_prop_sync.properties[2], "slide",
                       "CharBoneDir Recenter slide");
+  const SourceCharBoneDirRecenterLoadPlan recenter_load =
+      source_char_bone_dir_recenter_load_plan();
+  ok &= expect_size(recenter_load.read_order.size(), 3,
+                    "CharBoneDir Recenter load row count");
+  ok &= expect_string(recenter_load.read_order[0], "mTargets",
+                      "CharBoneDir Recenter load targets");
+  ok &= expect_string(recenter_load.read_order[1], "mAverage",
+                      "CharBoneDir Recenter load average");
+  ok &= expect_string(recenter_load.read_order[2], "mSlide",
+                      "CharBoneDir Recenter load slide");
   const SourceCharBoneDirPropSyncPlan dir_prop_sync =
       source_char_bone_dir_prop_sync_plan();
   ok &= expect_size(dir_prop_sync.properties.size(), 5,

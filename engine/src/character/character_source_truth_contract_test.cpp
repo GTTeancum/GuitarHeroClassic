@@ -20619,6 +20619,10 @@ int run_contract() {
                  "std::vector<std::string>properties;};",
                  "native API exposes source CharBoneDir Recenter prop row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirRecenterLoadPlan{"
+                 "std::vector<std::string>read_order;};",
+                 "native API exposes source CharBoneDir Recenter load row");
+  ok &= contains(char_clip_h,
                  "structSourceCharBoneDirPropSyncPlan{"
                  "std::vector<std::string>properties;std::vector<std::string>"
                  "set_properties;std::vector<std::string>modify_properties;"
@@ -20644,6 +20648,10 @@ int run_contract() {
                  "SourceCharBoneDirRecenterPropSyncPlan"
                  "source_char_bone_dir_recenter_prop_sync_plan();",
                  "native API exposes source CharBoneDir Recenter prop helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirRecenterLoadPlan"
+                 "source_char_bone_dir_recenter_load_plan();",
+                 "native API exposes source CharBoneDir Recenter load helper");
   ok &= contains(char_clip_h,
                  "SourceCharBoneDirPropSyncPlan"
                  "source_char_bone_dir_prop_sync_plan();",
@@ -20930,6 +20938,13 @@ int run_contract() {
                  "plan.properties={\"targets\",\"average\",\"slide\"};"
                  "returnplan;}",
                  "native CharBoneDir Recenter prop plan mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirRecenterLoadPlan"
+                 "source_char_bone_dir_recenter_load_plan(){"
+                 "SourceCharBoneDirRecenterLoadPlanplan;"
+                 "plan.read_order={\"mTargets\",\"mAverage\",\"mSlide\"};"
+                 "returnplan;}",
+                 "native CharBoneDir Recenter load plan mirrors stream rows");
   ok &= contains(char_clip,
                  "SourceCharBoneDirPropSyncPlansource_char_bone_dir_prop_sync_plan(){"
                  "SourceCharBoneDirPropSyncPlanplan;plan.properties={"
@@ -21304,6 +21319,9 @@ int run_contract() {
                  "source_char_bone_dir_recenter_prop_sync_plan()",
                  "focused CharBones source test covers CharBoneDir Recenter props");
   ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_recenter_load_plan()",
+                 "focused CharBones source test covers CharBoneDir Recenter load rows");
+  ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_prop_sync_plan()",
                  "focused CharBones source test covers CharBoneDir prop-sync");
   ok &= contains(char_bones_source_test,
@@ -21321,6 +21339,9 @@ int run_contract() {
   ok &= contains(doc,
                  "and `filter_context` as a modify prop that calls `SyncFilter`",
                  "document records CharBoneDir filter_context prop hook");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_recenter_load_plan` records the matching",
+                 "document records CharBoneDir Recenter load helper");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x1,"
                  "true,",
@@ -21480,6 +21501,10 @@ int run_contract() {
                  "SYNC_PROP(targets,o.mTargets)SYNC_PROP(average,o.mAverage)"
                  "SYNC_PROP(slide,o.mSlide)END_CUSTOM_PROPSYNC",
                  "latest CharBoneDir source defines Recenter prop rows");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "BinStream&operator>>(BinStream&bs,CharBoneDir::Recenter&rc){"
+                 "bs>>rc.mTargets;bs>>rc.mAverage;bs>>rc.mSlide;returnbs;}",
+                 "latest CharBoneDir source defines Recenter stream read order");
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "BEGIN_PROPSYNCS(CharBoneDir)SYNC_PROP(recenter,mRecenter)"
                  "SYNC_PROP_SET(merge_character,\"\",MergeCharacter("
