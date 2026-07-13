@@ -756,6 +756,44 @@ int main() {
   CHECK(gltf_material_boundary.source_authorities.size() == 3);
   CHECK(gltf_material_boundary.forbidden_runtime_edits.size() == 4);
 
+  ghogx::character::SourceGltfMiloRunOptionsInput run_options;
+  run_options.type = ghogx::character::SourceGltfMiloSceneType::kCharacter;
+  run_options.platform = "XBOX";
+  const auto gltf_character_options =
+      ghogx::character::source_gltf_milo_run_options_plan(run_options);
+  CHECK(gltf_character_options.character_directory_type);
+  CHECK(!gltf_character_options.convert_world_coordinates);
+  CHECK(gltf_character_options.meta_type == "Character");
+  CHECK(gltf_character_options.normalized_platform == "xbox");
+  CHECK(!gltf_character_options.warns_invalid_platform);
+
+  run_options.type = ghogx::character::SourceGltfMiloSceneType::kInstrument;
+  run_options.platform = "ps3";
+  const auto gltf_instrument_options =
+      ghogx::character::source_gltf_milo_run_options_plan(run_options);
+  CHECK(gltf_instrument_options.character_directory_type);
+  CHECK(!gltf_instrument_options.convert_world_coordinates);
+  CHECK(gltf_instrument_options.meta_type == "Character");
+  CHECK(gltf_instrument_options.normalized_platform == "ps3");
+
+  run_options.type = ghogx::character::SourceGltfMiloSceneType::kDancer;
+  run_options.platform = "xbox";
+  const auto gltf_dancer_options =
+      ghogx::character::source_gltf_milo_run_options_plan(run_options);
+  CHECK(gltf_dancer_options.character_directory_type);
+  CHECK(!gltf_dancer_options.convert_world_coordinates);
+  CHECK(gltf_dancer_options.meta_type == "Character");
+
+  run_options.type = ghogx::character::SourceGltfMiloSceneType::kVenue;
+  run_options.platform = "bad-platform";
+  const auto gltf_venue_options =
+      ghogx::character::source_gltf_milo_run_options_plan(run_options);
+  CHECK(!gltf_venue_options.character_directory_type);
+  CHECK(gltf_venue_options.convert_world_coordinates);
+  CHECK(gltf_venue_options.meta_type == "RndDir");
+  CHECK(gltf_venue_options.normalized_platform == "xbox");
+  CHECK(gltf_venue_options.warns_invalid_platform);
+
   ghogx::character::SourceGltfMiloBaseMeshInput base_mesh;
   base_mesh.game = ghogx::character::SourceGltfMiloGame::kRockBand3;
   base_mesh.platform = "xbox";

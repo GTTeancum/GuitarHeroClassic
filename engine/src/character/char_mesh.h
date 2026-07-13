@@ -491,6 +491,19 @@ struct SourceGltfMiloDirectoryEntryInput {
   std::string name;
 };
 
+struct SourceGltfMiloRunOptionsInput {
+  SourceGltfMiloSceneType type = SourceGltfMiloSceneType::kOther;
+  std::string platform;
+};
+
+struct SourceGltfMiloRunOptionsPlan {
+  bool character_directory_type = false;
+  bool convert_world_coordinates = true;
+  std::string meta_type = "RndDir";
+  std::string normalized_platform = "xbox";
+  bool warns_invalid_platform = false;
+};
+
 struct SourceGltfMiloBaseMeshInput {
   SourceGltfMiloGame game = SourceGltfMiloGame::kOther;
   std::string platform;
@@ -1022,6 +1035,9 @@ SourceGltfMiloMaterialPlan source_gltf_milo_material_base_plan(
     const SourceGltfMiloMaterialInput& input);
 SourceGltfMiloMaterialRuntimeBoundary
 source_gltf_milo_material_runtime_boundary();
+
+SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
+    const SourceGltfMiloRunOptionsInput& input);
 
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input);

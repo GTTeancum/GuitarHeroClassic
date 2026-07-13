@@ -818,6 +818,30 @@ source_gltf_milo_material_runtime_boundary() {
   return boundary;
 }
 
+SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
+    const SourceGltfMiloRunOptionsInput& input) {
+  SourceGltfMiloRunOptionsPlan plan;
+  std::string platform = input.platform;
+  std::transform(platform.begin(), platform.end(), platform.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  if (platform == "xbox" || platform == "ps3") {
+    plan.normalized_platform = platform;
+  } else {
+    plan.normalized_platform = "xbox";
+    plan.warns_invalid_platform = true;
+  }
+
+  plan.character_directory_type =
+      input.type == SourceGltfMiloSceneType::kCharacter ||
+      input.type == SourceGltfMiloSceneType::kInstrument ||
+      input.type == SourceGltfMiloSceneType::kDancer;
+  plan.convert_world_coordinates = !plan.character_directory_type;
+  plan.meta_type = plan.character_directory_type ? "Character" : "RndDir";
+  return plan;
+}
+
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input) {
   SourceGltfMiloBaseMeshPlan plan;

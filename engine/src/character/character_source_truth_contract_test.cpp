@@ -5970,6 +5970,10 @@ int run_contract() {
                  "false;",
                  "native declares glTFMilo AddVertex result row");
   ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloRunOptionsPlan{boolcharacter_directory_"
+                 "type=false;",
+                 "native declares glTFMilo run options plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialExtras{boolpresent=false;",
                  "native declares glTFMilo material extras row");
   ok &= contains(char_mesh_h,
@@ -6400,6 +6404,47 @@ int run_contract() {
                  "\"material_sort\",\"blend_or_z_rewrite\","
                  "\"synthesized_skin_indices\"};",
                  "native boundary forbids invented material and skin edits");
+  ok &= contains(gltf_program_cs,
+                 "boolconvertWorldCoordinates=type!=\"character\"&&type!="
+                 "\"instrument\"&&type!=\"dancer\";",
+                 "glTFMilo disables coordinate conversion for character types");
+  ok &= contains(gltf_program_cs,
+                 "if(platform==\"xbox\"){meta.platform=DirectoryMeta.Platform."
+                 "Xbox;}",
+                 "glTFMilo accepts Xbox platform");
+  ok &= contains(gltf_program_cs,
+                 "elseif(platform==\"ps3\"){meta.platform=DirectoryMeta."
+                 "Platform.PS3;}",
+                 "glTFMilo accepts PS3 platform");
+  ok &= contains(gltf_program_cs,
+                 "Logger.Warn(\"Invalidplatformspecified.DefaultingtoXbox.\");"
+                 "meta.platform=DirectoryMeta.Platform.Xbox;",
+                 "glTFMilo defaults invalid platform to Xbox");
+  ok &= contains(gltf_program_cs,
+                 "if(opts.Type==\"character\"||opts.Type==\"instrument\"||"
+                 "opts.Type==\"dancer\")meta.type=\"Character\";elsemeta."
+                 "type=\"RndDir\";",
+                 "glTFMilo character-like types use Character directory");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloRunOptionsPlansource_gltf_milo_run_options_"
+                 "plan(",
+                 "native API exposes glTFMilo run options helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloRunOptionsPlansource_gltf_milo_run_options_"
+                 "plan(",
+                 "native ports glTFMilo run options helper");
+  ok &= contains(char_mesh,
+                 "plan.normalized_platform=\"xbox\";plan.warns_invalid_"
+                 "platform=true;",
+                 "native run options helper preserves invalid platform fallback");
+  ok &= contains(char_mesh,
+                 "plan.convert_world_coordinates=!plan.character_directory_"
+                 "type;",
+                 "native run options helper preserves character conversion gate");
+  ok &= contains(char_mesh,
+                 "plan.meta_type=plan.character_directory_type?\"Character\":"
+                 "\"RndDir\";",
+                 "native run options helper preserves directory type gate");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native ports glTFMilo CreateBaseMesh helper");
@@ -6784,6 +6829,15 @@ int run_contract() {
                  "gltf_xbox_diffuse.diffuse_xbox_byte_swap",
                  "focused mesh decode test covers glTFMilo diffuse Xbox swap");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_run_options_plan(run_options)",
+                 "focused mesh decode test covers glTFMilo run options helper");
+  ok &= contains(mesh_decode_test,
+                 "!gltf_character_options.convert_world_coordinates",
+                 "focused mesh decode test covers character no-convert gate");
+  ok &= contains(mesh_decode_test,
+                 "gltf_venue_options.warns_invalid_platform",
+                 "focused mesh decode test covers invalid platform fallback");
+  ok &= contains(mesh_decode_test,
                  "gltf_map_material.creates_normal_tex_entry",
                  "focused mesh decode test covers glTFMilo normal map row");
   ok &= contains(mesh_decode_test,
@@ -7010,6 +7064,10 @@ int run_contract() {
                  "`source_gltf_milo_material_runtime_boundary` records the "
                  "executable\n    boundary",
                  "document records glTFMilo material boundary helper");
+  ok &= contains(doc, "`source_gltf_milo_run_options_plan` records",
+                 "document records glTFMilo run options helper");
+  ok &= contains(doc, "disables world-coordinate conversion for those same three",
+                 "document records character coordinate conversion gate");
   ok &= contains(doc,
                  "`source_gltf_milo_create_base_mesh_plan` mirrors",
                  "document records glTFMilo CreateBaseMesh helper");

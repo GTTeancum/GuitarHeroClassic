@@ -1188,6 +1188,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     This explicitly forbids using the exporter rows to change depth priority,
     material sort, blend/z state, or synthesized skin indices for stock GH2
     character rendering.
+  - glTFMilo lowercases the command-line platform, accepts only `xbox` and
+    `ps3`, defaults invalid platforms to Xbox with a warning, sets MILO
+    directory type to `Character` only for `character`, `instrument`, or
+    `dancer`, and disables world-coordinate conversion for those same three
+    types. Native `source_gltf_milo_run_options_plan` records that run-level
+    gate so character-space matrix rows are not converted by exporter evidence
+    meant for non-character `RndDir` outputs.
   - `CreateBaseMesh` allocates `RndMesh.New(selectedGame.ModelRevision, 0, 0,
     0)`, sets object-fields revision 2, embeds a revision-9 `RndTrans` parented
     to the MILO filename, embeds revision-3 `RndDrawable` with radius `0`,
