@@ -656,6 +656,29 @@ class Gameplay {
   int    difficulty()const { return difficulty_; }
 
  private:
+  struct LightPresetEnvLightStateSnapshot {
+    std::map<std::string, std::array<float, 4>> lighting_environment_colors;
+    std::map<std::string, std::array<float, 4>>
+        lighting_environment_fog_colors;
+    std::map<std::string, std::array<float, 2>>
+        lighting_environment_fog_ranges;
+    std::map<std::string, bool> lighting_environment_fog_enabled;
+    std::map<std::string, std::array<float, 4>> lighting_light_colors;
+    std::map<std::string, ghogx::render::MiloSceneRenderer::LightStateOverride>
+        lighting_light_state_overrides;
+    std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
+        lighting_light_transforms;
+    std::map<std::string, std::array<float, 4>> venue_environment_colors;
+    std::map<std::string, std::array<float, 4>> venue_environment_fog_colors;
+    std::map<std::string, std::array<float, 2>> venue_environment_fog_ranges;
+    std::map<std::string, bool> venue_environment_fog_enabled;
+    std::map<std::string, std::array<float, 4>> venue_light_colors;
+    std::map<std::string, ghogx::render::MiloSceneRenderer::LightStateOverride>
+        venue_light_state_overrides;
+    std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
+        venue_light_transforms;
+  };
+
   void apply_venue_event(const std::string& event_name, bool persistent = true,
                          bool force_persistent = false,
                          int next_link_depth = 0);
@@ -704,6 +727,14 @@ class Gameplay {
   void set_lighting_spot_targets(
       std::vector<ghogx::render::MiloSceneRenderer::SpotlightState> targets,
       double fade_seconds);
+  void set_lighting_preset_env_light_targets(
+      LightPresetEnvLightStateSnapshot targets, double fade_seconds);
+  LightPresetEnvLightStateSnapshot
+      current_lighting_preset_env_light_state_for_targets(
+          const LightPresetEnvLightStateSnapshot& targets) const;
+  void apply_lighting_preset_env_light_state_snapshot(
+      const LightPresetEnvLightStateSnapshot& state);
+  void update_lighting_preset_env_light_state();
   std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
       interpolated_lighting_spots() const;
   std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
@@ -883,6 +914,11 @@ class Gameplay {
   double lighting_transition_start_ = 0.0;
   double lighting_transition_duration_ = 0.0;
   bool lighting_transition_active_ = false;
+  LightPresetEnvLightStateSnapshot lighting_preset_env_light_transition_from_;
+  LightPresetEnvLightStateSnapshot lighting_preset_env_light_transition_to_;
+  double lighting_preset_env_light_transition_start_ = 0.0;
+  double lighting_preset_env_light_transition_duration_ = 0.0;
+  bool lighting_preset_env_light_transition_active_ = false;
   size_t next_lighting_cue_idx_ = 0;
   std::vector<PendingLightingAdvance> pending_lighting_advances_;
   bool ignored_last_light_change_ = false;

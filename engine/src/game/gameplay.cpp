@@ -12135,6 +12135,21 @@ std::array<float, 2> current_environment_fog_range(
     return {0.0f, 0.0f};
 }
 
+bool current_environment_fog_enabled(
+    const std::string& environment,
+    const std::map<std::string, bool>& environment_fog_enabled,
+    const std::map<std::string, ghogx::milo_scene::EnvironObj>& environs) {
+    if (const auto it = environment_fog_enabled.find(environment);
+        it != environment_fog_enabled.end()) {
+        return it->second;
+    }
+    if (const auto env_it = environs.find(environment);
+        env_it != environs.end()) {
+        return env_it->second.fog_enabled;
+    }
+    return false;
+}
+
 std::array<float, 4> current_light_color(
     const std::string& light,
     const std::map<std::string, std::array<float, 4>>& light_colors,
@@ -12147,6 +12162,125 @@ std::array<float, 4> current_light_color(
                 light_it->second.color[2], light_it->second.color[3]};
     }
     return {1.0f, 1.0f, 1.0f, 1.0f};
+}
+
+ghogx::render::MiloSceneRenderer::LightStateOverride current_light_state(
+    const std::string& light,
+    const std::map<std::string,
+                   ghogx::render::MiloSceneRenderer::LightStateOverride>&
+        light_states,
+    const std::map<std::string, ghogx::milo_scene::LightObj>& lights) {
+    if (const auto it = light_states.find(light); it != light_states.end()) {
+        return it->second;
+    }
+    ghogx::render::MiloSceneRenderer::LightStateOverride out;
+    if (const auto light_it = lights.find(light); light_it != lights.end()) {
+        out.has_range = true;
+        out.range = light_it->second.range;
+        out.has_type = true;
+        out.type = light_it->second.type;
+    }
+    return out;
+}
+
+std::array<float, 4> quat_xyzw_from_row_rot_game(const float rot[3][3]) {
+    std::array<float, 4> q{};
+    const float row0x = rot[0][0];
+    const float row1y = rot[1][1];
+    const float row2z = rot[2][2];
+    const float diag = row0x + row1y + row2z;
+    if (diag > 0.0f) {
+        q[3] = diag + 1.0f;
+        q[0] = rot[1][2] - rot[2][1];
+        q[1] = rot[2][0] - rot[0][2];
+        q[2] = rot[0][1] - rot[1][0];
+    } else if (row2z > row0x && row2z > row1y) {
+        q[2] = row2z - row0x - row1y + 1.0f;
+        q[3] = rot[0][1] - rot[1][0];
+        q[0] = rot[2][0] + rot[0][2];
+        q[1] = rot[2][1] + rot[1][2];
+    } else if (row1y > row0x) {
+        q[1] = row1y - row2z - row0x + 1.0f;
+        q[3] = rot[2][0] - rot[0][2];
+        q[2] = rot[1][2] + rot[2][1];
+        q[0] = rot[1][0] + rot[0][1];
+    } else {
+        q[0] = row0x - row1y - row2z + 1.0f;
+        q[3] = rot[1][2] - rot[2][1];
+        q[1] = rot[0][1] + rot[1][0];
+        q[2] = rot[0][2] + rot[2][0];
+    }
+    return normalize_quat_xyzw(q);
+}
+
+ghogx::render::MiloSceneRenderer::MeshTransformSample
+current_light_transform_sample(
+    const std::string& light,
+    const std::map<std::string,
+                   ghogx::render::MiloSceneRenderer::MeshTransformSample>&
+        light_transforms,
+    const std::map<std::string, ghogx::milo_scene::LightObj>& lights) {
+    if (const auto it = light_transforms.find(light);
+        it != light_transforms.end()) {
+        return it->second;
+    }
+    ghogx::render::MiloSceneRenderer::MeshTransformSample sample;
+    if (const auto light_it = lights.find(light); light_it != lights.end()) {
+        sample.has_translation = true;
+        sample.translation_is_absolute = true;
+        sample.translation = {light_it->second.world_stored.pos[0],
+                              light_it->second.world_stored.pos[1],
+                              light_it->second.world_stored.pos[2]};
+        sample.has_rotation = true;
+        sample.rotation_is_absolute = true;
+        sample.rotation_xyzw =
+            quat_xyzw_from_row_rot_game(light_it->second.world_stored.rot);
+    }
+    return sample;
+}
+
+ghogx::render::MiloSceneRenderer::LightStateOverride blend_light_state(
+    const ghogx::render::MiloSceneRenderer::LightStateOverride& from,
+    const ghogx::render::MiloSceneRenderer::LightStateOverride& to,
+    float blend) {
+    const float b = normalized_source_blend(blend);
+    auto out = to;
+    if (to.has_range) {
+        const float start = from.has_range ? from.range : to.range;
+        out.range = start + (to.range - start) * b;
+    }
+    return out;
+}
+
+ghogx::render::MiloSceneRenderer::MeshTransformSample blend_light_transform(
+    const ghogx::render::MiloSceneRenderer::MeshTransformSample& from,
+    const ghogx::render::MiloSceneRenderer::MeshTransformSample& to,
+    float blend) {
+    const float b = normalized_source_blend(blend);
+    auto out = to;
+    out.blend = 1.0f;
+    if (to.has_translation) {
+        const auto start =
+            from.has_translation ? from.translation : to.translation;
+        for (int axis = 0; axis < 3; ++axis) {
+            out.translation[axis] =
+                start[axis] + (to.translation[axis] - start[axis]) * b;
+        }
+    }
+    if (to.has_rotation) {
+        out.rotation_xyzw = fast_interp_quat_xyzw(
+            from.has_rotation ? from.rotation_xyzw
+                              : std::array<float, 4>{0.0f, 0.0f, 0.0f,
+                                                     1.0f},
+            to.rotation_xyzw, b);
+    }
+    if (to.has_scale) {
+        const auto start = from.has_scale ? from.scale : to.scale;
+        for (int axis = 0; axis < 3; ++axis) {
+            out.scale[axis] = start[axis] + (to.scale[axis] - start[axis]) * b;
+        }
+    }
+    return out;
 }
 
 struct LightPresetEnvLightApplyCounts {
@@ -19601,6 +19735,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_transition_start_ = 0.0;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    lighting_preset_env_light_transition_from_ = {};
+    lighting_preset_env_light_transition_to_ = {};
+    lighting_preset_env_light_transition_start_ = 0.0;
+    lighting_preset_env_light_transition_duration_ = 0.0;
+    lighting_preset_env_light_transition_active_ = false;
     next_lighting_cue_idx_ = 0;
     pending_lighting_advances_.clear();
     ignored_last_light_change_ = false;
@@ -21933,6 +22072,11 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    lighting_preset_env_light_transition_from_ = {};
+    lighting_preset_env_light_transition_to_ = {};
+    lighting_preset_env_light_transition_start_ = song_time_;
+    lighting_preset_env_light_transition_duration_ = 0.0;
+    lighting_preset_env_light_transition_active_ = false;
     active_camera_glow_spot_ref_.clear();
     active_camera_glow_spot_.reset();
     lighting_material_alpha_.clear();
@@ -24620,6 +24764,355 @@ void Gameplay::set_lighting_spot_targets(
     }
 }
 
+Gameplay::LightPresetEnvLightStateSnapshot
+Gameplay::current_lighting_preset_env_light_state_for_targets(
+    const LightPresetEnvLightStateSnapshot& targets) const {
+    LightPresetEnvLightStateSnapshot out;
+    for (const auto& [env, value] : targets.lighting_environment_colors) {
+        (void)value;
+        out.lighting_environment_colors[env] =
+            current_environment_color(env, lighting_environment_colors_,
+                                      lighting_environs_);
+    }
+    for (const auto& [env, value] : targets.lighting_environment_fog_colors) {
+        (void)value;
+        out.lighting_environment_fog_colors[env] =
+            current_environment_fog_color(env,
+                                          lighting_environment_fog_colors_,
+                                          lighting_environs_);
+    }
+    for (const auto& [env, value] : targets.lighting_environment_fog_ranges) {
+        (void)value;
+        out.lighting_environment_fog_ranges[env] =
+            current_environment_fog_range(env,
+                                          lighting_environment_fog_ranges_,
+                                          lighting_environs_);
+    }
+    for (const auto& [env, value] : targets.lighting_environment_fog_enabled) {
+        (void)value;
+        out.lighting_environment_fog_enabled[env] =
+            current_environment_fog_enabled(
+                env, lighting_environment_fog_enabled_, lighting_environs_);
+    }
+    for (const auto& [light, value] : targets.lighting_light_colors) {
+        (void)value;
+        out.lighting_light_colors[light] =
+            current_light_color(light, lighting_light_colors_,
+                                lighting_lights_);
+    }
+    for (const auto& [light, value] :
+         targets.lighting_light_state_overrides) {
+        (void)value;
+        out.lighting_light_state_overrides[light] =
+            current_light_state(light, lighting_light_state_overrides_,
+                                lighting_lights_);
+    }
+    for (const auto& [light, value] : targets.lighting_light_transforms) {
+        (void)value;
+        out.lighting_light_transforms[light] =
+            current_light_transform_sample(light, lighting_mesh_transform_offsets_,
+                                           lighting_lights_);
+    }
+    for (const auto& [env, value] : targets.venue_environment_colors) {
+        (void)value;
+        out.venue_environment_colors[env] =
+            current_environment_color(env, venue_environment_colors_,
+                                      venue_environs_);
+    }
+    for (const auto& [env, value] : targets.venue_environment_fog_colors) {
+        (void)value;
+        out.venue_environment_fog_colors[env] =
+            current_environment_fog_color(env, venue_environment_fog_colors_,
+                                          venue_environs_);
+    }
+    for (const auto& [env, value] : targets.venue_environment_fog_ranges) {
+        (void)value;
+        out.venue_environment_fog_ranges[env] =
+            current_environment_fog_range(env, venue_environment_fog_ranges_,
+                                          venue_environs_);
+    }
+    for (const auto& [env, value] : targets.venue_environment_fog_enabled) {
+        (void)value;
+        out.venue_environment_fog_enabled[env] =
+            current_environment_fog_enabled(env, venue_environment_fog_enabled_,
+                                            venue_environs_);
+    }
+    for (const auto& [light, value] : targets.venue_light_colors) {
+        (void)value;
+        out.venue_light_colors[light] =
+            current_light_color(light, venue_light_colors_, venue_lights_);
+    }
+    for (const auto& [light, value] : targets.venue_light_state_overrides) {
+        (void)value;
+        out.venue_light_state_overrides[light] =
+            current_light_state(light, venue_light_state_overrides_,
+                                venue_lights_);
+    }
+    for (const auto& [light, value] : targets.venue_light_transforms) {
+        (void)value;
+        out.venue_light_transforms[light] =
+            current_light_transform_sample(light, venue_mesh_transform_offsets_,
+                                           venue_lights_);
+    }
+    return out;
+}
+
+void Gameplay::apply_lighting_preset_env_light_state_snapshot(
+    const LightPresetEnvLightStateSnapshot& state) {
+    const bool lighting_env_changed =
+        !state.lighting_environment_colors.empty() ||
+        !state.lighting_environment_fog_colors.empty() ||
+        !state.lighting_environment_fog_ranges.empty() ||
+        !state.lighting_environment_fog_enabled.empty();
+    const bool venue_env_changed =
+        !state.venue_environment_colors.empty() ||
+        !state.venue_environment_fog_colors.empty() ||
+        !state.venue_environment_fog_ranges.empty() ||
+        !state.venue_environment_fog_enabled.empty();
+
+    for (const auto& [key, value] : state.lighting_environment_colors)
+        lighting_environment_colors_[key] = value;
+    for (const auto& [key, value] : state.lighting_environment_fog_colors)
+        lighting_environment_fog_colors_[key] = value;
+    for (const auto& [key, value] : state.lighting_environment_fog_ranges)
+        lighting_environment_fog_ranges_[key] = value;
+    for (const auto& [key, value] : state.lighting_environment_fog_enabled)
+        lighting_environment_fog_enabled_[key] = value;
+    for (const auto& [key, value] : state.lighting_light_colors)
+        lighting_light_colors_[key] = value;
+    for (const auto& [key, value] : state.lighting_light_state_overrides)
+        lighting_light_state_overrides_[key] = value;
+    for (const auto& [key, value] : state.lighting_light_transforms)
+        lighting_mesh_transform_offsets_[key] = value;
+
+    for (const auto& [key, value] : state.venue_environment_colors)
+        venue_environment_colors_[key] = value;
+    for (const auto& [key, value] : state.venue_environment_fog_colors)
+        venue_environment_fog_colors_[key] = value;
+    for (const auto& [key, value] : state.venue_environment_fog_ranges)
+        venue_environment_fog_ranges_[key] = value;
+    for (const auto& [key, value] : state.venue_environment_fog_enabled)
+        venue_environment_fog_enabled_[key] = value;
+    for (const auto& [key, value] : state.venue_light_colors)
+        venue_light_colors_[key] = value;
+    for (const auto& [key, value] : state.venue_light_state_overrides)
+        venue_light_state_overrides_[key] = value;
+    for (const auto& [key, value] : state.venue_light_transforms)
+        venue_mesh_transform_offsets_[key] = value;
+
+    if (lighting_ && lighting_env_changed) {
+        lighting_->set_environment_color_overrides(lighting_environment_colors_);
+        lighting_->set_environment_fog_overrides(
+            compose_environment_fog_overrides(lighting_environment_fog_colors_,
+                                              lighting_environment_fog_ranges_,
+                                              &lighting_environment_fog_enabled_));
+    }
+    if (lighting_ && !state.lighting_light_colors.empty())
+        lighting_->set_light_color_overrides(lighting_light_colors_);
+    if (lighting_ && !state.lighting_light_state_overrides.empty())
+        lighting_->set_light_state_overrides(lighting_light_state_overrides_);
+    if (lighting_ && !state.lighting_light_transforms.empty())
+        lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
+
+    if (world_ && venue_env_changed) {
+        world_->set_environment_color_overrides(venue_environment_colors_);
+        world_->set_environment_fog_overrides(
+            compose_environment_fog_overrides(venue_environment_fog_colors_,
+                                              venue_environment_fog_ranges_,
+                                              &venue_environment_fog_enabled_));
+    }
+    if (world_ && !state.venue_light_colors.empty())
+        world_->set_light_color_overrides(venue_light_colors_);
+    if (world_ && !state.venue_light_state_overrides.empty())
+        world_->set_light_state_overrides(venue_light_state_overrides_);
+    if (world_ && !state.venue_light_transforms.empty())
+        world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
+}
+
+void Gameplay::set_lighting_preset_env_light_targets(
+    LightPresetEnvLightStateSnapshot targets, double fade_seconds) {
+    const size_t target_count =
+        targets.lighting_environment_colors.size() +
+        targets.lighting_environment_fog_colors.size() +
+        targets.lighting_environment_fog_ranges.size() +
+        targets.lighting_environment_fog_enabled.size() +
+        targets.lighting_light_colors.size() +
+        targets.lighting_light_state_overrides.size() +
+        targets.lighting_light_transforms.size() +
+        targets.venue_environment_colors.size() +
+        targets.venue_environment_fog_colors.size() +
+        targets.venue_environment_fog_ranges.size() +
+        targets.venue_environment_fog_enabled.size() +
+        targets.venue_light_colors.size() +
+        targets.venue_light_state_overrides.size() +
+        targets.venue_light_transforms.size();
+    if (target_count == 0) {
+        lighting_preset_env_light_transition_active_ = false;
+        lighting_preset_env_light_transition_from_ = {};
+        lighting_preset_env_light_transition_to_ = {};
+        return;
+    }
+
+    const double duration = std::max(0.0, fade_seconds);
+    if (duration <= 0.0001) {
+        lighting_preset_env_light_transition_active_ = false;
+        lighting_preset_env_light_transition_from_ = {};
+        lighting_preset_env_light_transition_to_ = {};
+        apply_lighting_preset_env_light_state_snapshot(targets);
+        return;
+    }
+
+    lighting_preset_env_light_transition_from_ =
+        current_lighting_preset_env_light_state_for_targets(targets);
+    lighting_preset_env_light_transition_to_ = std::move(targets);
+    lighting_preset_env_light_transition_start_ = song_time_;
+    lighting_preset_env_light_transition_duration_ = duration;
+    lighting_preset_env_light_transition_active_ = true;
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] LightPreset state transition: lighting_env=%llu venue_env=%llu lighting_light=%llu venue_light=%llu lighting_light_state=%llu venue_light_state=%llu lighting_xfm=%llu venue_xfm=%llu fade_seconds=%.3f t=%.3f\n",
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .lighting_environment_colors.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .venue_environment_colors.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .lighting_light_colors.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .venue_light_colors.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .lighting_light_state_overrides.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .venue_light_state_overrides.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .lighting_light_transforms.size()),
+            static_cast<unsigned long long>(
+                lighting_preset_env_light_transition_to_
+                    .venue_light_transforms.size()),
+            lighting_preset_env_light_transition_duration_, song_time_);
+    }
+}
+
+void Gameplay::update_lighting_preset_env_light_state() {
+    if (!lighting_preset_env_light_transition_active_) return;
+    const double duration = lighting_preset_env_light_transition_duration_;
+    if (duration <= 0.0001 ||
+        song_time_ >= lighting_preset_env_light_transition_start_ + duration) {
+        lighting_preset_env_light_transition_active_ = false;
+        apply_lighting_preset_env_light_state_snapshot(
+            lighting_preset_env_light_transition_to_);
+        lighting_preset_env_light_transition_from_ = {};
+        lighting_preset_env_light_transition_to_ = {};
+        return;
+    }
+
+    const float blend = source_anim_blend_at(
+        static_cast<float>(duration),
+        song_time_ - lighting_preset_env_light_transition_start_);
+    const auto& from = lighting_preset_env_light_transition_from_;
+    const auto& to = lighting_preset_env_light_transition_to_;
+    LightPresetEnvLightStateSnapshot blended;
+    for (const auto& [key, value] : to.lighting_environment_colors) {
+        const auto from_it = from.lighting_environment_colors.find(key);
+        blended.lighting_environment_colors[key] = blend_unit_color(
+            from_it == from.lighting_environment_colors.end() ? value
+                                                              : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.lighting_environment_fog_colors) {
+        const auto from_it = from.lighting_environment_fog_colors.find(key);
+        blended.lighting_environment_fog_colors[key] = blend_unit_color(
+            from_it == from.lighting_environment_fog_colors.end()
+                ? value
+                : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.lighting_environment_fog_ranges) {
+        const auto from_it = from.lighting_environment_fog_ranges.find(key);
+        blended.lighting_environment_fog_ranges[key] = blend_fog_range(
+            from_it == from.lighting_environment_fog_ranges.end()
+                ? value
+                : from_it->second,
+            value, blend);
+    }
+    blended.lighting_environment_fog_enabled =
+        to.lighting_environment_fog_enabled;
+    for (const auto& [key, value] : to.lighting_light_colors) {
+        const auto from_it = from.lighting_light_colors.find(key);
+        blended.lighting_light_colors[key] = blend_light_color(
+            from_it == from.lighting_light_colors.end() ? value
+                                                        : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.lighting_light_state_overrides) {
+        const auto from_it = from.lighting_light_state_overrides.find(key);
+        blended.lighting_light_state_overrides[key] = blend_light_state(
+            from_it == from.lighting_light_state_overrides.end()
+                ? value
+                : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.lighting_light_transforms) {
+        const auto from_it = from.lighting_light_transforms.find(key);
+        blended.lighting_light_transforms[key] = blend_light_transform(
+            from_it == from.lighting_light_transforms.end() ? value
+                                                            : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.venue_environment_colors) {
+        const auto from_it = from.venue_environment_colors.find(key);
+        blended.venue_environment_colors[key] = blend_unit_color(
+            from_it == from.venue_environment_colors.end() ? value
+                                                           : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.venue_environment_fog_colors) {
+        const auto from_it = from.venue_environment_fog_colors.find(key);
+        blended.venue_environment_fog_colors[key] = blend_unit_color(
+            from_it == from.venue_environment_fog_colors.end()
+                ? value
+                : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.venue_environment_fog_ranges) {
+        const auto from_it = from.venue_environment_fog_ranges.find(key);
+        blended.venue_environment_fog_ranges[key] = blend_fog_range(
+            from_it == from.venue_environment_fog_ranges.end()
+                ? value
+                : from_it->second,
+            value, blend);
+    }
+    blended.venue_environment_fog_enabled = to.venue_environment_fog_enabled;
+    for (const auto& [key, value] : to.venue_light_colors) {
+        const auto from_it = from.venue_light_colors.find(key);
+        blended.venue_light_colors[key] = blend_light_color(
+            from_it == from.venue_light_colors.end() ? value : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.venue_light_state_overrides) {
+        const auto from_it = from.venue_light_state_overrides.find(key);
+        blended.venue_light_state_overrides[key] = blend_light_state(
+            from_it == from.venue_light_state_overrides.end() ? value
+                                                              : from_it->second,
+            value, blend);
+    }
+    for (const auto& [key, value] : to.venue_light_transforms) {
+        const auto from_it = from.venue_light_transforms.find(key);
+        blended.venue_light_transforms[key] = blend_light_transform(
+            from_it == from.venue_light_transforms.end() ? value
+                                                         : from_it->second,
+            value, blend);
+    }
+    apply_lighting_preset_env_light_state_snapshot(blended);
+}
+
 std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
 Gameplay::interpolated_lighting_spots() const {
     if (!lighting_transition_active_ ||
@@ -24820,6 +25313,11 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    lighting_preset_env_light_transition_from_ = {};
+    lighting_preset_env_light_transition_to_ = {};
+    lighting_preset_env_light_transition_start_ = song_time_;
+    lighting_preset_env_light_transition_duration_ = 0.0;
+    lighting_preset_env_light_transition_active_ = false;
     pending_lighting_advances_.clear();
     clear_runtime_venue_animation_state();
     ignored_last_light_change_ = false;
@@ -29138,6 +29636,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                       !diagnostic_camera_shot_.empty());
         update_worldcrowd_actor_runtime(static_cast<float>(dt));
         update_venue_proxy_objects();
+        update_lighting_preset_env_light_state();
         world_->draw();
         draw_venue_proxy_objects(world_->camera());
         bool worldcrowd_drawn = false;
@@ -29374,71 +29873,32 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             lighting_frames_to_seconds(transition_fade_frames);
                         set_lighting_spot_targets(std::move(active_spots),
                                                   transition_fade_seconds);
+                        LightPresetEnvLightStateSnapshot env_light_targets;
                         const auto env_light_counts =
                             apply_lighting_preset_environment_light_state(
                                 keyframe, lighting_environs_, venue_environs_,
                                 lighting_lights_, venue_lights_,
-                                lighting_environment_colors_,
-                                lighting_environment_fog_colors_,
-                                lighting_environment_fog_ranges_,
-                                lighting_environment_fog_enabled_,
-                                lighting_light_colors_,
-                                lighting_light_state_overrides_,
-                                lighting_mesh_transform_offsets_,
-                                venue_environment_colors_,
-                                venue_environment_fog_colors_,
-                                venue_environment_fog_ranges_,
-                                venue_environment_fog_enabled_,
-                                venue_light_colors_,
-                                venue_light_state_overrides_,
-                                venue_mesh_transform_offsets_);
-                        if (lighting_ &&
-                            env_light_counts.lighting_environments > 0) {
-                            lighting_->set_environment_color_overrides(
-                                lighting_environment_colors_);
-                            lighting_->set_environment_fog_overrides(
-                                compose_environment_fog_overrides(
-                                    lighting_environment_fog_colors_,
-                                    lighting_environment_fog_ranges_,
-                                    &lighting_environment_fog_enabled_));
-                        }
-                        if (lighting_ && env_light_counts.lighting_lights > 0) {
-                            lighting_->set_light_color_overrides(
-                                lighting_light_colors_);
-                        }
-                        if (lighting_ &&
-                            env_light_counts.lighting_light_states > 0) {
-                            lighting_->set_light_state_overrides(
-                                lighting_light_state_overrides_);
-                        }
-                        if (lighting_ &&
-                            env_light_counts.lighting_light_transforms > 0) {
-                            lighting_->set_mesh_transform_offsets(
-                                lighting_mesh_transform_offsets_);
-                        }
-                        if (world_ && env_light_counts.venue_environments > 0) {
-                            world_->set_environment_color_overrides(
-                                venue_environment_colors_);
-                            world_->set_environment_fog_overrides(
-                                compose_environment_fog_overrides(
-                                    venue_environment_fog_colors_,
-                                    venue_environment_fog_ranges_,
-                                    &venue_environment_fog_enabled_));
-                        }
-                        if (world_ && env_light_counts.venue_lights > 0) {
-                            world_->set_light_color_overrides(
-                                venue_light_colors_);
-                        }
-                        if (world_ &&
-                            env_light_counts.venue_light_states > 0) {
-                            world_->set_light_state_overrides(
-                                venue_light_state_overrides_);
-                        }
-                        if (world_ &&
-                            env_light_counts.venue_light_transforms > 0) {
-                            world_->set_mesh_transform_offsets(
-                                venue_mesh_transform_offsets_);
-                        }
+                                env_light_targets.lighting_environment_colors,
+                                env_light_targets
+                                    .lighting_environment_fog_colors,
+                                env_light_targets
+                                    .lighting_environment_fog_ranges,
+                                env_light_targets
+                                    .lighting_environment_fog_enabled,
+                                env_light_targets.lighting_light_colors,
+                                env_light_targets
+                                    .lighting_light_state_overrides,
+                                env_light_targets.lighting_light_transforms,
+                                env_light_targets.venue_environment_colors,
+                                env_light_targets.venue_environment_fog_colors,
+                                env_light_targets.venue_environment_fog_ranges,
+                                env_light_targets.venue_environment_fog_enabled,
+                                env_light_targets.venue_light_colors,
+                                env_light_targets.venue_light_state_overrides,
+                                env_light_targets.venue_light_transforms);
+                        set_lighting_preset_env_light_targets(
+                            std::move(env_light_targets),
+                            transition_fade_seconds);
                         std::fprintf(
                             stderr,
                             "[world] lighting keyframe active: %s[%llu] '%s' span=0x%llx..0x%llx targets=%llu target_states=%llu static_targeted_spots=%llu direct_spots=%llu inferred_spots=%llu active_spots=%llu duration_frames=%.3f fade_frames=%.3f fade_seconds=%.3f t=%.3f\n",
@@ -29491,6 +29951,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
             const bool late_lighting_overlay = late_lighting_overlay_enabled();
+            update_lighting_preset_env_light_state();
             update_lighting_spotlight_renderer();
             update_worldcrowd_actor_lighting();
             draw_worldcrowd_actor_runtime(world_->camera());

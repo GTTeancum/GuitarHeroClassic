@@ -6274,6 +6274,23 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_lighting_preset_environment_light_state(",
                  "lighting keyframes apply decoded Environ/Light state like ihatecompvir LightPreset::Animate");
+  ok &= contains(gameplay_h_c,
+                 "structLightPresetEnvLightStateSnapshot",
+                 "LightPreset Environ/Light state is kept as a fadeable runtime snapshot");
+  ok &= contains(gameplay_c,
+                 "set_lighting_preset_env_light_targets("
+                 "std::move(env_light_targets),transition_fade_seconds);",
+                 "decoded LightPreset Environ/Light state shares the authored keyframe fade window");
+  ok &= contains(gameplay_c,
+                 "source_anim_blend_at(static_cast<float>(duration),"
+                 "song_time_-lighting_preset_env_light_transition_start_)",
+                 "LightPreset Environ/Light transition uses source-style Animate blend");
+  ok &= contains(gameplay_c,
+                 "\"[world]LightPresetstatetransition:",
+                 "LightPreset Environ/Light transition emits runtime proof rows");
+  ok &= contains(gameplay_c,
+                 "update_lighting_preset_env_light_state();world_->draw();",
+                 "world geometry samples in-progress LightPreset Environ/Light fades before drawing");
   ok &= contains(gameplay_c,
                  "\"[world]LightPresetstateapplied:preset=%skeyframe=%s"
                  "env_states=%llulight_states=%llu",
@@ -6314,6 +6331,7 @@ int main() {
                  "lighting transition log exposes stateful fade validation");
   ok &= contains(gameplay_c,
                  "constboollate_lighting_overlay=late_lighting_overlay_enabled();"
+                 "update_lighting_preset_env_light_state();"
                  "update_lighting_spotlight_renderer();"
                  "update_worldcrowd_actor_lighting();"
                  "draw_worldcrowd_actor_runtime(world_->camera());"
