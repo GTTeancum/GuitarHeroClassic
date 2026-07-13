@@ -2106,6 +2106,18 @@ struct SourceGltfMiloCharHairExportPlan {
   std::string entry_name;
 };
 
+struct SourceGltfMiloCharHairExtrasBoundary {
+  bool char_hair_extras_source_present = false;
+  bool detection_call_sites_source_backed = true;
+  bool process_char_hair_call_sites_source_backed = true;
+  bool can_port_discovery_gates = true;
+  bool can_port_default_physics_values = false;
+  bool can_port_default_wind_value = false;
+  bool safe_to_tune_hair_physics_from_extras_defaults = false;
+  std::vector<std::string> process_call_sites;
+  std::vector<std::string> missing_helpers;
+};
+
 struct SourceGltfMiloHairSettingsDetectionPlan {
   bool is_hair_bone = false;
   bool checks_extras = false;
@@ -4457,6 +4469,8 @@ SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
     int strand_count,
     const std::string& requested_wind,
     bool split_strands_at_branches);
+SourceGltfMiloCharHairExtrasBoundary
+source_gltf_milo_char_hair_extras_boundary();
 SourceGltfMiloHairSettingsDetectionPlan
 source_gltf_milo_detect_hair_settings_plan(
     const std::string& bone_name,

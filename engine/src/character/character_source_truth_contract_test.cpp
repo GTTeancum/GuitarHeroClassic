@@ -289,6 +289,11 @@ int run_contract() {
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeHelpers.cs");
   const bool gltf_milo_extras_cs_exists = std::filesystem::is_regular_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/MiloExtras.cs");
+  const bool gltf_char_hair_extras_cs_exists =
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/Core/CharHairExtras.cs") ||
+      std::filesystem::is_regular_file(
+          source_dir / "glTFMilo/Source/glTFMilo/CharHairExtras.cs");
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
   const std::string rb3_char_lookat_cpp = compact(read_file(
@@ -1756,6 +1761,10 @@ int run_contract() {
                  "document records glTFMilo MiloExtras boundary");
   ok &= contains(doc, "native must not infer filename override, group/object",
                  "document fences unvendored MiloExtras logic");
+  ok &= contains(doc, "glTFMilo hair extras boundary",
+                 "document records glTFMilo CharHairExtras boundary");
+  ok &= contains(doc, "native must not infer default hair physics numbers",
+                 "document fences unvendored CharHairExtras defaults");
   ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
                  "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.cpp",
@@ -5527,6 +5536,9 @@ int run_contract() {
                  "jointName);}",
                  "glTFMilo collects chunk hair strand bones");
   ok &= contains(gltf_program_cs,
+                 "CharHairExtrasdetectedHairSettings=null;",
+                 "glTFMilo declares detected CharHairExtras state");
+  ok &= contains(gltf_program_cs,
                  "if(IsHairBone(node.Name)){if(node.Extras!=null){try{"
                  "stringjson=node.Extras.ToString();",
                  "glTFMilo hair settings detection starts on hair bones");
@@ -5542,6 +5554,23 @@ int run_contract() {
                  "catch{//hairextrasareoptional,sobadextrasshouldnot"
                  "detonatethewholeexport}",
                  "glTFMilo hair settings bad extras are nonfatal");
+  ok &= contains(gltf_program_cs,
+                 "detectedHairSettings??newCharHairExtras()",
+                 "glTFMilo falls back to default CharHairExtras object");
+  ok &= contains(gltf_node_processor_cs,
+                 "hair.stiffness=physicsSettings.Stiffness;",
+                 "glTFMilo ProcessCharHair reads CharHairExtras stiffness");
+  ok &= contains(gltf_node_processor_cs,
+                 "hair.wind=string.IsNullOrEmpty(physicsSettings.Wind)?"
+                 "CharHairExtras.DefaultWind:physicsSettings.Wind;",
+                 "glTFMilo ProcessCharHair reads CharHairExtras default wind");
+  if (gltf_char_hair_extras_cs_exists) {
+    std::cerr << "Forbidden source-truth contract match: "
+              << "CharHairExtras source appeared and boundary must be "
+                 "reassessed"
+              << "\n";
+    ok = false;
+  }
   ok &= contains(gltf_program_cs,
                  "uintnumFaces=(uint)mesh.faces.Count;mesh.groupSizes.Clear();"
                  "while(numFaces>0)",
@@ -6525,6 +6554,28 @@ int run_contract() {
                  "\"MiloExtras.AddToMesh\",\"MiloExtras.AddToGroup\","
                  "\"MiloExtras.AddToObject\",\"MiloExtras.ObjectType\"};",
                  "native MiloExtras boundary records missing helper source");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloCharHairExtrasBoundary{"
+                 "boolchar_hair_extras_source_present=false;",
+                 "native API exposes glTFMilo CharHairExtras boundary");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloCharHairExtrasBoundarysource_gltf_milo_"
+                 "char_hair_extras_boundary();",
+                 "native API exposes glTFMilo CharHairExtras boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloCharHairExtrasBoundarysource_gltf_milo_"
+                 "char_hair_extras_boundary(){",
+                 "native ports glTFMilo CharHairExtras boundary helper");
+  ok &= contains(char_mesh,
+                 "\"ProcessCharHairCharHairExtras.DefaultWind\"",
+                 "native CharHairExtras boundary records default wind call site");
+  ok &= contains(char_mesh,
+                 "boundary.missing_helpers={\"CharHairExtras\","
+                 "\"CharHairExtras.DefaultWind\",\"CharHairExtras.Stiffness\","
+                 "\"CharHairExtras.Torsion\",\"CharHairExtras.Inertia\","
+                 "\"CharHairExtras.Gravity\",\"CharHairExtras.Weight\","
+                 "\"CharHairExtras.Friction\",\"CharHairExtras.Wind\"};",
+                 "native CharHairExtras boundary records missing helper source");
   ok &= contains(char_mesh,
                  "SourceRndLightDefaultStatesource_rndlight_default_state(){"
                  "returnSourceRndLightDefaultState{};}",
@@ -6717,6 +6768,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "!milo_extras_boundary.can_port_object_mutation_logic",
                  "focused mesh decode test fences unvendored object mutation logic");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_char_hair_extras_boundary()",
+                 "focused mesh decode test covers glTFMilo CharHairExtras boundary");
+  ok &= contains(mesh_decode_test,
+                 "!char_hair_extras_boundary.can_port_default_physics_values",
+                 "focused mesh decode test fences unvendored hair physics defaults");
+  ok &= contains(mesh_decode_test,
+                 "!char_hair_extras_boundary.can_port_default_wind_value",
+                 "focused mesh decode test fences unvendored hair default wind");
   ok &= contains(mesh_decode_test,
                  "source_rndlight_default_state()",
                  "focused mesh decode test covers RndLight defaults");

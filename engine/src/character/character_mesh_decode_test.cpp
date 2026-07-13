@@ -1603,6 +1603,26 @@ int main() {
   CHECK(milo_extras_boundary.missing_helpers[0] == "MiloExtras");
   CHECK(milo_extras_boundary.missing_helpers[4] == "MiloExtras.ObjectType");
 
+  const auto char_hair_extras_boundary =
+      ghogx::character::source_gltf_milo_char_hair_extras_boundary();
+  CHECK(!char_hair_extras_boundary.char_hair_extras_source_present);
+  CHECK(char_hair_extras_boundary.detection_call_sites_source_backed);
+  CHECK(char_hair_extras_boundary.process_char_hair_call_sites_source_backed);
+  CHECK(char_hair_extras_boundary.can_port_discovery_gates);
+  CHECK(!char_hair_extras_boundary.can_port_default_physics_values);
+  CHECK(!char_hair_extras_boundary.can_port_default_wind_value);
+  CHECK(!char_hair_extras_boundary
+             .safe_to_tune_hair_physics_from_extras_defaults);
+  CHECK(char_hair_extras_boundary.process_call_sites.size() == 10);
+  CHECK(char_hair_extras_boundary.process_call_sites[0] ==
+        "Program detectedHairSettings CharHairExtras");
+  CHECK(char_hair_extras_boundary.process_call_sites[9] ==
+        "ProcessCharHair CharHairExtras.DefaultWind");
+  CHECK(char_hair_extras_boundary.missing_helpers.size() == 9);
+  CHECK(char_hair_extras_boundary.missing_helpers[0] == "CharHairExtras");
+  CHECK(char_hair_extras_boundary.missing_helpers[8] ==
+        "CharHairExtras.Wind");
+
   const auto populate_unskinned =
       ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
           {{1, 2, 3}}, {}, false);

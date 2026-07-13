@@ -9285,6 +9285,32 @@ SourceGltfMiloCharHairExportPlan source_gltf_milo_process_char_hair_plan(
   return plan;
 }
 
+SourceGltfMiloCharHairExtrasBoundary
+source_gltf_milo_char_hair_extras_boundary() {
+  SourceGltfMiloCharHairExtrasBoundary boundary;
+  boundary.process_call_sites = {
+      "Program detectedHairSettings CharHairExtras",
+      "Program JsonSerializer.Deserialize<CharHairExtras>",
+      "Program detectedHairSettings ?? new CharHairExtras()",
+      "ProcessCharHair physicsSettings.Stiffness",
+      "ProcessCharHair physicsSettings.Torsion",
+      "ProcessCharHair physicsSettings.Inertia",
+      "ProcessCharHair physicsSettings.Gravity",
+      "ProcessCharHair physicsSettings.Weight",
+      "ProcessCharHair physicsSettings.Friction",
+      "ProcessCharHair CharHairExtras.DefaultWind"};
+  boundary.missing_helpers = {"CharHairExtras",
+                              "CharHairExtras.DefaultWind",
+                              "CharHairExtras.Stiffness",
+                              "CharHairExtras.Torsion",
+                              "CharHairExtras.Inertia",
+                              "CharHairExtras.Gravity",
+                              "CharHairExtras.Weight",
+                              "CharHairExtras.Friction",
+                              "CharHairExtras.Wind"};
+  return boundary;
+}
+
 SourceGltfMiloHairSettingsDetectionPlan
 source_gltf_milo_detect_hair_settings_plan(
     const std::string& bone_name,
