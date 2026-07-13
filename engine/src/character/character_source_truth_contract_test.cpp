@@ -101,6 +101,25 @@ bool selected_source_files_cited(
   return ok;
 }
 
+bool all_character_cpp_files_classified(const std::string& doc,
+                                        const std::filesystem::path& source_dir,
+                                        const std::string& label) {
+  bool ok = true;
+  for (const auto& entry : std::filesystem::directory_iterator(source_dir)) {
+    if (!entry.is_regular_file()) continue;
+    const std::filesystem::path path = entry.path();
+    if (path.extension() != ".cpp") continue;
+    const std::string row = "| `" + path.filename().string() + "` |";
+    if (doc.find(row) == std::string::npos) {
+      std::cerr << "Missing source-truth contract: " << label << "\n";
+      std::cerr << "Unclassified source file: "
+                << path.filename().string() << "\n";
+      ok = false;
+    }
+  }
+  return ok;
+}
+
 }  // namespace
 
 int run_contract() {
@@ -703,6 +722,11 @@ int run_contract() {
   ok &= all_source_files_cited(
       doc, extra_dir / "rb3-latest/src/system/char",
       "source-truth map must cite every copied ihatecompvir character source");
+  ok &= contains(doc, "## ihatecompvir Character Implementation Inventory",
+                 "document includes ihatecompvir character implementation inventory");
+  ok &= all_character_cpp_files_classified(
+      doc, rb3_latest_char_dir,
+      "source classification matrix must classify every copied ihatecompvir character cpp");
   ok &= selected_source_files_cited(
       doc, extra_dir / "rb3-latest/src/system/rndobj",
       {"Draw.cpp",           "Draw.h",           "Group.cpp",
