@@ -7204,6 +7204,17 @@ void source_char_lip_sync_driver_poll_deps(
   deps.change.push_back(state.bones);
 }
 
+std::string source_char_lip_sync_driver_clip_dir(
+    const SourceCharLipSyncDriverState& state) {
+  return state.clips;
+}
+
+std::string source_char_lip_sync_driver_override_dir(
+    const SourceCharLipSyncDriverState& state) {
+  if (!state.override_options.empty()) return state.override_options;
+  return source_char_lip_sync_driver_clip_dir(state);
+}
+
 static void apply_source_weight_setters(Character& character,
                                         float delta_beats) {
   std::unordered_map<std::string, float> weights_by_name;

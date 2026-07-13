@@ -2446,11 +2446,14 @@ note, and all report `unreadBytes=0`.
     `mTestWeight` to `1.0`, `mOverrideWeight` to `0.0`, and
     `mApplyOverrideAdditively` false.
   - The checked `PollDeps` body appends only `mBones` to the changed row list.
+  - The checked header has inline directory helpers: `ClipDir()` returns
+    `mClips`; `OverrideDir()` returns `mOverrideOptions` when present and
+    otherwise falls back to `ClipDir()`.
   - The checked source declares `Poll`, `Enter`, `SetClips`, `SetLipSync`,
     `Load`, and `Copy`, but this snapshot only includes the constructor and
     `PollDeps` body. Native `source_char_lip_sync_*` helpers therefore port
-    defaults/save id/load gates/dependency publication as source context only
-    and do not promote any live GH2 mouth or viseme controller behavior.
+    defaults/save id/load gates/dependency publication/directory selection as
+    source context only and do not promote any live GH2 mouth or viseme controller behavior.
 
 ## Rnd Utility Row Authorities
 

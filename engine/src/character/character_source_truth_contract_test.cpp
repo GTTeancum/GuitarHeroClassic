@@ -12626,6 +12626,13 @@ int run_contract() {
                  "changedBy,std::list<Hmx::Object*>&change){"
                  "change.push_back(mBones);}",
                  "CharLipSyncDriver source PollDeps changes bones only");
+  ok &= contains(rb3_latest_char_lip_sync_driver_h,
+                 "ObjectDir*ClipDir()const{returnmClips;}",
+                 "CharLipSyncDriver source ClipDir returns clips");
+  ok &= contains(rb3_latest_char_lip_sync_driver_h,
+                 "ObjectDir*OverrideDir()const{if(mOverrideOptions)return"
+                 "mOverrideOptions;elsereturnClipDir();}",
+                 "CharLipSyncDriver source OverrideDir fallback order");
   ok &= missing(rb3_latest_char_lip_sync_driver_cpp,
                 "voidCharLipSyncDriver::Poll(",
                 "available CharLipSyncDriver source lacks Poll body");
@@ -12657,6 +12664,14 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "voidsource_char_lip_sync_driver_poll_deps(",
                  "native API exposes CharLipSyncDriver PollDeps helper");
+  ok &= contains(char_clip_h,
+                 "std::stringsource_char_lip_sync_driver_clip_dir("
+                 "constSourceCharLipSyncDriverState&state);",
+                 "native API exposes CharLipSyncDriver ClipDir helper");
+  ok &= contains(char_clip_h,
+                 "std::stringsource_char_lip_sync_driver_override_dir("
+                 "constSourceCharLipSyncDriverState&state);",
+                 "native API exposes CharLipSyncDriver OverrideDir helper");
   ok &= contains(char_clip,
                  "SourceCharLipSyncGeneratorStatesource_char_lip_sync_generator"
                  "_default_state(){returnSourceCharLipSyncGeneratorState{};}",
@@ -12683,6 +12698,17 @@ int run_contract() {
   ok &= contains(char_clip,
                  "deps.change.push_back(state.bones);",
                  "native CharLipSyncDriver PollDeps helper mirrors source");
+  ok &= contains(char_clip,
+                 "std::stringsource_char_lip_sync_driver_clip_dir("
+                 "constSourceCharLipSyncDriverState&state){returnstate.clips;}",
+                 "native CharLipSyncDriver ClipDir helper mirrors source");
+  ok &= contains(char_clip,
+                 "std::stringsource_char_lip_sync_driver_override_dir("
+                 "constSourceCharLipSyncDriverState&state){"
+                 "if(!state.override_options.empty())returnstate."
+                 "override_options;returnsource_char_lip_sync_driver_clip_dir"
+                 "(state);}",
+                 "native CharLipSyncDriver OverrideDir helper mirrors source");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_lip_sync_source_test"
                  "character_lip_sync_source_test.cpp)",
@@ -12702,6 +12728,9 @@ int run_contract() {
   ok &= contains(lip_sync_source_test,
                  "source_char_lip_sync_driver_poll_deps(deps,driver)",
                  "focused CharLipSync test covers driver PollDeps");
+  ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_driver_override_dir(driver)",
+                 "focused CharLipSync test covers driver OverrideDir");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharLipSync.cpp`",
                  "document cites CharLipSync source");

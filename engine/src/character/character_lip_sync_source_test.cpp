@@ -36,7 +36,9 @@ bool expect_string(const std::string& got, const std::string& want,
 int main() {
   using ghogx::character::SourceCharLipSyncDriverPollDeps;
   using ghogx::character::source_char_lip_sync_default_state;
+  using ghogx::character::source_char_lip_sync_driver_clip_dir;
   using ghogx::character::source_char_lip_sync_driver_default_state;
+  using ghogx::character::source_char_lip_sync_driver_override_dir;
   using ghogx::character::source_char_lip_sync_driver_poll_deps;
   using ghogx::character::source_char_lip_sync_generator_default_state;
   using ghogx::character::source_char_lip_sync_load_steps;
@@ -105,6 +107,17 @@ int main() {
   ok &= expect_size(deps.change.size(), 1, "Driver PollDeps change count");
   ok &= expect_string(deps.change[0], "tmp_viseme_bones",
                       "Driver PollDeps changes bones");
+
+  driver.clips = "main_viseme_clips";
+  ok &= expect_string(source_char_lip_sync_driver_clip_dir(driver),
+                      "main_viseme_clips", "Driver ClipDir returns clips");
+  ok &= expect_string(source_char_lip_sync_driver_override_dir(driver),
+                      "main_viseme_clips",
+                      "Driver OverrideDir falls back to clips");
+  driver.override_options = "override_viseme_options";
+  ok &= expect_string(source_char_lip_sync_driver_override_dir(driver),
+                      "override_viseme_options",
+                      "Driver OverrideDir prefers override options");
 
   return ok ? 0 : 1;
 }

@@ -2801,6 +2801,10 @@ SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
 void source_char_lip_sync_driver_poll_deps(
     SourceCharLipSyncDriverPollDeps& deps,
     const SourceCharLipSyncDriverState& state);
+std::string source_char_lip_sync_driver_clip_dir(
+    const SourceCharLipSyncDriverState& state);
+std::string source_char_lip_sync_driver_override_dir(
+    const SourceCharLipSyncDriverState& state);
 
 struct SourceCharIKRodDefaultState {
   bool left_end_empty = true;
