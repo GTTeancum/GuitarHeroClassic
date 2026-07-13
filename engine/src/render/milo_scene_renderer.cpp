@@ -1293,6 +1293,12 @@ struct DebugVenuePick {
   bool spotlight_template = false;
   bool cull_enabled = false;
   bool culled_by_backface = false;
+  bool has_axis_diagnostics = false;
+  float shape_extent[3] = {0.0f, 0.0f, 0.0f};
+  int thin_axis = 2;
+  int face_axis = 2;
+  float face_dir[3] = {0.0f, 0.0f, 1.0f};
+  float draw_face[3] = {0.0f, 0.0f, 0.0f};
 };
 
 struct DebugVenuePickAccumulator {
@@ -1331,6 +1337,8 @@ struct DebugVenueInspectorState {
   bool highlight_source_only = false;
   bool highlight_enabled = true;
   bool highlight_toggle_down = false;
+  bool axes_enabled = false;
+  bool axes_toggle_down = false;
 };
 
 std::unordered_map<const MiloSceneRenderer*, DebugVenueInspectorState>&
@@ -1538,14 +1546,16 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
   if (!win) return;
   win->set_relative_mouse(true);
   if (!state.initialized || win->key_down('C')) {
+    const bool first_init = !state.initialized;
     state.camera = cam;
     freecam_seed_from_current_camera(state.camera);
     state.initialized = true;
+    if (first_init) state.axes_enabled = env_enabled("GHOGX_VENUE_PICK_AXES");
     if (!state.announced) {
       std::fprintf(stderr,
                    "[venue-freecam] enabled: mouse look, WASD move, E/R up, "
                    "Q/F down, arrows look, Shift fast, Ctrl slow, H highlight, "
-                   "C reseed, Esc quit\n");
+                   "X axes, C reseed, Esc quit\n");
       state.announced = true;
     }
   }
@@ -1573,6 +1583,14 @@ void apply_debug_venue_freecam(Window* win, OrbitCamera& cam,
                  state.highlight_enabled ? "on" : "off");
   }
   state.highlight_toggle_down = highlight_toggle;
+  const bool axes_toggle = win->key_down('X');
+  if (axes_toggle && !state.axes_toggle_down) {
+    state.axes_enabled = !state.axes_enabled;
+    state.last_title.clear();
+    std::fprintf(stderr, "[venue-freecam] pick axes %s\n",
+                 state.axes_enabled ? "on" : "off");
+  }
+  state.axes_toggle_down = axes_toggle;
   int mouse_dx = 0;
   int mouse_dy = 0;
   win->mouse_delta(mouse_dx, mouse_dy);
@@ -1696,6 +1714,19 @@ void accumulate_debug_venue_pick(DebugVenuePickAccumulator& pick,
     pick.best.cull_enabled = mesh_state.cull_enabled;
     pick.best.culled_by_backface = culled_by_backface;
     for (int k = 0; k < 3; ++k) pick.best.point[k] = pick.eye[k] + pick.dir[k] * t;
+    const MeshLocalAxisDiagnostics axes = mesh_local_axis_diagnostics(mesh);
+    if (axes.valid) {
+      const std::array<float, 3> draw_face =
+          transform_local_dir(world, axes.face_dir);
+      pick.best.has_axis_diagnostics = true;
+      pick.best.thin_axis = axes.thin_axis;
+      pick.best.face_axis = axes.face_axis;
+      for (int k = 0; k < 3; ++k) {
+        pick.best.shape_extent[k] = axes.extent[k];
+        pick.best.face_dir[k] = axes.face_dir[k];
+        pick.best.draw_face[k] = draw_face[k];
+      }
+    }
   }
 }
 
@@ -1785,17 +1816,35 @@ void update_debug_venue_title(Window* win, DebugVenueInspectorState& state) {
             ? "renders"
             : (state.pick.culled_by_backface ? "backface-culled"
                                              : "source-only");
-    std::snprintf(title, sizeof(title),
-                  "GuitarHeroOGX venue freecam - %s | %s | %.1f | %s | backface %s | culled %s",
-                  state.pick.mesh.c_str(), state.pick.material.c_str(),
-                  state.pick.distance, status,
-                  state.pick.backfacing ? "yes" : "no",
-                  state.pick.culled_by_backface ? "yes" : "no");
-    std::snprintf(key, sizeof(key), "%s|%s|%d|%d|%d",
-                  state.pick.mesh.c_str(), state.pick.material.c_str(),
-                  state.pick.backfacing ? 1 : 0,
-                  state.pick.would_draw ? 1 : 0,
-                  state.pick.culled_by_backface ? 1 : 0);
+    if (state.axes_enabled && state.pick.has_axis_diagnostics) {
+      std::snprintf(
+          title, sizeof(title),
+          "GuitarHeroOGX venue freecam - %s | %s | %.1f | %s | face %s dir %.2f %.2f %.2f",
+          state.pick.mesh.c_str(), state.pick.material.c_str(),
+          state.pick.distance, status, axis_label(state.pick.face_axis),
+          state.pick.draw_face[0], state.pick.draw_face[1],
+          state.pick.draw_face[2]);
+      std::snprintf(key, sizeof(key), "%s|%s|%d|%d|%d|axis%d|%.2f|%.2f|%.2f",
+                    state.pick.mesh.c_str(), state.pick.material.c_str(),
+                    state.pick.backfacing ? 1 : 0,
+                    state.pick.would_draw ? 1 : 0,
+                    state.pick.culled_by_backface ? 1 : 0,
+                    state.pick.face_axis, state.pick.draw_face[0],
+                    state.pick.draw_face[1], state.pick.draw_face[2]);
+    } else {
+      std::snprintf(title, sizeof(title),
+                    "GuitarHeroOGX venue freecam - %s | %s | %.1f | %s | backface %s | culled %s",
+                    state.pick.mesh.c_str(), state.pick.material.c_str(),
+                    state.pick.distance, status,
+                    state.pick.backfacing ? "yes" : "no",
+                    state.pick.culled_by_backface ? "yes" : "no");
+      std::snprintf(key, sizeof(key), "%s|%s|%d|%d|%d|axes%d",
+                    state.pick.mesh.c_str(), state.pick.material.c_str(),
+                    state.pick.backfacing ? 1 : 0,
+                    state.pick.would_draw ? 1 : 0,
+                    state.pick.culled_by_backface ? 1 : 0,
+                    state.axes_enabled ? 1 : 0);
+    }
   } else {
     std::snprintf(title, sizeof(title),
                   "GuitarHeroOGX venue freecam - no mesh under crosshair");
@@ -1805,22 +1854,50 @@ void update_debug_venue_title(Window* win, DebugVenueInspectorState& state) {
   state.last_title = key;
   win->set_title(title);
   if (state.pick.hit) {
-    std::fprintf(stderr,
-                 "[venue-freecam] pick mesh=%s material=%s dist=%.2f "
-                 "point=(%.2f %.2f %.2f) backface=%d would_draw=%d "
-                 "source_pick=%d hidden=%d showing=%d invisible_mat=%d "
-                 "spotlight_template=%d cull_enabled=%d culled_by_backface=%d\n",
-                 state.pick.mesh.c_str(), state.pick.material.c_str(),
-                 state.pick.distance, state.pick.point[0], state.pick.point[1],
-                 state.pick.point[2], state.pick.backfacing ? 1 : 0,
-                 state.pick.would_draw ? 1 : 0,
-                 state.pick.source_pick ? 1 : 0,
-                 state.pick.hidden_by_filter ? 1 : 0,
-                 state.pick.source_showing ? 1 : 0,
-                 state.pick.material_invisible ? 1 : 0,
-                 state.pick.spotlight_template ? 1 : 0,
-                 state.pick.cull_enabled ? 1 : 0,
-                 state.pick.culled_by_backface ? 1 : 0);
+    if (state.axes_enabled && state.pick.has_axis_diagnostics) {
+      std::fprintf(
+          stderr,
+          "[venue-freecam] pick mesh=%s material=%s dist=%.2f "
+          "point=(%.2f %.2f %.2f) backface=%d would_draw=%d "
+          "source_pick=%d hidden=%d showing=%d invisible_mat=%d "
+          "spotlight_template=%d cull_enabled=%d culled_by_backface=%d "
+          "axes=1 extent=(%.3f %.3f %.3f) thin_axis=%s face_axis=%s "
+          "face_dir=(%.1f %.1f %.1f) draw_face=(%.3f %.3f %.3f)\n",
+          state.pick.mesh.c_str(), state.pick.material.c_str(),
+          state.pick.distance, state.pick.point[0], state.pick.point[1],
+          state.pick.point[2], state.pick.backfacing ? 1 : 0,
+          state.pick.would_draw ? 1 : 0, state.pick.source_pick ? 1 : 0,
+          state.pick.hidden_by_filter ? 1 : 0,
+          state.pick.source_showing ? 1 : 0,
+          state.pick.material_invisible ? 1 : 0,
+          state.pick.spotlight_template ? 1 : 0,
+          state.pick.cull_enabled ? 1 : 0,
+          state.pick.culled_by_backface ? 1 : 0,
+          state.pick.shape_extent[0], state.pick.shape_extent[1],
+          state.pick.shape_extent[2], axis_label(state.pick.thin_axis),
+          axis_label(state.pick.face_axis), state.pick.face_dir[0],
+          state.pick.face_dir[1], state.pick.face_dir[2],
+          state.pick.draw_face[0], state.pick.draw_face[1],
+          state.pick.draw_face[2]);
+    } else {
+      std::fprintf(stderr,
+                   "[venue-freecam] pick mesh=%s material=%s dist=%.2f "
+                   "point=(%.2f %.2f %.2f) backface=%d would_draw=%d "
+                   "source_pick=%d hidden=%d showing=%d invisible_mat=%d "
+                   "spotlight_template=%d cull_enabled=%d culled_by_backface=%d\n",
+                   state.pick.mesh.c_str(), state.pick.material.c_str(),
+                   state.pick.distance, state.pick.point[0],
+                   state.pick.point[1], state.pick.point[2],
+                   state.pick.backfacing ? 1 : 0,
+                   state.pick.would_draw ? 1 : 0,
+                   state.pick.source_pick ? 1 : 0,
+                   state.pick.hidden_by_filter ? 1 : 0,
+                   state.pick.source_showing ? 1 : 0,
+                   state.pick.material_invisible ? 1 : 0,
+                   state.pick.spotlight_template ? 1 : 0,
+                   state.pick.cull_enabled ? 1 : 0,
+                   state.pick.culled_by_backface ? 1 : 0);
+    }
   } else {
     std::fprintf(stderr, "[venue-freecam] pick none\n");
   }

@@ -4111,6 +4111,21 @@ int main() {
   ok &= contains(renderer_c,
                  "Hhighlight,",
                  "venue inspector launch controls list the highlight toggle");
+  ok &= contains(renderer_c,
+                 "GHOGX_VENUE_PICK_AXES",
+                 "venue inspector can launch with picked-mesh axis diagnostics enabled");
+  ok &= contains(renderer_c,
+                 "win->key_down('X')",
+                 "venue inspector binds picked-mesh axis diagnostics to X");
+  ok &= contains(renderer_c,
+                 "Xaxes,",
+                 "venue inspector launch controls list the axis toggle");
+  ok &= contains(renderer_c,
+                 "state.axes_enabled&&state.pick.has_axis_diagnostics",
+                 "venue inspector keeps picked-mesh axis diagnostics gated by decoded mesh data");
+  ok &= contains(renderer_c,
+                 "face_axis=%s\"\"face_dir=(%.1f%.1f%.1f)draw_face=(%.3f%.3f%.3f)",
+                 "venue inspector logs picked mesh local face axis and current drawn face vector");
   ok &= contains(gameplay_c,
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"
