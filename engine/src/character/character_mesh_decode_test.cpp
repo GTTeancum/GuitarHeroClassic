@@ -1561,6 +1561,30 @@ int main() {
   CHECK(matrix_boundary.missing_helpers[3] ==
         "MatrixHelpers.ConvertGltfScaleToMilo");
 
+  const auto node_helpers_boundary =
+      ghogx::character::source_gltf_milo_node_helpers_boundary();
+  CHECK(!node_helpers_boundary.node_helpers_source_present);
+  CHECK(node_helpers_boundary.traversal_call_sites_source_backed);
+  CHECK(node_helpers_boundary.parent_lookup_call_sites_source_backed);
+  CHECK(node_helpers_boundary.can_port_call_order);
+  CHECK(!node_helpers_boundary.can_port_node_classification_logic);
+  CHECK(!node_helpers_boundary.can_port_parent_bone_search_logic);
+  CHECK(!node_helpers_boundary.safe_to_adjust_hierarchy_from_node_helpers);
+  CHECK(node_helpers_boundary.traversal_call_sites.size() == 6);
+  CHECK(node_helpers_boundary.traversal_call_sites[0] ==
+        "Program Run NodeHelpers.IsPrimitive");
+  CHECK(node_helpers_boundary.traversal_call_sites[5] ==
+        "NodeProcessor WarnAboutNonHairChildBones NodeHelpers.IsBone");
+  CHECK(node_helpers_boundary.parent_call_sites.size() == 4);
+  CHECK(node_helpers_boundary.parent_call_sites[0] ==
+        "ProcessBoneNode NodeHelpers.GetParentBoneName");
+  CHECK(node_helpers_boundary.parent_call_sites[3] ==
+        "ProcessCharHair strand NodeHelpers.GetParentNode");
+  CHECK(node_helpers_boundary.missing_helpers.size() == 7);
+  CHECK(node_helpers_boundary.missing_helpers[1] == "NodeHelpers.IsBone");
+  CHECK(node_helpers_boundary.missing_helpers[6] ==
+        "NodeHelpers.GetParentNode");
+
   const auto populate_unskinned =
       ghogx::character::source_gltf_milo_populate_mesh_chunk_plan(
           {{1, 2, 3}}, {}, false);

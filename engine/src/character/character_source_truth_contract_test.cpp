@@ -285,6 +285,8 @@ int run_contract() {
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs"));
   const bool gltf_matrix_helpers_cs_exists = std::filesystem::is_regular_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/MatrixHelpers.cs");
+  const bool gltf_node_helpers_cs_exists = std::filesystem::is_regular_file(
+      source_dir / "glTFMilo/Source/glTFMilo/Core/NodeHelpers.cs");
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
   const std::string rb3_char_lookat_cpp = compact(read_file(
@@ -1744,6 +1746,10 @@ int run_contract() {
                  "document records glTFMilo MatrixHelpers boundary");
   ok &= contains(doc, "native must not infer axis-conversion or bind-pose",
                  "document fences unvendored MatrixHelpers math");
+  ok &= contains(doc, "glTFMilo node hierarchy boundary",
+                 "document records glTFMilo NodeHelpers boundary");
+  ok &= contains(doc, "native must not infer node classification, parent search",
+                 "document fences unvendored NodeHelpers logic");
   ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
                  "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.cpp",
@@ -5390,6 +5396,37 @@ int run_contract() {
     ok = false;
   }
   ok &= contains(gltf_program_cs,
+                 "if(NodeHelpers.IsPrimitive(node))",
+                 "glTFMilo traversal uses NodeHelpers primitive classification");
+  ok &= contains(gltf_program_cs,
+                 "elseif(NodeHelpers.IsBone(node,model)){NodeProcessor."
+                 "ProcessBoneNode(",
+                 "glTFMilo traversal uses NodeHelpers bone classification");
+  ok &= contains(gltf_program_cs,
+                 "elseif(NodeHelpers.IsGroupNode(node,model)){NodeProcessor."
+                 "ProcessGroupNode(",
+                 "glTFMilo traversal uses NodeHelpers group classification");
+  ok &= contains(gltf_program_cs,
+                 "elseif(NodeHelpers.IsLightNode(node,model)){NodeProcessor."
+                 "ProcessLightNode(",
+                 "glTFMilo traversal uses NodeHelpers light classification");
+  ok &= contains(gltf_node_processor_cs,
+                 "stringparentName=NodeHelpers.GetParentBoneName(node,model)"
+                 "??fallbackParent;",
+                 "glTFMilo ProcessBoneNode uses NodeHelpers parent lookup");
+  ok &= contains(gltf_node_processor_cs,
+                 "varchildren=NodeHelpers.GetAllDescendantNames(node);",
+                 "glTFMilo ProcessGroupNode uses NodeHelpers descendant lookup");
+  ok &= contains(gltf_node_processor_cs,
+                 "varparent=NodeHelpers.GetParentNode(strandRoot,model);",
+                 "glTFMilo CharHair uses NodeHelpers strand parent lookup");
+  if (gltf_node_helpers_cs_exists) {
+    std::cerr << "Forbidden source-truth contract match: "
+              << "NodeHelpers source appeared and boundary must be reassessed"
+              << "\n";
+    ok = false;
+  }
+  ok &= contains(gltf_program_cs,
                  "newVert.weight0=vertexInfluences.Count>0?"
                  "vertexInfluences[0].weight:0.0f;",
                  "glTFMilo writes skin weights in influence order");
@@ -6416,6 +6453,32 @@ int run_contract() {
                  "\"MatrixHelpers.ConvertGltfVectorToMilo\","
                  "\"MatrixHelpers.ConvertGltfScaleToMilo\"};",
                  "native MatrixHelpers boundary records missing helper source");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloNodeHelpersBoundary{"
+                 "boolnode_helpers_source_present=false;",
+                 "native API exposes glTFMilo NodeHelpers boundary");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloNodeHelpersBoundarysource_gltf_milo_"
+                 "node_helpers_boundary();",
+                 "native API exposes glTFMilo NodeHelpers boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloNodeHelpersBoundarysource_gltf_milo_"
+                 "node_helpers_boundary(){",
+                 "native ports glTFMilo NodeHelpers boundary helper");
+  ok &= contains(char_mesh,
+                 "\"ProgramRunNodeHelpers.IsPrimitive\"",
+                 "native NodeHelpers boundary records traversal classification");
+  ok &= contains(char_mesh,
+                 "\"ProcessBoneNodeNodeHelpers.GetParentBoneName\"",
+                 "native NodeHelpers boundary records parent lookup");
+  ok &= contains(char_mesh,
+                 "boundary.missing_helpers={\"NodeHelpers.IsPrimitive\","
+                 "\"NodeHelpers.IsBone\",\"NodeHelpers.IsGroupNode\","
+                 "\"NodeHelpers.IsLightNode\","
+                 "\"NodeHelpers.GetParentBoneName\","
+                 "\"NodeHelpers.GetAllDescendantNames\","
+                 "\"NodeHelpers.GetParentNode\"};",
+                 "native NodeHelpers boundary records missing helper source");
   ok &= contains(char_mesh,
                  "SourceRndLightDefaultStatesource_rndlight_default_state(){"
                  "returnSourceRndLightDefaultState{};}",
@@ -6590,6 +6653,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "!matrix_boundary.can_port_axis_conversion_math",
                  "focused mesh decode test fences unvendored axis conversion math");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_node_helpers_boundary()",
+                 "focused mesh decode test covers glTFMilo NodeHelpers boundary");
+  ok &= contains(mesh_decode_test,
+                 "!node_helpers_boundary.can_port_node_classification_logic",
+                 "focused mesh decode test fences unvendored node classification logic");
+  ok &= contains(mesh_decode_test,
+                 "!node_helpers_boundary.can_port_parent_bone_search_logic",
+                 "focused mesh decode test fences unvendored parent search logic");
   ok &= contains(mesh_decode_test,
                  "source_rndlight_default_state()",
                  "focused mesh decode test covers RndLight defaults");

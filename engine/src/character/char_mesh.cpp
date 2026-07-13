@@ -9705,6 +9705,31 @@ source_gltf_milo_matrix_helpers_boundary() {
   return boundary;
 }
 
+SourceGltfMiloNodeHelpersBoundary
+source_gltf_milo_node_helpers_boundary() {
+  SourceGltfMiloNodeHelpersBoundary boundary;
+  boundary.traversal_call_sites = {
+      "Program Run NodeHelpers.IsPrimitive",
+      "Program Run NodeHelpers.IsBone",
+      "Program Run NodeHelpers.IsGroupNode",
+      "Program Run NodeHelpers.IsLightNode",
+      "NodeProcessor IsHairBoneNode NodeHelpers.IsBone",
+      "NodeProcessor WarnAboutNonHairChildBones NodeHelpers.IsBone"};
+  boundary.parent_call_sites = {
+      "ProcessBoneNode NodeHelpers.GetParentBoneName",
+      "ProcessGroupNode NodeHelpers.GetAllDescendantNames",
+      "ProcessCharHair root NodeHelpers.GetParentNode",
+      "ProcessCharHair strand NodeHelpers.GetParentNode"};
+  boundary.missing_helpers = {"NodeHelpers.IsPrimitive",
+                              "NodeHelpers.IsBone",
+                              "NodeHelpers.IsGroupNode",
+                              "NodeHelpers.IsLightNode",
+                              "NodeHelpers.GetParentBoneName",
+                              "NodeHelpers.GetAllDescendantNames",
+                              "NodeHelpers.GetParentNode"};
+  return boundary;
+}
+
 SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale) {
