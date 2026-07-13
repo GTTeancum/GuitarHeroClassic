@@ -9325,8 +9325,9 @@ int main() {
                  "key.has_path_pose_span",
                  "generic PS2 writer bridge still works after path animation expands to sampled camera keys");
   ok &= contains(gameplay_c,
-                 "!key.has_path_anim&&camera_key_has_target_refs(key)",
-                 "path-backed camera-system span discovery is not blocked by target-list refs");
+                 "!key.has_path_anim&&"
+                 "camera_key_has_resolved_targets_like_camshot(key,targets)",
+                 "path-backed camera-system span discovery uses resolved CamShot targets");
   ok &= contains(gameplay_c,
                  "std::strcmp(candidate,\"writer_bridge\")==0",
                  "diagnostic submit selector can render the generic PS2 writer bridge across path-backed cameras");
@@ -10904,12 +10905,20 @@ int main() {
                  "rows.source=parent?\"parent+source_seed\":\"source_seed\";",
                  "source seed diagnostics preserve parent/source provenance");
   ok &= contains(gameplay_c,
+                 "boolcamera_key_has_resolved_targets_like_camshot(",
+                 "camera runtime exposes an ihatecompvir CamShot HasTargets helper");
+  ok &= contains(gameplay_c,
+                 "returncamera_target_centroid_for_key(key,targets)."
+                 "has_value();",
+                 "CamShot HasTargets helper follows resolved target centroid availability");
+  ok &= contains(gameplay_c,
                  "boolcamera_apply_pose_span_source_basis(",
                  "source seed rows can derive the traced pose-span source basis");
   ok &= contains(gameplay_c,
                  "!key.camshot_refs_decoded||key.use_parent_rotation||"
-                 "key.has_path_anim||camera_key_has_target_refs(key)",
-                 "pose-span source basis stays limited to decoded targetless parent-source CamShots");
+                 "key.has_path_anim||"
+                 "camera_key_has_resolved_targets_like_camshot(key,targets)",
+                 "pose-span source basis follows ihatecompvir resolved-target HasTargets");
   ok &= contains(gameplay_c,
                  "conststd::array<float,3>span={first[0]-next[0],",
                  "pose-span source basis uses the authored relocated pose delta");
@@ -10924,9 +10933,10 @@ int main() {
                  "pose-span source rows label the traced source-object basis");
   ok &= contains(gameplay_c,
                  "if(key.has_generated_source_rows||"
-                 "(parent&&!camera_key_has_target_refs(key))){"
+                 "(parent&&!camera_key_has_resolved_targets_like_camshot("
+                 "key,targets))){"
                  "returncamera_source_seed_result_rows_for_key(key,targets);}",
-                 "targetless generated or parent-source CamShots submit evaluated source rows");
+                 "targetless generated or parent-source CamShots use resolved CamShot targets");
   ok &= contains(gameplay_c,
                  "log_result_rows(\"source_seed_candidate\",source_seed_result,1,1);",
                  "debug camera logs compare source seed rows before submitted rows");

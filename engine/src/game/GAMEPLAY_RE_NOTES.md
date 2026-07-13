@@ -12,6 +12,13 @@
   moving source shots by composing the decoded path-frame eye/basis through the
   live parent transform; target refs are retained as runtime composition
   metadata and a fallback when no authored basis/quaternion exists.
+- 2026-07-13 CamShot resolved target presence: ihatecompvir
+  `CamShotFrame::HasTargets()` checks the loaded `mTargets` object pointers,
+  and `GetCurrentTargetPosition()` averages every non-null resolved target.
+  Native now uses `camera_key_has_resolved_targets_like_camshot(...)` for
+  source-shaped pose-span and parent/source-seed gates instead of treating a
+  merely authored target token as a live CamShot target. The older authored-ref
+  helper remains for metadata/debug routing.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level

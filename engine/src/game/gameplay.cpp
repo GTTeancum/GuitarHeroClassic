@@ -17689,12 +17689,21 @@ bool camera_key_has_target_refs(const Gameplay::CameraKey& key) {
                        });
 }
 
+bool camera_key_has_resolved_targets_like_camshot(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    // ihatecompvir CamShotFrame::HasTargets() checks resolved object pointers;
+    // GetCurrentTargetPosition() then averages every non-null target.
+    return camera_target_centroid_for_key(key, targets).has_value();
+}
+
 bool camera_apply_pose_span_source_basis(
     CameraResultRows& rows,
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
     if (!key.camshot_refs_decoded || key.use_parent_rotation ||
-        key.has_path_anim || camera_key_has_target_refs(key) ||
+        key.has_path_anim ||
+        camera_key_has_resolved_targets_like_camshot(key, targets) ||
         key.positions.size() < 2) {
         return false;
     }
@@ -17755,8 +17764,9 @@ CameraPoseSpanDebugShape camera_pose_span_debug_shape_for_key(
         shape.reason = "parent_rotation";
         return shape;
     }
-    if (!key.has_path_anim && camera_key_has_target_refs(key)) {
-        shape.reason = "target_refs";
+    if (!key.has_path_anim &&
+        camera_key_has_resolved_targets_like_camshot(key, targets)) {
+        shape.reason = "resolved_targets";
         return shape;
     }
     if (key.positions.size() < 2) {
@@ -18102,7 +18112,8 @@ CameraResultRows camera_submitted_result_rows_for_key(
         return *target_rows;
     const auto parent = camera_parent_for_key(key, targets);
     if (key.has_generated_source_rows ||
-        (parent && !camera_key_has_target_refs(key))) {
+        (parent && !camera_key_has_resolved_targets_like_camshot(key,
+                                                                 targets))) {
         return camera_source_seed_result_rows_for_key(key, targets);
     }
     CameraResultRows rows;
@@ -19661,7 +19672,7 @@ void apply_camera_keys(
         }
         auto log_pose_span_shape = [&](const char* label,
                                        const Gameplay::CameraKey& key) {
-            if (camera_key_has_target_refs(key) ||
+            if (camera_key_has_resolved_targets_like_camshot(key, targets) ||
                 (!key.camshot_refs_decoded && key.positions.size() < 2)) {
                 return;
             }
