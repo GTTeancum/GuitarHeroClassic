@@ -198,6 +198,13 @@ D3DCOLOR d3d_color_from_rgba(const std::array<float, 4>& color) {
                        color_channel(color[2]));
 }
 
+std::array<float, 3> authored_light_direction_from_world(
+    const std::array<float, 16>& light_world) {
+  // RndLight aim follows the Trans -Z axis. The RedOctane band/drummer lights
+  // are directional and their -Z rows consistently point down toward the band.
+  return {-light_world[8], -light_world[9], -light_world[10]};
+}
+
 void install_scene_fill_lighting(IDirect3DDevice9* dev) {
   if (!dev) return;
   dev->SetRenderState(D3DRS_LIGHTING, TRUE);
@@ -2347,9 +2354,10 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
     dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
     dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
     if (light_type == 1) {
-      const float dx = light_world[4];
-      const float dy = light_world[5];
-      const float dz = light_world[6];
+      const auto direction = authored_light_direction_from_world(light_world);
+      const float dx = direction[0];
+      const float dy = direction[1];
+      const float dz = direction[2];
       const float len = vec_len3(dx, dy, dz);
       if (len <= 0.0001f) continue;
       dl.Type = D3DLIGHT_DIRECTIONAL;
@@ -2994,9 +3002,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
       dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
       if (light_type == 1) {
-        float dx = light_world[4];
-        float dy = light_world[5];
-        float dz = light_world[6];
+        const auto direction = authored_light_direction_from_world(light_world);
+        float dx = direction[0];
+        float dy = direction[1];
+        float dz = direction[2];
         const float len = vec_len3(dx, dy, dz);
         if (len <= 0.0001f) continue;
         dl.Type = D3DLIGHT_DIRECTIONAL;

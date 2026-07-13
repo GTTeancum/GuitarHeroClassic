@@ -6785,7 +6785,14 @@ int main() {
                  "constautolight_world=sampled_light_world(*light,ref);",
                  "authored Environ lights consume sampled .lit transforms");
   ok &= contains(renderer_c,
-                 "floatdx=light_world[4];",
+                 "std::array<float,3>authored_light_direction_from_world(",
+                 "renderer centralizes authored directional .lit aim");
+  ok &= contains(renderer_c,
+                 "return{-light_world[8],-light_world[9],-light_world[10]};",
+                 "directional .lit aim uses the authored Trans -Z axis");
+  ok &= contains(renderer_c,
+                 "constautodirection=authored_light_direction_from_world("
+                 "light_world);",
                  "directional .lit TransAnim updates authored light direction");
   ok &= contains(renderer_c,
                  "dl.Position={light_world[12],light_world[13],light_world[14]};",
