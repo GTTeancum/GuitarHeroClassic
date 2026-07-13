@@ -1182,6 +1182,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_milo_editor_rndmesh_group_sizes_io_plan` records those gates and
     the GH2 rev28 counted-byte path without promoting the TODO branch into a
     decoded native patch stream.
+  - After bone-transform rows and before late tail booleans, MiloEditor
+    `RndMesh.Read` exposes three no-op TODO/comment gaps: `altRevision > 5`
+    striper stuff, `revision != 0 && revision < 4` legacy unsigned-short
+    vector rows, and a commented revision-0 block. The checked writer has no
+    matching striper, legacy-usvec, or revision-0 write blocks in this tail.
+    Native `source_milo_editor_rndmesh_unsupported_tail_plan` records these as
+    source gaps that consume no bytes in the visible code; native must not
+    fabricate striper, patch, or legacy mesh payload parsing from these TODOs.
   - MiloEditor `RndMesh.GroupSection` rows serialize a section count, a vertex
     offset count, all signed section IDs, then all unsigned vertex offsets. The
     writer uses the same last-gen gate as the reader, additionally requiring a

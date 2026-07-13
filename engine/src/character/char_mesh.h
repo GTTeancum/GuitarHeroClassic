@@ -444,6 +444,26 @@ source_milo_editor_rndmesh_group_sizes_io_plan(
     int32_t mesh_revision,
     int32_t group_sizes_count);
 
+struct SourceMiloEditorRndMeshUnsupportedTailPlan {
+  int32_t mesh_revision = 0;
+  int32_t alt_revision = 0;
+  bool read_alt_revision_striper_todo = false;
+  bool read_legacy_usvec_todo = false;
+  bool read_revision_zero_comment_todo = false;
+  bool read_todo_blocks_consume_no_bytes = true;
+  bool read_todos_before_tail_flags = true;
+  bool write_has_no_alt_revision_striper_todo = true;
+  bool write_has_no_legacy_usvec_todo = true;
+  bool write_has_no_revision_zero_todo = true;
+  int32_t read_todo_block_count = 0;
+  bool gh2_rev28_has_no_unsupported_tail = false;
+};
+
+SourceMiloEditorRndMeshUnsupportedTailPlan
+source_milo_editor_rndmesh_unsupported_tail_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision);
+
 struct SourceMiloEditorRndMeshTailFlagsIoPlan {
   int32_t mesh_revision = 0;
   int32_t alt_revision = 0;

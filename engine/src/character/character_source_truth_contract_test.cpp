@@ -5306,6 +5306,25 @@ int run_contract() {
                  "groupSizes){writer.WriteByte(groupSize);}}",
                  "MiloEditor RndMesh writes legacy groupSizes branches");
   ok &= contains(mesh_cs,
+                 "if(altRevision>5){//todo:striperstuff}",
+                 "MiloEditor RndMesh leaves alt striper tail TODO");
+  ok &= contains(mesh_cs,
+                 "if(revision!=0&&revision<4){//todo//std::vector<std::vector"
+                 "<unsignedshort>>usvec;//bs>>usvec;}",
+                 "MiloEditor RndMesh leaves legacy usvec tail TODO");
+  ok &= contains(mesh_cs,
+                 "if(revision==0){/*boolbd4;intic0,ic4,ic8,icc;bs>>bd4>>"
+                 "ic0>>ic4>>ic8;bs>>icc;*/}",
+                 "MiloEditor RndMesh leaves revision-zero tail TODO");
+  ok &= contains(mesh_cs,
+                 "if(revision==0){/*boolbd4;intic0,ic4,ic8,icc;bs>>bd4>>"
+                 "ic0>>ic4>>ic8;bs>>icc;*/}if(revision>34){keepMeshData=",
+                 "MiloEditor RndMesh TODO tail consumes no visible bytes before flags");
+  ok &= contains(mesh_cs,
+                 "if(revision>34)writer.WriteBoolean(keepMeshData);if("
+                 "revision>0x25)writer.WriteBoolean(hasAOCalculation);",
+                 "MiloEditor RndMesh writer tail has no matching TODO blocks");
+  ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("
                  "EndianReaderreader,uintmeshRevision){uintsectionCount="
@@ -6239,6 +6258,10 @@ int run_contract() {
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh groupSizes IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshUnsupportedTailPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh unsupported tail plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshTailFlagsIoPlan{"
                  "int32_tmesh_revision=0;",
                  "native declares MiloEditor RndMesh tail flags IO plan");
@@ -6655,6 +6678,21 @@ int run_contract() {
       "SourceMiloEditorRndMeshGroupSizesIoPlansource_milo_editor_rndmesh_"
       "group_sizes_io_plan(",
       "native ports MiloEditor RndMesh groupSizes IO helper");
+  ok &= contains(
+      char_mesh,
+      "SourceMiloEditorRndMeshUnsupportedTailPlansource_milo_editor_rndmesh_"
+      "unsupported_tail_plan(",
+      "native ports MiloEditor RndMesh unsupported tail helper");
+  ok &= contains(char_mesh,
+                 "plan.read_alt_revision_striper_todo=alt_revision>5;",
+                 "native unsupported tail helper mirrors alt striper TODO gate");
+  ok &= contains(char_mesh,
+                 "plan.read_legacy_usvec_todo=mesh_revision!=0&&mesh_revision<4;",
+                 "native unsupported tail helper mirrors legacy usvec TODO gate");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_has_no_unsupported_tail=mesh_revision==28&&"
+                 "alt_revision==0&&",
+                 "native unsupported tail helper pins GH2 absent TODO tail");
   ok &= contains(
       char_mesh,
       "SourceMiloEditorRndMeshTailFlagsIoPlansource_milo_editor_rndmesh_"
@@ -7314,6 +7352,15 @@ int run_contract() {
                  "patch_todo_group_sizes_io.leaves_patch_vector_loop_todo",
                  "focused mesh decode test covers groupSizes TODO branch");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_unsupported_tail_plan(",
+                 "focused mesh decode test covers unsupported tail helper");
+  ok &= contains(mesh_decode_test,
+                 "gh2_unsupported_tail.gh2_rev28_has_no_unsupported_tail",
+                 "focused mesh decode test covers GH2 unsupported tail absence");
+  ok &= contains(mesh_decode_test,
+                 "striper_unsupported_tail.read_alt_revision_striper_todo",
+                 "focused mesh decode test covers striper TODO gate");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_tail_flags_io_plan(",
                  "focused mesh decode test covers MiloEditor tail flags IO");
   ok &= contains(mesh_decode_test,
@@ -7626,6 +7673,12 @@ int run_contract() {
                  "document records MiloEditor RndMesh groupSizes IO helper");
   ok &= contains(doc, "explicit source TODO",
                  "document fences groupSizes TODO branch");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_unsupported_tail_plan` records",
+                 "document records MiloEditor unsupported tail helper");
+  ok &= contains(doc,
+                 "source gaps that consume no bytes in the visible code",
+                 "document fences unsupported tail TODOs from fabricated parsing");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_tail_flags_io_plan` records",
                  "document records MiloEditor RndMesh tail flags IO helper");

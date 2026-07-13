@@ -1349,6 +1349,44 @@ int main() {
   CHECK(patch_todo_group_sizes_io.read_group_size_rows == 0);
   CHECK(patch_todo_group_sizes_io.write_group_size_rows == 0);
 
+  const auto gh2_unsupported_tail =
+      ghogx::character::source_milo_editor_rndmesh_unsupported_tail_plan(
+          28, 0);
+  CHECK(!gh2_unsupported_tail.read_alt_revision_striper_todo);
+  CHECK(!gh2_unsupported_tail.read_legacy_usvec_todo);
+  CHECK(!gh2_unsupported_tail.read_revision_zero_comment_todo);
+  CHECK(gh2_unsupported_tail.read_todo_blocks_consume_no_bytes);
+  CHECK(gh2_unsupported_tail.read_todos_before_tail_flags);
+  CHECK(gh2_unsupported_tail.write_has_no_alt_revision_striper_todo);
+  CHECK(gh2_unsupported_tail.write_has_no_legacy_usvec_todo);
+  CHECK(gh2_unsupported_tail.write_has_no_revision_zero_todo);
+  CHECK(gh2_unsupported_tail.read_todo_block_count == 0);
+  CHECK(gh2_unsupported_tail.gh2_rev28_has_no_unsupported_tail);
+
+  const auto striper_unsupported_tail =
+      ghogx::character::source_milo_editor_rndmesh_unsupported_tail_plan(
+          23, 6);
+  CHECK(striper_unsupported_tail.read_alt_revision_striper_todo);
+  CHECK(!striper_unsupported_tail.read_legacy_usvec_todo);
+  CHECK(!striper_unsupported_tail.read_revision_zero_comment_todo);
+  CHECK(striper_unsupported_tail.read_todo_block_count == 1);
+
+  const auto legacy_usvec_unsupported_tail =
+      ghogx::character::source_milo_editor_rndmesh_unsupported_tail_plan(
+          2, 0);
+  CHECK(!legacy_usvec_unsupported_tail.read_alt_revision_striper_todo);
+  CHECK(legacy_usvec_unsupported_tail.read_legacy_usvec_todo);
+  CHECK(!legacy_usvec_unsupported_tail.read_revision_zero_comment_todo);
+  CHECK(legacy_usvec_unsupported_tail.read_todo_block_count == 1);
+
+  const auto rev0_unsupported_tail =
+      ghogx::character::source_milo_editor_rndmesh_unsupported_tail_plan(
+          0, 0);
+  CHECK(!rev0_unsupported_tail.read_alt_revision_striper_todo);
+  CHECK(!rev0_unsupported_tail.read_legacy_usvec_todo);
+  CHECK(rev0_unsupported_tail.read_revision_zero_comment_todo);
+  CHECK(rev0_unsupported_tail.read_todo_block_count == 1);
+
   const auto gh2_tail_flags =
       ghogx::character::source_milo_editor_rndmesh_tail_flags_io_plan(28, 0);
   CHECK(gh2_tail_flags.flags_are_serialized_booleans);

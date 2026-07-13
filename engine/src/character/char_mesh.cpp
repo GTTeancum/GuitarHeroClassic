@@ -764,6 +764,29 @@ source_milo_editor_rndmesh_group_sizes_io_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshUnsupportedTailPlan
+source_milo_editor_rndmesh_unsupported_tail_plan(
+    int32_t mesh_revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndMeshUnsupportedTailPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.alt_revision = alt_revision;
+  plan.read_alt_revision_striper_todo = alt_revision > 5;
+  plan.read_legacy_usvec_todo = mesh_revision != 0 && mesh_revision < 4;
+  plan.read_revision_zero_comment_todo = mesh_revision == 0;
+  plan.read_todo_block_count =
+      (plan.read_alt_revision_striper_todo ? 1 : 0) +
+      (plan.read_legacy_usvec_todo ? 1 : 0) +
+      (plan.read_revision_zero_comment_todo ? 1 : 0);
+  plan.gh2_rev28_has_no_unsupported_tail =
+      mesh_revision == 28 && alt_revision == 0 &&
+      plan.read_todo_block_count == 0 &&
+      plan.write_has_no_alt_revision_striper_todo &&
+      plan.write_has_no_legacy_usvec_todo &&
+      plan.write_has_no_revision_zero_todo;
+  return plan;
+}
+
 SourceMiloEditorRndMeshTailFlagsIoPlan
 source_milo_editor_rndmesh_tail_flags_io_plan(
     int32_t mesh_revision,
