@@ -75,6 +75,13 @@ Open work:
   warning and no shot change if no candidate survives. The previous native
   mode/state relaxation was removed because it selected cameras the source
   scripts did not request.
+- 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
+  drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
+  `camera_bars_left <= 0`; it does not retry every frame just because
+  `world current_shot` is empty. Native no longer treats an empty
+  `active_regular_camera_` as a per-frame pick trigger. After a source-shaped
+  no-acceptable-shot result, the selected bar duration is honored before the
+  next pick attempt.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that

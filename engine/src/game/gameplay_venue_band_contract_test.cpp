@@ -10556,6 +10556,12 @@ int main() {
                  "if(!selected){camera_source_no_acceptable_shot(",
                  "camera selection does not invent a fallback shot after source pick_shot fails");
   ok &= contains(gameplay_c,
+                 "if(force_camera||camera_bars_left_<=0){",
+                 "regular camera selection follows source camera_bars_left cadence");
+  ok &= absent(gameplay_c,
+               "camera_bars_left_<=0||active_regular_camera_.empty()",
+               "regular camera selection must not retry every frame after a failed source pick");
+  ok &= contains(gameplay_c,
                  "choose_regular_camera_key_index_by_category(",
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");
   ok &= contains(gameplay_c,

@@ -30317,8 +30317,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            if (force_camera || camera_bars_left_ <= 0 ||
-                active_regular_camera_.empty()) {
+            if (force_camera || camera_bars_left_ <= 0) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);
