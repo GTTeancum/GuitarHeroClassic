@@ -4161,15 +4161,22 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_clip_driver_runtime_dump_evidence` records the exact
     RB2 dump ranges and local inventories currently available for the missing
     runtime bodies: copy constructor `0x8032D060 -> 0x8032D168`,
+    destructor `0x8032D168 -> 0x8032D1E8`, `Exit`
+    `0x8032D1E8 -> 0x8032D28C`, `DeleteStack`
+    `0x8032D28C -> 0x8032D2D4`, `DeleteClip`
+    `0x8032D2D4 -> 0x8032D33C`,
     `Evaluate` `0x8032D33C -> 0x8032DA1C`, `ScaleAdd`
     `0x8032DA1C -> 0x8032DB3C`, `RotateTo`
     `0x8032DB3C -> 0x8032DC90`, `AlignToFrame`
     `0x8032DC90 -> 0x8032DDD0`, and `PlayEvents`
-    `0x8032DDD0 -> 0x8032DFB4`. The helper also records the visible locals
+    `0x8032DDD0 -> 0x8032DFB4`, plus `ExecuteEvent`
+    `0x8032DFB4 -> 0x8032E290`. The helper also records the visible locals
     (`nextWeight`, `rt`, `ut`, `rampDelta`, `oldFrame`, `delta`, `dfrac`,
-    `length`, `w`, plus the smaller function-specific locals) and keeps
-    `safe_to_import_runtime=false` because this is still a range/local map, not
-    a statement body.
+    `length`, `w`, plus the smaller function-specific locals) and the visible
+    references (`TheDebug`, `kAssertStr`, `exit`, `enter`, `instant`, `dude`,
+    `Message`, `gNullStr`, and the `ObjOwnerPtr<CharClip,ObjectDir>` vtable).
+    It keeps `safe_to_import_runtime=false` because this is still a
+    range/local/reference map, not a statement body.
 - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
   entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
   `CharClipDriver`, and `CharDriver`. These files are useful source-backed

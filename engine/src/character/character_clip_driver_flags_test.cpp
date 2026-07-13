@@ -1087,20 +1087,52 @@ bool expect_clip_driver_helpers() {
   const ghogx::character::SourceCharClipDriverRuntimeDumpEvidence dump =
       ghogx::character::source_char_clip_driver_runtime_dump_evidence();
   if (dump.copy_ctor_range != "0x8032D060 -> 0x8032D168" ||
+      dump.destructor_range != "0x8032D168 -> 0x8032D1E8" ||
+      dump.exit_range != "0x8032D1E8 -> 0x8032D28C" ||
+      dump.delete_stack_range != "0x8032D28C -> 0x8032D2D4" ||
+      dump.delete_clip_range != "0x8032D2D4 -> 0x8032D33C" ||
       dump.evaluate_range != "0x8032D33C -> 0x8032DA1C" ||
       dump.scale_add_range != "0x8032DA1C -> 0x8032DB3C" ||
       dump.rotate_to_range != "0x8032DB3C -> 0x8032DC90" ||
       dump.align_to_frame_range != "0x8032DC90 -> 0x8032DDD0" ||
       dump.play_events_range != "0x8032DDD0 -> 0x8032DFB4" ||
+      dump.execute_event_range != "0x8032DFB4 -> 0x8032E290" ||
+      dump.copy_ctor_references != std::vector<std::string>(
+          {"__vt__33ObjOwnerPtr<8CharClip,9ObjectDir>"}) ||
+      dump.destructor_references != std::vector<std::string>(
+          {"__vt__33ObjOwnerPtr<8CharClip,9ObjectDir>"}) ||
+      dump.exit_locals !=
+          std::vector<std::string>({"CharClipDriver* next r31"}) ||
+      dump.exit_references !=
+          std::vector<std::string>({"static Symbol exit"}) ||
       dump.evaluate_locals !=
           std::vector<std::string>({"nextWeight", "rt", "ut", "rampDelta",
                                     "oldFrame", "delta", "dfrac", "length",
                                     "w"}) ||
+      dump.evaluate_references !=
+          std::vector<std::string>({"Debug TheDebug",
+                                    "const char * kAssertStr"}) ||
       dump.scale_add_locals != std::vector<std::string>({"w"}) ||
+      dump.scale_add_references !=
+          std::vector<std::string>({"Debug TheDebug",
+                                    "const char * kAssertStr"}) ||
       dump.rotate_to_locals != std::vector<std::string>({"w"}) ||
+      dump.rotate_to_references !=
+          std::vector<std::string>({"Debug TheDebug",
+                                    "const char * kAssertStr"}) ||
       dump.align_to_frame_locals !=
           std::vector<std::string>({"alignBeat", "delta"}) ||
+      dump.align_to_frame_references !=
+          std::vector<std::string>({"Debug TheDebug",
+                                    "const char * kAssertStr"}) ||
       dump.play_events_locals != std::vector<std::string>({"frame"}) ||
+      dump.play_events_references != std::vector<std::string>(
+          {"Debug TheDebug", "const char * kAssertStr",
+           "static DataNode& instant", "static Symbol enter"}) ||
+      dump.execute_event_references != std::vector<std::string>(
+          {"static Message h", "__vt__7Message", "static DataNode& dude",
+           "Debug TheDebug", "const char * kAssertStr",
+           "const char * gNullStr"}) ||
       dump.has_evaluate_statement_body || dump.has_scale_add_statement_body ||
       dump.has_rotate_to_statement_body || dump.safe_to_import_runtime) {
     std::cerr << "clip-driver RB2 runtime dump evidence mismatch\n";

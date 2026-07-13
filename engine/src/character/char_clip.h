@@ -1067,16 +1067,31 @@ struct SourceCharClipDriverDeleteClipResult {
 
 struct SourceCharClipDriverRuntimeDumpEvidence {
   std::string copy_ctor_range;
+  std::string destructor_range;
+  std::string exit_range;
+  std::string delete_stack_range;
+  std::string delete_clip_range;
   std::string evaluate_range;
   std::string scale_add_range;
   std::string rotate_to_range;
   std::string align_to_frame_range;
   std::string play_events_range;
+  std::string execute_event_range;
+  std::vector<std::string> copy_ctor_references;
+  std::vector<std::string> destructor_references;
+  std::vector<std::string> exit_locals;
+  std::vector<std::string> exit_references;
   std::vector<std::string> evaluate_locals;
+  std::vector<std::string> evaluate_references;
   std::vector<std::string> scale_add_locals;
+  std::vector<std::string> scale_add_references;
   std::vector<std::string> rotate_to_locals;
+  std::vector<std::string> rotate_to_references;
   std::vector<std::string> align_to_frame_locals;
+  std::vector<std::string> align_to_frame_references;
   std::vector<std::string> play_events_locals;
+  std::vector<std::string> play_events_references;
+  std::vector<std::string> execute_event_references;
   bool has_evaluate_statement_body = false;
   bool has_scale_add_statement_body = false;
   bool has_rotate_to_statement_body = false;

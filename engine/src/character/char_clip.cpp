@@ -3665,18 +3665,44 @@ SourceCharClipDriverRuntimeDumpEvidence
 source_char_clip_driver_runtime_dump_evidence() {
   SourceCharClipDriverRuntimeDumpEvidence evidence;
   evidence.copy_ctor_range = "0x8032D060 -> 0x8032D168";
+  evidence.destructor_range = "0x8032D168 -> 0x8032D1E8";
+  evidence.exit_range = "0x8032D1E8 -> 0x8032D28C";
+  evidence.delete_stack_range = "0x8032D28C -> 0x8032D2D4";
+  evidence.delete_clip_range = "0x8032D2D4 -> 0x8032D33C";
   evidence.evaluate_range = "0x8032D33C -> 0x8032DA1C";
   evidence.scale_add_range = "0x8032DA1C -> 0x8032DB3C";
   evidence.rotate_to_range = "0x8032DB3C -> 0x8032DC90";
   evidence.align_to_frame_range = "0x8032DC90 -> 0x8032DDD0";
   evidence.play_events_range = "0x8032DDD0 -> 0x8032DFB4";
+  evidence.execute_event_range = "0x8032DFB4 -> 0x8032E290";
+  evidence.copy_ctor_references = {
+      "__vt__33ObjOwnerPtr<8CharClip,9ObjectDir>"};
+  evidence.destructor_references = {
+      "__vt__33ObjOwnerPtr<8CharClip,9ObjectDir>"};
+  evidence.exit_locals = {"CharClipDriver* next r31"};
+  evidence.exit_references = {"static Symbol exit"};
   evidence.evaluate_locals = {"nextWeight", "rt",       "ut",
                               "rampDelta",  "oldFrame", "delta",
                               "dfrac",      "length",   "w"};
+  evidence.evaluate_references = {"Debug TheDebug", "const char * kAssertStr"};
   evidence.scale_add_locals = {"w"};
+  evidence.scale_add_references = {"Debug TheDebug", "const char * kAssertStr"};
   evidence.rotate_to_locals = {"w"};
+  evidence.rotate_to_references = {"Debug TheDebug", "const char * kAssertStr"};
   evidence.align_to_frame_locals = {"alignBeat", "delta"};
+  evidence.align_to_frame_references = {"Debug TheDebug",
+                                        "const char * kAssertStr"};
   evidence.play_events_locals = {"frame"};
+  evidence.play_events_references = {"Debug TheDebug",
+                                     "const char * kAssertStr",
+                                     "static DataNode& instant",
+                                     "static Symbol enter"};
+  evidence.execute_event_references = {"static Message h",
+                                       "__vt__7Message",
+                                       "static DataNode& dude",
+                                       "Debug TheDebug",
+                                       "const char * kAssertStr",
+                                       "const char * gNullStr"};
   return evidence;
 }
 

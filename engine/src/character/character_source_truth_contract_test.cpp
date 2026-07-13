@@ -20628,8 +20628,7 @@ int run_contract() {
                  "`Evaluate` `0x8032D33C -> 0x8032DA1C`, `ScaleAdd`",
                  "document records CharClipDriver Evaluate and ScaleAdd ranges");
   ok &= contains(doc,
-                 "`safe_to_import_runtime=false` because this is still a "
-                 "range/local map",
+                 "range/local/reference map, not a statement body",
                  "document fences CharClipDriver runtime dump import");
   ok &= contains(doc,
                  "`CharClipDriver.h` declares the copy constructor and "
@@ -23968,9 +23967,16 @@ int run_contract() {
                  "native character API exposes source CharClipDriver Exit decision");
   ok &= contains(char_clip_h,
                  "structSourceCharClipDriverRuntimeDumpEvidence{"
-                 "std::stringcopy_ctor_range;std::stringevaluate_range;"
-                 "std::stringscale_add_range;std::stringrotate_to_range;",
+                 "std::stringcopy_ctor_range;std::stringdestructor_range;"
+                 "std::stringexit_range;std::stringdelete_stack_range;"
+                 "std::stringdelete_clip_range;std::stringevaluate_range;",
                  "native character API exposes CharClipDriver runtime dump ranges");
+  ok &= contains(char_clip_h,
+                 "std::stringexecute_event_range;"
+                 "std::vector<std::string>copy_ctor_references;"
+                 "std::vector<std::string>destructor_references;"
+                 "std::vector<std::string>exit_locals;",
+                 "native character API exposes CharClipDriver runtime dump references");
   ok &= contains(char_clip_h,
                  "boolhas_evaluate_statement_body=false;"
                  "boolhas_scale_add_statement_body=false;"
@@ -24372,10 +24378,44 @@ int run_contract() {
                  "evidence.rotate_to_range=\"0x8032DB3C->0x8032DC90\";",
                  "native CharClipDriver runtime dump helper records core ranges");
   ok &= contains(char_clip,
+                 "evidence.destructor_range=\"0x8032D168->0x8032D1E8\";"
+                 "evidence.exit_range=\"0x8032D1E8->0x8032D28C\";"
+                 "evidence.delete_stack_range=\"0x8032D28C->0x8032D2D4\";"
+                 "evidence.delete_clip_range=\"0x8032D2D4->0x8032D33C\";",
+                 "native CharClipDriver runtime dump helper records stack ranges");
+  ok &= contains(char_clip,
+                 "evidence.execute_event_range=\"0x8032DFB4->0x8032E290\";",
+                 "native CharClipDriver runtime dump helper records ExecuteEvent range");
+  ok &= contains(char_clip,
+                 "evidence.copy_ctor_references={"
+                 "\"__vt__33ObjOwnerPtr<8CharClip,9ObjectDir>\"};"
+                 "evidence.destructor_references={"
+                 "\"__vt__33ObjOwnerPtr<8CharClip,9ObjectDir>\"};",
+                 "native CharClipDriver runtime dump helper records vtable references");
+  ok &= contains(char_clip,
                  "evidence.evaluate_locals={\"nextWeight\",\"rt\",\"ut\","
                  "\"rampDelta\",\"oldFrame\",\"delta\",\"dfrac\",\"length\","
                  "\"w\"};",
                  "native CharClipDriver runtime dump helper records Evaluate locals");
+  ok &= contains(char_clip,
+                 "evidence.exit_locals={\"CharClipDriver*nextr31\"};"
+                 "evidence.exit_references={\"staticSymbolexit\"};",
+                 "native CharClipDriver runtime dump helper records Exit evidence");
+  ok &= contains(char_clip,
+                 "evidence.evaluate_references={\"DebugTheDebug\","
+                 "\"constchar*kAssertStr\"};",
+                 "native CharClipDriver runtime dump helper records Evaluate references");
+  ok &= contains(char_clip,
+                 "evidence.play_events_references={\"DebugTheDebug\","
+                 "\"constchar*kAssertStr\",\"staticDataNode&instant\","
+                 "\"staticSymbolenter\"};",
+                 "native CharClipDriver runtime dump helper records PlayEvents references");
+  ok &= contains(char_clip,
+                 "evidence.execute_event_references={\"staticMessageh\","
+                 "\"__vt__7Message\",\"staticDataNode&dude\","
+                 "\"DebugTheDebug\",\"constchar*kAssertStr\","
+                 "\"constchar*gNullStr\"};",
+                 "native CharClipDriver runtime dump helper records ExecuteEvent references");
   ok &= contains(char_clip,
                  "constchar*source_char_clip_beat_align_string(uint32_tmask){"
                  "switch(mask&0xF600u){casekCharPlayRealTime:return"
