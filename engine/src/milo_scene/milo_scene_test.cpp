@@ -1278,6 +1278,36 @@ void test_mat() {
   CHECK(set_color.writes_member);
   CHECK(set_color.writes_rgb_only);
   CHECK(set_color.dirty_or_mask == 1);
+  const SourceRndMatColorModPlan color_mod_valid =
+      source_rndmat_set_color_mod_plan(2);
+  CHECK(!color_mod_valid.assertion_would_fail);
+  CHECK(color_mod_valid.writes_color_mod);
+  CHECK(color_mod_valid.dirty_or_mask == 2);
+  const SourceRndMatColorModPlan color_mod_invalid =
+      source_rndmat_set_color_mod_plan(3);
+  CHECK(color_mod_invalid.assertion_would_fail);
+  CHECK(!color_mod_invalid.writes_color_mod);
+  const SourceRndMatRefractEnabledPlan refract_forced =
+      source_rndmat_get_refract_enabled_plan(true, 0.5f, true, true, false);
+  CHECK(refract_forced.base_gate);
+  CHECK(refract_forced.frame_gate);
+  CHECK(refract_forced.result);
+  const SourceRndMatRefractEnabledPlan refract_frame =
+      source_rndmat_get_refract_enabled_plan(true, 0.5f, true, false, true);
+  CHECK(refract_frame.result);
+  const SourceRndMatRefractEnabledPlan refract_no_frame =
+      source_rndmat_get_refract_enabled_plan(true, 0.5f, true, false, false);
+  CHECK(refract_no_frame.base_gate);
+  CHECK(!refract_no_frame.frame_gate);
+  CHECK(!refract_no_frame.result);
+  const SourceRndMatRefractEnabledPlan refract_no_map =
+      source_rndmat_get_refract_enabled_plan(true, 0.5f, false, true, true);
+  CHECK(!refract_no_map.base_gate);
+  CHECK(!refract_no_map.result);
+  const SourceRndMatRefractAccessorPlan refract_accessors =
+      source_rndmat_refract_accessor_plan();
+  CHECK(refract_accessors.returns_normal_map);
+  CHECK(refract_accessors.returns_strength);
   std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),

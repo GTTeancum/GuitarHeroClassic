@@ -1695,6 +1695,29 @@ struct SourceRndMatSetterPlan {
   int32_t dirty_or_mask = 0;
 };
 
+struct SourceRndMatColorModPlan {
+  int32_t index = 0;
+  bool assertion_would_fail = false;
+  bool writes_color_mod = false;
+  int32_t dirty_or_mask = 0;
+};
+
+struct SourceRndMatRefractEnabledPlan {
+  bool refract_enabled = false;
+  float refract_strength = 0.0f;
+  bool has_refract_normal_map = false;
+  bool allow_without_current_frame_tex = false;
+  bool has_current_frame_tex = false;
+  bool base_gate = false;
+  bool frame_gate = false;
+  bool result = false;
+};
+
+struct SourceRndMatRefractAccessorPlan {
+  bool returns_normal_map = true;
+  bool returns_strength = true;
+};
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
@@ -1703,6 +1726,14 @@ SourceMatPerfSettingsLoadPlan source_mat_perf_settings_load_plan(
     int32_t revision);
 SourceRndMatAccessorResult source_rndmat_accessors(const MatObj& mat);
 SourceRndMatSetterPlan source_rndmat_setter_plan(const std::string& setter);
+SourceRndMatColorModPlan source_rndmat_set_color_mod_plan(int32_t index);
+SourceRndMatRefractEnabledPlan source_rndmat_get_refract_enabled_plan(
+    bool refract_enabled,
+    float refract_strength,
+    bool has_refract_normal_map,
+    bool allow_without_current_frame_tex,
+    bool has_current_frame_tex);
+SourceRndMatRefractAccessorPlan source_rndmat_refract_accessor_plan();
 
 struct Vertex {
   float px, py, pz;          // position

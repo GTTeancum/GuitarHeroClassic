@@ -2311,6 +2311,40 @@ SourceRndMatSetterPlan source_rndmat_setter_plan(
   return plan;
 }
 
+SourceRndMatColorModPlan source_rndmat_set_color_mod_plan(int32_t index) {
+  SourceRndMatColorModPlan plan;
+  plan.index = index;
+  plan.assertion_would_fail = index < 0 || index >= 3;
+  if (!plan.assertion_would_fail) {
+    plan.writes_color_mod = true;
+    plan.dirty_or_mask = 2;
+  }
+  return plan;
+}
+
+SourceRndMatRefractEnabledPlan source_rndmat_get_refract_enabled_plan(
+    bool refract_enabled,
+    float refract_strength,
+    bool has_refract_normal_map,
+    bool allow_without_current_frame_tex,
+    bool has_current_frame_tex) {
+  SourceRndMatRefractEnabledPlan plan;
+  plan.refract_enabled = refract_enabled;
+  plan.refract_strength = refract_strength;
+  plan.has_refract_normal_map = has_refract_normal_map;
+  plan.allow_without_current_frame_tex = allow_without_current_frame_tex;
+  plan.has_current_frame_tex = has_current_frame_tex;
+  plan.base_gate =
+      refract_enabled && refract_strength > 0.0f && has_refract_normal_map;
+  plan.frame_gate = allow_without_current_frame_tex || has_current_frame_tex;
+  plan.result = plan.base_gate && plan.frame_gate;
+  return plan;
+}
+
+SourceRndMatRefractAccessorPlan source_rndmat_refract_accessor_plan() {
+  return SourceRndMatRefractAccessorPlan{};
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

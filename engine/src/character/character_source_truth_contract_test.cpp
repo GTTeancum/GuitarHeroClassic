@@ -1586,6 +1586,21 @@ int run_contract() {
                  "The source setters directly write members; they do not encode "
                  "hair/string",
                  "document fences RndMat setters from name-based fixes");
+  ok &= contains(doc,
+                 "Shared native `source_rndmat_set_color_mod_plan`,",
+                 "document records RndMat ColorMod helper");
+  ok &= contains(doc,
+                 "`SetColorMod` asserts an index in `0..2`, writes that "
+                 "color-mod row",
+                 "document records RndMat ColorMod source behavior");
+  ok &= contains(doc,
+                 "`GetRefractEnabled` only returns true\n"
+                 "    when refract is enabled",
+                 "document records RndMat refract gate");
+  ok &= contains(doc,
+                 "These helpers do not create character, hair,\n"
+                 "    or texture-name render overrides",
+                 "document fences RndMat refract helpers from render overrides");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
@@ -3747,6 +3762,21 @@ int run_contract() {
   ok &= contains(rb3_mat_h,
                  "voidSetPointLights(boollit){mPointLights=lit;}",
                  "RB3 RndMat source SetPointLights no dirty write");
+  ok &= contains(rb3_mat_cpp,
+                 "voidRndMat::SetColorMod(constHmx::Color&col,intindex){"
+                 "MILO_ASSERT(index>=0&&index<kColorModNum,0x2D4);"
+                 "mColorMod[index]=col;mDirty|=2;}",
+                 "RB3 RndMat SetColorMod writes row and dirty bit");
+  ok &= contains(rb3_mat_cpp,
+                 "boolRndMat::GetRefractEnabled(boolb){boolret=false;"
+                 "if(mRefractEnabled==1&&mRefractStrength>0.0f&&"
+                 "mRefractNormalMap){if(b||TheRnd->GetCurrentFrameTex(false)){"
+                 "ret=true;}}returnret;}",
+                 "RB3 RndMat GetRefractEnabled source gate");
+  ok &= contains(rb3_mat_cpp,
+                 "RndTex*RndMat::GetRefractNormalMap(){returnmRefractNormalMap;}"
+                 "floatRndMat::GetRefractStrength(){returnmRefractStrength;}",
+                 "RB3 RndMat refract accessors return direct members");
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
@@ -3773,6 +3803,27 @@ int run_contract() {
                  "structSourceRndMatSetterPlan{std::stringsetter;"
                  "boolwrites_member=false;",
                  "shared milo_scene exposes source RndMat setter plan");
+  ok &= contains(scene_h,
+                 "structSourceRndMatColorModPlan{int32_tindex=0;"
+                 "boolassertion_would_fail=false;"
+                 "boolwrites_color_mod=false;int32_tdirty_or_mask=0;};",
+                 "shared milo_scene exposes RndMat ColorMod plan");
+  ok &= contains(scene_h,
+                 "structSourceRndMatRefractEnabledPlan{boolrefract_enabled=false;"
+                 "floatrefract_strength=0.0f;boolhas_refract_normal_map=false;",
+                 "shared milo_scene exposes RndMat refract gate plan");
+  ok &= contains(scene_h,
+                 "SourceRndMatColorModPlansource_rndmat_set_color_mod_plan("
+                 "int32_tindex);",
+                 "shared milo_scene exposes RndMat ColorMod helper");
+  ok &= contains(scene_h,
+                 "SourceRndMatRefractEnabledPlan"
+                 "source_rndmat_get_refract_enabled_plan(",
+                 "shared milo_scene exposes RndMat refract helper");
+  ok &= contains(scene_h,
+                 "SourceRndMatRefractAccessorPlan"
+                 "source_rndmat_refract_accessor_plan();",
+                 "shared milo_scene exposes RndMat refract accessor helper");
   ok &= contains(scene_h,
                  "std::stringnext_pass;boolintensify=false;"
                  "floatemissive_multiplier=1.0f;",
@@ -3844,6 +3895,32 @@ int run_contract() {
                  "\"SetPointLights\"){plan.writes_member=true;}",
                  "shared RndMat setter helper mirrors no-dirty setters");
   ok &= contains(scene,
+                 "SourceRndMatColorModPlansource_rndmat_set_color_mod_plan("
+                 "int32_tindex){SourceRndMatColorModPlanplan;plan.index=index;",
+                 "shared milo_scene implements RndMat ColorMod helper");
+  ok &= contains(scene,
+                 "plan.assertion_would_fail=index<0||index>=3;"
+                 "if(!plan.assertion_would_fail){plan.writes_color_mod=true;"
+                 "plan.dirty_or_mask=2;}returnplan;}",
+                 "shared RndMat ColorMod helper mirrors index assert and dirty bit");
+  ok &= contains(scene,
+                 "SourceRndMatRefractEnabledPlansource_rndmat_get_refract_enabled_plan(",
+                 "shared milo_scene implements RndMat refract gate helper");
+  ok &= contains(scene,
+                 "plan.base_gate=refract_enabled&&refract_strength>0.0f&&"
+                 "has_refract_normal_map;",
+                 "shared RndMat refract helper mirrors base gate");
+  ok &= contains(scene,
+                 "plan.frame_gate=allow_without_current_frame_tex||"
+                 "has_current_frame_tex;plan.result=plan.base_gate&&"
+                 "plan.frame_gate;",
+                 "shared RndMat refract helper mirrors frame gate");
+  ok &= contains(scene,
+                 "SourceRndMatRefractAccessorPlan"
+                 "source_rndmat_refract_accessor_plan(){"
+                 "returnSourceRndMatRefractAccessorPlan{};}",
+                 "shared RndMat refract accessor helper returns source plan");
+  ok &= contains(scene,
                  "plan.reads_alpha_threshold=revision>0x25;",
                  "shared RndMat load plan mirrors alpha-threshold gate");
   ok &= contains(scene,
@@ -3889,6 +3966,21 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndmat_setter_plan(\"SetAlphaThreshold\")",
                  "milo_scene test covers RndMat no-dirty setter");
+  ok &= contains(scene_test,
+                 "source_rndmat_set_color_mod_plan(2)",
+                 "milo_scene test covers RndMat ColorMod valid index");
+  ok &= contains(scene_test,
+                 "source_rndmat_set_color_mod_plan(3)",
+                 "milo_scene test covers RndMat ColorMod invalid index");
+  ok &= contains(scene_test,
+                 "source_rndmat_get_refract_enabled_plan(true,0.5f,true,true,false)",
+                 "milo_scene test covers forced refract gate");
+  ok &= contains(scene_test,
+                 "source_rndmat_get_refract_enabled_plan(true,0.5f,true,false,false)",
+                 "milo_scene test covers missing frame refract gate");
+  ok &= contains(scene_test,
+                 "source_rndmat_refract_accessor_plan()",
+                 "milo_scene test covers RndMat refract accessors");
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");

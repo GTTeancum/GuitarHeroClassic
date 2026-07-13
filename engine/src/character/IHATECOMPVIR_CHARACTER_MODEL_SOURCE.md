@@ -1523,6 +1523,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `0x12`; `MatPerfSettings` starts with all three flags false; `Load` reads
     projected lights and PS3 trilinear flags first, then reads point-cube
     texture only when `RndMat::gRev > 0x41`.
+  - Shared native `source_rndmat_set_color_mod_plan`,
+    `source_rndmat_get_refract_enabled_plan`, and
+    `source_rndmat_refract_accessor_plan` record the checked material helpers:
+    `SetColorMod` asserts an index in `0..2`, writes that color-mod row, and
+    dirties render state with bit `2`; `GetRefractEnabled` only returns true
+    when refract is enabled, strength is positive, a normal map exists, and
+    either the caller bypasses the current-frame texture check or the renderer
+    has a current frame texture. These helpers do not create character, hair,
+    or texture-name render overrides.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
   - The source setters directly write members; they do not encode hair/string
