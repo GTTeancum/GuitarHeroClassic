@@ -58,9 +58,9 @@ source files that make up the character-model assembly boundary:
 `MeshDeform.h`, `MultiMesh.cpp`, `MultiMesh.h`, `MultiMeshProxy.cpp`,
 `MultiMeshProxy.h`, `Poll.cpp`, `Poll.h`, `PollAnim.cpp`, `PollAnim.h`,
 `Trans.cpp`, `Trans.h`, `TransAnim.cpp`, `TransAnim.h`, `TransProxy.cpp`,
-`TransProxy.h`, and `TransRemover.h`. Listing a file here keeps it inside the
-source-truth map; it is not a claim that every body in that file is promoted to
-native runtime behavior.
+`TransProxy.h`, `TransRemover.h`, `Wind.cpp`, and `Wind.h`. Listing a file
+here keeps it inside the source-truth map; it is not a claim that every body in
+that file is promoted to native runtime behavior.
 
 Copied headers that primarily declare inheritance, fields, constants, or
 missing runtime bodies are accounted for explicitly here: `CharBoneDir.h`,
@@ -177,9 +177,12 @@ identity only. They do not imply native save writers or runtime behavior.
 Core stock character-model row identities now covered from ihatecompvir source:
 `ObjectDir=0x1A2`, `RndDir=0x1C1`, `RndTransformable=586`,
 `RndDrawable=0xAE`, `RndGroup=0x30`, `RndMat=159`, `RndMesh=1135`,
-`RndTex=744`, and `RndLight=0x33`. `RndLight` remains converter/light-source
-context only for this slice because the focused stock character inventory has
-zero live `Light` / `RndLight` rows.
+`RndTex=744`, `RndLight=0x33`, and `RndWind=0x96`. `RndLight` remains
+converter/light-source context only for this slice because the focused stock
+character inventory has zero live `Light` / `RndLight` rows. `RndWind` remains
+CharHair v11 / converter context only for this stock GH2 slice: focused stock
+`CharHair` rows are GH2 revision 2 and do not read `mWind`, and the focused
+base-MILO inventory currently has zero live `Wind` / `RndWind` rows.
 
 The checked character-source batch covered here is:
 `Character=0x495`, `CharBone=0xBF`, `CharBoneOffset=0x5E`,
@@ -245,6 +248,7 @@ character model playback.
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Native records opaque row names, types, sizes, and byte prefixes, but does not decode or run them unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
+| Hair wind dependency | `rb3-latest/src/system/rndobj/Wind.cpp` / `Wind.h`, `CharHair.cpp` `mWind` row | Native helper ports `RndWind` defaults, load/copy/owner/loop-rate rows, handlers, and prop-sync contracts; stock GH2 character `CharHair` revision 2 rows do not read `mWind`, and native does not synthesize wind force without `SelfGetWind` body evidence. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharLookAt` poll gating, `CharEyes` load/copy/state/dependency/handler/property rows, plus `CharInterest` / `CharEyeDartRuleset` data decisions; no synthetic eye runtime bridge. |
 | Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
 | FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
@@ -2136,6 +2140,48 @@ note, and all report `unreadBytes=0`.
     mapped body boundaries and inventories, not permission to infer dependency
     rows, collision hookup, copy-member behavior, or native live writeback
     without a reviewable source body or direct original-game trace.
+- `rb3-latest/src/system/rndobj/Wind.cpp` and
+  `rb3-latest/src/system/rndobj/Wind.h`
+  - `CharHair::Load` only reads `mWind` when `gRev > 10`. Stock GH2 character
+    `CharHair` rows are revision 2 in the focused inventory, so their wind
+    pointer is absent and native must not synthesize a wind object or wind force
+    for those rows.
+  - `RndWind::RndWind` defaults `mPrevailing` and `mRandom` to zero vectors,
+    `mTimeLoop` and `mSpaceLoop` to `100.0f`, owns itself through
+    `mWindOwner(this, this)`, and calls `SyncLoops()`. Native
+    `source_rndwind_default_state` records these constructor rows.
+  - `RndWind::SyncLoops` computes `mTimeRate` and `mSpaceRate` as
+    `1 / loop`, `0.773437 / loop`, and `1.38484 / loop`, with all zeroes when
+    the loop value is `0.0f`. Native `source_rndwind_sync_loops` ports that
+    rate math exactly as a deterministic helper.
+  - `SetDefaults` sets prevailing to zero, random to `(17, 17, 0)`, and both
+    loop values to `100.0f`, but the checked body does not call `SyncLoops`.
+    `Zero` clears only prevailing/random and also does not call `SyncLoops`.
+    Native records this distinction instead of assuming handler rows refresh the
+    rates.
+  - `RndWind::Load` accepts source revisions through 2, reads
+    `Hmx::Object`, prevailing, random, time loop, and space loop, then reads
+    `mWindOwner` and calls `SetWindOwner` only when `gRev > 1`. It always calls
+    `SyncLoops` at the end. Native `source_rndwind_load_plan` records those
+    revision gates and call rows.
+  - `SetWindOwner` assigns the provided wind when present and otherwise falls
+    back to `this`. `Copy` shallow-copies only the owner for shallow copies; for
+    other copy types it resets owner to `this`, copies owner/prevailing/random
+    loops, and calls `SyncLoops`. `Replace` delegates to `Hmx::Object` and only
+    calls `SetWindOwner(dynamic_cast<RndWind*>(to))` when the old owner was
+    replaced. Native exposes those rows through passive owner/copy/replace
+    plans.
+  - `Wind.h` declares `GetWind(float)` and `SelfGetWind(...)`, and the inline
+    vector `GetWind` delegates to `mWindOwner->SelfGetWind(...)`. The checked
+    `Wind.cpp` snapshot does not provide reviewable bodies for `GetWind(float)`
+    or `SelfGetWind`. Native therefore records the dependency boundary and does
+    not generate wind forces for character hair from guessed noise fields.
+  - `BEGIN_HANDLERS(RndWind)` exposes `set_defaults` and `set_zero`, then
+    delegates to `Hmx::Object`. `BEGIN_PROPSYNCS(RndWind)` exposes
+    `prevailing`, `random`, `wind_owner` through `SetWindOwner`, and
+    `time_loop` / `space_loop` through `SyncLoops`. Native helper contracts are
+    deterministic documentation only; they do not add a live `RndWind` object
+    decoder for stock GH2 character rows.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,
@@ -4694,8 +4740,10 @@ this character-model slice, do not count `Cam`, `CamAnim`, `Env`, `EnvAnim`,
 `PartLauncher`, `TexRenderer`, `TexBlendController`, `TexBlender`, `CubeTex`,
 `ColorXfm`, `Line`, `PostProc`, `ScreenMask`, or `SoftParticles` as remaining
 character-model implementation unless a later stock inventory proves such rows
-exist in the character MILOs. This keeps the implementation queue tied to rows
-the GH2 assets actually contain instead of the full RB3 engine source tree.
+exist in the character MILOs. `RndWind` is documented above only because later
+`CharHair` revisions can reference it; the focused stock GH2 rows do not. This
+keeps the implementation queue tied to rows the GH2 assets actually contain
+instead of the full RB3 engine source tree.
 
 Native `OpaqueObjectRow` inventory records any unhandled directory entry after
 the source-backed decoder table declines it. The record is limited to entry

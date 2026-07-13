@@ -2228,6 +2228,104 @@ source_rndmultimesh_proxy_prop_sync_plan() {
   return SourceRndMultiMeshProxyPropSyncPlan{};
 }
 
+SourceRndWindDefaultState source_rndwind_default_state() {
+  return SourceRndWindDefaultState{};
+}
+
+SourceRndWindSetDefaultsPlan source_rndwind_set_defaults_plan() {
+  return SourceRndWindSetDefaultsPlan{};
+}
+
+SourceRndWindZeroPlan source_rndwind_zero_plan() {
+  return SourceRndWindZeroPlan{};
+}
+
+SourceRndWindLoopRatePlan source_rndwind_sync_loops(float time_loop,
+                                                    float space_loop) {
+  SourceRndWindLoopRatePlan plan;
+  plan.time_loop = time_loop;
+  plan.space_loop = space_loop;
+  const float time_rate = time_loop == 0.0f ? 0.0f : 1.0f / time_loop;
+  const float space_rate = space_loop == 0.0f ? 0.0f : 1.0f / space_loop;
+  plan.time_loop_zero = time_loop == 0.0f;
+  plan.space_loop_zero = space_loop == 0.0f;
+  plan.time_rate[0] = time_rate;
+  plan.time_rate[1] = time_rate * 0.773437f;
+  plan.time_rate[2] = time_rate * 1.38484f;
+  plan.space_rate[0] = space_rate;
+  plan.space_rate[1] = space_rate * 0.773437f;
+  plan.space_rate[2] = space_rate * 1.38484f;
+  return plan;
+}
+
+SourceRndWindSavePlan source_rndwind_save_plan() {
+  return SourceRndWindSavePlan{};
+}
+
+SourceRndWindLoadPlan source_rndwind_load_plan(int32_t revision) {
+  SourceRndWindLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 2;
+  plan.reads_wind_owner = revision > 1;
+  plan.calls_set_wind_owner = plan.reads_wind_owner;
+  return plan;
+}
+
+SourceRndWindSetOwnerPlan source_rndwind_set_owner_plan(
+    bool input_owner_present) {
+  SourceRndWindSetOwnerPlan plan;
+  plan.input_owner_present = input_owner_present;
+  plan.assigns_input_owner = input_owner_present;
+  plan.assigns_self = !input_owner_present;
+  return plan;
+}
+
+SourceRndWindCopyPlan source_rndwind_copy_plan(bool copy_shallow) {
+  SourceRndWindCopyPlan plan;
+  plan.copy_shallow = copy_shallow;
+  plan.shallow_copies_wind_owner = copy_shallow;
+  plan.resets_wind_owner_to_self = !copy_shallow;
+  plan.copies_wind_owner = !copy_shallow;
+  plan.copies_prevailing = !copy_shallow;
+  plan.copies_random = !copy_shallow;
+  plan.copies_time_loop = !copy_shallow;
+  plan.copies_space_loop = !copy_shallow;
+  plan.calls_sync_loops = !copy_shallow;
+  return plan;
+}
+
+SourceRndWindReplacePlan source_rndwind_replace_plan(
+    bool wind_owner_matches_from,
+    bool replacement_is_wind) {
+  SourceRndWindReplacePlan plan;
+  plan.wind_owner_matches_from = wind_owner_matches_from;
+  plan.replacement_is_wind = replacement_is_wind;
+  plan.calls_set_wind_owner = wind_owner_matches_from;
+  plan.assigns_replacement_wind =
+      wind_owner_matches_from && replacement_is_wind;
+  plan.assigns_self = wind_owner_matches_from && !replacement_is_wind;
+  return plan;
+}
+
+SourceRndWindRuntimeBoundary source_rndwind_runtime_boundary() {
+  return SourceRndWindRuntimeBoundary{};
+}
+
+SourceRndWindHandlerPlan source_rndwind_handler_plan() {
+  SourceRndWindHandlerPlan plan;
+  plan.actions = {"set_defaults", "set_zero"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndWindPropSyncPlan source_rndwind_prop_sync_plan() {
+  SourceRndWindPropSyncPlan plan;
+  plan.direct_rows = {"prevailing", "random"};
+  plan.set_rows = {"wind_owner"};
+  plan.modify_rows = {"time_loop", "space_loop"};
+  return plan;
+}
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
   SourceRndMatLoadPlan plan;
   plan.revision = revision;

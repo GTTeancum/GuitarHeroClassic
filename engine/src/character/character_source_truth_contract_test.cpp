@@ -377,6 +377,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "MultiMeshProxy.cpp"));
   const std::string rb3_latest_multimesh_proxy_h = compact(read_file(
       rb3_latest_rndobj_dir / "MultiMeshProxy.h"));
+  const std::string rb3_latest_wind_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Wind.cpp"));
+  const std::string rb3_latest_wind_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Wind.h"));
   const std::string rb2_dump_char_hair_cpp = compact(read_file(
       rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb2_combined_dump_cpp = compact(read_file(rb2_dump_cpp));
@@ -756,7 +760,7 @@ int run_contract() {
        "PropKeys.h",
        "Trans.cpp",          "Trans.h",          "TransAnim.cpp",
        "TransAnim.h",        "TransProxy.cpp",   "TransProxy.h",
-       "TransRemover.h"},
+       "TransRemover.h",     "Wind.cpp",         "Wind.h"},
       "source-truth map must cite selected ihatecompvir rndobj character-model sources");
   ok &= contains(doc,
                  "2026-07-12 upstream checks still match the local source "
@@ -871,9 +875,11 @@ int run_contract() {
                  "`RndGroup=0x30`, `RndMat=159`, `RndMesh=1135`,",
                  "document records core stock model SAVE_OBJ ids");
   ok &= contains(doc,
-                 "`RndTex=744`, and `RndLight=0x33`. `RndLight` remains "
-                 "converter/light-source\ncontext only",
-                 "document keeps RndLight save id fenced from live stock rows");
+                 "`RndTex=744`, `RndLight=0x33`, and `RndWind=0x96`",
+                 "document records stock texture/light/wind save row identities");
+  ok &= contains(doc,
+                 "focused stock\n`CharHair` rows are GH2 revision 2 and do not read `mWind`",
+                 "document keeps RndWind fenced from live stock rows");
   ok &= contains(rb3_latest_obj_dir_cpp, "SAVE_OBJ(ObjectDir,0x1A2)",
                  "latest ObjectDir source save id");
   ok &= contains(rb3_latest_rnd_dir_cpp, "SAVE_OBJ(RndDir,0x1C1)",
@@ -892,6 +898,8 @@ int run_contract() {
                  "latest RndTex source save id");
   ok &= contains(rb3_latest_lit_cpp, "SAVE_OBJ(RndLight,0x33)",
                  "latest RndLight source save id");
+  ok &= contains(rb3_latest_wind_cpp, "SAVE_OBJ(RndWind,0x96)",
+                 "latest RndWind source save id");
   ok &= contains(scene_h,
                  "structSourceRndTransformableSavePlan{int32_tsave_id=586;};",
                  "shared API exposes RndTransformable save plan");
@@ -904,6 +912,9 @@ int run_contract() {
   ok &= contains(scene_h,
                  "structSourceRndMatSavePlan{int32_tsave_id=159;};",
                  "shared API exposes RndMat save plan");
+  ok &= contains(scene_h,
+                 "structSourceRndWindSavePlan{int32_tsave_id=0x96;};",
+                 "shared API exposes RndWind save plan");
   ok &= contains(char_mesh_h,
                  "structSourceRndLightSavePlan{int32_tsave_id=0x33;};",
                  "character API exposes RndLight save plan");
@@ -935,6 +946,10 @@ int run_contract() {
                  "SourceRndMatSavePlansource_rndmat_save_plan(){"
                  "returnSourceRndMatSavePlan{};}",
                  "shared implementation records RndMat save id only");
+  ok &= contains(scene,
+                 "SourceRndWindSavePlansource_rndwind_save_plan(){"
+                 "returnSourceRndWindSavePlan{};}",
+                 "shared implementation records RndWind save id only");
   ok &= contains(char_mesh,
                  "SourceRndLightSavePlansource_rndlight_save_plan(){"
                  "returnSourceRndLightSavePlan{};}",
@@ -964,6 +979,8 @@ int run_contract() {
                  "shared focused test covers RndGroup save id");
   ok &= contains(scene_test, "source_rndmat_save_plan().save_id==159",
                  "shared focused test covers RndMat save id");
+  ok &= contains(scene_test, "source_rndwind_save_plan().save_id==0x96",
+                 "shared focused test covers RndWind save id");
   ok &= contains(character_source_test,
                  "source_object_dir_save_plan().save_id,0x1A2",
                  "character focused test covers ObjectDir save id");
@@ -4343,6 +4360,131 @@ int run_contract() {
   ok &= contains(scene_test,
                  "CHECK(m.next_pass.empty());CHECK(!m.intensify);",
                  "milo_scene test covers direct RndMat post-diffuse rows");
+
+  ok &= contains(rb3_latest_wind_cpp,
+                 "RndWind::RndWind():mPrevailing(0.0f,0.0f,0.0f),"
+                 "mRandom(0.0f,0.0f,0.0f),mTimeLoop(100.0f),"
+                 "mSpaceLoop(100.0f),mWindOwner(this,this){SyncLoops();}",
+                 "latest RndWind constructor defaults and SyncLoops call");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "voidRndWind::SetDefaults(){mPrevailing.Set(0.0f,0.0f,0.0f);"
+                 "mRandom.Set(17.0f,17.0f,0.0f);mTimeLoop=100.0f;"
+                 "mSpaceLoop=100.0f;}",
+                 "latest RndWind SetDefaults rows");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "voidRndWind::Zero(){mRandom.Set(0.0f,0.0f,0.0f);"
+                 "mPrevailing.Set(0.0f,0.0f,0.0f);}",
+                 "latest RndWind Zero rows");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "voidRndWind::SyncLoops(){floatf1=(mTimeLoop==0.0f)?"
+                 "0.0f:1.0f/mTimeLoop;mTimeRate.Set(f1,f1*0.773437f,"
+                 "f1*1.38484f);",
+                 "latest RndWind SyncLoops time-rate math");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "f1=(mSpaceLoop==0.0f)?0.0f:1.0f/mSpaceLoop;"
+                 "mSpaceRate.Set(f1,f1*0.773437f,f1*1.38484f);}",
+                 "latest RndWind SyncLoops space-rate math");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(2,0);LOAD_SUPERCLASS(Hmx::Object)"
+                 "bs>>mPrevailing>>mRandom>>mTimeLoop>>mSpaceLoop;"
+                 "if(gRev>1){bs>>mWindOwner;SetWindOwner(mWindOwner);}"
+                 "SyncLoops();",
+                 "latest RndWind Load source order");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "mWindOwner=(wind)?wind:this;",
+                 "latest RndWind owner fallback");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "if(ty==kCopyShallow)mWindOwner=c->mWindOwner;else{"
+                 "mWindOwner=this;COPY_MEMBER(mWindOwner)COPY_MEMBER("
+                 "mPrevailing)COPY_MEMBER(mRandom)COPY_MEMBER(mTimeLoop)"
+                 "COPY_MEMBER(mSpaceLoop)SyncLoops();}",
+                 "latest RndWind copy branch");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "if(mWindOwner==from){SetWindOwner(dynamic_cast<RndWind*>"
+                 "(to));}",
+                 "latest RndWind replace branch");
+  ok &= contains(rb3_latest_wind_h,
+                 "voidGetWind(constVector3&v,floatf,Vector3&v2){return"
+                 "mWindOwner->SelfGetWind(v,f,v2);}",
+                 "latest RndWind vector GetWind delegates to owner");
+  ok &= contains(rb3_latest_wind_h, "floatGetWind(float);",
+                 "latest RndWind header declares scalar GetWind");
+  ok &= contains(rb3_latest_wind_h,
+                 "voidSelfGetWind(constVector3&,float,Vector3&);",
+                 "latest RndWind header declares SelfGetWind");
+  ok &= missing(rb3_latest_wind_cpp, "RndWind::SelfGetWind(",
+                "latest RndWind source lacks SelfGetWind body");
+  ok &= missing(rb3_latest_wind_cpp, "RndWind::GetWind(float",
+                "latest RndWind source lacks scalar GetWind body");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "BEGIN_HANDLERS(RndWind)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_ACTION(set_defaults,SetDefaults())"
+                 "HANDLE_ACTION(set_zero,Zero())HANDLE_CHECK(0xDA)",
+                 "latest RndWind handler table");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "BEGIN_PROPSYNCS(RndWind)SYNC_PROP(prevailing,mPrevailing)"
+                 "SYNC_PROP(random,mRandom)SYNC_PROP_SET(wind_owner,"
+                 "mWindOwner,SetWindOwner(_val.Obj<RndWind>(0)))",
+                 "latest RndWind prop-sync first rows");
+  ok &= contains(rb3_latest_wind_cpp,
+                 "SYNC_PROP_MODIFY(time_loop,mTimeLoop,SyncLoops())"
+                 "SYNC_PROP_MODIFY(space_loop,mSpaceLoop,SyncLoops())",
+                 "latest RndWind loop prop-sync rows");
+  ok &= contains(scene_h, "structSourceRndWindDefaultState{",
+                 "shared milo_scene exposes RndWind default state");
+  ok &= contains(scene_h, "structSourceRndWindRuntimeBoundary{",
+                 "shared milo_scene exposes RndWind runtime boundary");
+  ok &= contains(scene_h,
+                 "SourceRndWindLoopRatePlansource_rndwind_sync_loops("
+                 "floattime_loop,floatspace_loop);",
+                 "shared milo_scene declares RndWind SyncLoops helper");
+  ok &= contains(scene,
+                 "SourceRndWindLoopRatePlansource_rndwind_sync_loops("
+                 "floattime_loop,floatspace_loop){",
+                 "shared milo_scene implements RndWind SyncLoops helper");
+  ok &= contains(scene,
+                 "plan.time_rate[1]=time_rate*0.773437f;"
+                 "plan.time_rate[2]=time_rate*1.38484f;",
+                 "shared RndWind helper mirrors time-rate constants");
+  ok &= contains(scene,
+                 "SourceRndWindLoadPlansource_rndwind_load_plan("
+                 "int32_trevision){",
+                 "shared milo_scene implements RndWind load helper");
+  ok &= contains(scene,
+                 "plan.reads_wind_owner=revision>1;"
+                 "plan.calls_set_wind_owner=plan.reads_wind_owner;",
+                 "shared RndWind load helper mirrors owner gate");
+  ok &= contains(scene,
+                 "SourceRndWindCopyPlansource_rndwind_copy_plan("
+                 "boolcopy_shallow){",
+                 "shared milo_scene implements RndWind copy helper");
+  ok &= contains(scene,
+                 "plan.shallow_copies_wind_owner=copy_shallow;",
+                 "shared RndWind copy helper mirrors shallow branch");
+  ok &= contains(scene,
+                 "SourceRndWindRuntimeBoundarysource_rndwind_runtime_boundary(){"
+                 "returnSourceRndWindRuntimeBoundary{};}",
+                 "shared RndWind runtime boundary fences missing bodies");
+  ok &= contains(scene_test, "constSourceRndWindDefaultStatedefaults="
+                             "source_rndwind_default_state();",
+                 "milo_scene test covers RndWind defaults");
+  ok &= contains(scene_test, "source_rndwind_sync_loops(100.0f,50.0f)",
+                 "milo_scene test covers RndWind SyncLoops rates");
+  ok &= contains(scene_test, "source_rndwind_load_plan(2)",
+                 "milo_scene test covers RndWind owner load gate");
+  ok &= contains(scene_test, "source_rndwind_copy_plan(true)",
+                 "milo_scene test covers RndWind shallow copy");
+  ok &= contains(scene_test, "source_rndwind_runtime_boundary()",
+                 "milo_scene test covers RndWind runtime boundary");
+  ok &= contains(doc,
+                 "| Hair wind dependency | `rb3-latest/src/system/rndobj/Wind.cpp`",
+                 "document records RndWind coverage matrix row");
+  ok &= contains(doc,
+                 "`CharHair::Load` only reads `mWind` when `gRev > 10`",
+                 "document records CharHair wind revision gate");
+  ok &= contains(doc,
+                 "`Wind.cpp` snapshot does not provide reviewable bodies for `GetWind(float)`",
+                 "document records RndWind missing runtime body boundary");
 
   ok &= contains(group_cs,
                  "anim=newRndAnimatable().Read(reader,parent,entry);"

@@ -1579,6 +1579,125 @@ struct SourceRndMultiMeshProxyPropSyncPlan {
 SourceRndMultiMeshProxyPropSyncPlan
 source_rndmultimesh_proxy_prop_sync_plan();
 
+struct SourceRndWindDefaultState {
+  float prevailing[3] = {0.0f, 0.0f, 0.0f};
+  float random[3] = {0.0f, 0.0f, 0.0f};
+  float time_loop = 100.0f;
+  float space_loop = 100.0f;
+  bool wind_owner_self = true;
+  bool calls_sync_loops = true;
+};
+
+struct SourceRndWindSetDefaultsPlan {
+  float prevailing[3] = {0.0f, 0.0f, 0.0f};
+  float random[3] = {17.0f, 17.0f, 0.0f};
+  float time_loop = 100.0f;
+  float space_loop = 100.0f;
+  bool calls_sync_loops = false;
+};
+
+struct SourceRndWindZeroPlan {
+  bool zeroes_prevailing = true;
+  bool zeroes_random = true;
+  bool leaves_time_loop = true;
+  bool leaves_space_loop = true;
+  bool leaves_wind_owner = true;
+  bool calls_sync_loops = false;
+};
+
+struct SourceRndWindLoopRatePlan {
+  float time_loop = 0.0f;
+  float space_loop = 0.0f;
+  float time_rate[3] = {0.0f, 0.0f, 0.0f};
+  float space_rate[3] = {0.0f, 0.0f, 0.0f};
+  bool time_loop_zero = false;
+  bool space_loop_zero = false;
+};
+
+struct SourceRndWindSavePlan {
+  int32_t save_id = 0x96;
+};
+
+struct SourceRndWindLoadPlan {
+  int32_t revision = 0;
+  bool accepted_revision = false;
+  bool reads_object_fields = true;
+  bool reads_prevailing = true;
+  bool reads_random = true;
+  bool reads_time_loop = true;
+  bool reads_space_loop = true;
+  bool reads_wind_owner = false;
+  bool calls_set_wind_owner = false;
+  bool calls_sync_loops = true;
+};
+
+struct SourceRndWindSetOwnerPlan {
+  bool input_owner_present = false;
+  bool assigns_input_owner = false;
+  bool assigns_self = true;
+};
+
+struct SourceRndWindCopyPlan {
+  bool copy_shallow = false;
+  bool copies_object_superclass = true;
+  bool shallow_copies_wind_owner = false;
+  bool resets_wind_owner_to_self = true;
+  bool copies_wind_owner = true;
+  bool copies_prevailing = true;
+  bool copies_random = true;
+  bool copies_time_loop = true;
+  bool copies_space_loop = true;
+  bool calls_sync_loops = true;
+};
+
+struct SourceRndWindReplacePlan {
+  bool wind_owner_matches_from = false;
+  bool replacement_is_wind = false;
+  bool calls_object_replace = true;
+  bool calls_set_wind_owner = false;
+  bool assigns_replacement_wind = false;
+  bool assigns_self = false;
+};
+
+struct SourceRndWindRuntimeBoundary {
+  bool vector_get_wind_delegates_to_owner = true;
+  bool scalar_get_wind_declared = true;
+  bool scalar_get_wind_body_visible = false;
+  bool self_get_wind_declared = true;
+  bool self_get_wind_body_visible = false;
+  bool native_generates_wind_force = false;
+};
+
+struct SourceRndWindHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int32_t check = 0xda;
+};
+
+struct SourceRndWindPropSyncPlan {
+  std::vector<std::string> direct_rows;
+  std::vector<std::string> set_rows;
+  std::vector<std::string> modify_rows;
+  bool loop_rows_call_sync_loops = true;
+};
+
+SourceRndWindDefaultState source_rndwind_default_state();
+SourceRndWindSetDefaultsPlan source_rndwind_set_defaults_plan();
+SourceRndWindZeroPlan source_rndwind_zero_plan();
+SourceRndWindLoopRatePlan source_rndwind_sync_loops(float time_loop,
+                                                    float space_loop);
+SourceRndWindSavePlan source_rndwind_save_plan();
+SourceRndWindLoadPlan source_rndwind_load_plan(int32_t revision);
+SourceRndWindSetOwnerPlan source_rndwind_set_owner_plan(
+    bool input_owner_present);
+SourceRndWindCopyPlan source_rndwind_copy_plan(bool copy_shallow);
+SourceRndWindReplacePlan source_rndwind_replace_plan(
+    bool wind_owner_matches_from,
+    bool replacement_is_wind);
+SourceRndWindRuntimeBoundary source_rndwind_runtime_boundary();
+SourceRndWindHandlerPlan source_rndwind_handler_plan();
+SourceRndWindPropSyncPlan source_rndwind_prop_sync_plan();
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)

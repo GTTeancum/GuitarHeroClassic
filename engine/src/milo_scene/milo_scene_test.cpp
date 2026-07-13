@@ -1382,6 +1382,139 @@ void test_mat() {
               m.color[0], m.color[1], m.color[2], m.color[3]);
 }
 
+void test_wind() {
+  const SourceRndWindDefaultState defaults = source_rndwind_default_state();
+  CHECK(approx(defaults.prevailing[0], 0.0f));
+  CHECK(approx(defaults.random[0], 0.0f));
+  CHECK(approx(defaults.time_loop, 100.0f));
+  CHECK(approx(defaults.space_loop, 100.0f));
+  CHECK(defaults.wind_owner_self);
+  CHECK(defaults.calls_sync_loops);
+  CHECK(source_rndwind_save_plan().save_id == 0x96);
+
+  const SourceRndWindSetDefaultsPlan set_defaults =
+      source_rndwind_set_defaults_plan();
+  CHECK(approx(set_defaults.prevailing[0], 0.0f));
+  CHECK(approx(set_defaults.random[0], 17.0f));
+  CHECK(approx(set_defaults.random[1], 17.0f));
+  CHECK(approx(set_defaults.random[2], 0.0f));
+  CHECK(approx(set_defaults.time_loop, 100.0f));
+  CHECK(!set_defaults.calls_sync_loops);
+
+  const SourceRndWindZeroPlan zero = source_rndwind_zero_plan();
+  CHECK(zero.zeroes_prevailing);
+  CHECK(zero.zeroes_random);
+  CHECK(zero.leaves_time_loop);
+  CHECK(zero.leaves_space_loop);
+  CHECK(zero.leaves_wind_owner);
+  CHECK(!zero.calls_sync_loops);
+
+  const SourceRndWindLoopRatePlan rates =
+      source_rndwind_sync_loops(100.0f, 50.0f);
+  CHECK(!rates.time_loop_zero);
+  CHECK(!rates.space_loop_zero);
+  CHECK(approx(rates.time_rate[0], 0.01f));
+  CHECK(approx(rates.time_rate[1], 0.01f * 0.773437f));
+  CHECK(approx(rates.time_rate[2], 0.01f * 1.38484f));
+  CHECK(approx(rates.space_rate[0], 0.02f));
+  CHECK(approx(rates.space_rate[1], 0.02f * 0.773437f));
+  CHECK(approx(rates.space_rate[2], 0.02f * 1.38484f));
+  const SourceRndWindLoopRatePlan zero_rates =
+      source_rndwind_sync_loops(0.0f, 0.0f);
+  CHECK(zero_rates.time_loop_zero);
+  CHECK(zero_rates.space_loop_zero);
+  CHECK(approx(zero_rates.time_rate[0], 0.0f));
+  CHECK(approx(zero_rates.space_rate[2], 0.0f));
+
+  const SourceRndWindLoadPlan load_v1 = source_rndwind_load_plan(1);
+  CHECK(load_v1.accepted_revision);
+  CHECK(load_v1.reads_object_fields);
+  CHECK(load_v1.reads_prevailing);
+  CHECK(load_v1.reads_random);
+  CHECK(load_v1.reads_time_loop);
+  CHECK(load_v1.reads_space_loop);
+  CHECK(!load_v1.reads_wind_owner);
+  CHECK(!load_v1.calls_set_wind_owner);
+  CHECK(load_v1.calls_sync_loops);
+  const SourceRndWindLoadPlan load_v2 = source_rndwind_load_plan(2);
+  CHECK(load_v2.reads_wind_owner);
+  CHECK(load_v2.calls_set_wind_owner);
+  const SourceRndWindLoadPlan load_v3 = source_rndwind_load_plan(3);
+  CHECK(!load_v3.accepted_revision);
+
+  const SourceRndWindSetOwnerPlan owner_null =
+      source_rndwind_set_owner_plan(false);
+  CHECK(owner_null.assigns_self);
+  CHECK(!owner_null.assigns_input_owner);
+  const SourceRndWindSetOwnerPlan owner_external =
+      source_rndwind_set_owner_plan(true);
+  CHECK(owner_external.assigns_input_owner);
+  CHECK(!owner_external.assigns_self);
+
+  const SourceRndWindCopyPlan shallow = source_rndwind_copy_plan(true);
+  CHECK(shallow.copy_shallow);
+  CHECK(shallow.copies_object_superclass);
+  CHECK(shallow.shallow_copies_wind_owner);
+  CHECK(!shallow.copies_prevailing);
+  CHECK(!shallow.calls_sync_loops);
+  const SourceRndWindCopyPlan deep = source_rndwind_copy_plan(false);
+  CHECK(!deep.copy_shallow);
+  CHECK(deep.resets_wind_owner_to_self);
+  CHECK(deep.copies_wind_owner);
+  CHECK(deep.copies_prevailing);
+  CHECK(deep.copies_random);
+  CHECK(deep.copies_time_loop);
+  CHECK(deep.copies_space_loop);
+  CHECK(deep.calls_sync_loops);
+
+  const SourceRndWindReplacePlan replace_unrelated =
+      source_rndwind_replace_plan(false, true);
+  CHECK(replace_unrelated.calls_object_replace);
+  CHECK(!replace_unrelated.calls_set_wind_owner);
+  const SourceRndWindReplacePlan replace_with_wind =
+      source_rndwind_replace_plan(true, true);
+  CHECK(replace_with_wind.calls_set_wind_owner);
+  CHECK(replace_with_wind.assigns_replacement_wind);
+  CHECK(!replace_with_wind.assigns_self);
+  const SourceRndWindReplacePlan replace_with_nonwind =
+      source_rndwind_replace_plan(true, false);
+  CHECK(replace_with_nonwind.calls_set_wind_owner);
+  CHECK(!replace_with_nonwind.assigns_replacement_wind);
+  CHECK(replace_with_nonwind.assigns_self);
+
+  const SourceRndWindRuntimeBoundary runtime =
+      source_rndwind_runtime_boundary();
+  CHECK(runtime.vector_get_wind_delegates_to_owner);
+  CHECK(runtime.scalar_get_wind_declared);
+  CHECK(!runtime.scalar_get_wind_body_visible);
+  CHECK(runtime.self_get_wind_declared);
+  CHECK(!runtime.self_get_wind_body_visible);
+  CHECK(!runtime.native_generates_wind_force);
+
+  const SourceRndWindHandlerPlan handlers = source_rndwind_handler_plan();
+  CHECK(handlers.actions.size() == 2);
+  CHECK(handlers.actions[0] == "set_defaults");
+  CHECK(handlers.actions[1] == "set_zero");
+  CHECK(handlers.superclasses.size() == 1);
+  CHECK(handlers.superclasses[0] == "Hmx::Object");
+  CHECK(handlers.check == 0xda);
+  const SourceRndWindPropSyncPlan props = source_rndwind_prop_sync_plan();
+  CHECK(props.direct_rows.size() == 2);
+  CHECK(props.direct_rows[0] == "prevailing");
+  CHECK(props.direct_rows[1] == "random");
+  CHECK(props.set_rows.size() == 1);
+  CHECK(props.set_rows[0] == "wind_owner");
+  CHECK(props.modify_rows.size() == 2);
+  CHECK(props.modify_rows[0] == "time_loop");
+  CHECK(props.modify_rows[1] == "space_loop");
+  CHECK(props.loop_rows_call_sync_loops);
+
+  std::printf("  [ok] Wind: save=0x%x timeRate=(%.4f,%.4f,%.4f) ownerSelf=%d\n",
+              source_rndwind_save_plan().save_id, rates.time_rate[0],
+              rates.time_rate[1], rates.time_rate[2],
+              defaults.wind_owner_self ? 1 : 0);
+}
+
 void test_group() {
   const SourceRndAnimatableLoadPlan anim_v4 =
       source_rndanimatable_load_plan(4);
@@ -2133,6 +2266,7 @@ int main() {
   test_poll_anim();
   test_prop_anim();
   test_mat();
+  test_wind();
   test_group();
   test_mesh_deform();
   test_multimesh();
