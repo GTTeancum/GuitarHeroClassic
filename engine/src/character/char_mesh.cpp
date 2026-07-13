@@ -3546,6 +3546,10 @@ SourceCharPosConstraintLoadPlan source_char_pos_constraint_load_plan(
   return plan;
 }
 
+SourceCharPosConstraintSavePlan source_char_pos_constraint_save_plan() {
+  return SourceCharPosConstraintSavePlan{};
+}
+
 SourceCharPosConstraintCopyPlan source_char_pos_constraint_copy_plan() {
   SourceCharPosConstraintCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object"};
@@ -4599,6 +4603,10 @@ SourceCharTransCopyLoadPlan source_char_trans_copy_load_plan(int revision) {
   return plan;
 }
 
+SourceCharTransCopySavePlan source_char_trans_copy_save_plan() {
+  return SourceCharTransCopySavePlan{};
+}
+
 SourceCharTransCopyCopyPlan source_char_trans_copy_copy_plan() {
   SourceCharTransCopyCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object"};
@@ -4677,6 +4685,10 @@ SourceCharPollGroupLoadPlan source_char_poll_group_load_plan(int revision) {
     plan.read_order.push_back("mChanges");
   }
   return plan;
+}
+
+SourceCharPollGroupSavePlan source_char_poll_group_save_plan() {
+  return SourceCharPollGroupSavePlan{};
 }
 
 SourceCharPollGroupCopyPlan source_char_poll_group_copy_plan() {
@@ -5679,6 +5691,10 @@ SourceCharTransDrawLoadPlan source_char_trans_draw_load_plan(int revision) {
   return plan;
 }
 
+SourceCharTransDrawSavePlan source_char_trans_draw_save_plan() {
+  return SourceCharTransDrawSavePlan{};
+}
+
 SourceCharTransDrawCopyPlan source_char_trans_draw_copy_plan() {
   SourceCharTransDrawCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object", "RndDrawable"};
@@ -5789,6 +5805,10 @@ SourceCharCuffLoadPlan source_char_cuff_load_plan(int revision) {
   plan.warns_old_revision = revision < 7;
   if (plan.warns_old_revision) plan.branches.push_back("warnOldCharCuff");
   return plan;
+}
+
+SourceCharCuffSavePlan source_char_cuff_save_plan() {
+  return SourceCharCuffSavePlan{};
 }
 
 SourceCharCuffCopyPlan source_char_cuff_copy_plan() {
@@ -7518,6 +7538,10 @@ SourceCharSleeveLoadPlan source_char_sleeve_load_plan(int32_t revision) {
                      "mInertia",    "mGravity",  "mStiffness",
                      "mRange",      "mNegLength", "mPosLength"};
   return plan;
+}
+
+SourceCharSleeveSavePlan source_char_sleeve_save_plan() {
+  return SourceCharSleeveSavePlan{};
 }
 
 SourceCharSleeveCopyPlan source_char_sleeve_copy_plan() {

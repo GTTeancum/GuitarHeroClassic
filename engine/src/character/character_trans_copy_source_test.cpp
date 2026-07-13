@@ -84,6 +84,7 @@ int main() {
   using ghogx::character::source_char_trans_copy_poll;
   using ghogx::character::source_char_trans_copy_poll_deps;
   using ghogx::character::source_char_trans_copy_prop_sync_plan;
+  using ghogx::character::source_char_trans_copy_save_plan;
 
   bool ok = true;
 
@@ -100,6 +101,9 @@ int main() {
                       "load object first");
   ok &= expect_string(load.read_order[1], "mSrc", "load source ref");
   ok &= expect_string(load.read_order[2], "mDest", "load dest ref");
+
+  const auto save = source_char_trans_copy_save_plan();
+  ok &= expect_int(save.save_id, 0x2D, "save id");
 
   const auto copy_plan = source_char_trans_copy_copy_plan();
   ok &= expect_size(copy_plan.copied_superclasses.size(), 1,

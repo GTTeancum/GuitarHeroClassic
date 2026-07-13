@@ -60,6 +60,7 @@ int main() {
   using ghogx::character::source_char_sleeve_poll;
   using ghogx::character::source_char_sleeve_poll_deps;
   using ghogx::character::source_char_sleeve_prop_sync_plan;
+  using ghogx::character::source_char_sleeve_save_plan;
 
   bool ok = true;
 
@@ -137,6 +138,9 @@ int main() {
                     "sleeve load rejects non-source revision");
   ok &= expect_size(rejected_load.read_order.size(), 0,
                     "sleeve rejected load has no reads");
+
+  const auto save = source_char_sleeve_save_plan();
+  ok &= expect_bool(save.save_id == 0xE1, true, "sleeve save id");
 
   const auto copy_plan = source_char_sleeve_copy_plan();
   ok &= expect_size(copy_plan.copied_superclasses.size(), 1,

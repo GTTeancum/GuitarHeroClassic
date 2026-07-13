@@ -2191,6 +2191,8 @@ note, and all report `unreadBytes=0`.
   `CharTransCopy.h`
   - `CharTransCopy::Load` accepts source revisions `0..1`, loads
     `Hmx::Object`, then reads `mSrc` and `mDest`.
+  - `Save` uses source save id `0x2D`; native
+    `source_char_trans_copy_save_plan` records that object id only.
   - `CharTransCopy::Copy`, handlers, and prop-sync rows are source-visible:
     copy duplicates `mSrc` and `mDest`, handlers dispatch through
     `RndPollable` then `Hmx::Object` with check `0x4C`, and properties expose
@@ -2213,6 +2215,8 @@ note, and all report `unreadBytes=0`.
   - `CharPollGroup::Load` accepts source revisions `0..3`, loads
     `Hmx::Object`, loads `CharWeightable` only above revision 2, always reads
     `mPolls`, and reads `mChangedBy` / `mChanges` only above revision 1.
+  - `Save` uses source save id `0x58`; native
+    `source_char_poll_group_save_plan` records that object id only.
   - `CharPollGroup::Copy`, `SortPolls`, handlers, and prop-sync rows are
     source-visible. The `kCopyFromMax` branch appends missing poll refs only;
     normal copy duplicates `mPolls`, `mChangedBy`, and `mChanges`.
@@ -2270,6 +2274,8 @@ note, and all report `unreadBytes=0`.
     order.
   - `CharTransDraw::Load` reads `Hmx::Object`, `RndDrawable`, then `mChars`,
     and immediately sets every referenced character to `kCharDrawOpaque`.
+  - `Save` uses source save id `0x23`; native
+    `source_char_trans_draw_save_plan` records that object id only.
   - `CharTransDraw::Copy`, handlers, and prop-sync rows are source-visible:
     copy duplicates `mChars` after the `Hmx::Object` and `RndDrawable`
     superclasses, handlers delegate to `RndDrawable` then `Hmx::Object` with
@@ -2294,6 +2300,8 @@ note, and all report `unreadBytes=0`.
     category, and ignore rows behind the exact source gates.
     Native `source_char_cuff_load_plan` records the source read order, revision
     gates, and old-row warning branch.
+  - `Save` uses source save id `0x1A2`; native
+    `source_char_cuff_save_plan` records that object id only.
   - `CharCuff::Copy` copies `Hmx::Object`, `RndTransformable`, the three shape
     rows, `mOuterRadius`, `mOpenEnd`, `mBone`, `mEccentricity`, `mCategory`,
     and `mIgnore`. Native `source_char_cuff_copy_plan` records that source copy
@@ -2355,6 +2363,8 @@ note, and all report `unreadBytes=0`.
     then reads `mSleeve`, `mTopSleeve`, `mInertia`, `mGravity`, `mStiffness`,
     `mRange`, `mNegLength`, and `mPosLength`. `Copy` copies `Hmx::Object` and
     the same eight sleeve data members in source order.
+  - `Save` uses source save id `0xE1`; native
+    `source_char_sleeve_save_plan` records that object id only.
   - `BEGIN_HANDLERS(CharSleeve)` delegates to `Hmx::Object` and checks
     `0x112`. `BEGIN_PROPSYNCS(CharSleeve)` exposes `sleeve`, `top_sleeve`,
     `inertia`, `gravity`, `stiffness`, `range`, `neg_length`, and
@@ -2576,6 +2586,8 @@ note, and all report `unreadBytes=0`.
     Native `source_char_pos_constraint_load_plan` records that read order,
     revision gate, and old-box default branch, and the decoder rejects rows
     outside the source revision range before consuming superclass payload.
+  - `Save` uses source save id `0x64`; native
+    `source_char_pos_constraint_save_plan` records that object id only.
   - `CharPosConstraint::Copy` copies `Hmx::Object`, `mTargets`, `mSrc`, and
     `mBox`. `PollDeps` publishes `mSrc` as an input dependency and publishes
     each target as both changed-by and changed rows. Native

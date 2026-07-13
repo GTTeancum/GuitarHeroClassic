@@ -46,6 +46,7 @@ int main() {
   using ghogx::character::source_char_trans_draw_load_plan;
   using ghogx::character::source_char_trans_draw_load_modes;
   using ghogx::character::source_char_trans_draw_prop_sync_plan;
+  using ghogx::character::source_char_trans_draw_save_plan;
   using ghogx::character::source_char_trans_draw_set_draw_modes;
 
   bool ok = true;
@@ -70,6 +71,9 @@ int main() {
   ok &= expect_mode(load_plan.post_load_mode,
                     SourceCharacterDrawMode::kOpaque,
                     "load post mode opaque");
+
+  const auto save = source_char_trans_draw_save_plan();
+  ok &= expect_bool(save.save_id == 0x23, true, "save id");
 
   const auto copy_plan = source_char_trans_draw_copy_plan();
   ok &= expect_size(copy_plan.copied_superclasses.size(), 2,

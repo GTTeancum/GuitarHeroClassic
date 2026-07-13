@@ -10288,6 +10288,9 @@ int run_contract() {
                  "ASSERT_REVS(1,0);Hmx::Object::Load(bs);bs>>mSrc;bs>>mDest;}",
                  "CharTransCopy source Load reads src and dest");
   ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "SAVE_OBJ(CharTransCopy,0x2D);",
+                 "CharTransCopy source save id");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
                  "BEGIN_COPYS(CharTransCopy)COPY_SUPERCLASS(Hmx::Object)"
                  "CREATE_COPY(CharTransCopy)BEGIN_COPYING_MEMBERS"
                  "COPY_MEMBER(mSrc)COPY_MEMBER(mDest)END_COPYING_MEMBERS"
@@ -10323,6 +10326,9 @@ int run_contract() {
                  "std::vector<std::string>properties;};",
                  "native exposes CharTransCopy prop-sync plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharTransCopySavePlan{int32_tsave_id=0x2D;};",
+                 "native exposes CharTransCopy save plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharTransCopyLoadPlansource_char_trans_copy_load_plan("
                  "intrevision);",
                  "native exposes CharTransCopy load plan helper");
@@ -10336,6 +10342,10 @@ int run_contract() {
                  "intrevision){SourceCharTransCopyLoadPlanplan;"
                  "plan.known_revision=revision>=0&&revision<=1;",
                  "native implements CharTransCopy load revision gate");
+  ok &= contains(char_mesh,
+                 "SourceCharTransCopySavePlansource_char_trans_copy_save_plan(){"
+                 "returnSourceCharTransCopySavePlan{};}",
+                 "native implements CharTransCopy save plan");
   ok &= contains(char_mesh,
                  "plan.read_order={\"Hmx::Object\",\"mSrc\",\"mDest\"};"
                  "returnplan;}",
@@ -10371,6 +10381,9 @@ int run_contract() {
                  "source_char_trans_copy_load_plan(1)",
                  "focused CharTransCopy test covers load plan");
   ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_save_plan()",
+                 "focused CharTransCopy test covers save plan");
+  ok &= contains(trans_copy_source_test,
                  "source_char_trans_copy_copy_plan()",
                  "focused CharTransCopy test covers copy plan");
   ok &= contains(trans_copy_source_test,
@@ -10392,6 +10405,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_trans_copy_poll_deps` port those complete source behaviors",
                  "document records native CharTransCopy helper boundary");
+  ok &= contains(doc,
+                 "`source_char_trans_copy_save_plan` records that object id only",
+                 "document records CharTransCopy save id");
   ok &= contains(rb3_latest_char_poll_group_h,
                  "classCharPollGroup:publicCharPollable,publicCharWeightable",
                  "latest CharPollGroup header exposes source class");
@@ -10401,6 +10417,9 @@ int run_contract() {
                  "CharWeightable::Load(bs);bs>>mPolls;if(gRev>1){"
                  "bs>>mChangedBy;bs>>mChanges;}}",
                  "CharPollGroup source Load rows");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "SAVE_OBJ(CharPollGroup,0x58)",
+                 "CharPollGroup source save id");
   ok &= contains(rb3_latest_char_poll_group_cpp,
                  "BEGIN_COPYS(CharPollGroup)COPY_SUPERCLASS(Hmx:Object)"
                  "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharPollGroup)",
@@ -10489,6 +10508,9 @@ int run_contract() {
                  "structSourceCharPollGroupSortPlan{"
                  "std::vector<std::string>steps;};",
                  "native exposes CharPollGroup sort plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupSavePlan{int32_tsave_id=0x58;};",
+                 "native exposes CharPollGroup save plan");
   ok &= contains(char_mesh,
                  "std::vector<std::string>source_char_poll_group_poll_order("
                  "floatweight,conststd::vector<std::string>&polls){"
@@ -10525,6 +10547,10 @@ int run_contract() {
                  "intrevision){SourceCharPollGroupLoadPlanplan;"
                  "plan.known_revision=revision>=0&&revision<=3;",
                  "native implements CharPollGroup load revision gate");
+  ok &= contains(char_mesh,
+                 "SourceCharPollGroupSavePlansource_char_poll_group_save_plan(){"
+                 "returnSourceCharPollGroupSavePlan{};}",
+                 "native implements CharPollGroup save plan");
   ok &= contains(char_mesh,
                  "if(revision>2)plan.read_order.push_back(\"CharWeightable\");"
                  "plan.read_order.push_back(\"mPolls\");if(revision>1){"
@@ -10568,6 +10594,9 @@ int run_contract() {
                  "source_char_poll_group_load_plan(3)",
                  "focused CharPollGroup test covers load plan");
   ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_save_plan()",
+                 "focused CharPollGroup test covers save plan");
+  ok &= contains(poll_group_source_test,
                  "source_char_poll_group_copy_plan()",
                  "focused CharPollGroup test covers copy plan");
   ok &= contains(poll_group_source_test,
@@ -10595,6 +10624,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_poll_group_load_plan`,",
                  "document records native CharPollGroup load plan");
+  ok &= contains(doc,
+                 "`source_char_poll_group_save_plan` records that object id only",
+                 "document records CharPollGroup save id");
   ok &= contains(doc,
                  "`CharPollGroup`: zero stock rows",
                  "document preserves no-stock-rows boundary");
@@ -11405,6 +11437,9 @@ int run_contract() {
                  "SetDrawModes(Character::kCharDrawOpaque);}",
                  "CharTransDraw source Load sets opaque");
   ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "SAVE_OBJ(CharTransDraw,0x23);",
+                 "CharTransDraw source save id");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
                  "BEGIN_COPYS(CharTransDraw)COPY_SUPERCLASS(Hmx::Object)"
                  "COPY_SUPERCLASS(RndDrawable)CREATE_COPY(CharTransDraw)"
                  "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mChars)",
@@ -11449,11 +11484,18 @@ int run_contract() {
                  "std::vector<std::string>properties;"
                  "std::vector<std::string>superclasses;};",
                  "native exposes CharTransDraw prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransDrawSavePlan{int32_tsave_id=0x23;};",
+                 "native exposes CharTransDraw save plan");
   ok &= contains(char_mesh,
                  "SourceCharTransDrawLoadPlansource_char_trans_draw_load_plan("
                  "intrevision){SourceCharTransDrawLoadPlanplan;"
                  "plan.known_revision=revision>=0&&revision<=1;",
                  "native implements CharTransDraw load revision gate");
+  ok &= contains(char_mesh,
+                 "SourceCharTransDrawSavePlansource_char_trans_draw_save_plan(){"
+                 "returnSourceCharTransDrawSavePlan{};}",
+                 "native implements CharTransDraw save plan");
   ok &= contains(char_mesh,
                  "plan.read_order={\"Hmx::Object\",\"RndDrawable\",\"mChars\"};"
                  "plan.post_load_mode=SourceCharacterDrawMode::kOpaque;",
@@ -11505,6 +11547,9 @@ int run_contract() {
                  "source_char_trans_draw_load_plan(1)",
                  "focused CharTransDraw test covers load plan");
   ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_save_plan()",
+                 "focused CharTransDraw test covers save plan");
+  ok &= contains(trans_draw_source_test,
                  "source_char_trans_draw_copy_plan()",
                  "focused CharTransDraw test covers copy plan");
   ok &= contains(trans_draw_source_test,
@@ -11525,6 +11570,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharTransDraw::Copy`, handlers, and prop-sync rows are source-visible",
                  "document records CharTransDraw row plans");
+  ok &= contains(doc,
+                 "`source_char_trans_draw_save_plan` records that object id only",
+                 "document records CharTransDraw save id");
   ok &= contains(rb3_latest_char_cuff_h,
                  "classCharCuff:publicRndTransformable",
                  "latest CharCuff header exposes source class");
@@ -11556,6 +11604,9 @@ int run_contract() {
                  "LOAD_SUPERCLASS(RndTransformable)for(inti=0;i<3;i++){"
                  "bs>>mShape[i].radius>>mShape[i].offset;}",
                  "CharCuff source load prefix and shape order");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "SAVE_OBJ(CharCuff,0x1A2)",
+                 "CharCuff source save id");
   ok &= contains(rb3_latest_char_cuff_cpp,
                  "if(gRev>1)bs>>mOuterRadius;elsemOuterRadius=mShape[1]."
                  "radius+0.5f;if(gRev>2)bs>>mOpenEnd;elsemOpenEnd=false;"
@@ -11621,6 +11672,9 @@ int run_contract() {
                  "std::vector<std::string>superclasses;};",
                  "native exposes CharCuff source prop-sync plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCuffSavePlan{int32_tsave_id=0x1A2;};",
+                 "native exposes CharCuff save plan");
+  ok &= contains(char_mesh_h,
                  "structSourceCharCuffTransformNode{std::stringname;"
                  "std::vector<SourceCharCuffTransformNode>children;};",
                  "native exposes CharCuff transform node");
@@ -11673,6 +11727,10 @@ int run_contract() {
                  "intrevision){SourceCharCuffLoadPlanplan;"
                  "plan.known_revision=revision>=0&&revision<=8;",
                  "native CharCuff load plan records source revision gate");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffSavePlansource_char_cuff_save_plan(){"
+                 "returnSourceCharCuffSavePlan{};}",
+                 "native CharCuff save plan records source id");
   ok &= contains(char_mesh,
                  "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\","
                  "\"RndTransformable\",\"mShape[0].radius\","
@@ -11741,6 +11799,9 @@ int run_contract() {
                  "source_char_cuff_load_plan(8)",
                  "focused CharCuff test covers rev8 load plan");
   ok &= contains(cuff_source_test,
+                 "source_char_cuff_save_plan()",
+                 "focused CharCuff test covers save plan");
+  ok &= contains(cuff_source_test,
                  "source_char_cuff_copy_plan()",
                  "focused CharCuff test covers copy plan");
   ok &= contains(cuff_source_test,
@@ -11776,6 +11837,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_cuff_*` helpers port",
                  "document records native CharCuff helpers");
+  ok &= contains(doc,
+                 "`source_char_cuff_save_plan` records that object id only",
+                 "document records CharCuff save id");
   ok &= contains(rb3_latest_char_blend_bone_h,
                  "classCharBlendBone:publicCharPollable",
                  "latest CharBlendBone header exposes source class");
@@ -12026,6 +12090,9 @@ int run_contract() {
                  "bs>>mRange;bs>>mNegLength;bs>>mPosLength;}",
                  "CharSleeve source Load order");
   ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "SAVE_OBJ(CharSleeve,0xE1)",
+                 "CharSleeve source save id");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
                  "COPY_MEMBER(mSleeve)COPY_MEMBER(mTopSleeve)"
                  "COPY_MEMBER(mInertia)COPY_MEMBER(mGravity)"
                  "COPY_MEMBER(mStiffness)COPY_MEMBER(mRange)"
@@ -12061,6 +12128,9 @@ int run_contract() {
                  "structSourceCharSleevePropSyncPlan{std::vector<std::string>"
                  "properties;};",
                  "native exposes CharSleeve prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharSleeveSavePlan{int32_tsave_id=0xE1;};",
+                 "native exposes CharSleeve save plan");
   ok &= contains(char_mesh,
                  "SourceCharSleeveStatesource_char_sleeve_default_state(){"
                  "returnSourceCharSleeveState{};}",
@@ -12101,6 +12171,10 @@ int run_contract() {
                  "int32_trevision){SourceCharSleeveLoadPlanplan;"
                  "plan.revision_supported=revision==0;",
                  "native CharSleeve helper ports load revision gate");
+  ok &= contains(char_mesh,
+                 "SourceCharSleeveSavePlansource_char_sleeve_save_plan(){"
+                 "returnSourceCharSleeveSavePlan{};}",
+                 "native CharSleeve save plan records source id");
   ok &= contains(char_mesh,
                  "plan.read_order={\"Hmx::Object\",\"mSleeve\","
                  "\"mTopSleeve\",\"mInertia\",\"mGravity\",\"mStiffness\","
@@ -12149,6 +12223,9 @@ int run_contract() {
                  "source_char_sleeve_load_plan(0)",
                  "focused CharSleeve test covers load plan");
   ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_save_plan()",
+                 "focused CharSleeve test covers save plan");
+  ok &= contains(sleeve_source_test,
                  "source_char_sleeve_copy_plan()",
                  "focused CharSleeve test covers copy plan");
   ok &= contains(sleeve_source_test,
@@ -12160,6 +12237,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_sleeve_*` helpers port",
                  "document records native CharSleeve helpers");
+  ok &= contains(doc,
+                 "`source_char_sleeve_save_plan` records that object id only",
+                 "document records CharSleeve save id");
   ok &= contains(doc,
                  "source_char_sleeve_handler_plan",
                  "document records native CharSleeve handler helper");
@@ -15317,6 +15397,9 @@ int run_contract() {
                  "LOAD_REVS(bs);ASSERT_REVS(2,0);Hmx::Object::Load(bs);",
                  "CharPosConstraint source load accepts revisions through 2");
   ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "SAVE_OBJ(CharPosConstraint,0x64)",
+                 "CharPosConstraint source save id");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
                  "bs>>mTargets;bs>>mSrc;if(gRev>1){bs>>mBox;}",
                  "CharPosConstraint source load reads targets, source, box");
   ok &= contains(rb3_latest_char_pos_constraint_cpp,
@@ -15354,6 +15437,9 @@ int run_contract() {
                  "structSourceCharPosConstraintLoadPlan{boolknown_revision=false;"
                  "std::vector<std::string>read_order;",
                  "native exposes CharPosConstraint load-plan row");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPosConstraintSavePlan{int32_tsave_id=0x64;};",
+                 "native exposes CharPosConstraint save plan");
   ok &= contains(char_mesh_h,
                  "SourceCharPosConstraintLoadPlan"
                  "source_char_pos_constraint_load_plan(intrevision);",
@@ -15407,6 +15493,11 @@ int run_contract() {
                  "SourceCharPosConstraintLoadPlanplan;plan.known_revision="
                  "revision>=0&&revision<=2;",
                  "native CharPosConstraint load plan records source revision gate");
+  ok &= contains(char_mesh,
+                 "SourceCharPosConstraintSavePlan"
+                 "source_char_pos_constraint_save_plan(){"
+                 "returnSourceCharPosConstraintSavePlan{};}",
+                 "native CharPosConstraint save plan records source id");
   ok &= contains(char_mesh,
                  "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\","
                  "\"mTargets\",\"mSrc\"};if(revision>1){"
@@ -15462,6 +15553,9 @@ int run_contract() {
                  "source_char_pos_constraint_load_plan(1)",
                  "focused CharPosConstraint test covers legacy load plan");
   ok &= contains(pos_constraint_source_test,
+                 "source_char_pos_constraint_save_plan()",
+                 "focused CharPosConstraint test covers save plan");
+  ok &= contains(pos_constraint_source_test,
                  "source_char_pos_constraint_load_plan(2)",
                  "focused CharPosConstraint test covers modern load plan");
   ok &= contains(pos_constraint_source_test,
@@ -15485,6 +15579,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_pos_constraint_load_plan` records that read order",
                  "document records CharPosConstraint load plan");
+  ok &= contains(doc,
+                 "`source_char_pos_constraint_save_plan` records that object id only",
+                 "document records CharPosConstraint save id");
   ok &= contains(doc,
                  "`source_char_pos_constraint_copy_plan` and",
                  "document records CharPosConstraint copy/PollDeps plans");

@@ -44,6 +44,7 @@ int main() {
   using ghogx::character::source_char_cuff_handler_plan;
   using ghogx::character::source_char_cuff_load_plan;
   using ghogx::character::source_char_cuff_prop_sync_plan;
+  using ghogx::character::source_char_cuff_save_plan;
 
   bool ok = true;
 
@@ -118,6 +119,9 @@ int main() {
                     "rev8 no default branches");
   ok &= expect_bool(load_rev8.warns_old_revision, false,
                     "rev8 does not warn");
+
+  const auto save = source_char_cuff_save_plan();
+  ok &= expect_bool(save.save_id == 0x1A2, true, "save id");
 
   const auto copy_plan = source_char_cuff_copy_plan();
   ok &= expect_size(copy_plan.copied_superclasses.size(), 2,

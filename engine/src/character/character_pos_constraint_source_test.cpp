@@ -51,6 +51,7 @@ int main() {
   using ghogx::character::source_char_pos_constraint_copy_plan;
   using ghogx::character::source_char_pos_constraint_load_plan;
   using ghogx::character::source_char_pos_constraint_poll_deps_plan;
+  using ghogx::character::source_char_pos_constraint_save_plan;
   using ghogx::character::source_char_pos_constraint_target_position;
 
   bool ok = true;
@@ -81,6 +82,9 @@ int main() {
                       "rev2 reads box");
   ok &= expect_size(load_rev2.branches.size(), 0,
                     "rev2 no default branches");
+
+  const auto save = source_char_pos_constraint_save_plan();
+  ok &= expect_bool(save.save_id == 0x64, true, "save id");
 
   const auto copy_plan = source_char_pos_constraint_copy_plan();
   ok &= expect_size(copy_plan.copied_superclasses.size(), 1,

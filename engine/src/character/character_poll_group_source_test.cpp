@@ -39,6 +39,7 @@ int main() {
   using ghogx::character::source_char_poll_group_poll_deps;
   using ghogx::character::source_char_poll_group_poll_order;
   using ghogx::character::source_char_poll_group_prop_sync_plan;
+  using ghogx::character::source_char_poll_group_save_plan;
   using ghogx::character::source_char_poll_group_sort_plan;
 
   bool ok = true;
@@ -59,6 +60,9 @@ int main() {
                       "load v3 changed_by");
   ok &= expect_string(load_v3.read_order[4], "mChanges",
                       "load v3 changes");
+
+  const auto save = source_char_poll_group_save_plan();
+  ok &= expect_int(save.save_id, 0x58, "save id");
 
   const auto copy_plan = source_char_poll_group_copy_plan();
   ok &= expect_size(copy_plan.copied_superclasses.size(), 2,

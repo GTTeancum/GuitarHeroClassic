@@ -2189,6 +2189,10 @@ struct SourceCharTransCopyLoadPlan {
   std::vector<std::string> read_order;
 };
 
+struct SourceCharTransCopySavePlan {
+  int32_t save_id = 0x2D;
+};
+
 struct SourceCharTransCopyCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -2216,6 +2220,10 @@ struct SourceCharPollGroupPollDeps {
 struct SourceCharPollGroupLoadPlan {
   bool known_revision = false;
   std::vector<std::string> read_order;
+};
+
+struct SourceCharPollGroupSavePlan {
+  int32_t save_id = 0x58;
 };
 
 struct SourceCharPollGroupCopyPlan {
@@ -2760,6 +2768,10 @@ struct SourceCharTransDrawLoadPlan {
   SourceCharacterDrawMode post_load_mode = SourceCharacterDrawMode::kOpaque;
 };
 
+struct SourceCharTransDrawSavePlan {
+  int32_t save_id = 0x23;
+};
+
 struct SourceCharTransDrawCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -2795,6 +2807,10 @@ struct SourceCharCuffLoadPlan {
   std::vector<std::string> read_order;
   std::vector<std::string> branches;
   bool warns_old_revision = false;
+};
+
+struct SourceCharCuffSavePlan {
+  int32_t save_id = 0x1A2;
 };
 
 struct SourceCharCuffCopyPlan {
@@ -2895,6 +2911,10 @@ struct SourceCharSleevePollDeps {
 struct SourceCharSleeveLoadPlan {
   bool revision_supported = false;
   std::vector<std::string> read_order;
+};
+
+struct SourceCharSleeveSavePlan {
+  int32_t save_id = 0xE1;
 };
 
 struct SourceCharSleeveCopyPlan {
@@ -3514,6 +3534,7 @@ std::vector<std::string> source_char_mesh_cache_stuff_meshes(
 bool source_char_trans_copy_poll(const milo_scene::Xfm* src,
                                  milo_scene::Xfm* dest);
 SourceCharTransCopyLoadPlan source_char_trans_copy_load_plan(int revision);
+SourceCharTransCopySavePlan source_char_trans_copy_save_plan();
 SourceCharTransCopyCopyPlan source_char_trans_copy_copy_plan();
 SourceCharTransCopyHandlerPlan source_char_trans_copy_handler_plan();
 SourceCharTransCopyPropSyncPlan source_char_trans_copy_prop_sync_plan();
@@ -3536,6 +3557,7 @@ void source_char_poll_group_poll_deps(
     const std::string& changed_by_override,
     const std::string& change_override);
 SourceCharPollGroupLoadPlan source_char_poll_group_load_plan(int revision);
+SourceCharPollGroupSavePlan source_char_poll_group_save_plan();
 SourceCharPollGroupCopyPlan source_char_poll_group_copy_plan();
 SourceCharPollGroupHandlerPlan source_char_poll_group_handler_plan();
 SourceCharPollGroupPropSyncPlan source_char_poll_group_prop_sync_plan();
@@ -3728,6 +3750,7 @@ SourceCharacterTestLoadResult source_character_test_load(
     int32_t revision,
     int32_t alt_revision);
 SourceCharTransDrawLoadPlan source_char_trans_draw_load_plan(int revision);
+SourceCharTransDrawSavePlan source_char_trans_draw_save_plan();
 SourceCharTransDrawCopyPlan source_char_trans_draw_copy_plan();
 SourceCharTransDrawHandlerPlan source_char_trans_draw_handler_plan();
 SourceCharTransDrawPropSyncPlan source_char_trans_draw_prop_sync_plan();
@@ -3742,6 +3765,7 @@ std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
     const std::vector<SourceCharTransDrawCharacter>& chars);
 SourceCharCuffState source_char_cuff_default_state();
 SourceCharCuffLoadPlan source_char_cuff_load_plan(int revision);
+SourceCharCuffSavePlan source_char_cuff_save_plan();
 SourceCharCuffCopyPlan source_char_cuff_copy_plan();
 SourceCharCuffHandlerPlan source_char_cuff_handler_plan();
 SourceCharCuffPropSyncPlan source_char_cuff_prop_sync_plan();
@@ -3781,6 +3805,7 @@ void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
                                   const std::string& top_sleeve,
                                   bool has_sleeve);
 SourceCharSleeveLoadPlan source_char_sleeve_load_plan(int32_t revision);
+SourceCharSleeveSavePlan source_char_sleeve_save_plan();
 SourceCharSleeveCopyPlan source_char_sleeve_copy_plan();
 SourceCharSleeveHandlerPlan source_char_sleeve_handler_plan();
 SourceCharSleevePropSyncPlan source_char_sleeve_prop_sync_plan();
@@ -4136,6 +4161,10 @@ struct SourceCharPosConstraintLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceCharPosConstraintSavePlan {
+  int32_t save_id = 0x64;
+};
+
 struct SourceCharPosConstraintCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -4148,6 +4177,7 @@ struct SourceCharPosConstraintPollDepsPlan {
 
 SourceCharPosConstraintLoadPlan source_char_pos_constraint_load_plan(
     int revision);
+SourceCharPosConstraintSavePlan source_char_pos_constraint_save_plan();
 SourceCharPosConstraintCopyPlan source_char_pos_constraint_copy_plan();
 SourceCharPosConstraintPollDepsPlan source_char_pos_constraint_poll_deps_plan(
     const std::string& source,
