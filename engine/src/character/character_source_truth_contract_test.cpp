@@ -9628,6 +9628,19 @@ int run_contract() {
                  "CharHairExtras.DefaultWind:physicsSettings.Wind;",
                  "glTFMilo CharHair default wind rule");
   ok &= contains(gltf_node_processor_cs,
+                 "varrootNodes=newList<Node>();varseenRootNames="
+                 "newHashSet<string>(StringComparer.OrdinalIgnoreCase);",
+                 "glTFMilo CharHair root discovery de-dupes ignoring case");
+  ok &= contains(gltf_node_processor_cs,
+                 "foreach(varweightedHairNodeinmodel.LogicalNodes.Where("
+                 "node=>!string.IsNullOrEmpty(node.Name)&&"
+                 "weightedHairBoneSet.Contains(node.Name)))",
+                 "glTFMilo CharHair root discovery walks weighted hair nodes");
+  ok &= contains(gltf_node_processor_cs,
+                 "if(!seenRootNames.Add(rootNode.Name)){continue;}rootNodes."
+                 "Add(rootNode);",
+                 "glTFMilo CharHair root discovery skips duplicate roots");
+  ok &= contains(gltf_node_processor_cs,
                  "privatestaticvoidCollectHairChains(Nodenode,ModelRootmodel,"
                  "HashSet<string>weightedHairBoneNames,List<Node>currentChain,"
                  "List<List<Node>>chains)",
@@ -9702,6 +9715,10 @@ int run_contract() {
                  "structSourceGltfMiloHairChildClassification{"
                  "std::vector<std::string>hair_children;",
                  "native declares glTFMilo hair child classifier contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloHairRootDiscoveryResult{"
+                 "boolhas_weighted_hair_bones=false;",
+                 "native declares glTFMilo hair root discovery contract");
   ok &= contains(char_mesh,
                  "boolsource_gltf_milo_is_hair_bone_node("
                  "constSourceGltfMiloHairNode&node)",
@@ -9713,6 +9730,17 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "result.non_hair_bone_children.push_back(child.name);",
                  "native glTFMilo classifier records non-hair bone children");
+  ok &= contains(char_mesh,
+                 "source_gltf_milo_discover_hair_roots_internal("
+                 "conststd::vector<SourceGltfMiloHairNode>&nodes)",
+                 "native ports glTFMilo hair root discovery helper");
+  ok &= contains(char_mesh,
+                 "conststd::stringkey=source_ascii_lower(root_node.name);",
+                 "native glTFMilo root discovery uses case-insensitive keys");
+  ok &= contains(char_mesh,
+                 "discovered.result.skipped_duplicate_roots.push_back("
+                 "root_node.name);",
+                 "native glTFMilo root discovery records skipped duplicate roots");
   ok &= contains(char_mesh,
                  "SourceGltfMiloHairChainsResult"
                  "source_gltf_milo_collect_hair_chains_split_at_branches("
@@ -9767,6 +9795,10 @@ int run_contract() {
                  "source_gltf_milo_classify_hair_children(",
                  "focused CharHair source test covers glTFMilo child classifier");
   ok &= contains(char_hair_source_test,
+                 "source_gltf_milo_discover_hair_roots("
+                 "duplicate_root_nodes)",
+                 "focused CharHair source test covers glTFMilo root discovery");
+  ok &= contains(char_hair_source_test,
                  "source_gltf_milo_collect_hair_chains_without_splitting("
                  "hair_nodes)",
                  "focused CharHair source test covers glTFMilo unsplit collector");
@@ -9794,6 +9826,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_classify_hair_children` records the shared",
                  "document records glTFMilo child classifier helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_discover_hair_roots` records the shared",
+                 "document records glTFMilo hair root discovery helper");
   ok &= contains(doc,
                  "`source_gltf_milo_collect_hair_chains_without_splitting`",
                  "document records glTFMilo unsplit hair segment helper");

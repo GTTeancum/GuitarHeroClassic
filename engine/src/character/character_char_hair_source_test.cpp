@@ -106,6 +106,7 @@ int main() {
   using ghogx::character::source_grim_char_hair_load_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_split_at_branches;
   using ghogx::character::source_gltf_milo_classify_hair_children;
+  using ghogx::character::source_gltf_milo_discover_hair_roots;
   using ghogx::character::source_gltf_milo_export_hair_point;
   using ghogx::character::source_gltf_milo_detect_hair_settings_plan;
   using ghogx::character::source_gltf_milo_hair_collide_name;
@@ -672,6 +673,33 @@ int main() {
       {"bone_hair_tip", 4, true, true},
       {"bone_face", 2, true, false},
   };
+  const std::vector<SourceGltfMiloHairNode> duplicate_root_nodes = {
+      {"bone_hair_root", -1, true, true},
+      {"BONE_HAIR_ROOT", -1, true, true},
+      {"bone_hair_child", 0, true, true},
+      {"bone_head", -1, true, true},
+  };
+  const auto discovered_roots =
+      source_gltf_milo_discover_hair_roots(duplicate_root_nodes);
+  ok &= expect_bool(discovered_roots.has_weighted_hair_bones, true,
+                    "glTFMilo root discovery sees weighted hair bones");
+  ok &= expect_bool(discovered_roots.weighted_set_is_case_insensitive, true,
+                    "glTFMilo root discovery weighted set ignores case");
+  ok &= expect_bool(discovered_roots.root_dedupe_is_case_insensitive, true,
+                    "glTFMilo root discovery de-dupes ignoring case");
+  ok &= expect_size(discovered_roots.roots.size(), 1,
+                    "glTFMilo root discovery duplicate root count");
+  ok &= expect_string(discovered_roots.roots[0], "bone_hair_root",
+                      "glTFMilo root discovery keeps first root spelling");
+  ok &= expect_size(discovered_roots.skipped_duplicate_roots.size(), 2,
+                    "glTFMilo root discovery skipped duplicate count");
+  ok &= expect_string(discovered_roots.skipped_duplicate_roots[0],
+                      "BONE_HAIR_ROOT",
+                      "glTFMilo root discovery records duplicate spelling");
+  ok &= expect_string(discovered_roots.skipped_duplicate_roots[1],
+                      "bone_hair_root",
+                      "glTFMilo root discovery records climbed duplicate");
+
   const auto hair_chains =
       source_gltf_milo_collect_hair_chains_split_at_branches(hair_nodes);
   ok &= expect_bool(hair_chains.has_weighted_hair_bones, true,
@@ -703,6 +731,14 @@ int main() {
   ok &= expect_bool(hair_chains.warnings[0].find("bone_face") !=
                         std::string::npos,
                     true, "glTFMilo non-hair child warning names child");
+
+  const auto duplicate_split_chains =
+      source_gltf_milo_collect_hair_chains_split_at_branches(
+          duplicate_root_nodes);
+  ok &= expect_size(duplicate_split_chains.roots.size(), 1,
+                    "glTFMilo split collector uses root de-dupe helper");
+  ok &= expect_string(duplicate_split_chains.roots[0], "bone_hair_root",
+                      "glTFMilo split collector keeps deduped root");
 
   const auto unsplit_hair_chains =
       source_gltf_milo_collect_hair_chains_without_splitting(hair_nodes);
@@ -739,6 +775,14 @@ int main() {
   ok &= expect_bool(unsplit_hair_chains.warnings[1].find(
                         "strand splitting is disabled") != std::string::npos,
                     true, "glTFMilo unsplit branch warning");
+
+  const auto duplicate_unsplit_chains =
+      source_gltf_milo_collect_hair_chains_without_splitting(
+          duplicate_root_nodes);
+  ok &= expect_size(duplicate_unsplit_chains.roots.size(), 1,
+                    "glTFMilo unsplit collector uses root de-dupe helper");
+  ok &= expect_string(duplicate_unsplit_chains.roots[0], "bone_hair_root",
+                      "glTFMilo unsplit collector keeps deduped root");
 
   const std::array<float, 16> parent_inverse = {
       1.0f, 0.0f, 0.0f, 0.0f,

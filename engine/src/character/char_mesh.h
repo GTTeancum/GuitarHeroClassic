@@ -2665,6 +2665,14 @@ struct SourceGltfMiloHairChainsResult {
   std::vector<std::string> warnings;
 };
 
+struct SourceGltfMiloHairRootDiscoveryResult {
+  bool has_weighted_hair_bones = false;
+  bool weighted_set_is_case_insensitive = true;
+  bool root_dedupe_is_case_insensitive = true;
+  std::vector<std::string> roots;
+  std::vector<std::string> skipped_duplicate_roots;
+};
+
 struct SourceGltfMiloHairChildClassification {
   std::vector<std::string> hair_children;
   std::vector<std::string> non_hair_bone_children;
@@ -5049,6 +5057,9 @@ SourceGltfMiloHairChildClassification
 source_gltf_milo_classify_hair_children(
     const SourceGltfMiloHairNode& parent,
     const std::vector<SourceGltfMiloHairNode>& children);
+SourceGltfMiloHairRootDiscoveryResult
+source_gltf_milo_discover_hair_roots(
+    const std::vector<SourceGltfMiloHairNode>& nodes);
 SourceGltfMiloHairChainsResult
 source_gltf_milo_collect_hair_chains_split_at_branches(
     const std::vector<SourceGltfMiloHairNode>& nodes);

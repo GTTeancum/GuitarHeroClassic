@@ -2123,6 +2123,10 @@ note, and all report `unreadBytes=0`.
     weighted hair bones climb to their top `bone_hair_` ancestor, non-hair bone
     children under hair bones are warnings, branch points end the current
     segment, and weighted descendants keep child segments alive.
+    `source_gltf_milo_discover_hair_roots` records the shared root discovery
+    gate: weighted names are matched through the case-insensitive set from
+    `ProcessCharHair`, roots are de-duplicated case-insensitively, and the first
+    root spelling is the one kept for strand collection.
     Native `source_gltf_milo_classify_hair_children` records the shared child
     rule used by both strand collectors: `bone_hair_` child bones continue the
     strand, non-hair child bones emit the exporter warning, and non-bone

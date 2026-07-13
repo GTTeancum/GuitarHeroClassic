@@ -9844,6 +9844,51 @@ static std::vector<SourceGltfMiloHairNode> source_gltf_milo_child_nodes(
   return child_nodes;
 }
 
+struct SourceGltfMiloHairRootDiscoveryInternal {
+  SourceGltfMiloHairRootDiscoveryResult result;
+  std::vector<int> root_indices;
+};
+
+static SourceGltfMiloHairRootDiscoveryInternal
+source_gltf_milo_discover_hair_roots_internal(
+    const std::vector<SourceGltfMiloHairNode>& nodes) {
+  SourceGltfMiloHairRootDiscoveryInternal discovered;
+  std::unordered_set<std::string> seen_roots;
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    if (!nodes[i].weighted || !source_gltf_milo_is_hair_bone_node(nodes[i])) {
+      continue;
+    }
+    discovered.result.has_weighted_hair_bones = true;
+    int root = static_cast<int>(i);
+    while (nodes[static_cast<size_t>(root)].parent >= 0) {
+      const int parent = nodes[static_cast<size_t>(root)].parent;
+      if (parent < 0 || static_cast<size_t>(parent) >= nodes.size() ||
+          !source_gltf_milo_is_hair_bone_node(
+              nodes[static_cast<size_t>(parent)])) {
+        break;
+      }
+      root = parent;
+    }
+
+    const SourceGltfMiloHairNode& root_node =
+        nodes[static_cast<size_t>(root)];
+    const std::string key = source_ascii_lower(root_node.name);
+    if (seen_roots.insert(key).second) {
+      discovered.root_indices.push_back(root);
+      discovered.result.roots.push_back(root_node.name);
+    } else {
+      discovered.result.skipped_duplicate_roots.push_back(root_node.name);
+    }
+  }
+  return discovered;
+}
+
+SourceGltfMiloHairRootDiscoveryResult
+source_gltf_milo_discover_hair_roots(
+    const std::vector<SourceGltfMiloHairNode>& nodes) {
+  return source_gltf_milo_discover_hair_roots_internal(nodes).result;
+}
+
 static bool source_gltf_milo_collect_hair_chains_split_at_branches_impl(
     const std::vector<SourceGltfMiloHairNode>& nodes,
     const std::vector<std::vector<int>>& children,
@@ -9921,32 +9966,13 @@ source_gltf_milo_collect_hair_chains_split_at_branches(
     }
   }
 
-  std::unordered_set<std::string> seen_roots;
-  std::vector<int> roots;
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    if (!nodes[i].weighted || !source_gltf_milo_is_hair_bone_node(nodes[i])) {
-      continue;
-    }
-    result.has_weighted_hair_bones = true;
-    int root = static_cast<int>(i);
-    while (nodes[static_cast<size_t>(root)].parent >= 0) {
-      const int parent = nodes[static_cast<size_t>(root)].parent;
-      if (parent < 0 || static_cast<size_t>(parent) >= nodes.size() ||
-          !source_gltf_milo_is_hair_bone_node(
-              nodes[static_cast<size_t>(parent)])) {
-        break;
-      }
-      root = parent;
-    }
-    const std::string key =
-        source_ascii_lower(nodes[static_cast<size_t>(root)].name);
-    if (seen_roots.insert(key).second) {
-      roots.push_back(root);
-      result.roots.push_back(nodes[static_cast<size_t>(root)].name);
-    }
-  }
+  const SourceGltfMiloHairRootDiscoveryInternal roots =
+      source_gltf_milo_discover_hair_roots_internal(nodes);
+  result.has_weighted_hair_bones =
+      roots.result.has_weighted_hair_bones;
+  result.roots = roots.result.roots;
 
-  for (int root : roots) {
+  for (int root : roots.root_indices) {
     source_gltf_milo_collect_hair_chains_split_at_branches_impl(
         nodes, children, root, false, result.chains, result.warnings);
   }
@@ -10022,33 +10048,14 @@ source_gltf_milo_collect_hair_chains_without_splitting(
     }
   }
 
-  std::unordered_set<std::string> seen_roots;
-  std::vector<int> roots;
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    if (!nodes[i].weighted || !source_gltf_milo_is_hair_bone_node(nodes[i])) {
-      continue;
-    }
-    result.has_weighted_hair_bones = true;
-    int root = static_cast<int>(i);
-    while (nodes[static_cast<size_t>(root)].parent >= 0) {
-      const int parent = nodes[static_cast<size_t>(root)].parent;
-      if (parent < 0 || static_cast<size_t>(parent) >= nodes.size() ||
-          !source_gltf_milo_is_hair_bone_node(
-              nodes[static_cast<size_t>(parent)])) {
-        break;
-      }
-      root = parent;
-    }
-    const std::string key =
-        source_ascii_lower(nodes[static_cast<size_t>(root)].name);
-    if (seen_roots.insert(key).second) {
-      roots.push_back(root);
-      result.roots.push_back(nodes[static_cast<size_t>(root)].name);
-    }
-  }
+  const SourceGltfMiloHairRootDiscoveryInternal roots =
+      source_gltf_milo_discover_hair_roots_internal(nodes);
+  result.has_weighted_hair_bones =
+      roots.result.has_weighted_hair_bones;
+  result.roots = roots.result.roots;
 
   std::vector<int> current_chain;
-  for (int root : roots) {
+  for (int root : roots.root_indices) {
     source_gltf_milo_collect_hair_chains_without_splitting_impl(
         nodes, children, root, current_chain, result.chains, result.warnings);
   }
