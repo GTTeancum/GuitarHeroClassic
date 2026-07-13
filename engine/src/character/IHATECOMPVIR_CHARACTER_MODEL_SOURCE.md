@@ -1915,7 +1915,9 @@ note, and all report `unreadBytes=0`.
     from source world rows. Native ports this as
     `source_char_hair_strand_set_root` over an explicit first-child transform
     chain, preserving the old terminal length when present and using the source
-    single-root fallback length of `5.0f`.
+    single-root fallback length of `5.0f`. Focused deterministic coverage
+    exercises the empty-root clear, single-root fallback, multi-point child
+    chain, and preserved terminal-length branches.
   - `CharHair::Strand::SetAngle` stores the angle, builds a rotation around X
     from `angle * DEG2RAD`, and multiplies that by `mBaseMat` into `mRootMat`.
     Native exposes this exact formula through

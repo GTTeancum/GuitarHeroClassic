@@ -89,6 +89,8 @@ int main() {
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_zero_time_dump_evidence;
   using ghogx::character::source_char_hair_strand_default_state;
+  using ghogx::character::source_char_hair_strand_set_angle;
+  using ghogx::character::source_char_hair_strand_set_root;
   using ghogx::character::source_gltf_milo_collect_hair_chains_without_splitting;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
   using ghogx::character::source_char_hair_simulate_internal_collision_step;
@@ -107,6 +109,7 @@ int main() {
   using ghogx::character::source_gltf_milo_process_char_hair_plan;
   using ghogx::character::source_gltf_milo_process_empty_hair_collides;
   using ghogx::character::SourceCharHairCollisionInput;
+  using ghogx::character::SourceCharHairRootNode;
   using ghogx::character::SourceGltfMiloHairNode;
   using ghogx::character::SourceGltfMiloHairPointNode;
 
@@ -200,6 +203,91 @@ int main() {
              "native strand base identity");
   ok &= near(native_strand.root_mat[8], strand_defaults.root_mat[8],
              "native strand root identity");
+
+  ghogx::character::CharHairStrand root_strand = native_strand;
+  root_strand.points.resize(1);
+  root_strand.points[0].bone = "old.tip";
+  root_strand.points[0].length = 9.0f;
+  source_char_hair_strand_set_root(root_strand, {});
+  ok &= expect_string(root_strand.root, "", "SetRoot empty clears root");
+  ok &= expect_size(root_strand.points.size(), 0,
+                    "SetRoot empty clears points");
+
+  const std::vector<SourceCharHairRootNode> single_chain = {
+      {"bone_hair_root",
+       0.0f,
+       {1.0f, 2.0f, 3.0f},
+       {0.0f, 0.0f, 1.0f},
+       {0.0f, 1.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f}},
+  };
+  source_char_hair_strand_set_root(root_strand, single_chain);
+  ok &= expect_string(root_strand.root, "bone_hair_root",
+                      "SetRoot single assigns root");
+  ok &= expect_size(root_strand.points.size(), 1,
+                    "SetRoot single point count");
+  ok &= expect_string(root_strand.points[0].bone, "bone_hair_root",
+                      "SetRoot single point bone");
+  ok &= near(root_strand.points[0].length, 5.0f,
+             "SetRoot single default length");
+  ok &= near(root_strand.points[0].pos[0], 1.0f,
+             "SetRoot single pos x");
+  ok &= near(root_strand.points[0].pos[1], 2.0f,
+             "SetRoot single pos y");
+  ok &= near(root_strand.points[0].pos[2], 8.0f,
+             "SetRoot single pos uses world y axis");
+  ok &= near(root_strand.base_mat[0], 0.0f,
+             "SetRoot copies root base matrix");
+  ok &= near(root_strand.base_mat[3], 1.0f,
+             "SetRoot copies root base matrix row");
+
+  ghogx::character::CharHairStrand chain_strand;
+  chain_strand.angle = 90.0f;
+  chain_strand.points.resize(1);
+  chain_strand.points[0].length = 7.0f;
+  const std::vector<SourceCharHairRootNode> chain = {
+      {"bone_hair_root", 0.0f, {0.0f, 0.0f, 0.0f},
+       {0.0f, 1.0f, 0.0f}},
+      {"bone_hair_mid", 3.0f, {0.0f, 3.0f, 0.0f},
+       {0.0f, 1.0f, 0.0f}},
+      {"bone_hair_tip", 2.0f, {0.0f, 5.0f, 0.0f},
+       {0.0f, 1.0f, 0.0f}},
+  };
+  source_char_hair_strand_set_root(chain_strand, chain);
+  ok &= expect_size(chain_strand.points.size(), 3,
+                    "SetRoot chain point count");
+  ok &= expect_string(chain_strand.points[0].bone, "bone_hair_root",
+                      "SetRoot chain first bone");
+  ok &= near(chain_strand.points[0].length, 3.0f,
+             "SetRoot chain first length from child");
+  ok &= near(chain_strand.points[0].pos[1], 3.0f,
+             "SetRoot chain first pos from child world");
+  ok &= expect_string(chain_strand.points[1].bone, "bone_hair_mid",
+                      "SetRoot chain second bone");
+  ok &= near(chain_strand.points[1].length, 2.0f,
+             "SetRoot chain second length from child");
+  ok &= near(chain_strand.points[1].pos[1], 5.0f,
+             "SetRoot chain second pos from child world");
+  ok &= expect_string(chain_strand.points[2].bone, "bone_hair_tip",
+                      "SetRoot chain terminal bone");
+  ok &= near(chain_strand.points[2].length, 7.0f,
+             "SetRoot chain preserves previous terminal length");
+  ok &= near(chain_strand.points[2].pos[1], 12.0f,
+             "SetRoot chain terminal pos uses preserved length");
+  ok &= near(chain_strand.root_mat[4], 0.0f,
+             "SetRoot reapplies SetAngle root matrix");
+  ok &= near(chain_strand.root_mat[5], 1.0f,
+             "SetRoot angle matrix yz");
+  ok &= near(chain_strand.root_mat[7], -1.0f,
+             "SetRoot angle matrix zy");
+
+  source_char_hair_strand_set_angle(chain_strand, 0.0f);
+  ok &= near(chain_strand.angle, 0.0f, "SetAngle stores angle");
+  ok &= near(chain_strand.root_mat[4], 1.0f,
+             "SetAngle zero restores base y");
+  ok &= near(chain_strand.root_mat[8], 1.0f,
+             "SetAngle zero restores base z");
 
   const auto point_v1 = source_char_hair_point_load_plan(1);
   ok &= expect_bool(point_v1.known_revision, true,
