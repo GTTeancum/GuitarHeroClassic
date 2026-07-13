@@ -11531,14 +11531,6 @@ sample_mesh_transform_from_source_local_position(
         const auto source =
             source_local_position_for_mesh(source_positions, mesh_name);
         if (source) {
-            const auto position =
-                sample_translation_position(
-                    anim.translation_keys, frame, anim.translation_spline,
-                    anim.translation_repeat);
-            sample.has_translation = true;
-            sample.translation_is_absolute = false;
-            for (int axis = 0; axis < 3; ++axis)
-                sample.translation[axis] = position[axis] - (*source)[axis];
             if (used_source_position) *used_source_position = true;
             if (source_position) *source_position = *source;
         }

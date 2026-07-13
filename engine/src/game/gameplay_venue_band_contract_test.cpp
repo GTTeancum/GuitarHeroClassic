@@ -7053,7 +7053,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "sample_translation_position(anim.translation_keys,frame,"
                  "anim.translation_spline,anim.translation_repeat);",
-                 "source-local translation correction honors authored translation spline and repeat mode");
+                 "venue TransAnim translation diagnostics preserve authored translation spline and repeat mode");
+  ok &= absent(gameplay_c,
+               "sample.translation_is_absolute=false;",
+               "venue TransAnim source local positions must not be converted into renderer deltas");
   ok &= contains(gameplay_c,
                  "repeat_translation_sample_frame(keys,frame,repeat,"
                  "repeat_offset)",
