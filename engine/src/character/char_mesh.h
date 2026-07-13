@@ -3032,6 +3032,16 @@ struct SourceCharSleevePollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharSleeveSetNameStep {
+  bool calls_hmx_object_set_name = true;
+  bool assigns_character_owner = false;
+};
+
+struct SourceCharSleeveHighlightPlan {
+  bool exits_without_sleeve_or_parent = false;
+  std::vector<std::string> draw_steps;
+};
+
 struct SourceCharSleeveLoadPlan {
   bool revision_supported = false;
   std::vector<std::string> read_order;
@@ -3947,6 +3957,8 @@ void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend);
 SourceCharSleeveState source_char_sleeve_default_state();
+SourceCharSleeveSetNameStep source_char_sleeve_set_name_step(
+    bool dir_is_character);
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,
@@ -3957,6 +3969,10 @@ SourceCharSleevePollResult source_char_sleeve_poll(
     float sleeve_local_z,
     const milo_scene::Xfm& sleeve_world,
     const milo_scene::Xfm& parent_world);
+SourceCharSleeveHighlightPlan source_char_sleeve_highlight_plan(
+    bool has_sleeve,
+    bool has_parent,
+    bool has_top_sleeve);
 void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
                                   const std::string& sleeve_parent,
                                   const std::string& sleeve,

@@ -6463,6 +6463,13 @@ SourceCharSleeveState source_char_sleeve_default_state() {
   return SourceCharSleeveState{};
 }
 
+SourceCharSleeveSetNameStep source_char_sleeve_set_name_step(
+    bool dir_is_character) {
+  SourceCharSleeveSetNameStep step;
+  step.assigns_character_owner = dir_is_character;
+  return step;
+}
+
 SourceCharMeshCacheState source_char_mesh_cache_default_state() {
   return SourceCharMeshCacheState{};
 }
@@ -7778,6 +7785,24 @@ SourceCharSleevePollResult source_char_sleeve_poll(
   }
 
   return result;
+}
+
+SourceCharSleeveHighlightPlan source_char_sleeve_highlight_plan(
+    bool has_sleeve,
+    bool has_parent,
+    bool has_top_sleeve) {
+  SourceCharSleeveHighlightPlan plan;
+  if (!has_sleeve || !has_parent) {
+    plan.exits_without_sleeve_or_parent = true;
+    return plan;
+  }
+  plan.draw_steps = {"UtilDrawAxes(mSleeve, green)",
+                     "DrawLine(mSleeve,parent, green)"};
+  if (has_top_sleeve) {
+    plan.draw_steps.push_back("UtilDrawAxes(mTopSleeve, cyan)");
+    plan.draw_steps.push_back("DrawLine(mTopSleeve,parent, cyan)");
+  }
+  return plan;
 }
 
 void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,

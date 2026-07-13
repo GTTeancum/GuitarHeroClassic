@@ -56,11 +56,13 @@ int main() {
   using ghogx::character::source_char_sleeve_copy_plan;
   using ghogx::character::source_char_sleeve_default_state;
   using ghogx::character::source_char_sleeve_handler_plan;
+  using ghogx::character::source_char_sleeve_highlight_plan;
   using ghogx::character::source_char_sleeve_load_plan;
   using ghogx::character::source_char_sleeve_poll;
   using ghogx::character::source_char_sleeve_poll_deps;
   using ghogx::character::source_char_sleeve_prop_sync_plan;
   using ghogx::character::source_char_sleeve_save_plan;
+  using ghogx::character::source_char_sleeve_set_name_step;
 
   bool ok = true;
 
@@ -71,6 +73,16 @@ int main() {
   ok &= near(state.inertia, 0.5f, "default inertia");
   ok &= near(state.gravity, 1.0f, "default gravity");
   ok &= near(state.stiffness, 0.02f, "default stiffness");
+
+  const auto set_name_non_character =
+      source_char_sleeve_set_name_step(false);
+  ok &= expect_bool(set_name_non_character.calls_hmx_object_set_name, true,
+                    "SetName calls object SetName");
+  ok &= expect_bool(set_name_non_character.assigns_character_owner, false,
+                    "SetName non-character owner");
+  const auto set_name_character = source_char_sleeve_set_name_step(true);
+  ok &= expect_bool(set_name_character.assigns_character_owner, true,
+                    "SetName captures character owner");
 
   auto parent = identity_xfm(0.0f, 0.0f, 0.0f);
   auto sleeve_world = identity_xfm(0.0f, 0.0f, -2.0f);
@@ -104,6 +116,35 @@ int main() {
              "teleport seeds sleeve length");
   ok &= vec_near(state.pos, {0.0f, 0.0f, -3.0f}, "teleport updates pos");
   ok &= vec_near(state.last_pos, state.pos, "teleport resets last pos");
+
+  const auto highlight_missing =
+      source_char_sleeve_highlight_plan(false, true, true);
+  ok &= expect_bool(highlight_missing.exits_without_sleeve_or_parent, true,
+                    "Highlight exits without sleeve");
+  ok &= expect_size(highlight_missing.draw_steps.size(), 0,
+                    "Highlight missing sleeve no draws");
+  const auto highlight_no_top =
+      source_char_sleeve_highlight_plan(true, true, false);
+  ok &= expect_bool(highlight_no_top.exits_without_sleeve_or_parent, false,
+                    "Highlight with sleeve and parent runs");
+  ok &= expect_size(highlight_no_top.draw_steps.size(), 2,
+                    "Highlight no top draw count");
+  ok &= expect_string(highlight_no_top.draw_steps[0],
+                      "UtilDrawAxes(mSleeve, green)",
+                      "Highlight sleeve axes draw");
+  ok &= expect_string(highlight_no_top.draw_steps[1],
+                      "DrawLine(mSleeve,parent, green)",
+                      "Highlight sleeve parent line");
+  const auto highlight_top =
+      source_char_sleeve_highlight_plan(true, true, true);
+  ok &= expect_size(highlight_top.draw_steps.size(), 4,
+                    "Highlight top sleeve draw count");
+  ok &= expect_string(highlight_top.draw_steps[2],
+                      "UtilDrawAxes(mTopSleeve, cyan)",
+                      "Highlight top sleeve axes draw");
+  ok &= expect_string(highlight_top.draw_steps[3],
+                      "DrawLine(mTopSleeve,parent, cyan)",
+                      "Highlight top sleeve parent line");
 
   SourceCharSleevePollDeps deps;
   source_char_sleeve_poll_deps(deps, "parent.trans", "sleeve.trans",

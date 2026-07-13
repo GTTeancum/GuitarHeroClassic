@@ -2509,13 +2509,19 @@ note, and all report `unreadBytes=0`.
     `mRange = 0`, `mNegLength = 0`, `mPosLength = 0`, and
     `mStiffness = 0.02`.
   - `SetName` records the owning `Character` when the object directory is a
-    character.
+    character. Native `source_char_sleeve_set_name_step` records that branch
+    without changing live object ownership.
   - `Poll` gates on `mSleeve` and its parent. It uses task delta seconds,
     source stiffness decay, optional teleport reset from the owner character,
     inertia from `mLastPos`/`mLastDT`, gravity, range clamp, and the checked
     source length/interp block before writing the sleeve world transform. When
     `mTopSleeve` exists, it removes the parent X projection and writes a second
     top-sleeve transform.
+  - `Highlight` returns when `mSleeve` or its parent is missing. Otherwise it
+    draws sleeve axes and a sleeve-to-parent line in green; when `mTopSleeve`
+    exists it also draws top-sleeve axes and a top-sleeve-to-parent line in
+    cyan. Native `source_char_sleeve_highlight_plan` records only this
+    diagnostic draw sequence.
   - `PollDeps` pushes the sleeve parent into `changedBy`, then pushes `mSleeve`
     and `mTopSleeve` into `change` only when `mSleeve` exists.
   - `Load` accepts only source revision 0, delegates to `Hmx::Object::Load`,
