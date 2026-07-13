@@ -1078,26 +1078,36 @@ int main() {
   CHECK(gltf_character_options.meta_type == "Character");
   CHECK(gltf_character_options.normalized_platform == "xbox");
   CHECK(!gltf_character_options.warns_invalid_platform);
+  CHECK(gltf_character_options.selected_game ==
+        ghogx::character::SourceGltfMiloGame::kRockBand3);
+  CHECK(!gltf_character_options.warns_invalid_game);
 
   run_options.type = ghogx::character::SourceGltfMiloSceneType::kInstrument;
   run_options.platform = "ps3";
+  run_options.game_arg = "tbrb";
   const auto gltf_instrument_options =
       ghogx::character::source_gltf_milo_run_options_plan(run_options);
   CHECK(gltf_instrument_options.character_directory_type);
   CHECK(!gltf_instrument_options.convert_world_coordinates);
   CHECK(gltf_instrument_options.meta_type == "Character");
   CHECK(gltf_instrument_options.normalized_platform == "ps3");
+  CHECK(gltf_instrument_options.selected_game ==
+        ghogx::character::SourceGltfMiloGame::kTheBeatlesRockBand);
 
   run_options.type = ghogx::character::SourceGltfMiloSceneType::kDancer;
   run_options.platform = "xbox";
+  run_options.game_arg = "rb2";
   const auto gltf_dancer_options =
       ghogx::character::source_gltf_milo_run_options_plan(run_options);
   CHECK(gltf_dancer_options.character_directory_type);
   CHECK(!gltf_dancer_options.convert_world_coordinates);
   CHECK(gltf_dancer_options.meta_type == "Character");
+  CHECK(gltf_dancer_options.selected_game ==
+        ghogx::character::SourceGltfMiloGame::kRockBand2);
 
   run_options.type = ghogx::character::SourceGltfMiloSceneType::kVenue;
   run_options.platform = "bad-platform";
+  run_options.game_arg = "bad-game";
   const auto gltf_venue_options =
       ghogx::character::source_gltf_milo_run_options_plan(run_options);
   CHECK(!gltf_venue_options.character_directory_type);
@@ -1105,6 +1115,45 @@ int main() {
   CHECK(gltf_venue_options.meta_type == "RndDir");
   CHECK(gltf_venue_options.normalized_platform == "xbox");
   CHECK(gltf_venue_options.warns_invalid_platform);
+  CHECK(gltf_venue_options.selected_game ==
+        ghogx::character::SourceGltfMiloGame::kRockBand3);
+  CHECK(gltf_venue_options.warns_invalid_game);
+
+  ghogx::character::SourceGltfMiloRunPreflightInput preflight;
+  preflight.input_file_exists = false;
+  preflight.input_path = "rock1.glb";
+  const auto gltf_missing_input =
+      ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
+  CHECK(gltf_missing_input.exits_missing_input);
+  CHECK(!gltf_missing_input.reaches_model_load);
+
+  preflight.input_file_exists = true;
+  preflight.input_path = "rock1.GLB";
+  const auto gltf_uppercase_extension =
+      ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
+  CHECK(!gltf_uppercase_extension.accepts_glb_extension);
+  CHECK(gltf_uppercase_extension.extension_check_is_case_sensitive);
+  CHECK(gltf_uppercase_extension.exits_non_gltf_extension);
+  CHECK(!gltf_uppercase_extension.reaches_model_load);
+
+  preflight.input_path = "rock1.glb";
+  preflight.outfit_config_path = "missing_outfit.json";
+  preflight.outfit_config_exists = false;
+  const auto gltf_missing_outfit =
+      ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
+  CHECK(gltf_missing_outfit.accepts_glb_extension);
+  CHECK(gltf_missing_outfit.lowercases_outfit_config_path_before_check);
+  CHECK(gltf_missing_outfit.checks_outfit_config_exists);
+  CHECK(gltf_missing_outfit.exits_missing_outfit_config);
+  CHECK(!gltf_missing_outfit.reaches_model_load);
+
+  preflight.input_path = "rock1.gltf";
+  preflight.outfit_config_path.clear();
+  const auto gltf_valid_preflight =
+      ghogx::character::source_gltf_milo_run_preflight_plan(preflight);
+  CHECK(gltf_valid_preflight.accepts_gltf_extension);
+  CHECK(!gltf_valid_preflight.checks_outfit_config_exists);
+  CHECK(gltf_valid_preflight.reaches_model_load);
 
   ghogx::character::SourceGltfMiloBaseMeshInput base_mesh;
   base_mesh.game = ghogx::character::SourceGltfMiloGame::kRockBand3;

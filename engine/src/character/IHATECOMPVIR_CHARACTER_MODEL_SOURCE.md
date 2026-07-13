@@ -1287,9 +1287,17 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `ps3`, defaults invalid platforms to Xbox with a warning, sets MILO
     directory type to `Character` only for `character`, `instrument`, or
     `dancer`, and disables world-coordinate conversion for those same three
-    types. Native `source_gltf_milo_run_options_plan` records that run-level
-    gate so character-space matrix rows are not converted by exporter evidence
-    meant for non-character `RndDir` outputs.
+    types. It defaults game selection to Rock Band 3, accepts `tbrb`, `rb3`,
+    and `rb2`, and warns while keeping Rock Band 3 for unknown game names.
+    Native `source_gltf_milo_run_options_plan` records that run-level gate so
+    character-space matrix rows are not converted by exporter evidence meant
+    for non-character `RndDir` outputs.
+  - Before loading the model, glTFMilo exits if the input file is missing,
+    rejects paths that do not end exactly in lowercase `.gltf` or `.glb`, and
+    exits if a non-empty lowercased OutfitConfig path does not exist. Native
+    `source_gltf_milo_run_preflight_plan` records that pre-model-load gate,
+    including the case-sensitive extension check, without adding local
+    filesystem probing or converter-side fallback behavior.
   - `CreateBaseMesh` allocates `RndMesh.New(selectedGame.ModelRevision, 0, 0,
     0)`, sets object-fields revision 2, embeds a revision-9 `RndTrans` parented
     to the MILO filename, embeds revision-3 `RndDrawable` with radius `0`,

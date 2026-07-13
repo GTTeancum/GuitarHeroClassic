@@ -841,7 +841,9 @@ enum class SourceGltfMiloAlphaMode {
 
 enum class SourceGltfMiloGame {
   kOther,
+  kRockBand2,
   kRockBand3,
+  kTheBeatlesRockBand,
   kDanceCentral1,
 };
 
@@ -869,6 +871,7 @@ struct SourceGltfMiloDirectoryEntryInput {
 struct SourceGltfMiloRunOptionsInput {
   SourceGltfMiloSceneType type = SourceGltfMiloSceneType::kOther;
   std::string platform;
+  std::string game_arg;
 };
 
 struct SourceGltfMiloRunOptionsPlan {
@@ -877,6 +880,27 @@ struct SourceGltfMiloRunOptionsPlan {
   std::string meta_type = "RndDir";
   std::string normalized_platform = "xbox";
   bool warns_invalid_platform = false;
+  SourceGltfMiloGame selected_game = SourceGltfMiloGame::kRockBand3;
+  bool warns_invalid_game = false;
+};
+
+struct SourceGltfMiloRunPreflightInput {
+  bool input_file_exists = true;
+  std::string input_path;
+  std::string outfit_config_path;
+  bool outfit_config_exists = true;
+};
+
+struct SourceGltfMiloRunPreflightPlan {
+  bool exits_missing_input = false;
+  bool accepts_gltf_extension = false;
+  bool accepts_glb_extension = false;
+  bool extension_check_is_case_sensitive = true;
+  bool exits_non_gltf_extension = false;
+  bool lowercases_outfit_config_path_before_check = true;
+  bool checks_outfit_config_exists = false;
+  bool exits_missing_outfit_config = false;
+  bool reaches_model_load = false;
 };
 
 struct SourceGltfMiloBaseMeshInput {
@@ -1417,6 +1441,8 @@ source_gltf_milo_material_runtime_boundary();
 
 SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
     const SourceGltfMiloRunOptionsInput& input);
+SourceGltfMiloRunPreflightPlan source_gltf_milo_run_preflight_plan(
+    const SourceGltfMiloRunPreflightInput& input);
 
 SourceGltfMiloBaseMeshPlan source_gltf_milo_create_base_mesh_plan(
     const SourceGltfMiloBaseMeshInput& input);

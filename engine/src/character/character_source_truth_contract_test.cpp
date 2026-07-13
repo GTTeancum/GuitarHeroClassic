@@ -6571,6 +6571,14 @@ int run_contract() {
                  "type=false;",
                  "native declares glTFMilo run options plan");
   ok &= contains(char_mesh_h,
+                 "SourceGltfMiloGameselected_game=SourceGltfMiloGame::"
+                 "kRockBand3;",
+                 "native run options plan records default game");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloRunPreflightPlan{boolexits_missing_"
+                 "input=false;",
+                 "native declares glTFMilo run preflight plan");
+  ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialExtras{boolpresent=false;",
                  "native declares glTFMilo material extras row");
   ok &= contains(char_mesh_h,
@@ -7241,6 +7249,26 @@ int run_contract() {
                  "meta.platform=DirectoryMeta.Platform.Xbox;",
                  "glTFMilo defaults invalid platform to Xbox");
   ok &= contains(gltf_program_cs,
+                 "if(!File.Exists(filePath)){Logger.Error(\"Filedoesnotexist."
+                 "\");return;}",
+                 "glTFMilo exits before load for missing input");
+  ok &= contains(gltf_program_cs,
+                 "if(!filePath.EndsWith(\".gltf\")&&!filePath.EndsWith(\".glb\"))"
+                 "{Logger.Error(\"FileisnotaglTFfile.\");return;}",
+                 "glTFMilo accepts only lowercase glTF suffixes");
+  ok &= contains(gltf_program_cs,
+                 "if(!string.IsNullOrEmpty(outfitConfig)&&!File.Exists("
+                 "outfitConfig)){Logger.Error($\"SpecifiedOutfitConfigfile"
+                 "{outfitConfig}doesnotexist.\");return;}",
+                 "glTFMilo exits for missing OutfitConfig");
+  ok &= contains(gltf_program_cs,
+                 "MiloGameselectedGame=MiloGame.RockBand3;if(gameArg==\"tbrb\")",
+                 "glTFMilo defaults game selection to RB3 before branches");
+  ok &= contains(gltf_program_cs,
+                 "elseif(gameArg==\"rb2\"){selectedGame=MiloGame.RockBand2;}"
+                 "else{Logger.Warn(\"Invalidgamespecified.DefaultingtoRockBand3.\");}",
+                 "glTFMilo accepts rb2 and warns on invalid game");
+  ok &= contains(gltf_program_cs,
                  "if(opts.Type==\"character\"||opts.Type==\"instrument\"||"
                  "opts.Type==\"dancer\")meta.type=\"Character\";elsemeta."
                  "type=\"RndDir\";",
@@ -7258,6 +7286,14 @@ int run_contract() {
                  "platform=true;",
                  "native run options helper preserves invalid platform fallback");
   ok &= contains(char_mesh,
+                 "if(game_arg==\"tbrb\"){plan.selected_game=SourceGltfMiloGame::"
+                 "kTheBeatlesRockBand;",
+                 "native run options helper preserves tbrb game branch");
+  ok &= contains(char_mesh,
+                 "plan.selected_game=SourceGltfMiloGame::kRockBand3;"
+                 "plan.warns_invalid_game=true;",
+                 "native run options helper preserves invalid game fallback");
+  ok &= contains(char_mesh,
                  "plan.convert_world_coordinates=!plan.character_directory_"
                  "type;",
                  "native run options helper preserves character conversion gate");
@@ -7265,6 +7301,18 @@ int run_contract() {
                  "plan.meta_type=plan.character_directory_type?\"Character\":"
                  "\"RndDir\";",
                  "native run options helper preserves directory type gate");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloRunPreflightPlansource_gltf_milo_run_"
+                 "preflight_plan(",
+                 "native ports glTFMilo preflight helper");
+  ok &= contains(char_mesh,
+                 "plan.accepts_gltf_extension=ends_with(input.input_path,"
+                 "\".gltf\");",
+                 "native preflight helper preserves lowercase gltf suffix");
+  ok &= contains(char_mesh,
+                 "if(!input.outfit_config_path.empty()){plan.checks_outfit_"
+                 "config_exists=true;",
+                 "native preflight helper preserves outfit config gate");
   ok &= contains(char_mesh,
                  "SourceGltfMiloBaseMeshPlansource_gltf_milo_create_base_mesh_plan(",
                  "native ports glTFMilo CreateBaseMesh helper");
@@ -7790,6 +7838,15 @@ int run_contract() {
                  "gltf_venue_options.warns_invalid_platform",
                  "focused mesh decode test covers invalid platform fallback");
   ok &= contains(mesh_decode_test,
+                 "gltf_venue_options.warns_invalid_game",
+                 "focused mesh decode test covers invalid game fallback");
+  ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_run_preflight_plan(preflight)",
+                 "focused mesh decode test covers glTFMilo preflight helper");
+  ok &= contains(mesh_decode_test,
+                 "gltf_uppercase_extension.exits_non_gltf_extension",
+                 "focused mesh decode test covers case-sensitive glTF suffix");
+  ok &= contains(mesh_decode_test,
                  "gltf_map_material.creates_normal_tex_entry",
                  "focused mesh decode test covers glTFMilo normal map row");
   ok &= contains(mesh_decode_test,
@@ -8104,6 +8161,12 @@ int run_contract() {
                  "document records glTFMilo run options helper");
   ok &= contains(doc, "disables world-coordinate conversion for those same three",
                  "document records character coordinate conversion gate");
+  ok &= contains(doc,
+                 "`source_gltf_milo_run_preflight_plan` records",
+                 "document records glTFMilo run preflight helper");
+  ok &= contains(doc,
+                 "case-sensitive extension check",
+                 "document records glTFMilo lowercase suffix gate");
   ok &= contains(doc,
                  "`source_gltf_milo_create_base_mesh_plan` mirrors",
                  "document records glTFMilo CreateBaseMesh helper");

@@ -1313,12 +1313,61 @@ SourceGltfMiloRunOptionsPlan source_gltf_milo_run_options_plan(
     plan.warns_invalid_platform = true;
   }
 
+  std::string game_arg = input.game_arg;
+  std::transform(game_arg.begin(), game_arg.end(), game_arg.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  if (game_arg == "tbrb") {
+    plan.selected_game = SourceGltfMiloGame::kTheBeatlesRockBand;
+  } else if (game_arg == "rb3" || game_arg.empty()) {
+    plan.selected_game = SourceGltfMiloGame::kRockBand3;
+  } else if (game_arg == "rb2") {
+    plan.selected_game = SourceGltfMiloGame::kRockBand2;
+  } else {
+    plan.selected_game = SourceGltfMiloGame::kRockBand3;
+    plan.warns_invalid_game = true;
+  }
+
   plan.character_directory_type =
       input.type == SourceGltfMiloSceneType::kCharacter ||
       input.type == SourceGltfMiloSceneType::kInstrument ||
       input.type == SourceGltfMiloSceneType::kDancer;
   plan.convert_world_coordinates = !plan.character_directory_type;
   plan.meta_type = plan.character_directory_type ? "Character" : "RndDir";
+  return plan;
+}
+
+SourceGltfMiloRunPreflightPlan source_gltf_milo_run_preflight_plan(
+    const SourceGltfMiloRunPreflightInput& input) {
+  SourceGltfMiloRunPreflightPlan plan;
+  if (!input.input_file_exists) {
+    plan.exits_missing_input = true;
+    return plan;
+  }
+
+  auto ends_with = [](const std::string& value, const char* suffix) {
+    const size_t suffix_len = std::strlen(suffix);
+    return value.size() >= suffix_len &&
+           value.compare(value.size() - suffix_len, suffix_len, suffix) == 0;
+  };
+
+  plan.accepts_gltf_extension = ends_with(input.input_path, ".gltf");
+  plan.accepts_glb_extension = ends_with(input.input_path, ".glb");
+  if (!plan.accepts_gltf_extension && !plan.accepts_glb_extension) {
+    plan.exits_non_gltf_extension = true;
+    return plan;
+  }
+
+  if (!input.outfit_config_path.empty()) {
+    plan.checks_outfit_config_exists = true;
+    if (!input.outfit_config_exists) {
+      plan.exits_missing_outfit_config = true;
+      return plan;
+    }
+  }
+
+  plan.reaches_model_load = true;
   return plan;
 }
 
