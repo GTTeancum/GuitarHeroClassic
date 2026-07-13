@@ -18307,6 +18307,7 @@ std::vector<std::string> camera_target_signature_for_key(
     } else if (!key.target_entity.empty() || !key.target_subpart.empty()) {
         refs.push_back(key.target_entity + ":" + key.target_subpart);
     }
+    std::sort(refs.begin(), refs.end());
     return refs;
 }
 
@@ -18664,6 +18665,8 @@ void apply_camera_keys(
         camera_target_centroid_for_key(*a, targets);
     const auto b_target_centroid =
         camera_target_centroid_for_key(*b, targets);
+    const bool same_targets_like_camshot =
+        camera_targets_match_like_camshot(*a, *b);
     std::optional<std::array<float, 3>> blended_target_centroid;
     std::optional<std::array<float, 3>> filtered_target_centroid;
     std::optional<CameraResultRows> source_screen_offset_translate_result;
@@ -18718,7 +18721,7 @@ void apply_camera_keys(
             filtered_target_centroid =
                 result_builder_state ? result_builder_state->filtered_target
                                      : *blended_target_centroid;
-            if (camera_targets_match_like_camshot(*a, *b)) {
+            if (same_targets_like_camshot) {
                 const auto& screen_target =
                     filtered_target_centroid ? *filtered_target_centroid
                                              : *blended_target_centroid;
@@ -19833,6 +19836,7 @@ void apply_camera_keys(
             stderr,
             "[camera-solver] frame=%.2f refs a_target=%s:%s b_target=%s:%s "
             "target_ref_count=a:%zu b:%zu target_refs=a:%s b:%s "
+            "same_targets=%d "
             "target_centroid=a:(%.3f %.3f %.3f) "
             "b:(%.3f %.3f %.3f) "
             "a_parent=%s:%s b_parent=%s:%s use_parent_rotation=a:%d b:%d "
@@ -19844,6 +19848,7 @@ void apply_camera_keys(
             camera_target_ref_count_for_key(*a),
             camera_target_ref_count_for_key(*b),
             a_target_refs.c_str(), b_target_refs.c_str(),
+            same_targets_like_camshot ? 1 : 0,
             a_target_centroid ? (*a_target_centroid)[0] : 0.0f,
             a_target_centroid ? (*a_target_centroid)[1] : 0.0f,
             a_target_centroid ? (*a_target_centroid)[2] : 0.0f,

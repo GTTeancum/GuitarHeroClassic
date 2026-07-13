@@ -8269,7 +8269,14 @@ int main() {
                  "rows.screen_offset_consumed=true;",
                  "source-shaped screen-offset result marks the projection offset consumed");
   ok &= contains(gameplay_c,
-                 "camera_targets_match_like_camshot(*a,*b)",
+                 "std::sort(refs.begin(),refs.end());",
+                 "CamShot same-target signatures compare the target set, not authoring order");
+  ok &= contains(gameplay_c,
+                 "constboolsame_targets_like_camshot="
+                 "camera_targets_match_like_camshot(*a,*b);",
+                 "source-shaped screen-offset result computes the CamShot SameTargets gate once");
+  ok &= contains(gameplay_c,
+                 "if(same_targets_like_camshot){",
                  "source-shaped screen-offset result is gated to CamShot same-target blends");
   ok &= contains(gameplay_c,
                  "submitted_result=*source_screen_offset_translate_result;",
@@ -8277,6 +8284,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"source_screen_offset_translate_result\"",
                  "camera result diagnostics log the source-shaped screen-offset result separately");
+  ok &= contains(gameplay_c,
+                 "\"same_targets=%d\"",
+                 "camera result diagnostics expose the CamShot SameTargets branch");
   ok &= contains(gameplay_c,
                  "floatcamera_result_builder_shot_filter_step(",
                  "camera result rows consume the traced s3+52 shot filter branch");

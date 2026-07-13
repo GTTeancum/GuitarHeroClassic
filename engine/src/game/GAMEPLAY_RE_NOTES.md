@@ -10750,3 +10750,15 @@ Rejected native probe:
   lighting Light/Environ coverage at `failed=0`, and ends with zero gameplay
   misses. The contract still reports only the known unrelated ROCK/star-power
   HUD gaps.
+
+2026-07-13 CamShot SameTargets source gate:
+- ihatecompvir `CamShotFrame::Interp` only applies the local-space
+  same-target screen-offset translation when `SameTargets(frame)` is true.
+  The public RB2 dump for `CamShotFrame::SameTargets` shows nested `i/j`
+  locals over the target list, so native now compares sorted target signatures
+  as a target multiset instead of requiring authored list order to match.
+- `apply_camera_keys()` computes that gate once as
+  `same_targets_like_camshot`, uses it for the source-shaped
+  `source_screen_offset_translate_result` branch, and logs `same_targets=`
+  in `[camera-solver]` rows. This is a source-logic correction to the camera
+  composition gate, not a shot-specific visual clamp.
