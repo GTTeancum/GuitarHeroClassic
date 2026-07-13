@@ -18671,6 +18671,8 @@ void apply_camera_keys(
     std::optional<std::array<float, 3>> blended_target_centroid;
     std::optional<std::array<float, 3>> filtered_target_centroid;
     std::optional<CameraResultRows> source_screen_offset_translate_result;
+    std::optional<CameraResultRows>
+        source_screen_offset_direct_target_candidate;
     float result_filter_step = 1.0f;
     float result_filter_projected_delta = 1.0f;
     bool result_filter_state_seeded = false;
@@ -18723,6 +18725,13 @@ void apply_camera_keys(
                 result_builder_state ? result_builder_state->filtered_target
                                      : *blended_target_centroid;
             if (same_targets_like_camshot) {
+                if (auto direct_rows =
+                        camera_source_screen_offset_translate_result_rows(
+                            source_seed_result, result_key,
+                            *blended_target_centroid, false)) {
+                    direct_rows->source += "+direct_target_candidate";
+                    source_screen_offset_direct_target_candidate = *direct_rows;
+                }
                 const auto& screen_target =
                     filtered_target_centroid ? *filtered_target_centroid
                                              : *blended_target_centroid;
@@ -19546,6 +19555,10 @@ void apply_camera_keys(
         if (source_screen_offset_translate_result) {
             log_result_rows("source_screen_offset_translate_result",
                             *source_screen_offset_translate_result, 1, 1);
+        }
+        if (source_screen_offset_direct_target_candidate) {
+            log_result_rows("source_screen_offset_direct_target_candidate",
+                            *source_screen_offset_direct_target_candidate, 1, 1);
         }
         log_pose_span_shape("a", *a);
         log_pose_span_shape("b", *b);

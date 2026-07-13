@@ -10808,6 +10808,20 @@ int main() {
                  "log_result_rows(\"source_seed_candidate\",source_seed_result,1,1);",
                  "debug camera logs compare source seed rows before submitted rows");
   ok &= contains(gameplay_c,
+                 "std::optional<CameraResultRows>"
+                 "source_screen_offset_direct_target_candidate;",
+                 "same-target screen-offset diagnostics keep the direct target candidate separate");
+  ok &= contains(gameplay_c,
+                 "camera_source_screen_offset_translate_result_rows("
+                 "source_seed_result,result_key,*blended_target_centroid,false)",
+                 "direct target candidate uses the ihatecompvir CamShotFrame::Interp target before shot_filter state");
+  ok &= contains(gameplay_c,
+                 "\"source_screen_offset_direct_target_candidate\"",
+                 "debug camera logs expose the direct target screen-offset candidate");
+  ok &= absent(gameplay_c,
+               "submitted_result=*source_screen_offset_direct_target_candidate",
+               "direct target candidate must remain diagnostic-only until source filter ownership is proven");
+  ok &= contains(gameplay_c,
                  "\"[camera-solver]frame=%.2fpose_span_shape=%s\"",
                  "debug camera logs expose targetless no-target pose-span source shape");
   ok &= contains(gameplay_c,

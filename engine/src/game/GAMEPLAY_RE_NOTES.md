@@ -10781,3 +10781,16 @@ Rejected native probe:
   Camera diagnostics log both `fov` and `screen_fov` so future angle work can
   tell whether a visual mismatch is from pose/path sampling or projection
   ordering.
+
+- 2026-07-13 CamShot direct-target screen-offset candidate:
+  ihatecompvir `CamShotFrame::Interp` uses the frame target positions directly
+  for same-target `LookAt`, distance interpolation, and local-space
+  screen-offset translation. The visible public dump loads/syncs `mFilter` but
+  does not consume it in this `Interp` block, while native still has traced
+  PS2 result-builder evidence for carrying shot-filter target state. Native
+  now logs a diagnostic-only `source_screen_offset_direct_target_candidate`
+  beside the submitted `source_screen_offset_translate_result`: it feeds the
+  unfiltered blended target through the same source-shaped screen-offset helper
+  and never submits that candidate as the rendered camera. This separates the
+  visible source target math from the accepted `shot_filter` path until
+  `CamShot::SetFrame`/`mFilter` ownership is proven.
