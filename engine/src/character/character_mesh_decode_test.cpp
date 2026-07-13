@@ -2768,6 +2768,54 @@ int main() {
         "Program finalizer MiloFile.Save uncompressed 0x810");
   CHECK(directory_builder_boundary.missing_helpers.empty());
 
+  ghogx::character::SourceGltfMiloCharacterDirectoryInput char_dir_input;
+  char_dir_input.raw_type = "character";
+  char_dir_input.game = ghogx::character::SourceGltfMiloGame::kRockBand3;
+  char_dir_input.meta_name = "rock1";
+  const auto rb3_character_directory =
+      ghogx::character::source_gltf_milo_character_directory_plan(
+          char_dir_input);
+  CHECK(rb3_character_directory.creates_character_directory);
+  CHECK(rb3_character_directory.character_revision == 17);
+  CHECK(rb3_character_directory.object_fields_revision == 2);
+  CHECK(rb3_character_directory.current_viewport_idx == 6);
+  CHECK(!rb3_character_directory.inline_proxy);
+  CHECK(rb3_character_directory.creates_character_testing);
+  CHECK(rb3_character_directory.character_testing_revision == 15);
+  CHECK(rb3_character_directory.character_testing_dist_map == "none");
+  CHECK(rb3_character_directory.sub_dirs.size() == 1);
+  CHECK(rb3_character_directory.sub_dirs[0] ==
+        "../../shared/char_shared.milo");
+  CHECK(rb3_character_directory.viewport_count == 7);
+  CHECK(rb3_character_directory.viewports_are_identity);
+  CHECK(rb3_character_directory.animatable_revision == 4);
+  CHECK(rb3_character_directory.drawable_revision == 3);
+  CHECK(approx(rb3_character_directory.draw_sphere_radius, 10000.0f));
+  CHECK(rb3_character_directory.trans_revision == 9);
+  CHECK(rb3_character_directory.sphere_base == "rock1");
+  CHECK(rb3_character_directory.rnd_dir_revision == 10);
+  CHECK(rb3_character_directory.object_dir_revision == 27);
+  CHECK(rb3_character_directory.assigns_meta_directory);
+
+  char_dir_input.raw_type = "instrument";
+  char_dir_input.meta_name = "guitar";
+  const auto rb3_instrument_directory =
+      ghogx::character::source_gltf_milo_character_directory_plan(
+          char_dir_input);
+  CHECK(rb3_instrument_directory.inline_proxy);
+  CHECK(rb3_instrument_directory.sub_dirs.empty());
+  CHECK(rb3_instrument_directory.sphere_base == "guitar");
+
+  char_dir_input.raw_type = "character";
+  char_dir_input.game = ghogx::character::SourceGltfMiloGame::kRockBand2;
+  const auto rb2_character_directory =
+      ghogx::character::source_gltf_milo_character_directory_plan(
+          char_dir_input);
+  CHECK(rb2_character_directory.character_revision == 12);
+  CHECK(rb2_character_directory.character_testing_revision == 8);
+  CHECK(rb2_character_directory.object_dir_revision == 20);
+  CHECK(rb2_character_directory.sub_dirs.empty());
+
   const auto char_hair_extras_boundary =
       ghogx::character::source_gltf_milo_char_hair_extras_boundary();
   CHECK(char_hair_extras_boundary.char_hair_extras_source_present);

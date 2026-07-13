@@ -10750,6 +10750,58 @@ source_gltf_milo_directory_builder_boundary() {
   return boundary;
 }
 
+SourceGltfMiloCharacterDirectoryPlan
+source_gltf_milo_character_directory_plan(
+    const SourceGltfMiloCharacterDirectoryInput& input) {
+  SourceGltfMiloCharacterDirectoryPlan plan;
+
+  const auto apply_rb3_revisions = [&]() {
+    plan.character_revision = 17;
+    plan.character_testing_revision = 15;
+    plan.animatable_revision = 4;
+    plan.drawable_revision = 3;
+    plan.trans_revision = 9;
+    plan.rnd_dir_revision = 10;
+    plan.object_dir_revision = 27;
+  };
+
+  switch (input.game) {
+    case SourceGltfMiloGame::kRockBand3:
+    case SourceGltfMiloGame::kDanceCentral1:
+      apply_rb3_revisions();
+      break;
+    case SourceGltfMiloGame::kTheBeatlesRockBand:
+      plan.character_revision = 15;
+      plan.character_testing_revision = 10;
+      plan.animatable_revision = 4;
+      plan.drawable_revision = 3;
+      plan.trans_revision = 9;
+      plan.rnd_dir_revision = 10;
+      plan.object_dir_revision = 22;
+      break;
+    case SourceGltfMiloGame::kRockBand2:
+      plan.character_revision = 12;
+      plan.character_testing_revision = 8;
+      plan.animatable_revision = 4;
+      plan.drawable_revision = 3;
+      plan.trans_revision = 9;
+      plan.rnd_dir_revision = 10;
+      plan.object_dir_revision = 20;
+      break;
+    default:
+      break;
+  }
+
+  plan.inline_proxy = input.raw_type == "instrument";
+  if ((input.game == SourceGltfMiloGame::kRockBand3 ||
+       input.game == SourceGltfMiloGame::kDanceCentral1) &&
+      input.raw_type == "character") {
+    plan.sub_dirs.push_back("../../shared/char_shared.milo");
+  }
+  plan.sphere_base = input.meta_name;
+  return plan;
+}
+
 SourceRndMeshScaleBonesPlan source_rndmesh_scale_bones(
     std::vector<milo_scene::Xfm> offsets,
     float scale) {

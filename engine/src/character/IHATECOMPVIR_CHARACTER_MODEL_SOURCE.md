@@ -1365,6 +1365,15 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     now includes `DirBuilder` and `OutfitConfigBuilder`, so native records those
     helper bodies as present source while keeping them separate from stock GH2
     runtime directory loading.
+    `source_gltf_milo_character_directory_plan` records the visible
+    `DirBuilder.BuildCharacterDirectory` rows: selected-game `Character`,
+    `CharacterTesting`, `Animatable`, `Drawable`, `Trans`, `RndDir`, and
+    `ObjectDir` revisions; object-fields revision 2; current viewport index 6;
+    `inlineProxy` only for raw type `instrument`; `charTest.distMap = "none"`;
+    seven identity viewport matrices; draw sphere radius `10000`; `sphereBase`
+    copied from `meta.name`; the RB3 raw-`character` shared subdir; and final
+    `meta.directory = character`. It remains exporter assembly evidence and
+    does not rewrite stock GH2 runtime directory loading.
     `source_gltf_milo_report_generator_plan` records the post-save report
     branch separately: `opts.Report` is lowercased, only exact `true` calls
     `ReportGenerator.Generate(meta, selectedGame, type)`, and the `type`

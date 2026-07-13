@@ -7810,8 +7810,46 @@ int run_contract() {
                  "character.inlineProxy=opts.Type==\"instrument\";",
                  "glTFMilo DirBuilder instrument inline proxy is source-backed");
   ok &= contains(gltf_dir_builder_cs,
+                 "character.currentViewportIdx=6;",
+                 "glTFMilo DirBuilder current viewport index is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.objFields.revision=2;",
+                 "glTFMilo DirBuilder object fields revision is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.charTest=Character.CharacterTesting.New("
+                 "GameRevisions.GetRevision(selectedGame)."
+                 "CharacterTestingRevision,0);",
+                 "glTFMilo DirBuilder CharacterTesting revision is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.charTest.distMap=\"none\";",
+                 "glTFMilo DirBuilder CharacterTesting distMap is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
                  "character.subDirs.Add(\"../../shared/char_shared.milo\");",
                  "glTFMilo DirBuilder character shared subdir is source-backed");
+  ok &= contains_at_least(
+      gltf_dir_builder_cs,
+      "character.viewports.Add(newMatrix(){m11=1.0f,m12=0.0f,m13=0.0f,"
+      "m21=0.0f,m22=1.0f,m23=0.0f,m31=0.0f,m32=0.0f,m33=1.0f,"
+      "m41=0.0f,m42=0.0f,m43=0.0f});",
+      7,
+      "glTFMilo DirBuilder character directory creates seven identity viewports");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.draw.sphere.radius=10000.0f;",
+                 "glTFMilo DirBuilder character draw sphere is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "character.sphereBase=meta.name;",
+                 "glTFMilo DirBuilder sphereBase is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "SetValue(character,GameRevisions.GetRevision(selectedGame)."
+                 "RndDirRevision);",
+                 "glTFMilo DirBuilder RndDir revision reflection is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "SetValue(character,GameRevisions.GetRevision(selectedGame)."
+                 "ObjectDirRevision);",
+                 "glTFMilo DirBuilder ObjectDir revision reflection is source-backed");
+  ok &= contains(gltf_dir_builder_cs,
+                 "meta.directory=character;",
+                 "glTFMilo DirBuilder assigns character directory to meta");
   ok &= contains(gltf_outfit_config_builder_cs,
                  "publicstaticvoidBuildOutfitConfig(Optionsopts,"
                  "MiloGameselectedGame,DirectoryMetameta)",
@@ -8028,15 +8066,40 @@ int run_contract() {
                  "structSourceGltfMiloDirectoryBuilderBoundary{"
                  "booldir_builder_source_present=true;",
                  "native API exposes glTFMilo directory builder boundary");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloCharacterDirectoryInput{std::string"
+                 "raw_type;",
+                 "native API exposes glTFMilo character directory input");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloCharacterDirectoryPlan{boolcreates_"
+                 "character_directory=true;",
+                 "native API exposes glTFMilo character directory plan");
   ok &= contains(
       char_mesh_h,
       "SourceGltfMiloDirectoryBuilderBoundarysource_gltf_milo_"
       "directory_builder_boundary();",
       "native API exposes glTFMilo directory builder boundary helper");
+  ok &= contains(char_mesh_h,
+                 "SourceGltfMiloCharacterDirectoryPlan"
+                 "source_gltf_milo_character_directory_plan(",
+                 "native API exposes glTFMilo character directory helper");
   ok &= contains(char_mesh,
                  "SourceGltfMiloDirectoryBuilderBoundarysource_gltf_milo_"
                  "directory_builder_boundary(){",
                  "native ports glTFMilo directory builder boundary helper");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloCharacterDirectoryPlan"
+                 "source_gltf_milo_character_directory_plan(",
+                 "native ports glTFMilo character directory helper");
+  ok &= contains(char_mesh,
+                 "plan.inline_proxy=input.raw_type==\"instrument\";",
+                 "native preserves glTFMilo instrument inline-proxy gate");
+  ok &= contains(char_mesh,
+                 "plan.sub_dirs.push_back(\"../../shared/char_shared.milo\");",
+                 "native preserves glTFMilo shared character subdir row");
+  ok &= contains(char_mesh,
+                 "plan.sphere_base=input.meta_name;",
+                 "native preserves glTFMilo sphereBase row");
   ok &= contains(char_mesh,
                  "\"ProgramfinalizerOutfitConfigBuilder.BuildOutfitConfig\"",
                  "native directory builder boundary records outfit call site");
@@ -8524,6 +8587,16 @@ int run_contract() {
       mesh_decode_test, "source_gltf_milo_directory_builder_boundary()",
       "focused mesh decode test covers glTFMilo directory builder boundary");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_character_directory_plan(",
+                 "focused mesh decode test covers glTFMilo character directory plan");
+  ok &= contains(mesh_decode_test,
+                 "rb3_character_directory.sub_dirs[0]=="
+                 "\"../../shared/char_shared.milo\"",
+                 "focused mesh decode test covers glTFMilo shared character subdir");
+  ok &= contains(mesh_decode_test,
+                 "rb3_instrument_directory.inline_proxy",
+                 "focused mesh decode test covers glTFMilo instrument inline proxy");
+  ok &= contains(mesh_decode_test,
                  "directory_builder_boundary.can_port_character_directory_"
                  "internals",
                  "focused mesh decode test covers character directory internals");
@@ -8797,6 +8870,9 @@ int run_contract() {
                  "document records glTFMilo report branch helper");
   ok &= contains(doc, "`source_gltf_milo_directory_builder_boundary` records",
                  "document records glTFMilo directory builder boundary");
+  ok &= contains(doc,
+                 "`source_gltf_milo_character_directory_plan`",
+                 "document records glTFMilo character directory helper");
   ok &= contains(doc, "helper bodies as present source",
                  "document records vendored directory builder internals");
   ok &= contains(doc,

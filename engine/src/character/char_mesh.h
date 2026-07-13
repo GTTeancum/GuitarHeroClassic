@@ -981,6 +981,34 @@ enum class SourceGltfMiloSceneType {
   kOther,
 };
 
+struct SourceGltfMiloCharacterDirectoryInput {
+  std::string raw_type;
+  SourceGltfMiloGame game = SourceGltfMiloGame::kRockBand3;
+  std::string meta_name;
+};
+
+struct SourceGltfMiloCharacterDirectoryPlan {
+  bool creates_character_directory = true;
+  int character_revision = 0;
+  int object_fields_revision = 2;
+  int current_viewport_idx = 6;
+  bool inline_proxy = false;
+  bool creates_character_testing = true;
+  int character_testing_revision = 0;
+  std::string character_testing_dist_map = "none";
+  std::vector<std::string> sub_dirs;
+  int viewport_count = 7;
+  bool viewports_are_identity = true;
+  int animatable_revision = 0;
+  int drawable_revision = 0;
+  float draw_sphere_radius = 10000.0f;
+  int trans_revision = 0;
+  std::string sphere_base;
+  int rnd_dir_revision = 0;
+  int object_dir_revision = 0;
+  bool assigns_meta_directory = true;
+};
+
 enum class SourceGltfMiloNodeTraversalKind {
   kMesh,
   kBone,
@@ -1796,6 +1824,9 @@ source_gltf_milo_game_revisions_boundary();
 
 SourceGltfMiloDirectoryBuilderBoundary
 source_gltf_milo_directory_builder_boundary();
+SourceGltfMiloCharacterDirectoryPlan
+source_gltf_milo_character_directory_plan(
+    const SourceGltfMiloCharacterDirectoryInput& input);
 
 struct SourceRndMeshZeroWeightVertex {
   float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
