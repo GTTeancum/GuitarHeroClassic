@@ -89,6 +89,14 @@ Open work:
   `start_camera_shot_runtime` before sampling source-frame rows or logging the
   `SetPreFrame` bridge, keeping visibility/anims/result-builder reset in the
   same source order as the camera manager.
+- 2026-07-13 CameraManager pending-shot bridge: ihatecompvir
+  `PickCameraShot` and `ForceCameraShot` both assign `mNextShot`, while
+  `current_shot` remains `mCurrentShot` until `CameraManager::PrePoll` consumes
+  that pending shot. Native regular cameras now mirror that lifecycle with
+  `pending_regular_camera_`: regular `pick_shot` and source `force_shot`
+  routes queue the selected CamShot first, then the PrePoll-style bridge makes
+  it active immediately before `StartAnim` and `SetPreFrame`. Debug camera rows
+  now expose the `mNextShot` assignment and PrePoll consumption points.
 - 2026-06-23 CamShot target/parent correction: local
   `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
   "Target(s) that the camera should look at", while `parent` is "Parent that

@@ -733,6 +733,9 @@ class Gameplay {
   void start_camera_shot_anims(const CameraKey& key,
                                const std::string& runtime_name);
   void end_camera_shot_anims();
+  void queue_regular_camera_shot(const CameraKey& key,
+                                 const char* source_handler);
+  bool consume_pending_regular_camera_shot();
   void start_camera_shot_runtime(const CameraKey& key);
   void end_camera_shot_runtime();
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
@@ -917,8 +920,10 @@ class Gameplay {
   bool world_init_attempted_ = false;
   std::vector<CameraKey> camera_keys_;
   std::vector<CameraKey> regular_camera_keys_;
+  std::string pending_regular_camera_;
   std::string active_regular_camera_;
   std::string previous_regular_camera_;
+  double pending_regular_camera_start_ = 0.0;
   double active_regular_camera_start_ = 0.0;
   double active_camera_position_start_ = 0.0;
   size_t active_camera_position_index_ = 0;

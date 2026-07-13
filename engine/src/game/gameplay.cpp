@@ -20517,6 +20517,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     facefx_animation_.reset();
     camera_keys_.clear();
     regular_camera_keys_.clear();
+    pending_regular_camera_.clear();
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
@@ -20526,6 +20527,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    pending_regular_camera_start_ = 0.0;
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
     active_camera_position_index_ = 0;
@@ -21303,6 +21305,47 @@ void Gameplay::end_camera_shot_runtime() {
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+}
+
+void Gameplay::queue_regular_camera_shot(const CameraKey& key,
+                                         const char* source_handler) {
+    pending_regular_camera_ = key.name;
+    pending_regular_camera_start_ =
+        song_time_ - diagnostic_camera_path_offset_frames_ / 30.0;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera mNextShot: source_manager=%s source_field=mNextShot current=%s next=%s result=pending\n",
+            source_handler && source_handler[0] ? source_handler
+                                                 : "PickCameraShot",
+            active_regular_camera_.c_str(), pending_regular_camera_.c_str());
+    }
+}
+
+bool Gameplay::consume_pending_regular_camera_shot() {
+    if (pending_regular_camera_.empty()) return false;
+    const std::string next_shot = std::move(pending_regular_camera_);
+    pending_regular_camera_.clear();
+    const bool shot_changed = active_regular_camera_ != next_shot;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera PrePoll: source_manager=PrePoll source_field=mNextShot shot=%s previous=%s changed=%d\n",
+            next_shot.c_str(), active_regular_camera_.c_str(),
+            shot_changed ? 1 : 0);
+    }
+    if (shot_changed) {
+        previous_regular_camera_ = active_regular_camera_;
+        previous_camera_position_index_ = active_camera_position_index_;
+        active_regular_camera_ = next_shot;
+        active_regular_camera_start_ = pending_regular_camera_start_;
+        active_camera_position_start_ = song_time_;
+        active_camera_position_index_ = 0;
+        active_camera_shot_started_reported_.clear();
+        active_camera_frame_pair_reported_.clear();
+        active_camera_shot_over_reported_.clear();
+    }
+    return shot_changed;
 }
 
 void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
@@ -26135,6 +26178,8 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     }
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
+    pending_regular_camera_.clear();
+    pending_regular_camera_start_ = 0.0;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
@@ -28174,6 +28219,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_shown_meshes_.clear();
                 venue_camera_hidden_proxy_meshes_.clear();
                 venue_camera_shown_proxy_meshes_.clear();
+                pending_regular_camera_.clear();
+                pending_regular_camera_start_ = 0.0;
                 active_camera_runtime_shot_.clear();
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
@@ -30390,23 +30437,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (key) {
                     const bool shot_changed =
                         active_regular_camera_ != key->name;
+                    const std::string previous_regular_camera_for_log =
+                        active_regular_camera_;
+                    const char* source_handler =
+                        source_forced_camera_shot_matched
+                            ? "ForceCameraShot"
+                            : (diagnostic_camera_shot_matched
+                                   ? "diagnostic"
+                                   : "PickCameraShot");
+                    queue_regular_camera_shot(*key, source_handler);
                     if (shot_changed) {
-                        previous_regular_camera_ = active_regular_camera_;
-                        previous_camera_position_index_ =
-                            active_camera_position_index_;
-                        active_regular_camera_ = key->name;
-                        active_regular_camera_start_ =
-                            song_time_ -
-                            diagnostic_camera_path_offset_frames_ / 30.0;
-                        active_camera_position_start_ = song_time_;
-                        active_camera_position_index_ = 0;
-                        active_camera_shot_started_reported_.clear();
-                        active_camera_frame_pair_reported_.clear();
-                        active_camera_shot_over_reported_.clear();
                         std::fprintf(
                             stderr,
                             "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s filter_source=ShotMatches flags=0x%08x forced=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
-                            previous_regular_camera_.c_str(),
+                            previous_regular_camera_for_log.c_str(),
                             key->name.c_str(), key->category.c_str(),
                             camera_bars_left_,
                             duration.first.c_str(), duration.second.first,
@@ -30441,6 +30485,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
             }
+            consume_pending_regular_camera_shot();
             if (const auto* key =
                     find_camera_key_by_name(regular_camera_keys_,
                                             active_regular_camera_)) {

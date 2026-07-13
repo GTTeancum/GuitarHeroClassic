@@ -3752,9 +3752,12 @@ int main() {
                  "diagnostic_camera_shot_);",
                  "diagnostic camera shot pins a decoded regular CamShot by name");
   ok &= contains(gameplay_c,
-                 "active_regular_camera_start_=song_time_-"
+                 "pending_regular_camera_start_=song_time_-"
                  "diagnostic_camera_path_offset_frames_/30.0;",
-                 "diagnostic forced camera can align local TransAnim path frame to PS2 traces");
+                 "diagnostic forced camera queues local TransAnim path-frame alignment through mNextShot");
+  ok &= contains(gameplay_c,
+                 "active_regular_camera_start_=pending_regular_camera_start_;",
+                 "diagnostic forced camera path-frame alignment becomes active when PrePoll consumes mNextShot");
   ok &= contains(gameplay_c,
                  "diagnosticcamerashotselected",
                  "diagnostic camera shot selection is log-verifiable");
@@ -6027,6 +6030,9 @@ int main() {
                  "std::stringactive_camera_runtime_shot_;",
                  "camera runtime tracks the active CamShot lifecycle");
   ok &= contains(gameplay_h_c,
+                 "std::stringpending_regular_camera_;",
+                 "regular camera runtime carries a CameraManager mNextShot-style pending shot");
+  ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_anim_event_;",
                  "camera runtime tracks linked CamShot mAnims separately");
   ok &= contains(gameplay_h_c,
@@ -6087,6 +6093,34 @@ int main() {
                  "apply_camera_crowd_visibility(key);"
                  "start_camera_shot_anims(key,active_camera_runtime_shot_);",
                  "camera StartAnim starts linked mAnims after applying shot visibility");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::queue_regular_camera_shot(constCameraKey&key,"
+                 "constchar*source_handler)",
+                 "regular camera selections queue through a source mNextShot bridge");
+  ok &= contains(gameplay_c,
+                 "pending_regular_camera_=key.name;",
+                 "regular camera mNextShot bridge stores the selected CamShot name");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameramNextShot:source_manager=%ssource_field=mNextShot",
+                 "regular camera diagnostics expose CameraManager mNextShot assignment");
+  ok &= contains(gameplay_c,
+                 "boolGameplay::consume_pending_regular_camera_shot(){"
+                 "if(pending_regular_camera_.empty())returnfalse;",
+                 "regular camera runtime consumes pending shots at the PrePoll-style point");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraPrePoll:source_manager=PrePoll"
+                 "source_field=mNextShotshot=%sprevious=%schanged=%d\\n\"",
+                 "regular camera diagnostics expose CameraManager PrePoll pending-shot consumption");
+  ok &= contains(gameplay_c,
+                 "if(shot_changed){previous_regular_camera_=active_regular_camera_;",
+                 "regular camera active shot is updated only when pending mNextShot is consumed");
+  ok &= contains(gameplay_c,
+                 "queue_regular_camera_shot(*key,source_handler);",
+                 "regular camera selector writes mNextShot instead of changing the active shot immediately");
+  ok &= contains(gameplay_c,
+                 "consume_pending_regular_camera_shot();"
+                 "if(constauto*key=find_camera_key_by_name(",
+                 "regular gameplay cameras consume mNextShot before source-shaped camera row sampling");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key);"
                  "constCameraKeycurrent_position=",
@@ -10631,6 +10665,9 @@ int main() {
                  "key=find_camera_key_by_name(regular_camera_keys_,"
                  "source_forced_camera_shot);",
                  "source shot_over next_shot forces the authored CamShot by name");
+  ok &= contains(gameplay_c,
+                 "source_forced_camera_shot_matched?\"ForceCameraShot\"",
+                 "source shot_over next_shot enters the pending bridge through CameraManager::ForceCameraShot");
   ok &= contains(gameplay_c,
                  "source_next=%d",
                  "regular camera sweep diagnostics expose source next_shot forcing");
