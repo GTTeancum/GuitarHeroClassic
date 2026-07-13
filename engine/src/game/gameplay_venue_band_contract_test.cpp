@@ -10663,6 +10663,26 @@ int main() {
                "if(previous&&key.name==previous->name)continue;",
                "regular camera selector must not pre-reject the active shot before source shot_ok");
   ok &= contains(gameplay_c,
+                 "boolcamera_source_check_shot(constGameplay::CameraKey&key,"
+                 "uint32_tbeat)",
+                 "regular camera runtime exposes GH2 cam_check_shot hook");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameracheck_shot:source_msg=check_shotshot=%s"
+                 "beat=%ucam_check_shot=native_deferredresult=accept\\n\"",
+                 "regular camera diagnostics expose deferred source check_shot hook");
+  ok &= contains(gameplay_h_c, "uint32_tlast_camera_beat_=UINT32_MAX;",
+                 "regular camera runtime tracks source beat cadence");
+  ok &= contains(gameplay_c,
+                 "uint32_tcamera_beat_at(constghogx::chart::Chart&chart,"
+                 "doublesong_time)",
+                 "regular camera runtime derives the source camera_beat value");
+  ok &= contains(gameplay_c,
+                 "constuint32_tbeat=camera_beat_at(chart_,song_time_);",
+                 "regular camera runtime checks the active CamShot on beat ticks");
+  ok &= contains(gameplay_c,
+                 "if(!camera_source_check_shot(*active_key,beat)){",
+                 "regular camera runtime routes rejected check_shot results to a new pick");
+  ok &= contains(gameplay_c,
                  "if(!force_camera&&diagnostic_camera_shot_.empty()&&"
                  "!active_regular_camera_.empty())",
                  "source shot_over bridge does not disturb diagnostic camera proofs");

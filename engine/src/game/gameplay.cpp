@@ -15304,6 +15304,19 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     return true;
 }
 
+bool camera_source_check_shot(const Gameplay::CameraKey& key, uint32_t beat) {
+    // GH2 camshot.dta routes check_shot to native cam_check_shot. Keep the
+    // beat-time hook observable, but do not invent rejection rules while the
+    // GH2-specific native body is still unrecovered.
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera check_shot: source_msg=check_shot shot=%s beat=%u cam_check_shot=native_deferred result=accept\n",
+            key.name.c_str(), beat);
+    }
+    return true;
+}
+
 std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
     return mode == CameraShotMode::Lighter ? "LIGHTER"
                                            : "NORMAL_CAMSHOT_CATEGORIES";
@@ -15413,6 +15426,11 @@ uint32_t camera_bar_at(const ghogx::chart::Chart& chart, double song_time) {
     const uint32_t ticks_per_bar = chart.ticks_per_beat * 4u;
     if (ticks_per_bar == 0) return 0;
     return chart.sec_to_tick(song_time) / ticks_per_bar;
+}
+
+uint32_t camera_beat_at(const ghogx::chart::Chart& chart, double song_time) {
+    if (chart.ticks_per_beat == 0) return 0;
+    return chart.sec_to_tick(song_time) / chart.ticks_per_beat;
 }
 
 int deterministic_camera_duration_bars(int min_bars, int max_bars,
@@ -20540,6 +20558,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     camera_duration_bars_["kExcitementOkay"] = {2, 4};
     camera_bars_left_ = 0;
     last_camera_bar_ = UINT32_MAX;
+    last_camera_beat_ = UINT32_MAX;
     next_forced_camera_event_idx_ = 0;
     camera_shot_counter_ = 0;
     camera_result_builder_state_.reset();
@@ -26182,6 +26201,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
         ++next_forced_camera_event_idx_;
     }
     last_camera_bar_ = UINT32_MAX;
+    last_camera_beat_ = UINT32_MAX;
     camera_bars_left_ = 0;
     pending_regular_camera_.clear();
     pending_regular_camera_start_ = 0.0;
@@ -28434,6 +28454,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 camera_duration_bars_ = camera_policy.duration_bars;
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
+                last_camera_beat_ = UINT32_MAX;
                 const IntroCameraSelection intro_camera =
                     select_intro_camera_anim(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
@@ -30335,6 +30356,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     camera_bars_left_ =
                         std::max(0, camera_bars_left_ -
                                         static_cast<int>(bars_elapsed));
+                }
+            }
+
+            const uint32_t beat = camera_beat_at(chart_, song_time_);
+            if (last_camera_beat_ == UINT32_MAX) {
+                last_camera_beat_ = beat;
+            } else if (beat != last_camera_beat_) {
+                last_camera_beat_ = beat;
+                if (!active_regular_camera_.empty()) {
+                    if (const CameraKey* active_key =
+                            find_camera_key_by_name(regular_camera_keys_,
+                                                    active_regular_camera_)) {
+                        if (!camera_source_check_shot(*active_key, beat)) {
+                            force_camera = true;
+                            forced_camera_mode.reset();
+                            forced_camera_bars.reset();
+                        }
+                    }
                 }
             }
 

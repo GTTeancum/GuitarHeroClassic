@@ -10723,6 +10723,14 @@ Rejected native probe:
   `post_switch_cam` stepping. The source contract still forbids the removed
   `[world] post_switch_cam:` row while pinning the new manager-cadence and
   frame-pair diagnostics.
+- 2026-07-13 follow-up: the GH2 world script's `beat` handler also updates
+  `[camera_beat]` and calls `{world current_shot} check_shot`; `camshot.dta`
+  routes that to native `cam_check_shot`. Native now tracks the source beat
+  cadence separately from `camera_bars_left` and emits a deferred
+  `[world] camera check_shot: source_msg=check_shot ...` row for the active
+  CamShot. The hook currently accepts because the GH2-specific
+  `cam_check_shot` body is not recovered in the ihatecompvir materials; this
+  preserves call order without inventing rejection rules.
 - Validation:
   `engine/out/camera_setpreframe_framepair_20260713_002/` builds
   `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`, then runs stock
