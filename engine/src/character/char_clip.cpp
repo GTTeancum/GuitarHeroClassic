@@ -3918,6 +3918,24 @@ SourceCharDriverDestructorPlan source_char_driver_destructor_plan() {
   return SourceCharDriverDestructorPlan{};
 }
 
+SourceCharDriverExitPlan source_char_driver_exit_plan() {
+  return SourceCharDriverExitPlan{};
+}
+
+SourceCharDriverHighlightDecision source_char_driver_highlight_decision(
+    float char_highlight_y) {
+  SourceCharDriverHighlightDecision decision;
+  decision.global_y_is_sentinel = char_highlight_y == -1.0f;
+  if (decision.global_y_is_sentinel) {
+    decision.defer_highlight = true;
+  } else {
+    decision.call_display = true;
+    decision.write_global_y_from_display = true;
+    decision.display_input = char_highlight_y;
+  }
+  return decision;
+}
+
 void source_char_driver_clear(SourceCharDriverState& state) {
   state.has_first = false;
 }

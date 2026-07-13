@@ -1251,6 +1251,21 @@ struct SourceCharDriverDestructorPlan {
   bool clears_internal_bones_pointer = false;
 };
 
+struct SourceCharDriverExitPlan {
+  bool call_rnd_pollable_exit = true;
+  bool clear_stack = false;
+  bool reset_last_node = false;
+  bool evaluate_starved = false;
+};
+
+struct SourceCharDriverHighlightDecision {
+  bool global_y_is_sentinel = false;
+  bool defer_highlight = false;
+  bool call_display = false;
+  bool write_global_y_from_display = false;
+  float display_input = 0.0f;
+};
+
 struct SourceCharDriverTransferPlan {
   bool clear_stack = true;
   bool create_first_driver_copy = false;
@@ -1746,6 +1761,9 @@ SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame);
 // SyncInternalBones state helpers.
 SourceCharDriverState source_char_driver_default_state();
 SourceCharDriverDestructorPlan source_char_driver_destructor_plan();
+SourceCharDriverExitPlan source_char_driver_exit_plan();
+SourceCharDriverHighlightDecision source_char_driver_highlight_decision(
+    float char_highlight_y);
 void source_char_driver_clear(SourceCharDriverState& state);
 SourceCharDriverEnterDecision source_char_driver_enter(
     SourceCharDriverState& state);

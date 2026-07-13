@@ -374,6 +374,34 @@ bool expect_driver_state_helpers() {
     ok = false;
   }
 
+  const auto exit_plan = ghogx::character::source_char_driver_exit_plan();
+  if (!exit_plan.call_rnd_pollable_exit || exit_plan.clear_stack ||
+      exit_plan.reset_last_node || exit_plan.evaluate_starved) {
+    std::cerr << "driver Exit plan no longer matches source delegation\n";
+    ok = false;
+  }
+
+  const auto highlight_deferred =
+      ghogx::character::source_char_driver_highlight_decision(-1.0f);
+  if (!highlight_deferred.global_y_is_sentinel ||
+      !highlight_deferred.defer_highlight ||
+      highlight_deferred.call_display ||
+      highlight_deferred.write_global_y_from_display) {
+    std::cerr << "driver Highlight sentinel decision mismatch\n";
+    ok = false;
+  }
+
+  const auto highlight_display =
+      ghogx::character::source_char_driver_highlight_decision(3.5f);
+  if (highlight_display.global_y_is_sentinel ||
+      highlight_display.defer_highlight ||
+      !highlight_display.call_display ||
+      !highlight_display.write_global_y_from_display ||
+      highlight_display.display_input != 3.5f) {
+    std::cerr << "driver Highlight display decision mismatch\n";
+    ok = false;
+  }
+
   state.has_first = true;
   ghogx::character::source_char_driver_clear(state);
   if (state.has_first) {

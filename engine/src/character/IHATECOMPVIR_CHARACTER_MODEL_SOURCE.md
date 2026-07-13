@@ -3074,6 +3074,13 @@ note, and all report `unreadBytes=0`.
     destructor does not call `Clear()`, does not reset `mFirst`, and does not
     reset `mInternalBones`; native code must not infer broader cleanup from
     this body.
+  - Native `source_char_driver_exit_plan` records the checked
+    `CharDriver::Exit` body as a plain `RndPollable::Exit()` delegation. It
+    does not clear the source stack, reset `mLastNode`, or evaluate starvation.
+    Native `source_char_driver_highlight_decision` records the checked
+    `CharDriver::Highlight` debug route: `gCharHighlightY == -1.0f` defers to
+    `CharDeferHighlight(this)`, otherwise the current global Y is passed to
+    `Display` and the return value replaces `gCharHighlightY`.
   - Native `source_char_driver_clear`, `source_char_driver_transfer`,
     `source_char_driver_set_clips`, and `source_char_driver_set_bones` port the
     concrete source state edits from `Clear`, `Transfer`, `SetClips`, and
