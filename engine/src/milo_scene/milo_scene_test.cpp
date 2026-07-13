@@ -1342,6 +1342,18 @@ void test_mat() {
   CHECK(mat_handlers.superclasses.size() == 1);
   CHECK(mat_handlers.superclasses[0] == "Hmx::Object");
   CHECK(mat_handlers.check == 0x305);
+  const SourceRndMatCopyPlan copy_from_max =
+      source_rndmat_copy_plan(true);
+  CHECK(copy_from_max.asserts_source_mat);
+  CHECK(copy_from_max.copies_object_superclass);
+  CHECK(copy_from_max.copies_diffuse_tex);
+  CHECK(!copy_from_max.copies_other_material_members);
+  CHECK(copy_from_max.dirty_value == 3);
+  const SourceRndMatCopyPlan normal_copy =
+      source_rndmat_copy_plan(false);
+  CHECK(!normal_copy.copies_diffuse_tex);
+  CHECK(!normal_copy.copies_other_material_members);
+  CHECK(normal_copy.dirty_value == 3);
   std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),

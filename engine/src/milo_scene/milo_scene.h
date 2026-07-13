@@ -1747,6 +1747,15 @@ struct SourceRndMatHandlerPlan {
   int32_t check = 0x305;
 };
 
+struct SourceRndMatCopyPlan {
+  bool copy_from_max = false;
+  bool asserts_source_mat = true;
+  bool copies_object_superclass = true;
+  bool copies_diffuse_tex = false;
+  bool copies_other_material_members = false;
+  int32_t dirty_value = 3;
+};
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
@@ -1772,6 +1781,7 @@ SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
     const std::vector<std::string>& recursive_next_passes);
 SourceRndMatAllowedNormalMapPlan source_rndmat_allowed_normal_map_plan();
 SourceRndMatHandlerPlan source_rndmat_handler_plan();
+SourceRndMatCopyPlan source_rndmat_copy_plan(bool copy_from_max);
 
 struct Vertex {
   float px, py, pz;          // position

@@ -1567,6 +1567,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     table exposes only `allowed_next_pass`, `allowed_normal_map`, superclass
     `Hmx::Object`, and check `0x305`. This is editor/API surface evidence only
     and does not authorize normal-map synthesis or name-based material fixes.
+  - Shared native `source_rndmat_copy_plan` records the checked `RndMat::Copy`
+    body: the source object is asserted as `RndMat`, `Hmx::Object` is copied,
+    `mDiffuseTex` is copied only for `kCopyFromMax`, the non-`kCopyFromMax`
+    branch has no material-specific member copy body in this source snapshot,
+    and `mDirty` is set to `3`. This helper does not infer broad material copy
+    semantics beyond those visible source rows.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
   - The source setters directly write members; they do not encode hair/string

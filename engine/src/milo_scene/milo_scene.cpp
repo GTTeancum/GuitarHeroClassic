@@ -2392,6 +2392,13 @@ SourceRndMatHandlerPlan source_rndmat_handler_plan() {
   return plan;
 }
 
+SourceRndMatCopyPlan source_rndmat_copy_plan(bool copy_from_max) {
+  SourceRndMatCopyPlan plan;
+  plan.copy_from_max = copy_from_max;
+  plan.copies_diffuse_tex = copy_from_max;
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

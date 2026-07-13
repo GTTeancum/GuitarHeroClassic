@@ -1640,6 +1640,15 @@ int run_contract() {
   ok &= contains(doc,
                  "does not authorize normal-map synthesis or name-based material fixes",
                  "document fences RndMat normal-map helper from fabricated fixes");
+  ok &= contains(doc,
+                 "Shared native `source_rndmat_copy_plan` records the checked `RndMat::Copy`",
+                 "document records RndMat copy helper");
+  ok &= contains(doc,
+                 "`mDiffuseTex` is copied only for `kCopyFromMax`",
+                 "document records RndMat CopyFromMax diffuse texture branch");
+  ok &= contains(doc,
+                 "does not infer broad material copy\n    semantics beyond those visible source rows",
+                 "document fences RndMat copy helper from broad copy assumptions");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
@@ -3846,6 +3855,14 @@ int run_contract() {
                  "DataNodeRndMat::OnAllowedNormalMap(constDataArray*da){"
                  "returnGetNormalMapTextures(Dir());}",
                  "RB3 RndMat allowed-normal-map source body");
+  ok &= contains(rb3_mat_cpp,
+                 "BEGIN_COPYS(RndMat)CREATE_COPY_AS(RndMat,m)"
+                 "MILO_ASSERT(m,0x287);COPY_SUPERCLASS(Hmx::Object)",
+                 "RB3 RndMat Copy source prefix");
+  ok &= contains(rb3_mat_cpp,
+                 "if(ty==kCopyFromMax){COPY_MEMBER_FROM(m,mDiffuseTex)}"
+                 "else{}mDirty=3;END_COPYS",
+                 "RB3 RndMat CopyFromMax diffuse branch and dirty state");
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
@@ -3911,6 +3928,12 @@ int run_contract() {
   ok &= contains(scene_h,
                  "SourceRndMatHandlerPlansource_rndmat_handler_plan();",
                  "shared milo_scene declares RndMat handler helper");
+  ok &= contains(scene_h,
+                 "structSourceRndMatCopyPlan{boolcopy_from_max=false;",
+                 "shared milo_scene exposes RndMat copy helper");
+  ok &= contains(scene_h,
+                 "SourceRndMatCopyPlansource_rndmat_copy_plan(boolcopy_from_max);",
+                 "shared milo_scene declares RndMat copy helper");
   ok &= contains(scene_h,
                  "std::stringnext_pass;boolintensify=false;"
                  "floatemissive_multiplier=1.0f;",
@@ -4033,6 +4056,12 @@ int run_contract() {
                  "\"allowed_next_pass\",\"allowed_normal_map\"};",
                  "shared RndMat handler helper mirrors handler rows");
   ok &= contains(scene,
+                 "SourceRndMatCopyPlansource_rndmat_copy_plan(boolcopy_from_max){",
+                 "shared milo_scene implements RndMat copy helper");
+  ok &= contains(scene,
+                 "plan.copy_from_max=copy_from_max;plan.copies_diffuse_tex=copy_from_max;",
+                 "shared RndMat copy helper mirrors CopyFromMax diffuse gate");
+  ok &= contains(scene,
                  "plan.reads_alpha_threshold=revision>0x25;",
                  "shared RndMat load plan mirrors alpha-threshold gate");
   ok &= contains(scene,
@@ -4105,6 +4134,12 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndmat_handler_plan()",
                  "milo_scene test covers RndMat handler helper");
+  ok &= contains(scene_test,
+                 "source_rndmat_copy_plan(true)",
+                 "milo_scene test covers RndMat CopyFromMax helper");
+  ok &= contains(scene_test,
+                 "source_rndmat_copy_plan(false)",
+                 "milo_scene test covers RndMat non-CopyFromMax helper");
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");
