@@ -6070,19 +6070,25 @@ int main() {
                  "camera StartAnim starts decoded linked mAnims as shot-scoped filters");
   ok &= contains(gameplay_c,
                  "end_camera_shot_runtime();"
+                 "camera_result_builder_state_.reset();"
                  "active_camera_runtime_shot_=runtime_name;"
                  "apply_camera_crowd_visibility(key);",
-                 "camera StartAnim applies the authored CamShot visibility payload once per shot");
+                 "camera StartAnim resets carried result-builder state before applying the authored CamShot payload");
+  ok &= contains(gameplay_c,
+                 "reset_result_builder=1",
+                 "camera StartAnim diagnostics expose the source-shaped result-builder reset");
   ok &= contains(gameplay_c,
                  "apply_camera_crowd_visibility(key);"
                  "start_camera_shot_anims(key,active_camera_runtime_shot_);",
                  "camera StartAnim starts linked mAnims after applying shot visibility");
   ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(*key);",
-                 "regular gameplay cameras enter the source-shaped StartAnim path");
+                 "start_camera_shot_runtime(*key);"
+                 "apply_camera_keys(world_->camera(),selected_camera,",
+                 "regular gameplay cameras enter StartAnim before evaluating source-shaped camera rows");
   ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(camera_keys_.front());",
-                 "intro cameras enter the same source-shaped StartAnim path");
+                 "start_camera_shot_runtime(camera_keys_.front());"
+                 "apply_camera_keys(world_->camera(),camera_keys_,",
+                 "intro cameras enter StartAnim before evaluating source-shaped camera rows");
   ok &= absent(gameplay_c,
                "apply_camera_crowd_visibility(visibility_key);",
                "camera visibility must not be driven from the interpolated per-frame pose");
@@ -9334,7 +9340,7 @@ int main() {
                  "regular and intro venue cameras pass persistent result-builder state");
   ok &= contains(gameplay_c,
                  "camera_result_builder_state_.reset();",
-                 "camera result-builder state resets on song load and diagnostic seek");
+                 "camera result-builder state resets on song load, diagnostic seek, and CamShot StartAnim");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]frame=%.2fps2_result_builder=0x00267008\"",
                  "camera debug logs expose the PS2 CamShot result-builder bridge");

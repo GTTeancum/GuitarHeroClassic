@@ -20970,6 +20970,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
     const std::string runtime_name = camera_runtime_name_for_key(key);
     if (active_camera_runtime_shot_ == runtime_name) return;
     end_camera_shot_runtime();
+    camera_result_builder_state_.reset();
     active_camera_runtime_shot_ = runtime_name;
     apply_camera_crowd_visibility(key);
     start_camera_shot_anims(key, active_camera_runtime_shot_);
@@ -20978,7 +20979,8 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
         std::fprintf(
             stderr,
             "[world] camera StartAnim: shot=%s hide_crowd=%d face_camera=%d "
-            "force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu "
+            "reset_result_builder=1 force_char_lod=%d "
+            "hide_list=%zu show_list=%zu gen_hide=%zu "
             "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
             active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
             key.crowd_face_camera ? 1 : 0, key.force_char_lod,
@@ -30081,24 +30083,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     selected_camera.empty() ? current_position
                                             : selected_camera.front();
                 active_force_char_lod_ = visibility_key.force_char_lod;
+                start_camera_shot_runtime(*key);
                 apply_camera_keys(world_->camera(), selected_camera, song_time_,
                                   camera_targets,
                                   &camera_result_builder_state_,
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
                                   &regular_camera_keys_);
-                start_camera_shot_runtime(*key);
             }
         } else if (authored_gameplay_cameras_active &&
                    in_intro_camera_window && !camera_keys_.empty()) {
             active_force_char_lod_ = camera_keys_.front().force_char_lod;
+            start_camera_shot_runtime(camera_keys_.front());
             apply_camera_keys(world_->camera(), camera_keys_, song_time_,
                               camera_targets,
                               &camera_result_builder_state_,
                               &venue_camera_target_worlds_,
                               &source_record_member_table,
                               &regular_camera_keys_);
-            start_camera_shot_runtime(camera_keys_.front());
         } else {
             end_camera_shot_runtime();
         }
