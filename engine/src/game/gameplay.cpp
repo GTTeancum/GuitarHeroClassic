@@ -15290,18 +15290,70 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     return true;
 }
 
+enum class CameraSourceShotOkReturn {
+    kUnhandledAccept,
+    kStringReject,
+    kIntAccept,
+    kIntReject,
+    kNativeDeferredAccept,
+};
+
+bool camera_source_shot_ok_accepts(CameraSourceShotOkReturn result) {
+    // ihatecompvir CamShot::ShotOk accepts unhandled and true integer returns;
+    // string returns and false integer returns reject the candidate CamShot.
+    switch (result) {
+    case CameraSourceShotOkReturn::kStringReject:
+    case CameraSourceShotOkReturn::kIntReject:
+        return false;
+    case CameraSourceShotOkReturn::kUnhandledAccept:
+    case CameraSourceShotOkReturn::kIntAccept:
+    case CameraSourceShotOkReturn::kNativeDeferredAccept:
+        return true;
+    }
+    return true;
+}
+
+const char* camera_source_shot_ok_return_label(
+    CameraSourceShotOkReturn result) {
+    switch (result) {
+    case CameraSourceShotOkReturn::kUnhandledAccept:
+        return "unhandled_accept";
+    case CameraSourceShotOkReturn::kStringReject:
+        return "string_reject";
+    case CameraSourceShotOkReturn::kIntAccept:
+        return "int_accept";
+    case CameraSourceShotOkReturn::kIntReject:
+        return "int_reject";
+    case CameraSourceShotOkReturn::kNativeDeferredAccept:
+        return "native_deferred_accept";
+    }
+    return "unknown";
+}
+
+CameraSourceShotOkReturn camera_source_deferred_cam_shot_ok_return(
+    const Gameplay::CameraKey& key, const Gameplay::CameraKey* previous) {
+    (void)key;
+    (void)previous;
+    return CameraSourceShotOkReturn::kNativeDeferredAccept;
+}
+
 bool camera_source_shot_ok(const Gameplay::CameraKey& key,
                            const Gameplay::CameraKey* previous) {
     // ihatecompvir CamShot::ShotOk sends shot_ok(prev_shot). GH2 then routes
-    // that script to native cam_shot_ok. Keep the source hook point explicit,
-    // but do not infer rejection behavior until cam_shot_ok itself is pinned.
+    // that script to native cam_shot_ok. Keep the source return contract
+    // explicit, but do not infer rejection behavior until cam_shot_ok is pinned.
+    const CameraSourceShotOkReturn source_return =
+        camera_source_deferred_cam_shot_ok_return(key, previous);
+    const bool accepted = camera_source_shot_ok_accepts(source_return);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=native_deferred result=accept\n",
-            key.name.c_str(), previous ? previous->name.c_str() : "");
+            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=native_deferred source_return=%s result=%s\n",
+            key.name.c_str(), previous ? previous->name.c_str() : "",
+            camera_source_shot_ok_return_label(source_return),
+            accepted ? "accept" : "reject");
     }
-    return true;
+    return accepted;
 }
 
 bool camera_source_check_shot(const Gameplay::CameraKey& key, uint32_t beat) {

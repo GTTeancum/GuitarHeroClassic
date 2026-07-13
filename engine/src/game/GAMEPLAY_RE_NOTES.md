@@ -60,6 +60,13 @@ Open work:
   but the hook currently accepts until GH2's native `cam_shot_ok` predicate is
   recovered. This preserves the source selection shape without inventing
   hidden script behavior.
+- 2026-07-13 CamShot `ShotOk` return contract: ihatecompvir's
+  `CamShot::ShotOk` accepts unhandled `shot_ok` results and true integer
+  returns, while string returns and false integer returns reject the candidate.
+  Native now names those return classes in the bridge and logs the current
+  `native_deferred_accept` result explicitly. This is still not a fabricated
+  GH2 `cam_shot_ok` predicate; it is the source return contract prepared for
+  the recovered native predicate when that body is pinned.
 - 2026-07-13 CameraManager `first_shot_ok` hook: ihatecompvir sends
   `first_shot_ok(category)` at the start of `FindCameraShot`, before any
   category scan or `shot_ok` calls. Native regular selection now logs and

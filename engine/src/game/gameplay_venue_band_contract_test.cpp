@@ -10689,6 +10689,22 @@ int main() {
                  "constGameplay::CameraKey*previous)",
                  "regular camera selector exposes ihatecompvir CamShot::ShotOk hook");
   ok &= contains(gameplay_c,
+                 "enumclassCameraSourceShotOkReturn",
+                 "regular camera selector records ihatecompvir CamShot::ShotOk return classes");
+  ok &= contains(gameplay_c,
+                 "caseCameraSourceShotOkReturn::kStringReject:"
+                 "caseCameraSourceShotOkReturn::kIntReject:returnfalse;",
+                 "regular camera shot_ok bridge rejects source string/false integer returns");
+  ok &= contains(gameplay_c,
+                 "caseCameraSourceShotOkReturn::kUnhandledAccept:"
+                 "caseCameraSourceShotOkReturn::kIntAccept:"
+                 "caseCameraSourceShotOkReturn::kNativeDeferredAccept:"
+                 "returntrue;",
+                 "regular camera shot_ok bridge accepts source unhandled/true integer returns");
+  ok &= contains(gameplay_c,
+                 "returnCameraSourceShotOkReturn::kNativeDeferredAccept;",
+                 "regular camera shot_ok bridge keeps unrecovered GH2 cam_shot_ok permissive");
+  ok &= contains(gameplay_c,
                  "voidcamera_source_first_shot_ok(std::string_viewcategory)",
                  "regular camera selector exposes ihatecompvir CameraManager::FirstShotOk hook");
   ok &= contains(gameplay_c,
@@ -10708,7 +10724,8 @@ int main() {
                  "regular camera selector runs source shot_ok after ShotMatches filters");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_ok:source_msg=shot_okshot=%s"
-                 "previous=%scam_shot_ok=native_deferredresult=accept\\n\"",
+                 "previous=%scam_shot_ok=native_deferredsource_return=%s"
+                 "result=%s\\n\"",
                  "regular camera diagnostics expose deferred source shot_ok hook");
   ok &= absent(gameplay_c,
                "if(previous&&key.name==previous->name)continue;",
