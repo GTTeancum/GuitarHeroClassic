@@ -110,36 +110,16 @@ void read_dtb_parent(Reader& r) {
 
 void read_dtb_node(Reader& r) {
   const uint32_t type = r.u32();
-  switch (type) {
-    case 0x00:
-      (void)r.u32();
-      break;
-    case 0x01:
-      (void)r.f32();
-      break;
-    case 0x02:
-    case 0x04:
-    case 0x05:
-    case 0x06:
-    case 0x07:
-    case 0x08:
-    case 0x09:
-    case 0x12:
-    case 0x20:
-    case 0x21:
-    case 0x22:
-    case 0x23:
-    case 0x24:
-    case 0x25:
-      (void)r.str();
-      break;
-    case 0x10:
-    case 0x11:
-    case 0x13:
-      read_dtb_array_parent(r);
-      break;
-    default:
-      break;
+  const SourceMiloEditorDtbNodePayloadPlan plan =
+      source_milo_editor_dtb_node_payload_plan(static_cast<int32_t>(type));
+  if (plan.reads_uint32) {
+    (void)r.u32();
+  } else if (plan.reads_float) {
+    (void)r.f32();
+  } else if (plan.reads_symbol) {
+    (void)r.str();
+  } else if (plan.reads_array_parent) {
+    read_dtb_array_parent(r);
   }
 }
 
@@ -427,6 +407,119 @@ bool read_spotlight_default_state(const std::vector<uint8_t>& body,
 }
 
 }  // namespace
+
+SourceMiloEditorDtbNodePayloadPlan
+source_milo_editor_dtb_node_payload_plan(int32_t node_type) {
+  SourceMiloEditorDtbNodePayloadPlan plan;
+  plan.node_type = node_type;
+  switch (node_type) {
+    case 0x00:
+      plan.node_type_name = "Int";
+      plan.known_node_type = true;
+      plan.reads_uint32 = true;
+      break;
+    case 0x01:
+      plan.node_type_name = "Float";
+      plan.known_node_type = true;
+      plan.reads_float = true;
+      break;
+    case 0x02:
+      plan.node_type_name = "Variable";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x03:
+      plan.node_type_name = "Func";
+      plan.known_node_type = true;
+      plan.consumes_no_payload = true;
+      break;
+    case 0x04:
+      plan.node_type_name = "Object";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x05:
+      plan.node_type_name = "Symbol";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x06:
+      plan.node_type_name = "Unhandled";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x07:
+      plan.node_type_name = "IfDef";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x08:
+      plan.node_type_name = "Else";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x09:
+      plan.node_type_name = "EndIf";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x10:
+      plan.node_type_name = "Array";
+      plan.known_node_type = true;
+      plan.reads_array_parent = true;
+      break;
+    case 0x11:
+      plan.node_type_name = "Command";
+      plan.known_node_type = true;
+      plan.reads_array_parent = true;
+      break;
+    case 0x12:
+      plan.node_type_name = "String";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x13:
+      plan.node_type_name = "Property";
+      plan.known_node_type = true;
+      plan.reads_array_parent = true;
+      break;
+    case 0x20:
+      plan.node_type_name = "Define";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x21:
+      plan.node_type_name = "Include";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x22:
+      plan.node_type_name = "Merge";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x23:
+      plan.node_type_name = "IfNDef";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x24:
+      plan.node_type_name = "Autorun";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x25:
+      plan.node_type_name = "Undef";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    default:
+      plan.node_type_name = "Unknown";
+      plan.consumes_no_payload = true;
+      break;
+  }
+  return plan;
+}
 
 SourceRndTransLoadPlan source_rndtrans_load_plan(
     int32_t revision,

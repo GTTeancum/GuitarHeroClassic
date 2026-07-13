@@ -61,6 +61,51 @@ void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
 
 bool approx(float a, float b) { return std::fabs(a - b) < 1e-4f; }
 
+void test_milo_editor_dtb_node_payload_plan() {
+  const SourceMiloEditorDtbNodePayloadPlan dtb_int =
+      source_milo_editor_dtb_node_payload_plan(0x00);
+  CHECK(dtb_int.known_node_type);
+  CHECK(dtb_int.node_type_name == "Int");
+  CHECK(dtb_int.reads_uint32);
+  CHECK(!dtb_int.reads_float);
+  CHECK(!dtb_int.reads_symbol);
+  CHECK(!dtb_int.reads_array_parent);
+
+  const SourceMiloEditorDtbNodePayloadPlan dtb_float =
+      source_milo_editor_dtb_node_payload_plan(0x01);
+  CHECK(dtb_float.known_node_type);
+  CHECK(dtb_float.node_type_name == "Float");
+  CHECK(dtb_float.reads_float);
+
+  const SourceMiloEditorDtbNodePayloadPlan dtb_symbol =
+      source_milo_editor_dtb_node_payload_plan(0x05);
+  CHECK(dtb_symbol.known_node_type);
+  CHECK(dtb_symbol.node_type_name == "Symbol");
+  CHECK(dtb_symbol.reads_symbol);
+
+  const SourceMiloEditorDtbNodePayloadPlan dtb_array =
+      source_milo_editor_dtb_node_payload_plan(0x10);
+  CHECK(dtb_array.known_node_type);
+  CHECK(dtb_array.node_type_name == "Array");
+  CHECK(dtb_array.reads_array_parent);
+
+  const SourceMiloEditorDtbNodePayloadPlan dtb_func =
+      source_milo_editor_dtb_node_payload_plan(0x03);
+  CHECK(dtb_func.known_node_type);
+  CHECK(dtb_func.node_type_name == "Func");
+  CHECK(dtb_func.consumes_no_payload);
+  CHECK(!dtb_func.reads_uint32);
+  CHECK(!dtb_func.reads_float);
+  CHECK(!dtb_func.reads_symbol);
+  CHECK(!dtb_func.reads_array_parent);
+
+  const SourceMiloEditorDtbNodePayloadPlan dtb_unknown =
+      source_milo_editor_dtb_node_payload_plan(0x7f);
+  CHECK(!dtb_unknown.known_node_type);
+  CHECK(dtb_unknown.node_type_name == "Unknown");
+  CHECK(dtb_unknown.consumes_no_payload);
+}
+
 void test_trans() {
   const SourceRndTransformableDefaultState trans_defaults =
       source_rndtransformable_default_state();
@@ -2304,6 +2349,7 @@ void test_mesh() {
 
 int main() {
   std::printf("milo_scene_test\n");
+  test_milo_editor_dtb_node_payload_plan();
   test_trans();
   test_trans_proxy();
   test_trans_anim();

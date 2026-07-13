@@ -2535,12 +2535,33 @@ int run_contract() {
                  "constSourceMiloEditorDtbNodePayloadPlanplan="
                  "source_milo_editor_dtb_node_payload_plan(",
                  "character DTB reader delegates to source payload helper");
+  ok &= contains(scene_h,
+                 "structSourceMiloEditorDtbNodePayloadPlan{int32_tnode_type=0;",
+                 "shared milo_scene exposes MiloEditor DTB node payload plan");
+  ok &= contains(scene,
+                 "SourceMiloEditorDtbNodePayloadPlan"
+                 "source_milo_editor_dtb_node_payload_plan(",
+                 "shared milo_scene implements MiloEditor DTB node payload plan");
+  ok &= contains(scene,
+                 "case0x03:plan.node_type_name=\"Func\";"
+                 "plan.known_node_type=true;plan.consumes_no_payload=true;",
+                 "shared milo_scene DTB plan preserves Func no-payload row");
+  ok &= contains(scene,
+                 "constSourceMiloEditorDtbNodePayloadPlanplan="
+                 "source_milo_editor_dtb_node_payload_plan(",
+                 "shared milo_scene DTB reader delegates to source payload helper");
   ok &= contains(mesh_decode_test,
                  "source_milo_editor_dtb_node_payload_plan(0x03)",
                  "focused mesh decode test covers DTB Func no-payload row");
   ok &= contains(mesh_decode_test,
                  "source_milo_editor_dtb_node_payload_plan(0x7f)",
                  "focused mesh decode test covers unknown DTB no-payload row");
+  ok &= contains(scene_test,
+                 "source_milo_editor_dtb_node_payload_plan(0x03)",
+                 "milo_scene test covers DTB Func no-payload row");
+  ok &= contains(scene_test,
+                 "source_milo_editor_dtb_node_payload_plan(0x7f)",
+                 "milo_scene test covers unknown DTB no-payload row");
   ok &= contains(char_mesh,
                  "constuint32_tcombined_revision=r.u32();constuint16_trevision="
                  "static_cast<uint16_t>(combined_revision&0xffffu);(void)r.str();"

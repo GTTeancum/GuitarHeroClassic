@@ -101,6 +101,20 @@ struct Xfm {
   float pos[3] = {0, 0, 0};
 };
 
+struct SourceMiloEditorDtbNodePayloadPlan {
+  int32_t node_type = 0;
+  std::string node_type_name;
+  bool known_node_type = false;
+  bool reads_uint32 = false;
+  bool reads_float = false;
+  bool reads_symbol = false;
+  bool reads_array_parent = false;
+  bool consumes_no_payload = false;
+};
+
+SourceMiloEditorDtbNodePayloadPlan
+source_milo_editor_dtb_node_payload_plan(int32_t node_type);
+
 struct SourceRndTransLoadPlan {
   int32_t revision = 0;
   int32_t parent_revision = 0;
