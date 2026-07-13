@@ -1035,6 +1035,10 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     above 10; environ for `> 10 && < 16`; draw-only for revisions above 12; LOD
     for `> 11 && < 16`; legacy object rows for revision 4; revision-7 LOD
     dimensions; and sort-in-world for revisions above 13.
+  - `RndGroup.New(revision, altRevision)` only assigns those two revision
+    fields and returns the new object. Shared native
+    `source_milo_editor_rndgroup_new_plan` records that MiloEditor factory
+    boundary without synthesizing membership, LOD, or draw-order rows.
 - `rb3-latest/src/system/rndobj/Group.cpp` and
   `rb3-latest/src/system/rndobj/Group.h`
   - `RndGroup::RndGroup` initializes the object list with owner-control
@@ -1741,6 +1745,10 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `0x12`; `MatPerfSettings` starts with all three flags false; `Load` reads
     projected lights and PS3 trilinear flags first, then reads point-cube
     texture only when `RndMat::gRev > 0x41`.
+  - MiloEditor `RndMat.New(revision, altRevision)` only assigns those two
+    revision fields and returns the new object. Shared native
+    `source_milo_editor_rndmat_new_plan` records that factory boundary without
+    inventing render-state, texture, cull, or hair-material behavior.
   - Shared native `source_rndmat_set_color_mod_plan`,
     `source_rndmat_get_refract_enabled_plan`, and
     `source_rndmat_refract_accessor_plan` record the checked material helpers:

@@ -1369,6 +1369,19 @@ struct SourceRndGroupDefaultState {
 
 SourceRndGroupDefaultState source_rndgroup_default_state();
 
+struct SourceMiloEditorRndGroupNewPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool sets_revision = true;
+  bool sets_alt_revision = true;
+  bool relies_on_constructor_defaults = true;
+  bool does_not_initialize_membership_or_lod = true;
+};
+
+SourceMiloEditorRndGroupNewPlan source_milo_editor_rndgroup_new_plan(
+    int32_t revision,
+    int32_t alt_revision);
+
 struct SourceRndGroupSavePlan {
   int32_t save_id = 0x30;
 };
@@ -1826,6 +1839,19 @@ struct SourceRndMatDefaultState {
 struct SourceRndMatSavePlan {
   int32_t save_id = 159;
 };
+
+struct SourceMiloEditorRndMatNewPlan {
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  bool sets_revision = true;
+  bool sets_alt_revision = true;
+  bool relies_on_constructor_defaults = true;
+  bool does_not_initialize_render_state_or_textures = true;
+};
+
+SourceMiloEditorRndMatNewPlan source_milo_editor_rndmat_new_plan(
+    int32_t revision,
+    int32_t alt_revision);
 
 struct SourceMatShaderOptionsDefaultState {
   bool temp_mat = false;

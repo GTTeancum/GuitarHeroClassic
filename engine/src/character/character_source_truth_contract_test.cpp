@@ -1771,6 +1771,9 @@ int run_contract() {
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
                  "document cites RndGroup source");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndgroup_new_plan` records",
+                 "document records MiloEditor RndGroup New helper");
   ok &= contains(doc, "glTFMilo/Source/glTFMilo/Program.cs",
                  "document cites glTFMilo skinning source");
   ok &= contains(doc, "glTFMilo transform copy boundary",
@@ -1806,6 +1809,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Shared native `source_rndmat_default_state`,",
                  "document records RndMat default/accessor helper");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmat_new_plan` records",
+                 "document records MiloEditor RndMat New helper");
   ok &= contains(doc,
                  "Shared native `source_mat_shader_options_default_state`,",
                  "document records MatShaderOptions helper");
@@ -4017,6 +4023,11 @@ int run_contract() {
   ok &= contains(mat_cs,
                  "cull=reader.ReadBoolean();emissiveMultiplier=reader.ReadFloat();",
                  "RndMat source cull/emissive order");
+  ok &= contains(mat_cs,
+                 "publicstaticRndMatNew(ushortrevision,ushortaltRevision){"
+                 "RndMatrndMat=newRndMat();rndMat.revision=revision;"
+                 "rndMat.altRevision=altRevision;returnrndMat;}",
+                 "MiloEditor RndMat New sets only revision fields");
   ok &= contains(rb3_mat_cpp,
                  "mBlend(kSrc),mTexGen(kTexGenNone),mTexWrap(kRepeat),"
                  "mZMode(kNormal)",
@@ -4184,6 +4195,12 @@ int run_contract() {
                  "1.0f,1.0f};",
                  "shared milo_scene exposes source RndMat default state");
   ok &= contains(scene_h,
+                 "structSourceMiloEditorRndMatNewPlan{int32_trevision=0;",
+                 "shared milo_scene exposes MiloEditor RndMat New plan");
+  ok &= contains(scene_h,
+                 "booldoes_not_initialize_render_state_or_textures=true;",
+                 "shared RndMat New plan fences render-state defaults");
+  ok &= contains(scene_h,
                  "structSourceMatShaderOptionsDefaultState{booltemp_mat=false;"
                  "uint32_tpack=0x12;};",
                  "shared milo_scene exposes MatShaderOptions default state");
@@ -4279,6 +4296,9 @@ int run_contract() {
                  "SourceRndMatDefaultStatesource_rndmat_default_state(){"
                  "returnSourceRndMatDefaultState{};}",
                  "shared milo_scene implements source RndMat defaults helper");
+  ok &= contains(scene,
+                 "SourceMiloEditorRndMatNewPlansource_milo_editor_rndmat_new_plan(",
+                 "shared milo_scene implements MiloEditor RndMat New plan");
   ok &= contains(scene,
                  "SourceMatShaderOptionsDefaultState"
                  "source_mat_shader_options_default_state(){"
@@ -4415,6 +4435,9 @@ int run_contract() {
                  "constSourceRndMatDefaultStatedefaults="
                  "source_rndmat_default_state();",
                  "milo_scene test covers RndMat source defaults");
+  ok &= contains(scene_test,
+                 "source_milo_editor_rndmat_new_plan(27,0)",
+                 "milo_scene test covers MiloEditor RndMat New plan");
   ok &= contains(scene_test,
                  "constSourceMatShaderOptionsDefaultStateshader_options="
                  "source_mat_shader_options_default_state();",
@@ -4701,6 +4724,11 @@ int run_contract() {
   ok &= contains(group_cs,
                  "if(revision>13)sortInWorld=reader.ReadBoolean();",
                  "RndGroup source reads sort-in-world gate");
+  ok &= contains(group_cs,
+                 "publicstaticRndGroupNew(ushortrevision,ushortaltRevision){"
+                 "RndGrouprndGroup=newRndGroup();rndGroup.revision=revision;"
+                 "rndGroup.altRevision=altRevision;returnrndGroup;}",
+                 "MiloEditor RndGroup New sets only revision fields");
   ok &= contains(rb3_latest_group_cpp,
                  "RndGroup::RndGroup():mObjects(this,kObjListOwnerControl),"
                  "mEnv(this,0),mDrawOnly(this,0),mLod(this,0),"
@@ -4753,6 +4781,12 @@ int run_contract() {
                  "structSourceRndGroupDefaultState{",
                  "shared milo_scene exposes RndGroup default-state source plan");
   ok &= contains(scene_h,
+                 "structSourceMiloEditorRndGroupNewPlan{int32_trevision=0;",
+                 "shared milo_scene exposes MiloEditor RndGroup New plan");
+  ok &= contains(scene_h,
+                 "booldoes_not_initialize_membership_or_lod=true;",
+                 "shared RndGroup New plan fences membership defaults");
+  ok &= contains(scene_h,
                  "SourceRndGroupPropSyncPlansource_rndgroup_prop_sync_plan();",
                  "shared milo_scene exposes RndGroup prop-sync source plan");
   ok &= contains(scene,
@@ -4773,6 +4807,10 @@ int run_contract() {
                  "SourceRndGroupDefaultStatesource_rndgroup_default_state(){"
                  "returnSourceRndGroupDefaultState{};}",
                  "shared RndGroup helper mirrors constructor defaults");
+  ok &= contains(scene,
+                 "SourceMiloEditorRndGroupNewPlan"
+                 "source_milo_editor_rndgroup_new_plan(",
+                 "shared milo_scene implements MiloEditor RndGroup New plan");
   ok &= contains(scene,
                  "plan.member_order={\"mEnv\",\"mDrawOnly\",\"mLod\","
                  "\"mLodScreenSize\",\"mSortInWorld\",\"mObjects\"};",
@@ -4797,6 +4835,9 @@ int run_contract() {
                  "constSourceRndGroupDefaultStategroup_defaults="
                  "source_rndgroup_default_state();",
                  "milo_scene test covers RndGroup default-state plan");
+  ok &= contains(scene_test,
+                 "source_milo_editor_rndgroup_new_plan(15,0)",
+                 "milo_scene test covers MiloEditor RndGroup New plan");
   ok &= contains(scene_test,
                  "constSourceRndGroupPropSyncPlangroup_props="
                  "source_rndgroup_prop_sync_plan();",

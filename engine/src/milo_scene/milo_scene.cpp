@@ -2053,6 +2053,15 @@ SourceRndGroupDefaultState source_rndgroup_default_state() {
   return SourceRndGroupDefaultState{};
 }
 
+SourceMiloEditorRndGroupNewPlan source_milo_editor_rndgroup_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndGroupNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  return plan;
+}
+
 SourceRndGroupSavePlan source_rndgroup_save_plan() {
   return SourceRndGroupSavePlan{};
 }
@@ -2386,6 +2395,15 @@ SourceRndMatDefaultState source_rndmat_default_state() {
 
 SourceRndMatSavePlan source_rndmat_save_plan() {
   return SourceRndMatSavePlan{};
+}
+
+SourceMiloEditorRndMatNewPlan source_milo_editor_rndmat_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndMatNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  return plan;
 }
 
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state() {

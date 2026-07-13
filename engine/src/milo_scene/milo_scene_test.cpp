@@ -1165,6 +1165,15 @@ void test_mat() {
   CHECK(defaults.color_mod_count == 3);
   CHECK(source_rndmat_save_plan().save_id == 159);
 
+  const SourceMiloEditorRndMatNewPlan mat_new =
+      source_milo_editor_rndmat_new_plan(27, 0);
+  CHECK(mat_new.revision == 27);
+  CHECK(mat_new.alt_revision == 0);
+  CHECK(mat_new.sets_revision);
+  CHECK(mat_new.sets_alt_revision);
+  CHECK(mat_new.relies_on_constructor_defaults);
+  CHECK(mat_new.does_not_initialize_render_state_or_textures);
+
   const SourceMatShaderOptionsDefaultState shader_options =
       source_mat_shader_options_default_state();
   CHECK(!shader_options.temp_mat);
@@ -1783,6 +1792,15 @@ void test_group() {
   CHECK(!group_defaults.sort_in_world);
   CHECK(!group_defaults.unkf8);
   CHECK(source_rndgroup_save_plan().save_id == 0x30);
+
+  const SourceMiloEditorRndGroupNewPlan group_new =
+      source_milo_editor_rndgroup_new_plan(15, 0);
+  CHECK(group_new.revision == 15);
+  CHECK(group_new.alt_revision == 0);
+  CHECK(group_new.sets_revision);
+  CHECK(group_new.sets_alt_revision);
+  CHECK(group_new.relies_on_constructor_defaults);
+  CHECK(group_new.does_not_initialize_membership_or_lod);
 
   const SourceRndGroupCopyPlan group_copy = source_rndgroup_copy_plan();
   CHECK(group_copy.superclasses.size() == 4);
