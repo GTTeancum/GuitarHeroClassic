@@ -6303,6 +6303,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_lighting_preset_environment_light_state(",
                  "lighting keyframes apply decoded Environ/Light state like ihatecompvir LightPreset::Animate");
+  ok &= contains(gameplay_c,
+                 "if(it->second.animate_color_from_preset||"
+                 "it->second.animate_position_from_preset||"
+                 "it->second.animate_range_from_preset){"
+                 "override_state.has_type=true;"
+                 "override_state.type=state.type;}",
+                 "LightPreset light type follows ihatcompvir GetAnimateFromPreset for color, position, or range animated lights");
   ok &= contains(gameplay_h_c,
                  "structLightPresetEnvLightStateSnapshot",
                  "LightPreset Environ/Light state is kept as a fadeable runtime snapshot");

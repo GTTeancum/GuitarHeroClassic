@@ -12431,6 +12431,10 @@ LightPresetEnvLightApplyCounts apply_lighting_preset_environment_light_state(
             it->second.animate_color_from_preset) {
             override_state.has_range = true;
             override_state.range = state.range;
+        }
+        if (it->second.animate_color_from_preset ||
+            it->second.animate_position_from_preset ||
+            it->second.animate_range_from_preset) {
             override_state.has_type = true;
             override_state.type = state.type;
         }
