@@ -117,6 +117,15 @@ int main() {
   CHECK(has(prop_sync.properties, "flags"));
   CHECK(has(prop_sync.superclasses, "RndTransformable"));
 
+  ghogx::character::CharCollide access_collide;
+  access_collide.shape = 2;
+  const ghogx::character::SourceCharCollideAccessorsPlan accessors =
+      ghogx::character::source_char_collide_accessors_plan(access_collide);
+  CHECK(accessors.shape == 2);
+  CHECK(accessors.get_shape_returns_member);
+  CHECK(accessors.axis_declared);
+  CHECK(!accessors.axis_body_available);
+
   const ghogx::character::SourceCharCollideLoadPlan invalid_load =
       ghogx::character::source_char_collide_load_plan(8);
   CHECK(!invalid_load.known_revision);

@@ -9192,6 +9192,11 @@ int run_contract() {
                  "kInsideCigar=4,};",
                  "latest CharCollide header exposes source shape enum");
   ok &= contains(rb3_latest_char_collide_h,
+                 "ShapeGetShape()const{returnmShape;}constVector3&Axis()const;",
+                 "latest CharCollide header exposes shape accessor and Axis declaration");
+  ok &= missing(rb3_latest_char_collide_cpp, "CharCollide::Axis(",
+                "latest CharCollide source lacks Axis body");
+  ok &= contains(rb3_latest_char_collide_h,
                  "floatGetRadius(constVector3&v1,Vector3&vout)const{"
                  "Subtract(v1,unk1a0,vout);floatret=mCurRadius[0];",
                  "latest CharCollide header exposes inline GetRadius formula");
@@ -9357,6 +9362,11 @@ int run_contract() {
                  "true;boolcompute_radius_has_statement_body=false;",
                  "native exposes CharCollide radius runtime evidence");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCollideAccessorsPlan{int32_tshape=1;"
+                 "boolget_shape_returns_member=true;boolaxis_declared=true;"
+                 "boolaxis_body_available=false;};",
+                 "native exposes CharCollide accessor source boundary");
+  ok &= contains(char_mesh_h,
                  "floatsource_char_collide_get_radius(constCharCollide&"
                  "collide,constSourceCharCollideRadiusCache&cache,"
                  "conststd::array<float,3>&point,std::array<float,3>&"
@@ -9424,6 +9434,11 @@ int run_contract() {
                  "SourceCharCollideRadiusRuntimeEvidence"
                  "source_char_collide_radius_runtime_evidence();",
                  "native exposes CharCollide radius runtime evidence helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideAccessorsPlan"
+                 "source_char_collide_accessors_plan("
+                 "constCharCollide&collide);",
+                 "native exposes CharCollide accessor helper");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body,int32_tparent_dir_revision)",
@@ -9587,6 +9602,12 @@ int run_contract() {
                  "evidence.compute_radius_range=\"0x803473DC->0x803474E8\";",
                  "native CharCollide radius evidence records ComputeRadius range");
   ok &= contains(char_mesh,
+                 "SourceCharCollideAccessorsPlan"
+                 "source_char_collide_accessors_plan(constCharCollide&collide){"
+                 "SourceCharCollideAccessorsPlanplan;plan.shape=collide.shape;"
+                 "returnplan;}",
+                 "native CharCollide accessor helper mirrors GetShape member return");
+  ok &= contains(char_mesh,
                  "std::clamp(cache.length_scale*dot_axis(),"
                  "collide.cur_length[0],collide.cur_length[1]);",
                  "native CharCollide GetRadius helper clamps cigar length");
@@ -9653,6 +9674,9 @@ int run_contract() {
   ok &= contains(char_collide_source_test,
                  "source_char_collide_prop_sync_plan()",
                  "CharCollide source test covers prop-sync plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_accessors_plan(access_collide)",
+                 "CharCollide source test covers accessor boundary helper");
   ok &= contains(char_collide_source_test,
                  "source_char_collide_load_plan(1)",
                  "CharCollide source test covers legacy load plan");
@@ -9730,6 +9754,12 @@ int run_contract() {
                  "records the mapped\n    cache/update boundary as "
                  "`source_char_collide_radius_runtime_evidence`",
                  "document records CharCollide cache update boundary helper");
+  ok &= contains(doc,
+                 "`CharCollide::GetShape` is an inline source accessor that returns `mShape`",
+                 "document records CharCollide GetShape source accessor");
+  ok &= contains(doc,
+                 "`CharCollide::Axis` is only declared in the checked header",
+                 "document records CharCollide Axis source boundary");
   ok &= contains(doc, "Native therefore keeps collision response\n"
                       "    disabled until the cached-field updates are sourced",
                  "document fences unsourced CharCollide collision response");

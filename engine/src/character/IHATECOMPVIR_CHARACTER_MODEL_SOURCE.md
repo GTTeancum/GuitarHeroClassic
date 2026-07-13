@@ -2069,6 +2069,11 @@ note, and all report `unreadBytes=0`.
     into live hair simulation. Native therefore keeps collision response
     disabled until the cached-field updates are sourced instead of reconstructed
     by guesswork.
+  - `CharCollide::GetShape` is an inline source accessor that returns `mShape`.
+    `CharCollide::Axis` is only declared in the checked header and has no
+    reviewable body in the available ihatecompvir sources. Native
+    `source_char_collide_accessors_plan` records that split so hair collision
+    work can trust decoded shape rows without fabricating an axis update path.
 - `ihatecompvir-extra/band3_recomp`
   - The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`
     symbols only. It does not provide a decompiled `CharHair` body or

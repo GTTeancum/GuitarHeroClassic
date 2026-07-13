@@ -3764,6 +3764,13 @@ source_char_collide_radius_runtime_evidence() {
   return evidence;
 }
 
+SourceCharCollideAccessorsPlan source_char_collide_accessors_plan(
+    const CharCollide& collide) {
+  SourceCharCollideAccessorsPlan plan;
+  plan.shape = collide.shape;
+  return plan;
+}
+
 void source_char_collide_sync_shape(CharCollide& collide) {
   const float t = collide.cur_length[1];
   if (collide.cur_length[0] > t) {

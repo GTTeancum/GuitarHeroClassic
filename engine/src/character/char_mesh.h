@@ -4238,6 +4238,13 @@ struct SourceCharCollideRadiusRuntimeEvidence {
   bool get_radius_inline_body = true;
 };
 
+struct SourceCharCollideAccessorsPlan {
+  int32_t shape = 1;
+  bool get_shape_returns_member = true;
+  bool axis_declared = true;
+  bool axis_body_available = false;
+};
+
 struct SourceCharCollideDefaultState {
   int32_t shape = 1;
   int32_t flags = 0;
@@ -4301,6 +4308,8 @@ SourceCharCollideHighlightPlan source_char_collide_highlight_plan(
 SourceCharCollideDeformPlan source_char_collide_deform_plan();
 SourceCharCollideRadiusRuntimeEvidence
 source_char_collide_radius_runtime_evidence();
+SourceCharCollideAccessorsPlan source_char_collide_accessors_plan(
+    const CharCollide& collide);
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
 void source_char_collide_clear_mesh(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);
