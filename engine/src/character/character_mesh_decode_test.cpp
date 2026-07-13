@@ -1154,6 +1154,42 @@ int main() {
   CHECK(modern_fields.reads_alt_bool3);
   CHECK(!modern_fields.reads_group_sections);
 
+  const auto gh2_group_sizes_io =
+      ghogx::character::source_milo_editor_rndmesh_group_sizes_io_plan(
+          28, 3);
+  CHECK(gh2_group_sizes_io.group_size_row_is_uint8);
+  CHECK(gh2_group_sizes_io.reads_modern_group_sizes);
+  CHECK(gh2_group_sizes_io.writes_modern_group_sizes);
+  CHECK(!gh2_group_sizes_io.reads_legacy_group_sizes);
+  CHECK(!gh2_group_sizes_io.writes_legacy_group_sizes);
+  CHECK(!gh2_group_sizes_io.leaves_patch_vector_loop_todo);
+  CHECK(gh2_group_sizes_io.reads_count_before_rows);
+  CHECK(gh2_group_sizes_io.writes_count_from_group_sizes_vector);
+  CHECK(gh2_group_sizes_io.read_group_size_rows == 3);
+  CHECK(gh2_group_sizes_io.write_group_size_rows == 3);
+  CHECK(gh2_group_sizes_io.gh2_rev28_counted_byte_rows);
+
+  const auto legacy_group_sizes_io =
+      ghogx::character::source_milo_editor_rndmesh_group_sizes_io_plan(
+          17, 2);
+  CHECK(!legacy_group_sizes_io.reads_modern_group_sizes);
+  CHECK(!legacy_group_sizes_io.writes_modern_group_sizes);
+  CHECK(legacy_group_sizes_io.reads_legacy_group_sizes);
+  CHECK(legacy_group_sizes_io.writes_legacy_group_sizes);
+  CHECK(legacy_group_sizes_io.read_group_size_rows == 2);
+  CHECK(legacy_group_sizes_io.write_group_size_rows == 2);
+  CHECK(!legacy_group_sizes_io.gh2_rev28_counted_byte_rows);
+
+  const auto patch_todo_group_sizes_io =
+      ghogx::character::source_milo_editor_rndmesh_group_sizes_io_plan(
+          23, 4);
+  CHECK(!patch_todo_group_sizes_io.reads_modern_group_sizes);
+  CHECK(!patch_todo_group_sizes_io.reads_legacy_group_sizes);
+  CHECK(patch_todo_group_sizes_io.leaves_patch_vector_loop_todo);
+  CHECK(!patch_todo_group_sizes_io.reads_count_before_rows);
+  CHECK(patch_todo_group_sizes_io.read_group_size_rows == 0);
+  CHECK(patch_todo_group_sizes_io.write_group_size_rows == 0);
+
   const auto gh2_group_section_io =
       ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
           3, true, 24, 1);

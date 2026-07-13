@@ -581,6 +581,36 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
   return plan;
 }
 
+SourceMiloEditorRndMeshGroupSizesIoPlan
+source_milo_editor_rndmesh_group_sizes_io_plan(
+    int32_t mesh_revision,
+    int32_t group_sizes_count) {
+  SourceMiloEditorRndMeshGroupSizesIoPlan plan;
+  plan.mesh_revision = mesh_revision;
+  plan.input_group_sizes_count = std::max(0, group_sizes_count);
+  plan.reads_modern_group_sizes = mesh_revision > 0x17;
+  plan.writes_modern_group_sizes = mesh_revision > 0x17;
+  plan.reads_legacy_group_sizes =
+      mesh_revision > 0x10 && mesh_revision <= 0x15;
+  plan.writes_legacy_group_sizes =
+      mesh_revision > 0x10 && mesh_revision <= 0x15;
+  plan.leaves_patch_vector_loop_todo =
+      mesh_revision > 0x15 && mesh_revision <= 0x17;
+
+  if (plan.reads_modern_group_sizes || plan.reads_legacy_group_sizes) {
+    plan.reads_count_before_rows = true;
+    plan.writes_count_from_group_sizes_vector = true;
+    plan.read_group_size_rows = plan.input_group_sizes_count;
+    plan.write_group_size_rows = plan.input_group_sizes_count;
+  }
+
+  plan.gh2_rev28_counted_byte_rows =
+      mesh_revision == 28 && plan.reads_modern_group_sizes &&
+      plan.writes_modern_group_sizes && plan.group_size_row_is_uint8 &&
+      plan.reads_count_before_rows && plan.writes_count_from_group_sizes_vector;
+  return plan;
+}
+
 SourceMiloEditorRndMeshGroupSectionIoPlan
 source_milo_editor_rndmesh_group_section_io_plan(
     int32_t group_sizes_count,

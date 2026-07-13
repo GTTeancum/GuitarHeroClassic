@@ -1140,6 +1140,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     swaps those roles. Native `source_milo_editor_rndmesh_revision_word_plan`
     records that source IO contract so revision-gated model parsing stays tied
     to the visible source split/write logic.
+  - MiloEditor `RndMesh.groupSizes` rows are counted byte lists for mesh
+    revisions above `0x17` and for the older `0x11..0x15` branch. The
+    `0x16..0x17` branch remains an explicit source TODO and performs no
+    read/write in the checked MiloEditor code. Native
+    `source_milo_editor_rndmesh_group_sizes_io_plan` records those gates and
+    the GH2 rev28 counted-byte path without promoting the TODO branch into a
+    decoded native patch stream.
   - MiloEditor `RndMesh.GroupSection` rows serialize a section count, a vertex
     offset count, all signed section IDs, then all unsigned vertex offsets. The
     writer uses the same last-gen gate as the reader, additionally requiring a

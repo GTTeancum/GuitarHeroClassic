@@ -5284,6 +5284,28 @@ int run_contract() {
                  "mPatches.push_back(ui);}}",
                  "RB3 RndMesh source exposes legacy patch-vector loop");
   ok &= contains(mesh_cs,
+                 "if(revision>0x17){groupSizesCount=reader.ReadUInt32();"
+                 "groupSizes=newList<byte>();for(inti=0;i<groupSizesCount;i++)"
+                 "{groupSizes.Add(reader.ReadByte());}}",
+                 "MiloEditor RndMesh reads modern groupSizes byte rows");
+  ok &= contains(mesh_cs,
+                 "elseif(revision>0x15){//todo}elseif(revision>0x10){"
+                 "//tododoublecheckthisgroupSizesCount=reader.ReadUInt32();"
+                 "groupSizes=newList<byte>();for(inti=0;i<groupSizesCount;i++)"
+                 "{groupSizes.Add(reader.ReadByte());}}",
+                 "MiloEditor RndMesh reads legacy groupSizes branches");
+  ok &= contains(mesh_cs,
+                 "if(revision>0x17){groupSizesCount=(uint)groupSizes.Count;"
+                 "writer.WriteUInt32(groupSizesCount);foreach(bytegroupSizein"
+                 "groupSizes){writer.WriteByte(groupSize);}}",
+                 "MiloEditor RndMesh writes modern groupSizes byte rows");
+  ok &= contains(mesh_cs,
+                 "elseif(revision>0x15){//todo-matchesReadbehavior(doesnothing)}"
+                 "elseif(revision>0x10){groupSizesCount=(uint)groupSizes.Count;"
+                 "writer.WriteUInt32(groupSizesCount);foreach(bytegroupSizein"
+                 "groupSizes){writer.WriteByte(groupSize);}}",
+                 "MiloEditor RndMesh writes legacy groupSizes branches");
+  ok &= contains(mesh_cs,
                  "publicclassGroupSection{publicList<int>sections=new();"
                  "publicList<ushort>vertOffsets=new();publicGroupSectionRead("
                  "EndianReaderreader,uintmeshRevision){uintsectionCount="
@@ -6075,6 +6097,10 @@ int run_contract() {
                  "int32_tgroup_sizes_count=0;",
                  "native declares MiloEditor RndMesh group section IO plan");
   ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorRndMeshGroupSizesIoPlan{"
+                 "int32_tmesh_revision=0;",
+                 "native declares MiloEditor RndMesh groupSizes IO plan");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshFaceIoPlan{"
                  "int32_tface_count=0;",
                  "native declares MiloEditor RndMesh face IO plan");
@@ -6433,6 +6459,11 @@ int run_contract() {
       "native ports MiloEditor RndMesh group section IO helper");
   ok &= contains(
       char_mesh,
+      "SourceMiloEditorRndMeshGroupSizesIoPlansource_milo_editor_rndmesh_"
+      "group_sizes_io_plan(",
+      "native ports MiloEditor RndMesh groupSizes IO helper");
+  ok &= contains(
+      char_mesh,
       "SourceMiloEditorRndMeshFaceIoPlansource_milo_editor_rndmesh_"
       "face_io_plan(",
       "native ports MiloEditor RndMesh face IO helper");
@@ -6445,6 +6476,14 @@ int run_contract() {
                  "constboolgate=plan.group_sizes_count>0&&"
                  "group_sizes_first_positive&&parent_dir_revision<25;",
                  "native group section IO helper preserves source gate");
+  ok &= contains(char_mesh,
+                 "plan.leaves_patch_vector_loop_todo=mesh_revision>0x15&&"
+                 "mesh_revision<=0x17;",
+                 "native groupSizes IO helper fences source TODO branch");
+  ok &= contains(char_mesh,
+                 "plan.gh2_rev28_counted_byte_rows=mesh_revision==28&&"
+                 "plan.reads_modern_group_sizes",
+                 "native groupSizes IO helper pins GH2 counted byte rows");
   ok &= contains(char_mesh,
                  "plan.write_pads_to_group_sizes_count=plan."
                  "existing_group_section_count<plan.group_sizes_count;",
@@ -7021,6 +7060,12 @@ int run_contract() {
                  "source_milo_editor_rndmesh_group_section_io_plan(",
                  "focused mesh decode test covers MiloEditor group section IO");
   ok &= contains(mesh_decode_test,
+                 "source_milo_editor_rndmesh_group_sizes_io_plan(",
+                 "focused mesh decode test covers MiloEditor groupSizes IO");
+  ok &= contains(mesh_decode_test,
+                 "patch_todo_group_sizes_io.leaves_patch_vector_loop_todo",
+                 "focused mesh decode test covers groupSizes TODO branch");
+  ok &= contains(mesh_decode_test,
                  "gh2_group_section_io.write_pads_to_group_sizes_count",
                  "focused mesh decode test covers group section writer padding");
   ok &= contains(mesh_decode_test,
@@ -7297,6 +7342,11 @@ int run_contract() {
                  "document records MiloEditor RndMesh group section IO helper");
   ok &= contains(doc, "without treating group sections as skin-index or hair-physics",
                  "document fences group sections from invented runtime behavior");
+  ok &= contains(doc,
+                 "`source_milo_editor_rndmesh_group_sizes_io_plan` records",
+                 "document records MiloEditor RndMesh groupSizes IO helper");
+  ok &= contains(doc, "explicit source TODO",
+                 "document fences groupSizes TODO branch");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_face_io_plan` records",
                  "document records MiloEditor RndMesh face IO helper");

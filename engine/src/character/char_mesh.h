@@ -285,6 +285,27 @@ SourceRndMeshFieldGatePlan source_rndmesh_field_gate_plan(
     int32_t group_sizes_count,
     bool group_sizes_first_positive);
 
+struct SourceMiloEditorRndMeshGroupSizesIoPlan {
+  int32_t mesh_revision = 0;
+  int32_t input_group_sizes_count = 0;
+  bool group_size_row_is_uint8 = true;
+  bool reads_modern_group_sizes = false;
+  bool writes_modern_group_sizes = false;
+  bool reads_legacy_group_sizes = false;
+  bool writes_legacy_group_sizes = false;
+  bool leaves_patch_vector_loop_todo = false;
+  bool reads_count_before_rows = false;
+  bool writes_count_from_group_sizes_vector = false;
+  int32_t read_group_size_rows = 0;
+  int32_t write_group_size_rows = 0;
+  bool gh2_rev28_counted_byte_rows = false;
+};
+
+SourceMiloEditorRndMeshGroupSizesIoPlan
+source_milo_editor_rndmesh_group_sizes_io_plan(
+    int32_t mesh_revision,
+    int32_t group_sizes_count);
+
 struct SourceMiloEditorRndMeshGroupSectionIoPlan {
   int32_t group_sizes_count = 0;
   int32_t existing_group_section_count = 0;
