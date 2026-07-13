@@ -50,6 +50,7 @@ bool has(const std::vector<std::string>& values, const std::string& value) {
 int main() {
   using ghogx::character::SourceCharIKHandMeasure;
   using ghogx::character::SourceCharIKHandTargetInput;
+  using ghogx::character::SourceCharIKHandWristConstraintInput;
   using ghogx::character::source_char_ik_hand_copy_plan;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
   using ghogx::character::source_char_ik_hand_finger_target;
@@ -60,6 +61,7 @@ int main() {
   using ghogx::character::source_char_ik_hand_prop_sync_plan;
   using ghogx::character::source_char_ik_hand_save_plan;
   using ghogx::character::source_char_ik_hand_update_measure_lengths;
+  using ghogx::character::source_char_ik_hand_wrist_constraint;
 
   bool ok = true;
 
@@ -291,6 +293,73 @@ int main() {
                      "finger target source transform x");
   ok &= expect_float(finger_target.adjusted_target.rot[0][0], 1.0f,
                      "finger target keeps identity rotation");
+
+  SourceCharIKHandWristConstraintInput wrist_disabled;
+  wrist_disabled.constrain_wrist = false;
+  wrist_disabled.char_weight = 1.0f;
+  wrist_disabled.has_parent = true;
+  const auto wrist_gate = source_char_ik_hand_wrist_constraint(wrist_disabled);
+  ok &= expect_bool(wrist_gate.entered, false,
+                    "wrist constraint disabled skips source branch");
+
+  SourceCharIKHandWristConstraintInput wrist_inside;
+  wrist_inside.constrain_wrist = true;
+  wrist_inside.char_weight = 1.0f;
+  wrist_inside.has_parent = true;
+  wrist_inside.wrist_radians = 0.1f;
+  const auto wrist_inside_result =
+      source_char_ik_hand_wrist_constraint(wrist_inside);
+  ok &= expect_bool(wrist_inside_result.entered, true,
+                    "wrist constraint enters with parent and weight");
+  ok &= expect_bool(wrist_inside_result.angle_exceeded, false,
+                    "wrist constraint inside limit does not write");
+  ok &= expect_float(wrist_inside_result.raw_angle, 0.0f,
+                     "wrist constraint zero raw angle");
+
+  SourceCharIKHandWristConstraintInput wrist_exceeded;
+  wrist_exceeded.constrain_wrist = true;
+  wrist_exceeded.char_weight = 1.0f;
+  wrist_exceeded.has_parent = true;
+  wrist_exceeded.wrist_radians = 0.25f;
+  wrist_exceeded.parent_x = {1.0f, 0.0f, 0.0f};
+  wrist_exceeded.hand_x = {0.0f, 0.0f, -1.0f};
+  wrist_exceeded.hand_y = {0.0f, 1.0f, 0.0f};
+  wrist_exceeded.hand_z = {1.0f, 0.0f, 0.0f};
+  wrist_exceeded.hand_pos = {10.0f, 20.0f, 30.0f};
+  wrist_exceeded.finger_before_pos = {1.0f, 2.0f, 3.0f};
+  wrist_exceeded.finger_after_first_set_pos = {1.5f, 1.0f, 5.25f};
+  const auto wrist_exceeded_result =
+      source_char_ik_hand_wrist_constraint(wrist_exceeded);
+  ok &= expect_bool(wrist_exceeded_result.angle_exceeded, true,
+                    "wrist constraint exceeded writes source branch");
+  ok &= expect_float(wrist_exceeded_result.raw_angle, -1.57079637f,
+                     "wrist constraint raw limit angle");
+  ok &= expect_float(wrist_exceeded_result.correction_angle, -1.32079637f,
+                     "wrist constraint corrected angle");
+  ok &= expect_float(wrist_exceeded_result.corrected_x[0], 0.96891242f,
+                     "wrist constraint corrected x row");
+  ok &= expect_float(wrist_exceeded_result.corrected_z[2], 0.96891242f,
+                     "wrist constraint rebuilt z row");
+  ok &= expect_bool(wrist_exceeded_result.wrote_first_hand_xfm, true,
+                    "wrist constraint writes first hand xfm");
+  ok &= expect_float(wrist_exceeded_result.finger_delta[0], 0.5f,
+                     "wrist constraint finger delta x");
+  ok &= expect_float(wrist_exceeded_result.finger_delta[1], -1.0f,
+                     "wrist constraint finger delta y");
+  ok &= expect_float(wrist_exceeded_result.finger_delta[2], 2.25f,
+                     "wrist constraint finger delta z");
+  ok &= expect_float(wrist_exceeded_result.final_hand_pos[0], 9.5f,
+                     "wrist constraint compensated hand x");
+  ok &= expect_float(wrist_exceeded_result.final_hand_pos[1], 21.0f,
+                     "wrist constraint compensated hand y");
+  ok &= expect_float(wrist_exceeded_result.final_hand_pos[2], 27.75f,
+                     "wrist constraint compensated hand z");
+  ok &= expect_bool(wrist_exceeded_result.updates_world_dst, true,
+                    "wrist constraint updates world dst");
+  ok &= expect_bool(wrist_exceeded_result.requests_elbow_resolve, true,
+                    "wrist constraint requests elbow solve");
+  ok &= expect_bool(wrist_exceeded_result.rewrites_hand_after_elbow, true,
+                    "wrist constraint rewrites hand after elbow");
 
   std::printf("character_ik_hand_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;

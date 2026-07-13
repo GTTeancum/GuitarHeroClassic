@@ -3231,6 +3231,16 @@ note, and all report `unreadBytes=0`.
     finger world transform, multiply `handWorld * inverse(fingerWorld)`, then
     multiply that by the target transform and use the resulting position and
     rotation. This does not publish live hand transforms.
+  - Native `source_char_ik_hand_wrist_constraint` ports the visible
+    `mConstrainWrist` branch from `CharIKHand::Poll` as deterministic source
+    evidence only: the branch requires a positive character weight and a parent
+    forearm, computes `acos(Dot(parent.x, hand.z)) - pi/2`, subtracts or adds
+    `mWristRadians` only when the angle exceeds the wrist limit, rotates the
+    hand X row about the hand Y row, rebuilds Z with `Cross(x, y)`, compensates
+    the hand position by the finger movement caused by the first write, updates
+    `mWorldDst`, requests a follow-up elbow solve, and then rewrites the hand
+    transform. Stock GH2 `CharIKHand` rows currently have `constrainWrist=0`,
+    so this helper is not wired into live runtime solving.
   - `CharIKHand::PullShoulder` is source-real but not yet source-importable:
     `CharIKHand.cpp` calls it from `IKElbow`, and
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a

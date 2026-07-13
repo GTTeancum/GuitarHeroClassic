@@ -3022,6 +3022,37 @@ struct SourceCharIKHandFingerTargetResult {
   milo_scene::Xfm adjusted_target;
 };
 
+struct SourceCharIKHandWristConstraintInput {
+  bool constrain_wrist = false;
+  float char_weight = 0.0f;
+  bool has_parent = false;
+  float wrist_radians = 0.0f;
+  std::array<float, 3> parent_x = {1.0f, 0.0f, 0.0f};
+  std::array<float, 3> hand_x = {1.0f, 0.0f, 0.0f};
+  std::array<float, 3> hand_y = {0.0f, 1.0f, 0.0f};
+  std::array<float, 3> hand_z = {0.0f, 0.0f, 1.0f};
+  std::array<float, 3> hand_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> finger_before_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> finger_after_first_set_pos = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceCharIKHandWristConstraintResult {
+  bool entered = false;
+  bool angle_exceeded = false;
+  float raw_angle = 0.0f;
+  float correction_angle = 0.0f;
+  std::array<float, 3> corrected_x = {1.0f, 0.0f, 0.0f};
+  std::array<float, 3> corrected_y = {0.0f, 1.0f, 0.0f};
+  std::array<float, 3> corrected_z = {0.0f, 0.0f, 1.0f};
+  bool wrote_first_hand_xfm = false;
+  bool compensated_finger_delta = false;
+  std::array<float, 3> finger_delta = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> final_hand_pos = {0.0f, 0.0f, 0.0f};
+  bool updates_world_dst = false;
+  bool requests_elbow_resolve = false;
+  bool rewrites_hand_after_elbow = false;
+};
+
 struct SourceCharIKFootState {
   bool helper_target_created = true;
   bool helper_target_local_reset = true;
@@ -3123,6 +3154,8 @@ SourceCharIKHandFingerTargetResult source_char_ik_hand_finger_target(
     const milo_scene::Xfm& finger_world,
     std::array<float, 3> target_pos,
     std::array<float, 4> target_quat);
+SourceCharIKHandWristConstraintResult source_char_ik_hand_wrist_constraint(
+    const SourceCharIKHandWristConstraintInput& input);
 SourceCharIKFootState source_char_ik_foot_default_state();
 SourceCharIKFootEnterResult source_char_ik_foot_enter(
     SourceCharIKFootState& state);

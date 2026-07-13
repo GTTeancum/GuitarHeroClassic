@@ -5445,6 +5445,60 @@ SourceCharIKHandFingerTargetResult source_char_ik_hand_finger_target(
   return result;
 }
 
+SourceCharIKHandWristConstraintResult source_char_ik_hand_wrist_constraint(
+    const SourceCharIKHandWristConstraintInput& input) {
+  SourceCharIKHandWristConstraintResult result;
+  result.corrected_x = input.hand_x;
+  result.corrected_y = input.hand_y;
+  result.corrected_z = input.hand_z;
+  result.final_hand_pos = input.hand_pos;
+
+  if (!input.constrain_wrist || input.char_weight <= 0.0f ||
+      !input.has_parent) {
+    return result;
+  }
+
+  result.entered = true;
+  const Vec3 parent_x = vec_from_array3(input.parent_x);
+  const Vec3 hand_z = vec_from_array3(input.hand_z);
+  result.raw_angle =
+      std::acos(vdot(parent_x, hand_z)) - 1.570796370506287f;
+  if (std::fabs(result.raw_angle) <= input.wrist_radians) {
+    return result;
+  }
+
+  result.angle_exceeded = true;
+  result.correction_angle = result.raw_angle;
+  if (result.correction_angle > 0.0f) {
+    result.correction_angle -= input.wrist_radians;
+  } else {
+    result.correction_angle += input.wrist_radians;
+  }
+
+  const Vec3 hand_y = vec_from_array3(input.hand_y);
+  float q[4] = {hand_y.x * std::sin(result.correction_angle * 0.5f),
+                hand_y.y * std::sin(result.correction_angle * 0.5f),
+                hand_y.z * std::sin(result.correction_angle * 0.5f),
+                std::cos(result.correction_angle * 0.5f)};
+  const Vec3 corrected_x = rotate_vec_by_quat(vec_from_array3(input.hand_x), q);
+  const Vec3 corrected_z = vcross(corrected_x, hand_y);
+  result.corrected_x = {corrected_x.x, corrected_x.y, corrected_x.z};
+  result.corrected_y = input.hand_y;
+  result.corrected_z = {corrected_z.x, corrected_z.y, corrected_z.z};
+  result.wrote_first_hand_xfm = true;
+
+  for (int axis = 0; axis < 3; ++axis) {
+    result.finger_delta[axis] =
+        input.finger_after_first_set_pos[axis] - input.finger_before_pos[axis];
+    result.final_hand_pos[axis] = input.hand_pos[axis] - result.finger_delta[axis];
+  }
+  result.compensated_finger_delta = true;
+  result.updates_world_dst = true;
+  result.requests_elbow_resolve = true;
+  result.rewrites_hand_after_elbow = true;
+  return result;
+}
+
 static float source_distance3(const std::array<float, 3>& a,
                               const std::array<float, 3>& b) {
   const float dx = a[0] - b[0];

@@ -19102,6 +19102,28 @@ int run_contract() {
                  "Multiply(mHand->WorldXfm(),tf2,tf2);"
                  "Multiply(tf2,tf,tf);vec=tf.v;quat.Set(tf.m);}",
                  "RB3 CharIKHand source applies hand/finger target transform");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(mConstrainWrist&&charWeight>0.0f&&parent1){",
+                 "RB3 CharIKHand source gates wrist constraint");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "floatacosdot=std::acos(Dot(m1b4.x,v2a8))-"
+                 "1.570796370506287f;",
+                 "RB3 CharIKHand source computes wrist limit angle");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(Abs(acosdot)>rads){if(acosdot>0.0f)acosdot-=rads;"
+                 "elseacosdot+=rads;",
+                 "RB3 CharIKHand source subtracts or adds wrist radians");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "q2b8.Set(v29c,acosdot);MakeRotMatrix(q2b8,m22c);"
+                 "Multiply(v290,m22c,v290);Cross(v290,v29c,v2a8);",
+                 "RB3 CharIKHand source rotates hand X and rebuilds Z");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "Subtract(v2c8,v284,v2c8);Subtract(tf208.v,v2c8,tf208.v);",
+                 "RB3 CharIKHand source compensates finger movement");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "mWorldDst=tf208.v;IKElbow(parent1,parent2);"
+                 "mHand->SetWorldXfm(tf208);",
+                 "RB3 CharIKHand source reruns elbow and rewrites hand");
   ok &= contains(rb3_char_ik_hand_cpp, "IKElbow(parent1,parent2);",
                  "RB3 CharIKHand source drives elbow solve");
   ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
@@ -19271,6 +19293,16 @@ int run_contract() {
                  "milo_scene::Xfmadjusted_target;};",
                  "native exposes source CharIKHand finger target result");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandWristConstraintInput{"
+                 "boolconstrain_wrist=false;floatchar_weight=0.0f;"
+                 "boolhas_parent=false;floatwrist_radians=0.0f;",
+                 "native exposes source CharIKHand wrist input");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandWristConstraintResult{"
+                 "boolentered=false;boolangle_exceeded=false;"
+                 "floatraw_angle=0.0f;floatcorrection_angle=0.0f;",
+                 "native exposes source CharIKHand wrist result");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
                  "int32_trevision);",
                  "native API exposes source CharIKHand load plan helper");
@@ -19311,6 +19343,11 @@ int run_contract() {
                  "std::array<float,3>target_pos,"
                  "std::array<float,4>target_quat);",
                  "native API exposes source CharIKHand finger target helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandWristConstraintResult"
+                 "source_char_ik_hand_wrist_constraint("
+                 "constSourceCharIKHandWristConstraintInput&input);",
+                 "native API exposes source CharIKHand wrist helper");
   ok &= contains(char_clip,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
                  "boolhas_elbow_chain,floathand_local_len,"
@@ -19442,6 +19479,41 @@ int run_contract() {
                  "result.adjusted_target)),result.adjusted_target);",
                  "native CharIKHand finger target helper applies target transform");
   ok &= contains(char_clip,
+                 "SourceCharIKHandWristConstraintResult"
+                 "source_char_ik_hand_wrist_constraint("
+                 "constSourceCharIKHandWristConstraintInput&input){",
+                 "native CharIKHand wrist helper exists");
+  ok &= contains(char_clip,
+                 "if(!input.constrain_wrist||input.char_weight<=0.0f||"
+                 "!input.has_parent){returnresult;}",
+                 "native CharIKHand wrist helper ports source gate");
+  ok &= contains(char_clip,
+                 "result.raw_angle=std::acos(vdot(parent_x,hand_z))-"
+                 "1.570796370506287f;",
+                 "native CharIKHand wrist helper ports source angle");
+  ok &= contains(char_clip,
+                 "if(std::fabs(result.raw_angle)<=input.wrist_radians){"
+                 "returnresult;}",
+                 "native CharIKHand wrist helper ports limit gate");
+  ok &= contains(char_clip,
+                 "if(result.correction_angle>0.0f){result.correction_angle-="
+                 "input.wrist_radians;}else{result.correction_angle+="
+                 "input.wrist_radians;}",
+                 "native CharIKHand wrist helper ports signed correction");
+  ok &= contains(char_clip,
+                 "constVec3corrected_x=rotate_vec_by_quat("
+                 "vec_from_array3(input.hand_x),q);constVec3corrected_z="
+                 "vcross(corrected_x,hand_y);",
+                 "native CharIKHand wrist helper rotates X and rebuilds Z");
+  ok &= contains(char_clip,
+                 "result.finger_delta[axis]=input.finger_after_first_set_pos["
+                 "axis]-input.finger_before_pos[axis];",
+                 "native CharIKHand wrist helper records finger delta");
+  ok &= contains(char_clip,
+                 "result.requests_elbow_resolve=true;"
+                 "result.rewrites_hand_after_elbow=true;",
+                 "native CharIKHand wrist helper records elbow follow-up");
+  ok &= contains(char_clip,
                  "RuntimeIKHandMeasureState&measure_state="
                  "character.runtime_ik_hand_measures[live_key];",
                  "runtime CharIKHand slice uses persistent source length cache");
@@ -19498,6 +19570,18 @@ int run_contract() {
   ok &= contains(ik_hand_source_test,
                  "finger_target.adjusted_target.pos[0],13.0f",
                  "focused CharIKHand source test checks finger adjusted position");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_wrist_constraint(wrist_disabled)",
+                 "focused CharIKHand source test covers wrist disabled gate");
+  ok &= contains(ik_hand_source_test,
+                 "wrist_inside_result.angle_exceeded,false",
+                 "focused CharIKHand source test covers wrist inside limit");
+  ok &= contains(ik_hand_source_test,
+                 "wrist_exceeded_result.correction_angle,-1.32079637f",
+                 "focused CharIKHand source test covers wrist correction angle");
+  ok &= contains(ik_hand_source_test,
+                 "wrist_exceeded_result.final_hand_pos[2],27.75f",
+                 "focused CharIKHand source test covers wrist finger compensation");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
@@ -19530,6 +19614,18 @@ int run_contract() {
   ok &= contains(doc,
                  "This does not publish live hand transforms",
                  "document fences CharIKHand finger helper from live publish");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_wrist_constraint` ports the visible",
+                 "document records native CharIKHand wrist helper");
+  ok &= contains(doc,
+                 "computes `acos(Dot(parent.x, hand.z)) - pi/2`",
+                 "document records CharIKHand wrist angle");
+  ok &= contains(doc,
+                 "compensates\n    the hand position by the finger movement",
+                 "document records CharIKHand wrist finger compensation");
+  ok &= contains(doc,
+                 "so this helper is not wired into live runtime solving",
+                 "document fences CharIKHand wrist helper from live runtime");
   ok &= contains(doc,
                  "live multi-target publishing",
                  "document keeps live CharIKHand multi-target publishing fenced");
