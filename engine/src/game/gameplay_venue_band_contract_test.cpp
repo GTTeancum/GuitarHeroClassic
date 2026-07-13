@@ -7694,8 +7694,10 @@ int main() {
                  "CamShot parser is a source-shaped sequential reader");
   ok &= contains(gameplay_c,
                  "read_object_fields_like_miloeditor(r,shot.props);"
-                 "read_rnd_animatable_like_miloeditor(r);",
-                 "CamShot parser consumes Object and RndAnimatable bases like MiloEditor");
+                 "constautoanim_header=read_rnd_animatable_like_miloeditor(r);"
+                 "shot.anim_revision=anim_header.revision;"
+                 "shot.anim_rate=anim_header.rate;",
+                 "CamShot parser consumes Object and RndAnimatable bases like MiloEditor and keeps the source rate");
   ok &= contains(gameplay_c,
                  "shot.near_plane=r.f32();shot.far_plane=r.f32();"
                  "shot.use_depth_of_field=r.boolean();shot.filter=r.f32();"
@@ -7997,6 +7999,10 @@ int main() {
                  "key.parent_first_frame=r.boolean();"
                  "key.has_parent_first_frame=true;",
                  "CamShot frame reader consumes source parent-first-frame field");
+  ok &= contains(gameplay_h_c,
+                 "intcamshot_anim_rate=0;"
+                 "boolhas_camshot_anim_rate=false;",
+                 "CameraKey preserves CamShot RndAnimatable rate metadata");
   ok &= contains(gameplay_h_c,
                  "std::stringcategory;floatshot_filter=0.0f;"
                  "boolhas_shot_filter=false;floatclamp_height=0.0f;"
@@ -9791,8 +9797,13 @@ int main() {
                  "boolactive_camera_shot_over_=false;",
                  "regular camera runtime carries CamShot mShotOver state");
   ok &= contains(gameplay_c,
-                 "boolshot_over,float*out_local_frame,",
+                 "boolshot_over,constghogx::chart::Chart*chart,"
+                 "float*out_local_frame,",
                  "source CheckShotOver bridge receives CamShot mShotOver state");
+  ok &= contains(gameplay_c,
+                 "camera_source_time_units(shot,song_time,start_time,chart)*"
+                 "static_cast<double>(camera_source_frames_per_unit(shot))",
+                 "source CamShot local frame uses RndAnimatable Units and FramesPerUnit");
   ok &= contains(gameplay_c,
                  "if(shot_over)returnfalse;",
                  "source CheckShotOver bridge refuses shots already marked over");
@@ -9820,12 +9831,15 @@ int main() {
                  "path-backed regular CamShot frames are sampled relative to shot start");
   ok &= contains(gameplay_c,
                  "selected_camera=regular_camera_source_frame_keys("
-                 "*key,song_time_,active_regular_camera_start_);",
+                 "*key,song_time_,active_regular_camera_start_,&chart_);",
                  "non-path regular CamShots use source frame-pair timing");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
-                 "duration_frames=%.3fsource_frame_keys=%zu"
+                 "duration_frames=%.3fanim_rate=%dfpu=%.1f"
+                 "source_frame_keys=%zusource_prep=SetPreFrame\\n\"",
+                 "regular camera diagnostics expose source rate/fpu beside Poll SetFrame cadence");
+  ok &= contains(gameplay_c,
                  "source_prep=SetPreFrame\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");
   ok &= contains(gameplay_c,
@@ -10042,7 +10056,7 @@ int main() {
                  "\"[world]regularCamShot%sdistance=%sfacing=%starget=%s:%s"
                  "parent=%s:%sfocal_target=%s:%sparent_first_frame=%s%d"
                  "parent_rot=%drefs=%dposes=%zuloop=%d"
-                 "loop_keyframe=%dposebody+0x%zX"
+                 "loop_keyframe=%danim_rate=%dfpu=%.1fposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%d"
                  "far_starpower_ok=%dbad_waypoints=%zujump_ok=%dlighter=%d"
@@ -10802,8 +10816,9 @@ int main() {
                  "active_regular_camera_start_",
                  "source shot_over bridge uses decoded CamShot local frame duration");
   ok &= contains(gameplay_c,
-                 "active_regular_camera_start_,active_camera_shot_over_,",
-                 "source shot_over bridge passes the active CamShot mShotOver flag");
+                 "active_regular_camera_start_,active_camera_shot_over_,"
+                 "&chart_,",
+                 "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=true;"
                  "active_camera_skip_next_crowd_update_=true;"

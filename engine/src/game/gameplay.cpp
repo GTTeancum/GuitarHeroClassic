@@ -1569,6 +1569,8 @@ std::vector<std::string> prop_refs(
 
 struct DecodedCamShot {
     uint16_t revision = 0;
+    uint16_t anim_revision = 0;
+    int anim_rate = 0;
     std::unordered_map<std::string, MiloValue> props;
     std::vector<std::pair<Gameplay::CameraKey, size_t>> frames;
     bool looping = false;
@@ -2009,7 +2011,9 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             throw std::runtime_error("CamShot revision 0 is not used by GH2 PS2 venues");
         }
         read_object_fields_like_miloeditor(r, shot.props);
-        read_rnd_animatable_like_miloeditor(r);
+        const auto anim_header = read_rnd_animatable_like_miloeditor(r);
+        shot.anim_revision = anim_header.revision;
+        shot.anim_rate = anim_header.rate;
         if (shot.revision <= 0x0c) {
             throw std::runtime_error("CamShot legacy revision <= 12 is not ported");
         }
@@ -2153,6 +2157,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.camshot_looping = shot.looping;
             key.camshot_loop_keyframe = shot.loop_keyframe;
             key.has_camshot_looping = true;
+            key.camshot_anim_rate = shot.anim_rate;
+            key.has_camshot_anim_rate = true;
             key.source_ref = shot.old_crowd_sym;
             key.has_crowd_selection = !shot.old_crowd_sym.empty();
             key.crowd_selection_ref = shot.old_crowd_sym;
@@ -2320,6 +2326,8 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.camshot_looping = from.camshot_looping;
     to.camshot_loop_keyframe = from.camshot_loop_keyframe;
     to.has_camshot_looping = from.has_camshot_looping;
+    to.camshot_anim_rate = from.camshot_anim_rate;
+    to.has_camshot_anim_rate = from.has_camshot_anim_rate;
     to.source_ref = from.source_ref;
     to.has_crowd_selection = from.has_crowd_selection;
     to.crowd_selection_ref = from.crowd_selection_ref;
@@ -2393,6 +2401,8 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.glow_spot_ref = from.glow_spot_ref;
     to.path_anim = from.path_anim;
     to.has_path_anim = from.has_path_anim;
+    to.camshot_anim_rate = from.camshot_anim_rate;
+    to.has_camshot_anim_rate = from.has_camshot_anim_rate;
     if (!to.has_path_base_pose && from.has_path_base_pose) {
         for (int axis = 0; axis < 3; ++axis) {
             to.path_base_eye[axis] = from.path_base_eye[axis];
@@ -14925,7 +14935,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -14937,6 +14947,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.camshot_refs_decoded ? 1 : 0, key.positions.size(),
                          key.has_camshot_looping && key.camshot_looping ? 1 : 0,
                          key.has_camshot_looping ? key.camshot_loop_keyframe : 0,
+                         key.has_camshot_anim_rate ? key.camshot_anim_rate : 0,
+                         rnd_animatable_frames_per_unit(
+                             key.has_camshot_anim_rate ? key.camshot_anim_rate : 0),
                          c.off, key.has_timing ? "" : "none/",
                          key.duration_frames, key.blend_frames,
                          key.blend_ease, c.order,
@@ -15587,14 +15600,41 @@ float source_camshot_duration_frames(const Gameplay::CameraKey& shot) {
     return source_camshot_frame_span(shot);
 }
 
+int camera_source_anim_rate(const Gameplay::CameraKey& shot) {
+    return shot.has_camshot_anim_rate ? shot.camshot_anim_rate : 0;
+}
+
+float camera_source_frames_per_unit(const Gameplay::CameraKey& shot) {
+    return rnd_animatable_frames_per_unit(camera_source_anim_rate(shot));
+}
+
+double camera_source_time_units(const Gameplay::CameraKey& shot,
+                                double song_time,
+                                double start_time,
+                                const ghogx::chart::Chart* chart) {
+    const double elapsed = std::max(0.0, song_time - start_time);
+    return venue_anim_time_units(camera_source_anim_rate(shot), start_time,
+                                 elapsed, chart);
+}
+
+float camera_source_local_frame(const Gameplay::CameraKey& shot,
+                                double song_time,
+                                double start_time,
+                                const ghogx::chart::Chart* chart) {
+    return static_cast<float>(
+        camera_source_time_units(shot, song_time, start_time, chart) *
+        static_cast<double>(camera_source_frames_per_unit(shot)));
+}
+
 bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
                                    double song_time, double start_time,
                                    bool shot_over,
+                                   const ghogx::chart::Chart* chart,
                                    float* out_local_frame,
                                    float* out_duration_frames) {
     const float duration = source_camshot_duration_frames(shot);
     const float local_frame =
-        static_cast<float>(std::max(0.0, song_time - start_time) * 30.0);
+        camera_source_local_frame(shot, song_time, start_time, chart);
     if (out_local_frame) *out_local_frame = local_frame;
     if (out_duration_frames) *out_duration_frames = duration;
     if (shot_over) return false;
@@ -15606,7 +15646,8 @@ bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
 std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     const Gameplay::CameraKey& shot,
     double song_time,
-    double start_time) {
+    double start_time,
+    const ghogx::chart::Chart* chart) {
     const auto& frames = shot.positions;
     if (frames.empty()) return {shot};
     if (frames.size() == 1) return {frames.front()};
@@ -15615,7 +15656,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     if (!std::isfinite(total) || total <= 0.001f) return {frames.front()};
 
     float local_frame =
-        static_cast<float>(std::max(0.0, song_time - start_time) * 30.0);
+        camera_source_local_frame(shot, song_time, start_time, chart);
     size_t loop_start_index = 0;
     if (shot.has_camshot_looping && shot.camshot_looping) {
         loop_start_index = static_cast<size_t>(std::clamp(
@@ -30564,7 +30605,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         if (camera_source_check_shot_over(
                                 *active_key, song_time_,
                                 active_regular_camera_start_,
-                                active_camera_shot_over_, &local_frame,
+                                active_camera_shot_over_, &chart_, &local_frame,
                                 &duration_frames)) {
                             active_camera_shot_over_ = true;
                             active_camera_skip_next_crowd_update_ = true;
@@ -30740,7 +30781,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 } else {
                     source_frame_key_route = true;
                     selected_camera = regular_camera_source_frame_keys(
-                        *key, song_time_, active_regular_camera_start_);
+                        *key, song_time_, active_regular_camera_start_, &chart_);
                     if (selected_camera.empty()) {
                         selected_camera = regular_camera_sweep_keys(
                             current_position,
@@ -30749,16 +30790,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-                    const float local_frame = static_cast<float>(
-                        std::max(0.0, song_time_ - active_regular_camera_start_) *
-                        30.0);
+                    const float local_frame = camera_source_local_frame(
+                        *key, song_time_, active_regular_camera_start_, &chart_);
                     if (active_camera_shot_started_reported_ != key->name) {
                         active_camera_shot_started_reported_ = key->name;
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f source_frame_keys=%zu source_prep=SetPreFrame\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame\n",
                             key->name.c_str(), local_frame,
                             source_camshot_duration_frames(*key),
+                            camera_source_anim_rate(*key),
+                            camera_source_frames_per_unit(*key),
                             selected_camera.size());
                     }
                     if (source_frame_key_route && selected_camera.size() >= 2 &&
