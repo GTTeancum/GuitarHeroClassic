@@ -1263,6 +1263,12 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     formula, optimize flags, and byte-swap gates in
     `SourceGltfMiloMaterialPlan`; it does not change live GH2 material upload
     or renderer behavior.
+  - On Xbox output, glTFMilo applies the same byte reorder to diffuse, normal,
+    emissive, and specular texture payloads: every 4-byte block is written as
+    source bytes `1,0,3,2`. Native
+    `source_gltf_milo_xbox_texture_byte_swap` records that exact row and marks
+    non-4-byte payload sizes as a source-loop boundary rather than inventing a
+    trailing-byte policy.
   - `Program.Run` lowercases `opts.Prelit` into `preLit`, but the base
     material path checks the raw `opts.Prelit != "false"` before setting
     `mat.preLit = true`. Only the material-extras fallback uses the lowercased

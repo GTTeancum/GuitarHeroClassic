@@ -1356,6 +1356,13 @@ struct SourceGltfMiloTextureTempOutputPlan {
   std::vector<std::string> delete_temp_paths;
 };
 
+struct SourceGltfMiloXboxTextureByteSwapResult {
+  bool source_loop_requires_complete_dwords = true;
+  bool input_size_multiple_of_four = true;
+  bool would_index_past_end = false;
+  std::vector<uint8_t> bytes;
+};
+
 struct SourceGltfMiloMaterialRuntimeBoundary {
   bool gltf_material_plan_is_exporter_side = true;
   bool stock_runtime_authority_is_decoded_rndmat = true;
@@ -1661,6 +1668,8 @@ SourceGltfMiloPrelitOptionPlan source_gltf_milo_prelit_option_plan(
 SourceGltfMiloTextureTempOutputPlan
 source_gltf_milo_texture_temp_output_plan(
     const SourceGltfMiloTextureTempOutputInput& input);
+SourceGltfMiloXboxTextureByteSwapResult
+source_gltf_milo_xbox_texture_byte_swap(const std::vector<uint8_t>& pixels);
 SourceGltfMiloMaterialRuntimeBoundary
 source_gltf_milo_material_runtime_boundary();
 

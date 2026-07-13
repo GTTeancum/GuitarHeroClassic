@@ -61,6 +61,22 @@ bool missing(const std::string& haystack, const std::string& needle,
   return false;
 }
 
+bool contains_at_least(const std::string& haystack, const std::string& needle,
+                       size_t minimum, const std::string& label) {
+  size_t count = 0;
+  size_t pos = 0;
+  while ((pos = haystack.find(needle, pos)) != std::string::npos) {
+    ++count;
+    pos += needle.size();
+  }
+  if (count >= minimum) return true;
+  std::cerr << "Missing source-truth contract: " << label << "\n";
+  std::cerr << "Needle: " << needle << "\n";
+  std::cerr << "Found: " << count << ", expected at least: " << minimum
+            << "\n";
+  return false;
+}
+
 bool all_source_files_cited(const std::string& doc,
                             const std::filesystem::path& source_dir,
                             const std::string& label) {
@@ -6410,6 +6426,12 @@ int run_contract() {
   ok &= contains(gltf_program_cs,
                  "mat.cull=!material.DoubleSided;",
                  "glTFMilo material cull follows glTF DoubleSided");
+  ok &= contains_at_least(
+      gltf_program_cs,
+      "swapped.Add(pixels[i+1]);swapped.Add(pixels[i]);"
+      "swapped.Add(pixels[i+3]);swapped.Add(pixels[i+2]);",
+      4,
+      "glTFMilo material texture Xbox byte-swap order appears for all maps");
   ok &= contains(gltf_program_cs,
                  "mat.rimPower=0.0f;",
                  "glTFMilo material pass first zeroes rim power");
@@ -6824,6 +6846,14 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceGltfMiloMaterialPlan{boolcreates_mat_entry=true;",
                  "native declares glTFMilo material plan row");
+  ok &= contains(char_mesh_h,
+                 "structSourceGltfMiloXboxTextureByteSwapResult{bool"
+                 "source_loop_requires_complete_dwords=true;",
+                 "native declares glTFMilo Xbox texture byte-swap result");
+  ok &= contains(char_mesh_h,
+                 "source_gltf_milo_xbox_texture_byte_swap("
+                 "conststd::vector<uint8_t>&pixels);",
+                 "native exposes glTFMilo Xbox texture byte-swap helper");
   ok &= contains(char_mesh_h,
                  "boolextras_projected_lights_declared=false;",
                  "native material plan records ProjectedLights declaration");
@@ -7516,6 +7546,20 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "plan.diffuse_xbox_byte_swap=xbox_platform;",
                  "native preserves glTFMilo diffuse Xbox byte swap gate");
+  ok &= contains(char_mesh,
+                 "SourceGltfMiloXboxTextureByteSwapResult"
+                 "source_gltf_milo_xbox_texture_byte_swap("
+                 "conststd::vector<uint8_t>&pixels){",
+                 "native implements glTFMilo Xbox texture byte-swap helper");
+  ok &= contains(char_mesh,
+                 "result.input_size_multiple_of_four=pixels.size()%4==0;",
+                 "native records glTFMilo byte-swap dword-size assumption");
+  ok &= contains(char_mesh,
+                 "result.bytes.push_back(pixels[i+1]);"
+                 "result.bytes.push_back(pixels[i]);"
+                 "result.bytes.push_back(pixels[i+3]);"
+                 "result.bytes.push_back(pixels[i+2]);",
+                 "native ports glTFMilo Xbox texture byte-swap order");
   ok &= contains(char_mesh,
                  "if(input.has_normal_texture){plan.creates_normal_tex_entry="
                  "true;",
@@ -8295,6 +8339,16 @@ int run_contract() {
                  "gltf_xbox_diffuse.diffuse_xbox_byte_swap",
                  "focused mesh decode test covers glTFMilo diffuse Xbox swap");
   ok &= contains(mesh_decode_test,
+                 "source_gltf_milo_xbox_texture_byte_swap",
+                 "focused mesh decode test covers glTFMilo Xbox byte-swap helper");
+  ok &= contains(mesh_decode_test,
+                 "std::vector<uint8_t>({0x20,0x10,0x40,0x30,0xb0,0xa0,"
+                 "0xd0,0xc0})",
+                 "focused mesh decode test covers exact Xbox byte-swap order");
+  ok &= contains(mesh_decode_test,
+                 "gltf_xbox_swap_malformed.would_index_past_end",
+                 "focused mesh decode test covers malformed byte-swap size");
+  ok &= contains(mesh_decode_test,
                  "gltf_hair_material.rim_power_zeroed_before_final",
                  "focused mesh decode test covers glTFMilo rim zero row");
   ok &= contains(mesh_decode_test,
@@ -8700,6 +8754,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_material_base_plan` mirrors",
                  "document records glTFMilo material base helper");
+  ok &= contains(doc,
+                 "`source_gltf_milo_xbox_texture_byte_swap`",
+                 "document records glTFMilo Xbox texture byte-swap helper");
   ok &= contains(doc,
                  "zeroes rim color",
                  "document records glTFMilo rim color row");

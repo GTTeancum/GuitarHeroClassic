@@ -1200,6 +1200,23 @@ int main() {
   CHECK(gltf_xbox_diffuse.diffuse_xbox_byte_swap);
   CHECK(gltf_xbox_diffuse.diffuse_optimize_for_ps3);
 
+  const auto gltf_xbox_swapped =
+      ghogx::character::source_gltf_milo_xbox_texture_byte_swap(
+          {0x10, 0x20, 0x30, 0x40, 0xa0, 0xb0, 0xc0, 0xd0});
+  CHECK(gltf_xbox_swapped.source_loop_requires_complete_dwords);
+  CHECK(gltf_xbox_swapped.input_size_multiple_of_four);
+  CHECK(!gltf_xbox_swapped.would_index_past_end);
+  CHECK(gltf_xbox_swapped.bytes ==
+        std::vector<uint8_t>({0x20, 0x10, 0x40, 0x30, 0xb0, 0xa0, 0xd0,
+                              0xc0}));
+
+  const auto gltf_xbox_swap_malformed =
+      ghogx::character::source_gltf_milo_xbox_texture_byte_swap(
+          {0x10, 0x20, 0x30});
+  CHECK(!gltf_xbox_swap_malformed.input_size_multiple_of_four);
+  CHECK(gltf_xbox_swap_malformed.would_index_past_end);
+  CHECK(gltf_xbox_swap_malformed.bytes.empty());
+
   ghogx::character::SourceGltfMiloMaterialInput material_extras_input;
   material_extras_input.name = "override_hair";
   material_extras_input.has_base_color_texture = true;

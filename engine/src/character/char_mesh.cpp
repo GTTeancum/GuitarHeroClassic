@@ -1428,6 +1428,23 @@ source_gltf_milo_texture_temp_output_plan(
   return plan;
 }
 
+SourceGltfMiloXboxTextureByteSwapResult
+source_gltf_milo_xbox_texture_byte_swap(const std::vector<uint8_t>& pixels) {
+  SourceGltfMiloXboxTextureByteSwapResult result;
+  result.input_size_multiple_of_four = pixels.size() % 4 == 0;
+  result.would_index_past_end = !result.input_size_multiple_of_four;
+  if (result.would_index_past_end) return result;
+
+  result.bytes.reserve(pixels.size());
+  for (size_t i = 0; i < pixels.size(); i += 4) {
+    result.bytes.push_back(pixels[i + 1]);
+    result.bytes.push_back(pixels[i]);
+    result.bytes.push_back(pixels[i + 3]);
+    result.bytes.push_back(pixels[i + 2]);
+  }
+  return result;
+}
+
 SourceGltfMiloMaterialRuntimeBoundary
 source_gltf_milo_material_runtime_boundary() {
   SourceGltfMiloMaterialRuntimeBoundary boundary;
