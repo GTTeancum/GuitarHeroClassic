@@ -223,6 +223,8 @@ int run_contract() {
       read_file(char_dir / "character_character_test_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
+  const std::string no_named_fix_test =
+      compact(read_file(char_dir / "character_no_named_fix_test.cpp"));
   const std::string bind_audit =
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
@@ -26497,6 +26499,28 @@ int run_contract() {
                 "old PS2 hand IK transpose env gate removed");
   ok &= missing(char_clip, "GHOGX_PS2_IK_AIMED_SWING",
                 "old PS2 hand IK aimed env gate removed");
+  ok &= contains(no_named_fix_test,
+                 "\"ghogx_disable_charbone_lower_body_output\","
+                 "\"ghogx_disable_charbone_output_layer\","
+                 "\"ghogx_disable_charbone_face_output\",",
+                 "focused no-named-fix test rejects default-on CharBone switches");
+  ok &= contains(no_named_fix_test,
+                 "\"apply_ps2_ik_hand_targets\","
+                 "\"ps2_ordered_ik_hands\","
+                 "\"classify_ps2_ik_poll_role\","
+                 "\"ps2ikpollrole\",",
+                 "focused no-named-fix test rejects removed hand/IK scaffold");
+  ok &= contains(no_named_fix_test,
+                 "\"ghogx_enable_charbone_lower_body_output\","
+                 "\"ghogx_enable_charbone_output_layer\","
+                 "\"ghogx_enable_charbone_face_output\",",
+                 "focused no-named-fix test requires explicit CharBone opt-ins");
+  ok &= contains(no_named_fix_test,
+                 "BrokenoutfitsandbroadCharBoneoutputmuststayonshared",
+                 "focused no-named-fix failure message covers shared path rule");
+  ok &= contains(no_named_fix_test,
+                 "notnamedbranchesorpromoted",
+                 "focused no-named-fix failure message rejects promoted scaffolding");
   ok &= missing(char_clip, "GHOGX_APPLY_HAND_POS",
                 "old hand local-position env gate removed");
   ok &= missing(char_clip, "apply_ps2_fore_twist",

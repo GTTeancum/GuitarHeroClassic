@@ -121,9 +121,52 @@ int main() {
       ok = false;
     }
   }
+  const auto char_clip_path = source_dir / "char_clip.cpp";
+  const std::string char_clip =
+      lowercase(strip_comments_keep_strings(read_file(char_clip_path)));
+  const std::vector<std::string> forbidden_default_on_switches = {
+      "ghogx_disable_charbone_lower_body_output",
+      "ghogx_disable_charbone_output_layer",
+      "ghogx_disable_charbone_face_output",
+  };
+  for (const auto& token : forbidden_default_on_switches) {
+    if (char_clip.find(token) == std::string::npos) continue;
+    std::cerr << "Forbidden default-on CharBone output switch '" << token
+              << "' in " << char_clip_path.string() << "\n";
+    ok = false;
+  }
+
+  const std::vector<std::string> forbidden_removed_scaffold = {
+      "apply_ps2_ik_hand_targets",
+      "ps2_ordered_ik_hands",
+      "classify_ps2_ik_poll_role",
+      "ps2ikpollrole",
+      "ps2_ik_hand_position_enabled",
+      "ps2_ik_hand_final_disabled",
+      "fore_twists_applied",
+  };
+  for (const auto& token : forbidden_removed_scaffold) {
+    if (char_clip.find(token) == std::string::npos) continue;
+    std::cerr << "Forbidden removed hand/IK scaffold token '" << token
+              << "' in " << char_clip_path.string() << "\n";
+    ok = false;
+  }
+
+  const std::vector<std::string> required_opt_in_switches = {
+      "ghogx_enable_charbone_lower_body_output",
+      "ghogx_enable_charbone_output_layer",
+      "ghogx_enable_charbone_face_output",
+  };
+  for (const auto& token : required_opt_in_switches) {
+    if (char_clip.find(token) != std::string::npos) continue;
+    std::cerr << "Missing explicit opt-in CharBone output switch '" << token
+              << "' in " << char_clip_path.string() << "\n";
+    ok = false;
+  }
   if (!ok) {
-    std::cerr << "Broken outfits must drive shared format fixes, not named "
-                 "runtime branches.\n";
+    std::cerr << "Broken outfits and broad CharBone output must stay on shared "
+                 "source-backed paths, not named branches or promoted "
+                 "diagnostic scaffolding.\n";
     return 1;
   }
   return 0;
