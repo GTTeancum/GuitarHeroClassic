@@ -5,6 +5,7 @@ import json
 import struct
 import sys
 import zlib
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,20 @@ from parse_v3_hdr import parse_hdr  # noqa: E402
 
 
 MARKER = b"\xad\xde\xad\xde"
+GAMEPLAY_VENUES = ("battle", "arena", "theatre", "fest", "big", "small1", "small2", "stone")
+VENUE_ANIMATION_TYPES = {
+    "AnimFilter",
+    "CamAnim",
+    "EnvAnim",
+    "EventTrigger",
+    "LightAnim",
+    "MatAnim",
+    "MeshAnim",
+    "ParticleSysAnim",
+    "PollAnim",
+    "PropAnim",
+    "TransAnim",
+}
 
 
 def u8(b: bytes, o: int) -> int:
@@ -528,14 +543,68 @@ def audit_anims(hdr: Path, ark: Path) -> dict[str, Any]:
     return result
 
 
+def audit_venue_classes(hdr: Path, ark: Path, venues: set[str] | None = None) -> dict[str, Any]:
+    selected_venues = set(venues or GAMEPLAY_VENUES)
+    result: dict[str, Any] = {
+        "venues": sorted(selected_venues),
+        "milos": 0,
+        "types": {},
+        "animation_types": {},
+        "per_venue_animation_types": {},
+        "failures": [],
+    }
+    type_counts: Counter[str] = Counter()
+    per_venue: dict[str, Counter[str]] = {venue: Counter() for venue in selected_venues}
+    for e in ark_entries(hdr):
+        path = e.full_path.replace("\\", "/").lower()
+        if not path.endswith(".milo_ps2") or not path.startswith("world/"):
+            continue
+        parts = path.split("/")
+        if len(parts) < 4 or parts[1] not in selected_venues:
+            continue
+        venue = parts[1]
+        result["milos"] += 1
+        try:
+            payload = inflate_milo(read_ark_entry(ark, e))
+            _dv, _dt, _dn, ents = parse_dir(payload)
+            resync_classic(payload, ents)
+        except Exception as ex:
+            result["failures"].append({"path": e.full_path, "error": str(ex)})
+            continue
+        for me in ents:
+            type_counts[me.typ] += 1
+            if me.typ in VENUE_ANIMATION_TYPES or me.typ.endswith("Anim"):
+                per_venue[venue][me.typ] += 1
+    result["types"] = dict(sorted(type_counts.items()))
+    result["animation_types"] = {
+        typ: type_counts.get(typ, 0)
+        for typ in sorted(VENUE_ANIMATION_TYPES | {t for t in type_counts if t.endswith("Anim")})
+    }
+    result["per_venue_animation_types"] = {
+        venue: dict(sorted(counts.items()))
+        for venue, counts in sorted(per_venue.items())
+    }
+    return result
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hdr", default=r"C:\Programming\GitHub\Guitar Hero II\Guitar Hero II PS2 (USA)\GEN\MAIN.HDR")
     ap.add_argument("--ark", default=r"C:\Programming\GitHub\Guitar Hero II\Guitar Hero II PS2 (USA)\GEN\MAIN_0.ARK")
     ap.add_argument("--out")
     ap.add_argument("--anims", action="store_true")
+    ap.add_argument("--venue-classes", action="store_true",
+                    help="summarize object classes inside gameplay venue MILOs")
+    ap.add_argument("--venues", default=",".join(GAMEPLAY_VENUES),
+                    help="comma-separated venue short names for --venue-classes")
     ns = ap.parse_args()
-    res = audit_anims(Path(ns.hdr), Path(ns.ark)) if ns.anims else audit(Path(ns.hdr), Path(ns.ark))
+    if ns.venue_classes:
+        venues = {v.strip().lower() for v in ns.venues.split(",") if v.strip()}
+        res = audit_venue_classes(Path(ns.hdr), Path(ns.ark), venues)
+    elif ns.anims:
+        res = audit_anims(Path(ns.hdr), Path(ns.ark))
+    else:
+        res = audit(Path(ns.hdr), Path(ns.ark))
     text = json.dumps(res, indent=2)
     if ns.out:
         Path(ns.out).write_text(text, encoding="utf-8")
