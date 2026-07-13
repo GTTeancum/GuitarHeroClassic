@@ -2281,6 +2281,20 @@ struct SourceWaypointFindResult {
   int mask = 0;
 };
 
+struct SourceWaypointRegisteredCommandDumpEvidence {
+  bool latest_registers_nearest = true;
+  bool latest_registers_last = true;
+  bool latest_source_has_nearest_body = false;
+  bool latest_source_has_last_body = false;
+  bool rb2_dump_has_find_nearest = true;
+  bool rb2_dump_has_on_nearest = true;
+  bool rb2_dump_has_on_last = true;
+  bool rb2_dump_is_statement_body = false;
+  bool promoted_to_native_runtime = false;
+  std::vector<std::string> rb2_ranges;
+  std::vector<std::string> rb2_locals;
+};
+
 struct SourceWaypointLoadPlan {
   bool known_revision = false;
   std::vector<std::string> read_order;
@@ -3622,6 +3636,8 @@ SourceWaypointConstructorStep source_waypoint_construct(
 SourceWaypointFindResult source_waypoint_find_by_flags(
     const SourceWaypointRegistryState& registry,
     int flags_mask);
+SourceWaypointRegisteredCommandDumpEvidence
+source_waypoint_registered_command_dump_evidence();
 bool source_waypoint_load_revision_known(int revision);
 SourceWaypointLoadPlan source_waypoint_load_plan(int revision);
 SourceWaypointCopyPlan source_waypoint_copy_plan();

@@ -546,6 +546,8 @@ int run_contract() {
       rb3_latest_char_dir / "Waypoint.cpp"));
   const std::string rb3_latest_waypoint_h = compact(read_file(
       rb3_latest_char_dir / "Waypoint.h"));
+  const std::string rb2_waypoint_cpp = compact(read_file(
+      rb2_dump_char_dir / "Waypoint.cpp"));
   const std::string rb3_latest_char_guitar_string_cpp = compact(read_file(
       rb3_latest_char_dir / "CharGuitarString.cpp"));
   const std::string rb3_latest_char_guitar_string_h = compact(read_file(
@@ -16255,6 +16257,19 @@ int run_contract() {
   ok &= contains(rb3_latest_waypoint_cpp,
                  "floatlimited=LimitAng(GetZAngle(WorldXfm().m)-f2);",
                  "latest Waypoint ShapeDeltaAng limited delta");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "DataRegisterFunc(\"waypoint_nearest\",&OnWaypointNearest);"
+                 "DataRegisterFunc(\"waypoint_last\",&OnWaypointLast);",
+                 "latest Waypoint source registers nearest and last commands");
+  ok &= contains(rb2_waypoint_cpp,
+                 "0x803B4A24->0x803B4B58",
+                 "RB2 dump maps Waypoint FindNearest range");
+  ok &= contains(rb2_waypoint_cpp,
+                 "classDataNodeWaypoint::OnWaypointNearest",
+                 "RB2 dump maps Waypoint nearest command");
+  ok &= contains(rb2_waypoint_cpp,
+                 "classDataNodeWaypoint::OnWaypointLast",
+                 "RB2 dump maps Waypoint last command");
   ok &= contains(char_mesh_h,
                  "structSourceWaypointState{intflags=0;floatradius=12.0f;",
                  "native exposes Waypoint source state");
@@ -16276,6 +16291,11 @@ int run_contract() {
                  "structSourceWaypointFindResult{intindex=-1;boolfound=false;"
                  "intmask=0;};",
                  "native exposes Waypoint find result");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointRegisteredCommandDumpEvidence{"
+                 "boollatest_registers_nearest=true;"
+                 "boollatest_registers_last=true;",
+                 "native exposes Waypoint registered-command evidence");
   ok &= contains(char_mesh_h,
                  "structSourceWaypointLoadPlan{boolknown_revision=false;"
                  "std::vector<std::string>read_order;"
@@ -16304,6 +16324,10 @@ int run_contract() {
                  "SourceWaypointFindResultsource_waypoint_find_by_flags(",
                  "native exposes Waypoint find helper");
   ok &= contains(char_mesh_h,
+                 "SourceWaypointRegisteredCommandDumpEvidence"
+                 "source_waypoint_registered_command_dump_evidence();",
+                 "native exposes Waypoint registered-command helper");
+  ok &= contains(char_mesh_h,
                  "SourceWaypointHandlerPlansource_waypoint_handler_plan();",
                  "native exposes Waypoint handler helper");
   ok &= contains(char_mesh_h,
@@ -16325,6 +16349,13 @@ int run_contract() {
                  "if((registry.waypoints[i].flags&flags_mask)!=0){"
                  "result.index=static_cast<int>(i);result.found=true;",
                  "native Waypoint find mirrors first flag match");
+  ok &= contains(char_mesh,
+                 "SourceWaypointRegisteredCommandDumpEvidence"
+                 "source_waypoint_registered_command_dump_evidence(){",
+                 "native Waypoint registered-command evidence helper exists");
+  ok &= contains(char_mesh,
+                 "\"OnWaypointNearest:0x803B4BC0->0x803B4C7C\"",
+                 "native Waypoint registered-command helper records nearest range");
   ok &= contains(char_mesh,
                  "SourceWaypointLoadPlansource_waypoint_load_plan(intrevision){"
                  "SourceWaypointLoadPlanplan;plan.known_revision="
@@ -16399,6 +16430,9 @@ int run_contract() {
                  "source_waypoint_find_by_flags(",
                  "focused Waypoint test covers source Find flags");
   ok &= contains(waypoint_source_test,
+                 "source_waypoint_registered_command_dump_evidence()",
+                 "focused Waypoint test covers registered command evidence");
+  ok &= contains(waypoint_source_test,
                  "source_waypoint_handler_plan()",
                  "focused Waypoint test covers handler plan");
   ok &= contains(waypoint_source_test,
@@ -16413,6 +16447,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`Waypoint::Find(flags)` returns the first registered",
                  "document records source Waypoint find behavior");
+  ok &= contains(doc,
+                 "`source_waypoint_registered_command_dump_evidence` records those dump-only",
+                 "document records Waypoint registered command boundary");
   ok &= contains(rb3_latest_char_bone_offset_h,
                  "ObjPtr<RndTransformable,ObjectDir>mDest;",
                  "latest CharBoneOffset header exposes destination pointer");

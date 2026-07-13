@@ -2650,6 +2650,13 @@ note, and all report `unreadBytes=0`.
     `source_waypoint_init_registry`, `source_waypoint_construct`,
     `source_waypoint_find_by_flags`, and `source_waypoint_terminate_registry`
     port that registry lifecycle as deterministic source data.
+    `waypoint_nearest` and `waypoint_last` are registered in the latest source
+    but their bodies are not present there. The RB2 dump maps
+    `FindNearest` (`0x803B4A24 -> 0x803B4B58`), `OnWaypointNearest`
+    (`0x803B4BC0 -> 0x803B4C7C`), and `OnWaypointLast`
+    (`0x803B4C9C -> 0x803B4D90`) with locals, but not statement bodies. Native
+    `source_waypoint_registered_command_dump_evidence` records those dump-only
+    facts and keeps both commands out of promoted runtime behavior.
   - `Waypoint::Load` accepts source revisions through 5. Native
     `source_waypoint_load_plan` records the same row order: `Hmx::Object`, a
     legacy drawable for revisions below 5, `RndTransformable`, `mFlags`,

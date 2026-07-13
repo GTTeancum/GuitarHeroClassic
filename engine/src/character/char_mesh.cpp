@@ -6119,6 +6119,21 @@ SourceWaypointFindResult source_waypoint_find_by_flags(
   return result;
 }
 
+SourceWaypointRegisteredCommandDumpEvidence
+source_waypoint_registered_command_dump_evidence() {
+  SourceWaypointRegisteredCommandDumpEvidence evidence;
+  evidence.rb2_ranges = {
+      "FindNearest:0x803B4A24->0x803B4B58",
+      "OnWaypointNearest:0x803B4BC0->0x803B4C7C",
+      "OnWaypointLast:0x803B4C9C->0x803B4D90",
+  };
+  evidence.rb2_locals = {
+      "FindNearest:dist,best,it",
+      "OnWaypointLast:w,it",
+  };
+  return evidence;
+}
+
 bool source_waypoint_load_revision_known(int revision) {
   return revision >= 0 && revision <= 5;
 }

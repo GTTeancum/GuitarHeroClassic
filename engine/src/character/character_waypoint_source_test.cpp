@@ -78,6 +78,7 @@ int main() {
   using ghogx::character::source_waypoint_load_plan;
   using ghogx::character::source_waypoint_load_revision_known;
   using ghogx::character::source_waypoint_prop_sync_plan;
+  using ghogx::character::source_waypoint_registered_command_dump_evidence;
   using ghogx::character::source_waypoint_save_plan;
   using ghogx::character::source_waypoint_shape_delta_ang;
   using ghogx::character::source_waypoint_shape_delta_box;
@@ -125,6 +126,23 @@ int main() {
   ok &= expect_bool(found.found, false, "Waypoint find flags missing");
   ok &= near(static_cast<float>(found.index), -1.0f,
              "Waypoint find missing index");
+  const auto command_evidence =
+      source_waypoint_registered_command_dump_evidence();
+  ok &= expect_bool(command_evidence.latest_registers_nearest, true,
+                    "Waypoint registers nearest command");
+  ok &= expect_bool(command_evidence.latest_source_has_nearest_body, false,
+                    "Waypoint latest source lacks nearest body");
+  ok &= expect_bool(command_evidence.rb2_dump_has_find_nearest, true,
+                    "Waypoint RB2 dump maps FindNearest");
+  ok &= expect_bool(command_evidence.rb2_dump_is_statement_body, false,
+                    "Waypoint registered commands remain dump evidence");
+  ok &= expect_bool(command_evidence.promoted_to_native_runtime, false,
+                    "Waypoint registered commands not promoted to runtime");
+  ok &= expect_size(command_evidence.rb2_ranges.size(), 3,
+                    "Waypoint registered command dump ranges");
+  ok &= expect_string(command_evidence.rb2_ranges[1],
+                      "OnWaypointNearest:0x803B4BC0->0x803B4C7C",
+                      "Waypoint nearest command range");
   source_waypoint_terminate_registry(registry);
   ok &= expect_bool(registry.allocated, false,
                     "Waypoint terminate clears allocation");
