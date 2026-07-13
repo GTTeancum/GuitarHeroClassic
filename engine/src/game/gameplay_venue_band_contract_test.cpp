@@ -9717,6 +9717,10 @@ int main() {
   ok &= contains(renderer_h_c,
                  "booldof_active=false;floatdof_focus_distance=0.0f;",
                  "native camera state carries source-gated depth-of-field state");
+  ok &= contains(renderer_h_c,
+                 "boolshake_active=false;floatshake_noise_amp=0.0f;"
+                 "floatshake_noise_freq=0.0f;",
+                 "native camera state carries source CamShot shake fields");
   ok &= contains(gameplay_c,
                  "std::optional<std::array<float,3>>"
                  "camera_source_dof_point_for_key(",
@@ -9731,6 +9735,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f",
                  "camera diagnostics distinguish active source DOF from decoded blur fields");
+  ok &= contains(gameplay_c,
+                 "cam.shake_active=has_shake_fields;"
+                 "cam.shake_noise_amp=shake_noise_amp;",
+                 "runtime camera carries interpolated source CamShot shake state");
+  ok &= contains(gameplay_c,
+                 "shake=%d(%.3f%.3f%.3f%.3f)shake_runtime=%d",
+                 "camera diagnostics expose carried source CamShot shake state");
   ok &= contains(gameplay_c,
                  "fov=%.3fscreen_fov=%.3fclip=",
                  "camera diagnostics expose final zoomed FOV and source screen-offset FOV separately");

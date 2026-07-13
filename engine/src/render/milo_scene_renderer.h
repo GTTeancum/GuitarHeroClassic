@@ -74,6 +74,10 @@ struct OrbitCamera {
   float dof_max_blur = 1.0f;
   float dof_min_blur = 0.0f;
   float dof_focus_blur_multiplier = 0.0f;
+  bool shake_active = false;
+  float shake_noise_amp = 0.0f;
+  float shake_noise_freq = 0.0f;
+  float shake_max_angular_offset[2] = {0.0f, 0.0f};
 
   // Compute the eye position from yaw/pitch/distance about the target.
   void eye(float out[3]) const;

@@ -18553,6 +18553,11 @@ void apply_camera_keys(
     const float max_angular_offset_y = lerp_camshot_frame_field(
         a->has_shake_fields, a->max_angular_offset[1], b->has_shake_fields,
         b->max_angular_offset[1], 0.0f);
+    cam.shake_active = has_shake_fields;
+    cam.shake_noise_amp = shake_noise_amp;
+    cam.shake_noise_freq = shake_noise_freq;
+    cam.shake_max_angular_offset[0] = max_angular_offset_x;
+    cam.shake_max_angular_offset[1] = max_angular_offset_y;
     const float sx_a = a->has_screen_offset ? a->screen_offset[0] : 0.0f;
     const float sy_a = a->has_screen_offset ? a->screen_offset[1] : 0.0f;
     const float sx_b = b->has_screen_offset ? b->screen_offset[0] : 0.0f;
@@ -19745,7 +19750,7 @@ void apply_camera_keys(
             "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
             "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f "
             "blur=(%.3f %.3f %.3f %.3f) "
-            "shake=%d(%.3f %.3f %.3f %.3f) "
+            "shake=%d(%.3f %.3f %.3f %.3f) shake_runtime=%d "
             "a_target=(%.2f %.2f %.2f) a_parent=(%.2f %.2f %.2f) "
             "b_target=(%.2f %.2f %.2f) b_parent=(%.2f %.2f %.2f) "
             "a_target_eye=(%.2f %.2f %.2f) a_parent_eye=(%.2f %.2f %.2f) "
@@ -19764,7 +19769,7 @@ void apply_camera_keys(
             blur_depth, max_blur, min_blur, focus_blur_multiplier,
             has_shake_fields ? 1 : 0,
             shake_noise_amp, shake_noise_freq, max_angular_offset_x,
-            max_angular_offset_y,
+            max_angular_offset_y, cam.shake_active ? 1 : 0,
             a_target ? (*a_target)[0] : 0.0f,
             a_target ? (*a_target)[1] : 0.0f,
             a_target ? (*a_target)[2] : 0.0f,

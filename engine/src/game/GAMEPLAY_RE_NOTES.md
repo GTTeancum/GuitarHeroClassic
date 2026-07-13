@@ -10796,3 +10796,14 @@ Rejected native probe:
   `source_screen_offset_filtered_target_candidate` diagnostics. This keeps the
   traced `shot_filter` state available for target-list/non-same-target work
   without applying it to the source same-target screen-offset translation.
+
+- 2026-07-13 CamShot shake runtime state:
+  ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,
+  `mShakeNoiseFreq`, and `MaxAngularOffset()` after DOF/final transform setup,
+  then calls `CamShot::Shake` and applies the returned local translation and
+  Euler rotation before `SetLocalXfm`. Native now carries those interpolated
+  source shake fields on the runtime camera state and logs `shake_runtime=`.
+  It deliberately does not synthesize the hidden `CamShot::Shake` noise math;
+  the RB2 dump exposes the function name and locals but not a trustworthy
+  body. This keeps the source feature visible and contract-guarded without
+  fabricating camera motion.
