@@ -2475,6 +2475,9 @@ int run_contract() {
 
   ok &= contains(object_cs, "publicenumNodeType:int{Int=0x00,Float=0x01",
                  "ObjectFields exposes DTB node enum");
+  ok &= contains(object_cs,
+                 "Func=0x03,Object=0x04,Symbol=0x05,Unhandled=0x06",
+                 "ObjectFields exposes Func and symbol-like DTB rows");
   ok &= contains(object_cs, "uintcombinedRevision=reader.ReadUInt32();",
                  "ObjectFields reads combined low/high revision");
   ok &= contains(object_cs, "type=Symbol.Read(reader);root.Read(reader);",
@@ -2485,6 +2488,22 @@ int run_contract() {
                  "ObjectFields reads root tree presence and child metadata");
   ok &= contains(object_cs, "if(revision>0){note=Symbol.Read(reader);}",
                  "ObjectFields reads revision-gated note Symbol");
+  ok &= contains(doc, "`source_milo_editor_dtb_node_payload_plan` records",
+                 "document records MiloEditor DTB node payload helper");
+  ok &= contains(object_cs,
+                 "caseNodeType.Int:value=reader.ReadUInt32();break;",
+                 "ObjectFields DTB Int reads uint32");
+  ok &= contains(object_cs,
+                 "caseNodeType.Float:value=reader.ReadFloat();break;",
+                 "ObjectFields DTB Float reads float");
+  ok &= contains(object_cs,
+                 "caseNodeType.Variable:caseNodeType.Object:"
+                 "caseNodeType.Symbol:",
+                 "ObjectFields DTB symbol-like cases read Symbol");
+  ok &= contains(object_cs,
+                 "caseNodeType.Array:caseNodeType.Command:"
+                 "caseNodeType.Property:",
+                 "ObjectFields DTB parent cases read nested parent");
 
   for (const char* type_case :
        {"case0x00:", "case0x01:", "case0x02:", "case0x04:",
@@ -2497,6 +2516,31 @@ int run_contract() {
     ok &= contains(scene, type_case,
                    std::string("scene DTB skip handles ") + type_case);
   }
+  ok &= contains(char_mesh_h,
+                 "structSourceMiloEditorDtbNodePayloadPlan{int32_tnode_type=0;",
+                 "character API exposes MiloEditor DTB node payload plan");
+  ok &= contains(char_mesh,
+                 "SourceMiloEditorDtbNodePayloadPlan"
+                 "source_milo_editor_dtb_node_payload_plan(",
+                 "character implements MiloEditor DTB node payload plan");
+  ok &= contains(char_mesh,
+                 "case0x03:plan.node_type_name=\"Func\";"
+                 "plan.known_node_type=true;plan.consumes_no_payload=true;",
+                 "character DTB plan preserves Func no-payload row");
+  ok &= contains(char_mesh,
+                 "default:plan.node_type_name=\"Unknown\";"
+                 "plan.consumes_no_payload=true;",
+                 "character DTB plan fences unknown node rows");
+  ok &= contains(char_mesh,
+                 "constSourceMiloEditorDtbNodePayloadPlanplan="
+                 "source_milo_editor_dtb_node_payload_plan(",
+                 "character DTB reader delegates to source payload helper");
+  ok &= contains(mesh_decode_test,
+                 "source_milo_editor_dtb_node_payload_plan(0x03)",
+                 "focused mesh decode test covers DTB Func no-payload row");
+  ok &= contains(mesh_decode_test,
+                 "source_milo_editor_dtb_node_payload_plan(0x7f)",
+                 "focused mesh decode test covers unknown DTB no-payload row");
   ok &= contains(char_mesh,
                  "constuint32_tcombined_revision=r.u32();constuint16_trevision="
                  "static_cast<uint16_t>(combined_revision&0xffffu);(void)r.str();"

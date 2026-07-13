@@ -589,6 +589,10 @@ into final transform rows.
     greater than zero.
   - `DTBNode.Read` defines the property-tree node payloads. The native readers
     only skip these trees, but the skip table must mirror this enum exactly.
+    Native `source_milo_editor_dtb_node_payload_plan` records the source
+    payload classes explicitly: int nodes read a `uint32`, float nodes read a
+    float, symbol-like nodes read a `Symbol`, array/command/property nodes read
+    nested DTB parents, and `Func`/unknown nodes consume no visible payload.
   - Native generic `Object` rows decode the same `ObjectFields` prefix and log
     unread tails instead of promoting any runtime behavior.
 - `rb3-latest/src/system/char/Character.cpp`

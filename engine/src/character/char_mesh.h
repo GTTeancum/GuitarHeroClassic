@@ -66,6 +66,20 @@
 
 namespace ghogx::character {
 
+struct SourceMiloEditorDtbNodePayloadPlan {
+  int32_t node_type = 0;
+  std::string node_type_name;
+  bool known_node_type = false;
+  bool reads_uint32 = false;
+  bool reads_float = false;
+  bool reads_symbol = false;
+  bool reads_array_parent = false;
+  bool consumes_no_payload = false;
+};
+
+SourceMiloEditorDtbNodePayloadPlan
+source_milo_editor_dtb_node_payload_plan(int32_t node_type);
+
 // One skinned vertex: position + normal in bind-pose model space, 4 linear-blend
 // bone weights (referring to the owning mesh's bone palette, in order), and uv.
 struct SkinVertex {
