@@ -1579,7 +1579,7 @@ struct DecodedCamShot {
     float filter = 0.9f;
     float clamp_height = -1.0f;
     std::string path;
-    float path_ease = 0.0f;
+    float path_frame = -1.0f;
     std::string category;
     int platform_only = 0;
     int disabled_flags = 0;
@@ -2034,7 +2034,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         shot.filter = r.f32();
         shot.clamp_height = r.f32();
         shot.path = r.symbol();
-        if (shot.revision >= 2 && shot.revision <= 44) shot.path_ease = r.f32();
+        if (shot.revision >= 2 && shot.revision <= 44) shot.path_frame = r.f32();
         if (shot.revision > 2) shot.category = r.symbol();
         if (shot.revision > 2 && shot.revision < 0x26) (void)r.f32();
         if (shot.revision > 0x22) {
@@ -2148,8 +2148,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_clip_planes = true;
             key.use_depth_of_field = shot.use_depth_of_field;
             key.has_use_depth_of_field = true;
-            key.path_ease = shot.path_ease;
-            key.has_path_ease = true;
+            key.path_frame = shot.path_frame;
+            key.has_path_frame = true;
             key.camshot_looping = shot.looping;
             key.camshot_loop_keyframe = shot.loop_keyframe;
             key.has_camshot_looping = true;
@@ -2315,8 +2315,8 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.has_clip_planes = from.has_clip_planes;
     to.use_depth_of_field = from.use_depth_of_field;
     to.has_use_depth_of_field = from.has_use_depth_of_field;
-    to.path_ease = from.path_ease;
-    to.has_path_ease = from.has_path_ease;
+    to.path_frame = from.path_frame;
+    to.has_path_frame = from.has_path_frame;
     to.camshot_looping = from.camshot_looping;
     to.camshot_loop_keyframe = from.camshot_loop_keyframe;
     to.has_camshot_looping = from.has_camshot_looping;
@@ -14761,7 +14761,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     if (key.camshot_shot_fields_decoded) {
                         std::fprintf(
                             stderr,
-                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f disabled=0x%08x\n",
+                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f disabled=0x%08x\n",
                             de.name.c_str(), pose.second,
                             key.category.c_str(),
                             key.has_shot_filter ? "" : "none/",
@@ -14774,8 +14774,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                                     key.use_depth_of_field
                                 ? 1
                                 : 0,
-                            key.has_path_ease ? "" : "none/",
-                            key.has_path_ease ? key.path_ease : 0.0f,
+                            key.has_path_frame ? "" : "none/",
+                            key.has_path_frame ? key.path_frame : 0.0f,
                             static_cast<unsigned int>(key.disabled_flags));
                     }
                     std::fprintf(
@@ -14928,7 +14928,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -14974,8 +14974,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                                  key.use_depth_of_field
                              ? 1
                              : 0,
-                         key.has_path_ease ? "" : "none/",
-                         key.has_path_ease ? key.path_ease : 0.0f);
+                         key.has_path_frame ? "" : "none/",
+                         key.has_path_frame ? key.path_frame : 0.0f);
         }
         randomize_camera_category_order(out);
         if (debug_camera_enabled()) {
@@ -19776,16 +19776,16 @@ void apply_camera_keys(
             "[camera-solver] frame=%.2f ps2_result_builder=0x00267008 "
             "screen_norm=(%.6f %.6f) a_screen_norm=(%.6f %.6f) "
             "b_screen_norm=(%.6f %.6f) raw_screen_offset=(%.6f %.6f) "
-            "clip=(%.3f %.3f) path_ease=a:%s%.3f b:%s%.3f "
+            "clip=(%.3f %.3f) path_frame=a:%s%.3f b:%s%.3f "
             "category=a:%s b:%s "
             "shot_fields=a:%d b:%d\n",
             frame, screen_norm[0], screen_norm[1], a_screen_norm[0],
             a_screen_norm[1], b_screen_norm[0], b_screen_norm[1],
             cam.screen_offset[0], cam.screen_offset[1], cam.near_z,
-            cam.far_z, a->has_path_ease ? "" : "none/",
-            a->has_path_ease ? a->path_ease : 0.0f,
-            b->has_path_ease ? "" : "none/",
-            b->has_path_ease ? b->path_ease : 0.0f,
+            cam.far_z, a->has_path_frame ? "" : "none/",
+            a->has_path_frame ? a->path_frame : 0.0f,
+            b->has_path_frame ? "" : "none/",
+            b->has_path_frame ? b->path_frame : 0.0f,
             a->category.empty() ? "none" : a->category.c_str(),
             b->category.empty() ? "none" : b->category.c_str(),
             a->camshot_shot_fields_decoded ? 1 : 0,

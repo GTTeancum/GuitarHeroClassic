@@ -7701,9 +7701,9 @@ int main() {
                  "CamShot parser reads shot-level clip/filter fields in source order");
   ok &= contains(gameplay_c,
                  "shot.path=r.symbol();if(shot.revision>=2&&shot.revision<=44)"
-                 "shot.path_ease=r.f32();if(shot.revision>2)"
+                 "shot.path_frame=r.f32();if(shot.revision>2)"
                  "shot.category=r.symbol();",
-                 "CamShot parser reads path/category fields in source order");
+                 "CamShot parser reads source path_frame before category");
   ok &= contains(gameplay_c,
                  "key.forward[axis]=world_offset.row[1][axis];"
                  "key.up[axis]=world_offset.row[2][axis];"
@@ -8024,10 +8024,10 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "booluse_depth_of_field=false;"
                  "boolhas_use_depth_of_field=false;"
-                 "floatpath_ease=0.0f;boolhas_path_ease=false;"
+                 "floatpath_frame=-1.0f;boolhas_path_frame=false;"
                  "std::stringsource_ref;"
                  "boolcamshot_shot_fields_decoded=false;",
-                 "CameraKey preserves remaining CamShot shot-level fields including source refs");
+                 "CameraKey preserves remaining CamShot shot-level fields including path_frame and source refs");
   ok &= contains(gameplay_c,
                  "if(shot.revision>0x0b&&shot.revision<0x2a)"
                  "shot.old_crowd_sym=r.symbol();",
@@ -9690,7 +9690,7 @@ int main() {
                  "target_eye=a:(%.3f%.3f%.3f)",
                  "camera debug logs expose source-target eye candidates");
   ok &= contains(gameplay_c,
-                 "\"clip=(%.3f%.3f)path_ease=a:%s%.3fb:%s%.3f\"",
+                 "\"clip=(%.3f%.3f)path_frame=a:%s%.3fb:%s%.3f\"",
                  "camera debug logs carry shot-level solver inputs");
   ok &= contains(gameplay_c,
                  "key.duration_frames=r.f32();key.blend_frames=r.f32();"

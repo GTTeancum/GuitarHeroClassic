@@ -516,18 +516,18 @@ Open work:
   unaligned fields before it decode as `clamp_height` at `tail + 1`,
   `near_plane` at `tail + 5`, `far_plane` at `tail + 9`,
   `use_depth_of_field` at `tail + 13`, `selection_weight` at `tail + 14`,
-  and `path_ease` at `tail + 18`, with `filter` immediately after the
+  and source `path_frame` at `tail + 18`, with `filter` immediately after the
   category string. Examples from the accepted raw-body probe include
   `flr_near_rt01x23w` category `flr_near_rt`, filter `0.5`, clamp `0`,
-  near/far `(10,10000)`, selection `0.9`, path ease `-1`, and
+  near/far `(10,10000)`, selection `0.9`, path frame `-1`, and
   `balcony_lft01` category `balcony_lft`, filter `0.3`, clamp `1`,
   near/far `(50,3000)`. Native now stores these fields on every layout-verified
   CamShot pose, logs them in `camera-candidate` and `regular CamShot` rows,
   and submits authored near/far planes to the renderer. Follow-up native work
   now consumes `selection_weight` in the deterministic shared regular-camera
   selector and applies the one-target `clamp_height` branch to submitted result
-  rows as `target_z + clamp_height`; `path_ease` remains decoded/logged only
-  until an accepted trace maps its runtime interpolation semantics. Validation:
+  rows as `target_z + clamp_height`; `path_frame` remains decoded/logged only
+  until an accepted trace maps its runtime sampling semantics. Validation:
   `analysis/native_validation/arena_camshot_shot_fields_clip_20260624_current/`
   reruns stock PS2 `shoutatthedevil` in arena from `16.0s` with camera,
   matrix, and venue-filter diagnostics; it exits `0`, records 140 `[camera]`
@@ -5677,7 +5677,7 @@ Rejected native probe:
   `analysis/native_validation/native_probe_path_clip_20260629_021911/` ran
   the same stock arena `balcony_lft04` / path offset `255` route for `12`
   fixed frames under a `90s` watchdog and saved frames `1/5/11`. The log now
-  proves `clip=(50.000 3000.000)`, `selection=0.300`, `path_ease=-1.000`, and
+  proves `clip=(50.000 3000.000)`, `selection=0.300`, `path_frame=-1.000`, and
   `shot_fields=a:1 b:1` for frame `570.00`.
 - Visual result: the foreground reaper/truss/sign composition remains. The
   clip-plane fix is correct and necessary, but it falsifies near/far fallback
@@ -10762,3 +10762,12 @@ Rejected native probe:
   `source_screen_offset_translate_result` branch, and logs `same_targets=`
   in `[camera-solver]` rows. This is a source-logic correction to the camera
   composition gate, not a shot-specific visual clamp.
+
+- 2026-07-13 CamShot `path_frame` source identity:
+  the float decoded immediately after `CamShot::mPath` is now named
+  `path_frame`, matching ihatecompvir's `CamShot::mPathFrame` member,
+  constructor default `-1.0f`, and `SYNC_PROP(path_frame, mPathFrame)`.
+  Native had been carrying the correct byte slot under the misleading
+  `path_ease` name; this turn renames the stored field and debug logs without
+  changing path sampling behavior. The next camera-angle fixes should continue
+  from source evidence for how `mPathFrame` is consumed at runtime.

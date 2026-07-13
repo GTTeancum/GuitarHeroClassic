@@ -180,8 +180,8 @@ class Gameplay {
     bool has_clip_planes = false;
     bool use_depth_of_field = false;
     bool has_use_depth_of_field = false;
-    float path_ease = 0.0f;
-    bool has_path_ease = false;
+    float path_frame = -1.0f;
+    bool has_path_frame = false;
     std::string source_ref;
     bool camshot_shot_fields_decoded = false;
     size_t camshot_pose_body_offset = 0;
