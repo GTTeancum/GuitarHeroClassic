@@ -5014,6 +5014,64 @@ struct SourceReadChunksPlan {
   std::vector<int32_t> chunk_sizes;
 };
 
+struct SourceRndBitmapSaveHeaderPlan {
+  int32_t bitmap_revision = 1;
+  int32_t bpp = 32;
+  int32_t order = 0;
+  int32_t num_mips = 0;
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t row_bytes = 0;
+  int32_t pad_bytes = 0x13;
+  std::vector<std::string> write_order;
+};
+
+struct SourceRndBitmapSavePlan {
+  bool writes_header = true;
+  bool has_palette = false;
+  size_t palette_bytes = 0;
+  bool writes_palette = false;
+  int32_t chunk_size = 0x8000;
+  std::vector<int32_t> pixel_write_bytes;
+};
+
+struct SourceRndBitmapDetachMipPlan {
+  bool had_mip = false;
+  bool returns_existing_mip = false;
+  bool clears_mip = true;
+};
+
+struct SourceRndBitmapSamePixelFormatPlan {
+  int32_t lhs_bpp = 32;
+  int32_t rhs_bpp = 32;
+  int32_t lhs_order = 0;
+  int32_t rhs_order = 0;
+  bool lhs_has_palette = false;
+  bool rhs_has_palette = false;
+  bool calls_same_palette_colors = false;
+  bool same_palette_colors = true;
+  bool result = false;
+};
+
+struct SourceRndBitmapBltPlan {
+  int32_t dest_width = 0;
+  int32_t dest_height = 0;
+  int32_t source_width = 0;
+  int32_t source_height = 0;
+  int32_t dest_x = 0;
+  int32_t dest_y = 0;
+  int32_t source_x = 0;
+  int32_t source_y = 0;
+  int32_t width = 0;
+  int32_t height = 0;
+  bool dest_width_assert = false;
+  bool dest_height_assert = false;
+  bool source_width_assert = false;
+  bool source_height_assert = false;
+  bool same_pixel_format = false;
+  bool reaches_empty_mismatch_body = false;
+};
+
 SourceRndTexPowerOfTwoPlan source_rndtex_power_of_two_plan(
     int32_t width,
     int32_t height);
@@ -5121,6 +5179,40 @@ SourceRndBitmapLoadSafelyPlan source_rndbitmap_load_safely_plan(
 SourceReadChunksPlan source_read_chunks_plan(
     int32_t total_len,
     int32_t max_chunk_size);
+SourceRndBitmapSaveHeaderPlan source_rndbitmap_save_header_plan(
+    int32_t bpp,
+    int32_t order,
+    int32_t num_mips,
+    int32_t width,
+    int32_t height,
+    int32_t row_bytes);
+SourceRndBitmapSavePlan source_rndbitmap_save_plan(
+    int32_t bpp,
+    int32_t order,
+    bool has_palette,
+    const std::vector<int32_t>& row_bytes,
+    const std::vector<int32_t>& heights);
+SourceRndBitmapDetachMipPlan source_rndbitmap_detach_mip_plan(bool had_mip);
+SourceRndBitmapSamePixelFormatPlan source_rndbitmap_same_pixel_format_plan(
+    int32_t lhs_bpp,
+    int32_t rhs_bpp,
+    int32_t lhs_order,
+    int32_t rhs_order,
+    bool lhs_has_palette,
+    bool rhs_has_palette,
+    bool same_palette_colors);
+SourceRndBitmapBltPlan source_rndbitmap_blt_plan(
+    int32_t dest_width,
+    int32_t dest_height,
+    int32_t source_width,
+    int32_t source_height,
+    int32_t dest_x,
+    int32_t dest_y,
+    int32_t source_x,
+    int32_t source_y,
+    int32_t width,
+    int32_t height,
+    bool same_pixel_format);
 
 struct RndTex {
   std::string name;

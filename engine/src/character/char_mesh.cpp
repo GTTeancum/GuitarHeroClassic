@@ -3725,6 +3725,108 @@ SourceReadChunksPlan source_read_chunks_plan(
   return plan;
 }
 
+SourceRndBitmapSaveHeaderPlan source_rndbitmap_save_header_plan(
+    int32_t bpp,
+    int32_t order,
+    int32_t num_mips,
+    int32_t width,
+    int32_t height,
+    int32_t row_bytes) {
+  SourceRndBitmapSaveHeaderPlan plan;
+  plan.bpp = bpp;
+  plan.order = order;
+  plan.num_mips = num_mips;
+  plan.width = width;
+  plan.height = height;
+  plan.row_bytes = row_bytes;
+  plan.write_order = {"BITMAP_REV", "mBpp", "mOrder", "NumMips",
+                      "mWidth", "mHeight", "mRowBytes", "pad[0x13]"};
+  return plan;
+}
+
+SourceRndBitmapSavePlan source_rndbitmap_save_plan(
+    int32_t bpp,
+    int32_t order,
+    bool has_palette,
+    const std::vector<int32_t>& row_bytes,
+    const std::vector<int32_t>& heights) {
+  SourceRndBitmapSavePlan plan;
+  plan.has_palette = has_palette;
+  plan.palette_bytes =
+      has_palette ? source_bitmap_palette_bytes(bpp, static_cast<uint32_t>(order))
+                  : 0;
+  plan.writes_palette = has_palette;
+  const size_t count = std::min(row_bytes.size(), heights.size());
+  for (size_t i = 0; i < count; ++i) {
+    plan.pixel_write_bytes.push_back(row_bytes[i] * heights[i]);
+  }
+  return plan;
+}
+
+SourceRndBitmapDetachMipPlan source_rndbitmap_detach_mip_plan(bool had_mip) {
+  SourceRndBitmapDetachMipPlan plan;
+  plan.had_mip = had_mip;
+  plan.returns_existing_mip = had_mip;
+  return plan;
+}
+
+SourceRndBitmapSamePixelFormatPlan source_rndbitmap_same_pixel_format_plan(
+    int32_t lhs_bpp,
+    int32_t rhs_bpp,
+    int32_t lhs_order,
+    int32_t rhs_order,
+    bool lhs_has_palette,
+    bool rhs_has_palette,
+    bool same_palette_colors) {
+  SourceRndBitmapSamePixelFormatPlan plan;
+  plan.lhs_bpp = lhs_bpp;
+  plan.rhs_bpp = rhs_bpp;
+  plan.lhs_order = lhs_order;
+  plan.rhs_order = rhs_order;
+  plan.lhs_has_palette = lhs_has_palette;
+  plan.rhs_has_palette = rhs_has_palette;
+  plan.same_palette_colors = same_palette_colors;
+  if (lhs_bpp != rhs_bpp || lhs_order != rhs_order) {
+    plan.result = false;
+    return plan;
+  }
+  plan.calls_same_palette_colors = lhs_has_palette && rhs_has_palette;
+  plan.result = plan.calls_same_palette_colors ? same_palette_colors : true;
+  return plan;
+}
+
+SourceRndBitmapBltPlan source_rndbitmap_blt_plan(
+    int32_t dest_width,
+    int32_t dest_height,
+    int32_t source_width,
+    int32_t source_height,
+    int32_t dest_x,
+    int32_t dest_y,
+    int32_t source_x,
+    int32_t source_y,
+    int32_t width,
+    int32_t height,
+    bool same_pixel_format) {
+  SourceRndBitmapBltPlan plan;
+  plan.dest_width = dest_width;
+  plan.dest_height = dest_height;
+  plan.source_width = source_width;
+  plan.source_height = source_height;
+  plan.dest_x = dest_x;
+  plan.dest_y = dest_y;
+  plan.source_x = source_x;
+  plan.source_y = source_y;
+  plan.width = width;
+  plan.height = height;
+  plan.dest_width_assert = dest_x + width <= dest_width;
+  plan.dest_height_assert = dest_y + height <= dest_height;
+  plan.source_width_assert = source_x + width <= source_width;
+  plan.source_height_assert = source_y + height <= source_height;
+  plan.same_pixel_format = same_pixel_format;
+  plan.reaches_empty_mismatch_body = !same_pixel_format;
+  return plan;
+}
+
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());

@@ -447,6 +447,60 @@ int main() {
   ok &= expect_ints(chunks.chunk_sizes, {0x8000, 0x1001},
                     "read chunks sizes");
 
+  const ghogx::character::SourceRndBitmapSaveHeaderPlan save_header =
+      ghogx::character::source_rndbitmap_save_header_plan(
+          8, 0, 2, 64, 32, 64);
+  ok &= expect_int(save_header.bitmap_revision, 1,
+                   "bitmap save header revision");
+  ok &= expect_strings(save_header.write_order,
+                       {"BITMAP_REV", "mBpp", "mOrder", "NumMips",
+                        "mWidth", "mHeight", "mRowBytes", "pad[0x13]"},
+                       "bitmap save header order");
+  const ghogx::character::SourceRndBitmapSavePlan save_plan =
+      ghogx::character::source_rndbitmap_save_plan(
+          8, 0, true, {64, 32, 16}, {32, 16, 8});
+  ok &= expect_bool(save_plan.writes_header, true, "bitmap save header flag");
+  ok &= expect_bool(save_plan.writes_palette, true, "bitmap save palette flag");
+  ok &= expect_size(save_plan.palette_bytes, 1024, "bitmap save palette bytes");
+  ok &= expect_ints(save_plan.pixel_write_bytes, {2048, 512, 128},
+                    "bitmap save pixel byte rows");
+
+  const ghogx::character::SourceRndBitmapDetachMipPlan detach_mip =
+      ghogx::character::source_rndbitmap_detach_mip_plan(true);
+  ok &= expect_bool(detach_mip.returns_existing_mip, true,
+                    "bitmap detach returns mip");
+  ok &= expect_bool(detach_mip.clears_mip, true, "bitmap detach clears mip");
+  const ghogx::character::SourceRndBitmapSamePixelFormatPlan same_format =
+      ghogx::character::source_rndbitmap_same_pixel_format_plan(
+          8, 8, 0, 0, true, true, false);
+  ok &= expect_bool(same_format.calls_same_palette_colors, true,
+                    "same pixel format palette compare");
+  ok &= expect_bool(same_format.result, false,
+                    "same pixel format palette result");
+  const ghogx::character::SourceRndBitmapSamePixelFormatPlan no_palette_format =
+      ghogx::character::source_rndbitmap_same_pixel_format_plan(
+          8, 8, 0, 0, false, true, false);
+  ok &= expect_bool(no_palette_format.result, true,
+                    "same pixel format no palette result");
+  const ghogx::character::SourceRndBitmapSamePixelFormatPlan bpp_mismatch =
+      ghogx::character::source_rndbitmap_same_pixel_format_plan(
+          8, 16, 0, 0, false, false, true);
+  ok &= expect_bool(bpp_mismatch.result, false,
+                    "same pixel format bpp mismatch");
+  const ghogx::character::SourceRndBitmapBltPlan blt_plan =
+      ghogx::character::source_rndbitmap_blt_plan(
+          128, 64, 256, 128, 16, 8, 32, 16, 64, 32, false);
+  ok &= expect_bool(blt_plan.dest_width_assert, true,
+                    "bitmap blt dest width assert");
+  ok &= expect_bool(blt_plan.dest_height_assert, true,
+                    "bitmap blt dest height assert");
+  ok &= expect_bool(blt_plan.source_width_assert, true,
+                    "bitmap blt source width assert");
+  ok &= expect_bool(blt_plan.source_height_assert, true,
+                    "bitmap blt source height assert");
+  ok &= expect_bool(blt_plan.reaches_empty_mismatch_body, true,
+                    "bitmap blt mismatch body");
+
   std::vector<uint8_t> tex;
   put_u32(tex, (2u << 16) | 11u);  // packed RndTex rev: hmx=11, alt=2
   put_object_fields_minimal(tex);

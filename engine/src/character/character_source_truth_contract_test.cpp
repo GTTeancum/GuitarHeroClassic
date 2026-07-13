@@ -16697,6 +16697,14 @@ int run_contract() {
                  "bs>>test;bs>>mWidth;bs>>mHeight;bs>>mRowBytes;",
                  "latest RndBitmap source backs dimensions and row bytes");
   ok &= contains(rb3_latest_bitmap_cpp,
+                 "BinStream&RndBitmap::SaveHeader(BinStream&bs)const{"
+                 "staticu8pad[0x13];bs<<BITMAP_REV<<mBpp<<"
+                 "(unsignedint)mOrder<<(unsignedchar)NumMips()<<mWidth<<mHeight;",
+                 "latest RndBitmap source backs save-header row order");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "bs<<mRowBytes;bs.Write(pad,0x13);returnbs;}",
+                 "latest RndBitmap source backs save-header padding");
+  ok &= contains(rb3_latest_bitmap_cpp,
                  "intRndBitmap::PaletteBytes()const{if(mBpp<=8){"
                  "if((mOrder&0x38)==0&&(mOrder&0x80)==0){"
                  "return(1<<mBpp)*4;}}return0;}",
@@ -16737,9 +16745,37 @@ int run_contract() {
                  "MILO_ASSERT(mBpp==bm->Bpp(),1104);mMip=bm;}",
                  "latest RndBitmap source backs SetMip format checks");
   ok &= contains(rb3_latest_bitmap_cpp,
+                 "RndBitmap*RndBitmap::DetachMip(){RndBitmap*m=mMip;"
+                 "mMip=NULL;returnm;}",
+                 "latest RndBitmap source backs DetachMip");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "voidRndBitmap::Blt(constRndBitmap&bm,intdX,intdY,intsX,intsY,"
+                 "intwidth,intheight){MILO_ASSERT(dX+width<=mWidth,1728);",
+                 "latest RndBitmap source backs Blt bounds prefix");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "MILO_ASSERT(sY+height<=bm.Height(),1731);"
+                 "if(!SamePixelFormat(bm)){}",
+                 "latest RndBitmap source backs Blt mismatch branch");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "boolRndBitmap::SamePixelFormat(constRndBitmap&bm)const{"
+                 "if(mBpp!=bm.Bpp()||mOrder!=bm.Order())returnfalse;",
+                 "latest RndBitmap source backs SamePixelFormat bpp/order");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "if(mPalette&&bm.Palette()){returnSamePaletteColors(bm);}"
+                 "elsereturntrue;}",
+                 "latest RndBitmap source backs SamePixelFormat palette branch");
+  ok &= contains(rb3_latest_bitmap_cpp,
                  "if(mPalette)bs.Read(mPalette,PaletteBytes());"
                  "ReadChunks(bs,mPixels,mRowBytes*mHeight,0x8000);",
                  "latest RndBitmap source backs base payload read length");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "voidRndBitmap::Save(BinStream&bs)const{SaveHeader(bs);"
+                 "if(mPalette){bs.Write(mPalette,PaletteBytes());}",
+                 "latest RndBitmap source backs Save prefix");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "while(m){WriteChunks(bs,m->mPixels,m->mRowBytes*m->mHeight,"
+                 "0x8000);m=m->mMip;}",
+                 "latest RndBitmap source backs Save mip write loop");
   ok &= contains(rb3_latest_bitmap_cpp,
                  "working_w=working_w>>1;working_h=working_h>>1;"
                  "newMip->Create(working_w,working_h,0,mBpp,mOrder,mPalette,0,0);"
@@ -16959,6 +16995,14 @@ int run_contract() {
   ok &= contains(doc,
                  "do\n    not allocate buffers, decode pixels, or alter native texture upload",
                  "document fences RndBitmap helpers from runtime upload");
+  ok &= contains(doc,
+                 "source_rndbitmap_save_header_plan`,\n"
+                 "    `source_rndbitmap_save_plan`",
+                 "document records RndBitmap save helper names");
+  ok &= contains(doc,
+                 "do not write bitmaps, compare palette\n"
+                 "    contents, or blit pixels",
+                 "document fences RndBitmap save/format helpers");
   ok &= contains(doc,
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
@@ -17379,6 +17423,15 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceReadChunksPlan{",
                  "native exposes ReadChunks helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapSaveHeaderPlan{",
+                 "native exposes RndBitmap save-header helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapSamePixelFormatPlan{",
+                 "native exposes RndBitmap pixel-format helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndBitmapBltPlan{",
+                 "native exposes RndBitmap Blt helper");
   ok &= contains(char_mesh,
                  "SourceRndTexRenderedClampPlansource_rndtex_rendered_clamp_plan(",
                  "native implements RndTex rendered clamp source helper");
@@ -17490,6 +17543,34 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "std::min(total_len-curr_size,max_chunk_size);",
                  "ReadChunks helper mirrors source min chunk sizing");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapSaveHeaderPlansource_rndbitmap_save_header_plan(",
+                 "native implements RndBitmap save-header helper");
+  ok &= contains(char_mesh,
+                 "plan.write_order={\"BITMAP_REV\",\"mBpp\",\"mOrder\",\"NumMips\",",
+                 "RndBitmap save-header helper mirrors source row order");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapSavePlansource_rndbitmap_save_plan(",
+                 "native implements RndBitmap save helper");
+  ok &= contains(char_mesh,
+                 "plan.pixel_write_bytes.push_back(row_bytes[i]*heights[i]);",
+                 "RndBitmap save helper mirrors pixel byte writes");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapDetachMipPlansource_rndbitmap_detach_mip_plan(",
+                 "native implements RndBitmap DetachMip helper");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapSamePixelFormatPlan"
+                 "source_rndbitmap_same_pixel_format_plan(",
+                 "native implements RndBitmap SamePixelFormat helper");
+  ok &= contains(char_mesh,
+                 "plan.result=plan.calls_same_palette_colors?same_palette_colors:true;",
+                 "RndBitmap SamePixelFormat helper mirrors palette branch");
+  ok &= contains(char_mesh,
+                 "SourceRndBitmapBltPlansource_rndbitmap_blt_plan(",
+                 "native implements RndBitmap Blt helper");
+  ok &= contains(char_mesh,
+                 "plan.reaches_empty_mismatch_body=!same_pixel_format;",
+                 "RndBitmap Blt helper mirrors empty mismatch body");
   ok &= contains(char_mesh,
                  "tex.version=source_hmx_rev(packed_rev);",
                  "RndTex decoder uses source low-half revision");
@@ -17684,6 +17765,21 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "source_read_chunks_plan(0x9001,0x8000)",
                  "focused RndTex test covers ReadChunks helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_save_header_plan(",
+                 "focused RndTex test covers RndBitmap save-header helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_save_plan(",
+                 "focused RndTex test covers RndBitmap save helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_detach_mip_plan(true)",
+                 "focused RndTex test covers RndBitmap DetachMip helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_same_pixel_format_plan(",
+                 "focused RndTex test covers RndBitmap SamePixelFormat helper");
+  ok &= contains(tex_source_test,
+                 "source_rndbitmap_blt_plan(",
+                 "focused RndTex test covers RndBitmap Blt helper");
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"generated_render.tex\",tex)",
                  "focused RndTex test decodes current source revision");

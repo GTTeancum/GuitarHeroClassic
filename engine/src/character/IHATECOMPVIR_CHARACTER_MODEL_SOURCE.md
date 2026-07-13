@@ -1645,6 +1645,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     create assertions/branches, mip compatibility checks, safe-load fallback
     rules, and chunk-size loop. These helpers are source contracts only and do
     not allocate buffers, decode pixels, or alter native texture upload.
+  - Native `source_rndbitmap_save_header_plan`,
+    `source_rndbitmap_save_plan`, `source_rndbitmap_detach_mip_plan`,
+    `source_rndbitmap_same_pixel_format_plan`, and
+    `source_rndbitmap_blt_plan` record the visible save-header/save-loop,
+    mip detach, pixel-format/palette compare, and blit bounds/mismatch rows.
+    These are still passive contracts and do not write bitmaps, compare palette
+    contents, or blit pixels.
 - `rb3/src/system/utl/ChunkStream.cpp`
   - `ReadChunks` repeatedly reads `Min(total_len - curr_size, max_chunk_size)`
     until exactly `total_len` bytes have been consumed. This is the source for
@@ -1777,7 +1784,7 @@ copy/handler/property rows, and type text without changing stock texture
 loading. It also covers source platform BPP/order, `SetBitmap` branch choices,
 loader reset/bottom-mip behavior, `LockBitmap` conversion decisions,
 `RndBitmap` reset/create/set-mip/safe-load branches, and `ReadChunks` chunk
-sizing.
+sizing, plus bitmap save/detach/pixel-format/blit source rows.
 
 ## Generic Object Row Authority
 
