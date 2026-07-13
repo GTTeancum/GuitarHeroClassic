@@ -1542,6 +1542,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_milo_editor_rndmesh_vertex_io_plan` records that rev28 row as 12
     floats / 48 bytes, matching the native `SkinVertex` stride, without treating
     later next-gen compression paths as decoded GH2 behavior.
+  - The same helper records MiloEditor's surrounding uncompressed vertex row
+    families from source instead of guessing a single universal row: rev<=10
+    rows place UV before weights and then four UInt16 bone slots; rev11..22 rows
+    place four UInt16 bone slots before normal/weights/UV; rev23+ last-gen rows
+    place normal before weights/UV, add four UInt16 bone slots and tangents at
+    rev33+, add position/normal W only at rev34, add two extra tangent-tail
+    floats at rev35..37 non-next-gen, and use two UInt32+float packed pairs
+    before normal plus two UInt32/two-float packed values after bones at rev38+
+    non-next-gen. Those rows are documented as MiloEditor file-layout contracts,
+    not as new GH2 runtime skinning, hair, or attachment behavior.
   - MiloEditor next-gen compressed vertex rows are source-visible but not GH2
     rev28 behavior. Compression type `1` reads/writes a packed RGBA color word,
     half-float UVs, `SignedCompressedVec4` normals/tangents,

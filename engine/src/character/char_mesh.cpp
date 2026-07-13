@@ -473,23 +473,32 @@ source_milo_editor_rndmesh_vertex_io_plan(
   }
 
   if (mesh_version <= 10) {
+    plan.row_layout_freq_le10 = true;
     plan.row_reads_normal_xyz = true;
     plan.row_reads_uv = true;
     plan.row_reads_weights = true;
+    plan.row_reads_uv_before_weights = true;
     plan.row_reads_bone_indices = true;
     plan.row_float_count += 3 + 2 + 4;
     plan.row_uint16_count = 4;
   } else if (mesh_version <= 22) {
+    plan.row_layout_bones_first_11_to_22 = true;
     plan.row_reads_bone_indices = true;
+    plan.row_reads_bone_indices_before_normal = true;
     plan.row_reads_normal_xyz = true;
     plan.row_reads_weights = true;
+    plan.row_reads_weights_before_uv = true;
     plan.row_reads_uv = true;
     plan.row_float_count += 3 + 4 + 2;
     plan.row_uint16_count = 4;
   } else {
+    plan.row_layout_modern_uncompressed_23_plus = true;
     if (mesh_version >= 38) {
+      plan.row_layout_packed_uncompressed_38_plus = true;
+      plan.row_reads_pre_normal_packed_pairs = true;
       plan.row_reads_packed_next_gen = true;
       plan.row_float_count += 2;
+      plan.row_uint32_count += 2;
     }
     plan.row_reads_normal_xyz = true;
     plan.row_float_count += 3;
@@ -500,31 +509,37 @@ source_milo_editor_rndmesh_vertex_io_plan(
     plan.row_reads_weights = true;
     plan.row_reads_uv = true;
     plan.row_reads_weights_before_uv = mesh_version < 38;
+    plan.row_reads_uv_before_weights = mesh_version >= 38;
     plan.row_float_count += 4 + 2;
     if (mesh_version >= 33) {
       plan.row_reads_bone_indices = true;
       plan.row_uint16_count = 4;
       if (mesh_version >= 38) {
+        plan.row_reads_post_bone_packed_pairs = true;
         plan.row_reads_packed_next_gen = true;
         plan.row_float_count += 2;
+        plan.row_uint32_count += 2;
       } else {
         plan.row_reads_tangent = true;
         plan.row_float_count += 4;
         if (mesh_version > 34) {
+          plan.row_reads_tangent_unknown_float_pair = true;
           plan.row_float_count += 2;
         }
       }
     }
   }
 
-  plan.row_byte_size = plan.row_float_count * 4 + plan.row_uint16_count * 2;
+  plan.row_byte_size = plan.row_float_count * 4 + plan.row_uint32_count * 4 +
+                       plan.row_uint16_count * 2;
   plan.gh2_rev28_row_is_skin_vertex_48 =
       mesh_version == 28 && !is_next_gen &&
       plan.uses_last_gen_uncompressed_rows && plan.row_reads_position_xyz &&
       plan.row_reads_normal_xyz && plan.row_reads_weights &&
       plan.row_reads_weights_before_uv && plan.row_reads_uv &&
       !plan.row_reads_bone_indices && !plan.row_reads_tangent &&
-      plan.row_float_count == 12 && plan.row_uint16_count == 0 &&
+      plan.row_float_count == 12 && plan.row_uint32_count == 0 &&
+      plan.row_uint16_count == 0 &&
       plan.row_byte_size == 48;
   return plan;
 }

@@ -5023,6 +5023,59 @@ int run_contract() {
                  "ReadFloat();newVert.v=reader.ReadFloat();",
                  "MiloEditor RndMesh GH2-era row reads weights before UV");
   ok &= contains(mesh_cs,
+                 "if(meshVersion<=10){newVert.nx=reader.ReadFloat();"
+                 "newVert.ny=reader.ReadFloat();newVert.nz=reader.ReadFloat();"
+                 "newVert.u=reader.ReadFloat();newVert.v=reader.ReadFloat();",
+                 "MiloEditor RndMesh rev<=10 vertex row reads UV before weights");
+  ok &= contains(mesh_cs,
+                 "newVert.weight0=reader.ReadFloat();newVert.weight1=reader."
+                 "ReadFloat();newVert.weight2=reader.ReadFloat();newVert."
+                 "weight3=reader.ReadFloat();newVert.bone0=reader.ReadUInt16();",
+                 "MiloEditor RndMesh rev<=10 vertex row reads bones after weights");
+  ok &= contains(mesh_cs,
+                 "elseif(meshVersion<=22){newVert.bone0=reader.ReadUInt16();"
+                 "newVert.bone1=reader.ReadUInt16();newVert.bone2=reader."
+                 "ReadUInt16();newVert.bone3=reader.ReadUInt16();",
+                 "MiloEditor RndMesh rev11-22 vertex row reads bones first");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion>=38){newVert.packed1=reader.ReadUInt32();"
+                 "newVert.unknown1=reader.ReadFloat();newVert.packed2=reader."
+                 "ReadUInt32();newVert.unknown2=reader.ReadFloat();}",
+                 "MiloEditor RndMesh rev38+ uncompressed row reads leading packed pairs");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion>=38){newVert.u=reader.ReadFloat();newVert.v="
+                 "reader.ReadFloat();newVert.weight0=reader.ReadFloat();",
+                 "MiloEditor RndMesh rev38+ uncompressed row reads UV before weights");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion>34){newVert.unknown1=reader.ReadFloat();"
+                 "newVert.unknown2=reader.ReadFloat();}",
+                 "MiloEditor RndMesh rev35-37 uncompressed row reads tangent-tail floats");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion>=38){newVert.packed3=reader.ReadUInt32();"
+                 "newVert.packed4=reader.ReadUInt32();newVert.neg1=reader."
+                 "ReadFloat();newVert.pos1=reader.ReadFloat();}",
+                 "MiloEditor RndMesh rev38+ uncompressed row reads post-bone packed values");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion<=10){writer.WriteFloat(vertex.nx);"
+                 "writer.WriteFloat(vertex.ny);writer.WriteFloat(vertex.nz);"
+                 "writer.WriteFloat(vertex.u);writer.WriteFloat(vertex.v);",
+                 "MiloEditor RndMesh rev<=10 vertex row writes UV before weights");
+  ok &= contains(mesh_cs,
+                 "elseif(meshVersion<=22){writer.WriteUInt16(vertex.bone0);"
+                 "writer.WriteUInt16(vertex.bone1);writer.WriteUInt16(vertex."
+                 "bone2);writer.WriteUInt16(vertex.bone3);",
+                 "MiloEditor RndMesh rev11-22 vertex row writes bones first");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion>=38){writer.WriteUInt32(vertex.packed1);"
+                 "writer.WriteFloat(vertex.unknown1);writer.WriteUInt32(vertex."
+                 "packed2);writer.WriteFloat(vertex.unknown2);}",
+                 "MiloEditor RndMesh rev38+ uncompressed row writes leading packed pairs");
+  ok &= contains(mesh_cs,
+                 "if(meshVersion>=38){writer.WriteUInt32(vertex.packed3);"
+                 "writer.WriteUInt32(vertex.packed4);writer.WriteFloat(vertex."
+                 "neg1);writer.WriteFloat(vertex.pos1);}",
+                 "MiloEditor RndMesh rev38+ uncompressed row writes post-bone packed values");
+  ok &= contains(mesh_cs,
                  "if(compressionType==1){uintvalue=reader.ReadUInt32();"
                  "newVert.vertexColors.r=(byte)((value>>24)&0xFF);",
                  "MiloEditor compressed vertex type 1 reads RGBA color word");
@@ -6335,6 +6388,15 @@ int run_contract() {
                  "int32_tmesh_version=0;",
                  "native declares MiloEditor RndMesh vertex IO plan");
   ok &= contains(char_mesh_h,
+                 "boolrow_layout_freq_le10=false;",
+                 "native vertex IO plan records rev<=10 row layout");
+  ok &= contains(char_mesh_h,
+                 "boolrow_reads_pre_normal_packed_pairs=false;",
+                 "native vertex IO plan records rev38 leading packed pairs");
+  ok &= contains(char_mesh_h,
+                 "int32_trow_uint32_count=0;",
+                 "native vertex IO plan counts serialized UInt32 fields");
+  ok &= contains(char_mesh_h,
                  "structSourceMiloEditorRndMeshCompressedVertexIoPlan{"
                  "int32_tmesh_version=0;",
                  "native declares MiloEditor compressed vertex IO plan");
@@ -6773,6 +6835,25 @@ int run_contract() {
       "SourceMiloEditorRndMeshVertexIoPlansource_milo_editor_rndmesh_"
       "vertex_io_plan(",
       "native ports MiloEditor RndMesh vertex IO helper");
+  ok &= contains(char_mesh,
+                 "plan.row_layout_freq_le10=true;",
+                 "native vertex IO helper records rev<=10 layout");
+  ok &= contains(char_mesh,
+                 "plan.row_layout_bones_first_11_to_22=true;",
+                 "native vertex IO helper records rev11-22 layout");
+  ok &= contains(char_mesh,
+                 "plan.row_reads_uv_before_weights=mesh_version>=38;",
+                 "native vertex IO helper records rev38 UV-before-weights row");
+  ok &= contains(char_mesh,
+                 "plan.row_reads_pre_normal_packed_pairs=true;",
+                 "native vertex IO helper records rev38 leading packed pairs");
+  ok &= contains(char_mesh,
+                 "plan.row_reads_tangent_unknown_float_pair=true;",
+                 "native vertex IO helper records rev35-37 tangent tail floats");
+  ok &= contains(char_mesh,
+                 "plan.row_byte_size=plan.row_float_count*4+plan.row_uint32_count*4+"
+                 "plan.row_uint16_count*2;",
+                 "native vertex IO helper counts UInt32 fields in row size");
   ok &= contains(
       char_mesh,
       "SourceMiloEditorRndMeshCompressedVertexIoPlansource_milo_editor_rndmesh_"
@@ -6834,7 +6915,7 @@ int run_contract() {
                  "native vertex IO helper pins GH2 rev28 skin row");
   ok &= contains(char_mesh,
                  "plan.row_byte_size=plan.row_float_count*4+"
-                 "plan.row_uint16_count*2;",
+                 "plan.row_uint32_count*4+plan.row_uint16_count*2;",
                  "native vertex IO helper records row byte size");
   ok &= contains(char_mesh,
                  "if(read_probe_positive){plan.read_rewinds_probe_when_"
@@ -7406,6 +7487,24 @@ int run_contract() {
                  "source_milo_editor_rndmesh_vertex_io_plan(",
                  "focused mesh decode test covers MiloEditor vertex IO");
   ok &= contains(mesh_decode_test,
+                 "rev10_milo_editor_vertex_io.row_layout_freq_le10",
+                 "focused mesh decode test covers rev<=10 vertex row layout");
+  ok &= contains(mesh_decode_test,
+                 "rev22_milo_editor_vertex_io.row_layout_bones_first_11_to_22",
+                 "focused mesh decode test covers rev11-22 vertex row layout");
+  ok &= contains(mesh_decode_test,
+                 "rev34_milo_editor_vertex_io.row_reads_position_w",
+                 "focused mesh decode test covers rev34 vertex W rows");
+  ok &= contains(mesh_decode_test,
+                 "rev36_last_gen_vertex_io.row_reads_tangent_unknown_float_pair",
+                 "focused mesh decode test covers rev35-37 tangent-tail floats");
+  ok &= contains(mesh_decode_test,
+                 "rev38_last_gen_vertex_io.row_layout_packed_uncompressed_38_plus",
+                 "focused mesh decode test covers rev38 packed uncompressed row");
+  ok &= contains(mesh_decode_test,
+                 "rev38_last_gen_vertex_io.row_byte_size==88",
+                 "focused mesh decode test covers rev38 UInt32 row size");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_compressed_vertex_io_plan(",
                  "focused mesh decode test covers compressed vertex helper");
   ok &= contains(mesh_decode_test,
@@ -7786,6 +7885,12 @@ int run_contract() {
                  "document records MiloEditor RndMesh vertex IO helper");
   ok &= contains(doc, "rev28 row as 12\n    floats / 48 bytes",
                  "document records GH2 rev28 vertex row size");
+  ok &= contains(doc, "rev<=10\n    rows place UV before weights",
+                 "document records rev<=10 vertex row order");
+  ok &= contains(doc, "rev11..22 rows\n    place four UInt16 bone slots before normal/weights/UV",
+                 "document records rev11-22 vertex row order");
+  ok &= contains(doc, "rev38+\n    non-next-gen",
+                 "document records rev38 packed uncompressed rows");
   ok &= contains(doc,
                  "`source_milo_editor_rndmesh_compressed_vertex_io_plan`",
                  "document records MiloEditor compressed vertex IO helper");

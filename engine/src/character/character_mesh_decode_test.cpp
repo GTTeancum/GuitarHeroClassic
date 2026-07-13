@@ -440,12 +440,79 @@ int main() {
   CHECK(rev28_milo_editor_vertex_io.row_reads_uv);
   CHECK(!rev28_milo_editor_vertex_io.row_reads_bone_indices);
   CHECK(!rev28_milo_editor_vertex_io.row_reads_tangent);
+  CHECK(rev28_milo_editor_vertex_io.row_layout_modern_uncompressed_23_plus);
+  CHECK(!rev28_milo_editor_vertex_io.row_layout_freq_le10);
+  CHECK(!rev28_milo_editor_vertex_io.row_reads_uv_before_weights);
   CHECK(rev28_milo_editor_vertex_io.row_float_count == 12);
+  CHECK(rev28_milo_editor_vertex_io.row_uint32_count == 0);
   CHECK(rev28_milo_editor_vertex_io.row_uint16_count == 0);
   CHECK(rev28_milo_editor_vertex_io.row_byte_size == 48);
   CHECK(rev28_milo_editor_vertex_io.read_vertex_rows == 4);
   CHECK(rev28_milo_editor_vertex_io.write_vertex_rows == 4);
   CHECK(rev28_milo_editor_vertex_io.gh2_rev28_row_is_skin_vertex_48);
+
+  const auto rev10_milo_editor_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          10, false, 1);
+  CHECK(rev10_milo_editor_vertex_io.row_layout_freq_le10);
+  CHECK(rev10_milo_editor_vertex_io.row_reads_uv_before_weights);
+  CHECK(!rev10_milo_editor_vertex_io.row_reads_weights_before_uv);
+  CHECK(rev10_milo_editor_vertex_io.row_reads_bone_indices);
+  CHECK(!rev10_milo_editor_vertex_io.row_reads_bone_indices_before_normal);
+  CHECK(rev10_milo_editor_vertex_io.row_float_count == 12);
+  CHECK(rev10_milo_editor_vertex_io.row_uint32_count == 0);
+  CHECK(rev10_milo_editor_vertex_io.row_uint16_count == 4);
+  CHECK(rev10_milo_editor_vertex_io.row_byte_size == 56);
+
+  const auto rev22_milo_editor_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          22, false, 1);
+  CHECK(rev22_milo_editor_vertex_io.row_layout_bones_first_11_to_22);
+  CHECK(rev22_milo_editor_vertex_io.row_reads_bone_indices_before_normal);
+  CHECK(rev22_milo_editor_vertex_io.row_reads_weights_before_uv);
+  CHECK(!rev22_milo_editor_vertex_io.row_reads_uv_before_weights);
+  CHECK(rev22_milo_editor_vertex_io.row_float_count == 12);
+  CHECK(rev22_milo_editor_vertex_io.row_uint32_count == 0);
+  CHECK(rev22_milo_editor_vertex_io.row_uint16_count == 4);
+  CHECK(rev22_milo_editor_vertex_io.row_byte_size == 56);
+
+  const auto rev34_milo_editor_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          34, false, 1);
+  CHECK(rev34_milo_editor_vertex_io.row_layout_modern_uncompressed_23_plus);
+  CHECK(rev34_milo_editor_vertex_io.row_reads_position_w);
+  CHECK(rev34_milo_editor_vertex_io.row_reads_normal_w);
+  CHECK(rev34_milo_editor_vertex_io.row_reads_tangent);
+  CHECK(!rev34_milo_editor_vertex_io.row_reads_tangent_unknown_float_pair);
+  CHECK(rev34_milo_editor_vertex_io.row_float_count == 18);
+  CHECK(rev34_milo_editor_vertex_io.row_uint32_count == 0);
+  CHECK(rev34_milo_editor_vertex_io.row_uint16_count == 4);
+  CHECK(rev34_milo_editor_vertex_io.row_byte_size == 80);
+
+  const auto rev36_last_gen_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          36, false, 1);
+  CHECK(rev36_last_gen_vertex_io.reads_next_gen_header);
+  CHECK(!rev36_last_gen_vertex_io.next_gen_header_has_vertex_size_and_compression);
+  CHECK(rev36_last_gen_vertex_io.uses_last_gen_uncompressed_rows);
+  CHECK(rev36_last_gen_vertex_io.row_reads_tangent_unknown_float_pair);
+  CHECK(rev36_last_gen_vertex_io.row_float_count == 18);
+  CHECK(rev36_last_gen_vertex_io.row_uint32_count == 0);
+  CHECK(rev36_last_gen_vertex_io.row_uint16_count == 4);
+  CHECK(rev36_last_gen_vertex_io.row_byte_size == 80);
+
+  const auto rev38_last_gen_vertex_io =
+      ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
+          38, false, 1);
+  CHECK(rev38_last_gen_vertex_io.row_layout_packed_uncompressed_38_plus);
+  CHECK(rev38_last_gen_vertex_io.row_reads_pre_normal_packed_pairs);
+  CHECK(rev38_last_gen_vertex_io.row_reads_post_bone_packed_pairs);
+  CHECK(rev38_last_gen_vertex_io.row_reads_uv_before_weights);
+  CHECK(!rev38_last_gen_vertex_io.row_reads_weights_before_uv);
+  CHECK(rev38_last_gen_vertex_io.row_float_count == 16);
+  CHECK(rev38_last_gen_vertex_io.row_uint32_count == 4);
+  CHECK(rev38_last_gen_vertex_io.row_uint16_count == 4);
+  CHECK(rev38_last_gen_vertex_io.row_byte_size == 88);
 
   const auto rev36_milo_editor_vertex_io =
       ghogx::character::source_milo_editor_rndmesh_vertex_io_plan(
