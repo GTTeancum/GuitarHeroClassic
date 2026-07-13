@@ -172,6 +172,10 @@ int main() {
       compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string camera_submit_c =
       compact(function_body(gameplay, "camera_submitted_result_rows_for_key"));
+  const std::string rnd_camanim_reader_c =
+      compact(function_body(gameplay, "read_rnd_camanim_like_miloeditor"));
+  const std::string venue_camera_fov_loader_c =
+      compact(function_body(gameplay, "load_venue_camera_fov_anims"));
   const std::string event_track_c =
       compact(function_body(gameplay, "performer_event_track_for_role"));
   const std::string classify_roles_c =
@@ -8000,6 +8004,57 @@ int main() {
   ok &= contains(gameplay_c,
                  "std::optional<DecodedRndTransAnim>read_rnd_transanim_like_miloeditor(",
                  "path-backed TransAnim camera positions use the source-shaped RndTransAnim reader");
+  ok &= contains(gameplay_h_c,
+                 "structVenueCameraFovAnim{structFovKey{floatfov=0.0f;"
+                 "floatframe=0.0f;};",
+                 "Gameplay stores decoded venue CamAnim FOV keys");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,VenueCameraFovAnim>"
+                 "venue_camera_fov_anims_;",
+                 "runtime keeps source-decoded venue CamAnim state");
+  ok &= contains(gameplay_c,
+                 "std::optional<DecodedRndCamAnim>"
+                 "read_rnd_camanim_like_miloeditor(",
+                 "venue CamAnim FOV tracks use a source-shaped reader");
+  ok &= contains(rnd_camanim_reader_c,
+                 "if(anim.revision!=0){"
+                 "std::unordered_map<std::string,MiloValue>object_props;"
+                 "read_object_fields_like_miloeditor(r,object_props);}",
+                 "CamAnim reader follows source Object load for nonzero revisions");
+  ok &= contains(rnd_camanim_reader_c,
+                 "constautoanim_header=read_rnd_animatable_like_miloeditor(r);"
+                 "anim.anim_revision=anim_header.revision;"
+                 "anim.anim_rate=anim_header.rate;",
+                 "CamAnim reader consumes the RndAnimatable base before payload");
+  ok &= contains(rnd_camanim_reader_c,
+                 "anim.cam=canonical_milo_ref(r.symbol());"
+                 "constuint32_tfov_count=r.u32();",
+                 "CamAnim reader reads the target camera before FOV keys");
+  ok &= contains(rnd_camanim_reader_c,
+                 "anim.fov_keys.push_back(key);",
+                 "CamAnim reader preserves each authored FOV key");
+  ok &= contains(rnd_camanim_reader_c,
+                 "anim.keys_owner=canonical_milo_ref(r.symbol());",
+                 "CamAnim reader preserves the source keys owner ref");
+  ok &= contains(rnd_camanim_reader_c,
+                 "if(anim.revision<2){for(auto&key:anim.fov_keys){"
+                 "key.fov=convert_fov_like_miloeditor(key.fov,0.75f);}}",
+                 "CamAnim reader mirrors the legacy source FOV conversion branch");
+  ok &= contains(rnd_camanim_reader_c,
+                 "if(r.pos!=r.size){throwstd::runtime_error("
+                 "\"RndCamAnimsource-shapedreaderdidnotconsumeEOF\");}",
+                 "CamAnim reader consumes the whole asset body");
+  ok &= contains(venue_camera_fov_loader_c,
+                 "if(de.type!=\"CamAnim\"||de.offset+de.size>payload.size())",
+                 "venue camera FOV loader only decodes authored CamAnim entries");
+  ok &= contains(venue_camera_fov_loader_c,
+                 "anim.keys_owner=decoded->keys_owner.empty()?anim.name"
+                 ":decoded->keys_owner;",
+                 "venue camera FOV loader applies the source self-owner fallback");
+  ok &= contains(gameplay_c,
+                 "venue_camera_fov_anims_=load_venue_camera_fov_anims("
+                 "hdr_path_,ark_path_,venue_geom);",
+                 "venue geometry load retains decoded CamAnim FOV tracks");
   ok &= contains(gameplay_c,
                  "anim.end_offset=r.pos;if(r.pos!=r.size)",
                  "source-shaped RndTransAnim reader must consume the whole asset");

@@ -235,6 +235,21 @@ class Gameplay {
     std::string glow_spot_ref;
     std::vector<CameraKey> positions;
   };
+  struct VenueCameraFovAnim {
+    struct FovKey {
+      float fov = 0.0f;
+      float frame = 0.0f;
+    };
+    std::string name;
+    std::string cam;
+    std::string keys_owner;
+    uint16_t revision = 0;
+    uint16_t anim_revision = 0;
+    int anim_rate = 0;
+    bool source_order_decoded = false;
+    std::vector<FovKey> fov_keys;
+    float duration_frames = 0.0f;
+  };
   struct LightingPreset {
     struct TargetState {
       std::string target;
@@ -1023,6 +1038,7 @@ class Gameplay {
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_direct_anim_filters_;
   std::vector<VenueAnimFilter> venue_poll_anim_filters_;
+  std::map<std::string, VenueCameraFovAnim> venue_camera_fov_anims_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
   std::map<std::string, std::vector<std::string>> venue_event_next_links_;
   std::vector<VenueEventTriggerGate> venue_event_trigger_gates_;

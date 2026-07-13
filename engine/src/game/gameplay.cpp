@@ -1596,6 +1596,17 @@ struct DecodedRndTransAnim {
     size_t end_offset = 0;
 };
 
+struct DecodedRndCamAnim {
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    uint16_t anim_revision = 0;
+    int anim_rate = 0;
+    std::string cam;
+    std::string keys_owner;
+    std::vector<Gameplay::VenueCameraFovAnim::FovKey> fov_keys;
+    size_t end_offset = 0;
+};
+
 Gameplay::CameraKey read_rnd_transanim_quat_key_like_miloeditor(MiloCursor& r) {
     Gameplay::CameraKey key;
     for (float& v : key.quat) v = r.f32();
@@ -1611,6 +1622,72 @@ Gameplay::CameraKey read_rnd_transanim_vec3_key_like_miloeditor(MiloCursor& r) {
     key.eye[2] = r.f32();
     key.frame = r.f32();
     return key;
+}
+
+Gameplay::VenueCameraFovAnim::FovKey read_rnd_camanim_fov_key_like_miloeditor(
+    MiloCursor& r) {
+    Gameplay::VenueCameraFovAnim::FovKey key;
+    key.fov = r.f32();
+    key.frame = r.f32();
+    return key;
+}
+
+float convert_fov_like_miloeditor(float fov, float aspect_ratio) {
+    return std::atan(aspect_ratio * std::tan(0.5f * fov)) * 2.0f;
+}
+
+std::optional<DecodedRndCamAnim> read_rnd_camanim_like_miloeditor(
+    const uint8_t* body, size_t size) {
+    try {
+        MiloCursor r{body, size, 0};
+        DecodedRndCamAnim anim;
+        const uint32_t combined_revision = r.u32();
+        anim.revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        anim.alt_revision =
+            static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+        if (anim.revision > 2) {
+            throw std::runtime_error("RndCamAnim revision unsupported");
+        }
+        if (anim.revision != 0) {
+            std::unordered_map<std::string, MiloValue> object_props;
+            read_object_fields_like_miloeditor(r, object_props);
+        }
+        const auto anim_header = read_rnd_animatable_like_miloeditor(r);
+        anim.anim_revision = anim_header.revision;
+        anim.anim_rate = anim_header.rate;
+        anim.cam = canonical_milo_ref(r.symbol());
+        const uint32_t fov_count = r.u32();
+        if (fov_count > 512)
+            throw std::runtime_error("RndCamAnim FOV key count invalid");
+        anim.fov_keys.reserve(fov_count);
+        for (uint32_t i = 0; i < fov_count; ++i) {
+            auto key = read_rnd_camanim_fov_key_like_miloeditor(r);
+            if (!std::isfinite(key.fov) || !std::isfinite(key.frame)) {
+                throw std::runtime_error("RndCamAnim FOV key invalid");
+            }
+            anim.fov_keys.push_back(key);
+        }
+        anim.keys_owner = canonical_milo_ref(r.symbol());
+        if (anim.revision < 2) {
+            for (auto& key : anim.fov_keys) {
+                key.fov = convert_fov_like_miloeditor(key.fov, 0.75f);
+            }
+        }
+        anim.end_offset = r.pos;
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndCamAnim source-shaped reader did not consume EOF");
+        }
+        return anim;
+    } catch (const std::exception& ex) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndCamAnim decode failed: %s\n",
+                         ex.what());
+        }
+        return std::nullopt;
+    }
 }
 
 std::optional<DecodedRndTransAnim> read_rnd_transanim_like_miloeditor(
@@ -9633,6 +9710,72 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] camera anim %s: %s\n", anim_name.c_str(),
                      ex.what());
+    }
+    return out;
+}
+
+std::map<std::string, Gameplay::VenueCameraFovAnim>
+load_venue_camera_fov_anims(const std::string& hdr_path,
+                            const std::string& ark_path,
+                            const std::string& milo_path) {
+    std::map<std::string, Gameplay::VenueCameraFovAnim> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "CamAnim" ||
+                de.offset + de.size > payload.size()) {
+                continue;
+            }
+            const uint8_t* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            const auto decoded = read_rnd_camanim_like_miloeditor(body, size);
+            if (!decoded) continue;
+
+            Gameplay::VenueCameraFovAnim anim;
+            anim.name = canonical_milo_ref(de.name);
+            anim.cam = decoded->cam;
+            anim.keys_owner = decoded->keys_owner.empty() ? anim.name
+                                                          : decoded->keys_owner;
+            anim.revision = decoded->revision;
+            anim.anim_revision = decoded->anim_revision;
+            anim.anim_rate = decoded->anim_rate;
+            anim.source_order_decoded = true;
+            anim.fov_keys = decoded->fov_keys;
+            std::sort(anim.fov_keys.begin(), anim.fov_keys.end(),
+                      [](const auto& a, const auto& b) {
+                          return a.frame < b.frame;
+                      });
+            for (const auto& key : anim.fov_keys) {
+                anim.duration_frames = std::max(anim.duration_frames,
+                                                key.frame);
+            }
+            if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                const auto* first =
+                    anim.fov_keys.empty() ? nullptr : &anim.fov_keys.front();
+                const auto* last =
+                    anim.fov_keys.empty() ? nullptr : &anim.fov_keys.back();
+                std::fprintf(
+                    stderr,
+                    "[world] venue CamAnim %s -> %s source-shaped rev=%u anim_rev=%u rate=%d owner=%s fov_keys=%zu first=%s%.3f@%.3f last=%s%.3f@%.3f\n",
+                    anim.name.c_str(), anim.cam.c_str(), anim.revision,
+                    anim.anim_revision, anim.anim_rate,
+                    anim.keys_owner.c_str(), anim.fov_keys.size(),
+                    first ? "" : "none/", first ? first->fov : 0.0f,
+                    first ? first->frame : 0.0f, last ? "" : "none/",
+                    last ? last->fov : 0.0f,
+                    last ? last->frame : 0.0f);
+            }
+            out[anim.name] = std::move(anim);
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] venue CamAnim load %s: %s\n",
+                     milo_path.c_str(), ex.what());
     }
     return out;
 }
@@ -19975,6 +20118,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_anim_filters_.clear();
     venue_direct_anim_filters_.clear();
     venue_poll_anim_filters_.clear();
+    venue_camera_fov_anims_.clear();
     venue_light_names_.clear();
     venue_environ_names_.clear();
     venue_lights_.clear();
@@ -27560,6 +27704,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_event_particle_systems_ =
                     load_venue_event_particles(hdr_path_, ark_path_,
                                                venue_geom);
+                venue_camera_fov_anims_ =
+                    load_venue_camera_fov_anims(hdr_path_, ark_path_,
+                                                venue_geom);
                 venue_event_filters_ =
                     load_venue_event_filters(hdr_path_, ark_path_, venue_geom);
                 venue_filter_mesh_targets_ =
