@@ -517,16 +517,31 @@ into final transform rows.
      change depth priority, material sorting, or material state from mesh names.
 
 4. Stock evidence still needed after imports:
-   - Re-run the 24 base stock character screenshot/log sheet after each clip or
-     controller import.
-   - Specifically re-check Rock1/Rock2 side profile arm and neck posture,
-     Rockabill2 eyes/teeth/mouth pieces, and visible hair/cloth on characters
-     with decoded `CharHair` rows.
-   - Keep `metal_keyboard` out of broad pose signoff until the source driver
-     runtime is ported, but do not treat it as a sample decode failure. The
-     focused clip audit found its real `keyboard_main` clips under
-     keyboard-specific names; the old `idle_medium_01`/`stand_medium_01` miss is
-     a viewer route issue.
+    - Re-run the 24 base stock character screenshot/log sheet after each clip or
+      controller import.
+    - Specifically re-check Rock1/Rock2 side profile arm and neck posture,
+      Rockabill2 eyes/teeth/mouth pieces, and visible hair/cloth on characters
+      with decoded `CharHair` rows.
+    - Keep `metal_keyboard` out of broad pose signoff until the source driver
+      runtime is ported, but do not treat it as a sample decode failure. The
+      focused clip audit found its real `keyboard_main` clips under
+      keyboard-specific names; the old `idle_medium_01`/`stand_medium_01` miss is
+      a viewer route issue.
+
+## Continuation Audit 2026-07-13
+
+- A focused local pass compared the currently checked ihatecompvir
+  `CharDriverMidi`, `CharCuff`, `Waypoint`, `CharIKScale`, and
+  `CharIKFingers` source files against native helpers and tests.
+- Those files do not expose a new reviewable runtime body that is both relevant
+  to character pose/hair fidelity and absent from native contracts. Their
+  visible source bodies are already mirrored as deterministic helpers, while the
+  remaining live behavior is blocked on declaration-only, incomplete, or
+  dump-only bodies listed above.
+- This checkpoint is a source boundary, not a completion claim. The next
+  implementable character-runtime slice needs either a newer ihatecompvir source
+  body or direct original-game trace evidence for the missing clip/pose or hair
+  writeback paths.
 
 ## Binary Layout Authorities
 

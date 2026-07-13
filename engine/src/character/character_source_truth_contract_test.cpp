@@ -1549,9 +1549,26 @@ int run_contract() {
                  "The project hair rule is two-sided culling only.",
                  "remaining import checklist fences hair material behavior");
   ok &= contains(doc,
-                 "The\n     focused clip audit found its real "
-                 "`keyboard_main` clips under",
+                 "focused clip audit found its real `keyboard_main` clips",
                  "remaining import checklist records metal_keyboard route finding");
+  ok &= contains(doc, "## Continuation Audit 2026-07-13",
+                 "document records current source-boundary audit");
+  ok &= contains(doc,
+                 "A focused local pass compared the currently checked "
+                 "ihatecompvir\n  `CharDriverMidi`, `CharCuff`, `Waypoint`, "
+                 "`CharIKScale`, and",
+                 "continuation audit records sampled source files");
+  ok &= contains(doc,
+                 "Those files do not expose a new reviewable runtime body",
+                 "continuation audit fences absent runtime body");
+  ok &= contains(doc,
+                 "Their\n  visible source bodies are already mirrored as "
+                 "deterministic helpers",
+                 "continuation audit records existing helper coverage");
+  ok &= contains(doc,
+                 "The next\n  implementable character-runtime slice needs "
+                 "either a newer ihatecompvir source",
+                 "continuation audit keeps next work source-backed");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
