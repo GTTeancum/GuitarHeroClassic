@@ -43,9 +43,11 @@ struct PVtx {
 constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_PSIZE | D3DFVF_DIFFUSE;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kSceneFillLightFirstSlot = 0;
-constexpr DWORD kSceneFillLightSlotCount = 2;
-constexpr DWORD kAuthoredLightFirstSlot = 2;
-constexpr DWORD kAuthoredLightSlotCount = 6;
+constexpr DWORD kDefaultSceneFillLightSlotCount = 2;
+constexpr DWORD kSceneFillLightSlotCount = 4;
+constexpr DWORD kAuthoredLightFirstSlot =
+    kSceneFillLightFirstSlot + kSceneFillLightSlotCount;
+constexpr DWORD kAuthoredLightSlotCount = 4;
 constexpr float kMaxAuthoredLightColor = 64.0f;
 constexpr float kApproxDirectionalScale = 0.20f;
 
@@ -240,6 +242,10 @@ void install_default_scene_fill_lights(IDirect3DDevice9* dev) {
   };
   set_dir_light(kSceneFillLightFirstSlot + 0, 0.3f, 0.5f, -0.8f, 0.55f);
   set_dir_light(kSceneFillLightFirstSlot + 1, -0.4f, -0.6f, -0.5f, 0.30f);
+  for (DWORD i = kDefaultSceneFillLightSlotCount;
+       i < kSceneFillLightSlotCount; ++i) {
+    dev->LightEnable(kSceneFillLightFirstSlot + i, FALSE);
+  }
 }
 
 void install_approx_scene_lights(

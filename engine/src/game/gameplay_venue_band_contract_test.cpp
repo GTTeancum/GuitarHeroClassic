@@ -6836,6 +6836,16 @@ int main() {
                  "constexprfloatkApproxDirectionalScale=0.20f;",
                  "approximate Environ lights have an explicit normal-aware scale");
   ok &= contains(renderer_c,
+                 "constexprDWORDkDefaultSceneFillLightSlotCount=2;",
+                 "fallback scene fill remains the two legacy viewer lights");
+  ok &= contains(renderer_c,
+                 "constexprDWORDkSceneFillLightSlotCount=4;",
+                 "source approximate Environ lights are not capped to two band-light slots");
+  ok &= contains(renderer_c,
+                 "constexprDWORDkAuthoredLightFirstSlot="
+                 "kSceneFillLightFirstSlot+kSceneFillLightSlotCount;",
+                 "real Environ lights start after the approximate-light budget");
+  ok &= contains(renderer_c,
                  "install_approx_scene_lights(",
                  "source approximate Environ lights feed a separate normal-aware install path");
   ok &= contains(renderer_c,
