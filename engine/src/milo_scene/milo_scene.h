@@ -1718,6 +1718,23 @@ struct SourceRndMatRefractAccessorPlan {
   bool returns_strength = true;
 };
 
+struct SourceRndMatIsNextPassPlan {
+  std::string candidate;
+  std::vector<std::string> chain;
+  bool walks_next_pass_chain = true;
+  bool found = false;
+};
+
+struct SourceRndMatAllowedNextPassPlan {
+  int32_t mat_count = 0;
+  int32_t allocated_node_count = 0;
+  bool node0_is_null = true;
+  bool preserves_current_next_pass = false;
+  bool excludes_recursive_next_passes = true;
+  int32_t resized_node_count = 0;
+  std::vector<std::string> allowed_order;
+};
+
 SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision);
 SourceRndMatDefaultState source_rndmat_default_state();
 SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state();
@@ -1734,6 +1751,13 @@ SourceRndMatRefractEnabledPlan source_rndmat_get_refract_enabled_plan(
     bool allow_without_current_frame_tex,
     bool has_current_frame_tex);
 SourceRndMatRefractAccessorPlan source_rndmat_refract_accessor_plan();
+SourceRndMatIsNextPassPlan source_rndmat_is_next_pass_plan(
+    const std::vector<std::string>& next_pass_chain,
+    const std::string& candidate);
+SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
+    const std::vector<std::string>& directory_mats,
+    const std::string& current_next_pass,
+    const std::vector<std::string>& recursive_next_passes);
 
 struct Vertex {
   float px, py, pz;          // position

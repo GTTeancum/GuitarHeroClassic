@@ -1554,6 +1554,13 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     either the caller bypasses the current-frame texture check or the renderer
     has a current frame texture. These helpers do not create character, hair,
     or texture-name render overrides.
+  - Shared native `source_rndmat_is_next_pass_plan` and
+    `source_rndmat_allowed_next_pass_plan` record the source next-pass picker:
+    the handler allocates `matcount + 2` nodes, puts null in node zero, preserves
+    the current `NextPass()` at node one when present, then appends directory
+    materials that are not in the source next-pass chain before resizing. This
+    is a material editing/selection contract only; it does not change draw order,
+    depth state, or hair-card rendering.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
   - The source setters directly write members; they do not encode hair/string

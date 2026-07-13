@@ -1622,6 +1622,15 @@ int run_contract() {
                  "These helpers do not create character, hair,\n"
                  "    or texture-name render overrides",
                  "document fences RndMat refract helpers from render overrides");
+  ok &= contains(doc,
+                 "Shared native `source_rndmat_is_next_pass_plan` and",
+                 "document records RndMat next-pass helpers");
+  ok &= contains(doc,
+                 "the handler allocates `matcount + 2` nodes, puts null in node zero",
+                 "document records RndMat allowed-next-pass allocation");
+  ok &= contains(doc,
+                 "This\n    is a material editing/selection contract only; it does not change draw order",
+                 "document fences RndMat next-pass helper from render behavior");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
@@ -3798,6 +3807,26 @@ int run_contract() {
                  "RndTex*RndMat::GetRefractNormalMap(){returnmRefractNormalMap;}"
                  "floatRndMat::GetRefractStrength(){returnmRefractStrength;}",
                  "RB3 RndMat refract accessors return direct members");
+  ok &= contains(rb3_mat_cpp,
+                 "boolRndMat::IsNextPass(RndMat*m){RndMat*m2;while(m2!=NULL){"
+                 "if(m2==m)returntrue;m2=m2->NextPass();}returnfalse;}",
+                 "RB3 RndMat IsNextPass source chain");
+  ok &= contains(rb3_mat_cpp,
+                 "DataNodeRndMat::OnAllowedNextPass(constDataArray*da){"
+                 "intmatcount=0;for(ObjDirItr<RndMat>it(Dir(),true);"
+                 "it!=0;++it){matcount++;}",
+                 "RB3 RndMat allowed-next-pass counts directory mats");
+  ok &= contains(rb3_mat_cpp,
+                 "ptr.Node(0)=DataNode((Hmx::Object*)0);if(NextPass()){"
+                 "thiscount=2;ptr.Node(1)=DataNode(NextPass());}",
+                 "RB3 RndMat allowed-next-pass preserves null and current pass");
+  ok &= contains(rb3_mat_cpp,
+                 "for(ObjDirItr<RndMat>it(Dir(),true);it!=0;++it){"
+                 "if(!IsNextPass(it)){ptr.Node(thiscount++)=DataNode(it);}}",
+                 "RB3 RndMat allowed-next-pass excludes recursive passes");
+  ok &= contains(rb3_mat_cpp,
+                 "ptr->Resize(thiscount);returnDataNode(ptr);}",
+                 "RB3 RndMat allowed-next-pass resizes result");
   ok &= contains(scene_h,
                  "structSourceRndMatLoadPlan{",
                  "shared milo_scene exposes source RndMat load plan");
@@ -3845,6 +3874,15 @@ int run_contract() {
                  "SourceRndMatRefractAccessorPlan"
                  "source_rndmat_refract_accessor_plan();",
                  "shared milo_scene exposes RndMat refract accessor helper");
+  ok &= contains(scene_h,
+                 "structSourceRndMatIsNextPassPlan{std::stringcandidate;",
+                 "shared milo_scene exposes RndMat IsNextPass helper");
+  ok &= contains(scene_h,
+                 "structSourceRndMatAllowedNextPassPlan{int32_tmat_count=0;",
+                 "shared milo_scene exposes RndMat allowed-next-pass helper");
+  ok &= contains(scene_h,
+                 "SourceRndMatAllowedNextPassPlansource_rndmat_allowed_next_pass_plan(",
+                 "shared milo_scene declares RndMat allowed-next-pass helper");
   ok &= contains(scene_h,
                  "std::stringnext_pass;boolintensify=false;"
                  "floatemissive_multiplier=1.0f;",
@@ -3942,6 +3980,21 @@ int run_contract() {
                  "returnSourceRndMatRefractAccessorPlan{};}",
                  "shared RndMat refract accessor helper returns source plan");
   ok &= contains(scene,
+                 "SourceRndMatIsNextPassPlansource_rndmat_is_next_pass_plan(",
+                 "shared milo_scene implements RndMat IsNextPass helper");
+  ok &= contains(scene,
+                 "std::find(next_pass_chain.begin(),next_pass_chain.end(),candidate)",
+                 "shared RndMat IsNextPass helper scans source chain");
+  ok &= contains(scene,
+                 "plan.allocated_node_count=plan.mat_count+2;",
+                 "shared RndMat allowed-next-pass helper mirrors allocation");
+  ok &= contains(scene,
+                 "plan.allowed_order.push_back(\"<null>\");",
+                 "shared RndMat allowed-next-pass helper preserves null row");
+  ok &= contains(scene,
+                 "source_rndmat_is_next_pass_plan(recursive_next_passes,mat);",
+                 "shared RndMat allowed-next-pass helper excludes chain rows");
+  ok &= contains(scene,
                  "plan.reads_alpha_threshold=revision>0x25;",
                  "shared RndMat load plan mirrors alpha-threshold gate");
   ok &= contains(scene,
@@ -4002,6 +4055,12 @@ int run_contract() {
   ok &= contains(scene_test,
                  "source_rndmat_refract_accessor_plan()",
                  "milo_scene test covers RndMat refract accessors");
+  ok &= contains(scene_test,
+                 "source_rndmat_is_next_pass_plan({\"hair_pass1.mat\",",
+                 "milo_scene test covers RndMat IsNextPass helper");
+  ok &= contains(scene_test,
+                 "source_rndmat_allowed_next_pass_plan(",
+                 "milo_scene test covers RndMat allowed-next-pass helper");
   ok &= contains(scene_test,
                  "constSourceRndMatLoadPlanv38_plan=source_rndmat_load_plan(38);",
                  "milo_scene test covers alpha-threshold RndMat source plan");

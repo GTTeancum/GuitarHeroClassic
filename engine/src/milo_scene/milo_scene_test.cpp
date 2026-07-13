@@ -1308,6 +1308,28 @@ void test_mat() {
       source_rndmat_refract_accessor_plan();
   CHECK(refract_accessors.returns_normal_map);
   CHECK(refract_accessors.returns_strength);
+  const SourceRndMatIsNextPassPlan is_next_pass =
+      source_rndmat_is_next_pass_plan({"hair_pass1.mat", "hair_pass2.mat"},
+                                      "hair_pass2.mat");
+  CHECK(is_next_pass.walks_next_pass_chain);
+  CHECK(is_next_pass.found);
+  const SourceRndMatIsNextPassPlan is_not_next_pass =
+      source_rndmat_is_next_pass_plan({"hair_pass1.mat", "hair_pass2.mat"},
+                                      "body.mat");
+  CHECK(!is_not_next_pass.found);
+  const SourceRndMatAllowedNextPassPlan allowed_next_pass =
+      source_rndmat_allowed_next_pass_plan(
+          {"hair_pass1.mat", "hair_pass2.mat", "body.mat"},
+          "hair_pass1.mat", {"hair_pass1.mat", "hair_pass2.mat"});
+  CHECK(allowed_next_pass.mat_count == 3);
+  CHECK(allowed_next_pass.allocated_node_count == 5);
+  CHECK(allowed_next_pass.node0_is_null);
+  CHECK(allowed_next_pass.preserves_current_next_pass);
+  CHECK(allowed_next_pass.excludes_recursive_next_passes);
+  CHECK(allowed_next_pass.resized_node_count == 3);
+  CHECK(allowed_next_pass.allowed_order[0] == "<null>");
+  CHECK(allowed_next_pass.allowed_order[1] == "hair_pass1.mat");
+  CHECK(allowed_next_pass.allowed_order[2] == "body.mat");
   std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),

@@ -2345,6 +2345,42 @@ SourceRndMatRefractAccessorPlan source_rndmat_refract_accessor_plan() {
   return SourceRndMatRefractAccessorPlan{};
 }
 
+SourceRndMatIsNextPassPlan source_rndmat_is_next_pass_plan(
+    const std::vector<std::string>& next_pass_chain,
+    const std::string& candidate) {
+  SourceRndMatIsNextPassPlan plan;
+  plan.candidate = candidate;
+  plan.chain = next_pass_chain;
+  plan.found =
+      std::find(next_pass_chain.begin(), next_pass_chain.end(), candidate) !=
+      next_pass_chain.end();
+  return plan;
+}
+
+SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
+    const std::vector<std::string>& directory_mats,
+    const std::string& current_next_pass,
+    const std::vector<std::string>& recursive_next_passes) {
+  SourceRndMatAllowedNextPassPlan plan;
+  plan.mat_count = static_cast<int32_t>(directory_mats.size());
+  plan.allocated_node_count = plan.mat_count + 2;
+  plan.allowed_order.push_back("<null>");
+  if (!current_next_pass.empty()) {
+    plan.preserves_current_next_pass = true;
+    plan.allowed_order.push_back(current_next_pass);
+  }
+
+  for (const std::string& mat : directory_mats) {
+    const SourceRndMatIsNextPassPlan next_pass =
+        source_rndmat_is_next_pass_plan(recursive_next_passes, mat);
+    if (!next_pass.found) {
+      plan.allowed_order.push_back(mat);
+    }
+  }
+  plan.resized_node_count = static_cast<int32_t>(plan.allowed_order.size());
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
