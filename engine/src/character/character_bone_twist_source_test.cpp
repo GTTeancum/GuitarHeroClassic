@@ -28,10 +28,25 @@ bool expect_bool(bool got, bool want, const char* label) {
   return false;
 }
 
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
   using ghogx::character::CharBoneTwist;
+  using ghogx::character::SourceCharBoneTwistPollDeps;
+  using ghogx::character::source_char_bone_twist_poll_deps;
   using ghogx::character::source_char_bone_twist_poll_world;
   using ghogx::character::source_char_bone_twist_save_plan;
   using ghogx::character::source_char_bone_twist_weight;
@@ -58,6 +73,26 @@ int main() {
   bool ok = true;
   ok &= expect_bool(source_char_bone_twist_save_plan().save_id == 0x59,
                     true, "CharBoneTwist save id");
+  SourceCharBoneTwistPollDeps deps;
+  source_char_bone_twist_poll_deps(deps, twist.bone, {});
+  ok &= expect_size(deps.change.size(), 1,
+                    "PollDeps publishes bone change without targets");
+  ok &= expect_string(deps.change[0], twist.bone,
+                      "PollDeps driven bone change row");
+  ok &= expect_size(deps.changed_by.size(), 0,
+                    "PollDeps empty target dependency count");
+  deps = SourceCharBoneTwistPollDeps{};
+  source_char_bone_twist_poll_deps(deps, twist.bone, twist.targets);
+  ok &= expect_size(deps.change.size(), 1,
+                    "PollDeps resolved change count");
+  ok &= expect_string(deps.change[0], twist.bone,
+                      "PollDeps resolved bone change row");
+  ok &= expect_size(deps.changed_by.size(), 2,
+                    "PollDeps target dependency count");
+  ok &= expect_string(deps.changed_by[0], "target_a.mesh",
+                      "PollDeps first target");
+  ok &= expect_string(deps.changed_by[1], "target_b.mesh",
+                      "PollDeps second target");
   ok &= near(source_char_bone_twist_weight(twist, weights), 0.5f,
              "local twist weight");
   twist.weight_owner = "owner.weight";

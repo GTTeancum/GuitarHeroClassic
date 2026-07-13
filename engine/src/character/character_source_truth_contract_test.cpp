@@ -16913,6 +16913,13 @@ int run_contract() {
                  "Normalize(tf48.m.z,tf48.m.z);Scale(tf48.m.z,Length(tf48.m.x),tf48.m.z);"
                  "mBone->SetWorldXfm(tf48);",
                  "CharBoneTwist source poll interpolates Y and rebuilds Z");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "voidCharBoneTwist::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){change.push_back("
+                 "mBone);for(ObjPtrList<RndTransformable,classObjectDir>::"
+                 "iteratorit=mTargets.begin();it!=mTargets.end();++it){"
+                 "changedBy.push_back(*it);}}",
+                 "CharBoneTwist source PollDeps dependency publication");
   ok &= contains(char_mesh_h,
                  "structCharBoneTwist{std::stringname;int32_tversion=0;"
                  "int32_tweightable_version=0;floatweight=1.0f;",
@@ -16955,6 +16962,15 @@ int run_contract() {
                  "boolsource_char_bone_twist_poll_world("
                  "constCharBoneTwist&twist,boolhas_bone,",
                  "native header exposes CharBoneTwist Poll helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneTwistPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native header exposes CharBoneTwist PollDeps state");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bone_twist_poll_deps("
+                 "SourceCharBoneTwistPollDeps&deps,conststd::string&bone,"
+                 "conststd::vector<std::string>&targets);",
+                 "native header exposes CharBoneTwist PollDeps helper");
   ok &= contains(char_clip,
                  "if(!twist.weight_owner.empty()){constautoowner="
                  "weights_by_name.find(twist.weight_owner);"
@@ -16976,8 +16992,16 @@ int run_contract() {
                  "vnorm(vcross(x,y),old_z),vlen(x));",
                  "native CharBoneTwist helper interpolates Y and rebuilds Z");
   ok &= contains(char_clip,
+                 "deps.change.push_back(bone);for(conststd::string&target:"
+                 "targets){deps.changed_by.push_back(target);}",
+                 "native CharBoneTwist helper mirrors PollDeps publication");
+  ok &= contains(char_clip,
                  "\"[chargraph]boneTwist%sversion=%dbone=%stargets=%zu",
                  "character graph logs CharBoneTwist rows");
+  ok &= contains(bone_twist_source_test,
+                 "source_char_bone_twist_poll_deps(deps,twist.bone,"
+                 "twist.targets);",
+                 "focused CharBoneTwist source test covers PollDeps helper");
   ok &= contains(bone_twist_source_test,
                  "source_char_bone_twist_poll_world(",
                  "focused CharBoneTwist source test covers Poll helper");
@@ -16990,6 +17014,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharBoneTwist::Poll` returns when the driven bone is missing",
                  "document records CharBoneTwist Poll boundary");
+  ok &= contains(doc,
+                 "`CharBoneTwist::PollDeps` publishes the driven bone",
+                 "document records CharBoneTwist PollDeps source behavior");
   ok &= contains(doc,
                  "`source_char_bone_twist_weight` and",
                  "document records native CharBoneTwist helper ports");

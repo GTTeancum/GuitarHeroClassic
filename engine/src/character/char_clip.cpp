@@ -5899,6 +5899,16 @@ SourceCharBoneTwistSavePlan source_char_bone_twist_save_plan() {
   return SourceCharBoneTwistSavePlan{};
 }
 
+void source_char_bone_twist_poll_deps(
+    SourceCharBoneTwistPollDeps& deps,
+    const std::string& bone,
+    const std::vector<std::string>& targets) {
+  deps.change.push_back(bone);
+  for (const std::string& target : targets) {
+    deps.changed_by.push_back(target);
+  }
+}
+
 float source_char_bone_twist_weight(
     const CharBoneTwist& twist,
     const std::unordered_map<std::string, float>& weights_by_name) {

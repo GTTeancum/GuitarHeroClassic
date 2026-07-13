@@ -3310,6 +3310,11 @@ struct SourceCharBoneTwistSavePlan {
   int32_t save_id = 0x59;
 };
 
+struct SourceCharBoneTwistPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 struct SourceCharForeTwistSavePlan {
   int32_t save_id = 0x79;
 };
@@ -3335,9 +3340,13 @@ bool source_char_bone_offset_poll_world(
 void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
                                             milo_scene::Xfm& dest_local);
 
-// Source-backed CharBoneTwist::Poll helpers. Returns false when the source
-// bone or target list would be missing.
+// Source-backed CharBoneTwist::Poll/PollDeps helpers. Poll returns false when
+// the source bone or target list would be missing.
 SourceCharBoneTwistSavePlan source_char_bone_twist_save_plan();
+void source_char_bone_twist_poll_deps(
+    SourceCharBoneTwistPollDeps& deps,
+    const std::string& bone,
+    const std::vector<std::string>& targets);
 float source_char_bone_twist_weight(
     const CharBoneTwist& twist,
     const std::unordered_map<std::string, float>& weights_by_name);

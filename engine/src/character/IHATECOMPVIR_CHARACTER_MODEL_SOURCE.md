@@ -243,7 +243,7 @@ character model playback.
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Waypoint clip/path diagnostics | `rb3-latest` `Waypoint.cpp` / `Waypoint.h` | Native helper ports source defaults/load/copy, prop sync, handlers, and `ShapeDeltaBox` / `ShapeDeltaAng` / `Constrain` math for diagnostics; no live camera/path behavior is invented. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
-| Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
+| Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve and `PollDeps` order without adding an unproven frame-cadence write. |
 | Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields and now expose source Enter/PollDeps/copy/handler/prop-sync plans while fencing the absent `Poll` / `NewSpot` bodies; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults, left/right finger transform names, setup completeness, visible SetFinger/ReleaseFinger state writes, load gates, and copy flow without promoting the incomplete `Poll` / `MeasureLengths` path. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
@@ -2777,13 +2777,16 @@ note, and all report `unreadBytes=0`.
     interpolates the driven bone's Y row toward it by `Weight()`, normalizes Y,
     rebuilds Z from `Cross(X, Y)`, scales Z by the original X-row length, and
     writes the driven bone through `SetWorldXfm`.
+  - `CharBoneTwist::PollDeps` publishes the driven bone to the `change` list,
+    then publishes each target transform to `changedBy` in source list order.
   - Native GHOGX now decodes and audits `CharBoneTwist` rows, including the
     source `CharWeightable` revision, weight, optional weight owner, driven
     bone, and target list. `source_char_bone_twist_weight` and
     `source_char_bone_twist_poll_world` port the source weight lookup and world
-    row solve as deterministic helpers. Native does not add a live frame-cadence
-    write until stock data or source poll ordering proves where that controller
-    should run.
+    row solve as deterministic helpers. `source_char_bone_twist_poll_deps`
+    mirrors the source dependency publication. Native does not add a live
+    frame-cadence write until stock data or source poll ordering proves where
+    that controller should run.
 
 ## IK Controller Authorities
 
