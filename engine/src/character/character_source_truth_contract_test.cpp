@@ -9667,6 +9667,16 @@ int run_contract() {
   ok &= contains(char_collide_source_test,
                  "source_char_collide_clear_mesh(mesh_clear);",
                  "CharCollide source test covers ClearMesh helper");
+  ok &= contains(
+      char_collide_source_test,
+      "source_char_collide_copy_original_to_cur(copied_collide);",
+      "CharCollide source test covers CopyOriginalToCur helper");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_sync_shape(synced_collide);",
+                 "CharCollide source test covers SyncShape helper");
+  ok &= contains(char_collide_source_test,
+                 "CHECK(near(synced_collide.cur_length[0],9.0f));",
+                 "CharCollide source test preserves SyncShape copy semantics");
   ok &= contains(char_collide_source_test,
                  "source_char_collide_copy_plan()",
                  "CharCollide source test covers copy-member plan");

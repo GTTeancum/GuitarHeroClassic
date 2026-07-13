@@ -81,6 +81,32 @@ int main() {
   ghogx::character::source_char_collide_clear_mesh(mesh_clear);
   CHECK(mesh_clear.mesh.empty());
 
+  ghogx::character::CharCollide copied_collide;
+  copied_collide.orig_radius[0] = 2.0f;
+  copied_collide.orig_radius[1] = 3.0f;
+  copied_collide.orig_length[0] = 4.0f;
+  copied_collide.orig_length[1] = 5.0f;
+  copied_collide.cur_radius[0] = 20.0f;
+  copied_collide.cur_radius[1] = 30.0f;
+  copied_collide.cur_length[0] = 40.0f;
+  copied_collide.cur_length[1] = 50.0f;
+  ghogx::character::source_char_collide_copy_original_to_cur(copied_collide);
+  CHECK(near(copied_collide.cur_radius[0], 2.0f));
+  CHECK(near(copied_collide.cur_radius[1], 3.0f));
+  CHECK(near(copied_collide.cur_length[0], 4.0f));
+  CHECK(near(copied_collide.cur_length[1], 5.0f));
+
+  ghogx::character::CharCollide synced_collide = copied_collide;
+  synced_collide.orig_length[0] = 9.0f;
+  synced_collide.orig_length[1] = 3.0f;
+  synced_collide.cur_length[0] = 8.0f;
+  synced_collide.cur_length[1] = 1.0f;
+  ghogx::character::source_char_collide_sync_shape(synced_collide);
+  CHECK(near(synced_collide.cur_radius[0], 2.0f));
+  CHECK(near(synced_collide.cur_radius[1], 3.0f));
+  CHECK(near(synced_collide.cur_length[0], 9.0f));
+  CHECK(near(synced_collide.cur_length[1], 3.0f));
+
   const ghogx::character::SourceCharCollideCopyPlan copy_plan =
       ghogx::character::source_char_collide_copy_plan();
   CHECK(has(copy_plan.copied_superclasses, "Hmx::Object"));
