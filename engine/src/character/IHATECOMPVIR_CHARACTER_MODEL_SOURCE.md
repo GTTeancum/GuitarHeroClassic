@@ -5458,12 +5458,17 @@ frame or a live `CharClipPlayer`, but both callers use the same helper to turn
 IK interpretation path.
 
 2026-07-14 shared clip-layer cleanup: the diagnostic `--char` viewer and the
-in-game performer update now both feed `CharacterPosePlayerLayerSources` into `append_character_pose_player_layers` before calling `apply_clip_layer_stack`; the
-fixed-frame viewer route uses `CharacterPoseFrameLayerSources` through
-`append_character_pose_frame_layers`. This ports no new pose math; it removes
-another viewer/gameplay split in how body/hand clip rows become shared native
-layer mixer input while the `CharClipSamples` / `CharBonesSamples` /
-`CharBones` / `PoseMeshes` publisher remains the source-backed target.
+in-game performer update now both feed `CharacterPosePlayerLayerSources` into
+`append_character_pose_player_layers`; the fixed-frame viewer route uses
+`CharacterPoseFrameLayerSources` through `append_character_pose_frame_layers`.
+The viewer now hands that layer stack, source `main.drv` driver flag weights,
+fallback IK weights, and optional fret target data to
+`apply_character_pose_controller_frame`, while gameplay uses the same helper
+for the controller/IK/driver phase after its post-clip diagnostic dump. This
+ports no new pose math; it removes another viewer/gameplay split in how
+body/hand clip rows and source controller inputs become shared native frame
+state while the `CharClipSamples` / `CharBonesSamples` / `CharBones` /
+`PoseMeshes` publisher remains the source-backed target.
 
 2026-07-14 in-game transient stack correction: ihatecompvir's
 `CharDriver::Play` constructs a new `CharClipDriver` with the previous

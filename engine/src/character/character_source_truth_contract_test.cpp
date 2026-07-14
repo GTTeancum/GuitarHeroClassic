@@ -32933,6 +32933,15 @@ int run_contract() {
                  "floatfret_weight=1.0f;};",
                  "native character API exposes shared performer frame rows");
   ok &= contains(char_clip_h,
+                 "structCharacterPoseControllerFrameSources{"
+                 "constClipChannelLayerStack*pose_stack=nullptr;"
+                 "constSourceCharMainDriverHandWeights*driver_weights=nullptr;",
+                 "native character API exposes shared pose/controller rows");
+  ok &= contains(char_clip_h,
+                 "std::vector<CharacterRuntimeIkWeight>"
+                 "fallback_ik_weights;",
+                 "native shared pose/controller rows carry fallback IK weights");
+  ok &= contains(char_clip_h,
                  "boolappend_clip_player_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipPlayerLayerSource>&sources);",
                  "native character API exposes shared player layer batch");
@@ -32950,6 +32959,11 @@ int run_contract() {
                  "ClipChannelLayerStack&stack,constCharacterPoseFrame"
                  "LayerSources&sources);",
                  "native character API exposes shared performer frame helper");
+  ok &= contains(char_clip_h,
+                 "CharacterPoseControllerFrameResult"
+                 "apply_character_pose_controller_frame(Character&character,"
+                 "constCharacterPoseControllerFrameSources&sources);",
+                 "native character API exposes shared pose/controller helper");
   ok &= contains(char_clip,
                  "voidapply_clip_layer_stack(constClipChannelLayerStack&stack,"
                  "Character&character){if(stack.layers.empty())return;"
@@ -32974,6 +32988,11 @@ int run_contract() {
                  "ClipChannelLayerStack&stack,constCharacterPoseFrame"
                  "LayerSources&sources)",
                  "native shared performer frame layer implementation");
+  ok &= contains(char_clip,
+                 "CharacterPoseControllerFrameResult"
+                 "apply_character_pose_controller_frame(Character&character,"
+                 "constCharacterPoseControllerFrameSources&sources)",
+                 "native shared pose/controller frame implementation");
   ok &= contains(app_main,
                  "ghogx::character::ClipChannelLayerStackpose_stack;",
                  "viewer builds a shared clip layer stack");
@@ -32996,9 +33015,13 @@ int run_contract() {
                  "frame_layers)",
                  "viewer appends fixed frames through shared performer helper");
   ok &= contains(app_main,
-                 "ghogx::character::apply_clip_layer_stack(pose_stack,"
-                 "renderer.character())",
-                 "viewer applies shared clip layer stack");
+                 "ghogx::character::CharacterPoseControllerFrameSources"
+                 "controller_sources;",
+                 "viewer builds shared pose/controller rows");
+  ok &= contains(app_main,
+                 "ghogx::character::apply_character_pose_controller_frame("
+                 "renderer.character(),controller_sources)",
+                 "viewer applies shared pose/controller frame helper");
   ok &= missing(app_main,
                 "main_player.apply(renderer.character())",
                 "viewer must not bypass shared layer stack with main player");
@@ -33024,11 +33047,21 @@ int run_contract() {
                  "ghogx::character::apply_clip_layer_stack(pose_stack,"
                  "character)",
                  "gameplay applies shared clip layer stack");
+  ok &= contains(gameplay,
+                 "ghogx::character::CharacterPoseControllerFrameSources"
+                 "controller_sources;",
+                 "gameplay builds shared pose/controller rows");
+  ok &= contains(gameplay,
+                 "ghogx::character::apply_character_pose_controller_frame("
+                 "character,controller_sources)",
+                 "gameplay applies shared pose/controller frame helper");
   ok &= contains(doc,
-                 "both feed `CharacterPosePlayerLayerSources` into "
-                 "`append_character_pose_player_layers` before calling "
-                 "`apply_clip_layer_stack`",
+                 "in-game performer update now both feed "
+                 "`CharacterPosePlayerLayerSources` into",
                  "document records shared clip layer cleanup");
+  ok &= contains(doc,
+                 "`apply_character_pose_controller_frame`",
+                 "document records shared pose/controller cleanup");
 
   if (!ok) {
     std::cerr

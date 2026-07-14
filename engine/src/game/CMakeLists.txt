@@ -47,7 +47,7 @@ target_link_libraries(ghogx_game PUBLIC
 target_link_libraries(ghogx_game PRIVATE xaudio2)
 
 if(MSVC)
-    target_compile_options(ghogx_game PRIVATE /W4)
+    target_compile_options(ghogx_game PRIVATE /W4 /bigobj)
 else()
     target_compile_options(ghogx_game PRIVATE -Wall -Wextra)
 endif()

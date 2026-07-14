@@ -10413,6 +10413,46 @@ void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
   apply_clip_channel_layers(stack.layers, character, stack.relative);
 }
 
+CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
+    Character& character,
+    const CharacterPoseControllerFrameSources& sources) {
+  CharacterPoseControllerFrameResult result;
+
+  clear_runtime_trans_worlds(character);
+  if (sources.pose_stack != nullptr && !sources.pose_stack->layers.empty()) {
+    apply_clip_layer_stack(*sources.pose_stack, character);
+    result.applied_clip_layers = true;
+  }
+
+  if (!sources.controllers_enabled) return result;
+
+  clear_runtime_ik_weights(character);
+  if (sources.driver_weights != nullptr) {
+    for (const auto& flag : sources.driver_weights->driver_flags) {
+      set_runtime_driver_evaluate_flags(character, flag.driver, flag.flags,
+                                        flag.weight);
+      result.fed_driver_flags = result.fed_driver_flags ||
+                                (!flag.driver.empty() && flag.flags != 0);
+    }
+  }
+
+  for (const auto& fallback : sources.fallback_ik_weights) {
+    if (fallback.weight_prop.empty()) continue;
+    set_runtime_ik_weight(character, fallback.weight_prop, fallback.weight);
+    ++result.fallback_ik_weights;
+  }
+
+  if (sources.midi_fret_target_enabled && !sources.midi_fret_target.empty()) {
+    apply_ik_midi_fret_target(character, sources.midi_fret_target,
+                              sources.time_seconds);
+    result.applied_midi_fret_target = true;
+  }
+
+  apply_character_controllers(character, sources.time_seconds);
+  result.applied_controllers = true;
+  return result;
+}
+
 void CharClipPlayer::clear() {
   layers_.clear();
 }

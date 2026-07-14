@@ -1494,11 +1494,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
         renderer.character(), main_player.active() ? &main_player : nullptr,
         left_hand_weight, right_hand_weight);
   };
-  auto feed_viewer_main_driver_flags =
+  auto log_viewer_main_driver_flags =
       [&](const ghogx::character::SourceCharMainDriverHandWeights& weights) {
     for (const auto& flag : weights.driver_flags) {
-      ghogx::character::set_runtime_driver_evaluate_flags(
-          renderer.character(), flag.driver, flag.flags, flag.weight);
       if (controller_audit_env_enabled()) {
         std::fprintf(stderr,
                      "[driver-flags] %s flags=0x%08x weight=%.5f "
@@ -1537,7 +1535,6 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     if (cam.distance < 8.0f) cam.distance = 8.0f;
 
     renderer.update(dt);
-    ghogx::character::clear_runtime_trans_worlds(renderer.character());
     // Real-time clip playback through a viewer-side CharDriver play stack.
     ghogx::character::SourceCharMainDriverHandWeights frame_hand_weights;
     ghogx::character::ClipChannelLayerStack pose_stack;
@@ -1572,34 +1569,39 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       ghogx::character::append_character_pose_player_layers(pose_stack,
                                                             player_layers);
     }
-    ghogx::character::apply_clip_layer_stack(pose_stack,
-                                             renderer.character());
     // Apply decoded controller data after sampled clip layers. Do not apply
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
-    ghogx::character::clear_runtime_ik_weights(renderer.character());
+    std::optional<ghogx::character::SourceCharMainDriverHandWeights>
+        controller_hand_weights;
+    std::vector<ghogx::character::CharacterRuntimeIkWeight>
+        fallback_ik_weights;
     if (character_controllers) {
-      const auto controller_hand_weights =
-          evaluate_viewer_main_driver_hand_weights();
-      feed_viewer_main_driver_flags(controller_hand_weights);
+      controller_hand_weights = evaluate_viewer_main_driver_hand_weights();
+      log_viewer_main_driver_flags(*controller_hand_weights);
       if (viewer_hand_ik_weights_active) {
         if (right_hand_weight_override ||
-            (strum_clip.loaded && !controller_hand_weights.right_source)) {
-          ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                  "right.weight",
-                                                  frame_hand_weights.right);
+            (strum_clip.loaded && !controller_hand_weights->right_source)) {
+          fallback_ik_weights.push_back({"right.weight",
+                                         frame_hand_weights.right});
         }
         if (left_hand_weight_override ||
-            (fret_clip.loaded && !controller_hand_weights.left_source)) {
-          ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                  "left.weight",
-                                                  frame_hand_weights.left);
+            (fret_clip.loaded && !controller_hand_weights->left_source)) {
+          fallback_ik_weights.push_back({"left.weight",
+                                         frame_hand_weights.left});
         }
       }
-      ghogx::character::apply_character_controllers(
-          renderer.character(), static_cast<float>(pose_time));
     }
+    ghogx::character::CharacterPoseControllerFrameSources controller_sources;
+    controller_sources.pose_stack = &pose_stack;
+    controller_sources.driver_weights =
+        controller_hand_weights ? &*controller_hand_weights : nullptr;
+    controller_sources.fallback_ik_weights = std::move(fallback_ik_weights);
+    controller_sources.time_seconds = static_cast<float>(pose_time);
+    controller_sources.controllers_enabled = character_controllers;
+    ghogx::character::apply_character_pose_controller_frame(
+        renderer.character(), controller_sources);
 
     if (const auto viseme_frame = env_int("GHOGX_FACEFX_VISEME_FRAME")) {
       const float viseme_weight =

@@ -20348,15 +20348,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     guitar_strings_world ? &*guitar_strings_world : nullptr,
                     active_fret_spot);
             }
-            ghogx::character::clear_runtime_ik_weights(character);
-            bool source_driver_flags_fed = false;
+            std::vector<ghogx::character::CharacterRuntimeIkWeight>
+                controller_fallback_ik_weights;
             if (hand_driver_active && source_hand_driver_weights) {
                 const auto* main_driver_player = active_main_driver_player();
                 for (const auto& flag :
                      source_hand_driver_weights->driver_flags) {
-                    ghogx::character::set_runtime_driver_evaluate_flags(
-                        character, flag.driver, flag.flags, flag.weight);
-                    source_driver_flags_fed = true;
                     if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
                         const auto* current_clip =
                             main_driver_player
@@ -20373,7 +20370,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
             }
-            if (hand_driver_active && !source_driver_flags_fed) {
+            if (hand_driver_active &&
+                (!source_hand_driver_weights ||
+                 source_hand_driver_weights->driver_flags.empty())) {
                 // Accepted GH2DXu/GHDX autoplay sampling keeps
                 // left.weight/right.weight at ~1.0 while the hand-driver
                 // scheduler blends clips. The scheduler blends finger rows; it
@@ -20397,11 +20396,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         env_float("GHOGX_RIGHT_WEIGHT", right_weight), 0.0f,
                         1.0f);
                 }
-                ghogx::character::set_runtime_ik_weight(
-                    character, "left.weight", left_weight);
-                ghogx::character::set_runtime_ik_weight(
-                    character, "right.weight", right_weight);
+                controller_fallback_ik_weights.push_back(
+                    {"left.weight", left_weight});
+                controller_fallback_ik_weights.push_back(
+                    {"right.weight", right_weight});
             }
+            std::string controller_midi_fret_target;
+            bool controller_midi_fret_target_enabled = false;
             if (hand_driver_active && perf_fret_pos.active) {
                 if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
                     std::fprintf(stderr,
@@ -20410,12 +20411,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  perf_fret_pos.spot_name.c_str(),
                                  perf_fret_pos.spot_index);
                 }
-                ghogx::character::apply_ik_midi_fret_target(
-                    character, perf_fret_pos.spot_name,
-                    static_cast<float>(song_time_));
+                controller_midi_fret_target = perf_fret_pos.spot_name;
+                controller_midi_fret_target_enabled = true;
             }
-            ghogx::character::apply_character_controllers(
-                character, static_cast<float>(song_time_));
+            ghogx::character::CharacterPoseControllerFrameSources
+                controller_sources;
+            controller_sources.driver_weights =
+                source_hand_driver_weights ? &*source_hand_driver_weights
+                                           : nullptr;
+            controller_sources.fallback_ik_weights =
+                std::move(controller_fallback_ik_weights);
+            controller_sources.midi_fret_target =
+                controller_midi_fret_target;
+            controller_sources.time_seconds =
+                static_cast<float>(song_time_);
+            controller_sources.midi_fret_target_enabled =
+                controller_midi_fret_target_enabled;
+            ghogx::character::apply_character_pose_controller_frame(
+                character, controller_sources);
             if (hand_driver_active) {
                 const uint32_t debug_hand_mask =
                     perf_anim_note_cue.active

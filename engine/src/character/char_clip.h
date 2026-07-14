@@ -1131,6 +1131,31 @@ struct CharacterPoseFrameLayerSources {
   float fret_weight = 1.0f;
 };
 
+struct CharacterRuntimeIkWeight {
+  std::string weight_prop;
+  float weight = 0.0f;
+};
+
+struct SourceCharMainDriverHandWeights;
+
+struct CharacterPoseControllerFrameSources {
+  const ClipChannelLayerStack* pose_stack = nullptr;
+  const SourceCharMainDriverHandWeights* driver_weights = nullptr;
+  std::vector<CharacterRuntimeIkWeight> fallback_ik_weights;
+  std::string midi_fret_target;
+  float time_seconds = 0.0f;
+  bool controllers_enabled = true;
+  bool midi_fret_target_enabled = false;
+};
+
+struct CharacterPoseControllerFrameResult {
+  bool applied_clip_layers = false;
+  bool fed_driver_flags = false;
+  size_t fallback_ik_weights = 0;
+  bool applied_midi_fret_target = false;
+  bool applied_controllers = false;
+};
+
 bool append_clip_player_layer(ClipChannelLayerStack& stack,
                               const CharClipPlayer& player,
                               float weight = 1.0f,
@@ -1152,6 +1177,9 @@ bool append_character_pose_frame_layers(
     const CharacterPoseFrameLayerSources& sources);
 void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
                             Character& character);
+CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
+    Character& character,
+    const CharacterPoseControllerFrameSources& sources);
 
 // Load all frames of a named CharClipSamples entry from the PS2 ARK.
 // Returns a CharClip with frames.empty() on failure.

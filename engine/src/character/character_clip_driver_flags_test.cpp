@@ -1299,6 +1299,80 @@ bool expect_clip_driver_helpers() {
   ghogx::character::ClipChannelLayerStack empty_layer_stack;
   ghogx::character::apply_clip_layer_stack(empty_layer_stack, empty_character);
 
+  ghogx::character::Character controller_character;
+  controller_character.runtime_world_overrides["stale.mesh"] =
+      {1.0f, 0.0f, 0.0f, 0.0f,
+       0.0f, 1.0f, 0.0f, 0.0f,
+       0.0f, 0.0f, 1.0f, 0.0f,
+       4.0f, 5.0f, 6.0f, 1.0f};
+  controller_character.runtime_weight_props["old.weight"] = 0.9f;
+  controller_character.runtime_driver_flag_weights["old.drv"][0x10u] = 0.9f;
+  ghogx::character::SourceCharMainDriverHandWeights driver_weights;
+  driver_weights.driver_flags.push_back({"main.drv", 0x00400000u, 0.25f});
+  ghogx::character::CharacterPoseControllerFrameSources controller_sources;
+  controller_sources.pose_stack = &performer_frame_stack;
+  controller_sources.driver_weights = &driver_weights;
+  controller_sources.fallback_ik_weights = {
+      {"left.weight", 0.60f},
+      {"", 0.75f},
+      {"right.weight", 1.50f}};
+  controller_sources.time_seconds = 1.25f;
+  const auto controller_result =
+      ghogx::character::apply_character_pose_controller_frame(
+          controller_character, controller_sources);
+  const auto main_driver =
+      controller_character.runtime_driver_flag_weights.find("main.drv");
+  const auto old_driver =
+      controller_character.runtime_driver_flag_weights.find("old.drv");
+  const auto left_weight =
+      controller_character.runtime_weight_props.find("left.weight");
+  const auto right_weight =
+      controller_character.runtime_weight_props.find("right.weight");
+  const auto old_weight =
+      controller_character.runtime_weight_props.find("old.weight");
+  if (!controller_result.applied_clip_layers ||
+      !controller_result.fed_driver_flags ||
+      controller_result.fallback_ik_weights != 2 ||
+      controller_result.applied_midi_fret_target ||
+      !controller_result.applied_controllers ||
+      !controller_character.runtime_world_overrides.empty() ||
+      old_driver != controller_character.runtime_driver_flag_weights.end() ||
+      main_driver == controller_character.runtime_driver_flag_weights.end() ||
+      main_driver->second.find(0x00400000u) == main_driver->second.end() ||
+      !nearf(main_driver->second[0x00400000u], 0.25f) ||
+      old_weight != controller_character.runtime_weight_props.end() ||
+      left_weight == controller_character.runtime_weight_props.end() ||
+      !nearf(left_weight->second, 0.60f) ||
+      right_weight == controller_character.runtime_weight_props.end() ||
+      !nearf(right_weight->second, 1.0f)) {
+    std::cerr << "shared pose controller frame helper mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::Character disabled_controller_character;
+  disabled_controller_character.runtime_world_overrides["stale.mesh"] =
+      {1.0f, 0.0f, 0.0f, 0.0f,
+       0.0f, 1.0f, 0.0f, 0.0f,
+       0.0f, 0.0f, 1.0f, 0.0f,
+       1.0f, 2.0f, 3.0f, 1.0f};
+  disabled_controller_character.runtime_weight_props["keep.weight"] = 0.4f;
+  ghogx::character::CharacterPoseControllerFrameSources disabled_sources;
+  disabled_sources.controllers_enabled = false;
+  const auto disabled_result =
+      ghogx::character::apply_character_pose_controller_frame(
+          disabled_controller_character, disabled_sources);
+  if (disabled_result.applied_clip_layers ||
+      disabled_result.fed_driver_flags ||
+      disabled_result.fallback_ik_weights != 0 ||
+      disabled_result.applied_midi_fret_target ||
+      disabled_result.applied_controllers ||
+      !disabled_controller_character.runtime_world_overrides.empty() ||
+      disabled_controller_character.runtime_weight_props.find("keep.weight") ==
+          disabled_controller_character.runtime_weight_props.end()) {
+    std::cerr << "disabled shared pose controller frame helper mismatch\n";
+    ok = false;
+  }
+
   ok &= expect_indices(
       ghogx::character::source_char_clip_driver_delete_stack_order(3),
       {2, 1, 0}, "DeleteStack tail-first order");
