@@ -4992,6 +4992,12 @@ note, and all report `unreadBytes=0`.
   function maps: they identify `FrameToSample`, `ScaleAdd`, `RotateBy`,
   `RotateTo`, `FacingSet`, `CharClipDriver::Evaluate`, and the driver-to-bone
   application flow.
+- A 2026-07-14 recheck of the committed split dump files
+  `CharBonesMeshes.cpp`, `CharBonesSamples.cpp`, `CharClipDriver.cpp`, and
+  `CharDriver.cpp` confirms the animation-related rows are ranges, locals, and
+  reference maps. They are not reviewable C++ statement bodies, so they are not
+  enough by themselves to directly replace Rock1/Rock2 twist pose playback,
+  hand release/hold behavior, or broad live-bone publishing.
 - A 2026-07-14 read-only check of ihatecompvir's current RB3 symbol map at
   `rb3/config/SZBE69_B8/symbols.txt` gives exact current runtime addresses and
   sizes for the same unresolved pose surface. Native

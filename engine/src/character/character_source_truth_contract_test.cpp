@@ -25914,6 +25914,13 @@ int run_contract() {
                  "`CharClipDriver::Evaluate` at `0x806A02F0` size `0x560`",
                  "document records current rb3 CharClipDriver Evaluate symbol");
   ok &= contains(doc,
+                 "confirms the animation-related rows are ranges, locals, and\n"
+                 "  reference maps",
+                 "document records split dump animation evidence boundary");
+  ok &= contains(doc,
+                 "not\n  enough by themselves to directly replace Rock1/Rock2 twist pose playback",
+                 "document fences split dump from Rock twist replacement");
+  ok &= contains(doc,
                  "symbol\n  evidence only and keeps `safe_to_import_runtime=false`",
                  "document fences current rb3 pose runtime symbol evidence");
   ok &= contains(doc,
