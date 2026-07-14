@@ -1605,6 +1605,21 @@ struct DecodedCamShot {
     std::string glow_spot;
 };
 
+struct WorldDirCamShotOverrides {
+    uint16_t revision = 0;
+    bool decoded = false;
+    std::vector<std::string> refs;
+};
+
+WorldDirCamShotOverrides decode_worlddir_camshot_overrides(
+    const gh::milo::Directory& dir, const std::vector<uint8_t>& payload,
+    std::string_view milo_path);
+std::unordered_set<std::string> worlddir_camshot_override_set(
+    const WorldDirCamShotOverrides& overrides);
+void apply_worlddir_camshot_override(
+    DecodedCamShot& shot, std::string_view shot_name,
+    const std::unordered_set<std::string>& overrides);
+
 struct DecodedRndTransAnim {
     uint16_t revision = 0;
     uint16_t alt_revision = 0;
@@ -3116,6 +3131,9 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
         auto hdr = gh::milo::parse_header(bytes);
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
+        const auto worlddir_camshot_overrides =
+            worlddir_camshot_override_set(decode_worlddir_camshot_overrides(
+                dir, payload, milo_path));
 
         struct Candidate {
             std::string shot;
@@ -3142,6 +3160,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             auto decoded_shot =
                 read_camshot_like_miloeditor(body, static_cast<size_t>(de.size));
             if (!decoded_shot) continue;
+            apply_worlddir_camshot_override(
+                *decoded_shot, de.name, worlddir_camshot_overrides);
             if (!camshot_platform_ok_for_source(decoded_shot->platform_only)) {
                 if (debug_camera_enabled()) {
                     std::fprintf(
@@ -3152,8 +3172,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
                 }
                 continue;
             }
-            const int disabled_flags =
-                prop_int(decoded_shot->props, "disabled", 0);
+            const int disabled_flags = decoded_shot->disabled_flags;
             if (disabled_flags != 0) {
                 if (debug_camera_enabled()) {
                     std::fprintf(
@@ -10756,9 +10775,10 @@ bool read_milo_object_fields_root(const uint8_t* body, size_t size,
         return false;
     uint8_t has_tree = 0;
     if (!read_u8_cursor(body, size, cursor, has_tree)) return false;
-    if (!has_tree) return true;
-    if (!read_milo_object_field_parent(body, size, cursor, root))
+    if (has_tree &&
+        !read_milo_object_field_parent(body, size, cursor, root)) {
         return false;
+    }
     if (revision > 0) {
         std::string note;
         if (!read_packed_string_cursor(body, size, cursor, note))
@@ -10851,6 +10871,438 @@ bool skip_hmx_matrix_cursor(size_t& cursor, size_t size) {
     if (cursor + 48 > size) return false;
     cursor += 48;
     return true;
+}
+
+bool skip_packed_string_list_cursor(const uint8_t* body, size_t size,
+                                    size_t& cursor, uint32_t max_count,
+                                    std::vector<std::string>* refs = nullptr) {
+    uint32_t count = 0;
+    if (!read_u32_cursor(body, size, cursor, count) || count > max_count)
+        return false;
+    if (refs) refs->reserve(refs->size() + count);
+    for (uint32_t i = 0; i < count; ++i) {
+        std::string ref;
+        if (!read_packed_string_cursor(body, size, cursor, ref)) return false;
+        if (refs) refs->push_back(canonical_milo_ref(std::move(ref)));
+    }
+    return true;
+}
+
+bool skip_packed_string_pairs_cursor(const uint8_t* body, size_t size,
+                                     size_t& cursor, uint32_t max_count) {
+    uint32_t count = 0;
+    if (!read_u32_cursor(body, size, cursor, count) || count > max_count)
+        return false;
+    for (uint32_t i = 0; i < count; ++i) {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+    }
+    return true;
+}
+
+bool skip_rnd_animatable_cursor(const uint8_t* body, size_t size,
+                                size_t& cursor) {
+    uint32_t combined_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_revision)) return false;
+    const uint16_t revision =
+        static_cast<uint16_t>(combined_revision & 0xffffu);
+    if (revision > 1) {
+        if (cursor + 4 > size) return false;
+        cursor += 4;
+    }
+    if (revision < 4) {
+        if (revision > 2) {
+            uint8_t ignored = 0;
+            if (!read_u8_cursor(body, size, cursor, ignored)) return false;
+        }
+        if (revision < 1) {
+            uint32_t anim_entry_count = 0;
+            if (!read_u32_cursor(body, size, cursor, anim_entry_count) ||
+                anim_entry_count > 1024) {
+                return false;
+            }
+            for (uint32_t i = 0; i < anim_entry_count; ++i) {
+                std::string ignored;
+                if (!read_packed_string_cursor(body, size, cursor, ignored))
+                    return false;
+                if (cursor + 8 > size) return false;
+                cursor += 8;
+            }
+            if (!skip_packed_string_list_cursor(body, size, cursor, 1024))
+                return false;
+        }
+    } else {
+        if (cursor + 4 > size) return false;
+        cursor += 4;
+    }
+    return true;
+}
+
+bool skip_rnd_drawable_cursor(const uint8_t* body, size_t size,
+                              size_t& cursor) {
+    uint32_t combined_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_revision)) return false;
+    const uint16_t revision =
+        static_cast<uint16_t>(combined_revision & 0xffffu);
+    uint8_t ignored_bool = 0;
+    if (!read_u8_cursor(body, size, cursor, ignored_bool)) return false;
+    if (revision < 2 &&
+        !skip_packed_string_list_cursor(body, size, cursor, 4096)) {
+        return false;
+    }
+    if (revision > 0) {
+        // RndDrawable::mSphere is four floats.
+        if (cursor + 16 > size) return false;
+        cursor += 16;
+    }
+    if (revision > 2) {
+        if (cursor + 4 > size) return false;
+        cursor += 4;
+    }
+    if (revision >= 4 &&
+        !skip_packed_string_list_cursor(body, size, cursor, 64)) {
+        return false;
+    }
+    return true;
+}
+
+bool skip_rnd_trans_cursor(const uint8_t* body, size_t size, size_t& cursor) {
+    uint32_t combined_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_revision)) return false;
+    const uint16_t revision =
+        static_cast<uint16_t>(combined_revision & 0xffffu);
+    // Local and world transforms are two Hmx 3x4 matrices.
+    if (!skip_hmx_matrix_cursor(cursor, size) ||
+        !skip_hmx_matrix_cursor(cursor, size)) {
+        return false;
+    }
+    if (revision < 9 &&
+        !skip_packed_string_list_cursor(body, size, cursor, 4096)) {
+        return false;
+    }
+    if (revision > 6) {
+        if (cursor + 4 > size) return false;
+        cursor += 4;
+    }
+    if (revision > 5) {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+    }
+    if (revision > 6) {
+        uint8_t ignored_bool = 0;
+        if (!read_u8_cursor(body, size, cursor, ignored_bool)) return false;
+    }
+    std::string ignored_parent;
+    return read_packed_string_cursor(body, size, cursor, ignored_parent);
+}
+
+bool skip_objectdir_payload_cursor(const uint8_t* body, size_t size,
+                                   size_t& cursor) {
+    uint32_t combined_objectdir_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_objectdir_revision))
+        return false;
+    const uint16_t objectdir_revision =
+        static_cast<uint16_t>(combined_objectdir_revision & 0xffffu);
+
+    if (objectdir_revision < 22) {
+        if (objectdir_revision >= 2 && objectdir_revision < 17) {
+            std::vector<MiloObjectFieldNode> ignored_root;
+            if (!read_milo_object_fields_root(body, size, cursor,
+                                              ignored_root)) {
+                return false;
+            }
+        }
+    } else if (objectdir_revision != 26) {
+        if (cursor + 4 > size) return false;
+        cursor += 4;
+        std::string ignored_type;
+        if (!read_packed_string_cursor(body, size, cursor, ignored_type))
+            return false;
+    } else {
+        std::vector<MiloObjectFieldNode> ignored_root;
+        if (!read_milo_object_fields_root(body, size, cursor, ignored_root))
+            return false;
+    }
+
+    if (objectdir_revision > 1) {
+        if (objectdir_revision >= 27) {
+            if (cursor + 8 > size) return false;
+            cursor += 8;
+        }
+        uint32_t viewport_count = 0;
+        if (!read_u32_cursor(body, size, cursor, viewport_count) ||
+            viewport_count > 7) {
+            return false;
+        }
+        for (uint32_t i = 0; i < viewport_count; ++i) {
+            if (!skip_hmx_matrix_cursor(cursor, size)) return false;
+            if (objectdir_revision <= 17) {
+                uint32_t ignored = 0;
+                if (!read_u32_cursor(body, size, cursor, ignored))
+                    return false;
+            }
+        }
+        uint32_t current_viewport = 0;
+        if (!read_u32_cursor(body, size, cursor, current_viewport))
+            return false;
+    }
+
+    if (objectdir_revision > 12) {
+        if (objectdir_revision > 19) {
+            uint8_t inline_proxy = 0;
+            if (!read_u8_cursor(body, size, cursor, inline_proxy))
+                return false;
+        }
+        std::string proxy_path;
+        if (!read_packed_string_cursor(body, size, cursor, proxy_path))
+            return false;
+    }
+    if (objectdir_revision >= 2 && objectdir_revision < 11) {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+    }
+    if (objectdir_revision >= 4 && objectdir_revision < 11) {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+    }
+    if (objectdir_revision == 5) {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+    }
+    if (objectdir_revision > 2) {
+        if (!skip_packed_string_list_cursor(body, size, cursor, 100))
+            return false;
+        if (objectdir_revision >= 21) {
+            uint8_t inline_subdir = 0;
+            if (!read_u8_cursor(body, size, cursor, inline_subdir))
+                return false;
+            uint32_t inline_subdir_count = 0;
+            if (!read_u32_cursor(body, size, cursor, inline_subdir_count) ||
+                inline_subdir_count > 100) {
+                return false;
+            }
+            for (uint32_t i = 0; i < inline_subdir_count; ++i) {
+                std::string ignored;
+                if (!read_packed_string_cursor(body, size, cursor, ignored))
+                    return false;
+            }
+            if (objectdir_revision >= 26) {
+                if (cursor + inline_subdir_count * 2u > size) return false;
+                cursor += inline_subdir_count * 2u;
+            }
+            if (inline_subdir_count != 0) return false;
+        }
+    }
+    return true;
+}
+
+bool skip_rnddir_payload_cursor(const uint8_t* body, size_t size,
+                                size_t& cursor) {
+    uint32_t combined_rnddir_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_rnddir_revision))
+        return false;
+    const uint16_t rnddir_revision =
+        static_cast<uint16_t>(combined_rnddir_revision & 0xffffu);
+    if (!skip_objectdir_payload_cursor(body, size, cursor)) return false;
+
+    if (!skip_rnd_animatable_cursor(body, size, cursor)) return false;
+    if (!skip_rnd_drawable_cursor(body, size, cursor)) return false;
+    if (rnddir_revision != 0 &&
+        !skip_rnd_trans_cursor(body, size, cursor)) {
+        return false;
+    }
+    if (rnddir_revision < 9) {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+    } else {
+        std::string ignored;
+        if (!read_packed_string_cursor(body, size, cursor, ignored))
+            return false;
+        if (rnddir_revision > 2 && rnddir_revision != 9 &&
+            !read_packed_string_cursor(body, size, cursor, ignored)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool skip_paneldir_payload_cursor(const uint8_t* body, size_t size,
+                                  size_t& cursor) {
+    uint32_t combined_paneldir_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_paneldir_revision))
+        return false;
+    const uint16_t paneldir_revision =
+        static_cast<uint16_t>(combined_paneldir_revision & 0xffffu);
+    if (!skip_rnddir_payload_cursor(body, size, cursor)) return false;
+
+    if (paneldir_revision != 0) {
+        std::string ignored_cam;
+        if (!read_packed_string_cursor(body, size, cursor, ignored_cam))
+            return false;
+    }
+    if (paneldir_revision <= 1) return true;
+    if (paneldir_revision == 2) {
+        std::string ignored_test_event;
+        return read_packed_string_cursor(body, size, cursor,
+                                         ignored_test_event);
+    }
+    uint8_t ignored_bool = 0;
+    if (!read_u8_cursor(body, size, cursor, ignored_bool)) return false;
+    if (paneldir_revision > 4) {
+        if (!skip_packed_string_list_cursor(body, size, cursor, 256))
+            return false;
+        if (!skip_packed_string_list_cursor(body, size, cursor, 256))
+            return false;
+    }
+    if (paneldir_revision >= 8 &&
+        !read_u8_cursor(body, size, cursor, ignored_bool)) {
+        return false;
+    }
+    if (paneldir_revision > 5 &&
+        !read_u8_cursor(body, size, cursor, ignored_bool)) {
+        return false;
+    }
+    return true;
+}
+
+WorldDirCamShotOverrides decode_worlddir_camshot_overrides(
+    const gh::milo::Directory& dir, const std::vector<uint8_t>& payload,
+    std::string_view milo_path) {
+    WorldDirCamShotOverrides out;
+    if (dir.dir_type != "WorldDir" ||
+        dir.dir_entry_offset + dir.dir_entry_size > payload.size()) {
+        return out;
+    }
+    const uint8_t* body = payload.data() + dir.dir_entry_offset;
+    const size_t size = static_cast<size_t>(dir.dir_entry_size);
+    size_t cursor = 0;
+    const auto log_result = [&]() {
+        if (!debug_camera_enabled()) return;
+        std::fprintf(
+            stderr,
+            "[world] WorldDir camshot overrides: source_member=mCamShotOverrides revision=%u decoded=%d count=%zu milo=%.*s",
+            static_cast<unsigned int>(out.revision), out.decoded ? 1 : 0,
+            out.refs.size(), static_cast<int>(milo_path.size()),
+            milo_path.data());
+        for (const auto& ref : out.refs)
+            std::fprintf(stderr, " %s", ref.c_str());
+        std::fprintf(stderr, "\n");
+    };
+
+    uint32_t combined_world_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_world_revision))
+        return out;
+    out.revision = static_cast<uint16_t>(combined_world_revision & 0xffffu);
+    if (out.revision != 0 && out.revision < 5) {
+        std::string ignored_cam;
+        if (!read_packed_string_cursor(body, size, cursor, ignored_cam))
+            return out;
+    }
+    if (out.revision >= 2 && out.revision <= 20) {
+        if (cursor + 8 > size) return out;
+        cursor += 8;
+    }
+    if (out.revision > 9) {
+        std::string ignored_fake_hud;
+        if (!read_packed_string_cursor(body, size, cursor, ignored_fake_hud))
+            return out;
+    }
+    if (out.revision <= 0xF) {
+        out.decoded = true;
+        log_result();
+        return out;
+    }
+    if (out.revision < 9) return out;
+    if (!skip_paneldir_payload_cursor(body, size, cursor)) return out;
+
+    if (out.revision == 5) {
+        std::string ignored_cam_ref;
+        if (!read_packed_string_cursor(body, size, cursor, ignored_cam_ref))
+            return out;
+    }
+    if (out.revision < 0x19) {
+        if (out.revision > 0xA) {
+            if (!skip_hmx_matrix_cursor(cursor, size)) return out;
+        } else if (out.revision > 6) {
+            return out;
+        }
+    }
+    if (out.revision > 0xB) {
+        if (!skip_packed_string_list_cursor(body, size, cursor, 4096))
+            return out;
+        if (!skip_packed_string_pairs_cursor(body, size, cursor, 4096))
+            return out;
+    }
+    if (out.revision > 0xD &&
+        !skip_packed_string_pairs_cursor(body, size, cursor, 4096)) {
+        return out;
+    }
+    if (out.revision > 0xE &&
+        !skip_packed_string_pairs_cursor(body, size, cursor, 4096)) {
+        return out;
+    }
+    if (out.revision > 0xF &&
+        !skip_packed_string_list_cursor(body, size, cursor, 4096,
+                                        &out.refs)) {
+        return out;
+    }
+    out.decoded = true;
+    log_result();
+    return out;
+}
+
+std::unordered_set<std::string> worlddir_camshot_override_set(
+    const WorldDirCamShotOverrides& overrides) {
+    std::unordered_set<std::string> out;
+    for (const auto& ref : overrides.refs) {
+        if (ref.empty()) continue;
+        out.insert(ref);
+        const std::string prefixed = "CamShot:" + ref;
+        out.insert(prefixed);
+    }
+    return out;
+}
+
+bool worlddir_camshot_override_contains(
+    const std::unordered_set<std::string>& overrides,
+    std::string_view shot_name) {
+    const std::string direct(shot_name);
+    if (overrides.find(direct) != overrides.end()) return true;
+    const std::string canonical = canonical_milo_ref(direct);
+    if (overrides.find(canonical) != overrides.end()) return true;
+    const std::string prefixed = "CamShot:" + canonical;
+    return overrides.find(prefixed) != overrides.end();
+}
+
+void apply_worlddir_camshot_override(
+    DecodedCamShot& shot, std::string_view shot_name,
+    const std::unordered_set<std::string>& overrides) {
+    if (!worlddir_camshot_override_contains(overrides, shot_name)) return;
+    constexpr int kWorldDirCamShotOverrideDisabledFlag = 0x1;
+    shot.disabled_flags |= kWorldDirCamShotOverrideDisabledFlag;
+    for (auto& frame : shot.frames)
+        frame.first.disabled_flags |= kWorldDirCamShotOverrideDisabledFlag;
+    if (debug_camera_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] WorldDir SyncCamShots: source=WorldDir::SyncCamShots shot=%.*s disabled=1 flag=0x%08x\n",
+            static_cast<int>(shot_name.size()), shot_name.data(),
+            static_cast<unsigned int>(kWorldDirCamShotOverrideDisabledFlag));
+    }
 }
 
 bool objectdir_base_cursor_for_directory(const gh::milo::Directory& dir,
@@ -14807,6 +15259,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
         auto hdr = gh::milo::parse_header(bytes);
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
+        const auto worlddir_camshot_overrides =
+            worlddir_camshot_override_set(decode_worlddir_camshot_overrides(
+                dir, payload, milo_path));
 
         struct Candidate {
             std::string shot;
@@ -14824,6 +15279,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             auto decoded_shot =
                 read_camshot_like_miloeditor(body, static_cast<size_t>(de.size));
             if (!decoded_shot) continue;
+            apply_worlddir_camshot_override(
+                *decoded_shot, de.name, worlddir_camshot_overrides);
             if (!camshot_platform_ok_for_source(decoded_shot->platform_only)) {
                 if (debug_camera_enabled()) {
                     std::fprintf(

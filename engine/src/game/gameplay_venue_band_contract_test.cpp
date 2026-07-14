@@ -10320,8 +10320,8 @@ int main() {
                  "copy_camshot_shot_fields(c.key,pos);",
                  "regular camera pose variants inherit decoded shot-level fields");
   ok &= contains(gameplay_c,
-                 "constintdisabled_flags=prop_int(decoded_shot->props,"
-                 "\"disabled\",0);if(disabled_flags!=0)",
+                 "constintdisabled_flags=decoded_shot->disabled_flags;"
+                 "if(disabled_flags!=0)",
                  "intro camera selector mirrors CameraManager Disabled gate");
   ok &= contains(gameplay_c,
                  "if(a->has_clip_planes||b->has_clip_planes)",
@@ -10982,6 +10982,39 @@ int main() {
                  "decoded_shot->platform_only)){"
                  "if(debug_camera_enabled())",
                  "regular camera loader mirrors CameraManager PlatformOk before category buckets");
+  ok &= contains(gameplay_c,
+                 "WorldDirCamShotOverridesdecode_worlddir_camshot_overrides(",
+                 "WorldDir camera override list is decoded from the MILO root object body");
+  ok &= contains(gameplay_c,
+                 "source_member=mCamShotOverrides",
+                 "WorldDir camera override diagnostics name the ihatecompvir source member");
+  ok &= contains(gameplay_c,
+                 "if(out.revision<=0xF){out.decoded=true;"
+                 "log_result();returnout;}",
+                 "WorldDir camera override decoder mirrors the source revision gate");
+  ok &= contains(gameplay_c,
+                 "source=WorldDir::SyncCamShots",
+                 "WorldDir camera override diagnostics name the ihatecompvir source sync");
+  ok &= contains(gameplay_c,
+                 "shot.disabled_flags|=kWorldDirCamShotOverrideDisabledFlag;",
+                 "WorldDir camera overrides OR disabled flag 1 onto the decoded CamShot");
+  ok &= contains(gameplay_c,
+                 "frame.first.disabled_flags|=kWorldDirCamShotOverrideDisabledFlag;",
+                 "WorldDir camera overrides propagate disabled flag 1 onto CamShot frame keys");
+  ok &= contains(intro_camera_selector_c,
+                 "apply_worlddir_camshot_override("
+                 "*decoded_shot,de.name,worlddir_camshot_overrides);",
+                 "intro camera selector applies WorldDir SyncCamShots disabled state");
+  ok &= contains(regular_camera_loader_c,
+                 "apply_worlddir_camshot_override("
+                 "*decoded_shot,de.name,worlddir_camshot_overrides);",
+                 "regular camera loader applies WorldDir SyncCamShots disabled state");
+  ok &= appears_before(regular_camera_loader_c,
+                       "apply_worlddir_camshot_override("
+                       "*decoded_shot,de.name,worlddir_camshot_overrides);",
+                       "if(!camshot_platform_ok_for_source("
+                       "decoded_shot->platform_only)){",
+                       "WorldDir SyncCamShots state is applied before CameraManager pool admission");
   ok &= absent(regular_camera_loader_c,
                "if(decoded_shot->disabled_flags!=0){",
                "regular camera loader keeps source-disabled CamShots in category buckets");

@@ -102,6 +102,15 @@ Open work:
   regular CamShots in the category pool and logs/skips them only during the
   source-shaped selection scan. This preserves source category ordering and
   avoids a loader-side filter that the camera manager does not have.
+- 2026-07-14 WorldDir `mCamShotOverrides` disabled bridge:
+  ihatecompvir `WorldDir::PostLoad` reads `mCamShotOverrides` after the
+  preset override list, then calls `SyncCamShots(true)`, whose loop applies
+  `CamShot::Disable(true, 1)` to each referenced shot. Native now decodes that
+  list from the WorldDir root MILO body, ORs disabled flag `1` onto matching
+  CamShots and all decoded frame keys, and leaves the shots in the regular
+  CameraManager category buckets so the existing selection-time `Disabled()`
+  skip remains source-shaped. Intro camera selection uses the same decoded
+  disabled state instead of re-reading only the CamShot ObjectFields property.
 - 2026-07-13 CamShot `shot_ok` support metadata: ihatecompvir routes
   selection-time approval through `CamShot::ShotOk`, which sends the
   `shot_ok` message with the previous shot. GH2 `world/camshot.dta` maps that
