@@ -258,9 +258,37 @@ int main() {
                  "set_runtime_driver_evaluate_flags(renderer.character(),"
                  "setter.driver,setter.flags,flag_weight);",
                  "character viewer feeds active main.drv EvaluateFlags into source WeightSetter polling");
+  ok &= contains(gameplay_c,
+                 "active_main_driver_player=[&]()->constghogx::character::"
+                 "CharClipPlayer*",
+                 "gameplay reuses the active source main.drv player for release weights");
+  ok &= contains(gameplay_c,
+                 "set_runtime_driver_evaluate_flags(character,setter.driver,"
+                 "setter.flags,flag_weight);",
+                 "gameplay feeds active main.drv EvaluateFlags into source WeightSetter polling");
+  ok &= contains(gameplay_c,
+                 "source_driver_flags_fed=true;",
+                 "gameplay records source driver flag rows before IK fallback");
+  ok &= contains(gameplay_c,
+                 "if(hand_driver_active&&!source_driver_flags_fed){",
+                 "gameplay direct hand weights are fallback-only when source rows are absent");
+  ok &= contains(gameplay_c,
+                 "source=gameplay-player",
+                 "gameplay logs the source main.drv flag path");
   ok &= lacks(app_main_c,
               "set_runtime_ik_weight(renderer.character(),ik.weight_prop,0.0f)",
               "character viewer must not force decoded hand IK rows to zero");
+  ok &= appears_before(gameplay_c,
+                       "clear_runtime_ik_weights(character);",
+                       "set_runtime_driver_evaluate_flags(character,"
+                       "setter.driver,setter.flags,flag_weight);",
+                       "gameplay clears stale hand weights before source driver flags");
+  ok &= appears_before(gameplay_draw_c,
+                       "set_runtime_driver_evaluate_flags(character,"
+                       "setter.driver,setter.flags,flag_weight);",
+                       "ghogx::character::apply_character_controllers("
+                       "character,static_cast<float>(song_time_));",
+                       "gameplay source driver flags reach WeightSetter before IK solve");
   ok &= appears_before(app_main_c,
                        "ghogx::character::clear_runtime_ik_weights("
                        "renderer.character());",

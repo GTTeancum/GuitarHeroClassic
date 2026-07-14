@@ -5310,6 +5310,11 @@ always-on. For example, current proof logs in
 `CharWeightSetter` rows write `0.0`, and both hand IK rows skip; the idle proof
 has `flags=0x00c00001`, both rows write `1.0`, and the hand IK rows solve.
 This is a source flag path, not a distance, pose, or guitar-specific override.
+The diagnostic viewer and gameplay presentation path now both feed the active
+`main.drv` player's `EvaluateFlags` result into `set_runtime_driver_evaluate_flags`
+before `apply_character_controllers`; direct `left.weight`/`right.weight` writes
+remain only a fallback when no source `main.drv` `CharWeightSetter` rows are
+available.
 
 `engine/out/visual_proofs/twist_trace_20260713/` records a direct-app
 Rockabill2 `special_02` frame 95 trace with the new opt-in arm pose logger.

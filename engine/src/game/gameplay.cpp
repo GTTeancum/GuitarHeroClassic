@@ -20285,15 +20285,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            if (!intro_active && perf.band_jump_player.active()) {
-                add_player_layer(perf.band_jump_player, 1.0f);
-            } else if (intro_active && perf.intro_player.active()) {
-                add_player_layer(perf.intro_player, 1.0f);
-            } else if (!intro_active && performer_playing &&
-                       perf.active_player.active()) {
-                add_player_layer(perf.active_player, 1.0f);
-            } else if (perf.idle_player.active()) {
-                add_player_layer(perf.idle_player, 1.0f);
+            auto active_main_driver_player =
+                [&]() -> const ghogx::character::CharClipPlayer* {
+                    if (!intro_active && perf.band_jump_player.active())
+                        return &perf.band_jump_player;
+                    if (intro_active && perf.intro_player.active())
+                        return &perf.intro_player;
+                    if (!intro_active && performer_playing &&
+                        perf.active_player.active())
+                        return &perf.active_player;
+                    if (perf.idle_player.active()) return &perf.idle_player;
+                    return nullptr;
+                };
+            if (const auto* main_driver_player = active_main_driver_player()) {
+                add_player_layer(*main_driver_player, 1.0f);
             }
             add_player_layer(perf.face_base_player, 1.0f);
             if (hand_driver_active) {
@@ -20332,11 +20337,48 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_fret_spot);
             }
             ghogx::character::clear_runtime_ik_weights(character);
+            bool source_driver_flags_fed = false;
             if (hand_driver_active) {
+                if (const auto* main_driver_player =
+                        active_main_driver_player()) {
+                    std::unordered_set<uint32_t> main_driver_flags_seen;
+                    for (const auto& setter : character.weight_setters) {
+                        if (setter.driver != "main.drv" ||
+                            setter.flags == 0) {
+                            continue;
+                        }
+                        if (!main_driver_flags_seen.insert(setter.flags)
+                                 .second) {
+                            continue;
+                        }
+                        const float flag_weight =
+                            main_driver_player->evaluate_flags(setter.flags);
+                        ghogx::character::set_runtime_driver_evaluate_flags(
+                            character, setter.driver, setter.flags,
+                            flag_weight);
+                        source_driver_flags_fed = true;
+                        if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                            const auto* current_clip =
+                                main_driver_player->current_clip();
+                            std::fprintf(
+                                stderr,
+                                "[driver-flags] role=%s %s flags=0x%08x "
+                                "weight=%.5f clipFlags=0x%08x "
+                                "source=gameplay-player\n",
+                                perf.role.c_str(), setter.driver.c_str(),
+                                setter.flags, flag_weight,
+                                current_clip ? current_clip->flags : 0u);
+                        }
+                    }
+                }
+            }
+            if (hand_driver_active && !source_driver_flags_fed) {
                 // Accepted GH2DXu/GHDX autoplay sampling keeps
                 // left.weight/right.weight at ~1.0 while the hand-driver
                 // scheduler blends clips. The scheduler blends finger rows; it
-                // does not ease IK on/off at each fretting event.
+                // does not ease IK on/off at each fretting event. This remains
+                // only a no-source-row fallback; stock rows should use
+                // main.drv -> CharWeightSetter EvaluateFlags above.
                 bool fret_active = perf.fret_player.active();
                 for (const auto& player : perf.fret_extra_players) {
                     fret_active = fret_active || player.active();
