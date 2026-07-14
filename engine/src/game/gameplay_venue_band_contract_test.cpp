@@ -6074,8 +6074,13 @@ int main() {
                  "camera EndAnim diagnostics name ihatecompvir stop_shot message");
   ok &= contains(gameplay_c,
                  "voidGameplay::end_camera_shot_anims(){"
-                 "if(active_camera_anim_event_.empty())return;",
+                 "conststd::stringevent_name=active_camera_anim_event_;",
                  "camera EndAnim has an explicit linked-mAnims shutdown path");
+  ok &= contains(gameplay_c,
+                 "active_camera_fov_anim_refs_.clear();"
+                 "active_camera_anim_start_time_=0.0;"
+                 "active_camera_fov_anim_reported_.clear();",
+                 "camera EndAnim clears shot-scoped linked CamAnim FOV state");
   ok &= contains(gameplay_c,
                  "returnactive.event_name==event_name;",
                  "camera EndAnim removes only the active shot-scoped anim event");
@@ -8303,6 +8308,25 @@ int main() {
                  "venue_camera_fov_anims_=load_venue_camera_fov_anims("
                  "hdr_path_,ark_path_,venue_geom);",
                  "venue geometry load retains decoded CamAnim FOV tracks");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>active_camera_fov_anim_refs_;",
+                 "runtime stores shot-scoped camera FOV anim refs");
+  ok &= contains(gameplay_c,
+                 "constautocam_it=venue_camera_fov_anims_.find(ref);",
+                 "camera StartAnim resolves linked CamAnim refs through decoded FOV tracks");
+  ok &= contains(gameplay_c,
+                 "active_camera_fov_anim_refs_=std::move(fov_anims);",
+                 "camera StartAnim keeps resolved CamAnim refs for shot-scoped SetFrame");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::apply_active_camera_fov_anims("
+                 "ghogx::render::OrbitCamera&cam,constCameraKey&key)",
+                 "runtime applies active linked RndCamAnim FOV tracks");
+  ok &= contains(gameplay_c,
+                 "sample_camera_fov_key(anim.fov_keys,frame,previous_fov);",
+                 "linked RndCamAnim SetFrame samples source FOV keys at the active frame");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraRndCamAnimSetFrame:source_msg=mAnimsshot=%s",
+                 "linked RndCamAnim diagnostics expose source SetFrame FOV application");
   ok &= contains(gameplay_c,
                  "anim.end_offset=r.pos;if(r.pos!=r.size)",
                  "source-shaped RndTransAnim reader must consume the whole asset");

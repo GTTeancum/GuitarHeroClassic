@@ -736,6 +736,8 @@ class Gameplay {
   void start_camera_shot_anims(const CameraKey& key,
                                const std::string& runtime_name);
   void end_camera_shot_anims();
+  void apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
+                                     const CameraKey& key);
   void queue_regular_camera_shot(const CameraKey& key,
                                  const char* source_handler);
   bool consume_pending_regular_camera_shot();
@@ -1184,6 +1186,9 @@ class Gameplay {
   std::vector<std::pair<int, int>> venue_camera_crowd_selection_pairs_;
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
+  std::vector<std::string> active_camera_fov_anim_refs_;
+  double active_camera_anim_start_time_ = 0.0;
+  std::unordered_set<std::string> active_camera_fov_anim_reported_;
   std::string active_camera_glow_spot_ref_;
   std::string active_camera_shot_started_reported_;
   std::string active_camera_frame_pair_reported_;

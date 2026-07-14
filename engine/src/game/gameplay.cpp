@@ -12941,6 +12941,16 @@ float sample_particle_size(
     return std::clamp(va + (vb - va) * sample.t, 0.0f, 200.0f);
 }
 
+float sample_camera_fov_key(
+    const std::vector<Gameplay::VenueCameraFovAnim::FovKey>& keys,
+    float frame, float fallback) {
+    if (keys.empty()) return fallback;
+    const VecKeySample sample = source_key_sample(keys, frame);
+    const auto* a = &keys[sample.a];
+    const auto* b = &keys[sample.b];
+    return a->fov + (b->fov - a->fov) * sample.t;
+}
+
 float clamp_particle_color_component(float value, int component) {
     if (!std::isfinite(value)) return component == 3 ? 1.0f : 0.0f;
     return std::clamp(value, 0.0f, component == 3 ? 1.0f : 4.0f);
@@ -21005,6 +21015,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
     active_camera_anim_event_.clear();
+    active_camera_fov_anim_refs_.clear();
+    active_camera_anim_start_time_ = 0.0;
+    active_camera_fov_anim_reported_.clear();
     active_camera_glow_spot_ref_.clear();
     active_camera_glow_spot_.reset();
     active_camera_shot_started_reported_.clear();
@@ -21702,23 +21715,31 @@ std::string camera_anim_event_name(const std::string& runtime_name) {
 }
 
 void Gameplay::end_camera_shot_anims() {
-    if (active_camera_anim_event_.empty()) return;
     const std::string event_name = active_camera_anim_event_;
-    const size_t before = active_venue_anim_filters_.size();
-    active_venue_anim_filters_.erase(
-        std::remove_if(active_venue_anim_filters_.begin(),
-                       active_venue_anim_filters_.end(),
-                       [&](const ActiveVenueAnimFilter& active) {
-                           return active.event_name == event_name;
-                       }),
-        active_venue_anim_filters_.end());
-    const size_t removed = before - active_venue_anim_filters_.size();
-    if (debug_venue_filters_enabled()) {
-        std::fprintf(stderr,
-                     "[world] camera EndAnim: source_msg=stop_shot anim_event=%s filters_ended=%zu\n",
-                     event_name.c_str(), removed);
+    size_t removed = 0;
+    if (!event_name.empty()) {
+        const size_t before = active_venue_anim_filters_.size();
+        active_venue_anim_filters_.erase(
+            std::remove_if(active_venue_anim_filters_.begin(),
+                           active_venue_anim_filters_.end(),
+                           [&](const ActiveVenueAnimFilter& active) {
+                               return active.event_name == event_name;
+                           }),
+            active_venue_anim_filters_.end());
+        removed = before - active_venue_anim_filters_.size();
+    }
+    const size_t fov_ended = active_camera_fov_anim_refs_.size();
+    if ((debug_venue_filters_enabled() || debug_camera_enabled()) &&
+        (!event_name.empty() || fov_ended > 0)) {
+        std::fprintf(
+            stderr,
+            "[world] camera EndAnim: source_msg=stop_shot anim_event=%s filters_ended=%zu cam_fov_ended=%zu\n",
+            event_name.c_str(), removed, fov_ended);
     }
     active_camera_anim_event_.clear();
+    active_camera_fov_anim_refs_.clear();
+    active_camera_anim_start_time_ = 0.0;
+    active_camera_fov_anim_reported_.clear();
     update_active_venue_anim_filters();
 }
 
@@ -21728,19 +21749,26 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
     if (key.camera_anim_refs.empty()) return;
 
     std::vector<VenueAnimFilter> filters;
+    std::vector<std::string> fov_anims;
     std::vector<std::string> unsupported;
     for (const auto& raw_ref : key.camera_anim_refs) {
         const auto ref = canonical_milo_ref(raw_ref);
         const auto direct_it = venue_direct_anim_filters_.find(ref);
-        if (direct_it == venue_direct_anim_filters_.end()) {
-            unsupported.push_back(ref);
-            continue;
+        const auto cam_it = venue_camera_fov_anims_.find(ref);
+        if (direct_it != venue_direct_anim_filters_.end()) {
+            filters.insert(filters.end(), direct_it->second.begin(),
+                           direct_it->second.end());
         }
-        filters.insert(filters.end(), direct_it->second.begin(),
-                       direct_it->second.end());
+        if (cam_it != venue_camera_fov_anims_.end()) {
+            fov_anims.push_back(ref);
+        }
+        if (direct_it == venue_direct_anim_filters_.end() &&
+            cam_it == venue_camera_fov_anims_.end()) {
+            unsupported.push_back(ref);
+        }
     }
 
-    if (filters.empty()) {
+    if (filters.empty() && fov_anims.empty()) {
         if (debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
@@ -21757,20 +21785,27 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
     }
 
     active_camera_anim_event_ = camera_anim_event_name(runtime_name);
-    ActiveVenueAnimFilter active_filter;
-    active_filter.event_name = active_camera_anim_event_;
-    active_filter.filters = std::move(filters);
-    active_filter.start_time = song_time_;
-    active_filter.persistent = false;
-    active_filter.shot_scoped = true;
-    const size_t resolved = active_filter.filters.size();
-    active_venue_anim_filters_.push_back(std::move(active_filter));
-    if (debug_venue_filters_enabled()) {
+    active_camera_anim_start_time_ = song_time_;
+    active_camera_fov_anim_refs_ = std::move(fov_anims);
+    active_camera_fov_anim_reported_.clear();
+    size_t resolved = 0;
+    if (!filters.empty()) {
+        ActiveVenueAnimFilter active_filter;
+        active_filter.event_name = active_camera_anim_event_;
+        active_filter.filters = std::move(filters);
+        active_filter.start_time = song_time_;
+        active_filter.persistent = false;
+        active_filter.shot_scoped = true;
+        resolved = active_filter.filters.size();
+        active_venue_anim_filters_.push_back(std::move(active_filter));
+    }
+    if (debug_venue_filters_enabled() || debug_camera_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_msg=start_shot shot=%s anim_event=%s anim_refs=%zu filters_started=%zu unsupported=%zu\n",
+            "[world] camera StartAnim: source_msg=start_shot shot=%s anim_event=%s anim_refs=%zu filters_started=%zu cam_fov_started=%zu unsupported=%zu\n",
             runtime_name.c_str(), active_camera_anim_event_.c_str(),
-            key.camera_anim_refs.size(), resolved, unsupported.size());
+            key.camera_anim_refs.size(), resolved,
+            active_camera_fov_anim_refs_.size(), unsupported.size());
         for (const auto& ref : unsupported) {
             std::fprintf(stderr,
                          "[world] camera StartAnim unsupported anim ref: %s\n",
@@ -21778,6 +21813,45 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
         }
     }
     update_active_venue_anim_filters();
+}
+
+void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
+                                             const CameraKey& key) {
+    if (active_camera_fov_anim_refs_.empty()) return;
+    const double elapsed =
+        std::max(0.0, song_time_ - active_camera_anim_start_time_);
+    for (const auto& ref : active_camera_fov_anim_refs_) {
+        const auto anim_it = venue_camera_fov_anims_.find(ref);
+        if (anim_it == venue_camera_fov_anims_.end()) continue;
+        const auto& anim = anim_it->second;
+        if (anim.fov_keys.empty()) continue;
+        const float fpu = rnd_animatable_frames_per_unit(anim.anim_rate);
+        const double units = venue_anim_time_units(
+            anim.anim_rate, active_camera_anim_start_time_, elapsed, &chart_);
+        const float frame = static_cast<float>(units * fpu);
+        const float previous_fov = cam.fov;
+        const float sampled_fov =
+            sample_camera_fov_key(anim.fov_keys, frame, previous_fov);
+        if (!std::isfinite(sampled_fov)) continue;
+        // RndCamAnim::SetFrame samples FovKeys().AtFrame and then calls
+        // RndCam::SetFrustum(cam->NearPlane(), cam->FarPlane(), ref, 1.0f).
+        const float source_current_far_z = cam.far_z;
+        camera_apply_rndcam_set_frustum_like_source(
+            cam, cam.near_z, cam.far_z, source_current_far_z);
+        cam.fov = sampled_fov;
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            const std::string report_key = key.name + ":" + ref;
+            if (!active_camera_fov_anim_reported_.count(report_key)) {
+                active_camera_fov_anim_reported_.insert(report_key);
+                std::fprintf(
+                    stderr,
+                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=1.000\n",
+                    key.name.c_str(), anim.name.c_str(), anim.cam.c_str(),
+                    frame, anim.anim_rate, fpu, cam.fov, previous_fov,
+                    anim.fov_keys.size());
+            }
+        }
+    }
 }
 
 void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
@@ -26719,6 +26793,10 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     camera_bars_left_ = 0;
     pending_regular_camera_.clear();
     pending_regular_camera_start_ = 0.0;
+    active_camera_anim_event_.clear();
+    active_camera_fov_anim_refs_.clear();
+    active_camera_anim_start_time_ = 0.0;
+    active_camera_fov_anim_reported_.clear();
     active_camera_shot_over_ = false;
     active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
@@ -28763,6 +28841,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 pending_regular_camera_.clear();
                 pending_regular_camera_start_ = 0.0;
                 active_camera_runtime_shot_.clear();
+                active_camera_anim_event_.clear();
+                active_camera_fov_anim_refs_.clear();
+                active_camera_anim_start_time_ = 0.0;
+                active_camera_fov_anim_reported_.clear();
                 active_camera_shot_over_ = false;
                 active_camera_skip_next_crowd_update_ = false;
                 venue_camera_hide_crowd_ = false;
@@ -31162,6 +31244,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
                                   &regular_camera_keys_, 1.0f);
+                apply_active_camera_fov_anims(world_->camera(), *key);
             }
         } else if (authored_gameplay_cameras_active &&
                    in_intro_camera_window && !camera_keys_.empty()) {
@@ -31173,6 +31256,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               &venue_camera_target_worlds_,
                               &source_record_member_table,
                               &regular_camera_keys_, 1.0f);
+            apply_active_camera_fov_anims(world_->camera(),
+                                          camera_keys_.front());
         } else {
             end_camera_shot_runtime();
         }

@@ -154,6 +154,15 @@ Open work:
   and duration before emitting debug rows. This keeps owner-backed camera FOV
   tracks available without fabricating a runtime scheduler for linked
   `mAnims`.
+- 2026-07-14 linked `RndCamAnim::SetFrame` FOV:
+  ihatecompvir `RndCamAnim::SetFrame` samples `FovKeys().AtFrame(frame, ref)`,
+  blends only when the incoming task blend is not `1.0f`, and then calls
+  `RndCam::SetFrustum(cam->NearPlane(), cam->FarPlane(), ref, 1.0f)`.
+  Native now treats CamShot `mAnims` refs that resolve to decoded CamAnim FOV
+  tracks as shot-scoped active camera FOV anims, applies the sampled source FOV
+  after the CamShot frame, and logs a `camera RndCamAnim SetFrame` row. This
+  wires an already-decoded source camera track into runtime; it does not invent
+  extra camera-angle motion or hidden task rejection behavior.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because
