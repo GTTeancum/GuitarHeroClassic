@@ -33,6 +33,14 @@
   source-consistent for authored refs such as `spot_neck_fret20.mesh`, rather
   than only for refs whose live target table already uses the exact `.mesh`
   spelling.
+- 2026-07-14 CamShot ObjPtr source-object lookup: newer ihatecompvir
+  `CamShotFrame::Load` target/focus/parent lists store direct object pointers
+  rather than legacy entity/subpart pairs. Native already preserves those
+  source object ids on `CameraKey`; target lookup now tries the preserved object
+  inside the resolved performer/entity scope, then the global direct object id,
+  before falling back to inferred subpart/root lookup. This keeps attached prop
+  and direct-object camera targets source-prioritized without inventing a
+  shot-specific target or broad global alias.
 - 2026-07-14 CamShot parent subpart lookup: ihatecompvir
   `CamShotFrame::Load` routes old-revision parent refs through `LoadSubPart`,
   the same suffix-stripping helper used by target/focus refs. Native

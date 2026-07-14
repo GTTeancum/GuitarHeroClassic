@@ -8025,6 +8025,20 @@ int main() {
                  "source_object,targets)",
                  "camera target lookup tries preserved source object ids before native fallbacks");
   ok &= contains(gameplay_c,
+                 "std::optional<std::string>camera_resolved_direct_object_id(",
+                 "camera target lookup has a direct source-object helper without root fallback");
+  ok &= contains(gameplay_c,
+                 "camera_resolved_direct_object_id(entity,source_object,targets)",
+                 "camera target lookup tries source object ids in the resolved role scope");
+  ok &= appears_before(gameplay_c,
+                       "camera_resolved_direct_object_id(entity,source_object,targets)",
+                       "camera_resolved_direct_object_id({},source_object,targets)",
+                       "camera target lookup tries role-scoped ObjPtr refs before global direct refs");
+  ok &= appears_before(gameplay_c,
+                       "camera_resolved_direct_object_id({},source_object,targets)",
+                       "returncamera_resolved_target_id_for_ref(entity,subpart,targets);",
+                       "camera target lookup tries preserved ObjPtr refs before inferred subpart fallback");
+  ok &= contains(gameplay_c,
                  "camera_resolved_target_id_for_ref(ref.entity,ref.subpart,"
                  "ref.source_object,targets)",
                  "CamShot target list resolution keeps source object ids ahead of inferred entities");

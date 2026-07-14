@@ -19489,6 +19489,25 @@ std::optional<std::string> camera_resolved_target_id_for_ref(
     return std::nullopt;
 }
 
+std::optional<std::string> camera_resolved_direct_object_id(
+    std::string_view entity,
+    std::string_view source_object,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    const std::string source_object_ref(source_object);
+    std::string id =
+        entity.empty() ? canonical_milo_ref(source_object_ref)
+                       : camera_target_id(entity, source_object);
+    if (id.empty()) return std::nullopt;
+    if (targets.find(id) != targets.end()) return id;
+    const std::string stripped_object = strip_mesh_suffix(source_object_ref);
+    if (stripped_object != source_object_ref) {
+        id = entity.empty() ? canonical_milo_ref(stripped_object)
+                            : camera_target_id(entity, stripped_object);
+        if (targets.find(id) != targets.end()) return id;
+    }
+    return std::nullopt;
+}
+
 std::optional<std::string> camera_resolved_target_id_for_ref(
     std::string_view entity,
     std::string_view subpart,
@@ -19496,7 +19515,11 @@ std::optional<std::string> camera_resolved_target_id_for_ref(
     const std::unordered_map<std::string, CameraTarget>& targets) {
     if (!source_object.empty()) {
         if (auto direct =
-                camera_resolved_target_id_for_ref({}, source_object, targets)) {
+                camera_resolved_direct_object_id(entity, source_object, targets)) {
+            return direct;
+        }
+        if (auto direct =
+                camera_resolved_direct_object_id({}, source_object, targets)) {
             return direct;
         }
     }
