@@ -10874,6 +10874,15 @@ Rejected native probe:
   Camera diagnostics log both `fov` and `screen_fov` so future angle work can
   tell whether a visual mismatch is from pose/path sampling or projection
   ordering.
+- 2026-07-13 RndCam frustum plane-ratio clamp: ihatecompvir
+  `RndCam::SetFrustum` clamps extreme near/far plane ratios before storing
+  the camera frustum (`far - 0.0001 > near * 1000`). Native now routes
+  authored CamShot clip planes through the same rule instead of submitting
+  decoded near/far values directly. This is a source camera projection rule,
+  not a shot-specific visual adjustment. Debug camera logs now emit a
+  `[world] camera SetFrustum: source_class=RndCam ... ratio_clamped=...` row
+  so proof captures can distinguish unclamped stock GH2 shots from clamped
+  extreme-plane cases.
 
 - 2026-07-13 CamShot same-target direct screen-offset target:
   ihatecompvir `CamShotFrame::Interp` uses the frame target positions directly

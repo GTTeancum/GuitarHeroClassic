@@ -15819,6 +15819,34 @@ std::array<float, 2> camshot_result_screen_norm_for_key(
     return camshot_result_screen_norm_for_offset(x, y);
 }
 
+void camera_apply_rndcam_set_frustum_like_source(
+    ghogx::render::OrbitCamera& cam, float near_z, float far_z,
+    float source_current_far_z) {
+    if (!std::isfinite(near_z) || !std::isfinite(far_z) ||
+        near_z <= 0.0f || far_z <= near_z) {
+        return;
+    }
+    const float requested_near_z = near_z;
+    const float requested_far_z = far_z;
+    bool source_ratio_clamped = false;
+    // ihatecompvir RndCam::SetFrustum clamps extreme plane ratios before
+    // storing the frustum and rebuilding the local projection transform.
+    if (far_z - 0.0001f > near_z * 1000.0f) {
+        source_ratio_clamped = true;
+        if (far_z == source_current_far_z) near_z = far_z / 1000.0f;
+        if (far_z != source_current_far_z) far_z = near_z * 1000.0f;
+    }
+    cam.near_z = near_z;
+    cam.far_z = far_z;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera SetFrustum: source_class=RndCam requested=(%.3f %.3f) previous_far=%.3f stored=(%.3f %.3f) ratio_clamped=%d\n",
+            requested_near_z, requested_far_z, source_current_far_z,
+            cam.near_z, cam.far_z, source_ratio_clamped ? 1 : 0);
+    }
+}
+
 std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
@@ -19047,6 +19075,7 @@ void apply_camera_keys(
         }
     }
     apply_camera_result_frame(cam, submitted_result);
+    const float source_current_far_z = cam.far_z;
     cam.near_z = 1.0f;
     cam.far_z = 6000.0f;
     if (a->has_clip_planes || b->has_clip_planes) {
@@ -19064,8 +19093,8 @@ void apply_camera_keys(
         const float far_z = far_a + (far_b - far_a) * interp_t;
         if (std::isfinite(near_z) && std::isfinite(far_z) &&
             near_z > 0.0f && far_z > near_z) {
-            cam.near_z = near_z;
-            cam.far_z = far_z;
+            camera_apply_rndcam_set_frustum_like_source(
+                cam, near_z, far_z, source_current_far_z);
         }
     }
     if (submitted_ps2_projection_candidate || submitted_ps2_matrix_candidate) {
