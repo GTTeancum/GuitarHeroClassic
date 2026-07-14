@@ -407,6 +407,29 @@ void test_cam_projection_fields() {
   CHECK(approx(cam.z_range[0], 0.0f));
   CHECK(approx(cam.z_range[1], 1.0f));
   CHECK(cam.target_tex == "venue_cut.rt");
+
+  b.clear();
+  put_u32(b, 11);                // RndCam::Load rev<12 converts stored Y-FOV.
+  put_zeros(b, 9);               // object/base metadata.
+  put_u32(b, 9);                 // embedded Trans revision.
+  put_matrix(b, 0.0f, -768.0f, 0.0f);
+  put_matrix(b, 0.0f, -768.0f, 0.0f);
+  put_u32(b, 0);
+  put_str(b, "");
+  b.push_back(0);
+  put_str(b, "meta.cam");
+  put_f32(b, 50.0f);
+  put_f32(b, 1000.0f);
+  put_f32(b, 0.8f);
+  put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
+  put_f32(b, 0.0f); put_f32(b, 1.0f);
+  put_str(b, "venue_cut.rt");
+
+  CamObj old_cam = decode_cam("old_proxy.cam", b);
+  CHECK(old_cam.decoded);
+  CHECK(approx(old_cam.fov, std::atan(0.75f * std::tan(0.4f)) * 2.0f));
+  std::printf("  [ok] Cam rev11 ConvertFov: stored=0.800000 decoded=%.6f\n",
+              old_cam.fov);
   std::printf(
       "  [ok] Cam: parent=%s near=%.0f far=%.0f fov=%.6f z=(%.0f,%.0f) target=%s\n",
       cam.parent.c_str(), cam.near_plane, cam.far_plane, cam.fov,

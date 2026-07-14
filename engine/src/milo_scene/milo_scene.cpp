@@ -82,6 +82,10 @@ struct Reader {
 // u32 constraint, empty target string, u8 preserve_scale before parent.
 constexpr size_t kObjMeta = 9;
 
+float convert_fov_like_miloeditor(float fov, float aspect_ratio) {
+  return std::atan(aspect_ratio * std::tan(0.5f * fov)) * 2.0f;
+}
+
 bool debug_worldcrowd_decode_enabled() {
 #if defined(_WIN32)
   char* value = nullptr;
@@ -879,6 +883,7 @@ CamObj decode_cam(const std::string& entry_name,
     c.near_plane = r.f32();
     c.far_plane = r.f32();
     c.fov = r.f32();
+    if (version < 12) c.fov = convert_fov_like_miloeditor(c.fov, 0.75f);
     if (version < 2) (void)r.u32();
     for (float& v : c.screen_rect) v = r.f32();
     if ((version - 1) <= 1) (void)r.u32();

@@ -179,6 +179,12 @@ Open work:
   through the same helper, so proof logs show requested/stored near/far/Y-FOV
   from the source-shaped call instead of assigning FOV as a separate native
   side effect.
+- 2026-07-14 `RndCam::Load` rev<12 FOV conversion:
+  ihatecompvir `RndCam::Load` applies `ConvertFov(mYFov, 0.75)` for camera
+  revisions below 12 after reading near/far/Y-FOV. Native static MILO Cam
+  decoding now applies the same conversion before the renderer installs
+  authored camera projection fields. This is loader/source-contract plumbing,
+  not a per-shot camera-angle correction.
 - 2026-07-14 CameraManager `num_shots` probe:
   ihatecompvir `CameraManager::NumCameraShots` sends `first_shot_ok(category)`,
   scans the category list, and counts only shots where `Disabled() == 0`,

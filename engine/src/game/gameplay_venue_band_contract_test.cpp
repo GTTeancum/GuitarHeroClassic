@@ -5082,6 +5082,13 @@ int main() {
   ok &= contains(decode_cam_c,
                  "c.near_plane=r.f32();c.far_plane=r.f32();c.fov=r.f32();",
                  "Cam decoder reads near/far/FOV after Trans and optional Draw");
+  ok &= contains(milo_scene_cpp_c,
+                 "floatconvert_fov_like_miloeditor(floatfov,floataspect_ratio)"
+                 "{returnstd::atan(aspect_ratio*std::tan(0.5f*fov))*2.0f;}",
+                 "MILO scene Cam decoder carries ihatecompvir ConvertFov math");
+  ok &= contains(decode_cam_c,
+                 "if(version<12)c.fov=convert_fov_like_miloeditor(c.fov,0.75f);",
+                 "Cam decoder mirrors RndCam::Load rev<12 Y-FOV conversion");
   ok &= contains(decode_cam_c,
                  "for(float&v:c.screen_rect)v=r.f32();",
                  "Cam decoder reads the authored screen rect");
