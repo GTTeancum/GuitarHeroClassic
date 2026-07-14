@@ -147,6 +147,9 @@ int run_contract() {
 
   const std::string app_main =
       compact(read_file(engine_dir / "src" / "app" / "app_main.cpp"));
+  const std::string arm_pose_log_compare = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "compare_arm_pose_logs.py"));
   const std::string gameplay =
       compact(read_file(engine_dir / "src" / "game" / "gameplay.cpp"));
   const std::string re_anim_audit =
@@ -33388,6 +33391,38 @@ int run_contract() {
   ok &= contains(app_main,
                  "controller_sources.midi_fret_target=midi_fret_target;",
                  "viewer feeds MIDI fret target through shared controller source");
+  ok &= contains(arm_pose_log_compare,
+                 "SCREENSHOT_MARKER=\"screenshotsaved\"",
+                 "arm pose log verifier compares screenshot proof rows");
+  ok &= contains(arm_pose_log_compare,
+                 "DEFAULT_BONES=(\"bone_pelvis\",\"bone_spine1\","
+                 "\"bone_spine2\",\"bone_spine3\",\"bone_neck\","
+                 "\"bone_head\"",
+                 "arm pose log verifier covers torso and neck bones");
+  ok &= contains(arm_pose_log_compare,
+                 "\"bone_L-upperArm\",\"bone_L-upperTwist1\","
+                 "\"bone_L-upperTwist2\",\"bone_L-foreArm\","
+                 "\"bone_L-foreTwist1\",\"bone_L-foreTwist2\","
+                 "\"bone_L-hand\"",
+                 "arm pose log verifier covers left arm and twist bones");
+  ok &= contains(arm_pose_log_compare,
+                 "\"bone_R-upperArm\",\"bone_R-upperTwist1\","
+                 "\"bone_R-upperTwist2\",\"bone_R-foreArm\","
+                 "\"bone_R-foreTwist1\",\"bone_R-foreTwist2\","
+                 "\"bone_R-hand\"",
+                 "arm pose log verifier covers right arm and twist bones");
+  ok &= contains(arm_pose_log_compare,
+                 "DEFAULT_ROWS=(\"armw\",\"armr0\",\"armr1\",\"armr2\")",
+                 "arm pose log verifier compares all compact transform rows");
+  ok &= contains(arm_pose_log_compare,
+                 "ARM_ROW_RE=re.compile(",
+                 "arm pose log verifier parses compact arm proof rows");
+  ok &= contains(arm_pose_log_compare,
+                 "ifSCREENSHOT_MARKERinline:",
+                 "arm pose log verifier stops at the screenshot marker");
+  ok &= contains(arm_pose_log_compare,
+                 "compare_rows(",
+                 "arm pose log verifier compares gameplay and viewer rows");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",
