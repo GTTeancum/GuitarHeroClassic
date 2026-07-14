@@ -4046,6 +4046,18 @@ SourceCharClipDefaultState source_char_clip_default_state() {
   return SourceCharClipDefaultState{};
 }
 
+SourceCharClipNumFramesPlan source_char_clip_num_frames_plan(
+    int full_num_samples,
+    int full_frame_count,
+    int one_num_samples) {
+  SourceCharClipNumFramesPlan plan;
+  plan.full_num_samples = full_num_samples;
+  plan.full_frame_count = full_frame_count;
+  plan.one_num_samples = one_num_samples;
+  plan.num_frames = std::max(std::max(1, full_num_samples), full_frame_count);
+  return plan;
+}
+
 SourceCharClipBeatEvent source_char_clip_beat_event_default() {
   return SourceCharClipBeatEvent{};
 }

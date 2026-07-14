@@ -29186,6 +29186,10 @@ int run_contract() {
                  "CharClip::BeatEvent&CharClip::BeatEvent::operator=("
                  "constBeatEvent&ev){event=ev.event;beat=ev.beat;}",
                  "latest CharClip source exposes BeatEvent assignment fields");
+  ok &= contains(rb3_latest_char_clip_h,
+                 "intNumFrames()const{returnMax<int>(Max<int>(1,"
+                 "mFull.mNumSamples),mFull.mFrames.size());}",
+                 "latest CharClip header exposes NumFrames full-only expression");
   ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::BeatEvent::Load(BinStream&bs){bs>>event;"
                  "bs>>beat;}",
@@ -29422,6 +29426,14 @@ int run_contract() {
                  "checked\n    constructor defaults",
                  "document records native CharClip constructor default helper");
   ok &= contains(doc,
+                 "Native `source_char_clip_num_frames_plan` ports the checked "
+                 "inline\n    `NumFrames` expression exactly",
+                 "document records native CharClip NumFrames helper");
+  ok &= contains(doc,
+                 "`mOne` sample count does not\n    contribute to the reported "
+                 "clip frame count",
+                 "document records source CharClip NumFrames one-sample boundary");
+  ok &= contains(doc,
                  "unchanged values preserve the incoming\n    dirty state",
                  "document records source CharClip unchanged dirty behavior");
   ok &= contains(doc,
@@ -29634,6 +29646,12 @@ int run_contract() {
                  "floatfirst_beat_value=0.0f;};",
                  "native character API exposes source CharClip default-state row");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipNumFramesPlan{intfull_num_samples=0;"
+                 "intfull_frame_count=0;intone_num_samples=0;intnum_frames=1;"
+                 "boolclamps_minimum_to_one=true;booluses_full_num_samples=true;"
+                 "booluses_full_frame_count=true;boolignores_one_num_samples=true;};",
+                 "native character API exposes source CharClip NumFrames row");
+  ok &= contains(char_clip_h,
                  "structSourceCharClipBeatEvent{std::stringevent;"
                  "floatbeat=0.0f;};",
                  "native character API exposes source CharClip BeatEvent row");
@@ -29680,6 +29698,10 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "SourceCharClipDefaultStatesource_char_clip_default_state();",
                  "native character API exposes source CharClip default-state helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipNumFramesPlansource_char_clip_num_frames_plan("
+                 "intfull_num_samples,intfull_frame_count,intone_num_samples);",
+                 "native character API exposes source CharClip NumFrames helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipBeatEventsource_char_clip_beat_event_default();",
                  "native character API exposes source CharClip BeatEvent default helper");
@@ -30015,6 +30037,15 @@ int run_contract() {
                  "returnSourceCharClipDefaultState{};}",
                  "native CharClip default-state helper returns source defaults");
   ok &= contains(char_clip,
+                 "SourceCharClipNumFramesPlansource_char_clip_num_frames_plan("
+                 "intfull_num_samples,intfull_frame_count,intone_num_samples){"
+                 "SourceCharClipNumFramesPlanplan;",
+                 "native CharClip NumFrames helper is implemented");
+  ok &= contains(char_clip,
+                 "plan.num_frames=std::max(std::max(1,full_num_samples),"
+                 "full_frame_count);",
+                 "native CharClip NumFrames helper ports source expression");
+  ok &= contains(char_clip,
                  "SourceCharClipBeatEventsource_char_clip_beat_event_default(){"
                  "returnSourceCharClipBeatEvent{};}",
                  "native CharClip BeatEvent default helper returns source defaults");
@@ -30228,6 +30259,18 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_default_state()",
                  "focused clip driver flags test covers CharClip constructor defaults");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_num_frames_plan(12,4,99)",
+                 "focused clip driver flags test covers full sample NumFrames");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_num_frames_plan(2,16,99)",
+                 "focused clip driver flags test covers full frame NumFrames");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_num_frames_plan(0,0,99)",
+                 "focused clip driver flags test covers minimum NumFrames");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_num_frames_plan(2,3,1000)",
+                 "focused clip driver flags test covers ignored one-sample count");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_beat_event_default()",
                  "focused clip driver flags test covers BeatEvent default");

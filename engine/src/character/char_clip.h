@@ -1228,6 +1228,17 @@ struct SourceCharClipDefaultState {
   float first_beat_value = 0.0f;
 };
 
+struct SourceCharClipNumFramesPlan {
+  int full_num_samples = 0;
+  int full_frame_count = 0;
+  int one_num_samples = 0;
+  int num_frames = 1;
+  bool clamps_minimum_to_one = true;
+  bool uses_full_num_samples = true;
+  bool uses_full_frame_count = true;
+  bool ignores_one_num_samples = true;
+};
+
 struct SourceCharClipBeatEvent {
   std::string event;
   float beat = 0.0f;
@@ -1861,6 +1872,10 @@ struct SourceClipCompressorEvidence {
 
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
+SourceCharClipNumFramesPlan source_char_clip_num_frames_plan(
+    int full_num_samples,
+    int full_frame_count,
+    int one_num_samples);
 SourceCharClipBeatEvent source_char_clip_beat_event_default();
 SourceCharClipBeatEvent source_char_clip_beat_event_copy(
     const SourceCharClipBeatEvent& source);

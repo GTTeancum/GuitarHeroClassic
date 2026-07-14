@@ -4870,6 +4870,10 @@ note, and all report `unreadBytes=0`.
     constructor defaults: 30 FPS, zero flags/play flags/range, dirty true,
     compression allowed, `unk42 = -1`, and one beat-track key at frame/value
     zero.
+  - Native `source_char_clip_num_frames_plan` ports the checked inline
+    `NumFrames` expression exactly: `max(max(1, mFull.mNumSamples),
+    mFull.mFrames.size())`. This means the `mOne` sample count does not
+    contribute to the reported clip frame count.
   - Native `source_char_clip_beat_align_string` ports the concrete
     `CharClip::BeatAlignString` body for the `0xF600` play-flag group:
     `RealTime`, `UserTime`, `BeatAlign1`, `BeatAlign2`, `BeatAlign4`,

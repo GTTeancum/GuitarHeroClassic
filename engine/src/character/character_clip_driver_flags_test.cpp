@@ -214,6 +214,23 @@ bool expect_beat_event(const ghogx::character::SourceCharClipBeatEvent& got,
   return ok;
 }
 
+bool expect_num_frames(const ghogx::character::SourceCharClipNumFramesPlan& got,
+                       int want,
+                       const char* label) {
+  bool ok = true;
+  if (got.num_frames != want) {
+    std::cerr << "NumFrames mismatch for " << label << ": got "
+              << got.num_frames << " want " << want << "\n";
+    ok = false;
+  }
+  if (!got.clamps_minimum_to_one || !got.uses_full_num_samples ||
+      !got.uses_full_frame_count || !got.ignores_one_num_samples) {
+    std::cerr << "NumFrames source flags mismatch for " << label << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_driver_default_state(
     const ghogx::character::SourceCharDriverState& got) {
   bool ok = true;
@@ -1316,6 +1333,18 @@ int main() {
       {{true, {"idle"}}, {true, {"ending"}}},
       "solo", false, "candidate absent from groups");
   ok &= expect_default_state(ghogx::character::source_char_clip_default_state());
+  ok &= expect_num_frames(
+      ghogx::character::source_char_clip_num_frames_plan(12, 4, 99), 12,
+      "full sample count wins");
+  ok &= expect_num_frames(
+      ghogx::character::source_char_clip_num_frames_plan(2, 16, 99), 16,
+      "full frame count wins");
+  ok &= expect_num_frames(
+      ghogx::character::source_char_clip_num_frames_plan(0, 0, 99), 1,
+      "minimum frame count");
+  ok &= expect_num_frames(
+      ghogx::character::source_char_clip_num_frames_plan(2, 3, 1000), 3,
+      "one sample count ignored");
   ok &= expect_beat_event(
       ghogx::character::source_char_clip_beat_event_default(), "", 0.0f,
       "BeatEvent default");
