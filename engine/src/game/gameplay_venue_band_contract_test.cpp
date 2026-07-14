@@ -6124,6 +6124,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "cameraStartAnim:source_msg=start_shot",
                  "camera StartAnim diagnostics name ihatecompvir start_shot message");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "\"[world]cameraStartAnim:source_msg=start_shot"
+      "source_order=before_WorldDir_SetCrowds",
+      "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
+      "camera StartAnim mirrors ihatecompvir HandleType(start_shot) before WorldDir SetCrowds");
+  ok &= contains(gameplay_c,
+                 "source_state_reset=CamShot::StartAnim",
+                 "camera StartAnim diagnostics expose the post-SetCrowds source reset phase");
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_anims"
                  "(constCameraKey&key,conststd::string&runtime_name)",
@@ -6142,7 +6151,14 @@ int main() {
                  "constboolskip_script_crowd_update="
                  "active_camera_skip_next_crowd_update_;"
                  "end_camera_shot_runtime(skip_script_crowd_update);"
-                 "active_camera_runtime_shot_=runtime_name;"
+                 "active_camera_runtime_shot_=runtime_name;",
+                 "camera StartAnim establishes the active CamShot before source payload");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "active_camera_runtime_shot_=runtime_name;",
+      "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
+      "camera StartAnim applies the authored CamShot payload after naming the active shot");
+  ok &= contains(gameplay_c,
                  "apply_camera_crowd_visibility(key,skip_script_crowd_update);"
                  "constboolhas_source_crowd=",
                  "camera StartAnim applies the authored CamShot crowd payload before resetting carried state");

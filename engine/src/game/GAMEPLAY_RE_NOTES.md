@@ -218,6 +218,13 @@ Open work:
   true. Native now reads one source bool instead of a four-byte integer,
   preserving frame body alignment before the FOV, transform, and screen-offset
   fields.
+- 2026-07-14 CamShot `StartAnim` source-order proof:
+  ihatecompvir `CamShot::StartAnim` calls `HandleType(start_shot_msg)` before
+  `WorldDir::SetCrowds(mCrowds)`, then resets camera-local state, starts
+  linked `mAnims`, and finally runs each `CamShotCrowd::Set3DCrowd()`. Native
+  now logs the `start_shot` phase before applying the `WorldDir::SetCrowds`
+  bridge and emits a separate source-reset row after the reset, so proof runs
+  can audit lifecycle order instead of seeing the first phase stamped late.
 - 2026-07-14 CameraManager all-category randomization:
   ihatecompvir `CameraManager::SyncObjects` adds every `PlatformOk()` CamShot
   to first-seen category buckets, then `CameraManager::Randomize()` iterates

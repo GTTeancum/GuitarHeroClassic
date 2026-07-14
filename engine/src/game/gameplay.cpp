@@ -22653,6 +22653,19 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
         active_camera_skip_next_crowd_update_;
     end_camera_shot_runtime(skip_script_crowd_update);
     active_camera_runtime_shot_ = runtime_name;
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds shot=%s hide_crowd=%d face_camera=%d "
+            "force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu "
+            "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
+            active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
+            key.crowd_face_camera ? 1 : 0, key.force_char_lod,
+            key.hide_list_refs.size(), key.show_list_refs.size(),
+            key.gen_hide_list_refs.size(), key.draw_override_refs.size(),
+            key.postproc_override_refs.size(), key.camera_anim_refs.size(),
+            key.glow_spot_ref.c_str());
+    }
     apply_camera_crowd_visibility(key, skip_script_crowd_update);
     const bool has_source_crowd =
         key.has_crowd_selection || !key.crowd_selection_ref.empty();
@@ -22668,6 +22681,12 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             skip_script_crowd_update ? 1 : 0);
     }
     camera_result_builder_state_.reset();
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1\n",
+            active_camera_runtime_shot_.c_str());
+    }
     if (skip_script_crowd_update) {
         if (debug_venue_filters_enabled()) {
             std::fprintf(
@@ -22689,20 +22708,6 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             key.crowd_face_camera ? 1 : 0);
     }
     set_camera_glow_spot_ref(key.glow_spot_ref);
-    if (debug_venue_filters_enabled()) {
-        std::fprintf(
-            stderr,
-            "[world] camera StartAnim: source_msg=start_shot shot=%s hide_crowd=%d face_camera=%d "
-            "reset_result_builder=1 force_char_lod=%d "
-            "hide_list=%zu show_list=%zu gen_hide=%zu "
-            "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
-            active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
-            key.crowd_face_camera ? 1 : 0, key.force_char_lod,
-            key.hide_list_refs.size(), key.show_list_refs.size(),
-            key.gen_hide_list_refs.size(), key.draw_override_refs.size(),
-            key.postproc_override_refs.size(), key.camera_anim_refs.size(),
-            key.glow_spot_ref.c_str());
-    }
 }
 
 std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
