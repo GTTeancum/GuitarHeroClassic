@@ -1071,10 +1071,13 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
     float frac) {
   std::vector<SourceCharBonesSampleStep> steps;
   steps.push_back(
-      {samples.bones.layout.total_size * sample, (1.0f - frac) * weight});
+      {samples.bones.layout.total_size * sample, (1.0f - frac) * weight, ""});
   if (frac > 0.0f) {
-    steps.push_back(
-        {samples.bones.layout.total_size * (sample + 1), frac * weight});
+    steps.push_back({
+        samples.bones.layout.total_size * (sample + 1),
+        frac * weight,
+        "",
+    });
   }
   return steps;
 }
@@ -1085,12 +1088,23 @@ int source_char_bones_samples_rotate_by_offset(
   return samples.bones.layout.total_size * sample;
 }
 
+SourceCharBonesSampleStep source_char_bones_samples_rotate_by_step(
+    const SourceCharBonesSamplesState& samples,
+    int sample) {
+  return {source_char_bones_samples_rotate_by_offset(samples, sample), 0.0f,
+          "CharBones::RotateBy"};
+}
+
 std::vector<SourceCharBonesSampleStep> source_char_bones_samples_rotate_to_steps(
     const SourceCharBonesSamplesState& samples,
     int sample,
     float angle,
     float frac) {
-  return source_char_bones_samples_split_steps(samples, sample, angle, frac);
+  auto steps = source_char_bones_samples_split_steps(samples, sample, angle, frac);
+  for (auto& step : steps) {
+    step.downstream_call = "CharBones::RotateTo";
+  }
+  return steps;
 }
 
 std::vector<SourceCharBonesSampleStep>
@@ -1099,7 +1113,12 @@ source_char_bones_samples_scale_add_steps(
     int sample,
     float weight,
     float frac) {
-  return source_char_bones_samples_split_steps(samples, sample, weight, frac);
+  auto steps =
+      source_char_bones_samples_split_steps(samples, sample, weight, frac);
+  for (auto& step : steps) {
+    step.downstream_call = "CharBones::ScaleAdd";
+  }
+  return steps;
 }
 
 bool source_char_bones_samples_set_ver_known(int version) {

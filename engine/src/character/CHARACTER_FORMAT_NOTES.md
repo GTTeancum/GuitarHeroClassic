@@ -3248,6 +3248,12 @@ Useful environment flags:
   `SourceCharBonesSamplesState` now carries a matching `raw_data` vector through
   `source_char_bones_samples_set` and `source_char_bones_samples_clone`. This is
   storage/copy parity only; it is not the missing body-pose publisher.
+- 2026-07-14 `CharBonesSamples` wrapper call labels:
+  native sample-step helpers now preserve which source call each selected
+  `mRawData[mTotalSize * sample]` row would dispatch to:
+  `CharBones::RotateBy`, `CharBones::RotateTo`, or `CharBones::ScaleAdd`.
+  These labels are audit data for the future publisher path, not replacement
+  transform math.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.

@@ -520,6 +520,7 @@ struct SourceCharBonesSamplesState {
 struct SourceCharBonesSampleStep {
   int start_offset = 0;
   float weight = 0.0f;
+  std::string downstream_call;
 };
 
 struct SourceCharBonesSamplesLoadPlan {
@@ -2557,6 +2558,9 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
     float weight,
     float frac);
 int source_char_bones_samples_rotate_by_offset(
+    const SourceCharBonesSamplesState& samples,
+    int sample);
+SourceCharBonesSampleStep source_char_bones_samples_rotate_by_step(
     const SourceCharBonesSamplesState& samples,
     int sample);
 std::vector<SourceCharBonesSampleStep> source_char_bones_samples_rotate_to_steps(

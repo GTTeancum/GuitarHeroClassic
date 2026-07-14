@@ -1784,6 +1784,8 @@ int main() {
   ok &= expect_size(one_step.size(), 1, "samples split single count");
   ok &= expect_int(one_step[0].start_offset, 32, "samples split single offset");
   ok &= expect_float(one_step[0].weight, 0.8f, "samples split single weight");
+  ok &= expect_string(one_step[0].downstream_call, "",
+                      "samples split generic call");
   const std::vector<SourceCharBonesSampleStep> two_steps =
       source_char_bones_samples_split_steps(samples, 1, 1.0f, 0.25f);
   ok &= expect_size(two_steps.size(), 2, "samples split blended count");
@@ -1797,6 +1799,14 @@ int main() {
                      "samples split blended second weight");
   ok &= expect_int(source_char_bones_samples_rotate_by_offset(samples, 3), 96,
                    "samples RotateBy offset");
+  const SourceCharBonesSampleStep rotate_by_step =
+      source_char_bones_samples_rotate_by_step(samples, 3);
+  ok &= expect_int(rotate_by_step.start_offset, 96,
+                   "samples RotateBy step offset");
+  ok &= expect_float(rotate_by_step.weight, 0.0f,
+                     "samples RotateBy step unweighted");
+  ok &= expect_string(rotate_by_step.downstream_call, "CharBones::RotateBy",
+                      "samples RotateBy downstream call");
   const std::vector<SourceCharBonesSampleStep> rotate_steps =
       source_char_bones_samples_rotate_to_steps(samples, 2, 2.0f, 0.25f);
   ok &= expect_size(rotate_steps.size(), 2, "samples RotateTo count");
@@ -1808,6 +1818,10 @@ int main() {
                    "samples RotateTo second offset");
   ok &= expect_float(rotate_steps[1].weight, 0.5f,
                      "samples RotateTo second angle");
+  ok &= expect_string(rotate_steps[0].downstream_call, "CharBones::RotateTo",
+                      "samples RotateTo first downstream call");
+  ok &= expect_string(rotate_steps[1].downstream_call, "CharBones::RotateTo",
+                      "samples RotateTo second downstream call");
   const std::vector<SourceCharBonesSampleStep> scale_steps =
       source_char_bones_samples_scale_add_steps(samples, 0, 0.5f, 0.0f);
   ok &= expect_size(scale_steps.size(), 1, "samples ScaleAddSample count");
@@ -1815,6 +1829,8 @@ int main() {
                    "samples ScaleAddSample first offset");
   ok &= expect_float(scale_steps[0].weight, 0.5f,
                      "samples ScaleAddSample first weight");
+  ok &= expect_string(scale_steps[0].downstream_call, "CharBones::ScaleAdd",
+                      "samples ScaleAddSample downstream call");
   const std::vector<SourceCharBonesSampleStep> scale_blend_steps =
       source_char_bones_samples_scale_add_steps(samples, 1, 0.8f, 0.25f);
   ok &= expect_size(scale_blend_steps.size(), 2,
@@ -1827,6 +1843,9 @@ int main() {
                    "samples ScaleAddSample blended second offset");
   ok &= expect_float(scale_blend_steps[1].weight, 0.2f,
                      "samples ScaleAddSample blended second weight");
+  ok &= expect_string(scale_blend_steps[1].downstream_call,
+                      "CharBones::ScaleAdd",
+                      "samples ScaleAddSample blended downstream call");
   ok &= expect_int(source_char_bones_samples_load_version_known(12) ? 1 : 0, 0,
                    "samples load version low rejected");
   ok &= expect_int(source_char_bones_samples_load_version_known(13) ? 1 : 0, 1,

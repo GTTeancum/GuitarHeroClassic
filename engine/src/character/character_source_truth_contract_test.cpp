@@ -26242,7 +26242,7 @@ int run_contract() {
                  "native API exposes source CharBonesSamples state row");
   ok &= contains(char_clip_h,
                  "structSourceCharBonesSampleStep{intstart_offset=0;"
-                 "floatweight=0.0f;};",
+                 "floatweight=0.0f;std::stringdownstream_call;};",
                  "native API exposes source CharBonesSamples sample step row");
   ok &= contains(char_clip_h,
                  "structSourceCharBonesSamplesBodyBoundary{"
@@ -26319,6 +26319,11 @@ int run_contract() {
                  "intsource_char_bones_samples_rotate_by_offset("
                  "constSourceCharBonesSamplesState&samples,intsample);",
                  "native API exposes source CharBonesSamples RotateBy helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesSampleStep"
+                 "source_char_bones_samples_rotate_by_step("
+                 "constSourceCharBonesSamplesState&samples,intsample);",
+                 "native API exposes source CharBonesSamples RotateBy call step");
   ok &= contains(char_clip_h,
                  "std::vector<SourceCharBonesSampleStep>"
                  "source_char_bones_samples_rotate_to_steps("
@@ -26479,8 +26484,8 @@ int run_contract() {
                  "constSourceCharBonesSamplesState&samples,intsample,"
                  "floatweight,floatfrac){std::vector<SourceCharBonesSampleStep>"
                  "steps;steps.push_back({samples.bones.layout.total_size*sample,"
-                 "(1.0f-frac)*weight});if(frac>0.0f){steps.push_back({"
-                 "samples.bones.layout.total_size*(sample+1),frac*weight});}"
+                 "(1.0f-frac)*weight,\"\"});if(frac>0.0f){steps.push_back({"
+                 "samples.bones.layout.total_size*(sample+1),frac*weight,\"\",});}"
                  "returnsteps;}",
                  "native CharBonesSamples split-step helper mirrors source row offsets");
   ok &= contains(char_clip,
@@ -26489,21 +26494,29 @@ int run_contract() {
                  "returnsamples.bones.layout.total_size*sample;}",
                  "native CharBonesSamples RotateBy helper mirrors source row offset");
   ok &= contains(char_clip,
+                 "SourceCharBonesSampleStepsource_char_bones_samples_rotate_by_step("
+                 "constSourceCharBonesSamplesState&samples,intsample){"
+                 "return{source_char_bones_samples_rotate_by_offset(samples,"
+                 "sample),0.0f,\"CharBones::RotateBy\"};}",
+                 "native CharBonesSamples RotateBy step records source downstream call");
+  ok &= contains(char_clip,
                  "std::vector<SourceCharBonesSampleStep>"
                  "source_char_bones_samples_rotate_to_steps("
                  "constSourceCharBonesSamplesState&samples,intsample,"
-                 "floatangle,floatfrac){return"
+                 "floatangle,floatfrac){autosteps="
                  "source_char_bones_samples_split_steps(samples,sample,angle,"
-                 "frac);}",
-                 "native CharBonesSamples RotateTo helper delegates source split");
+                 "frac);for(auto&step:steps){step.downstream_call="
+                 "\"CharBones::RotateTo\";}returnsteps;}",
+                 "native CharBonesSamples RotateTo helper records source downstream call");
   ok &= contains(char_clip,
                  "std::vector<SourceCharBonesSampleStep>"
                  "source_char_bones_samples_scale_add_steps("
                  "constSourceCharBonesSamplesState&samples,intsample,"
-                 "floatweight,floatfrac){return"
+                 "floatweight,floatfrac){autosteps="
                  "source_char_bones_samples_split_steps(samples,sample,weight,"
-                 "frac);}",
-                 "native CharBonesSamples ScaleAddSample helper delegates source split");
+                 "frac);for(auto&step:steps){step.downstream_call="
+                 "\"CharBones::ScaleAdd\";}returnsteps;}",
+                 "native CharBonesSamples ScaleAddSample helper records source downstream call");
   ok &= contains(char_clip,
                  "std::vector<ClipChannelLayer>CharClipPlayer::"
                  "sampled_pose_layers(floatweight,booloverlay_override)const",
@@ -26772,9 +26785,18 @@ int run_contract() {
                  "0.25f)",
                  "focused CharBones source test covers CharBonesSamples RotateTo helper");
   ok &= contains(char_bones_source_test,
+                 "rotate_by_step.downstream_call,\"CharBones::RotateBy\"",
+                 "focused CharBones source test covers RotateBy downstream call");
+  ok &= contains(char_bones_source_test,
+                 "rotate_steps[0].downstream_call,\"CharBones::RotateTo\"",
+                 "focused CharBones source test covers RotateTo downstream call");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_scale_add_steps(samples,0,0.5f,"
                  "0.0f)",
                  "focused CharBones source test covers CharBonesSamples ScaleAddSample helper");
+  ok &= contains(char_bones_source_test,
+                 "scale_steps[0].downstream_call,\"CharBones::ScaleAdd\"",
+                 "focused CharBones source test covers ScaleAdd downstream call");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_scale_add_steps(samples,1,0.8f,"
                  "0.25f)",

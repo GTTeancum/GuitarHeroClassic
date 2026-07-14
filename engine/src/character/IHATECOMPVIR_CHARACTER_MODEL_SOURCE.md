@@ -4825,7 +4825,11 @@ note, and all report `unreadBytes=0`.
   - `Set`/`Clone` allocate `mRawData` from `AllocateSize()`.
   - `RotateBy`, `RotateTo`, and `ScaleAddSample` select
     `mRawData[mTotalSize * sample]` and split weight between sample `i` and
-    `i + 1` by `frac`.
+    `i + 1` by `frac`. Native `SourceCharBonesSampleStep` records both the
+    selected raw-data offset and the downstream source call
+    (`CharBones::RotateBy`, `CharBones::RotateTo`, or
+    `CharBones::ScaleAdd`) without implementing the still-missing low-level
+    `CharBones` operation bodies.
     Native `CharClipPlayer::sampled_pose_layers` now preserves that
     adjacent-sample split for a single active clip player by appending the
     current frame at `(1 - frac) * weight` and the next frame at
