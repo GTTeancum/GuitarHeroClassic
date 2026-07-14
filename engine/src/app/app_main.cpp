@@ -660,6 +660,25 @@ std::vector<std::string> driver_milo_candidates(
   return out;
 }
 
+std::string animation_milo_role(std::string path) {
+  path = normalize_milo_path(std::move(path));
+  const size_t slash = path.find_last_of('/');
+  std::string name =
+      slash == std::string::npos ? path : path.substr(slash + 1);
+  if (name.size() >= 9 &&
+      name.compare(name.size() - 9, 9, ".milo_ps2") == 0) {
+    name.resize(name.size() - 9);
+  } else if (name.size() >= 5 &&
+             name.compare(name.size() - 5, 5, ".milo") == 0) {
+    name.resize(name.size() - 5);
+  }
+  const size_t underscore = name.find_last_of('_');
+  if (underscore == std::string::npos || underscore + 1 >= name.size()) {
+    return {};
+  }
+  return name.substr(underscore + 1);
+}
+
 bool facefx_neutral_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1235,6 +1254,31 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       std::string clip_milo = spec.substr(0, colon);
       std::string clip_name = spec.substr(colon + 1);
       clip = ghogx::character::load_clip(hdr, ark, clip_milo, clip_name);
+      if (clip.loaded) return clip;
+
+      const std::string requested_role = animation_milo_role(clip_milo);
+      if (!requested_role.empty()) {
+        const std::string requested_milo = normalize_milo_path(clip_milo);
+        for (const auto& driver : character_drivers) {
+          if (driver.clip_milo.empty()) continue;
+          for (const auto& candidate :
+               driver_milo_candidates(milo_path, driver.clip_milo)) {
+            if (candidate == requested_milo ||
+                animation_milo_role(candidate) != requested_role) {
+              continue;
+            }
+            clip = ghogx::character::load_clip(hdr, ark, candidate, clip_name);
+            if (clip.loaded) {
+              std::fprintf(stderr,
+                           "[clip] resolved shared driver milo: %s -> %s "
+                           "via %s\n",
+                           requested_milo.c_str(), candidate.c_str(),
+                           driver.name.c_str());
+              return clip;
+            }
+          }
+        }
+      }
     }
     return clip;
   };

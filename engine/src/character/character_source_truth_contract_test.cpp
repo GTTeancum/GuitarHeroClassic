@@ -32073,6 +32073,17 @@ int run_contract() {
                  "weighted-card consumer issues",
                  "document preserves old hair trace as consumer-path evidence");
   ok &= contains(doc,
+                 "stock GH2 PS2 assets share some\n"
+                 "animation MILOs across performer variants",
+                 "document records shared stock animation MILOs for diagnostics");
+  ok &= contains(doc,
+                 "fall back only to matching-role\n"
+                 "driver MILO candidates decoded from the character",
+                 "document fences explicit clip fallback to decoded driver roles");
+  ok &= contains(doc,
+                 "it does not alter gameplay clip selection",
+                 "document keeps shared animation resolution diagnostic-only");
+  ok &= contains(doc,
                  "static/no-CharHair was already answered as unlikely to solve "
                  "the\nbroken placement",
                  "document preserves static hair as a rejected complete fix");

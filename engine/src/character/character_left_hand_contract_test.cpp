@@ -240,6 +240,21 @@ int main() {
                  "if(!viewer_hand_ik_weights_active){",
                  "character viewer lets main.drv flags drive release poses when no hand overlay is active");
   ok &= contains(app_main_c,
+                 "std::stringanimation_milo_role(std::stringpath)",
+                 "character viewer classifies explicit clip MILOs by source driver role");
+  ok &= contains(app_main_c,
+                 "conststd::stringrequested_role=animation_milo_role(clip_milo);",
+                 "explicit clip fallback starts from the requested MILO role");
+  ok &= contains(app_main_c,
+                 "animation_milo_role(candidate)!=requested_role",
+                 "explicit clip fallback only tries matching source driver roles");
+  ok &= contains(app_main_c,
+                 "[clip]resolvedshareddrivermilo:%s->%s",
+                 "explicit clip fallback logs shared source driver MILO resolution");
+  ok &= contains(app_main_c,
+                 "via%s\\n",
+                 "explicit clip fallback log names the source driver row");
+  ok &= contains(app_main_c,
                  "set_runtime_driver_evaluate_flags(renderer.character(),"
                  "setter.driver,setter.flags,flag_weight);",
                  "character viewer feeds active main.drv EvaluateFlags into source WeightSetter polling");

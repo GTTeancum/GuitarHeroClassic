@@ -5394,6 +5394,17 @@ local rows. This is not a claim that the star-power arm/neck pose is fixed;
 zero-weight hand IK frames still point back at the broader `CharClipSamples` /
 `CharBonesSamples` / `CharBones` / `PoseMeshes` application path.
 
+2026-07-14 diagnostic clip-path correction: stock GH2 PS2 assets share some
+animation MILOs across performer variants. For example, Rock2's decoded
+`main.drv`, `right_hand.drv`, and `left_hand.drv` rows point back to Rock1
+`*_main`, `*_strum`, and `*_fret` animation MILOs, and the stock ARK contains
+`char/rock1/anims/gen/rock1_main.milo_ps2` but no
+`char/rock2/anims/gen/rock2_main.milo_ps2`. Native `--char --clip` proof
+captures now first try the explicit path, then fall back only to matching-role
+driver MILO candidates decoded from the character. This is a diagnostic viewer
+resolution rule so proof frames exercise the intended authored clip instead of
+silently dropping to neutral; it does not alter gameplay clip selection.
+
 The raw pre-integration chat adds only clarifying boundaries around the same
 hair lead: static/no-CharHair was already answered as unlikely to solve the
 broken placement, and hair was described as separate `.mesh` objects that can
