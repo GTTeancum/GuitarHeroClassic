@@ -11473,3 +11473,10 @@ Rejected native probe:
   `special FALSE` filters, while lighter shots are accepted by the `LIGHTER`
   category alone. This removes an over-filtered native predicate; it does not
   invent `cam_shot_ok` or `cam_check_shot` behavior.
+- 2026-07-14 camera source selection provenance:
+  native regular camera sweep diagnostics now stamp the recovered GH2 script
+  category token, ordered filter list, and source previous-shot context used
+  for the pick. The labels come directly from `pick_regular_camera_shot`,
+  `pick_solo_camera_shot`, `band_jump`, and `pick_lighter_shot`; this does not
+  change selection or camera transform math. It makes suspicious angles
+  auditable as either source-script-eligible picks or later pipeline issues.

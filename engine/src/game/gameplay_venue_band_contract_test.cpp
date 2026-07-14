@@ -178,6 +178,12 @@ int main() {
       compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string regular_camera_selector_c = compact(
       function_body(gameplay, "choose_regular_camera_key_index_by_category"));
+  const std::string regular_camera_filter_label_c = compact(function_body(
+      gameplay, "camera_source_regular_script_filter_label"));
+  const std::string solo_camera_filter_label_c = compact(function_body(
+      gameplay, "camera_source_solo_script_filter_label"));
+  const std::string camera_filter_label_c =
+      compact(function_body(gameplay, "camera_source_script_filter_label"));
   const std::string camera_submit_c =
       compact(function_body(gameplay, "camera_submitted_result_rows_for_key"));
   const std::string camera_project_target_screen_norm_c = compact(
@@ -11032,6 +11038,8 @@ int main() {
                  "bars_left=%d"
                  "duration=%s[%d,%d]duration_source=%sduration_draw=%s%zu"
                  "mode=%sfilter_source=ShotMatches"
+                 "source_category=%ssource_filters=\\\"%s\\\""
+                 "source_previous=%s"
                  "flags=0x%08xforced=%dsource_next=%dforce_char_lod=%d",
                  "regular camera sweep logs source matcher provenance and selected character LOD");
   ok &= contains(gameplay_c,
@@ -11787,12 +11795,50 @@ int main() {
                  "constGameplay::CameraKey*source_previous_fallback",
                  "regular camera selector accepts source previous fallback context");
   ok &= contains(gameplay_c,
-                 "previous?previous:source_previous_fallback;",
+                 "constGameplay::CameraKey*camera_source_previous_key_for_selection(",
+                 "regular camera sweep diagnostics share the same source previous lookup");
+  ok &= contains(gameplay_c,
+                 "if(key.name==previous_name)return&key;}"
+                 "returnsource_previous_fallback;",
                  "regular camera selector uses the active regular shot before fallback metadata");
   ok &= contains(gameplay_c,
                  "active_regular_camera_.empty()&&!camera_keys_.empty()"
                  "?&camera_keys_.front():nullptr;",
                  "first regular camera pick uses the intro CamShot as source previous context");
+  ok &= contains(gameplay_c,
+                 "std::stringcamera_source_script_filter_label(",
+                 "regular camera diagnostics expose the recovered GH2 script filter list");
+  ok &= contains(camera_filter_label_c,
+                 "if(mode==CameraShotMode::Lighter)return\"none\";",
+                 "LIGHTER pick_shot diagnostics expose the unfiltered source route");
+  ok &= contains(camera_filter_label_c,
+                 "if(mode==CameraShotMode::Jump)return\"(jump_okTRUE)\";",
+                 "band_jump diagnostics expose the exact source jump_ok filter");
+  ok &= contains(regular_camera_filter_label_c,
+                 "\"(facing(rightnull))\"",
+                 "regular camera filter diagnostics preserve the previous-left facing guard");
+  ok &= contains(regular_camera_filter_label_c,
+                 "\"(distance(nullnearcloseup))\"",
+                 "regular camera filter diagnostics preserve the far/behind distance guard");
+  ok &= appears_before(regular_camera_filter_label_c,
+                       "\"(solo(oknever))\"",
+                       "\"(specialFALSE)\"",
+                       "regular camera filter diagnostics preserve source solo-before-special order");
+  ok &= contains(solo_camera_filter_label_c,
+                 "\"(solo(okonly))\"",
+                 "solo camera filter diagnostics preserve the source solo-only filter");
+  ok &= appears_before(solo_camera_filter_label_c,
+                       "\"(low_excitement_okTRUE)\"",
+                       "\"(solo(okonly))\"",
+                       "solo camera filter diagnostics preserve source state-before-solo order");
+  ok &= contains(gameplay_c,
+                 "conststd::stringsource_filters_for_log="
+                 "camera_source_script_filter_label(",
+                 "regular camera sweep rows stamp the active source filter list");
+  ok &= contains(gameplay_c,
+                 "source_category=%ssource_filters=\\\"%s\\\""
+                 "source_previous=%s",
+                 "regular camera sweep diagnostics expose source category, filters, and previous shot");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
                  "constGameplay::CameraKey*previous)",
