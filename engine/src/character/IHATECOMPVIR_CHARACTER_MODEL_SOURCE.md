@@ -4020,6 +4020,14 @@ note, and all report `unreadBytes=0`.
     declares the method, while
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a
     `CharIKHand__PullShoulder` symbol at `0x82395500` with size `0x9C`.
+    The tracked RB2 dump also maps `CharIKHand::Poll`,
+    `CharIKHand::IKElbow`, and `CharIKHand::PollDeps` ranges, with
+    `PollDeps` at `0x80375CC0 -> 0x803760C8`, but it exposes only locals and
+    references rather than statement-level push order. Its `dolmatchoutput.txt`
+    rows show weak thunk entries for `@32@Poll__10CharIKHandFv` and
+    `@32@PollDeps__10CharIKHand...`, not a reviewable body to port.
+    `CharIKHand::PollDeps` at `0x80375CC0 -> 0x803760C8` is therefore range
+    evidence only, not a native implementation source.
     `band3_recomp/band3_manifest.toml` would generate bodies from
     `assets/default.xex`, but this checkout has neither that XEX nor a
     generated recomp output directory, so the symbol is not a source body.

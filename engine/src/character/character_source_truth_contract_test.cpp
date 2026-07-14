@@ -453,6 +453,8 @@ int run_contract() {
   const std::string rb2_combined_dump_cpp = compact(read_file(rb2_dump_cpp));
   const std::string rb2_char_eyes_cpp = compact(read_file(
       rb2_dump_char_dir / "CharEyes.cpp"));
+  const std::string rb2_char_ik_hand_dump_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharIKHand.cpp"));
   const std::string rb3_latest_char_hair_cpp = compact(read_file(
       rb3_latest_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_h = compact(read_file(
@@ -786,6 +788,8 @@ int run_contract() {
       rb2_dump_char_dir / "CharCollide.h"));
   const std::string rb2_dolmatch_filt = compact(read_file(
       extra_dir / "rb3-retail-old/doc/dolmatchoutput_filt.txt"));
+  const std::string rb2_dolmatch_output = compact(read_file(
+      extra_dir / "rb3-retail-old/doc/dolmatchoutput.txt"));
   const std::string band3_config = compact(read_file(
       extra_dir / "band3_recomp/band3_config.toml"));
   const std::string band3_manifest = compact(read_file(
@@ -24428,6 +24432,20 @@ int run_contract() {
                  "band3_recomp exposes CharIKHand PullShoulder symbol");
   ok &= contains(band3_manifest, "file_path=\"assets/default.xex\"",
                  "band3_recomp manifest requires local default.xex input");
+  ok &= contains(rb2_char_ik_hand_dump_cpp,
+                 "voidCharIKHand::PollDeps(classCharIKHand*constthis/*r29*/,"
+                 "classlist&changedBy/*r30*/,classlist&change/*r31*/){",
+                 "RB2 dump maps CharIKHand PollDeps boundary");
+  ok &= contains(rb2_char_ik_hand_dump_cpp,
+                 "//Range:0x80375CC0->0x803760C8",
+                 "RB2 dump records CharIKHand PollDeps function range");
+  ok &= contains(rb2_char_ik_hand_dump_cpp,
+                 "classiteratorit;//r1+0x3C",
+                 "RB2 dump PollDeps exposes locals only");
+  ok &= contains(rb2_dolmatch_output, "@32@PollDeps__10CharIKHand",
+                 "RB2 dolmatch output exposes CharIKHand PollDeps thunk row");
+  ok &= contains(rb2_dolmatch_output, "@32@Poll__10CharIKHandFv",
+                 "RB2 dolmatch output exposes CharIKHand Poll thunk row");
   if (band3_recomp_default_xex_present) {
     std::cerr << "Forbidden source-truth contract match: band3_recomp "
                  "default.xex is not source-checkout evidence\n";
@@ -25166,6 +25184,12 @@ int run_contract() {
                  "`CharIKHand__PullShoulder` symbol at `0x82395500` with "
                  "size `0x9C`",
                  "document records PullShoulder symbol evidence");
+  ok &= contains(doc,
+                 "`CharIKHand::PollDeps` at `0x80375CC0 -> 0x803760C8`",
+                 "document records RB2 CharIKHand PollDeps range evidence");
+  ok &= contains(doc,
+                 "`@32@PollDeps__10CharIKHand...`, not a reviewable body",
+                 "document records RB2 CharIKHand dolmatch thunk boundary");
   ok &= contains(doc,
                  "has neither that XEX nor a\n    generated recomp output "
                  "directory",
