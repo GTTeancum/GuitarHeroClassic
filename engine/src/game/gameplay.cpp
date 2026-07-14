@@ -18934,8 +18934,12 @@ std::optional<CameraResultRows> camera_trace_complete_writer_bridge_rows(
     }
     const auto builder_rows =
         camera_writer_bridge_builder_rows_for_key(key, targets);
-    return camera_ps2_writer_bridge_from_builder_rows(key, targets,
-                                                      builder_rows);
+    auto writer_rows =
+        camera_ps2_writer_bridge_from_builder_rows(key, targets, builder_rows);
+    if (!writer_rows) return std::nullopt;
+    writer_rows->source =
+        "trace_complete_default(" + writer_rows->source + ")";
+    return writer_rows;
 }
 
 std::optional<CameraResultRows> camera_rejected_target_candidate_rows_for_key(

@@ -6711,6 +6711,11 @@ Rejected native probe:
   This is proof surface only; it does not change camera math or promote any
   extra rows beyond the existing `camera_has_promotable_writer_bridge_evidence`
   gate.
+- Default promoted writer-bridge rows now wrap their submitted result source in
+  `trace_complete_default(...)`. That makes screenshots/logs distinguish the
+  source-gated default path from the opt-in
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=writer_bridge` diagnostic selector
+  without changing the camera transform.
 
 2026-07-14 path-backed camera TransAnim timing proof:
 - Path-backed regular CamShots now carry the source-local frame from

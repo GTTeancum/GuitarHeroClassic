@@ -9470,6 +9470,10 @@ int main() {
                  "GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE",
                  "trace-complete writer bridge submission is default-on only behind the shared evidence gate and keeps an explicit A/B disable");
   ok &= contains(gameplay_c,
+                 "writer_rows->source=\"trace_complete_default(\"+"
+                 "writer_rows->source+\")\";",
+                 "default trace-complete writer bridge submitted rows are visibly tagged as source-gated promotion");
+  ok &= contains(gameplay_c,
                  "ps2_writer_bridge_builder_projection(",
                  "accepted PS2 result-builder projection rows can feed the generic writer bridge");
   ok &= contains(gameplay_c,
