@@ -11038,14 +11038,11 @@ int main() {
                  "if(!camera_source_check_shot(*active_key,beat)){",
                  "regular camera runtime routes rejected check_shot results to a new pick");
   ok &= contains(gameplay_c,
-                 "if(!force_camera&&diagnostic_camera_shot_.empty()&&"
-                 "!active_regular_camera_.empty())",
+                 "if(diagnostic_camera_shot_.empty()){"
+                 "floatlocal_frame=0.0f;",
                  "source shot_over bridge does not disturb diagnostic camera proofs");
   ok &= contains(gameplay_c,
-                 "if(!active_key->next_shot_ref.empty())",
-                 "source shot_over bridge is gated to authored CamShot next_shot refs");
-  ok &= contains(gameplay_c,
-                 "camera_source_check_shot_over(*active_key,song_time_,"
+                 "camera_source_check_shot_over(*key,song_time_,"
                  "active_regular_camera_start_",
                  "source shot_over bridge uses decoded CamShot local frame duration");
   ok &= contains(gameplay_c,
@@ -11054,9 +11051,28 @@ int main() {
                  "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
   ok &= appears_before(
       gameplay_c,
-      "source_forced_camera_shot=active_key->next_shot_ref;",
+      "queue_regular_camera_shot(*next_key,\"ForceCameraShot\");",
       "active_camera_shot_over_=true;",
-      "source shot_over dispatch happens before mShotOver flips");
+      "source shot_over force_shot queues before mShotOver flips");
+  ok &= contains(gameplay_c,
+                 "constboolhas_next_shot=!key->next_shot_ref.empty();",
+                 "source shot_over bridge evaluates the handler before the GH2 next_shot script branch");
+  ok &= contains(gameplay_c,
+                 "has_next_shot?\"force_shot\":\"none\"",
+                 "source shot_over diagnostics expose whether the GH2 handler forces a next shot");
+  ok &= contains(gameplay_c,
+                 "if(has_next_shot){"
+                 "active_camera_skip_next_crowd_update_=true;"
+                 "autoduration=camera_duration_range_for_event(",
+                 "GH2 camshot.dta shot_over script only forces authored next_shot refs");
+  ok &= contains(gameplay_c,
+                 "camera_bars_left_=source_random_int_camera_duration_bars("
+                 "duration.second.first,duration.second.second,"
+                 "duration_random_draw);",
+                 "world_objects_worldbase.dta::do_force_shot refreshes camera_bars_left from get_shot_duration");
+  ok &= contains(gameplay_c,
+                 "queue_regular_camera_shot(*next_key,\"ForceCameraShot\");",
+                 "source shot_over next_shot enters the pending bridge through CameraManager::ForceCameraShot");
   ok &= appears_before(
       gameplay_c,
       "\"[world]camerashot_over:source_msg=shot_overshot=%s",
@@ -11064,7 +11080,7 @@ int main() {
       "source shot_over diagnostics preserve SetShotOver message-before-latch order");
   ok &= contains(gameplay_c,
                  "active_camera_skip_next_crowd_update_=true;"
-                 "source_forced_camera_shot=active_key->next_shot_ref;",
+                 "autoduration=camera_duration_range_for_event(",
                  "source shot_over bridge sets camshot_skip_next_update when shot_over fires");
   ok &= contains(gameplay_h_c,
                  "boolactive_camera_skip_next_crowd_update_=false;",
@@ -11086,15 +11102,16 @@ int main() {
                  "source shot_over state resets with the active CamShot lifecycle");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_over:source_msg=shot_overshot=%s"
-                 "next_shot=%slocal_frame=%.3fduration_frames=%.3f\\n\"",
+                 "next_shot=%slocal_frame=%.3fduration_frames=%.3f"
+                 "source_order=SetFrame_HandleType_before_mShotOver"
+                 "script_action=%s\\n\"",
                  "source shot_over diagnostics name the ihatecompvir shot_over message");
   ok &= contains(gameplay_c,
-                 "key=find_camera_key_by_name(regular_camera_keys_,"
-                 "source_forced_camera_shot);",
-                 "source shot_over next_shot forces the authored CamShot by name");
-  ok &= contains(gameplay_c,
-                 "source_forced_camera_shot_matched?\"ForceCameraShot\"",
-                 "source shot_over next_shot enters the pending bridge through CameraManager::ForceCameraShot");
+                 "\"[world]camerashot_overdo_force_shot:source_msg=do_force_shot"
+                 "shot=%snext_shot=%sbars_left=%dduration=%s[%d,%d]"
+                 "duration_source=source_random_intduration_draw=%zu"
+                 "result=pending\\n\"",
+                 "source do_force_shot diagnostics expose duration reset and pending next shot");
   ok &= contains(gameplay_c,
                  "source_next=%d",
                  "regular camera sweep diagnostics expose source next_shot forcing");

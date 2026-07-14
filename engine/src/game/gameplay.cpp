@@ -30911,7 +30911,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;
-        std::string source_forced_camera_shot;
         if (!in_intro_camera_window) {
             const double forced_camera_event_window =
                 std::max(0.001, dt * 1.5);
@@ -31028,42 +31027,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            if (!force_camera && diagnostic_camera_shot_.empty() &&
-                !active_regular_camera_.empty()) {
-                if (const CameraKey* active_key =
-                        find_camera_key_by_name(regular_camera_keys_,
-                                                active_regular_camera_)) {
-                    if (!active_key->next_shot_ref.empty()) {
-                        float local_frame = 0.0f;
-                        float duration_frames = 0.0f;
-                        if (camera_source_check_shot_over(
-                                *active_key, song_time_,
-                                active_regular_camera_start_,
-                                active_camera_shot_over_, &chart_, &local_frame,
-                                &duration_frames)) {
-                            active_camera_skip_next_crowd_update_ = true;
-                            source_forced_camera_shot =
-                                active_key->next_shot_ref;
-                            force_camera = true;
-                            forced_camera_mode.reset();
-                            forced_camera_bars.reset();
-                            if (active_camera_shot_over_reported_ !=
-                                active_key->name) {
-                                active_camera_shot_over_reported_ =
-                                    active_key->name;
-                                std::fprintf(
-                                    stderr,
-                                    "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f\n",
-                                    active_key->name.c_str(),
-                                    source_forced_camera_shot.c_str(),
-                                    local_frame, duration_frames);
-                            }
-                            active_camera_shot_over_ = true;
-                        }
-                    }
-                }
-            }
-
             if (force_camera || camera_bars_left_ <= 0) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
@@ -31103,22 +31066,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 constexpr bool kGuitaristWalking = false;
                 const bool guitarist_starpower = star_power_.active;
                 const CameraKey* key = nullptr;
-                bool source_forced_camera_shot_matched = false;
                 bool diagnostic_camera_shot_matched = false;
                 bool diagnostic_camera_shot_missing = false;
-                if (!source_forced_camera_shot.empty()) {
-                    key = find_camera_key_by_name(regular_camera_keys_,
-                                                  source_forced_camera_shot);
-                    if (!key) {
-                        std::fprintf(
-                            stderr,
-                            "[world] camera shot_over missing next_shot: requested=%s current=%s\n",
-                            source_forced_camera_shot.c_str(),
-                            active_regular_camera_.c_str());
-                    } else {
-                        source_forced_camera_shot_matched = true;
-                    }
-                }
                 if (!diagnostic_camera_shot_.empty()) {
                     key = find_camera_key_by_name(regular_camera_keys_,
                                                   diagnostic_camera_shot_);
@@ -31148,11 +31097,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     const std::string previous_regular_camera_for_log =
                         active_regular_camera_;
                     const char* source_handler =
-                        source_forced_camera_shot_matched
-                            ? "ForceCameraShot"
-                            : (diagnostic_camera_shot_matched
-                                   ? "diagnostic"
-                                   : "PickCameraShot");
+                        diagnostic_camera_shot_matched ? "diagnostic"
+                                                       : "PickCameraShot";
                     queue_regular_camera_shot(*key, source_handler);
                     if (shot_changed) {
                         std::fprintf(
@@ -31167,11 +31113,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             duration_random_draw.value_or(size_t{0}),
                             camera_shot_mode_label(camera_mode),
                             static_cast<unsigned int>(key->flags),
-                            (force_camera || diagnostic_camera_shot_matched ||
-                             source_forced_camera_shot_matched)
+                            (force_camera || diagnostic_camera_shot_matched)
                                 ? 1
                                 : 0,
-                            source_forced_camera_shot_matched ? 1 : 0,
+                            0,
                             key->force_char_lod, bar, song_time_);
                         if (diagnostic_camera_shot_matched) {
                             std::fprintf(
@@ -31297,6 +31242,60 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &source_record_member_table,
                                   &regular_camera_keys_, 1.0f);
                 apply_active_camera_fov_anims(world_->camera(), *key);
+                if (diagnostic_camera_shot_.empty()) {
+                    float local_frame = 0.0f;
+                    float duration_frames = 0.0f;
+                    if (camera_source_check_shot_over(
+                            *key, song_time_, active_regular_camera_start_,
+                            active_camera_shot_over_, &chart_, &local_frame,
+                            &duration_frames)) {
+                        const bool has_next_shot =
+                            !key->next_shot_ref.empty();
+                        if (active_camera_shot_over_reported_ != key->name) {
+                            active_camera_shot_over_reported_ = key->name;
+                            std::fprintf(
+                                stderr,
+                                "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f source_order=SetFrame_HandleType_before_mShotOver script_action=%s\n",
+                                key->name.c_str(), key->next_shot_ref.c_str(),
+                                local_frame, duration_frames,
+                                has_next_shot ? "force_shot" : "none");
+                        }
+                        if (has_next_shot) {
+                            active_camera_skip_next_crowd_update_ = true;
+                            auto duration = camera_duration_range_for_event(
+                                camera_duration_bars_, active_venue_event_);
+                            const size_t duration_random_draw =
+                                camera_shot_counter_++;
+                            camera_bars_left_ =
+                                source_random_int_camera_duration_bars(
+                                    duration.second.first,
+                                    duration.second.second,
+                                    duration_random_draw);
+                            const CameraKey* next_key = find_camera_key_by_name(
+                                regular_camera_keys_, key->next_shot_ref);
+                            if (!next_key) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] camera shot_over missing next_shot: requested=%s current=%s\n",
+                                    key->next_shot_ref.c_str(),
+                                    active_regular_camera_.c_str());
+                            } else {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] camera shot_over do_force_shot: source_msg=do_force_shot shot=%s next_shot=%s bars_left=%d duration=%s[%d,%d] duration_source=source_random_int duration_draw=%zu result=pending\n",
+                                    key->name.c_str(),
+                                    key->next_shot_ref.c_str(),
+                                    camera_bars_left_, duration.first.c_str(),
+                                    duration.second.first,
+                                    duration.second.second,
+                                    duration_random_draw);
+                                queue_regular_camera_shot(*next_key,
+                                                          "ForceCameraShot");
+                            }
+                        }
+                        active_camera_shot_over_ = true;
+                    }
+                }
             }
         } else if (authored_gameplay_cameras_active &&
                    in_intro_camera_window && !camera_keys_.empty()) {

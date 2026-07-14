@@ -182,6 +182,19 @@ Open work:
   camera cues outside that random draw stream. This is a timing/source-RNG
   correction only; it does not claim final camera pose, angle composition,
   `cam_shot_ok`, or `check_shot_over` parity.
+- 2026-07-14 CamShot `CheckShotOver` / `SetShotOver` split:
+  ihatecompvir `CamShot::CheckShotOver(f)` returns
+  `!mShotOver && !mLooping && f >= mDuration`, while `SetShotOver()` sends the
+  `shot_over` message before latching `mShotOver = true`. GH2
+  `world/camshot.dta::shot_over` then checks `[next_shot]`: it sets
+  `$camshot_skip_next_update` and calls `world do_force_shot` only when that
+  field is non-empty. Native now mirrors that split by running the duration
+  check for every active regular CamShot, logging/latching the source
+  `shot_over` point even when `next_shot` is empty, and keeping forced-shot
+  side effects behind the authored `next_shot` branch. The bridge runs beside
+  the native SetFrame/Poll mirror, so a non-empty `next_shot` follows GH2's
+  `world do_force_shot`: refresh `camera_bars_left`, queue CameraManager's
+  `mNextShot`, and let the next PrePoll consume it.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because
@@ -214,13 +227,15 @@ Open work:
   `CamShot::CheckShotOver` returns true only when `!mShotOver`, the shot is not
   looping, and the local frame reaches the cached duration; `SetShotOver` then
   sends `shot_over` and flips `mShotOver`. Native now carries
-  `active_camera_shot_over_` for the regular CamShot lifetime so an authored
-  `next_shot` chain can fire once per active shot instead of repeatedly forcing
-  the same source `shot_over` bridge on later frames.
+  `active_camera_shot_over_` for the regular CamShot lifetime so the source
+  `shot_over` point is observed once per active shot; authored `next_shot`
+  chains still force only once, while empty-`next_shot` handlers latch without
+  a forced handoff.
 - 2026-07-13 CamShot `SetShotOver` dispatch order: ihatecompvir
   `CamShot::SetShotOver()` calls `HandleType(shot_over_msg)` before assigning
-  `mShotOver = true`. Native now resolves/logs the authored `next_shot`
-  handoff and `camshot_skip_next_update` latch before flipping
+  `mShotOver = true`. Native now logs the handler result, resolves/queues the
+  authored `next_shot` handoff, and sets the `camshot_skip_next_update` latch
+  before flipping
   `active_camera_shot_over_`, preserving the source message-before-latch order.
 - 2026-07-13 `camshot_skip_next_update` bridge: GH2 `camshot.dta` sets
   `$camshot_skip_next_update TRUE` before `world do_force_shot [next_shot]`;
