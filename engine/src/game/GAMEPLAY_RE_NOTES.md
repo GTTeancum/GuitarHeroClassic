@@ -222,6 +222,13 @@ Open work:
   after the CamShot frame, and logs a `camera RndCamAnim SetFrame` row. This
   wires an already-decoded source camera track into runtime; it does not invent
   extra camera-angle motion or hidden task rejection behavior.
+- 2026-07-14 linked `RndCamAnim::mCam` gate:
+  ihatecompvir `RndCamAnim::SetFrame` calls the animatable base first, then
+  exits without touching FOV when `mCam` is null. Native linked CamAnim FOV
+  routing now keeps the same source gate: a decoded CamAnim without a resolved
+  camera ref logs a `camera RndCamAnim SetFrame skipped` proof row and does
+  not call the native `RndCam::SetFrustum` helper. This is a source-side
+  side-effect guard only; it does not infer hidden target-camera matching rules.
 - 2026-07-14 `RndCam::SetFrustum` storage shape:
   ihatecompvir `RndCam::SetFrustum` stores near plane, far plane, Y-FOV, and
   the unknown float together after the 1000:1 plane-ratio clamp. Native now

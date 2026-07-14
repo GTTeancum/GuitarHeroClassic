@@ -8484,6 +8484,13 @@ int main() {
                  "ghogx::render::OrbitCamera&cam,constCameraKey&key)",
                  "runtime applies active linked RndCamAnim FOV tracks");
   ok &= contains(gameplay_c,
+                 "if(anim.cam.empty()){",
+                 "linked RndCamAnim SetFrame mirrors the source mCam gate");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraRndCamAnimSetFrameskipped:"
+                 "source_msg=mAnimsshot=%sanim=%scam=<none>",
+                 "linked RndCamAnim diagnostics expose source mCam skips");
+  ok &= contains(gameplay_c,
                  "sample_camera_fov_key(anim.fov_keys,frame,previous_fov);",
                  "linked RndCamAnim SetFrame samples source FOV keys at the active frame");
   ok &= contains(gameplay_c,

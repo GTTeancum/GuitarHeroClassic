@@ -22941,11 +22941,26 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
         const auto anim_it = venue_camera_fov_anims_.find(ref);
         if (anim_it == venue_camera_fov_anims_.end()) continue;
         const auto& anim = anim_it->second;
-        if (anim.fov_keys.empty()) continue;
         const float fpu = rnd_animatable_frames_per_unit(anim.anim_rate);
         const double units = venue_anim_time_units(
             anim.anim_rate, active_camera_anim_start_time_, elapsed, &chart_);
         const float frame = static_cast<float>(units * fpu);
+        if (anim.cam.empty()) {
+            if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                const std::string report_key =
+                    key.name + ":" + ref + ":missing_source_cam";
+                if (!active_camera_fov_anim_reported_.count(report_key)) {
+                    active_camera_fov_anim_reported_.insert(report_key);
+                    std::fprintf(
+                        stderr,
+                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0\n",
+                        key.name.c_str(), anim.name.c_str(), frame,
+                        anim.anim_rate, fpu, anim.fov_keys.size());
+                }
+            }
+            continue;
+        }
+        if (anim.fov_keys.empty()) continue;
         const float previous_fov = cam.fov;
         const float sampled_fov =
             sample_camera_fov_key(anim.fov_keys, frame, previous_fov);
