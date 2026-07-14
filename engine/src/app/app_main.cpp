@@ -1123,6 +1123,17 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
 // user can move. The LOD1 duplicates and shadow decals are skipped; a
 // screenshot is taken if --screenshot is supplied.
 // ---------------------------------------------------------------------------
+struct ViewerClipStackOptions {
+  std::string prev_clip_arg;
+  std::string prev_strum_clip_arg;
+  std::string prev_fret_clip_arg;
+  int clip_transition_frame = -1;
+  int strum_transition_frame = -1;
+  int fret_transition_frame = -1;
+  float clip_blend_seconds = 0.25f;
+  float hand_blend_seconds = 0.08f;
+};
+
 int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& milo_path,
                   const std::string& screenshot_path, int screenshot_frame,
@@ -1137,7 +1148,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
                   float fixed_dt = 0.0f,
                   bool character_controllers = true,
-                  bool reference_base = false) {
+                  bool reference_base = false,
+                  const ViewerClipStackOptions& clip_stack_options = {}) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -1238,8 +1250,11 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
 
   // If a --clip was specified, load ALL frames for real-time playback.
   ghogx::character::CharClip loaded_clip;
+  ghogx::character::CharClip prev_clip;
   ghogx::character::CharClip strum_clip;
+  ghogx::character::CharClip prev_strum_clip;
   ghogx::character::CharClip fret_clip;
+  ghogx::character::CharClip prev_fret_clip;
   ghogx::character::CharClip face_base_clip;
   ghogx::character::CharClip facefx_viseme_clip;
   ghogx::character::CharClip face_clip;
@@ -1327,6 +1342,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (!clip_arg.empty()) {
     loaded_clip = load_clip_spec(clip_arg);
   }
+  if (!clip_stack_options.prev_clip_arg.empty()) {
+    prev_clip = load_clip_spec(clip_stack_options.prev_clip_arg);
+  }
   std::string resolved_strum_clip_arg = strum_clip_arg;
   std::string resolved_fret_clip_arg = fret_clip_arg;
   std::string resolved_face_clip_arg = face_clip_arg;
@@ -1370,8 +1388,16 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   }
   if (!resolved_strum_clip_arg.empty()) strum_clip = load_clip_spec(resolved_strum_clip_arg);
   if (!resolved_fret_clip_arg.empty()) fret_clip = load_clip_spec(resolved_fret_clip_arg);
+  if (!clip_stack_options.prev_strum_clip_arg.empty()) {
+    prev_strum_clip = load_clip_spec(clip_stack_options.prev_strum_clip_arg);
+  }
+  if (!clip_stack_options.prev_fret_clip_arg.empty()) {
+    prev_fret_clip = load_clip_spec(clip_stack_options.prev_fret_clip_arg);
+  }
   keep_hand_overlay_channels_only(strum_clip);
   keep_hand_overlay_channels_only(fret_clip);
+  keep_hand_overlay_channels_only(prev_strum_clip);
+  keep_hand_overlay_channels_only(prev_fret_clip);
   if (clip_arg.empty()) {
     const std::string default_main_clip = default_main_clip_name();
     loaded_clip = load_driver_clip("main.drv", default_main_clip);
@@ -1422,21 +1448,55 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
        (strum_clip.loaded || fret_clip.loaded));
   const bool viewer_hand_ik_manual_override_active =
       right_hand_weight_override || left_hand_weight_override;
-  if (loaded_clip.loaded) {
-    main_player.play(loaded_clip,
-                     ghogx::character::kCharPlayLoop |
-                         ghogx::character::kCharPlayNoBlend);
-  }
-  if (strum_clip.loaded) {
-    strum_player.play(strum_clip,
-                      ghogx::character::kCharPlayLoop |
-                          ghogx::character::kCharPlayNoBlend);
+  auto play_viewer_stack =
+      [](ghogx::character::CharClipPlayer& player,
+         const ghogx::character::CharClip& current,
+         const ghogx::character::CharClip& previous, int transition_frame,
+         float blend_seconds, uint32_t fallback_flags, const char* label) {
+        if (previous.loaded) {
+          player.play(previous, ghogx::character::kCharPlayNoLoop);
+          if (current.loaded && transition_frame < 0) {
+            player.play(current, ghogx::character::kCharPlayNoLoop,
+                        blend_seconds);
+            std::fprintf(stderr,
+                         "[char] viewer stack %s: prev=%s current=%s "
+                         "blend=%.3f immediate\n",
+                         label, previous.name.c_str(), current.name.c_str(),
+                         blend_seconds);
+          } else {
+            std::fprintf(stderr,
+                         "[char] viewer stack %s: prev=%s current=%s "
+                         "blend=%.3f transition_frame=%d\n",
+                         label, previous.name.c_str(),
+                         current.loaded ? current.name.c_str() : "<none>",
+                         blend_seconds, transition_frame);
+          }
+        } else if (current.loaded) {
+          player.play(current, fallback_flags);
+        }
+      };
+  play_viewer_stack(main_player, loaded_clip, prev_clip,
+                    clip_stack_options.clip_transition_frame,
+                    clip_stack_options.clip_blend_seconds,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend,
+                    "main");
+  play_viewer_stack(strum_player, strum_clip, prev_strum_clip,
+                    clip_stack_options.strum_transition_frame,
+                    clip_stack_options.hand_blend_seconds,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend,
+                    "strum");
+  if (strum_clip.loaded || prev_strum_clip.loaded) {
     std::fprintf(stderr, "[char] right.weight = %.3f\n", right_hand_weight);
   }
-  if (fret_clip.loaded) {
-    fret_player.play(fret_clip,
-                     ghogx::character::kCharPlayLoop |
-                         ghogx::character::kCharPlayNoBlend);
+  play_viewer_stack(fret_player, fret_clip, prev_fret_clip,
+                    clip_stack_options.fret_transition_frame,
+                    clip_stack_options.hand_blend_seconds,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend,
+                    "fret");
+  if (fret_clip.loaded || prev_fret_clip.loaded) {
     std::fprintf(stderr, "[char] left.weight = %.3f\n", left_hand_weight);
   }
   if (face_base_clip.loaded) {
@@ -1563,6 +1623,31 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       fret_player.advance(dt);
       face_base_player.advance(dt);
       face_player.advance(dt);
+      auto trigger_scheduled_viewer_stack =
+          [&](ghogx::character::CharClipPlayer& player,
+              const ghogx::character::CharClip& clip, int transition_frame,
+              float blend_seconds, const char* label) {
+            if (!clip.loaded || transition_frame < 0 ||
+                frame != static_cast<uint64_t>(transition_frame)) {
+              return;
+            }
+            player.play(clip, ghogx::character::kCharPlayNoLoop,
+                        blend_seconds);
+            std::fprintf(stderr,
+                         "[char] viewer stack %s: trigger current=%s "
+                         "blend=%.3f frame=%llu\n",
+                         label, clip.name.c_str(), blend_seconds,
+                         (unsigned long long)frame);
+          };
+      trigger_scheduled_viewer_stack(
+          main_player, loaded_clip, clip_stack_options.clip_transition_frame,
+          clip_stack_options.clip_blend_seconds, "main");
+      trigger_scheduled_viewer_stack(
+          strum_player, strum_clip, clip_stack_options.strum_transition_frame,
+          clip_stack_options.hand_blend_seconds, "strum");
+      trigger_scheduled_viewer_stack(
+          fret_player, fret_clip, clip_stack_options.fret_transition_frame,
+          clip_stack_options.hand_blend_seconds, "fret");
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
       ghogx::character::CharacterPosePlayerLayerBuildSources player_inputs;
       player_inputs.main = &main_player;
@@ -1662,6 +1747,7 @@ int main(int argc, char** argv) {
   std::string strum_clip_arg;
   std::string fret_clip_arg;
   std::string face_clip_arg;
+  ViewerClipStackOptions viewer_clip_stack;
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
   bool character_controllers = true;
@@ -1768,16 +1854,39 @@ int main(int argc, char** argv) {
       // Overrides the procedural idle sway for a screenshot of real game animation data.
       // (Stored as a pair in char_clip_arg below; parsed after ARK paths are resolved.)
       char_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--prev-clip") == 0 && i + 1 < argc) {
+      viewer_clip_stack.prev_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--clip-frame") == 0 && i + 1 < argc) {
       clip_frame_override = std::atoi(argv[++i]);  // force a specific anim frame (no playback)
     } else if (std::strcmp(argv[i], "--guitar") == 0 && i + 1 < argc) {
       guitar_milo = argv[++i];
     } else if (std::strcmp(argv[i], "--strum-clip") == 0 && i + 1 < argc) {
       strum_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--prev-strum-clip") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.prev_strum_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--fret-clip") == 0 && i + 1 < argc) {
       fret_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--prev-fret-clip") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.prev_fret_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--face-clip") == 0 && i + 1 < argc) {
       face_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--clip-transition-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.clip_transition_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--strum-transition-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.strum_transition_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--fret-transition-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.fret_transition_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--clip-blend") == 0 && i + 1 < argc) {
+      viewer_clip_stack.clip_blend_seconds =
+          static_cast<float>(std::atof(argv[++i]));
+    } else if (std::strcmp(argv[i], "--hand-blend") == 0 && i + 1 < argc) {
+      viewer_clip_stack.hand_blend_seconds =
+          static_cast<float>(std::atof(argv[++i]));
     } else if (std::strcmp(argv[i], "--char-offset") == 0 && i + 3 < argc) {
       char_offset[0] = static_cast<float>(std::atof(argv[++i]));
       char_offset[1] = static_cast<float>(std::atof(argv[++i]));
@@ -1883,7 +1992,7 @@ int main(int argc, char** argv) {
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
                          char_offset, fixed_dt, character_controllers,
-                         char_reference_base);
+                         char_reference_base, viewer_clip_stack);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).

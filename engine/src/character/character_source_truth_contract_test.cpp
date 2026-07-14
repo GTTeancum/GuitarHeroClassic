@@ -33334,6 +33334,22 @@ int run_contract() {
                  "ghogx::character::ClipChannelLayerStackpose_stack;",
                  "viewer builds a shared clip layer stack");
   ok &= contains(app_main,
+                 "structViewerClipStackOptions{",
+                 "viewer exposes diagnostic live player stack options");
+  ok &= contains(app_main,
+                 "viewer_clip_stack.prev_clip_arg=argv[++i];",
+                 "viewer accepts previous main clip for live stack proofs");
+  ok &= contains(app_main,
+                 "player.play(previous,ghogx::character::kCharPlayNoLoop);",
+                 "viewer seeds source-style previous clip nodes");
+  ok &= contains(app_main,
+                 "player.play(current,ghogx::character::kCharPlayNoLoop,"
+                 "blend_seconds);",
+                 "viewer starts current clip through source-style blend path");
+  ok &= contains(app_main,
+                 "trigger_scheduled_viewer_stack(",
+                 "viewer can schedule live hand transition proof frames");
+  ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",
                  "viewer builds shared performer player layer rows");

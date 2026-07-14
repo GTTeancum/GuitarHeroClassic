@@ -5815,6 +5815,21 @@ viewer pose looked more extreme after the filter counts were fixed. The next
 viewer diagnostic must reproduce gameplay's live player-node stack before its
 still pose is used as evidence for character-body correctness.
 
+2026-07-14 viewer live-stack reproduction: `viewer_rockabill2_live_stack_match`
+in the same proof folder adds direct-viewer diagnostic controls for previous
+clip nodes and scheduled hand transitions. The viewer main-body stack now
+matches the in-game screenshot layer exactly at the proof frame:
+`stand_fast_02@4.500 -> stand_fast_03@4.500`, flags `0x00002010`, blend
+width `0.250`, progress `0.150`, and `blendWeight=0.600`. This makes the
+viewer useful for body pose comparison only when the live node stack is
+supplied. The proof still records a hand timing mismatch: the scheduled strum
+transition starts correctly at `strum_short_02@0.000`, but its previous
+`strum_short_01` node is at frame `4.500` in the viewer versus `4.000` in
+gameplay, and the viewer's standalone fret layer is one half-frame later than
+gameplay. The next viewer parity slice should add per-player start offsets or
+derive the exact note-trigger frame from gameplay logs before using hand stills
+as final evidence.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
