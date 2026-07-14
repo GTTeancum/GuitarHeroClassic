@@ -33438,6 +33438,18 @@ int run_contract() {
   ok &= contains(arm_pose_log_compare,
                  "BATCH-PASS",
                  "arm pose log verifier reports batch proof success");
+  ok &= contains(arm_pose_log_compare,
+                 "require_ingame_contains",
+                 "arm pose log verifier supports in-game context requirements");
+  ok &= contains(arm_pose_log_compare,
+                 "require_viewer_contains",
+                 "arm pose log verifier supports viewer context requirements");
+  ok &= contains(arm_pose_log_compare,
+                 "FAIL-CONTEXT",
+                 "arm pose log verifier fails missing proof context");
+  ok &= contains(arm_pose_log_compare,
+                 "compact_for_contains(",
+                 "arm pose log verifier tolerates wrapped proof lines");
   ok &= contains(arm_pose_diff_manifest,
                  "\"rockabill2_live_target_filtered_match\"",
                  "arm pose diff manifest records filtered live-target proof");
@@ -33447,6 +33459,16 @@ int run_contract() {
   ok &= contains(arm_pose_diff_manifest,
                  "\"rockabill2_missing_midi_target_control\"",
                  "arm pose diff manifest records missing-target negative control");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[fretpos]role=guitarist0tick=61980"
+                 "spot=spot_neck_fret11.meshindex=11\"",
+                 "arm pose diff manifest requires active in-game fret target");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[char]midifrettarget:spot_neck_fret11.mesh\"",
+                 "arm pose diff manifest requires viewer MIDI fret target");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"finger_hold_ring_hi@f4:w=1.000\"",
+                 "arm pose diff manifest requires screenshot-frame fret layer");
   ok &= contains(doc,
                  "arm diff verifier control",
                  "document records arm diff verifier control proof");
@@ -33457,6 +33479,10 @@ int run_contract() {
   ok &= contains(doc,
                  "`max_delta=7.772200`, concentrated on the left upper arm",
                  "document records stale-viewer control delta");
+  ok &= contains(doc,
+                 "prevents a visually plausible viewer frame from being "
+                 "accepted",
+                 "document records context-checked viewer proof gate");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

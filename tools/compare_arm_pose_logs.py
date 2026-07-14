@@ -130,6 +130,8 @@ class CompareRequest:
     tolerance: float
     expect: str
     require_screenshot_marker: bool
+    require_ingame_contains: tuple[str, ...]
+    require_viewer_contains: tuple[str, ...]
 
 
 def tuple_from_manifest(value: object, default: tuple[str, ...], field: str) -> tuple[str, ...]:
@@ -138,6 +140,10 @@ def tuple_from_manifest(value: object, default: tuple[str, ...], field: str) -> 
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise RuntimeError(f"manifest field '{field}' must be a list of strings")
     return tuple(value)
+
+
+def compact_for_contains(value: str) -> str:
+    return "".join(value.split())
 
 
 def path_from_manifest(base_dir: Path, value: object, field: str) -> Path:
@@ -187,6 +193,16 @@ def requests_from_manifest(path: Path) -> list[CompareRequest]:
                 require_screenshot_marker=not bool(
                     case.get("allow_no_screenshot_marker", False)
                 ),
+                require_ingame_contains=tuple_from_manifest(
+                    case.get("require_ingame_contains"),
+                    (),
+                    "require_ingame_contains",
+                ),
+                require_viewer_contains=tuple_from_manifest(
+                    case.get("require_viewer_contains"),
+                    (),
+                    "require_viewer_contains",
+                ),
             )
         )
     return requests
@@ -206,7 +222,20 @@ def request_from_args(args: argparse.Namespace) -> CompareRequest:
         tolerance=args.tolerance,
         expect=args.expect,
         require_screenshot_marker=not args.allow_no_screenshot_marker,
+        require_ingame_contains=(),
+        require_viewer_contains=(),
     )
+
+
+def read_log_text(path: Path) -> str:
+    return path.read_text(encoding=detect_text_encoding(path), errors="replace")
+
+
+def missing_required_fragments(path: Path, required: tuple[str, ...]) -> list[str]:
+    if not required:
+        return []
+    text = compact_for_contains(read_log_text(path))
+    return [fragment for fragment in required if compact_for_contains(fragment) not in text]
 
 
 def read_pose_rows(
@@ -281,6 +310,27 @@ def compare_rows(
 
 def run_request(request: CompareRequest) -> int:
     try:
+        missing_context: list[str] = []
+        missing_context += [
+            f"ingame missing required fragment: {fragment}"
+            for fragment in missing_required_fragments(
+                request.ingame_log, request.require_ingame_contains
+            )
+        ]
+        missing_context += [
+            f"viewer missing required fragment: {fragment}"
+            for fragment in missing_required_fragments(
+                request.viewer_log, request.require_viewer_contains
+            )
+        ]
+        if missing_context:
+            print(f"FAIL-CONTEXT label={request.label}")
+            for message in missing_context[:40]:
+                print(message)
+            if len(missing_context) > 40:
+                print(f"... {len(missing_context) - 40} more missing fragments")
+            return 1
+
         ingame_rows, ingame_shot = read_pose_rows(
             request.ingame_log,
             character=request.character,

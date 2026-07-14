@@ -5872,6 +5872,13 @@ proofs should add cases to this manifest or an equivalent manifest so one
 command can prove the viewer is configured like gameplay before any visual
 sign-off.
 
+The same manifest also requires source-context fragments before accepting a
+match: the gameplay logs must show `spot_neck_fret11.mesh` through `[fretpos]`,
+and both sides must show the matching `stand_fast_02 -> stand_fast_03`,
+`strum_short_01 -> strum_short_02`, and `finger_hold_ring_hi@f4/f5` layer
+fragments. This prevents a visually plausible viewer frame from being accepted
+when its final rows were produced without the same live target or clip stack.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
