@@ -11193,12 +11193,14 @@ Rejected native probe:
   `filter` local inside `CamShotFrame::BuildTransform`; `Interp` calls
   `BuildTransform(cam, ..., !sameTargets)`, so that screen-offset/filter
   branch is explicitly disabled for same-target blends before the direct-target
-  local-space offset block runs. Native now builds the same-target A/B rows from
-  their per-key source seeds and cached target positions with BuildTransform
-  screen offset disabled, interpolates those rows as
-  `source_same_target_build_lerp(...)`, and then applies the local-space
-  screen-offset translation with the interpolated `unk34`/`frame.unk34`
-  distance. The old shot-filtered target version remains only as
+  local-space offset block runs. Native now builds the same-target A/B rows
+  from their per-key source seeds with BuildTransform screen offset disabled,
+  interpolates those rows as `source_same_target_pre_lookat_lerp(...)`, then
+  redoes the source SameTargets `LookAt` from that blended transform position
+  using `unk34` and `frame.unk34`. It submits the final
+  `source_same_target_build_lerp(...)` rows before applying the local-space
+  screen-offset translation with the interpolated target distance. The old
+  shot-filtered target version remains only as
   `source_screen_offset_filtered_target_candidate` diagnostics. This keeps the
   traced `shot_filter` state available for target-list/non-same-target work
   without applying it to the source same-target screen-offset translation.
@@ -11227,8 +11229,10 @@ Rejected native probe:
   It now builds the A/B target-list rows from their per-key source seeds using
   the pre-zoom CamShot frustum, then submits
   `source_build_transform_lerp(...)`. Same-target blends follow the same
-  per-key build-before-interp order, but with `applyScreenOffset=false`, before
-  applying the separately audited direct-target local-space screen-offset path.
+  per-key build-before-interp order, but with `applyScreenOffset=false`; after
+  the row interpolation they re-run the direct-target `LookAt` from the blended
+  transform position before applying the separately audited local-space
+  screen-offset path.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,

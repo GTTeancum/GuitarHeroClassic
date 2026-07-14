@@ -8837,6 +8837,21 @@ int main() {
                  "\"source_same_target_build_lerp(\"+",
                  "same-target CamShot labels its cached-target BuildTransform interpolation");
   ok &= contains(gameplay_c,
+                 "same_target_pre_lookat_result="
+                 "camera_lerp_result_rows(build_a,build_b,interp_t);",
+                 "same-target CamShot first interpolates the BuildTransform rows");
+  ok &= contains(gameplay_c,
+                 "\"source_same_target_pre_lookat_lerp(\"+",
+                 "same-target CamShot labels the pre-LookAt blended transform");
+  ok &= contains(gameplay_c,
+                 "camera_source_same_target_look_at_rows("
+                 "same_target_pre_lookat_result,a_target_centroid,"
+                 "b_target_centroid,interp_t)",
+                 "same-target CamShot redoes LookAt from the blended transform position");
+  ok &= contains(gameplay_c,
+                 "out.position=rows.position;",
+                 "same-target LookAt keeps CamShotFrame::Interp blended position");
+  ok &= contains(gameplay_c,
                  "source_same_target_distance="
                  "distance_a+(distance_b-distance_a)*interp_t;",
                  "same-target CamShot interpolates source target distances before local screen offset");

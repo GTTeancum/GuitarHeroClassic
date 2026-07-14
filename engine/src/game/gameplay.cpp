@@ -19391,6 +19391,40 @@ CameraResultRows camera_lerp_result_rows(const CameraResultRows& a,
     return rows;
 }
 
+std::optional<CameraResultRows> camera_look_at_result_rows(
+    CameraResultRows rows,
+    const std::array<float, 3>& target) {
+    rows.forward = {target[0] - rows.position[0],
+                    target[1] - rows.position[1],
+                    target[2] - rows.position[2]};
+    const float len2 = rows.forward[0] * rows.forward[0] +
+                       rows.forward[1] * rows.forward[1] +
+                       rows.forward[2] * rows.forward[2];
+    if (!std::isfinite(len2) || len2 <= 0.000001f) return std::nullopt;
+    camera_orthonormalize_result_rows(rows);
+    return rows;
+}
+
+std::optional<CameraResultRows> camera_source_same_target_look_at_rows(
+    const CameraResultRows& rows,
+    const std::optional<std::array<float, 3>>& a_target,
+    const std::optional<std::array<float, 3>>& b_target,
+    float t) {
+    const auto look_a =
+        a_target ? camera_look_at_result_rows(rows, *a_target) : std::nullopt;
+    const auto look_b =
+        b_target ? camera_look_at_result_rows(rows, *b_target) : std::nullopt;
+    if (!look_a && !look_b) return std::nullopt;
+    CameraResultRows out =
+        look_a && look_b ? camera_lerp_result_rows(*look_a, *look_b, t)
+                         : (look_a ? *look_a : *look_b);
+    out.position = rows.position;
+    out.source = rows.source + "+source_same_target_lookat";
+    out.screen_offset_consumed = rows.screen_offset_consumed;
+    camera_orthonormalize_result_rows(out);
+    return out;
+}
+
 CameraResultRows camera_result_rows_from_source_frame(
     const ghogx::render::CameraResultFrame& frame) {
     CameraResultRows rows;
@@ -20400,8 +20434,16 @@ void apply_camera_keys(
                     build_rows_a ? *build_rows_a : source_seed_a;
                 const CameraResultRows& build_b =
                     build_rows_b ? *build_rows_b : source_seed_b;
-                source_build_transform_result =
+                CameraResultRows same_target_pre_lookat_result =
                     camera_lerp_result_rows(build_a, build_b, interp_t);
+                same_target_pre_lookat_result.source =
+                    "source_same_target_pre_lookat_lerp(" +
+                    same_target_pre_lookat_result.source + ")";
+                source_build_transform_result =
+                    camera_source_same_target_look_at_rows(
+                        same_target_pre_lookat_result, a_target_centroid,
+                        b_target_centroid, interp_t)
+                        .value_or(same_target_pre_lookat_result);
                 source_build_transform_result->source =
                     "source_same_target_build_lerp(" +
                     source_build_transform_result->source + ")";
