@@ -3635,9 +3635,14 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
   result.name = clip_name;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-    auto entry = ark.find(milo_path);
-    if (!entry) entry = ark.find("../../system/run/" + milo_path);
+    std::string resolved_milo_path = milo_path;
+    auto entry = ark.find(resolved_milo_path);
+    if (!entry) {
+      resolved_milo_path = "../../system/run/" + milo_path;
+      entry = ark.find(resolved_milo_path);
+    }
     if (!entry) { std::fprintf(stderr, "[clip] milo not in ARK: %s\n", milo_path.c_str()); return result; }
+    result.source_milo_path = resolved_milo_path;
     auto bytes = ark.read_entry(*entry, {ark_path});
     auto hdr = gh::milo::parse_header(bytes);
     auto payload = gh::milo::inflate_payload(bytes, hdr);
@@ -3706,9 +3711,10 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
       result.loaded = !result.frames.empty();
       if (result.loaded) {
         std::fprintf(stderr,
-                     "[clip] '%s': %zu frames, %zu channels/frame, %zu output bones "
+                     "[clip] '%s' from %s: %zu frames, %zu channels/frame, %zu output bones "
                      "flags=0x%08x playFlags=0x%08x blend=%.3f range=%.3f\n",
-                     clip_name.c_str(), result.frames.size(),
+                     clip_name.c_str(), result.source_milo_path.c_str(),
+                     result.frames.size(),
                      result.frames.empty() ? 0 : result.frames[0].size(),
                      result.output_bones.size(), result.flags,
                      result.default_play_flags, result.blend_width,

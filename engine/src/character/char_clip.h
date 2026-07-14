@@ -956,6 +956,7 @@ struct ClipChannel {
 // All frames of one clip, indexed [frame][channel].
 struct CharClip {
   std::string name;
+  std::string source_milo_path;
   std::vector<std::vector<ClipChannel>> frames;  // frames[f][ch]
   struct RawChannelCounts {
     int pos = 0;

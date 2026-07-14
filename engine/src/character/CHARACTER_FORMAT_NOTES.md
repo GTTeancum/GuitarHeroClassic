@@ -5264,3 +5264,8 @@ Viewer hand-overlay validation:
   `--cam-yaw-deg` / `--cam-pitch-deg` for visual proof captures that are
   described in degrees. Earlier proof commands that passed values like `-90`
   through `--cam-yaw` were not true cardinal-degree shots.
+- Character proof logs now include the concrete source animation MILO for each
+  loaded `CharClip`. For `rockabill2` body/star-power proofs, request the
+  `rockabill2` main role and let the source driver fallback resolve to
+  `char/rockabill1/anims/gen/rockabill1_main.milo_ps2`; do not hard-code
+  `rock1_main` as a substitute. `rockabill2` still keeps its local fret row set.

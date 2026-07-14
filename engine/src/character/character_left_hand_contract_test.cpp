@@ -306,6 +306,12 @@ int main() {
   ok &= contains(app_main_c,
                  "via%s\\n",
                  "explicit clip fallback log names the source driver row");
+  ok &= contains(char_clip_c,
+                 "result.source_milo_path=resolved_milo_path;",
+                 "loaded clips retain the concrete animation MILO path");
+  ok &= contains(char_clip_c,
+                 "\"[clip]'%s'from%s:",
+                 "clip proof logs name the concrete animation MILO path");
   ok &= contains(app_main_c,
                  "controller_sources.driver_weights="
                  "controller_hand_weights?&*controller_hand_weights:nullptr;",
