@@ -16309,6 +16309,20 @@ float camera_source_frames_per_unit(const Gameplay::CameraKey& shot) {
     return rnd_animatable_frames_per_unit(camera_source_anim_rate(shot));
 }
 
+float camera_source_duration_seconds(const Gameplay::CameraKey& shot) {
+    if (rnd_animatable_rate_uses_beats(camera_source_anim_rate(shot))) {
+        return 0.0f;
+    }
+    return source_camshot_duration_frames(shot) / 30.0f;
+}
+
+const char* camera_source_duration_seconds_source(
+    const Gameplay::CameraKey& shot) {
+    return rnd_animatable_rate_uses_beats(camera_source_anim_rate(shot))
+               ? "CamShot::GetDurationSeconds(beats_zero)"
+               : "CamShot::GetDurationSeconds(seconds_div30)";
+}
+
 double camera_source_time_units(const Gameplay::CameraKey& shot,
                                 double song_time,
                                 double start_time,
@@ -31891,9 +31905,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_shot_started_reported_ = key->name;
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame source_setframe_blend=1.000\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame source_setframe_blend=1.000\n",
                             key->name.c_str(), local_frame,
                             source_camshot_duration_frames(*key),
+                            camera_source_duration_seconds(*key),
+                            camera_source_duration_seconds_source(*key),
                             camera_source_anim_rate(*key),
                             camera_source_frames_per_unit(*key),
                             selected_camera.size());
@@ -32025,9 +32041,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             active_camera_shot_over_reported_ = key->name;
                             std::fprintf(
                                 stderr,
-                                "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f source_order=SetFrame_HandleType_before_mShotOver script_action=%s\n",
+                                "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s source_order=SetFrame_HandleType_before_mShotOver script_action=%s\n",
                                 key->name.c_str(), key->next_shot_ref.c_str(),
                                 local_frame, duration_frames,
+                                camera_source_duration_seconds(*key),
+                                camera_source_duration_seconds_source(*key),
                                 has_next_shot ? "force_shot" : "none");
                         }
                         if (has_next_shot) {

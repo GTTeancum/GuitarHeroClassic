@@ -10012,6 +10012,19 @@ int main() {
                  "floatsource_camshot_frame_span(constGameplay::CameraKey&key)",
                  "runtime evaluates source CamShot duration plus blend spans");
   ok &= contains(gameplay_c,
+                 "floatcamera_source_duration_seconds("
+                 "constGameplay::CameraKey&shot){"
+                 "if(rnd_animatable_rate_uses_beats("
+                 "camera_source_anim_rate(shot))){return0.0f;}"
+                 "returnsource_camshot_duration_frames(shot)/30.0f;}",
+                 "runtime mirrors CamShot::GetDurationSeconds beat-zero/seconds-div30 contract");
+  ok &= contains(gameplay_c,
+                 "\"CamShot::GetDurationSeconds(beats_zero)\"",
+                 "camera duration_seconds diagnostics expose the source beat-units branch");
+  ok &= contains(gameplay_c,
+                 "\"CamShot::GetDurationSeconds(seconds_div30)\"",
+                 "camera duration_seconds diagnostics expose the source seconds branch");
+  ok &= contains(gameplay_c,
                  "boolcamera_source_check_shot_over(constGameplay::CameraKey&shot",
                  "runtime exposes a source-shaped CamShot CheckShotOver helper");
   ok &= contains(gameplay_h_c,
@@ -10081,7 +10094,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
-                 "duration_frames=%.3fanim_rate=%dfpu=%.1f"
+                 "duration_frames=%.3fduration_seconds=%.3f"
+                 "duration_source=%sanim_rate=%dfpu=%.1f"
                  "source_frame_keys=%zusource_prep=SetPreFrame"
                  "source_setframe_blend=1.000\\n\"",
                  "regular camera diagnostics expose source rate/fpu beside Poll SetFrame cadence");
@@ -11297,6 +11311,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_over:source_msg=shot_overshot=%s"
                  "next_shot=%slocal_frame=%.3fduration_frames=%.3f"
+                 "duration_seconds=%.3fduration_source=%s"
                  "source_order=SetFrame_HandleType_before_mShotOver"
                  "script_action=%s\\n\"",
                  "source shot_over diagnostics name the ihatecompvir shot_over message");

@@ -231,6 +231,12 @@ Open work:
   the native SetFrame/Poll mirror, so a non-empty `next_shot` follows GH2's
   `world do_force_shot`: refresh `camera_bars_left`, queue CameraManager's
   `mNextShot`, and let the next PrePoll consume it.
+- 2026-07-14 CamShot `duration_seconds` handler:
+  ihatecompvir `CamShot::GetDurationSeconds()` returns `0.0f` whenever
+  `Units() == kTaskBeats`; otherwise it asserts `kTaskSeconds` and returns
+  `mDuration / 30.0f`. Native now exposes that explicit helper and prints the
+  branch in regular camera proof logs, while keeping shot-over timing in source
+  frame units through `CameraManager::CalcFrame` and `CheckShotOver`.
 - 2026-07-14 regular/solo CamShot `solo` filter exactness:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` appends
   `solo (ok never)`, while `pick_solo_camera_shot` appends `solo (ok only)`.
