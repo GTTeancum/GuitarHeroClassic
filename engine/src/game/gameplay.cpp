@@ -11866,7 +11866,8 @@ bool venue_milo_entry_is_animation_route(std::string_view type) {
 }
 
 bool venue_milo_entry_is_camera(std::string_view type) {
-    return type == "Cam" || type == "CamShot" || type == "CamAnim";
+    return type == "Cam" || type == "CamShot" || type == "BandCamShot" ||
+           type == "CamAnim";
 }
 
 bool venue_milo_entry_is_bank(std::string_view type) {

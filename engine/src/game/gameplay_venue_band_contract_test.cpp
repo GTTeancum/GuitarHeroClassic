@@ -11423,7 +11423,11 @@ int main() {
                  "venue dependency audit classifies always-running and lighting preset route types");
   ok &= contains(gameplay_c,
                  "boolvenue_milo_entry_is_camera(std::string_viewtype)",
-                 "venue dependency audit keeps Cam/CamShot/CamAnim as the camera phase bucket");
+                 "venue dependency audit keeps camera-phase object types separate from scene geometry");
+  ok &= contains(gameplay_c,
+                 "type==\"Cam\"||type==\"CamShot\"||type==\"BandCamShot\"||"
+                 "type==\"CamAnim\"",
+                 "venue dependency audit treats ihatecompvir BandCamShot as a CamShot-derived camera dependency");
   ok &= contains(gameplay_c,
                  "\"[world]venuedependency:%sdir=%sentries=%zuvisual=%zuanim=%zucamera=%zubank=%zu\\n\"",
                  "venue dependency diagnostics expose visual, animation, camera, and bank categories");

@@ -12,6 +12,13 @@
   moving source shots by composing the decoded path-frame eye/basis through the
   live parent transform; target refs are retained as runtime composition
   metadata and a fallback when no authored basis/quaternion exists.
+- 2026-07-14 BandCamShot dependency boundary: ihatecompvir
+  `BandCamShot.h` declares `class BandCamShot : public CamShot`, with its own
+  `StartAnim`, `SetPreFrame`, `SetFrame`, and next-shot chain fields. Native
+  venue dependency discovery now classifies `BandCamShot` as a camera-phase
+  object beside `Cam`, `CamShot`, and `CamAnim`, but this is a dependency
+  bucket fix only. It does not claim a recovered BandCamShot runtime pipeline or
+  decode BandCamShot object bodies as regular GH2 `CamShot`s.
 - 2026-07-13 CamShot resolved target presence: ihatecompvir
   `CamShotFrame::HasTargets()` checks the loaded `mTargets` object pointers,
   and `GetCurrentTargetPosition()` averages every non-null resolved target.
