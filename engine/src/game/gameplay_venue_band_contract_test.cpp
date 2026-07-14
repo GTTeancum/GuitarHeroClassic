@@ -12015,6 +12015,9 @@ int main() {
                  "to.far_starpower_ok=from.far_starpower_ok;",
                  "path-backed CamShot runtime metadata carries far_starpower_ok");
   ok &= contains(gameplay_c,
+                 "if(prop==\"far_starpower_ok\")returnkey.far_starpower_ok;",
+                 "CameraManager ShotMatches can evaluate authored far_starpower_ok filters");
+  ok &= contains(gameplay_c,
                  "to.bad_waypoint_refs=from.bad_waypoint_refs;",
                  "path-backed CamShot runtime metadata carries bad_waypoints refs");
   ok &= contains(gameplay_c,

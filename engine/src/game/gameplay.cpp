@@ -16099,6 +16099,7 @@ std::optional<bool> camera_filter_bool_property(
     if (prop == "jump_ok") return key.jump_ok;
     if (prop == "walk_ok") return key.walk_ok;
     if (prop == "starpower_ok") return key.starpower_ok;
+    if (prop == "far_starpower_ok") return key.far_starpower_ok;
     if (prop == "low_excitement_ok") return key.low_excitement_ok;
     return std::nullopt;
 }

@@ -255,6 +255,13 @@ Open work:
   keys, and regular CamShot diagnostics. This intentionally does not reject
   shots on either field yet; that must wait until the native `cam_shot_ok`
   predicate is recovered rather than inferred from field names.
+- 2026-07-14 `ShotMatches` `far_starpower_ok` property bridge:
+  ihatecompvir `CameraManager::ShotMatches` evaluates arbitrary filtered
+  CamShot properties through `shot->Property(sym)->Evaluate()` before calling
+  `ShotOk`. Native already decoded and carried `far_starpower_ok`; the generic
+  source filter reader now exposes it as a bool property so an authored source
+  filter can match it. This is not a new inferred star-power rejection rule and
+  does not change the still-deferred GH2 `cam_shot_ok` predicate.
 - 2026-07-13 CamShot `shot_ok` selection hook: native regular camera
   selection no longer rejects the active CamShot by authored name before
   source approval. ihatecompvir's `CameraManager::FindCameraShot` scans the
