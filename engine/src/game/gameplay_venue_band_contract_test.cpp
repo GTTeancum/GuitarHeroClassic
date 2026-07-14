@@ -10942,6 +10942,13 @@ int main() {
                  "source_check=CamShot::CheckShotStartedruntime_flag=unk120p4serialized_flag=none",
                  "shot_started bridge is documented as a runtime CamShot bit, not a serialized MILO field");
   ok &= contains(gameplay_c,
+                 "\"[world]camerashot_starteddispatch:"
+                 "source_msg=shot_startedsource_script=world/camshot.dta"
+                 "source_action=handle(worldpost_switch_cam)"
+                 "native_handler=post_switch_cam_deferred"
+                 "pose_body=not_synthesized\\n\"",
+                 "shot_started diagnostics expose the GH2 camshot.dta post_switch_cam dispatch without reviving hidden pose math");
+  ok &= contains(gameplay_c,
                  "source_prep=CameraManager::PrePoll->CamShot::SetPreFrame"
                  "base_noop=1source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after base CamShot SetPreFrame no-op");
