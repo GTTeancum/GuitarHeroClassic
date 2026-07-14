@@ -9467,6 +9467,10 @@ int main() {
                  "camera_ps2_writer_bridge_from_builder_rows(",
                  "camera diagnostics expose the generic PS2 writer bridge derived from native builder/source rows");
   ok &= contains(gameplay_c,
+                 "evaluation&&camera_has_promotable_writer_bridge_evidence(*evaluation)&&"
+                 "evaluation->has_projection_payload&&",
+                 "generic PS2 writer bridge applies retained writer deltas only after the shared complete-pair evidence gate");
+  ok &= contains(gameplay_c,
                  "camera_writer_bridge_builder_rows_for_key(",
                  "generic PS2 writer bridge consumes builder-shaped rows instead of source-seed rows");
   ok &= contains(gameplay_c,

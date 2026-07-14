@@ -18580,7 +18580,8 @@ std::optional<CameraResultRows> camera_ps2_writer_bridge_from_builder_rows(
     std::string path_delta_source;
     if (const auto evaluation =
             evaluate_retained_ps2_source_record_trace_context(key);
-        evaluation && evaluation->has_projection_payload &&
+        evaluation && camera_has_promotable_writer_bridge_evidence(*evaluation) &&
+        evaluation->has_projection_payload &&
         evaluation->has_writer_payload) {
         const auto& builder_origin =
             evaluation->has_builder_basis ? evaluation->builder_position

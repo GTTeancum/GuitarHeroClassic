@@ -6328,6 +6328,14 @@ Rejected native probe:
   payload format and confirms trace incompleteness for that route, but it is
   not enough by itself to add a second runtime bridge row or promote the
   diagnostic bridge into the default gameplay camera.
+- 2026-07-14 follow-up: `camera_ps2_writer_bridge_from_builder_rows(...)`
+  now uses the same `camera_has_promotable_writer_bridge_evidence(...)` gate
+  before applying retained writer payload deltas. A trace context must prove
+  the complete writer-builder pair, sampled payload delta support/count/range,
+  and zero incomplete pairs before the diagnostic bridge consumes the retained
+  writer delta; otherwise it falls back to the source-auditable `-pose_span`
+  path. This keeps future writer-payload captures from becoming one-off camera
+  substitutions merely because a writer payload exists.
 
 2026-06-29 retained trace matching tightened:
 - The retained PS2 source-record table is no longer matched by only
