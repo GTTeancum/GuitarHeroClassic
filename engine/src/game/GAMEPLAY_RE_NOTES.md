@@ -6608,6 +6608,16 @@ Rejected native probe:
   the bridge path directly for comparison, but default gameplay no longer needs
   the former opt-in when the trace evidence is already promotable.
 
+2026-07-14 camera writer-bridge proof row:
+- Added a debug-only `[camera-solver] writer_bridge_gate` row beside the
+  submitted camera result. It reports, for both interpolated keys, whether the
+  retained PS2 trace context is promotable, why it is not promotable when the
+  gate rejects it, the analyzer camera-system shape/counts, payload-delta
+  support/range, the proving trace artifact, and the submitted result source.
+  This is proof surface only; it does not change camera math or promote any
+  extra rows beyond the existing `camera_has_promotable_writer_bridge_evidence`
+  gate.
+
 2026-07-02 open HUD tuning follow-up:
 - Reopen the HUD editor and scale down the ROCK meter needle properly. It is
   currently sticking out above the top of the ROCK bezel; use the editor rather

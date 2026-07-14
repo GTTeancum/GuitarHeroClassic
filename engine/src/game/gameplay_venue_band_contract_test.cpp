@@ -9407,6 +9407,24 @@ int main() {
                  "camera_has_promotable_writer_bridge_evidence(",
                  "trace-complete writer bridge and provenance share one promotable-evidence gate");
   ok &= contains(gameplay_c,
+                 "camera_writer_bridge_gate_label(",
+                 "camera diagnostics classify trace-complete writer bridge gate outcomes");
+  ok &= contains(gameplay_c,
+                 "\"[camera-solver]frame=%.2fwriter_bridge_gatea=%s\"",
+                 "camera debug logs expose the trace-complete writer bridge gate decision");
+  ok &= contains(gameplay_c,
+                 "submitted_source=%s",
+                 "camera writer-bridge gate diagnostics identify the submitted result source");
+  ok &= contains(gameplay_c,
+                 "\"no_trace_context\"",
+                 "camera writer-bridge gate diagnostics distinguish missing retained trace evidence");
+  ok &= contains(gameplay_c,
+                 "\"missing_payload_delta\"",
+                 "camera writer-bridge gate diagnostics distinguish complete pairs without payload-delta proof");
+  ok &= contains(gameplay_c,
+                 "\"promoted\"",
+                 "camera writer-bridge gate diagnostics label accepted source-backed bridge promotion");
+  ok &= contains(gameplay_c,
                  "!camera_has_promotable_writer_bridge_evidence(*evaluation)",
                  "trace-complete writer bridge rejects rows through the shared promotable-evidence gate");
   ok &= contains(gameplay_c,

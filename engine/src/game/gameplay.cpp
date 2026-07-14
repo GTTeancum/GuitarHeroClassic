@@ -17623,6 +17623,40 @@ bool camera_has_promotable_writer_bridge_evidence(
            evaluation.incomplete_writer_builder_pair_count == 0;
 }
 
+const char* camera_writer_bridge_gate_label(
+    const std::optional<Ps2SourceRecordEvaluation>& evaluation) {
+    if (!evaluation) return "no_trace_context";
+    if (camera_has_promotable_writer_bridge_evidence(*evaluation)) {
+        return "promoted";
+    }
+    if (!evaluation->has_complete_writer_builder_pair) {
+        return "missing_complete_pair";
+    }
+    if (!evaluation->has_writer_bridge_payload_delta) {
+        return "missing_payload_delta";
+    }
+    if (evaluation->writer_bridge_payload_delta_support_count <= 0) {
+        return "missing_delta_support";
+    }
+    if (evaluation->writer_bridge_payload_delta_min_distance <= 0.0f) {
+        return "missing_delta_distance";
+    }
+    if (evaluation->writer_bridge_payload_delta_max_distance <
+        evaluation->writer_bridge_payload_delta_min_distance) {
+        return "invalid_delta_range";
+    }
+    if (evaluation->camera_system_shape != "complete_writer_builder_pair") {
+        return "shape_mismatch";
+    }
+    if (evaluation->complete_writer_builder_pair_count <= 0) {
+        return "missing_complete_count";
+    }
+    if (evaluation->incomplete_writer_builder_pair_count != 0) {
+        return "incomplete_pair";
+    }
+    return "not_promotable";
+}
+
 std::string camera_writer_builder_pair_provenance(
     const Ps2SourceRecordEvaluation& evaluation) {
     if (!camera_has_promotable_writer_bridge_evidence(evaluation)) {
@@ -20045,6 +20079,95 @@ void apply_camera_keys(
             };
         log_result_rows("source_seed_candidate", source_seed_result, 1, 1);
         log_result_rows("submitted", submitted_result, 1, 1);
+        const auto writer_bridge_gate_eval_a =
+            evaluate_retained_ps2_source_record_trace_context(*a);
+        const auto writer_bridge_gate_eval_b =
+            evaluate_retained_ps2_source_record_trace_context(*b);
+        auto writer_bridge_gate_shape =
+            [](const std::optional<Ps2SourceRecordEvaluation>& evaluation)
+            -> const char* {
+            return evaluation && !evaluation->camera_system_shape.empty()
+                       ? evaluation->camera_system_shape.c_str()
+                       : "none";
+        };
+        auto writer_bridge_gate_trace =
+            [](const std::optional<Ps2SourceRecordEvaluation>& evaluation)
+            -> const char* {
+            return evaluation &&
+                           !evaluation->writer_builder_pair_trace_artifact.empty()
+                       ? evaluation->writer_builder_pair_trace_artifact.c_str()
+                       : "none";
+        };
+        std::fprintf(
+            stderr,
+            "[camera-solver] frame=%.2f writer_bridge_gate a=%s "
+            "promoted=%d shape=%s complete=%d incomplete=%d "
+            "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
+            "b=%s promoted=%d shape=%s complete=%d incomplete=%d "
+            "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
+            "submitted_source=%s\n",
+            frame,
+            camera_writer_bridge_gate_label(writer_bridge_gate_eval_a),
+            writer_bridge_gate_eval_a &&
+                    camera_has_promotable_writer_bridge_evidence(
+                        *writer_bridge_gate_eval_a)
+                ? 1
+                : 0,
+            writer_bridge_gate_shape(writer_bridge_gate_eval_a),
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a->complete_writer_builder_pair_count
+                : 0,
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a->incomplete_writer_builder_pair_count
+                : 0,
+            writer_bridge_gate_eval_a &&
+                    writer_bridge_gate_eval_a->has_writer_bridge_payload_delta
+                ? 1
+                : 0,
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a
+                      ->writer_bridge_payload_delta_support_count
+                : 0,
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a
+                      ->writer_bridge_payload_delta_min_distance
+                : 0.0f,
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a
+                      ->writer_bridge_payload_delta_max_distance
+                : 0.0f,
+            writer_bridge_gate_trace(writer_bridge_gate_eval_a),
+            camera_writer_bridge_gate_label(writer_bridge_gate_eval_b),
+            writer_bridge_gate_eval_b &&
+                    camera_has_promotable_writer_bridge_evidence(
+                        *writer_bridge_gate_eval_b)
+                ? 1
+                : 0,
+            writer_bridge_gate_shape(writer_bridge_gate_eval_b),
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b->complete_writer_builder_pair_count
+                : 0,
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b->incomplete_writer_builder_pair_count
+                : 0,
+            writer_bridge_gate_eval_b &&
+                    writer_bridge_gate_eval_b->has_writer_bridge_payload_delta
+                ? 1
+                : 0,
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b
+                      ->writer_bridge_payload_delta_support_count
+                : 0,
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b
+                      ->writer_bridge_payload_delta_min_distance
+                : 0.0f,
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b
+                      ->writer_bridge_payload_delta_max_distance
+                : 0.0f,
+            writer_bridge_gate_trace(writer_bridge_gate_eval_b),
+            submitted_result.source.c_str());
         if (source_screen_offset_translate_result) {
             log_result_rows("source_screen_offset_translate_result",
                             *source_screen_offset_translate_result, 1, 1);
