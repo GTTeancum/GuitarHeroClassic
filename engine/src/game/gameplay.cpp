@@ -15696,21 +15696,24 @@ uint32_t camera_beat_at(const ghogx::chart::Chart& chart, double song_time) {
     return chart.sec_to_tick(song_time) / chart.ticks_per_beat;
 }
 
-int deterministic_camera_duration_bars(int min_bars, int max_bars,
-                                       size_t counter) {
+int source_random_int_camera_duration_bars(int min_bars, int max_bars,
+                                           size_t draw_index) {
     if (min_bars <= 0) min_bars = 1;
     if (max_bars < min_bars) max_bars = min_bars;
-    const int span = max_bars - min_bars + 1;
-    // world_objects_worldbase.dta::get_shot_duration uses random_int over the
-    // active excitement row. Keep native validation replayable while avoiding a
-    // visible min..max cycle.
-    uint32_t state = static_cast<uint32_t>(counter + 1u) * 0x9e3779b9u;
-    state ^= state >> 16;
-    state *= 0x7feb352du;
-    state ^= state >> 15;
-    state *= 0x846ca68bu;
-    state ^= state >> 16;
-    return min_bars + static_cast<int>(state % static_cast<uint32_t>(span));
+    const size_t span = static_cast<size_t>(max_bars - min_bars + 1);
+    CameraSourceRand rand;
+    // world_objects_worldbase.dta::get_shot_duration uses random_int for this
+    // source-script route.
+    // DataFunc::DataRandomInt calls RandomInt(low, high). That global source
+    // Rand starts as gRand(0x29A), and Rand::Int(low, high) treats high as
+    // exclusive, so the authored inclusive duration row is submitted as
+    // [min, max + 1) here.
+    rand.seed(0x29Au);
+    size_t bucket = 0;
+    for (size_t i = 0; i <= draw_index; ++i) {
+        bucket = rand.int_range(span);
+    }
+    return min_bars + static_cast<int>(bucket);
 }
 
 std::string camera_excitement_duration_key(std::string_view venue_event) {
@@ -31065,6 +31068,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);
+                const char* duration_source = "source_random_int";
+                std::optional<size_t> duration_random_draw;
                 if (force_camera) {
                     if (forced_camera_bars) {
                         camera_bars_left_ = *forced_camera_bars;
@@ -31072,17 +31077,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                         forced_camera_mode.value_or(
                                             CameraShotMode::Regular)),
                                     {*forced_camera_bars, *forced_camera_bars}};
+                        duration_source = "fixed_script";
                     } else {
-                        camera_bars_left_ = deterministic_camera_duration_bars(
+                        duration_random_draw = camera_shot_counter_++;
+                        camera_bars_left_ = source_random_int_camera_duration_bars(
                             duration.second.first, duration.second.second,
-                            camera_shot_counter_);
+                            *duration_random_draw);
                     }
                 } else {
-                    camera_bars_left_ = deterministic_camera_duration_bars(
+                    duration_random_draw = camera_shot_counter_++;
+                    camera_bars_left_ = source_random_int_camera_duration_bars(
                         duration.second.first, duration.second.second,
-                        camera_shot_counter_);
+                        *duration_random_draw);
                 }
-                ++camera_shot_counter_;
                 const bool low_excitement =
                     active_venue_event_.find("bad") != std::string::npos ||
                     active_venue_event_.find("boot") != std::string::npos;
@@ -31150,12 +31157,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (shot_changed) {
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s filter_source=ShotMatches flags=0x%08x forced=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
+                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s filter_source=ShotMatches flags=0x%08x forced=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
                             previous_regular_camera_for_log.c_str(),
                             key->name.c_str(), key->category.c_str(),
                             camera_bars_left_,
                             duration.first.c_str(), duration.second.first,
-                            duration.second.second,
+                            duration.second.second, duration_source,
+                            duration_random_draw ? "" : "none/",
+                            duration_random_draw.value_or(size_t{0}),
                             camera_shot_mode_label(camera_mode),
                             static_cast<unsigned int>(key->flags),
                             (force_camera || diagnostic_camera_shot_matched ||

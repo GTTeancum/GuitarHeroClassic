@@ -172,6 +172,16 @@ Open work:
   proof logs a source-shaped eligible-shot count without relaxing filters,
   changing category rotation, or inventing the deferred GH2 `cam_shot_ok`
   predicate.
+- 2026-07-14 camera duration `random_int` source Rand:
+  ihatecompvir `DataFunc::DataRandomInt` routes through `RandomInt(low, high)`,
+  while the recovered source global starts as `gRand(0x29A)` and
+  `Rand::Int(low, high)` treats `high` as exclusive. Native camera duration
+  selection now replays the same `CameraSourceRand` stream for authored
+  inclusive duration rows, logs the `duration_source` and source draw index for
+  proof, and leaves fixed script durations such as crowd-lighter and jump
+  camera cues outside that random draw stream. This is a timing/source-RNG
+  correction only; it does not claim final camera pose, angle composition,
+  `cam_shot_ok`, or `check_shot_over` parity.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

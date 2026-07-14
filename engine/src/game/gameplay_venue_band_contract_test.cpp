@@ -7728,11 +7728,25 @@ int main() {
                  "world_objects_worldbase.dta::get_shot_durationusesrandom_int",
                  "camera duration picker remains tied to the PS2 random_int script route");
   ok &= contains(gameplay_c,
-                 "state*=0x7feb352du;",
-                 "camera duration picker uses a stable pseudo-random bucket instead of a visible range cycle");
+                 "intsource_random_int_camera_duration_bars("
+                 "intmin_bars,intmax_bars,size_tdraw_index)",
+                 "camera duration picker uses a source random_int mirror");
   ok &= contains(gameplay_c,
-                 "state%static_cast<uint32_t>(span)",
-                 "camera duration picker stays within the authored inclusive min/max span");
+                 "rand.seed(0x29Au);",
+                 "camera duration random_int uses ihatecompvir global gRand seed");
+  ok &= contains(gameplay_c,
+                 "for(size_ti=0;i<=draw_index;++i){"
+                 "bucket=rand.int_range(span);}",
+                 "camera duration random_int advances one source draw per scripted duration pick");
+  ok &= contains(gameplay_c,
+                 "duration_random_draw=camera_shot_counter_++;",
+                 "camera duration random_int consumes the persistent source draw index");
+  ok &= contains(gameplay_c,
+                 "duration_source=\"fixed_script\";",
+                 "fixed script camera durations do not consume random_int");
+  ok &= contains(gameplay_c,
+                 "duration_source=%sduration_draw=%s%zu",
+                 "regular camera diagnostics expose duration source and source random draw");
   ok &= contains(regular_camera_loader_c,
                  "c.order=candidates.size();",
                  "regular camera loader preserves decoded CamShot order");
@@ -10296,7 +10310,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]regularcamerasweep:%s->%scategory=%s"
                  "bars_left=%d"
-                 "duration=%s[%d,%d]mode=%sfilter_source=ShotMatches"
+                 "duration=%s[%d,%d]duration_source=%sduration_draw=%s%zu"
+                 "mode=%sfilter_source=ShotMatches"
                  "flags=0x%08xforced=%dsource_next=%dforce_char_lod=%d",
                  "regular camera sweep logs source matcher provenance and selected character LOD");
   ok &= contains(gameplay_c,
@@ -11287,7 +11302,7 @@ int main() {
                  "booldid_lighter_cam_=false;",
                  "camera state keeps the script did_lighter_cam guard");
   ok &= appears_before(gameplay_c,
-                       "deterministic_camera_duration_bars(",
+                       "source_random_int_camera_duration_bars(",
                        "\"[world]regularcamerasweep:",
                        "camera duration is selected before logging sweep");
   ok &= absent(gameplay_c,
