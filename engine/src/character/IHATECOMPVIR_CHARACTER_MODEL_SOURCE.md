@@ -5533,6 +5533,17 @@ while the real `CharBonesSamples` / `CharBones::ScaleAdd` / `PoseMeshes`
 publisher remains unported. Non-overlay body clips still retain their decoded
 lower-body rows for diagnostics and future source-backed publisher work.
 
+2026-07-14 terminal lower-body overlay contract: the focused
+`ghogx_character_clip_driver_flags_test` now injects `bone_facing`,
+`bone_pelvis`, and both-side thigh/knee/ankle/foot/toe rows through player,
+frame, batch, and performer overlay helpers, then asserts none survive in
+overlay layers. Fresh direct-app proof in
+`engine/out/visual_proofs/overlay_terminal_lower_body_contract_20260714/`
+keeps the rows visible only as compare diagnostics: Rockabill2 `special_02`
+frame 70 and Rock1 `special_01` frame 80 logs show the lower-body output rows
+as `driven=1 live=0`. This is a guard against the old overlay leak; it does
+not close the remaining source publisher gap for body pose.
+
 2026-07-14 single-clip sample split import: `CharClipPlayer` now exposes
 `sampled_pose_layers`, and the shared player-layer appender uses it. For one
 active clip, this mirrors `CharBonesSamples::ScaleAddSample`: frame `i` is

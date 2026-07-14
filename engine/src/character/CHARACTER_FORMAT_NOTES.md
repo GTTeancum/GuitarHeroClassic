@@ -3226,6 +3226,16 @@ Useful environment flags:
   layers. This removes the old viewer-local opt-in filter and keeps strum/fret
   overlays from publishing root, pelvis, leg, or toe channels before the source
   `CharBones` pose publisher is fully understood.
+- 2026-07-14 terminal lower-body overlay contract:
+  `ghogx_character_clip_driver_flags_test` now seeds `bone_facing`,
+  `bone_pelvis`, and both-side thigh/knee/ankle/foot/toe rows through player,
+  fixed-frame, batch, and performer overlay helpers, then asserts those rows are
+  stripped from overlays. Fresh direct-app proof in
+  `engine/out/visual_proofs/overlay_terminal_lower_body_contract_20260714/`
+  shows Rockabill2 `special_02` frame 70 and Rock1 `special_01` frame 80 still
+  logging decoded lower-body output rows as compare-only `driven=1 live=0`;
+  this guards against the leg/feet overlay leak without claiming the source
+  body-pose publisher is complete.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.
