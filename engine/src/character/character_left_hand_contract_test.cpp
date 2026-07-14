@@ -111,6 +111,8 @@ int main() {
       compact(function_body(char_clip, "effective_ik_hand_solver_weight"));
   const std::string target_blend_c =
       compact(function_body(char_clip, "effective_ik_hand_target_blend_weight"));
+  const std::string fore_twist_c =
+      compact(function_body(char_clip, "apply_source_fore_twist"));
   const std::string hand_twist_scheduler_c = compact(
       function_body(char_clip, "apply_source_ik_hands_and_fore_twists"));
 
@@ -186,6 +188,12 @@ int main() {
   ok &= contains(hand_twist_scheduler_c,
                  "source_hand_matches_fore_twist(ik,ft)",
                  "source hand scheduler matches foretwist by source hand row");
+  ok &= contains(fore_twist_c,
+                 "character.bone_world_local_chain_authored(hand.name)",
+                 "foretwist reads the source Trans hand row, not the transient final-hand bridge");
+  ok &= lacks(fore_twist_c,
+              "constautohand_world=character.bone_world_local_chain(hand.name);",
+              "foretwist must not feed native runtime hand-world overrides back into the source roll input");
   ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",

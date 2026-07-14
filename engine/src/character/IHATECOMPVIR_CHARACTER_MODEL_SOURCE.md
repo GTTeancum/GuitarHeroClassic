@@ -5383,6 +5383,15 @@ weighted-card consumer issues. This recheck is a guardrail for the next source
 implementation pass, not a license to restore removed diagnostics or old visual
 experiments.
 
+2026-07-14 source-boundary follow-up: native `apply_source_fore_twist` now
+reads `bone_world_local_chain_authored` for the hand and hand-parent rows. This
+keeps ihatecompvir's visible `CharForeTwist::Poll` math tied to source
+`RndTransformable` rows while preventing the native transient final-hand world
+bridge from becoming an input to the next controller. This is not a claim that
+the star-power arm/neck pose is fixed; zero-weight hand IK frames still point
+back at the broader `CharClipSamples` / `CharBonesSamples` / `CharBones` /
+`PoseMeshes` application path.
+
 The raw pre-integration chat adds only clarifying boundaries around the same
 hair lead: static/no-CharHair was already answered as unlikely to solve the
 broken placement, and hair was described as separate `.mesh` objects that can

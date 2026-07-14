@@ -7216,9 +7216,12 @@ static bool apply_source_fore_twist(Character& character,
   if (parent_i < 0 || twist1_i < 0) return false;
   auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
 
-  const auto parent_world = character.bone_world_local_chain(
+  // CharForeTwist reads the source RndTransformable rows. The native final
+  // hand-world bridge is transient output and must not feed back into this
+  // controller's roll source.
+  const auto parent_world = character.bone_world_local_chain_authored(
       character.bones[static_cast<size_t>(parent_i)].name);
-  const auto hand_world = character.bone_world_local_chain(hand.name);
+  const auto hand_world = character.bone_world_local_chain_authored(hand.name);
   SourceCharForeTwistPollWorldResult twist_result;
   if (!source_char_fore_twist_poll_world(
           ft, true, true, true, true, parent_world, hand_world,
@@ -7228,7 +7231,8 @@ static bool apply_source_fore_twist(Character& character,
   std::array<float, 16> twist1_world = twist_result.twist_parent_world;
   if (!twist1.parent.empty()) {
     set_local_from_world(twist1.local, twist1_world,
-                         character.bone_world_local_chain(twist1.parent));
+                         character.bone_world_local_chain_authored(
+                             twist1.parent));
   } else {
     mat4_to_xfm(twist1_world, twist1.local);
   }
