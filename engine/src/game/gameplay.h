@@ -638,7 +638,6 @@ class Gameplay {
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
     ghogx::character::CharClipPlayer active_player;
-    ghogx::character::CharClipPlayer band_jump_player;
     ghogx::character::CharClipPlayer face_base_player;
     ghogx::character::CharClipPlayer strum_open_player;
     ghogx::character::CharClipPlayer strum_player;

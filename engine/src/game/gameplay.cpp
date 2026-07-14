@@ -19962,7 +19962,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
             perf.idle_player.advance(static_cast<float>(dt));
             perf.intro_player.advance(static_cast<float>(dt));
             perf.active_player.advance(static_cast<float>(dt));
-            perf.band_jump_player.advance(static_cast<float>(dt));
             perf.face_base_player.advance(static_cast<float>(dt));
             perf.strum_open_player.advance(static_cast<float>(dt));
             perf.strum_player.advance(static_cast<float>(dt));
@@ -19970,12 +19969,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
             perf.fret_player.advance(static_cast<float>(dt));
             for (auto& player : perf.fret_extra_players) {
                 player.advance(static_cast<float>(dt));
-            }
-            if (perf.band_jump_player.active() &&
-                perf.last_band_jump_duration > 0.0 &&
-                song_time_ - perf.last_band_jump_started >
-                    perf.last_band_jump_duration) {
-                perf.band_jump_player.clear();
             }
             if (!intro_active && performer_playing &&
                 !perf.active_group_clips.empty() &&

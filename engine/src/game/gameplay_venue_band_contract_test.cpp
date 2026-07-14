@@ -2565,7 +2565,8 @@ int main() {
                  "Environ decoder uses dynamic range offset");
   ok &= contains(milo_scene_cpp_c,
                  "GroupObjdecode_group(conststd::string&entry_name,"
-                 "conststd::vector<uint8_t>&body)",
+                 "conststd::vector<uint8_t>&body,"
+                 "int32_tparent_dir_revision)",
                  "Group decoder uses source-backed RndGroup layout");
   ok &= contains(milo_scene_cpp_c,
                  "group.children.push_back(r.str());",
@@ -2580,8 +2581,8 @@ int main() {
                  "m.prelit=r.u8()!=0;",
                  "Mat decoder preserves source-backed prelit flag order");
   ok &= contains(milo_scene_cpp_c,
-                 "constuint32_tblend=r.u32();",
-                 "Mat decoder reads BLEND_ENUM before material color");
+                 "constuint32_tblend=plan.reads_blend?r.u32():0;",
+                 "Mat decoder reads source-gated BLEND_ENUM before material color");
   ok &= contains(milo_scene_cpp_c,
                  "m.blend=static_cast<uint8_t>(blend);",
                  "Mat decoder stores the authored blend enum");
@@ -4751,9 +4752,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "ghogx::character::CharClipband_jump_clip;",
                  "performers carry the traced sync_jump/band_jump clip");
-  ok &= contains(gameplay_h_c,
-                 "ghogx::character::CharClipPlayerband_jump_player;",
-                 "performer band_jump uses an independent transient player");
+  ok &= absent(gameplay_h_c,
+               "ghogx::character::CharClipPlayerband_jump_player;",
+               "performer band_jump no longer uses an isolated transient player");
   ok &= contains(gameplay_h_c,
                  "uint32_tlast_band_jump_tick=UINT32_MAX;",
                  "band_jump dispatch is deduped per authored event tick");
@@ -4788,21 +4789,21 @@ int main() {
                  "band_jump_names)",
                  "performer band_jump resolves through main.drv before fallback");
   ok &= contains(gameplay_c,
-                 "perf.band_jump_player.play(perf.band_jump_clip,"
+                 "perf.active_player.play(perf.band_jump_clip,"
                  "ghogx::character::kCharPlayDirty|"
                  "ghogx::character::kCharPlayNoLoop,"
                  "character_driver_blend_seconds());",
-                 "band_jump plays the traced dirty non-loop clip transiently");
-  ok &= contains(gameplay_c,
-                 "song_time_-perf.last_band_jump_started>"
-                 "perf.last_band_jump_duration){perf.band_jump_player.clear();}",
-                 "band_jump clears after authored clip duration");
+                 "band_jump plays the traced dirty non-loop clip on the active source stack");
+  ok &= absent(gameplay_c, "perf.band_jump_player.clear();",
+               "band_jump stack return is handled by CharClipPlayer transient exit");
   ok &= appears_before(
       gameplay_c,
-      "if(!intro_active&&perf.band_jump_player.active()){"
-      "add_player_layer(perf.band_jump_player,1.0f);}",
-      "elseif(!intro_active&&performer_playing&&perf.active_player.active())",
-      "band_jump temporarily supplies the base pose before active/idle fallback");
+      "perf.active_player.play(perf.band_jump_clip,"
+      "ghogx::character::kCharPlayDirty|"
+      "ghogx::character::kCharPlayNoLoop,"
+      "character_driver_blend_seconds());",
+      "constNoteCueperf_note_cue=",
+      "band_jump dispatch remains before note/hand pose evaluation");
   ok &= contains(gameplay_c,
                  "ev.text==\"[crowd_lighters_slow]\"||",
                  "camera director listens for authored crowd lighter on messages");
