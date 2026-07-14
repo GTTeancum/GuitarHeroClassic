@@ -8482,8 +8482,9 @@ int main() {
                  "floatpath_base_eye[3]={};"
                  "floatpath_base_forward[3]={0.0f,1.0f,0.0f};"
                  "floatpath_base_up[3]={0.0f,0.0f,1.0f};"
-                 "boolhas_path_base_pose=false;",
-                 "CameraKey can retain the owning CamShot pose beside path keys");
+                 "boolhas_path_base_pose=false;"
+                 "boolpath_preserved_base_translation=false;",
+                 "CameraKey can retain the owning CamShot pose and source SetFrame base-translation fallback beside path keys");
   ok &= contains(gameplay_h_c,
                  "floatgenerated_source_position[3]={};"
                  "floatgenerated_source_forward[3]={0.0f,1.0f,0.0f};"
@@ -8527,8 +8528,22 @@ int main() {
                  "to.has_path_scale=true;}",
                  "CamShot runtime-field copying preserves sampled path scale values");
   ok &= contains(gameplay_c,
+                 "if(from.path_preserved_base_translation){"
+                 "to.path_preserved_base_translation=true;}",
+                 "CamShot runtime-field copying preserves source SetFrame base-translation fallback");
+  ok &= contains(gameplay_c,
                  "path_pos.path_base_eye[axis]=path_base_pose.eye[axis];",
                  "path-backed camera diagnostics retain the owning CamShot body pose");
+  ok &= contains(gameplay_c,
+                 "path_pos.has_path_source_frame_summary&&"
+                 "path_pos.path_source_translation_keys==0&&"
+                 "(path_pos.path_source_rotation_keys!=0||"
+                 "path_pos.path_source_scale_keys!=0)",
+                 "path-backed cameras detect source TransAnim pages with no translation channel");
+  ok &= contains(gameplay_c,
+                 "path_pos.eye[axis]=path_base_pose.eye[axis];}"
+                 "path_pos.path_preserved_base_translation=true;",
+                 "path-backed cameras preserve the owning CamShot translation when source TransAnim has no translation keys");
   ok &= contains(gameplay_c,
                  "if(path_pos.parent_entity.empty()){"
                  "populate_camera_generated_source_rows(path_pos);}",
@@ -8752,6 +8767,10 @@ int main() {
                  "c.key.positions.front().path_scale[axis];}"
                  "c.key.has_path_scale=true;}",
                  "regular CamShot root keys retain sampled source path scale values");
+  ok &= contains(gameplay_c,
+                 "if(c.key.positions.front().path_preserved_base_translation){"
+                 "c.key.path_preserved_base_translation=true;}",
+                 "regular CamShot root keys retain source SetFrame base-translation fallback");
   ok &= contains(gameplay_c,
                  "source_sample_frames=%zuadded_source_frames=%zu",
                  "camera path diagnostics expose merged source sample-frame counts");
@@ -10668,6 +10687,8 @@ int main() {
                  "source_key_pages=%strans:%zurot:%zuscale:%zu"
                  "a_path_scale=%s(%.3f%.3f%.3f)"
                  "b_path_scale=%s(%.3f%.3f%.3f)"
+                 "a_path_base_translation=%d"
+                 "b_path_base_translation=%d"
                  "source_path_flags=%strans_spline:%drepeat:%d"
                  "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"

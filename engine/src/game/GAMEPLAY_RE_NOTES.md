@@ -11374,6 +11374,15 @@ Rejected native probe:
   `b_path_scale`. The render pose remains driven by the recovered position and
   rotation path until source evidence proves how non-unit camera scale affects
   `CamShot::SetFrame`, but scale is no longer a counted-only source page.
+- 2026-07-14 path-backed TransAnim base translation proof:
+  ihatecompvir `RndTransAnim::SetFrame` starts by copying
+  `mTrans->LocalXfm()` into a `Transform` before `MakeTransform`, so a path
+  with rotation or scale keys but no translation keys preserves the owning
+  object's current translation instead of snapping to origin. Native
+  path-backed CamShot keys now keep the decoded CamShot base eye when the
+  resolved path source has no translation page, and the live
+  `[world] camera source path frame pair` row reports this as
+  `a_path_base_translation` / `b_path_base_translation`.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures

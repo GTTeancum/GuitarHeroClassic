@@ -221,6 +221,7 @@ class Gameplay {
     float path_base_forward[3] = {0.0f, 1.0f, 0.0f};
     float path_base_up[3] = {0.0f, 0.0f, 1.0f};
     bool has_path_base_pose = false;
+    bool path_preserved_base_translation = false;
     float path_pose_span[3] = {};
     bool has_path_pose_span = false;
     float source_path_local_frame = 0.0f;
