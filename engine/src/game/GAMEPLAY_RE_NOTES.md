@@ -11154,6 +11154,13 @@ Rejected native probe:
   ihatecompvir `CameraManager::PrePoll` calls `SetPreFrame`, but base
   `CamShot::SetPreFrame(float, float)` is an empty inline override, so native
   proof should not imply an unrecovered pre-frame transform step.
+- 2026-07-14 follow-up: the runtime proof now emits a separate
+  `[world] camera PrePoll SetPreFrame ...]` row before the Poll `SetFrame`
+  row for each newly-started regular CamShot. This mirrors
+  `CameraManager::PrePoll` consuming `mNextShot`, then calling
+  `CamShot::SetPreFrame(CalcFrame(), 1.0f)` before `CameraManager::Poll`
+  calls `SetFrame(CalcFrame(), 1.0f)`. Because base `SetPreFrame` is empty,
+  this is proof plumbing only, not a camera pose change.
 - 2026-07-14 follow-up: the same shot-start proof row now prints the
   `source_setframe_blend` value passed into `apply_camera_keys()` instead of a
   hard-coded diagnostic literal. Stock `CameraManager::Poll` still supplies

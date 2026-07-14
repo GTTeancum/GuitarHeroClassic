@@ -32906,6 +32906,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                             previous_camera_position_index_);
                 }
                 std::vector<CameraKey> selected_camera;
+                const float source_setpreframe_blend = 1.0f;
                 const float source_setframe_blend = 1.0f;
                 bool source_frame_key_route = false;
                 if (key->has_path_anim && !key->positions.empty()) {
@@ -32931,6 +32932,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         *key, song_time_, active_regular_camera_start_, &chart_);
                     if (active_camera_shot_started_reported_ != key->name) {
                         active_camera_shot_started_reported_ = key->name;
+                        std::fprintf(
+                            stderr,
+                            "[world] camera PrePoll SetPreFrame: source_manager=PrePoll source_call=CamShot::SetPreFrame shot=%s local_frame=%.3f source_setpreframe_blend=%.3f base_noop=1 source_order=after_mNextShot_before_Poll_SetFrame\n",
+                            key->name.c_str(), local_frame,
+                            source_setpreframe_blend);
                         std::fprintf(
                             stderr,
                             "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=%.3f\n",

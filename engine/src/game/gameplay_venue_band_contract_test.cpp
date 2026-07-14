@@ -10700,6 +10700,13 @@ int main() {
                  "key.has_source_frame_mapping=true;",
                  "regular CamShot frame-pair keys carry source SetFrame local and loop timing");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraPrePollSetPreFrame:"
+                 "source_manager=PrePollsource_call=CamShot::SetPreFrame"
+                 "shot=%slocal_frame=%.3fsource_setpreframe_blend=%.3f"
+                 "base_noop=1"
+                 "source_order=after_mNextShot_before_Poll_SetFrame\\n\"",
+                 "regular camera diagnostics expose ihatecompvir PrePoll SetPreFrame before Poll SetFrame");
+  ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
                  "source_check=CamShot::CheckShotStarted"
                  "runtime_flag=unk120p4serialized_flag=none"
