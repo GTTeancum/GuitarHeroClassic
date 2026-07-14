@@ -155,6 +155,9 @@ int main() {
       "ghogx_disable_charbone_lower_body_output",
       "ghogx_disable_charbone_output_layer",
       "ghogx_disable_charbone_face_output",
+      "ghogx_enable_charbone_lower_body_output",
+      "ghogx_enable_charbone_output_layer",
+      "ghogx_enable_charbone_face_output",
   };
   for (const auto& token : forbidden_default_on_switches) {
     if (char_clip.find(token) == std::string::npos) continue;
@@ -180,17 +183,6 @@ int main() {
     ok = false;
   }
 
-  const std::vector<std::string> required_opt_in_switches = {
-      "ghogx_enable_charbone_lower_body_output",
-      "ghogx_enable_charbone_output_layer",
-      "ghogx_enable_charbone_face_output",
-  };
-  for (const auto& token : required_opt_in_switches) {
-    if (char_clip.find(token) != std::string::npos) continue;
-    std::cerr << "Missing explicit opt-in CharBone output switch '" << token
-              << "' in " << char_clip_path.string() << "\n";
-    ok = false;
-  }
   if (!ok) {
     std::cerr << "Broken outfits and broad CharBone output must stay on shared "
                  "source-backed paths, not named branches or promoted "

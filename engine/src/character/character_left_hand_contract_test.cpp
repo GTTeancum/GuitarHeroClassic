@@ -435,32 +435,30 @@ int main() {
               "GHOGX_FILTER_OVERLAY_LOWER_BODY",
               "viewer does not keep a separate lower-body overlay switch");
   ok &= contains(char_clip_c,
-                 "staticbooloutput_map_lower_body_bone("
-                 "conststd::string&key){returnkey==\"bone_facing\"||"
-                 "key==\"bone_pelvis\"",
-                 "diagnostic lower-body output map lists the body-facing root and pelvis");
+                 "boolis_overlay_lower_body_channel("
+                 "constClipChannel&channel)",
+                 "overlay lower-body filtering is a shared clip-layer helper");
+  ok &= contains(char_clip_c,
+                 "returnkey==\"bone_facing\"||key==\"bone_pelvis\"",
+                 "overlay filter lists the body-facing root and pelvis");
   ok &= contains(char_clip_c,
                  "key.find(\"-ankle\")!=std::string::npos",
-                 "diagnostic lower-body output map keeps traced ankle rows");
+                 "overlay filter keeps traced ankle rows out of hand overlays");
+  ok &= lacks(char_clip_c,
+              "GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT",
+              "lower-body CharBone output is not a live-write switch");
+  ok &= lacks(char_clip_c,
+              "GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER",
+              "full CharBone output is not a live-write switch");
+  ok &= lacks(char_clip_c,
+              "GHOGX_ENABLE_CHARBONE_FACE_OUTPUT",
+              "face CharBone output is not a live-write switch");
   ok &= contains(char_clip_c,
-                 "charbone_output_lower_body_only_enabled()||"
-                 "charbone_lower_body_output_enabled()",
-                 "lower-body CharBone output bridge is opt-in only");
+                 "constboolcompare_output=charbone_output_compare_enabled();",
+                 "broad CharBone rows are compare-only diagnostics");
   ok &= contains(char_clip_c,
-                 "constboollower_body_output=lower_body_only&&"
-                 "output_map_lower_body_bone(it->first);",
-                 "lower-body output rows require the diagnostic opt-in");
-  ok &= contains(char_clip_c,
-                 "constboolface_output=face_output_layer&&"
-                 "output_map_face_bone(it->first);",
-                 "face output diagnostic is fenced from lower-body rows");
-  ok &= contains(char_clip_c,
-                 "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
-                 "lower-body CharBone bridge has an explicit diagnostic enable switch");
-  ok &= contains(char_clip_c,
-                 "if(!force_selected_output&&!full_output_layer&&"
-                 "!lower_body_only&&!face_output_layer){returnfalse;}",
-                 "selected hand output does not depend on lower-body bridge");
+                 "if(!force_selected_output){returnfalse;}",
+                 "only selected hand output can write reconstructed output rows");
 
   if (!ok) {
     std::cerr

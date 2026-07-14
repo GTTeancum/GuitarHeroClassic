@@ -32260,7 +32260,7 @@ int run_contract() {
                 "band3_recomp has no CharBonesSamples runtime symbol");
   ok &= contains(doc,
                  "Broad body, face, lower-body,\n  or full CharBone output publishing "
-                 "remains opt-in diagnostic behavior",
+                 "is no longer a live-write path",
                  "document keeps broad CharBone output publishing out of runtime truth");
   ok &= contains(char_clip,
                  "Decoderevidenceisboundedbyihatecompvirsource.rb3-latestexposes",
@@ -32271,31 +32271,15 @@ int run_contract() {
   ok &= contains(compact(read_file(char_dir / "char_clip.h")),
                  "broadoutputpublishingremainsdiagnostic",
                  "clip header states output publishing boundary");
+  ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT",
+                "lower-body CharBone output live-write switch removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER",
+                "full CharBone output live-write switch removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_FACE_OUTPUT",
+                "face CharBone output live-write switch removed");
   ok &= contains(char_clip,
-                 "staticboolcharbone_lower_body_output_enabled()",
-                 "lower-body CharBone output bridge is diagnostic opt-in");
-  ok &= contains(char_clip,
-                 "staticboolcharbone_output_layer_enabled()",
-                 "full CharBone output bridge is diagnostic opt-in");
-  ok &= contains(char_clip,
-                 "staticboolcharbone_face_output_enabled()",
-                 "face CharBone output bridge is diagnostic opt-in");
-  ok &= contains(char_clip,
-                 "BroadCharBoneoutputisdiagnostic-only;"
-                 "ihatecompvirsourcehasnotyet",
-                 "full CharBone bridge comment keeps source-truth boundary");
-  ok &= contains(char_clip,
-                 "Faceoutputrowsusethesamediagnosticfenceasbroadbodyoutput.",
-                 "face CharBone bridge comment keeps diagnostic fence");
-  ok &= contains(char_clip,
-                 "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
-                 "lower-body CharBone output bridge uses explicit enable");
-  ok &= contains(char_clip,
-                 "\"GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER\"",
-                 "full CharBone output bridge uses explicit enable");
-  ok &= contains(char_clip,
-                 "\"GHOGX_ENABLE_CHARBONE_FACE_OUTPUT\"",
-                 "face CharBone output bridge uses explicit enable");
+                 "constboolcompare_output=charbone_output_compare_enabled();",
+                 "broad CharBone rows are compare-only diagnostics");
   ok &= contains(char_clip,
                  "\"GHOGX_DEBUG_ARM_POSE\"",
                  "arm pose trace is opt-in diagnostic only");
@@ -32318,27 +32302,15 @@ int run_contract() {
                  "dump(\"bone_R-upperTwist1\");",
                  "arm pose trace includes right upper twist bone");
   ok &= contains(char_clip,
-                 "constboollower_body_output=lower_body_only&&"
-                 "output_map_lower_body_bone(it->first);",
-                 "lower-body CharBone rows require the lower-body diagnostic opt-in");
-  ok &= contains(char_clip,
-                 "constboolface_output=face_output_layer&&"
-                 "output_map_face_bone(it->first);",
-                 "face CharBone diagnostics do not imply lower-body output");
-  ok &= contains(char_clip,
-                 "if(!force_selected_output&&!full_output_layer&&"
-                 "!lower_body_only&&!face_output_layer){returnfalse;}",
-                 "selected hand output is separate from broad output diagnostics");
+                 "if(!force_selected_output){returnfalse;}",
+                 "broad CharBone output compare rows do not write live pose");
   ok &= contains(format_notes,
-                 "Current source-truth keeps broad lower-body\n  output opt-in only",
-                 "format notes fence lower-body CharBone output as opt-in");
-  ok &= contains(format_notes,
-                 "There is no\n  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` switch",
-                 "format notes reject the old default-on disable switch");
+                 "Current source-truth removes broad lower-body\n  output live writes",
+                 "format notes fence lower-body CharBone output as compare-only");
   ok &= contains(doc,
                  "Broad CharBone output bridges for full body, face, or lower body "
-                 "are\n  diagnostic-only",
-                 "native rules fence broad CharBone bridges");
+                 "are\n  removed as live-write switches",
+                 "native rules remove broad CharBone bridges");
   ok &= contains(doc,
                  "shared clip-layer appenders\nnow strip `bone_facing`, "
                  "`bone_pelvis`, thigh/knee/ankle/foot/toe rows from\n"
@@ -32349,9 +32321,9 @@ int run_contract() {
                  "channels);",
                  "shared layer appenders enforce lower-body overlay fence");
   ok &= contains(doc,
-                 "must require explicit enable switches and must not have "
-                 "default-on disable\n  switches",
-                 "native rules reject default-on CharBone bridge switches");
+                 "must not be restored as enable\n  switches without the "
+                 "source `PoseMeshes` publisher",
+                 "native rules reject CharBone bridge switches");
   ok &= contains(doc,
                  "engine/out/visual_proofs/twist_trace_20260713/",
                  "document records direct-app arm pose trace proof");

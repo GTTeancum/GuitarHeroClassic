@@ -3209,20 +3209,18 @@ Useful environment flags:
   ownership fix did not regress the current lower-body route.
 - Historical lower-body CharBone output trial: the old default-on experiment
   routed `bone_facing`, pelvis, thigh/knee/ankle/foot/toe rows through decoded
-  output records for A/B review. Current source-truth keeps broad lower-body
-  output opt-in only via `GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT` or the older
-  diagnostic `GHOGX_CHARBONE_OUTPUT_LOWER_BODY_ONLY`. There is no
-  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` switch in the current runtime.
-  `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` remains the opt-in full output-layer
-  experiment. Do not promote the full bridge until the packed
+  output records for A/B review. Current source-truth removes broad lower-body
+  output live writes; the old lower-body/full/face enable switches are not
+  runtime routes anymore. Broad CharBone output may still be logged for
+  comparison, but do not promote a full bridge until the packed
   output/work-buffer-to-visible-Trans copy is mapped from source-backed
   evidence.
 - 2026-06-28 lower-body contract guard:
   `ghogx_character_left_hand_contract_test` now pins the split where hand
   overlays do not own root/lower-body rows, while broad lower-body `CharBone`
-  output rows remain diagnostic opt-in for `bone_facing`, `bone_pelvis`, and
+  output rows are compare-only for `bone_facing`, `bone_pelvis`, and
   thigh/knee/ankle/foot/toe. This keeps selected hand output independent from
-  broad body, face, lower-body, and full output-layer diagnostics.
+  broad body, face, lower-body, and full output-layer live writes.
 - 2026-07-14 viewer/gameplay overlay parity guard:
   shared clip-layer appenders strip those same lower-body rows from hand-overlay
   layers. This removes the old viewer-local opt-in filter and keeps strum/fret

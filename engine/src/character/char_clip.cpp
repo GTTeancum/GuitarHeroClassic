@@ -9095,17 +9095,6 @@ static std::array<float, 16> output_node_local_chain(
   return world;
 }
 
-static std::array<float, 16> output_node_corrected_world(
-    const std::vector<OutputPoseNode>& nodes,
-    const std::unordered_map<std::string, size_t>& by_key,
-    size_t index) {
-  const auto current_chain = output_node_local_chain(nodes, by_key, index, false);
-  const auto bind_chain = output_node_local_chain(nodes, by_key, index, true);
-  const auto stored_world = xfm_to_mat4_local(nodes[index].world_stored);
-  return mat4_mul(current_chain,
-                  mat4_mul(affine_inverse(bind_chain), stored_world));
-}
-
 static bool hand_output_layer_disabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -9199,84 +9188,6 @@ static int output_depth(const std::vector<OutputPoseNode>& nodes,
   return depth;
 }
 
-static bool charbone_output_layer_enabled() {
-  // Broad CharBone output is diagnostic-only; ihatecompvir source has not yet
-  // exposed the runtime publisher for applying these rows to the live pose.
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER");
-  return value && value[0];
-#endif
-}
-
-static bool charbone_lower_body_output_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len,
-                "GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT");
-  return value && value[0];
-#endif
-}
-
-static bool charbone_output_world_bridge_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_CHARBONE_OUTPUT_WORLD_BRIDGE") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_CHARBONE_OUTPUT_WORLD_BRIDGE");
-  return value && value[0];
-#endif
-}
-
-static bool charbone_output_bind_delta_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_CHARBONE_OUTPUT_BIND_DELTA") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_CHARBONE_OUTPUT_BIND_DELTA");
-  return value && value[0];
-#endif
-}
-
-static bool charbone_output_lower_body_only_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_CHARBONE_OUTPUT_LOWER_BODY_ONLY") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_CHARBONE_OUTPUT_LOWER_BODY_ONLY");
-  return value && value[0];
-#endif
-}
-
 static bool charbone_output_compare_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -9320,45 +9231,10 @@ static bool output_map_interesting_bone(const std::string& key) {
          key.find("eye") != std::string::npos;
 }
 
-static bool output_map_lower_body_bone(const std::string& key) {
-  return key == "bone_facing" || key == "bone_pelvis" ||
-         key.find("-thigh") != std::string::npos ||
-         key.find("-knee") != std::string::npos ||
-         key.find("-ankle") != std::string::npos ||
-         key.find("-foot") != std::string::npos ||
-         key.find("-toe") != std::string::npos;
-}
-
-static bool output_map_face_bone(const std::string& key) {
-  return key.find("face") != std::string::npos ||
-         key.find("mouth") != std::string::npos ||
-         key.find("lip") != std::string::npos ||
-         key.find("jaw") != std::string::npos ||
-         key.find("brow") != std::string::npos ||
-         key.find("lid") != std::string::npos ||
-         key.find("eye") != std::string::npos;
-}
-
-static bool charbone_face_output_enabled() {
-  // Face output rows use the same diagnostic fence as broad body output.
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_CHARBONE_FACE_OUTPUT") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_CHARBONE_FACE_OUTPUT");
-  return value && value[0];
-#endif
-}
-
 static void dump_charbone_output_map(
     const Character& character, const std::vector<OutputPoseNode>& nodes,
     const std::unordered_map<std::string, size_t>& by_key,
-    const std::vector<bool>& node_driven) {
+    const std::vector<bool>& node_driven, bool live_writes_enabled) {
   if (!charbone_output_compare_enabled()) return;
   for (size_t i = 0; i < nodes.size(); ++i) {
     const auto& node = nodes[i];
@@ -9368,9 +9244,10 @@ static void dump_charbone_output_map(
         static_cast<size_t>(target_i) >= character.bones.size()) {
       std::fprintf(stderr,
                    "[out-map] %-18s output=%-24s parent=%-18s driven=%d "
-                   "target=<none> outLocal=(%.3f %.3f %.3f)\n",
+                   "live=%d target=<none> outLocal=(%.3f %.3f %.3f)\n",
                    node.key.c_str(), node.name.c_str(),
                    node.parent_key.c_str(), node_driven[i] ? 1 : 0,
+                   live_writes_enabled ? 1 : 0,
                    node.current_local.pos[0], node.current_local.pos[1],
                    node.current_local.pos[2]);
       continue;
@@ -9389,13 +9266,14 @@ static void dump_charbone_output_map(
     std::fprintf(
         stderr,
         "[out-map] %-18s output=%-24s parent=%-18s driven=%d "
-        "target=%-24s tParent=%-24s "
+        "live=%d target=%-24s tParent=%-24s "
         "outLocal=(%.3f %.3f %.3f) meshLocal=(%.3f %.3f %.3f) "
         "outBindW=(%.3f %.3f %.3f) meshBindW=(%.3f %.3f %.3f) "
         "outPoseW=(%.3f %.3f %.3f) meshPoseW=(%.3f %.3f %.3f) "
         "bindLocal=(%.3f %.3f %.3f)\n",
         node.key.c_str(), node.name.c_str(), node.parent_key.c_str(),
-        node_driven[i] ? 1 : 0, target.name.c_str(), target.parent.c_str(),
+        node_driven[i] ? 1 : 0, live_writes_enabled ? 1 : 0,
+        target.name.c_str(), target.parent.c_str(),
         node.current_local.pos[0], node.current_local.pos[1],
         node.current_local.pos[2], target.local.pos[0], target.local.pos[1],
         target.local.pos[2], out_bind_world[12], out_bind_world[13],
@@ -9434,25 +9312,15 @@ static bool apply_clip_pose_output_layer(
   std::vector<bool> node_driven(nodes.size(), false);
   std::vector<ClipChannel> direct_channels;
   direct_channels.reserve(channels.size());
-  const bool full_output_layer = charbone_output_layer_enabled();
-  const bool face_output_layer = charbone_face_output_enabled();
-  const bool lower_body_only =
-      charbone_output_lower_body_only_enabled() ||
-      charbone_lower_body_output_enabled();
+  const bool compare_output = charbone_output_compare_enabled();
   for (const auto& ch : channels) {
     const auto it = by_key.find(strip_transform_suffix(ch.bone_name));
     if (it == by_key.end()) {
       direct_channels.push_back(ch);
       continue;
     }
-    const bool lower_body_output =
-        lower_body_only && output_map_lower_body_bone(it->first);
-    const bool face_output =
-        face_output_layer && output_map_face_bone(it->first);
-    const bool driven_by_selected_output =
-        force_selected_output || full_output_layer || lower_body_output ||
-        face_output;
-    if (!driven_by_selected_output) {
+    const bool selected_for_live_output = force_selected_output;
+    if (!selected_for_live_output && !compare_output) {
       direct_channels.push_back(ch);
       continue;
     }
@@ -9483,10 +9351,10 @@ static bool apply_clip_pose_output_layer(
     }
   }
 
-  dump_charbone_output_map(character, nodes, by_key, node_driven);
+  dump_charbone_output_map(character, nodes, by_key, node_driven,
+                           force_selected_output);
 
-  if (!force_selected_output && !full_output_layer && !lower_body_only &&
-      !face_output_layer) {
+  if (!force_selected_output) {
     return false;
   }
 
@@ -9508,30 +9376,7 @@ static bool apply_clip_pose_output_layer(
     TargetUpdate update;
     update.depth = output_depth(nodes, by_key, i);
     update.target_index = target_i;
-    if (charbone_output_world_bridge_enabled()) {
-      const auto desired_world = output_node_corrected_world(nodes, by_key, i);
-      std::array<float, 16> parent_world{1, 0, 0, 0, 0, 1, 0, 0,
-                                         0, 0, 1, 0, 0, 0, 0, 1};
-      const auto& target = character.bones[static_cast<size_t>(target_i)];
-      if (!target.parent.empty()) {
-        parent_world = character.bone_world_local_chain(target.parent);
-      }
-      mat4_to_xfm(mat4_mul(desired_world, affine_inverse(parent_world)),
-                  update.desired_local);
-    } else if (charbone_output_bind_delta_enabled()) {
-      const auto target_bind =
-          xfm_to_mat4_local(character.bind_bone_local.size() >
-                                    static_cast<size_t>(target_i)
-                                ? character.bind_bone_local[static_cast<size_t>(target_i)]
-                                : character.bones[static_cast<size_t>(target_i)].local);
-      const auto output_bind = xfm_to_mat4_local(nodes[i].bind_local);
-      const auto output_current = xfm_to_mat4_local(nodes[i].current_local);
-      mat4_to_xfm(mat4_mul(mat4_mul(target_bind, affine_inverse(output_bind)),
-                           output_current),
-                  update.desired_local);
-    } else {
-      update.desired_local = nodes[i].current_local;
-    }
+    update.desired_local = nodes[i].current_local;
     updates.push_back(update);
   }
 
@@ -9541,8 +9386,8 @@ static bool apply_clip_pose_output_layer(
             });
   for (const auto& update : updates) {
     auto& target = character.bones[static_cast<size_t>(update.target_index)];
-    // Only explicitly selected hand output and opt-in diagnostics write this
-    // reconstructed CharBone output graph until the source runtime is known.
+    // Only explicitly selected hand output writes this reconstructed CharBone
+    // output graph until the source runtime publisher is known.
     target.local = update.desired_local;
   }
 
@@ -10401,7 +10246,13 @@ void update_layer_stack_relative(ClipChannelLayerStack& stack, bool relative) {
 }
 
 bool is_overlay_lower_body_channel(const ClipChannel& channel) {
-  return output_map_lower_body_bone(strip_transform_suffix(channel.bone_name));
+  const std::string key = strip_transform_suffix(channel.bone_name);
+  return key == "bone_facing" || key == "bone_pelvis" ||
+         key.find("-thigh") != std::string::npos ||
+         key.find("-knee") != std::string::npos ||
+         key.find("-ankle") != std::string::npos ||
+         key.find("-foot") != std::string::npos ||
+         key.find("-toe") != std::string::npos;
 }
 
 void strip_overlay_lower_body_channels(std::vector<ClipChannel>& channels) {

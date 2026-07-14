@@ -5161,7 +5161,7 @@ note, and all report `unreadBytes=0`.
   `CharBone` rows. It may use explicitly selected hand-driver output rows
   needed by the authored fret/strum overlay path only when that path stays
   bounded to source-named hand-driver semantics. Broad body, face, lower-body,
-  or full CharBone output publishing remains opt-in diagnostic behavior until a
+  or full CharBone output publishing is no longer a live-write path until a
   source-backed implementation or direct original-game trace proves it.
 - Current Rock2 evidence is bounded: static/bind rendering does not show the
   long-neck read, while `idle_medium_01` applies active `bone_head`,
@@ -5733,9 +5733,9 @@ unresolved `chain.hair` hookup rather than a static placement problem.
 - Renderer state such as blend, z write, alpha test, wrap, and draw order must
   come from source material/drawable rows.
 - Broad CharBone output bridges for full body, face, or lower body are
-  diagnostic-only unless/until a source `CharBones` publisher is ported. They
-  must require explicit enable switches and must not have default-on disable
-  switches masquerading as source behavior.
+  removed as live-write switches unless/until a source `CharBones` publisher is
+  ported. They may remain as comparison logs, but must not be restored as enable
+  switches without the source `PoseMeshes` publisher.
 - Project override: hair polygons/textures render two-sided. Native therefore
   forces no backface culling for shared hair-token mesh/material/texture
   surfaces and meshes whose own transform, parent, or active bone palette
