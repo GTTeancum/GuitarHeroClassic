@@ -105,6 +105,15 @@
   `--diagnostic-rock 0.0`: the log shows
   `game_lost -> first_shot_ok LOSE -> shot_ok lose01 -> mNextShot -> PrePoll`,
   and frame `00090` screenshots the source `LOSE` camera in the failed state.
+- 2026-07-14 source win camera proof:
+  `engine/out/camera_game_over_win_20260714_002/` runs stock PS2 Expert
+  `shoutatthedevil` from `205.8s` without sparse screenshot skipping. The log
+  shows `game_won_msg`, waits the source `WIN_CAMERA_DELAY`, then routes
+  `pick_shot WIN -> shot_ok win01 -> mNextShot -> PrePoll`. Frame `00130`
+  screenshots the delayed `WIN` camera before the app transitions to the
+  finished state. The earlier sparse run is intentionally not proof because
+  sparse screenshots skip non-capture `gameplay.draw()` calls, delaying
+  draw-side camera manager work.
 - 2026-07-14 CamShot DOF unset lifecycle: ihatecompvir
   `CamShotFrame::Interp` calls `TheDOFProc->UnSet()` when the shot/frame does
   not activate depth of field, and `CameraManager` unsets DOF during teardown.
