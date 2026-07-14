@@ -25691,13 +25691,13 @@ int run_contract() {
                  "out.twist2_world=make_output(twist2_current_world,0.666f);",
                  "native CharUpperTwist helper keeps source interpolation constants");
   ok &= contains(char_clip,
-                 "source_gh2_trace_fore_twist_poll_local("
-                 "ft,true,true,true,true,hand.local,forearm.local,",
-                 "runtime CharForeTwist path calls GH2 trace-local helper");
+                 "source_char_fore_twist_poll_world("
+                 "ft,true,true,true,true,hand_parent_world,hand_world,",
+                 "runtime CharForeTwist path calls ihatecompvir world-row helper");
   ok &= contains(char_clip,
-                 "source_gh2_trace_upper_twist_poll_local("
-                 "true,true,true,upper.local,",
-                 "runtime CharUpperTwist path calls GH2 trace-local helper");
+                 "source_char_upper_twist_poll_world("
+                 "true,true,true,true,source_parent_world,source_world,",
+                 "runtime CharUpperTwist path calls ihatecompvir world-row helper");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_fore_upper_twist_source_test"
                  "character_fore_upper_twist_source_test.cpp)",
@@ -25752,23 +25752,17 @@ int run_contract() {
                  "fore_applied[ft_index]=true;",
                  "native marks matched foretwists after the paired source poll");
   ok &= contains(char_clip,
-                 "source_gh2_trace_fore_twist_poll_local("
-                 "ft,true,true,true,true,hand.local,forearm.local,",
-                 "native CharForeTwist consumes live GH2 local hand and forearm rows");
+                 "set_local_from_world(twist1.local,twist_result.twist_parent_world,",
+                 "native CharForeTwist applies source twist parent SetWorldXfm");
   ok &= contains(char_clip,
-                 "twist1.local=twist_result.twist1_local;",
-                 "native CharForeTwist writes traced twist1 local row");
+                 "set_local_from_world(twist2.local,twist_result.twist2_world,",
+                 "native CharForeTwist applies source twist2 SetWorldXfm");
   ok &= contains(char_clip,
-                 "twist2.local=twist_result.twist2_local;",
-                 "native CharForeTwist writes traced twist2 local row");
+                 "set_local_from_world(twist1.local,twist_result.twist1_world,",
+                 "native CharUpperTwist applies first source SetWorldXfm");
   ok &= contains(char_clip,
-                 "source_gh2_trace_upper_twist_poll_local("
-                 "true,true,true,upper.local,",
-                 "native CharUpperTwist consumes live GH2 local upper row");
-  ok &= contains(char_clip,
-                 "twist1.local=twist_result.twist1_local;"
-                 "twist2.local=twist_result.twist2_local;",
-                 "native CharUpperTwist writes traced local rows");
+                 "set_local_from_world(twist2.local,twist_result.twist2_world,",
+                 "native CharUpperTwist applies second source SetWorldXfm");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");
   ok &= contains(doc,

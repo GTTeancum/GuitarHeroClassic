@@ -7368,6 +7368,7 @@ static void log_debug_world_row(const char* tag, const char* name,
 static bool apply_source_fore_twist(Character& character,
                                     const std::vector<milo_scene::Xfm>& bind_bones,
                                     const CharForeTwist& ft) {
+  (void)bind_bones;
   const int hand_i = find_bone_index(character, ft.hand);
   const int twist2_i = find_bone_index(character, ft.twist2);
   if (hand_i < 0 || twist2_i < 0) return false;
@@ -7377,32 +7378,48 @@ static bool apply_source_fore_twist(Character& character,
   const int parent_i = find_bone_index(character, hand.parent);
   const int twist1_i = find_bone_index(character, twist2.parent);
   if (parent_i < 0 || twist1_i < 0) return false;
-  if (static_cast<size_t>(parent_i) >= bind_bones.size() ||
-      static_cast<size_t>(twist2_i) >= bind_bones.size()) {
-    return false;
-  }
   auto& forearm = character.bones[static_cast<size_t>(parent_i)];
   auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
+  if (twist1.parent.empty()) return false;
+  const int twist1_parent_i = find_bone_index(character, twist1.parent);
+  if (twist1_parent_i < 0) return false;
+  const float hand_local_x = hand.local.pos[0];
+  if (std::fabs(hand_local_x) <= 1.0e-6f) return false;
 
-  SourceGh2TraceForeTwistLocalResult twist_result;
-  if (!source_gh2_trace_fore_twist_poll_local(
-          ft, true, true, true, true, hand.local, forearm.local,
-          bind_bones[static_cast<size_t>(twist2_i)], twist_result)) {
+  std::array<float, 16> hand_parent_world{};
+  std::array<float, 16> hand_world{};
+  std::array<float, 16> twist1_parent_world{};
+  if (!transform_local_chain_world(character, hand.parent, hand_parent_world) ||
+      !transform_local_chain_world(character, hand.name, hand_world) ||
+      !transform_local_chain_world(character, twist1.parent,
+                                   twist1_parent_world)) {
     return false;
   }
-  twist1.local = twist_result.twist1_local;
-  twist2.local = twist_result.twist2_local;
+
+  SourceCharForeTwistPollWorldResult twist_result;
+  if (!source_char_fore_twist_poll_world(
+          ft, true, true, true, true, hand_parent_world, hand_world,
+          hand_local_x, twist2.local.pos[0], twist_result)) {
+    return false;
+  }
+  set_local_from_world(twist1.local, twist_result.twist_parent_world,
+                       twist1_parent_world);
+  set_local_from_world(twist2.local, twist_result.twist2_world,
+                       twist_result.twist_parent_world);
 
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
-                 "[twist-fore-gh2-trace] %s hand=%s fore=%s twist1=%s "
-                 "twist2=%s offset=%.3f bias=%.3f roll=%.5f\n",
+                 "[twist-fore-source] %s hand=%s fore=%s twist1=%s "
+                 "twist2=%s offset=%.3f bias=%.3f angle=%.5f applied=%.5f "
+                 "ratio=%.5f\n",
                  ft.name.c_str(), ft.hand.c_str(), forearm.name.c_str(),
                  twist1.name.c_str(), ft.twist2.c_str(), ft.offset_degrees,
-                 ft.bias_degrees, twist_result.roll_radians);
-    log_debug_xfm_row_short("twist-fore-gh2-trace", twist1.name.c_str(),
+                 ft.bias_degrees, twist_result.source_angle_radians,
+                 twist_result.applied_rotation_radians,
+                 twist_result.twist2_position_ratio);
+    log_debug_xfm_row_short("twist-fore-source", twist1.name.c_str(),
                             twist1.local);
-    log_debug_xfm_row_short("twist-fore-gh2-trace", twist2.name.c_str(),
+    log_debug_xfm_row_short("twist-fore-source", twist2.name.c_str(),
                             twist2.local);
   }
   return true;
@@ -7410,35 +7427,57 @@ static bool apply_source_fore_twist(Character& character,
 
 static void apply_source_upper_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
+  (void)bind_bones;
   for (const auto& ut : character.upper_twists) {
     const int upper_i = find_bone_index(character, ut.upper_arm);
     const int twist1_i = find_bone_index(character, ut.twist1);
     const int twist2_i = find_bone_index(character, ut.twist2);
     if (upper_i < 0 || twist1_i < 0 || twist2_i < 0) continue;
-    if (static_cast<size_t>(twist2_i) >= bind_bones.size()) continue;
     auto& upper = character.bones[static_cast<size_t>(upper_i)];
     auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
     auto& twist2 = character.bones[static_cast<size_t>(twist2_i)];
     if (upper.parent.empty()) continue;
+    if (twist1.parent.empty() || twist2.parent.empty()) continue;
 
-    SourceGh2TraceUpperTwistLocalResult twist_result;
-    if (!source_gh2_trace_upper_twist_poll_local(
-            true, true, true, upper.local,
-            bind_bones[static_cast<size_t>(twist2_i)], twist_result)) {
+    std::array<float, 16> source_parent_world{};
+    std::array<float, 16> source_world{};
+    std::array<float, 16> twist1_world{};
+    std::array<float, 16> twist2_world{};
+    std::array<float, 16> twist1_parent_world{};
+    if (!transform_local_chain_world(character, upper.parent,
+                                     source_parent_world) ||
+        !transform_local_chain_world(character, upper.name, source_world) ||
+        !transform_local_chain_world(character, twist1.name, twist1_world) ||
+        !transform_local_chain_world(character, twist2.name, twist2_world) ||
+        !transform_local_chain_world(character, twist1.parent,
+                                     twist1_parent_world)) {
       continue;
     }
 
-    twist1.local = twist_result.twist1_local;
-    twist2.local = twist_result.twist2_local;
+    SourceCharUpperTwistPollWorldResult twist_result;
+    if (!source_char_upper_twist_poll_world(
+            true, true, true, true, source_parent_world, source_world,
+            twist1_world, twist2_world, twist_result)) {
+      continue;
+    }
+
+    set_local_from_world(twist1.local, twist_result.twist1_world,
+                         twist1_parent_world);
+    std::array<float, 16> twist2_parent_world{};
+    if (!transform_local_chain_world(character, twist2.parent,
+                                     twist2_parent_world)) {
+      continue;
+    }
+    set_local_from_world(twist2.local, twist_result.twist2_world,
+                         twist2_parent_world);
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
-                   "[twist-upper-gh2-trace] %s upper=%s twist1=%s twist2=%s "
-                   "roll=%.5f\n",
+                   "[twist-upper-source] %s upper=%s twist1=%s twist2=%s\n",
                    ut.name.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
-                   ut.twist2.c_str(), twist_result.roll_radians);
-      log_debug_xfm_row_short("twist-upper-gh2-trace", twist1.name.c_str(),
+                   ut.twist2.c_str());
+      log_debug_xfm_row_short("twist-upper-source", twist1.name.c_str(),
                               twist1.local);
-      log_debug_xfm_row_short("twist-upper-gh2-trace", twist2.name.c_str(),
+      log_debug_xfm_row_short("twist-upper-source", twist2.name.c_str(),
                               twist2.local);
     }
   }

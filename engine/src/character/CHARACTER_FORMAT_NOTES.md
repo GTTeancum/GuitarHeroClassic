@@ -5136,14 +5136,11 @@ Viewer hand-overlay validation:
   problem with a clearer isolation point: direct-app logs for `special_02`
   frame 70 show both left and right hand IK skipped because their source solve
   weights are zero, while standalone fore/upper twist controllers still run and
-  produce the visible shoulder/forearm folding. The live stock-GH2 runtime now
-  uses the accepted GH2 PS2 local-row traces for those twist outputs:
-  foretwist preserves the live forearm row for `twist1` and the authored
-  `twist2` row for `twist2`, while upper twist preserves the live upper-arm row
-  for `twist1` and the authored helper row for `twist2`. Keep ihatecompvir's
-  RB3 world-row helpers as source documentation/tests, but do not route stock
-  GH2 twist playback through the old world-cache write path unless a fresher
-  original-runtime trace proves that row shape.
+  produce the visible shoulder/forearm folding. The local-row trace route was
+  not sufficient for that reviewed frame. The live stock-GH2 runtime now follows
+  ihatecompvir's world-row `CharForeTwist::Poll` and `CharUpperTwist::Poll`
+  bodies, then converts the returned `SetWorldXfm` matrices back to local rows
+  through each driven bone's current parent.
 - The 2026-07-14 Rockabill2 soft-green camera scout in
   `engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` uses
   direct-app `special_02` frame 70 captures on the soft green background. The

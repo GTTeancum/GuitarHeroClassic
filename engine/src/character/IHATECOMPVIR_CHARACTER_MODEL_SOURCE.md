@@ -4138,13 +4138,10 @@ note, and all report `unreadBytes=0`.
     behavior directly as a deterministic source helper: it returns the two
     source `SetWorldXfm` matrices with the source transform's X row, the
     previous driven positions, and the exact `0.333f` / `0.666f`
-    interpolation constants. For stock GH2 PS2 runtime playback, however,
-    accepted SLUS row traces show the visible upper-twist outputs preserving
-    the live upper-arm local row for `twist1` and the authored helper local row
-    for `twist2`, with local-X factors of approximately `+0.666` and `-0.333`.
-    Native `source_gh2_trace_upper_twist_poll_local` is the live GH2 path for
-    those stock rows; `source_char_upper_twist_poll_deps` still mirrors the
-    ihatecompvir dependency order.
+    interpolation constants. Native runtime playback now uses this
+    ihatecompvir world-row `Poll` path and converts the returned
+    `SetWorldXfm` matrices back to local rows through each driven bone's
+    current parent.
 - `rb3/src/system/char/CharForeTwist.cpp`
   - `CharForeTwist::Load` reads `offset`, `hand`, `twist2`, an old revision-2
     dummy int, and `bias` for revisions above 3.
@@ -4160,12 +4157,10 @@ note, and all report `unreadBytes=0`.
     angle, applies one third of the final angle to the `twist2` parent, applies
     the same rotation again to `twist2`, and keeps the source position ratio
     `twist2.local.x / hand.local.x` instead of inserting a native fallback.
-    For stock GH2 PS2 runtime playback, the accepted foretwist traces show
-    `foreTwist1` preserving the live forearm local row, `foreTwist2`
-    preserving its authored child local row, and both receiving the same traced
-    local-X roll. Native `source_gh2_trace_fore_twist_poll_local` is the live
-    GH2 path for those rows; `source_char_fore_twist_poll_deps` mirrors the
-    ihatecompvir dependency order.
+    Native runtime playback now uses this ihatecompvir world-row `Poll` path,
+    then converts the `twist2` parent and `twist2` world rows back to local
+    rows. `source_char_fore_twist_poll_deps` mirrors the ihatecompvir
+    dependency order.
   - `CharIKHand::Poll` does not inline or consume `CharForeTwist` rows. Native
     GHOGX therefore runs decoded `CharForeTwist` controllers as their own source
     poll pass after hand IK instead of marking them handled inside the hand IK
@@ -4176,14 +4171,13 @@ note, and all report `unreadBytes=0`.
     that trace-backed order and regressed the Rock1/Rock2 posture review.
     Corrected proof captures and logs are under
     `engine/out/rock_regression_corrected_20260710/`.
-  - Native GHOGX keeps the ihatecompvir RB3 world-row helpers as source
-    documentation and deterministic coverage, but the live stock-GH2 twist
-    runtime now uses the accepted GH2 PS2 trace-local row helpers above. This
-    is not a name-specific or per-character visual patch; it is the traced row
-    basis required by Rockabill2 `special_02` frame 70, where both hand IK
-    weights are zero yet the standalone twist rows still visibly deform the
-    arms. `ghogx_character_fore_upper_twist_source_test` covers both the
-    ihatecompvir helper math and the GH2 trace-local helper math.
+  - Native GHOGX now uses the ihatecompvir RB3 world-row helpers as the live
+    stock-GH2 twist runtime. The previous GH2 trace-local runtime route is no
+    longer treated as sufficient for Rockabill2 `special_02` frame 70, where
+    both hand IK weights are zero yet the standalone twist rows still visibly
+    deform the arms. `ghogx_character_fore_upper_twist_source_test` covers the
+    ihatecompvir helper math and retains the older trace-local helpers as
+    bounded evidence only, not the live path.
 - `rb3-latest/src/system/char/CharNeckTwist.cpp` and
   `rb3-latest/src/system/char/CharNeckTwist.h`
   - `CharNeckTwist::Load` accepts source revisions through 1, loads
@@ -5474,12 +5468,12 @@ stock GH2 twist playback through native `runtime_world_overrides` to mirror
 ihatecompvir's visible RB3 `SetWorldXfm()` calls. The later Rockabill2
 `special_02` frame 70 isolation proved that was not sufficient for GH2 PS2:
 both hand IK solvers are skipped at zero source weight, but standalone
-fore/upper twist rows still fold the shoulders and forearms. Native runtime
-therefore now keeps the RB3 world-row helpers as source documentation/tests and
-uses the accepted GH2 SLUS local-row traces for live stock-GH2 twist playback:
-`source_gh2_trace_fore_twist_poll_local` and
-`source_gh2_trace_upper_twist_poll_local`. This is not a name-specific visual
-offset and does not sign off the separate chain/cloth `CharHair` writeback gap.
+fore/upper twist rows still fold the shoulders and forearms. The local-row
+trace route was not sufficient for that reviewed Rockabill2 frame, so native
+runtime now follows ihatecompvir's world-row `CharForeTwist::Poll` and
+`CharUpperTwist::Poll` bodies and converts their `SetWorldXfm` results back
+to local rows. This is not a name-specific visual offset and does not sign off
+the separate chain/cloth `CharHair` writeback gap.
 
 2026-07-14 diagnostic clip-path correction: stock GH2 PS2 assets share some
 animation MILOs across performer variants. For example, Rock2's decoded
