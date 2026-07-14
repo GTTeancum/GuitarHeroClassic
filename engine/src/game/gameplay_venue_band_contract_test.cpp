@@ -8579,6 +8579,15 @@ int main() {
                  "if(targets.find(id)!=targets.end())returnid;",
                  "CamShot same-target signatures use live target table hits");
   ok &= contains(gameplay_c,
+                 "conststd::stringstripped_subpart="
+                 "strip_mesh_suffix(std::string(subpart));",
+                 "CamShot same-target signatures mirror LoadSubPart suffix stripping");
+  ok &= appears_before(
+      gameplay_c,
+      "strip_mesh_suffix(std::string(subpart));",
+      "id=camera_target_id(entity,{});",
+      "CamShot same-target signatures try source-stripped subparts before root fallback");
+  ok &= contains(gameplay_c,
                  "id=camera_target_id(entity,{});"
                  "if(targets.find(id)!=targets.end())returnid;",
                  "CamShot same-target signatures mirror resolved subpart fallback");
@@ -8608,8 +8617,11 @@ int main() {
                  "\"source_screen_offset_translate_result\"",
                  "camera result diagnostics log the source-shaped screen-offset result separately");
   ok &= contains(gameplay_c,
-                 "\"same_targets=%d\"",
+                 "same_targets=%d",
                  "camera result diagnostics expose the CamShot SameTargets branch");
+  ok &= contains(gameplay_c,
+                 "\"resolved_targets=a:%sb:%ssame_targets=%d\"",
+                 "camera result diagnostics expose the resolved CamShot SameTargets signature");
   ok &= contains(gameplay_c,
                  "floatcamera_result_builder_shot_filter_step(",
                  "camera result rows consume the traced s3+52 shot filter branch");

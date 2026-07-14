@@ -26,6 +26,13 @@
   back to the broad entity/root target. This keeps bone/member camera targets
   from silently collapsing to a performer root when the live target table holds
   the stripped source part name.
+- 2026-07-14 CamShot SameTargets suffix lookup follow-up: the resolved-target
+  signature used by native `camera_targets_match_like_camshot(...)` now shares
+  the same exact -> source-stripped subpart -> root fallback as the main target
+  lookup. This keeps `CamShotFrame::SameTargets`-shaped screen-offset routing
+  source-consistent for authored refs such as `spot_neck_fret20.mesh`, rather
+  than only for refs whose live target table already uses the exact `.mesh`
+  spelling.
 - 2026-07-13 CamShot resolved SameTargets gate: ihatecompvir
   `CamShotFrame::Interp` evaluates `SameTargets(frame)` beside the resolved
   `HasTargets()` checks before applying the local-space screen-offset

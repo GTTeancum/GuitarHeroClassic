@@ -19616,6 +19616,14 @@ std::optional<std::string> camera_resolved_target_id_for_ref(
     std::string id = camera_target_id(entity, subpart);
     if (targets.find(id) != targets.end()) return id;
     if (!subpart.empty()) {
+        const std::string stripped_subpart =
+            strip_mesh_suffix(std::string(subpart));
+        if (stripped_subpart != subpart) {
+            id = camera_target_id(entity, stripped_subpart);
+            if (targets.find(id) != targets.end()) return id;
+        }
+    }
+    if (!subpart.empty()) {
         id = camera_target_id(entity, {});
         if (targets.find(id) != targets.end()) return id;
     }
@@ -20226,6 +20234,18 @@ void apply_camera_keys(
             camera_target_refs_debug_string(*a);
         const std::string b_target_refs =
             camera_target_refs_debug_string(*b);
+        const auto a_resolved_target_signature =
+            camera_resolved_target_signature_for_key(*a, targets);
+        const auto b_resolved_target_signature =
+            camera_resolved_target_signature_for_key(*b, targets);
+        const std::string a_resolved_targets =
+            a_resolved_target_signature.empty()
+                ? std::string("none")
+                : join_log_names(a_resolved_target_signature);
+        const std::string b_resolved_targets =
+            b_resolved_target_signature.empty()
+                ? std::string("none")
+                : join_log_names(b_resolved_target_signature);
         const auto a_target_eye = debug_ref_eye(*a, false);
         const auto a_parent_eye = debug_ref_eye(*a, true);
         const auto b_target_eye = debug_ref_eye(*b, false);
@@ -21308,7 +21328,7 @@ void apply_camera_keys(
             stderr,
             "[camera-solver] frame=%.2f refs a_target=%s:%s b_target=%s:%s "
             "target_ref_count=a:%zu b:%zu target_refs=a:%s b:%s "
-            "same_targets=%d "
+            "resolved_targets=a:%s b:%s same_targets=%d "
             "target_centroid=a:(%.3f %.3f %.3f) "
             "b:(%.3f %.3f %.3f) "
             "a_parent=%s:%s b_parent=%s:%s use_parent_rotation=a:%d b:%d "
@@ -21320,6 +21340,7 @@ void apply_camera_keys(
             camera_target_ref_count_for_key(*a),
             camera_target_ref_count_for_key(*b),
             a_target_refs.c_str(), b_target_refs.c_str(),
+            a_resolved_targets.c_str(), b_resolved_targets.c_str(),
             same_targets_like_camshot ? 1 : 0,
             a_target_centroid ? (*a_target_centroid)[0] : 0.0f,
             a_target_centroid ? (*a_target_centroid)[1] : 0.0f,
