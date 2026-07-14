@@ -32230,20 +32230,65 @@ int run_contract() {
                  "not\npermission to promote broad output publishing",
                  "document keeps Rockabill2 full-output bridge fenced");
   ok &= contains(doc,
+                 "2026-07-14 live mirror refresh after fetch: `rb3` stayed at "
+                 "`41719f2`, `grim` at `1c05ca3`, and `re-notes` at "
+                 "`5c486fd`.",
+                 "document records refreshed ihatecompvir mirror revisions");
+  ok &= contains(doc,
+                 "`CharClip::PoseMeshes` and "
+                 "`CharBonesSamples::ScaleAddSample` remain real\n"
+                 "  source bodies",
+                 "document records concrete refreshed source bodies");
+  ok &= contains(doc,
+                 "`CharBones::ScaleAdd`,\n"
+                 "  `CharBonesSamples::EvaluateChannel`,\n"
+                 "  `CharBonesMeshes::PoseMeshes` statement body,\n"
+                 "  `CharClipSamples::ScaleAdd`, and "
+                 "`CharClipDriver::Evaluate` remain fenced",
+                 "document records refreshed fenced publisher bodies");
+  ok &= contains(doc,
                  "Do not patch this\nwith Rockabill2-specific shoulder, neck, "
                  "arm, guitar, or mesh offsets",
                  "document rejects Rockabill2 shoulder shortcuts");
   ok &= contains(char_clip_h,
                  "zero_weight_hand_ik_does_not_explain_pose",
                  "native exposes Rockabill2 shoulder source-boundary helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharPosePublisherSourceRefresh{std::string"
+                 "rb3_commit;std::stringgrim_commit;std::string"
+                 "re_notes_commit;boolrb3_after_fetch=false;",
+                 "native exposes pose publisher source refresh row");
+  ok &= contains(char_clip_h,
+                 "boolchar_clip_pose_meshes_body=false;bool"
+                 "char_bones_samples_scale_add_sample_body=false;bool"
+                 "char_bones_scale_add_body=false;",
+                 "native refresh row distinguishes concrete and fenced bodies");
+  ok &= contains(char_clip_h,
+                 "SourceCharPosePublisherSourceRefresh"
+                 "source_char_pose_publisher_source_refresh_20260714();",
+                 "native exposes pose publisher source refresh helper");
   ok &= contains(
       char_clip,
       "SourceReleasePosePublisherBoundarysource_release_pose_"
       "publisher_boundary(){",
       "native implements generic release-pose source-boundary helper");
+  ok &= contains(
+      char_clip,
+      "SourceCharPosePublisherSourceRefresh"
+      "source_char_pose_publisher_source_refresh_20260714(){",
+      "native implements pose publisher source refresh helper");
+  ok &= contains(char_clip,
+                 "refresh.rb3_commit=\"41719f2\";",
+                 "native source refresh pins rb3 mirror commit");
+  ok &= contains(char_clip,
+                 "refresh.char_bones_scale_add_body=false;",
+                 "native source refresh keeps CharBones ScaleAdd fenced");
   ok &= contains(char_bones_source_test,
                  "source_release_pose_publisher_boundary()",
                  "focused CharBones source test covers release-pose boundary");
+  ok &= contains(char_bones_source_test,
+                 "source_char_pose_publisher_source_refresh_20260714()",
+                 "focused CharBones source test covers pose publisher refresh");
   ok &= contains(doc,
                  "2026-07-14 Rockabill2 green chain proof",
                  "document records Rockabill2 green chain proof");

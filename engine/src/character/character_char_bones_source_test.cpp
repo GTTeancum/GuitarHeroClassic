@@ -1394,6 +1394,44 @@ int main() {
       "default-on broad CharBone output without the source publisher body",
       "Rockabill2 shoulder rejects default full-output shortcut");
 
+  const SourceCharPosePublisherSourceRefresh publisher_refresh =
+      source_char_pose_publisher_source_refresh_20260714();
+  ok &= expect_string(publisher_refresh.rb3_commit, "41719f2",
+                      "pose publisher rb3 mirror commit");
+  ok &= expect_string(publisher_refresh.grim_commit, "1c05ca3",
+                      "pose publisher grim mirror commit");
+  ok &= expect_string(publisher_refresh.re_notes_commit, "5c486fd",
+                      "pose publisher re-notes mirror commit");
+  ok &= expect_int(publisher_refresh.rb3_after_fetch ? 1 : 0, 1,
+                   "pose publisher rb3 mirror refreshed");
+  ok &= expect_int(publisher_refresh.grim_after_fetch ? 1 : 0, 1,
+                   "pose publisher grim mirror refreshed");
+  ok &= expect_int(publisher_refresh.re_notes_after_fetch ? 1 : 0, 1,
+                   "pose publisher re-notes mirror refreshed");
+  ok &= expect_int(publisher_refresh.char_clip_pose_meshes_body ? 1 : 0, 1,
+                   "pose publisher CharClip PoseMeshes body present");
+  ok &= expect_int(
+      publisher_refresh.char_bones_samples_scale_add_sample_body ? 1 : 0, 1,
+      "pose publisher CharBonesSamples ScaleAddSample body present");
+  ok &= expect_int(publisher_refresh.char_bones_scale_add_body ? 1 : 0, 0,
+                   "pose publisher CharBones ScaleAdd body still fenced");
+  ok &= expect_int(
+      publisher_refresh.char_bones_samples_evaluate_channel_body ? 1 : 0, 0,
+      "pose publisher CharBonesSamples EvaluateChannel still fenced");
+  ok &= expect_int(
+      publisher_refresh.char_bones_meshes_pose_meshes_statement_body ? 1 : 0,
+      0, "pose publisher CharBonesMeshes PoseMeshes statement body fenced");
+  ok &= expect_int(publisher_refresh.rb2_dump_is_range_local_map ? 1 : 0, 1,
+                   "pose publisher RB2 dump is range/local map");
+  ok &= expect_size(publisher_refresh.still_fenced.size(), 5,
+                    "pose publisher still-fenced count");
+  ok &= expect_string(publisher_refresh.still_fenced.front(),
+                      "CharBones::ScaleAdd",
+                      "pose publisher first fenced body");
+  ok &= expect_string(publisher_refresh.still_fenced.back(),
+                      "CharClipDriver::Evaluate",
+                      "pose publisher final fenced body");
+
   const SourceCharServoBoneDefaultState servo_defaults =
       source_char_servo_bone_default_state();
   ok &= expect_int(servo_defaults.pelvis_null ? 1 : 0, 1,

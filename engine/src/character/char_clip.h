@@ -1416,6 +1416,22 @@ struct SourceReleasePosePublisherBoundary {
   std::vector<std::string> rejected_shortcuts;
 };
 
+struct SourceCharPosePublisherSourceRefresh {
+  std::string rb3_commit;
+  std::string grim_commit;
+  std::string re_notes_commit;
+  bool rb3_after_fetch = false;
+  bool grim_after_fetch = false;
+  bool re_notes_after_fetch = false;
+  bool char_clip_pose_meshes_body = false;
+  bool char_bones_samples_scale_add_sample_body = false;
+  bool char_bones_scale_add_body = false;
+  bool char_bones_samples_evaluate_channel_body = false;
+  bool char_bones_meshes_pose_meshes_statement_body = false;
+  bool rb2_dump_is_range_local_map = false;
+  std::vector<std::string> still_fenced;
+};
+
 struct SourceCharClipPropSyncPlan {
   std::vector<std::string> graph_node_properties;
   bool node_vector_size_query = true;
@@ -1996,6 +2012,8 @@ std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
 SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame);
 SourceReleasePosePublisherBoundary
 source_release_pose_publisher_boundary();
+SourceCharPosePublisherSourceRefresh
+source_char_pose_publisher_source_refresh_20260714();
 
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.

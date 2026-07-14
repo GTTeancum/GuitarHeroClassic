@@ -5116,6 +5116,13 @@ note, and all report `unreadBytes=0`.
   `CharClipDriver::Evaluate` are either declared, called, or function-mapped,
   but not fully implemented as reviewable C++ bodies in the current public
   source.
+- 2026-07-14 live mirror refresh after fetch: `rb3` stayed at `41719f2`, `grim` at `1c05ca3`, and `re-notes` at `5c486fd`.
+  Native `source_char_pose_publisher_source_refresh_20260714` records that
+  `CharClip::PoseMeshes` and `CharBonesSamples::ScaleAddSample` remain real
+  source bodies, while `CharBones::ScaleAdd`,
+  `CharBonesSamples::EvaluateChannel`,
+  `CharBonesMeshes::PoseMeshes` statement body,
+  `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate` remain fenced.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.

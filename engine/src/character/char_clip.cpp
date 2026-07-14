@@ -4345,6 +4345,31 @@ source_release_pose_publisher_boundary() {
   return boundary;
 }
 
+SourceCharPosePublisherSourceRefresh
+source_char_pose_publisher_source_refresh_20260714() {
+  SourceCharPosePublisherSourceRefresh refresh;
+  refresh.rb3_commit = "41719f2";
+  refresh.grim_commit = "1c05ca3";
+  refresh.re_notes_commit = "5c486fd";
+  refresh.rb3_after_fetch = true;
+  refresh.grim_after_fetch = true;
+  refresh.re_notes_after_fetch = true;
+  refresh.char_clip_pose_meshes_body = true;
+  refresh.char_bones_samples_scale_add_sample_body = true;
+  refresh.char_bones_scale_add_body = false;
+  refresh.char_bones_samples_evaluate_channel_body = false;
+  refresh.char_bones_meshes_pose_meshes_statement_body = false;
+  refresh.rb2_dump_is_range_local_map = true;
+  refresh.still_fenced = {
+      "CharBones::ScaleAdd",
+      "CharBonesSamples::EvaluateChannel",
+      "CharBonesMeshes::PoseMeshes statement body",
+      "CharClipSamples::ScaleAdd",
+      "CharClipDriver::Evaluate",
+  };
+  return refresh;
+}
+
 SourceCharDriverState source_char_driver_default_state() {
   return SourceCharDriverState{};
 }
