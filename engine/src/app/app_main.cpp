@@ -38,6 +38,7 @@
 //                                      pin a decoded regular CamShot for capture
 //   ghogx_app --diagnostic-camera-path-offset <frames>
 //                                      start a forced CamShot at a local path frame
+//                                      alias: --diagnostic-camera-path-offset-frames
 //   ghogx_app --diagnostic-rock <0..1>
 //                                      force initial rock meter fill for capture
 //   ghogx_app --diagnostic-star-power <0..1>
@@ -2126,7 +2127,9 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-camera-shot") == 0 &&
                i + 1 < argc) {
       diagnostic_camera_shot = argv[++i];
-    } else if (std::strcmp(argv[i], "--diagnostic-camera-path-offset") == 0 &&
+    } else if ((std::strcmp(argv[i], "--diagnostic-camera-path-offset") == 0 ||
+                std::strcmp(argv[i],
+                            "--diagnostic-camera-path-offset-frames") == 0) &&
                i + 1 < argc) {
       diagnostic_camera_path_offset_frames = std::atof(argv[++i]);
     } else if (std::strcmp(argv[i], "--diagnostic-rock") == 0 &&

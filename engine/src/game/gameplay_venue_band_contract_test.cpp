@@ -587,6 +587,10 @@ int main() {
                  "i+1<argc){diagnostic_character=argv[++i];}",
                  "app exposes a scoped diagnostic character override for highway validation");
   ok &= contains(app_main_c,
+                 "std::strcmp(argv[i],"
+                 "\"--diagnostic-camera-path-offset-frames\")==0",
+                 "app accepts the explicit diagnostic camera path-offset frames alias");
+  ok &= contains(app_main_c,
                  "engine.set_diagnostic_character_override("
                  "diagnostic_character);",
                  "diagnostic character override is passed into gameplay before loading");

@@ -11518,6 +11518,12 @@ Rejected native probe:
   local frame through `camera_source_start_time_for_local_frame(...)`, including
   beat-unit inverse timing when a chart is available, so diagnostics exercise
   the same `Units()` / `FramesPerUnit()` clock as regular runtime sampling.
+- 2026-07-14 diagnostic path-offset flag alias:
+  a proof run can now pass `--diagnostic-camera-path-offset-frames` as an
+  explicit alias for the canonical `--diagnostic-camera-path-offset`. This is
+  validation hygiene only: it keeps path-frame screenshot captures from silently
+  ignoring the requested source local frame while leaving the runtime camera
+  clock, CamShot selection, and path transform math unchanged.
 
 - 2026-07-13 CamShot SetFrame blend bridge:
   ihatecompvir `CamShotFrame::Interp` uses the incoming `blend` argument to
