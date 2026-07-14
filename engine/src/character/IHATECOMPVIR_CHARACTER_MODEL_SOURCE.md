@@ -5485,6 +5485,36 @@ placement belongs in the source mesh / skin / controller consumer path. Any old
 patch that names a character, offsets a guitar, neck, or mesh, or disables a
 source subsystem remains out of scope.
 
+2026-07-14 Rockabill2 shoulder publisher boundary: the readable direct-app
+`special_02` frame 70 proof in
+`engine/out/visual_proofs/rockabill2_publisher_boundary_20260714/` uses an
+actual-front full-body view, not the earlier back/side frame-95 pause. The
+default log shows both hand IK rows skipped with `solveWeight=0.000`, and the
+controller-off A/B does not make the shoulder/body read trustworthy by itself,
+so the current visual issue is not cleared by blaming `CharIKHand` or by
+inventing another controller-side arm patch. The same proof shows the opt-in
+`GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` diagnostic materially changes the body
+pose, which is useful evidence for the remaining source route but not
+permission to promote broad output publishing. The source-backed next
+implementation target remains the shared `CharClipSamples` /
+`CharBonesSamples` / `CharBones` / `PoseMeshes` publisher. Do not patch this
+with Rockabill2-specific shoulder, neck, arm, guitar, or mesh offsets, and do
+not default-enable the broad CharBone output graph unless the source publisher
+body is ported or otherwise source-proven.
+
+2026-07-14 Rockabill2 green chain proof: the soft-green direct-app proof in
+`engine/out/visual_proofs/rockabill2_green_chain_20260714/` keeps the belt
+chain visible while frame 70 is inspected. The log proves `chain.hair` is a
+source-authored dynamic row, not a loose rigid accessory: it resolves
+`bone_chain01.mesh` through `bone_chain03.mesh`, carries collision rows against
+`bone_R-thigh.mesh`, and polls the ihatecompvir `CharHair::Poll` /
+`DoReset` / `SimulateInternal` path. The same log still reports
+`runtimeWriteback=0`, `resolvedPointCollides=0`,
+`missingHookupObjPtrList=1`, and `zeroTimeBodyAvailable=0`, so the visible
+floating chain is a remaining CharHair hookup/collision/writeback publisher
+gap. Do not hide it with a Rockabill2-specific chain offset or static mesh
+placement patch.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

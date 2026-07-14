@@ -1343,6 +1343,16 @@ struct SourceCharClipPoseMeshesSteps {
   bool pose_meshes = false;
 };
 
+struct SourceRockabill2ShoulderPublisherBoundary {
+  bool zero_weight_hand_ik_does_not_explain_pose = true;
+  bool full_output_graph_changes_pose = true;
+  bool safe_to_blame_ik_or_twist = false;
+  bool safe_to_promote_full_output_graph = false;
+  std::string remaining_source_gap;
+  std::vector<std::string> source_evidence;
+  std::vector<std::string> rejected_shortcuts;
+};
+
 struct SourceCharClipPropSyncPlan {
   std::vector<std::string> graph_node_properties;
   bool node_vector_size_query = true;
@@ -1921,6 +1931,8 @@ std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
     const std::vector<SourceCharBonesBone>& existing_bones,
     const std::vector<SourceCharBonesBone>& listed_bones);
 SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame);
+SourceRockabill2ShoulderPublisherBoundary
+source_rockabill2_shoulder_publisher_boundary();
 
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.

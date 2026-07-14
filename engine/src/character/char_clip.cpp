@@ -4325,6 +4325,26 @@ SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame) {
   return steps;
 }
 
+SourceRockabill2ShoulderPublisherBoundary
+source_rockabill2_shoulder_publisher_boundary() {
+  SourceRockabill2ShoulderPublisherBoundary boundary;
+  boundary.remaining_source_gap =
+      "CharClipSamples / CharBonesSamples / CharBones / PoseMeshes publisher";
+  boundary.source_evidence = {
+      "CharClip::PoseMeshes builds tmp_viseme_bones from StuffBones",
+      "CharClip::PoseMeshes calls ScaleDown then ScaleAdd before PoseMeshes",
+      "CharBonesSamples::ScaleAddSample selects adjacent samples by mStart",
+      "Rockabill2 special_02 frame 70 logs hand IK solveWeight zero",
+      "frame 70 full CharBone output diagnostic changes the body pose",
+  };
+  boundary.rejected_shortcuts = {
+      "Rockabill2-specific shoulder, neck, or arm offsets",
+      "IK or twist controller rewrites for zero-weight release frames",
+      "default-on broad CharBone output without the source publisher body",
+  };
+  return boundary;
+}
+
 SourceCharDriverState source_char_driver_default_state() {
   return SourceCharDriverState{};
 }

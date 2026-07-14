@@ -32067,6 +32067,67 @@ int run_contract() {
                  "upstream of `CharForeTwist` / `CharUpperTwist`",
                  "document keeps current arm issue out of twist-controller guesses");
   ok &= contains(doc,
+                 "2026-07-14 Rockabill2 shoulder publisher boundary",
+                 "document records Rockabill2 shoulder publisher boundary");
+  ok &= contains(doc,
+                 "uses an\nactual-front full-body view, not the earlier "
+                 "back/side frame-95 pause",
+                 "document records Rockabill2 readable proof frame");
+  ok &= contains(doc,
+                 "both hand IK rows skipped with `solveWeight=0.000`",
+                 "document records Rockabill2 zero-weight IK proof");
+  ok &= contains(doc,
+                 "controller-off A/B does not make the shoulder/body read "
+                 "trustworthy by itself",
+                 "document fences Rockabill2 controller-off proof");
+  ok &= contains(doc,
+                 "`GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` diagnostic "
+                 "materially changes the body\npose",
+                 "document records Rockabill2 full-output diagnostic proof");
+  ok &= contains(doc,
+                 "not\npermission to promote broad output publishing",
+                 "document keeps Rockabill2 full-output bridge fenced");
+  ok &= contains(doc,
+                 "Do not patch this\nwith Rockabill2-specific shoulder, neck, "
+                 "arm, guitar, or mesh offsets",
+                 "document rejects Rockabill2 shoulder shortcuts");
+  ok &= contains(char_clip_h,
+                 "zero_weight_hand_ik_does_not_explain_pose",
+                 "native exposes Rockabill2 shoulder source-boundary helper");
+  ok &= contains(
+      char_clip,
+      "SourceRockabill2ShoulderPublisherBoundarysource_rockabill2_"
+      "shoulder_publisher_boundary(){",
+      "native implements Rockabill2 shoulder source-boundary helper");
+  ok &= contains(char_bones_source_test,
+                 "source_rockabill2_shoulder_publisher_boundary()",
+                 "focused CharBones source test covers Rockabill2 shoulder boundary");
+  ok &= contains(doc,
+                 "2026-07-14 Rockabill2 green chain proof",
+                 "document records Rockabill2 green chain proof");
+  ok &= contains(doc,
+                 "soft-green direct-app proof in\n"
+                 "`engine/out/visual_proofs/rockabill2_green_chain_20260714/`",
+                 "document records Rockabill2 soft-green proof directory");
+  ok &= contains(doc,
+                 "`chain.hair` is a\nsource-authored dynamic row, not a loose "
+                 "rigid accessory",
+                 "document records Rockabill2 chain source row");
+  ok &= contains(doc,
+                 "`bone_chain01.mesh` through `bone_chain03.mesh`",
+                 "document records Rockabill2 chain bones");
+  ok &= contains(doc,
+                 "collision rows against\n`bone_R-thigh.mesh`",
+                 "document records Rockabill2 chain collision target");
+  ok &= contains(doc,
+                 "`runtimeWriteback=0`, `resolvedPointCollides=0`,\n"
+                 "`missingHookupObjPtrList=1`, and `zeroTimeBodyAvailable=0`",
+                 "document records Rockabill2 chain remaining source gap");
+  ok &= contains(doc,
+                 "Do not hide it with a Rockabill2-specific chain offset or "
+                 "static mesh\nplacement patch",
+                 "document rejects Rockabill2 chain placement shortcut");
+  ok &= contains(doc,
                  "2026-07-13 history recheck: checkpoint `96f64b5` restored "
                  "the accepted\nRock1/Rock2 source cadence",
                  "document records prior Rock cadence checkpoint scope");

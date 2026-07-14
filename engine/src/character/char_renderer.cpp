@@ -145,6 +145,13 @@ float char_env_float_or(const char* name, float fallback, float min_value,
   return parsed;
 }
 
+D3DCOLOR character_clear_color() {
+  if (char_env_enabled("GHOGX_CHARACTER_SOFT_GREEN_BG")) {
+    return D3DCOLOR_XRGB(116, 151, 124);
+  }
+  return D3DCOLOR_XRGB(24, 26, 38);
+}
+
 struct Bounds3 {
   float mn[3] = {0, 0, 0};
   float mx[3] = {0, 0, 0};
@@ -1455,7 +1462,7 @@ void CharRenderer::draw_impl(bool clear_target) {
 
   if (clear_target) {
     dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-               D3DCOLOR_XRGB(24, 26, 38), 1.0f, 0);
+               character_clear_color(), 1.0f, 0);
   }
   dev->BeginScene();
 
