@@ -29190,6 +29190,10 @@ int run_contract() {
                  "floatsource_grim_char_bones_samples_channel_weight("
                  "conststd::vector<float>&weights,size_tindex);",
                  "native exposes Grim channel weight helper");
+  ok &= contains(char_clip_h,
+                 "floatsource_grim_char_bones_samples_pose_axis_angle("
+                 "ClipChannel::Typeaxis,floatsample);",
+                 "native exposes Grim pose rotz angle helper");
   ok &= contains(
       char_clip_h,
       "SourceProblemCharacterClipRawAxisAudit"
@@ -29246,6 +29250,12 @@ int run_contract() {
                  "conststd::vector<float>&weights,size_tindex){returnindex<"
                  "weights.size()?weights[index]:1.0f;}",
                  "native helper preserves serialized channel weights");
+  ok &= contains(char_clip,
+                 "floatsource_grim_char_bones_samples_pose_axis_angle("
+                 "ClipChannel::Typeaxis,floatsample){if(axis=="
+                 "ClipChannel::kRotZ){return3.14159265358979323846f*"
+                 "sample;}returnsample;}",
+                 "native helper applies Grim PI-scaled rotz pose angle");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDecodePlansource_grim_char_bones_"
                  "samples_decode_plan(){",
@@ -29389,6 +29399,14 @@ int run_contract() {
                  "source_grim_char_bones_samples_sort_decoded_channels("
                  "grim_channels)",
                  "focused CharBones source test covers Grim decoded channel sort");
+  ok &= contains(clip_driver_flags_test,
+                 "source_grim_char_bones_samples_pose_axis_angle("
+                 "ghogx::character::ClipChannel::kRotZ,0.5f)",
+                 "focused clip driver test covers Grim rotz pose angle helper");
+  ok &= contains(clip_driver_flags_test,
+                 "apply_clip_pose_sampled({rotz_channel},1.0f,"
+                 "rotz_character)",
+                 "focused clip driver test covers final rotz pose application");
   ok &= contains(
       char_bones_source_test,
       "source_problem_character_clip_raw_axis_audit_20260714()",

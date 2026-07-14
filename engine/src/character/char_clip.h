@@ -2571,6 +2571,9 @@ std::array<float, 4> source_grim_char_bones_samples_decode_short_quat(
     int16_t y,
     int16_t z,
     int16_t w);
+float source_grim_char_bones_samples_pose_axis_angle(
+    ClipChannel::Type axis,
+    float sample);
 size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression);
 size_t source_grim_char_bones_samples_get_type_size2(int type,

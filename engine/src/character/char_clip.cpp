@@ -1155,6 +1155,15 @@ std::array<float, 4> source_grim_char_bones_samples_decode_short_quat(
           source_grim_char_bones_samples_decode_snorm16(w)};
 }
 
+float source_grim_char_bones_samples_pose_axis_angle(
+    ClipChannel::Type axis,
+    float sample) {
+  if (axis == ClipChannel::kRotZ) {
+    return 3.14159265358979323846f * sample;
+  }
+  return sample;
+}
+
 size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression) {
   if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
@@ -8894,13 +8903,22 @@ static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
     }
   }
   if (pose.rotx) {
-    post_rotate_axis(local, ClipChannel::kRotX, pose.rotx->angle);
+    post_rotate_axis(
+        local, ClipChannel::kRotX,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
+                                                       pose.rotx->angle));
   }
   if (pose.roty) {
-    post_rotate_axis(local, ClipChannel::kRotY, pose.roty->angle);
+    post_rotate_axis(
+        local, ClipChannel::kRotY,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
+                                                       pose.roty->angle));
   }
   if (pose.rotz) {
-    post_rotate_axis(local, ClipChannel::kRotZ, pose.rotz->angle);
+    post_rotate_axis(
+        local, ClipChannel::kRotZ,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
+                                                       pose.rotz->angle));
   }
   if (pose.scale) {
     for (int r = 0; r < 3; ++r) {
@@ -8981,9 +8999,27 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
     }
     renormalize_rows(local);
   }
-  if (pose.rotx) post_rotate_axis(local, ClipChannel::kRotX, pose.rotx->angle * weight);
-  if (pose.roty) post_rotate_axis(local, ClipChannel::kRotY, pose.roty->angle * weight);
-  if (pose.rotz) post_rotate_axis(local, ClipChannel::kRotZ, pose.rotz->angle * weight);
+  if (pose.rotx) {
+    post_rotate_axis(
+        local, ClipChannel::kRotX,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
+                                                       pose.rotx->angle) *
+            weight);
+  }
+  if (pose.roty) {
+    post_rotate_axis(
+        local, ClipChannel::kRotY,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
+                                                       pose.roty->angle) *
+            weight);
+  }
+  if (pose.rotz) {
+    post_rotate_axis(
+        local, ClipChannel::kRotZ,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
+                                                       pose.rotz->angle) *
+            weight);
+  }
   if (pose.scale) {
     const float sx = 1.0f + (pose.scale->scale[0] - 1.0f) * weight;
     const float sy = 1.0f + (pose.scale->scale[1] - 1.0f) * weight;

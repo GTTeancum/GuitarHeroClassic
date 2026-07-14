@@ -1177,6 +1177,35 @@ bool expect_clip_driver_helpers() {
     }
   }
 
+  constexpr float kPi = 3.14159265358979323846f;
+  if (!nearf(ghogx::character::source_grim_char_bones_samples_pose_axis_angle(
+                 ghogx::character::ClipChannel::kRotZ, 0.5f),
+             kPi * 0.5f) ||
+      !nearf(ghogx::character::source_grim_char_bones_samples_pose_axis_angle(
+                 ghogx::character::ClipChannel::kRotX, 0.5f),
+             0.5f)) {
+    std::cerr << "Grim pose axis angle helper mismatch\n";
+    ok = false;
+  }
+  ghogx::character::Character rotz_character;
+  ghogx::milo_scene::TransObj rotz_bone;
+  rotz_bone.name = "bone_pelvis.mesh";
+  rotz_character.bones.push_back(rotz_bone);
+  ghogx::character::ClipChannel rotz_channel;
+  rotz_channel.type = ghogx::character::ClipChannel::kRotZ;
+  rotz_channel.bone_name = "bone_pelvis.mesh";
+  rotz_channel.angle = 0.5f;
+  ghogx::character::apply_clip_pose_sampled({rotz_channel}, 1.0f,
+                                            rotz_character);
+  const auto& rotz_local = rotz_character.bones[0].local;
+  if (!nearf(rotz_local.rot[0][0], 0.0f) ||
+      !nearf(rotz_local.rot[0][1], 1.0f) ||
+      !nearf(rotz_local.rot[1][0], -1.0f) ||
+      !nearf(rotz_local.rot[1][1], 0.0f)) {
+    std::cerr << "Grim rotz pose application did not use PI-scaled angle\n";
+    ok = false;
+  }
+
   ghogx::character::CharClip stack_base_clip;
   stack_base_clip.loaded = true;
   stack_base_clip.frames.resize(30);

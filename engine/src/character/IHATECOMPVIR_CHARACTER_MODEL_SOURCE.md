@@ -4871,8 +4871,10 @@ note, and all report `unreadBytes=0`.
     `source_grim_char_bones_samples_decode_snorm16`,
     `source_grim_char_bones_samples_decode_short_quat`, the `CharClipSamples`
     scalar channel reader, and the short quaternion reader preserve that raw
-    source value; no pi-scale is applied unless a future source body proves one
-    belongs in a later pose-application step.
+    source value. Native pose application now applies the later Grim
+    preview/export interpretation for decoded `.rotz`: the stored sample is
+    post-multiplied as a Z-axis rotation using `PI * sample`, while `.rotx` and
+    `.roty` remain consumed-only/fenced without a source-backed pose body.
   - Grim's `load_char_bones_samples_data` computes each packed sample row by
     walking the serialized bone channel list, summing `get_type_size2` for each
     recognized channel, and aligning that per-sample byte count to a 4-byte
