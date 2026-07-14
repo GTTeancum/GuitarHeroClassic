@@ -2516,10 +2516,6 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         to.zoom_fov = from.zoom_fov;
         to.has_zoom_fov = true;
     }
-    if (!to.has_parent_first_frame && from.has_parent_first_frame) {
-        to.parent_first_frame = from.parent_first_frame;
-        to.has_parent_first_frame = true;
-    }
     if (!to.has_clip_planes && from.has_clip_planes) {
         to.near_plane = from.near_plane;
         to.far_plane = from.far_plane;

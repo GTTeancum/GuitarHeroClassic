@@ -8179,6 +8179,9 @@ int main() {
                  "key.parent_first_frame=r.boolean();"
                  "key.has_parent_first_frame=true;",
                  "CamShot frame reader consumes source parent-first-frame field");
+  ok &= absent(gameplay_c,
+               "if(!to.has_parent_first_frame&&from.has_parent_first_frame)",
+               "CamShot frame-effect copies must not inherit parent_first_frame");
   ok &= contains(gameplay_h_c,
                  "intcamshot_anim_rate=0;"
                  "boolhas_camshot_anim_rate=false;",

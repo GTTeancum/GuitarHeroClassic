@@ -11069,6 +11069,12 @@ Rejected native probe:
   `path_ease` name; this turn renames the stored field and debug logs without
   changing path sampling behavior. The next camera-angle fixes should continue
   from source evidence for how `mPathFrame` is consumed at runtime.
+- 2026-07-14 CamShotFrame `parent_first_frame` copy boundary:
+  ihatecompvir's `CamShotFrame` copy constructor copies `use_parent_rotation`
+  but initializes `parent_first_frame` (`unk8bp0`) to false. Native still
+  decodes and logs the source field on real CamShotFrame keys, but copied
+  frame-effect overlays no longer inherit `parent_first_frame` onto derived
+  runtime/path keys.
 
 - 2026-07-13 CamShot zoom/screen-offset FOV order:
   ihatecompvir `CamShotFrame::Interp` sets the base frustum, builds and blends
