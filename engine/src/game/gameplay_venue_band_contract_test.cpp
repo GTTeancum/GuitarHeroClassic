@@ -8777,11 +8777,10 @@ int main() {
                  "if(!same_targets_like_camshot){",
                  "non-SameTargets BuildTransform branch is split from same-target screen-offset");
   ok &= contains(gameplay_c,
-                 "}elseif(autofiltered_rows="
-                 "camera_target_list_result_rows_from_seed("
-                 "source_seed_result,result_key,*blended_target_centroid,"
-                 "result_builder_state,&result_filter_step,"
-                 "&result_filter_projected_delta)){",
+                 "}else{"
+                 "CameraResultBuilderStatesame_target_filter_state="
+                 "result_builder_state?*result_builder_state:"
+                 "CameraResultBuilderState{};",
                  "source-shaped screen-offset result is gated to CamShot same-target blends");
   ok &= contains(gameplay_c,
                  "submitted_result=*source_screen_offset_translate_result;",
@@ -8824,6 +8823,28 @@ int main() {
                  "build_key_a.fov=source_screen_offset_fov;"
                  "build_key_b.fov=source_screen_offset_fov;",
                  "source BuildTransform rows use the pre-zoom CamShot frustum");
+  ok &= contains(gameplay_c,
+                 "camera_target_list_result_rows_from_seed("
+                 "source_seed_a,build_key_a,*a_target_centroid,nullptr,"
+                 "nullptr,nullptr,false);",
+                 "same-target CamShot builds the current transform without BuildTransform screen offset");
+  ok &= contains(gameplay_c,
+                 "camera_target_list_result_rows_from_seed("
+                 "source_seed_b,build_key_b,*b_target_centroid,nullptr,"
+                 "nullptr,nullptr,false);",
+                 "same-target CamShot builds the next transform without BuildTransform screen offset");
+  ok &= contains(gameplay_c,
+                 "\"source_same_target_build_lerp(\"+",
+                 "same-target CamShot labels its cached-target BuildTransform interpolation");
+  ok &= contains(gameplay_c,
+                 "source_same_target_distance="
+                 "distance_a+(distance_b-distance_a)*interp_t;",
+                 "same-target CamShot interpolates source target distances before local screen offset");
+  ok &= contains(gameplay_c,
+                 "camera_source_screen_offset_translate_distance_result_rows("
+                 "*source_build_transform_result,result_key,"
+                 "source_same_target_distance,false);",
+                 "same-target CamShot screen offset preserves the cached-target blended transform");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp"
                  "(BuildTransform,applyScreenOffset)\\n\"",
@@ -11828,9 +11849,10 @@ int main() {
                  "same-target screen-offset diagnostics keep the filtered target candidate separate");
   ok &= contains(gameplay_c,
                  "source_screen_offset_translate_result="
-                 "camera_source_screen_offset_translate_result_rows("
-                 "source_seed_result,result_key,*blended_target_centroid,false);",
-                 "same-target screen-offset submission uses the direct ihatecompvir CamShotFrame::Interp target");
+                 "camera_source_screen_offset_translate_distance_result_rows("
+                 "*source_build_transform_result,result_key,"
+                 "source_same_target_distance,false);",
+                 "same-target screen-offset submission preserves ihatecompvir CamShotFrame::Interp cached-target rows");
   ok &= contains(gameplay_c,
                  "source_screen_offset_filtered_target_candidate=*filtered_candidate;",
                  "filtered target screen-offset path is retained only as a diagnostic candidate");

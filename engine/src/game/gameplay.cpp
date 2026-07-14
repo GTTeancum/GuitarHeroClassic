@@ -19134,18 +19134,31 @@ bool camera_apply_screen_offset_to_result_rows(
     return true;
 }
 
+float camera_point_distance(const std::array<float, 3>& a,
+                            const std::array<float, 3>& b) {
+    const float dx = a[0] - b[0];
+    const float dy = a[1] - b[1];
+    const float dz = a[2] - b[2];
+    const float dist2 = dx * dx + dy * dy + dz * dz;
+    if (!std::isfinite(dist2) || dist2 < 0.0f) {
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+    return std::sqrt(dist2);
+}
+
 std::optional<CameraResultRows>
-camera_source_screen_offset_translate_result_rows(
+camera_source_screen_offset_translate_distance_result_rows(
     CameraResultRows rows,
     const Gameplay::CameraKey& key,
-    const std::array<float, 3>& target,
+    float distance,
     bool target_filtered) {
     if (!key.has_screen_offset || !key.has_fov ||
         !std::isfinite(key.screen_offset[0]) ||
         !std::isfinite(key.screen_offset[1]) ||
         (std::abs(key.screen_offset[0]) <= 0.0001f &&
          std::abs(key.screen_offset[1]) <= 0.0001f) ||
-        !std::isfinite(key.fov) || key.fov <= 0.05f || key.fov >= 2.5f) {
+        !std::isfinite(key.fov) || key.fov <= 0.05f || key.fov >= 2.5f ||
+        !std::isfinite(distance) || distance <= 0.000001f) {
         return std::nullopt;
     }
     const float tan_y = std::tan(key.fov * 0.5f);
@@ -19154,14 +19167,6 @@ camera_source_screen_offset_translate_result_rows(
     rows.source += "+target_list";
     if (target_filtered) rows.source += "+shot_filter";
     rows.source += "+source_screen_offset_translate";
-    rows.forward = {target[0] - rows.position[0],
-                    target[1] - rows.position[1],
-                    target[2] - rows.position[2]};
-    const float dist2 = rows.forward[0] * rows.forward[0] +
-                        rows.forward[1] * rows.forward[1] +
-                        rows.forward[2] * rows.forward[2];
-    if (!std::isfinite(dist2) || dist2 <= 0.000001f) return std::nullopt;
-    const float distance = std::sqrt(dist2);
     camera_orthonormalize_result_rows(rows);
     // CamShotFrame::Interp offsets tf130.v in camera local space by
     // screen_offset * target distance / LocalProjectXfm scale.
@@ -19174,6 +19179,24 @@ camera_source_screen_offset_translate_result_rows(
     camera_orthonormalize_result_rows(rows);
     rows.screen_offset_consumed = true;
     return rows;
+}
+
+std::optional<CameraResultRows>
+camera_source_screen_offset_translate_result_rows(
+    CameraResultRows rows,
+    const Gameplay::CameraKey& key,
+    const std::array<float, 3>& target,
+    bool target_filtered) {
+    rows.forward = {target[0] - rows.position[0],
+                    target[1] - rows.position[1],
+                    target[2] - rows.position[2]};
+    const float dist2 = rows.forward[0] * rows.forward[0] +
+                        rows.forward[1] * rows.forward[1] +
+                        rows.forward[2] * rows.forward[2];
+    if (!std::isfinite(dist2) || dist2 <= 0.000001f) return std::nullopt;
+    const float distance = std::sqrt(dist2);
+    return camera_source_screen_offset_translate_distance_result_rows(
+        rows, key, distance, target_filtered);
 }
 
 bool camera_apply_clamp_height_to_result_rows(
@@ -19208,7 +19231,8 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
     const std::array<float, 3>& target,
     CameraResultBuilderState* state,
     float* out_filter_step = nullptr,
-    float* out_projected_delta = nullptr);
+    float* out_projected_delta = nullptr,
+    bool apply_screen_offset = true);
 
 std::optional<CameraResultRows> camera_target_list_result_rows_for_key(
     const Gameplay::CameraKey& key,
@@ -19226,7 +19250,8 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
     const std::array<float, 3>& target,
     CameraResultBuilderState* state,
     float* out_filter_step,
-    float* out_projected_delta) {
+    float* out_projected_delta,
+    bool apply_screen_offset) {
     rows.source += "+target_list";
     const bool applies_filter =
         state && key.has_shot_filter && std::isfinite(key.shot_filter) &&
@@ -19242,7 +19267,8 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
                        rows.forward[2] * rows.forward[2];
     if (!std::isfinite(len2) || len2 <= 0.000001f) return std::nullopt;
     camera_orthonormalize_result_rows(rows);
-    if (camera_apply_screen_offset_to_result_rows(rows, key)) {
+    if (apply_screen_offset &&
+        camera_apply_screen_offset_to_result_rows(rows, key)) {
         rows.source += "+screen";
     }
     return rows;
@@ -20324,14 +20350,21 @@ void apply_camera_keys(
                         source_order_projected_delta_a;
                 }
             }
-        } else if (auto filtered_rows = camera_target_list_result_rows_from_seed(
-                       source_seed_result, result_key,
-                       *blended_target_centroid, result_builder_state,
-                       &result_filter_step, &result_filter_projected_delta)) {
-            filtered_target_centroid =
-                result_builder_state ? result_builder_state->filtered_target
-                                     : *blended_target_centroid;
-            {
+        } else {
+            CameraResultBuilderState same_target_filter_state =
+                result_builder_state ? *result_builder_state
+                                     : CameraResultBuilderState{};
+            CameraResultBuilderState* same_target_filter_state_ptr =
+                result_builder_state ? &same_target_filter_state : nullptr;
+            if (auto filtered_rows = camera_target_list_result_rows_from_seed(
+                    source_seed_result, result_key, *blended_target_centroid,
+                    same_target_filter_state_ptr, &result_filter_step,
+                    &result_filter_projected_delta)) {
+                filtered_target_centroid =
+                    same_target_filter_state_ptr &&
+                            same_target_filter_state_ptr->has_filtered_target
+                        ? same_target_filter_state_ptr->filtered_target
+                        : *blended_target_centroid;
                 const auto& filtered_screen_target =
                     filtered_target_centroid ? *filtered_target_centroid
                                              : *blended_target_centroid;
@@ -20343,13 +20376,63 @@ void apply_camera_keys(
                     source_screen_offset_filtered_target_candidate =
                         *filtered_candidate;
                 }
+            }
+            Gameplay::CameraKey build_key_a = *a;
+            Gameplay::CameraKey build_key_b = *b;
+            build_key_a.has_fov = true;
+            build_key_b.has_fov = true;
+            build_key_a.fov = source_screen_offset_fov;
+            build_key_b.fov = source_screen_offset_fov;
+            std::optional<CameraResultRows> build_rows_a;
+            std::optional<CameraResultRows> build_rows_b;
+            if (a_target_centroid) {
+                build_rows_a = camera_target_list_result_rows_from_seed(
+                    source_seed_a, build_key_a, *a_target_centroid, nullptr,
+                    nullptr, nullptr, false);
+            }
+            if (b_target_centroid) {
+                build_rows_b = camera_target_list_result_rows_from_seed(
+                    source_seed_b, build_key_b, *b_target_centroid, nullptr,
+                    nullptr, nullptr, false);
+            }
+            if (build_rows_a || build_rows_b) {
+                const CameraResultRows& build_a =
+                    build_rows_a ? *build_rows_a : source_seed_a;
+                const CameraResultRows& build_b =
+                    build_rows_b ? *build_rows_b : source_seed_b;
+                source_build_transform_result =
+                    camera_lerp_result_rows(build_a, build_b, interp_t);
+                source_build_transform_result->source =
+                    "source_same_target_build_lerp(" +
+                    source_build_transform_result->source + ")";
+                submitted_result = *source_build_transform_result;
+                source_build_transform_order = true;
+                const float distance_a =
+                    a_target_centroid
+                        ? camera_point_distance(
+                              *a_target_centroid,
+                              source_build_transform_result->position)
+                        : std::numeric_limits<float>::quiet_NaN();
+                const float distance_b =
+                    b_target_centroid
+                        ? camera_point_distance(
+                              *b_target_centroid,
+                              source_build_transform_result->position)
+                        : distance_a;
+                float source_same_target_distance = distance_a;
+                if (std::isfinite(distance_a) && std::isfinite(distance_b)) {
+                    source_same_target_distance =
+                        distance_a + (distance_b - distance_a) * interp_t;
+                } else if (std::isfinite(distance_b)) {
+                    source_same_target_distance = distance_b;
+                }
                 // CamShotFrame::Interp disables BuildTransform screen-offset
-                // filtering for SameTargets, then offsets from direct target
-                // positions in the local-space translation block.
+                // filtering for SameTargets, reorients with unk34/frame.unk34,
+                // then offsets the blended transform in local space.
                 source_screen_offset_translate_result =
-                    camera_source_screen_offset_translate_result_rows(
-                        source_seed_result, result_key,
-                        *blended_target_centroid, false);
+                    camera_source_screen_offset_translate_distance_result_rows(
+                        *source_build_transform_result, result_key,
+                        source_same_target_distance, false);
                 if (source_screen_offset_translate_result) {
                     submitted_result = *source_screen_offset_translate_result;
                 }
