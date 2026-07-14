@@ -193,6 +193,14 @@ Open work:
   category order even when authored intro/win/special categories are present in
   the same venue object list. The debug camera log prints the
   `CameraManager::Randomize` first-seen bucket order for screenshot-proof runs.
+- 2026-07-14 CameraManager loader pool scope:
+  the native regular CamShot loader now feeds that randomizer every decoded
+  `PlatformOk()` CamShot with frames, rather than pruning non-normal categories
+  or unexpected `solo` symbols before the CameraManager pool is built. Regular,
+  solo, jump, and lighter gameplay selection still applies the GH2
+  world-script `ShotMatches` predicates later, but source categories such as
+  intro/outro/special buckets now burn the same category-local randomization
+  stream and remain available for direct `ForceCameraShot`/diagnostic paths.
 - 2026-07-14 CamShot `CheckShotOver` / `SetShotOver` split:
   ihatecompvir `CamShot::CheckShotOver(f)` returns
   `!mShotOver && !mLooping && f >= mDuration`, while `SetShotOver()` sends the

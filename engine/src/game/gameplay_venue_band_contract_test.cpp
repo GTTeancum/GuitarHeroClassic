@@ -10123,9 +10123,9 @@ int main() {
                  "conststd::stringsolo=prop_symbol(decoded_shot->props,"
                  "\"solo\",\"ok\");",
                  "regular CamShot loader applies world/camshot.dta solo=ok default");
-  ok &= contains(gameplay_c,
-                 "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
-                 "camera loader keeps solo-only CamShots for solo sections");
+  ok &= absent(gameplay_c,
+               "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
+               "camera loader leaves solo value acceptance to source ShotMatches");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_shot_started_reported_;",
                  "camera runtime reports each source shot_started bridge once per shot");
@@ -10942,6 +10942,15 @@ int main() {
   ok &= absent(regular_camera_loader_c,
                "if(decoded_shot->disabled_flags!=0){",
                "regular camera loader keeps source-disabled CamShots in category buckets");
+  ok &= absent(regular_camera_loader_c,
+               "normal_category",
+               "regular camera loader does not prune CameraManager categories before SyncObjects randomization");
+  ok &= absent(regular_camera_loader_c,
+               "intro_category",
+               "regular camera loader keeps intro/outro/special categories in the source CameraManager pool");
+  ok &= absent(regular_camera_loader_c,
+               "solo!=\"ok\"",
+               "regular camera loader leaves solo values for source ShotMatches instead of pruning at load time");
   ok &= contains(regular_camera_selector_c,
                  "if(key.disabled_flags!=0){",
                  "regular camera selector mirrors CameraManager Disabled gate before ShotMatches");

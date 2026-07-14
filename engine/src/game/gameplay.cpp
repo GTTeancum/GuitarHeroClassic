@@ -14835,23 +14835,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 continue;
             }
             const std::string& category = decoded_shot->category;
-            const bool normal_category =
-                category == "flr_near_lft" || category == "flr_near_rt" ||
-                category == "flr_far_lft" || category == "flr_far_rt" ||
-                category == "band_POV" || category == "balcony_lft" ||
-                category == "balcony_rt" || category == "SOLO_NEAR" ||
-                category == "SOLO_FAR";
             const bool lighter_category = category == "LIGHTER";
-            const bool intro_category =
-                category == "INTRO" || category == "INTRO_FAST" ||
-                category == "INTRO_ENCORE";
-            if (intro_category || (!normal_category && !lighter_category)) continue;
 
             const bool special = prop_bool(decoded_shot->props, "special", false);
             const std::string solo = prop_symbol(decoded_shot->props, "solo", "ok");
-            if (!solo.empty() && solo != "ok" && solo != "never" &&
-                solo != "only")
-                continue;
             const std::string path_anim = decoded_shot->path;
             auto decoded_poses = decoded_shot->frames;
             if (decoded_poses.empty()) continue;
