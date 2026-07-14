@@ -11287,6 +11287,15 @@ Rejected native probe:
   passes/logs `1.0f` from the regular and intro camera Poll mirrors. This is a
   pipeline fidelity guard; default GH2 gameplay camera rows stay visually
   unchanged because the source Poll path supplies a full-strength blend.
+- 2026-07-14 CamShot DOF pre-blend transform:
+  ihatecompvir `CamShotFrame::Interp` computes DOF distances from `tf130`
+  before the later `Interp(cam->WorldXfm(), tf130, blend, tf130)` SetFrame
+  world-transform blend. Native now snapshots the submitted source result
+  before `camera_source_setframe_blend_result_rows(...)` and uses that
+  pre-blend position for `camera_source_dof_result(...)`, with diagnostics
+  labeling `camera=pre_setframe_blend`. This keeps non-1 SetFrame blend support
+  aligned with source order without changing normal Poll rows where blend is
+  `1.0f`.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives

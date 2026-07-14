@@ -10152,6 +10152,14 @@ int main() {
                  "(1.0f+focus_blur_multiplier);",
                  "CamShot DOF focus distance follows the ihatecompvir next-frame d9 formula");
   ok &= contains(gameplay_c,
+                 "constCameraResultRowssource_pre_setframe_blend_result="
+                 "submitted_result;",
+                 "CamShot DOF captures tf130 before SetFrame world-transform blend");
+  ok &= contains(gameplay_c,
+                 "conststd::array<float,3>source_dof_camera_pos="
+                 "source_pre_setframe_blend_result.position;",
+                 "CamShot DOF distance uses the source pre-blend transform position");
+  ok &= contains(gameplay_c,
                  "voidcamera_unset_dof_proc_like_source("
                  "ghogx::render::OrbitCamera&cam)",
                  "runtime camera exposes ihatecompvir DOFProc::UnSet state clear");
@@ -10165,7 +10173,7 @@ int main() {
                  "camera EndAnim clears native DOF state like CameraManager teardown");
   ok &= contains(gameplay_c,
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f"
-                 "source_dof=(a:%s%.3fb:%s%.3fselected=%s)",
+                 "source_dof=(a:%s%.3fb:%s%.3fselected=%scamera=pre_setframe_blend)",
                  "camera diagnostics distinguish active source DOF from decoded blur fields");
   ok &= contains(gameplay_c,
                  "cam.shake_active=has_shake_fields;"

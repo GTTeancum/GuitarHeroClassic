@@ -20180,6 +20180,7 @@ void apply_camera_keys(
             }
         }
     }
+    const CameraResultRows source_pre_setframe_blend_result = submitted_result;
     submitted_result = camera_source_setframe_blend_result_rows(
         source_previous_frame, submitted_result, source_poll_blend);
     apply_camera_result_frame(cam, submitted_result);
@@ -20242,13 +20243,10 @@ void apply_camera_keys(
         camera_source_dof_point_for_key(*a, targets);
     const auto b_source_dof_point =
         camera_source_dof_point_for_key(*b, targets);
+    // CamShotFrame::Interp computes DOF distances from tf130 before blending
+    // tf130 with the previous camera WorldXfm through the SetFrame blend.
     const std::array<float, 3> source_dof_camera_pos =
-        cam.result_frame.valid
-            ? std::array<float, 3>{cam.result_frame.position[0],
-                                   cam.result_frame.position[1],
-                                   cam.result_frame.position[2]}
-            : std::array<float, 3>{cam.authored_eye[0], cam.authored_eye[1],
-                                   cam.authored_eye[2]};
+        source_pre_setframe_blend_result.position;
     const CameraSourceDofResult source_dof = camera_source_dof_result(
         source_use_depth_of_field, a_source_dof_point, b_source_dof_point,
         source_dof_camera_pos, focus_blur_multiplier);
@@ -21283,7 +21281,7 @@ void apply_camera_keys(
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f screen_fov=%.3f clip=(%.3f %.3f) "
             "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
-            "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f source_dof=(a:%s%.3f b:%s%.3f selected=%s) "
+            "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f source_dof=(a:%s%.3f b:%s%.3f selected=%s camera=pre_setframe_blend) "
             "blur=(%.3f %.3f %.3f %.3f) "
             "shake=%d(%.3f %.3f %.3f %.3f) shake_runtime=%d "
             "a_target=(%.2f %.2f %.2f) a_parent=(%.2f %.2f %.2f) "
