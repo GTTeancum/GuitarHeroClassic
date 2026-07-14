@@ -5450,11 +5450,11 @@ IK interpretation path.
 
 2026-07-14 shared clip-layer cleanup: the diagnostic `--char` viewer and the
 in-game performer update now both build sampled player lanes through
-`append_clip_player_layer` before calling `apply_clip_channel_layers`; the
+`append_clip_player_layer` before calling `apply_clip_layer_stack`; the
 fixed-frame viewer route uses the same stack shape through
 `append_clip_frame_layer`. This ports no new pose math; it only removes the
 viewer-only sequential `CharClipPlayer::apply` lane for body/hand presentation
-so both entry points exercise the same native layer mixer while the
+so both entry points exercise the same shared native layer mixer wrapper while the
 `CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes` publisher
 remains the source-backed target.
 

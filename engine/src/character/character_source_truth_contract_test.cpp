@@ -145,6 +145,10 @@ int run_contract() {
   const std::filesystem::path extra_dir = GHOGX_IHATECOMPVIR_EXTRA_DIR;
   const std::filesystem::path engine_dir = char_dir.parent_path().parent_path();
 
+  const std::string app_main =
+      compact(read_file(engine_dir / "src" / "app" / "app_main.cpp"));
+  const std::string gameplay =
+      compact(read_file(engine_dir / "src" / "game" / "gameplay.cpp"));
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
   const std::string char_clip = compact(read_file(char_dir / "char_clip.cpp"));
@@ -32845,6 +32849,57 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_clip_collide_save_plan` records that object id only",
                  "document records ClipCollide save id");
+
+  ok &= contains(char_clip_h,
+                 "voidapply_clip_layer_stack(constClipChannelLayerStack&stack,"
+                 "Character&character);",
+                 "native character API exposes shared clip layer stack apply");
+  ok &= contains(char_clip,
+                 "voidapply_clip_layer_stack(constClipChannelLayerStack&stack,"
+                 "Character&character){if(stack.layers.empty())return;"
+                 "apply_clip_channel_layers(stack.layers,character,"
+                 "stack.relative);}",
+                 "native shared clip layer stack applies one mixer path");
+  ok &= contains(app_main,
+                 "ghogx::character::ClipChannelLayerStackpose_stack;",
+                 "viewer builds a shared clip layer stack");
+  ok &= contains(app_main,
+                 "ghogx::character::append_clip_player_layer(pose_stack,"
+                 "main_player)",
+                 "viewer appends main player through shared layer helper");
+  ok &= contains(app_main,
+                 "ghogx::character::append_clip_frame_layer(pose_stack,"
+                 "loaded_clip,clip_frame_override)",
+                 "viewer appends fixed frame through shared layer helper");
+  ok &= contains(app_main,
+                 "ghogx::character::apply_clip_layer_stack(pose_stack,"
+                 "renderer.character())",
+                 "viewer applies shared clip layer stack");
+  ok &= missing(app_main,
+                "main_player.apply(renderer.character())",
+                "viewer must not bypass shared layer stack with main player");
+  ok &= missing(app_main,
+                "strum_player.apply(renderer.character(),frame_hand_weights.right)",
+                "viewer must not bypass shared layer stack with strum player");
+  ok &= missing(app_main,
+                "fret_player.apply(renderer.character(),frame_hand_weights.left)",
+                "viewer must not bypass shared layer stack with fret player");
+  ok &= contains(gameplay,
+                 "ghogx::character::ClipChannelLayerStackpose_stack;",
+                 "gameplay builds a shared clip layer stack");
+  ok &= contains(gameplay,
+                 "ghogx::character::append_clip_player_layer(pose_stack,"
+                 "player,weight,overlay_override)",
+                 "gameplay appends players through shared layer helper");
+  ok &= contains(gameplay,
+                 "ghogx::character::apply_clip_layer_stack(pose_stack,"
+                 "character)",
+                 "gameplay applies shared clip layer stack");
+  ok &= contains(doc,
+                 "both build sampled player lanes through\n"
+                 "`append_clip_player_layer` before calling "
+                 "`apply_clip_layer_stack`",
+                 "document records shared clip layer cleanup");
 
   if (!ok) {
     std::cerr

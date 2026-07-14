@@ -20326,10 +20326,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
             ghogx::character::clear_runtime_trans_worlds(character);
-            if (!pose_stack.layers.empty()) {
-                ghogx::character::apply_clip_channel_layers(
-                    pose_stack.layers, character, pose_stack.relative);
-            }
+            ghogx::character::apply_clip_layer_stack(pose_stack, character);
             if (hand_driver_active) {
                 const uint32_t debug_hand_mask =
                     perf_anim_note_cue.active

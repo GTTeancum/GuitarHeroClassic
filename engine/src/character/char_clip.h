@@ -1104,6 +1104,8 @@ bool append_clip_frame_layer(ClipChannelLayerStack& stack,
                              const CharClip& clip, int frame_idx,
                              float weight = 1.0f,
                              bool overlay_override = false);
+void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
+                            Character& character);
 
 // Load all frames of a named CharClipSamples entry from the PS2 ARK.
 // Returns a CharClip with frames.empty() on failure.

@@ -10327,6 +10327,12 @@ bool append_clip_frame_layer(ClipChannelLayerStack& stack, const CharClip& clip,
   return true;
 }
 
+void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
+                            Character& character) {
+  if (stack.layers.empty()) return;
+  apply_clip_channel_layers(stack.layers, character, stack.relative);
+}
+
 void CharClipPlayer::clear() {
   layers_.clear();
 }

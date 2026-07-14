@@ -1571,10 +1571,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
           pose_stack, fret_player, frame_hand_weights.left, true);
       ghogx::character::append_clip_player_layer(pose_stack, face_player);
     }
-    if (!pose_stack.layers.empty()) {
-      ghogx::character::apply_clip_channel_layers(
-          pose_stack.layers, renderer.character(), pose_stack.relative);
-    }
+    ghogx::character::apply_clip_layer_stack(pose_stack,
+                                             renderer.character());
     // Apply decoded controller data after sampled clip layers. Do not apply
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not

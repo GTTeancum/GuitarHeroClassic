@@ -1232,6 +1232,9 @@ bool expect_clip_driver_helpers() {
     std::cerr << "shared frame layer builder mismatch\n";
     ok = false;
   }
+  ghogx::character::Character empty_character;
+  ghogx::character::ClipChannelLayerStack empty_layer_stack;
+  ghogx::character::apply_clip_layer_stack(empty_layer_stack, empty_character);
 
   ok &= expect_indices(
       ghogx::character::source_char_clip_driver_delete_stack_order(3),
