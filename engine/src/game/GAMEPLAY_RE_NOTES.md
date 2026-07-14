@@ -10956,6 +10956,18 @@ Rejected native probe:
   beat-unit inverse timing when a chart is available, so diagnostics exercise
   the same `Units()` / `FramesPerUnit()` clock as regular runtime sampling.
 
+- 2026-07-13 CamShot SetFrame blend bridge:
+  ihatecompvir `CamShotFrame::Interp` uses the incoming `blend` argument to
+  interpolate from the current camera FOV/world transform toward the decoded
+  CamShot result (`cam->YFov()`/`cam->WorldXfm()` to the new frustum and
+  transform), while visible `CameraManager::Poll` calls
+  `mCurrentShot->SetFrame(CalcFrame(), 1.0f)`. Native now carries that
+  SetFrame blend as an explicit `source_setframe_blend` parameter, applies the
+  source-shaped previous-camera blend helper for any future non-1 caller, and
+  passes/logs `1.0f` from the regular and intro camera Poll mirrors. This is a
+  pipeline fidelity guard; default GH2 gameplay camera rows stay visually
+  unchanged because the source Poll path supplies a full-strength blend.
+
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives
   previous `facing` and `distance` from `world current_shot`, falling back to

@@ -18290,6 +18290,45 @@ CameraResultRows camera_lerp_result_rows(const CameraResultRows& a,
     return rows;
 }
 
+CameraResultRows camera_result_rows_from_source_frame(
+    const ghogx::render::CameraResultFrame& frame) {
+    CameraResultRows rows;
+    rows.source = frame.source.empty() ? "source_previous_worldxfm"
+                                       : frame.source;
+    for (int i = 0; i < 3; ++i) {
+        rows.position[i] = frame.position[i];
+        rows.forward[i] = frame.forward[i];
+        rows.right[i] = frame.right[i];
+        rows.up[i] = frame.up[i];
+    }
+    rows.screen_offset_consumed = frame.screen_offset_consumed;
+    rows.has_custom_view = frame.has_custom_view;
+    rows.has_custom_projection = frame.has_custom_projection;
+    for (size_t i = 0; i < rows.custom_view.size(); ++i) {
+        rows.custom_view[i] = frame.custom_view[i];
+        rows.custom_projection[i] = frame.custom_projection[i];
+    }
+    camera_orthonormalize_result_rows(rows);
+    return rows;
+}
+
+CameraResultRows camera_source_setframe_blend_result_rows(
+    const ghogx::render::CameraResultFrame& previous_frame,
+    const CameraResultRows& desired_rows,
+    float source_setframe_blend) {
+    const float blend =
+        std::isfinite(source_setframe_blend)
+            ? std::clamp(source_setframe_blend, 0.0f, 1.0f)
+            : 1.0f;
+    if (!previous_frame.valid || blend >= 0.9999f) return desired_rows;
+    CameraResultRows previous_rows =
+        camera_result_rows_from_source_frame(previous_frame);
+    CameraResultRows blended =
+        camera_lerp_result_rows(previous_rows, desired_rows, blend);
+    blended.source = "source_setframe_blend(" + blended.source + ")";
+    return blended;
+}
+
 void apply_camera_result_frame(ghogx::render::OrbitCamera& cam,
                                const CameraResultRows& rows) {
     cam.result_frame.valid = true;
@@ -18786,8 +18825,16 @@ void apply_camera_keys(
     const std::map<std::string, std::array<float, 16>>* venue_targets =
         nullptr,
     const std::vector<std::string>* source_record_member_table = nullptr,
-    const std::vector<Gameplay::CameraKey>* source_record_key_table = nullptr) {
+    const std::vector<Gameplay::CameraKey>* source_record_key_table = nullptr,
+    float source_setframe_blend = 1.0f) {
     if (keys.empty()) return;
+    const float source_poll_blend =
+        std::isfinite(source_setframe_blend)
+            ? std::clamp(source_setframe_blend, 0.0f, 1.0f)
+            : 1.0f;
+    const ghogx::render::CameraResultFrame source_previous_frame =
+        cam.result_frame;
+    const float source_previous_fov = cam.fov;
     const float frame = static_cast<float>(song_time * 30.0);
     const Gameplay::CameraKey* a = &keys.front();
     const Gameplay::CameraKey* b = &keys.back();
@@ -18829,7 +18876,12 @@ void apply_camera_keys(
         const float fov_b = b->has_fov ? b->fov : fov_a;
         cam.fov = fov_a + (fov_b - fov_a) * interp_t;
     }
-    const float source_screen_offset_fov = cam.fov;
+    const float source_desired_screen_offset_fov = cam.fov;
+    const float source_screen_offset_fov =
+        source_previous_fov +
+        (source_desired_screen_offset_fov - source_previous_fov) *
+            source_poll_blend;
+    cam.fov = source_screen_offset_fov;
     const bool has_zoom_fov = a->has_zoom_fov || b->has_zoom_fov;
     float zoom_fov = 0.0f;
     if (has_zoom_fov) {
@@ -19074,6 +19126,8 @@ void apply_camera_keys(
             }
         }
     }
+    submitted_result = camera_source_setframe_blend_result_rows(
+        source_previous_frame, submitted_result, source_poll_blend);
     apply_camera_result_frame(cam, submitted_result);
     const float source_current_far_z = cam.far_z;
     cam.near_z = 1.0f;
@@ -20052,7 +20106,7 @@ void apply_camera_keys(
             "bone_neck.mesh");
         std::fprintf(
             stderr,
-            "[camera] frame=%.2f t=%.3f eased_t=%.3f "
+            "[camera] frame=%.2f t=%.3f eased_t=%.3f setframe_blend=%.3f "
             "blend_ease=%.3f mode=%d a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f screen_fov=%.3f clip=(%.3f %.3f) "
@@ -20065,7 +20119,8 @@ void apply_camera_keys(
             "a_target_eye=(%.2f %.2f %.2f) a_parent_eye=(%.2f %.2f %.2f) "
             "b_target_eye=(%.2f %.2f %.2f) b_parent_eye=(%.2f %.2f %.2f) "
             "targets=%zu\n",
-            frame, t, interp_t, a->blend_ease, a->blend_ease_mode,
+            frame, t, interp_t, source_poll_blend, a->blend_ease,
+            a->blend_ease_mode,
             a->name.c_str(), a->frame, b->name.c_str(), b->frame,
             cam.authored_eye[0], cam.authored_eye[1], cam.authored_eye[2],
             cam.authored_at[0], cam.authored_at[1], cam.authored_at[2],
@@ -30985,7 +31040,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_shot_started_reported_ = key->name;
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame source_setframe_blend=1.000\n",
                             key->name.c_str(), local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_anim_rate(*key),
@@ -31041,7 +31096,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &camera_result_builder_state_,
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
-                                  &regular_camera_keys_);
+                                  &regular_camera_keys_, 1.0f);
             }
         } else if (authored_gameplay_cameras_active &&
                    in_intro_camera_window && !camera_keys_.empty()) {
@@ -31052,7 +31107,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               &camera_result_builder_state_,
                               &venue_camera_target_worlds_,
                               &source_record_member_table,
-                              &regular_camera_keys_);
+                              &regular_camera_keys_, 1.0f);
         } else {
             end_camera_shot_runtime();
         }

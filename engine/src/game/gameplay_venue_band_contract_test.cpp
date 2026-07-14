@@ -8388,8 +8388,8 @@ int main() {
                  "camera_targets_match_like_camshot(*a,*b,targets);",
                  "source-shaped screen-offset result computes the resolved CamShot SameTargets gate once");
   ok &= contains(gameplay_c,
-                 "constfloatsource_screen_offset_fov=cam.fov;",
-                 "source-shaped screen-offset result captures the pre-zoom CamShot frustum");
+                 "constfloatsource_desired_screen_offset_fov=cam.fov;",
+                 "source-shaped screen-offset result captures the decoded pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
                  "result_key.fov=source_screen_offset_fov;",
                  "source-shaped screen-offset result uses CamShot pre-zoom FOV like ihatecompvir Interp");
@@ -9946,11 +9946,30 @@ int main() {
                  "\"[world]cameraSetFrame:source_msg=shot_started"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fanim_rate=%dfpu=%.1f"
-                 "source_frame_keys=%zusource_prep=SetPreFrame\\n\"",
+                 "source_frame_keys=%zusource_prep=SetPreFrame"
+                 "source_setframe_blend=1.000\\n\"",
                  "regular camera diagnostics expose source rate/fpu beside Poll SetFrame cadence");
   ok &= contains(gameplay_c,
-                 "source_prep=SetPreFrame\\n\"",
+                 "source_prep=SetPreFramesource_setframe_blend=1.000\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");
+  ok &= contains(gameplay_c,
+                 "CameraResultRowscamera_source_setframe_blend_result_rows(",
+                 "runtime exposes ihatecompvir CamShotFrame::Interp SetFrame blend helper");
+  ok &= contains(gameplay_c,
+                 "blended.source=\"source_setframe_blend(\"+blended.source+\")\";",
+                 "camera SetFrame blend rows keep source provenance");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_screen_offset_fov="
+                 "source_previous_fov+(source_desired_screen_offset_fov-"
+                 "source_previous_fov)*source_poll_blend;",
+                 "CamShotFrame::Interp blends the pre-zoom frustum from the current camera FOV");
+  ok &= contains(gameplay_c,
+                 "submitted_result=camera_source_setframe_blend_result_rows("
+                 "source_previous_frame,submitted_result,source_poll_blend);",
+                 "CamShotFrame::Interp blends the submitted transform from the current camera world transform");
+  ok &= contains(gameplay_c,
+                 "&regular_camera_keys_,1.0f);",
+                 "CameraManager::Poll supplies source SetFrame blend 1.0 to native camera application");
   ok &= contains(gameplay_c,
                  "if(debug_camera_enabled()||debug_venue_filters_enabled()){"
                  "constfloatlocal_frame=",
