@@ -11430,7 +11430,10 @@ Rejected native probe:
   Native now normalizes an all-zero Hmx matrix to identity before mapping
   Hmx `m.y`/`m.z`/`pos` into camera forward/up/eye. Authored non-zero frames
   remain unchanged; this prevents zero-authored fallback frames from becoming
-  a zero camera basis.
+  a zero camera basis. Native also carries `camshot_zero_transform_reset`
+  through copied/path-backed camera keys and exposes `zero_xfm_reset` in
+  candidate/frame-pair logs so screenshot proofs can show whether a suspect
+  camera angle used this source reset branch.
 - 2026-07-14 CamShot object-pointer target refs:
   ihatecompvir `CamShotFrame::Load` reads newer target/focus/parent refs as
   direct `ObjPtr<RndTransformable>` values instead of the older

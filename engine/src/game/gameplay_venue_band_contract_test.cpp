@@ -7903,8 +7903,22 @@ int main() {
                  "m.row[0][0]=1.0f;m.row[1][1]=1.0f;m.row[2][2]=1.0f;",
                  "CamShot zero-authored frame transform resets to identity basis");
   ok &= contains(gameplay_c,
-                 "source_camshot_frame_world_offset(read_hmx_matrix(r))",
+                 "constHmxMatrix3x4raw_world_offset=read_hmx_matrix(r);"
+                 "key.camshot_zero_transform_reset="
+                 "hmx_matrix_is_zero_like_source(raw_world_offset);"
+                 "constHmxMatrix3x4world_offset="
+                 "source_camshot_frame_world_offset(raw_world_offset)",
                  "CamShot frame reader applies the zero-transform reset before basis mapping");
+  ok &= contains(gameplay_h_c,
+                 "boolcamshot_zero_transform_reset=false;",
+                 "CameraKey preserves CamShot zero-transform reset provenance");
+  ok &= contains(gameplay_c,
+                 "to.camshot_zero_transform_reset="
+                 "from.camshot_zero_transform_reset;",
+                 "CamShot runtime-field copying preserves zero-transform reset provenance");
+  ok &= contains(gameplay_c,
+                 "zero_xfm_reset=a:%db:%d",
+                 "camera frame-pair logs expose CamShot zero-transform reset provenance");
   ok &= contains(gameplay_c,
                  "autoshot=read_camshot_like_miloeditor(body,size);"
                  "if(!shot)return{};returnshot->frames;",

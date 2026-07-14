@@ -2166,8 +2166,11 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     }
     key.fov = camshot_source_field_of_view(r.f32());
     key.has_fov = true;
+    const HmxMatrix3x4 raw_world_offset = read_hmx_matrix(r);
+    key.camshot_zero_transform_reset =
+        hmx_matrix_is_zero_like_source(raw_world_offset);
     const HmxMatrix3x4 world_offset =
-        source_camshot_frame_world_offset(read_hmx_matrix(r));
+        source_camshot_frame_world_offset(raw_world_offset);
     for (int axis = 0; axis < 3; ++axis) {
         // Hmx Transform camera frames use m.y as the look axis and m.z as up.
         key.forward[axis] = world_offset.row[1][axis];
@@ -2652,6 +2655,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
                                  Gameplay::CameraKey& to) {
     to.distance = from.distance;
     to.facing = from.facing;
+    to.camshot_zero_transform_reset = from.camshot_zero_transform_reset;
     to.solo = from.solo;
     to.special = from.special;
     to.walk_ok = from.walk_ok;
@@ -15624,10 +15628,11 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     resolve_unqualified_camshot_target(de.name, key);
                     std::fprintf(
                         stderr,
-                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f timing=%s(%.3f %.3f %.3f) target=%s:%s parent=%s:%s parent_rot=%d refs=%d\n",
+                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) zero_xfm_reset=%d fov=%s%.3f timing=%s(%.3f %.3f %.3f) target=%s:%s parent=%s:%s parent_rot=%d refs=%d\n",
                         de.name.c_str(), pose.second, key.eye[0], key.eye[1],
                         key.eye[2], key.forward[0], key.forward[1],
                         key.forward[2], key.up[0], key.up[1], key.up[2],
+                        key.camshot_zero_transform_reset ? 1 : 0,
                         key.has_fov ? "" : "none/",
                         key.has_fov ? key.fov : 0.0f,
                         key.has_timing ? "" : "none/",
@@ -15878,7 +15883,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored zero_xfm_reset=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -15887,7 +15892,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.has_parent_first_frame ? "" : "none/",
                          key.parent_first_frame ? 1 : 0,
                          key.use_parent_rotation ? 1 : 0,
-                         key.camshot_refs_decoded ? 1 : 0, key.positions.size(),
+                         key.camshot_refs_decoded ? 1 : 0,
+                         key.positions.size(),
                          key.has_camshot_looping && key.camshot_looping ? 1 : 0,
                          key.has_camshot_looping ? key.camshot_loop_keyframe : 0,
                          key.has_camshot_anim_rate ? key.camshot_anim_rate : 0,
@@ -15933,7 +15939,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.has_legacy_path_frame_ignored ? "" : "none/",
                          key.has_legacy_path_frame_ignored
                              ? key.legacy_path_frame_ignored
-                             : 0.0f);
+                             : 0.0f,
+                         key.camshot_zero_transform_reset ? 1 : 0);
         }
         randomize_camera_category_order(out);
         if (debug_camera_enabled()) {
@@ -32854,6 +32861,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 : 0.0f,
                             frame_mapping_prefix(), source_key_blend,
                             frame_mapping_prefix(), source_eased_key_blend);
+                        std::fprintf(
+                            stderr,
+                            "[world] camera source frame pair zero_xfm_reset: shot=%s zero_xfm_reset=a:%d b:%d source_locals=CamShotFrame::Load(Transform::Zero_Reset)\n",
+                            key->name.c_str(),
+                            a_key.camshot_zero_transform_reset ? 1 : 0,
+                            b_key.camshot_zero_transform_reset ? 1 : 0);
                         if (has_frame_mapping &&
                             (a_key.source_frame_loop_active ||
                              a_key.source_frame_loop_wrapped)) {
@@ -33033,6 +33046,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 : 0,
                             key->path_anim.c_str(),
                             path_trans_target_label(path_target_key));
+                        std::fprintf(
+                            stderr,
+                            "[world] camera source path frame pair zero_xfm_reset: shot=%s zero_xfm_reset=a:%d b:%d source_locals=CamShotFrame::Load(Transform::Zero_Reset)\n",
+                            key->name.c_str(),
+                            a_key.camshot_zero_transform_reset ? 1 : 0,
+                            b_key.camshot_zero_transform_reset ? 1 : 0);
                     }
                 }
                 const CameraKey& visibility_key =
