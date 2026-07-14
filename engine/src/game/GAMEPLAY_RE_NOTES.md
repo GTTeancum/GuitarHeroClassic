@@ -40,6 +40,13 @@
   shared exact -> source-stripped subpart -> root lookup, so parent-source
   eye/basis transforms do not collapse to the broad performer root when the
   live target table stores stripped member names.
+- 2026-07-14 CamShot performer base refs: ihatecompvir `LoadSubPart`
+  resolves an empty subpart by returning the direct object transform when it
+  exists, or by naming a generated `object_base.tp` proxy if it has to assume a
+  character base. Native now exposes each performer root as both the broad
+  entity ref (`guitarist0`) and the `base` subpart, leaving explicit spine refs
+  to resolve through `bone_spine1(.mesh)` instead of silently mapping every
+  broad performer ref to spine.
 - 2026-07-13 CamShot resolved SameTargets gate: ihatecompvir
   `CamShotFrame::Interp` evaluates `SameTargets(frame)` beside the resolved
   `HasTargets()` checks before applying the local-space screen-offset

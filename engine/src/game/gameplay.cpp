@@ -31835,6 +31835,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
         std::unordered_map<std::string, CameraTarget> camera_targets;
         for (auto& perf : performers_) {
             if (!perf.renderer) continue;
+            const CameraTarget performer_base_target{perf.world_transform};
+            camera_targets[camera_target_id(perf.role, {})] =
+                performer_base_target;
+            camera_targets[camera_target_id(perf.role, "base")] =
+                performer_base_target;
             auto& character = perf.renderer->character();
             auto add_target = [&](std::string_view subpart,
                                   const std::array<float, 16>& local_world) {
@@ -31917,15 +31922,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         coord(fret_world, 0), coord(fret_world, 1),
                         coord(fret_world, 2));
                 }
-            }
-            auto spine = camera_targets.find(
-                camera_target_id(perf.role, "bone_spine1.mesh"));
-            if (spine == camera_targets.end()) {
-                spine = camera_targets.find(
-                    camera_target_id(perf.role, "bone_spine1"));
-            }
-            if (spine != camera_targets.end()) {
-                camera_targets[camera_target_id(perf.role, {})] = spine->second;
             }
         }
         const auto source_record_member_table =

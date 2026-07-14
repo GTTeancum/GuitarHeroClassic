@@ -7973,6 +7973,20 @@ int main() {
                  "std::unordered_map<std::string,CameraTarget>camera_targets;",
                  "camera target map stores transforms instead of points");
   ok &= contains(gameplay_c,
+                 "constCameraTargetperformer_base_target{perf.world_transform};",
+                 "broad performer CamShot refs use the performer base transform");
+  ok &= contains(gameplay_c,
+                 "camera_targets[camera_target_id(perf.role,{})]="
+                 "performer_base_target;",
+                 "entity-only performer CamShot refs mirror LoadSubPart direct-object resolution");
+  ok &= contains(gameplay_c,
+                 "camera_targets[camera_target_id(perf.role,\"base\")]="
+                 "performer_base_target;",
+                 "performer base CamShot refs mirror LoadSubPart base proxy naming");
+  ok &= absent(gameplay_c,
+               "camera_targets[camera_target_id(perf.role,{})]=spine->second;",
+               "entity-only performer CamShot refs must not collapse to bone_spine1");
+  ok &= contains(gameplay_c,
                  "conststd::stringstripped_subpart="
                  "strip_mesh_suffix(std::string(subpart));",
                  "camera target lookup mirrors LoadSubPart suffix stripping");
