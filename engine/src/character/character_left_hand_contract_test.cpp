@@ -131,7 +131,8 @@ int main() {
                  "if(fixed_dt>0.0f)dt=fixed_dt;",
                  "character viewer fixed-dt capture cannot drift under debug logging");
   ok &= contains(app_main_c,
-                 "char_offset,fixed_dt,character_controllers);",
+                 "char_offset,fixed_dt,character_controllers,"
+                 "char_reference_base);",
                  "parsed fixed dt reaches character viewer proof path");
   ok &= contains(app_main_c,
                  "--no-character-controllers",
@@ -140,6 +141,35 @@ int main() {
                  "if(!character_controllers){std::fprintf(stderr,"
                  "\"[char]charactercontrollersdisabledfordiagnosticcapture\\n\");}",
                  "raw-bind diagnostic captures log controller suppression");
+  ok &= contains(app_main_c,
+                 "--char-reference-base",
+                 "character viewer exposes a level reference-base diagnostic");
+  ok &= contains(app_main_c,
+                 "--cam-yaw-deg",
+                 "character viewer exposes degree-based yaw for proof captures");
+  ok &= contains(app_main_c,
+                 "--cam-pitch-deg",
+                 "character viewer exposes degree-based pitch for proof captures");
+  ok &= contains(app_main_c,
+                 "3.14159265358979323846/180.0",
+                 "degree-based proof camera options convert to the existing radian path");
+  ok &= contains(app_main_c,
+                 "renderer.set_reference_base(reference_base);",
+                 "character viewer forwards the reference-base diagnostic to the renderer");
+  ok &= contains(app_main_c,
+                 "char_offset,fixed_dt,character_controllers,char_reference_base);",
+                 "parsed reference-base diagnostic reaches character viewer proof path");
+  ok &= contains(char_renderer_c,
+                 "voidCharRenderer::set_reference_base(boolenabled){"
+                 "impl_->reference_base=enabled;}",
+                 "character renderer stores the reference-base diagnostic switch");
+  ok &= contains(char_renderer_c,
+                 "if(impl.reference_base&&impl.have_bounds){",
+                 "character renderer draws the reference base only when requested");
+  ok &= contains(char_renderer_c,
+                 "DrawPrimitiveUP(D3DPT_TRIANGLELIST,static_cast<UINT>("
+                 "base.size()/3),base.data(),sizeof(SVtx));",
+                 "reference base is a world-space diagnostic draw");
   ok &= contains(app_main_c,
                  "if(character_controllers){",
                  "character controllers stay opt-in only for the diagnostic gate");

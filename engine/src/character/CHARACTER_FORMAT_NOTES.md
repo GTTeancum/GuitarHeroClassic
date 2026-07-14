@@ -5254,3 +5254,13 @@ Viewer hand-overlay validation:
   distinguish BandCharacter-managed hookup, `dirCollides`, and legacy inline
   points, then report `missingHookupOverloadBody=1`. Keep this as a CharHair
   hookup/writeback source gap, not a static chain-offset fix.
+- The character viewer now has an explicit `--char-reference-base` diagnostic
+  for angle-read checks. It draws a translucent bind-floor square plus X/Y axis
+  strips in the character's world before the model pass. This is a proof aid
+  for separating camera/framing tilt from authored/root pose tilt; it does not
+  change pose math, gameplay, source controller behavior, or renderer material
+  state.
+- The existing `--cam-yaw` / `--cam-pitch` options are radians. Use
+  `--cam-yaw-deg` / `--cam-pitch-deg` for visual proof captures that are
+  described in degrees. Earlier proof commands that passed values like `-90`
+  through `--cam-yaw` were not true cardinal-degree shots.

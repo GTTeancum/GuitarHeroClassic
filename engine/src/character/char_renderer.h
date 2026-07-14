@@ -56,6 +56,7 @@ class CharRenderer {
   void set_world_transform(const std::array<float, 16>& m);
   void set_min_lod(int min_lod);
   void set_use_scene_lighting(bool enabled);
+  void set_reference_base(bool enabled);
   void set_color_modulation(float r, float g, float b, float a = 1.0f);
   std::optional<std::array<float, 16>> attached_prop_world(
       std::string_view object_name) const;

@@ -1117,6 +1117,7 @@ struct CharRenderer::Impl {
                                            0, 0, 1, 0, 0, 0, 0, 1};
   int min_lod = 0;
   bool use_scene_lighting = false;
+  bool reference_base = false;
   float color_mod[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   // Procedural idle animation time (seconds).
@@ -1166,6 +1167,10 @@ void CharRenderer::set_min_lod(int min_lod) {
 
 void CharRenderer::set_use_scene_lighting(bool enabled) {
   impl_->use_scene_lighting = enabled;
+}
+
+void CharRenderer::set_reference_base(bool enabled) {
+  impl_->reference_base = enabled;
 }
 
 void CharRenderer::set_color_modulation(float r, float g, float b, float a) {
@@ -1523,6 +1528,67 @@ void CharRenderer::draw_impl(bool clear_target) {
   dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
   dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
   dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+  if (impl.reference_base && impl.have_bounds) {
+    const float cx = 0.5f * (impl.bb_min[0] + impl.bb_max[0]);
+    const float cy = 0.5f * (impl.bb_min[1] + impl.bb_max[1]);
+    const float radius =
+        std::max({40.0f, impl.bb_max[0] - impl.bb_min[0],
+                  impl.bb_max[1] - impl.bb_min[1]}) *
+            0.75f +
+        18.0f;
+    const float z = impl.bb_min[2] - 0.25f;
+    const float axis_w = 0.75f;
+    const float axis_z = z + 0.05f;
+    auto v = [](float x, float y, float z, D3DCOLOR color) {
+      return SVtx{x, y, z, 0.0f, 0.0f, 1.0f, color, 0.0f, 0.0f};
+    };
+    std::vector<SVtx> base;
+    base.reserve(18);
+    const D3DCOLOR floor_color = D3DCOLOR_ARGB(92, 224, 226, 224);
+    const float x0 = cx - radius, x1 = cx + radius;
+    const float y0 = cy - radius, y1 = cy + radius;
+    base.push_back(v(x0, y0, z, floor_color));
+    base.push_back(v(x1, y0, z, floor_color));
+    base.push_back(v(x1, y1, z, floor_color));
+    base.push_back(v(x0, y0, z, floor_color));
+    base.push_back(v(x1, y1, z, floor_color));
+    base.push_back(v(x0, y1, z, floor_color));
+    const D3DCOLOR x_color = D3DCOLOR_ARGB(220, 236, 70, 70);
+    base.push_back(v(x0, cy - axis_w, axis_z, x_color));
+    base.push_back(v(x1, cy - axis_w, axis_z, x_color));
+    base.push_back(v(x1, cy + axis_w, axis_z, x_color));
+    base.push_back(v(x0, cy - axis_w, axis_z, x_color));
+    base.push_back(v(x1, cy + axis_w, axis_z, x_color));
+    base.push_back(v(x0, cy + axis_w, axis_z, x_color));
+    const D3DCOLOR y_color = D3DCOLOR_ARGB(220, 64, 180, 86);
+    base.push_back(v(cx - axis_w, y0, axis_z, y_color));
+    base.push_back(v(cx + axis_w, y0, axis_z, y_color));
+    base.push_back(v(cx + axis_w, y1, axis_z, y_color));
+    base.push_back(v(cx - axis_w, y0, axis_z, y_color));
+    base.push_back(v(cx + axis_w, y1, axis_z, y_color));
+    base.push_back(v(cx - axis_w, y1, axis_z, y_color));
+
+    D3DMATRIX base_world;
+    std::memcpy(&base_world, impl.world_transform.data(), 64);
+    dev->SetTransform(D3DTS_WORLD, &base_world);
+    dev->SetTexture(0, nullptr);
+    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    dev->SetRenderState(D3DRS_ZENABLE, TRUE);
+    dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                         static_cast<UINT>(base.size() / 3), base.data(),
+                         sizeof(SVtx));
+  }
 
   std::vector<SVtx> vb;
   std::vector<std::array<float, 3>> spos, snrm;
