@@ -33423,6 +33423,22 @@ int run_contract() {
   ok &= contains(arm_pose_log_compare,
                  "compare_rows(",
                  "arm pose log verifier compares gameplay and viewer rows");
+  ok &= contains(arm_pose_log_compare,
+                 "choices=(\"match\",\"mismatch\")",
+                 "arm pose log verifier has explicit match/mismatch expectations");
+  ok &= contains(arm_pose_log_compare,
+                 "EXPECTED-MISMATCH",
+                 "arm pose log verifier can prove stale-viewer controls fail");
+  ok &= contains(doc,
+                 "arm diff verifier control",
+                 "document records arm diff verifier control proof");
+  ok &= contains(doc,
+                 "same in-game proof against the older viewer log without "
+                 "`--midi-fret-target`",
+                 "document records missing target stale-viewer control");
+  ok &= contains(doc,
+                 "`max_delta=7.772200`, concentrated on the left upper arm",
+                 "document records stale-viewer control delta");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

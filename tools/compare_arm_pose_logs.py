@@ -99,6 +99,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum absolute component delta allowed after log rounding.",
     )
     parser.add_argument(
+        "--expect",
+        choices=("match", "mismatch"),
+        default="match",
+        help="Expected outcome. Use mismatch for stale-viewer/control proofs.",
+    )
+    parser.add_argument(
         "--allow-no-screenshot-marker",
         action="store_true",
         help="Use the final matching rows if a log has no screenshot marker.",
@@ -213,6 +219,25 @@ def main() -> int:
     marker_text = (
         f"ingame_screenshot_line={ingame_shot} viewer_screenshot_line={viewer_shot}"
     )
+    if args.expect == "mismatch":
+        if not passed:
+            print(
+                f"EXPECTED-MISMATCH compared={compared} character={args.character} "
+                f"tag={args.tag} max_delta={max_delta:.6f} "
+                f"tolerance={args.tolerance:.6f} {marker_text}"
+            )
+            for message in messages[:20]:
+                print(message)
+            if len(messages) > 20:
+                print(f"... {len(messages) - 20} more differences")
+            return 0
+
+        print(
+            f"UNEXPECTED-MATCH compared={compared} character={args.character} "
+            f"tag={args.tag} max_delta={max_delta:.6f} {marker_text}"
+        )
+        return 1
+
     if passed:
         worst = f"{worst_key.row_type}:{worst_key.bone}" if worst_key else "<none>"
         print(

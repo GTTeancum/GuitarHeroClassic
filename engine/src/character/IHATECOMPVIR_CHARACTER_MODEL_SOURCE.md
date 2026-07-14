@@ -5854,6 +5854,16 @@ loaded guitar plus hand clips should force hand IK weights to `1.0` is removed;
 viewer proof parity must now feed the same live MIDI fret target that gameplay
 feeds.
 
+2026-07-14 arm diff verifier control: `tools/compare_arm_pose_logs.py`
+compares the last complete filtered `rockabill2` / `post` `armw` and `armr*`
+rows before each screenshot marker. The current live-target proof pair passes
+88 compared torso/neck/arm/twist rows with `max_delta=0.000000`. Running the
+same in-game proof against the older viewer log without `--midi-fret-target`
+is now an explicit expected-mismatch control: it rejects the stale viewer with
+`max_delta=7.772200`, concentrated on the left upper arm, twist chain, forearm,
+and hand. Treat future viewer captures as trustworthy only after this style of
+same-frame log comparison, not from the viewer image alone.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
