@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 import sys
@@ -75,8 +76,13 @@ def parse_args() -> argparse.Namespace:
             "screenshot marker in gameplay and viewer proof logs."
         )
     )
-    parser.add_argument("--ingame-log", required=True, type=Path)
-    parser.add_argument("--viewer-log", required=True, type=Path)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="JSON manifest of proof pairs to compare as one batch.",
+    )
+    parser.add_argument("--ingame-log", type=Path)
+    parser.add_argument("--viewer-log", type=Path)
     parser.add_argument("--character", default="rockabill2")
     parser.add_argument("--tag", default="post")
     parser.add_argument(
@@ -110,6 +116,97 @@ def parse_args() -> argparse.Namespace:
         help="Use the final matching rows if a log has no screenshot marker.",
     )
     return parser.parse_args()
+
+
+@dataclass(frozen=True)
+class CompareRequest:
+    label: str
+    ingame_log: Path
+    viewer_log: Path
+    character: str
+    tag: str
+    bones: tuple[str, ...]
+    row_types: tuple[str, ...]
+    tolerance: float
+    expect: str
+    require_screenshot_marker: bool
+
+
+def tuple_from_manifest(value: object, default: tuple[str, ...], field: str) -> tuple[str, ...]:
+    if value is None:
+        return default
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise RuntimeError(f"manifest field '{field}' must be a list of strings")
+    return tuple(value)
+
+
+def path_from_manifest(base_dir: Path, value: object, field: str) -> Path:
+    if not isinstance(value, str) or not value:
+        raise RuntimeError(f"manifest field '{field}' must be a non-empty string")
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return base_dir / path
+
+
+def requests_from_manifest(path: Path) -> list[CompareRequest]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"{path}: invalid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"{path}: manifest root must be an object")
+    cases = payload.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise RuntimeError(f"{path}: manifest must contain a non-empty cases list")
+
+    default_character = str(payload.get("character", "rockabill2"))
+    default_tag = str(payload.get("tag", "post"))
+    default_tolerance = float(payload.get("tolerance", 0.0006))
+    base_dir = path.parent
+
+    requests: list[CompareRequest] = []
+    for index, case in enumerate(cases, 1):
+        if not isinstance(case, dict):
+            raise RuntimeError(f"{path}: case {index} must be an object")
+        expect = str(case.get("expect", "match"))
+        if expect not in ("match", "mismatch"):
+            raise RuntimeError(f"{path}: case {index} has invalid expect '{expect}'")
+        label = str(case.get("label", f"case{index}"))
+        requests.append(
+            CompareRequest(
+                label=label,
+                ingame_log=path_from_manifest(base_dir, case.get("ingame_log"), "ingame_log"),
+                viewer_log=path_from_manifest(base_dir, case.get("viewer_log"), "viewer_log"),
+                character=str(case.get("character", default_character)),
+                tag=str(case.get("tag", default_tag)),
+                bones=tuple_from_manifest(case.get("bones"), DEFAULT_BONES, "bones"),
+                row_types=tuple_from_manifest(case.get("rows"), DEFAULT_ROWS, "rows"),
+                tolerance=float(case.get("tolerance", default_tolerance)),
+                expect=expect,
+                require_screenshot_marker=not bool(
+                    case.get("allow_no_screenshot_marker", False)
+                ),
+            )
+        )
+    return requests
+
+
+def request_from_args(args: argparse.Namespace) -> CompareRequest:
+    if args.ingame_log is None or args.viewer_log is None:
+        raise RuntimeError("--ingame-log and --viewer-log are required without --manifest")
+    return CompareRequest(
+        label="cli",
+        ingame_log=args.ingame_log,
+        viewer_log=args.viewer_log,
+        character=args.character,
+        tag=args.tag,
+        bones=tuple(args.bones) if args.bones else DEFAULT_BONES,
+        row_types=tuple(args.rows) if args.rows else DEFAULT_ROWS,
+        tolerance=args.tolerance,
+        expect=args.expect,
+        require_screenshot_marker=not args.allow_no_screenshot_marker,
+    )
 
 
 def read_pose_rows(
@@ -182,49 +279,45 @@ def compare_rows(
     return passed, messages, max_delta, worst_key
 
 
-def main() -> int:
-    args = parse_args()
-    bones = tuple(args.bones) if args.bones else DEFAULT_BONES
-    row_types = tuple(args.rows) if args.rows else DEFAULT_ROWS
-    require_marker = not args.allow_no_screenshot_marker
-
+def run_request(request: CompareRequest) -> int:
     try:
         ingame_rows, ingame_shot = read_pose_rows(
-            args.ingame_log,
-            character=args.character,
-            tag=args.tag,
-            require_screenshot_marker=require_marker,
+            request.ingame_log,
+            character=request.character,
+            tag=request.tag,
+            require_screenshot_marker=request.require_screenshot_marker,
         )
         viewer_rows, viewer_shot = read_pose_rows(
-            args.viewer_log,
-            character=args.character,
-            tag=args.tag,
-            require_screenshot_marker=require_marker,
+            request.viewer_log,
+            character=request.character,
+            tag=request.tag,
+            require_screenshot_marker=request.require_screenshot_marker,
         )
     except OSError as exc:
-        print(f"ERROR {exc}", file=sys.stderr)
+        print(f"ERROR {request.label}: {exc}", file=sys.stderr)
         return 2
     except RuntimeError as exc:
-        print(f"ERROR {exc}", file=sys.stderr)
+        print(f"ERROR {request.label}: {exc}", file=sys.stderr)
         return 2
 
     passed, messages, max_delta, worst_key = compare_rows(
         ingame_rows,
         viewer_rows,
-        bones=bones,
-        row_types=row_types,
-        tolerance=args.tolerance,
+        bones=request.bones,
+        row_types=request.row_types,
+        tolerance=request.tolerance,
     )
-    compared = len(bones) * len(row_types)
+    compared = len(request.bones) * len(request.row_types)
     marker_text = (
         f"ingame_screenshot_line={ingame_shot} viewer_screenshot_line={viewer_shot}"
     )
-    if args.expect == "mismatch":
+    if request.expect == "mismatch":
         if not passed:
             print(
-                f"EXPECTED-MISMATCH compared={compared} character={args.character} "
-                f"tag={args.tag} max_delta={max_delta:.6f} "
-                f"tolerance={args.tolerance:.6f} {marker_text}"
+                f"EXPECTED-MISMATCH label={request.label} compared={compared} "
+                f"character={request.character} tag={request.tag} "
+                f"max_delta={max_delta:.6f} tolerance={request.tolerance:.6f} "
+                f"{marker_text}"
             )
             for message in messages[:20]:
                 print(message)
@@ -233,28 +326,52 @@ def main() -> int:
             return 0
 
         print(
-            f"UNEXPECTED-MATCH compared={compared} character={args.character} "
-            f"tag={args.tag} max_delta={max_delta:.6f} {marker_text}"
+            f"UNEXPECTED-MATCH label={request.label} compared={compared} "
+            f"character={request.character} tag={request.tag} "
+            f"max_delta={max_delta:.6f} {marker_text}"
         )
         return 1
 
     if passed:
         worst = f"{worst_key.row_type}:{worst_key.bone}" if worst_key else "<none>"
         print(
-            f"PASS compared={compared} character={args.character} tag={args.tag} "
+            f"PASS label={request.label} compared={compared} "
+            f"character={request.character} tag={request.tag} "
             f"max_delta={max_delta:.6f} worst={worst} {marker_text}"
         )
         return 0
 
     print(
-        f"FAIL compared={compared} character={args.character} tag={args.tag} "
-        f"max_delta={max_delta:.6f} tolerance={args.tolerance:.6f} {marker_text}"
+        f"FAIL label={request.label} compared={compared} "
+        f"character={request.character} tag={request.tag} "
+        f"max_delta={max_delta:.6f} tolerance={request.tolerance:.6f} "
+        f"{marker_text}"
     )
     for message in messages[:40]:
         print(message)
     if len(messages) > 40:
         print(f"... {len(messages) - 40} more differences")
     return 1
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        requests = requests_from_manifest(args.manifest) if args.manifest else [
+            request_from_args(args)
+        ]
+    except RuntimeError as exc:
+        print(f"ERROR {exc}", file=sys.stderr)
+        return 2
+
+    worst_status = 0
+    for request in requests:
+        status = run_request(request)
+        if status != 0 and worst_status == 0:
+            worst_status = status
+    if args.manifest and worst_status == 0:
+        print(f"BATCH-PASS cases={len(requests)} manifest={args.manifest}")
+    return worst_status
 
 
 if __name__ == "__main__":

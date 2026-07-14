@@ -5864,6 +5864,14 @@ is now an explicit expected-mismatch control: it rejects the stale viewer with
 and hand. Treat future viewer captures as trustworthy only after this style of
 same-frame log comparison, not from the viewer image alone.
 
+`tools/arm_pose_diff_manifest.json` batches the current trust gate: the
+filtered live-target pair and the hand-map/live-target pair both pass with
+`max_delta=0.000000`, while `rockabill2_missing_midi_target_control` remains
+an expected mismatch against the stale viewer log. Future viewer/gameplay
+proofs should add cases to this manifest or an equivalent manifest so one
+command can prove the viewer is configured like gameplay before any visual
+sign-off.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

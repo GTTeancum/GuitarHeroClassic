@@ -1,0 +1,25 @@
+{
+  "character": "rockabill2",
+  "tag": "post",
+  "tolerance": 0.0006,
+  "cases": [
+    {
+      "label": "rockabill2_live_target_filtered_match",
+      "expect": "match",
+      "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armfiltered.log",
+      "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armfiltered_fret11.log"
+    },
+    {
+      "label": "rockabill2_live_target_handmap_match",
+      "expect": "match",
+      "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armshort_handmap.log",
+      "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armshort_fret11.log"
+    },
+    {
+      "label": "rockabill2_missing_midi_target_control",
+      "expect": "mismatch",
+      "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armfiltered.log",
+      "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armshort.log"
+    }
+  ]
+}

@@ -150,6 +150,9 @@ int run_contract() {
   const std::string arm_pose_log_compare = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "compare_arm_pose_logs.py"));
+  const std::string arm_pose_diff_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "arm_pose_diff_manifest.json"));
   const std::string gameplay =
       compact(read_file(engine_dir / "src" / "game" / "gameplay.cpp"));
   const std::string re_anim_audit =
@@ -33429,6 +33432,21 @@ int run_contract() {
   ok &= contains(arm_pose_log_compare,
                  "EXPECTED-MISMATCH",
                  "arm pose log verifier can prove stale-viewer controls fail");
+  ok &= contains(arm_pose_log_compare,
+                 "requests_from_manifest(",
+                 "arm pose log verifier can batch manifest proof pairs");
+  ok &= contains(arm_pose_log_compare,
+                 "BATCH-PASS",
+                 "arm pose log verifier reports batch proof success");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"rockabill2_live_target_filtered_match\"",
+                 "arm pose diff manifest records filtered live-target proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"rockabill2_live_target_handmap_match\"",
+                 "arm pose diff manifest records handmap live-target proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"rockabill2_missing_midi_target_control\"",
+                 "arm pose diff manifest records missing-target negative control");
   ok &= contains(doc,
                  "arm diff verifier control",
                  "document records arm diff verifier control proof");
