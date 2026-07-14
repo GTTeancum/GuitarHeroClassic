@@ -11218,6 +11218,25 @@ Rejected native probe:
   CamShot. The hook currently accepts because the GH2-specific
   `cam_check_shot` body is not recovered in the ihatecompvir materials; this
   preserves call order without inventing rejection rules.
+- 2026-07-14 follow-up: recovered GH2 debug/cheat scripts route "Next
+  Alphabetical Camera" through `{world cycle_shot}`, and ihatecompvir
+  `CameraManager::OnCycleShot` queues `ForceCameraShot(ShotAfter(mCurrentShot))`.
+  Native now preserves each decoded CamShot's source object-directory order
+  before category randomization, mirrors `CameraManager::ShotAfter` against
+  that order, and queues the result through the existing `mNextShot` /
+  `PrePoll` bridge. A headless diagnostic trigger dispatches the same source
+  route for proof captures; the ordinary picker still uses the audited
+  category-randomized `PickCameraShot` path.
+- Validation:
+  `engine/out/camera_cycle_shot_20260714_001/` builds `ghogx_app` and
+  `ghogx_gameplay_venue_band_contract_test`, then runs stock PS2 `GEN`
+  assets with `--diagnostic-venue arena`, a pinned `balcony_lft04` CamShot,
+  and `--diagnostic-camera-cycle-shot-frame 180`. Runtime exits `0`, logs
+  `CameraManager::ShotAfter current=balcony_lft04 ... after=intro_encore1`,
+  queues `mNextShot` through `CameraManager::OnCycleShot`, and `PrePoll`
+  starts `intro_encore1`; screenshots at frames `170` and `220` capture the
+  before/after camera views. The contract executable still reports only the
+  known unrelated ROCK/star-power HUD backlog.
 - Validation:
   `engine/out/camera_setpreframe_framepair_20260713_002/` builds
   `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`, then runs stock

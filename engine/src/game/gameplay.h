@@ -137,6 +137,7 @@ class Gameplay {
       std::string member;
     };
     std::string name;
+    size_t source_object_order = 0;
     float frame = 0.0f;
     float eye[3] = {};
     float quat[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -714,6 +715,7 @@ class Gameplay {
   void set_diagnostic_camera_path_offset_frames(double frames) {
     diagnostic_camera_path_offset_frames_ = frames;
   }
+  bool cycle_camera_shot_like_source();
   void set_diagnostic_rock_fill(double fill);
   void set_diagnostic_star_power_fill(double fill);
   void set_diagnostic_star_power_active(bool active);
@@ -785,6 +787,8 @@ class Gameplay {
                                      const CameraKey& key);
   void queue_regular_camera_shot(const CameraKey& key,
                                  const char* source_handler);
+  const CameraKey* camera_manager_source_shot_after(
+      const std::string& current_name) const;
   bool consume_pending_regular_camera_shot();
   void start_camera_shot_runtime(const CameraKey& key,
                                  bool source_restart = false);

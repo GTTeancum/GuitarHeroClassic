@@ -591,6 +591,12 @@ int main() {
                  "\"--diagnostic-camera-path-offset-frames\")==0",
                  "app accepts the explicit diagnostic camera path-offset frames alias");
   ok &= contains(app_main_c,
+                 "\"--diagnostic-camera-cycle-shot-frame\")==0",
+                 "app exposes a deterministic source cycle_shot proof trigger");
+  ok &= contains(app_main_c,
+                 "engine.cycle_camera_shot_like_source();",
+                 "app proof trigger dispatches through the native CameraManager cycle_shot bridge");
+  ok &= contains(app_main_c,
                  "engine.set_diagnostic_character_override("
                  "diagnostic_character);",
                  "diagnostic character override is passed into gameplay before loading");
@@ -12195,6 +12201,34 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_next=%d",
                  "regular camera sweep diagnostics expose source next_shot forcing");
+  ok &= contains(gameplay_h_c,
+                 "size_tsource_object_order=0;",
+                 "regular CamShots carry source object-directory order for cycle_shot");
+  ok &= contains(gameplay_h_c,
+                 "boolcycle_camera_shot_like_source();",
+                 "gameplay exposes a native CameraManager cycle_shot bridge");
+  ok &= contains(gameplay_c,
+                 "key.source_object_order=c.order;",
+                 "regular camera loader preserves source object order before category randomization");
+  ok &= contains(gameplay_c,
+                 "constGameplay::CameraKey*Gameplay::camera_manager_source_shot_after(",
+                 "camera runtime exposes ihatecompvir CameraManager::ShotAfter");
+  ok &= contains(gameplay_c,
+                 "std::stable_sort(source_ordered.begin(),source_ordered.end(),",
+                 "CameraManager::ShotAfter walks source object order instead of randomized buckets");
+  ok &= contains(gameplay_c,
+                 "constCameraKey*after=source_ordered.front();",
+                 "CameraManager::ShotAfter starts with the first source object for null/missing/current-last cases");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraShotAfter:source_expr=shot_after"
+                 "source_manager=CameraManager::ShotAfter",
+                 "camera diagnostics expose source ShotAfter routing");
+  ok &= contains(gameplay_c,
+                 "boolGameplay::cycle_camera_shot_like_source(){",
+                 "camera runtime exposes source OnCycleShot");
+  ok &= contains(gameplay_c,
+                 "queue_regular_camera_shot(*after,\"CameraManager::OnCycleShot\");",
+                 "source cycle_shot queues through CameraManager ForceCameraShot/mNextShot");
   ok &= absent(gameplay_c, "regular_camera_selection_weight(",
                "regular camera selection must not consume the legacy CamShot category float as a weight");
   ok &= absent(gameplay_c, "choose_weighted_regular_camera_key(",

@@ -2588,6 +2588,7 @@ void sync_camshot_source_record_hint(Gameplay::CameraKey& key) {
 
 void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
                               Gameplay::CameraKey& to) {
+    to.source_object_order = from.source_object_order;
     to.category = from.category;
     to.shot_filter = from.shot_filter;
     to.has_shot_filter = from.has_shot_filter;
@@ -2656,6 +2657,7 @@ void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
 
 void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
                                  Gameplay::CameraKey& to) {
+    to.source_object_order = from.source_object_order;
     to.distance = from.distance;
     to.facing = from.facing;
     to.camshot_zero_transform_reset = from.camshot_zero_transform_reset;
@@ -15887,6 +15889,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             }
             c.off = pose_off;
             c.order = candidates.size();
+            c.key.source_object_order = c.order;
+            for (auto& pos : c.key.positions) {
+                pos.source_object_order = c.order;
+            }
             candidates.push_back(std::move(c));
         }
         if (candidates.empty()) return out;
@@ -15894,6 +15900,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
         for (const auto& c : candidates) {
             Gameplay::CameraKey key = c.key;
             key.name = c.shot;
+            key.source_object_order = c.order;
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
@@ -23696,6 +23703,75 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
                 pending_regular_camera_start_, song_time_);
         }
     }
+}
+
+const Gameplay::CameraKey* Gameplay::camera_manager_source_shot_after(
+    const std::string& current_name) const {
+    if (regular_camera_keys_.empty()) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera ShotAfter: source_expr=shot_after source_manager=CameraManager::ShotAfter current=%s count=0 result=none\n",
+                current_name.c_str());
+        }
+        return nullptr;
+    }
+
+    std::vector<const CameraKey*> source_ordered;
+    source_ordered.reserve(regular_camera_keys_.size());
+    for (const auto& key : regular_camera_keys_) {
+        source_ordered.push_back(&key);
+    }
+    std::stable_sort(
+        source_ordered.begin(), source_ordered.end(),
+        [](const CameraKey* a, const CameraKey* b) {
+            if (a->source_object_order != b->source_object_order) {
+                return a->source_object_order < b->source_object_order;
+            }
+            return a->name < b->name;
+        });
+
+    const CameraKey* after = source_ordered.front();
+    auto current = std::find_if(
+        source_ordered.begin(), source_ordered.end(),
+        [&](const CameraKey* key) { return key->name == current_name; });
+    const bool current_found = current != source_ordered.end();
+    if (current_found) {
+        ++current;
+        if (current != source_ordered.end()) after = *current;
+    }
+
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera ShotAfter: source_expr=shot_after source_manager=CameraManager::ShotAfter current=%s current_found=%d first=%s after=%s after_order=%zu object_order=ObjDirItr result=%s\n",
+            current_name.c_str(), current_found ? 1 : 0,
+            source_ordered.front()->name.c_str(), after->name.c_str(),
+            after->source_object_order, "shot");
+    }
+    return after;
+}
+
+bool Gameplay::cycle_camera_shot_like_source() {
+    const CameraKey* after =
+        camera_manager_source_shot_after(active_regular_camera_);
+    if (!after) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera cycle_shot: source_msg=cycle_shot source_manager=CameraManager::OnCycleShot current=%s result=none\n",
+                active_regular_camera_.c_str());
+        }
+        return false;
+    }
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera cycle_shot: source_msg=cycle_shot source_manager=CameraManager::OnCycleShot current=%s after=%s source_call=ForceCameraShot result=pending\n",
+            active_regular_camera_.c_str(), after->name.c_str());
+    }
+    queue_regular_camera_shot(*after, "CameraManager::OnCycleShot");
+    return true;
 }
 
 bool Gameplay::consume_pending_regular_camera_shot() {
