@@ -3967,6 +3967,11 @@ note, and all report `unreadBytes=0`.
     and scalable hands remeasure each poll. Runtime hand IK now keeps that
     per-controller cache and feeds the cosine helper from the cached source
     fields without pre-clamping target distance.
+  - Native `write_source_elbow_z_bend` now mirrors the visible
+    `CharIKHand::IKElbow` row write exactly:
+    `DirtyLocalXfm().m.Set(0, 0, 0, -sqrted, 0, 0, sqrted, 0, 1)`.
+    The previous native cos/sin Z-rotation interpretation was not a 1:1 source
+    port and is no longer used for this bounded IKHand slice.
   - Native `source_char_ik_hand_poll_flow` ports the visible parent and final
     write gates from `CharIKHand::Poll` as deterministic source evidence only:
     missing hand or target rows return early, `mMoveElbow=false` clears the

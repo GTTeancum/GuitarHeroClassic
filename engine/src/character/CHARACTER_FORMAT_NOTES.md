@@ -2479,9 +2479,13 @@ Useful environment flags:
   returns, the left and right hand Trans world rows and positions match their
   destination Trans rows/positions, so native performs that final hand write in
   the default `CharIKHand` path.
-- The corrected cosine-law bend uses
-  `(dist^2 - upper_len^2 - fore_len^2) / (2 * upper_len * fore_len)` with the
-  sampled PS2 Z-bend row layout `[cos, -sin; sin, cos]`.
+- The source-backed bend scalar uses
+  `(dist^2 - upper_len^2 - fore_len^2) / (2 * upper_len * fore_len)`, but
+  native no longer writes the old cos/sin Z-rotation. ihatecompvir's
+  `CharIKHand::IKElbow` writes the parent bend matrix as
+  `DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1)`, and native now
+  mirrors that visible source row shape. `PullShoulder` remains fenced until a
+  reviewable source body exists.
 - `pcsx2_arm_ik_twist_trans_rows_20260611.json` and
   `pcsx2_sample_foretwist_refs_20260608.json` show the driven local-X twist row
   layout as `row1.z = -sin`, `row2.y = +sin`. Native now uses that sign in the

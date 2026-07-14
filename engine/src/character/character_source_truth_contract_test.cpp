@@ -24500,6 +24500,20 @@ int run_contract() {
                  "mWorldDst)-mInv2ab);ClampEq(loc210,-1.0f,1.0f);",
                  "RB3 CharIKHand source clamps IKElbow cosine");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "trans1->DirtyLocalXfm().m.Set(0.0f,0.0f,0.0f,"
+                 "-sqrted,0.0f,0.0f,sqrted,0.0f,1.0f);",
+                 "RB3 CharIKHand source writes exact elbow bend row shape");
+  ok &= contains(char_clip,
+                 "DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1)",
+                 "native comment cites exact source elbow bend row shape");
+  ok &= contains(char_clip,
+                 "dst.rot[0][0]=0.0f;dst.rot[0][1]=0.0f;"
+                 "dst.rot[0][2]=0.0f;dst.rot[1][0]=-sin_angle;"
+                 "dst.rot[1][1]=0.0f;dst.rot[1][2]=0.0f;"
+                 "dst.rot[2][0]=sin_angle;dst.rot[2][1]=0.0f;"
+                 "dst.rot[2][2]=1.0f;",
+                 "native IKElbow helper mirrors source elbow bend rows");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "if(mElbowSwing>0){Vector2v200(v118.y,v118.z);"
                  "Vector2v208(v10c.y,v10c.z);",
                  "RB3 CharIKHand source enters elbow swing branch");

@@ -6938,16 +6938,16 @@ static void write_source_elbow_z_bend(milo_scene::Xfm& dst,
                                       float cos_angle,
                                       float sin_angle) {
   dst = base;
-  // CharIKHand::IKElbow writes the bend on the hand parent while preserving the
-  // authored local position. Native expresses the source loc210/sqrted branch
-  // as a row-vector Z bend.
-  dst.rot[0][0] = cos_angle;
-  dst.rot[0][1] = -sin_angle;
+  (void)cos_angle;
+  // CharIKHand::IKElbow writes the source sqrt branch directly with
+  // DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1).
+  dst.rot[0][0] = 0.0f;
+  dst.rot[0][1] = 0.0f;
   dst.rot[0][2] = 0.0f;
-  dst.rot[1][0] = sin_angle;
-  dst.rot[1][1] = cos_angle;
+  dst.rot[1][0] = -sin_angle;
+  dst.rot[1][1] = 0.0f;
   dst.rot[1][2] = 0.0f;
-  dst.rot[2][0] = 0.0f;
+  dst.rot[2][0] = sin_angle;
   dst.rot[2][1] = 0.0f;
   dst.rot[2][2] = 1.0f;
 }
