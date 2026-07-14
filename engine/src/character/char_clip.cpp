@@ -997,7 +997,19 @@ source_char_bones_meshes_pose_dump_evidence() {
   evidence.pose_meshes_locals = {"bone", "pend", "p",    "qend", "q",
                                  "a",    "xend", "yend", "end",  "send",
                                  "s",    "blendScale"};
+  evidence.latest_source_file =
+      "rb3/src/system/char/CharBonesMeshes.cpp";
+  evidence.latest_source_comment = "fn_804B0C60 - pose meshes";
+  evidence.latest_source_stub_steps = {
+      "declare float angle",
+      "declare Hmx::Matrix3 m",
+      "m.RotateAboutY(angle)",
+      "m.RotateAboutX(angle)",
+  };
   evidence.latest_source_body_incomplete = true;
+  evidence.latest_source_mesh_loop_present = false;
+  evidence.latest_source_uses_uninitialized_angle = true;
+  evidence.latest_source_publishes_transform_rows = false;
   evidence.rb2_dump_has_statement_body = false;
   evidence.safe_to_pose_meshes = false;
   evidence.safe_to_publish_mesh_transforms = false;
@@ -4359,6 +4371,7 @@ source_char_pose_publisher_source_refresh_20260714() {
   refresh.char_bones_scale_add_body = false;
   refresh.char_bones_samples_evaluate_channel_body = false;
   refresh.char_bones_meshes_pose_meshes_statement_body = false;
+  refresh.char_bones_meshes_latest_pose_meshes_stub_only = true;
   refresh.rb2_dump_is_range_local_map = true;
   refresh.still_fenced = {
       "CharBones::ScaleAdd",

@@ -4396,6 +4396,14 @@ note, and all report `unreadBytes=0`.
     `blendScale`, but does not expose statements. Native therefore keeps
     `safe_to_pose_meshes=false` and
     `safe_to_publish_mesh_transforms=false`.
+  - 2026-07-14 source-stub guard: the refreshed ihatecompvir
+    `rb3/src/system/char/CharBonesMeshes.cpp` body for `PoseMeshes` is not a
+    safe implementation to import. It contains only `float angle`, an
+    `Hmx::Matrix3`, and two calls, `m.RotateAboutY(angle)` and
+    `m.RotateAboutX(angle)`, with no mesh-slot loop and no transform-row
+    publication. Native now records that exact stub shape in
+    `source_char_bones_meshes_pose_dump_evidence` so the viewer/gameplay
+    mismatch cannot be "fixed" by adopting this incomplete body.
 - `rb3-latest/src/system/char/CharClipSet.cpp` and
   `rb3-latest/src/system/char/CharClipSet.h`
   - `CharClipSet` is an `ObjectDir`, `RndDrawable`, and `RndAnimatable`

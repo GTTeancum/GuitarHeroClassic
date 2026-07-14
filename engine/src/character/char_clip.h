@@ -403,7 +403,13 @@ struct SourceCharBonesMeshesPoseDumpEvidence {
   std::string pose_meshes_range;
   std::string prop_sync_range;
   std::vector<std::string> pose_meshes_locals;
+  std::string latest_source_file;
+  std::string latest_source_comment;
+  std::vector<std::string> latest_source_stub_steps;
   bool latest_source_body_incomplete = true;
+  bool latest_source_mesh_loop_present = false;
+  bool latest_source_uses_uninitialized_angle = true;
+  bool latest_source_publishes_transform_rows = false;
   bool rb2_dump_has_statement_body = false;
   bool safe_to_pose_meshes = false;
   bool safe_to_publish_mesh_transforms = false;
@@ -1456,6 +1462,7 @@ struct SourceCharPosePublisherSourceRefresh {
   bool char_bones_scale_add_body = false;
   bool char_bones_samples_evaluate_channel_body = false;
   bool char_bones_meshes_pose_meshes_statement_body = false;
+  bool char_bones_meshes_latest_pose_meshes_stub_only = false;
   bool rb2_dump_is_range_local_map = false;
   std::vector<std::string> still_fenced;
 };

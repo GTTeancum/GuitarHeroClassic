@@ -1355,6 +1355,26 @@ int main() {
                       "CharBonesMeshes PoseMeshes first local");
   ok &= expect_string(pose_meshes_dump.pose_meshes_locals[11], "blendScale",
                       "CharBonesMeshes PoseMeshes blend scale local");
+  ok &= expect_string(
+      pose_meshes_dump.latest_source_file,
+      "rb3/src/system/char/CharBonesMeshes.cpp",
+      "CharBonesMeshes latest source file");
+  ok &= expect_string(pose_meshes_dump.latest_source_comment,
+                      "fn_804B0C60 - pose meshes",
+                      "CharBonesMeshes latest source stub comment");
+  ok &= expect_size(pose_meshes_dump.latest_source_stub_steps.size(), 4,
+                    "CharBonesMeshes latest source stub step count");
+  ok &= expect_string(pose_meshes_dump.latest_source_stub_steps[2],
+                      "m.RotateAboutY(angle)",
+                      "CharBonesMeshes latest source Y rotate stub");
+  ok &= expect_int(pose_meshes_dump.latest_source_mesh_loop_present ? 1 : 0, 0,
+                   "CharBonesMeshes latest source lacks mesh loop");
+  ok &= expect_int(
+      pose_meshes_dump.latest_source_uses_uninitialized_angle ? 1 : 0, 1,
+      "CharBonesMeshes latest source uses uninitialized angle");
+  ok &= expect_int(
+      pose_meshes_dump.latest_source_publishes_transform_rows ? 1 : 0, 0,
+      "CharBonesMeshes latest source does not publish transforms");
   ok &= expect_int(pose_meshes_dump.latest_source_body_incomplete ? 1 : 0, 1,
                    "CharBonesMeshes latest PoseMeshes incomplete");
   ok &= expect_int(pose_meshes_dump.rb2_dump_has_statement_body ? 1 : 0, 0,
@@ -1421,6 +1441,9 @@ int main() {
   ok &= expect_int(
       publisher_refresh.char_bones_meshes_pose_meshes_statement_body ? 1 : 0,
       0, "pose publisher CharBonesMeshes PoseMeshes statement body fenced");
+  ok &= expect_int(
+      publisher_refresh.char_bones_meshes_latest_pose_meshes_stub_only ? 1 : 0,
+      1, "pose publisher latest PoseMeshes body is stub only");
   ok &= expect_int(publisher_refresh.rb2_dump_is_range_local_map ? 1 : 0, 1,
                    "pose publisher RB2 dump is range/local map");
   ok &= expect_size(publisher_refresh.still_fenced.size(), 5,

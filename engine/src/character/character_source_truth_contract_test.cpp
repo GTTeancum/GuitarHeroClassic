@@ -27591,7 +27591,13 @@ int run_contract() {
                  "structSourceCharBonesMeshesPoseDumpEvidence{"
                  "std::stringpose_meshes_range;std::stringprop_sync_range;"
                  "std::vector<std::string>pose_meshes_locals;"
+                 "std::stringlatest_source_file;"
+                 "std::stringlatest_source_comment;"
+                 "std::vector<std::string>latest_source_stub_steps;"
                  "boollatest_source_body_incomplete=true;"
+                 "boollatest_source_mesh_loop_present=false;"
+                 "boollatest_source_uses_uninitialized_angle=true;"
+                 "boollatest_source_publishes_transform_rows=false;"
                  "boolrb2_dump_has_statement_body=false;"
                  "boolsafe_to_pose_meshes=false;"
                  "boolsafe_to_publish_mesh_transforms=false;};",
@@ -27972,6 +27978,22 @@ int run_contract() {
                  "evidence.pose_meshes_locals={\"bone\",\"pend\",\"p\","
                  "\"qend\",\"q\",",
                  "native CharBonesMeshes PoseMeshes dump records locals");
+  ok &= contains(
+      char_clip,
+      "evidence.latest_source_file=\"rb3/src/system/char/CharBonesMeshes.cpp\";"
+      "evidence.latest_source_comment=\"fn_804B0C60-posemeshes\";",
+      "native CharBonesMeshes PoseMeshes dump records latest stub source");
+  ok &= contains(char_clip,
+                 "evidence.latest_source_stub_steps={\"declarefloatangle\","
+                 "\"declareHmx::Matrix3m\",\"m.RotateAboutY(angle)\","
+                 "\"m.RotateAboutX(angle)\",};",
+                 "native CharBonesMeshes PoseMeshes dump records stub steps");
+  ok &= contains(
+      char_clip,
+      "evidence.latest_source_mesh_loop_present=false;"
+      "evidence.latest_source_uses_uninitialized_angle=true;"
+      "evidence.latest_source_publishes_transform_rows=false;",
+      "native CharBonesMeshes PoseMeshes dump rejects latest stub publishing");
   ok &= contains(char_clip,
                  "evidence.safe_to_pose_meshes=false;"
                  "evidence.safe_to_publish_mesh_transforms=false;",
@@ -32264,6 +32286,10 @@ int run_contract() {
                  "char_bones_scale_add_body=false;",
                  "native refresh row distinguishes concrete and fenced bodies");
   ok &= contains(char_clip_h,
+                 "boolchar_bones_meshes_pose_meshes_statement_body=false;"
+                 "boolchar_bones_meshes_latest_pose_meshes_stub_only=false;",
+                 "native refresh row marks latest PoseMeshes stub boundary");
+  ok &= contains(char_clip_h,
                  "SourceCharPosePublisherSourceRefresh"
                  "source_char_pose_publisher_source_refresh_20260714();",
                  "native exposes pose publisher source refresh helper");
@@ -32283,6 +32309,10 @@ int run_contract() {
   ok &= contains(char_clip,
                  "refresh.char_bones_scale_add_body=false;",
                  "native source refresh keeps CharBones ScaleAdd fenced");
+  ok &= contains(
+      char_clip,
+      "refresh.char_bones_meshes_latest_pose_meshes_stub_only=true;",
+      "native source refresh records latest PoseMeshes stub-only body");
   ok &= contains(char_bones_source_test,
                  "source_release_pose_publisher_boundary()",
                  "focused CharBones source test covers release-pose boundary");
