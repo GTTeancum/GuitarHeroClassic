@@ -33,6 +33,13 @@
   source-consistent for authored refs such as `spot_neck_fret20.mesh`, rather
   than only for refs whose live target table already uses the exact `.mesh`
   spelling.
+- 2026-07-14 CamShot parent subpart lookup: ihatecompvir
+  `CamShotFrame::Load` routes old-revision parent refs through `LoadSubPart`,
+  the same suffix-stripping helper used by target/focus refs. Native
+  `camera_parent_for_key(...)` now resolves parent/source refs through the
+  shared exact -> source-stripped subpart -> root lookup, so parent-source
+  eye/basis transforms do not collapse to the broad performer root when the
+  live target table stores stripped member names.
 - 2026-07-13 CamShot resolved SameTargets gate: ihatecompvir
   `CamShotFrame::Interp` evaluates `SameTargets(frame)` beside the resolved
   `HasTargets()` checks before applying the local-space screen-offset

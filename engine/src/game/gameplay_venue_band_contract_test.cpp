@@ -8036,6 +8036,10 @@ int main() {
                  "std::optional<CameraTarget>camera_parent_for_key(",
                  "camera runtime resolves source from CamShot parent refs");
   ok &= contains(gameplay_c,
+                 "returncamera_target_for_ref(key.parent_entity,"
+                 "key.parent_subpart,targets);",
+                 "camera parent lookup mirrors LoadSubPart exact/stripped/root subpart resolution");
+  ok &= contains(gameplay_c,
                  "constautoparent=camera_parent_for_key(key,targets);"
                  "if(!parent)returneye;",
                  "camera eye movement uses parent refs instead of aim target refs");
@@ -8622,6 +8626,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"resolved_targets=a:%sb:%ssame_targets=%d\"",
                  "camera result diagnostics expose the resolved CamShot SameTargets signature");
+  ok &= contains(gameplay_c,
+                 "\"a_parent=%s:%sb_parent=%s:%sresolved_parent=a:%sb:%s\"",
+                 "camera solver diagnostics expose resolved CamShot parent refs");
   ok &= contains(gameplay_c,
                  "floatcamera_result_builder_shot_filter_step(",
                  "camera result rows consume the traced s3+52 shot filter branch");

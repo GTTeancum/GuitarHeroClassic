@@ -19707,13 +19707,8 @@ std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
     if (key.parent_entity.empty()) return std::nullopt;
-    auto it = targets.find(camera_target_id(key.parent_entity,
-                                            key.parent_subpart));
-    if (it == targets.end() && !key.parent_subpart.empty()) {
-        it = targets.find(camera_target_id(key.parent_entity, {}));
-    }
-    if (it == targets.end()) return std::nullopt;
-    return CameraTarget{it->second.world};
+    return camera_target_for_ref(key.parent_entity, key.parent_subpart,
+                                 targets);
 }
 
 std::array<float, 3> camera_authored_eye_for_key(
@@ -20203,10 +20198,10 @@ void apply_camera_keys(
             const std::string& subpart =
                 parent ? key.parent_subpart : key.target_subpart;
             if (entity.empty()) return nullptr;
-            auto it = targets.find(camera_target_id(entity, subpart));
-            if (it == targets.end() && !subpart.empty()) {
-                it = targets.find(camera_target_id(entity, {}));
-            }
+            const auto resolved =
+                camera_resolved_target_id_for_ref(entity, subpart, targets);
+            if (!resolved) return nullptr;
+            const auto it = targets.find(*resolved);
             if (it == targets.end()) return nullptr;
             return &it->second.world;
         };
@@ -20246,6 +20241,16 @@ void apply_camera_keys(
             b_resolved_target_signature.empty()
                 ? std::string("none")
                 : join_log_names(b_resolved_target_signature);
+        const auto a_resolved_parent_id =
+            camera_resolved_target_id_for_ref(a->parent_entity,
+                                              a->parent_subpart, targets);
+        const auto b_resolved_parent_id =
+            camera_resolved_target_id_for_ref(b->parent_entity,
+                                              b->parent_subpart, targets);
+        const std::string a_resolved_parent =
+            a_resolved_parent_id ? *a_resolved_parent_id : std::string("none");
+        const std::string b_resolved_parent =
+            b_resolved_parent_id ? *b_resolved_parent_id : std::string("none");
         const auto a_target_eye = debug_ref_eye(*a, false);
         const auto a_parent_eye = debug_ref_eye(*a, true);
         const auto b_target_eye = debug_ref_eye(*b, false);
@@ -21331,7 +21336,8 @@ void apply_camera_keys(
             "resolved_targets=a:%s b:%s same_targets=%d "
             "target_centroid=a:(%.3f %.3f %.3f) "
             "b:(%.3f %.3f %.3f) "
-            "a_parent=%s:%s b_parent=%s:%s use_parent_rotation=a:%d b:%d "
+            "a_parent=%s:%s b_parent=%s:%s resolved_parent=a:%s b:%s "
+            "use_parent_rotation=a:%d b:%d "
             "focal_target=a:%s:%s b:%s:%s "
             "parent_first_frame=a:%s%d b:%s%d "
             "filter=a:%s%.3f b:%s%.3f clamp=a:%s%.3f b:%s%.3f\n",
@@ -21350,6 +21356,7 @@ void apply_camera_keys(
             b_target_centroid ? (*b_target_centroid)[2] : 0.0f,
             a->parent_entity.c_str(), a->parent_subpart.c_str(),
             b->parent_entity.c_str(), b->parent_subpart.c_str(),
+            a_resolved_parent.c_str(), b_resolved_parent.c_str(),
             a->use_parent_rotation ? 1 : 0, b->use_parent_rotation ? 1 : 0,
             a->focus_target_entity.c_str(), a->focus_target_subpart.c_str(),
             b->focus_target_entity.c_str(), b->focus_target_subpart.c_str(),
