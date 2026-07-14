@@ -2718,6 +2718,8 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         }
         to.has_path_scale = true;
     }
+    to.path_frame = from.path_frame;
+    to.has_path_frame = from.has_path_frame;
     to.legacy_path_frame_ignored = from.legacy_path_frame_ignored;
     to.has_legacy_path_frame_ignored =
         from.has_legacy_path_frame_ignored;

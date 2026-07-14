@@ -8580,6 +8580,10 @@ int main() {
                  "to.has_path_scale=true;}",
                  "CamShot runtime-field copying preserves sampled path scale values");
   ok &= contains(gameplay_c,
+                 "to.path_frame=from.path_frame;"
+                 "to.has_path_frame=from.has_path_frame;",
+                 "CamShot runtime-field copying preserves live mPathFrame separately from ignored legacy payload");
+  ok &= contains(gameplay_c,
                  "if(from.path_preserved_base_translation){"
                  "to.path_preserved_base_translation=true;}",
                  "CamShot runtime-field copying preserves source SetFrame base-translation fallback");

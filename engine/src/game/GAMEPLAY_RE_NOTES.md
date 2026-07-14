@@ -11376,6 +11376,13 @@ Rejected native probe:
   those preserved keyframes instead of treating path samples as CamShot frames.
   This changes timing/lifecycle evidence for path-backed cameras without
   changing the sampled path transform math.
+- 2026-07-14 path-backed CamShot live path_frame propagation:
+  path-backed runtime keys are derived from the owning CamShot rather than
+  ihatecompvir `CamShot::Copy`, so they now carry the owning shot's live
+  `mPathFrame/path_frame` through `copy_camshot_runtime_fields`. The legacy
+  revisions 2-44 float remains only `legacy_path_frame_ignored`; proof rows
+  should show live path keys at the source default `-1.000` while keeping the
+  legacy payload separate.
   Validation rebuilt `ghogx_app` and
   `ghogx_gameplay_venue_band_contract_test`; the broad contract runner still
   reports only the known ROCK/star-power backlog. Proof
