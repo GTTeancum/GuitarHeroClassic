@@ -267,6 +267,30 @@ int main() {
                  "setter.flags,flag_weight);",
                  "gameplay feeds active main.drv EvaluateFlags into source WeightSetter polling");
   ok &= contains(gameplay_c,
+                 "source_char_weight_setter_poll_with_driver_result("
+                 "setter,source_weight_inputs,0.0f,flag_weight,owner_weight)",
+                 "gameplay derives hand-driver layer weights from source WeightSetter rows");
+  ok &= contains(gameplay_c,
+                 "hand_driver_left_weight_source=true;",
+                 "gameplay records source left.weight owner rows");
+  ok &= contains(gameplay_c,
+                 "hand_driver_right_weight_source=true;",
+                 "gameplay records source right.weight owner rows");
+  ok &= contains(gameplay_c,
+                 "add_player_layer(perf.strum_player,"
+                 "hand_driver_right_weight,true);",
+                 "right hand overlay is scaled by right.weight owner");
+  ok &= contains(gameplay_c,
+                 "add_player_layer(perf.fret_player,"
+                 "hand_driver_left_weight,true);",
+                 "left hand overlay is scaled by left.weight owner");
+  ok &= contains(gameplay_c,
+                 "add_player_layer(player,hand_driver_left_weight,true);",
+                 "extra left hand overlays share the source left.weight owner");
+  ok &= contains(gameplay_c,
+                 "\"[hand-driver-weight]role=%sleft=%.5fright=%.5f\"",
+                 "debug logs expose live source hand-driver weights");
+  ok &= contains(gameplay_c,
                  "source_driver_flags_fed=true;",
                  "gameplay records source driver flag rows before IK fallback");
   ok &= contains(gameplay_c,

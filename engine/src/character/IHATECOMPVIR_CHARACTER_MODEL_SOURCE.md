@@ -5419,6 +5419,18 @@ before `apply_character_controllers`; direct `left.weight`/`right.weight` writes
 remain only a fallback when no source `main.drv` `CharWeightSetter` rows are
 available.
 
+The same source path also gates the hand-driver pose lanes, not just IK.
+`CharDriver` inherits `CharWeightable`, and `CharWeightable::Weight()` returns
+the owner's `mWeight`. Source `CharWeightable::Load` reads `mWeightOwner` for
+revision-above-1 rows. Stock GH2 `left_hand.drv` / `right_hand.drv` rows name
+`left.weight` / `right.weight` as their `mWeightOwner`. Native gameplay
+therefore scales the strum/fret overlay `ClipChannelLayer`s through the live
+source `CharWeightSetter` result from `main.drv` flags before applying the
+layer mixer. This preserves active-playing hand clips at weight `1.0`, while
+authored release clips such as `band_jump` can fade the hand-driver lanes
+toward zero instead of leaving guitar hand overlays glued over a released
+body pose.
+
 `engine/out/visual_proofs/twist_trace_20260713/` records a direct-app
 Rockabill2 `special_02` frame 95 trace with the new opt-in arm pose logger.
 The paired controller-on and controller-off captures have the same final

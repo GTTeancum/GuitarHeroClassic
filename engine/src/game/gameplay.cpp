@@ -20297,15 +20297,81 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (perf.idle_player.active()) return &perf.idle_player;
                     return nullptr;
                 };
+            float hand_driver_left_weight = 1.0f;
+            float hand_driver_right_weight = 1.0f;
+            bool hand_driver_left_weight_source = false;
+            bool hand_driver_right_weight_source = false;
+            if (hand_driver_active) {
+                if (const auto* main_driver_player =
+                        active_main_driver_player()) {
+                    std::unordered_map<std::string, float>
+                        source_weight_inputs;
+                    for (const auto& setter : character.weight_setters) {
+                        if (setter.driver != "main.drv" ||
+                            setter.flags == 0) {
+                            continue;
+                        }
+                        const float flag_weight =
+                            main_driver_player->evaluate_flags(setter.flags);
+                        float owner_weight = setter.weight;
+                        if (!ghogx::character::
+                                source_char_weight_setter_poll_with_driver_result(
+                                    setter, source_weight_inputs, 0.0f,
+                                    flag_weight, owner_weight)) {
+                            continue;
+                        }
+                        const bool left_owner =
+                            setter.name == "left.weight" ||
+                            setter.weight_owner == "left.weight";
+                        const bool right_owner =
+                            setter.name == "right.weight" ||
+                            setter.weight_owner == "right.weight";
+                        if (left_owner) {
+                            hand_driver_left_weight =
+                                std::clamp(owner_weight, 0.0f, 1.0f);
+                            hand_driver_left_weight_source = true;
+                            source_weight_inputs["left.weight"] =
+                                hand_driver_left_weight;
+                        }
+                        if (right_owner) {
+                            hand_driver_right_weight =
+                                std::clamp(owner_weight, 0.0f, 1.0f);
+                            hand_driver_right_weight_source = true;
+                            source_weight_inputs["right.weight"] =
+                                hand_driver_right_weight;
+                        }
+                    }
+                }
+                if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                    const auto* main_driver_player =
+                        active_main_driver_player();
+                    const auto* current_clip =
+                        main_driver_player ? main_driver_player->current_clip()
+                                           : nullptr;
+                    std::fprintf(
+                        stderr,
+                        "[hand-driver-weight] role=%s left=%.5f right=%.5f "
+                        "leftSource=%d rightSource=%d clip=%s "
+                        "clipFlags=0x%08x\n",
+                        perf.role.c_str(), hand_driver_left_weight,
+                        hand_driver_right_weight,
+                        hand_driver_left_weight_source ? 1 : 0,
+                        hand_driver_right_weight_source ? 1 : 0,
+                        current_clip ? current_clip->name.c_str() : "<none>",
+                        current_clip ? current_clip->flags : 0u);
+                }
+            }
             if (const auto* main_driver_player = active_main_driver_player()) {
                 add_player_layer(*main_driver_player, 1.0f);
             }
             add_player_layer(perf.face_base_player, 1.0f);
             if (hand_driver_active) {
-                add_player_layer(perf.strum_player, 1.0f, true);
-                add_player_layer(perf.fret_player, 1.0f, true);
+                add_player_layer(perf.strum_player, hand_driver_right_weight,
+                                 true);
+                add_player_layer(perf.fret_player, hand_driver_left_weight,
+                                 true);
                 for (const auto& player : perf.fret_extra_players) {
-                    add_player_layer(player, 1.0f, true);
+                    add_player_layer(player, hand_driver_left_weight, true);
                 }
             }
             ghogx::character::clear_runtime_trans_worlds(character);
