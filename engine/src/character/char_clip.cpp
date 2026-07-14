@@ -1250,6 +1250,35 @@ source_grim_char_bones_samples_decode_plan() {
   return plan;
 }
 
+SourceGrimCharBonesSamplesExportTranslationPlan
+source_grim_char_bones_samples_export_translation_plan(
+    const SourceGrimCharBonesSamplesExportTranslationInput& input) {
+  SourceGrimCharBonesSamplesExportTranslationPlan plan;
+  plan.uses_sample_index_times = true;
+  plan.multiplies_sample_index_by_fps = true;
+  plan.uses_frame_values = false;
+  plan.adds_base_translation_to_pos_samples = false;
+  plan.sample_time_step = 1.0f / 30.0f;
+  plan.has_pos_samples = !input.pos_samples.empty();
+  if (!plan.has_pos_samples) {
+    plan.uses_default_translation_sample = true;
+    plan.input_times.push_back(0.0f);
+    plan.output_translations.push_back(input.base_translation);
+    return plan;
+  }
+
+  for (size_t i = 0; i < input.pos_samples.size(); ++i) {
+    const std::array<float, 3>& sample = input.pos_samples[i];
+    plan.input_times.push_back(static_cast<float>(i) * plan.sample_time_step);
+    plan.output_translations.push_back({
+        sample[0] * input.weight,
+        sample[1] * input.weight,
+        sample[2] * input.weight,
+    });
+  }
+  return plan;
+}
+
 SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
                                                            bool read_meta) {
   SourceGrimCharClipLoadPlan plan;

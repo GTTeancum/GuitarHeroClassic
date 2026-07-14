@@ -551,6 +551,24 @@ struct SourceGrimCharBonesSamplesDecodePlan {
   std::vector<std::string> target_name_replacements;
 };
 
+struct SourceGrimCharBonesSamplesExportTranslationInput {
+  std::array<float, 3> base_translation = {};
+  float weight = 1.0f;
+  std::vector<std::array<float, 3>> pos_samples;
+};
+
+struct SourceGrimCharBonesSamplesExportTranslationPlan {
+  bool has_pos_samples = false;
+  bool uses_default_translation_sample = false;
+  bool uses_sample_index_times = true;
+  bool multiplies_sample_index_by_fps = true;
+  bool uses_frame_values = false;
+  bool adds_base_translation_to_pos_samples = false;
+  float sample_time_step = 1.0f / 30.0f;
+  std::vector<float> input_times;
+  std::vector<std::array<float, 3>> output_translations;
+};
+
 struct SourceGrimCharClipLoadPlan {
   bool known_version = false;
   bool reads_object_meta = false;
@@ -2342,6 +2360,9 @@ bool source_grim_char_bones_samples_decodes_channel_type(int type);
 bool source_grim_char_bones_samples_panics_channel_type(int type);
 SourceGrimCharBonesSamplesDecodePlan
 source_grim_char_bones_samples_decode_plan();
+SourceGrimCharBonesSamplesExportTranslationPlan
+source_grim_char_bones_samples_export_translation_plan(
+    const SourceGrimCharBonesSamplesExportTranslationInput& input);
 SourceGrimCharBonesSamplesHeaderPlan
 source_grim_char_bones_samples_header_plan(int version);
 SourceGrimCharBonesSamplesDataPlan source_grim_char_bones_samples_data_plan(

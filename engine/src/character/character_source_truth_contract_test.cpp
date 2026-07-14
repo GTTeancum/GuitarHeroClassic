@@ -28708,6 +28708,20 @@ int run_contract() {
                  "not as source approval for full runtime pose\n    publishing",
                  "document fences Grim branches from runtime pose publishing");
   ok &= contains(doc,
+                 "Native `source_grim_char_bones_samples_export_translation_plan` "
+                 "ports the\n    bounded `model/export.rs` translation consumer",
+                 "document records Grim export translation helper");
+  ok &= contains(doc,
+                 "not base node translation plus sample",
+                 "document records active Grim pos export omits base translation");
+  ok &= contains(doc,
+                 "sample indices multiplied by `1 / 30`",
+                 "document records active Grim export sample timing");
+  ok &= contains(doc,
+                 "When no `.pos` sample exists, the\n    exporter emits one "
+                 "base translation sample at time `0`",
+                 "document records Grim export default translation sample");
+  ok &= contains(doc,
                  "`ClipChannel::source_weight` and",
                  "document records native channel weight retention");
   ok &= contains(doc,
@@ -28808,9 +28822,25 @@ int run_contract() {
                  "structSourceGrimCharBonesSamplesDecodePlan{",
                  "native exposes Grim CharBonesSamples decode plan");
   ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesExportTranslationInput{",
+                 "native exposes Grim export translation input");
+  ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesExportTranslationPlan{",
+                 "native exposes Grim export translation plan");
+  ok &= contains(char_clip_h,
+                 "boolmultiplies_sample_index_by_fps=true;",
+                 "native export plan records FPS-scaled sample index times");
+  ok &= contains(char_clip_h,
+                 "booladds_base_translation_to_pos_samples=false;",
+                 "native export plan records active pos output omits base translation");
+  ok &= contains(char_clip_h,
                  "boolsource_grim_char_bones_samples_decodes_channel_type("
                  "inttype);",
                  "native exposes Grim decode supported-type helper");
+  ok &= contains(char_clip_h,
+                 "SourceGrimCharBonesSamplesExportTranslationPlan"
+                 "source_grim_char_bones_samples_export_translation_plan(",
+                 "native exposes Grim export translation helper");
   ok &= contains(char_clip_h,
                  "floatsource_weight=1.0f;",
                  "native ClipChannel retains source sample weight");
@@ -28858,6 +28888,23 @@ int run_contract() {
                  "SourceGrimCharBonesSamplesDecodePlansource_grim_char_bones_"
                  "samples_decode_plan(){",
                  "native implements Grim decode plan helper");
+  ok &= contains(char_clip,
+                 "SourceGrimCharBonesSamplesExportTranslationPlan"
+                 "source_grim_char_bones_samples_export_translation_plan(",
+                 "native implements Grim export translation helper");
+  ok &= contains(char_clip,
+                 "plan.sample_time_step=1.0f/30.0f;",
+                 "native export helper ports Grim FPS timestep");
+  ok &= contains(char_clip,
+                 "plan.input_times.push_back(static_cast<float>(i)*"
+                 "plan.sample_time_step);",
+                 "native export helper ports Grim sample-index timing");
+  ok &= contains(char_clip,
+                 "sample[0]*input.weight",
+                 "native export helper ports weighted pos x without base");
+  ok &= contains(char_clip,
+                 "plan.output_translations.push_back(input.base_translation);",
+                 "native export helper ports no-pos base translation sample");
   ok &= contains(char_clip,
                  "source_grim_char_bones_samples_get_type_size2(type,compression)",
                  "native helper uses Grim get_type_size2 per channel");
@@ -28920,6 +28967,20 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_channel_weight(",
                  "focused CharBones source test covers Grim channel weights");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_export_translation_plan("
+                 "grim_export_pos)",
+                 "focused CharBones source test covers Grim export pos branch");
+  ok &= contains(char_bones_source_test,
+                 "grim_export_plan.adds_base_translation_to_pos_samples",
+                 "focused CharBones source test covers active pos base omission");
+  ok &= contains(char_bones_source_test,
+                 "grim_export_plan.sample_time_step",
+                 "focused CharBones source test covers Grim export FPS timestep");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_export_translation_plan("
+                 "grim_export_default)",
+                 "focused CharBones source test covers Grim export default branch");
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_sort_decoded_channels("
                  "grim_channels)",

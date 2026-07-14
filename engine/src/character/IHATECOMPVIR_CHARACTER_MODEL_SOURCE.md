@@ -4797,6 +4797,14 @@ note, and all report `unreadBytes=0`.
     `PoseMeshes` body. Native must therefore treat these branches as stronger
     decode/export evidence only, not as source approval for full runtime pose
     publishing.
+  - Native `source_grim_char_bones_samples_export_translation_plan` ports the
+    bounded `model/export.rs` translation consumer: when decoded `.pos` samples
+    exist, the active export output is each decoded sample scaled by the
+    serialized channel weight, not base node translation plus sample, and the
+    input keys are sample indices multiplied by `1 / 30` because the branch
+    leaves the frame-value path commented. When no `.pos` sample exists, the
+    exporter emits one base translation sample at time `0`. This remains a
+    glTF export contract only; it does not publish runtime character pose rows.
   - Grim stores each serialized channel as `CharBone { symbol, weight }` and
     attaches `bone.weight` to the decoded `.pos`, `.quat`, or `.rotz` sample
     vector. Native `ClipChannel::source_weight` and

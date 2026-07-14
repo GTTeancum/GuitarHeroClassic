@@ -115,6 +115,16 @@ bool expect_string(const std::string& got, const std::string& want,
   return false;
 }
 
+bool expect_vec3_near(const std::array<float, 3>& got,
+                      const std::array<float, 3>& want,
+                      const char* label) {
+  bool ok = true;
+  ok &= expect_near(got[0], want[0], label);
+  ok &= expect_near(got[1], want[1], label);
+  ok &= expect_near(got[2], want[2], label);
+  return ok;
+}
+
 }  // namespace
 
 int main() {
@@ -1757,6 +1767,62 @@ int main() {
   ok &= expect_float(source_grim_char_bones_samples_channel_weight(
                          {0.25f, 0.75f}, 2),
                      1.0f, "grim channel weight fallback");
+  SourceGrimCharBonesSamplesExportTranslationInput grim_export_pos;
+  grim_export_pos.base_translation = {10.0f, 20.0f, 30.0f};
+  grim_export_pos.weight = 0.5f;
+  grim_export_pos.pos_samples = {
+      std::array<float, 3>{2.0f, -4.0f, 6.0f},
+      std::array<float, 3>{-2.0f, 4.0f, -6.0f},
+  };
+  const SourceGrimCharBonesSamplesExportTranslationPlan grim_export_plan =
+      source_grim_char_bones_samples_export_translation_plan(grim_export_pos);
+  ok &= expect_int(grim_export_plan.has_pos_samples ? 1 : 0, 1,
+                   "grim export has pos samples");
+  ok &= expect_int(grim_export_plan.uses_default_translation_sample ? 1 : 0,
+                   0, "grim export skips default when pos exists");
+  ok &= expect_int(grim_export_plan.uses_sample_index_times ? 1 : 0, 1,
+                   "grim export uses sample index times");
+  ok &= expect_int(grim_export_plan.multiplies_sample_index_by_fps ? 1 : 0, 1,
+                   "grim export scales sample index by fps");
+  ok &= expect_int(grim_export_plan.uses_frame_values ? 1 : 0, 0,
+                   "grim export does not use frames");
+  ok &= expect_int(grim_export_plan.adds_base_translation_to_pos_samples ? 1
+                                                                         : 0,
+                   0, "grim export pos omits base translation");
+  ok &= expect_near(grim_export_plan.sample_time_step, 1.0f / 30.0f,
+                    "grim export sample time step");
+  ok &= expect_size(grim_export_plan.input_times.size(), 2,
+                    "grim export input count");
+  ok &= expect_near(grim_export_plan.input_times[0], 0.0f,
+                    "grim export input time 0");
+  ok &= expect_near(grim_export_plan.input_times[1], 1.0f / 30.0f,
+                    "grim export input time 1");
+  ok &= expect_size(grim_export_plan.output_translations.size(), 2,
+                    "grim export output count");
+  ok &= expect_vec3_near(grim_export_plan.output_translations[0],
+                         {1.0f, -2.0f, 3.0f},
+                         "grim export weighted translation 0");
+  ok &= expect_vec3_near(grim_export_plan.output_translations[1],
+                         {-1.0f, 2.0f, -3.0f},
+                         "grim export weighted translation 1");
+  SourceGrimCharBonesSamplesExportTranslationInput grim_export_default;
+  grim_export_default.base_translation = {1.0f, 2.0f, 3.0f};
+  const SourceGrimCharBonesSamplesExportTranslationPlan grim_default_plan =
+      source_grim_char_bones_samples_export_translation_plan(
+          grim_export_default);
+  ok &= expect_int(grim_default_plan.has_pos_samples ? 1 : 0, 0,
+                   "grim default export has no pos");
+  ok &= expect_int(grim_default_plan.uses_default_translation_sample ? 1 : 0,
+                   1, "grim default export emits base sample");
+  ok &= expect_size(grim_default_plan.input_times.size(), 1,
+                    "grim default export input count");
+  ok &= expect_near(grim_default_plan.input_times[0], 0.0f,
+                    "grim default export input time");
+  ok &= expect_size(grim_default_plan.output_translations.size(), 1,
+                    "grim default export output count");
+  ok &= expect_vec3_near(grim_default_plan.output_translations[0],
+                         {1.0f, 2.0f, 3.0f},
+                         "grim default export base translation");
   std::vector<ClipChannel> grim_channels(4);
   grim_channels[0].bone_name = "bone_z.mesh";
   grim_channels[0].type = ClipChannel::kPos;
