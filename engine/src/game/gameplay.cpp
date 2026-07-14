@@ -2636,6 +2636,9 @@ void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
     to.target_entity = from.target_entity;
     to.target_subpart = from.target_subpart;
     to.target_refs = from.target_refs;
+    to.focus_target_entity = from.focus_target_entity;
+    to.focus_target_subpart = from.focus_target_subpart;
+    to.focus_target_source_object = from.focus_target_source_object;
     to.parent_entity = from.parent_entity;
     to.parent_subpart = from.parent_subpart;
     to.parent_source_object = from.parent_source_object;

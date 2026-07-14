@@ -8036,6 +8036,11 @@ int main() {
                  "copy_camshot_ref_fields(c.key,pos);",
                  "regular camera pose variants inherit fallback parent refs");
   ok &= contains(gameplay_c,
+                 "to.focus_target_entity=from.focus_target_entity;"
+                 "to.focus_target_subpart=from.focus_target_subpart;"
+                 "to.focus_target_source_object=from.focus_target_source_object;",
+                 "CamShot ref field copying preserves source focus-target refs");
+  ok &= contains(gameplay_c,
                  "structCameraTarget{std::array<float,16>world=",
                  "camera target runtime keeps full Trans-style rows");
   ok &= contains(gameplay_c,

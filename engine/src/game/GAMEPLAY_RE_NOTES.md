@@ -11508,6 +11508,21 @@ Rejected native probe:
   object id before using the inferred performer/subpart fallback, so exact
   direct-object matches win without removing the native character fallback
   needed by existing GH2 performer shots.
+- 2026-07-14 CamShot ref-copy focus preservation:
+  ihatecompvir's `CamShotFrame` constructor/copy constructor keeps
+  `mFocusTarget` with `mTargets` and `mParent`, and `CamShotFrame::Load`
+  reads target/focus/parent refs as one frame-owned ref group. Native
+  `copy_camshot_ref_fields` now mirrors that grouping by copying the decoded
+  focus target and preserved source object id with the target and parent refs,
+  instead of relying on the DOF-field copy path to carry focus refs by accident.
+  Validation rebuilt `ghogx_app` and
+  `ghogx_gameplay_venue_band_contract_test`; the broad contract runner still
+  reports only the known ROCK/star-power backlog. Proof
+  `engine/out/camera_refcopy_focus_proof_20260714_001/run.log` exits `0`,
+  forces `flr_far_rt04`, logs the source `PrePoll`/`SetFrame` camera route, and
+  saves `frame_00150.bmp` plus `frame_00210.bmp`. The stock forced shot has
+  empty focus refs, so this is a source-helper parity fix rather than a visible
+  angle change.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives
