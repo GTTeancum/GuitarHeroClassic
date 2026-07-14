@@ -27,6 +27,14 @@
   and centroids, matching ihatecompvir `GetCurrentTargetPosition()`'s
   "average non-null target pointers" rule while keeping the actual
   `UpdateTarget` callsite marked unrecovered.
+- 2026-07-14 camera submit source classification: native no longer decides
+  whether to bypass source `CamShotFrame::BuildTransform` / screen-offset
+  composition by searching submitted debug source strings for `ps2_`. The
+  submit path now carries a structured native / trace-complete writer bridge /
+  debug PS2-stage class beside each A/B result row, and the debug proof row
+  logs `submitted_kind` plus `skip_source_build_transform`. This keeps the
+  retained writer bridge and explicit PS2 diagnostic candidates tied to the
+  control flow that selected them, rather than to a one-off source-label match.
 - 2026-07-14 CamShot target subpart lookup: ihatecompvir `LoadSubPart`
   strips a suffix such as `.mesh` before resolving/creating the target proxy
   name (`object_part.tp`). Native camera target lookup now tries the exact

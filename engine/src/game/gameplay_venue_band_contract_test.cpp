@@ -9974,8 +9974,8 @@ int main() {
                "if(ps2_trace_result)return*ps2_trace_result;",
                "retained PS2 trace rows must not silently replace default native submitted cameras");
   ok &= contains(gameplay_c,
-                 "result_a.source.find(\"ps2_\")",
-                 "runtime tracks trace-row submission from the actually selected candidate");
+                 "constauto&result_a=submitted_rows_a.rows;",
+                 "runtime tracks trace-row submission from the actually selected candidate classification");
   ok &= contains(gameplay_c,
                  "camera_ps2_result_builder_a2_vector_candidate_rows(",
                  "camera diagnostics expose the retained PS2 result-builder a2 vector row");
@@ -10080,6 +10080,40 @@ int main() {
   ok &= contains(gameplay_c,
                  "submitted_source=%s",
                  "camera writer-bridge gate diagnostics identify the submitted result source");
+  ok &= contains(gameplay_c,
+                 "enumclassCameraSubmittedRowsKind",
+                 "camera submit path classifies native versus retained/debug PS2-stage rows structurally");
+  ok &= contains(gameplay_c,
+                 "structCameraSubmittedRows",
+                 "camera submit path returns source rows together with their structured submit class");
+  ok &= contains(gameplay_c,
+                 "camera_submitted_rows_skip_source_build_transform("
+                 "submitted_rows_a.kind)",
+                 "source BuildTransform routing is gated by the submit class for the A key");
+  ok &= contains(gameplay_c,
+                 "camera_submitted_rows_skip_source_build_transform("
+                 "submitted_rows_b.kind)",
+                 "source BuildTransform routing is gated by the submit class for the B key");
+  ok &= contains(gameplay_c,
+                 "camera_submitted_rows_use_projection_payload("
+                 "submitted_rows_a.kind)",
+                 "retained PS2 projection frustum application is gated by submit class");
+  ok &= contains(gameplay_c,
+                 "camera_submitted_rows_use_matrix_payload("
+                 "submitted_rows_a.kind)",
+                 "retained PS2 matrix frustum application is gated by submit class");
+  ok &= contains(gameplay_c,
+                 "\"submitted_kind=a:%sb:%s\"",
+                 "camera writer-bridge diagnostics expose the structured A/B submit classes");
+  ok &= contains(gameplay_c,
+                 "\"skip_source_build_transform=%d\"",
+                 "camera writer-bridge diagnostics expose whether source BuildTransform was bypassed");
+  ok &= absent(gameplay_c,
+               "result_a.source.find(\"ps2_\")",
+               "camera submit routing must not infer PS2-stage rows from debug source strings");
+  ok &= absent(gameplay_c,
+               "result_b.source.find(\"ps2_\")",
+               "camera submit routing must not infer PS2-stage rows from debug source strings");
   ok &= contains(gameplay_c,
                  "\"no_trace_context\"",
                  "camera writer-bridge gate diagnostics distinguish missing retained trace evidence");

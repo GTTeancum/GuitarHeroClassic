@@ -19728,6 +19728,58 @@ std::optional<CameraResultRows> camera_trace_complete_writer_bridge_rows(
     return writer_rows;
 }
 
+enum class CameraSubmittedRowsKind {
+    kNative,
+    kTraceCompleteWriterBridge,
+    kDebugWriterBridge,
+    kDebugResultBuilderA1,
+    kDebugResultBuilderA2,
+    kDebugWriterPayload,
+    kDebugProjectionPayload,
+    kDebugMatrixPayload,
+};
+
+struct CameraSubmittedRows {
+    CameraResultRows rows;
+    CameraSubmittedRowsKind kind = CameraSubmittedRowsKind::kNative;
+};
+
+bool camera_submitted_rows_skip_source_build_transform(
+    CameraSubmittedRowsKind kind) {
+    return kind != CameraSubmittedRowsKind::kNative;
+}
+
+bool camera_submitted_rows_use_projection_payload(
+    CameraSubmittedRowsKind kind) {
+    return kind == CameraSubmittedRowsKind::kDebugProjectionPayload;
+}
+
+bool camera_submitted_rows_use_matrix_payload(CameraSubmittedRowsKind kind) {
+    return kind == CameraSubmittedRowsKind::kDebugMatrixPayload;
+}
+
+const char* camera_submitted_rows_kind_label(CameraSubmittedRowsKind kind) {
+    switch (kind) {
+        case CameraSubmittedRowsKind::kNative:
+            return "native";
+        case CameraSubmittedRowsKind::kTraceCompleteWriterBridge:
+            return "trace_complete_writer_bridge";
+        case CameraSubmittedRowsKind::kDebugWriterBridge:
+            return "debug_writer_bridge";
+        case CameraSubmittedRowsKind::kDebugResultBuilderA1:
+            return "debug_result_builder_a1";
+        case CameraSubmittedRowsKind::kDebugResultBuilderA2:
+            return "debug_result_builder_a2";
+        case CameraSubmittedRowsKind::kDebugWriterPayload:
+            return "debug_writer_payload";
+        case CameraSubmittedRowsKind::kDebugProjectionPayload:
+            return "debug_projection_payload";
+        case CameraSubmittedRowsKind::kDebugMatrixPayload:
+            return "debug_matrix_payload";
+    }
+    return "unknown";
+}
+
 std::optional<CameraResultRows> camera_rejected_target_candidate_rows_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
@@ -20618,7 +20670,7 @@ void apply_camera_keys(
     auto camera_submitted_rows_for_runtime =
         [&](const Gameplay::CameraKey& key,
             const std::optional<CameraResultRows>& ps2_trace_result)
-        -> CameraResultRows {
+        -> CameraSubmittedRows {
         if (const char* candidate =
                 env_value("GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE")) {
             if (std::strcmp(candidate, "writer_bridge") == 0) {
@@ -20627,37 +20679,45 @@ void apply_camera_keys(
                 if (auto writer_rows =
                         camera_ps2_writer_bridge_from_builder_rows(
                             key, targets, builder_rows)) {
-                    return *writer_rows;
+                    return {*writer_rows,
+                            CameraSubmittedRowsKind::kDebugWriterBridge};
                 }
             } else if (std::strcmp(candidate, "native") == 0) {
-                return camera_submitted_result_rows_for_key(key, targets);
+                return {camera_submitted_result_rows_for_key(key, targets),
+                        CameraSubmittedRowsKind::kNative};
             }
             if (ps2_trace_result) {
                 if (std::strcmp(candidate, "a1") == 0) {
-                    return *ps2_trace_result;
+                    return {*ps2_trace_result,
+                            CameraSubmittedRowsKind::kDebugResultBuilderA1};
                 } else if (std::strcmp(candidate, "a2") == 0) {
                     if (auto a2_rows =
                             camera_ps2_result_builder_a2_vector_candidate_rows(
                                 key)) {
-                        return *a2_rows;
+                        return {*a2_rows,
+                                CameraSubmittedRowsKind::kDebugResultBuilderA2};
                     }
                 } else if (std::strcmp(candidate, "writer") == 0) {
                     if (auto writer_rows =
                             camera_ps2_writer_payload_candidate_rows(key)) {
-                        return *writer_rows;
+                        return {*writer_rows,
+                                CameraSubmittedRowsKind::kDebugWriterPayload};
                     }
                 } else if (std::strcmp(candidate, "ps2proj") == 0) {
                     if (auto projection_rows =
                             camera_ps2_result_builder_projection_candidate_rows(
                                 key)) {
-                        return *projection_rows;
+                        return {*projection_rows,
+                                CameraSubmittedRowsKind::
+                                    kDebugProjectionPayload};
                     }
                 } else if (std::strcmp(candidate, "ps2matrix") == 0 ||
                            std::strcmp(candidate, "ps2matrix_rows") == 0) {
                     if (auto matrix_rows =
                             camera_ps2_result_builder_matrix_candidate_rows(
                                 key, candidate)) {
-                        return *matrix_rows;
+                        return {*matrix_rows,
+                                CameraSubmittedRowsKind::kDebugMatrixPayload};
                     }
                 }
             }
@@ -20665,28 +20725,30 @@ void apply_camera_keys(
         if (!env_value("GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE")) {
             if (auto writer_rows =
                     camera_trace_complete_writer_bridge_rows(key, targets)) {
-                return *writer_rows;
+                return {*writer_rows,
+                        CameraSubmittedRowsKind::kTraceCompleteWriterBridge};
             }
         }
-        return camera_submitted_result_rows_for_key(key, targets);
+        return {camera_submitted_result_rows_for_key(key, targets),
+                CameraSubmittedRowsKind::kNative};
     };
-    const auto result_a =
+    const auto submitted_rows_a =
         camera_submitted_rows_for_runtime(*a, ps2_trace_result_a);
-    const auto result_b =
+    const auto submitted_rows_b =
         camera_submitted_rows_for_runtime(*b, ps2_trace_result_b);
+    const auto& result_a = submitted_rows_a.rows;
+    const auto& result_b = submitted_rows_b.rows;
     const bool submitted_result_from_ps2_trace =
-        result_a.source.find("ps2_") != std::string::npos ||
-        result_b.source.find("ps2_") != std::string::npos;
+        camera_submitted_rows_skip_source_build_transform(
+            submitted_rows_a.kind) ||
+        camera_submitted_rows_skip_source_build_transform(
+            submitted_rows_b.kind);
     const bool submitted_ps2_projection_candidate =
-        result_a.source.find("ps2_result_builder_projection_candidate") !=
-            std::string::npos ||
-        result_b.source.find("ps2_result_builder_projection_candidate") !=
-            std::string::npos;
+        camera_submitted_rows_use_projection_payload(submitted_rows_a.kind) ||
+        camera_submitted_rows_use_projection_payload(submitted_rows_b.kind);
     const bool submitted_ps2_matrix_candidate =
-        result_a.source.find("ps2_result_builder_matrix_candidate") !=
-            std::string::npos ||
-        result_b.source.find("ps2_result_builder_matrix_candidate") !=
-            std::string::npos;
+        camera_submitted_rows_use_matrix_payload(submitted_rows_a.kind) ||
+        camera_submitted_rows_use_matrix_payload(submitted_rows_b.kind);
     auto submitted_result =
         camera_lerp_result_rows(result_a, result_b, interp_t);
     const auto a_target_update =
@@ -21812,6 +21874,8 @@ void apply_camera_keys(
             "b=%s promoted=%d shape=%s complete=%d incomplete=%d "
             "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
             "delta_source=a:%s b:%s "
+            "submitted_kind=a:%s b:%s "
+            "skip_source_build_transform=%d "
             "submitted_source=%s\n",
             frame,
             camera_writer_bridge_gate_label(writer_bridge_gate_eval_a),
@@ -21876,6 +21940,9 @@ void apply_camera_keys(
             writer_bridge_gate_trace(writer_bridge_gate_eval_b),
             camera_writer_bridge_delta_source_label(*a, targets),
             camera_writer_bridge_delta_source_label(*b, targets),
+            camera_submitted_rows_kind_label(submitted_rows_a.kind),
+            camera_submitted_rows_kind_label(submitted_rows_b.kind),
+            submitted_result_from_ps2_trace ? 1 : 0,
             submitted_result.source.c_str());
         if (source_screen_offset_translate_result) {
             log_result_rows("source_screen_offset_translate_result",
