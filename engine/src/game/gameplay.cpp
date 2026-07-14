@@ -32906,6 +32906,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                             previous_camera_position_index_);
                 }
                 std::vector<CameraKey> selected_camera;
+                const float source_setframe_blend = 1.0f;
                 bool source_frame_key_route = false;
                 if (key->has_path_anim && !key->positions.empty()) {
                     selected_camera =
@@ -32932,14 +32933,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_shot_started_reported_ = key->name;
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=1.000\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=%.3f\n",
                             key->name.c_str(), local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),
                             camera_source_duration_seconds_source(*key),
                             camera_source_anim_rate(*key),
                             camera_source_frames_per_unit(*key),
-                            selected_camera.size());
+                            selected_camera.size(), source_setframe_blend);
                     }
                     if (source_frame_key_route && selected_camera.size() >= 2 &&
                         active_camera_frame_pair_reported_ != key->name) {
@@ -33191,7 +33192,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &camera_result_builder_state_,
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
-                                  &regular_camera_keys_, 1.0f);
+                                  &regular_camera_keys_, source_setframe_blend);
                 apply_active_camera_fov_anims(world_->camera(), *key);
                 if (diagnostic_camera_shot_.empty()) {
                     float local_frame = 0.0f;

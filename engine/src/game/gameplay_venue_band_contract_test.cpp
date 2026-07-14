@@ -10708,14 +10708,14 @@ int main() {
                  "duration_source=%sanim_rate=%dfpu=%.1f"
                  "source_frame_keys=%zusource_prep=CameraManager::PrePoll->"
                  "CamShot::SetPreFramebase_noop=1"
-                 "source_setframe_blend=1.000\\n\"",
+                 "source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence and base SetPreFrame no-op");
   ok &= contains(gameplay_c,
                  "source_check=CamShot::CheckShotStartedruntime_flag=unk120p4serialized_flag=none",
                  "shot_started bridge is documented as a runtime CamShot bit, not a serialized MILO field");
   ok &= contains(gameplay_c,
                  "source_prep=CameraManager::PrePoll->CamShot::SetPreFrame"
-                 "base_noop=1source_setframe_blend=1.000\\n\"",
+                 "base_noop=1source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after base CamShot SetPreFrame no-op");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframeloop:shot=%s"
@@ -10740,7 +10740,7 @@ int main() {
                  "source_previous_frame,submitted_result,source_poll_blend);",
                  "CamShotFrame::Interp blends the submitted transform from the current camera world transform");
   ok &= contains(gameplay_c,
-                 "&regular_camera_keys_,1.0f);",
+                 "&regular_camera_keys_,source_setframe_blend);",
                  "CameraManager::Poll supplies source SetFrame blend 1.0 to native camera application");
   ok &= contains(gameplay_c,
                  "if(debug_camera_enabled()||debug_venue_filters_enabled()){"
