@@ -5125,3 +5125,13 @@ Viewer hand-overlay validation:
   posture until the `CharClipSamples` / `CharBonesSamples` / driver sample path
   is source-backed further or an original GH2 runtime capture proves the exact
   reviewed frame.
+- The 2026-07-14 Rockabill2 soft-green camera scout in
+  `engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` uses
+  direct-app `special_02` frame 70 captures on the soft green background. The
+  readable `yaw-90_pitch0.png` front proof keeps the whole body visible and
+  still shows an unresolved upper/lower arm twist/publisher read. The readable
+  `yaw90_pitch0.png` side proof shows the belt chain floating. Its log decodes
+  `chain.hair` with `bone_chain01.mesh` through `bone_chain03.mesh`, legacy
+  inline collision rows aimed at `bone_R-thigh.mesh`, and
+  `runtimeWriteback=0` / `resolvedPointCollides=0`; keep this as a CharHair
+  hookup/writeback source gap, not a static chain-offset fix.

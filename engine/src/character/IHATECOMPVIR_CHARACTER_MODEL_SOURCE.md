@@ -5515,6 +5515,16 @@ floating chain is a remaining CharHair hookup/collision/writeback publisher
 gap. Do not hide it with a Rockabill2-specific chain offset or static mesh
 placement patch.
 
+2026-07-14 soft-green camera scout: the direct-app proof in
+`engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` captures
+`special_02` frame 70 at four whole-body angles. `yaw-90_pitch0.png` is the
+current readable front proof for the arm posture, and `yaw90_pitch0.png` is the
+current readable side proof for the belt chain. The green background improves
+inspection contrast but does not change renderer state, controller cadence, or
+source authority. The front proof still shows the upper/lower arm read is not
+trustworthy, while the side proof and log keep the chain classified as an
+unresolved `chain.hair` hookup rather than a static placement problem.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

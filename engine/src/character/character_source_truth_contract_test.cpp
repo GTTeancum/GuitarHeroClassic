@@ -32128,6 +32128,33 @@ int run_contract() {
                  "static mesh\nplacement patch",
                  "document rejects Rockabill2 chain placement shortcut");
   ok &= contains(doc,
+                 "2026-07-14 soft-green camera scout",
+                 "document records Rockabill2 soft-green camera scout");
+  ok &= contains(
+      doc,
+      "`engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/`",
+      "document records Rockabill2 camera scout directory");
+  ok &= contains(doc,
+                 "`yaw-90_pitch0.png` is the\ncurrent readable front proof",
+                 "document records Rockabill2 readable front proof");
+  ok &= contains(doc,
+                 "`yaw90_pitch0.png` is the\ncurrent readable side proof",
+                 "document records Rockabill2 readable side proof");
+  ok &= contains(doc,
+                 "green background improves\ninspection contrast but does not "
+                 "change renderer state",
+                 "document fences green proof as visual-only");
+  ok &= contains(doc,
+                 "unresolved `chain.hair` hookup rather than a static "
+                 "placement problem",
+                 "document keeps Rockabill2 chain source gap");
+  ok &= contains(format_notes,
+                 "`runtimeWriteback=0` / `resolvedPointCollides=0`",
+                 "format notes record Rockabill2 chain runtime boundary");
+  ok &= contains(format_notes,
+                 "not a static chain-offset fix",
+                 "format notes reject Rockabill2 chain offset shortcut");
+  ok &= contains(doc,
                  "2026-07-13 history recheck: checkpoint `96f64b5` restored "
                  "the accepted\nRock1/Rock2 source cadence",
                  "document records prior Rock cadence checkpoint scope");
