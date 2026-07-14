@@ -3770,15 +3770,19 @@ int main() {
                  "constGameplay::CameraKey&shot,",
                  "diagnostic camera path offset is derived through the source CamShot clock");
   ok &= contains(gameplay_c,
+                 "pending_regular_camera_local_frame_="
+                 "diagnostic_camera_path_offset_frames_;",
+                 "diagnostic forced camera queues the requested source local path-frame through mNextShot");
+  ok &= contains(gameplay_c,
                  "pending_regular_camera_start_=camera_source_start_time_for_local_frame("
-                 "key,song_time_,diagnostic_camera_path_offset_frames_,&chart_);",
-                 "diagnostic forced camera queues source-rate local path-frame alignment through mNextShot");
+                 "key,song_time_,pending_regular_camera_local_frame_,&chart_);",
+                 "diagnostic forced camera logs source-rate local path-frame alignment while waiting for PrePoll");
   ok &= absent(gameplay_c,
                "diagnostic_camera_path_offset_frames_/30.0",
                "diagnostic camera path offset must not assume 30fps source timing");
   ok &= contains(gameplay_c,
-                 "active_regular_camera_start_=pending_regular_camera_start_;",
-                 "diagnostic forced camera path-frame alignment becomes active when PrePoll consumes mNextShot");
+                 "active_regular_camera_start_=source_start_time;",
+                 "diagnostic forced camera path-frame alignment is stamped when PrePoll consumes mNextShot");
   ok &= contains(gameplay_c,
                  "diagnosticcamerashotselected",
                  "diagnostic camera shot selection is log-verifiable");
@@ -3787,8 +3791,9 @@ int main() {
                  "diagnostic camera path offset is log-verifiable");
   ok &= contains(gameplay_c,
                  "\"[world]cameramNextShotpathoffset:shot=%slocal_frame=%.3f"
-                 "anim_rate=%dfpu=%.1fsource_start=%.3fnow=%.3f"
-                 "source_manager=CameraManager::CalcFrame\\n\"",
+                 "anim_rate=%dfpu=%.1fqueued_start_preview=%.3fnow=%.3f"
+                 "source_manager=CameraManager::CalcFramesource_start="
+                 "CameraManager::StartShot_\\n\"",
                  "diagnostic camera path offset logs the source CalcFrame alignment");
   ok &= contains(gameplay_h_c,
                  "booldiagnostic_venue_event_applied_=false;",
@@ -6207,6 +6212,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "pending_regular_camera_=key.name;",
                  "regular camera mNextShot bridge stores the selected CamShot name");
+  ok &= contains(gameplay_h_c,
+                 "doublepending_regular_camera_local_frame_=0.0;",
+                 "regular camera mNextShot bridge stores requested local-frame offset separately from source start time");
   ok &= contains(gameplay_c,
                  "\"[world]cameramNextShot:source_manager=%ssource_field=mNextShot",
                  "regular camera diagnostics expose CameraManager mNextShot assignment");
@@ -6216,13 +6224,23 @@ int main() {
                  "regular camera runtime consumes pending shots at the PrePoll-style point");
   ok &= contains(gameplay_c,
                  "\"[world]cameraPrePoll:source_manager=PrePoll"
-                 "source_field=mNextShotshot=%sprevious=%schanged=%d\\n\"",
-                 "regular camera diagnostics expose CameraManager PrePoll pending-shot consumption");
+                 "source_field=mNextShotshot=%sprevious=%schanged=%d"
+                 "source_start=CameraManager::StartShot_start_time=%.3f"
+                 "queued_start_preview=%.3flocal_frame=%.3f\\n\"",
+                 "regular camera diagnostics expose CameraManager PrePoll pending-shot consumption and source start time");
+  ok &= contains(gameplay_c,
+                 "constCameraKey*next_key=find_camera_key_by_name("
+                 "regular_camera_keys_,next_shot);",
+                 "regular camera PrePoll consumption resolves the pending CamShot before stamping source time");
+  ok &= contains(gameplay_c,
+                 "constdoublesource_start_time=next_key?"
+                 "camera_source_start_time_for_local_frame(",
+                 "regular camera PrePoll consumption computes mCamStartTime from the consume-time clock");
   ok &= contains(gameplay_c,
                  "previous_regular_camera_=active_regular_camera_;"
                  "previous_camera_position_index_=active_camera_position_index_;"
                  "active_regular_camera_=next_shot;"
-                 "active_regular_camera_start_=pending_regular_camera_start_;"
+                 "active_regular_camera_start_=source_start_time;"
                  "active_camera_position_start_=song_time_;"
                  "active_camera_position_index_=0;",
                  "regular camera pending mNextShot always restarts source shot timing");

@@ -34,6 +34,14 @@
   consumption now restarts source timing and StartAnim state even when the
   pending CamShot name matches the active CamShot; the `changed` flag remains
   diagnostic only.
+- 2026-07-14 CameraManager pending-shot start time: ihatecompvir
+  `ForceCameraShot` only writes `mNextShot`; `StartShot_` stamps
+  `mCamStartTime` later when `PrePoll` consumes that pending shot. Native now
+  carries a pending local-frame request separately and computes
+  `active_regular_camera_start_` at the PrePoll-style consumption point. This
+  prevents `shot_over -> do_force_shot` handoffs from inheriting a queue-time
+  start that is one native frame early, while preserving diagnostic path-frame
+  offsets.
 - 2026-07-13 CameraManager category randomization RNG: ihatecompvir's RB2
   `CameraManager::SyncObjects` dump shows a temporary CamShot array, a `which`
   draw, and static `sRand` while `Rand::Seed` / `Rand::Int` are recovered in

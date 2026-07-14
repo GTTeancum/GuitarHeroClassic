@@ -941,6 +941,7 @@ class Gameplay {
   std::string active_regular_camera_;
   std::string previous_regular_camera_;
   double pending_regular_camera_start_ = 0.0;
+  double pending_regular_camera_local_frame_ = 0.0;
   double active_regular_camera_start_ = 0.0;
   double active_camera_position_start_ = 0.0;
   size_t active_camera_position_index_ = 0;

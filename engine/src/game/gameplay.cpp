@@ -21748,6 +21748,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_shot_over_ = false;
     active_camera_skip_next_crowd_update_ = false;
     pending_regular_camera_start_ = 0.0;
+    pending_regular_camera_local_frame_ = 0.0;
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
     active_camera_position_index_ = 0;
@@ -22601,8 +22602,9 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
 void Gameplay::queue_regular_camera_shot(const CameraKey& key,
                                          const char* source_handler) {
     pending_regular_camera_ = key.name;
+    pending_regular_camera_local_frame_ = diagnostic_camera_path_offset_frames_;
     pending_regular_camera_start_ = camera_source_start_time_for_local_frame(
-        key, song_time_, diagnostic_camera_path_offset_frames_, &chart_);
+        key, song_time_, pending_regular_camera_local_frame_, &chart_);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -22613,8 +22615,8 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
         if (diagnostic_camera_path_offset_frames_ != 0.0) {
             std::fprintf(
                 stderr,
-                "[world] camera mNextShot path offset: shot=%s local_frame=%.3f anim_rate=%d fpu=%.1f source_start=%.3f now=%.3f source_manager=CameraManager::CalcFrame\n",
-                key.name.c_str(), diagnostic_camera_path_offset_frames_,
+                "[world] camera mNextShot path offset: shot=%s local_frame=%.3f anim_rate=%d fpu=%.1f queued_start_preview=%.3f now=%.3f source_manager=CameraManager::CalcFrame source_start=CameraManager::StartShot_\n",
+                key.name.c_str(), pending_regular_camera_local_frame_,
                 camera_source_anim_rate(key), camera_source_frames_per_unit(key),
                 pending_regular_camera_start_, song_time_);
         }
@@ -22626,12 +22628,20 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     const std::string next_shot = std::move(pending_regular_camera_);
     pending_regular_camera_.clear();
     const bool shot_changed = active_regular_camera_ != next_shot;
+    const CameraKey* next_key =
+        find_camera_key_by_name(regular_camera_keys_, next_shot);
+    const double source_start_time =
+        next_key ? camera_source_start_time_for_local_frame(
+                       *next_key, song_time_, pending_regular_camera_local_frame_,
+                       &chart_)
+                 : song_time_;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera PrePoll: source_manager=PrePoll source_field=mNextShot shot=%s previous=%s changed=%d\n",
+            "[world] camera PrePoll: source_manager=PrePoll source_field=mNextShot shot=%s previous=%s changed=%d source_start=CameraManager::StartShot_ start_time=%.3f queued_start_preview=%.3f local_frame=%.3f\n",
             next_shot.c_str(), active_regular_camera_.c_str(),
-            shot_changed ? 1 : 0);
+            shot_changed ? 1 : 0, source_start_time,
+            pending_regular_camera_start_, pending_regular_camera_local_frame_);
     }
     // CameraManager::PrePoll always calls StartShot_(mNextShot) when mNextShot
     // is set, even if it points to the same CamShot. Preserve that restart so
@@ -22639,9 +22649,11 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     previous_regular_camera_ = active_regular_camera_;
     previous_camera_position_index_ = active_camera_position_index_;
     active_regular_camera_ = next_shot;
-    active_regular_camera_start_ = pending_regular_camera_start_;
+    active_regular_camera_start_ = source_start_time;
     active_camera_position_start_ = song_time_;
     active_camera_position_index_ = 0;
+    pending_regular_camera_start_ = 0.0;
+    pending_regular_camera_local_frame_ = 0.0;
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
@@ -27526,6 +27538,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     camera_bars_left_ = 0;
     pending_regular_camera_.clear();
     pending_regular_camera_start_ = 0.0;
+    pending_regular_camera_local_frame_ = 0.0;
     active_camera_anim_event_.clear();
     active_camera_fov_anim_refs_.clear();
     active_camera_anim_start_time_ = 0.0;
@@ -29573,6 +29586,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_shown_proxy_meshes_.clear();
                 pending_regular_camera_.clear();
                 pending_regular_camera_start_ = 0.0;
+                pending_regular_camera_local_frame_ = 0.0;
                 active_camera_runtime_shot_.clear();
                 active_camera_anim_event_.clear();
                 active_camera_fov_anim_refs_.clear();
