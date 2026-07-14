@@ -2627,6 +2627,14 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         to.path_trans_target = from.path_trans_target;
         to.has_path_trans_target = true;
     }
+    if (!to.has_path_source_frame_summary &&
+        from.has_path_source_frame_summary) {
+        to.path_source_sample_frames = from.path_source_sample_frames;
+        to.path_source_added_frames = from.path_source_added_frames;
+        to.path_source_start_frame = from.path_source_start_frame;
+        to.path_source_end_frame = from.path_source_end_frame;
+        to.has_path_source_frame_summary = true;
+    }
     to.legacy_path_frame_ignored = from.legacy_path_frame_ignored;
     to.has_legacy_path_frame_ignored =
         from.has_legacy_path_frame_ignored;
@@ -10072,9 +10080,18 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             out.push_back(std::move(pos));
         }
         if (out.empty()) return out;
+        const size_t added_source_frames =
+            sample_frames.size() > resolved.trans_keys.size()
+                ? sample_frames.size() - resolved.trans_keys.size()
+                : size_t{0};
         for (auto& pos : out) {
             pos.path_trans_target = resolved.trans;
             pos.has_path_trans_target = true;
+            pos.path_source_sample_frames = sample_frames.size();
+            pos.path_source_added_frames = added_source_frames;
+            pos.path_source_start_frame = sample_frames.front();
+            pos.path_source_end_frame = sample_frames.back();
+            pos.has_path_source_frame_summary = true;
         }
         if (!resolved.rot_keys.empty()) {
             for (auto& pos : out) {
@@ -10106,9 +10123,7 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 resolved.end_offset, transanim_sizes[anim_ref], out.size(),
                 resolved.rot_keys.size(), resolved.scale_keys.size(),
                 sample_frames.size(),
-                sample_frames.size() > resolved.trans_keys.size()
-                    ? sample_frames.size() - resolved.trans_keys.size()
-                    : size_t{0},
+                added_source_frames,
                 resolved.trans_spline ? 1 : 0,
                 resolved.repeat_trans ? 1 : 0,
                 resolved.scale_spline ? 1 : 0,
@@ -15652,6 +15667,22 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         c.key.positions.front().path_trans_target;
                     c.key.has_path_trans_target =
                         c.key.positions.front().has_path_trans_target;
+                    if (c.key.positions.front()
+                            .has_path_source_frame_summary) {
+                        c.key.path_source_sample_frames =
+                            c.key.positions.front()
+                                .path_source_sample_frames;
+                        c.key.path_source_added_frames =
+                            c.key.positions.front()
+                                .path_source_added_frames;
+                        c.key.path_source_start_frame =
+                            c.key.positions.front()
+                                .path_source_start_frame;
+                        c.key.path_source_end_frame =
+                            c.key.positions.front()
+                                .path_source_end_frame;
+                        c.key.has_path_source_frame_summary = true;
+                    }
                     if (c.key.parent_entity.empty()) {
                         populate_camera_generated_source_rows(c.key);
                     }
@@ -32253,6 +32284,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 ? a_key
                                 : (b_key.has_path_trans_target ? b_key
                                                                : *key);
+                        const CameraKey& path_summary_key =
+                            a_key.has_path_source_frame_summary
+                                ? a_key
+                                : (b_key.has_path_source_frame_summary ? b_key
+                                                                       : *key);
                         auto path_trans_target_label =
                             [](const CameraKey& path_key) -> const char* {
                             if (!path_key.has_path_trans_target) return "none";
@@ -32260,11 +32296,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                        ? "null"
                                        : path_key.path_trans_target.c_str();
                         };
+                        auto path_summary_prefix =
+                            [](const CameraKey& path_key) -> const char* {
+                            return path_key.has_path_source_frame_summary
+                                       ? ""
+                                       : "none/";
+                        };
                         active_camera_frame_pair_reported_ =
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -32303,6 +32345,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             b_key.has_legacy_path_frame_ignored
                                 ? b_key.legacy_path_frame_ignored
                                 : 0.0f,
+                            path_summary_prefix(path_summary_key),
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_start_frame
+                                : 0.0f,
+                            path_summary_prefix(path_summary_key),
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_end_frame
+                                : 0.0f,
+                            path_summary_prefix(path_summary_key),
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_sample_frames
+                                : size_t{0},
+                            path_summary_prefix(path_summary_key),
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_added_frames
+                                : size_t{0},
                             key->path_anim.c_str(),
                             path_trans_target_label(path_target_key));
                     }

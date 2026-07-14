@@ -11206,6 +11206,14 @@ Rejected native probe:
   target into the per-shot `[world] camera source path frame pair` row as
   `path_trans_target`, so suspicious path-camera angles can be audited against
   the source transform target without changing the rendered pose math.
+- 2026-07-14 path-backed TransAnim frame-summary proof:
+  source `RndTransAnim::StartFrame()` / `EndFrame()` derive their span from
+  all three key pages, matching the merged trans/rot/scale frame union now used
+  by native path cameras. Native path keys carry the merged source sample
+  count, added non-translation frame count, and source start/end frames into
+  the live `[world] camera source path frame pair` row, so each suspicious
+  path angle can be checked against the exact source page span used to build
+  the camera keys.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures

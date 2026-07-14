@@ -198,6 +198,11 @@ class Gameplay {
     bool has_path_anim = false;
     std::string path_trans_target;
     bool has_path_trans_target = false;
+    size_t path_source_sample_frames = 0;
+    size_t path_source_added_frames = 0;
+    float path_source_start_frame = 0.0f;
+    float path_source_end_frame = 0.0f;
+    bool has_path_source_frame_summary = false;
     float path_base_eye[3] = {};
     float path_base_forward[3] = {0.0f, 1.0f, 0.0f};
     float path_base_up[3] = {0.0f, 0.0f, 1.0f};

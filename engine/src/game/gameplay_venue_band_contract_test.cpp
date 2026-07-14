@@ -8334,6 +8334,13 @@ int main() {
                  "std::stringpath_trans_target;boolhas_path_trans_target=false;",
                  "CameraKey preserves source RndTransAnim mTrans target refs");
   ok &= contains(gameplay_h_c,
+                 "size_tpath_source_sample_frames=0;"
+                 "size_tpath_source_added_frames=0;"
+                 "floatpath_source_start_frame=0.0f;"
+                 "floatpath_source_end_frame=0.0f;"
+                 "boolhas_path_source_frame_summary=false;",
+                 "CameraKey preserves source RndTransAnim key-page frame summary");
+  ok &= contains(gameplay_h_c,
                  "floatpath_base_eye[3]={};"
                  "floatpath_base_forward[3]={0.0f,1.0f,0.0f};"
                  "floatpath_base_up[3]={0.0f,0.0f,1.0f};"
@@ -8483,6 +8490,13 @@ int main() {
                  "pos.path_trans_target=resolved.trans;"
                  "pos.has_path_trans_target=true;",
                  "path-backed camera positions retain source RndTransAnim mTrans");
+  ok &= contains(gameplay_c,
+                 "pos.path_source_sample_frames=sample_frames.size();"
+                 "pos.path_source_added_frames=added_source_frames;"
+                 "pos.path_source_start_frame=sample_frames.front();"
+                 "pos.path_source_end_frame=sample_frames.back();"
+                 "pos.has_path_source_frame_summary=true;",
+                 "path-backed camera positions retain source RndTransAnim start/end and merged frame counts");
   ok &= contains(gameplay_c,
                  "source_sample_frames=%zuadded_source_frames=%zu",
                  "camera path diagnostics expose merged source sample-frame counts");
@@ -10266,6 +10280,8 @@ int main() {
                  "a_submitted_frame=%s%.3fb_submitted_frame=%s%.3f"
                  "a_path_frame=%s%.3fb_path_frame=%s%.3f"
                  "a_legacy_path_frame=%s%.3fb_legacy_path_frame=%s%.3f"
+                 "source_start_frame=%s%.3fsource_end_frame=%s%.3f"
+                 "source_sample_frames=%s%zuadded_source_frames=%s%zu"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
                  "route=regular_camera_path_keyspath=%s"
                  "path_trans_target=%s"
