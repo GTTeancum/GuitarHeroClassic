@@ -5880,16 +5880,28 @@ fragments. This prevents a visually plausible viewer frame from being accepted
 when its final rows were produced without the same live target or clip stack.
 
 2026-07-14 full-body viewer/gameplay diff:
-`engine/out/visual_proofs/viewer_ingame_diff_fullbody_20260714/` recaptures
-the same Trogdor/small2/Rockabill2 frame with compact lower-body rows added to
-the diagnostic pose dump. The accepted manifest case
+`engine/out/visual_proofs/leg_viewer_ingame_20260714/` recaptures the same
+Trogdor/small2/Rockabill2 frame with compact lower-body rows extended through
+both ankles. The accepted manifest case
 `rockabill2_live_target_fullbody_match` compares pelvis, both thighs, both
-knees, both toes, spine, neck, head, arms, and twist rows across the fresh
-in-game and direct-viewer logs. It passes 112 rows with `max_delta=0.000000`
-when the viewer is fed the same live `spot_neck_fret11.mesh` target and player
-stack. This does not prove the authored pose is final-correct against PS2; it
-does prove the viewer and gameplay are now evaluating the same decoded pose for
-the visible leg/foot-angle question at this frame.
+knees, both ankles, both toes, spine, neck, head, arms, and twist rows across
+the fresh in-game and direct-viewer logs. It passes 120 rows with
+`max_delta=0.000000` when the viewer is fed the same live
+`spot_neck_fret11.mesh` target and player stack. Rockabill2's compact
+guitarist proof rows report `bone_L-foot` and `bone_R-foot` as missing, so the
+accepted lower-body chain for this comparison is ankle plus toe, not a hidden
+foot row. This does not prove the authored pose is final-correct against PS2;
+it does prove the viewer and gameplay are now evaluating the same decoded pose
+for the visible leg/foot-angle question at this frame.
+
+The same proof folder keeps a rejected one-frame-late in-game capture:
+`ingame_rockabill2_t060_flr_near_rt01_legfull.log` landed on the next
+half-frame (`stand_fast_03@5.000`) and mismatched the viewer by up to
+`max_delta=0.615600` on the lower body. The accepted
+`ingame_rockabill2_t060_flr_near_rt01_legfull_f8.log` lands on
+`stand_fast_03@4.500` / `strum_short_02@0.000`, matching the viewer screenshot
+boundary. Future leg proofs must check the layer fragments before treating a
+viewer/gameplay visual difference as pose decoding evidence.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current

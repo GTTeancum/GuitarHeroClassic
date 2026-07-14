@@ -32493,6 +32493,12 @@ int run_contract() {
                  "dump(\"bone_L-thigh\");",
                  "arm pose trace includes left thigh for full-body diffs");
   ok &= contains(char_clip,
+                 "dump(\"bone_L-ankle\");",
+                 "arm pose trace includes left ankle for leg/foot diffs");
+  ok &= contains(char_clip,
+                 "dump(\"bone_R-ankle\");",
+                 "arm pose trace includes right ankle for leg/foot diffs");
+  ok &= contains(char_clip,
                  "dump(\"bone_R-toe\");",
                  "arm pose trace includes right toe for leg/foot diffs");
   ok &= contains(char_clip,
@@ -33472,11 +33478,21 @@ int run_contract() {
                  "\"rockabill2_live_target_fullbody_match\"",
                  "arm pose diff manifest records full-body live-target proof");
   ok &= contains(arm_pose_diff_manifest,
-                 "\"bone_L-thigh\",\"bone_L-knee\",\"bone_L-toe\"",
+                 "\"bone_L-thigh\",\"bone_L-knee\",\"bone_L-ankle\","
+                 "\"bone_L-toe\"",
                  "arm pose diff manifest covers left leg rows");
   ok &= contains(arm_pose_diff_manifest,
-                 "\"bone_R-thigh\",\"bone_R-knee\",\"bone_R-toe\"",
+                 "\"bone_R-thigh\",\"bone_R-knee\",\"bone_R-ankle\","
+                 "\"bone_R-toe\"",
                  "arm pose diff manifest covers right leg rows");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[armpose]char=rockabill2controllers-postbone_L-foot"
+                 "missing\"",
+                 "arm pose diff manifest records missing left foot row");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[armpose]char=rockabill2controllers-postbone_R-foot"
+                 "missing\"",
+                 "arm pose diff manifest records missing right foot row");
   ok &= contains(arm_pose_diff_manifest,
                  "\"rockabill2_missing_midi_target_control\"",
                  "arm pose diff manifest records missing-target negative control");
@@ -33560,8 +33576,17 @@ int run_contract() {
                  "rockabill2_live_target_fullbody_match",
                  "document records full-body viewer/gameplay diff proof");
   ok &= contains(doc,
-                 "passes 112 rows with `max_delta=0.000000`",
+                 "passes 120 rows with\n`max_delta=0.000000`",
                  "document records full-body diff result");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/leg_viewer_ingame_20260714/`",
+                 "document records leg viewer/gameplay proof folder");
+  ok &= contains(doc,
+                 "`bone_L-foot` and `bone_R-foot` as missing",
+                 "document records missing Rockabill2 compact foot rows");
+  ok &= contains(doc,
+                 "`max_delta=0.615600` on the lower body",
+                 "document records rejected one-frame-late leg proof");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

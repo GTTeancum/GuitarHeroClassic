@@ -5595,10 +5595,12 @@ static void dump_leg_pose(const Character& character) {
   dump("bone_pelvis");
   dump("bone_L-thigh");
   dump("bone_L-knee");
+  dump("bone_L-ankle");
   dump("bone_L-foot");
   dump("bone_L-toe");
   dump("bone_R-thigh");
   dump("bone_R-knee");
+  dump("bone_R-ankle");
   dump("bone_R-foot");
   dump("bone_R-toe");
 }
@@ -5655,9 +5657,13 @@ static void dump_arm_pose(const Character& character, const char* tag) {
   dump("bone_pelvis");
   dump("bone_L-thigh");
   dump("bone_L-knee");
+  dump("bone_L-ankle");
+  dump("bone_L-foot");
   dump("bone_L-toe");
   dump("bone_R-thigh");
   dump("bone_R-knee");
+  dump("bone_R-ankle");
+  dump("bone_R-foot");
   dump("bone_R-toe");
   dump("bone_spine1");
   dump("bone_spine2");
