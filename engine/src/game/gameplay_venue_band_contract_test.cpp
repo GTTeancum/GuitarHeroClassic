@@ -8508,6 +8508,18 @@ int main() {
                  "for(constauto&key:anim.scale_keys)add_frame(key.frame);",
                  "path-backed TransAnim camera sampling keeps rotation-only and scale-only source frames");
   ok &= contains(gameplay_c,
+                 "boolcamera_path_transanim_has_source_keys("
+                 "constDecodedRndTransAnim&anim){"
+                 "return!anim.trans_keys.empty()||!anim.rot_keys.empty()||"
+                 "!anim.scale_keys.empty();}",
+                 "path-backed TransAnim camera validity accepts all source key pages");
+  ok &= contains(gameplay_c,
+                 "returncamera_path_transanim_has_source_keys(anim);",
+                 "path-backed TransAnim camera owner resolution accepts rotation-only and scale-only keys");
+  ok &= contains(gameplay_c,
+                 "if(!camera_path_transanim_has_source_keys(resolved))returnout;",
+                 "path-backed TransAnim camera loading does not require translation keys");
+  ok &= contains(gameplay_c,
                  "std::optional<DecodedRndTransAnim>read_rnd_transanim_like_miloeditor(",
                  "path-backed TransAnim camera positions use the source-shaped RndTransAnim reader");
   ok &= contains(gameplay_h_c,

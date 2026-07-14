@@ -2081,6 +2081,11 @@ std::vector<float> source_rnd_transanim_sample_frames(
     return frames;
 }
 
+bool camera_path_transanim_has_source_keys(const DecodedRndTransAnim& anim) {
+    return !anim.trans_keys.empty() || !anim.rot_keys.empty() ||
+           !anim.scale_keys.empty();
+}
+
 void copy_camera_path_transanim_keys_from_owner(DecodedRndTransAnim& anim,
                                                 const DecodedRndTransAnim& owner) {
     anim.trans_keys = owner.trans_keys;
@@ -2104,7 +2109,7 @@ bool resolve_camera_path_transanim_owner(
     if (anim.keys_owner.empty()) anim.keys_owner = name;
     const std::string owner_name = canonical_milo_ref(anim.keys_owner);
     if (owner_name.empty() || owner_name == name) {
-        return !anim.trans_keys.empty();
+        return camera_path_transanim_has_source_keys(anim);
     }
     if (!visiting.insert(name).second) return false;
     const auto owner_it = transanim_decodes.find(owner_name);
@@ -2115,7 +2120,7 @@ bool resolve_camera_path_transanim_owner(
                          name.c_str(), owner_name.c_str());
         }
         visiting.erase(name);
-        return !anim.trans_keys.empty();
+        return camera_path_transanim_has_source_keys(anim);
     }
     resolve_camera_path_transanim_owner(transanim_decodes, owner_name,
                                         visiting);
@@ -2131,7 +2136,7 @@ bool resolve_camera_path_transanim_owner(
             anim.rot_slerp ? 1 : 0, anim.rot_spline ? 1 : 0);
     }
     visiting.erase(name);
-    return !anim.trans_keys.empty();
+    return camera_path_transanim_has_source_keys(anim);
 }
 
 Gameplay::CameraKey::TargetRef read_camshot_subpart_like_miloeditor(
@@ -10118,7 +10123,7 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
         resolve_camera_path_transanim_owner(transanim_decodes, anim_ref,
                                             visiting);
         auto& resolved = anim_it->second;
-        if (resolved.trans_keys.empty()) return out;
+        if (!camera_path_transanim_has_source_keys(resolved)) return out;
         const std::vector<float> sample_frames =
             source_rnd_transanim_sample_frames(resolved);
         out.reserve(sample_frames.size());

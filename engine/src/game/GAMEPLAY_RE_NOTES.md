@@ -11300,6 +11300,14 @@ Rejected native probe:
   rotation with the resolved `rot_slerp` flag. This preserves authored
   rotation-only frames such as `Camera03.tnm` instead of sampling rotation
   only at translation key times.
+- 2026-07-14 path-backed TransAnim owner key-page validity:
+  ihatecompvir `RndTransAnim` exposes translation, rotation, and scale keys
+  through the same `mKeysOwner` accessors, and `StartFrame()` / `EndFrame()`
+  treat all three pages as source animation data. Native path owner resolution
+  and loading now accept an anim with any of those source key pages instead of
+  requiring translation keys before the merged-frame sampler can run. This is
+  a generic source-validity rule for path cameras, not a `Camera03.tnm`
+  one-off.
 - 2026-07-14 path-backed TransAnim target proof:
   ihatecompvir `RndTransAnim::Load` reads `mTrans` before the key pages and
   `RndTransAnim::SetFrame` only applies the sampled transform when `mTrans`
