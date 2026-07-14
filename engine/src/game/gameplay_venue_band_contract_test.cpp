@@ -8143,6 +8143,14 @@ int main() {
                  "floatsource_path_submitted_frame=0.0f;"
                  "boolhas_source_path_frame_mapping=false;",
                  "CameraKey carries source-to-TransAnim path frame mapping diagnostics");
+  ok &= contains(gameplay_h_c,
+                 "floatsource_frame_local_frame=0.0f;"
+                 "floatsource_frame_key_start_frame=0.0f;"
+                 "floatsource_frame_duration_frames=0.0f;"
+                 "floatsource_frame_blend_frames=0.0f;"
+                 "floatsource_frame_key_blend=0.0f;"
+                 "boolhas_source_frame_mapping=false;",
+                 "CameraKey carries source CamShot SetFrame keyBlend diagnostics");
   ok &= contains(gameplay_c,
                  "if(shot.revision>0x0b&&shot.revision<0x2a)"
                  "shot.old_crowd_sym=r.symbol();",
@@ -10022,6 +10030,14 @@ int main() {
                  "*key,song_time_,active_regular_camera_start_,&chart_);",
                  "non-path regular CamShots use source frame-pair timing");
   ok &= contains(gameplay_c,
+                 "key.source_frame_local_frame=local_frame;"
+                 "key.source_frame_key_start_frame=cursor;"
+                 "key.source_frame_duration_frames=duration;"
+                 "key.source_frame_blend_frames=blend;"
+                 "key.source_frame_key_blend=key_blend;"
+                 "key.has_source_frame_mapping=true;",
+                 "regular CamShot frame-pair keys carry source SetFrame local timing");
+  ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fanim_rate=%dfpu=%.1f"
@@ -10056,8 +10072,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframepair:shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"
-                 "route=regular_camera_source_frame_keys\\n\"",
-                 "regular camera diagnostics prove source frame-pair submission");
+                 "source_local_frame=%s%.3fsource_key_start=%s%.3f"
+                 "source_duration=%s%.3fsource_blend=%s%.3f"
+                 "key_blend=%s%.3feased_key_blend=%s%.3f"
+                 "route=regular_camera_source_frame_keys"
+                 "source_locals=CamShot::SetFrame(prev,next,keyBlend)\\n\"",
+                 "regular camera diagnostics prove source frame-pair keyBlend submission");
   ok &= contains(gameplay_c,
                  "if(source_frame_key_route&&selected_camera.size()>=2&&",
                  "source frame-pair diagnostics remain limited to non-path CamShot frame timing");

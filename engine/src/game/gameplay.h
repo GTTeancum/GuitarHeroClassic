@@ -205,6 +205,12 @@ class Gameplay {
     float source_path_authored_frame = 0.0f;
     float source_path_submitted_frame = 0.0f;
     bool has_source_path_frame_mapping = false;
+    float source_frame_local_frame = 0.0f;
+    float source_frame_key_start_frame = 0.0f;
+    float source_frame_duration_frames = 0.0f;
+    float source_frame_blend_frames = 0.0f;
+    float source_frame_key_blend = 0.0f;
+    bool has_source_frame_mapping = false;
     float generated_source_position[3] = {};
     float generated_source_forward[3] = {0.0f, 1.0f, 0.0f};
     float generated_source_up[3] = {0.0f, 0.0f, 1.0f};

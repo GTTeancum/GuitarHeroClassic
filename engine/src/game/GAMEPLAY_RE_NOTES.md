@@ -10893,6 +10893,12 @@ Rejected native probe:
   `post_switch_cam` stepping. The source contract still forbids the removed
   `[world] post_switch_cam:` row while pinning the new manager-cadence and
   frame-pair diagnostics.
+- 2026-07-14 follow-up: the non-path `camera source frame pair` row now carries
+  the source-local key start, key duration, blend window, raw `keyBlend`, and
+  eased `keyBlend` used by the outgoing frame. This mirrors the recovered
+  `CamShot::SetFrame` local shape (`prev`, `next`, `keyBlend`) and keeps
+  questionable camera angles auditable against the exact source frame-pair
+  timing before any hidden pose-body work is inferred.
 - 2026-07-13 follow-up: the GH2 world script's `beat` handler also updates
   `[camera_beat]` and calls `{world current_shot} check_shot`; `camshot.dta`
   routes that to native `cam_check_shot`. Native now tracks the source beat

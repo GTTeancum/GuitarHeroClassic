@@ -15898,10 +15898,20 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
         const float span = duration + blend;
         if (span <= 0.001f) continue;
         if (local_frame <= cursor + span || i + 1 == frames.size()) {
+            auto stamp_source_frame_mapping =
+                [&](Gameplay::CameraKey& key, float key_blend) {
+                    key.source_frame_local_frame = local_frame;
+                    key.source_frame_key_start_frame = cursor;
+                    key.source_frame_duration_frames = duration;
+                    key.source_frame_blend_frames = blend;
+                    key.source_frame_key_blend = key_blend;
+                    key.has_source_frame_mapping = true;
+                };
             const float in_key = std::max(0.0f, local_frame - cursor);
             if (in_key < duration || blend <= 0.001f) {
                 Gameplay::CameraKey hold = cur;
                 hold.frame = now_frame;
+                stamp_source_frame_mapping(hold, 0.0f);
                 return {hold};
             }
             const bool can_wrap =
@@ -15912,6 +15922,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             if (next_index == i) {
                 Gameplay::CameraKey hold = cur;
                 hold.frame = now_frame;
+                stamp_source_frame_mapping(hold, 0.0f);
                 return {hold};
             }
             const float t =
@@ -15920,6 +15931,8 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             Gameplay::CameraKey b = frames[next_index];
             a.frame = now_frame - t;
             b.frame = now_frame + (1.0f - t);
+            stamp_source_frame_mapping(a, t);
+            stamp_source_frame_mapping(b, t);
             return {a, b};
         }
         cursor += span;
@@ -31322,13 +31335,48 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                     if (source_frame_key_route && selected_camera.size() >= 2 &&
                         active_camera_frame_pair_reported_ != key->name) {
+                        const CameraKey& a_key = selected_camera[0];
+                        const CameraKey& b_key = selected_camera[1];
+                        const bool has_frame_mapping =
+                            a_key.has_source_frame_mapping &&
+                            b_key.has_source_frame_mapping;
+                        const float source_key_blend =
+                            has_frame_mapping ? a_key.source_frame_key_blend
+                                              : 0.0f;
+                        const float source_eased_key_blend =
+                            has_frame_mapping
+                                ? camshot_blend_ease_t(
+                                      source_key_blend, a_key.blend_ease,
+                                      a_key.blend_ease_mode)
+                                : 0.0f;
+                        auto frame_mapping_prefix =
+                            [has_frame_mapping]() {
+                                return has_frame_mapping ? "" : "none/";
+                            };
                         active_camera_frame_pair_reported_ = key->name;
                         std::fprintf(
                             stderr,
-                            "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f route=regular_camera_source_frame_keys\n",
+                            "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f route=regular_camera_source_frame_keys source_locals=CamShot::SetFrame(prev,next,keyBlend)\n",
                             key->name.c_str(), local_frame,
-                            selected_camera.size(), selected_camera[0].frame,
-                            selected_camera[1].frame);
+                            selected_camera.size(), a_key.frame,
+                            b_key.frame, frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? a_key.source_frame_local_frame
+                                : 0.0f,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? a_key.source_frame_key_start_frame
+                                : 0.0f,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? a_key.source_frame_duration_frames
+                                : 0.0f,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? a_key.source_frame_blend_frames
+                                : 0.0f,
+                            frame_mapping_prefix(), source_key_blend,
+                            frame_mapping_prefix(), source_eased_key_blend);
                     }
                     if (!source_frame_key_route && key->has_path_anim &&
                         selected_camera.size() >= 2 &&
