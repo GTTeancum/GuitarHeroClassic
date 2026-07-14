@@ -8750,6 +8750,19 @@ int main() {
                  "active_camera_fov_anim_refs_=std::move(fov_anims);",
                  "camera StartAnim keeps resolved CamAnim refs for shot-scoped SetFrame");
   ok &= contains(gameplay_c,
+                 "constboolsource_camera_manager_shot="
+                 "!active_regular_camera_.empty()&&"
+                 "active_regular_camera_==runtime_name;",
+                 "linked RndCamAnim FOV tracks distinguish source CameraManager shots from intro runtime");
+  ok &= contains(gameplay_c,
+                 "active_camera_anim_start_time_=source_camera_manager_shot?"
+                 "active_regular_camera_start_:song_time_;",
+                 "linked RndCamAnim FOV tracks use the CameraManager StartShot_ source start for regular CamShots");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraStartAnimfov_clock:"
+                 "source_msg=start_shotshot=%s",
+                 "linked RndCamAnim diagnostics expose the source FOV clock start");
+  ok &= contains(gameplay_c,
                  "voidGameplay::apply_active_camera_fov_anims("
                  "ghogx::render::OrbitCamera&cam,constCameraKey&key)",
                  "runtime applies active linked RndCamAnim FOV tracks");
@@ -8764,6 +8777,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "constfloatframe=static_cast<float>(units*fpu);",
                  "linked RndCamAnim SetFrame receives the source frame units");
+  ok &= contains(gameplay_c,
+                 "constfloatshot_local_frame=camera_source_local_frame("
+                 "key,song_time_,active_camera_anim_start_time_,&chart_);",
+                 "linked RndCamAnim diagnostics compare FOV frame to the owning CamShot source-local frame");
   ok &= contains(gameplay_c,
                  "if(anim.cam.empty()){",
                  "linked RndCamAnim SetFrame mirrors the source mCam gate");
@@ -8799,6 +8816,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_blend_rule=current_to_sampled_when_not_one",
                  "linked RndCamAnim diagnostics name the source non-1 blend behavior");
+  ok &= contains(gameplay_c,
+                 "source_start=%.3fsource_elapsed=%.3fsource_units=%.3f"
+                 "shot_local_frame=%.3f",
+                 "linked RndCamAnim diagnostics expose the source clock used for FOV sampling");
   ok &= contains(gameplay_c,
                  "anim.end_offset=r.pos;if(r.pos!=r.size)",
                  "source-shaped RndTransAnim reader must consume the whole asset");

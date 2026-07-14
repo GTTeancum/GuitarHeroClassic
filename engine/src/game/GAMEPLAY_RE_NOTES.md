@@ -318,6 +318,14 @@ Open work:
   and then multiplying by the decoded anim frames-per-unit before sampling
   `FovKeys().AtFrame(...)`. This is a contract/audit guard for keyed CamAnim
   FOV rows, not a fabricated angle correction.
+- 2026-07-14 linked `RndCamAnim` source-start alignment: regular CamShot
+  linked FOV tracks now initialize `active_camera_anim_start_time_` from the
+  source `CameraManager::StartShot_` start (`active_regular_camera_start_`)
+  instead of raw draw `song_time_`; intro/runtime-only camera startup still
+  uses the current song time. The live `camera RndCamAnim SetFrame` proof rows
+  now print source start, elapsed time, task units, and the owning CamShot
+  local frame so suspect FOV timing can be separated from path/result pose
+  mismatches.
 - 2026-07-14 linked `RndCamAnim` runtime key-owner proof:
   ihatecompvir `RndCamAnim::FovKeys()` returns `mKeysOwner->mFovKeys`, and
   native load already resolves owner-backed FOV pages before runtime sampling.

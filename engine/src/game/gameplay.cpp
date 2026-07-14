@@ -23766,7 +23766,12 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
     }
 
     active_camera_anim_event_ = camera_anim_event_name(runtime_name);
-    active_camera_anim_start_time_ = song_time_;
+    const bool source_camera_manager_shot =
+        !active_regular_camera_.empty() &&
+        active_regular_camera_ == runtime_name;
+    active_camera_anim_start_time_ = source_camera_manager_shot
+                                         ? active_regular_camera_start_
+                                         : song_time_;
     active_camera_fov_anim_refs_ = std::move(fov_anims);
     active_camera_fov_anim_reported_.clear();
     size_t resolved = 0;
@@ -23787,6 +23792,16 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
             runtime_name.c_str(), active_camera_anim_event_.c_str(),
             key.camera_anim_refs.size(), resolved,
             active_camera_fov_anim_refs_.size(), unsupported.size());
+        if (!active_camera_fov_anim_refs_.empty()) {
+            std::fprintf(
+                stderr,
+                "[world] camera StartAnim fov_clock: source_msg=start_shot shot=%s source_manager=%s start_time=%.3f song_time=%.3f refs=%zu\n",
+                runtime_name.c_str(),
+                source_camera_manager_shot ? "CameraManager::StartShot_"
+                                           : "native_intro_runtime",
+                active_camera_anim_start_time_, song_time_,
+                active_camera_fov_anim_refs_.size());
+        }
         for (const auto& ref : unsupported) {
             std::fprintf(stderr,
                          "[world] camera StartAnim unsupported anim ref: %s\n",
@@ -23809,6 +23824,8 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
         const double units = venue_anim_time_units(
             anim.anim_rate, active_camera_anim_start_time_, elapsed, &chart_);
         const float frame = static_cast<float>(units * fpu);
+        const float shot_local_frame = camera_source_local_frame(
+            key, song_time_, active_camera_anim_start_time_, &chart_);
         if (anim.cam.empty()) {
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 const std::string report_key =
@@ -23817,10 +23834,11 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                     active_camera_fov_anim_reported_.insert(report_key);
                     std::fprintf(
                         stderr,
-                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0\n",
+                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0 source_start=%.3f source_elapsed=%.3f source_units=%.3f shot_local_frame=%.3f\n",
                         key.name.c_str(), anim.name.c_str(),
                         anim.keys_owner.c_str(), frame, anim.anim_rate, fpu,
-                        anim.fov_keys.size());
+                        anim.fov_keys.size(), active_camera_anim_start_time_,
+                        elapsed, units, shot_local_frame);
                 }
             }
             continue;
@@ -23844,12 +23862,13 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                 active_camera_fov_anim_reported_.insert(report_key);
                 std::fprintf(
                     stderr,
-                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one\n",
+                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one source_start=%.3f source_elapsed=%.3f source_units=%.3f shot_local_frame=%.3f\n",
                     key.name.c_str(), anim.name.c_str(),
                     anim.keys_owner.c_str(), anim.cam.c_str(), frame,
                     anim.anim_rate, fpu, cam.fov, sampled_fov, previous_fov,
                     anim.fov_keys.size(),
-                    source_setframe_blend);
+                    source_setframe_blend, active_camera_anim_start_time_,
+                    elapsed, units, shot_local_frame);
             }
         }
     }
