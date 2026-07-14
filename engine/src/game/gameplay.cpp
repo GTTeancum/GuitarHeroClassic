@@ -20156,6 +20156,20 @@ void camera_unset_shake_like_no_current_camshot(
     cam.shake_max_angular_offset[1] = 0.0f;
 }
 
+void camera_apply_camshot_shake_boundary_like_source(
+    ghogx::render::OrbitCamera& cam,
+    bool has_shake_fields,
+    float shake_noise_amp,
+    float shake_noise_freq,
+    float max_angular_offset_x,
+    float max_angular_offset_y) {
+    cam.shake_active = has_shake_fields;
+    cam.shake_noise_amp = shake_noise_amp;
+    cam.shake_noise_freq = shake_noise_freq;
+    cam.shake_max_angular_offset[0] = max_angular_offset_x;
+    cam.shake_max_angular_offset[1] = max_angular_offset_y;
+}
+
 std::optional<std::array<float, 3>> camera_entity_only_target_alias_centroid(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
@@ -20544,11 +20558,6 @@ void apply_camera_keys(
     const float max_angular_offset_y = lerp_camshot_frame_field(
         a->has_shake_fields, a->max_angular_offset[1], b->has_shake_fields,
         b->max_angular_offset[1], 0.0f);
-    cam.shake_active = has_shake_fields;
-    cam.shake_noise_amp = shake_noise_amp;
-    cam.shake_noise_freq = shake_noise_freq;
-    cam.shake_max_angular_offset[0] = max_angular_offset_x;
-    cam.shake_max_angular_offset[1] = max_angular_offset_y;
     const float sx_a = a->has_screen_offset ? a->screen_offset[0] : 0.0f;
     const float sy_a = a->has_screen_offset ? a->screen_offset[1] : 0.0f;
     const float sx_b = b->has_screen_offset ? b->screen_offset[0] : 0.0f;
@@ -20902,6 +20911,9 @@ void apply_camera_keys(
     }
     submitted_result = camera_source_setframe_blend_result_rows(
         source_previous_frame, submitted_result, source_poll_blend);
+    camera_apply_camshot_shake_boundary_like_source(
+        cam, has_shake_fields, shake_noise_amp, shake_noise_freq,
+        max_angular_offset_x, max_angular_offset_y);
     apply_camera_result_frame(cam, submitted_result);
     if (submitted_ps2_projection_candidate || submitted_ps2_matrix_candidate) {
         const auto eval_a = evaluate_retained_ps2_source_record_trace_context(*a);
@@ -21043,6 +21055,16 @@ void apply_camera_keys(
         const auto screen_norm =
             camshot_result_screen_norm_for_offset(cam.screen_offset[0],
                                                   cam.screen_offset[1]);
+        std::fprintf(
+            stderr,
+            "[world] camera Shake: source_class=CamShot source_call=CamShot::Shake "
+            "source_order=after_SetFrame_blend_before_SetLocalXfm shot_a=%s shot_b=%s "
+            "local_frame=%.3f key_blend=%.3f eased_key_blend=%.3f active=%d "
+            "amp=%.3f freq=%.3f max_ang=(%.3f %.3f) source_outputs=output,eulerOutput "
+            "rb2_dump=locals_only native_motion=not_synthesized\n",
+            a->name.c_str(), b->name.c_str(), frame, t, interp_t,
+            cam.shake_active ? 1 : 0, shake_noise_amp, shake_noise_freq,
+            max_angular_offset_x, max_angular_offset_y);
         const auto a_screen_norm = camshot_result_screen_norm_for_key(*a);
         const auto b_screen_norm = camshot_result_screen_norm_for_key(*b);
         const auto target_candidate_a =

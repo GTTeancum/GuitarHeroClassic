@@ -10595,6 +10595,23 @@ int main() {
                  "cam.shake_noise_amp=shake_noise_amp;",
                  "runtime camera carries interpolated source CamShot shake state");
   ok &= contains(gameplay_c,
+                 "voidcamera_apply_camshot_shake_boundary_like_source("
+                 "ghogx::render::OrbitCamera&cam,boolhas_shake_fields,",
+                 "runtime camera names the ihatecompvir CamShot::Shake boundary");
+  ok &= contains(gameplay_c,
+                 "camera_apply_camshot_shake_boundary_like_source(cam,"
+                 "has_shake_fields,shake_noise_amp,shake_noise_freq,",
+                 "CamShot shake fields are applied at the source boundary before SetLocalXfm");
+  ok &= contains(gameplay_c,
+                 "source_call=CamShot::Shake",
+                 "camera Shake diagnostics expose the source call");
+  ok &= contains(gameplay_c,
+                 "source_order=after_SetFrame_blend_before_SetLocalXfm",
+                 "camera Shake diagnostics expose the source call order");
+  ok &= contains(gameplay_c,
+                 "rb2_dump=locals_onlynative_motion=not_synthesized",
+                 "camera Shake diagnostics avoid fabricating hidden motion math");
+  ok &= contains(gameplay_c,
                  "voidcamera_unset_shake_like_no_current_camshot("
                  "ghogx::render::OrbitCamera&cam)",
                  "runtime camera exposes no-current CamShot shake clear");

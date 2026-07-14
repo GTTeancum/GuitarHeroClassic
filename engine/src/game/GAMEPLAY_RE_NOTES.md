@@ -11435,6 +11435,17 @@ Rejected native probe:
   Native now mirrors that backfill into decoded `CameraKey` shake fields. This
   still does not synthesize hidden `CamShot::Shake` noise motion; it only
   preserves the source-loaded values for runtime/proof.
+- 2026-07-14 CamShot shake boundary proof:
+  ihatecompvir `CamShotFrame::Interp` interpolates the shake amp/freq/max-angle
+  fields after the SetFrame world-transform blend, calls
+  `CamShot::Shake(freq, amp, maxAng, output, eulerOutput)`, applies those local
+  shake offsets, and only then calls `cam->SetLocalXfm(tf130)`. Native now
+  routes the carried shake fields through
+  `camera_apply_camshot_shake_boundary_like_source(...)` immediately before the
+  native result frame is applied, and emits a `[world] camera Shake` proof row
+  naming `source_order=after_SetFrame_blend_before_SetLocalXfm`. The RB2 dump
+  names the function signature and locals but not a trustworthy statement body,
+  so native still does not synthesize `CamShot::Shake` translation/rotation.
 
 - 2026-07-13 CamShot DOF focus distance:
   ihatecompvir `CamShotFrame::Interp` gates DOF on the shot-level
