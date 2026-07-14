@@ -243,8 +243,9 @@ Community metadata Rosetta:
   needed to populate the runtime point collide list. Native therefore logs
   decoded stiffness, inertia, gravity, weight, friction, strand roots, point
   bones, segment lengths, legacy inline collision names/types, `unk5c` rows,
-  and source poll/reset/sim status, but keeps point `runtimeWriteback=0` until
-  that exact hookup path is ported.
+  source poll/reset/sim status, directory `CharCollide` inventory, and whether
+  the missing hookup overload body is available, but keeps point
+  `runtimeWriteback=0` until that exact hookup path is ported.
 - Historical `GHOGX_ENABLE_CHAR_HAIR_PROBE=1` and `GHOGX_DISABLE_CHAR_HAIR=1`
   captures remain useful rejected evidence, but those gates are not current
   runtime controls. `GHOGX_DEBUG_CHAR_HAIR=1` logs decoded source rows plus the
@@ -5147,5 +5148,7 @@ Viewer hand-overlay validation:
   `yaw90_pitch0.png` side proof shows the belt chain floating. Its log decodes
   `chain.hair` with `bone_chain01.mesh` through `bone_chain03.mesh`, legacy
   inline collision rows aimed at `bone_R-thigh.mesh`, and
-  `runtimeWriteback=0` / `resolvedPointCollides=0`; keep this as a CharHair
-  hookup/writeback source gap, not a static chain-offset fix.
+  `runtimeWriteback=0` / `resolvedPointCollides=0`; newer debug logs also
+  distinguish `dirCollides` from legacy inline points and report
+  `missingHookupOverloadBody=1`. Keep this as a CharHair hookup/writeback
+  source gap, not a static chain-offset fix.

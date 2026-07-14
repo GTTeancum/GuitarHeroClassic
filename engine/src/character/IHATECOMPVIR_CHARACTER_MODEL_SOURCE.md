@@ -2459,7 +2459,11 @@ note, and all report `unreadBytes=0`.
     directory, and the `CharCollide` shape/radius header plus load path. Native
     `source_char_hair_hookup_plan` ports the managed-hookup early return and
     directory collide collection order, then records that the overloaded hookup
-    would be called. However, the overloaded
+    would be called. Runtime `CharHair` state now records the collected
+    directory `CharCollide` names and the count of decoded GH2 legacy inline
+    point-collision rows so proof logs can distinguish "no source collides in
+    this MILO" from "collides collected but point membership unresolved."
+    However, the overloaded
     `Hookup(ObjPtrList<CharCollide>&)` body is still declared but not
     implemented in the checked source. Native GHOGX therefore runs the checked
     source poll/reset/sim state path for persistent point position, force,
@@ -5523,10 +5527,12 @@ source-authored dynamic row, not a loose rigid accessory: it resolves
 `bone_R-thigh.mesh`, and polls the ihatecompvir `CharHair::Poll` /
 `DoReset` / `SimulateInternal` path. The same log still reports
 `runtimeWriteback=0`, `resolvedPointCollides=0`,
-`missingHookupObjPtrList=1`, and `zeroTimeBodyAvailable=0`, so the visible
+`dirCollides=0`, nonzero `legacyInlinePoints`,
+`missingHookupOverloadBody=1`, and `zeroTimeBodyAvailable=0`, so the visible
 floating chain is a remaining CharHair hookup/collision/writeback publisher
-gap. Do not hide it with a Rockabill2-specific chain offset or static mesh
-placement patch.
+gap. The source-visible ObjPtrList collection is now logged; point collide
+membership is still not guessed. Do not hide it with a Rockabill2-specific
+chain offset or static mesh placement patch.
 
 2026-07-14 soft-green camera scout: the direct-app proof in
 `engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` captures

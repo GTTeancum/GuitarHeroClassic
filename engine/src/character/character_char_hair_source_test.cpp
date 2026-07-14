@@ -65,6 +65,7 @@ bool expect_string(const std::string& got, const std::string& want,
 
 int main() {
   using ghogx::character::Character;
+  using ghogx::character::CharCollide;
   using ghogx::character::CharHair;
   using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_hair_enter_plan;
@@ -1212,6 +1213,9 @@ int main() {
   Character inline_collision_character;
   add_trans(inline_collision_character, make_trans("parent"));
   add_trans(inline_collision_character, make_trans("root", "parent"));
+  CharCollide inline_dir_collide;
+  inline_dir_collide.name = "source_dir.collide";
+  inline_collision_character.collides.push_back(inline_dir_collide);
   CharHair inline_collision_hair;
   inline_collision_hair.name = "inline_collision.hair";
   inline_collision_hair.simulate = true;
@@ -1229,6 +1233,27 @@ int main() {
           inline_collision_character.runtime_world_overrides.end(),
       false,
       "legacy inline rows do not publish CharHair bone transforms");
+  const auto runtime_state =
+      inline_collision_character.source_char_hair_runtime.find(
+          "inline_collision.hair");
+  ok &= expect_bool(runtime_state !=
+                        inline_collision_character.source_char_hair_runtime.end(),
+                    true, "CharHair runtime state records source hookup");
+  if (runtime_state !=
+      inline_collision_character.source_char_hair_runtime.end()) {
+    ok &= expect_bool(runtime_state->second.hookup_collected_from_object_dir,
+                      true, "CharHair runtime collects dir collides");
+    ok &= expect_bool(
+        runtime_state->second.hookup_overload_body_statement_visible, false,
+        "CharHair runtime keeps missing Hookup overload fenced");
+    ok &= expect_int(runtime_state->second.legacy_inline_point_count, 1,
+                     "CharHair runtime counts legacy inline points");
+    ok &= expect_size(runtime_state->second.hookup_collides.size(), 1,
+                      "CharHair runtime records source dir collide count");
+    ok &= expect_string(runtime_state->second.hookup_collides[0],
+                        "source_dir.collide",
+                        "CharHair runtime records source dir collide name");
+  }
 
   const auto hookup_dump = source_char_hair_hookup_dump_evidence();
   ok &= expect_bool(hookup_dump.range == "0x80360284 -> 0x80360BE0",

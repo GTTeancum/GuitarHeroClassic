@@ -10770,8 +10770,9 @@ int run_contract() {
                  "native exposes CharHair destructor helper");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairRuntime{boolinitialized=false;"
-                 "booluse_post_proc=true;",
-                 "native carries CharHair SetName postproc state into runtime");
+                 "booluse_post_proc=true;"
+                 "boolhookup_collected_from_object_dir=false;",
+                 "native carries CharHair postproc and hookup state into runtime");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairGetFpsResult{"
                  "boolused_post_proc=false;booladjusted_non_sixty=false;"
@@ -12977,8 +12978,17 @@ int run_contract() {
   ok &= contains(char_clip, "runtimeWriteback=%dresolvedPointCollides=0",
                  "native CharHair path logs unresolved point-collide write count");
   ok &= contains(char_clip,
-                 "defaultHookupDirCollect=1missingHookupObjPtrList=1",
+                 "defaultHookupDirCollect=%d",
                  "native CharHair path logs default hookup and missing overload boundary");
+  ok &= contains(char_clip,
+                 "dirCollides=%zu",
+                 "native CharHair path logs source dir collide count");
+  ok &= contains(char_clip,
+                 "legacyInlinePoints=%d",
+                 "native CharHair path logs legacy inline point count");
+  ok &= contains(char_clip,
+                 "missingHookupOverloadBody=%d",
+                 "native CharHair path logs missing Hookup overload body");
   ok &= contains(rb3_latest_char_ik_rod_h,
                  "ObjPtr<RndTransformable,ObjectDir>mLeftEnd;",
                  "latest CharIKRod source header exposes left endpoint");
@@ -32119,11 +32129,14 @@ int run_contract() {
                  "document records Rockabill2 chain collision target");
   ok &= contains(doc,
                  "`runtimeWriteback=0`, `resolvedPointCollides=0`,\n"
-                 "`missingHookupObjPtrList=1`, and `zeroTimeBodyAvailable=0`",
+                 "`dirCollides=0`, nonzero `legacyInlinePoints`,\n"
+                 "`missingHookupOverloadBody=1`, and `zeroTimeBodyAvailable=0`",
                  "document records Rockabill2 chain remaining source gap");
   ok &= contains(doc,
-                 "Do not hide it with a Rockabill2-specific chain offset or "
-                 "static mesh\nplacement patch",
+                 "point collide\nmembership is still not guessed",
+                 "document rejects guessed chain collide membership");
+  ok &= contains(doc,
+                 "chain offset or static mesh placement patch",
                  "document rejects Rockabill2 chain placement shortcut");
   ok &= contains(doc,
                  "2026-07-14 soft-green camera scout",
@@ -32415,9 +32428,8 @@ int run_contract() {
                  "resolution.has_positive_radius;",
                  "CharHair point collide helper detects legacy inline rows");
   ok &= contains(char_clip,
-                 "source_char_hair_point_collide_resolution(point)"
-                 ".resolved_runtime_collides",
-                 "CharHair runtime writeback gate uses source boundary helper");
+                 "if(!state.hookup_overload_body_statement_visible)return0;",
+                 "CharHair runtime writeback gate fences missing Hookup overload body");
   ok &= contains(char_hair_source_test,
                  "legacyinlinerowsdonotpublishCharHairbonetransforms",
                  "focused CharHair test fences legacy inline writeback");
@@ -32433,8 +32445,11 @@ int run_contract() {
                  "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal",
                  "CharHair simulation log names the upstream poll/reset/sim path");
   ok &= contains(char_clip,
-                 "defaultHookupDirCollect=1missingHookupObjPtrList=1",
+                 "defaultHookupDirCollect=%d",
                  "CharHair simulation log keeps hookup boundary explicit");
+  ok &= contains(char_clip,
+                 "missingHookupOverloadBody=%d",
+                 "CharHair simulation log keeps missing overload boundary explicit");
   ok &= contains(format_notes,
                  "Current native `CharHair` behavior ports the checked ihatecompvir",
                  "format notes describe current CharHair source poll path");

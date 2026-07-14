@@ -7024,6 +7024,26 @@ static SourceCharHairRuntime& ensure_source_char_hair_runtime(
   SourceCharHairRuntime& state = character.source_char_hair_runtime[hair.name];
   state.use_post_proc =
       source_char_hair_set_name_use_post_proc(true, false);
+  std::vector<std::string> dir_collides;
+  dir_collides.reserve(character.collides.size());
+  for (const auto& collide : character.collides) {
+    if (!collide.name.empty()) dir_collides.push_back(collide.name);
+  }
+  const SourceCharHairHookupPlan hookup =
+      source_char_hair_hookup_plan(false, dir_collides);
+  state.hookup_collides = hookup.collected_collides;
+  state.hookup_collected_from_object_dir = hookup.collected_from_object_dir;
+  state.hookup_overload_body_statement_visible =
+      hookup.overload_body_statement_visible;
+  state.legacy_inline_point_count = 0;
+  for (const auto& strand : hair.strands) {
+    for (const auto& point : strand.points) {
+      if (source_char_hair_point_collide_resolution(point)
+              .has_legacy_inline_rows) {
+        ++state.legacy_inline_point_count;
+      }
+    }
+  }
   if (state.strands.size() != hair.strands.size()) {
     state.strands.clear();
     state.strands.resize(hair.strands.size());
@@ -7061,7 +7081,8 @@ static void source_char_hair_do_reset(Character& character, const CharHair& hair
                                       int reset_count);
 
 static int source_char_hair_resolved_collide_count(
-    const CharHairPoint& point) {
+    const CharHairPoint& point, const SourceCharHairRuntime& state) {
+  if (!state.hookup_overload_body_statement_visible) return 0;
   return source_char_hair_point_collide_resolution(point)
              .resolved_runtime_collides
              ? 1
@@ -7164,7 +7185,7 @@ static int source_char_hair_simulate_internal(Character& character,
       const SourceCharHairWritebackGate writeback_gate =
           source_char_hair_writeback_gate(
               !point.bone.empty(),
-              source_char_hair_resolved_collide_count(point));
+              source_char_hair_resolved_collide_count(point, state));
       if (writeback_gate.enters_collision_branch) {
         Vec3 y = vscale(m128_y, rsa);
         Vec3 x = vnorm(vcross(y, m128_z), mat_row(t100, 0));
@@ -9445,11 +9466,16 @@ static void apply_char_hair(Character& character, float time_seconds) {
           "[charhair-source-sim] character=%s hair=%s "
           "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal "
           "runtimeWriteback=%d resolvedPointCollides=0 "
-          "defaultHookupDirCollect=1 missingHookupObjPtrList=1 "
+          "defaultHookupDirCollect=%d dirCollides=%zu legacyInlinePoints=%d "
+          "hookupOverloadBody=%d missingHookupOverloadBody=%d "
           "zeroTimeBodyAvailable=0 "
           "usePostProc=%d nonzeroDelta=%d firstPoll=%d pollHookup=%d "
           "pollReset=%d pollZeroTime=%d time=%.4f\n",
           character.dir_name.c_str(), hair.name.c_str(), write_count,
+          state.hookup_collected_from_object_dir ? 1 : 0,
+          state.hookup_collides.size(), state.legacy_inline_point_count,
+          state.hookup_overload_body_statement_visible ? 1 : 0,
+          state.hookup_overload_body_statement_visible ? 0 : 1,
           state.use_post_proc ? 1 : 0, nonzero_delta ? 1 : 0,
           first_poll ? 1 : 0, poll_decision.hookup ? 1 : 0,
           poll_decision.do_reset ? poll_decision.reset_count : -1,

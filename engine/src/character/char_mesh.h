@@ -2926,8 +2926,12 @@ struct SourceCharHairRuntimeStrand {
 struct SourceCharHairRuntime {
   bool initialized = false;
   bool use_post_proc = true;
+  bool hookup_collected_from_object_dir = false;
+  bool hookup_overload_body_statement_visible = false;
+  int legacy_inline_point_count = 0;
   int reset = 1;
   float last_time_seconds = -1.0f;
+  std::vector<std::string> hookup_collides;
   std::vector<SourceCharHairRuntimeStrand> strands;
 };
 
