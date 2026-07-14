@@ -25761,7 +25761,11 @@ int run_contract() {
                  "set_local_from_world(twist1.local,twist_result.twist1_world,",
                  "native CharUpperTwist applies first source SetWorldXfm");
   ok &= contains(char_clip,
-                 "set_local_from_world(twist2.local,twist_result.twist2_world,",
+                 "transform_local_chain_world(character,twist2.name,"
+                 "twist2_world_after_twist1)",
+                 "native CharUpperTwist rereads second output after first SetWorldXfm");
+  ok &= contains(char_clip,
+                 "set_local_from_world(twist2.local,sequenced_twist_result.twist2_world,",
                  "native CharUpperTwist applies second source SetWorldXfm");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");

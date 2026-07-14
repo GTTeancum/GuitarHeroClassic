@@ -7442,13 +7442,14 @@ static void apply_source_upper_twists(
     std::array<float, 16> source_parent_world{};
     std::array<float, 16> source_world{};
     std::array<float, 16> twist1_world{};
-    std::array<float, 16> twist2_world{};
+    std::array<float, 16> twist2_world_before_twist1{};
     std::array<float, 16> twist1_parent_world{};
     if (!transform_local_chain_world(character, upper.parent,
                                      source_parent_world) ||
         !transform_local_chain_world(character, upper.name, source_world) ||
         !transform_local_chain_world(character, twist1.name, twist1_world) ||
-        !transform_local_chain_world(character, twist2.name, twist2_world) ||
+        !transform_local_chain_world(character, twist2.name,
+                                     twist2_world_before_twist1) ||
         !transform_local_chain_world(character, twist1.parent,
                                      twist1_parent_world)) {
       continue;
@@ -7457,18 +7458,30 @@ static void apply_source_upper_twists(
     SourceCharUpperTwistPollWorldResult twist_result;
     if (!source_char_upper_twist_poll_world(
             true, true, true, true, source_parent_world, source_world,
-            twist1_world, twist2_world, twist_result)) {
+            twist1_world, twist2_world_before_twist1, twist_result)) {
       continue;
     }
 
     set_local_from_world(twist1.local, twist_result.twist1_world,
                          twist1_parent_world);
+    std::array<float, 16> twist2_world_after_twist1{};
+    if (!transform_local_chain_world(character, twist2.name,
+                                     twist2_world_after_twist1)) {
+      continue;
+    }
+    SourceCharUpperTwistPollWorldResult sequenced_twist_result;
+    if (!source_char_upper_twist_poll_world(
+            true, true, true, true, source_parent_world, source_world,
+            twist1_world, twist2_world_after_twist1,
+            sequenced_twist_result)) {
+      continue;
+    }
     std::array<float, 16> twist2_parent_world{};
     if (!transform_local_chain_world(character, twist2.parent,
                                      twist2_parent_world)) {
       continue;
     }
-    set_local_from_world(twist2.local, twist_result.twist2_world,
+    set_local_from_world(twist2.local, sequenced_twist_result.twist2_world,
                          twist2_parent_world);
     if (debug_ik_enabled()) {
       std::fprintf(stderr,

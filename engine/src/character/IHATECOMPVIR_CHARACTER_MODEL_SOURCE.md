@@ -4141,7 +4141,10 @@ note, and all report `unreadBytes=0`.
     interpolation constants. Native runtime playback now uses this
     ihatecompvir world-row `Poll` path and converts the returned
     `SetWorldXfm` matrices back to local rows through each driven bone's
-    current parent.
+    current parent. The live runtime keeps the source order: apply the first
+    output world row, then reread the second output's current world position
+    before applying the second output, matching the `mUpperArm->SetWorldXfm`
+    before `mTwist1->WorldXfm().v` sequence in ihatecompvir's `Poll`.
 - `rb3/src/system/char/CharForeTwist.cpp`
   - `CharForeTwist::Load` reads `offset`, `hand`, `twist2`, an old revision-2
     dummy int, and `bias` for revisions above 3.

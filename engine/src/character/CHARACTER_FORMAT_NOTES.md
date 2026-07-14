@@ -5140,7 +5140,9 @@ Viewer hand-overlay validation:
   not sufficient for that reviewed frame. The live stock-GH2 runtime now follows
   ihatecompvir's world-row `CharForeTwist::Poll` and `CharUpperTwist::Poll`
   bodies, then converts the returned `SetWorldXfm` matrices back to local rows
-  through each driven bone's current parent.
+  through each driven bone's current parent. For `CharUpperTwist`, native keeps
+  the source sequence by rereading the second output's current world position
+  after applying the first output row.
 - The 2026-07-14 Rockabill2 soft-green camera scout in
   `engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` uses
   direct-app `special_02` frame 70 captures on the soft green background. The
