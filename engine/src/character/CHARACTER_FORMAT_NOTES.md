@@ -2495,6 +2495,21 @@ Useful environment flags:
   `twist-fore-source`, and `twist-upper-source` rows and no longer show the
   earlier boxy upper-arm collapse. Keep this as sampled proof only; it is not
   all-frame/all-character signoff.
+- 2026-07-14 in-game proof after the same source elbow-row correction:
+  `engine/out/visual_proofs/ik_elbow_source_row_ingame_20260714/` captures
+  Trogdor Expert in `small2` through the real gameplay renderer with
+  `GHOGX_HIDE_HIGHWAY=1`, diagnostic autoplay, and authored
+  `flr_near_lft03` camera-shot routing. The Rockabill2, Rock1, and Rock2 logs
+  prove hidden-window gameplay startup, per-character overrides, selected
+  decoded camera shot, and active `ik-source`, `twist-fore-source`, and
+  `twist-upper-source` rows. These frames are current in-game proof of the
+  corrected controller path, not visual signoff: Rockabill2/Rock1/Rock2 still
+  show a long strip/chain-like artifact class that needs its own source-backed
+  investigation.
+- Same in-game review also flags a separate neck-controller/clip-blend issue:
+  neck motion can snap back instead of sliding. Do not hide this with native
+  smoothing until the source path through clip blending, `CharNeckTwist`, and
+  poll order has been checked.
 - `pcsx2_arm_ik_twist_trans_rows_20260611.json` and
   `pcsx2_sample_foretwist_refs_20260608.json` show the driven local-X twist row
   layout as `row1.z = -sin`, `row2.y = +sin`. Native now uses that sign in the
