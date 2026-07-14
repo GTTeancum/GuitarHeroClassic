@@ -285,6 +285,7 @@ class Gameplay {
     std::vector<std::string> postproc_override_refs;
     std::vector<std::string> camera_anim_refs;
     std::string glow_spot_ref;
+    std::vector<CameraKey> source_camshot_keyframes;
     std::vector<CameraKey> positions;
   };
   struct VenueCameraFovAnim {

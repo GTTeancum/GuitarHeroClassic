@@ -15770,6 +15770,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     load_camera_position_keys(hdr_path, ark_path, venue,
                                               c.key.path_anim);
                 if (!path_positions.empty()) {
+                    c.key.source_camshot_keyframes = c.key.positions;
                     c.key.positions.clear();
                     c.key.positions.reserve(path_positions.size());
                     for (auto& path_pos : path_positions) {
@@ -16804,8 +16805,16 @@ float source_camshot_frame_total(
     return total;
 }
 
+const std::vector<Gameplay::CameraKey>& source_camshot_timing_frames(
+    const Gameplay::CameraKey& shot) {
+    return !shot.source_camshot_keyframes.empty()
+               ? shot.source_camshot_keyframes
+               : shot.positions;
+}
+
 float source_camshot_duration_frames(const Gameplay::CameraKey& shot) {
-    if (!shot.positions.empty()) return source_camshot_frame_total(shot.positions);
+    const auto& frames = source_camshot_timing_frames(shot);
+    if (!frames.empty()) return source_camshot_frame_total(frames);
     return source_camshot_frame_span(shot);
 }
 
@@ -16889,7 +16898,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     double song_time,
     double start_time,
     const ghogx::chart::Chart* chart) {
-    const auto& frames = shot.positions;
+    const auto& frames = source_camshot_timing_frames(shot);
     if (frames.empty()) return {shot};
     if (frames.size() == 1) return {frames.front()};
 
@@ -32942,14 +32951,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             source_setpreframe_blend);
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=%.3f\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=%.3f\n",
                             key->name.c_str(), local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),
                             camera_source_duration_seconds_source(*key),
                             camera_source_anim_rate(*key),
                             camera_source_frames_per_unit(*key),
-                            selected_camera.size(), source_setframe_blend);
+                            selected_camera.size(),
+                            source_camshot_timing_frames(*key).size(),
+                            source_setframe_blend);
                     }
                     if (source_frame_key_route && selected_camera.size() >= 2 &&
                         active_camera_frame_pair_reported_ != key->name) {

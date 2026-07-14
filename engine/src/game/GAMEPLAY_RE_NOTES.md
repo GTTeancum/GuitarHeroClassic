@@ -11366,6 +11366,24 @@ Rejected native probe:
   instead of raw elapsed 30 FPS, so path sampling follows the same manager
   clock as non-path CamShot frame pairs. This still does not infer the hidden
   `CamShot::SetFrame` body or exact `mPathFrame` consumption.
+- 2026-07-14 path-backed CamShot timing source:
+  ihatecompvir `CamShot::CacheFrames()` sums `mKeyFrames` durations/blends
+  into `mDuration`; `mPath` is loaded separately and does not replace the
+  source keyframe list used by `GetDurationSeconds()` or `CheckShotOver(f)`.
+  Native path-backed regular CamShots now preserve the decoded CamShot
+  keyframes before replacing render `positions` with sampled RndTransAnim path
+  keys. Source duration, source `GetKey` timing, and shot-over checks read
+  those preserved keyframes instead of treating path samples as CamShot frames.
+  This changes timing/lifecycle evidence for path-backed cameras without
+  changing the sampled path transform math.
+  Validation rebuilt `ghogx_app` and
+  `ghogx_gameplay_venue_band_contract_test`; the broad contract runner still
+  reports only the known ROCK/star-power backlog. Proof
+  `engine/out/camera_path_timing_source_proof_20260714_002/run.log` exits `0`,
+  forces path-backed `balcony_lft04` at local frame `255.000`, and logs
+  `duration_frames=7680.000`, `source_frame_keys=88`, and
+  `source_camshot_keyframes=2` before saving `frame_00180.bmp` and
+  `frame_00230.bmp`.
 - 2026-07-13 path-backed TransAnim keys-owner:
   ihatecompvir `RndTransAnim` routes `TransKeys()`, `RotKeys()`,
   `ScaleKeys()`, and the spline/slerp flags through `mKeysOwner`, with load

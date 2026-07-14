@@ -8498,6 +8498,9 @@ int main() {
                  "std::stringpath_anim;boolhas_path_anim=false;",
                  "CameraKey preserves authored CamShot TransAnim path refs");
   ok &= contains(gameplay_h_c,
+                 "std::vector<CameraKey>source_camshot_keyframes;",
+                 "CameraKey preserves source CamShot keyframes separately from path samples");
+  ok &= contains(gameplay_h_c,
                  "std::stringpath_trans_target;boolhas_path_trans_target=false;",
                  "CameraKey preserves source RndTransAnim mTrans target refs");
   ok &= contains(gameplay_h_c,
@@ -8547,6 +8550,10 @@ int main() {
                  "load_camera_position_keys(hdr_path,ark_path,venue,"
                  "c.key.path_anim)",
                  "regular CamShot paths reuse the shared TransAnim camera loader");
+  ok &= contains(gameplay_c,
+                 "c.key.source_camshot_keyframes=c.key.positions;"
+                 "c.key.positions.clear();",
+                 "path-backed regular CamShots preserve source CamShot keyframes before installing TransAnim samples");
   ok &= contains(gameplay_c,
                  "copy_camshot_runtime_fields(c.key,path_pos);",
                  "path-backed camera keys inherit CamShot runtime metadata");
@@ -10608,6 +10615,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "returnkey.duration_frames+key.blend_frames;",
                  "runtime mirrors CamShot::CacheFrames summing duration plus blend");
+  ok &= contains(gameplay_c,
+                 "conststd::vector<Gameplay::CameraKey>&"
+                 "source_camshot_timing_frames("
+                 "constGameplay::CameraKey&shot){"
+                 "return!shot.source_camshot_keyframes.empty()"
+                 "?shot.source_camshot_keyframes:shot.positions;}",
+                 "source CamShot timing uses preserved keyframes instead of path TransAnim samples");
+  ok &= contains(gameplay_c,
+                 "constauto&frames=source_camshot_timing_frames(shot);"
+                 "if(!frames.empty())returnsource_camshot_frame_total(frames);",
+                 "source CamShot duration reads preserved source timing frames");
   ok &= absent(gameplay_c,
                "key.duration_frames>600.0f||key.blend_frames>600.0f",
                "source CamShot frame spans must not discard long authored blends");
@@ -10654,6 +10672,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "std::vector<Gameplay::CameraKey>regular_camera_source_frame_keys(",
                  "runtime mirrors CamShot::GetKey by submitting the active source frame pair");
+  ok &= contains(gameplay_c,
+                 "constauto&frames=source_camshot_timing_frames(shot);"
+                 "if(frames.empty())return{shot};",
+                 "source CamShot GetKey helper reads preserved timing keyframes");
   ok &= contains(gameplay_c,
                  "local_frame=pre_loop+std::fmod(local_frame-pre_loop,loop_total);",
                  "source CamShot looping and loop_keyframe drive repeated regular shots");
@@ -10718,7 +10740,8 @@ int main() {
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fduration_seconds=%.3f"
                  "duration_source=%sanim_rate=%dfpu=%.1f"
-                 "source_frame_keys=%zusource_prep=CameraManager::PrePoll->"
+                 "source_frame_keys=%zusource_camshot_keyframes=%zu"
+                 "source_prep=CameraManager::PrePoll->"
                  "CamShot::SetPreFramebase_noop=1"
                  "source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence and base SetPreFrame no-op");
