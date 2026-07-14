@@ -19701,6 +19701,15 @@ void camera_unset_dof_proc_like_source(ghogx::render::OrbitCamera& cam) {
     cam.dof_focus_distance = 0.0f;
 }
 
+void camera_unset_shake_like_no_current_camshot(
+    ghogx::render::OrbitCamera& cam) {
+    cam.shake_active = false;
+    cam.shake_noise_amp = 0.0f;
+    cam.shake_noise_freq = 0.0f;
+    cam.shake_max_angular_offset[0] = 0.0f;
+    cam.shake_max_angular_offset[1] = 0.0f;
+}
+
 std::optional<std::array<float, 3>> camera_entity_only_target_alias_centroid(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
@@ -19977,6 +19986,7 @@ void apply_camera_keys(
     float source_setframe_blend = 1.0f) {
     if (keys.empty()) {
         camera_unset_dof_proc_like_source(cam);
+        camera_unset_shake_like_no_current_camshot(cam);
         return;
     }
     const float source_poll_blend =
@@ -23169,10 +23179,14 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     set_camera_glow_spot_ref({});
     if (world_) {
         camera_unset_dof_proc_like_source(world_->camera());
+        camera_unset_shake_like_no_current_camshot(world_->camera());
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
                      "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1\n",
+                     active_camera_runtime_shot_.c_str());
+        std::fprintf(stderr,
+                     "[world] camera EndAnim clear_shake: source_manager=CameraManager::StartShot_(0) shot=%s result=cleared\n",
                      active_camera_runtime_shot_.c_str());
     }
     end_camera_shot_anims();
@@ -23208,6 +23222,10 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_shot_over_ = false;
     active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
+    if (world_) {
+        camera_unset_dof_proc_like_source(world_->camera());
+        camera_unset_shake_like_no_current_camshot(world_->camera());
+    }
     active_force_char_lod_ = -1;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
@@ -23215,6 +23233,9 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
             "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) context=%s current=%s had_current=%d had_pending=%d result=cleared\n",
             context ? context : "unknown", previous_current.c_str(),
             had_current ? 1 : 0, had_pending ? 1 : 0);
+        std::fprintf(
+            stderr,
+            "[world] camera Enter clear_shake: source_manager=CameraManager::Enter result=cleared\n");
     }
 }
 

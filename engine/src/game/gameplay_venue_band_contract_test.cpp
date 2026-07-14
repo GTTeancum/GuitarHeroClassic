@@ -10297,6 +10297,21 @@ int main() {
                  "cam.shake_noise_amp=shake_noise_amp;",
                  "runtime camera carries interpolated source CamShot shake state");
   ok &= contains(gameplay_c,
+                 "voidcamera_unset_shake_like_no_current_camshot("
+                 "ghogx::render::OrbitCamera&cam)",
+                 "runtime camera exposes no-current CamShot shake clear");
+  ok &= contains(gameplay_c,
+                 "camera_unset_dof_proc_like_source(cam);"
+                 "camera_unset_shake_like_no_current_camshot(cam);",
+                 "empty camera key path clears stale source DOF and shake state");
+  ok &= contains(end_camera_shot_runtime_c,
+                 "camera_unset_shake_like_no_current_camshot(world_->camera());",
+                 "camera EndAnim clears stale source shake state when no CamShot remains current");
+  ok &= contains(gameplay_c,
+                 "cameraEndAnimclear_shake:source_manager="
+                 "CameraManager::StartShot_(0)",
+                 "camera EndAnim diagnostics expose source no-current shake clear");
+  ok &= contains(gameplay_c,
                  "shake=%d(%.3f%.3f%.3f%.3f)shake_runtime=%d",
                  "camera diagnostics expose carried source CamShot shake state");
   ok &= contains(gameplay_c,
@@ -11707,6 +11722,10 @@ int main() {
                  "source_call=StartShot_(0)context=%scurrent=%s"
                  "had_current=%dhad_pending=%dresult=cleared\\n\"",
                  "camera diagnostics expose source Enter StartShot_(0) reset");
+  ok &= contains(gameplay_c,
+                 "cameraEnterclear_shake:source_manager="
+                 "CameraManager::Enter",
+                 "camera Enter diagnostics expose source no-current shake clear");
   ok &= contains(gameplay_c,
                  "reset_camera_manager_like_source_enter(\"diagnostic_seek\");",
                  "diagnostic seek mirrors CameraManager::Enter instead of preserving current_shot");

@@ -11237,6 +11237,14 @@ Rejected native probe:
   the RB2 dump exposes the function name and locals but not a trustworthy
   body. This keeps the source feature visible and contract-guarded without
   fabricating camera motion.
+- 2026-07-14 CamShot shake no-current clear:
+  ihatecompvir `CameraManager::PrePoll` / `Poll` only calls
+  `CamShot::SetFrame` while `mCurrentShot` is non-null, and
+  `CameraManager::Enter` reaches `StartShot_(0)` to end the current shot.
+  Native now clears the carried shake fields when the source-shaped current
+  CamShot is cleared or no camera keys are active, so diagnostic/runtime state
+  does not retain a stale `shake_runtime=1` after EndAnim. This still does not
+  synthesize the hidden `CamShot::Shake` noise motion.
 
 - 2026-07-14 CamShot legacy shake load backfill:
   ihatecompvir `CamShot::Load` reads rev 16/17 shot-level shake frequency and
