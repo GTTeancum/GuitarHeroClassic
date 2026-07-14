@@ -16402,6 +16402,17 @@ bool camera_source_check_shot(const Gameplay::CameraKey& key, uint32_t beat) {
     return true;
 }
 
+bool camera_source_guitarist0_actually_walking() {
+    // GH2 world_objects_worldbase.dta gates walk_ok through
+    // {guitarist0 actually_walking}. Keep this named until the native CharWalk
+    // state is bridged instead of hiding the missing source predicate inline.
+    return false;
+}
+
+const char* camera_source_guitarist0_actually_walking_source() {
+    return "guitarist0::actually_walking(native_deferred)";
+}
+
 std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
     return mode == CameraShotMode::Lighter ? "LIGHTER"
                                            : "NORMAL_CAMSHOT_CATEGORIES";
@@ -32822,7 +32833,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (force_camera && forced_camera_mode) {
                     camera_mode = *forced_camera_mode;
                 }
-                constexpr bool kGuitaristWalking = false;
+                const bool kGuitaristWalking =
+                    camera_source_guitarist0_actually_walking();
                 const bool guitarist_starpower = star_power_.active;
                 const CameraKey* key = nullptr;
                 const CameraKey* source_previous_fallback =
@@ -32874,7 +32886,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     queue_regular_camera_shot(*key, source_handler);
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
+                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -32889,6 +32901,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? "diagnostic"
                             : source_filters_for_log.c_str(),
                         source_previous_name_for_log.c_str(),
+                        kGuitaristWalking ? 1 : 0,
+                        camera_source_guitarist0_actually_walking_source(),
+                        guitarist_starpower ? 1 : 0,
                         static_cast<unsigned int>(key->flags),
                         (force_camera || diagnostic_camera_shot_matched) ? 1
                                                                          : 0,

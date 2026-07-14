@@ -410,6 +410,17 @@ Open work:
   downbeat gate, so a no-acceptable-shot result waits for the next source
   downbeat instead of retrying every frame, and star mode suppresses that
   regular retry just like the script.
+- 2026-07-14 camera `actually_walking` gate proof:
+  GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` and
+  `pick_solo_camera_shot` add `(walk_ok TRUE)` only when
+  `{guitarist0 actually_walking}` is true. Native still does not have a
+  source-proven `CharWalk` runtime bridge, so the predicate remains false, but
+  it now routes through the named
+  `camera_source_guitarist0_actually_walking()` helper and regular camera
+  sweep logs print `source_walking` plus
+  `source_walking_gate=guitarist0::actually_walking(native_deferred)`. This is
+  proof/status plumbing only; it prevents an inline hard-coded false from
+  masquerading as a completed camera filter.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

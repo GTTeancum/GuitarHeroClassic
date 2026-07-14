@@ -11171,6 +11171,8 @@ int main() {
                  "mode=%sfilter_source=ShotMatches"
                  "source_category=%ssource_filters=\\\"%s\\\""
                  "source_previous=%s"
+                 "source_walking=%dsource_walking_gate=%s"
+                 "source_starpower=%d"
                  "flags=0x%08xforced=%dchanged=%dsource_next=%d"
                  "force_char_lod=%d",
                  "regular camera sweep logs source matcher provenance and selected character LOD");
@@ -11860,6 +11862,23 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_check_shot_due=!star_power_.active;",
                  "world_objects_worldbase.dta skips check_camera_shot during star mode");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_guitarist0_actually_walking(){",
+                 "regular camera runtime exposes the source guitarist0 actually_walking predicate");
+  ok &= contains(gameplay_c,
+                 "return\"guitarist0::actually_walking(native_deferred)\";",
+                 "regular camera diagnostics label the deferred CharWalk walking gate");
+  ok &= contains(gameplay_c,
+                 "constboolkGuitaristWalking="
+                 "camera_source_guitarist0_actually_walking();",
+                 "regular camera selection uses the named source walking gate");
+  ok &= absent(gameplay_c,
+              "constexprboolkGuitaristWalking=false;",
+              "regular camera selection must not hide the source walking gate as an inline constant");
+  ok &= contains(gameplay_c,
+                 "source_walking=%dsource_walking_gate=%s"
+                 "source_starpower=%d",
+                 "regular camera diagnostics expose walking/starpower source gate state");
   ok &= contains(gameplay_c,
                  "\"[world]cameradownbeat:source_msg=downbeat",
                  "camera diagnostics expose the source downbeat gate");
