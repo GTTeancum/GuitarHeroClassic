@@ -3972,6 +3972,14 @@ note, and all report `unreadBytes=0`.
     `DirtyLocalXfm().m.Set(0, 0, 0, -sqrted, 0, 0, sqrted, 0, 1)`.
     The previous native cos/sin Z-rotation interpretation was not a 1:1 source
     port and is no longer used for this bounded IKHand slice.
+    Direct-app proof in
+    `engine/out/visual_proofs/ik_elbow_source_row_20260714/` and
+    `engine/out/visual_proofs/ik_elbow_source_row_roster_20260714/` samples
+    Rockabill2, Rock1, Rock2, Glam1, Metal1, Punk1, Goth1, Deathmetal1, and
+    Alterna1 on `special_02` frame 70. These sampled star-power release poses
+    keep the source IK/foretwist/uppertwist rows active without the earlier
+    boxy upper-arm collapse. This is bounded visual evidence, not full
+    all-frame/all-character signoff.
   - Native `source_char_ik_hand_poll_flow` ports the visible parent and final
     write gates from `CharIKHand::Poll` as deterministic source evidence only:
     missing hand or target rows return early, `mMoveElbow=false` clears the

@@ -2486,6 +2486,15 @@ Useful environment flags:
   `DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1)`, and native now
   mirrors that visible source row shape. `PullShoulder` remains fenced until a
   reviewable source body exists.
+- 2026-07-14 direct-app proof after the source elbow-row correction:
+  `engine/out/visual_proofs/ik_elbow_source_row_20260714/` covers
+  Rockabill2, Rock1, and Rock2; the roster extension in
+  `engine/out/visual_proofs/ik_elbow_source_row_roster_20260714/` covers
+  Glam1, Metal1, Punk1, Goth1, Deathmetal1, and Alterna1. All sampled
+  `special_02` frame-70 release poses log active `ik-source`,
+  `twist-fore-source`, and `twist-upper-source` rows and no longer show the
+  earlier boxy upper-arm collapse. Keep this as sampled proof only; it is not
+  all-frame/all-character signoff.
 - `pcsx2_arm_ik_twist_trans_rows_20260611.json` and
   `pcsx2_sample_foretwist_refs_20260608.json` show the driven local-X twist row
   layout as `row1.z = -sin`, `row2.y = +sin`. Native now uses that sign in the

@@ -24513,6 +24513,28 @@ int run_contract() {
                  "dst.rot[2][0]=sin_angle;dst.rot[2][1]=0.0f;"
                  "dst.rot[2][2]=1.0f;",
                  "native IKElbow helper mirrors source elbow bend rows");
+  ok &= contains(doc,
+                 "engine/out/visual_proofs/ik_elbow_source_row_20260714/",
+                 "document records first source elbow-row proof directory");
+  ok &= contains(doc,
+                 "engine/out/visual_proofs/ik_elbow_source_row_roster_20260714/",
+                 "document records roster source elbow-row proof directory");
+  ok &= contains(doc,
+                 "Rockabill2, Rock1, Rock2, Glam1, Metal1, Punk1, Goth1, "
+                 "Deathmetal1, and\n    Alterna1",
+                 "document records sampled source elbow-row roster");
+  ok &= contains(doc,
+                 "bounded visual evidence, not full\n    all-frame/"
+                 "all-character signoff",
+                 "document fences sampled proof scope");
+  ok &= contains(format_notes,
+                 "All sampled\n  `special_02` frame-70 release poses log "
+                 "active `ik-source`,\n  `twist-fore-source`, and "
+                 "`twist-upper-source` rows",
+                 "format notes record source-row proof logs");
+  ok &= contains(format_notes,
+                 "it is not\n  all-frame/all-character signoff",
+                 "format notes fence source-row proof scope");
   ok &= contains(rb3_char_ik_hand_cpp,
                  "if(mElbowSwing>0){Vector2v200(v118.y,v118.z);"
                  "Vector2v208(v10c.y,v10c.z);",
