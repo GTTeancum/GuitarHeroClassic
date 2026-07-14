@@ -4937,7 +4937,9 @@ note, and all report `unreadBytes=0`.
     `source_char_bones_samples_scale_add_steps` are named wrappers for the
     source `RotateBy`, `RotateTo`, and `ScaleAddSample` call shapes only; they
     do not add new pose math beyond the source row selection and upstream
-    split-step flow.
+    split-step flow. Focused coverage now checks both the single-row
+    `frac == 0` case and the two-row `i` / `i + 1` blend case for
+    `ScaleAddSample`.
     Empty sample rows remain fenced because the source body assumes an
     allocated packed row buffer.
   - The RB2 dump also maps `CharClipSamples` runtime-side functions that sit

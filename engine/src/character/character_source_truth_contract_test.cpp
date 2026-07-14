@@ -26680,6 +26680,10 @@ int run_contract() {
                  "0.0f)",
                  "focused CharBones source test covers CharBonesSamples ScaleAddSample helper");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_scale_add_steps(samples,1,0.8f,"
+                 "0.25f)",
+                 "focused CharBones source test covers CharBonesSamples ScaleAddSample blend");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_load_version_known(12)",
                  "focused CharBones source test covers low sample version reject");
   ok &= contains(char_bones_source_test,

@@ -1747,6 +1747,18 @@ int main() {
                    "samples ScaleAddSample first offset");
   ok &= expect_float(scale_steps[0].weight, 0.5f,
                      "samples ScaleAddSample first weight");
+  const std::vector<SourceCharBonesSampleStep> scale_blend_steps =
+      source_char_bones_samples_scale_add_steps(samples, 1, 0.8f, 0.25f);
+  ok &= expect_size(scale_blend_steps.size(), 2,
+                    "samples ScaleAddSample blended count");
+  ok &= expect_int(scale_blend_steps[0].start_offset, 32,
+                   "samples ScaleAddSample blended first offset");
+  ok &= expect_float(scale_blend_steps[0].weight, 0.6f,
+                     "samples ScaleAddSample blended first weight");
+  ok &= expect_int(scale_blend_steps[1].start_offset, 64,
+                   "samples ScaleAddSample blended second offset");
+  ok &= expect_float(scale_blend_steps[1].weight, 0.2f,
+                     "samples ScaleAddSample blended second weight");
   ok &= expect_int(source_char_bones_samples_load_version_known(12) ? 1 : 0, 0,
                    "samples load version low rejected");
   ok &= expect_int(source_char_bones_samples_load_version_known(13) ? 1 : 0, 1,
