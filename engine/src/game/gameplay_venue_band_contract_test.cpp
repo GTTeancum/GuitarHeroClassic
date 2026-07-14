@@ -8428,11 +8428,23 @@ int main() {
                  "floatsource_frame_raw_local_frame=0.0f;"
                  "floatsource_frame_pre_loop_frames=0.0f;"
                  "floatsource_frame_loop_frames=0.0f;"
-                 "size_tsource_frame_loop_start_index=0;"
+                 "size_tsource_frame_loop_start_index=0;",
+                 "CameraKey carries source CamShot SetFrame timing diagnostics");
+  ok &= contains(gameplay_h_c,
+                 "size_tsource_frame_key_index=0;"
                  "boolsource_frame_loop_active=false;"
                  "boolsource_frame_loop_wrapped=false;"
+                 "boolhas_source_frame_key_index=false;"
                  "boolhas_source_frame_mapping=false;",
-                 "CameraKey carries source CamShot SetFrame keyBlend and loop diagnostics");
+                 "CameraKey carries source CamShot SetFrame key index and loop diagnostics");
+  ok &= contains(gameplay_h_c,
+                 "size_tsource_frame_loop_start_index=0;"
+                 "size_tsource_frame_key_index=0;"
+                 "boolsource_frame_loop_active=false;"
+                 "boolsource_frame_loop_wrapped=false;"
+                 "boolhas_source_frame_key_index=false;"
+                 "boolhas_source_frame_mapping=false;",
+                 "CameraKey preserves source CamShot SetFrame loop field order");
   ok &= contains(gameplay_c,
                  "if(shot.revision>0x0b&&shot.revision<0x2a)"
                  "shot.old_crowd_sym=r.symbol();",
@@ -10810,11 +10822,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "automake_source_frame_hold="
                  "[&](constGameplay::CameraKey&cur,floatcursor,"
-                 "floatduration,floatblend)",
+                 "floatduration,floatblend,size_tkey_index)",
                  "single-key CamShot GetKey fallback stamps source hold timing");
   ok &= contains(gameplay_c,
                  "returnmake_source_frame_hold(cur,0.0f,"
-                 "timing_duration(cur),timing_blend(cur));",
+                 "timing_duration(cur),timing_blend(cur),0);",
                  "zero-duration CamShot GetKey fallback carries source timing proof");
   ok &= contains(gameplay_c,
                  "local_frame=pre_loop+std::fmod(local_frame-pre_loop,loop_total);",
@@ -10862,8 +10874,10 @@ int main() {
                  "key.source_frame_pre_loop_frames=pre_loop;"
                  "key.source_frame_loop_frames=loop_total;"
                  "key.source_frame_loop_start_index=loop_start_index;"
+                 "key.source_frame_key_index=key_index;"
                  "key.source_frame_loop_active=loop_active;"
                  "key.source_frame_loop_wrapped=loop_wrapped;"
+                 "key.has_source_frame_key_index=true;"
                  "key.has_source_frame_mapping=true;",
                  "regular CamShot frame-pair keys carry source SetFrame local and loop timing");
   ok &= contains(gameplay_c,
