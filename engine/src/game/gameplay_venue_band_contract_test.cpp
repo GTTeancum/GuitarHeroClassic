@@ -6148,6 +6148,10 @@ int main() {
                  "source_state_reset=CamShot::StartAnim",
                  "camera StartAnim diagnostics expose the post-SetCrowds source reset phase");
   ok &= contains(gameplay_c,
+                 "source_state_reset=CamShot::StartAnimshot=%s"
+                 "reset_result_builder=1reset_shot_over=1reset_shake=1",
+                 "camera StartAnim diagnostics expose source reset fields");
+  ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_anims"
                  "(constCameraKey&key,conststd::string&runtime_name)",
                  "camera StartAnim has an explicit linked-mAnims start path");
@@ -6189,9 +6193,21 @@ int main() {
       "camera_result_builder_state_.reset();",
       "start_camera_shot_anims(key,active_camera_runtime_shot_);",
       "camera StartAnim resets source camera state before linked mAnims");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "active_camera_shot_over_=false;"
+                 "active_camera_shot_over_reported_.clear();",
+                 "camera StartAnim resets the source mShotOver latch");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "camera_unset_shake_like_no_current_camshot(world_->camera());",
+                 "camera StartAnim resets source shake accumulators");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "camera_unset_shake_like_no_current_camshot(world_->camera());",
+      "start_camera_shot_anims(key,active_camera_runtime_shot_);",
+      "camera StartAnim resets source shake accumulators before linked mAnims");
   ok &= contains(gameplay_c,
-                 "reset_result_builder=1",
-                 "camera StartAnim diagnostics expose the source-shaped result-builder reset");
+                 "reset_result_builder=1reset_shot_over=1reset_shake=1",
+                 "camera StartAnim diagnostics expose the source-shaped state reset");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "apply_camera_crowd_visibility(key,skip_script_crowd_update);",

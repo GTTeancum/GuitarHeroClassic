@@ -102,6 +102,12 @@
   Native now applies the decoded crowd payload before resetting the carried
   camera result-builder state, keeps the reset before linked camera anims, and
   logs source-shaped `SetCrowds` / `Set3DCrowd` proof rows during validation.
+- 2026-07-14 CamShot StartAnim reset fields:
+  the same source reset clears `mShotOver` plus the shake accumulator vectors
+  before linked `mAnims` start. Native now resets the shot-over latch and
+  carried shake runtime at that StartAnim reset point, and the proof row names
+  `reset_shot_over` / `reset_shake` beside the result-builder reset. This is
+  source lifecycle plumbing, not a synthesized `CamShot::Shake` motion body.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level

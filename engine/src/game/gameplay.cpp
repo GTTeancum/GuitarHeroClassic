@@ -23652,10 +23652,15 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             skip_script_crowd_update ? 1 : 0);
     }
     camera_result_builder_state_.reset();
+    active_camera_shot_over_ = false;
+    active_camera_shot_over_reported_.clear();
+    if (world_) {
+        camera_unset_shake_like_no_current_camshot(world_->camera());
+    }
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1\n",
+            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1 reset_shot_over=1 reset_shake=1\n",
             active_camera_runtime_shot_.c_str());
     }
     if (skip_script_crowd_update) {
