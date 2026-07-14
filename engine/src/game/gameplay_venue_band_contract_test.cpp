@@ -9945,8 +9945,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.duration_frames=r.f32();key.blend_frames=r.f32();"
                  "key.blend_ease=r.f32();key.has_timing=true;"
-                 "if(camshot_revision>0x2d)key.blend_ease_mode=r.i32();",
-                 "CamShot pose parser decodes duration/blend fields before FOV");
+                 "if(camshot_revision>0x2d){"
+                 "key.blend_ease_mode=r.boolean()?1:0;}",
+                 "CamShot pose parser decodes duration/blend fields and source "
+                 "bool ease mode before FOV");
+  ok &= absent(gameplay_c,
+               "key.blend_ease_mode=r.i32();",
+               "CamShot blend_ease_mode must not read a four-byte int");
   ok &= contains(gameplay_c,
                  "floatcamshot_blend_ease_t(floatraw_t,floatblend_ease,"
                  "intblend_ease_mode)",

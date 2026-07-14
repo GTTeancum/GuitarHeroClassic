@@ -212,6 +212,12 @@ Open work:
   source shot duration, `CheckShotOver`, loop spans, or same-shot position
   blend seconds. This preserves source timing for outlier authored shots such
   as long balcony blends instead of substituting the old native fallback.
+- 2026-07-14 CamShotFrame blend ease mode bool:
+  ihatecompvir `CamShotFrame::Load` reads a `bool` for `gRev > 0x2D`, and
+  `BinStream >> bool` consumes one unsigned byte before mapping nonzero to
+  true. Native now reads one source bool instead of a four-byte integer,
+  preserving frame body alignment before the FOV, transform, and screen-offset
+  fields.
 - 2026-07-14 CameraManager all-category randomization:
   ihatecompvir `CameraManager::SyncObjects` adds every `PlatformOk()` CamShot
   to first-seen category buckets, then `CameraManager::Randomize()` iterates
