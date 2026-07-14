@@ -2683,9 +2683,21 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         from.has_path_source_frame_summary) {
         to.path_source_sample_frames = from.path_source_sample_frames;
         to.path_source_added_frames = from.path_source_added_frames;
+        to.path_source_translation_keys = from.path_source_translation_keys;
+        to.path_source_rotation_keys = from.path_source_rotation_keys;
+        to.path_source_scale_keys = from.path_source_scale_keys;
         to.path_source_start_frame = from.path_source_start_frame;
         to.path_source_end_frame = from.path_source_end_frame;
         to.has_path_source_frame_summary = true;
+    }
+    if (!to.has_path_source_flags && from.has_path_source_flags) {
+        to.path_trans_spline = from.path_trans_spline;
+        to.path_repeat_trans = from.path_repeat_trans;
+        to.path_scale_spline = from.path_scale_spline;
+        to.path_follow_path = from.path_follow_path;
+        to.path_rot_slerp = from.path_rot_slerp;
+        to.path_rot_spline = from.path_rot_spline;
+        to.has_path_source_flags = true;
     }
     to.legacy_path_frame_ignored = from.legacy_path_frame_ignored;
     to.has_legacy_path_frame_ignored =
@@ -10152,6 +10164,13 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             pos.path_source_start_frame = sample_frames.front();
             pos.path_source_end_frame = sample_frames.back();
             pos.has_path_source_frame_summary = true;
+            pos.path_trans_spline = resolved.trans_spline;
+            pos.path_repeat_trans = resolved.repeat_trans;
+            pos.path_scale_spline = resolved.scale_spline;
+            pos.path_follow_path = resolved.follow_path;
+            pos.path_rot_slerp = resolved.rot_slerp;
+            pos.path_rot_spline = resolved.rot_spline;
+            pos.has_path_source_flags = true;
         }
         if (!resolved.rot_keys.empty()) {
             for (auto& pos : out) {
@@ -15750,6 +15769,15 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         c.key.path_source_added_frames =
                             c.key.positions.front()
                                 .path_source_added_frames;
+                        c.key.path_source_translation_keys =
+                            c.key.positions.front()
+                                .path_source_translation_keys;
+                        c.key.path_source_rotation_keys =
+                            c.key.positions.front()
+                                .path_source_rotation_keys;
+                        c.key.path_source_scale_keys =
+                            c.key.positions.front()
+                                .path_source_scale_keys;
                         c.key.path_source_start_frame =
                             c.key.positions.front()
                                 .path_source_start_frame;
@@ -15757,6 +15785,21 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                             c.key.positions.front()
                                 .path_source_end_frame;
                         c.key.has_path_source_frame_summary = true;
+                    }
+                    if (c.key.positions.front().has_path_source_flags) {
+                        c.key.path_trans_spline =
+                            c.key.positions.front().path_trans_spline;
+                        c.key.path_repeat_trans =
+                            c.key.positions.front().path_repeat_trans;
+                        c.key.path_scale_spline =
+                            c.key.positions.front().path_scale_spline;
+                        c.key.path_follow_path =
+                            c.key.positions.front().path_follow_path;
+                        c.key.path_rot_slerp =
+                            c.key.positions.front().path_rot_slerp;
+                        c.key.path_rot_spline =
+                            c.key.positions.front().path_rot_spline;
+                        c.key.has_path_source_flags = true;
                     }
                     if (c.key.parent_entity.empty()) {
                         populate_camera_generated_source_rows(c.key);
@@ -32813,11 +32856,21 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                        ? ""
                                        : "none/";
                         };
+                        const CameraKey& path_flags_key =
+                            a_key.has_path_source_flags
+                                ? a_key
+                                : (b_key.has_path_source_flags ? b_key
+                                                               : *key);
+                        auto path_flags_prefix =
+                            [](const CameraKey& path_key) -> const char* {
+                            return path_key.has_path_source_flags ? ""
+                                                                  : "none/";
+                        };
                         active_camera_frame_pair_reported_ =
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -32882,6 +32935,31 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             path_summary_key.has_path_source_frame_summary
                                 ? path_summary_key.path_source_scale_keys
                                 : size_t{0},
+                            path_flags_prefix(path_flags_key),
+                            path_flags_key.has_path_source_flags &&
+                                    path_flags_key.path_trans_spline
+                                ? 1
+                                : 0,
+                            path_flags_key.has_path_source_flags &&
+                                    path_flags_key.path_repeat_trans
+                                ? 1
+                                : 0,
+                            path_flags_key.has_path_source_flags &&
+                                    path_flags_key.path_scale_spline
+                                ? 1
+                                : 0,
+                            path_flags_key.has_path_source_flags &&
+                                    path_flags_key.path_follow_path
+                                ? 1
+                                : 0,
+                            path_flags_key.has_path_source_flags &&
+                                    path_flags_key.path_rot_slerp
+                                ? 1
+                                : 0,
+                            path_flags_key.has_path_source_flags &&
+                                    path_flags_key.path_rot_spline
+                                ? 1
+                                : 0,
                             key->path_anim.c_str(),
                             path_trans_target_label(path_target_key));
                     }

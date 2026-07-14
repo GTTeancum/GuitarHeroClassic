@@ -208,6 +208,13 @@ class Gameplay {
     float path_source_start_frame = 0.0f;
     float path_source_end_frame = 0.0f;
     bool has_path_source_frame_summary = false;
+    bool path_trans_spline = false;
+    bool path_repeat_trans = false;
+    bool path_scale_spline = false;
+    bool path_follow_path = false;
+    bool path_rot_slerp = false;
+    bool path_rot_spline = false;
+    bool has_path_source_flags = false;
     float path_base_eye[3] = {};
     float path_base_forward[3] = {0.0f, 1.0f, 0.0f};
     float path_base_up[3] = {0.0f, 0.0f, 1.0f};

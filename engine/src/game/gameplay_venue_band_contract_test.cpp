@@ -8466,6 +8466,15 @@ int main() {
                  "boolhas_path_source_frame_summary=false;",
                  "CameraKey preserves source RndTransAnim key-page frame summary and page counts");
   ok &= contains(gameplay_h_c,
+                 "boolpath_trans_spline=false;"
+                 "boolpath_repeat_trans=false;"
+                 "boolpath_scale_spline=false;"
+                 "boolpath_follow_path=false;"
+                 "boolpath_rot_slerp=false;"
+                 "boolpath_rot_spline=false;"
+                 "boolhas_path_source_flags=false;",
+                 "CameraKey preserves decoded source RndTransAnim path flags");
+  ok &= contains(gameplay_h_c,
                  "floatpath_base_eye[3]={};"
                  "floatpath_base_forward[3]={0.0f,1.0f,0.0f};"
                  "floatpath_base_up[3]={0.0f,0.0f,1.0f};"
@@ -8491,6 +8500,22 @@ int main() {
   ok &= contains(gameplay_c,
                  "copy_camshot_runtime_fields(c.key,path_pos);",
                  "path-backed camera keys inherit CamShot runtime metadata");
+  ok &= contains(gameplay_c,
+                 "to.path_source_translation_keys="
+                 "from.path_source_translation_keys;"
+                 "to.path_source_rotation_keys=from.path_source_rotation_keys;"
+                 "to.path_source_scale_keys=from.path_source_scale_keys;",
+                 "CamShot runtime-field copying preserves path source page counts");
+  ok &= contains(gameplay_c,
+                 "if(!to.has_path_source_flags&&from.has_path_source_flags){"
+                 "to.path_trans_spline=from.path_trans_spline;"
+                 "to.path_repeat_trans=from.path_repeat_trans;"
+                 "to.path_scale_spline=from.path_scale_spline;"
+                 "to.path_follow_path=from.path_follow_path;"
+                 "to.path_rot_slerp=from.path_rot_slerp;"
+                 "to.path_rot_spline=from.path_rot_spline;"
+                 "to.has_path_source_flags=true;}",
+                 "CamShot runtime-field copying preserves decoded path flags");
   ok &= contains(gameplay_c,
                  "path_pos.path_base_eye[axis]=path_base_pose.eye[axis];",
                  "path-backed camera diagnostics retain the owning CamShot body pose");
@@ -8672,11 +8697,47 @@ int main() {
                  "pos.has_path_source_frame_summary=true;",
                  "path-backed camera positions retain source RndTransAnim page counts, start/end, and merged frame counts");
   ok &= contains(gameplay_c,
+                 "pos.path_trans_spline=resolved.trans_spline;"
+                 "pos.path_repeat_trans=resolved.repeat_trans;"
+                 "pos.path_scale_spline=resolved.scale_spline;"
+                 "pos.path_follow_path=resolved.follow_path;"
+                 "pos.path_rot_slerp=resolved.rot_slerp;"
+                 "pos.path_rot_spline=resolved.rot_spline;"
+                 "pos.has_path_source_flags=true;",
+                 "path-backed camera positions retain decoded source RndTransAnim path flags");
+  ok &= contains(gameplay_c,
+                 "c.key.path_source_translation_keys="
+                 "c.key.positions.front().path_source_translation_keys;"
+                 "c.key.path_source_rotation_keys="
+                 "c.key.positions.front().path_source_rotation_keys;"
+                 "c.key.path_source_scale_keys="
+                 "c.key.positions.front().path_source_scale_keys;",
+                 "regular CamShot root keys retain path source page counts");
+  ok &= contains(gameplay_c,
+                 "c.key.path_trans_spline="
+                 "c.key.positions.front().path_trans_spline;"
+                 "c.key.path_repeat_trans="
+                 "c.key.positions.front().path_repeat_trans;"
+                 "c.key.path_scale_spline="
+                 "c.key.positions.front().path_scale_spline;"
+                 "c.key.path_follow_path="
+                 "c.key.positions.front().path_follow_path;"
+                 "c.key.path_rot_slerp="
+                 "c.key.positions.front().path_rot_slerp;"
+                 "c.key.path_rot_spline="
+                 "c.key.positions.front().path_rot_spline;"
+                 "c.key.has_path_source_flags=true;",
+                 "regular CamShot root keys retain decoded source path flags");
+  ok &= contains(gameplay_c,
                  "source_sample_frames=%zuadded_source_frames=%zu",
                  "camera path diagnostics expose merged source sample-frame counts");
   ok &= contains(gameplay_c,
                  "source_key_pages=%strans:%zurot:%zuscale:%zu",
                  "camera path diagnostics expose source translation, rotation, and scale page counts");
+  ok &= contains(gameplay_c,
+                 "source_path_flags=%strans_spline:%drepeat:%d"
+                 "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d",
+                 "camera path diagnostics expose decoded source TransAnim flags");
   ok &= contains(gameplay_c,
                  "\"[camera-path]anim=%ssource-shapedrev=%uanim_rev=%u\"",
                  "camera path diagnostics expose source-shaped RndTransAnim metadata");
@@ -10577,6 +10638,8 @@ int main() {
                  "source_start_frame=%s%.3fsource_end_frame=%s%.3f"
                  "source_sample_frames=%s%zuadded_source_frames=%s%zu"
                  "source_key_pages=%strans:%zurot:%zuscale:%zu"
+                 "source_path_flags=%strans_spline:%drepeat:%d"
+                 "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
                  "route=regular_camera_path_keyspath=%s"
                  "path_trans_target=%s"

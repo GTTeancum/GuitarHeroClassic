@@ -11355,6 +11355,15 @@ Rejected native probe:
   in the live path-frame row. This is audit support for suspicious path angles:
   it proves whether a rendered path pose is translation-backed, rotation-only,
   scale-only, or a mixed source page sample before changing submitted math.
+- 2026-07-14 path-backed TransAnim flag proof:
+  ihatecompvir `RndTransAnim::Load` reads the path interpolation flags
+  (`mTransSpline`, `mRepeatTrans`, `mScaleSpline`, `mFollowPath`,
+  `mRotSlerp`, and `mRotSpline`) beside the key pages, with `mKeysOwner`
+  inheritance carrying those flags to the resolved animation. Native path
+  camera keys now carry those decoded source flags through to the per-shot
+  `[world] camera source path frame pair` row as `source_path_flags`, so angle
+  audits can prove whether a suspicious shot actually uses source follow-path,
+  spline, repeat, or rotation interpolation modes before any math is changed.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures
