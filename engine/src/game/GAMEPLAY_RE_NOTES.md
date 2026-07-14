@@ -11172,6 +11172,13 @@ Rejected native probe:
   pre-loop span, loop span, raw local frame, and wrapped local frame; it does
   not change camera math, but it makes suspicious looped angle jumps auditable
   against source frame wrapping instead of hiding the wrap inside native state.
+- 2026-07-14 follow-up: non-path CamShot hold spans now emit
+  `[world] camera source frame hold ...]` when `regular_camera_source_frame_keys`
+  returns the single active source key before its blend window. This reports
+  the same source-local key start, duration, blend window, raw/eased keyBlend,
+  and `CamShot::GetKey(prev,next,keyBlend)` provenance as the pair row, so
+  camera proofs can distinguish a held source key from an interpolated source
+  frame pair without changing submitted camera math.
 - 2026-07-13 follow-up: the GH2 world script's `beat` handler also updates
   `[camera_beat]` and calls `{world current_shot} check_shot`; `camshot.dta`
   routes that to native `cam_check_shot`. Native now tracks the source beat

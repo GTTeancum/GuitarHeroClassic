@@ -10795,6 +10795,16 @@ int main() {
                  "source_locals=CamShot::SetFrame(prev,next,keyBlend)\\n\"",
                  "regular camera diagnostics prove source frame-pair keyBlend submission");
   ok &= contains(gameplay_c,
+                 "\"[world]camerasourceframehold:shot=%slocal_frame=%.3f"
+                 "keys=%zuframe=%.3f"
+                 "source_local_frame=%s%.3fsource_key_start=%s%.3f"
+                 "source_duration=%s%.3fsource_blend=%s%.3f"
+                 "key_blend=%s%.3feased_key_blend=%s%.3f"
+                 "source_phase=hold_before_blend"
+                 "route=regular_camera_source_frame_keys"
+                 "source_locals=CamShot::GetKey(prev,next,keyBlend)\\n\"",
+                 "regular camera diagnostics prove source GetKey hold spans before blend windows");
+  ok &= contains(gameplay_c,
                  "if(source_frame_key_route&&selected_camera.size()>=2&&",
                  "source frame-pair diagnostics remain limited to non-path CamShot frame timing");
   ok &= contains(gameplay_c,

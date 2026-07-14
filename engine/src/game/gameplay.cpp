@@ -33029,6 +33029,67 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 a_key.source_frame_loop_active ? 1 : 0,
                                 a_key.source_frame_loop_wrapped ? 1 : 0);
                         }
+                    } else if (source_frame_key_route &&
+                               selected_camera.size() == 1 &&
+                               active_camera_frame_pair_reported_ !=
+                                   key->name + ":hold") {
+                        const CameraKey& hold_key = selected_camera.front();
+                        const bool has_frame_mapping =
+                            hold_key.has_source_frame_mapping;
+                        const float source_key_blend =
+                            has_frame_mapping
+                                ? hold_key.source_frame_key_blend
+                                : 0.0f;
+                        const float source_eased_key_blend =
+                            has_frame_mapping
+                                ? camshot_blend_ease_t(
+                                      source_key_blend, hold_key.blend_ease,
+                                      hold_key.blend_ease_mode)
+                                : 0.0f;
+                        auto frame_mapping_prefix =
+                            [has_frame_mapping]() {
+                                return has_frame_mapping ? "" : "none/";
+                            };
+                        active_camera_frame_pair_reported_ =
+                            key->name + ":hold";
+                        std::fprintf(
+                            stderr,
+                            "[world] camera source frame hold: shot=%s local_frame=%.3f keys=%zu frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f source_phase=hold_before_blend route=regular_camera_source_frame_keys source_locals=CamShot::GetKey(prev,next,keyBlend)\n",
+                            key->name.c_str(), local_frame,
+                            selected_camera.size(), hold_key.frame,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? hold_key.source_frame_local_frame
+                                : 0.0f,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? hold_key.source_frame_key_start_frame
+                                : 0.0f,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? hold_key.source_frame_duration_frames
+                                : 0.0f,
+                            frame_mapping_prefix(),
+                            has_frame_mapping
+                                ? hold_key.source_frame_blend_frames
+                                : 0.0f,
+                            frame_mapping_prefix(), source_key_blend,
+                            frame_mapping_prefix(), source_eased_key_blend);
+                        if (has_frame_mapping &&
+                            (hold_key.source_frame_loop_active ||
+                             hold_key.source_frame_loop_wrapped)) {
+                            std::fprintf(
+                                stderr,
+                                "[world] camera source frame loop: shot=%s raw_local_frame=%.3f wrapped_local_frame=%.3f loop_start_index=%zu pre_loop=%.3f loop_total=%.3f loop_active=%d loop_wrapped=%d source_locals=CamShot::GetKey(mLooping,mLoopKeyframe)\n",
+                                key->name.c_str(),
+                                hold_key.source_frame_raw_local_frame,
+                                hold_key.source_frame_local_frame,
+                                hold_key.source_frame_loop_start_index,
+                                hold_key.source_frame_pre_loop_frames,
+                                hold_key.source_frame_loop_frames,
+                                hold_key.source_frame_loop_active ? 1 : 0,
+                                hold_key.source_frame_loop_wrapped ? 1 : 0);
+                        }
                     }
                     if (!source_frame_key_route && key->has_path_anim &&
                         selected_camera.size() >= 2 &&
