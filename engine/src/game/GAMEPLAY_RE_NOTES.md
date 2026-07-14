@@ -34,6 +34,12 @@
   consumption now restarts source timing and StartAnim state even when the
   pending CamShot name matches the active CamShot; the `changed` flag remains
   diagnostic only.
+- 2026-07-13 CameraManager category randomization RNG: ihatecompvir's RB2
+  `CameraManager::SyncObjects` dump shows a temporary CamShot array, a `which`
+  draw, and static `sRand` while `Rand::Seed` / `Rand::Int` are recovered in
+  `doc/src-old/system/math/Rand.cpp`. Native category randomization now uses
+  that source Rand state and remaining-list draw instead of the provisional
+  LCG, preserving source-shaped category order without hardcoding a shot.
 - 2026-07-13 CamShot EndAnim order: ihatecompvir `CamShot::EndAnim()`
   runs `UnHide()`, sends `stop_shot_msg`, then ends each linked `mAnims`
   child. Native now restores camera-owned visibility and emits the stop-shot

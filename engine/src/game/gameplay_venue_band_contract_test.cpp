@@ -10676,6 +10676,21 @@ int main() {
                  "std::vector<Gameplay::CameraKey>&keys)",
                  "regular camera loader mirrors CameraManager category-local randomization");
   ok &= contains(gameplay_c,
+                 "structCameraSourceRand",
+                 "regular camera randomization uses a local ihatecompvir Rand mirror");
+  ok &= contains(gameplay_c,
+                 "seed_value*0x41C64E6Du+0x3039u",
+                 "camera source Rand seed step mirrors ihatecompvir Rand::Seed");
+  ok &= contains(gameplay_c,
+                 "if(0xF9u<=++index_a)index_a=0;",
+                 "camera source Rand index wrap mirrors ihatecompvir Rand::Int");
+  ok &= contains(gameplay_c,
+                 "constsize_tpicked=rand.int_range(remaining.size());",
+                 "regular camera randomization draws a source Rand index from the remaining category list");
+  ok &= contains(gameplay_c,
+                 "remaining[picked]=std::move(remaining.back());",
+                 "regular camera randomization mirrors SyncObjects remaining-list removal");
+  ok &= contains(gameplay_c,
                  "for(constautocategory:kNormalCamShotCategoryOrder){"
                  "shuffle_category(category);}",
                  "regular camera category randomization keeps the authored normal category buckets");

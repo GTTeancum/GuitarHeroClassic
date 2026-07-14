@@ -15211,26 +15211,57 @@ bool camera_category_filter_ok(const Gameplay::CameraKey& key,
     return false;
 }
 
-uint32_t camera_manager_shuffle_next(uint32_t& state) {
-    state = state * 1664525u + 1013904223u;
-    return state;
-}
+struct CameraSourceRand {
+    uint32_t index_a = 0;
+    uint32_t index_b = 0x67;
+    std::array<uint32_t, 0x100> values = {};
+
+    void seed(uint32_t seed_value) {
+        for (uint32_t i = 0; i < values.size(); ++i) {
+            const uint32_t rand_lo = seed_value * 0x41C64E6Du + 0x3039u;
+            seed_value = rand_lo * 0x41C64E6Du + 0x3039u;
+            values[i] = ((rand_lo >> 16) & 0xFFFFu) |
+                        (seed_value & 0x7FFF0000u);
+        }
+        index_a = 0;
+        index_b = 0x67;
+    }
+
+    uint32_t next() {
+        const uint32_t result = values[index_a] ^ values[index_b];
+        values[index_a] = result;
+        if (0xF9u <= ++index_a) index_a = 0;
+        if (0xF9u <= ++index_b) index_b = 0;
+        return result;
+    }
+
+    size_t int_range(size_t high_exclusive) {
+        if (high_exclusive == 0) return 0;
+        return static_cast<size_t>(next() % high_exclusive);
+    }
+};
 
 void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
     // ihatecompvir CameraManager::SyncObjects seeds sRand and randomizes every
-    // category list before FindCameraShot begins moving accepted shots to the
-    // back of that category. Keep the same category-local shape while using a
-    // deterministic native generator for reproducible validation captures.
-    uint32_t state = 0;
+    // category list before FindCameraShot starts moving accepted shots to the
+    // back. The RB2 dump shows a temporary shot array and "which" selection;
+    // mirror that remaining-list draw using the source Rand implementation.
+    CameraSourceRand rand;
+    rand.seed(0);
     auto shuffle_category = [&](std::string_view category) {
         std::vector<size_t> indices;
+        std::vector<Gameplay::CameraKey> remaining;
         for (size_t i = 0; i < keys.size(); ++i) {
-            if (keys[i].category == category) indices.push_back(i);
+            if (keys[i].category == category) {
+                indices.push_back(i);
+                remaining.push_back(keys[i]);
+            }
         }
-        for (size_t i = indices.size(); i > 1; --i) {
-            const size_t j =
-                static_cast<size_t>(camera_manager_shuffle_next(state) % i);
-            std::swap(keys[indices[i - 1]], keys[indices[j]]);
+        for (size_t out = 0; out < indices.size(); ++out) {
+            const size_t picked = rand.int_range(remaining.size());
+            keys[indices[out]] = std::move(remaining[picked]);
+            remaining[picked] = std::move(remaining.back());
+            remaining.pop_back();
         }
     };
 
