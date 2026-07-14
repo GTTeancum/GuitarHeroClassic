@@ -3236,6 +3236,13 @@ Useful environment flags:
   logging decoded lower-body output rows as compare-only `driven=1 live=0`;
   this guards against the leg/feet overlay leak without claiming the source
   body-pose publisher is complete.
+- 2026-07-14 Character runtime dump boundary:
+  `source_character_runtime_dump_evidence` records RB2 dump ranges for
+  `Character::Poll`, `BoneServo`, `ConvertBonesToTranses`, and `SyncObjects`.
+  Those entries prove the runtime functions and locals exist, but they are
+  range/local metadata, not statement bodies. Do not use them to promote broad
+  body, lower-body, face, or full pose publishing; keep the visible leg/foot
+  special-pose issue on the source `CharBones` / `PoseMeshes` publisher track.
 - 2026-07-14 `FracToSample` source fence:
   ihatecompvir source declares `CharBonesSamples::FracToSample(float*) const`
   and the RB2 dump maps its range/locals, but there is no statement body in the

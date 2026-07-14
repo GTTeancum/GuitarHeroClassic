@@ -816,6 +816,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
 - Native `source_character_*` helpers port these source-visible runtime flows
   for deterministic tests and future wiring. They do not decode the fenced root
   body bytes above and do not change current renderer/material behavior.
+- `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/Character.cpp`
+  maps RB2 runtime ranges for `Character::Poll`, `BoneServo`,
+  `ConvertBonesToTranses`, and `SyncObjects`, plus locals such as
+  `AutoTimer _at`, `ObjDirItr mesh`, `ObjDirItr trans`, and
+  `CharPollableSorter sorter`. Native
+  `source_character_runtime_dump_evidence` records those ranges as metadata
+  only: the dump does not expose statement bodies and is not safe evidence for
+  broad pose publishing or replacing the `CharBones` / `PoseMeshes` path.
 - `MiloEditor/MiloLib/Assets/Rnd/RndTrans.cs`
   - `RndTrans.Read` reads combined revision, optional object fields for
     standalone objects, local matrix, world matrix, old child references for

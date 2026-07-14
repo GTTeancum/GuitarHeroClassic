@@ -104,6 +104,7 @@ int main() {
   using ghogx::character::source_character_repoint_sphere_base;
   using ghogx::character::source_character_replace;
   using ghogx::character::source_character_save_plan;
+  using ghogx::character::source_character_runtime_dump_evidence;
   using ghogx::character::source_character_set_debug_draw_interest_objects;
   using ghogx::character::source_character_set_sphere_base;
   using ghogx::character::source_character_set_focus_interest;
@@ -633,6 +634,36 @@ int main() {
                     "SyncObjects skips missing pelvis mesh");
   ok &= expect_int(sync.removed_lod_draws, 0,
                    "SyncObjects clamps impossible negative test count");
+
+  const auto runtime_dump = source_character_runtime_dump_evidence();
+  ok &= expect_string(runtime_dump.poll_range, "0x8030D360 -> 0x8030D434",
+                      "runtime dump Poll range");
+  ok &= expect_string(runtime_dump.bone_servo_range,
+                      "0x8030E15C -> 0x8030E190",
+                      "runtime dump BoneServo range");
+  ok &= expect_string(runtime_dump.convert_bones_to_transes_range,
+                      "0x8030EE9C -> 0x8030F7CC",
+                      "runtime dump ConvertBonesToTranses range");
+  ok &= expect_string(runtime_dump.sync_objects_range,
+                      "0x8030F7CC -> 0x8030FD5C",
+                      "runtime dump SyncObjects range");
+  ok &= expect_bool(has(runtime_dump.poll_locals, "AutoTimer _at"), true,
+                    "runtime dump Poll local");
+  ok &= expect_bool(has(runtime_dump.bone_servo_references,
+                        "CharServoBone RTTI"),
+                    true, "runtime dump BoneServo RTTI");
+  ok &= expect_bool(has(runtime_dump.convert_bones_to_transes_locals,
+                        "ObjDirItr mesh"),
+                    true, "runtime dump ConvertBonesToTranses mesh local");
+  ok &= expect_bool(has(runtime_dump.sync_objects_locals,
+                        "CharPollableSorter sorter"),
+                    true, "runtime dump SyncObjects sorter local");
+  ok &= expect_bool(runtime_dump.has_statement_bodies, false,
+                    "runtime dump has no statement bodies");
+  ok &= expect_bool(runtime_dump.safe_to_publish_pose, false,
+                    "runtime dump does not publish pose");
+  ok &= expect_bool(runtime_dump.safe_to_replace_pose_publisher, false,
+                    "runtime dump does not replace pose publisher");
 
   ok &= expect_bool(source_character_force_blink(false).invoked_eyes, false,
                     "ForceBlink skips without eyes");

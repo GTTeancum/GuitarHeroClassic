@@ -615,6 +615,8 @@ int run_contract() {
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_h = compact(read_file(
       rb3_latest_char_dir / "Character.h"));
+  const std::string rb2_character_cpp = compact(read_file(
+      rb2_dump_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_test_cpp = compact(read_file(
       rb3_latest_char_dir / "CharacterTest.cpp"));
   const std::string rb3_latest_character_test_h = compact(read_file(
@@ -2309,6 +2311,35 @@ int run_contract() {
                  "SyncShadow();CharPollableSortersorter;"
                  "sorter.Sort(mPolls);}",
                  "Character source SyncObjects sorts polls");
+  ok &= contains(rb2_character_cpp,
+                 "//Range:0x8030D360->0x8030D434voidCharacter::"
+                 "Poll(classCharacter*constthis/*r31*/){",
+                 "RB2 Character dump maps Poll range");
+  ok &= contains(rb2_character_cpp, "classAutoTimer_at;//r1+0xC",
+                 "RB2 Character dump maps Poll timer local");
+  ok &= contains(rb2_character_cpp,
+                 "//Range:0x8030E15C->0x8030E190classCharServoBone*"
+                 "Character::BoneServo(){",
+                 "RB2 Character dump maps BoneServo range");
+  ok &= contains(rb2_character_cpp, "__RTTI__15CharBonesObject",
+                 "RB2 Character dump maps BoneServo CharBonesObject RTTI");
+  ok &= contains(rb2_character_cpp, "__RTTI__13CharServoBone",
+                 "RB2 Character dump maps BoneServo CharServoBone RTTI");
+  ok &= contains(rb2_character_cpp,
+                 "//Range:0x8030EE9C->0x8030F7CCvoidCharacter::"
+                 "ConvertBonesToTranses(classCharacter*constthis/*r31*/){",
+                 "RB2 Character dump maps ConvertBonesToTranses range");
+  ok &= contains(rb2_character_cpp, "classObjDirItrmesh;//r1+0x6C",
+                 "RB2 Character dump maps ConvertBonesToTranses mesh local");
+  ok &= contains(rb2_character_cpp, "classObjDirItrtrans;//r1+0x58",
+                 "RB2 Character dump maps ConvertBonesToTranses trans local");
+  ok &= contains(rb2_character_cpp,
+                 "//Range:0x8030F7CC->0x8030FD5CvoidCharacter::"
+                 "SyncObjects(classCharacter*constthis/*r31*/){",
+                 "RB2 Character dump maps SyncObjects range");
+  ok &= contains(rb2_character_cpp,
+                 "classCharPollableSortersorter;//r1+0xF8",
+                 "RB2 Character dump maps SyncObjects sorter local");
   ok &= contains(rb3_latest_character_cpp,
                  "boolCharPollableSorter::ChangedBy(Dep*d1,Dep*d2){"
                  "if(d1==d2)returnfalse;sSearchID++;mTarget=d1;"
@@ -15757,6 +15788,36 @@ int run_contract() {
                  "result.called_rnd_dir_sync_objects=true;"
                  "result.removed_trans_group=true;",
                  "native ports Character SyncObjects prefix");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterRuntimeDumpEvidence{"
+                 "std::stringpoll_range;",
+                 "native exposes Character runtime dump evidence struct");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterRuntimeDumpEvidence"
+                 "source_character_runtime_dump_evidence();",
+                 "native exposes Character runtime dump evidence helper");
+  ok &= contains(char_mesh,
+                 "SourceCharacterRuntimeDumpEvidence"
+                 "source_character_runtime_dump_evidence(){",
+                 "native implements Character runtime dump evidence helper");
+  ok &= contains(char_mesh,
+                 "evidence.poll_range=\"0x8030D360->0x8030D434\";",
+                 "native records Character Poll dump range");
+  ok &= contains(char_mesh,
+                 "evidence.bone_servo_range=\"0x8030E15C->0x8030E190\";",
+                 "native records Character BoneServo dump range");
+  ok &= contains(char_mesh,
+                 "evidence.convert_bones_to_transes_range="
+                 "\"0x8030EE9C->0x8030F7CC\";",
+                 "native records Character ConvertBonesToTranses dump range");
+  ok &= contains(char_mesh,
+                 "evidence.sync_objects_range=\"0x8030F7CC->0x8030FD5C\";",
+                 "native records Character SyncObjects dump range");
+  ok &= contains(char_mesh,
+                 "evidence.has_statement_bodies=false;"
+                 "evidence.safe_to_publish_pose=false;"
+                 "evidence.safe_to_replace_pose_publisher=false;",
+                 "native fences Character runtime dump from pose publishing");
   ok &= contains(char_mesh,
                  "SourceCharacterSetSphereBaseResult"
                  "source_character_set_sphere_base(SourceCharacterState&state,"
@@ -15924,6 +15985,12 @@ int run_contract() {
   ok &= contains(character_source_test,
                  "source_character_sync_objects(state,true,3)",
                  "focused Character test covers SyncObjects");
+  ok &= contains(character_source_test,
+                 "source_character_runtime_dump_evidence()",
+                 "focused Character test covers runtime dump evidence");
+  ok &= contains(character_source_test,
+                 "runtime_dump.safe_to_replace_pose_publisher,false",
+                 "focused Character test fences runtime dump pose publishing");
   ok &= contains(character_source_test,
                  "source_character_set_sphere_base(state,false)",
                  "focused Character test covers SetSphereBase");

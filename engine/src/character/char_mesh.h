@@ -3667,6 +3667,20 @@ struct SourceCharacterSyncObjectsResult {
   bool sorted_polls = false;
 };
 
+struct SourceCharacterRuntimeDumpEvidence {
+  std::string poll_range;
+  std::string bone_servo_range;
+  std::string convert_bones_to_transes_range;
+  std::string sync_objects_range;
+  std::vector<std::string> poll_locals;
+  std::vector<std::string> bone_servo_references;
+  std::vector<std::string> convert_bones_to_transes_locals;
+  std::vector<std::string> sync_objects_locals;
+  bool has_statement_bodies = false;
+  bool safe_to_publish_pose = false;
+  bool safe_to_replace_pose_publisher = false;
+};
+
 struct SourceCharacterReplaceResult {
   bool called_rnd_dir_replace = false;
   bool repointed_sphere_base = false;
@@ -4934,6 +4948,7 @@ SourceCharacterSyncObjectsResult source_character_sync_objects(
     SourceCharacterState& state,
     bool has_bone_pelvis_mesh,
     int32_t lod_count);
+SourceCharacterRuntimeDumpEvidence source_character_runtime_dump_evidence();
 SourceCharacterInterestResult source_character_force_blink(bool has_eyes);
 SourceCharacterInterestResult source_character_enable_blinks(bool has_eyes);
 SourceCharacterInterestResult source_character_set_focus_interest(

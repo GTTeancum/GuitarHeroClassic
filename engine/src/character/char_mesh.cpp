@@ -7430,6 +7430,24 @@ SourceCharacterSyncObjectsResult source_character_sync_objects(
   return result;
 }
 
+SourceCharacterRuntimeDumpEvidence source_character_runtime_dump_evidence() {
+  SourceCharacterRuntimeDumpEvidence evidence;
+  evidence.poll_range = "0x8030D360 -> 0x8030D434";
+  evidence.bone_servo_range = "0x8030E15C -> 0x8030E190";
+  evidence.convert_bones_to_transes_range = "0x8030EE9C -> 0x8030F7CC";
+  evidence.sync_objects_range = "0x8030F7CC -> 0x8030FD5C";
+  evidence.poll_locals = {"AutoTimer _at"};
+  evidence.bone_servo_references = {"CharBonesObject RTTI",
+                                    "CharServoBone RTTI"};
+  evidence.convert_bones_to_transes_locals = {"list meshes", "ObjDirItr mesh",
+                                              "ObjDirItr trans"};
+  evidence.sync_objects_locals = {"CharPollableSorter sorter"};
+  evidence.has_statement_bodies = false;
+  evidence.safe_to_publish_pose = false;
+  evidence.safe_to_replace_pose_publisher = false;
+  return evidence;
+}
+
 SourceCharacterInterestResult source_character_force_blink(bool has_eyes) {
   return {has_eyes, has_eyes};
 }
