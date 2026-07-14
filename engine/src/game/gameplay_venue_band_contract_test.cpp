@@ -6075,11 +6075,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "constboolshot_changed=active_regular_camera_!=key->name;",
                  "regular camera shot change is tracked separately from shot-start effects");
-  ok &= contains(gameplay_c,
-                 "}if(should_resend_excitement_){"
-                 "should_resend_excitement_=false;"
-                 "resend_active_venue_event();}",
-                 "resend-excitement latch is not gated by camera-name changes");
+  ok &= contains(
+      start_camera_shot_runtime_c,
+      "if(should_resend_excitement_){",
+      "resend-excitement latch is consumed by CamShot::StartAnim/start_shot");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_runtime_shot_;",
                  "camera runtime tracks the active CamShot lifecycle");
@@ -12205,6 +12204,33 @@ int main() {
                  "\"[world]camerastart_shotcrowd_updateskipped:"
                  "source_var=camshot_skip_next_updateshot=%sresult=cleared\\n\"",
                  "camera diagnostics expose the source camshot_skip_next_update clear");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "active_force_char_lod_=key.force_char_lod;",
+                 "start_shot mirrors camshot.dta world set_min_lod before crowd routing");
+  ok &= contains(
+      start_camera_shot_runtime_c,
+      "if(should_resend_excitement_){"
+      "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
+      "\"[world]camerastart_shotresend_excitement:"
+      "source_msg=world_resend_excitementsource_flag=should_resend_excitement"
+      "shot=%sevent=%s\\n\",active_camera_runtime_shot_.c_str(),"
+      "active_venue_event_.c_str());}"
+      "should_resend_excitement_=false;resend_active_venue_event();}",
+      "start_shot invokes the gated world_objects_worldbase.dta resend_excitement handler");
+  ok &= appears_before(
+      start_camera_shot_runtime_c, "active_force_char_lod_=key.force_char_lod;",
+      "if(should_resend_excitement_){",
+      "camshot.dta handles world set_min_lod before world resend_excitement");
+  ok &= appears_before(
+      start_camera_shot_runtime_c, "if(should_resend_excitement_){",
+      "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
+      "camshot.dta resend_excitement runs before crowd_update/crowd_rotate");
+  ok &= absent(gameplay_c,
+               "if(should_resend_excitement_){"
+               "should_resend_excitement_=false;"
+               "resend_active_venue_event();}"
+               "}}}constboolsource_restarted_shot=",
+               "regular camera selection must not consume resend_excitement before CamShot::StartAnim");
   ok &= contains(
       gameplay_c,
       "voidGameplay::reset_camera_manager_like_source_enter(constchar*context)",
