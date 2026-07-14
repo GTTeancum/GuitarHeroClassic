@@ -7967,6 +7967,15 @@ int main() {
                  "std::unordered_map<std::string,CameraTarget>camera_targets;",
                  "camera target map stores transforms instead of points");
   ok &= contains(gameplay_c,
+                 "conststd::stringstripped_subpart="
+                 "strip_mesh_suffix(std::string(subpart));",
+                 "camera target lookup mirrors LoadSubPart suffix stripping");
+  ok &= appears_before(
+      gameplay_c,
+      "strip_mesh_suffix(std::string(subpart));",
+      "camera_target_id(entity,{})",
+      "camera target lookup tries source-stripped subparts before root fallback");
+  ok &= contains(gameplay_c,
                  "autoprop_world=perf.renderer->attached_prop_world(subpart);",
                  "camera target refs can resolve attached prop objects");
   ok &= contains(gameplay_c,

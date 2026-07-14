@@ -19,6 +19,13 @@
   source-shaped pose-span and parent/source-seed gates instead of treating a
   merely authored target token as a live CamShot target. The older authored-ref
   helper remains for metadata/debug routing.
+- 2026-07-14 CamShot target subpart lookup: ihatecompvir `LoadSubPart`
+  strips a suffix such as `.mesh` before resolving/creating the target proxy
+  name (`object_part.tp`). Native camera target lookup now tries the exact
+  authored member first, then the source-stripped member, and only then falls
+  back to the broad entity/root target. This keeps bone/member camera targets
+  from silently collapsing to a performer root when the live target table holds
+  the stripped source part name.
 - 2026-07-13 CamShot resolved SameTargets gate: ihatecompvir
   `CamShotFrame::Interp` evaluates `SameTargets(frame)` beside the resolved
   `HasTargets()` checks before applying the local-space screen-offset

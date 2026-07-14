@@ -19123,6 +19123,13 @@ std::optional<CameraTarget> camera_target_for_ref(
     if (entity.empty()) return std::nullopt;
     auto it = targets.find(camera_target_id(entity, subpart));
     if (it == targets.end() && !subpart.empty()) {
+        const std::string stripped_subpart =
+            strip_mesh_suffix(std::string(subpart));
+        if (stripped_subpart != subpart) {
+            it = targets.find(camera_target_id(entity, stripped_subpart));
+        }
+    }
+    if (it == targets.end() && !subpart.empty()) {
         it = targets.find(camera_target_id(entity, {}));
     }
     if (it == targets.end()) return std::nullopt;
