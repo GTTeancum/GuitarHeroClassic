@@ -463,6 +463,16 @@ int main() {
   ok &= contains(gameplay_c,
                  "returnname==\"bone_facing\"||name.find(\"pelvis\")",
                  "hand overlays strip the body-facing root with lower-body rows");
+  ok &= contains(app_main_c,
+                 "keep_hand_overlay_channels_only(strum_clip);"
+                 "keep_hand_overlay_channels_only(fret_clip);",
+                 "viewer filters explicit hand overlay clips like gameplay");
+  ok &= contains(app_main_c,
+                 "return!is_face_channel_name(bone.name);",
+                 "viewer face diagnostics filter output bones like gameplay");
+  ok &= lacks(app_main_c,
+              "lower.find(\"cheek\")",
+              "viewer face diagnostics use the gameplay face-channel predicate");
   ok &= contains(char_clip_c,
                  "if(overlay_override)strip_overlay_lower_body_channels("
                  "channels);",

@@ -5530,6 +5530,22 @@ postclip diagnostic dump. This keeps the viewer and in-game paths on one
 clip-stack application boundary without changing source blend, controller,
 IK, or hair behavior.
 
+2026-07-14 pose-publisher proof label: the shared pose-stack frame result now
+records `source_pose_publisher_fenced` and `applied_layer_count`, and an
+opt-in `GHOGX_DEBUG_POSE_PUBLISHER` log prints the active native route as
+diagnostic clip layers. The log includes a caller label (`viewer` or a
+gameplay performer role) plus each layer's name, weight, channel count, output
+bone count, overlay flag, and relative flag so viewer/gameplay captures can be
+diffed directly. Real-time and fixed-frame diagnostic layer names include an
+`@fNN` suffix for the sampled native frame index. This is intentionally not a
+behavior change: it labels the current route until the missing source bodies
+(`CharBones::ScaleAdd`,
+`CharBonesSamples::EvaluateChannel`, and `CharBonesMeshes::PoseMeshes`) are
+ported or traced. A fresh remote-head check found the local ihatecompvir live
+mirrors already at origin HEAD (`rb3` `41719f2`, `grim` `1c05ca3`,
+`re-notes` `5c486fd`, and `glTFMilo` `3c02a54`), so there is no newer public
+source body to import for this boundary today.
+
 2026-07-14 shared layer-source builder cleanup: viewer and gameplay now build
 their body/hand layer inputs through shared character helpers
 `make_character_pose_player_layer_sources` /
@@ -5769,6 +5785,21 @@ highway hidden; its log resolves guitarist0's main/band-jump/active clips to
 `char/rockabill1/anims/gen/rockabill1_main.milo_ps2`, matching the viewer's
 source-route log. This confirms the specific leg/foot read is a pose-stack
 problem to investigate, not a reason to add foot IK or camera compensation.
+
+2026-07-14 viewer/gameplay pose-stack diff: the matched Rockabill2 proof in
+`engine/out/visual_proofs/viewer_ingame_diff_20260714/` proves the direct
+viewer and gameplay paths were not equivalent before the viewer parity patch.
+Both routes reached the Rockabill shared `main.drv` clip family, but the old
+viewer kept a broader face predicate and full output-bone lists on neutral face
+and explicit hand overlay clips (`neutral` logged with 17 channels / 82 output
+bones, hand overlays with 80 output bones), while gameplay filtered face output
+bones and lower-body hand overlay output bones (`neutral` 15 / 15 and hand
+overlays 71 output bones in the capture). The viewer now uses the gameplay face
+predicate and filters explicit face and hand overlay clip output bones before
+proof sampling; the corrected `*_gamefilters_cmd` proof logs `neutral` 15 / 15
+and hand overlays 71, matching gameplay's filtered counts. Remaining
+viewer/gameplay differences must be diffed from the pose-stack log, not hidden
+with visual-only fixes.
 
 ## Native Rules
 

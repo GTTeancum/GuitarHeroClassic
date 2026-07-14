@@ -729,12 +729,23 @@ bool is_face_channel_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
                  [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("lip") != std::string::npos ||
+  return lower.find("face") != std::string::npos ||
+         lower.find("mouth") != std::string::npos ||
+         lower.find("lip") != std::string::npos ||
          lower.find("brow") != std::string::npos ||
-         lower.find("cheek") != std::string::npos ||
          lower.find("jaw") != std::string::npos ||
          lower.find("lid") != std::string::npos ||
          lower.find("eye") != std::string::npos;
+}
+
+bool is_lower_body_clip_name(const std::string& name) {
+  return name == "bone_facing" ||
+         name.find("pelvis") != std::string::npos ||
+         name.find("-thigh") != std::string::npos ||
+         name.find("-knee") != std::string::npos ||
+         name.find("-ankle") != std::string::npos ||
+         name.find("-foot") != std::string::npos ||
+         name.find("-toe") != std::string::npos;
 }
 
 void keep_face_channels_only(ghogx::character::CharClip& clip) {
@@ -750,7 +761,37 @@ void keep_face_channels_only(ghogx::character::CharClip& clip) {
                 frame.end());
     kept += frame.size();
   }
+  clip.output_bones.erase(
+      std::remove_if(clip.output_bones.begin(), clip.output_bones.end(),
+                     [](const ghogx::character::CharClip::OutputBone& bone) {
+                       return !is_face_channel_name(bone.name);
+                     }),
+      clip.output_bones.end());
   std::fprintf(stderr, "[char] face-filtered '%s': kept %zu/%zu channels\n",
+               clip.name.c_str(), kept, total);
+}
+
+void keep_hand_overlay_channels_only(ghogx::character::CharClip& clip) {
+  if (!clip.loaded) return;
+  size_t kept = 0;
+  size_t total = 0;
+  for (auto& frame : clip.frames) {
+    total += frame.size();
+    frame.erase(std::remove_if(frame.begin(), frame.end(),
+                               [](const ghogx::character::ClipChannel& ch) {
+                                 return is_lower_body_clip_name(ch.bone_name);
+                               }),
+                frame.end());
+    kept += frame.size();
+  }
+  clip.output_bones.erase(
+      std::remove_if(clip.output_bones.begin(), clip.output_bones.end(),
+                     [](const ghogx::character::CharClip::OutputBone& bone) {
+                       return is_lower_body_clip_name(bone.name);
+                     }),
+      clip.output_bones.end());
+  std::fprintf(stderr,
+               "[char] hand-overlay filtered '%s': kept %zu/%zu channels\n",
                clip.name.c_str(), kept, total);
 }
 
@@ -1329,6 +1370,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   }
   if (!resolved_strum_clip_arg.empty()) strum_clip = load_clip_spec(resolved_strum_clip_arg);
   if (!resolved_fret_clip_arg.empty()) fret_clip = load_clip_spec(resolved_fret_clip_arg);
+  keep_hand_overlay_channels_only(strum_clip);
+  keep_hand_overlay_channels_only(fret_clip);
   if (clip_arg.empty()) {
     const std::string default_main_clip = default_main_clip_name();
     loaded_clip = load_driver_clip("main.drv", default_main_clip);
@@ -1498,6 +1541,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // Real-time clip playback through a viewer-side CharDriver play stack.
     ghogx::character::SourceCharMainDriverHandWeights frame_hand_weights;
     ghogx::character::ClipChannelLayerStack pose_stack;
+    pose_stack.debug_label = "viewer";
     if (clip_frame_override >= 0) {
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
       ghogx::character::CharacterPoseFrameLayerBuildSources frame_inputs;

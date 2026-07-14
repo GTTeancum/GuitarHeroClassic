@@ -20137,6 +20137,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.active_strum_clip_names = {"strum_open"};
             }
             ghogx::character::ClipChannelLayerStack pose_stack;
+            pose_stack.debug_label = perf.role;
 
             if (hand_driver_active) {
                 const uint32_t desired_mask =

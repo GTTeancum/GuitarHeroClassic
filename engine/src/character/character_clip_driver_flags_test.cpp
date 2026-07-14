@@ -1293,7 +1293,7 @@ bool expect_clip_driver_helpers() {
   if (!ghogx::character::append_clip_frame_layer(layer_stack, frame_clip, 99,
                                                  0.75f, false) ||
       layer_stack.layers.size() != 2 ||
-      layer_stack.layers[1].debug_name != "frame.main" ||
+      layer_stack.layers[1].debug_name != "frame.main@f1" ||
       !nearf(layer_stack.layers[1].weight, 0.75f) ||
       layer_stack.layers[1].channels[0].bone_name !=
           "bone_L-foreTwist.mesh" ||
@@ -1334,8 +1334,8 @@ bool expect_clip_driver_helpers() {
   if (!ghogx::character::append_clip_player_layer(split_stack, split_player,
                                                   1.0f, false) ||
       split_stack.layers.size() != 2 ||
-      split_stack.layers[0].debug_name != "split.main" ||
-      split_stack.layers[1].debug_name != "split.main" ||
+      split_stack.layers[0].debug_name != "split.main@f0" ||
+      split_stack.layers[1].debug_name != "split.main@f1" ||
       !nearf(split_stack.layers[0].weight, 0.5f) ||
       !nearf(split_stack.layers[1].weight, 0.5f) ||
       split_stack.layers[0].channels[0].angle != incoming_twist.angle ||
@@ -1364,7 +1364,7 @@ bool expect_clip_driver_helpers() {
   if (!ghogx::character::append_clip_frame_layers(batch_layer_stack,
                                                   batch_frames) ||
       batch_layer_stack.layers.size() != 2 ||
-      batch_layer_stack.layers[1].debug_name != "frame.main" ||
+      batch_layer_stack.layers[1].debug_name != "frame.main@f1" ||
       !has_any_pose_channel(batch_layer_stack.layers[1].channels,
                             ghogx::character::ClipChannel::kPos,
                             lower_body_overlay_bones) ||
@@ -1434,6 +1434,8 @@ bool expect_clip_driver_helpers() {
       ghogx::character::apply_character_pose_stack_frame(
           empty_stack_frame_character, &empty_layer_stack);
   if (empty_stack_frame_result.applied_clip_layers ||
+      empty_stack_frame_result.applied_layer_count != 0 ||
+      empty_stack_frame_result.source_pose_publisher_fenced ||
       !empty_stack_frame_character.runtime_world_overrides.empty()) {
     std::cerr << "shared empty pose-stack frame helper mismatch\n";
     ok = false;
@@ -1449,6 +1451,8 @@ bool expect_clip_driver_helpers() {
       ghogx::character::apply_character_pose_stack_frame(
           null_stack_frame_character, nullptr);
   if (null_stack_frame_result.applied_clip_layers ||
+      null_stack_frame_result.applied_layer_count != 0 ||
+      null_stack_frame_result.source_pose_publisher_fenced ||
       !null_stack_frame_character.runtime_world_overrides.empty()) {
     std::cerr << "shared null pose-stack frame helper mismatch\n";
     ok = false;
@@ -1464,6 +1468,8 @@ bool expect_clip_driver_helpers() {
       ghogx::character::apply_character_pose_stack_frame(
           stack_frame_character, &performer_frame_stack);
   if (!stack_frame_result.applied_clip_layers ||
+      stack_frame_result.applied_layer_count != performer_frame_stack.layers.size() ||
+      !stack_frame_result.source_pose_publisher_fenced ||
       !stack_frame_character.runtime_world_overrides.empty()) {
     std::cerr << "shared populated pose-stack frame helper mismatch\n";
     ok = false;
@@ -1501,6 +1507,8 @@ bool expect_clip_driver_helpers() {
   const auto old_weight =
       controller_character.runtime_weight_props.find("old.weight");
   if (!controller_result.applied_clip_layers ||
+      controller_result.applied_layer_count != performer_frame_stack.layers.size() ||
+      !controller_result.source_pose_publisher_fenced ||
       !controller_result.fed_driver_flags ||
       controller_result.fallback_ik_weights != 2 ||
       controller_result.applied_midi_fret_target ||
@@ -1532,6 +1540,8 @@ bool expect_clip_driver_helpers() {
       ghogx::character::apply_character_pose_controller_frame(
           disabled_controller_character, disabled_sources);
   if (disabled_result.applied_clip_layers ||
+      disabled_result.applied_layer_count != 0 ||
+      disabled_result.source_pose_publisher_fenced ||
       disabled_result.fed_driver_flags ||
       disabled_result.fallback_ik_weights != 0 ||
       disabled_result.applied_midi_fret_target ||

@@ -33233,8 +33233,14 @@ int run_contract() {
                  "native character API exposes shared pose/controller rows");
   ok &= contains(char_clip_h,
                  "structCharacterPoseStackFrameResult{boolapplied_clip_layers="
-                 "false;};",
+                 "false;size_tapplied_layer_count=0;"
+                 "boolsource_pose_publisher_fenced=false;};",
                  "native character API exposes shared pose-stack frame result");
+  ok &= contains(char_clip_h,
+                 "structCharacterPoseControllerFrameResult{"
+                 "boolapplied_clip_layers=false;size_tapplied_layer_count=0;"
+                 "boolsource_pose_publisher_fenced=false;",
+                 "native pose/controller result carries source-publisher fence");
   ok &= contains(char_clip_h,
                  "std::vector<CharacterRuntimeIkWeight>"
                  "fallback_ik_weights;",
@@ -33278,8 +33284,17 @@ int run_contract() {
   ok &= contains(char_clip,
                  "if(stack!=nullptr&&!stack->layers.empty()){"
                  "apply_clip_layer_stack(*stack,character);"
-                 "result.applied_clip_layers=true;}",
+                 "result.applied_clip_layers=true;"
+                 "result.applied_layer_count=stack->layers.size();"
+                 "result.source_pose_publisher_fenced=true;",
                  "native shared pose-stack frame applies populated stack");
+  ok &= contains(char_clip,
+                 "\"[pose-publisher]label=%snativediagnosticcliplayers:"
+                 "\"",
+                 "native pose-stack proof log labels diagnostic publisher path");
+  ok &= contains(char_clip,
+                 "\"layers=%zurelative=%dsource_publisher=fencedmissing=%s\"",
+                 "native pose-stack proof log carries layer count and fence state");
   ok &= contains(char_clip,
                  "boolappend_clip_player_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipPlayerLayerSource>&sources)",
@@ -33308,6 +33323,10 @@ int run_contract() {
                  "apply_character_pose_stack_frame(character,"
                  "sources.pose_stack);",
                  "controller frame delegates pose-stack application");
+  ok &= contains(char_clip,
+                 "result.source_pose_publisher_fenced="
+                 "pose_result.source_pose_publisher_fenced;",
+                 "controller frame returns pose publisher fence state");
   ok &= contains(app_main,
                  "ghogx::character::ClipChannelLayerStackpose_stack;",
                  "viewer builds a shared clip layer stack");

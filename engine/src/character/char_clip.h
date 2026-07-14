@@ -1074,6 +1074,7 @@ struct ClipChannelLayer {
 
 struct ClipChannelLayerStack {
   std::vector<ClipChannelLayer> layers;
+  std::string debug_label;
   bool relative = false;
   bool relative_set = false;
 };
@@ -1208,10 +1209,14 @@ struct CharacterPoseControllerFrameSources {
 
 struct CharacterPoseStackFrameResult {
   bool applied_clip_layers = false;
+  size_t applied_layer_count = 0;
+  bool source_pose_publisher_fenced = false;
 };
 
 struct CharacterPoseControllerFrameResult {
   bool applied_clip_layers = false;
+  size_t applied_layer_count = 0;
+  bool source_pose_publisher_fenced = false;
   bool fed_driver_flags = false;
   size_t fallback_ik_weights = 0;
   bool applied_midi_fret_target = false;

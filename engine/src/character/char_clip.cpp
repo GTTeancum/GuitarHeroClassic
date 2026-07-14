@@ -3018,6 +3018,21 @@ bool debug_clip_hair_enabled() {
 #endif
 }
 
+bool debug_pose_publisher_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_POSE_PUBLISHER") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_POSE_PUBLISHER");
+  return value && value[0];
+#endif
+}
+
 bool clip_hair_debug_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -10338,9 +10353,12 @@ bool append_clip_frame_layer(ClipChannelLayerStack& stack, const CharClip& clip,
   std::vector<ClipChannel> channels = clip.frames[static_cast<size_t>(fi)];
   if (overlay_override) strip_overlay_lower_body_channels(channels);
   if (channels.empty()) return false;
+  char debug_name[256];
+  std::snprintf(debug_name, sizeof(debug_name), "%s@f%d", clip.name.c_str(),
+                fi);
   update_layer_stack_relative(stack, clip.relative);
   stack.layers.push_back(ClipChannelLayer{
-      std::move(channels), weight, &clip.output_bones, clip.name,
+      std::move(channels), weight, &clip.output_bones, debug_name,
       clip.relative, overlay_override});
   return true;
 }
@@ -10437,6 +10455,36 @@ CharacterPoseStackFrameResult apply_character_pose_stack_frame(
   if (stack != nullptr && !stack->layers.empty()) {
     apply_clip_layer_stack(*stack, character);
     result.applied_clip_layers = true;
+    result.applied_layer_count = stack->layers.size();
+    result.source_pose_publisher_fenced = true;
+    if (debug_pose_publisher_enabled()) {
+      std::string layer_names;
+      for (size_t i = 0; i < stack->layers.size() && i < 6; ++i) {
+        if (!layer_names.empty()) layer_names += ",";
+        const ClipChannelLayer& layer = stack->layers[i];
+        char detail[256];
+        std::snprintf(detail, sizeof(detail),
+                      "%zu:%s:w=%.3f:ch=%zu:out=%zu:ov=%d:rel=%d", i,
+                      layer.debug_name.empty() ? "<unnamed>"
+                                               : layer.debug_name.c_str(),
+                      layer.weight, layer.channels.size(),
+                      layer.output_bones ? layer.output_bones->size() : 0,
+                      layer.overlay_override ? 1 : 0,
+                      layer.relative ? 1 : 0);
+        layer_names += detail;
+      }
+      if (stack->layers.size() > 6) layer_names += ",...";
+      std::fprintf(stderr,
+                   "[pose-publisher] label=%s native diagnostic clip layers: "
+                   "layers=%zu relative=%d source_publisher=fenced missing=%s "
+                   "layers_used=%s\n",
+                   stack->debug_label.empty() ? "<none>"
+                                              : stack->debug_label.c_str(),
+                   stack->layers.size(), stack->relative ? 1 : 0,
+                   "CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|"
+                   "CharBonesMeshes::PoseMeshes",
+                   layer_names.c_str());
+    }
   }
   return result;
 }
@@ -10449,6 +10497,9 @@ CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
   const CharacterPoseStackFrameResult pose_result =
       apply_character_pose_stack_frame(character, sources.pose_stack);
   result.applied_clip_layers = pose_result.applied_clip_layers;
+  result.applied_layer_count = pose_result.applied_layer_count;
+  result.source_pose_publisher_fenced =
+      pose_result.source_pose_publisher_fenced;
 
   if (!sources.controllers_enabled) return result;
 
@@ -10619,10 +10670,13 @@ std::vector<ClipChannelLayer> CharClipPlayer::sampled_pose_layers(
     std::vector<ClipChannel> channels = clip.frames[static_cast<size_t>(fi)];
     if (overlay_override) strip_overlay_lower_body_channels(channels);
     if (channels.empty()) return;
+    char debug_name[256];
+    std::snprintf(debug_name, sizeof(debug_name), "%s@f%d", clip.name.c_str(),
+                  fi);
     out.push_back(ClipChannelLayer{std::move(channels),
                                    sample_weight,
                                    &clip.output_bones,
-                                   clip.name,
+                                   debug_name,
                                    clip.relative,
                                    overlay_override});
   };
