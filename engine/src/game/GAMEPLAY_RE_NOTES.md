@@ -313,6 +313,15 @@ Open work:
   `native_deferred_accept` result explicitly. This is still not a fabricated
   GH2 `cam_shot_ok` predicate; it is the source return contract prepared for
   the recovered native predicate when that body is pinned.
+- 2026-07-14 CamShot `bad_waypoints` native gate: GH2 `world/camshot.dta`
+  routes `shot_ok` to native `cam_shot_ok $this`, and GH2
+  `world_objects.dta` documents `bad_waypoints` as "If the character is
+  currently on any of these walk spots, the shot will not be used". Native now
+  computes guitarist0's nearest decoded `kWalkSpot|kSoloWalkSpot` waypoint from
+  the loaded venue character scene and rejects only CamShots whose authored
+  `bad_waypoints` refs match that current walkspot. The rest of `cam_shot_ok`
+  remains `native_deferred_accept`; this is a source-pinned field rule, not a
+  general inferred shot_ok body.
 - 2026-07-13 CameraManager `first_shot_ok` hook: ihatecompvir sends
   `first_shot_ok(category)` at the start of `FindCameraShot`, before any
   category scan or `shot_ok` calls. A follow-up audit of

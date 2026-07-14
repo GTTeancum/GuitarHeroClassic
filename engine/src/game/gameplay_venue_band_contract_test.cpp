@@ -12184,7 +12184,7 @@ int main() {
                  "if(key.disabled_flags!=0){",
                  "source category picker scans one authored category and preserves Disabled gate ordering");
   ok &= contains(gameplay_c,
-                 "if(!camera_source_shot_ok(key,source_previous))continue;"
+                 "if(!camera_source_shot_ok(key,source_previous,current_walkspot))continue;"
                  "selected=i;",
                  "source category picker runs CamShot::ShotOk before accepting a WIN/LOSE shot");
   ok &= contains(gameplay_c,
@@ -12331,14 +12331,17 @@ int main() {
                  "regular camera sweep diagnostics expose source mode, faceoff, category, filters, and previous shot");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
-                 "constGameplay::CameraKey*previous)",
+                 "constGameplay::CameraKey*previous,"
+                 "std::string_viewcurrent_walkspot)",
                  "regular camera selector exposes ihatecompvir CamShot::ShotOk hook");
   ok &= contains(gameplay_c,
                  "enumclassCameraSourceShotOkReturn",
                  "regular camera selector records ihatecompvir CamShot::ShotOk return classes");
   ok &= contains(gameplay_c,
                  "caseCameraSourceShotOkReturn::kStringReject:"
-                 "caseCameraSourceShotOkReturn::kIntReject:returnfalse;",
+                 "caseCameraSourceShotOkReturn::kIntReject:"
+                 "caseCameraSourceShotOkReturn::kNativeBadWaypointReject:"
+                 "returnfalse;",
                  "regular camera shot_ok bridge rejects source string/false integer returns");
   ok &= contains(gameplay_c,
                  "caseCameraSourceShotOkReturn::kUnhandledAccept:"
@@ -12349,6 +12352,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "returnCameraSourceShotOkReturn::kNativeDeferredAccept;",
                  "regular camera shot_ok bridge keeps unrecovered GH2 cam_shot_ok permissive");
+  ok &= contains(gameplay_c,
+                 "kNativeBadWaypointReject",
+                 "regular camera shot_ok bridge names the recovered bad_waypoints native rejection");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_bad_waypoint_rejects("
+                 "constGameplay::CameraKey&key,"
+                 "std::string_viewcurrent_walkspot)",
+                 "regular camera shot_ok bridge evaluates authored bad_waypoints refs");
+  ok &= contains(gameplay_c,
+                 "std::stringGameplay::camera_source_guitarist0_nearest_walkspot()const",
+                 "regular camera shot_ok bridge uses the current guitarist0 walkspot source context");
   ok &= contains(gameplay_c,
                  "voidcamera_source_first_shot_ok(std::string_viewcategory)",
                  "regular camera selector exposes ihatecompvir CameraManager::FirstShotOk hook");
@@ -12369,12 +12383,12 @@ int main() {
                  "category=%ssource_return=discardedresult=ignored\\n\"",
                  "regular camera diagnostics expose ignored source first_shot_ok return");
   ok &= contains(gameplay_c,
-                 "if(!camera_source_shot_ok(key,previous))continue;",
+                 "if(!camera_source_shot_ok(key,previous,current_walkspot))continue;",
                  "regular camera selector runs source shot_ok after ShotMatches filters");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_ok:source_msg=shot_okshot=%s"
-                 "previous=%scam_shot_ok=native_deferredsource_return=%s"
-                 "result=%s\\n\"",
+                 "previous=%scam_shot_ok=%ssource_return=%s"
+                 "result=%scurrent_walkspot=%sbad_waypoints=%zu\\n\"",
                  "regular camera diagnostics expose deferred source shot_ok hook");
   ok &= absent(gameplay_c,
                "if(previous&&key.name==previous->name)continue;",

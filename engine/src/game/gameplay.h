@@ -791,6 +791,7 @@ class Gameplay {
                                      const CameraKey& key);
   void queue_regular_camera_shot(const CameraKey& key,
                                  const char* source_handler);
+  std::string camera_source_guitarist0_nearest_walkspot() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);
   void update_source_game_over_camera_messages(

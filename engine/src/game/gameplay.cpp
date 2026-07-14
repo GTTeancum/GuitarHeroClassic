@@ -16400,14 +16400,17 @@ enum class CameraSourceShotOkReturn {
     kIntAccept,
     kIntReject,
     kNativeDeferredAccept,
+    kNativeBadWaypointReject,
 };
 
 bool camera_source_shot_ok_accepts(CameraSourceShotOkReturn result) {
     // ihatecompvir CamShot::ShotOk accepts unhandled and true integer returns;
-    // string returns and false integer returns reject the candidate CamShot.
+    // string, false integer, and pinned native bad-waypoint returns reject the
+    // candidate CamShot.
     switch (result) {
     case CameraSourceShotOkReturn::kStringReject:
     case CameraSourceShotOkReturn::kIntReject:
+    case CameraSourceShotOkReturn::kNativeBadWaypointReject:
         return false;
     case CameraSourceShotOkReturn::kUnhandledAccept:
     case CameraSourceShotOkReturn::kIntAccept:
@@ -16430,8 +16433,34 @@ const char* camera_source_shot_ok_return_label(
         return "int_reject";
     case CameraSourceShotOkReturn::kNativeDeferredAccept:
         return "native_deferred_accept";
+    case CameraSourceShotOkReturn::kNativeBadWaypointReject:
+        return "native_bad_waypoint_reject";
     }
     return "unknown";
+}
+
+std::string camera_waypoint_match_key(std::string_view ref) {
+    std::string key = canonical_milo_ref(std::string(ref));
+    const size_t basename = key.find_last_of("/\\:");
+    if (basename != std::string::npos) key.erase(0, basename + 1);
+    return key;
+}
+
+bool camera_waypoint_refs_match(std::string_view authored_ref,
+                                std::string_view current_waypoint) {
+    if (authored_ref.empty() || current_waypoint.empty()) return false;
+    if (authored_ref == current_waypoint) return true;
+    return camera_waypoint_match_key(authored_ref) ==
+           camera_waypoint_match_key(current_waypoint);
+}
+
+bool camera_source_bad_waypoint_rejects(
+    const Gameplay::CameraKey& key, std::string_view current_walkspot) {
+    if (current_walkspot.empty() || key.bad_waypoint_refs.empty()) return false;
+    for (const auto& ref : key.bad_waypoint_refs) {
+        if (camera_waypoint_refs_match(ref, current_walkspot)) return true;
+    }
+    return false;
 }
 
 CameraSourceShotOkReturn camera_source_deferred_cam_shot_ok_return(
@@ -16441,21 +16470,39 @@ CameraSourceShotOkReturn camera_source_deferred_cam_shot_ok_return(
     return CameraSourceShotOkReturn::kNativeDeferredAccept;
 }
 
+CameraSourceShotOkReturn camera_source_cam_shot_ok_return(
+    const Gameplay::CameraKey& key, const Gameplay::CameraKey* previous,
+    std::string_view current_walkspot) {
+    if (camera_source_bad_waypoint_rejects(key, current_walkspot)) {
+        return CameraSourceShotOkReturn::kNativeBadWaypointReject;
+    }
+    return camera_source_deferred_cam_shot_ok_return(key, previous);
+}
+
 bool camera_source_shot_ok(const Gameplay::CameraKey& key,
-                           const Gameplay::CameraKey* previous) {
+                           const Gameplay::CameraKey* previous,
+                           std::string_view current_walkspot) {
     // ihatecompvir CamShot::ShotOk sends shot_ok(prev_shot). GH2 then routes
-    // that script to native cam_shot_ok. Keep the source return contract
-    // explicit, but do not infer rejection behavior until cam_shot_ok is pinned.
+    // that script to native cam_shot_ok. GH2's editor schema pins
+    // bad_waypoints as a native rejection rule; the rest of cam_shot_ok remains
+    // explicit native_deferred_accept until recovered.
     const CameraSourceShotOkReturn source_return =
-        camera_source_deferred_cam_shot_ok_return(key, previous);
+        camera_source_cam_shot_ok_return(key, previous, current_walkspot);
     const bool accepted = camera_source_shot_ok_accepts(source_return);
+    const char* cam_shot_ok =
+        source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
+            ? "bad_waypoints"
+            : "native_deferred";
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=native_deferred source_return=%s result=%s\n",
+            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoints=%zu\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
+            cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
-            accepted ? "accept" : "reject");
+            accepted ? "accept" : "reject",
+            std::string(current_walkspot).c_str(),
+            key.bad_waypoint_refs.size());
     }
     return accepted;
 }
@@ -16640,6 +16687,7 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
     const std::vector<Gameplay::CameraKey>& keys,
     const Gameplay::CameraKey* previous,
     CameraShotMode mode,
+    std::string_view current_walkspot,
     Predicate&& predicate) {
     auto scan_category = [&](std::string_view category)
         -> std::optional<size_t> {
@@ -16657,7 +16705,7 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
                 continue;
             }
             if (!predicate(key)) continue;
-            if (!camera_source_shot_ok(key, previous)) continue;
+            if (!camera_source_shot_ok(key, previous, current_walkspot)) continue;
             return i;
         }
         return std::nullopt;
@@ -16706,7 +16754,8 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     bool walking,
     bool starpower,
     CameraShotMode mode,
-    int source_faceoff_players) {
+    int source_faceoff_players,
+    std::string_view current_walkspot) {
     if (keys.empty()) return nullptr;
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
@@ -16734,7 +16783,7 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     camera_source_first_shot_ok(camera_source_pick_shot_category(mode));
     std::optional<size_t> selected =
         choose_regular_camera_key_index_by_category(
-            keys, source_previous, mode, source_filter);
+            keys, source_previous, mode, current_walkspot, source_filter);
     if (!selected) {
         camera_source_no_acceptable_shot(camera_source_pick_shot_category(mode),
                                          mode, low_excitement, walking,
@@ -16784,7 +16833,8 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
     std::string_view previous_name,
     const Gameplay::CameraKey* source_previous_fallback,
     std::string_view category,
-    std::string_view source_message) {
+    std::string_view source_message,
+    std::string_view current_walkspot) {
     if (keys.empty() || category.empty()) return nullptr;
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
@@ -16815,7 +16865,7 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
             }
             continue;
         }
-        if (!camera_source_shot_ok(key, source_previous)) continue;
+        if (!camera_source_shot_ok(key, source_previous, current_walkspot)) continue;
         selected = i;
         break;
     }
@@ -24043,16 +24093,54 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
     }
 }
 
+std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
+    if (!venue_chars_scene_loaded_ || venue_chars_scene_.waypoints.empty()) {
+        return {};
+    }
+    const Performer* guitarist0 = nullptr;
+    for (const auto& performer : performers_) {
+        if (performer.role == "guitarist0") {
+            guitarist0 = &performer;
+            break;
+        }
+    }
+    if (!guitarist0) return {};
+
+    constexpr uint32_t kWalkSpot = 64u;
+    constexpr uint32_t kSoloWalkSpot = 128u;
+    const float px = guitarist0->world_transform[12];
+    const float py = guitarist0->world_transform[13];
+    const float pz = guitarist0->world_transform[14];
+    const ghogx::milo_scene::WaypointObj* best = nullptr;
+    float best_dist2 = std::numeric_limits<float>::max();
+    for (const auto& waypoint : venue_chars_scene_.waypoints) {
+        if (!waypoint.decoded) continue;
+        if ((waypoint.flags & (kWalkSpot | kSoloWalkSpot)) == 0) continue;
+        const float dx = waypoint.local.pos[0] - px;
+        const float dy = waypoint.local.pos[1] - py;
+        const float dz = waypoint.local.pos[2] - pz;
+        const float dist2 = dx * dx + dy * dy + dz * dz;
+        if (!best || dist2 < best_dist2) {
+            best = &waypoint;
+            best_dist2 = dist2;
+        }
+    }
+    return best ? best->name : std::string{};
+}
+
 bool Gameplay::queue_source_category_camera_shot(
     std::string_view category, const char* source_message) {
     const CameraKey* source_previous_fallback =
         active_regular_camera_.empty() && !camera_keys_.empty()
             ? &camera_keys_.front()
             : nullptr;
+    const std::string current_walkspot =
+        camera_source_guitarist0_nearest_walkspot();
     const CameraKey* key = choose_camera_key_source_category(
         regular_camera_keys_, active_regular_camera_,
         source_previous_fallback, category,
-        source_message && source_message[0] ? source_message : "pick_shot");
+        source_message && source_message[0] ? source_message : "pick_shot",
+        current_walkspot);
     if (!key) {
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
@@ -33467,6 +33555,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
                 const int source_faceoff_players =
                     camera_faceoff_active_players_;
+                const std::string source_current_walkspot =
+                    camera_source_guitarist0_nearest_walkspot();
                 const CameraKey* key = nullptr;
                 const CameraKey* source_previous_fallback =
                     active_regular_camera_.empty() && !camera_keys_.empty()
@@ -33506,7 +33596,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         regular_camera_keys_, active_regular_camera_,
                         source_previous_fallback, low_excitement, kGuitaristWalking,
                         guitarist_starpower, camera_mode,
-                        source_faceoff_players);
+                        source_faceoff_players, source_current_walkspot);
                 }
                 if (key) {
                     const bool shot_changed =
