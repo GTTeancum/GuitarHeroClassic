@@ -20041,6 +20041,7 @@ void apply_camera_keys(
         camera_targets_match_like_camshot(*a, *b, targets);
     std::optional<std::array<float, 3>> blended_target_centroid;
     std::optional<std::array<float, 3>> filtered_target_centroid;
+    std::optional<CameraResultRows> source_build_transform_result;
     std::optional<CameraResultRows> source_screen_offset_translate_result;
     std::optional<CameraResultRows>
         source_screen_offset_filtered_target_candidate;
@@ -20048,6 +20049,7 @@ void apply_camera_keys(
     float result_filter_projected_delta = 1.0f;
     bool result_filter_state_seeded = false;
     bool result_filter_branch = false;
+    bool source_build_transform_order = false;
     if (a_target_centroid && b_target_centroid) {
         blended_target_centroid = {
             (*a_target_centroid)[0] +
@@ -20087,15 +20089,73 @@ void apply_camera_keys(
         result_filter_branch =
             result_key.has_shot_filter && std::isfinite(result_key.shot_filter) &&
             result_key.shot_filter > 0.0f;
-        if (auto filtered_rows = camera_target_list_result_rows_from_seed(
-                source_seed_result, result_key, *blended_target_centroid,
-                result_builder_state, &result_filter_step,
-                &result_filter_projected_delta)) {
-            submitted_result = *filtered_rows;
+        if (!same_targets_like_camshot) {
+            CameraResultBuilderState source_order_state =
+                result_builder_state ? *result_builder_state
+                                     : CameraResultBuilderState{};
+            CameraResultBuilderState* source_order_state_ptr =
+                result_builder_state ? &source_order_state : nullptr;
+            float source_order_filter_step_a = 1.0f;
+            float source_order_filter_step_b = 1.0f;
+            float source_order_projected_delta_a = 1.0f;
+            float source_order_projected_delta_b = 1.0f;
+            Gameplay::CameraKey build_key_a = *a;
+            Gameplay::CameraKey build_key_b = *b;
+            build_key_a.has_fov = true;
+            build_key_b.has_fov = true;
+            build_key_a.fov = source_screen_offset_fov;
+            build_key_b.fov = source_screen_offset_fov;
+            std::optional<CameraResultRows> build_rows_a;
+            std::optional<CameraResultRows> build_rows_b;
+            if (a_target_centroid) {
+                build_rows_a = camera_target_list_result_rows_from_seed(
+                    source_seed_a, build_key_a, *a_target_centroid,
+                    source_order_state_ptr, &source_order_filter_step_a,
+                    &source_order_projected_delta_a);
+            }
+            if (b_target_centroid) {
+                build_rows_b = camera_target_list_result_rows_from_seed(
+                    source_seed_b, build_key_b, *b_target_centroid,
+                    source_order_state_ptr, &source_order_filter_step_b,
+                    &source_order_projected_delta_b);
+            }
+            if (build_rows_a || build_rows_b) {
+                const CameraResultRows& build_a =
+                    build_rows_a ? *build_rows_a : result_a;
+                const CameraResultRows& build_b =
+                    build_rows_b ? *build_rows_b : result_b;
+                source_build_transform_result =
+                    camera_lerp_result_rows(build_a, build_b, interp_t);
+                source_build_transform_result->source =
+                    "source_build_transform_lerp(" +
+                    source_build_transform_result->source + ")";
+                submitted_result = *source_build_transform_result;
+                source_build_transform_order = true;
+                if (result_builder_state) {
+                    *result_builder_state = source_order_state;
+                    if (result_builder_state->has_filtered_target) {
+                        filtered_target_centroid =
+                            result_builder_state->filtered_target;
+                    }
+                }
+                if (build_rows_b) {
+                    result_filter_step = source_order_filter_step_b;
+                    result_filter_projected_delta =
+                        source_order_projected_delta_b;
+                } else {
+                    result_filter_step = source_order_filter_step_a;
+                    result_filter_projected_delta =
+                        source_order_projected_delta_a;
+                }
+            }
+        } else if (auto filtered_rows = camera_target_list_result_rows_from_seed(
+                       source_seed_result, result_key,
+                       *blended_target_centroid, result_builder_state,
+                       &result_filter_step, &result_filter_projected_delta)) {
             filtered_target_centroid =
                 result_builder_state ? result_builder_state->filtered_target
                                      : *blended_target_centroid;
-            if (same_targets_like_camshot) {
+            {
                 const auto& filtered_screen_target =
                     filtered_target_centroid ? *filtered_target_centroid
                                              : *blended_target_centroid;
@@ -20943,6 +21003,10 @@ void apply_camera_keys(
             };
         log_result_rows("source_seed_candidate", source_seed_result, 1, 1);
         log_result_rows("submitted", submitted_result, 1, 1);
+        if (source_build_transform_result) {
+            log_result_rows("source_build_transform_result",
+                            *source_build_transform_result, 1, 1);
+        }
         const auto writer_bridge_gate_eval_a =
             evaluate_retained_ps2_source_record_trace_context(*a);
         const auto writer_bridge_gate_eval_b =
@@ -21303,10 +21367,15 @@ void apply_camera_keys(
         std::fprintf(
             stderr,
             "[camera-solver] frame=%.2f shot_filter_branch=%d "
+            "build_transform_order=%s apply_screen_offset=%d "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
-            "state_valid=%d\n",
+            "state_valid=%d "
+            "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\n",
             frame, result_filter_branch ? 1 : 0,
+            source_build_transform_order ? "per_key_then_lerp"
+                                         : "blended_seed",
+            same_targets_like_camshot ? 0 : 1,
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             blended_target_centroid ? (*blended_target_centroid)[0] : 0.0f,

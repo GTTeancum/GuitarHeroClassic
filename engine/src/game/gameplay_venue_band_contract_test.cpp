@@ -8632,7 +8632,14 @@ int main() {
                  "cam.fov=source_screen_offset_fov+zoom_fov;",
                  "runtime applies CamShot zoom FOV after preserving the screen-offset frustum");
   ok &= contains(gameplay_c,
-                 "if(same_targets_like_camshot){",
+                 "if(!same_targets_like_camshot){",
+                 "non-SameTargets BuildTransform branch is split from same-target screen-offset");
+  ok &= contains(gameplay_c,
+                 "}elseif(autofiltered_rows="
+                 "camera_target_list_result_rows_from_seed("
+                 "source_seed_result,result_key,*blended_target_centroid,"
+                 "result_builder_state,&result_filter_step,"
+                 "&result_filter_projected_delta)){",
                  "source-shaped screen-offset result is gated to CamShot same-target blends");
   ok &= contains(gameplay_c,
                  "submitted_result=*source_screen_offset_translate_result;",
@@ -8663,6 +8670,22 @@ int main() {
                  "std::optional<CameraResultRows>"
                  "camera_target_list_result_rows_from_seed(",
                  "camera target-list rows can run from an already blended source seed");
+  ok &= contains(gameplay_c,
+                 "source_build_transform_result="
+                 "camera_lerp_result_rows(build_a,build_b,interp_t);",
+                 "non-same-target CamShot rows build each transform before interpolation");
+  ok &= contains(gameplay_c,
+                 "source_build_transform_result->source="
+                 "\"source_build_transform_lerp(\"+",
+                 "source BuildTransform interpolation rows label their provenance");
+  ok &= contains(gameplay_c,
+                 "build_key_a.fov=source_screen_offset_fov;"
+                 "build_key_b.fov=source_screen_offset_fov;",
+                 "source BuildTransform rows use the pre-zoom CamShot frustum");
+  ok &= contains(gameplay_c,
+                 "\"source_locals=CamShotFrame::Interp"
+                 "(BuildTransform,applyScreenOffset)\\n\"",
+                 "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::array<float,16>>"
                  "build_venue_camera_target_worlds(",

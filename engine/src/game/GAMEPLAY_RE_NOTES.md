@@ -11177,6 +11177,16 @@ Rejected native probe:
   projection nudge. Native target-list rows now mark that aim-corrected result
   as `screen_offset_consumed`, preventing venue/character projection from
   applying the same CamShot `screen_offset` a second time.
+- 2026-07-14 non-SameTargets BuildTransform order:
+  the visible ihatecompvir `CamShotFrame::Interp` order builds the current and
+  next key transforms with `BuildTransform(cam, ..., !sameTargets)` before
+  interpolating the two transforms. Native no longer submits a single
+  non-SameTargets target-list solve from an already interpolated source seed.
+  It now builds the A/B target-list rows from their per-key source seeds using
+  the pre-zoom CamShot frustum, then submits
+  `source_build_transform_lerp(...)`. Same-target blends keep the separately
+  audited direct-target local-space screen-offset path, because the source
+  disables the BuildTransform screen-offset/filter branch for that case.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,
