@@ -16141,6 +16141,35 @@ const char* camera_shot_mode_label(CameraShotMode mode) {
     return "regular";
 }
 
+const char* camera_source_script_cue_message(std::string_view event_text) {
+    if (event_text == "[band_jump]") return "band_jump";
+    if (event_text == "[crowd_lighters_slow]" ||
+        event_text == "[crowd_lighters_fast]") {
+        return "pick_lighter_shot";
+    }
+    if (event_text == "[crowd_lighters_off]") return "force_pick_shot";
+    if (event_text == "[sync_wag]") return "sync_wag";
+    if (event_text == "[sync_head_bang]") return "sync_head_bang";
+    return "unknown";
+}
+
+const char* camera_source_script_cue_action(std::string_view event_text) {
+    if (event_text == "[band_jump]") {
+        return "pick_shot(NORMAL_CAMSHOT_CATEGORIES,jump_ok)";
+    }
+    if (event_text == "[crowd_lighters_slow]" ||
+        event_text == "[crowd_lighters_fast]") {
+        return "pick_shot(LIGHTER)";
+    }
+    if (event_text == "[crowd_lighters_off]") {
+        return "get_shot_duration+pick_new_shot";
+    }
+    if (event_text == "[sync_wag]" || event_text == "[sync_head_bang]") {
+        return "pick_new_shot";
+    }
+    return "unknown";
+}
+
 bool camera_category_filter_ok(const Gameplay::CameraKey& key,
                                CameraShotMode mode) {
     if (mode == CameraShotMode::Lighter) {
@@ -32664,7 +32693,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
-                    "[world] camera one_bar_to: source_msg=one_bar_to upcoming=%s event_tick=%u trigger_tick=%u camera_solo=%d force=%d\n",
+                    "[world] camera one_bar_to: source_msg=one_bar_to source_action=get_shot_duration+pick_new_shot upcoming=%s event_tick=%u trigger_tick=%u camera_solo=%d force=%d\n",
                     std::string(*upcoming_section).c_str(), ev.tick,
                     trigger_tick, camera_solo_active_ ? 1 : 0,
                     cue_forced_camera ? 1 : 0);
@@ -32738,9 +32767,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
                 std::fprintf(
                     stderr,
-                    "[world] camera script cue: text=%s tick=%u t=%.3f "
+                    "[world] camera script cue: source_msg=%s source_action=%s "
+                    "text=%s tick=%u t=%.3f "
                     "force=%d mode=%s bars=%d excitement=%u "
                     "crowd_group=%s\n",
+                    camera_source_script_cue_message(ev.text),
+                    camera_source_script_cue_action(ev.text),
                     ev.text.c_str(), ev.tick, song_time_,
                     cue_forced_camera ? 1 : 0,
                     forced_camera_mode

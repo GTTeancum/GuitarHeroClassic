@@ -11362,6 +11362,15 @@ int main() {
                  "enumclassCameraShotMode{Regular,Solo,Jump,Lighter};",
                  "camera director has distinct regular/solo/jump/lighter modes");
   ok &= contains(gameplay_c,
+                 "constchar*camera_source_script_cue_message(",
+                 "camera script cue diagnostics name recovered GH2 source messages");
+  ok &= contains(gameplay_c,
+                 "return\"pick_lighter_shot\";",
+                 "crowd lighter cue diagnostics name the source pick_lighter_shot route");
+  ok &= contains(gameplay_c,
+                 "return\"force_pick_shot\";",
+                 "crowd_lighters_off diagnostics name the source force_pick_shot route");
+  ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Jump){"
                  "returncamera_shot_matches_source_filters("
                  "key,{camera_bool_filter(\"jump_ok\",true)});}",
@@ -11400,6 +11409,7 @@ int main() {
                  "world_objects_worldbase.dta one_bar_to forces a normal pick with source duration");
   ok &= contains(gameplay_c,
                  "\"[world]cameraone_bar_to:source_msg=one_bar_to"
+                 "source_action=get_shot_duration+pick_new_shot"
                  "upcoming=%sevent_tick=%utrigger_tick=%ucamera_solo=%dforce=%d\\n\"",
                  "camera diagnostics expose source one_bar_to state changes");
   ok &= contains(gameplay_c,
@@ -12352,6 +12362,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"crowd_group=%s\\n\"",
                  "camera script cue diagnostics expose the active WorldCrowd crowd group");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerascriptcue:source_msg=%ssource_action=%s\"",
+                 "camera script cue diagnostics expose the recovered source message/action");
+  ok &= contains(gameplay_c,
+                 "return\"pick_shot(NORMAL_CAMSHOT_CATEGORIES,jump_ok)\";",
+                 "band_jump diagnostics expose the source pick_shot jump route");
+  ok &= contains(gameplay_c,
+                 "return\"get_shot_duration+pick_new_shot\";",
+                 "force_pick_shot diagnostics expose the source duration refresh and normal pick");
   ok &= contains(gameplay_c,
                  "ev.text==\"[crowd_lighters_off]\"",
                  "camera director listens for authored crowd lighter off messages");

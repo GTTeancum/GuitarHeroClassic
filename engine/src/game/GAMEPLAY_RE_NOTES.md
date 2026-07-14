@@ -11604,6 +11604,15 @@ Rejected native probe:
   `pick_solo_camera_shot`, `band_jump`, and `pick_lighter_shot`; this does not
   change selection or camera transform math. It makes suspicious angles
   auditable as either source-script-eligible picks or later pipeline issues.
+- 2026-07-14 forced camera cue source labels:
+  forced camera cue logs now name the recovered source message/action that
+  requested the cut: `band_jump` routes to
+  `pick_shot(NORMAL_CAMSHOT_CATEGORIES,jump_ok)`, crowd lighters route through
+  `pick_lighter_shot -> pick_shot(LIGHTER)`, `[crowd_lighters_off]` routes
+  through `force_pick_shot -> get_shot_duration+pick_new_shot`, and
+  `sync_wag` / `sync_head_bang` route to `pick_new_shot`. This is proof
+  plumbing for sketchy-angle audits only; it does not infer the deferred
+  `cam_shot_ok` or `cam_check_shot` predicates.
 - 2026-07-14 CameraManager same-shot selection proof: ihatecompvir
   `CameraManager::PickCameraShot` writes accepted shots to `mNextShot`, and
   `PrePoll()` consumes any non-null `mNextShot` through `StartShot_`, including
