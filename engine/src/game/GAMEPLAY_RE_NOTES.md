@@ -182,6 +182,17 @@ Open work:
   camera cues outside that random draw stream. This is a timing/source-RNG
   correction only; it does not claim final camera pose, angle composition,
   `cam_shot_ok`, or `check_shot_over` parity.
+- 2026-07-14 CameraManager all-category randomization:
+  ihatecompvir `CameraManager::SyncObjects` adds every `PlatformOk()` CamShot
+  to first-seen category buckets, then `CameraManager::Randomize()` iterates
+  every category in `mCameraShotCategories` and calls
+  `RandomizeCategory(...)`. Native now builds the same first-seen category
+  list from decoded CamShots and burns the source Rand stream across every
+  bucket, instead of shuffling only the normal gameplay categories plus
+  `LIGHTER`. This keeps later `FindCameraShot` scans aligned with source
+  category order even when authored intro/win/special categories are present in
+  the same venue object list. The debug camera log prints the
+  `CameraManager::Randomize` first-seen bucket order for screenshot-proof runs.
 - 2026-07-14 CamShot `CheckShotOver` / `SetShotOver` split:
   ihatecompvir `CamShot::CheckShotOver(f)` returns
   `!mShotOver && !mLooping && f >= mDuration`, while `SetShotOver()` sends the

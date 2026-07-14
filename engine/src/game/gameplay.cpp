@@ -15330,11 +15330,27 @@ struct CameraSourceRand {
 
 void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
     // ihatecompvir CameraManager::SyncObjects seeds sRand and randomizes every
-    // category list before FindCameraShot starts moving accepted shots to the
-    // back. The RB2 dump shows a temporary shot array and "which" selection;
-    // mirror that remaining-list draw using the source Rand implementation.
+    // first-seen category list before FindCameraShot starts moving accepted
+    // shots to the back. The RB2 dump shows a temporary shot array and "which"
+    // selection; mirror that remaining-list draw using the source Rand
+    // implementation.
     CameraSourceRand rand;
     rand.seed(0);
+    std::vector<std::string> categories;
+    for (const auto& key : keys) {
+        if (key.category.empty()) continue;
+        if (std::find(categories.begin(), categories.end(), key.category) ==
+            categories.end()) {
+            categories.push_back(key.category);
+        }
+    }
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const std::string category_order = join_log_names(categories);
+        std::fprintf(
+            stderr,
+            "[world] camera Randomize: source_manager=CameraManager::Randomize categories=%zu scope=all_first_seen_category_buckets order=%s\n",
+            categories.size(), category_order.c_str());
+    }
     auto shuffle_category = [&](std::string_view category) {
         std::vector<size_t> indices;
         std::vector<Gameplay::CameraKey> remaining;
@@ -15352,10 +15368,9 @@ void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
         }
     };
 
-    for (const auto category : kNormalCamShotCategoryOrder) {
+    for (const auto& category : categories) {
         shuffle_category(category);
     }
-    shuffle_category("LIGHTER");
 }
 
 bool camera_mode_filter_ok(const Gameplay::CameraKey& key,

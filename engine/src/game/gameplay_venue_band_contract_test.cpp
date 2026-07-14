@@ -10895,9 +10895,25 @@ int main() {
                  "remaining[picked]=std::move(remaining.back());",
                  "regular camera randomization mirrors SyncObjects remaining-list removal");
   ok &= contains(gameplay_c,
-                 "for(constautocategory:kNormalCamShotCategoryOrder){"
+                 "std::vector<std::string>categories;",
+                 "regular camera randomization tracks every first-seen CamShot category");
+  ok &= contains(gameplay_c,
+                 "if(std::find(categories.begin(),categories.end(),"
+                 "key.category)==categories.end()){"
+                 "categories.push_back(key.category);}",
+                 "regular camera randomization builds source-shaped category buckets from decoded CamShots");
+  ok &= contains(gameplay_c,
+                 "for(constauto&category:categories){"
                  "shuffle_category(category);}",
-                 "regular camera category randomization keeps the authored normal category buckets");
+                 "regular camera category randomization randomizes every source category bucket");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraRandomize:source_manager=CameraManager::Randomize"
+                 "categories=%zuscope=all_first_seen_category_bucketsorder=%s\\n\"",
+                 "regular camera randomization logs the source-shaped all-category bucket order");
+  ok &= absent(gameplay_c,
+               "for(constautocategory:kNormalCamShotCategoryOrder){"
+               "shuffle_category(category);}",
+               "regular camera randomization no longer burns RNG only for normal categories");
   ok &= contains(gameplay_c,
                  "randomize_camera_category_order(out);",
                  "regular camera CamShots are category-randomized after MILO decode");
