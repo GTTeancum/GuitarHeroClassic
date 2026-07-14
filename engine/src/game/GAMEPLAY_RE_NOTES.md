@@ -262,6 +262,13 @@ Open work:
   source filter reader now exposes it as a bool property so an authored source
   filter can match it. This is not a new inferred star-power rejection rule and
   does not change the still-deferred GH2 `cam_shot_ok` predicate.
+- 2026-07-14 CamShot `distance`/`facing` source defaults:
+  GH2 `world/camshot.dta` declares `(distance null)` and `(facing null)`, and
+  `world_objects_worldbase.dta` uses filters such as `(facing (right null))`
+  and `(distance (null near closeup))`. Native now defaults missing decoded
+  CamShot `distance`/`facing` fields to the literal `null` symbol so
+  `CameraManager::ShotMatches` evaluates those source filter lists correctly
+  for shots without explicit authored metadata.
 - 2026-07-13 CamShot `shot_ok` selection hook: native regular camera
   selection no longer rejects the active CamShot by authored name before
   source approval. ihatecompvir's `CameraManager::FindCameraShot` scans the

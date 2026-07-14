@@ -2457,8 +2457,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_camshot_shot_tail_offset = true;
             key.path_anim = shot.path;
             key.has_path_anim = !shot.path.empty();
-            key.distance = prop_symbol(shot.props, "distance");
-            key.facing = prop_symbol(shot.props, "facing");
+            key.distance = prop_symbol(shot.props, "distance", "null");
+            key.facing = prop_symbol(shot.props, "facing", "null");
             key.solo = prop_symbol(shot.props, "solo", "ok");
             key.special = prop_bool(shot.props, "special", false);
             key.walk_ok = prop_bool(shot.props, "walk_ok", true);
@@ -3462,8 +3462,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             c.camera_anim_refs = decoded_shot->anims;
             c.glow_spot_ref = decoded_shot->glow_spot;
             c.ps3_per_pixel = decoded_shot->ps3_per_pixel;
-            c.distance = prop_symbol(decoded_shot->props, "distance");
-            c.facing = prop_symbol(decoded_shot->props, "facing");
+            c.distance = prop_symbol(decoded_shot->props, "distance", "null");
+            c.facing = prop_symbol(decoded_shot->props, "facing", "null");
             c.hide_crowd = prop_bool(decoded_shot->props, "hide_crowd", false);
             c.crowd_face_camera =
                 prop_bool(decoded_shot->props, "crowd_face_camera", false);
@@ -15716,8 +15716,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
 
             Candidate c;
             c.shot = de.name;
-            c.distance = prop_symbol(decoded_shot->props, "distance");
-            c.facing = prop_symbol(decoded_shot->props, "facing");
+            c.distance = prop_symbol(decoded_shot->props, "distance", "null");
+            c.facing = prop_symbol(decoded_shot->props, "facing", "null");
             c.key = decoded_poses.front().first;
             c.key.distance = c.distance;
             c.key.facing = c.facing;

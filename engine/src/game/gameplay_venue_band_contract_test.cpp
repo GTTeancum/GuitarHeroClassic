@@ -11055,6 +11055,13 @@ int main() {
                  "conststd::stringsolo=prop_symbol(decoded_shot->props,"
                  "\"solo\",\"ok\");",
                  "regular CamShot loader applies world/camshot.dta solo=ok default");
+  ok &= contains(regular_camera_loader_c,
+                 "c.distance=prop_symbol(decoded_shot->props,"
+                 "\"distance\",\"null\");",
+                 "regular CamShot loader applies world/camshot.dta distance=null default");
+  ok &= contains(regular_camera_loader_c,
+                 "c.facing=prop_symbol(decoded_shot->props,\"facing\",\"null\");",
+                 "regular CamShot loader applies world/camshot.dta facing=null default");
   ok &= absent(gameplay_c,
                "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                "camera loader leaves solo value acceptance to source ShotMatches");
@@ -11930,11 +11937,18 @@ int main() {
                  "if(debug_camera_enabled())",
                  "intro camera selector mirrors CameraManager PlatformOk before accepting CamShots");
   ok &= contains(intro_camera_selector_c,
-                 "c.distance=prop_symbol(decoded_shot->props,\"distance\");",
-                 "intro camera selector preserves source distance metadata");
+                 "c.distance=prop_symbol(decoded_shot->props,\"distance\","
+                 "\"null\");",
+                 "intro camera selector preserves source distance metadata with camshot.dta default");
   ok &= contains(intro_camera_selector_c,
-                 "c.facing=prop_symbol(decoded_shot->props,\"facing\");",
-                 "intro camera selector preserves source facing metadata");
+                 "c.facing=prop_symbol(decoded_shot->props,\"facing\",\"null\");",
+                 "intro camera selector preserves source facing metadata with camshot.dta default");
+  ok &= contains(gameplay_c,
+                 "key.distance=prop_symbol(shot.props,\"distance\",\"null\");",
+                 "decoded CamShot keys carry source distance metadata with camshot.dta default");
+  ok &= contains(gameplay_c,
+                 "key.facing=prop_symbol(shot.props,\"facing\",\"null\");",
+                 "decoded CamShot keys carry source facing metadata with camshot.dta default");
   ok &= contains(gameplay_c,
                  "key.distance=intro_camera.distance;",
                  "loaded intro camera keys carry source distance metadata");
