@@ -5315,6 +5315,15 @@ Rockabill2/hair state and still did not identify the visible draw/skin consumer.
 They point future work away from physics-disable and owner-list guesses, and
 toward the source-backed mesh/skin/controller consumer path.
 
+Latest user-requested reread after the ihatecompvir source-truth recalibration
+does not change that boundary. The compatible findings are evidence to audit
+source consumers, not alternate authorities: fret targeting belongs in the
+source `CharIKHand` / driver / clip publishing path, twist and neck posture
+belong in the source controller cadence and sample publishing path, and hair
+placement belongs in the source mesh / skin / controller consumer path. Any old
+patch that names a character, offsets a guitar, neck, or mesh, or disables a
+source subsystem remains out of scope.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

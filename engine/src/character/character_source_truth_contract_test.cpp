@@ -31781,6 +31781,23 @@ int run_contract() {
   ok &= contains(doc,
                  "toward the source-backed mesh/skin/controller consumer path",
                  "document keeps compatible chat leads on source consumer path");
+  ok &= contains(doc,
+                 "Latest user-requested reread after the ihatecompvir "
+                 "source-truth recalibration\n"
+                 "does not change that boundary",
+                 "document records current reread preserves source-truth boundary");
+  ok &= contains(doc,
+                 "compatible findings are evidence to audit\n"
+                 "source consumers, not alternate authorities",
+                 "document keeps old chat findings as evidence not authority");
+  ok &= contains(doc,
+                 "fret targeting belongs in the\n"
+                 "source `CharIKHand` / driver / clip publishing path",
+                 "document routes old left-hand findings through source path");
+  ok &= contains(doc,
+                 "hair\nplacement belongs in the source mesh / skin / "
+                 "controller consumer path",
+                 "document routes old hair findings through source consumer");
   ok &= missing(format_notes,
                 "disables that promoted lower\n  bridge",
                 "format notes must not describe lower-body output as promoted");
