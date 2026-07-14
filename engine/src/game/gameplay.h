@@ -790,7 +790,8 @@ class Gameplay {
   void apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                                      const CameraKey& key);
   void queue_regular_camera_shot(const CameraKey& key,
-                                 const char* source_handler);
+                                 const char* source_handler,
+                                 double source_local_frame = 0.0);
   std::string camera_source_guitarist0_nearest_walkspot() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);

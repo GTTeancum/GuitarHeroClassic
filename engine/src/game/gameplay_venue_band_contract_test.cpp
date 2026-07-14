@@ -3785,10 +3785,13 @@ int main() {
                  "doublecamera_source_start_time_for_local_frame("
                  "constGameplay::CameraKey&shot,",
                  "diagnostic camera path offset is derived through the source CamShot clock");
-  ok &= contains(gameplay_c,
-                 "pending_regular_camera_local_frame_="
-                 "diagnostic_camera_path_offset_frames_;",
-                 "diagnostic forced camera queues the requested source local path-frame through mNextShot");
+  ok &= contains(
+      gameplay_c,
+      "constdoublesource_queue_local_frame="
+      "diagnostic_camera_shot_matched?diagnostic_camera_path_offset_frames_:0.0;"
+      "queue_regular_camera_shot(*key,source_handler,"
+      "source_queue_local_frame);",
+      "diagnostic forced camera queues the requested source local path-frame through mNextShot while source picks stay at zero");
   ok &= contains(gameplay_c,
                  "pending_regular_camera_start_=camera_source_start_time_for_local_frame("
                  "key,song_time_,pending_regular_camera_local_frame_,&chart_);",
@@ -6241,11 +6244,15 @@ int main() {
       "camera StartAnim mirrors ihatecompvir linked mAnims before Set3DCrowd");
   ok &= contains(gameplay_c,
                  "voidGameplay::queue_regular_camera_shot(constCameraKey&key,"
-                 "constchar*source_handler)",
+                 "constchar*source_handler,doublesource_local_frame)",
                  "regular camera selections queue through a source mNextShot bridge");
   ok &= contains(gameplay_c,
                  "pending_regular_camera_=key.name;",
                  "regular camera mNextShot bridge stores the selected CamShot name");
+  ok &= contains(gameplay_c,
+                 "pending_regular_camera_local_frame_=std::isfinite("
+                 "source_local_frame)?source_local_frame:0.0;",
+                 "regular camera mNextShot bridge uses source-local frame zero unless a diagnostic frame is explicitly supplied");
   ok &= contains(gameplay_h_c,
                  "doublepending_regular_camera_local_frame_=0.0;",
                  "regular camera mNextShot bridge stores requested local-frame offset separately from source start time");
@@ -6288,11 +6295,13 @@ int main() {
                "current_unstarted",
                "regular camera selector must not add a non-source same-shot guard");
   ok &= contains(gameplay_c,
-                 "queue_regular_camera_shot(*key,source_handler);",
+                 "queue_regular_camera_shot(*key,source_handler,"
+                 "source_queue_local_frame);",
                  "regular camera selector writes mNextShot instead of changing the active shot immediately");
   ok &= contains(gameplay_c,
-                 "queue_regular_camera_shot(*key,source_handler);"
-                 "std::fprintf(stderr,\"[world]regularcamerasweep:",
+                 "queue_regular_camera_shot(*key,source_handler,"
+                 "source_queue_local_frame);std::fprintf(stderr,"
+                 "\"[world]regularcamerasweep:",
                  "regular camera sweep diagnostics log every source-accepted mNextShot, including same-shot restarts");
   ok &= contains(gameplay_c,
                  "constboolsource_restarted_shot="

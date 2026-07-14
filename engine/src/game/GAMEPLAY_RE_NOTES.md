@@ -128,6 +128,13 @@
   prevents `shot_over -> do_force_shot` handoffs from inheriting a queue-time
   start that is one native frame early, while preserving diagnostic path-frame
   offsets.
+- 2026-07-14 CameraManager diagnostic path offset boundary:
+  source `PickCameraShot`, `ForceCameraShot`, and `OnCycleShot` only queue a
+  `mNextShot`; they do not carry a local-frame override into `PrePoll`.
+  Native `queue_regular_camera_shot` now defaults source manager routes to
+  local frame zero and accepts a nonzero source-local frame only from the
+  explicit diagnostic camera-shot path, so screenshot offset tooling cannot
+  silently alter source-selected camera timing.
 - 2026-07-14 source game-over camera categories:
   GH2 `world_objects_worldbase.dta::game_lost` sets `camera_bars_left` to 100
   and immediately calls `pick_shot LOSE`; `game_won_msg` sets the same hold,

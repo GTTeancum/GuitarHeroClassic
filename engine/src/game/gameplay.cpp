@@ -24070,9 +24070,11 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
 }
 
 void Gameplay::queue_regular_camera_shot(const CameraKey& key,
-                                         const char* source_handler) {
+                                         const char* source_handler,
+                                         double source_local_frame) {
     pending_regular_camera_ = key.name;
-    pending_regular_camera_local_frame_ = diagnostic_camera_path_offset_frames_;
+    pending_regular_camera_local_frame_ =
+        std::isfinite(source_local_frame) ? source_local_frame : 0.0;
     pending_regular_camera_start_ = camera_source_start_time_for_local_frame(
         key, song_time_, pending_regular_camera_local_frame_, &chart_);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
@@ -24082,7 +24084,7 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
             source_handler && source_handler[0] ? source_handler
                                                  : "PickCameraShot",
             active_regular_camera_.c_str(), pending_regular_camera_.c_str());
-        if (diagnostic_camera_path_offset_frames_ != 0.0) {
+        if (pending_regular_camera_local_frame_ != 0.0) {
             std::fprintf(
                 stderr,
                 "[world] camera mNextShot path offset: shot=%s local_frame=%.3f anim_rate=%d fpu=%.1f queued_start_preview=%.3f now=%.3f source_manager=CameraManager::CalcFrame source_start=CameraManager::StartShot_\n",
@@ -33606,7 +33608,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     const char* source_handler =
                         diagnostic_camera_shot_matched ? "diagnostic"
                                                        : "PickCameraShot";
-                    queue_regular_camera_shot(*key, source_handler);
+                    const double source_queue_local_frame =
+                        diagnostic_camera_shot_matched
+                            ? diagnostic_camera_path_offset_frames_
+                            : 0.0;
+                    queue_regular_camera_shot(*key, source_handler,
+                                              source_queue_local_frame);
                     std::fprintf(
                         stderr,
                         "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
