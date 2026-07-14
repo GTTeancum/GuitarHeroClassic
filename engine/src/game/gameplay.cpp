@@ -1577,7 +1577,7 @@ struct DecodedCamShot {
     int loop_keyframe = 0;
     float near_plane = 1.0f;
     float far_plane = 1000.0f;
-    bool use_depth_of_field = true;
+    bool use_depth_of_field = false;
     float filter = 0.9f;
     float clamp_height = -1.0f;
     std::string path;

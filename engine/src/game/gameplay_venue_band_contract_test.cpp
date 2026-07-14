@@ -10164,6 +10164,9 @@ int main() {
                  "result.active=use_depth_of_field&&(a_point||b_point);",
                  "CamShot DOF activates only when the source shot flag and focus/target are present");
   ok &= contains(gameplay_c,
+                 "booluse_depth_of_field=false;",
+                 "decoded CamShot default mirrors ihatecompvir mUseDepthOfField constructor state");
+  ok &= contains(gameplay_c,
                  "result.focus_distance=result.b_distance*"
                  "(1.0f+focus_blur_multiplier);",
                  "CamShot DOF focus distance follows the ihatecompvir next-frame d9 formula");

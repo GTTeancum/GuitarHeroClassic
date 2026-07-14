@@ -11305,6 +11305,12 @@ Rejected native probe:
   labeling `camera=pre_setframe_blend`. This keeps non-1 SetFrame blend support
   aligned with source order without changing normal Poll rows where blend is
   `1.0f`.
+- 2026-07-14 CamShot DOF constructor default:
+  ihatecompvir `CamShot::CamShot` initializes `mUseDepthOfField` to false
+  before any loaded shot data overwrites it. Native `DecodedCamShot` now uses
+  the same source default instead of treating fallback/derived shot state as
+  DOF-enabled. Stock modern GH2 CamShots still read their authored DOF bool
+  during load; this is source-default plumbing, not a visual DOF override.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives
