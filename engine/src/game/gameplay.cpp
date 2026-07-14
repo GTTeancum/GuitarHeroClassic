@@ -16902,19 +16902,56 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     const ghogx::chart::Chart* chart) {
     const auto& frames = source_camshot_timing_frames(shot);
     if (frames.empty()) return {shot};
-    if (frames.size() == 1) return {frames.front()};
 
     const float total = source_camshot_frame_total(frames);
-    if (!std::isfinite(total) || total <= 0.001f) return {frames.front()};
-
     const float raw_local_frame =
         camera_source_local_frame(shot, song_time, start_time, chart);
     float local_frame = raw_local_frame;
+    const float now_frame = static_cast<float>(song_time * 30.0);
     size_t loop_start_index = 0;
     float pre_loop = 0.0f;
     float loop_total = 0.0f;
     bool loop_active = false;
     bool loop_wrapped = false;
+    auto stamp_source_frame_mapping =
+        [&](Gameplay::CameraKey& key, float key_blend, float cursor,
+            float duration, float blend) {
+            key.source_frame_local_frame = local_frame;
+            key.source_frame_key_start_frame = cursor;
+            key.source_frame_duration_frames = duration;
+            key.source_frame_blend_frames = blend;
+            key.source_frame_key_blend = key_blend;
+            key.source_frame_raw_local_frame = raw_local_frame;
+            key.source_frame_pre_loop_frames = pre_loop;
+            key.source_frame_loop_frames = loop_total;
+            key.source_frame_loop_start_index = loop_start_index;
+            key.source_frame_loop_active = loop_active;
+            key.source_frame_loop_wrapped = loop_wrapped;
+            key.has_source_frame_mapping = true;
+        };
+    auto make_source_frame_hold =
+        [&](const Gameplay::CameraKey& cur, float cursor, float duration,
+            float blend) {
+            Gameplay::CameraKey hold = cur;
+            hold.frame = now_frame;
+            stamp_source_frame_mapping(hold, 0.0f, cursor, duration, blend);
+            return std::vector<Gameplay::CameraKey>{std::move(hold)};
+        };
+    auto timing_duration = [](const Gameplay::CameraKey& key) {
+        return key.has_timing && std::isfinite(key.duration_frames)
+                   ? std::max(0.0f, key.duration_frames)
+                   : 0.0f;
+    };
+    auto timing_blend = [](const Gameplay::CameraKey& key) {
+        return key.has_timing && std::isfinite(key.blend_frames)
+                   ? std::max(0.0f, key.blend_frames)
+                   : 0.0f;
+    };
+    if (!std::isfinite(total) || total <= 0.001f) {
+        const auto& cur = frames.front();
+        return make_source_frame_hold(cur, 0.0f, timing_duration(cur),
+                                      timing_blend(cur));
+    }
     if (shot.has_camshot_looping && shot.camshot_looping) {
         loop_start_index = static_cast<size_t>(std::clamp(
             shot.camshot_loop_keyframe, 0,
@@ -16931,45 +16968,26 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
                 std::fabs(local_frame - raw_local_frame) > 0.0001f;
         }
     } else if (local_frame >= total) {
-        return {frames.back()};
+        float cursor = 0.0f;
+        for (size_t i = 0; i + 1 < frames.size(); ++i) {
+            cursor += source_camshot_frame_span(frames[i]);
+        }
+        const auto& cur = frames.back();
+        return make_source_frame_hold(cur, cursor, timing_duration(cur),
+                                      timing_blend(cur));
     }
 
     float cursor = 0.0f;
-    const float now_frame = static_cast<float>(song_time * 30.0);
     for (size_t i = 0; i < frames.size(); ++i) {
         const auto& cur = frames[i];
-        const float duration =
-            cur.has_timing && std::isfinite(cur.duration_frames)
-                ? std::max(0.0f, cur.duration_frames)
-                : 0.0f;
-        const float blend =
-            cur.has_timing && std::isfinite(cur.blend_frames)
-                ? std::max(0.0f, cur.blend_frames)
-                : 0.0f;
+        const float duration = timing_duration(cur);
+        const float blend = timing_blend(cur);
         const float span = duration + blend;
         if (span <= 0.001f) continue;
         if (local_frame <= cursor + span || i + 1 == frames.size()) {
-            auto stamp_source_frame_mapping =
-                [&](Gameplay::CameraKey& key, float key_blend) {
-                    key.source_frame_local_frame = local_frame;
-                    key.source_frame_key_start_frame = cursor;
-                    key.source_frame_duration_frames = duration;
-                    key.source_frame_blend_frames = blend;
-                    key.source_frame_key_blend = key_blend;
-                    key.source_frame_raw_local_frame = raw_local_frame;
-                    key.source_frame_pre_loop_frames = pre_loop;
-                    key.source_frame_loop_frames = loop_total;
-                    key.source_frame_loop_start_index = loop_start_index;
-                    key.source_frame_loop_active = loop_active;
-                    key.source_frame_loop_wrapped = loop_wrapped;
-                    key.has_source_frame_mapping = true;
-                };
             const float in_key = std::max(0.0f, local_frame - cursor);
             if (in_key < duration || blend <= 0.001f) {
-                Gameplay::CameraKey hold = cur;
-                hold.frame = now_frame;
-                stamp_source_frame_mapping(hold, 0.0f);
-                return {hold};
+                return make_source_frame_hold(cur, cursor, duration, blend);
             }
             const bool can_wrap =
                 shot.has_camshot_looping && shot.camshot_looping;
@@ -16977,10 +16995,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             const size_t next_index =
                 (i + 1 < frames.size()) ? i + 1 : wrap_index;
             if (next_index == i) {
-                Gameplay::CameraKey hold = cur;
-                hold.frame = now_frame;
-                stamp_source_frame_mapping(hold, 0.0f);
-                return {hold};
+                return make_source_frame_hold(cur, cursor, duration, blend);
             }
             const float t =
                 std::clamp((in_key - duration) / blend, 0.0f, 1.0f);
@@ -16988,15 +17003,16 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             Gameplay::CameraKey b = frames[next_index];
             a.frame = now_frame - t;
             b.frame = now_frame + (1.0f - t);
-            stamp_source_frame_mapping(a, t);
-            stamp_source_frame_mapping(b, t);
+            stamp_source_frame_mapping(a, t, cursor, duration, blend);
+            stamp_source_frame_mapping(b, t, cursor, duration, blend);
             return {a, b};
         }
         cursor += span;
     }
-    Gameplay::CameraKey hold = frames.back();
-    hold.frame = now_frame;
-    return {hold};
+    const auto& cur = frames.back();
+    cursor = std::max(0.0f, total - source_camshot_frame_span(cur));
+    return make_source_frame_hold(cur, cursor, timing_duration(cur),
+                                  timing_blend(cur));
 }
 
 std::array<float, 2> camshot_result_screen_norm_for_offset(float x, float y) {

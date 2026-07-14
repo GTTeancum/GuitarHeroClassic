@@ -10680,6 +10680,19 @@ int main() {
                  "constauto&frames=source_camshot_timing_frames(shot);"
                  "if(frames.empty())return{shot};",
                  "source CamShot GetKey helper reads preserved timing keyframes");
+  ok &= absent(
+      gameplay_c,
+      "if(frames.size()==1)return{frames.front()};",
+      "single-key CamShot GetKey fallback must still carry source timing proof");
+  ok &= contains(gameplay_c,
+                 "automake_source_frame_hold="
+                 "[&](constGameplay::CameraKey&cur,floatcursor,"
+                 "floatduration,floatblend)",
+                 "single-key CamShot GetKey fallback stamps source hold timing");
+  ok &= contains(gameplay_c,
+                 "returnmake_source_frame_hold(cur,0.0f,"
+                 "timing_duration(cur),timing_blend(cur));",
+                 "zero-duration CamShot GetKey fallback carries source timing proof");
   ok &= contains(gameplay_c,
                  "local_frame=pre_loop+std::fmod(local_frame-pre_loop,loop_total);",
                  "source CamShot looping and loop_keyframe drive repeated regular shots");

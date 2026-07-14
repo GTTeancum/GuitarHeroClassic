@@ -11179,6 +11179,14 @@ Rejected native probe:
   and `CamShot::GetKey(prev,next,keyBlend)` provenance as the pair row, so
   camera proofs can distinguish a held source key from an interpolated source
   frame pair without changing submitted camera math.
+- 2026-07-14 follow-up: the single-key and zero-duration fallback exits in
+  `regular_camera_source_frame_keys()` now pass through the same source hold
+  stamping path instead of returning an unstamped `frames.front()` /
+  `frames.back()`. ihatecompvir `CamShot::CacheFrames()` still assigns each
+  key's source start frame before `CamShot::GetKey`, even when the active
+  result collapses to one key, so native proof rows now retain
+  `source_local_frame`, key start, duration, blend, and loop fields for those
+  cases without changing the one-key submitted camera pose.
 - 2026-07-13 follow-up: the GH2 world script's `beat` handler also updates
   `[camera_beat]` and calls `{world current_shot} check_shot`; `camshot.dta`
   routes that to native `cam_check_shot`. Native now tracks the source beat
