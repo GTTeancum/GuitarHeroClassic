@@ -16480,13 +16480,14 @@ std::array<float, 2> camshot_result_screen_norm_for_key(
 
 void camera_apply_rndcam_set_frustum_like_source(
     ghogx::render::OrbitCamera& cam, float near_z, float far_z,
-    float source_current_far_z) {
+    float y_fov, float source_current_far_z) {
     if (!std::isfinite(near_z) || !std::isfinite(far_z) ||
-        near_z <= 0.0f || far_z <= near_z) {
+        !std::isfinite(y_fov) || near_z <= 0.0f || far_z <= near_z) {
         return;
     }
     const float requested_near_z = near_z;
     const float requested_far_z = far_z;
+    const float requested_y_fov = y_fov;
     bool source_ratio_clamped = false;
     // ihatecompvir RndCam::SetFrustum clamps extreme plane ratios before
     // storing the frustum and rebuilding the local projection transform.
@@ -16497,12 +16498,14 @@ void camera_apply_rndcam_set_frustum_like_source(
     }
     cam.near_z = near_z;
     cam.far_z = far_z;
+    cam.fov = y_fov;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera SetFrustum: source_class=RndCam requested=(%.3f %.3f) previous_far=%.3f stored=(%.3f %.3f) ratio_clamped=%d\n",
-            requested_near_z, requested_far_z, source_current_far_z,
-            cam.near_z, cam.far_z, source_ratio_clamped ? 1 : 0);
+            "[world] camera SetFrustum: source_class=RndCam requested=(%.3f %.3f %.6f) previous_far=%.3f stored=(%.3f %.3f %.6f) unknown=1.000 ratio_clamped=%d\n",
+            requested_near_z, requested_far_z, requested_y_fov,
+            source_current_far_z, cam.near_z, cam.far_z, cam.fov,
+            source_ratio_clamped ? 1 : 0);
     }
 }
 
@@ -19848,7 +19851,7 @@ void apply_camera_keys(
         if (std::isfinite(near_z) && std::isfinite(far_z) &&
             near_z > 0.0f && far_z > near_z) {
             camera_apply_rndcam_set_frustum_like_source(
-                cam, near_z, far_z, source_current_far_z);
+                cam, near_z, far_z, cam.fov, source_current_far_z);
         }
     }
     if (submitted_ps2_projection_candidate || submitted_ps2_matrix_candidate) {
@@ -22553,8 +22556,8 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
         // RndCam::SetFrustum(cam->NearPlane(), cam->FarPlane(), ref, 1.0f).
         const float source_current_far_z = cam.far_z;
         camera_apply_rndcam_set_frustum_like_source(
-            cam, cam.near_z, cam.far_z, source_current_far_z);
-        cam.fov = sampled_fov;
+            cam, cam.near_z, cam.far_z, sampled_fov,
+            source_current_far_z);
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             const std::string report_key = key.name + ":" + ref;
             if (!active_camera_fov_anim_reported_.count(report_key)) {

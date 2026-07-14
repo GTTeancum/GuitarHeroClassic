@@ -172,6 +172,13 @@ Open work:
   after the CamShot frame, and logs a `camera RndCamAnim SetFrame` row. This
   wires an already-decoded source camera track into runtime; it does not invent
   extra camera-angle motion or hidden task rejection behavior.
+- 2026-07-14 `RndCam::SetFrustum` storage shape:
+  ihatecompvir `RndCam::SetFrustum` stores near plane, far plane, Y-FOV, and
+  the unknown float together after the 1000:1 plane-ratio clamp. Native now
+  routes both authored CamShot clip planes and linked `RndCamAnim` sampled FOV
+  through the same helper, so proof logs show requested/stored near/far/Y-FOV
+  from the source-shaped call instead of assigning FOV as a separate native
+  side effect.
 - 2026-07-14 CameraManager `num_shots` probe:
   ihatecompvir `CameraManager::NumCameraShots` sends `first_shot_ok(category)`,
   scans the category list, and counts only shots where `Disabled() == 0`,
@@ -11016,7 +11023,8 @@ Rejected native probe:
   `RndCam::SetFrustum` clamps extreme near/far plane ratios before storing
   the camera frustum (`far - 0.0001 > near * 1000`). Native now routes
   authored CamShot clip planes through the same rule instead of submitting
-  decoded near/far values directly. This is a source camera projection rule,
+  decoded near/far values directly, and the helper stores source Y-FOV with
+  those planes just like `RndCam`. This is a source camera projection rule,
   not a shot-specific visual adjustment. Debug camera logs now emit a
   `[world] camera SetFrustum: source_class=RndCam ... ratio_clamped=...` row
   so proof captures can distinguish unclamped stock GH2 shots from clamped

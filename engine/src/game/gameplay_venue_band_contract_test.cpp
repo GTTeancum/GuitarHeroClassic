@@ -8384,6 +8384,11 @@ int main() {
                  "sample_camera_fov_key(anim.fov_keys,frame,previous_fov);",
                  "linked RndCamAnim SetFrame samples source FOV keys at the active frame");
   ok &= contains(gameplay_c,
+                 "camera_apply_rndcam_set_frustum_like_source("
+                 "cam,cam.near_z,cam.far_z,sampled_fov,"
+                 "source_current_far_z);",
+                 "linked RndCamAnim SetFrame stores the sampled FOV through RndCam::SetFrustum");
+  ok &= contains(gameplay_c,
                  "\"[world]cameraRndCamAnimSetFrame:source_msg=mAnimsshot=%s",
                  "linked RndCamAnim diagnostics expose source SetFrame FOV application");
   ok &= contains(gameplay_c,
@@ -10343,8 +10348,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidcamera_apply_rndcam_set_frustum_like_source("
                  "ghogx::render::OrbitCamera&cam,floatnear_z,floatfar_z,"
-                 "floatsource_current_far_z)",
-                 "runtime camera exposes ihatecompvir RndCam::SetFrustum bridge");
+                 "floaty_fov,floatsource_current_far_z)",
+                 "runtime camera exposes ihatecompvir RndCam::SetFrustum bridge with source YFov");
   ok &= contains(gameplay_c,
                  "if(far_z-0.0001f>near_z*1000.0f){"
                  "source_ratio_clamped=true;"
@@ -10352,15 +10357,19 @@ int main() {
                  "if(far_z!=source_current_far_z)far_z=near_z*1000.0f;}",
                  "runtime camera mirrors RndCam::SetFrustum plane-ratio clamp");
   ok &= contains(gameplay_c,
+                 "cam.near_z=near_z;cam.far_z=far_z;cam.fov=y_fov;",
+                 "runtime camera stores near/far/YFov together like RndCam::SetFrustum");
+  ok &= contains(gameplay_c,
                  "constfloatsource_current_far_z=cam.far_z;",
                  "runtime camera preserves the previous source far plane for SetFrustum");
   ok &= contains(gameplay_c,
                  "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,near_z,far_z,source_current_far_z);",
+                 "cam,near_z,far_z,cam.fov,source_current_far_z);",
                  "runtime camera submits authored clip planes through the source frustum bridge");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrustum:source_class=RndCam"
-                 "requested=(%.3f%.3f)previous_far=%.3fstored=(%.3f%.3f)"
+                 "requested=(%.3f%.3f%.6f)previous_far=%.3f"
+                 "stored=(%.3f%.3f%.6f)unknown=1.000"
                  "ratio_clamped=%d\\n\"",
                  "camera diagnostics expose the source RndCam SetFrustum bridge");
   ok &= contains(gameplay_c,
