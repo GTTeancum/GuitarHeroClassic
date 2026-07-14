@@ -11462,6 +11462,13 @@ Rejected native probe:
   scope. This is proof surface only: same-target filtered-target rows stay
   diagnostic-only, while non-same-target rows continue to tie `filter` to the
   `BuildTransform` path seen in the RB2 dump locals.
+- 2026-07-14 BuildTransform body boundary: the audited RB2 dump exposes
+  `CamShotFrame::BuildTransform` locals (`parent`, `targetPos`,
+  `targetScreenPos`, `filter`, `iframe`, `LinearInterpolator`,
+  `ATanInterpolator`, `parentPos`, `target`, `height`, `targetDist`, `v`) and
+  references, but not a trustworthy body. Native debug rows now label that as
+  `buildtransform_body=rb2_dump_locals_only`, so camera-angle investigation can
+  distinguish recovered `Interp` order from unrecovered `BuildTransform` math.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,

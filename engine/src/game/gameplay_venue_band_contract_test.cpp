@@ -9152,6 +9152,15 @@ int main() {
                  "\"filtered_candidate_scope=%s\"",
                  "camera debug logs separate same-target filtered candidates from submitted rows");
   ok &= contains(gameplay_c,
+                 "\"buildtransform_body=%sbuildtransform_locals=%s\"",
+                 "camera debug logs expose the audited RB2 BuildTransform boundary");
+  ok &= contains(gameplay_c,
+                 "\"rb2_dump_locals_only\"",
+                 "camera debug logs avoid claiming a recovered BuildTransform body");
+  ok &= contains(gameplay_c,
+                 "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
+                 "camera debug logs include audited RB2 BuildTransform locals");
+  ok &= contains(gameplay_c,
                  "\"diagnostic_only_same_targets\"",
                  "same-target CamShot filter scope stays diagnostic-only");
   ok &= contains(gameplay_c,

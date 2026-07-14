@@ -22243,6 +22243,7 @@ void apply_camera_keys(
             "build_transform_order=%s apply_screen_offset=%d "
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
+            "buildtransform_body=%s buildtransform_locals=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
             "state_valid=%d "
@@ -22260,6 +22261,10 @@ void apply_camera_keys(
                 : (result_filter_branch ? "BuildTransform_filter" : "none"),
             source_screen_offset_filtered_target_candidate ? "diagnostic_only"
                                                            : "none",
+            "rb2_dump_locals_only",
+            "parent,targetPos,targetScreenPos,filter,iframe,"
+            "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
+            "targetDist,v",
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             blended_target_centroid ? (*blended_target_centroid)[0] : 0.0f,
