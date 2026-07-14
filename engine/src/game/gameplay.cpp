@@ -17054,7 +17054,11 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     double start_time,
     const ghogx::chart::Chart* chart) {
     const auto& frames = source_camshot_timing_frames(shot);
-    if (frames.empty()) return {shot};
+    if (frames.empty()) {
+        Gameplay::CameraKey null_frame = shot;
+        null_frame.source_frame_null_frame = true;
+        return {null_frame};
+    }
 
     const float total = source_camshot_frame_total(frames);
     const float raw_local_frame =
@@ -33621,11 +33625,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             [has_frame_mapping]() {
                                 return has_frame_mapping ? "" : "none/";
                             };
+                        const char* source_hold_locals =
+                            hold_key.source_frame_null_frame
+                                ? "CamShot::SetFrame(nullFrame)"
+                                : "CamShot::GetKey(prev,next,keyBlend)";
                         active_camera_frame_pair_reported_ =
                             key->name + ":hold";
                         std::fprintf(
                             stderr,
-                            "[world] camera source frame hold: shot=%s local_frame=%.3f keys=%zu frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f source_phase=hold_before_blend route=regular_camera_source_frame_keys source_locals=CamShot::GetKey(prev,next,keyBlend)\n",
+                            "[world] camera source frame hold: shot=%s local_frame=%.3f keys=%zu frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f source_phase=hold_before_blend route=regular_camera_source_frame_keys source_nullFrame=%d source_locals=%s\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), hold_key.frame,
                             frame_mapping_prefix(),
@@ -33645,7 +33653,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 ? hold_key.source_frame_blend_frames
                                 : 0.0f,
                             frame_mapping_prefix(), source_key_blend,
-                            frame_mapping_prefix(), source_eased_key_blend);
+                            frame_mapping_prefix(), source_eased_key_blend,
+                            hold_key.source_frame_null_frame ? 1 : 0,
+                            source_hold_locals);
                         if (has_frame_mapping &&
                             (hold_key.source_frame_loop_active ||
                              hold_key.source_frame_loop_wrapped)) {

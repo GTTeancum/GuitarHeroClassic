@@ -246,6 +246,7 @@ class Gameplay {
     bool source_frame_loop_wrapped = false;
     bool has_source_frame_key_index = false;
     bool has_source_frame_mapping = false;
+    bool source_frame_null_frame = false;
     float generated_source_position[3] = {};
     float generated_source_forward[3] = {0.0f, 1.0f, 0.0f};
     float generated_source_up[3] = {0.0f, 0.0f, 1.0f};

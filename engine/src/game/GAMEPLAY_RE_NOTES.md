@@ -11273,6 +11273,14 @@ Rejected native probe:
   result collapses to one key, so native proof rows now retain
   `source_local_frame`, key start, duration, blend, and loop fields for those
   cases without changing the one-key submitted camera pose.
+- 2026-07-14 follow-up: the zero-key fallback is now separated from those
+  source `GetKey` holds. The RB2 dump for `CamShot::SetFrame` exposes a static
+  `CamShotFrame nullFrame` local beside `prev`, `next`, and `keyBlend`; native
+  now stamps `source_nullFrame=1` and labels that proof row
+  `CamShot::SetFrame(nullFrame)` only when no decoded source timing keys exist.
+  This does not synthesize the hidden `SetFrame` body or alter the submitted
+  camera pose; it keeps zero-key camera proofs from being mislabeled as a
+  recovered `CamShot::GetKey` hold.
 - 2026-07-13 follow-up: the GH2 world script's `beat` handler also updates
   `[camera_beat]` and calls `{world current_shot} check_shot`; `camshot.dta`
   routes that to native `cam_check_shot`. Native now tracks the source beat

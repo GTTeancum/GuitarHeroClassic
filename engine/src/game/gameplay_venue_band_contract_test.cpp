@@ -10830,8 +10830,12 @@ int main() {
                  "runtime mirrors CamShot::GetKey by submitting the active source frame pair");
   ok &= contains(gameplay_c,
                  "constauto&frames=source_camshot_timing_frames(shot);"
-                 "if(frames.empty())return{shot};",
-                 "source CamShot GetKey helper reads preserved timing keyframes");
+                 "if(frames.empty()){Gameplay::CameraKeynull_frame=shot;"
+                 "null_frame.source_frame_null_frame=true;return{null_frame};}",
+                 "source CamShot SetFrame preserves the rb2 nullFrame boundary when no timing keys exist");
+  ok &= contains(gameplay_h_c,
+                 "boolsource_frame_null_frame=false;",
+                 "CameraKey carries the rb2 CamShot::SetFrame nullFrame boundary separately from source GetKey timing");
   ok &= absent(
       gameplay_c,
       "if(frames.size()==1)return{frames.front()};",
@@ -10969,8 +10973,13 @@ int main() {
                  "key_blend=%s%.3feased_key_blend=%s%.3f"
                  "source_phase=hold_before_blend"
                  "route=regular_camera_source_frame_keys"
-                 "source_locals=CamShot::GetKey(prev,next,keyBlend)\\n\"",
-                 "regular camera diagnostics prove source GetKey hold spans before blend windows");
+                 "source_nullFrame=%dsource_locals=%s\\n\"",
+                 "regular camera diagnostics distinguish source GetKey holds from rb2 nullFrame fallback");
+  ok &= contains(gameplay_c,
+                 "hold_key.source_frame_null_frame?"
+                 "\"CamShot::SetFrame(nullFrame)\":"
+                 "\"CamShot::GetKey(prev,next,keyBlend)\"",
+                 "regular camera hold diagnostics label the rb2 CamShot::SetFrame nullFrame local explicitly");
   ok &= contains(gameplay_c,
                  "if(source_frame_key_route&&selected_camera.size()>=2&&",
                  "source frame-pair diagnostics remain limited to non-path CamShot frame timing");
