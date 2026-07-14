@@ -147,6 +147,13 @@ Open work:
   warning and no shot change if no candidate survives. The previous native
   mode/state relaxation was removed because it selected cameras the source
   scripts did not request.
+- 2026-07-13 `RndCamAnim` FOV key ownership: ihatecompvir
+  `RndCamAnim::FovKeys()` returns `mKeysOwner->mFovKeys`, and load falls back
+  a null owner to `this`. Native venue camera FOV loading now resolves
+  `keys_owner` after decoding all CamAnim entries, copying the owner's FOV keys
+  and duration before emitting debug rows. This keeps owner-backed camera FOV
+  tracks available without fabricating a runtime scheduler for linked
+  `mAnims`.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

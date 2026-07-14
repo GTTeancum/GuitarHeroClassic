@@ -9910,6 +9910,19 @@ load_venue_camera_fov_anims(const std::string& hdr_path,
                 anim.duration_frames = std::max(anim.duration_frames,
                                                 key.frame);
             }
+            out[anim.name] = std::move(anim);
+        }
+        for (size_t pass = 0; pass < out.size(); ++pass) {
+            for (auto& [name, anim] : out) {
+                if (anim.keys_owner.empty() || anim.keys_owner == anim.name)
+                    continue;
+                const auto owner = out.find(anim.keys_owner);
+                if (owner == out.end()) continue;
+                anim.fov_keys = owner->second.fov_keys;
+                anim.duration_frames = owner->second.duration_frames;
+            }
+        }
+        for (const auto& [name, anim] : out) {
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 const auto* first =
                     anim.fov_keys.empty() ? nullptr : &anim.fov_keys.front();
@@ -9926,7 +9939,6 @@ load_venue_camera_fov_anims(const std::string& hdr_path,
                     last ? last->fov : 0.0f,
                     last ? last->frame : 0.0f);
             }
-            out[anim.name] = std::move(anim);
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] venue CamAnim load %s: %s\n",

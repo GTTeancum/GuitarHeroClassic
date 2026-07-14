@@ -8286,6 +8286,13 @@ int main() {
                  "anim.keys_owner=decoded->keys_owner.empty()?anim.name"
                  ":decoded->keys_owner;",
                  "venue camera FOV loader applies the source self-owner fallback");
+  ok &= contains(venue_camera_fov_loader_c,
+                 "if(anim.keys_owner.empty()||anim.keys_owner==anim.name)"
+                 "continue;constautoowner=out.find(anim.keys_owner);"
+                 "if(owner==out.end())continue;anim.fov_keys="
+                 "owner->second.fov_keys;anim.duration_frames="
+                 "owner->second.duration_frames;",
+                 "venue camera FOV loader mirrors RndCamAnim keys-owner inheritance");
   ok &= contains(gameplay_c,
                  "venue_camera_fov_anims_=load_venue_camera_fov_anims("
                  "hdr_path_,ark_path_,venue_geom);",
