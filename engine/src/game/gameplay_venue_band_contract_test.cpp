@@ -8959,6 +8959,10 @@ int main() {
                  "source_gate=RndTransAnim::SetFrame_mTrans"
                  "source_trans_target_resolved=%d",
                  "camera path diagnostics expose the source RndTransAnim mTrans gate");
+  ok &= contains(gameplay_c,
+                 "mtrans_gate_scope=standalone_RndTransAnim_SetFrame"
+                 "camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only",
+                 "camera path diagnostics keep the mTrans gate scoped away from the hidden CamShot path body");
   ok &= absent(gameplay_c,
                "structured_transanim_position_run",
                "old structured TransAnim scanner is removed from path cameras");
@@ -11039,6 +11043,9 @@ int main() {
                  "path_trans_target=%s"
                  "source_gate=RndTransAnim::SetFrame_mTrans"
                  "source_trans_target_resolved=%d"
+                 "mtrans_gate_scope=standalone_RndTransAnim_SetFrame"
+                 "camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only"
+                 "native_path_submit=decoded_trans_rot_scale_pages"
                  "path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\\n\"",
                  "path-backed camera diagnostics separate live mPathFrame from the ignored legacy load float and source mTrans target");
   ok &= contains(gameplay_c,
@@ -11050,10 +11057,15 @@ int main() {
                  "source_order=RndAnimatable::SetFrame_before_mTrans_gate"
                  "shot=%spath=%sframe=%.3fblend=%.3f"
                  "mTrans=%starget_resolved=%d"
+                 "mtrans_gate_scope=standalone_RndTransAnim_SetFrame"
+                 "camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only"
                  "submitted=a:%s%.3fb:%s%.3f"
                  "make_transform_body=locals_only"
                  "native_path_math=decoded_trans_rot_scale_pages\\n\"",
                  "path-backed camera diagnostics expose ihatecompvir RndTransAnim SetFrame order without synthesizing MakeTransform");
+  ok &= absent(gameplay_c,
+               "if(resolved.trans.empty())returnout;",
+               "path-backed CamShots must not reject stock path samples solely because standalone RndTransAnim mTrans is empty");
   ok &= absent(gameplay_c,
                "make_transform_body=synthesized",
                "camera diagnostics must not claim a synthesized MakeTransform body");

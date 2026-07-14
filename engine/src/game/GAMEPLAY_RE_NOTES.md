@@ -11667,6 +11667,14 @@ Rejected native probe:
   `source_gate=RndTransAnim::SetFrame_mTrans` with
   `source_trans_target_resolved=`. This keeps targetless path angles auditable
   without pretending the hidden `CamShot::SetFrame` path body is recovered.
+- 2026-07-14 follow-up: stock GH2 path camera `RndTransAnim` records commonly
+  have empty serialized `mTrans` targets, while the RB2 `CamShot::SetPos` dump
+  exposes a separate `pathXfm` local inside the hidden CamShot path body. Native
+  path-camera proof rows now mark the `mTrans` gate as scoped to standalone
+  `RndTransAnim::SetFrame` and label the CamShot path body
+  `CamShot::SetPos(pathXfm)_rb2_locals_only`. This prevents an unsafe
+  "empty mTrans means reject all path camera samples" rule while keeping the
+  hidden path-body math unrecovered.
 - 2026-07-14 path-backed TransAnim frame-summary proof:
   source `RndTransAnim::StartFrame()` / `EndFrame()` derive their span from
   all three key pages, matching the merged trans/rot/scale frame union now used
