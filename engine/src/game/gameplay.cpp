@@ -19245,6 +19245,11 @@ CameraSourceDofResult camera_source_dof_result(
     return result;
 }
 
+void camera_unset_dof_proc_like_source(ghogx::render::OrbitCamera& cam) {
+    cam.dof_active = false;
+    cam.dof_focus_distance = 0.0f;
+}
+
 std::optional<std::array<float, 3>> camera_entity_only_target_alias_centroid(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
@@ -19535,7 +19540,10 @@ void apply_camera_keys(
     const std::vector<std::string>* source_record_member_table = nullptr,
     const std::vector<Gameplay::CameraKey>* source_record_key_table = nullptr,
     float source_setframe_blend = 1.0f) {
-    if (keys.empty()) return;
+    if (keys.empty()) {
+        camera_unset_dof_proc_like_source(cam);
+        return;
+    }
     const float source_poll_blend =
         std::isfinite(source_setframe_blend)
             ? std::clamp(source_setframe_blend, 0.0f, 1.0f)
@@ -19906,13 +19914,16 @@ void apply_camera_keys(
     const CameraSourceDofResult source_dof = camera_source_dof_result(
         source_use_depth_of_field, a_source_dof_point, b_source_dof_point,
         source_dof_camera_pos, focus_blur_multiplier);
-    cam.dof_active = source_dof.active;
     cam.dof_blur_depth = blur_depth;
     cam.dof_max_blur = max_blur;
     cam.dof_min_blur = min_blur;
     cam.dof_focus_blur_multiplier = focus_blur_multiplier;
-    cam.dof_focus_distance =
-        source_dof.active ? source_dof.focus_distance : 0.0f;
+    if (source_dof.active) {
+        cam.dof_active = true;
+        cam.dof_focus_distance = source_dof.focus_distance;
+    } else {
+        camera_unset_dof_proc_like_source(cam);
+    }
     if (debug_camera_enabled()) {
         auto debug_ref_world =
             [&](const Gameplay::CameraKey& key, bool parent)
@@ -22585,6 +22596,9 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
     set_camera_glow_spot_ref({});
+    if (world_) {
+        camera_unset_dof_proc_like_source(world_->camera());
+    }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
                      "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1\n",

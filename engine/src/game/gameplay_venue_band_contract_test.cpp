@@ -10020,8 +10020,17 @@ int main() {
                  "(1.0f+focus_blur_multiplier);",
                  "CamShot DOF focus distance follows the ihatecompvir next-frame d9 formula");
   ok &= contains(gameplay_c,
-                 "cam.dof_active=source_dof.active;",
-                 "runtime camera submits source-gated CamShot DOF state");
+                 "voidcamera_unset_dof_proc_like_source("
+                 "ghogx::render::OrbitCamera&cam)",
+                 "runtime camera exposes ihatecompvir DOFProc::UnSet state clear");
+  ok &= contains(gameplay_c,
+                 "if(source_dof.active){cam.dof_active=true;"
+                 "cam.dof_focus_distance=source_dof.focus_distance;"
+                 "}else{camera_unset_dof_proc_like_source(cam);}",
+                 "runtime camera submits or unsets source-gated CamShot DOF state");
+  ok &= contains(end_camera_shot_runtime_c,
+                 "camera_unset_dof_proc_like_source(world_->camera());",
+                 "camera EndAnim clears native DOF state like CameraManager teardown");
   ok &= contains(gameplay_c,
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f"
                  "source_dof=(a:%s%.3fb:%s%.3fselected=%s)",

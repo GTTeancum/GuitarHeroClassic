@@ -42,6 +42,12 @@
   prevents `shot_over -> do_force_shot` handoffs from inheriting a queue-time
   start that is one native frame early, while preserving diagnostic path-frame
   offsets.
+- 2026-07-14 CamShot DOF unset lifecycle: ihatecompvir
+  `CamShotFrame::Interp` calls `TheDOFProc->UnSet()` when the shot/frame does
+  not activate depth of field, and `CameraManager` unsets DOF during teardown.
+  Native now routes inactive source DOF frames and CamShot EndAnim through an
+  explicit source-named DOF clear so stale focus distance cannot survive after
+  the source camera lifecycle has ended.
 - 2026-07-13 CameraManager category randomization RNG: ihatecompvir's RB2
   `CameraManager::SyncObjects` dump shows a temporary CamShot array, a `which`
   draw, and static `sRand` while `Rand::Seed` / `Rand::Int` are recovered in
