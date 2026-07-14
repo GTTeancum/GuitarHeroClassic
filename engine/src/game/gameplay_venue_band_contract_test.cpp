@@ -6305,9 +6305,13 @@ int main() {
                  "regular camera sweep diagnostics log every source-accepted mNextShot, including same-shot restarts");
   ok &= contains(gameplay_c,
                  "constboolsource_restarted_shot="
-                 "consume_pending_regular_camera_shot();"
-                 "if(constauto*key=find_camera_key_by_name(",
-                 "regular gameplay cameras consume mNextShot before source-shaped camera row sampling");
+                 "source_milo_camera_active?false:"
+                 "consume_pending_regular_camera_shot();",
+                 "regular gameplay cameras suppress mNextShot consumption when MiloCamera preview is active");
+  ok &= contains(gameplay_c,
+                 "if(constauto*key=source_milo_camera_active?nullptr:"
+                 "find_camera_key_by_name(",
+                 "regular gameplay cameras suppress Poll/SetFrame sampling when MiloCamera preview is active");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
                  "constCameraKeycurrent_position=",
@@ -12569,6 +12573,28 @@ int main() {
   ok &= contains(gameplay_c,
                  "reset_camera_manager_like_source_enter(\"diagnostic_seek\");",
                  "diagnostic seek mirrors CameraManager::Enter instead of preserving current_shot");
+  ok &= contains(gameplay_c,
+                 "boolcamera_manager_milo_camera_active_like_source(){",
+                 "camera runtime exposes the source CameraManager::MiloCamera gate");
+  ok &= contains(gameplay_c,
+                 "DataVariable(\"milo.anim\")isaCamShot",
+                 "CameraManager::MiloCamera guard is tied to the source edit-preview variable");
+  ok &= contains(gameplay_c,
+                 "constboolsource_milo_camera_active="
+                 "camera_manager_milo_camera_active_like_source();",
+                 "regular camera Poll/PrePoll checks the source MiloCamera boundary");
+  ok &= contains(
+      gameplay_c,
+      "\"[world]cameraMiloCamera:source_manager=CameraManager::MiloCamera"
+      "source_gate=LoadMgr.EditMode+milo.animresult=preview_cam"
+      "poll_suppressed=1current=%spending=%s\\n\"",
+      "camera diagnostics expose the source MiloCamera poll suppression boundary");
+  ok &= appears_before(
+      gameplay_c,
+      "constboolsource_milo_camera_active="
+      "camera_manager_milo_camera_active_like_source();",
+      "consume_pending_regular_camera_shot();",
+      "CameraManager::MiloCamera gate is evaluated before PrePoll consumes mNextShot");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=false;",
                  "source shot_over state resets with the active CamShot lifecycle");

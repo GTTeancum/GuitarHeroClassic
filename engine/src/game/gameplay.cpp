@@ -136,6 +136,14 @@ bool fallback_gameplay_backing_camera_enabled() {
            authored_gameplay_cameras_disabled();
 }
 
+bool camera_manager_milo_camera_active_like_source() {
+    // ihatecompvir CameraManager::MiloCamera only returns a CamShot while the
+    // load manager is in edit mode and DataVariable("milo.anim") is a CamShot.
+    // Native gameplay has no edit-preview bridge yet, so normal PrePoll/Poll
+    // remains active until that source state exists.
+    return false;
+}
+
 bool debug_gameplay_session_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_SESSION") != nullptr;
 }
@@ -33658,11 +33666,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
             }
+            const bool source_milo_camera_active =
+                camera_manager_milo_camera_active_like_source();
+            if (source_milo_camera_active) {
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] camera MiloCamera: source_manager=CameraManager::MiloCamera source_gate=LoadMgr.EditMode+milo.anim result=preview_cam poll_suppressed=1 current=%s pending=%s\n",
+                        active_regular_camera_.c_str(),
+                        pending_regular_camera_.c_str());
+                }
+            }
             const bool source_restarted_shot =
-                consume_pending_regular_camera_shot();
+                source_milo_camera_active
+                    ? false
+                    : consume_pending_regular_camera_shot();
             if (const auto* key =
-                    find_camera_key_by_name(regular_camera_keys_,
-                                            active_regular_camera_)) {
+                    source_milo_camera_active
+                        ? nullptr
+                        : find_camera_key_by_name(regular_camera_keys_,
+                                                  active_regular_camera_)) {
                 start_camera_shot_runtime(*key, source_restarted_shot);
                 const CameraKey current_position =
                     camera_position_for(*key, active_camera_position_index_);

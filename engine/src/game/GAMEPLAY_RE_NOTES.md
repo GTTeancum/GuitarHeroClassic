@@ -128,6 +128,14 @@
   prevents `shot_over -> do_force_shot` handoffs from inheriting a queue-time
   start that is one native frame early, while preserving diagnostic path-frame
   offsets.
+- 2026-07-14 CameraManager `MiloCamera` poll gate: ihatecompvir
+  `CameraManager::MiloCamera()` only returns a CamShot when
+  `TheLoadMgr.EditMode()` is active and `DataVariable("milo.anim")` is a
+  CamShot object. Source `PrePoll()` and `Poll()` skip normal `mNextShot`
+  consumption / `SetPreFrame` / `SetFrame` while that preview camera exists.
+  Native now exposes the same gate before pending-shot consumption and labels
+  the suppression boundary, but keeps gameplay false until a real
+  edit-preview `milo.anim` bridge exists.
 - 2026-07-14 CameraManager diagnostic path offset boundary:
   source `PickCameraShot`, `ForceCameraShot`, and `OnCycleShot` only queue a
   `mNextShot`; they do not carry a local-frame override into `PrePoll`.
