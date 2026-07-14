@@ -22620,6 +22620,40 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     active_camera_skip_next_crowd_update_ = false;
 }
 
+void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
+    const bool had_current = !active_regular_camera_.empty();
+    const bool had_pending = !pending_regular_camera_.empty();
+    const std::string previous_current = active_regular_camera_;
+    end_camera_shot_runtime();
+    pending_regular_camera_.clear();
+    active_regular_camera_.clear();
+    previous_regular_camera_.clear();
+    pending_regular_camera_start_ = 0.0;
+    pending_regular_camera_local_frame_ = 0.0;
+    active_regular_camera_start_ = 0.0;
+    active_camera_position_start_ = song_time_;
+    active_camera_position_index_ = 0;
+    previous_camera_position_index_ = 0;
+    active_camera_anim_event_.clear();
+    active_camera_fov_anim_refs_.clear();
+    active_camera_anim_start_time_ = 0.0;
+    active_camera_fov_anim_reported_.clear();
+    active_camera_shot_started_reported_.clear();
+    active_camera_frame_pair_reported_.clear();
+    active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_ = false;
+    active_camera_skip_next_crowd_update_ = false;
+    camera_result_builder_state_.reset();
+    active_force_char_lod_ = -1;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) context=%s current=%s had_current=%d had_pending=%d result=cleared\n",
+            context ? context : "unknown", previous_current.c_str(),
+            had_current ? 1 : 0, had_pending ? 1 : 0);
+    }
+}
+
 void Gameplay::queue_regular_camera_shot(const CameraKey& key,
                                          const char* source_handler) {
     pending_regular_camera_ = key.name;
@@ -27557,17 +27591,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     last_camera_bar_ = UINT32_MAX;
     last_camera_beat_ = UINT32_MAX;
     camera_bars_left_ = 0;
-    pending_regular_camera_.clear();
-    pending_regular_camera_start_ = 0.0;
-    pending_regular_camera_local_frame_ = 0.0;
-    active_camera_anim_event_.clear();
-    active_camera_fov_anim_refs_.clear();
-    active_camera_anim_start_time_ = 0.0;
-    active_camera_fov_anim_reported_.clear();
-    active_camera_shot_over_ = false;
-    active_camera_skip_next_crowd_update_ = false;
-    camera_result_builder_state_.reset();
-    active_force_char_lod_ = -1;
+    reset_camera_manager_like_source_enter("diagnostic_seek");
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
     active_worldcrowd_lighter_group_.clear();

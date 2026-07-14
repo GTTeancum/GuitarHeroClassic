@@ -338,6 +338,13 @@ Open work:
   routes queue the selected CamShot first, then the PrePoll-style bridge makes
   it active immediately before `StartAnim` and `SetPreFrame`. Debug camera rows
   now expose the `mNextShot` assignment and PrePoll consumption points.
+- 2026-07-14 CameraManager enter/reset lifecycle: ihatecompvir
+  `CameraManager::Enter()` calls `StartShot_(0)`, which ends the current shot
+  instead of preserving it as previous-camera context. Native diagnostic seeks
+  now route through a source-named `CameraManager::Enter` reset helper that
+  runs EndAnim cleanup, clears the `mCurrentShot`/`mNextShot` mirrors, and
+  resets source clock and shot-over state before the first post-seek regular
+  pick.
 - 2026-07-13 follow-up: the current ihatecompvir `CameraManager::PickCameraShot`
   source does not special-case "same current shot but not started"; after
   `FindCameraShot` returns a shot, the source writes `mNextShot = shot`.

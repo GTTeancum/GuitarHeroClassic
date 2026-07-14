@@ -11391,6 +11391,24 @@ int main() {
                  "\"[world]camerastart_shotcrowd_updateskipped:"
                  "source_var=camshot_skip_next_updateshot=%sresult=cleared\\n\"",
                  "camera diagnostics expose the source camshot_skip_next_update clear");
+  ok &= contains(
+      gameplay_c,
+      "voidGameplay::reset_camera_manager_like_source_enter(constchar*context)",
+      "camera lifecycle exposes a source-shaped CameraManager::Enter reset helper");
+  ok &= contains(gameplay_c,
+                 "end_camera_shot_runtime();"
+                 "pending_regular_camera_.clear();"
+                 "active_regular_camera_.clear();"
+                 "previous_regular_camera_.clear();",
+                 "CameraManager::Enter reset clears current and pending CamShots after EndAnim");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraEnter:source_manager=CameraManager::Enter"
+                 "source_call=StartShot_(0)context=%scurrent=%s"
+                 "had_current=%dhad_pending=%dresult=cleared\\n\"",
+                 "camera diagnostics expose source Enter StartShot_(0) reset");
+  ok &= contains(gameplay_c,
+                 "reset_camera_manager_like_source_enter(\"diagnostic_seek\");",
+                 "diagnostic seek mirrors CameraManager::Enter instead of preserving current_shot");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=false;",
                  "source shot_over state resets with the active CamShot lifecycle");
