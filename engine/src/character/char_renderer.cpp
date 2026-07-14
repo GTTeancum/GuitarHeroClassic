@@ -408,11 +408,16 @@ bool has_hair_token(const std::string& text) {
 }
 
 bool is_hair_two_sided_surface(
+    const Character& character,
     const SkinnedMesh* mesh,
     const ghogx::milo_scene::MatObj* material = nullptr) {
-  if (mesh && (has_hair_token(mesh->name) ||
-               has_hair_token(mesh->material))) {
-    return true;
+  if (mesh) {
+    if (character_mesh_uses_char_hair_point_bone(character, *mesh)) {
+      return true;
+    }
+    if (has_hair_token(mesh->name) || has_hair_token(mesh->material)) {
+      return true;
+    }
   }
   return material && (has_hair_token(material->name) ||
                       has_hair_token(material->diffuse_tex));
@@ -1559,7 +1564,10 @@ void CharRenderer::draw_impl(bool clear_target) {
                                              impl.min_lod)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);
     const milo_scene::MatObj* material = impl.character.find_mat(m.material);
-    const bool hair_two_sided = is_hair_two_sided_surface(&m, material);
+    const bool hair_point_bone =
+        character_mesh_uses_char_hair_point_bone(impl.character, m);
+    const bool hair_two_sided =
+        is_hair_two_sided_surface(impl.character, &m, material);
     const DWORD mesh_cull_mode =
         hair_two_sided ? D3DCULL_NONE : character_cull_mode(material);
     dev->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
@@ -1886,7 +1894,8 @@ void CharRenderer::draw_impl(bool clear_target) {
                    "[mesh-render] %-24s mat=%-18s blend=%d "
                    "zwrite=%d ngCull=%d cullMode=%lu src=%lu dst=%lu "
                    "op=%lu drawOrder=%.3f groupRank=%d alphaTest=%d alphaCut=%d "
-                   "alphaRef=%lu zMode=%u texWrap=%u hairTwoSided=%d\n",
+                   "alphaRef=%lu zMode=%u texWrap=%u hairTwoSided=%d "
+                   "hairPointBone=%d\n",
                    m.name.c_str(), m.material.c_str(),
                     static_cast<int>(material_blend),
                     depth_write ? 1 : 0,
@@ -1908,7 +1917,7 @@ void CharRenderer::draw_impl(bool clear_target) {
                    material && material->has_render_state
                        ? static_cast<unsigned>(material->tex_wrap)
                        : 1,
-                   hair_two_sided ? 1 : 0);
+                   hair_two_sided ? 1 : 0, hair_point_bone ? 1 : 0);
     }
     float mesh_alpha =
         material ? material->color[3] * impl.color_mod[3] : impl.color_mod[3];

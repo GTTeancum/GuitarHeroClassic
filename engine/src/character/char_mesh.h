@@ -6507,6 +6507,12 @@ struct Character {
   bool has_transform(const std::string& name) const;
 };
 
+// Native render-policy helper for the project hair two-sided override. The
+// source-backed part is the decoded CharHair point-bone membership; the helper
+// intentionally does not infer blend, depth, sort, or physics behavior.
+bool character_mesh_uses_char_hair_point_bone(const Character& character,
+                                              const SkinnedMesh& mesh);
+
 // Decode one skinned-mesh entry body. Never throws: on failure returns a
 // SkinnedMesh with decoded=false and a populated .error.
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,

@@ -67,7 +67,9 @@ int main() {
   using ghogx::character::Character;
   using ghogx::character::CharCollide;
   using ghogx::character::CharHair;
+  using ghogx::character::SkinnedMesh;
   using ghogx::character::apply_character_controllers;
+  using ghogx::character::character_mesh_uses_char_hair_point_bone;
   using ghogx::character::source_char_hair_enter_plan;
   using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
@@ -168,6 +170,29 @@ int main() {
   ok &= near(point_defaults.outer_radius, -1.0f,
              "point default outer radius");
   ok &= near(point_defaults.unk5c[0], 0.0f, "point default unk5c x");
+
+  SkinnedMesh hair_weighted_mesh;
+  hair_weighted_mesh.name = "front_hair_card.mesh";
+  hair_weighted_mesh.parent = "bone_head.mesh";
+  hair_weighted_mesh.bone_palette = {"bone_neck.mesh", "hair_tip.mesh"};
+  ok &= expect_bool(
+      character_mesh_uses_char_hair_point_bone(character, hair_weighted_mesh),
+      true, "hair-driven mesh detected from CharHair point bone palette");
+
+  SkinnedMesh hair_parented_mesh;
+  hair_parented_mesh.name = "front_hair_leaf.mesh";
+  hair_parented_mesh.parent = "hair_tip.trans";
+  ok &= expect_bool(
+      character_mesh_uses_char_hair_point_bone(character, hair_parented_mesh),
+      true, "hair-driven mesh detected from CharHair point bone parent");
+
+  SkinnedMesh face_mesh;
+  face_mesh.name = "face.mesh";
+  face_mesh.parent = "root";
+  face_mesh.bone_palette = {"root"};
+  ok &= expect_bool(
+      character_mesh_uses_char_hair_point_bone(character, face_mesh), false,
+      "unrelated mesh is not promoted by CharHair root or character name");
   ok &= expect_bool(point_defaults.bone_null, true, "point default null bone");
   ok &= expect_bool(point_defaults.collides_empty, true,
                     "point default empty collides");

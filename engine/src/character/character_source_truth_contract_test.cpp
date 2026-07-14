@@ -5995,9 +5995,21 @@ int run_contract() {
   ok &= missing(renderer, "hairRender",
                 "renderer debug output must not expose removed hair-name branch");
   ok &= contains(renderer,
-                 "boolis_hair_two_sided_surface(constSkinnedMesh*mesh,"
+                 "boolis_hair_two_sided_surface(constCharacter&character,"
+                 "constSkinnedMesh*mesh,"
                  "constghogx::milo_scene::MatObj*material=nullptr)",
                  "renderer has the explicit project hair two-sided rule");
+  ok &= contains(renderer,
+                 "character_mesh_uses_char_hair_point_bone(character,*mesh)",
+                 "hair two-sided rule uses decoded CharHair point membership");
+  ok &= contains(char_mesh_h,
+                 "boolcharacter_mesh_uses_char_hair_point_bone("
+                 "constCharacter&character,constSkinnedMesh&mesh);",
+                 "native declares CharHair point-bone mesh membership helper");
+  ok &= contains(char_hair_source_test,
+                 "character_mesh_uses_char_hair_point_bone(character,"
+                 "hair_weighted_mesh)",
+                 "CharHair point-bone mesh membership is tested");
   ok &= contains(renderer,
                  "has_hair_token(mesh->name)||has_hair_token(mesh->material)",
                  "hair two-sided rule catches mesh and mesh-material tokens");
@@ -6023,6 +6035,8 @@ int run_contract() {
                 "hair two-sided rule must not keep a hidden two-pass drawer");
   ok &= contains(renderer, "hairTwoSided=%d",
                  "mesh render logs expose the hair two-sided rule");
+  ok &= contains(renderer, "hairPointBone=%d",
+                 "mesh render logs expose decoded CharHair membership");
   ok &= contains(renderer,
                  "constbooldepth_write=material_depth_write_enabled(material);",
                  "native depth write is driven by source material state");

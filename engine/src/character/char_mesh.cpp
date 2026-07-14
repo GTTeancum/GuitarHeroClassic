@@ -10975,6 +10975,47 @@ SourceRndMeshCopyPlan source_rndmesh_copy_plan(
   return plan;
 }
 
+static std::string source_milo_symbol_base(const std::string& symbol) {
+  std::string base = source_ascii_lower(symbol);
+  if (source_case_ends_with(base, ".mesh")) {
+    base.resize(base.size() - 5);
+  } else if (source_case_ends_with(base, ".trans")) {
+    base.resize(base.size() - 6);
+  }
+  return base;
+}
+
+static bool source_milo_symbol_matches(const std::string& a,
+                                       const std::string& b) {
+  if (a.empty() || b.empty()) return false;
+  return source_milo_symbol_base(a) == source_milo_symbol_base(b);
+}
+
+bool character_mesh_uses_char_hair_point_bone(const Character& character,
+                                              const SkinnedMesh& mesh) {
+  auto mesh_matches = [&](const std::string& point_bone) {
+    if (source_milo_symbol_matches(point_bone, mesh.name) ||
+        source_milo_symbol_matches(point_bone, mesh.parent)) {
+      return true;
+    }
+    for (const std::string& palette_bone : mesh.bone_palette) {
+      if (source_milo_symbol_matches(point_bone, palette_bone)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const CharHair& hair : character.hairs) {
+    for (const CharHairStrand& strand : hair.strands) {
+      for (const CharHairPoint& point : strand.points) {
+        if (mesh_matches(point.bone)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 std::vector<std::string> Character::texture_names() const {
   std::set<std::string> set;
   for (const milo_scene::MatObj& m : mats)

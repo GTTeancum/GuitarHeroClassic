@@ -5722,10 +5722,14 @@ unresolved `chain.hair` hookup rather than a static placement problem.
   switches masquerading as source behavior.
 - Project override: hair polygons/textures render two-sided. Native therefore
   forces no backface culling for shared hair-token mesh/material/texture
-  surfaces. This is a visual policy override, not inferred source evidence, and
-  is implemented as a single draw with culling disabled so texture alpha/blend
-  contribution is not doubled. It must not affect source blend, depth write,
-  alpha test, texture wrap, material color, or draw sort, and it must not be
-  used to invent hair blend/depth/alpha/sort behavior.
+  surfaces and meshes whose own transform, parent, or active bone palette
+  matches a decoded `CharHair::Point::bone`. The controller-membership portion
+  comes from stock CharHair rows such as Rock1/Rock2 `bone_hair*` and
+  Rockabill2 `chain.hair`; the two-sided decision itself remains a visual
+  policy override, not inferred source evidence. It is implemented as a single
+  draw with culling disabled so texture alpha/blend contribution is not doubled.
+  It must not affect source blend, depth write, alpha test, texture wrap,
+  material color, or draw sort, and it must not be used to invent hair
+  blend/depth/alpha/sort behavior.
 - If a behavior is not proven by ihatecompvir source or stock asset data, leave
   it decoded/logged and unwritten until the source-backed runtime path is known.
