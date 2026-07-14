@@ -1257,7 +1257,14 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     skin packing, not GH2 rev28 runtime decoding. It writes the four weights in
     influence order, writes bone slots in influence order for normal vertex
     layouts, reverses the bone slot order for compressed vertex layouts, and
-    repairs invalid remapped bones by reusing the last valid slot. Native
+    repairs invalid remapped bones by reusing the last valid slot. The exact
+    source path is `GetRemappedBoneIndex` returning `ushort.MaxValue` when the
+    glTF joint is not in the current chunk-local bone map, then
+    `AddVertexToChunkMesh` walking `bone0` through `bone3` with
+    `lastValidBone = 0` and replacing each `ushort.MaxValue` slot with the last
+    valid slot. This repair happens after the compressed-layout bone-slot
+    reversal, so a missing middle remap inherits the previous reversed output
+    slot, not the original influence-order neighbor. Native
     `source_gltf_milo_pack_skin_slots` ports that exact packing contract so the
     exporter rule is documented without being mistaken for stock runtime skin
     order.

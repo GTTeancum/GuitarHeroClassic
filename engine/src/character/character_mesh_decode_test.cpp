@@ -878,6 +878,23 @@ int main() {
   CHECK(gltf_invalid_repaired.bones[2] == 8);
   CHECK(gltf_invalid_repaired.bones[3] == 8);
 
+  const auto gltf_uncompressed_missing_middle_repaired =
+      ghogx::character::source_gltf_milo_pack_skin_slots(
+          {{10, 0.40f}, {-1, 0.30f}, {30, 0.20f}}, false);
+  CHECK(gltf_uncompressed_missing_middle_repaired.bones[0] == 10);
+  CHECK(gltf_uncompressed_missing_middle_repaired.bones[1] == 10);
+  CHECK(gltf_uncompressed_missing_middle_repaired.bones[2] == 30);
+  CHECK(gltf_uncompressed_missing_middle_repaired.bones[3] == 30);
+
+  const auto gltf_compressed_missing_repaired =
+      ghogx::character::source_gltf_milo_pack_skin_slots(
+          {{10, 0.40f}, {-1, 0.30f}, {30, 0.20f}, {40, 0.10f}},
+          true);
+  CHECK(gltf_compressed_missing_repaired.bones[0] == 40);
+  CHECK(gltf_compressed_missing_repaired.bones[1] == 30);
+  CHECK(gltf_compressed_missing_repaired.bones[2] == 30);
+  CHECK(gltf_compressed_missing_repaired.bones[3] == 10);
+
   ghogx::character::SourceGltfMiloVertexInput vertex_input;
   vertex_input.position = {1.0f, 2.0f, 3.0f};
   vertex_input.has_normal = true;

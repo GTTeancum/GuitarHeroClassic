@@ -6091,6 +6091,10 @@ int run_contract() {
                  "newVert.bone0;}else{newVert.bone0=lastValidBone;}",
                  "glTFMilo repairs invalid skin bone slots from last valid");
   ok &= contains(gltf_program_cs,
+                 "returnjointIndexToLocalBoneIndex.TryGetValue(jointIndex,"
+                 "outushortlocalBoneIndex)?localBoneIndex:ushort.MaxValue;",
+                 "glTFMilo missing local bone remaps use ushort MaxValue");
+  ok &= contains(gltf_program_cs,
                  "if(!float.IsFinite(weight)){if(!warningState."
                  "loggedInvalidWeights)",
                  "glTFMilo validates non-finite skin weights");
@@ -8275,6 +8279,9 @@ int run_contract() {
                  "source_gltf_milo_pack_skin_slots(skin_influences,true)",
                  "focused mesh decode test covers glTFMilo skin slot packer");
   ok &= contains(mesh_decode_test,
+                 "gltf_compressed_missing_repaired.bones[2]==30",
+                 "focused mesh decode test covers compressed missing remap repair");
+  ok &= contains(mesh_decode_test,
                  "source_milo_editor_rndmesh_bone_transform_io_plan(",
                  "focused mesh decode test covers MiloEditor bone transform IO");
   ok &= contains(mesh_decode_test,
@@ -8778,6 +8785,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_gltf_milo_pack_skin_slots` ports that exact packing",
                  "document records glTFMilo skin packing helper");
+  ok &= contains(doc,
+                 "`GetRemappedBoneIndex` returning `ushort.MaxValue`",
+                 "document records glTFMilo missing-remap sentinel");
+  ok &= contains(doc,
+                 "This repair happens after the compressed-layout bone-slot",
+                 "document records compressed remap repair order");
   ok &= contains(doc,
                  "`source_rndmesh_field_gate_plan` ports those gates",
                  "document records RndMesh field-gate helper");
