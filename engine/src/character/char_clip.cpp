@@ -3104,6 +3104,22 @@ bool debug_arm_pose_enabled() {
 #endif
 }
 
+std::string debug_arm_pose_filter_env(const char* name) {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  std::string result;
+  if (_dupenv_s(&value, &len, name) == 0 && value && value[0]) {
+    result = value;
+  }
+  std::free(value);
+  return result;
+#else
+  const char* value = std::getenv(name);
+  return value && value[0] ? std::string(value) : std::string();
+#endif
+}
+
 bool controller_audit_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -5598,6 +5614,14 @@ static void dump_arm_pose(const Character& character, const char* tag) {
     compact_tag = "clip";
   } else if (std::strcmp(tag, "clip-frame-weighted-post") == 0) {
     compact_tag = "clipw";
+  }
+  const std::string char_filter =
+      debug_arm_pose_filter_env("GHOGX_DEBUG_ARM_POSE_CHAR");
+  if (!char_filter.empty() && char_filter != character.dir_name) return;
+  const std::string tag_filter =
+      debug_arm_pose_filter_env("GHOGX_DEBUG_ARM_POSE_TAG");
+  if (!tag_filter.empty() && tag_filter != tag && tag_filter != compact_tag) {
+    return;
   }
   auto dump = [&](const char* name) {
     const int i = find_bone_index(character, name);

@@ -32442,6 +32442,15 @@ int run_contract() {
                  "\"GHOGX_DEBUG_ARM_POSE\"",
                  "arm pose trace is opt-in diagnostic only");
   ok &= contains(char_clip,
+                 "\"GHOGX_DEBUG_ARM_POSE_CHAR\"",
+                 "arm pose trace can filter to one source character");
+  ok &= contains(char_clip,
+                 "\"GHOGX_DEBUG_ARM_POSE_TAG\"",
+                 "arm pose trace can filter to one pose phase");
+  ok &= contains(char_clip,
+                 "char_filter!=character.dir_name",
+                 "arm pose character filter skips unrelated performers");
+  ok &= contains(char_clip,
                  "staticvoiddump_arm_pose(constCharacter&character,constchar*tag)",
                  "native arm pose trace has a bounded diagnostic helper");
   ok &= contains(char_clip,

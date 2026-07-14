@@ -5854,6 +5854,12 @@ loaded guitar plus hand clips should force hand IK weights to `1.0` is removed;
 viewer proof parity must now feed the same live MIDI fret target that gameplay
 feeds.
 
+The compact arm proof rows are intentionally filterable with
+`GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
+viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
+controller-applied pose for the performer under test without mixing in other
+band members or pre-controller rows.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
