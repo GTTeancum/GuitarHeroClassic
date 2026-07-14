@@ -11261,6 +11261,24 @@ Rejected native probe:
   starts `intro_encore1`; screenshots at frames `170` and `220` capture the
   before/after camera views. The contract executable still reports only the
   known unrelated ROCK/star-power HUD backlog.
+- 2026-07-14 follow-up: ihatecompvir `CameraManager::StartShot_` runs
+  `CamShot::StartAnim`, records `mCamStartTime`, then, when `venue_test != 1`,
+  calls `TheWiiRnd.SetTriFrameRendering(true)` and resets `gCooldown = 0`.
+  Native now emits a source-labeled `camera StartShot_` lifecycle proof row
+  after the native `CamShot::StartAnim` emulation when a pending `mNextShot`
+  is consumed. The row carries the source-local start time and FPU, and labels
+  the tri-frame reset as `source_wii_only` / `not_applied` so future angle
+  audits do not mistake a renderer-specific Wii side effect for hidden
+  CamShot transform math.
+- Validation:
+  `engine/out/camera_startshot_post_start_20260714_003/` builds
+  `ghogx_app` plus `ghogx_gameplay_venue_band_contract_test`, seeks stock
+  PS2 `arena` to `16.0s`, pins `balcony_lft04`, and exits after 30 frames.
+  Runtime exits `0`, captures `frame_00020.bmp`, and logs the source route:
+  diagnostic shot selection, `PrePoll` consuming `mNextShot`, the new
+  `CameraManager::StartShot_` post-`StartAnim` proof row, `SetPreFrame`, and
+  `Poll`/`SetFrame`. The contract executable still reports only the known
+  unrelated ROCK/star-power HUD backlog.
 - Validation:
   `engine/out/camera_setpreframe_framepair_20260713_002/` builds
   `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`, then runs stock

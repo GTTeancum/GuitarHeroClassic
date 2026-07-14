@@ -12241,6 +12241,25 @@ int main() {
                "}}}constboolsource_restarted_shot=",
                "regular camera selection must not consume resend_excitement before CamShot::StartAnim");
   ok &= contains(
+      start_camera_shot_runtime_c,
+      "if(source_restart&&(debug_camera_enabled()||debug_venue_filters_enabled())){"
+      "std::fprintf(stderr,\"[world]cameraStartShot_:source_manager="
+      "CameraManager::StartShot_source_order=after_CamShot_StartAnim",
+      "camera StartShot_ diagnostics expose the source post-StartAnim manager step");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "active_regular_camera_start_,camera_source_anim_rate(key),"
+                 "camera_source_frames_per_unit(key));",
+                 "camera StartShot_ diagnostics use the source mCamStartTime equivalent and frames-per-unit");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "tri_frame_reset=source_wii_onlycooldown_reset=0"
+                 "native_renderer_side_effect=not_applied",
+                 "camera StartShot_ diagnostics mark Wii tri-frame reset as non-native renderer state");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "start_camera_shot_anims(key,active_camera_runtime_shot_);",
+      "\"[world]cameraStartShot_:source_manager=CameraManager::StartShot_",
+      "CameraManager::StartShot_ post-start proof runs after native CamShot::StartAnim emulation");
+  ok &= contains(
       gameplay_c,
       "voidGameplay::reset_camera_manager_like_source_enter(constchar*context)",
       "camera lifecycle exposes a source-shaped CameraManager::Enter reset helper");

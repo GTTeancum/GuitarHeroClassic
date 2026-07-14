@@ -24100,6 +24100,14 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             key.crowd_selection_pairs.size(),
             key.crowd_face_camera ? 1 : 0);
     }
+    if (source_restart &&
+        (debug_camera_enabled() || debug_venue_filters_enabled())) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f units=%d fpu=%.1f venue_test=0 tri_frame_reset=source_wii_only cooldown_reset=0 native_renderer_side_effect=not_applied\n",
+            active_camera_runtime_shot_.c_str(), active_regular_camera_start_,
+            camera_source_anim_rate(key), camera_source_frames_per_unit(key));
+    }
     set_camera_glow_spot_ref(key.glow_spot_ref);
 }
 
