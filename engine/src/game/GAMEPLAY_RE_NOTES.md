@@ -130,11 +130,15 @@ Open work:
   the recovered native predicate when that body is pinned.
 - 2026-07-13 CameraManager `first_shot_ok` hook: ihatecompvir sends
   `first_shot_ok(category)` at the start of `FindCameraShot`, before any
-  category scan or `shot_ok` calls. Native regular selection now logs and
-  preserves that call-order point using the source category requested by the
+  category scan or `shot_ok` calls. A follow-up audit of
+  `CameraManager::FirstShotOk` confirmed that it discards the
+  `HandleType(first_shot_ok)` return value; the visible RB3
+  `BandDirector::OnFirstShotOK` computes a frame-distance return but does not
+  persist camera-manager state. Native regular selection therefore logs and
+  preserves this call-order point using the source category requested by the
   GH2 world scripts (`NORMAL_CAMSHOT_CATEGORIES` for regular/solo/jump and
-  `LIGHTER` for lighter shots). The hook is intentionally diagnostic/deferred
-  until the GH2 handler behavior is recovered.
+  `LIGHTER` for lighter shots), while explicitly marking the source return as
+  discarded instead of treating it as a hidden selection predicate.
 - 2026-07-13 CameraManager no-acceptable-shot behavior: ihatecompvir
   `PickCameraShot` calls `FindCameraShot` once, warns "No acceptable camera
   shot" when it returns null, and does not relax filters before setting

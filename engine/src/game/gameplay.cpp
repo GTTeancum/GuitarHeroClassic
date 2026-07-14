@@ -15442,12 +15442,13 @@ std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
 
 void camera_source_first_shot_ok(std::string_view category) {
     // ihatecompvir CameraManager::FindCameraShot sends first_shot_ok(category)
-    // once before scanning the category list. Keep the source call order
-    // observable while the GH2-specific handler remains unrecovered.
+    // once before scanning the category list, but CameraManager::FirstShotOk
+    // discards the HandleType return. Keep this as call-order proof rather
+    // than inventing a selection predicate from the returned DataNode.
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera first_shot_ok: source_msg=first_shot_ok category=%s result=deferred\n",
+            "[world] camera first_shot_ok: source_msg=first_shot_ok category=%s source_return=discarded result=ignored\n",
             std::string(category).c_str());
     }
 }

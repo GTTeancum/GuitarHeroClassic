@@ -10878,6 +10878,10 @@ int main() {
                  "voidcamera_source_first_shot_ok(std::string_viewcategory)",
                  "regular camera selector exposes ihatecompvir CameraManager::FirstShotOk hook");
   ok &= contains(gameplay_c,
+                 "CameraManager::FirstShotOk"
+                 "//discardstheHandleTypereturn",
+                 "regular camera first_shot_ok bridge records that the source return is ignored");
+  ok &= contains(gameplay_c,
                  "camera_source_first_shot_ok("
                  "camera_source_pick_shot_category(mode));",
                  "regular camera selector sends first_shot_ok before source shot filtering");
@@ -10887,8 +10891,8 @@ int main() {
                  "regular camera selector preserves the source pick_shot category token");
   ok &= contains(gameplay_c,
                  "\"[world]camerafirst_shot_ok:source_msg=first_shot_ok"
-                 "category=%sresult=deferred\\n\"",
-                 "regular camera diagnostics expose deferred source first_shot_ok hook");
+                 "category=%ssource_return=discardedresult=ignored\\n\"",
+                 "regular camera diagnostics expose ignored source first_shot_ok return");
   ok &= contains(gameplay_c,
                  "if(!camera_source_shot_ok(key,previous))continue;",
                  "regular camera selector runs source shot_ok after ShotMatches filters");
