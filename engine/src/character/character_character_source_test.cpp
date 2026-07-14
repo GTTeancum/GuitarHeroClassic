@@ -74,6 +74,7 @@ int main() {
   using ghogx::character::source_rnddir_save_plan;
   using ghogx::character::source_rnddir_sync_drawables_plan;
   using ghogx::character::source_rnddir_sync_objects_plan;
+  using ghogx::character::source_band_character_deformation_plan;
   using ghogx::character::source_character_added_object;
   using ghogx::character::source_character_add_shadow_bone;
   using ghogx::character::source_character_bone_servo_resolves;
@@ -807,6 +808,60 @@ int main() {
 
   ok &= expect_bool(source_character_pre_save().unhooked_shadow, true,
                     "PreSave unhooks shadow");
+
+  const auto no_deform = source_band_character_deformation_plan(false, true, true);
+  ok &= expect_bool(no_deform.has_deform_clip, false,
+                    "BandCharacter SetDeformation skips missing clip");
+  ok &= expect_size(no_deform.steps.size(), 0,
+                    "BandCharacter missing deform clip has no steps");
+
+  const auto deform =
+      source_band_character_deformation_plan(true, true, false);
+  ok &= expect_bool(deform.has_deform_clip, true,
+                    "BandCharacter SetDeformation records deform clip");
+  ok &= expect_int(deform.deform_weight_count, 18,
+                   "BandCharacter deform weight count");
+  ok &= expect_int(deform.sync_mesh_mask, 0xBF,
+                   "BandCharacter source SyncMesh mask");
+  ok &= expect_bool(deform.poses_neutral_before_cache, true,
+                    "BandCharacter poses neutral before mesh cache");
+  ok &= expect_bool(deform.poses_weighted_after_cache, true,
+                    "BandCharacter poses weighted after deform weights");
+  ok &= expect_bool(deform.captures_ik_scale_before, true,
+                    "BandCharacter captures IK scale before deformation");
+  ok &= expect_bool(deform.captures_ik_scale_after, true,
+                    "BandCharacter captures IK scale after deformation");
+  ok &= expect_bool(deform.measures_ik_hand_lengths_after_deform, true,
+                    "BandCharacter measures IK hand lengths after deformation");
+  ok &= expect_bool(deform.clears_dirty_bit, true,
+                    "BandCharacter clears deformation dirty bit");
+  ok &= expect_string(deform.steps[0],
+                      "BandCharDesc::GetDeformClip(mGender)",
+                      "BandCharacter first deform step");
+  ok &= expect_string(deform.steps[6], "meshes.PoseMeshes(neutral)",
+                      "BandCharacter neutral PoseMeshes step");
+  ok &= expect_string(deform.steps[7], "BoneServo.AcquirePose",
+                      "BandCharacter edit bone-servo acquire step");
+  ok &= expect_string(deform.steps[9], "CharMeshCacheMgr.Disable(true)",
+                      "BandCharacter disables cache outside closet");
+  ok &= expect_string(deform.steps[16], "ComputeDeformWeights(weights[18])",
+                      "BandCharacter computes source deform weights");
+  ok &= expect_string(deform.steps[18], "meshes.PoseMeshes(weighted)",
+                      "BandCharacter weighted PoseMeshes step");
+  ok &= expect_string(deform.steps[21], "CharIKScale.CaptureAfter",
+                      "BandCharacter IK scale capture-after step");
+  ok &= expect_string(deform.steps[22], "CharIKHand.MeasureLengths",
+                      "BandCharacter IK hand measure step");
+  ok &= expect_string(deform.steps[26], "clear unk224 dirty bit 0x2",
+                      "BandCharacter dirty-bit clear step");
+
+  const auto closet_deform =
+      source_band_character_deformation_plan(true, false, true);
+  ok &= expect_string(closet_deform.steps[7], "skip BoneServo.AcquirePose",
+                      "BandCharacter non-edit skips bone-servo acquire");
+  ok &= expect_string(closet_deform.steps[9],
+                      "CharMeshCacheMgr.Disable(false)",
+                      "BandCharacter keeps mesh cache enabled in closet");
 
   std::vector<SourceCharPollableSorterDep> deps = {
       {"target.driver", {}, 0},

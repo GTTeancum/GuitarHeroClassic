@@ -7576,6 +7576,55 @@ SourceCharacterPreSaveResult source_character_pre_save() {
   return {true};
 }
 
+SourceBandCharacterDeformationPlan source_band_character_deformation_plan(
+    bool has_deform_clip,
+    bool edit_mode_bone_servo,
+    bool in_closet) {
+  SourceBandCharacterDeformationPlan plan;
+  plan.has_deform_clip = has_deform_clip;
+  plan.edit_mode_bone_servo = edit_mode_bone_servo;
+  plan.in_closet = in_closet;
+  if (!has_deform_clip) return plan;
+
+  plan.poses_neutral_before_cache = true;
+  plan.poses_weighted_after_cache = true;
+  plan.captures_ik_scale_before = true;
+  plan.captures_ik_scale_after = true;
+  plan.measures_ik_hand_lengths_after_deform = true;
+  plan.clears_dirty_bit = true;
+  plan.steps = {
+      "BandCharDesc::GetDeformClip(mGender)",
+      "CharBonesMeshes tmp_bones",
+      "meshes.SetName(tmp_bones,this)",
+      "clip.StuffBones(meshes)",
+      "clip.ScaleDown(meshes,0)",
+      "clip.ScaleAdd(meshes,1,0,0)",
+      "meshes.PoseMeshes(neutral)",
+      edit_mode_bone_servo ? "BoneServo.AcquirePose" : "skip BoneServo.AcquirePose",
+      "CharIKScale.CaptureBefore",
+      in_closet ? "CharMeshCacheMgr.Disable(false)"
+                : "CharMeshCacheMgr.Disable(true)",
+      "CharMeshCacheMgr.SyncMesh(mask=0xBF)",
+      "DeformHead",
+      "CharCuff.Deform",
+      "outfitMeshes.clear",
+      "CharMeshCacheMgr.StuffMeshes(outfitMeshes)",
+      "clip.ScaleDown(meshes,0)",
+      "ComputeDeformWeights(weights[18])",
+      "clip.ScaleAdd(meshes,weights[i],i,0)",
+      "meshes.PoseMeshes(weighted)",
+      "RndMeshDeform.Reskin",
+      "CharCollide.DeformIfMeshCached",
+      "CharIKScale.CaptureAfter",
+      "CharIKHand.MeasureLengths",
+      "SyncOutfitConfig",
+      "OutfitConfig.ApplyAO",
+      "delete CharMeshCacheMgr",
+      "clear unk224 dirty bit 0x2",
+  };
+  return plan;
+}
+
 namespace {
 
 bool source_char_pollable_sorter_changed_by_recurse(

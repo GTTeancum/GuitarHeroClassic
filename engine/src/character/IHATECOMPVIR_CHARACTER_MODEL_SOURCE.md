@@ -274,6 +274,7 @@ loader body or direct original-game trace proves the serialized behavior.
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
 | Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp`, `obj/Dir.h` | Native helper ports visible Character/RndDir/ObjectDir loader, sync, find, subdir, copy, handler, and prop-row contracts while keeping the raw GH2 root byte span opaque until the exact GH2 revision/body relation is pinned. |
 | Character lifecycle and directory sync flow | `rb3-latest` `Character.cpp`, `Character.h` | Native helper ports constructor defaults, poll-state enum order, Enter/Exit/Poll state changes, main-driver discovery, sphere-base replacement, eyes gates, and SyncObjects cleanup/sort flow. |
+| BandCharacter deformation order | `rb3` `bandobj/BandCharacter.cpp` | Native helper records the visible `SetDeformation` order: neutral `PoseMeshes`, `CharIKScale::CaptureBefore`, mesh-cache/head/cuff deformation, `ComputeDeformWeights(weights[18])`, weighted `PoseMeshes`, reskin/collide, `CharIKScale::CaptureAfter`, then `CharIKHand::MeasureLengths`. It is a contract only and does not move live posture without the missing clip/CharBones publisher. |
 | Character subsystem init/terminate | `rb3-latest` `Char.cpp`, `Char.h` | Native helper records the source init/terminate order only; it does not install callbacks or alter runtime startup. |
 | Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
@@ -4033,11 +4034,48 @@ note, and all report `unreadBytes=0`.
     generated recomp output directory, so the symbol is not a source body.
     Native GHOGX therefore must not rederive that shoulder offset or claim a
     full IKElbow port until the function body is source-backed.
+    2026-07-14 refresh checked the live ihatecompvir clones at `rb3`
+    `41719f248995f677ffa39bd394706b5d18ef70c6`, `grim`
+    `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb`, and `re-notes`
+    `5c486fd6e5e5186c0797df9c84182b056672b3f0`; each matched upstream, and
+    no clone added a reviewable `PullShoulder` body.
   - The current runtime solver is the bounded GH2 single-target slice. Source
     branches for live multi-target publishing, `PullShoulder`, live
     `mElbowSwing`, live wrist constraint, and elbow-collision correction remain
     fenced unless an asset log proves they are present and the matching
     ihatecompvir source branch is ported.
+  - Current Rockabill2 stock proof remains the simple GH2 path: the controller
+    audit logs two source revision-2 `CharIKHand` rows, both single-target,
+    `orientation=1`, `stretch=1`, `scalable=0`, `moveElbow=1`,
+    `elbowSwing=0`, `alwaysElbow=0`, `constrainWrist=0`,
+    `elbowCollide=<none>`, and `unreadBytes=0`, plus the matching
+    `foreTwist_L/R.ik` and `upperTwist_L/R.ik` rows. This rules out hidden
+    asset-side wrist/collision/swing branches for the visible Rockabill2
+    shoulder failure; it points back to the shared `PullShoulder` and
+    clip/CharBones/PoseMeshes publishing gaps, not a character-named fix.
+  - 2026-07-14 also restored the accepted active-song PS2 hand scheduler:
+    instrument performers poll fret/left `CharIKHand` first, immediately poll
+    its matching `CharForeTwist`, then poll strum/right and its matching
+    `CharForeTwist`; unknown rows keep decoded MILO order. This is based on
+    the earlier original-game trace notes and existing deterministic contract,
+    not on a Rockabill2-specific arm shape fix.
+- `rb3/src/system/bandobj/BandCharacter.cpp`
+  - `BandCharacter::SetDeformation` is concrete source for the static
+    deformation/posture setup around IK length measurement. It builds temporary
+    `CharBonesMeshes`, stuffs deform bones, `ScaleDown`s, applies the base
+    deform pose with `ScaleAdd(meshes, 1, 0, 0)`, and calls
+    `PoseMeshes()` before cache deformation.
+  - After `CharIKScale::CaptureBefore`, source creates `CharMeshCacheMgr`,
+    disables it with `!mInCloset`, syncs outfit meshes with mask `0xBF`,
+    deforms the head and cuffs, restuffs the outfit mesh list, then recomputes
+    the deform stack with `ComputeDeformWeights(weights)` over 18 weights and
+    calls `PoseMeshes()` again.
+  - Only after reskinning mesh deforms, updating collides that are present in
+    the cache, and `CharIKScale::CaptureAfter` does source call
+    `CharIKHand::MeasureLengths()` for each hand IK row. Native
+    `source_band_character_deformation_plan` records that order as a
+    deterministic contract so future live posture work can measure IK lengths
+    after deformation without inventing a per-character arm offset.
 - `rb3-latest/src/system/char/CharIKRod.cpp` and
   `rb3-latest/src/system/char/CharIKRod.h`
   - `CharIKRod::Load` reads revision 2 rows as `left_end`, `right_end`,

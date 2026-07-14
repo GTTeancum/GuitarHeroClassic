@@ -141,7 +141,6 @@ int main() {
       "ps2_ordered_ik_hands",
       "classify_ps2_ik_poll_role",
       "source_instrument_hand_rank",
-      "stable_sort(ik_indices",
       "ps2ikpollrole",
       "ps2_ik_hand_position_enabled",
       "ps2_ik_hand_final_disabled",

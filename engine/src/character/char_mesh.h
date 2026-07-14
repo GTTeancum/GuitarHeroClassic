@@ -3729,6 +3729,21 @@ struct SourceCharacterPreSaveResult {
   bool unhooked_shadow = false;
 };
 
+struct SourceBandCharacterDeformationPlan {
+  bool has_deform_clip = false;
+  bool edit_mode_bone_servo = false;
+  bool in_closet = false;
+  int32_t deform_weight_count = 18;
+  int32_t sync_mesh_mask = 0xBF;
+  bool poses_neutral_before_cache = false;
+  bool poses_weighted_after_cache = false;
+  bool captures_ik_scale_before = false;
+  bool captures_ik_scale_after = false;
+  bool measures_ik_hand_lengths_after_deform = false;
+  bool clears_dirty_bit = false;
+  std::vector<std::string> steps;
+};
+
 struct SourceCharPollableSorterDep {
   std::string name;
   std::vector<int32_t> changed_by;
@@ -4927,6 +4942,10 @@ SourceCharacterRepointSphereBaseResult source_character_repoint_sphere_base(
     SourceCharacterState& state,
     bool found_matching_transform);
 SourceCharacterPreSaveResult source_character_pre_save();
+SourceBandCharacterDeformationPlan source_band_character_deformation_plan(
+    bool has_deform_clip,
+    bool edit_mode_bone_servo,
+    bool in_closet);
 SourceCharPollableSorterChangedByResult source_char_pollable_sorter_changed_by(
     std::vector<SourceCharPollableSorterDep>& deps,
     int32_t target_index,

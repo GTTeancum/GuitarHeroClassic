@@ -8443,12 +8443,37 @@ static bool source_hand_matches_fore_twist(const CharIKHand& ik,
          channel_matches_bone(ft.hand, ik.hand);
 }
 
+static int source_ik_hand_role_rank(const CharIKHand& ik) {
+  const auto contains = [](const std::string& value, const char* needle) {
+    return value.find(needle) != std::string::npos;
+  };
+  if (ik.name == "left_hand.ik" || ik.weight_prop == "left.weight" ||
+      contains(ik.hand, "bone_L-hand") || contains(ik.target, "bone_fret")) {
+    return 0;
+  }
+  if (ik.name == "right_hand.ik" || ik.weight_prop == "right.weight" ||
+      contains(ik.hand, "bone_R-hand") || contains(ik.target, "bone_strum")) {
+    return 1;
+  }
+  return 2;
+}
+
 static void apply_source_ik_hands_and_fore_twists(Character& character) {
   // CharForeTwist::PollDeps says it reads mHand and writes mTwist2 plus the
-  // twist parent. Native walks the decoded MILO controller order; ihatecompvir
-  // source does not justify name-ranking hands as left/right roles.
+  // twist parent. Accepted active-song PS2 traces poll instrument performers as
+  // fret/left first and strum/right second, with unknown rows preserving the
+  // decoded MILO order.
+  std::vector<size_t> ik_indices(character.ik_hands.size());
+  for (size_t i = 0; i < ik_indices.size(); ++i) ik_indices[i] = i;
+  std::stable_sort(ik_indices.begin(), ik_indices.end(),
+                   [&](size_t a, size_t b) {
+                     return source_ik_hand_role_rank(character.ik_hands[a]) <
+                            source_ik_hand_role_rank(character.ik_hands[b]);
+                   });
+
   std::vector<bool> fore_applied(character.fore_twists.size(), false);
-  for (const CharIKHand& ik : character.ik_hands) {
+  for (const size_t ik_index : ik_indices) {
+    const CharIKHand& ik = character.ik_hands[ik_index];
     apply_source_ik_hand(character, ik);
     for (size_t ft_index = 0; ft_index < character.fore_twists.size();
          ++ft_index) {

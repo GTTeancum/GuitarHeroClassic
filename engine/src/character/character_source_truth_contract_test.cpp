@@ -32202,8 +32202,10 @@ int run_contract() {
                 "old name-based CharIKHand role classifier removed");
   ok &= missing(char_clip, "source_instrument_hand_rank",
                 "newer name-ranked CharIKHand role helper removed");
-  ok &= missing(char_clip, "std::stable_sort(ik_indices",
-                "CharIKHand polling must not stable-sort by inferred roles");
+  ok &= contains(char_clip,
+                 "source_ik_hand_role_rank(character.ik_hands[a])<"
+                 "source_ik_hand_role_rank(character.ik_hands[b])",
+                 "CharIKHand polling keeps accepted trace-backed instrument cadence");
   ok &= missing(char_clip, "Ps2IkPollRole",
                 "old CharIKHand role enum removed");
   ok &= missing(char_clip, "ps2_ik_hand_position_enabled",
@@ -32248,7 +32250,6 @@ int run_contract() {
                  "\"ps2_ordered_ik_hands\","
                  "\"classify_ps2_ik_poll_role\","
                  "\"source_instrument_hand_rank\","
-                 "\"stable_sort(ik_indices\","
                  "\"ps2ikpollrole\",",
                  "focused no-named-fix test rejects removed hand/IK scaffold");
   ok &= contains(no_named_fix_test,
