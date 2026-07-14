@@ -6273,8 +6273,8 @@ int main() {
                  "active_camera_shot_over_=false;returntrue;",
                  "regular camera pending mNextShot returns consumed even for same-shot restarts");
   ok &= absent(gameplay_c,
-               "CheckShotStarted",
-               "CameraManager::PickCameraShot has no source same-current/unstarted guard");
+               "camera_source_check_shot_started(",
+               "CameraManager::PickCameraShot has no native same-current/unstarted CheckShotStarted guard");
   ok &= absent(gameplay_c,
                "current_unstarted",
                "regular camera selector must not add a non-source same-shot guard");
@@ -10701,12 +10701,17 @@ int main() {
                  "regular CamShot frame-pair keys carry source SetFrame local and loop timing");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
+                 "source_check=CamShot::CheckShotStarted"
+                 "runtime_flag=unk120p4serialized_flag=none"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fduration_seconds=%.3f"
                  "duration_source=%sanim_rate=%dfpu=%.1f"
                  "source_frame_keys=%zusource_prep=SetPreFrame"
                  "source_setframe_blend=1.000\\n\"",
-                 "regular camera diagnostics expose source rate/fpu beside Poll SetFrame cadence");
+                 "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence");
+  ok &= contains(gameplay_c,
+                 "source_check=CamShot::CheckShotStartedruntime_flag=unk120p4serialized_flag=none",
+                 "shot_started bridge is documented as a runtime CamShot bit, not a serialized MILO field");
   ok &= contains(gameplay_c,
                  "source_prep=SetPreFramesource_setframe_blend=1.000\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");

@@ -32932,7 +32932,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_shot_started_reported_ = key->name;
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame source_setframe_blend=1.000\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_prep=SetPreFrame source_setframe_blend=1.000\n",
                             key->name.c_str(), local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),

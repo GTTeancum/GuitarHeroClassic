@@ -441,6 +441,14 @@ Open work:
   Native therefore intentionally keeps same-shot picks routed through the
   pending bridge instead of adding a `CheckShotStarted`-style guard. The guard
   would be a native-only workaround, not source behavior.
+- 2026-07-14 CamShot `CheckShotStarted` proof: ihatecompvir
+  `CamShot::CheckShotStarted()` returns runtime bit `unk120p4`. The
+  ihatecompvir `CamShot::Load` tail and MiloEditor `CamShot` reader expose
+  authored `looping`, `ps3_per_pixel`, `flags`, and crowd fields, but no
+  serialized `shot_started` predicate. Native therefore keeps the once-per-shot
+  `shot_started` bridge as runtime state and labels the debug row
+  `source_check=CamShot::CheckShotStarted runtime_flag=unk120p4
+  serialized_flag=none`, avoiding a fabricated MILO field.
 - 2026-07-13 CamShot `mShotOver` one-shot bridge: ihatecompvir
   `CamShot::CheckShotOver` returns true only when `!mShotOver`, the shot is not
   looping, and the local frame reaches the cached duration; `SetShotOver` then
