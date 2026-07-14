@@ -15690,11 +15690,52 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     return &*keys.insert(insert_pos, std::move(chosen));
 }
 
-bool camera_section_is_solo_at(const ghogx::chart::Chart& chart,
-                               double song_time,
-                               double intro_seconds) {
-    LightingRequest req = lighting_request_at(chart, song_time, intro_seconds);
-    return req.category == "SOLO";
+uint32_t camera_source_one_bar_to_trigger_tick(
+    const ghogx::chart::Chart& chart,
+    const ghogx::chart::TextEvent& ev) {
+    const uint32_t ticks_per_bar = chart.ticks_per_beat * 4u;
+    if (ticks_per_bar == 0 || ev.tick <= ticks_per_bar) return 0;
+    return ev.tick - ticks_per_bar;
+}
+
+size_t camera_source_one_bar_to_cursor_at(const ghogx::chart::Chart& chart,
+                                          double song_time) {
+    size_t index = 0;
+    while (index < chart.text_events.size()) {
+        const auto& ev = chart.text_events[index];
+        if (!section_venue_event_name(ev.text)) {
+            ++index;
+            continue;
+        }
+        const uint32_t trigger_tick =
+            camera_source_one_bar_to_trigger_tick(chart, ev);
+        if (trigger_tick == 0) {
+            ++index;
+            continue;
+        }
+        const double trigger_time = chart.tick_to_sec(trigger_tick);
+        if (trigger_time >= song_time) break;
+        ++index;
+    }
+    return index;
+}
+
+bool camera_source_one_bar_to_solo_state_at(
+    const ghogx::chart::Chart& chart,
+    double song_time) {
+    bool camera_solo = false;
+    for (const auto& ev : chart.text_events) {
+        const auto section = section_venue_event_name(ev.text);
+        if (!section) continue;
+        const uint32_t trigger_tick =
+            camera_source_one_bar_to_trigger_tick(chart, ev);
+        if (trigger_tick == 0) continue;
+        const double trigger_time =
+            chart.tick_to_sec(trigger_tick);
+        if (trigger_time >= song_time) break;
+        camera_solo = *section == "solo";
+    }
+    return camera_solo;
 }
 
 uint32_t camera_bar_at(const ghogx::chart::Chart& chart, double song_time) {
@@ -21239,6 +21280,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_camera_bar_ = UINT32_MAX;
     last_camera_beat_ = UINT32_MAX;
     next_forced_camera_event_idx_ = 0;
+    next_camera_one_bar_to_event_idx_ = 0;
+    camera_solo_active_ = false;
     camera_shot_counter_ = 0;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
@@ -26990,6 +27033,10 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
                song_time_) {
         ++next_forced_camera_event_idx_;
     }
+    next_camera_one_bar_to_event_idx_ =
+        camera_source_one_bar_to_cursor_at(chart_, song_time_);
+    camera_solo_active_ =
+        camera_source_one_bar_to_solo_state_at(chart_, song_time_);
     last_camera_bar_ = UINT32_MAX;
     last_camera_beat_ = UINT32_MAX;
     camera_bars_left_ = 0;
@@ -29255,6 +29302,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
                 last_camera_beat_ = UINT32_MAX;
+                next_camera_one_bar_to_event_idx_ = 0;
+                camera_solo_active_ = false;
                 active_camera_skip_next_crowd_update_ = false;
                 const IntroCameraSelection intro_camera =
                     select_intro_camera_anim(hdr_path_, ark_path_,
@@ -31067,6 +31116,40 @@ void Gameplay::draw(ghogx::render::Window& win) {
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;
+        while (next_camera_one_bar_to_event_idx_ < chart_.text_events.size()) {
+            const auto& ev =
+                chart_.text_events[next_camera_one_bar_to_event_idx_];
+            const auto upcoming_section = section_venue_event_name(ev.text);
+            if (!upcoming_section) {
+                ++next_camera_one_bar_to_event_idx_;
+                continue;
+            }
+            const uint32_t trigger_tick =
+                camera_source_one_bar_to_trigger_tick(chart_, ev);
+            if (trigger_tick == 0) {
+                ++next_camera_one_bar_to_event_idx_;
+                continue;
+            }
+            const double trigger_time = chart_.tick_to_sec(trigger_tick);
+            if (trigger_time > song_time_) break;
+            ++next_camera_one_bar_to_event_idx_;
+            camera_solo_active_ = *upcoming_section == "solo";
+            const bool cue_forced_camera =
+                authored_gameplay_cameras_active && !in_intro_camera_window;
+            if (cue_forced_camera) {
+                force_camera = true;
+                forced_camera_mode.reset();
+                forced_camera_bars.reset();
+            }
+            if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] camera one_bar_to: source_msg=one_bar_to upcoming=%s event_tick=%u trigger_tick=%u camera_solo=%d force=%d\n",
+                    std::string(*upcoming_section).c_str(), ev.tick,
+                    trigger_tick, camera_solo_active_ ? 1 : 0,
+                    cue_forced_camera ? 1 : 0);
+            }
+        }
         if (!in_intro_camera_window) {
             const double forced_camera_event_window =
                 std::max(0.001, dt * 1.5);
@@ -31212,10 +31295,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const bool low_excitement =
                     active_venue_event_.find("bad") != std::string::npos ||
                     active_venue_event_.find("boot") != std::string::npos;
-                const bool solo_camera = camera_section_is_solo_at(
-                    chart_, song_time_, intro_camera_seconds_);
                 CameraShotMode camera_mode =
-                    solo_camera ? CameraShotMode::Solo : CameraShotMode::Regular;
+                    camera_solo_active_ ? CameraShotMode::Solo
+                                        : CameraShotMode::Regular;
                 if (force_camera && forced_camera_mode) {
                     camera_mode = *forced_camera_mode;
                 }

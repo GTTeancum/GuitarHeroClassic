@@ -6250,6 +6250,12 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "size_tnext_forced_camera_event_idx_=0;",
                  "forced camera script text dispatch has its own cue cursor");
+  ok &= contains(gameplay_h_c,
+                 "size_tnext_camera_one_bar_to_event_idx_=0;",
+                 "camera one_bar_to script timing has its own source cursor");
+  ok &= contains(gameplay_h_c,
+                 "boolcamera_solo_active_=false;",
+                 "runtime carries the source camera_solo latch");
   ok &= contains(gameplay_c,
                  "while(next_section_venue_event_idx_<chart_.text_events.size()"
                  "&&chart_.tick_to_sec(chart_.text_events["
@@ -6261,6 +6267,14 @@ int main() {
                  "next_forced_camera_event_idx_].tick)<song_time_)",
                  "diagnostic seek skips already elapsed forced camera text events");
   ok &= contains(gameplay_c,
+                 "next_camera_one_bar_to_event_idx_="
+                 "camera_source_one_bar_to_cursor_at(chart_,song_time_);",
+                 "diagnostic seek skips elapsed camera one_bar_to triggers");
+  ok &= contains(gameplay_c,
+                 "camera_solo_active_="
+                 "camera_source_one_bar_to_solo_state_at(chart_,song_time_);",
+                 "diagnostic seek restores the source camera_solo latch");
+  ok &= contains(gameplay_c,
                  "while(next_section_venue_event_idx_<chart_.text_events.size())"
                  "{constauto&ev=chart_.text_events[next_section_venue_event_idx_];",
                  "venue section text events are consumed in tick order");
@@ -6268,6 +6282,18 @@ int main() {
                  "while(next_forced_camera_event_idx_<chart_.text_events.size())"
                  "{constauto&ev=chart_.text_events[next_forced_camera_event_idx_];",
                  "forced camera text events are consumed in authored tick order");
+  ok &= contains(gameplay_c,
+                 "while(next_camera_one_bar_to_event_idx_<chart_.text_events.size())",
+                 "camera one_bar_to events are consumed from the source cursor");
+  ok &= contains(gameplay_c,
+                 "camera_source_one_bar_to_trigger_tick(chart_,ev);",
+                 "camera one_bar_to triggers one bar before the section marker");
+  ok &= contains(gameplay_c,
+                 "if(trigger_tick==0){++next_camera_one_bar_to_event_idx_;continue;}",
+                 "camera one_bar_to mirrors the source camera_beat > 0 guard");
+  ok &= contains(gameplay_c,
+                 "camera_solo_active_=*upcoming_section==\"solo\";",
+                 "world_objects_worldbase.dta one_bar_to updates camera_solo before picking");
   ok &= contains(gameplay_c,
                  "constdoubleforced_camera_event_window=std::max(0.001,dt*1.5);",
                  "forced camera cursor does not replay stale intro-window messages");
@@ -10609,11 +10635,17 @@ int main() {
                  "key,{camera_symbol_filter(\"solo\",{\"ok\",\"never\"})});",
                  "regular camera mode mirrors pick_regular_camera_shot solo filter");
   ok &= contains(gameplay_c,
-                 "constboolsolo_camera=camera_section_is_solo_at(",
-                 "camera mode is driven by the authored current section");
+                 "camera_solo_active_?CameraShotMode::Solo"
+                 ":CameraShotMode::Regular",
+                 "camera selection switches to solo mode from the source camera_solo latch");
   ok &= contains(gameplay_c,
-                 "solo_camera?CameraShotMode::Solo:CameraShotMode::Regular",
-                 "camera selection switches to solo mode for solo sections");
+                 "if(cue_forced_camera){force_camera=true;"
+                 "forced_camera_mode.reset();forced_camera_bars.reset();}",
+                 "world_objects_worldbase.dta one_bar_to forces a normal pick with source duration");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraone_bar_to:source_msg=one_bar_to"
+                 "upcoming=%sevent_tick=%utrigger_tick=%ucamera_solo=%dforce=%d\\n\"",
+                 "camera diagnostics expose source one_bar_to state changes");
   ok &= contains(gameplay_c,
                  "voidapply_gameplay_backing_camera(",
                  "gameplay keeps the legacy backing camera as an explicit fallback");

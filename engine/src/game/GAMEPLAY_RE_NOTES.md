@@ -228,6 +228,16 @@ Open work:
   Native now defaults missing regular CamShot `solo` fields to `ok` from
   `world/camshot.dta`, so the selector no longer accepts an empty solo symbol
   as an extra native-only match.
+- 2026-07-14 camera `one_bar_to` solo latch:
+  GH2 `world_objects_worldbase.dta::one_bar_to` only runs its camera branch
+  when `[camera_beat] > 0`, updates `[camera_solo]` from the upcoming section
+  one bar before the section marker, then refreshes `camera_bars_left` through
+  `get_shot_duration` and immediately calls `pick_new_shot`. Native now
+  carries a source-shaped `camera_solo` latch, derives the synthetic
+  `one_bar_to` trigger from section text events one bar early while skipping
+  zero-beat triggers, forces the next regular pick through the existing source
+  duration path, and selects regular vs solo CamShots from that latch rather
+  than from the already-active lighting section.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because
