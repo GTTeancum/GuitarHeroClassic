@@ -2365,6 +2365,65 @@ int main() {
   ok &= expect_string(re_notes_decode.fenced_channels[1], ".rotx",
                       "re-notes fences rotx");
 
+  const SourceProblemCharacterClipRawAxisAudit problem_raw_axis =
+      source_problem_character_clip_raw_axis_audit_20260714();
+  ok &= expect_string(
+      problem_raw_axis.artifact,
+      "engine/out/source_clip_audit_20260714/problem_character_clip_audit.log",
+      "problem character raw-axis audit artifact");
+  ok &= expect_size(problem_raw_axis.rows.size(), 7,
+                    "problem character raw-axis row count");
+  ok &= expect_string(problem_raw_axis.rows[0].milo,
+                      "char/rock1/anims/gen/rock1_fret.milo_ps2",
+                      "problem character raw-axis first row");
+  ok &= expect_int(problem_raw_axis.rows[1].clips, 113,
+                   "problem character rock1 main clip count");
+  ok &= expect_int(problem_raw_axis.rows[1].accepted, 113,
+                   "problem character rock1 main accepted count");
+  ok &= expect_int(problem_raw_axis.rows[1].frames, 16247,
+                   "problem character rock1 main frame total");
+  ok &= expect_string(
+      problem_raw_axis.rows[4].milo,
+      "char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+      "problem character rockabill shared main row");
+  ok &= expect_int(problem_raw_axis.rows[4].clips, 116,
+                   "problem character rockabill main clip count");
+  ok &= expect_int(problem_raw_axis.rows[4].accepted, 116,
+                   "problem character rockabill main accepted count");
+  int total_problem_clips = 0;
+  int total_fenced_raw = 0;
+  int total_raw_scale = 0;
+  int total_raw_rotx = 0;
+  int total_raw_roty = 0;
+  for (const auto& row : problem_raw_axis.rows) {
+    total_problem_clips += row.clips;
+    total_fenced_raw += row.fenced_clips;
+    total_raw_scale += row.raw_scale;
+    total_raw_rotx += row.raw_rotx;
+    total_raw_roty += row.raw_roty;
+  }
+  ok &= expect_int(total_problem_clips, 338,
+                   "problem character raw-axis total clip count");
+  ok &= expect_int(total_fenced_raw, 0,
+                   "problem character raw-axis total fenced clips");
+  ok &= expect_int(total_raw_scale + total_raw_rotx + total_raw_roty, 0,
+                   "problem character raw-axis total fenced channel rows");
+  ok &= expect_int(problem_raw_axis.all_rows_accepted ? 1 : 0, 1,
+                   "problem character raw-axis all rows accepted");
+  ok &= expect_int(
+      problem_raw_axis.all_problem_rows_have_zero_fenced_raw ? 1 : 0, 1,
+      "problem character raw-axis all rows have zero fenced raw");
+  ok &= expect_int(
+      problem_raw_axis.supports_publisher_gap_not_raw_axis_gap ? 1 : 0, 1,
+      "problem character raw-axis points back to publisher gap");
+  ok &= expect_size(problem_raw_axis.shared_animation_notes.size(), 2,
+                    "problem character shared animation note count");
+  ok &= expect_string(
+      problem_raw_axis.shared_animation_notes[0],
+      "rock2 has no private CharClipSamples rows under char/rock2 in the "
+      "stock GH2 ARK",
+      "problem character rock2 shared animation note");
+
   const SourceCharBonesSamplesPropSyncPlan samples_prop_sync =
       source_char_bones_samples_prop_sync_plan();
   ok &= expect_size(samples_prop_sync.properties.size(), 2,

@@ -4673,6 +4673,17 @@ note, and all report `unreadBytes=0`.
     `fencedRaw=2`, so the missing raw-axis evaluator remains a real stock
     character gap, but not the direct explanation for the audited guitarist
     Rock/Rockabill clip rows.
+  - 2026-07-14 problem-character raw-axis audit at
+    `engine/out/source_clip_audit_20260714/problem_character_clip_audit.log`
+    scanned the exact stock animation row sources used by the current
+    Rock/Rockabill problem set: `rock1_main`, `rock1_fret`, `rock1_strum`,
+    `rockabill1_main`, `rockabill1_fret`, `rockabill1_strum`, and
+    `rockabill2_fret`. The audit accepted all 338 `CharClipSamples` rows
+    across those seven MILOs. Every row reports `rawScale=0`, `rawRotX=0`,
+    `rawRotY=0`, and `fencedRaw=0`, so the visible Rock1/Rock2/Rockabill
+    arm/neck issue should stay assigned to the shared
+    `CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes`
+    publisher path, not to skipped raw-axis sample channels.
   - The matching controller-route audit at
     `analysis/source_clip_inventory_20260711/stock_24_base_controller_driver_routes.stdout.log`
     confirms the shared routes are authored `CharDriver` data. It decoded 63
@@ -5477,6 +5488,14 @@ ports no new pose math; it removes another viewer/gameplay split in how
 body/hand clip rows and source controller inputs become shared native frame
 state while the `CharClipSamples` / `CharBonesSamples` / `CharBones` /
 `PoseMeshes` publisher remains the source-backed target.
+
+2026-07-14 shared controller-frame contract refresh: the left-hand contract now
+checks `apply_character_pose_controller_frame` as the single runtime boundary
+where stale IK weights are cleared, source `main.drv` driver flags are fed,
+fallback hand IK weights are applied only after source flags, MIDI fret target
+blending runs, and `apply_character_controllers` polls source controllers. The
+viewer and gameplay checks now assert that each path feeds this shared helper
+instead of asserting removed viewer/gameplay-local calls.
 
 2026-07-14 in-game transient stack correction: ihatecompvir's
 `CharDriver::Play` constructs a new `CharClipDriver` with the previous

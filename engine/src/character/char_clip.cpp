@@ -1487,6 +1487,35 @@ source_re_notes_char_bones_samples_decode_plan() {
   return plan;
 }
 
+SourceProblemCharacterClipRawAxisAudit
+source_problem_character_clip_raw_axis_audit_20260714() {
+  SourceProblemCharacterClipRawAxisAudit audit;
+  audit.artifact =
+      "engine/out/source_clip_audit_20260714/"
+      "problem_character_clip_audit.log";
+  audit.rows = {
+      {"char/rock1/anims/gen/rock1_fret.milo_ps2", 25, 25, 182, 0, 0, 0, 0},
+      {"char/rock1/anims/gen/rock1_main.milo_ps2", 113, 113, 16247, 0, 0, 0,
+       0},
+      {"char/rock1/anims/gen/rock1_strum.milo_ps2", 17, 17, 247, 0, 0, 0, 0},
+      {"char/rockabill1/anims/gen/rockabill1_fret.milo_ps2", 25, 25, 186, 0,
+       0, 0, 0},
+      {"char/rockabill1/anims/gen/rockabill1_main.milo_ps2", 116, 116, 17349,
+       0, 0, 0, 0},
+      {"char/rockabill1/anims/gen/rockabill1_strum.milo_ps2", 17, 17, 247, 0,
+       0, 0, 0},
+      {"char/rockabill2/anims/gen/rockabill2_fret.milo_ps2", 25, 25, 186, 0,
+       0, 0, 0},
+  };
+  audit.shared_animation_notes = {
+      "rock2 has no private CharClipSamples rows under char/rock2 in the "
+      "stock GH2 ARK",
+      "rockabill2 has a local fret row set; main and strum are not private "
+      "rockabill2 animation row sets in this audit",
+  };
+  return audit;
+}
+
 SourceCharBonesSamplesPropSyncPlan
 source_char_bones_samples_prop_sync_plan() {
   SourceCharBonesSamplesPropSyncPlan plan;

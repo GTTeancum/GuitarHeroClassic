@@ -115,6 +115,9 @@ int main() {
       compact(function_body(char_clip, "apply_source_fore_twist"));
   const std::string hand_twist_scheduler_c = compact(
       function_body(char_clip, "apply_source_ik_hands_and_fore_twists"));
+  const std::string controller_frame_c = compact(function_body(
+      char_clip,
+      "CharacterPoseControllerFrameResult apply_character_pose_controller_frame("));
 
   bool ok = true;
 
@@ -226,19 +229,28 @@ int main() {
                  "requested_fret_names=perf.active_fret_clip_names;"
                  "next_fret_names=perf.active_fret_clip_names;",
                  "stable HandMap child selection is preserved between frames");
-  ok &= appears_before(gameplay_draw_c,
-                       "set_runtime_ik_weight(character,\"left.weight\","
-                       "left_weight);",
+  ok &= nonempty(controller_frame_c,
+                 "shared character pose/controller frame helper");
+  ok &= appears_before(controller_frame_c,
+                       "clear_runtime_ik_weights(character);",
+                       "set_runtime_driver_evaluate_flags(character,"
+                       "flag.driver,flag.flags,flag.weight);",
+                       "shared frame helper clears stale IK weights before source driver flags");
+  ok &= appears_before(controller_frame_c,
+                       "set_runtime_driver_evaluate_flags(character,"
+                       "flag.driver,flag.flags,flag.weight);",
+                       "set_runtime_ik_weight(character,fallback.weight_prop,"
+                       "fallback.weight);",
+                       "source driver flags take precedence over fallback hand IK weights");
+  ok &= appears_before(controller_frame_c,
+                       "set_runtime_ik_weight(character,fallback.weight_prop,"
+                       "fallback.weight);",
                        "apply_ik_midi_fret_target(",
-                       "left IK weight is live before MIDI fret target solve");
-  ok &= appears_before(gameplay_draw_c,
+                       "fallback hand IK weights are live before MIDI fret target solve");
+  ok &= appears_before(controller_frame_c,
                        "apply_ik_midi_fret_target(",
                        "apply_character_controllers(",
                        "MIDI fret target is applied before CharIKHand solve");
-  ok &= contains(app_main_c,
-                 "ghogx::character::clear_runtime_ik_weights("
-                 "renderer.character());if(character_controllers){",
-                 "character viewer clears stale IK weights every frame");
   ok &= contains(app_main_c,
                  "source_char_main_driver_hand_weights_from_clip_flags("
                  "renderer.character(),loaded_clip.flags,left_hand_weight,"
@@ -265,9 +277,9 @@ int main() {
                  "via%s\\n",
                  "explicit clip fallback log names the source driver row");
   ok &= contains(app_main_c,
-                 "set_runtime_driver_evaluate_flags(renderer.character(),"
-                 "flag.driver,flag.flags,flag.weight);",
-                 "character viewer feeds shared source main.drv flag weights before controllers");
+                 "controller_sources.driver_weights="
+                 "controller_hand_weights?&*controller_hand_weights:nullptr;",
+                 "character viewer feeds source main.drv flag weights through the shared frame helper");
   ok &= contains(gameplay_c,
                  "active_main_driver_player=[&]()->constghogx::character::"
                  "CharClipPlayer*",
@@ -278,9 +290,10 @@ int main() {
                  "hand_driver_right_weight);",
                  "gameplay derives hand-driver weights from the shared source helper");
   ok &= contains(gameplay_c,
-                 "set_runtime_driver_evaluate_flags(character,flag.driver,"
-                 "flag.flags,flag.weight);",
-                 "gameplay feeds shared source main.drv flag weights before controllers");
+                 "controller_sources.driver_weights="
+                 "source_hand_driver_weights?&*source_hand_driver_weights:"
+                 "nullptr;",
+                 "gameplay feeds source main.drv flag weights through the shared frame helper");
   ok &= contains(gameplay_c,
                  "hand_driver_left_weight_source=source_hand_driver_weights->"
                  "left_source;",
@@ -290,30 +303,26 @@ int main() {
                  "right_source;",
                  "gameplay records source right.weight owner rows");
   ok &= contains(gameplay_c,
-                 "add_player_layer(perf.strum_player,"
-                 "hand_driver_right_weight,true);",
+                 "pose_player_layers.strum_weight=hand_driver_right_weight;",
                  "right hand overlay is scaled by right.weight owner");
   ok &= contains(gameplay_c,
-                 "add_player_layer(perf.fret_player,"
-                 "hand_driver_left_weight,true);",
+                 "pose_player_layers.fret_weight=hand_driver_left_weight;",
                  "left hand overlay is scaled by left.weight owner");
   ok &= contains(gameplay_c,
-                 "add_player_layer(player,hand_driver_left_weight,true);",
+                 "pose_player_layers.fret_extras.push_back(&player);",
                  "extra left hand overlays share the source left.weight owner");
   ok &= contains(gameplay_c,
                  "\"[hand-driver-weight]role=%sleft=%.5fright=%.5f\"",
                  "debug logs expose live source hand-driver weights");
-  ok &= contains(gameplay_c,
-                 "source_driver_flags_fed=true;",
-                 "gameplay records source driver flag rows before IK fallback");
   ok &= contains(app_main_c,
-                 "strum_clip.loaded&&!controller_hand_weights.right_source",
+                 "strum_clip.loaded&&!controller_hand_weights->right_source",
                  "character viewer direct right-hand IK weight is fallback-only under source rows");
   ok &= contains(app_main_c,
-                 "fret_clip.loaded&&!controller_hand_weights.left_source",
+                 "fret_clip.loaded&&!controller_hand_weights->left_source",
                  "character viewer direct left-hand IK weight is fallback-only under source rows");
   ok &= contains(gameplay_c,
-                 "if(hand_driver_active&&!source_driver_flags_fed){",
+                 "if(hand_driver_active&&(!source_hand_driver_weights||"
+                 "source_hand_driver_weights->driver_flags.empty())){",
                  "gameplay direct hand weights are fallback-only when source rows are absent");
   ok &= contains(gameplay_c,
                  "source=gameplay-player",
@@ -321,27 +330,14 @@ int main() {
   ok &= lacks(app_main_c,
               "set_runtime_ik_weight(renderer.character(),ik.weight_prop,0.0f)",
               "character viewer must not force decoded hand IK rows to zero");
-  ok &= appears_before(gameplay_c,
-                       "clear_runtime_ik_weights(character);",
-                       "set_runtime_driver_evaluate_flags(character,"
-                       "flag.driver,flag.flags,flag.weight);",
-                       "gameplay clears stale hand weights before source driver flags");
-  ok &= appears_before(gameplay_draw_c,
-                       "set_runtime_driver_evaluate_flags(character,"
-                       "flag.driver,flag.flags,flag.weight);",
-                       "ghogx::character::apply_character_controllers("
-                       "character,static_cast<float>(song_time_));",
-                       "gameplay source driver flags reach WeightSetter before IK solve");
-  ok &= appears_before(app_main_c,
-                       "ghogx::character::clear_runtime_ik_weights("
-                       "renderer.character());",
-                       "feed_viewer_main_driver_flags(controller_hand_weights);",
-                       "character viewer clears stale hand weights before shared source driver flags");
-  ok &= appears_before(app_main_c,
-                       "ghogx::character::clear_runtime_ik_weights("
-                       "renderer.character());",
-                       "apply_character_controllers(",
-                       "character viewer stale live weights are cleared before controller solve");
+  ok &= contains(gameplay_c,
+                 "ghogx::character::apply_character_pose_controller_frame("
+                 "character,controller_sources);",
+                 "gameplay applies hand weights and controllers through the shared frame helper");
+  ok &= contains(app_main_c,
+                 "ghogx::character::apply_character_pose_controller_frame("
+                 "renderer.character(),controller_sources);",
+                 "character viewer applies hand weights and controllers through the shared frame helper");
   ok &= contains(gameplay_c,
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");

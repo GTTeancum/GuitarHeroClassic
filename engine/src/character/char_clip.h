@@ -658,6 +658,26 @@ struct SourceReNotesCharBonesSamplesDecodePlan {
   std::vector<std::string> fenced_channels;
 };
 
+struct SourceProblemCharacterClipRawAxisAuditRow {
+  std::string milo;
+  int clips = 0;
+  int accepted = 0;
+  int frames = 0;
+  int fenced_clips = 0;
+  int raw_scale = 0;
+  int raw_rotx = 0;
+  int raw_roty = 0;
+};
+
+struct SourceProblemCharacterClipRawAxisAudit {
+  std::string artifact;
+  std::vector<SourceProblemCharacterClipRawAxisAuditRow> rows;
+  bool all_rows_accepted = true;
+  bool all_problem_rows_have_zero_fenced_raw = true;
+  bool supports_publisher_gap_not_raw_axis_gap = true;
+  std::vector<std::string> shared_animation_notes;
+};
+
 struct SourceCharBonesSamplesPropSyncPlan {
   std::vector<std::string> properties;
   std::vector<std::string> set_properties;
@@ -2562,6 +2582,8 @@ SourceGrimCharClipSamplesExtraBonesPlan
 source_grim_char_clip_samples_extra_bones_plan(int version);
 SourceReNotesCharBonesSamplesDecodePlan
 source_re_notes_char_bones_samples_decode_plan();
+SourceProblemCharacterClipRawAxisAudit
+source_problem_character_clip_raw_axis_audit_20260714();
 SourceCharBonesSamplesPropSyncPlan source_char_bones_samples_prop_sync_plan();
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary();

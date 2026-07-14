@@ -25965,6 +25965,18 @@ int run_contract() {
                  "`rawRotX=2` and\n    `fencedRaw=2`",
                  "document records real stock raw-axis evaluator gap");
   ok &= contains(doc,
+                 "2026-07-14 problem-character raw-axis audit at\n    "
+                 "`engine/out/source_clip_audit_20260714/"
+                 "problem_character_clip_audit.log`",
+                 "document records problem-character raw-axis audit");
+  ok &= contains(doc,
+                 "The audit accepted all 338 `CharClipSamples` rows",
+                 "document records problem-character raw-axis accepted rows");
+  ok &= contains(doc,
+                 "`rawScale=0`, `rawRotX=0`, `rawRotY=0`, and "
+                 "`fencedRaw=0`",
+                 "document records problem-character zero fenced raw rows");
+  ok &= contains(doc,
                  "The matching controller-route audit at\n    "
                  "`analysis/source_clip_inventory_20260711/"
                  "stock_24_base_controller_driver_routes.stdout.log`",
@@ -29102,6 +29114,17 @@ int run_contract() {
                  "structSourceGrimCharBonesSamplesDecodePlan{",
                  "native exposes Grim CharBonesSamples decode plan");
   ok &= contains(char_clip_h,
+                 "structSourceProblemCharacterClipRawAxisAuditRow{"
+                 "std::stringmilo;intclips=0;intaccepted=0;intframes=0;"
+                 "intfenced_clips=0;intraw_scale=0;intraw_rotx=0;"
+                 "intraw_roty=0;};",
+                 "native exposes problem-character raw-axis audit row");
+  ok &= contains(char_clip_h,
+                 "structSourceProblemCharacterClipRawAxisAudit{"
+                 "std::stringartifact;std::vector<"
+                 "SourceProblemCharacterClipRawAxisAuditRow>rows;",
+                 "native exposes problem-character raw-axis audit summary");
+  ok &= contains(char_clip_h,
                  "structSourceGrimCharBonesSamplesExportTranslationInput{",
                  "native exposes Grim export translation input");
   ok &= contains(char_clip_h,
@@ -29150,6 +29173,11 @@ int run_contract() {
                  "floatsource_grim_char_bones_samples_channel_weight("
                  "conststd::vector<float>&weights,size_tindex);",
                  "native exposes Grim channel weight helper");
+  ok &= contains(
+      char_clip_h,
+      "SourceProblemCharacterClipRawAxisAudit"
+      "source_problem_character_clip_raw_axis_audit_20260714();",
+      "native exposes problem-character raw-axis audit helper");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDataPlansource_grim_char_bones_samples_data_plan(",
                  "native implements Grim CharBonesSamples data stride helper");
@@ -29172,6 +29200,21 @@ int run_contract() {
                  "std::vector<ClipChannel>&channels){std::stable_sort("
                  "channels.begin(),channels.end(),",
                  "native implements Grim decoded channel sort helper");
+  ok &= contains(
+      char_clip,
+      "SourceProblemCharacterClipRawAxisAudit"
+      "source_problem_character_clip_raw_axis_audit_20260714(){",
+      "native implements problem-character raw-axis audit helper");
+  ok &= contains(
+      char_clip,
+      "audit.artifact=\"engine/out/source_clip_audit_20260714/\""
+      "\"problem_character_clip_audit.log\";",
+      "native problem-character raw-axis helper records artifact");
+  ok &= contains(
+      char_clip,
+      "{\"char/rockabill1/anims/gen/rockabill1_main.milo_ps2\",116,116,"
+      "17349,0,0,0,0}",
+      "native problem-character raw-axis helper records rockabill shared main");
   ok &= contains(char_clip,
                  "replace_all(name,\".pos\",\".mesh\");replace_all(name,"
                  "\".quat\",\".mesh\");replace_all(name,\".rotz\",\".mesh\");",
@@ -29329,6 +29372,10 @@ int run_contract() {
                  "source_grim_char_bones_samples_sort_decoded_channels("
                  "grim_channels)",
                  "focused CharBones source test covers Grim decoded channel sort");
+  ok &= contains(
+      char_bones_source_test,
+      "source_problem_character_clip_raw_axis_audit_20260714()",
+      "focused CharBones source test covers problem-character raw-axis audit");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");
@@ -33092,6 +33139,13 @@ int run_contract() {
   ok &= contains(doc,
                  "`apply_character_pose_controller_frame`",
                  "document records shared pose/controller cleanup");
+  ok &= contains(doc,
+                 "shared controller-frame contract refresh",
+                 "document records shared controller-frame contract refresh");
+  ok &= contains(doc,
+                 "viewer and gameplay checks now assert that each "
+                 "path feeds this shared helper",
+                 "document records viewer/gameplay shared-helper contract");
 
   if (!ok) {
     std::cerr
