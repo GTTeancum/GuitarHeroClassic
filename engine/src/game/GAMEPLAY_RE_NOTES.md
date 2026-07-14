@@ -11469,6 +11469,15 @@ Rejected native probe:
   references, but not a trustworthy body. Native debug rows now label that as
   `buildtransform_body=rb2_dump_locals_only`, so camera-angle investigation can
   distinguish recovered `Interp` order from unrecovered `BuildTransform` math.
+- 2026-07-14 source-frame proof cadence: ihatecompvir `CamShot::CacheFrames`
+  accumulates every key's `mDuration + mBlend`, `CheckShotOver` compares the
+  current local frame against that cached `mDuration`, and the RB2
+  `CamShot::SetFrame` dump names `prev`, `next`, and `keyBlend` as locals.
+  Native already uses those spans for source-frame key selection; debug rows
+  now key their proof by source key indices (`shot:pair:a:b` or
+  `shot:hold:i`) instead of logging only once per shot. This keeps proof noise
+  bounded while still exposing later key-pair transitions and loop wraps during
+  long shots.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,

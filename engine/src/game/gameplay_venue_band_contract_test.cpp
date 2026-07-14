@@ -10971,6 +10971,7 @@ int main() {
                  "source_local_frame=%s%.3fsource_key_start=%s%.3f"
                  "source_duration=%s%.3fsource_blend=%s%.3f"
                  "key_blend=%s%.3feased_key_blend=%s%.3f"
+                 "report_key=%ssource_report_scope=key_pair_change"
                  "route=regular_camera_source_frame_keys"
                  "source_locals=CamShot::SetFrame(prev,next,keyBlend)\\n\"",
                  "regular camera diagnostics prove source frame-pair keyBlend submission");
@@ -10980,6 +10981,7 @@ int main() {
                  "source_local_frame=%s%.3fsource_key_start=%s%.3f"
                  "source_duration=%s%.3fsource_blend=%s%.3f"
                  "key_blend=%s%.3feased_key_blend=%s%.3f"
+                 "report_key=%ssource_report_scope=key_pair_change"
                  "source_phase=hold_before_blend"
                  "route=regular_camera_source_frame_keys"
                  "source_nullFrame=%dsource_locals=%s\\n\"",
@@ -10990,8 +10992,15 @@ int main() {
                  "\"CamShot::GetKey(prev,next,keyBlend)\"",
                  "regular camera hold diagnostics label the rb2 CamShot::SetFrame nullFrame local explicitly");
   ok &= contains(gameplay_c,
-                 "if(source_frame_key_route&&selected_camera.size()>=2&&",
+                 "if(source_frame_key_route&&selected_camera.size()>=2){",
                  "source frame-pair diagnostics remain limited to non-path CamShot frame timing");
+  ok &= contains(gameplay_c,
+                 "key->name+\":pair:\"+source_frame_index_token(a_key)+"
+                 "\":\"+source_frame_index_token(b_key)",
+                 "source frame-pair diagnostics are keyed by CamShot key indices");
+  ok &= contains(gameplay_c,
+                 "key->name+\":hold:\"+source_frame_index_token(hold_key)",
+                 "source frame-hold diagnostics are keyed by the CamShot key index");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourcepathframepair:shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"
@@ -11054,7 +11063,7 @@ int main() {
                  "camera runtime reports each source shot_started bridge once per shot");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_frame_pair_reported_;",
-                 "camera runtime reports each source frame pair bridge once per shot");
+                 "camera runtime reports each source frame pair bridge by source key signature");
   ok &= contains(gameplay_h_c,
                  "boolhide_crowd=false;boolcrowd_face_camera=false;"
                  "intforce_char_lod=-1;",

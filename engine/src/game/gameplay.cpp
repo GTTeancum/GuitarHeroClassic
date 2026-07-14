@@ -33529,10 +33529,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             source_camshot_timing_frames(*key).size(),
                             source_setframe_blend);
                     }
-                    if (source_frame_key_route && selected_camera.size() >= 2 &&
-                        active_camera_frame_pair_reported_ != key->name) {
+                    auto source_frame_index_token =
+                        [](const CameraKey& source_key) {
+                            return source_key.has_source_frame_key_index
+                                       ? std::to_string(
+                                             source_key.source_frame_key_index)
+                                       : std::string("none");
+                        };
+                    if (source_frame_key_route && selected_camera.size() >= 2) {
                         const CameraKey& a_key = selected_camera[0];
                         const CameraKey& b_key = selected_camera[1];
+                        const std::string frame_pair_report_key =
+                            key->name + ":pair:" +
+                            source_frame_index_token(a_key) + ":" +
+                            source_frame_index_token(b_key) +
+                            (a_key.source_frame_loop_active ? ":loop"
+                                                            : ":linear");
+                        if (active_camera_frame_pair_reported_ !=
+                            frame_pair_report_key) {
                         const bool has_frame_mapping =
                             a_key.has_source_frame_mapping &&
                             b_key.has_source_frame_mapping;
@@ -33549,10 +33563,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             [has_frame_mapping]() {
                                 return has_frame_mapping ? "" : "none/";
                             };
-                        active_camera_frame_pair_reported_ = key->name;
+                        active_camera_frame_pair_reported_ =
+                            frame_pair_report_key;
                         std::fprintf(
                             stderr,
-                            "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f route=regular_camera_source_frame_keys source_locals=CamShot::SetFrame(prev,next,keyBlend)\n",
+                            "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f report_key=%s source_report_scope=key_pair_change route=regular_camera_source_frame_keys source_locals=CamShot::SetFrame(prev,next,keyBlend)\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame,
                             b_key.frame, frame_mapping_prefix(),
@@ -33572,7 +33587,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 ? a_key.source_frame_blend_frames
                                 : 0.0f,
                             frame_mapping_prefix(), source_key_blend,
-                            frame_mapping_prefix(), source_eased_key_blend);
+                            frame_mapping_prefix(), source_eased_key_blend,
+                            frame_pair_report_key.c_str());
                         std::fprintf(
                             stderr,
                             "[world] camera source frame pair zero_xfm_reset: shot=%s zero_xfm_reset=a:%d b:%d source_locals=CamShotFrame::Load(Transform::Zero_Reset)\n",
@@ -33610,11 +33626,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 a_key.source_frame_loop_active ? 1 : 0,
                                 a_key.source_frame_loop_wrapped ? 1 : 0);
                         }
+                        }
                     } else if (source_frame_key_route &&
-                               selected_camera.size() == 1 &&
-                               active_camera_frame_pair_reported_ !=
-                                   key->name + ":hold") {
+                               selected_camera.size() == 1) {
                         const CameraKey& hold_key = selected_camera.front();
+                        const std::string frame_hold_report_key =
+                            key->name + ":hold:" +
+                            source_frame_index_token(hold_key) +
+                            (hold_key.source_frame_loop_active ? ":loop"
+                                                               : ":linear");
+                        if (active_camera_frame_pair_reported_ !=
+                            frame_hold_report_key) {
                         const bool has_frame_mapping =
                             hold_key.has_source_frame_mapping;
                         const float source_key_blend =
@@ -33636,10 +33658,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 ? "CamShot::SetFrame(nullFrame)"
                                 : "CamShot::GetKey(prev,next,keyBlend)";
                         active_camera_frame_pair_reported_ =
-                            key->name + ":hold";
+                            frame_hold_report_key;
                         std::fprintf(
                             stderr,
-                            "[world] camera source frame hold: shot=%s local_frame=%.3f keys=%zu frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f source_phase=hold_before_blend route=regular_camera_source_frame_keys source_nullFrame=%d source_locals=%s\n",
+                            "[world] camera source frame hold: shot=%s local_frame=%.3f keys=%zu frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f report_key=%s source_report_scope=key_pair_change source_phase=hold_before_blend route=regular_camera_source_frame_keys source_nullFrame=%d source_locals=%s\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), hold_key.frame,
                             frame_mapping_prefix(),
@@ -33660,6 +33682,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 : 0.0f,
                             frame_mapping_prefix(), source_key_blend,
                             frame_mapping_prefix(), source_eased_key_blend,
+                            frame_hold_report_key.c_str(),
                             hold_key.source_frame_null_frame ? 1 : 0,
                             source_hold_locals);
                         if (has_frame_mapping &&
@@ -33689,6 +33712,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             hold_key.has_source_frame_key_index
                                 ? hold_key.source_frame_key_index
                                 : size_t{0});
+                        }
                     }
                     if (!source_frame_key_route && key->has_path_anim &&
                         selected_camera.size() >= 2 &&
