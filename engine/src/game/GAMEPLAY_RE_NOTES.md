@@ -193,6 +193,14 @@ Open work:
   category order even when authored intro/win/special categories are present in
   the same venue object list. The debug camera log prints the
   `CameraManager::Randomize` first-seen bucket order for screenshot-proof runs.
+- 2026-07-14 CameraManager random seed:
+  ihatecompvir `CameraManager::Randomize()` calls `sRand.Seed(sSeed)` before
+  randomizing the category buckets, and `CameraManager::OnRandomSeed` is the
+  source message that assigns `sSeed`. Native no longer hardcodes the call-site
+  seed to zero: it keeps zero as the static default and routes
+  `GHOGX_CAMERA_RANDOM_SEED` through the same source-shaped seed state for
+  diagnostics, with the chosen seed and seed source printed in the
+  `CameraManager::Randomize` proof log.
 - 2026-07-14 CameraManager loader pool scope:
   the native regular CamShot loader now feeds that randomizer every decoded
   `PlatformOk()` CamShot with frames, rather than pruning non-normal categories

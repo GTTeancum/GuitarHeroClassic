@@ -10889,6 +10889,16 @@ int main() {
                  "if(0xF9u<=++index_a)index_a=0;",
                  "camera source Rand index wrap mirrors ihatecompvir Rand::Int");
   ok &= contains(gameplay_c,
+                 "intcamera_manager_source_random_seed(){"
+                 "returnenv_int(\"GHOGX_CAMERA_RANDOM_SEED\",0);}",
+                 "CameraManager randomization seed is exposed through a source-shaped hook");
+  ok &= contains(gameplay_c,
+                 "rand.seed(static_cast<uint32_t>(source_seed));",
+                 "regular camera randomization seeds source Rand from CameraManager sSeed state");
+  ok &= absent(gameplay_c,
+               "rand.seed(0);",
+               "regular camera randomization no longer hardcodes the source seed at the call site");
+  ok &= contains(gameplay_c,
                  "constsize_tpicked=rand.int_range(remaining.size());",
                  "regular camera randomization draws a source Rand index from the remaining category list");
   ok &= contains(gameplay_c,
@@ -10908,8 +10918,9 @@ int main() {
                  "regular camera category randomization randomizes every source category bucket");
   ok &= contains(gameplay_c,
                  "\"[world]cameraRandomize:source_manager=CameraManager::Randomize"
-                 "categories=%zuscope=all_first_seen_category_bucketsorder=%s\\n\"",
-                 "regular camera randomization logs the source-shaped all-category bucket order");
+                 "categories=%zuscope=all_first_seen_category_bucketsorder=%s"
+                 "seed=%dsource_seed=sSeedseed_source=%s\\n\"",
+                 "regular camera randomization logs the source-shaped all-category bucket order and seed");
   ok &= absent(gameplay_c,
                "for(constautocategory:kNormalCamShotCategoryOrder){"
                "shuffle_category(category);}",

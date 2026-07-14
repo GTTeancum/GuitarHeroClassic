@@ -15315,6 +15315,15 @@ struct CameraSourceRand {
     }
 };
 
+int camera_manager_source_random_seed() {
+    return env_int("GHOGX_CAMERA_RANDOM_SEED", 0);
+}
+
+const char* camera_manager_source_random_seed_source() {
+    return env_value("GHOGX_CAMERA_RANDOM_SEED") ? "camera_random_seed"
+                                                 : "static_default";
+}
+
 void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
     // ihatecompvir CameraManager::SyncObjects seeds sRand and randomizes every
     // first-seen category list before FindCameraShot starts moving accepted
@@ -15322,7 +15331,8 @@ void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
     // selection; mirror that remaining-list draw using the source Rand
     // implementation.
     CameraSourceRand rand;
-    rand.seed(0);
+    const int source_seed = camera_manager_source_random_seed();
+    rand.seed(static_cast<uint32_t>(source_seed));
     std::vector<std::string> categories;
     for (const auto& key : keys) {
         if (key.category.empty()) continue;
@@ -15335,8 +15345,9 @@ void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
         const std::string category_order = join_log_names(categories);
         std::fprintf(
             stderr,
-            "[world] camera Randomize: source_manager=CameraManager::Randomize categories=%zu scope=all_first_seen_category_buckets order=%s\n",
-            categories.size(), category_order.c_str());
+            "[world] camera Randomize: source_manager=CameraManager::Randomize categories=%zu scope=all_first_seen_category_buckets order=%s seed=%d source_seed=sSeed seed_source=%s\n",
+            categories.size(), category_order.c_str(), source_seed,
+            camera_manager_source_random_seed_source());
     }
     auto shuffle_category = [&](std::string_view category) {
         std::vector<size_t> indices;
