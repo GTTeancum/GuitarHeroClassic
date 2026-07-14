@@ -163,6 +163,15 @@ Open work:
   after the CamShot frame, and logs a `camera RndCamAnim SetFrame` row. This
   wires an already-decoded source camera track into runtime; it does not invent
   extra camera-angle motion or hidden task rejection behavior.
+- 2026-07-14 CameraManager `num_shots` probe:
+  ihatecompvir `CameraManager::NumCameraShots` sends `first_shot_ok(category)`,
+  scans the category list, and counts only shots where `Disabled() == 0`,
+  `ShotMatches(...)`, and `ShotOk(mCurrentShot)` all pass. Native now emits a
+  debug-only `camera num_shots` probe before regular scripted selection using
+  those same gates and explicitly labels it non-mutating. This gives camera
+  proof logs a source-shaped eligible-shot count without relaxing filters,
+  changing category rotation, or inventing the deferred GH2 `cam_shot_ok`
+  predicate.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

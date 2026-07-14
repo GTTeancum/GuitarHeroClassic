@@ -10911,6 +10911,24 @@ int main() {
                  "choose_regular_camera_key_index_by_category(",
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");
   ok &= contains(gameplay_c,
+                 "size_tcamera_source_num_camera_shots_probe(",
+                 "regular camera diagnostics expose ihatecompvir CameraManager::NumCameraShots shape");
+  ok &= contains(gameplay_c,
+                 "if(key.disabled_flags!=0)continue;"
+                 "if(!predicate(key))continue;"
+                 "if(!camera_source_shot_ok(key,previous))continue;",
+                 "regular camera num_shots probe mirrors Disabled, ShotMatches, ShotOk count gates");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameranum_shots:source_msg=num_shots"
+                 "category=%smode=%sprevious=%scount=%zu"
+                 "source_mutates_category=0\\n\"",
+                 "regular camera diagnostics expose non-mutating source num_shots count");
+  ok &= appears_before(gameplay_c,
+                       "constsize_tnum_shots="
+                       "camera_source_num_camera_shots_probe(",
+                       "std::optional<size_t>selected=",
+                       "regular camera num_shots diagnostics run before source pick selection");
+  ok &= contains(gameplay_c,
                  "constsize_tselected_index=*selected;",
                  "regular camera selector takes the first eligible CamShot in the active category bucket");
   ok &= contains(gameplay_c,

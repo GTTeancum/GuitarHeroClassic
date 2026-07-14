@@ -15591,6 +15591,34 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
     return std::nullopt;
 }
 
+template <typename Predicate>
+size_t camera_source_num_camera_shots_probe(
+    const std::vector<Gameplay::CameraKey>& keys,
+    const Gameplay::CameraKey* previous,
+    CameraShotMode mode,
+    Predicate&& predicate) {
+    auto count_category = [&](std::string_view category) {
+        size_t count = 0;
+        for (const auto& key : keys) {
+            if (key.category != category) continue;
+            if (key.disabled_flags != 0) continue;
+            if (!predicate(key)) continue;
+            if (!camera_source_shot_ok(key, previous)) continue;
+            ++count;
+        }
+        return count;
+    };
+
+    if (mode == CameraShotMode::Lighter) {
+        return count_category("LIGHTER");
+    }
+    size_t count = 0;
+    for (const auto category : kNormalCamShotCategoryOrder) {
+        count += count_category(category);
+    }
+    return count;
+}
+
 const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     std::vector<Gameplay::CameraKey>& keys,
     std::string_view previous_name,
@@ -15609,14 +15637,29 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     }
     const Gameplay::CameraKey* source_previous =
         previous ? previous : source_previous_fallback;
+    auto source_filter = [&](const Gameplay::CameraKey& key) {
+        return regular_camera_filter_ok(key, source_previous,
+                                        low_excitement, walking, starpower,
+                                        mode);
+    };
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const std::string_view source_category =
+            camera_source_pick_shot_category(mode);
+        camera_source_first_shot_ok(source_category);
+        const size_t num_shots = camera_source_num_camera_shots_probe(
+            keys, source_previous, mode, source_filter);
+        std::fprintf(
+            stderr,
+            "[world] camera num_shots: source_msg=num_shots category=%s mode=%s previous=%s count=%zu source_mutates_category=0\n",
+            std::string(source_category).c_str(),
+            camera_shot_mode_label(mode),
+            source_previous ? source_previous->name.c_str() : "",
+            num_shots);
+    }
     camera_source_first_shot_ok(camera_source_pick_shot_category(mode));
     std::optional<size_t> selected =
         choose_regular_camera_key_index_by_category(
-            keys, source_previous, mode, [&](const Gameplay::CameraKey& key) {
-                return regular_camera_filter_ok(key, source_previous,
-                                                low_excitement, walking,
-                                                starpower, mode);
-            });
+            keys, source_previous, mode, source_filter);
     if (!selected) {
         camera_source_no_acceptable_shot(camera_source_pick_shot_category(mode),
                                          mode, low_excitement, walking,
