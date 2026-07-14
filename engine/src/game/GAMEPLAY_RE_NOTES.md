@@ -10947,6 +10947,14 @@ Rejected native probe:
   instead of raw elapsed 30 FPS, so path sampling follows the same manager
   clock as non-path CamShot frame pairs. This still does not infer the hidden
   `CamShot::SetFrame` body or exact `mPathFrame` consumption.
+- 2026-07-13 path-backed TransAnim keys-owner:
+  ihatecompvir `RndTransAnim` routes `TransKeys()`, `RotKeys()`,
+  `ScaleKeys()`, and the spline/slerp flags through `mKeysOwner`, with load
+  falling back to `this` when no owner is authored. Native path-backed camera
+  loading now decodes every venue TransAnim, resolves the requested path anim
+  through `keys_owner`, and samples the resolved trans/rot/scale pages. This
+  is a source-accessor mirror for path cameras, not a per-shot camera-angle
+  correction.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures

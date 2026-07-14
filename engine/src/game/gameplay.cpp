@@ -1901,6 +1901,59 @@ std::array<float, 4> sample_rnd_transanim_rot_keys(
                      : fast_interp_quat_xyzw(qa, qb, t);
 }
 
+void copy_camera_path_transanim_keys_from_owner(DecodedRndTransAnim& anim,
+                                                const DecodedRndTransAnim& owner) {
+    anim.trans_keys = owner.trans_keys;
+    anim.rot_keys = owner.rot_keys;
+    anim.scale_keys = owner.scale_keys;
+    anim.trans_spline = owner.trans_spline;
+    anim.repeat_trans = owner.repeat_trans;
+    anim.scale_spline = owner.scale_spline;
+    anim.follow_path = owner.follow_path;
+    anim.rot_slerp = owner.rot_slerp;
+    anim.rot_spline = owner.rot_spline;
+}
+
+bool resolve_camera_path_transanim_owner(
+    std::map<std::string, DecodedRndTransAnim>& transanim_decodes,
+    const std::string& name,
+    std::unordered_set<std::string>& visiting) {
+    const auto anim_it = transanim_decodes.find(name);
+    if (anim_it == transanim_decodes.end()) return false;
+    auto& anim = anim_it->second;
+    if (anim.keys_owner.empty()) anim.keys_owner = name;
+    const std::string owner_name = canonical_milo_ref(anim.keys_owner);
+    if (owner_name.empty() || owner_name == name) {
+        return !anim.trans_keys.empty();
+    }
+    if (!visiting.insert(name).second) return false;
+    const auto owner_it = transanim_decodes.find(owner_name);
+    if (owner_it == transanim_decodes.end()) {
+        if (debug_camera_enabled()) {
+            std::fprintf(stderr,
+                         "[world] camera path anim %s missing keys_owner=%s\n",
+                         name.c_str(), owner_name.c_str());
+        }
+        visiting.erase(name);
+        return !anim.trans_keys.empty();
+    }
+    resolve_camera_path_transanim_owner(transanim_decodes, owner_name,
+                                        visiting);
+    copy_camera_path_transanim_keys_from_owner(anim, owner_it->second);
+    if (debug_camera_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera path anim %s inherited keys_owner=%s keys=%zu rot_keys=%zu scale_keys=%zu flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
+            name.c_str(), owner_name.c_str(), anim.trans_keys.size(),
+            anim.rot_keys.size(), anim.scale_keys.size(),
+            anim.trans_spline ? 1 : 0, anim.repeat_trans ? 1 : 0,
+            anim.scale_spline ? 1 : 0, anim.follow_path ? 1 : 0,
+            anim.rot_slerp ? 1 : 0, anim.rot_spline ? 1 : 0);
+    }
+    visiting.erase(name);
+    return !anim.trans_keys.empty();
+}
+
 Gameplay::CameraKey::TargetRef read_camshot_subpart_like_miloeditor(
     MiloCursor& r, uint16_t camshot_revision) {
     if (camshot_revision < 0x2b) (void)r.i32();
@@ -9806,30 +9859,42 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             }
             return out;
         }
-        const gh::milo::Entry* anim = nullptr;
+        std::map<std::string, DecodedRndTransAnim> transanim_decodes;
+        std::map<std::string, size_t> transanim_sizes;
         for (const auto& de : dir.entries) {
-            if (de.type == "TransAnim" && de.name == anim_name) {
-                anim = &de;
-                break;
-            }
+            if (de.type != "TransAnim" || de.offset + de.size > payload.size())
+                continue;
+            const uint8_t* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            auto decoded = read_rnd_transanim_like_miloeditor(body, size);
+            if (!decoded) continue;
+            const std::string name = canonical_milo_ref(de.name);
+            decoded->trans = canonical_milo_ref(decoded->trans);
+            decoded->keys_owner = canonical_milo_ref(decoded->keys_owner);
+            if (decoded->keys_owner.empty()) decoded->keys_owner = name;
+            transanim_sizes[name] = size;
+            transanim_decodes[name] = std::move(*decoded);
         }
-        if (!anim || anim->offset + anim->size > payload.size()) return out;
-        const uint8_t* body = payload.data() + anim->offset;
-        const size_t size = static_cast<size_t>(anim->size);
-        auto decoded = read_rnd_transanim_like_miloeditor(body, size);
-        if (!decoded) return out;
-        out = decoded->trans_keys;
-        if (!decoded->rot_keys.empty()) {
+        const std::string anim_ref = canonical_milo_ref(anim_name);
+        auto anim_it = transanim_decodes.find(anim_ref);
+        if (anim_it == transanim_decodes.end()) return out;
+        std::unordered_set<std::string> visiting;
+        resolve_camera_path_transanim_owner(transanim_decodes, anim_ref,
+                                            visiting);
+        auto& resolved = anim_it->second;
+        out = resolved.trans_keys;
+        if (out.empty()) return out;
+        if (!resolved.rot_keys.empty()) {
             for (auto& pos : out) {
                 const auto q =
-                    sample_rnd_transanim_rot_keys(decoded->rot_keys, pos.frame,
-                                                  decoded->rot_slerp);
+                    sample_rnd_transanim_rot_keys(resolved.rot_keys, pos.frame,
+                                                  resolved.rot_slerp);
                 pos.has_quat = true;
                 for (int i = 0; i < 4; ++i) pos.quat[i] = q[i];
             }
             std::fprintf(stderr,
                          "[world] camera anim %s: %zu source rot keys\n",
-                         anim_name.c_str(), decoded->rot_keys.size());
+                         anim_name.c_str(), resolved.rot_keys.size());
         }
         if (debug_camera_enabled()) {
             const Gameplay::CameraKey& first = out.front();
@@ -9844,24 +9909,24 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 "first=f%.3f:(%.3f %.3f %.3f) "
                 "mid=f%.3f:(%.3f %.3f %.3f) "
                 "last=f%.3f:(%.3f %.3f %.3f)\n",
-                anim_name.c_str(), decoded->revision, decoded->anim_revision,
-                decoded->trans.c_str(), decoded->keys_owner.c_str(),
-                decoded->end_offset, size, out.size(),
-                decoded->rot_keys.size(), decoded->scale_keys.size(),
-                decoded->trans_spline ? 1 : 0,
-                decoded->repeat_trans ? 1 : 0,
-                decoded->scale_spline ? 1 : 0,
-                decoded->follow_path ? 1 : 0,
-                decoded->rot_slerp ? 1 : 0,
-                decoded->rot_spline ? 1 : 0, first.frame,
+                anim_name.c_str(), resolved.revision, resolved.anim_revision,
+                resolved.trans.c_str(), resolved.keys_owner.c_str(),
+                resolved.end_offset, transanim_sizes[anim_ref], out.size(),
+                resolved.rot_keys.size(), resolved.scale_keys.size(),
+                resolved.trans_spline ? 1 : 0,
+                resolved.repeat_trans ? 1 : 0,
+                resolved.scale_spline ? 1 : 0,
+                resolved.follow_path ? 1 : 0,
+                resolved.rot_slerp ? 1 : 0,
+                resolved.rot_spline ? 1 : 0, first.frame,
                 first.eye[0], first.eye[1], first.eye[2], mid.frame,
                 mid.eye[0], mid.eye[1], mid.eye[2], last.frame, last.eye[0],
                 last.eye[1], last.eye[2]);
         }
         std::fprintf(stderr,
                      "[world] camera anim %s: %zu source keys rev=%u owner=%s\n",
-                     anim_name.c_str(), out.size(), decoded->revision,
-                     decoded->keys_owner.c_str());
+                     anim_name.c_str(), out.size(), resolved.revision,
+                     resolved.keys_owner.c_str());
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] camera anim %s: %s\n", anim_name.c_str(),
                      ex.what());

@@ -8239,9 +8239,9 @@ int main() {
                  "populate_camera_generated_source_rows(path_pos);}",
                  "parentless path-backed TransAnim camera keys populate generated source rows");
   ok &= contains(gameplay_c,
-                 "sample_rnd_transanim_rot_keys(decoded->rot_keys,pos.frame,"
-                 "decoded->rot_slerp);",
-                 "path-backed TransAnim camera rotations honor the decoded rot_slerp flag");
+                 "sample_rnd_transanim_rot_keys(resolved.rot_keys,pos.frame,"
+                 "resolved.rot_slerp);",
+                 "path-backed TransAnim camera rotations honor the resolved rot_slerp flag");
   ok &= contains(gameplay_c,
                  "std::optional<DecodedRndTransAnim>read_rnd_transanim_like_miloeditor(",
                  "path-backed TransAnim camera positions use the source-shaped RndTransAnim reader");
@@ -8307,8 +8307,12 @@ int main() {
                  "anim.end_offset=r.pos;if(r.pos!=r.size)",
                  "source-shaped RndTransAnim reader must consume the whole asset");
   ok &= contains(gameplay_c,
-                 "out=decoded->trans_keys;",
-                 "path-backed camera positions come from decoded source trans keys");
+                 "copy_camera_path_transanim_keys_from_owner(anim,"
+                 "owner_it->second);",
+                 "path-backed camera TransAnim key pages resolve through source keys_owner");
+  ok &= contains(gameplay_c,
+                 "out=resolved.trans_keys;",
+                 "path-backed camera positions come from the resolved source trans keys");
   ok &= contains(gameplay_c,
                  "\"[camera-path]anim=%ssource-shapedrev=%uanim_rev=%u\"",
                  "camera path diagnostics expose source-shaped RndTransAnim metadata");
