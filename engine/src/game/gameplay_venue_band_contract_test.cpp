@@ -9029,6 +9029,18 @@ int main() {
                  "(BuildTransform,applyScreenOffset)\\n\"",
                  "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
+                 "\"source_branch=%ssource_filter_scope=%s\"",
+                 "camera debug logs expose the source BuildTransform branch and filter scope");
+  ok &= contains(gameplay_c,
+                 "\"filtered_candidate_scope=%s\"",
+                 "camera debug logs separate same-target filtered candidates from submitted rows");
+  ok &= contains(gameplay_c,
+                 "\"diagnostic_only_same_targets\"",
+                 "same-target CamShot filter scope stays diagnostic-only");
+  ok &= contains(gameplay_c,
+                 "\"BuildTransform_filter\"",
+                 "non-same-target CamShot filter scope remains tied to BuildTransform");
+  ok &= contains(gameplay_c,
                  "std::map<std::string,std::array<float,16>>"
                  "build_venue_camera_target_worlds(",
                  "venue camera diagnostics build source-parent candidates from decoded venue geometry");

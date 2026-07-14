@@ -21865,6 +21865,8 @@ void apply_camera_keys(
             stderr,
             "[camera-solver] frame=%.2f shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
+            "source_branch=%s source_filter_scope=%s "
+            "filtered_candidate_scope=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
             "state_valid=%d "
@@ -21873,6 +21875,15 @@ void apply_camera_keys(
             source_build_transform_order ? "per_key_then_lerp"
                                          : "blended_seed",
             same_targets_like_camshot ? 0 : 1,
+            same_targets_like_camshot
+                ? "SameTargets:BuildTransform(applyScreenOffset=0)+direct_screen_offset"
+                : "NonSameTargets:BuildTransform(applyScreenOffset=1)",
+            same_targets_like_camshot
+                ? (result_filter_branch ? "diagnostic_only_same_targets"
+                                        : "disabled_same_targets")
+                : (result_filter_branch ? "BuildTransform_filter" : "none"),
+            source_screen_offset_filtered_target_candidate ? "diagnostic_only"
+                                                           : "none",
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             blended_target_centroid ? (*blended_target_centroid)[0] : 0.0f,

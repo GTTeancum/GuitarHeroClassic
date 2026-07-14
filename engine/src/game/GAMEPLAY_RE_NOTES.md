@@ -11263,6 +11263,12 @@ Rejected native probe:
   the row interpolation they re-run the direct-target `LookAt` from the blended
   transform position before applying the separately audited local-space
   screen-offset path.
+- 2026-07-14 BuildTransform branch proof: debug camera solver rows now name the
+  selected source branch (`SameTargets:BuildTransform(applyScreenOffset=0)` or
+  `NonSameTargets:BuildTransform(applyScreenOffset=1)`) and label the `filter`
+  scope. This is proof surface only: same-target filtered-target rows stay
+  diagnostic-only, while non-same-target rows continue to tie `filter` to the
+  `BuildTransform` path seen in the RB2 dump locals.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,
