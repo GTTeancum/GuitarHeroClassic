@@ -285,16 +285,21 @@ int main() {
   ok &= expect_bool(result.scale_down, true, "left scale-down reset");
   ok &= expect_bool(result.matched_left, true, "left matched");
   ok &= expect_bool(result.matched_right, false, "left not right");
+  ok &= expect_string(result.downstream_call, "clip->ScaleAdd",
+                      "left downstream ScaleAdd");
+  ok &= near(result.forwarded_weight, 0.25f, "left forwarded weight");
   ok &= expect_bool(state.need_scale_down, false, "scale-down consumed");
   ok &= near(state.left, 0.25f, "left after reset/add");
   ok &= near(state.right, 0.0f, "right reset");
 
   result = source_char_face_servo_scale_add_blink(state, clips, "blink_R",
-                                                  true, 0.8f);
+                                                  true, 0.8f, 1.25f, 2.5f);
   ok &= expect_bool(result.accepted, true, "right accepted");
   ok &= expect_bool(result.scale_down, false, "right no scale-down");
   ok &= expect_bool(result.matched_left, false, "right not left");
   ok &= expect_bool(result.matched_right, true, "right matched");
+  ok &= near(result.forwarded_f2, 1.25f, "right forwarded f2");
+  ok &= near(result.forwarded_f3, 2.5f, "right forwarded f3");
   ok &= near(state.left, 0.25f, "left preserved");
   ok &= near(state.right, 0.8f, "right add");
 
@@ -316,6 +321,8 @@ int main() {
   result = source_char_face_servo_scale_add_blink(rejected, clips, "blink_L",
                                                   false, 0.5f);
   ok &= expect_bool(result.accepted, false, "non-relative rejected");
+  ok &= expect_string(result.downstream_call, "",
+                      "non-relative skips downstream ScaleAdd");
   ok &= near(rejected.left, state.left, "non-relative left unchanged");
   ok &= near(rejected.right, state.right, "non-relative right unchanged");
 

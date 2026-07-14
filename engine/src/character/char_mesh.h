@@ -3153,6 +3153,10 @@ struct SourceCharFaceServoScaleAddResult {
   bool scale_down = false;
   bool matched_left = false;
   bool matched_right = false;
+  std::string downstream_call;
+  float forwarded_weight = 0.0f;
+  float forwarded_f2 = 0.0f;
+  float forwarded_f3 = 0.0f;
 };
 
 struct SourceCharFaceServoLoadPlan {
@@ -4720,7 +4724,9 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     const SourceCharFaceServoBlinkClips& clips,
     const std::string& clip_name,
     bool clip_is_relative,
-    float weight);
+    float weight,
+    float f2 = 0.0f,
+    float f3 = 0.0f);
 SourceCharFaceServoLoadPlan source_char_face_servo_load_plan(int revision);
 SourceCharFaceServoCopyPlan source_char_face_servo_copy_plan();
 SourceCharFaceServoHandlerPlan source_char_face_servo_handler_plan();

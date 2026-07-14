@@ -6484,11 +6484,17 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     const SourceCharFaceServoBlinkClips& clips,
     const std::string& clip_name,
     bool clip_is_relative,
-    float weight) {
+    float weight,
+    float f2,
+    float f3) {
   SourceCharFaceServoScaleAddResult result;
   if (!clip_is_relative || weight < 0.0f) return result;
 
   result.accepted = true;
+  result.downstream_call = "clip->ScaleAdd";
+  result.forwarded_weight = weight;
+  result.forwarded_f2 = f2;
+  result.forwarded_f3 = f3;
   result.scale_down =
       source_char_face_servo_try_scale_down(state, false, false)
           .consumed_need_scale_down;

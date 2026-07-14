@@ -3170,8 +3170,9 @@ note, and all report `unreadBytes=0`.
     do not enter the source update path; accepted relative clips first consume
     the source `TryScaleDown` reset, then add left/right blink weight only when
     the clip matches the left/left2 or right/right2 blink rows, clamping each
-    side to `[0, 1]`. This is source context for blink accumulation only, not a
-    runtime face mesh bridge.
+    side to `[0, 1]`, and records the final source handoff to
+    `clip->ScaleAdd(*this, weight, f2, f3)`. This is source context for blink
+    accumulation and call flow only, not a runtime face mesh bridge.
   - Native `source_char_face_servo_blink_weight_left` mirrors the concrete
     `CharFaceServo::BlinkWeightLeft()` accessor by returning the current left
     blink weight only; it does not infer chord, mouth, eye, or mesh behavior.

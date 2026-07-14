@@ -17399,6 +17399,13 @@ int run_contract() {
                  "boolreset_blink_weights=false;};",
                  "native exposes CharFaceServo TryScaleDown result");
   ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoScaleAddResult{boolaccepted=false;"
+                 "boolscale_down=false;boolmatched_left=false;"
+                 "boolmatched_right=false;std::stringdownstream_call;"
+                 "floatforwarded_weight=0.0f;floatforwarded_f2=0.0f;"
+                 "floatforwarded_f3=0.0f;};",
+                 "native exposes CharFaceServo ScaleAdd handoff result");
+  ok &= contains(char_mesh_h,
                  "SourceCharFaceServoTryScaleDownResult"
                  "source_char_face_servo_try_scale_down("
                  "SourceCharFaceServoBlinkState&state,boolhas_base_clip,"
@@ -17412,6 +17419,10 @@ int run_contract() {
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink(",
                  "native exposes CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh_h,
+                 "boolclip_is_relative,floatweight,floatf2=0.0f,"
+                 "floatf3=0.0f);",
+                 "native exposes CharFaceServo ScaleAdd forwarded args");
   ok &= contains(char_mesh_h,
                  "structSourceCharFaceServoProceduralWeightsResult{"
                  "boolaccepted=false;boolscale_down=false;"
@@ -17457,6 +17468,11 @@ int run_contract() {
                  "source_char_face_servo_scale_add_blink("
                  "SourceCharFaceServoBlinkState&state,",
                  "native implements CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh,
+                 "result.accepted=true;result.downstream_call="
+                 "\"clip->ScaleAdd\";result.forwarded_weight=weight;"
+                 "result.forwarded_f2=f2;result.forwarded_f3=f3;",
+                 "native CharFaceServo helper records ScaleAdd handoff args");
   ok &= contains(char_mesh,
                  "SourceCharFaceServoLoadPlansource_char_face_servo_load_plan("
                  "intrevision){SourceCharFaceServoLoadPlanplan;"
@@ -17542,6 +17558,12 @@ int run_contract() {
                  "\"blink_L2\",true,0.25f)",
                  "focused CharFaceServo test covers left2 blink branch");
   ok &= contains(face_servo_source_test,
+                 "result.downstream_call,\"clip->ScaleAdd\"",
+                 "focused CharFaceServo test covers ScaleAdd handoff call");
+  ok &= contains(face_servo_source_test,
+                 "true,0.8f,1.25f,2.5f)",
+                 "focused CharFaceServo test covers forwarded ScaleAdd args");
+  ok &= contains(face_servo_source_test,
                  "source_char_face_servo_load_plan(4)",
                  "focused CharFaceServo test covers latest load plan");
   ok &= contains(face_servo_source_test,
@@ -17584,6 +17606,10 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_face_servo_scale_add_blink` ports the bounded",
                  "document records native CharFaceServo blink helper");
+  ok &= contains(doc,
+                 "records the final source handoff to\n"
+                 "    `clip->ScaleAdd(*this, weight, f2, f3)`",
+                 "document records native CharFaceServo ScaleAdd handoff");
   ok &= contains(doc,
                  "Native `source_char_face_servo_blink_weight_left` mirrors",
                  "document records native CharFaceServo left blink accessor");

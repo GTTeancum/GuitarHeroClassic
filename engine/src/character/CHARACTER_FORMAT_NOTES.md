@@ -3254,6 +3254,12 @@ Useful environment flags:
   `CharBones::RotateBy`, `CharBones::RotateTo`, or `CharBones::ScaleAdd`.
   These labels are audit data for the future publisher path, not replacement
   transform math.
+- 2026-07-14 `CharFaceServo::ScaleAdd` handoff:
+  native `source_char_face_servo_scale_add_blink` now records the accepted
+  source handoff to `clip->ScaleAdd(*this, weight, f2, f3)` after the
+  relative-clip gate, `TryScaleDown`, and blink-weight clamp branch. This is
+  `CharFaceServo` call-flow evidence only; GH2 `FaceFxLipSyncServo` placement
+  remains fenced unless a matching source body is found.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.
