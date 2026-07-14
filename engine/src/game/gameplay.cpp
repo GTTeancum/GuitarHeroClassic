@@ -18547,7 +18547,13 @@ std::vector<Gameplay::CameraKey> regular_camera_path_keys(
         camera_source_local_frame(shot, song_time, start_time, chart);
     const float first_frame = shot.positions.front().frame;
     for (auto key : shot.positions) {
-        key.frame = now_frame + ((key.frame - first_frame) - source_frame);
+        const float authored_frame = key.frame;
+        key.source_path_local_frame = source_frame;
+        key.source_path_first_frame = first_frame;
+        key.source_path_authored_frame = authored_frame;
+        key.frame = now_frame + ((authored_frame - first_frame) - source_frame);
+        key.source_path_submitted_frame = key.frame;
+        key.has_source_path_frame_mapping = true;
         if (shape.has_sample) {
             for (int axis = 0; axis < 3; ++axis) {
                 key.path_pose_span[axis] = shape.span[axis];
@@ -31340,13 +31346,41 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         const size_t a_index = b_index > 0 ? b_index - 1 : 0;
                         const CameraKey& a_key = selected_camera[a_index];
                         const CameraKey& b_key = selected_camera[b_index];
+                        auto path_mapping_prefix = [](const CameraKey& path_key) {
+                            return path_key.has_source_path_frame_mapping ? ""
+                                                                          : "none/";
+                        };
                         active_camera_frame_pair_reported_ =
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f route=regular_camera_path_keys path=%s\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f route=regular_camera_path_keys path=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
+                            path_mapping_prefix(a_key),
+                            a_key.has_source_path_frame_mapping
+                                ? a_key.source_path_authored_frame
+                                : 0.0f,
+                            path_mapping_prefix(b_key),
+                            b_key.has_source_path_frame_mapping
+                                ? b_key.source_path_authored_frame
+                                : 0.0f,
+                            path_mapping_prefix(a_key),
+                            a_key.has_source_path_frame_mapping
+                                ? a_key.source_path_first_frame
+                                : 0.0f,
+                            path_mapping_prefix(a_key),
+                            a_key.has_source_path_frame_mapping
+                                ? a_key.source_path_local_frame
+                                : 0.0f,
+                            path_mapping_prefix(a_key),
+                            a_key.has_source_path_frame_mapping
+                                ? a_key.source_path_submitted_frame
+                                : 0.0f,
+                            path_mapping_prefix(b_key),
+                            b_key.has_source_path_frame_mapping
+                                ? b_key.source_path_submitted_frame
+                                : 0.0f,
                             a_key.has_path_frame ? "" : "none/",
                             a_key.has_path_frame ? a_key.path_frame : 0.0f,
                             b_key.has_path_frame ? "" : "none/",

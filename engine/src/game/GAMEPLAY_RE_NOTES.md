@@ -6618,6 +6618,19 @@ Rejected native probe:
   extra rows beyond the existing `camera_has_promotable_writer_bridge_evidence`
   gate.
 
+2026-07-14 path-backed camera TransAnim timing proof:
+- Path-backed regular CamShots now carry the source-local frame from
+  `CameraManager::CalcFrame`, the authored `RndTransAnim` key frame, the first
+  path key frame, and the submitted rebased renderer frame on the selected
+  path keys. The existing `[world] camera source path frame pair` row reports
+  those values next to decoded `path_frame`, making it clear which
+  `RndTransAnim::SetFrame`-shaped sample native used for the screenshot.
+- This still does not claim the hidden `CamShot::SetFrame` body or exact
+  `mPathFrame` consumption. The ihatecompvir source/dump prove the manager
+  cadence, `mPath/mPathFrame` fields, and `RndTransAnim::SetFrame` key-owner
+  path, so this checkpoint keeps the source-visible boundary auditable before
+  any future transform/parity change.
+
 2026-07-02 open HUD tuning follow-up:
 - Reopen the HUD editor and scale down the ROCK meter needle properly. It is
   currently sticking out above the top of the ROCK bezel; use the editor rather

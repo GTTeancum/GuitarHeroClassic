@@ -8136,6 +8136,13 @@ int main() {
                  "std::stringsource_ref;"
                  "boolcamshot_shot_fields_decoded=false;",
                  "CameraKey preserves remaining CamShot shot-level fields including path_frame and source refs");
+  ok &= contains(gameplay_h_c,
+                 "floatsource_path_local_frame=0.0f;"
+                 "floatsource_path_first_frame=0.0f;"
+                 "floatsource_path_authored_frame=0.0f;"
+                 "floatsource_path_submitted_frame=0.0f;"
+                 "boolhas_source_path_frame_mapping=false;",
+                 "CameraKey carries source-to-TransAnim path frame mapping diagnostics");
   ok &= contains(gameplay_c,
                  "if(shot.revision>0x0b&&shot.revision<0x2a)"
                  "shot.old_crowd_sym=r.symbol();",
@@ -9996,8 +10003,20 @@ int main() {
                  "shot,song_time,start_time,chart);",
                  "path-backed CamShots are clocked by CameraManager CalcFrame source timing");
   ok &= contains(gameplay_c,
-                 "key.frame=now_frame+((key.frame-first_frame)-source_frame);",
+                 "constfloatauthored_frame=key.frame;",
+                 "path-backed CamShots retain the authored TransAnim key frame before source-timed rebasing");
+  ok &= contains(gameplay_c,
+                 "key.source_path_local_frame=source_frame;",
+                 "path-backed CamShot diagnostics carry CameraManager CalcFrame local frame");
+  ok &= contains(gameplay_c,
+                 "key.source_path_authored_frame=authored_frame;",
+                 "path-backed CamShot diagnostics carry authored TransAnim key frames");
+  ok &= contains(gameplay_c,
+                 "key.frame=now_frame+((authored_frame-first_frame)-source_frame);",
                  "path-backed regular CamShot frames are sampled relative to the active source frame");
+  ok &= contains(gameplay_c,
+                 "key.source_path_submitted_frame=key.frame;",
+                 "path-backed CamShot diagnostics carry submitted renderer frame after rebasing");
   ok &= contains(gameplay_c,
                  "selected_camera=regular_camera_source_frame_keys("
                  "*key,song_time_,active_regular_camera_start_,&chart_);",
@@ -10045,9 +10064,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]camerasourcepathframepair:shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"
+                 "a_transanim_frame=%s%.3fb_transanim_frame=%s%.3f"
+                 "first_transanim_frame=%s%.3fsource_local_frame=%s%.3f"
+                 "a_submitted_frame=%s%.3fb_submitted_frame=%s%.3f"
                  "a_path_frame=%s%.3fb_path_frame=%s%.3f"
-                 "route=regular_camera_path_keyspath=%s\\n\"",
-                 "path-backed camera diagnostics expose active TransAnim frame pair and source path_frame values");
+                 "route=regular_camera_path_keyspath=%s"
+                 "path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\\n\"",
+                 "path-backed camera diagnostics expose source-timed TransAnim frame mapping and source path_frame values");
   ok &= contains(gameplay_c,
                  "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
                  "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");
