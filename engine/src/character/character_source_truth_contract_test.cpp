@@ -855,6 +855,14 @@ int run_contract() {
                  "2026-07-13 live upstream refresh",
                  "document records refreshed live upstream source checks");
   ok &= contains(doc,
+                 "2026-07-14 live mirror re-fetch confirmed no upstream drift",
+                 "document records latest live mirror verification");
+  ok &= contains(doc,
+                 "`ihatecompvir-extra` and "
+                 "`ihatecompvir-public-milo-sources` folders remain\n  "
+                 "copied snapshots in this repo, not live Git remotes",
+                 "document distinguishes live mirrors from copied snapshots");
+  ok &= contains(doc,
                  "`third_party/ihatecompvir-live/rb3` was fetched and still "
                  "matches GitHub",
                  "document records live rb3 verification mirror");

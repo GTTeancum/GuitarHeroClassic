@@ -58,6 +58,18 @@ records the upstream commits for the copied files:
   `c51944bd13dfd4cb6df918159fb7136c20f74fb0`. The `ihatecompvir-live`
   folders are verification mirrors for this worktree; do not treat older
   wording such as `rb3-latest` as meaning newer than the hashes listed here.
+- 2026-07-14 live mirror re-fetch confirmed no upstream drift for the four
+  Git-backed verification mirrors currently used by this worktree:
+  `ihatecompvir-live/glTFMilo` main
+  `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`,
+  `ihatecompvir-live/rb3` master
+  `41719f248995f677ffa39bd394706b5d18ef70c6`,
+  `ihatecompvir-live/grim` master
+  `1c05ca3d00eaafb4b522435bbb1b8a554c0484bb`, and
+  `ihatecompvir-live/re-notes` master
+  `5c486fd6e5e5186c0797df9c84182b056672b3f0`. The
+  `ihatecompvir-extra` and `ihatecompvir-public-milo-sources` folders remain
+  copied snapshots in this repo, not live Git remotes.
 
 The contract test verifies that every copied
 `ihatecompvir-extra/rb3-latest/src/system/char` `.cpp`/`.h` file is named in
