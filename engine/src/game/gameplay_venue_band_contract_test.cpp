@@ -11369,7 +11369,8 @@ int main() {
                  "\"[world]regularcamerasweep:%s->%scategory=%s"
                  "bars_left=%d"
                  "duration=%s[%d,%d]duration_source=%sduration_draw=%s%zu"
-                 "mode=%sfilter_source=ShotMatches"
+                 "mode=%sgamecfg_mode=%sfaceoff_active_players=%d"
+                 "filter_source=ShotMatches"
                  "source_category=%ssource_filters=\\\"%s\\\""
                  "source_previous=%s"
                  "source_walking=%dsource_walking_gate=%s"
@@ -12057,6 +12058,27 @@ int main() {
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");
   ok &= contains(gameplay_c,
+                 "boolcamera_source_gamecfg_mode_multi_vs(){"
+                 "returnstd::string_view(camera_source_gamecfg_mode())=="
+                 "\"multi_vs\";}",
+                 "regular camera filter exposes the source gamecfg multi_vs branch");
+  ok &= contains(gameplay_c,
+                 "returnstd::clamp(env_int("
+                 "\"GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS\",0),0,2);",
+                 "regular camera diagnostics can seed source faceoff_active_players");
+  ok &= contains(gameplay_c,
+                 "if(mode==CameraShotMode::Regular&&source_multi_vs){",
+                 "regular camera filter mirrors the source multi_vs branch before previous-shot filters");
+  ok &= contains(gameplay_c,
+                 "camera_symbol_filter(\"facing\",{\"left\"})",
+                 "multi_vs active player 1 forces the source facing left filter");
+  ok &= contains(gameplay_c,
+                 "camera_symbol_filter(\"facing\",{\"right\"})",
+                 "multi_vs active player 2 forces the source facing right filter");
+  ok &= contains(gameplay_c,
+                 "camera_symbol_filter(\"facing\",{\"null\"})",
+                 "multi_vs no active faceoff player forces the source facing null filter");
+  ok &= contains(gameplay_c,
                  "camera_symbol_filter(\"facing\",{\"right\",\"null\"})",
                  "regular camera previous-left guard matches the source right/null list only");
   ok &= contains(gameplay_c,
@@ -12283,9 +12305,11 @@ int main() {
                  "camera_source_script_filter_label(",
                  "regular camera sweep rows stamp the active source filter list");
   ok &= contains(gameplay_c,
-                 "source_category=%ssource_filters=\\\"%s\\\""
+                 "gamecfg_mode=%sfaceoff_active_players=%d"
+                 "filter_source=ShotMatchessource_category=%s"
+                 "source_filters=\\\"%s\\\""
                  "source_previous=%s",
-                 "regular camera sweep diagnostics expose source category, filters, and previous shot");
+                 "regular camera sweep diagnostics expose source mode, faceoff, category, filters, and previous shot");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
                  "constGameplay::CameraKey*previous)",

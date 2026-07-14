@@ -16343,7 +16343,9 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
                               bool low_excitement,
                               bool walking,
                               bool starpower,
-                              CameraShotMode mode) {
+                              CameraShotMode mode,
+                              bool source_multi_vs,
+                              int source_faceoff_active_players) {
     // Community world_objects_worldbase.dta::pick_regular_camera_shot and
     // pick_solo_camera_shot share the state filters, but differ in solo tags
     // and the far/behind distance repeat guard. band_jump and crowd lighters
@@ -16355,6 +16357,19 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     }
     if (!camera_state_filter_ok(key, low_excitement, walking, starpower))
         return false;
+
+    if (mode == CameraShotMode::Regular && source_multi_vs) {
+        if (source_faceoff_active_players == 1) {
+            return camera_shot_matches_source_filters(
+                key, {camera_symbol_filter("facing", {"left"})});
+        }
+        if (source_faceoff_active_players == 2) {
+            return camera_shot_matches_source_filters(
+                key, {camera_symbol_filter("facing", {"right"})});
+        }
+        return camera_shot_matches_source_filters(
+            key, {camera_symbol_filter("facing", {"null"})});
+    }
 
     if (previous) {
         if (previous->facing == "left" &&
@@ -16469,6 +16484,19 @@ const char* camera_source_guitarist0_actually_walking_source() {
     return "guitarist0::actually_walking(native_deferred)";
 }
 
+const char* camera_source_gamecfg_mode() {
+    const char* mode = env_value("GHOGX_CAMERA_GAMECFG_MODE");
+    return mode && mode[0] ? mode : "quickplay";
+}
+
+bool camera_source_gamecfg_mode_multi_vs() {
+    return std::string_view(camera_source_gamecfg_mode()) == "multi_vs";
+}
+
+int camera_source_faceoff_active_players() {
+    return std::clamp(env_int("GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS", 0), 0, 2);
+}
+
 std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
     return mode == CameraShotMode::Lighter ? "LIGHTER"
                                            : "NORMAL_CAMSHOT_CATEGORIES";
@@ -16488,9 +16516,19 @@ std::string camera_source_regular_script_filter_label(
     const Gameplay::CameraKey* previous,
     bool low_excitement,
     bool walking,
-    bool starpower) {
+    bool starpower,
+    bool source_multi_vs,
+    int source_faceoff_active_players) {
     std::vector<std::string> filters;
-    if (previous) {
+    if (source_multi_vs) {
+        if (source_faceoff_active_players == 1) {
+            filters.push_back("(facing left)");
+        } else if (source_faceoff_active_players == 2) {
+            filters.push_back("(facing right)");
+        } else {
+            filters.push_back("(facing null)");
+        }
+    } else if (previous) {
         if (previous->facing == "left") {
             filters.push_back("(facing (right null))");
         } else if (previous->facing == "right") {
@@ -16535,7 +16573,9 @@ std::string camera_source_script_filter_label(
     const Gameplay::CameraKey* previous,
     bool low_excitement,
     bool walking,
-    bool starpower) {
+    bool starpower,
+    bool source_multi_vs,
+    int source_faceoff_active_players) {
     if (mode == CameraShotMode::Lighter) return "none";
     if (mode == CameraShotMode::Jump) return "(jump_ok TRUE)";
     if (mode == CameraShotMode::Solo) {
@@ -16543,7 +16583,8 @@ std::string camera_source_script_filter_label(
             previous, low_excitement, walking, starpower);
     }
     return camera_source_regular_script_filter_label(
-        previous, low_excitement, walking, starpower);
+        previous, low_excitement, walking, starpower, source_multi_vs,
+        source_faceoff_active_players);
 }
 
 void camera_source_first_shot_ok(std::string_view category) {
@@ -16669,10 +16710,13 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
+    const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
+    const int source_faceoff_players = camera_source_faceoff_active_players();
     auto source_filter = [&](const Gameplay::CameraKey& key) {
         return regular_camera_filter_ok(key, source_previous,
                                         low_excitement, walking, starpower,
-                                        mode);
+                                        mode, source_multi_vs,
+                                        source_faceoff_players);
     };
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const std::string_view source_category =
@@ -33378,6 +33422,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const bool kGuitaristWalking =
                     camera_source_guitarist0_actually_walking();
                 const bool guitarist_starpower = star_power_.active;
+                const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
+                const int source_faceoff_players =
+                    camera_source_faceoff_active_players();
                 const CameraKey* key = nullptr;
                 const CameraKey* source_previous_fallback =
                     active_regular_camera_.empty() && !camera_keys_.empty()
@@ -33395,7 +33442,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const std::string source_filters_for_log =
                     camera_source_script_filter_label(
                         camera_mode, source_previous_for_log, low_excitement,
-                        kGuitaristWalking, guitarist_starpower);
+                        kGuitaristWalking, guitarist_starpower,
+                        source_multi_vs, source_faceoff_players);
                 bool diagnostic_camera_shot_matched = false;
                 bool diagnostic_camera_shot_missing = false;
                 if (!diagnostic_camera_shot_.empty()) {
@@ -33428,7 +33476,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     queue_regular_camera_shot(*key, source_handler);
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
+                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -33436,6 +33484,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         duration_source, duration_random_draw ? "" : "none/",
                         duration_random_draw.value_or(size_t{0}),
                         camera_shot_mode_label(camera_mode),
+                        camera_source_gamecfg_mode(), source_faceoff_players,
                         diagnostic_camera_shot_matched
                             ? "diagnostic"
                             : source_category_for_log.c_str(),
