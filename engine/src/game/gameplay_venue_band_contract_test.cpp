@@ -10044,6 +10044,10 @@ int main() {
                  "constboolsame_shot=previous&&previous->name==current.name;",
                  "regular camera sweeps only blend same-shot position changes");
   ok &= contains(gameplay_c,
+                 "conststd::stringsolo=prop_symbol(decoded_shot->props,"
+                 "\"solo\",\"ok\");",
+                 "regular CamShot loader applies world/camshot.dta solo=ok default");
+  ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
   ok &= contains(gameplay_h_c,
@@ -10522,11 +10526,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Solo){"
                  "returncamera_shot_matches_source_filters("
-                 "key,{camera_symbol_filter(\"solo\",{\"\",\"ok\",\"only\"})});}",
+                 "key,{camera_symbol_filter(\"solo\",{\"ok\",\"only\"})});}",
                  "solo camera mode mirrors pick_solo_camera_shot solo filter");
   ok &= contains(gameplay_c,
                  "returncamera_shot_matches_source_filters("
-                 "key,{camera_symbol_filter(\"solo\",{\"\",\"ok\",\"never\"})});",
+                 "key,{camera_symbol_filter(\"solo\",{\"ok\",\"never\"})});",
                  "regular camera mode mirrors pick_regular_camera_shot solo filter");
   ok &= contains(gameplay_c,
                  "constboolsolo_camera=camera_section_is_solo_at(",

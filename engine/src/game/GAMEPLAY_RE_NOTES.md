@@ -195,6 +195,12 @@ Open work:
   the native SetFrame/Poll mirror, so a non-empty `next_shot` follows GH2's
   `world do_force_shot`: refresh `camera_bars_left`, queue CameraManager's
   `mNextShot`, and let the next PrePoll consume it.
+- 2026-07-14 regular/solo CamShot `solo` filter exactness:
+  GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` appends
+  `solo (ok never)`, while `pick_solo_camera_shot` appends `solo (ok only)`.
+  Native now defaults missing regular CamShot `solo` fields to `ok` from
+  `world/camshot.dta`, so the selector no longer accepts an empty solo symbol
+  as an extra native-only match.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

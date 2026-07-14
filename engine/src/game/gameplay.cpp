@@ -14848,7 +14848,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             if (intro_category || (!normal_category && !lighter_category)) continue;
 
             const bool special = prop_bool(decoded_shot->props, "special", false);
-            const std::string solo = prop_symbol(decoded_shot->props, "solo");
+            const std::string solo = prop_symbol(decoded_shot->props, "solo", "ok");
             if (!solo.empty() && solo != "ok" && solo != "never" &&
                 solo != "only")
                 continue;
@@ -15374,10 +15374,10 @@ bool camera_mode_filter_ok(const Gameplay::CameraKey& key,
     }
     if (mode == CameraShotMode::Solo) {
         return camera_shot_matches_source_filters(
-            key, {camera_symbol_filter("solo", {"", "ok", "only"})});
+            key, {camera_symbol_filter("solo", {"ok", "only"})});
     }
     return camera_shot_matches_source_filters(
-        key, {camera_symbol_filter("solo", {"", "ok", "never"})});
+        key, {camera_symbol_filter("solo", {"ok", "never"})});
 }
 
 bool camera_state_filter_ok(const Gameplay::CameraKey& key,
