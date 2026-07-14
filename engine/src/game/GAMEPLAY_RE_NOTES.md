@@ -300,15 +300,15 @@ Open work:
   decoding now applies the same conversion before the renderer installs
   authored camera projection fields. This is loader/source-contract plumbing,
   not a per-shot camera-angle correction.
-- 2026-07-14 CameraManager `num_shots` probe:
-  ihatecompvir `CameraManager::NumCameraShots` sends `first_shot_ok(category)`,
-  scans the category list, and counts only shots where `Disabled() == 0`,
-  `ShotMatches(...)`, and `ShotOk(mCurrentShot)` all pass. Native now emits a
-  debug-only `camera num_shots` probe before regular scripted selection using
-  those same gates and explicitly labels it non-mutating. This gives camera
-  proof logs a source-shaped eligible-shot count without relaxing filters,
-  changing category rotation, or inventing the deferred GH2 `cam_shot_ok`
-  predicate.
+- 2026-07-14 CameraManager `num_shots` prescan:
+  ihatecompvir `CameraManager::PickCameraShot` does not call
+  `NumCameraShots`; it reaches `FindCameraShot`, sends a single
+  `first_shot_ok(category)`, then runs the live `ShotOk(mCurrentShot)` scan.
+  Native debug rows now keep the candidate count as a non-source-call prescan
+  over `Disabled()` and `ShotMatches(...)` only, with
+  `shot_ok_probe=0 source_call=none`. This prevents debug logging from sending
+  extra `shot_ok` messages before the real selection path, which matters once
+  the deferred GH2 `cam_shot_ok` body is recovered.
 - 2026-07-14 camera duration `random_int` source Rand:
   ihatecompvir `DataFunc::DataRandomInt` routes through `RandomInt(low, high)`,
   while the recovered source global starts as `gRand(0x29A)` and

@@ -11877,23 +11877,32 @@ int main() {
                  "choose_regular_camera_key_index_by_category(",
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");
   ok &= contains(gameplay_c,
-                 "size_tcamera_source_num_camera_shots_probe(",
-                 "regular camera diagnostics expose ihatecompvir CameraManager::NumCameraShots shape");
+                 "size_tcamera_source_camera_shots_prescan_count(",
+                 "regular camera diagnostics expose a non-mutating pre-shot_ok candidate count");
   ok &= contains(gameplay_c,
                  "if(key.disabled_flags!=0)continue;"
                  "if(!predicate(key))continue;"
-                 "if(!camera_source_shot_ok(key,previous))continue;",
-                 "regular camera num_shots probe mirrors Disabled, ShotMatches, ShotOk count gates");
+                 "++count;",
+                 "regular camera diagnostic prescan mirrors Disabled and ShotMatches without extra ShotOk calls");
   ok &= contains(gameplay_c,
-                 "\"[world]cameranum_shots:source_msg=num_shots"
+                 "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
                  "category=%smode=%sprevious=%scount=%zu"
-                 "source_mutates_category=0\\n\"",
-                 "regular camera diagnostics expose non-mutating source num_shots count");
+                 "shot_ok_probe=0source_call=nonesource_mutates_category=0\\n\"",
+                 "regular camera diagnostics label prescan counts as non-source-call proof");
+  ok &= absent(gameplay_c,
+               "camera_source_num_camera_shots_probe(",
+               "regular camera selection must not run a debug NumCameraShots probe with extra ShotOk calls");
   ok &= appears_before(gameplay_c,
                        "constsize_tnum_shots="
-                       "camera_source_num_camera_shots_probe(",
+                       "camera_source_camera_shots_prescan_count(",
+                       "camera_source_first_shot_ok("
+                       "camera_source_pick_shot_category(mode));",
+                       "regular camera diagnostic prescan runs before the single source FirstShotOk call");
+  ok &= appears_before(gameplay_c,
+                       "camera_source_first_shot_ok("
+                       "camera_source_pick_shot_category(mode));",
                        "std::optional<size_t>selected=",
-                       "regular camera num_shots diagnostics run before source pick selection");
+                       "regular camera selector sends FirstShotOk immediately before source pick selection");
   ok &= contains(gameplay_c,
                  "constsize_tselected_index=*selected;",
                  "regular camera selector takes the first eligible CamShot in the active category bucket");
