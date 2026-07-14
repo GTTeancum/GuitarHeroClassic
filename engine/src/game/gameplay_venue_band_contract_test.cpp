@@ -11914,15 +11914,60 @@ int main() {
                  "\"[world]cameradownbeat:source_msg=downbeat",
                  "camera diagnostics expose the source downbeat gate");
   ok &= contains(gameplay_c,
-                 "if(force_camera||(camera_check_shot_due&&"
-                 "camera_bars_left_<=0)){",
-                 "regular camera selection follows source downbeat check_camera_shot cadence");
+                 "if(!source_game_over_camera_hold&&"
+                 "(force_camera||(camera_check_shot_due&&"
+                 "camera_bars_left_<=0))){",
+                 "regular camera selection follows source downbeat check_camera_shot cadence while preserving game-over picks");
   ok &= absent(gameplay_c,
                "if(force_camera||camera_bars_left_<=0){",
                "regular camera selection must not retry every frame after a source duration expires");
   ok &= absent(gameplay_c,
                "camera_bars_left_<=0||active_regular_camera_.empty()",
                "regular camera selection must not retry every frame after a failed source pick");
+  ok &= contains(gameplay_c,
+                 "constGameplay::CameraKey*choose_camera_key_source_category(",
+                 "source category pick_shot uses the shared CameraManager::FindCameraShot route");
+  ok &= contains(gameplay_c,
+                 "if(key.category!=category)continue;"
+                 "if(key.disabled_flags!=0){",
+                 "source category picker scans one authored category and preserves Disabled gate ordering");
+  ok &= contains(gameplay_c,
+                 "if(!camera_source_shot_ok(key,source_previous))continue;"
+                 "selected=i;",
+                 "source category picker runs CamShot::ShotOk before accepting a WIN/LOSE shot");
+  ok &= contains(gameplay_c,
+                 "boolGameplay::queue_source_category_camera_shot("
+                 "std::string_viewcategory,constchar*source_message)",
+                 "gameplay exposes a reusable source category camera queue");
+  ok &= contains(gameplay_c,
+                 "constCameraKey*key=choose_camera_key_source_category("
+                 "regular_camera_keys_,active_regular_camera_,",
+                 "source category queue reuses the active regular shot as previous context");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_source_game_over_camera_messages(",
+                 "gameplay mirrors source game_lost/game_won_msg camera routing");
+  ok &= contains(gameplay_c,
+                 "source_game_lost_camera_dispatched_=true;"
+                 "camera_bars_left_=100;",
+                 "world_objects_worldbase.dta::game_lost holds the camera for 100 bars");
+  ok &= contains(gameplay_c,
+                 "queue_source_category_camera_shot(\"LOSE\",\"game_lost\");",
+                 "world_objects_worldbase.dta::game_lost routes pick_shot LOSE");
+  ok &= contains(gameplay_c,
+                 "source_game_won_camera_category_=\"WIN\";",
+                 "quickplay game_won_msg resolves the non-campaign non-encore WIN category");
+  ok &= contains(gameplay_c,
+                 "source_game_won_message_time_+kSourceWinCameraDelaySeconds",
+                 "game_won_msg preserves WIN_CAMERA_DELAY before pick_shot");
+  ok &= contains(gameplay_c,
+                 "queue_source_category_camera_shot("
+                 "source_game_won_camera_category_,\"game_won_msg\");",
+                 "world_objects_worldbase.dta::game_won_msg routes delayed pick_shot through the source category picker");
+  ok &= contains(gameplay_c,
+                 "constboolsource_game_over_camera_hold="
+                 "source_game_lost_camera_dispatched_||"
+                 "source_game_won_message_dispatched_;",
+                 "game-over source messages hold off normal cadence camera replacement");
   ok &= contains(gameplay_c,
                  "choose_regular_camera_key_index_by_category(",
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");

@@ -16134,6 +16134,8 @@ bool camera_shot_matches_source_filters(
 
 enum class CameraShotMode { Regular, Solo, Jump, Lighter };
 
+constexpr double kSourceWinCameraDelaySeconds = 1.75;
+
 constexpr std::array<std::string_view, 9> kNormalCamShotCategoryOrder = {
     "flr_near_lft", "flr_near_rt", "flr_far_lft",
     "flr_far_rt",  "band_POV",    "balcony_lft",
@@ -16704,6 +16706,97 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
             "[world] camera FindCameraShot move: source_manager=CameraManager::FindCameraShot shot=%s category=%s bucket_index=%zu source_move=MoveItem(end) before=%s after=%s\n",
             selected_name.c_str(), selected_category.c_str(),
             selected_bucket_index, before_order.c_str(), after_order.c_str());
+    }
+    return &*inserted;
+}
+
+size_t camera_source_category_prescan_count(
+    const std::vector<Gameplay::CameraKey>& keys,
+    std::string_view category) {
+    size_t count = 0;
+    for (const auto& key : keys) {
+        if (key.category != category) continue;
+        if (key.disabled_flags != 0) continue;
+        ++count;
+    }
+    return count;
+}
+
+const Gameplay::CameraKey* choose_camera_key_source_category(
+    std::vector<Gameplay::CameraKey>& keys,
+    std::string_view previous_name,
+    const Gameplay::CameraKey* source_previous_fallback,
+    std::string_view category,
+    std::string_view source_message) {
+    if (keys.empty() || category.empty()) return nullptr;
+    const Gameplay::CameraKey* source_previous =
+        camera_source_previous_key_for_selection(
+            keys, previous_name, source_previous_fallback);
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const size_t num_shots =
+            camera_source_category_prescan_count(keys, category);
+        std::fprintf(
+            stderr,
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=0 source_call=none source_mutates_category=0\n",
+            std::string(category).c_str(),
+            source_previous ? source_previous->name.c_str() : "",
+            num_shots);
+    }
+    camera_source_first_shot_ok(category);
+
+    std::optional<size_t> selected;
+    for (size_t i = 0; i < keys.size(); ++i) {
+        const auto& key = keys[i];
+        if (key.category != category) continue;
+        if (key.disabled_flags != 0) {
+            if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] camera FindCameraShot: shot=%s skipped disabled=0x%08x\n",
+                    key.name.c_str(),
+                    static_cast<unsigned int>(key.disabled_flags));
+            }
+            continue;
+        }
+        if (!camera_source_shot_ok(key, source_previous)) continue;
+        selected = i;
+        break;
+    }
+
+    if (!selected) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot\" category=%s mode=source_category source_msg=%s result=0\n",
+                std::string(category).c_str(),
+                std::string(source_message).c_str());
+        }
+        return nullptr;
+    }
+
+    const size_t selected_index = *selected;
+    const std::string selected_category = keys[selected_index].category;
+    const std::string selected_name = keys[selected_index].name;
+    const size_t selected_bucket_index =
+        camera_category_bucket_index(keys, selected_category, selected_index);
+    const std::string before_order =
+        camera_category_bucket_order_for_log(keys, selected_category);
+    Gameplay::CameraKey chosen = std::move(keys[selected_index]);
+    keys.erase(keys.begin() + static_cast<std::ptrdiff_t>(selected_index));
+    auto insert_pos = keys.end();
+    for (auto it = keys.begin(); it != keys.end(); ++it) {
+        if (it->category == selected_category) insert_pos = std::next(it);
+    }
+    auto inserted = keys.insert(insert_pos, std::move(chosen));
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const std::string after_order =
+            camera_category_bucket_order_for_log(keys, selected_category);
+        std::fprintf(
+            stderr,
+            "[world] camera FindCameraShot move: source_manager=CameraManager::FindCameraShot shot=%s category=%s bucket_index=%zu source_move=MoveItem(end) source_msg=%s before=%s after=%s\n",
+            selected_name.c_str(), selected_category.c_str(),
+            selected_bucket_index, std::string(source_message).c_str(),
+            before_order.c_str(), after_order.c_str());
     }
     return &*inserted;
 }
@@ -22779,6 +22872,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     camera_shot_counter_ = 0;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
+    source_game_lost_camera_dispatched_ = false;
+    source_game_won_message_dispatched_ = false;
+    source_game_won_camera_dispatched_ = false;
+    source_game_won_message_time_ = 0.0;
+    source_game_won_camera_category_.clear();
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
     active_worldcrowd_lighter_group_.clear();
@@ -23703,6 +23801,99 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
                 pending_regular_camera_start_, song_time_);
         }
     }
+}
+
+bool Gameplay::queue_source_category_camera_shot(
+    std::string_view category, const char* source_message) {
+    const CameraKey* source_previous_fallback =
+        active_regular_camera_.empty() && !camera_keys_.empty()
+            ? &camera_keys_.front()
+            : nullptr;
+    const CameraKey* key = choose_camera_key_source_category(
+        regular_camera_keys_, active_regular_camera_,
+        source_previous_fallback, category,
+        source_message && source_message[0] ? source_message : "pick_shot");
+    if (!key) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera source category pick: source_msg=%s source_action=pick_shot category=%s result=none\n",
+                source_message && source_message[0] ? source_message
+                                                    : "pick_shot",
+                std::string(category).c_str());
+        }
+        return false;
+    }
+    queue_regular_camera_shot(*key, "PickCameraShot");
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera source category pick: source_msg=%s source_action=pick_shot category=%s shot=%s result=pending\n",
+            source_message && source_message[0] ? source_message : "pick_shot",
+            std::string(category).c_str(), key->name.c_str());
+    }
+    return true;
+}
+
+void Gameplay::update_source_game_over_camera_messages(
+    bool authored_gameplay_cameras_active,
+    bool in_intro_camera_window) {
+    if (!authored_gameplay_cameras_active || in_intro_camera_window ||
+        regular_camera_keys_.empty()) {
+        return;
+    }
+
+    if (failed_) {
+        if (source_game_lost_camera_dispatched_) return;
+        source_game_lost_camera_dispatched_ = true;
+        camera_bars_left_ = 100;
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera game_lost: source_msg=game_lost source_script=\"set camera_bars_left 100; pick_shot LOSE\" bars_left=%d\n",
+                camera_bars_left_);
+        }
+        queue_source_category_camera_shot("LOSE", "game_lost");
+        return;
+    }
+
+    if (!chart_loaded_ ||
+        song_time_ < std::max(0.0, chart_.duration_sec())) {
+        return;
+    }
+
+    if (!source_game_won_message_dispatched_) {
+        source_game_won_message_dispatched_ = true;
+        source_game_won_message_time_ = song_time_;
+        // Quickplay has no campaign/encore gamecfg branch in this native path,
+        // so world_objects_worldbase.dta resolves game_won_msg to WIN.
+        source_game_won_camera_category_ = "WIN";
+        camera_bars_left_ = 100;
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera game_won_msg: source_msg=game_won_msg source_script=\"set camera_bars_left 100; script_task delay WIN_CAMERA_DELAY\" category=%s category_source=quickplay_non_campaign_non_encore delay=%.3f bars_left=%d\n",
+                source_game_won_camera_category_.c_str(),
+                kSourceWinCameraDelaySeconds, camera_bars_left_);
+        }
+    }
+
+    if (source_game_won_camera_dispatched_) return;
+    if (song_time_ + 1e-6 <
+        source_game_won_message_time_ + kSourceWinCameraDelaySeconds) {
+        return;
+    }
+    source_game_won_camera_dispatched_ = true;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera game_won_msg pick: source_msg=game_won_msg source_action=\"pick_shot $category\" category=%s elapsed=%.3f delay=%.3f\n",
+            source_game_won_camera_category_.c_str(),
+            song_time_ - source_game_won_message_time_,
+            kSourceWinCameraDelaySeconds);
+    }
+    queue_source_category_camera_shot(source_game_won_camera_category_,
+                                      "game_won_msg");
 }
 
 const Gameplay::CameraKey* Gameplay::camera_manager_source_shot_after(
@@ -32755,6 +32946,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
         const bool authored_gameplay_cameras_active =
             !diagnostic_camera_shot_.empty() ||
             authored_gameplay_cameras_enabled();
+        update_source_game_over_camera_messages(
+            authored_gameplay_cameras_active, in_intro_camera_window);
+        const bool source_game_over_camera_hold =
+            source_game_lost_camera_dispatched_ ||
+            source_game_won_message_dispatched_;
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;
@@ -32922,8 +33118,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            if (force_camera ||
-                (camera_check_shot_due && camera_bars_left_ <= 0)) {
+            if (!source_game_over_camera_hold &&
+                (force_camera ||
+                 (camera_check_shot_due && camera_bars_left_ <= 0))) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);

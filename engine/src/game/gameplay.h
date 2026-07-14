@@ -23,6 +23,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -787,6 +788,11 @@ class Gameplay {
                                      const CameraKey& key);
   void queue_regular_camera_shot(const CameraKey& key,
                                  const char* source_handler);
+  bool queue_source_category_camera_shot(std::string_view category,
+                                         const char* source_message);
+  void update_source_game_over_camera_messages(
+      bool authored_gameplay_cameras_active,
+      bool in_intro_camera_window);
   const CameraKey* camera_manager_source_shot_after(
       const std::string& current_name) const;
   bool consume_pending_regular_camera_shot();
@@ -996,6 +1002,11 @@ class Gameplay {
   size_t camera_shot_counter_ = 0;
   CameraResultBuilderState camera_result_builder_state_;
   int active_force_char_lod_ = -1;
+  bool source_game_lost_camera_dispatched_ = false;
+  bool source_game_won_message_dispatched_ = false;
+  bool source_game_won_camera_dispatched_ = false;
+  double source_game_won_message_time_ = 0.0;
+  std::string source_game_won_camera_category_;
   bool did_lighter_cam_ = false;
   bool crowd_lighter_on_ = false;
   std::string active_worldcrowd_lighter_group_;

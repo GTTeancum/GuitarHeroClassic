@@ -90,6 +90,21 @@
   prevents `shot_over -> do_force_shot` handoffs from inheriting a queue-time
   start that is one native frame early, while preserving diagnostic path-frame
   offsets.
+- 2026-07-14 source game-over camera categories:
+  GH2 `world_objects_worldbase.dta::game_lost` sets `camera_bars_left` to 100
+  and immediately calls `pick_shot LOSE`; `game_won_msg` sets the same hold,
+  waits `WIN_CAMERA_DELAY` (1.75 seconds), then calls `pick_shot` on the
+  source win category. Native now routes those source messages through a
+  generic category picker that mirrors ihatecompvir
+  `CameraManager::PickCameraShot -> FindCameraShot` ordering: `FirstShotOk`,
+  Disabled gate, empty `ShotMatches`, `CamShot::ShotOk`, and category-local
+  move-to-end. Quickplay resolves the non-campaign, non-encore win category to
+  `WIN`; no fallback shot is invented if the source category has no acceptable
+  CamShot. Validation rebuilt `ghogx_app` and the venue/band contract target,
+  then captured `engine/out/camera_game_over_lose_20260714_002/` with
+  `--diagnostic-rock 0.0`: the log shows
+  `game_lost -> first_shot_ok LOSE -> shot_ok lose01 -> mNextShot -> PrePoll`,
+  and frame `00090` screenshots the source `LOSE` camera in the failed state.
 - 2026-07-14 CamShot DOF unset lifecycle: ihatecompvir
   `CamShotFrame::Interp` calls `TheDOFProc->UnSet()` when the shot/frame does
   not activate depth of field, and `CameraManager` unsets DOF during teardown.
