@@ -151,6 +151,14 @@ Open work:
   but the hook currently accepts until GH2's native `cam_shot_ok` predicate is
   recovered. This preserves the source selection shape without inventing
   hidden script behavior.
+- 2026-07-14 CameraManager accepted-shot rotation proof:
+  ihatecompvir `CameraManager::FindCameraShot` calls
+  `camlist->MoveItem(camlist->end(), *camlist, it)` only after
+  `Disabled()`, `ShotMatches(...)`, and `ShotOk(mCurrentShot)` accept a
+  candidate. Native already rotates the accepted CamShot to the end of its
+  category bucket; the debug proof now logs the bucket index and category order
+  before/after that source-shaped move. This is selection-order evidence for
+  future angle runs, not a fabricated `cam_shot_ok` predicate.
 - 2026-07-13 CamShot `ShotOk` return contract: ihatecompvir's
   `CamShot::ShotOk` accepts unhandled `shot_ok` results and true integer
   returns, while string returns and false integer returns reject the candidate.

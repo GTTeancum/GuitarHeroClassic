@@ -16244,6 +16244,27 @@ void camera_source_no_acceptable_shot(std::string_view category,
     }
 }
 
+std::string camera_category_bucket_order_for_log(
+    const std::vector<Gameplay::CameraKey>& keys,
+    std::string_view category) {
+    std::vector<std::string> names;
+    for (const auto& key : keys) {
+        if (key.category == category) names.push_back(key.name);
+    }
+    return join_log_names(names);
+}
+
+size_t camera_category_bucket_index(
+    const std::vector<Gameplay::CameraKey>& keys,
+    std::string_view category,
+    size_t key_index) {
+    size_t bucket_index = 0;
+    for (size_t i = 0; i < key_index && i < keys.size(); ++i) {
+        if (keys[i].category == category) ++bucket_index;
+    }
+    return bucket_index;
+}
+
 template <typename Predicate>
 std::optional<size_t> choose_regular_camera_key_index_by_category(
     const std::vector<Gameplay::CameraKey>& keys,
@@ -16358,13 +16379,28 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     }
     const size_t selected_index = *selected;
     const std::string selected_category = keys[selected_index].category;
+    const std::string selected_name = keys[selected_index].name;
+    const size_t selected_bucket_index =
+        camera_category_bucket_index(keys, selected_category, selected_index);
+    const std::string before_order =
+        camera_category_bucket_order_for_log(keys, selected_category);
     Gameplay::CameraKey chosen = std::move(keys[selected_index]);
     keys.erase(keys.begin() + static_cast<std::ptrdiff_t>(selected_index));
     auto insert_pos = keys.end();
     for (auto it = keys.begin(); it != keys.end(); ++it) {
         if (it->category == selected_category) insert_pos = std::next(it);
     }
-    return &*keys.insert(insert_pos, std::move(chosen));
+    auto inserted = keys.insert(insert_pos, std::move(chosen));
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const std::string after_order =
+            camera_category_bucket_order_for_log(keys, selected_category);
+        std::fprintf(
+            stderr,
+            "[world] camera FindCameraShot move: source_manager=CameraManager::FindCameraShot shot=%s category=%s bucket_index=%zu source_move=MoveItem(end) before=%s after=%s\n",
+            selected_name.c_str(), selected_category.c_str(),
+            selected_bucket_index, before_order.c_str(), after_order.c_str());
+    }
+    return &*inserted;
 }
 
 uint32_t camera_source_one_bar_to_trigger_tick(

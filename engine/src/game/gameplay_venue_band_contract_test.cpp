@@ -11300,11 +11300,26 @@ int main() {
                  "constsize_tselected_index=*selected;",
                  "regular camera selector takes the first eligible CamShot in the active category bucket");
   ok &= contains(gameplay_c,
+                 "std::stringcamera_category_bucket_order_for_log(",
+                 "regular camera selector can prove category bucket order");
+  ok &= contains(gameplay_c,
+                 "size_tcamera_category_bucket_index(",
+                 "regular camera selector can prove the accepted bucket slot");
+  ok &= contains(gameplay_c,
                  "keys.erase(keys.begin()+static_cast<std::ptrdiff_t>"
                  "(selected_index));",
                  "regular camera selector removes the chosen CamShot before category-local rotation");
   ok &= contains(gameplay_c,
-                 "return&*keys.insert(insert_pos,std::move(chosen));",
+                 "autoinserted=keys.insert(insert_pos,std::move(chosen));",
+                 "regular camera selector performs source MoveItem-style reinsertion");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraFindCameraShotmove:source_manager="
+                 "CameraManager::FindCameraShotshot=%scategory=%s"
+                 "bucket_index=%zusource_move=MoveItem(end)"
+                 "before=%safter=%s\\n\"",
+                 "regular camera diagnostics expose source accepted-shot move-to-end");
+  ok &= contains(gameplay_c,
+                 "return&*inserted;",
                  "regular camera selector returns the category-rotated CamShot");
   ok &= contains(gameplay_c,
                  "choose_regular_camera_key_scripted(regular_camera_keys_,"
