@@ -1232,6 +1232,30 @@ bool expect_clip_driver_helpers() {
     std::cerr << "shared frame layer builder mismatch\n";
     ok = false;
   }
+  ghogx::character::ClipChannelLayerStack batch_layer_stack;
+  const std::vector<ghogx::character::ClipPlayerLayerSource> batch_players = {
+      {&transition_player, 0.25f, true},
+      {nullptr, 1.0f, false}};
+  if (!ghogx::character::append_clip_player_layers(batch_layer_stack,
+                                                   batch_players) ||
+      batch_layer_stack.layers.size() != 1 ||
+      batch_layer_stack.layers[0].debug_name != "incoming.main" ||
+      !batch_layer_stack.layers[0].overlay_override) {
+    std::cerr << "shared player layer batch builder mismatch\n";
+    ok = false;
+  }
+  const std::vector<ghogx::character::ClipFrameLayerSource> batch_frames = {
+      {&frame_clip, 1, 0.75f, false},
+      {nullptr, 0, 1.0f, false}};
+  if (!ghogx::character::append_clip_frame_layers(batch_layer_stack,
+                                                  batch_frames) ||
+      batch_layer_stack.layers.size() != 2 ||
+      batch_layer_stack.layers[1].debug_name != "frame.main" ||
+      batch_layer_stack.layers[1].channels.size() != 1 ||
+      batch_layer_stack.relative) {
+    std::cerr << "shared frame layer batch builder mismatch\n";
+    ok = false;
+  }
   ghogx::character::Character empty_character;
   ghogx::character::ClipChannelLayerStack empty_layer_stack;
   ghogx::character::apply_clip_layer_stack(empty_layer_stack, empty_character);

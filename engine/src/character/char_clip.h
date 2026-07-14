@@ -1096,14 +1096,32 @@ class CharClipPlayer {
   std::vector<Layer> layers_;
 };
 
+struct ClipPlayerLayerSource {
+  const CharClipPlayer* player = nullptr;
+  float weight = 1.0f;
+  bool overlay_override = false;
+};
+
+struct ClipFrameLayerSource {
+  const CharClip* clip = nullptr;
+  int frame_idx = 0;
+  float weight = 1.0f;
+  bool overlay_override = false;
+};
+
 bool append_clip_player_layer(ClipChannelLayerStack& stack,
                               const CharClipPlayer& player,
                               float weight = 1.0f,
                               bool overlay_override = false);
+bool append_clip_player_layers(
+    ClipChannelLayerStack& stack,
+    const std::vector<ClipPlayerLayerSource>& sources);
 bool append_clip_frame_layer(ClipChannelLayerStack& stack,
                              const CharClip& clip, int frame_idx,
                              float weight = 1.0f,
                              bool overlay_override = false);
+bool append_clip_frame_layers(ClipChannelLayerStack& stack,
+                              const std::vector<ClipFrameLayerSource>& sources);
 void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
                             Character& character);
 

@@ -10314,6 +10314,19 @@ bool append_clip_player_layer(ClipChannelLayerStack& stack,
   return true;
 }
 
+bool append_clip_player_layers(
+    ClipChannelLayerStack& stack,
+    const std::vector<ClipPlayerLayerSource>& sources) {
+  bool appended = false;
+  for (const auto& source : sources) {
+    if (source.player == nullptr) continue;
+    appended = append_clip_player_layer(stack, *source.player, source.weight,
+                                        source.overlay_override) ||
+               appended;
+  }
+  return appended;
+}
+
 bool append_clip_frame_layer(ClipChannelLayerStack& stack, const CharClip& clip,
                              int frame_idx, float weight,
                              bool overlay_override) {
@@ -10325,6 +10338,20 @@ bool append_clip_frame_layer(ClipChannelLayerStack& stack, const CharClip& clip,
       clip.frames[static_cast<size_t>(fi)], weight, &clip.output_bones,
       clip.name, clip.relative, overlay_override});
   return true;
+}
+
+bool append_clip_frame_layers(
+    ClipChannelLayerStack& stack,
+    const std::vector<ClipFrameLayerSource>& sources) {
+  bool appended = false;
+  for (const auto& source : sources) {
+    if (source.clip == nullptr) continue;
+    appended = append_clip_frame_layer(stack, *source.clip, source.frame_idx,
+                                       source.weight,
+                                       source.overlay_override) ||
+               appended;
+  }
+  return appended;
 }
 
 void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
