@@ -26285,6 +26285,10 @@ int run_contract() {
                  "floatweight,floatfrac);",
                  "native API exposes source CharBonesSamples ScaleAddSample helper");
   ok &= contains(char_clip_h,
+                 "std::vector<ClipChannelLayer>sampled_pose_layers("
+                 "floatweight=1.0f,booloverlay_override=false)const;",
+                 "native API exposes source-shaped clip sample layers");
+  ok &= contains(char_clip_h,
                  "boolsource_char_bones_samples_set_ver_known(intversion);",
                  "native API exposes source CharBonesSamples SetVer helper");
   ok &= contains(char_clip_h,
@@ -26441,6 +26445,19 @@ int run_contract() {
                  "source_char_bones_samples_split_steps(samples,sample,weight,"
                  "frac);}",
                  "native CharBonesSamples ScaleAddSample helper delegates source split");
+  ok &= contains(char_clip,
+                 "std::vector<ClipChannelLayer>CharClipPlayer::"
+                 "sampled_pose_layers(floatweight,booloverlay_override)const",
+                 "native CharClipPlayer exposes source-shaped sample layers");
+  ok &= contains(char_clip,
+                 "append_sample(*layer.clip,f0,(1.0f-frac)*weight);"
+                 "if(frac>0.0f&&f1!=f0){append_sample(*layer.clip,f1,"
+                 "frac*weight);}",
+                 "native single-clip player layers mirror ScaleAddSample split");
+  ok &= contains(char_clip,
+                 "CharClipDriver::ScaleAddstilllacksareviewable"
+                 "statementbody",
+                 "native multi-node player layers keep source boundary");
   ok &= contains(char_clip,
                  "boolsource_char_bones_samples_set_ver_known(intversion){"
                  "returnversion<13;}",

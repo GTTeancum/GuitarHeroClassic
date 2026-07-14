@@ -4822,6 +4822,12 @@ note, and all report `unreadBytes=0`.
   - `RotateBy`, `RotateTo`, and `ScaleAddSample` select
     `mRawData[mTotalSize * sample]` and split weight between sample `i` and
     `i + 1` by `frac`.
+    Native `CharClipPlayer::sampled_pose_layers` now preserves that
+    adjacent-sample split for a single active clip player by appending the
+    current frame at `(1 - frac) * weight` and the next frame at
+    `frac * weight`. Multi-node driver transitions still use the previous
+    collapsed diagnostic layer until `CharClipDriver::ScaleAdd` has a
+    statement-level body or direct trace.
   - `Load` reads `gVer`, asserts the public source range `13..16`, then
     delegates to `LoadHeader` and `LoadData`. Native
     `source_char_bones_samples_load_version_known` ports that exact range and
@@ -5508,6 +5514,15 @@ source-named hand rows, but they must not publish broad root/lower-body rows
 while the real `CharBonesSamples` / `CharBones::ScaleAdd` / `PoseMeshes`
 publisher remains unported. Non-overlay body clips still retain their decoded
 lower-body rows for diagnostics and future source-backed publisher work.
+
+2026-07-14 single-clip sample split import: `CharClipPlayer` now exposes
+`sampled_pose_layers`, and the shared player-layer appender uses it. For one
+active clip, this mirrors `CharBonesSamples::ScaleAddSample`: frame `i` is
+appended with `(1 - frac) * weight`, and frame `i + 1` is appended with
+`frac * weight` when `frac > 0`. The multi-node `CharClipDriver` transition path
+does not claim that source behavior yet; it keeps the old collapsed diagnostic
+layer because `CharClipDriver::ScaleAdd` remains a range/local-only body in the
+available ihatecompvir evidence.
 
 2026-07-14 shared controller-frame contract refresh: the left-hand contract now
 checks `apply_character_pose_controller_frame` as the single runtime boundary

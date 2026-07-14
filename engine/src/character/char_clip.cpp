@@ -10380,15 +10380,13 @@ bool append_clip_player_layer(ClipChannelLayerStack& stack,
                               const CharClipPlayer& player, float weight,
                               bool overlay_override) {
   if (!player.active()) return false;
-  auto channels = player.sampled_pose();
-  if (overlay_override) strip_overlay_lower_body_channels(channels);
-  if (channels.empty()) return false;
-  const bool relative = player.sampled_pose_relative();
-  update_layer_stack_relative(stack, relative);
-  const CharClip* clip = player.current_clip();
-  stack.layers.push_back(ClipChannelLayer{
-      std::move(channels), weight, clip ? &clip->output_bones : nullptr,
-      clip ? clip->name : std::string{}, relative, overlay_override});
+  std::vector<ClipChannelLayer> layers =
+      player.sampled_pose_layers(weight, overlay_override);
+  if (layers.empty()) return false;
+  for (auto& layer : layers) {
+    update_layer_stack_relative(stack, layer.relative);
+    stack.layers.push_back(std::move(layer));
+  }
   return true;
 }
 
@@ -10670,6 +10668,58 @@ void CharClipPlayer::apply(Character& character, float weight) const {
     apply_hand_driver_output_layer(frame, character, relative,
                                    current->output_bones);
   }
+}
+
+std::vector<ClipChannelLayer> CharClipPlayer::sampled_pose_layers(
+    float weight, bool overlay_override) const {
+  std::vector<ClipChannelLayer> out;
+  if (layers_.empty()) return out;
+
+  auto append_sample = [&](const CharClip& clip, int frame_idx,
+                           float sample_weight) {
+    if (clip.frames.empty()) return;
+    const int fi =
+        std::clamp(frame_idx, 0, static_cast<int>(clip.frames.size()) - 1);
+    std::vector<ClipChannel> channels = clip.frames[static_cast<size_t>(fi)];
+    if (overlay_override) strip_overlay_lower_body_channels(channels);
+    if (channels.empty()) return;
+    out.push_back(ClipChannelLayer{std::move(channels),
+                                   sample_weight,
+                                   &clip.output_bones,
+                                   clip.name,
+                                   clip.relative,
+                                   overlay_override});
+  };
+
+  if (layers_.size() == 1) {
+    const Layer& layer = layers_.back();
+    if (!layer.clip) return out;
+    const float frame =
+        clip_frame_float_at_time(*layer.clip, layer.time_seconds, layer.flags);
+    const int f0 = std::clamp(static_cast<int>(std::floor(frame)), 0,
+                              static_cast<int>(layer.clip->frames.size()) - 1);
+    const int f1 = std::min(f0 + 1,
+                            static_cast<int>(layer.clip->frames.size()) - 1);
+    const float frac = std::clamp(frame - static_cast<float>(f0), 0.0f, 1.0f);
+    append_sample(*layer.clip, f0, (1.0f - frac) * weight);
+    if (frac > 0.0f && f1 != f0) {
+      append_sample(*layer.clip, f1, frac * weight);
+    }
+    return out;
+  }
+
+  // CharBonesSamples::ScaleAddSample gives the adjacent-sample split inside a
+  // clip. CharClipDriver::ScaleAdd still lacks a reviewable statement body, so
+  // multi-node driver blends keep the existing collapsed diagnostic layer.
+  auto channels = sampled_pose();
+  if (overlay_override) strip_overlay_lower_body_channels(channels);
+  if (channels.empty()) return out;
+  const bool relative = sampled_pose_relative();
+  const CharClip* clip = current_clip();
+  out.push_back(ClipChannelLayer{
+      std::move(channels), weight, clip ? &clip->output_bones : nullptr,
+      clip ? clip->name : std::string{}, relative, overlay_override});
+  return out;
 }
 
 std::vector<ClipChannel> CharClipPlayer::sampled_pose() const {

@@ -1100,6 +1100,9 @@ class CharClipPlayer {
   void advance(float dt_seconds);
   void apply(Character& character, float weight = 1.0f) const;
   std::vector<ClipChannel> sampled_pose() const;
+  std::vector<ClipChannelLayer> sampled_pose_layers(
+      float weight = 1.0f,
+      bool overlay_override = false) const;
   bool sampled_pose_relative() const;
   float current_blend_weight() const;
   float evaluate_flags(uint32_t flags) const;

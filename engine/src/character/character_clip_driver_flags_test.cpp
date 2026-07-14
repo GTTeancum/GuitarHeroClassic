@@ -1257,6 +1257,33 @@ bool expect_clip_driver_helpers() {
     std::cerr << "shared frame overlay kept a lower-body row\n";
     ok = false;
   }
+  ghogx::character::CharClip split_clip;
+  split_clip.loaded = true;
+  split_clip.name = "split.main";
+  split_clip.fps = 30;
+  split_clip.frames.resize(2);
+  split_clip.frames[0].push_back(incoming_twist);
+  ghogx::character::ClipChannel split_next_twist = incoming_twist;
+  split_next_twist.angle = 1.2f;
+  split_clip.frames[1].push_back(split_next_twist);
+  ghogx::character::CharClipPlayer split_player;
+  split_player.play(split_clip,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend);
+  split_player.advance(1.0f / 60.0f);
+  ghogx::character::ClipChannelLayerStack split_stack;
+  if (!ghogx::character::append_clip_player_layer(split_stack, split_player,
+                                                  1.0f, false) ||
+      split_stack.layers.size() != 2 ||
+      split_stack.layers[0].debug_name != "split.main" ||
+      split_stack.layers[1].debug_name != "split.main" ||
+      !nearf(split_stack.layers[0].weight, 0.5f) ||
+      !nearf(split_stack.layers[1].weight, 0.5f) ||
+      split_stack.layers[0].channels[0].angle != incoming_twist.angle ||
+      split_stack.layers[1].channels[0].angle != split_next_twist.angle) {
+    std::cerr << "shared player layer did not preserve ScaleAddSample split\n";
+    ok = false;
+  }
   ghogx::character::ClipChannelLayerStack batch_layer_stack;
   const std::vector<ghogx::character::ClipPlayerLayerSource> batch_players = {
       {&transition_player, 0.25f, true},
