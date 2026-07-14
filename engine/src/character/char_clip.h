@@ -569,6 +569,32 @@ struct SourceGrimCharBonesSamplesExportTranslationPlan {
   std::vector<std::array<float, 3>> output_translations;
 };
 
+struct SourceGrimCharBonesSamplesExportRotationInput {
+  std::array<float, 4> base_rotation_xyzw = {0.0f, 0.0f, 0.0f, 1.0f};
+  float quat_weight = 1.0f;
+  float rotz_weight = 1.0f;
+  size_t pos_sample_count = 0;
+  std::vector<std::array<float, 4>> quat_samples_xyzw;
+  std::vector<float> rotz_samples;
+};
+
+struct SourceGrimCharBonesSamplesExportRotationPlan {
+  bool has_rotation_samples = false;
+  bool includes_pos_sample_count = true;
+  bool initializes_from_node_rotation = true;
+  bool quat_replaces_node_rotation = true;
+  bool rotz_post_multiplies = true;
+  bool rotz_uses_z_axis = true;
+  bool rotz_angle_is_pi_scaled = true;
+  bool uses_sample_index_times = true;
+  bool multiplies_sample_index_by_fps = true;
+  bool uses_frame_values = false;
+  float sample_time_step = 1.0f / 30.0f;
+  size_t sample_count = 0;
+  std::vector<float> input_times;
+  std::vector<std::array<float, 4>> output_rotations_xyzw;
+};
+
 struct SourceGrimCharClipLoadPlan {
   bool known_version = false;
   bool reads_object_meta = false;
@@ -2363,6 +2389,9 @@ source_grim_char_bones_samples_decode_plan();
 SourceGrimCharBonesSamplesExportTranslationPlan
 source_grim_char_bones_samples_export_translation_plan(
     const SourceGrimCharBonesSamplesExportTranslationInput& input);
+SourceGrimCharBonesSamplesExportRotationPlan
+source_grim_char_bones_samples_export_rotation_plan(
+    const SourceGrimCharBonesSamplesExportRotationInput& input);
 SourceGrimCharBonesSamplesHeaderPlan
 source_grim_char_bones_samples_header_plan(int version);
 SourceGrimCharBonesSamplesDataPlan source_grim_char_bones_samples_data_plan(

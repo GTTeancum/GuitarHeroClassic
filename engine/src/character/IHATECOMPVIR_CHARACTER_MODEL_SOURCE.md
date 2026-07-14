@@ -4805,6 +4805,16 @@ note, and all report `unreadBytes=0`.
     leaves the frame-value path commented. When no `.pos` sample exists, the
     exporter emits one base translation sample at time `0`. This remains a
     glTF export contract only; it does not publish runtime character pose rows.
+  - Native `source_grim_char_bones_samples_export_rotation_plan` ports the
+    bounded active rotation export path from the same file: rotation sample
+    count is the maximum of decoded `.quat`, `.rotz`, and `.pos` sample counts;
+    each output starts as the node rotation; `.quat` samples replace the output
+    quaternion for their index after applying the serialized channel weight;
+    `.rotz` samples post-multiply a Z-axis quaternion using
+    `PI * sample * weight`; and animation input keys are sample indices
+    multiplied by `1 / 30`. The exporter emits no rotation channel when all
+    three counts are zero. This is export evidence only and does not fill the
+    missing Harmonix `EvaluateChannel` / `CharBones` runtime pose body.
   - Grim stores each serialized channel as `CharBone { symbol, weight }` and
     attaches `bone.weight` to the decoded `.pos`, `.quat`, or `.rotz` sample
     vector. Native `ClipChannel::source_weight` and

@@ -125,6 +125,17 @@ bool expect_vec3_near(const std::array<float, 3>& got,
   return ok;
 }
 
+bool expect_vec4_near(const std::array<float, 4>& got,
+                      const std::array<float, 4>& want,
+                      const char* label) {
+  bool ok = true;
+  ok &= expect_near(got[0], want[0], label);
+  ok &= expect_near(got[1], want[1], label);
+  ok &= expect_near(got[2], want[2], label);
+  ok &= expect_near(got[3], want[3], label);
+  return ok;
+}
+
 }  // namespace
 
 int main() {
@@ -1823,6 +1834,57 @@ int main() {
   ok &= expect_vec3_near(grim_default_plan.output_translations[0],
                          {1.0f, 2.0f, 3.0f},
                          "grim default export base translation");
+  SourceGrimCharBonesSamplesExportRotationInput grim_export_rot;
+  grim_export_rot.pos_sample_count = 3;
+  grim_export_rot.quat_weight = 0.5f;
+  grim_export_rot.rotz_weight = 0.5f;
+  grim_export_rot.quat_samples_xyzw = {
+      std::array<float, 4>{0.0f, 0.0f, 0.0f, 2.0f},
+      std::array<float, 4>{0.0f, 2.0f, 0.0f, 0.0f},
+  };
+  grim_export_rot.rotz_samples = {0.5f};
+  const SourceGrimCharBonesSamplesExportRotationPlan grim_rot_plan =
+      source_grim_char_bones_samples_export_rotation_plan(grim_export_rot);
+  ok &= expect_int(grim_rot_plan.has_rotation_samples ? 1 : 0, 1,
+                   "grim rotation export has samples");
+  ok &= expect_int(grim_rot_plan.includes_pos_sample_count ? 1 : 0, 1,
+                   "grim rotation export includes pos count");
+  ok &= expect_int(grim_rot_plan.initializes_from_node_rotation ? 1 : 0, 1,
+                   "grim rotation export starts at node rotation");
+  ok &= expect_int(grim_rot_plan.quat_replaces_node_rotation ? 1 : 0, 1,
+                   "grim rotation export quat replaces node rotation");
+  ok &= expect_int(grim_rot_plan.rotz_post_multiplies ? 1 : 0, 1,
+                   "grim rotation export rotz post-multiplies");
+  ok &= expect_int(grim_rot_plan.rotz_uses_z_axis ? 1 : 0, 1,
+                   "grim rotation export rotz uses z axis");
+  ok &= expect_int(grim_rot_plan.rotz_angle_is_pi_scaled ? 1 : 0, 1,
+                   "grim rotation export rotz uses pi scale");
+  ok &= expect_int(grim_rot_plan.uses_frame_values ? 1 : 0, 0,
+                   "grim rotation export does not use frames");
+  ok &= expect_size(grim_rot_plan.sample_count, 3,
+                    "grim rotation export sample count");
+  ok &= expect_size(grim_rot_plan.input_times.size(), 3,
+                    "grim rotation export input count");
+  ok &= expect_near(grim_rot_plan.input_times[2], 2.0f / 30.0f,
+                    "grim rotation export input time 2");
+  ok &= expect_size(grim_rot_plan.output_rotations_xyzw.size(), 3,
+                    "grim rotation export output count");
+  ok &= expect_vec4_near(
+      grim_rot_plan.output_rotations_xyzw[0],
+      {0.0f, 0.0f, 0.38268343f, 0.9238795f},
+      "grim rotation export weighted quat plus rotz");
+  ok &= expect_vec4_near(grim_rot_plan.output_rotations_xyzw[1],
+                         {0.0f, 1.0f, 0.0f, 0.0f},
+                         "grim rotation export quat replacement");
+  ok &= expect_vec4_near(grim_rot_plan.output_rotations_xyzw[2],
+                         {0.0f, 0.0f, 0.0f, 1.0f},
+                         "grim rotation export pos-only base rotation");
+  const SourceGrimCharBonesSamplesExportRotationPlan grim_rot_empty =
+      source_grim_char_bones_samples_export_rotation_plan({});
+  ok &= expect_int(grim_rot_empty.has_rotation_samples ? 1 : 0, 0,
+                   "grim empty rotation export has no samples");
+  ok &= expect_size(grim_rot_empty.output_rotations_xyzw.size(), 0,
+                    "grim empty rotation export emits no rotations");
   std::vector<ClipChannel> grim_channels(4);
   grim_channels[0].bone_name = "bone_z.mesh";
   grim_channels[0].type = ClipChannel::kPos;

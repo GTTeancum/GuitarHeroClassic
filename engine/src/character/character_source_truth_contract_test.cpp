@@ -28722,6 +28722,28 @@ int run_contract() {
                  "base translation sample at time `0`",
                  "document records Grim export default translation sample");
   ok &= contains(doc,
+                 "Native `source_grim_char_bones_samples_export_rotation_plan` "
+                 "ports the\n    bounded active rotation export path",
+                 "document records Grim export rotation helper");
+  ok &= contains(doc,
+                 "rotation sample\n    count is the maximum of decoded "
+                 "`.quat`, `.rotz`, and `.pos` sample counts",
+                 "document records Grim export rotation sample count");
+  ok &= contains(doc,
+                 "`.quat` samples replace the output\n    quaternion",
+                 "document records Grim export quat replacement");
+  ok &= contains(doc,
+                 "`.rotz` samples post-multiply a Z-axis quaternion",
+                 "document records Grim export rotz post-multiply");
+  ok &= contains(doc,
+                 "The exporter emits no rotation channel when all\n    three "
+                 "counts are zero",
+                 "document records Grim export empty rotation branch");
+  ok &= contains(doc,
+                 "does not fill the\n    missing Harmonix `EvaluateChannel` / "
+                 "`CharBones` runtime pose body",
+                 "document fences Grim export rotation from runtime pose body");
+  ok &= contains(doc,
                  "`ClipChannel::source_weight` and",
                  "document records native channel weight retention");
   ok &= contains(doc,
@@ -28828,6 +28850,24 @@ int run_contract() {
                  "structSourceGrimCharBonesSamplesExportTranslationPlan{",
                  "native exposes Grim export translation plan");
   ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesExportRotationInput{",
+                 "native exposes Grim export rotation input");
+  ok &= contains(char_clip_h,
+                 "structSourceGrimCharBonesSamplesExportRotationPlan{",
+                 "native exposes Grim export rotation plan");
+  ok &= contains(char_clip_h,
+                 "boolincludes_pos_sample_count=true;",
+                 "native rotation export plan records pos count inclusion");
+  ok &= contains(char_clip_h,
+                 "boolquat_replaces_node_rotation=true;",
+                 "native rotation export plan records quat replacement");
+  ok &= contains(char_clip_h,
+                 "boolrotz_post_multiplies=true;",
+                 "native rotation export plan records rotz post multiply");
+  ok &= contains(char_clip_h,
+                 "boolrotz_angle_is_pi_scaled=true;",
+                 "native rotation export plan records pi-scaled rotz angle");
+  ok &= contains(char_clip_h,
                  "boolmultiplies_sample_index_by_fps=true;",
                  "native export plan records FPS-scaled sample index times");
   ok &= contains(char_clip_h,
@@ -28841,6 +28881,10 @@ int run_contract() {
                  "SourceGrimCharBonesSamplesExportTranslationPlan"
                  "source_grim_char_bones_samples_export_translation_plan(",
                  "native exposes Grim export translation helper");
+  ok &= contains(char_clip_h,
+                 "SourceGrimCharBonesSamplesExportRotationPlan"
+                 "source_grim_char_bones_samples_export_rotation_plan(",
+                 "native exposes Grim export rotation helper");
   ok &= contains(char_clip_h,
                  "floatsource_weight=1.0f;",
                  "native ClipChannel retains source sample weight");
@@ -28905,6 +28949,32 @@ int run_contract() {
   ok &= contains(char_clip,
                  "plan.output_translations.push_back(input.base_translation);",
                  "native export helper ports no-pos base translation sample");
+  ok &= contains(char_clip,
+                 "SourceGrimCharBonesSamplesExportRotationPlan"
+                 "source_grim_char_bones_samples_export_rotation_plan(",
+                 "native implements Grim export rotation helper");
+  ok &= contains(char_clip,
+                 "plan.sample_count=std::max({input.pos_sample_count,"
+                 "input.quat_samples_xyzw.size(),input.rotz_samples.size()});",
+                 "native rotation helper ports max sample count");
+  ok &= contains(char_clip,
+                 "plan.output_rotations_xyzw.assign(plan.sample_count,"
+                 "normalize(input.base_rotation_xyzw));",
+                 "native rotation helper initializes from node rotation");
+  ok &= contains(char_clip,
+                 "normalize({q[0]*input.quat_weight,q[1]*input.quat_weight,"
+                 "q[2]*input.quat_weight,q[3]*input.quat_weight})",
+                 "native rotation helper ports weighted quat replacement");
+  ok &= contains(char_clip,
+                 "0.5f*kPi*(input.rotz_samples[i]*input.rotz_weight)",
+                 "native rotation helper ports pi-scaled rotz half-angle");
+  ok &= contains(char_clip,
+                 "normalize(multiply(plan.output_rotations_xyzw[i],qz))",
+                 "native rotation helper ports rotz post multiply");
+  ok &= contains(char_clip,
+                 "plan.input_times.push_back(static_cast<float>(i)*"
+                 "plan.sample_time_step);",
+                 "native rotation helper ports Grim sample-index timing");
   ok &= contains(char_clip,
                  "source_grim_char_bones_samples_get_type_size2(type,compression)",
                  "native helper uses Grim get_type_size2 per channel");
@@ -28981,6 +29051,22 @@ int run_contract() {
                  "source_grim_char_bones_samples_export_translation_plan("
                  "grim_export_default)",
                  "focused CharBones source test covers Grim export default branch");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_export_rotation_plan("
+                 "grim_export_rot)",
+                 "focused CharBones source test covers Grim export rotation branch");
+  ok &= contains(char_bones_source_test,
+                 "grim_rot_plan.includes_pos_sample_count",
+                 "focused CharBones source test covers rotation pos count inclusion");
+  ok &= contains(char_bones_source_test,
+                 "grim_rot_plan.quat_replaces_node_rotation",
+                 "focused CharBones source test covers rotation quat replacement");
+  ok &= contains(char_bones_source_test,
+                 "grim_rot_plan.rotz_post_multiplies",
+                 "focused CharBones source test covers rotation rotz post multiply");
+  ok &= contains(char_bones_source_test,
+                 "source_grim_char_bones_samples_export_rotation_plan({})",
+                 "focused CharBones source test covers empty rotation export");
   ok &= contains(char_bones_source_test,
                  "source_grim_char_bones_samples_sort_decoded_channels("
                  "grim_channels)",

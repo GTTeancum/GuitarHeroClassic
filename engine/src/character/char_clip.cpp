@@ -1279,6 +1279,66 @@ source_grim_char_bones_samples_export_translation_plan(
   return plan;
 }
 
+SourceGrimCharBonesSamplesExportRotationPlan
+source_grim_char_bones_samples_export_rotation_plan(
+    const SourceGrimCharBonesSamplesExportRotationInput& input) {
+  auto normalize = [](std::array<float, 4> q) {
+    const float len_sq =
+        q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
+    if (len_sq <= 1.0e-8f) return std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
+    const float inv_len = 1.0f / std::sqrt(len_sq);
+    return std::array<float, 4>{q[0] * inv_len, q[1] * inv_len,
+                                q[2] * inv_len, q[3] * inv_len};
+  };
+  auto multiply = [](const std::array<float, 4>& a,
+                     const std::array<float, 4>& b) {
+    const float ax = a[0], ay = a[1], az = a[2], aw = a[3];
+    const float bx = b[0], by = b[1], bz = b[2], bw = b[3];
+    return std::array<float, 4>{
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    };
+  };
+
+  SourceGrimCharBonesSamplesExportRotationPlan plan;
+  plan.uses_sample_index_times = true;
+  plan.multiplies_sample_index_by_fps = true;
+  plan.uses_frame_values = false;
+  plan.sample_time_step = 1.0f / 30.0f;
+  plan.sample_count =
+      std::max({input.pos_sample_count, input.quat_samples_xyzw.size(),
+                input.rotz_samples.size()});
+  plan.has_rotation_samples = plan.sample_count > 0;
+  if (!plan.has_rotation_samples) return plan;
+
+  plan.output_rotations_xyzw.assign(
+      plan.sample_count, normalize(input.base_rotation_xyzw));
+
+  for (size_t i = 0; i < input.quat_samples_xyzw.size(); ++i) {
+    const std::array<float, 4>& q = input.quat_samples_xyzw[i];
+    plan.output_rotations_xyzw[i] =
+        normalize({q[0] * input.quat_weight, q[1] * input.quat_weight,
+                   q[2] * input.quat_weight, q[3] * input.quat_weight});
+  }
+
+  constexpr float kPi = 3.14159265358979323846f;
+  for (size_t i = 0; i < input.rotz_samples.size(); ++i) {
+    const float half_angle =
+        0.5f * kPi * (input.rotz_samples[i] * input.rotz_weight);
+    const std::array<float, 4> qz = {0.0f, 0.0f, std::sin(half_angle),
+                                    std::cos(half_angle)};
+    plan.output_rotations_xyzw[i] =
+        normalize(multiply(plan.output_rotations_xyzw[i], qz));
+  }
+
+  for (size_t i = 0; i < plan.sample_count; ++i) {
+    plan.input_times.push_back(static_cast<float>(i) * plan.sample_time_step);
+  }
+  return plan;
+}
+
 SourceGrimCharClipLoadPlan source_grim_char_clip_load_plan(int version,
                                                            bool read_meta) {
   SourceGrimCharClipLoadPlan plan;
