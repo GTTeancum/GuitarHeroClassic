@@ -10706,15 +10706,17 @@ int main() {
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fduration_seconds=%.3f"
                  "duration_source=%sanim_rate=%dfpu=%.1f"
-                 "source_frame_keys=%zusource_prep=SetPreFrame"
+                 "source_frame_keys=%zusource_prep=CameraManager::PrePoll->"
+                 "CamShot::SetPreFramebase_noop=1"
                  "source_setframe_blend=1.000\\n\"",
-                 "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence");
+                 "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence and base SetPreFrame no-op");
   ok &= contains(gameplay_c,
                  "source_check=CamShot::CheckShotStartedruntime_flag=unk120p4serialized_flag=none",
                  "shot_started bridge is documented as a runtime CamShot bit, not a serialized MILO field");
   ok &= contains(gameplay_c,
-                 "source_prep=SetPreFramesource_setframe_blend=1.000\\n\"",
-                 "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");
+                 "source_prep=CameraManager::PrePoll->CamShot::SetPreFrame"
+                 "base_noop=1source_setframe_blend=1.000\\n\"",
+                 "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after base CamShot SetPreFrame no-op");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframeloop:shot=%s"
                  "raw_local_frame=%.3fwrapped_local_frame=%.3f"

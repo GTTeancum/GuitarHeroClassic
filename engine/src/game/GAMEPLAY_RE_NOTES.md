@@ -11149,6 +11149,11 @@ Rejected native probe:
   `CamShot::SetFrame` local shape (`prev`, `next`, `keyBlend`) and keeps
   questionable camera angles auditable against the exact source frame-pair
   timing before any hidden pose-body work is inferred.
+- 2026-07-14 follow-up: the shot-start proof row now labels
+  `source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1`.
+  ihatecompvir `CameraManager::PrePoll` calls `SetPreFrame`, but base
+  `CamShot::SetPreFrame(float, float)` is an empty inline override, so native
+  proof should not imply an unrecovered pre-frame transform step.
 - 2026-07-14 follow-up: looped non-path CamShots now preserve both the raw
   `CameraManager::CalcFrame` local frame and the wrapped `CamShot::GetKey`
   local frame when `mLooping`/`mLoopKeyframe` are active. The new
