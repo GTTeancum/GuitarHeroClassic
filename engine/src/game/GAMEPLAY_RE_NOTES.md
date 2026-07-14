@@ -176,6 +176,12 @@ Open work:
   routes queue the selected CamShot first, then the PrePoll-style bridge makes
   it active immediately before `StartAnim` and `SetPreFrame`. Debug camera rows
   now expose the `mNextShot` assignment and PrePoll consumption points.
+- 2026-07-13 follow-up: the current ihatecompvir `CameraManager::PickCameraShot`
+  source does not special-case "same current shot but not started"; after
+  `FindCameraShot` returns a shot, the source writes `mNextShot = shot`.
+  Native therefore intentionally keeps same-shot picks routed through the
+  pending bridge instead of adding a `CheckShotStarted`-style guard. The guard
+  would be a native-only workaround, not source behavior.
 - 2026-07-13 CamShot `mShotOver` one-shot bridge: ihatecompvir
   `CamShot::CheckShotOver` returns true only when `!mShotOver`, the shot is not
   looping, and the local frame reaches the cached duration; `SetShotOver` then

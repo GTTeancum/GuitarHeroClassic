@@ -6197,6 +6197,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=false;returntrue;",
                  "regular camera pending mNextShot returns consumed even for same-shot restarts");
+  ok &= absent(gameplay_c,
+               "CheckShotStarted",
+               "CameraManager::PickCameraShot has no source same-current/unstarted guard");
+  ok &= absent(gameplay_c,
+               "current_unstarted",
+               "regular camera selector must not add a non-source same-shot guard");
   ok &= contains(gameplay_c,
                  "queue_regular_camera_shot(*key,source_handler);",
                  "regular camera selector writes mNextShot instead of changing the active shot immediately");
