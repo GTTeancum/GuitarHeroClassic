@@ -184,6 +184,8 @@ int main() {
       compact(function_body(gameplay, "read_rnd_camanim_like_miloeditor"));
   const std::string venue_camera_fov_loader_c =
       compact(function_body(gameplay, "load_venue_camera_fov_anims"));
+  const std::string start_camera_shot_runtime_c = compact(
+      function_body(gameplay, "Gameplay::start_camera_shot_runtime"));
   const std::string end_camera_shot_runtime_c = compact(
       function_body(gameplay, "Gameplay::end_camera_shot_runtime"));
   const std::string event_track_c =
@@ -6124,21 +6126,48 @@ int main() {
                  "constboolskip_script_crowd_update="
                  "active_camera_skip_next_crowd_update_;"
                  "end_camera_shot_runtime(skip_script_crowd_update);"
-                 "camera_result_builder_state_.reset();"
                  "active_camera_runtime_shot_=runtime_name;"
-                 "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
-                 "camera StartAnim resets carried result-builder state before applying the authored CamShot payload");
+                 "apply_camera_crowd_visibility(key,skip_script_crowd_update);"
+                 "constboolhas_source_crowd=",
+                 "camera StartAnim applies the authored CamShot crowd payload before resetting carried state");
+  ok &= contains(gameplay_c,
+                 "source_call=WorldDir::SetCrowds",
+                 "camera StartAnim diagnostics expose the ihatecompvir WorldDir::SetCrowds phase");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
+      "camera_result_builder_state_.reset();",
+      "camera StartAnim mirrors ihatecompvir SetCrowds before state reset");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "camera_result_builder_state_.reset();",
+      "start_camera_shot_anims(key,active_camera_runtime_shot_);",
+      "camera StartAnim resets source camera state before linked mAnims");
   ok &= contains(gameplay_c,
                  "reset_result_builder=1",
                  "camera StartAnim diagnostics expose the source-shaped result-builder reset");
-  ok &= contains(gameplay_c,
-                 "apply_camera_crowd_visibility(key,skip_script_crowd_update);"
-                 "if(skip_script_crowd_update){",
-                 "camera StartAnim honors the source camshot_skip_next_update latch before linked mAnims");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
+      "if(skip_script_crowd_update){",
+      "camera StartAnim applies the CamShot payload before honoring the source camshot_skip_next_update latch");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "if(skip_script_crowd_update){",
+      "start_camera_shot_anims(key,active_camera_runtime_shot_);",
+      "camera StartAnim honors the source camshot_skip_next_update latch before linked mAnims");
   ok &= contains(gameplay_c,
                  "active_camera_skip_next_crowd_update_=false;}"
                  "start_camera_shot_anims(key,active_camera_runtime_shot_);",
                  "camera StartAnim clears the source skip latch before linked mAnims");
+  ok &= contains(gameplay_c,
+                 "source_call=CamShotCrowd::Set3DCrowd",
+                 "camera StartAnim diagnostics expose the ihatecompvir CamShotCrowd::Set3DCrowd phase");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "start_camera_shot_anims(key,active_camera_runtime_shot_);",
+      "source_call=CamShotCrowd::Set3DCrowd",
+      "camera StartAnim mirrors ihatecompvir linked mAnims before Set3DCrowd");
   ok &= contains(gameplay_c,
                  "voidGameplay::queue_regular_camera_shot(constCameraKey&key,"
                  "constchar*source_handler)",

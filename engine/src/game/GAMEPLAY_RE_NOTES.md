@@ -45,6 +45,13 @@
   child. Native now restores camera-owned visibility and emits the stop-shot
   bridge before ending shot-scoped camera anim filters, instead of ending
   linked camera anims first.
+- 2026-07-13 CamShot StartAnim crowd/reset order: ihatecompvir
+  `CamShot::StartAnim()` sends `start_shot_msg`, calls
+  `WorldDir::SetCrowds(mCrowds)`, clears the carried shot state, starts linked
+  `mAnims`, then calls `CamShotCrowd::Set3DCrowd()` for each crowd entry.
+  Native now applies the decoded crowd payload before resetting the carried
+  camera result-builder state, keeps the reset before linked camera anims, and
+  logs source-shaped `SetCrowds` / `Set3DCrowd` proof rows during validation.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level

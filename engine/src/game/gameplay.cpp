@@ -21696,9 +21696,22 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     const bool skip_script_crowd_update =
         active_camera_skip_next_crowd_update_;
     end_camera_shot_runtime(skip_script_crowd_update);
-    camera_result_builder_state_.reset();
     active_camera_runtime_shot_ = runtime_name;
     apply_camera_crowd_visibility(key, skip_script_crowd_update);
+    const bool has_source_crowd =
+        key.has_crowd_selection || !key.crowd_selection_ref.empty();
+    if (debug_venue_filters_enabled() && has_source_crowd) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim: source_call=WorldDir::SetCrowds source_order=after_start_shot_before_state_reset shot=%s crowd_select=%d crowd_ref=%s crowd_pairs=%zu face_camera=%d script_crowd_update_skipped=%d\n",
+            active_camera_runtime_shot_.c_str(),
+            key.has_crowd_selection ? 1 : 0,
+            canonical_milo_ref(key.crowd_selection_ref).c_str(),
+            key.crowd_selection_pairs.size(),
+            key.crowd_face_camera ? 1 : 0,
+            skip_script_crowd_update ? 1 : 0);
+    }
+    camera_result_builder_state_.reset();
     if (skip_script_crowd_update) {
         if (debug_venue_filters_enabled()) {
             std::fprintf(
@@ -21709,6 +21722,16 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
         active_camera_skip_next_crowd_update_ = false;
     }
     start_camera_shot_anims(key, active_camera_runtime_shot_);
+    if (debug_venue_filters_enabled() && has_source_crowd) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim: source_call=CamShotCrowd::Set3DCrowd source_order=after_linked_mAnims shot=%s crowd_select=%d crowd_ref=%s crowd_pairs=%zu face_camera=%d\n",
+            active_camera_runtime_shot_.c_str(),
+            key.has_crowd_selection ? 1 : 0,
+            canonical_milo_ref(key.crowd_selection_ref).c_str(),
+            key.crowd_selection_pairs.size(),
+            key.crowd_face_camera ? 1 : 0);
+    }
     set_camera_glow_spot_ref(key.glow_spot_ref);
     if (debug_venue_filters_enabled()) {
         std::fprintf(
