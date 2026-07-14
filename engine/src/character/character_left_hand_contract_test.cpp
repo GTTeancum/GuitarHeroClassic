@@ -428,6 +428,13 @@ int main() {
                  "returnname==\"bone_facing\"||name.find(\"pelvis\")",
                  "hand overlays strip the body-facing root with lower-body rows");
   ok &= contains(char_clip_c,
+                 "if(overlay_override)strip_overlay_lower_body_channels("
+                 "channels);",
+                 "shared layer appender strips lower-body rows from overlays");
+  ok &= lacks(app_main_c,
+              "GHOGX_FILTER_OVERLAY_LOWER_BODY",
+              "viewer does not keep a separate lower-body overlay switch");
+  ok &= contains(char_clip_c,
                  "staticbooloutput_map_lower_body_bone("
                  "conststd::string&key){returnkey==\"bone_facing\"||"
                  "key==\"bone_pelvis\"",

@@ -3223,6 +3223,11 @@ Useful environment flags:
   output rows remain diagnostic opt-in for `bone_facing`, `bone_pelvis`, and
   thigh/knee/ankle/foot/toe. This keeps selected hand output independent from
   broad body, face, lower-body, and full output-layer diagnostics.
+- 2026-07-14 viewer/gameplay overlay parity guard:
+  shared clip-layer appenders strip those same lower-body rows from hand-overlay
+  layers. This removes the old viewer-local opt-in filter and keeps strum/fret
+  overlays from publishing root, pelvis, leg, or toe channels before the source
+  `CharBones` pose publisher is fully understood.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.

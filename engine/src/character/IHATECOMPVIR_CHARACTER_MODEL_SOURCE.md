@@ -5500,6 +5500,15 @@ dump, so `apply_character_pose_controller_frame` may receive an already-applied
 clip stack in-game, but the player-layer selection and source hand-weight
 scaling are no longer game/viewer-local decisions.
 
+2026-07-14 shared hand-overlay lower-body fence: the shared clip-layer appenders
+now strip `bone_facing`, `bone_pelvis`, thigh/knee/ankle/foot/toe rows from
+overlay layers before blending. This mirrors gameplay's existing hand-overlay
+ownership rule in the viewer path too: strum/fret overlays may drive their
+source-named hand rows, but they must not publish broad root/lower-body rows
+while the real `CharBonesSamples` / `CharBones::ScaleAdd` / `PoseMeshes`
+publisher remains unported. Non-overlay body clips still retain their decoded
+lower-body rows for diagnostics and future source-backed publisher work.
+
 2026-07-14 shared controller-frame contract refresh: the left-hand contract now
 checks `apply_character_pose_controller_frame` as the single runtime boundary
 where stale IK weights are cleared, source `main.drv` driver flags are fed,

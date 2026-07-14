@@ -1128,7 +1128,14 @@ bool expect_clip_driver_helpers() {
   incoming_twist.type = ghogx::character::ClipChannel::kRotX;
   incoming_twist.bone_name = "bone_L-foreTwist.mesh";
   incoming_twist.angle = 0.8f;
-  incoming_pose_clip.frames[0] = {incoming_neck, incoming_twist};
+  ghogx::character::ClipChannel incoming_pelvis;
+  incoming_pelvis.type = ghogx::character::ClipChannel::kPos;
+  incoming_pelvis.bone_name = "bone_pelvis.mesh";
+  incoming_pelvis.pos[0] = 1.0f;
+  incoming_pelvis.pos[1] = 2.0f;
+  incoming_pelvis.pos[2] = 3.0f;
+  incoming_pose_clip.frames[0] = {incoming_neck, incoming_twist,
+                                  incoming_pelvis};
 
   ghogx::character::CharClipPlayer transition_player;
   transition_player.play(outgoing_pose_clip,
@@ -1208,7 +1215,10 @@ bool expect_clip_driver_helpers() {
       !nearf(layer_stack.layers[0].weight, 0.25f) ||
       !layer_stack.layers[0].overlay_override ||
       layer_stack.layers[0].debug_name != "incoming.main" ||
-      layer_stack.layers[0].output_bones != &incoming_pose_clip.output_bones) {
+      layer_stack.layers[0].output_bones != &incoming_pose_clip.output_bones ||
+      find_pose_channel(layer_stack.layers[0].channels,
+                        ghogx::character::ClipChannel::kPos,
+                        "bone_pelvis.mesh")) {
     std::cerr << "shared player layer builder mismatch\n";
     ok = false;
   }
@@ -1219,17 +1229,32 @@ bool expect_clip_driver_helpers() {
   frame_clip.relative = true;
   frame_clip.frames.resize(2);
   frame_clip.frames[1].push_back(incoming_twist);
+  frame_clip.frames[1].push_back(incoming_pelvis);
   if (!ghogx::character::append_clip_frame_layer(layer_stack, frame_clip, 99,
                                                  0.75f, false) ||
       layer_stack.layers.size() != 2 ||
       layer_stack.layers[1].debug_name != "frame.main" ||
       !nearf(layer_stack.layers[1].weight, 0.75f) ||
-      layer_stack.layers[1].channels.size() != 1 ||
+      layer_stack.layers[1].channels.size() != 2 ||
       layer_stack.layers[1].channels[0].bone_name !=
           "bone_L-foreTwist.mesh" ||
+      !find_pose_channel(layer_stack.layers[1].channels,
+                         ghogx::character::ClipChannel::kPos,
+                         "bone_pelvis.mesh") ||
       layer_stack.layers[1].output_bones != &frame_clip.output_bones ||
       layer_stack.relative) {
     std::cerr << "shared frame layer builder mismatch\n";
+    ok = false;
+  }
+  ghogx::character::ClipChannelLayerStack overlay_frame_stack;
+  if (!ghogx::character::append_clip_frame_layer(overlay_frame_stack,
+                                                 frame_clip, 99, 0.75f, true) ||
+      overlay_frame_stack.layers.size() != 1 ||
+      overlay_frame_stack.layers[0].channels.size() != 1 ||
+      find_pose_channel(overlay_frame_stack.layers[0].channels,
+                        ghogx::character::ClipChannel::kPos,
+                        "bone_pelvis.mesh")) {
+    std::cerr << "shared frame overlay kept a lower-body row\n";
     ok = false;
   }
   ghogx::character::ClipChannelLayerStack batch_layer_stack;
@@ -1251,7 +1276,10 @@ bool expect_clip_driver_helpers() {
                                                   batch_frames) ||
       batch_layer_stack.layers.size() != 2 ||
       batch_layer_stack.layers[1].debug_name != "frame.main" ||
-      batch_layer_stack.layers[1].channels.size() != 1 ||
+      batch_layer_stack.layers[1].channels.size() != 2 ||
+      !find_pose_channel(batch_layer_stack.layers[1].channels,
+                         ghogx::character::ClipChannel::kPos,
+                         "bone_pelvis.mesh") ||
       batch_layer_stack.relative) {
     std::cerr << "shared frame layer batch builder mismatch\n";
     ok = false;
@@ -1290,6 +1318,9 @@ bool expect_clip_driver_helpers() {
       performer_frame_stack.layers[0].overlay_override ||
       !performer_frame_stack.layers[1].overlay_override ||
       !nearf(performer_frame_stack.layers[1].weight, 0.35f) ||
+      find_pose_channel(performer_frame_stack.layers[1].channels,
+                        ghogx::character::ClipChannel::kPos,
+                        "bone_pelvis.mesh") ||
       performer_frame_stack.layers[2].overlay_override) {
     std::cerr << "shared performer frame layer helper mismatch\n";
     ok = false;

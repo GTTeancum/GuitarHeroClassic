@@ -754,47 +754,6 @@ void keep_face_channels_only(ghogx::character::CharClip& clip) {
                clip.name.c_str(), kept, total);
 }
 
-bool is_lower_body_channel_name(const std::string& name) {
-  return name.find("pelvis") != std::string::npos ||
-         name.find("-thigh") != std::string::npos ||
-         name.find("-knee") != std::string::npos ||
-         name.find("-ankle") != std::string::npos ||
-         name.find("-foot") != std::string::npos ||
-         name.find("-toe") != std::string::npos;
-}
-
-void remove_lower_body_channels(ghogx::character::CharClip& clip) {
-  if (!clip.loaded) return;
-  size_t kept = 0;
-  size_t total = 0;
-  for (auto& frame : clip.frames) {
-    total += frame.size();
-    frame.erase(std::remove_if(frame.begin(), frame.end(),
-                               [](const ghogx::character::ClipChannel& ch) {
-                                 return is_lower_body_channel_name(ch.bone_name);
-                               }),
-                frame.end());
-    kept += frame.size();
-  }
-  std::fprintf(stderr, "[char] lower-body-filtered '%s': kept %zu/%zu channels\n",
-               clip.name.c_str(), kept, total);
-}
-
-bool filter_overlay_lower_body_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_FILTER_OVERLAY_LOWER_BODY") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_FILTER_OVERLAY_LOWER_BODY");
-  return value && value[0];
-#endif
-}
-
 bool viewer_auto_hand_overlays_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1408,10 +1367,6 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   keep_face_channels_only(face_base_clip);
   keep_face_channels_only(face_clip);
   keep_face_channels_only(facefx_viseme_clip);
-  if (filter_overlay_lower_body_enabled()) {
-    remove_lower_body_channels(strum_clip);
-    remove_lower_body_channels(fret_clip);
-  }
   if (!guitar_milo.empty() && guitar_milo != "none") {
     if (!right_hand_weight_override && strum_clip.loaded) right_hand_weight = 1.0f;
     if (!left_hand_weight_override && fret_clip.loaded) left_hand_weight = 1.0f;

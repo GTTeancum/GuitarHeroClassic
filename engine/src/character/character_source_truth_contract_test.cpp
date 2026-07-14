@@ -32267,6 +32267,15 @@ int run_contract() {
                  "are\n  diagnostic-only",
                  "native rules fence broad CharBone bridges");
   ok &= contains(doc,
+                 "shared clip-layer appenders\nnow strip `bone_facing`, "
+                 "`bone_pelvis`, thigh/knee/ankle/foot/toe rows from\n"
+                 "overlay layers before blending",
+                 "native rules fence lower-body rows out of hand overlays");
+  ok &= contains(char_clip,
+                 "if(overlay_override)strip_overlay_lower_body_channels("
+                 "channels);",
+                 "shared layer appenders enforce lower-body overlay fence");
+  ok &= contains(doc,
                  "must require explicit enable switches and must not have "
                  "default-on disable\n  switches",
                  "native rules reject default-on CharBone bridge switches");
