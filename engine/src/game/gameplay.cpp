@@ -20482,12 +20482,8 @@ void apply_camera_keys(
         }
     }
     const CameraResultRows source_pre_setframe_blend_result = submitted_result;
-    submitted_result = camera_source_setframe_blend_result_rows(
-        source_previous_frame, submitted_result, source_poll_blend);
-    apply_camera_result_frame(cam, submitted_result);
     const float source_current_far_z = cam.far_z;
-    cam.near_z = 1.0f;
-    cam.far_z = 6000.0f;
+    const float source_final_fov = cam.fov;
     if (a->has_clip_planes || b->has_clip_planes) {
         const float near_a =
             a->has_clip_planes
@@ -20504,9 +20500,20 @@ void apply_camera_keys(
         if (std::isfinite(near_z) && std::isfinite(far_z) &&
             near_z > 0.0f && far_z > near_z) {
             camera_apply_rndcam_set_frustum_like_source(
-                cam, near_z, far_z, cam.fov, source_current_far_z);
+                cam, near_z, far_z, source_screen_offset_fov,
+                source_current_far_z);
+            const float source_after_base_far_z = cam.far_z;
+            camera_apply_rndcam_set_frustum_like_source(
+                cam, near_z, far_z, source_final_fov,
+                source_after_base_far_z);
         }
+    } else {
+        cam.near_z = 1.0f;
+        cam.far_z = 6000.0f;
     }
+    submitted_result = camera_source_setframe_blend_result_rows(
+        source_previous_frame, submitted_result, source_poll_blend);
+    apply_camera_result_frame(cam, submitted_result);
     if (submitted_ps2_projection_candidate || submitted_ps2_matrix_candidate) {
         const auto eval_a = evaluate_retained_ps2_source_record_trace_context(*a);
         const auto eval_b = evaluate_retained_ps2_source_record_trace_context(*b);

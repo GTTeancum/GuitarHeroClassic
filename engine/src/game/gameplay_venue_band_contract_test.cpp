@@ -10792,9 +10792,27 @@ int main() {
                  "constfloatsource_current_far_z=cam.far_z;",
                  "runtime camera preserves the previous source far plane for SetFrustum");
   ok &= contains(gameplay_c,
+                 "constfloatsource_final_fov=cam.fov;",
+                 "runtime camera preserves the post-zoom source FOV before base SetFrustum");
+  ok &= contains(gameplay_c,
                  "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,near_z,far_z,cam.fov,source_current_far_z);",
-                 "runtime camera submits authored clip planes through the source frustum bridge");
+                 "cam,near_z,far_z,source_screen_offset_fov,"
+                 "source_current_far_z);",
+                 "runtime camera submits the base CamShot frustum through the source bridge");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_after_base_far_z=cam.far_z;",
+                 "runtime camera preserves the base SetFrustum far plane for the zoom SetFrustum call");
+  ok &= contains(gameplay_c,
+                 "camera_apply_rndcam_set_frustum_like_source("
+                 "cam,near_z,far_z,source_final_fov,"
+                 "source_after_base_far_z);",
+                 "runtime camera submits the zoomed CamShot frustum through the source bridge");
+  ok &= appears_before(gameplay_c,
+                       "camera_apply_rndcam_set_frustum_like_source("
+                       "cam,near_z,far_z,source_final_fov,"
+                       "source_after_base_far_z);",
+                       "apply_camera_result_frame(cam,submitted_result);",
+                       "CamShot SetFrustum calls run before source SetLocalXfm/result submission");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrustum:source_class=RndCam"
                  "requested=(%.3f%.3f%.6f)previous_far=%.3f"

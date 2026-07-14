@@ -11174,6 +11174,14 @@ Rejected native probe:
   Camera diagnostics log both `fov` and `screen_fov` so future angle work can
   tell whether a visual mismatch is from pose/path sampling or projection
   ordering.
+- 2026-07-14 CamShot SetFrustum/SetLocalXfm order:
+  the same ihatecompvir block performs both source `RndCam::SetFrustum` calls
+  before `cam->SetLocalXfm(tf130)`. Native now routes decoded CamShot
+  near/far through the source frustum bridge twice in that order: first with
+  the pre-zoom `source_screen_offset_fov`, then with the preserved final FOV
+  and the far plane left by the base call, before submitting the final result
+  frame. This keeps source projection state and source transform submission in
+  the same order as `CamShotFrame::Interp`.
 - 2026-07-13 RndCam frustum plane-ratio clamp: ihatecompvir
   `RndCam::SetFrustum` clamps extreme near/far plane ratios before storing
   the camera frustum (`far - 0.0001 > near * 1000`). Native now routes
