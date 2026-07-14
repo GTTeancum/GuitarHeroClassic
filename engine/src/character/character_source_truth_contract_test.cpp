@@ -26051,8 +26051,16 @@ int run_contract() {
                  "`source_char_bones_samples_clone`,",
                  "document records concrete CharBonesSamples Set/Clone slice");
   ok &= contains(doc,
-                 "This does not claim the still-missing `AddBoneInternal` body\n"
-                 "    or expose a native `mRawData` pointer",
+                 "allocates a native\n"
+                 "    `raw_data` byte vector to the source `AllocateSize()` result",
+                 "document records CharBonesSamples native raw-data allocation");
+  ok &= contains(doc,
+                 "copies the raw bytes like source\n"
+                 "    `memcpy(mRawData, samp.mRawData, AllocateSize())`",
+                 "document records CharBonesSamples native raw-data clone copy");
+  ok &= contains(doc,
+                 "This does not claim the still-missing `AddBoneInternal` body or\n"
+                 "    expose a live native `mRawData` pointer",
                  "document fences CharBonesSamples Set/Clone pointer boundary");
   ok &= contains(doc,
                  "`source_char_bones_samples_rotate_by_offset`,\n"
@@ -26229,7 +26237,8 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "structSourceCharBonesSamplesState{SourceCharBonesStatebones;"
                  "intnum_samples=0;intpreview_sample=0;intstart_offset=0;"
-                 "intraw_data_size=0;std::vector<float>frames;};",
+                 "intraw_data_size=0;std::vector<uint8_t>raw_data;"
+                 "std::vector<float>frames;};",
                  "native API exposes source CharBonesSamples state row");
   ok &= contains(char_clip_h,
                  "structSourceCharBonesSampleStep{intstart_offset=0;"
@@ -26436,16 +26445,20 @@ int run_contract() {
   ok &= contains(char_clip,
                  "next.num_samples=num_samples;next.raw_data_size="
                  "source_char_bones_samples_allocate_size(next);"
+                 "next.raw_data.assign(static_cast<size_t>(std::max(0,"
+                 "next.raw_data_size)),uint8_t{0});"
                  "samples=next;",
-                 "native CharBonesSamples Set helper mirrors sample count and allocation");
+                 "native CharBonesSamples Set helper mirrors raw data allocation");
   ok &= contains(char_clip,
                  "SourceCharBonesSamplesStatesource_char_bones_samples_clone("
                  "constSourceCharBonesSamplesState&source){"
                  "SourceCharBonesSamplesStateclone;"
                  "source_char_bones_samples_set(clone,source.bones,"
                  "source.num_samples,source.bones.compression);"
+                 "clone.raw_data=source.raw_data;clone.raw_data_size="
+                 "source.raw_data_size;"
                  "clone.frames=source.frames;returnclone;}",
-                 "native CharBonesSamples Clone helper mirrors Set then frames copy");
+                 "native CharBonesSamples Clone helper mirrors raw data and frames copy");
   ok &= contains(char_clip,
                  "intsource_char_bones_samples_allocate_size("
                  "constSourceCharBonesSamplesState&samples){return"
@@ -29121,7 +29134,7 @@ int run_contract() {
                  "entries",
                  "document records parser-side CharBonesSamples version gate");
   ok &= contains(doc,
-                 "Preview stores the clamped sample and\n    selected row offset",
+                 "Preview stores the clamped sample\n    and selected row offset",
                  "document records source CharBonesSamples preview offset");
   ok &= contains(doc,
                  "`source_char_bones_samples_rotate_by_offset`,",

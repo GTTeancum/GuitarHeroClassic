@@ -4957,11 +4957,13 @@ note, and all report `unreadBytes=0`.
     `source_char_bones_samples_split_steps` port those complete state/offset
     bodies for valid sample rows: allocation is `totalSize * numSamples`,
     `Set` clears previous sample state, applies the source compression guard to
-    the prepared bone layout, stores the sample count, records the new raw-data
-    allocation size, and clears frames; `Clone` repeats `Set` and copies the
-    frame vector. This does not claim the still-missing `AddBoneInternal` body
-    or expose a native `mRawData` pointer. Preview stores the clamped sample and
-    selected row offset, and split steps report the source `i` / `i + 1` row
+    the prepared bone layout, stores the sample count, allocates a native
+    `raw_data` byte vector to the source `AllocateSize()` result, and clears
+    frames; `Clone` repeats `Set`, copies the raw bytes like source
+    `memcpy(mRawData, samp.mRawData, AllocateSize())`, then copies the frame
+    vector. This does not claim the still-missing `AddBoneInternal` body or
+    expose a live native `mRawData` pointer. Preview stores the clamped sample
+    and selected row offset, and split steps report the source `i` / `i + 1` row
     offsets and `(1 - frac)` / `frac` weights. Native
     `source_char_bones_samples_rotate_by_offset`,
     `source_char_bones_samples_rotate_to_steps`, and

@@ -3242,6 +3242,12 @@ Useful environment flags:
   checked source. Native `sampled_pose_layers` can mirror
   `ScaleAddSample` once it has a sample index and fraction, but its current
   uniform-frame diagnostic selector is not source-proven `FracToSample`.
+- 2026-07-14 `CharBonesSamples` raw-data mirror:
+  ihatecompvir source `Set` allocates `mRawData` to `AllocateSize()` and
+  `Clone` copies that byte span before frames. Native
+  `SourceCharBonesSamplesState` now carries a matching `raw_data` vector through
+  `source_char_bones_samples_set` and `source_char_bones_samples_clone`. This is
+  storage/copy parity only; it is not the missing body-pose publisher.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.

@@ -513,6 +513,7 @@ struct SourceCharBonesSamplesState {
   int preview_sample = 0;
   int start_offset = 0;
   int raw_data_size = 0;
+  std::vector<uint8_t> raw_data;
   std::vector<float> frames;
 };
 

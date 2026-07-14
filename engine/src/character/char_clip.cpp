@@ -1033,6 +1033,8 @@ void source_char_bones_samples_set(SourceCharBonesSamplesState& samples,
   next.bones.layout = update.layout;
   next.num_samples = num_samples;
   next.raw_data_size = source_char_bones_samples_allocate_size(next);
+  next.raw_data.assign(static_cast<size_t>(std::max(0, next.raw_data_size)),
+                       uint8_t{0});
   samples = next;
 }
 
@@ -1041,6 +1043,8 @@ SourceCharBonesSamplesState source_char_bones_samples_clone(
   SourceCharBonesSamplesState clone;
   source_char_bones_samples_set(clone, source.bones, source.num_samples,
                                 source.bones.compression);
+  clone.raw_data = source.raw_data;
+  clone.raw_data_size = source.raw_data_size;
   clone.frames = source.frames;
   return clone;
 }

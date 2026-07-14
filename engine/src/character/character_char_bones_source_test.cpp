@@ -1721,6 +1721,7 @@ int main() {
   ok &= expect_int(samples.preview_sample, 0, "samples default preview");
   ok &= expect_int(samples.start_offset, 0, "samples default start");
   ok &= expect_int(samples.raw_data_size, 0, "samples default raw data size");
+  ok &= expect_size(samples.raw_data.size(), 0, "samples default raw data");
   ok &= expect_int(source_char_bones_samples_allocate_size(samples), 0,
                    "samples default allocation");
   ok &= expect_int(source_char_bones_samples_set_preview(samples, 2) ? 1 : 0, 0,
@@ -1744,7 +1745,10 @@ int main() {
   ok &= expect_int(samples.bones.layout.total_size, 16,
                    "samples Set recomputed layout");
   ok &= expect_int(samples.raw_data_size, 48, "samples Set raw data size");
+  ok &= expect_size(samples.raw_data.size(), 48, "samples Set raw data bytes");
   ok &= expect_size(samples.frames.size(), 0, "samples Set clears frames");
+  samples.raw_data[7] = 0x5Au;
+  samples.raw_data[47] = 0xA5u;
   samples.frames = {1.0f, 2.0f, 3.0f};
   const SourceCharBonesSamplesState cloned =
       source_char_bones_samples_clone(samples);
@@ -1753,6 +1757,9 @@ int main() {
                    "samples Clone compression");
   ok &= expect_size(cloned.bones.bones.size(), 2, "samples Clone bone count");
   ok &= expect_int(cloned.raw_data_size, 48, "samples Clone raw data size");
+  ok &= expect_size(cloned.raw_data.size(), 48, "samples Clone raw data bytes");
+  ok &= expect_int(cloned.raw_data[7], 0x5A, "samples Clone raw data byte 7");
+  ok &= expect_int(cloned.raw_data[47], 0xA5, "samples Clone raw data byte 47");
   ok &= expect_size(cloned.frames.size(), 3, "samples Clone frames count");
   ok &= expect_float(cloned.frames[1], 2.0f, "samples Clone frame value");
   samples.bones.layout.total_size = 32;
