@@ -8259,6 +8259,26 @@ int main() {
                  "key.max_angular_offset[1]=camshot_source_angular_offset(r.f32());"
                  "key.has_shake_fields=true;",
                  "CamShot frame reader consumes source shake fields with source angular byte storage");
+  ok &= contains(gameplay_c,
+                 "constfloatlegacy_shake_noise_freq=r.f32();"
+                 "constfloatlegacy_shake_noise_amp=r.f32();",
+                 "CamShot rev16/17 loader consumes source legacy shake fields");
+  ok &= contains(gameplay_c,
+                 "key.shake_noise_amp=legacy_shake_noise_amp;"
+                 "key.shake_noise_freq=legacy_shake_noise_freq;"
+                 "key.has_shake_fields=true;",
+                 "CamShot rev16/17 loader backfills source legacy shake fields onto every key");
+  ok &= contains(gameplay_c,
+                 "constfloatlegacy_max_angular_offset_x="
+                 "camshot_source_angular_offset(r.f32());"
+                 "constfloatlegacy_max_angular_offset_y="
+                 "camshot_source_angular_offset(r.f32());",
+                 "CamShot rev17 loader consumes source legacy max angular offsets");
+  ok &= contains(gameplay_c,
+                 "key.max_angular_offset[0]=legacy_max_angular_offset_x;"
+                 "key.max_angular_offset[1]=legacy_max_angular_offset_y;"
+                 "key.has_shake_fields=true;",
+                 "CamShot rev17 loader backfills source legacy max angular offsets onto every key");
   ok &= contains(camshot_frame_reader_c,
                  "key.zoom_fov=camshot_source_zoom_field_of_view(r.f32());"
                  "key.has_zoom_fov=true;",

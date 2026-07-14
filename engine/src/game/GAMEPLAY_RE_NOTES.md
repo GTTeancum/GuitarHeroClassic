@@ -11223,6 +11223,14 @@ Rejected native probe:
   body. This keeps the source feature visible and contract-guarded without
   fabricating camera motion.
 
+- 2026-07-14 CamShot legacy shake load backfill:
+  ihatecompvir `CamShot::Load` reads rev 16/17 shot-level shake frequency and
+  amplitude after the keyframe array and writes them into every keyframe; rev
+  17 also reads shot-level `MaxAngularOffset` and applies it to each key.
+  Native now mirrors that backfill into decoded `CameraKey` shake fields. This
+  still does not synthesize hidden `CamShot::Shake` noise motion; it only
+  preserves the source-loaded values for runtime/proof.
+
 - 2026-07-13 CamShot DOF focus distance:
   ihatecompvir `CamShotFrame::Interp` gates DOF on the shot-level
   `mUseDepthOfField` flag plus either focus/target side, computes start/end

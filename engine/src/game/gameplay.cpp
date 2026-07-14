@@ -2330,12 +2330,26 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             (void)r.f32();
         }
         if (shot.revision == 16 || shot.revision == 17) {
-            (void)r.f32();
-            (void)r.f32();
+            const float legacy_shake_noise_freq = r.f32();
+            const float legacy_shake_noise_amp = r.f32();
+            for (auto& [key, frame_off] : shot.frames) {
+                (void)frame_off;
+                key.shake_noise_amp = legacy_shake_noise_amp;
+                key.shake_noise_freq = legacy_shake_noise_freq;
+                key.has_shake_fields = true;
+            }
         }
         if (shot.revision > 0x10 && shot.revision < 0x12) {
-            (void)r.f32();
-            (void)r.f32();
+            const float legacy_max_angular_offset_x =
+                camshot_source_angular_offset(r.f32());
+            const float legacy_max_angular_offset_y =
+                camshot_source_angular_offset(r.f32());
+            for (auto& [key, frame_off] : shot.frames) {
+                (void)frame_off;
+                key.max_angular_offset[0] = legacy_max_angular_offset_x;
+                key.max_angular_offset[1] = legacy_max_angular_offset_y;
+                key.has_shake_fields = true;
+            }
         }
         if (shot.revision > 0x13) shot.glow_spot = r.symbol();
         if (shot.revision > 0x1d) {
