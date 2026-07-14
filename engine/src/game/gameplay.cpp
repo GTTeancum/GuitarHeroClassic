@@ -10214,12 +10214,14 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             const Gameplay::CameraKey& first = out.front();
             const Gameplay::CameraKey& mid = out[out.size() / 2];
             const Gameplay::CameraKey& last = out.back();
+            const bool source_trans_target_resolved = !resolved.trans.empty();
             std::fprintf(
                 stderr,
                 "[camera-path] anim=%s source-shaped rev=%u anim_rev=%u "
                 "trans=%s owner=%s end=0x%zX/%zu trans_keys=%zu rot_keys=%zu "
                 "scale_keys=%zu source_sample_frames=%zu added_source_frames=%zu flags=trans_spline:%d repeat:%d "
                 "scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d "
+                "source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d "
                 "first=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f) "
                 "mid=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f) "
                 "last=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f)\n",
@@ -10235,7 +10237,8 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 resolved.scale_spline ? 1 : 0,
                 resolved.follow_path ? 1 : 0,
                 resolved.rot_slerp ? 1 : 0,
-                resolved.rot_spline ? 1 : 0, first.frame,
+                resolved.rot_spline ? 1 : 0,
+                source_trans_target_resolved ? 1 : 0, first.frame,
                 first.eye[0], first.eye[1], first.eye[2],
                 first.has_path_scale ? "" : "none/",
                 first.has_path_scale ? first.path_scale[0] : 0.0f,
@@ -33031,7 +33034,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -33132,7 +33135,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 ? 1
                                 : 0,
                             key->path_anim.c_str(),
-                            path_trans_target_label(path_target_key));
+                            path_trans_target_label(path_target_key),
+                            path_target_key.has_path_trans_target &&
+                                    !path_target_key.path_trans_target.empty()
+                                ? 1
+                                : 0);
                         std::fprintf(
                             stderr,
                             "[world] camera source path frame pair zero_xfm_reset: shot=%s zero_xfm_reset=a:%d b:%d source_locals=CamShotFrame::Load(Transform::Zero_Reset)\n",

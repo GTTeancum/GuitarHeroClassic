@@ -8829,6 +8829,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[camera-path]anim=%ssource-shapedrev=%uanim_rev=%u\"",
                  "camera path diagnostics expose source-shaped RndTransAnim metadata");
+  ok &= contains(gameplay_c,
+                 "source_gate=RndTransAnim::SetFrame_mTrans"
+                 "source_trans_target_resolved=%d",
+                 "camera path diagnostics expose the source RndTransAnim mTrans gate");
   ok &= absent(gameplay_c,
                "structured_transanim_position_run",
                "old structured TransAnim scanner is removed from path cameras");
@@ -10735,6 +10739,8 @@ int main() {
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
                  "route=regular_camera_path_keyspath=%s"
                  "path_trans_target=%s"
+                 "source_gate=RndTransAnim::SetFrame_mTrans"
+                 "source_trans_target_resolved=%d"
                  "path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\\n\"",
                  "path-backed camera diagnostics separate live mPathFrame from the ignored legacy load float and source mTrans target");
   ok &= contains(gameplay_c,

@@ -11352,6 +11352,12 @@ Rejected native probe:
   target into the per-shot `[world] camera source path frame pair` row as
   `path_trans_target`, so suspicious path-camera angles can be audited against
   the source transform target without changing the rendered pose math.
+- 2026-07-14 path-backed TransAnim mTrans gate proof:
+  the same source `RndTransAnim::SetFrame` gate is now named directly in both
+  load-time `[camera-path]` rows and live path frame-pair rows as
+  `source_gate=RndTransAnim::SetFrame_mTrans` with
+  `source_trans_target_resolved=`. This keeps targetless path angles auditable
+  without pretending the hidden `CamShot::SetFrame` path body is recovered.
 - 2026-07-14 path-backed TransAnim frame-summary proof:
   source `RndTransAnim::StartFrame()` / `EndFrame()` derive their span from
   all three key pages, matching the merged trans/rot/scale frame union now used
