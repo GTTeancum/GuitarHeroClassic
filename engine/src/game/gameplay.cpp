@@ -19122,6 +19122,26 @@ CameraPoseSpanDebugShape camera_pose_span_debug_shape_for_key(
     return shape;
 }
 
+const char* camera_writer_bridge_delta_source_label(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    if (!key.has_path_anim) return "not_path";
+    if (const auto evaluation =
+            evaluate_retained_ps2_source_record_trace_context(key);
+        evaluation && camera_has_promotable_writer_bridge_evidence(*evaluation) &&
+        evaluation->has_projection_payload && evaluation->has_writer_payload) {
+        return evaluation->has_builder_basis ? "retained_writer_builder_basis_delta"
+                                             : "retained_writer_builder_payload_delta";
+    }
+    const auto shape = camera_pose_span_debug_shape_for_key(key, targets);
+    if (shape.has_sample && shape.span_len > 0.0001f &&
+        std::isfinite(shape.span_len)) {
+        return "fallback_pose_span_sample";
+    }
+    if (key.has_path_pose_span) return "fallback_key_pose_span";
+    return "unavailable";
+}
+
 std::optional<CameraResultRows> camera_ps2_writer_bridge_from_builder_rows(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
@@ -21530,6 +21550,7 @@ void apply_camera_keys(
             "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
             "b=%s promoted=%d shape=%s complete=%d incomplete=%d "
             "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
+            "delta_source=a:%s b:%s "
             "submitted_source=%s\n",
             frame,
             camera_writer_bridge_gate_label(writer_bridge_gate_eval_a),
@@ -21592,6 +21613,8 @@ void apply_camera_keys(
                       ->writer_bridge_payload_delta_max_distance
                 : 0.0f,
             writer_bridge_gate_trace(writer_bridge_gate_eval_b),
+            camera_writer_bridge_delta_source_label(*a, targets),
+            camera_writer_bridge_delta_source_label(*b, targets),
             submitted_result.source.c_str());
         if (source_screen_offset_translate_result) {
             log_result_rows("source_screen_offset_translate_result",

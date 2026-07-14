@@ -6426,6 +6426,12 @@ Rejected native probe:
   writer delta; otherwise it falls back to the source-auditable `-pose_span`
   path. This keeps future writer-payload captures from becoming one-off camera
   substitutions merely because a writer payload exists.
+- 2026-07-14 follow-up: debug camera solver rows now also print the active
+  writer-bridge delta source for the A/B keys. Retained complete-pair routes
+  label the traced writer-builder basis/payload delta; unpromoted routes label
+  the source-auditable pose-span fallback or `unavailable`. This is proof
+  surface only and does not promote retained writer payload rows into default
+  gameplay camera submission.
 
 2026-06-29 retained trace matching tightened:
 - The retained PS2 source-record table is no longer matched by only

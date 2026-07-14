@@ -9994,8 +9994,14 @@ int main() {
                  "camera_writer_bridge_gate_label(",
                  "camera diagnostics classify trace-complete writer bridge gate outcomes");
   ok &= contains(gameplay_c,
+                 "camera_writer_bridge_delta_source_label(",
+                 "camera diagnostics classify the active writer-bridge delta source");
+  ok &= contains(gameplay_c,
                  "\"[camera-solver]frame=%.2fwriter_bridge_gatea=%s\"",
                  "camera debug logs expose the trace-complete writer bridge gate decision");
+  ok &= contains(gameplay_c,
+                 "\"delta_source=a:%sb:%s\"",
+                 "camera writer-bridge diagnostics expose retained-vs-fallback delta source");
   ok &= contains(gameplay_c,
                  "submitted_source=%s",
                  "camera writer-bridge gate diagnostics identify the submitted result source");
@@ -10008,6 +10014,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"promoted\"",
                  "camera writer-bridge gate diagnostics label accepted source-backed bridge promotion");
+  ok &= contains(gameplay_c,
+                 "\"retained_writer_builder_basis_delta\"",
+                 "camera writer-bridge diagnostics label retained complete-pair basis deltas");
+  ok &= contains(gameplay_c,
+                 "\"fallback_pose_span_sample\"",
+                 "camera writer-bridge diagnostics label source-auditable pose-span fallback deltas");
   ok &= contains(gameplay_c,
                  "!camera_has_promotable_writer_bridge_evidence(*evaluation)",
                  "trace-complete writer bridge rejects rows through the shared promotable-evidence gate");
