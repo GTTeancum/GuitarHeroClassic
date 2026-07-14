@@ -8411,6 +8411,11 @@ int main() {
                  "rows.up[0]*key.screen_offset[1]*tan_y",
                  "screen offset correction adjusts submitted result forward vector");
   ok &= contains(gameplay_c,
+                 "camera_orthonormalize_result_rows(rows);"
+                 "rows.screen_offset_consumed=true;"
+                 "returntrue;",
+                 "screen offset correction marks the projection offset consumed");
+  ok &= contains(gameplay_c,
                  "std::optional<CameraResultRows>"
                  "camera_source_screen_offset_translate_result_rows(",
                  "camera result rows expose source-shaped CamShot screen-offset translation rows");

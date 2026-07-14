@@ -10985,6 +10985,13 @@ Rejected native probe:
   provisional 16:9 validation aspect for this source-shaped same-target
   branch. The older target-list/projection diagnostics still use the native
   validation aspect until their PS2 viewport constant is mapped.
+- 2026-07-14 non-SameTargets screen-offset consumption:
+  ihatecompvir `CamShotFrame::Interp` passes `!sameTargets` into each
+  `CamShotFrame::BuildTransform(...)`, so non-SameTargets screen offset is
+  consumed while building the camera result instead of being left for a later
+  projection nudge. Native target-list rows now mark that aim-corrected result
+  as `screen_offset_consumed`, preventing venue/character projection from
+  applying the same CamShot `screen_offset` a second time.
 
 - 2026-07-13 CamShot shake runtime state:
   ihatecompvir `CamShotFrame::Interp` interpolates `mShakeNoiseAmp`,

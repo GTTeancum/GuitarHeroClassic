@@ -18228,6 +18228,7 @@ bool camera_apply_screen_offset_to_result_rows(
             rows.up[2] * key.screen_offset[1] * tan_y,
     };
     camera_orthonormalize_result_rows(rows);
+    rows.screen_offset_consumed = true;
     return true;
 }
 
