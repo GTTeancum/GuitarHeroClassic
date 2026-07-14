@@ -10354,6 +10354,34 @@ bool append_clip_frame_layers(
   return appended;
 }
 
+bool append_character_pose_player_layers(
+    ClipChannelLayerStack& stack,
+    const CharacterPosePlayerLayerSources& sources) {
+  std::vector<ClipPlayerLayerSource> layers = {
+      {sources.main, 1.0f, false},
+      {sources.face_base, 1.0f, false},
+      {sources.strum, sources.strum_weight, true},
+      {sources.fret, sources.fret_weight, true}};
+  layers.reserve(layers.size() + sources.fret_extras.size() + 1);
+  for (const CharClipPlayer* player : sources.fret_extras) {
+    layers.push_back({player, sources.fret_weight, true});
+  }
+  layers.push_back({sources.face, 1.0f, false});
+  return append_clip_player_layers(stack, layers);
+}
+
+bool append_character_pose_frame_layers(
+    ClipChannelLayerStack& stack,
+    const CharacterPoseFrameLayerSources& sources) {
+  const std::vector<ClipFrameLayerSource> layers = {
+      {sources.main, sources.frame_idx, 1.0f, false},
+      {sources.face_base, sources.frame_idx, 1.0f, false},
+      {sources.strum, sources.frame_idx, sources.strum_weight, true},
+      {sources.fret, sources.frame_idx, sources.fret_weight, true},
+      {sources.face, sources.frame_idx, 1.0f, false}};
+  return append_clip_frame_layers(stack, layers);
+}
+
 void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
                             Character& character) {
   if (stack.layers.empty()) return;

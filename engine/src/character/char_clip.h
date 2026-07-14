@@ -1109,6 +1109,28 @@ struct ClipFrameLayerSource {
   bool overlay_override = false;
 };
 
+struct CharacterPosePlayerLayerSources {
+  const CharClipPlayer* main = nullptr;
+  const CharClipPlayer* face_base = nullptr;
+  const CharClipPlayer* strum = nullptr;
+  const CharClipPlayer* fret = nullptr;
+  std::vector<const CharClipPlayer*> fret_extras;
+  const CharClipPlayer* face = nullptr;
+  float strum_weight = 1.0f;
+  float fret_weight = 1.0f;
+};
+
+struct CharacterPoseFrameLayerSources {
+  const CharClip* main = nullptr;
+  const CharClip* face_base = nullptr;
+  const CharClip* strum = nullptr;
+  const CharClip* fret = nullptr;
+  const CharClip* face = nullptr;
+  int frame_idx = 0;
+  float strum_weight = 1.0f;
+  float fret_weight = 1.0f;
+};
+
 bool append_clip_player_layer(ClipChannelLayerStack& stack,
                               const CharClipPlayer& player,
                               float weight = 1.0f,
@@ -1122,6 +1144,12 @@ bool append_clip_frame_layer(ClipChannelLayerStack& stack,
                              bool overlay_override = false);
 bool append_clip_frame_layers(ClipChannelLayerStack& stack,
                               const std::vector<ClipFrameLayerSource>& sources);
+bool append_character_pose_player_layers(
+    ClipChannelLayerStack& stack,
+    const CharacterPosePlayerLayerSources& sources);
+bool append_character_pose_frame_layers(
+    ClipChannelLayerStack& stack,
+    const CharacterPoseFrameLayerSources& sources);
 void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
                             Character& character);
 

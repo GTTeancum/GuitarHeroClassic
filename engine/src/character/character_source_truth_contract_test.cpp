@@ -30601,6 +30601,12 @@ int run_contract() {
                  "source_char_clip_pose_meshes_steps(14.25f)",
                  "focused clip driver flags test covers PoseMeshes step flow");
   ok &= contains(clip_driver_flags_test,
+                 "append_character_pose_player_layers(",
+                 "focused clip driver flags test covers shared performer player layers");
+  ok &= contains(clip_driver_flags_test,
+                 "append_character_pose_frame_layers(",
+                 "focused clip driver flags test covers shared performer frame layers");
+  ok &= contains(clip_driver_flags_test,
                  "source_char_clip_shares_groups(",
                  "focused clip driver flags test covers CharClip SharesGroups helper");
   ok &= contains(clip_driver_flags_test,
@@ -32867,6 +32873,21 @@ int run_contract() {
                  "intframe_idx=0;floatweight=1.0f;booloverlay_override=false;};",
                  "native character API exposes shared frame layer source");
   ok &= contains(char_clip_h,
+                 "structCharacterPosePlayerLayerSources{constCharClipPlayer*"
+                 "main=nullptr;constCharClipPlayer*face_base=nullptr;"
+                 "constCharClipPlayer*strum=nullptr;constCharClipPlayer*"
+                 "fret=nullptr;std::vector<constCharClipPlayer*>"
+                 "fret_extras;constCharClipPlayer*face=nullptr;"
+                 "floatstrum_weight=1.0f;floatfret_weight=1.0f;};",
+                 "native character API exposes shared performer player rows");
+  ok &= contains(char_clip_h,
+                 "structCharacterPoseFrameLayerSources{constCharClip*main="
+                 "nullptr;constCharClip*face_base=nullptr;constCharClip*"
+                 "strum=nullptr;constCharClip*fret=nullptr;constCharClip*"
+                 "face=nullptr;intframe_idx=0;floatstrum_weight=1.0f;"
+                 "floatfret_weight=1.0f;};",
+                 "native character API exposes shared performer frame rows");
+  ok &= contains(char_clip_h,
                  "boolappend_clip_player_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipPlayerLayerSource>&sources);",
                  "native character API exposes shared player layer batch");
@@ -32874,6 +32895,16 @@ int run_contract() {
                  "boolappend_clip_frame_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipFrameLayerSource>&sources);",
                  "native character API exposes shared frame layer batch");
+  ok &= contains(char_clip_h,
+                 "boolappend_character_pose_player_layers("
+                 "ClipChannelLayerStack&stack,constCharacterPosePlayer"
+                 "LayerSources&sources);",
+                 "native character API exposes shared performer player helper");
+  ok &= contains(char_clip_h,
+                 "boolappend_character_pose_frame_layers("
+                 "ClipChannelLayerStack&stack,constCharacterPoseFrame"
+                 "LayerSources&sources);",
+                 "native character API exposes shared performer frame helper");
   ok &= contains(char_clip,
                  "voidapply_clip_layer_stack(constClipChannelLayerStack&stack,"
                  "Character&character){if(stack.layers.empty())return;"
@@ -32888,25 +32919,37 @@ int run_contract() {
                  "boolappend_clip_frame_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipFrameLayerSource>&sources)",
                  "native shared frame layer batch implementation");
+  ok &= contains(char_clip,
+                 "boolappend_character_pose_player_layers("
+                 "ClipChannelLayerStack&stack,constCharacterPosePlayer"
+                 "LayerSources&sources)",
+                 "native shared performer player layer implementation");
+  ok &= contains(char_clip,
+                 "boolappend_character_pose_frame_layers("
+                 "ClipChannelLayerStack&stack,constCharacterPoseFrame"
+                 "LayerSources&sources)",
+                 "native shared performer frame layer implementation");
   ok &= contains(app_main,
                  "ghogx::character::ClipChannelLayerStackpose_stack;",
                  "viewer builds a shared clip layer stack");
   ok &= contains(app_main,
-                 "std::vector<ghogx::character::ClipPlayerLayerSource>"
+                 "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",
-                 "viewer builds shared player layer source rows");
+                 "viewer builds shared performer player layer rows");
   ok &= contains(app_main,
-                 "ghogx::character::append_clip_player_layers(pose_stack,"
+                 "ghogx::character::append_character_pose_player_layers("
+                 "pose_stack,"
                  "player_layers)",
-                 "viewer appends player rows through shared batch helper");
+                 "viewer appends player rows through shared performer helper");
   ok &= contains(app_main,
-                 "std::vector<ghogx::character::ClipFrameLayerSource>"
+                 "ghogx::character::CharacterPoseFrameLayerSources"
                  "frame_layers",
-                 "viewer builds shared frame layer source rows");
+                 "viewer builds shared performer frame layer rows");
   ok &= contains(app_main,
-                 "ghogx::character::append_clip_frame_layers(pose_stack,"
+                 "ghogx::character::append_character_pose_frame_layers("
+                 "pose_stack,"
                  "frame_layers)",
-                 "viewer appends fixed frames through shared batch helper");
+                 "viewer appends fixed frames through shared performer helper");
   ok &= contains(app_main,
                  "ghogx::character::apply_clip_layer_stack(pose_stack,"
                  "renderer.character())",
@@ -32924,20 +32967,21 @@ int run_contract() {
                  "ghogx::character::ClipChannelLayerStackpose_stack;",
                  "gameplay builds a shared clip layer stack");
   ok &= contains(gameplay,
-                 "std::vector<ghogx::character::ClipPlayerLayerSource>"
+                 "ghogx::character::CharacterPosePlayerLayerSources"
                  "pose_player_layers",
-                 "gameplay builds shared player layer source rows");
+                 "gameplay builds shared performer player layer rows");
   ok &= contains(gameplay,
-                 "ghogx::character::append_clip_player_layers(pose_stack,"
+                 "ghogx::character::append_character_pose_player_layers("
+                 "pose_stack,"
                  "pose_player_layers)",
-                 "gameplay appends players through shared batch helper");
+                 "gameplay appends players through shared performer helper");
   ok &= contains(gameplay,
                  "ghogx::character::apply_clip_layer_stack(pose_stack,"
                  "character)",
                  "gameplay applies shared clip layer stack");
   ok &= contains(doc,
-                 "both build player lane source rows and feed "
-                 "`append_clip_player_layers` before calling "
+                 "both feed `CharacterPosePlayerLayerSources` into "
+                 "`append_character_pose_player_layers` before calling "
                  "`apply_clip_layer_stack`",
                  "document records shared clip layer cleanup");
 

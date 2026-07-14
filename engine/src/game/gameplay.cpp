@@ -20120,8 +20120,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.active_strum_clip_names = {"strum_open"};
             }
             ghogx::character::ClipChannelLayerStack pose_stack;
-            std::vector<ghogx::character::ClipPlayerLayerSource>
-                pose_player_layers;
 
             if (hand_driver_active) {
                 const uint32_t desired_mask =
@@ -20308,21 +20306,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         current_clip ? current_clip->flags : 0u);
                 }
             }
-            pose_player_layers.push_back(
-                {active_main_driver_player(), 1.0f, false});
-            pose_player_layers.push_back({&perf.face_base_player, 1.0f, false});
+            ghogx::character::CharacterPosePlayerLayerSources
+                pose_player_layers;
+            pose_player_layers.main = active_main_driver_player();
+            pose_player_layers.face_base = &perf.face_base_player;
             if (hand_driver_active) {
-                pose_player_layers.push_back(
-                    {&perf.strum_player, hand_driver_right_weight, true});
-                pose_player_layers.push_back(
-                    {&perf.fret_player, hand_driver_left_weight, true});
+                pose_player_layers.strum = &perf.strum_player;
+                pose_player_layers.fret = &perf.fret_player;
+                pose_player_layers.strum_weight = hand_driver_right_weight;
+                pose_player_layers.fret_weight = hand_driver_left_weight;
+                pose_player_layers.fret_extras.reserve(
+                    perf.fret_extra_players.size());
                 for (const auto& player : perf.fret_extra_players) {
-                    pose_player_layers.push_back(
-                        {&player, hand_driver_left_weight, true});
+                    pose_player_layers.fret_extras.push_back(&player);
                 }
             }
-            ghogx::character::append_clip_player_layers(pose_stack,
-                                                        pose_player_layers);
+            ghogx::character::append_character_pose_player_layers(
+                pose_stack, pose_player_layers);
             ghogx::character::clear_runtime_trans_worlds(character);
             ghogx::character::apply_clip_layer_stack(pose_stack, character);
             if (hand_driver_active) {

@@ -1543,13 +1543,17 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     ghogx::character::ClipChannelLayerStack pose_stack;
     if (clip_frame_override >= 0) {
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
-      const std::vector<ghogx::character::ClipFrameLayerSource> frame_layers = {
-          {&loaded_clip, clip_frame_override, 1.0f, false},
-          {&face_base_clip, clip_frame_override, 1.0f, false},
-          {&strum_clip, clip_frame_override, frame_hand_weights.right, true},
-          {&fret_clip, clip_frame_override, frame_hand_weights.left, true},
-          {&face_clip, clip_frame_override, 1.0f, false}};
-      ghogx::character::append_clip_frame_layers(pose_stack, frame_layers);
+      ghogx::character::CharacterPoseFrameLayerSources frame_layers;
+      frame_layers.main = &loaded_clip;
+      frame_layers.face_base = &face_base_clip;
+      frame_layers.strum = &strum_clip;
+      frame_layers.fret = &fret_clip;
+      frame_layers.face = &face_clip;
+      frame_layers.frame_idx = clip_frame_override;
+      frame_layers.strum_weight = frame_hand_weights.right;
+      frame_layers.fret_weight = frame_hand_weights.left;
+      ghogx::character::append_character_pose_frame_layers(pose_stack,
+                                                           frame_layers);
     } else {
       main_player.advance(dt);
       strum_player.advance(dt);
@@ -1557,13 +1561,16 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       face_base_player.advance(dt);
       face_player.advance(dt);
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
-      const std::vector<ghogx::character::ClipPlayerLayerSource> player_layers = {
-          {&main_player, 1.0f, false},
-          {&face_base_player, 1.0f, false},
-          {&strum_player, frame_hand_weights.right, true},
-          {&fret_player, frame_hand_weights.left, true},
-          {&face_player, 1.0f, false}};
-      ghogx::character::append_clip_player_layers(pose_stack, player_layers);
+      ghogx::character::CharacterPosePlayerLayerSources player_layers;
+      player_layers.main = &main_player;
+      player_layers.face_base = &face_base_player;
+      player_layers.strum = &strum_player;
+      player_layers.fret = &fret_player;
+      player_layers.face = &face_player;
+      player_layers.strum_weight = frame_hand_weights.right;
+      player_layers.fret_weight = frame_hand_weights.left;
+      ghogx::character::append_character_pose_player_layers(pose_stack,
+                                                            player_layers);
     }
     ghogx::character::apply_clip_layer_stack(pose_stack,
                                              renderer.character());

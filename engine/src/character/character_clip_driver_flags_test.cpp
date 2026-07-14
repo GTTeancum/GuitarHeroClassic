@@ -1256,6 +1256,45 @@ bool expect_clip_driver_helpers() {
     std::cerr << "shared frame layer batch builder mismatch\n";
     ok = false;
   }
+
+  ghogx::character::ClipChannelLayerStack performer_player_stack;
+  ghogx::character::CharacterPosePlayerLayerSources performer_players;
+  performer_players.main = &transition_player;
+  performer_players.strum = &transition_player;
+  performer_players.fret_extras = {&transition_player};
+  performer_players.strum_weight = 0.30f;
+  performer_players.fret_weight = 0.60f;
+  if (!ghogx::character::append_character_pose_player_layers(
+          performer_player_stack, performer_players) ||
+      performer_player_stack.layers.size() != 3 ||
+      performer_player_stack.layers[0].overlay_override ||
+      !nearf(performer_player_stack.layers[0].weight, 1.0f) ||
+      !performer_player_stack.layers[1].overlay_override ||
+      !nearf(performer_player_stack.layers[1].weight, 0.30f) ||
+      !performer_player_stack.layers[2].overlay_override ||
+      !nearf(performer_player_stack.layers[2].weight, 0.60f)) {
+    std::cerr << "shared performer player layer helper mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::ClipChannelLayerStack performer_frame_stack;
+  ghogx::character::CharacterPoseFrameLayerSources performer_frames;
+  performer_frames.main = &frame_clip;
+  performer_frames.strum = &frame_clip;
+  performer_frames.face = &frame_clip;
+  performer_frames.frame_idx = 1;
+  performer_frames.strum_weight = 0.35f;
+  if (!ghogx::character::append_character_pose_frame_layers(
+          performer_frame_stack, performer_frames) ||
+      performer_frame_stack.layers.size() != 3 ||
+      performer_frame_stack.layers[0].overlay_override ||
+      !performer_frame_stack.layers[1].overlay_override ||
+      !nearf(performer_frame_stack.layers[1].weight, 0.35f) ||
+      performer_frame_stack.layers[2].overlay_override) {
+    std::cerr << "shared performer frame layer helper mismatch\n";
+    ok = false;
+  }
+
   ghogx::character::Character empty_character;
   ghogx::character::ClipChannelLayerStack empty_layer_stack;
   ghogx::character::apply_clip_layer_stack(empty_layer_stack, empty_character);
