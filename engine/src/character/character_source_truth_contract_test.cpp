@@ -25888,6 +25888,16 @@ int run_contract() {
                  "exact RB2",
                  "document records CharBones runtime dump helper");
   ok &= contains(doc,
+                 "Native\n  `source_char_pose_runtime_symbol_evidence` records "
+                 "those rows as fenced",
+                 "document records current rb3 pose runtime symbol helper");
+  ok &= contains(doc,
+                 "`CharClipDriver::Evaluate` at `0x806A02F0` size `0x560`",
+                 "document records current rb3 CharClipDriver Evaluate symbol");
+  ok &= contains(doc,
+                 "symbol\n  evidence only and keeps `safe_to_import_runtime=false`",
+                 "document fences current rb3 pose runtime symbol evidence");
+  ok &= contains(doc,
                  "combined RB2\n    dump also maps `CharBones::Blend`",
                  "document records combined CharBones Blend dump map");
   ok &= contains(doc,
@@ -26406,6 +26416,15 @@ int run_contract() {
                  "bones_dump.safe_to_apply_pose_math",
                  "focused CharBones source test covers runtime dump pose fence");
   ok &= contains(char_bones_source_test,
+                 "source_char_pose_runtime_symbol_evidence()",
+                 "focused CharBones source test covers current rb3 pose runtime symbol helper");
+  ok &= contains(char_bones_source_test,
+                 "EvaluateChannel__16CharBonesSamplesFPviif",
+                 "focused CharBones source test covers CharBonesSamples EvaluateChannel symbol");
+  ok &= contains(char_bones_source_test,
+                 "Evaluate__14CharClipDriverFfff",
+                 "focused CharBones source test covers CharClipDriver Evaluate symbol");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_alloc_reallocate_step("
                  "lookup_state.layout.total_size)",
                  "focused CharBones source test covers CharBonesAlloc realloc step");
@@ -26723,9 +26742,19 @@ int run_contract() {
                  "structSourceCharBonesRuntimeDumpEvidence",
                  "native API exposes CharBones runtime dump evidence");
   ok &= contains(char_clip_h,
+                 "structSourceCharPoseRuntimeSymbolEvidence{std::stringsource;"
+                 "std::stringfunction;std::stringsymbol;std::stringaddress;"
+                 "uint32_tsize=0;boolhas_statement_body=false;"
+                 "boolsafe_to_import_runtime=false;};",
+                 "native API exposes current rb3 pose runtime symbol row");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesRuntimeDumpEvidencesource_char_bones_runtime_"
                  "dump_evidence();",
                  "native exposes CharBones runtime dump helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<SourceCharPoseRuntimeSymbolEvidence>"
+                 "source_char_pose_runtime_symbol_evidence();",
+                 "native exposes current rb3 pose runtime symbol helper");
   ok &= contains(char_clip_h,
                  "structSourceCharBonesAddBonesSteps{std::vector<"
                  "SourceCharBonesBone>add_bone_internal_calls;"
@@ -26870,6 +26899,24 @@ int run_contract() {
   ok &= contains(char_clip,
                  "evidence.safe_to_apply_pose_math=false;",
                  "native CharBones runtime dump fences pose math");
+  ok &= contains(char_clip,
+                 "source_char_pose_runtime_symbol_evidence(){constchar*source="
+                 "\"rb3/config/SZBE69_B8/symbols.txt\";",
+                 "native current rb3 pose runtime symbol helper names source map");
+  ok &= contains(char_clip,
+                 "\"EvaluateChannel__16CharBonesSamplesFPviif\","
+                 "\"0x80690180\",0x75Cu",
+                 "native current rb3 pose runtime symbol helper records CharBonesSamples EvaluateChannel");
+  ok &= contains(char_clip,
+                 "\"Relativize__16CharBonesSamplesFP8CharClip\","
+                 "\"0x80690AA0\",0x105Cu",
+                 "native current rb3 pose runtime symbol helper records CharBonesSamples Relativize");
+  ok &= contains(char_clip,
+                 "\"Evaluate__14CharClipDriverFfff\",\"0x806A02F0\",0x560u",
+                 "native current rb3 pose runtime symbol helper records CharClipDriver Evaluate");
+  ok &= contains(char_clip,
+                 "\"EvaluateFlags__10CharDriverFi\",\"0x806B3960\",0x1C8u",
+                 "native current rb3 pose runtime symbol helper records CharDriver EvaluateFlags");
   ok &= contains(char_clip,
                  "SourceCharBonesAddBonesStepssource_char_bones_add_bones_steps("
                  "conststd::vector<SourceCharBonesBone>&bones){"

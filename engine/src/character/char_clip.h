@@ -105,6 +105,16 @@ struct SourceCharBonesRuntimeDumpEvidence {
   bool safe_to_apply_pose_math = false;
 };
 
+struct SourceCharPoseRuntimeSymbolEvidence {
+  std::string source;
+  std::string function;
+  std::string symbol;
+  std::string address;
+  uint32_t size = 0;
+  bool has_statement_body = false;
+  bool safe_to_import_runtime = false;
+};
+
 struct SourceCharBonesAddBonesSteps {
   std::vector<SourceCharBonesBone> add_bone_internal_calls;
   bool reallocate_internal = false;
@@ -2192,6 +2202,8 @@ SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
     float f1, float f2, float f3);
 SourceCharBonesPoseBodyBoundary source_char_bones_pose_body_boundary();
 SourceCharBonesRuntimeDumpEvidence source_char_bones_runtime_dump_evidence();
+std::vector<SourceCharPoseRuntimeSymbolEvidence>
+source_char_pose_runtime_symbol_evidence();
 SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones);
 SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(

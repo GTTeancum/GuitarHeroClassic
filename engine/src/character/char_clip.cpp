@@ -337,6 +337,59 @@ SourceCharBonesRuntimeDumpEvidence source_char_bones_runtime_dump_evidence() {
   return evidence;
 }
 
+std::vector<SourceCharPoseRuntimeSymbolEvidence>
+source_char_pose_runtime_symbol_evidence() {
+  const char* source =
+      "rb3/config/SZBE69_B8/symbols.txt";
+  return {
+      {source, "CharBones::ScaleAdd(CharBones&, float)",
+       "ScaleAdd__9CharBonesCFR9CharBonesf", "0x80689780", 0x8E8u},
+      {source, "CharBones::Blend(CharBones&)",
+       "Blend__9CharBonesCFR9CharBones", "0x8068A070", 0x440u},
+      {source, "CharBones::RotateBy(CharBones&)",
+       "RotateBy__9CharBonesCFR9CharBones", "0x8068A4B0", 0x7B8u},
+      {source, "CharBones::RotateTo(CharBones&, float)",
+       "RotateTo__9CharBonesCFR9CharBonesf", "0x8068AC70", 0x890u},
+      {source, "CharBones::ScaleAddIdentity()",
+       "ScaleAddIdentity__9CharBonesFv", "0x8068B500", 0x74u},
+      {source, "CharBonesMeshes::AcquirePose()",
+       "AcquirePose__15CharBonesMeshesFv", "0x8068E420", 0x2E0u},
+      {source, "CharBonesMeshes::PoseMeshes()",
+       "PoseMeshes__15CharBonesMeshesFv", "0x8068E700", 0x564u},
+      {source, "CharBonesSamples::EvaluateChannel(void*, int, int, float)",
+       "EvaluateChannel__16CharBonesSamplesFPviif", "0x80690180",
+       0x75Cu},
+      {source, "CharBonesSamples::ScaleAddSample(CharBones&, float, int, float)",
+       "ScaleAddSample__16CharBonesSamplesFR9CharBonesfif", "0x806909D0",
+       0xC8u},
+      {source, "CharBonesSamples::Relativize(CharClip*)",
+       "Relativize__16CharBonesSamplesFP8CharClip", "0x80690AA0",
+       0x105Cu},
+      {source, "CharClip::EvaluateChannel(void*, const void*, int, float)",
+       "EvaluateChannel__8CharClipFPvPCvif", "0x80697CE0", 0x120u},
+      {source, "CharClip::EvaluateChannel(void*, const void*, float)",
+       "EvaluateChannel__8CharClipFPvPCvf", "0x80697E00", 0x60u},
+      {source, "CharClipDriver::PreEvaluate(float, float, float, float)",
+       "PreEvaluate__14CharClipDriverFfff", "0x8069FE50", 0x4A0u},
+      {source, "CharClipDriver::Evaluate(float, float, float, float)",
+       "Evaluate__14CharClipDriverFfff", "0x806A02F0", 0x560u},
+      {source, "CharClipDriver::ScaleAdd(CharBones&, float)",
+       "ScaleAdd__14CharClipDriverFR9CharBonesf", "0x806A0850",
+       0x18Cu},
+      {source, "CharClipDriver::RotateTo(CharBones&, float)",
+       "RotateTo__14CharClipDriverFR9CharBonesf", "0x806A09E0",
+       0x194u},
+      {source, "CharDriver::SetBeatScale(float, bool)",
+       "SetBeatScale__10CharDriverFfb", "0x806B32A0", 0x9Cu},
+      {source, "CharDriver::EvaluateFlags(int)",
+       "EvaluateFlags__10CharDriverFi", "0x806B3960", 0x1C8u},
+      {source, "CharDriver::FirstPlaying()",
+       "FirstPlaying__10CharDriverFv", "0x806B3B90", 0x2Cu},
+      {source, "CharDriver::FirstPlayingClip()",
+       "FirstPlayingClip__10CharDriverFv", "0x806B3BE0", 0x34u},
+  };
+}
+
 SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones) {
   SourceCharBonesAddBonesSteps steps;

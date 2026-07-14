@@ -4992,6 +4992,18 @@ note, and all report `unreadBytes=0`.
   function maps: they identify `FrameToSample`, `ScaleAdd`, `RotateBy`,
   `RotateTo`, `FacingSet`, `CharClipDriver::Evaluate`, and the driver-to-bone
   application flow.
+- A 2026-07-14 read-only check of ihatecompvir's current RB3 symbol map at
+  `rb3/config/SZBE69_B8/symbols.txt` gives exact current runtime addresses and
+  sizes for the same unresolved pose surface. Native
+  `source_char_pose_runtime_symbol_evidence` records those rows as fenced
+  evidence only, including `CharBones::ScaleAdd` at `0x80689780` size `0x8E8`,
+  `CharBonesMeshes::PoseMeshes` at `0x8068E700` size `0x564`,
+  `CharBonesSamples::EvaluateChannel` at `0x80690180` size `0x75C`,
+  `CharBonesSamples::Relativize` at `0x80690AA0` size `0x105C`,
+  `CharClipDriver::Evaluate` at `0x806A02F0` size `0x560`, and
+  `CharDriver::EvaluateFlags` at `0x806B3960` size `0x1C8`. This narrows the
+  exact functions still needed for the pose/twist/neck path, but it is symbol
+  evidence only and keeps `safe_to_import_runtime=false`.
 - The checked source is still incomplete for the exact bodies needed to blindly
   replace native clip playback: `CharBonesSamples::LoadHeader`, `LoadData`,
   `EvaluateChannel`, `Relativize`, `CharBones::ScaleAdd`, `RotateBy`,

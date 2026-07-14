@@ -115,6 +115,39 @@ bool expect_string(const std::string& got, const std::string& want,
   return false;
 }
 
+const ghogx::character::SourceCharPoseRuntimeSymbolEvidence* find_symbol(
+    const std::vector<ghogx::character::SourceCharPoseRuntimeSymbolEvidence>&
+        symbols,
+    const std::string& symbol) {
+  for (const auto& entry : symbols) {
+    if (entry.symbol == symbol) return &entry;
+  }
+  return nullptr;
+}
+
+bool expect_symbol(
+    const std::vector<ghogx::character::SourceCharPoseRuntimeSymbolEvidence>&
+        symbols,
+    const std::string& symbol,
+    const std::string& address,
+    uint32_t size,
+    const char* label) {
+  const auto* entry = find_symbol(symbols, symbol);
+  if (!entry) {
+    std::cerr << label << ": missing symbol " << symbol << "\n";
+    return false;
+  }
+  bool ok = true;
+  ok &= expect_string(entry->source, "rb3/config/SZBE69_B8/symbols.txt",
+                      label);
+  ok &= expect_string(entry->address, address, label);
+  ok &= expect_int(static_cast<int>(entry->size), static_cast<int>(size),
+                   label);
+  ok &= expect_int(entry->has_statement_body ? 1 : 0, 0, label);
+  ok &= expect_int(entry->safe_to_import_runtime ? 1 : 0, 0, label);
+  return ok;
+}
+
 bool expect_vec3_near(const std::array<float, 3>& got,
                       const std::array<float, 3>& want,
                       const char* label) {
@@ -408,6 +441,33 @@ int main() {
                    "CharBones dump lacks RotateTo statement body");
   ok &= expect_int(bones_dump.safe_to_apply_pose_math ? 1 : 0, 0,
                    "CharBones dump fences pose math");
+  const auto runtime_symbols = source_char_pose_runtime_symbol_evidence();
+  ok &= expect_size(runtime_symbols.size(), 20,
+                    "pose runtime symbol inventory count");
+  ok &= expect_symbol(runtime_symbols,
+                      "ScaleAdd__9CharBonesCFR9CharBonesf",
+                      "0x80689780", 0x8E8u,
+                      "pose symbol CharBones ScaleAdd");
+  ok &= expect_symbol(runtime_symbols,
+                      "PoseMeshes__15CharBonesMeshesFv",
+                      "0x8068E700", 0x564u,
+                      "pose symbol CharBonesMeshes PoseMeshes");
+  ok &= expect_symbol(runtime_symbols,
+                      "EvaluateChannel__16CharBonesSamplesFPviif",
+                      "0x80690180", 0x75Cu,
+                      "pose symbol CharBonesSamples EvaluateChannel");
+  ok &= expect_symbol(runtime_symbols,
+                      "Relativize__16CharBonesSamplesFP8CharClip",
+                      "0x80690AA0", 0x105Cu,
+                      "pose symbol CharBonesSamples Relativize");
+  ok &= expect_symbol(runtime_symbols,
+                      "Evaluate__14CharClipDriverFfff",
+                      "0x806A02F0", 0x560u,
+                      "pose symbol CharClipDriver Evaluate");
+  ok &= expect_symbol(runtime_symbols,
+                      "EvaluateFlags__10CharDriverFi",
+                      "0x806B3960", 0x1C8u,
+                      "pose symbol CharDriver EvaluateFlags");
   const SourceCharBonesAllocReallocateStep realloc_step =
       source_char_bones_alloc_reallocate_step(lookup_state.layout.total_size);
   ok &= expect_int(realloc_step.free_m_start ? 1 : 0, 1,
