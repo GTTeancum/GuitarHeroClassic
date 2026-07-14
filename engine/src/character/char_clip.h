@@ -719,10 +719,14 @@ struct SourceCharBonesSamplesRuntimeDumpEvidence {
   std::vector<std::string> relativize_locals;
   std::vector<std::string> load_header_locals;
   std::vector<std::string> load_data_locals;
+  bool rb3_latest_declares_frac_to_sample = true;
+  bool rb2_dump_maps_frac_to_sample = true;
+  bool has_frac_to_sample_statement_body = false;
   bool has_load_header_statement_body = false;
   bool has_load_data_statement_body = false;
   bool has_evaluate_channel_statement_body = false;
   bool has_relativize_statement_body = false;
+  bool safe_to_use_source_frac_to_sample = false;
   bool safe_to_decode_logged_rows = true;
   bool safe_to_publish_pose = false;
 };

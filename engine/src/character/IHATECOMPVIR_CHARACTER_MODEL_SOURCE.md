@@ -5553,6 +5553,15 @@ does not claim that source behavior yet; it keeps the old collapsed diagnostic
 layer because `CharClipDriver::ScaleAdd` remains a range/local-only body in the
 available ihatecompvir evidence.
 
+2026-07-14 `FracToSample` fence: `rb3-latest` declares
+`CharBonesSamples::FracToSample(float*) const`, and the RB2 dump maps its range
+and locals (`lastSample`, `sample`, `w`), but no checked source provides the
+statement body. Native code may use source-backed `ScaleAddSample` split
+semantics after a sample index/fraction is available, but must not claim its
+uniform-FPS diagnostic frame selector is the original `FracToSample` path.
+`source_char_bones_samples_runtime_dump_evidence` now records
+`safe_to_use_source_frac_to_sample=false` until that body is sourced or traced.
+
 2026-07-14 shared controller-frame contract refresh: the left-hand contract now
 checks `apply_character_pose_controller_frame` as the single runtime boundary
 where stale IK weights are cleared, source `main.drv` driver flags are fed,

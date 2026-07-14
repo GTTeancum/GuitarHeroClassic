@@ -26340,6 +26340,14 @@ int run_contract() {
                  "structSourceCharBonesSamplesRuntimeDumpEvidence",
                  "native API exposes CharBonesSamples runtime dump evidence");
   ok &= contains(char_clip_h,
+                 "boolrb3_latest_declares_frac_to_sample=true;"
+                 "boolrb2_dump_maps_frac_to_sample=true;"
+                 "boolhas_frac_to_sample_statement_body=false;",
+                 "native API fences CharBonesSamples FracToSample body");
+  ok &= contains(char_clip_h,
+                 "boolsafe_to_use_source_frac_to_sample=false;",
+                 "native API rejects source FracToSample use without body");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesSamplesRuntimeDumpEvidence"
                  "source_char_bones_samples_runtime_dump_evidence();",
                  "native API exposes CharBonesSamples runtime dump helper");
@@ -26552,6 +26560,14 @@ int run_contract() {
                  "SourceCharBonesSamplesRuntimeDumpEvidence"
                  "source_char_bones_samples_runtime_dump_evidence(){",
                  "native CharBonesSamples runtime dump helper exists");
+  ok &= contains(char_clip,
+                 "evidence.rb3_latest_declares_frac_to_sample=true;"
+                 "evidence.rb2_dump_maps_frac_to_sample=true;"
+                 "evidence.has_frac_to_sample_statement_body=false;",
+                 "native CharBonesSamples runtime dump fences FracToSample body");
+  ok &= contains(char_clip,
+                 "evidence.safe_to_use_source_frac_to_sample=false;",
+                 "native CharBonesSamples runtime dump rejects FracToSample use");
   ok &= contains(char_clip,
                  "evidence.evaluate_channel_range=\"0x80323654->0x80323E64\";",
                  "native CharBonesSamples runtime dump records EvaluateChannel range");

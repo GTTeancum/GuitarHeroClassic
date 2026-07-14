@@ -2502,6 +2502,14 @@ int main() {
                     "samples dump FracToSample locals");
   ok &= expect_string(samples_dump.frac_to_sample_locals[2], "float w",
                       "samples dump FracToSample weight local");
+  ok &= expect_int(samples_dump.rb3_latest_declares_frac_to_sample ? 1 : 0, 1,
+                   "samples latest declares FracToSample");
+  ok &= expect_int(samples_dump.rb2_dump_maps_frac_to_sample ? 1 : 0, 1,
+                   "samples dump maps FracToSample");
+  ok &= expect_int(samples_dump.has_frac_to_sample_statement_body ? 1 : 0, 0,
+                   "samples dump lacks FracToSample body");
+  ok &= expect_int(samples_dump.safe_to_use_source_frac_to_sample ? 1 : 0, 0,
+                   "samples dump fences source FracToSample");
   ok &= expect_size(samples_dump.evaluate_channel_locals.size(), 9,
                     "samples dump EvaluateChannel locals");
   ok &= expect_string(samples_dump.evaluate_channel_locals[0],

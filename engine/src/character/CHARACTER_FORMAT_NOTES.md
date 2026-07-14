@@ -3236,6 +3236,12 @@ Useful environment flags:
   logging decoded lower-body output rows as compare-only `driven=1 live=0`;
   this guards against the leg/feet overlay leak without claiming the source
   body-pose publisher is complete.
+- 2026-07-14 `FracToSample` source fence:
+  ihatecompvir source declares `CharBonesSamples::FracToSample(float*) const`
+  and the RB2 dump maps its range/locals, but there is no statement body in the
+  checked source. Native `sampled_pose_layers` can mirror
+  `ScaleAddSample` once it has a sample index and fraction, but its current
+  uniform-frame diagnostic selector is not source-proven `FracToSample`.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.

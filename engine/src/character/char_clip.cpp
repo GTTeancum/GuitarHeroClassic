@@ -1613,10 +1613,14 @@ source_char_bones_samples_runtime_dump_evidence() {
                                "signed short* a",
                                "const float* rend",
                                "float* a"};
+  evidence.rb3_latest_declares_frac_to_sample = true;
+  evidence.rb2_dump_maps_frac_to_sample = true;
+  evidence.has_frac_to_sample_statement_body = false;
   evidence.has_load_header_statement_body = false;
   evidence.has_load_data_statement_body = false;
   evidence.has_evaluate_channel_statement_body = false;
   evidence.has_relativize_statement_body = false;
+  evidence.safe_to_use_source_frac_to_sample = false;
   evidence.safe_to_decode_logged_rows = true;
   evidence.safe_to_publish_pose = false;
   return evidence;
