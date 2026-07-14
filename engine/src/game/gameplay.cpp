@@ -20333,8 +20333,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             ghogx::character::append_character_pose_player_layers(
                 pose_stack, pose_player_layers);
-            ghogx::character::clear_runtime_trans_worlds(character);
-            ghogx::character::apply_clip_layer_stack(pose_stack, character);
+            (void)ghogx::character::apply_character_pose_stack_frame(
+                character, &pose_stack);
             if (hand_driver_active) {
                 const uint32_t debug_hand_mask =
                     perf_anim_note_cue.active

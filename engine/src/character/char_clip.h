@@ -1199,6 +1199,10 @@ struct CharacterPoseControllerFrameSources {
   bool midi_fret_target_enabled = false;
 };
 
+struct CharacterPoseStackFrameResult {
+  bool applied_clip_layers = false;
+};
+
 struct CharacterPoseControllerFrameResult {
   bool applied_clip_layers = false;
   bool fed_driver_flags = false;
@@ -1232,6 +1236,9 @@ bool append_character_pose_frame_layers(
     const CharacterPoseFrameLayerSources& sources);
 void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
                             Character& character);
+CharacterPoseStackFrameResult apply_character_pose_stack_frame(
+    Character& character,
+    const ClipChannelLayerStack* stack);
 CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
     Character& character,
     const CharacterPoseControllerFrameSources& sources);

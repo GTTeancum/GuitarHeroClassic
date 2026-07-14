@@ -3635,6 +3635,10 @@ note, and all report `unreadBytes=0`.
     Native `source_char_ik_foot_*` helpers port that foot-specific plan and FSM
     for tests. They do not add a decoded `CharIKFoot` row hookup or a separate
     live foot IK pass.
+  - `tools/re_anim_audit.py` now includes a passive `CharIKFoot` parser that
+    follows the same source load shape: `CharIKHand` superclass first, legacy
+    symbol below revision 6, legacy ints below revision 5, and `data` /
+    `data_index` for revision 5 and newer.
   - `Load` accepts source revisions through 6, loads the `CharIKHand`
     superclass, consumes a legacy symbol below revision 6, consumes up to three
     legacy ints below revision 5, and reads `mData` plus `mDataIndex` for
@@ -5207,6 +5211,10 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   left/right knee endpoints and `bone_pelvis.mesh` as the side axis, but both
   have `dest=<none>`. Under ihatecompvir `CharIKRod::ComputeRod`, those rows
   are inert unless another asset or source path supplies a real `dest`.
+- The same current stock type inventory shows zero `CharIKFoot` rows. The
+  parser is present so future rows become visible, but stock GH2 has no
+  source-backed `CharIKFoot` instance to drive or explain the special-pose
+  leg/foot angle.
 - The stock type inventory at
   `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory.log`
   proves all 24 base character MILOs contain one `CharServoBone` row. Native
@@ -5364,9 +5372,9 @@ The same boundary was rechecked against the current local stock asset set at
 24 base character MILOs were scanned, the opaque rows are still exactly 19
 `CharWalk`, 20 `OutfitLoader`, and 99 `WorldFx`, and the source-backed nearby
 controller rows remain visible as 31 `CharHair`, 38 `CharIKHand`, 39
-`CharForeTwist`, and 48 `CharUpperTwist` rows. These counts are stock evidence,
-not permission to import a runtime body that ihatecompvir's checked sources do
-not expose.
+`CharForeTwist`, 48 `CharUpperTwist`, and zero `CharIKFoot` rows. These counts
+are stock evidence, not permission to import a runtime body that ihatecompvir's
+checked sources do not expose.
 
 The local stock-asset audit log at
 `analysis/ihatecompvir_source_truth_20260710/stock_hair_bone_inventory.log`
@@ -5497,6 +5505,14 @@ body/hand clip rows and source controller inputs become shared native frame
 state while the `CharClipSamples` / `CharBonesSamples` / `CharBones` /
 `PoseMeshes` publisher remains the source-backed target.
 
+2026-07-14 shared pose-stack frame cleanup: `apply_character_pose_stack_frame`
+now owns the per-frame stale runtime-world clear plus `ClipChannelLayerStack`
+application. `apply_character_pose_controller_frame` delegates its pose-stack
+phase to that helper, and gameplay uses the same helper before its retained
+postclip diagnostic dump. This keeps the viewer and in-game paths on one
+clip-stack application boundary without changing source blend, controller,
+IK, or hair behavior.
+
 2026-07-14 shared layer-source builder cleanup: viewer and gameplay now build
 their body/hand layer inputs through shared character helpers
 `make_character_pose_player_layer_sources` /
@@ -5504,8 +5520,8 @@ their body/hand layer inputs through shared character helpers
 players/clips and apply source `left.weight` / `right.weight` owner results to
 the strum/fret overlay lanes; they do not add new animation math or character-
 specific offsets. Gameplay still keeps its pre-controller postclip diagnostic
-dump, so `apply_character_pose_controller_frame` may receive an already-applied
-clip stack in-game, but the player-layer selection and source hand-weight
+dump through `apply_character_pose_stack_frame`, but the player-layer
+selection, stale runtime-row clear, clip-stack apply, and source hand-weight
 scaling are no longer game/viewer-local decisions.
 
 2026-07-14 shared hand-overlay lower-body fence: the shared clip-layer appenders

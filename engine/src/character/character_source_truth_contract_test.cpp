@@ -149,6 +149,9 @@ int run_contract() {
       compact(read_file(engine_dir / "src" / "app" / "app_main.cpp"));
   const std::string gameplay =
       compact(read_file(engine_dir / "src" / "game" / "gameplay.cpp"));
+  const std::string re_anim_audit =
+      compact(read_file(engine_dir.parent_path() / "tools" /
+                        "re_anim_audit.py"));
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
   const std::string char_clip = compact(read_file(char_dir / "char_clip.cpp"));
@@ -13695,6 +13698,23 @@ int run_contract() {
   ok &= contains(doc,
                  "They do not add a decoded `CharIKFoot` row hookup",
                  "document fences CharIKFoot live row hookup");
+  ok &= contains(re_anim_audit,
+                 "defparse_ik_foot(body:bytes)->dict[str,Any]:",
+                 "audit tool exposes CharIKFoot parser");
+  ok &= contains(re_anim_audit,
+                 "out[\"char_ik_hand\"]=parse_ik_hand_fields(r,len(body),"
+                 "False)",
+                 "audit tool parses CharIKFoot superclass first");
+  ok &= contains(re_anim_audit,
+                 "ifout[\"version\"]<6:out[\"legacy_symbol\"]=r.s()",
+                 "audit tool mirrors CharIKFoot legacy symbol gate");
+  ok &= contains(re_anim_audit,
+                 "else:out[\"data\"]=r.s()out[\"data_index\"]=r.i32()",
+                 "audit tool mirrors CharIKFoot data rows");
+  ok &= contains(re_anim_audit, "\"CharIKFoot\":parse_ik_foot,",
+                 "audit tool registers CharIKFoot parser");
+  ok &= contains(doc, "zero `CharIKFoot` rows",
+                 "document records stock CharIKFoot absence");
   ok &= contains(doc,
                  "Handler rows are `CharIKHand`, then check `0x16E`",
                  "document records CharIKFoot handler rows");
@@ -20086,11 +20106,12 @@ int run_contract() {
                  "document records refreshed opaque row recheck counts");
   ok &= contains(doc,
                  "controller rows remain visible as 31 `CharHair`, 38 "
-                 "`CharIKHand`, 39\n`CharForeTwist`, and 48 `CharUpperTwist`",
+                 "`CharIKHand`, 39\n`CharForeTwist`, 48 `CharUpperTwist`, "
+                 "and zero `CharIKFoot` rows",
                  "document records refreshed source-backed controller counts");
   ok &= contains(doc,
-                 "not permission to import a runtime body that "
-                 "ihatecompvir's checked sources do\nnot expose",
+                 "not permission to import a runtime body that ihatecompvir's\n"
+                 "checked sources do not expose",
                  "document fences refreshed inventory from fabricated imports");
   ok &= contains(doc, "`CharPollGroup`: zero stock rows",
                  "document records stock CharPollGroup absence");
@@ -20341,6 +20362,9 @@ int run_contract() {
   ok &= missing(stock_character_type_inventory_latest,
                 "type=SoftParticles count=",
                 "stock character inventory has no SoftParticles rows");
+  ok &= missing(stock_character_type_inventory_latest,
+                "type=CharIKFoot count=",
+                "stock character inventory has no CharIKFoot rows");
   ok &= missing(char_mesh, "decode_char_walk",
                 "native must not guess CharWalk decoder");
   ok &= contains(char_mesh, "EventTriggerdecode_event_trigger(",
@@ -33045,6 +33069,11 @@ int run_contract() {
                  "Character&character);",
                  "native character API exposes shared clip layer stack apply");
   ok &= contains(char_clip_h,
+                 "CharacterPoseStackFrameResult"
+                 "apply_character_pose_stack_frame(Character&character,"
+                 "constClipChannelLayerStack*stack);",
+                 "native character API exposes shared pose-stack frame helper");
+  ok &= contains(char_clip_h,
                  "structClipPlayerLayerSource{constCharClipPlayer*player="
                  "nullptr;floatweight=1.0f;booloverlay_override=false;};",
                  "native character API exposes shared player layer source");
@@ -33072,6 +33101,10 @@ int run_contract() {
                  "constClipChannelLayerStack*pose_stack=nullptr;"
                  "constSourceCharMainDriverHandWeights*driver_weights=nullptr;",
                  "native character API exposes shared pose/controller rows");
+  ok &= contains(char_clip_h,
+                 "structCharacterPoseStackFrameResult{boolapplied_clip_layers="
+                 "false;};",
+                 "native character API exposes shared pose-stack frame result");
   ok &= contains(char_clip_h,
                  "std::vector<CharacterRuntimeIkWeight>"
                  "fallback_ik_weights;",
@@ -33106,6 +33139,18 @@ int run_contract() {
                  "stack.relative);}",
                  "native shared clip layer stack applies one mixer path");
   ok &= contains(char_clip,
+                 "CharacterPoseStackFrameResult"
+                 "apply_character_pose_stack_frame(Character&character,"
+                 "constClipChannelLayerStack*stack){"
+                 "CharacterPoseStackFrameResultresult;"
+                 "clear_runtime_trans_worlds(character);",
+                 "native shared pose-stack frame clears runtime rows");
+  ok &= contains(char_clip,
+                 "if(stack!=nullptr&&!stack->layers.empty()){"
+                 "apply_clip_layer_stack(*stack,character);"
+                 "result.applied_clip_layers=true;}",
+                 "native shared pose-stack frame applies populated stack");
+  ok &= contains(char_clip,
                  "boolappend_clip_player_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipPlayerLayerSource>&sources)",
                  "native shared player layer batch implementation");
@@ -33128,6 +33173,11 @@ int run_contract() {
                  "apply_character_pose_controller_frame(Character&character,"
                  "constCharacterPoseControllerFrameSources&sources)",
                  "native shared pose/controller frame implementation");
+  ok &= contains(char_clip,
+                 "constCharacterPoseStackFrameResultpose_result="
+                 "apply_character_pose_stack_frame(character,"
+                 "sources.pose_stack);",
+                 "controller frame delegates pose-stack application");
   ok &= contains(app_main,
                  "ghogx::character::ClipChannelLayerStackpose_stack;",
                  "viewer builds a shared clip layer stack");
@@ -33179,9 +33229,9 @@ int run_contract() {
                  "pose_player_layers)",
                  "gameplay appends players through shared performer helper");
   ok &= contains(gameplay,
-                 "ghogx::character::apply_clip_layer_stack(pose_stack,"
-                 "character)",
-                 "gameplay applies shared clip layer stack");
+                 "ghogx::character::apply_character_pose_stack_frame("
+                 "character,&pose_stack)",
+                 "gameplay applies shared pose-stack frame helper");
   ok &= contains(gameplay,
                  "ghogx::character::CharacterPoseControllerFrameSources"
                  "controller_sources;",
@@ -33194,6 +33244,9 @@ int run_contract() {
                  "in-game performer update now both feed "
                  "`CharacterPosePlayerLayerSources` into",
                  "document records shared clip layer cleanup");
+  ok &= contains(doc,
+                 "`apply_character_pose_stack_frame`",
+                 "document records shared pose-stack cleanup");
   ok &= contains(doc,
                  "`apply_character_pose_controller_frame`",
                  "document records shared pose/controller cleanup");

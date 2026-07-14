@@ -10539,16 +10539,26 @@ void apply_clip_layer_stack(const ClipChannelLayerStack& stack,
   apply_clip_channel_layers(stack.layers, character, stack.relative);
 }
 
+CharacterPoseStackFrameResult apply_character_pose_stack_frame(
+    Character& character,
+    const ClipChannelLayerStack* stack) {
+  CharacterPoseStackFrameResult result;
+  clear_runtime_trans_worlds(character);
+  if (stack != nullptr && !stack->layers.empty()) {
+    apply_clip_layer_stack(*stack, character);
+    result.applied_clip_layers = true;
+  }
+  return result;
+}
+
 CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
     Character& character,
     const CharacterPoseControllerFrameSources& sources) {
   CharacterPoseControllerFrameResult result;
 
-  clear_runtime_trans_worlds(character);
-  if (sources.pose_stack != nullptr && !sources.pose_stack->layers.empty()) {
-    apply_clip_layer_stack(*sources.pose_stack, character);
-    result.applied_clip_layers = true;
-  }
+  const CharacterPoseStackFrameResult pose_result =
+      apply_character_pose_stack_frame(character, sources.pose_stack);
+  result.applied_clip_layers = pose_result.applied_clip_layers;
 
   if (!sources.controllers_enabled) return result;
 

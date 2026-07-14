@@ -300,8 +300,9 @@ def parse_weight_setter(body: bytes) -> dict[str, Any]:
     return out
 
 
-def parse_ik_hand(body: bytes) -> dict[str, Any]:
-    r = Reader(body)
+def parse_ik_hand_fields(
+    r: Reader, body_len: int, consume_optional_unknown: bool
+) -> dict[str, Any]:
     out: dict[str, Any] = {"version": r.i32(), "object": r.object_base()}
     out["weightable_version"] = r.i32()
     out["weight"] = r.f32()
@@ -310,8 +311,37 @@ def parse_ik_hand(body: bytes) -> dict[str, Any]:
     out["target"] = r.s()
     out["enable_pos"] = r.u8()
     out["enable_rot"] = r.u8()
-    if r.p < len(body):
+    if consume_optional_unknown and r.p < body_len:
         out["unknown_flag"] = r.u8()
+    return out
+
+
+def parse_ik_hand(body: bytes) -> dict[str, Any]:
+    r = Reader(body)
+    out = parse_ik_hand_fields(r, len(body), True)
+    out["tail_hex"] = body[r.p :].hex()
+    out["consumed"] = r.p == len(body)
+    return out
+
+
+def parse_ik_foot(body: bytes) -> dict[str, Any]:
+    r = Reader(body)
+    out: dict[str, Any] = {"version": r.i32(), "object": r.object_base()}
+    out["char_ik_hand"] = parse_ik_hand_fields(r, len(body), False)
+    if out["version"] < 6:
+        out["legacy_symbol"] = r.s()
+    if out["version"] < 5:
+        legacy_ints = []
+        if out["version"] > 1:
+            legacy_ints.append(r.i32())
+        if out["version"] > 2:
+            legacy_ints.append(r.i32())
+        if out["version"] > 3:
+            legacy_ints.append(r.i32())
+        out["legacy_ints"] = legacy_ints
+    else:
+        out["data"] = r.s()
+        out["data_index"] = r.i32()
     out["tail_hex"] = body[r.p :].hex()
     out["consumed"] = r.p == len(body)
     return out
@@ -388,6 +418,7 @@ PARSERS = {
     "CharForeTwist": lambda b: parse_simple_strings(b, True),
     "CharWeightSetter": parse_weight_setter,
     "CharIKHand": parse_ik_hand,
+    "CharIKFoot": parse_ik_foot,
     "CharIKMidi": parse_ik_midi,
     "CharWalk": parse_empty_object,
     "CharServoBone": parse_empty_object,

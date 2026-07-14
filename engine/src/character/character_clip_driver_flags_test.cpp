@@ -1386,6 +1386,51 @@ bool expect_clip_driver_helpers() {
   ghogx::character::ClipChannelLayerStack empty_layer_stack;
   ghogx::character::apply_clip_layer_stack(empty_layer_stack, empty_character);
 
+  ghogx::character::Character empty_stack_frame_character;
+  empty_stack_frame_character.runtime_world_overrides["stale.mesh"] =
+      {1.0f, 0.0f, 0.0f, 0.0f,
+       0.0f, 1.0f, 0.0f, 0.0f,
+       0.0f, 0.0f, 1.0f, 0.0f,
+       1.0f, 2.0f, 3.0f, 1.0f};
+  const auto empty_stack_frame_result =
+      ghogx::character::apply_character_pose_stack_frame(
+          empty_stack_frame_character, &empty_layer_stack);
+  if (empty_stack_frame_result.applied_clip_layers ||
+      !empty_stack_frame_character.runtime_world_overrides.empty()) {
+    std::cerr << "shared empty pose-stack frame helper mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::Character null_stack_frame_character;
+  null_stack_frame_character.runtime_world_overrides["stale.mesh"] =
+      {1.0f, 0.0f, 0.0f, 0.0f,
+       0.0f, 1.0f, 0.0f, 0.0f,
+       0.0f, 0.0f, 1.0f, 0.0f,
+       4.0f, 5.0f, 6.0f, 1.0f};
+  const auto null_stack_frame_result =
+      ghogx::character::apply_character_pose_stack_frame(
+          null_stack_frame_character, nullptr);
+  if (null_stack_frame_result.applied_clip_layers ||
+      !null_stack_frame_character.runtime_world_overrides.empty()) {
+    std::cerr << "shared null pose-stack frame helper mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::Character stack_frame_character;
+  stack_frame_character.runtime_world_overrides["stale.mesh"] =
+      {1.0f, 0.0f, 0.0f, 0.0f,
+       0.0f, 1.0f, 0.0f, 0.0f,
+       0.0f, 0.0f, 1.0f, 0.0f,
+       7.0f, 8.0f, 9.0f, 1.0f};
+  const auto stack_frame_result =
+      ghogx::character::apply_character_pose_stack_frame(
+          stack_frame_character, &performer_frame_stack);
+  if (!stack_frame_result.applied_clip_layers ||
+      !stack_frame_character.runtime_world_overrides.empty()) {
+    std::cerr << "shared populated pose-stack frame helper mismatch\n";
+    ok = false;
+  }
+
   ghogx::character::Character controller_character;
   controller_character.runtime_world_overrides["stale.mesh"] =
       {1.0f, 0.0f, 0.0f, 0.0f,
