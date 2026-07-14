@@ -16820,6 +16820,11 @@ std::optional<CameraTarget> camera_target_for_ref(
     std::string_view subpart,
     const std::unordered_map<std::string, CameraTarget>& targets);
 
+std::optional<std::string> camera_resolved_target_id_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
 std::optional<CameraTarget> camera_target_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
@@ -19422,20 +19427,37 @@ std::optional<CameraTarget> camera_target_for_ref(
     std::string_view entity,
     std::string_view subpart,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (entity.empty()) return std::nullopt;
-    auto it = targets.find(camera_target_id(entity, subpart));
-    if (it == targets.end() && !subpart.empty()) {
+    auto resolved_id =
+        camera_resolved_target_id_for_ref(entity, subpart, targets);
+    if (!resolved_id) return std::nullopt;
+    const auto it = targets.find(*resolved_id);
+    if (it == targets.end()) return std::nullopt;
+    return CameraTarget{it->second.world};
+}
+
+std::optional<std::string> camera_resolved_target_id_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    std::string id =
+        entity.empty() ? canonical_milo_ref(std::string(subpart))
+                       : camera_target_id(entity, subpart);
+    if (id.empty()) return std::nullopt;
+    if (targets.find(id) != targets.end()) return id;
+    if (!subpart.empty()) {
         const std::string stripped_subpart =
             strip_mesh_suffix(std::string(subpart));
         if (stripped_subpart != subpart) {
-            it = targets.find(camera_target_id(entity, stripped_subpart));
+            id = entity.empty() ? canonical_milo_ref(stripped_subpart)
+                                : camera_target_id(entity, stripped_subpart);
+            if (targets.find(id) != targets.end()) return id;
         }
     }
-    if (it == targets.end() && !subpart.empty()) {
-        it = targets.find(camera_target_id(entity, {}));
+    if (!entity.empty() && !subpart.empty()) {
+        id = camera_target_id(entity, {});
+        if (targets.find(id) != targets.end()) return id;
     }
-    if (it == targets.end()) return std::nullopt;
-    return CameraTarget{it->second.world};
+    return std::nullopt;
 }
 
 std::optional<CameraTarget> camera_target_for_key(
@@ -19636,12 +19658,14 @@ camera_entity_only_target_alias_world_copy_candidate_rows_for_key(
 size_t camera_target_ref_count_for_key(const Gameplay::CameraKey& key) {
     return !key.target_refs.empty()
                ? key.target_refs.size()
-               : (key.target_entity.empty() ? 0u : 1u);
+               : ((!key.target_entity.empty() || !key.target_subpart.empty())
+                      ? 1u
+                      : 0u);
 }
 
 std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {
     if (key.target_refs.empty()) {
-        return key.target_entity.empty()
+        return key.target_entity.empty() && key.target_subpart.empty()
                    ? std::string("none")
                    : std::string(key.target_entity + ":" + key.target_subpart);
     }
@@ -19653,28 +19677,6 @@ std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {
         out += key.target_refs[i].subpart;
     }
     return out.empty() ? std::string("none") : out;
-}
-
-std::optional<std::string> camera_resolved_target_id_for_ref(
-    std::string_view entity,
-    std::string_view subpart,
-    const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (entity.empty()) return std::nullopt;
-    std::string id = camera_target_id(entity, subpart);
-    if (targets.find(id) != targets.end()) return id;
-    if (!subpart.empty()) {
-        const std::string stripped_subpart =
-            strip_mesh_suffix(std::string(subpart));
-        if (stripped_subpart != subpart) {
-            id = camera_target_id(entity, stripped_subpart);
-            if (targets.find(id) != targets.end()) return id;
-        }
-    }
-    if (!subpart.empty()) {
-        id = camera_target_id(entity, {});
-        if (targets.find(id) != targets.end()) return id;
-    }
-    return std::nullopt;
 }
 
 std::vector<std::string> camera_resolved_target_signature_for_key(
@@ -19753,7 +19755,8 @@ std::array<float, 3> camera_authored_at_for_key(
 std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (key.parent_entity.empty()) return std::nullopt;
+    if (key.parent_entity.empty() && key.parent_subpart.empty())
+        return std::nullopt;
     return camera_target_for_ref(key.parent_entity, key.parent_subpart,
                                  targets);
 }

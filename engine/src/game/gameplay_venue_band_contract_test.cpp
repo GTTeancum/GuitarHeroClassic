@@ -8002,11 +8002,27 @@ int main() {
                  "conststd::stringstripped_subpart="
                  "strip_mesh_suffix(std::string(subpart));",
                  "camera target lookup mirrors LoadSubPart suffix stripping");
+  ok &= contains(gameplay_c,
+                 "entity.empty()?canonical_milo_ref(std::string(subpart))"
+                 ":camera_target_id(entity,subpart);",
+                 "camera target lookup supports source object-pointer refs without an entity");
   ok &= appears_before(
       gameplay_c,
       "strip_mesh_suffix(std::string(subpart));",
       "camera_target_id(entity,{})",
       "camera target lookup tries source-stripped subparts before root fallback");
+  ok &= contains(gameplay_c,
+                 "if(!entity.empty()&&!subpart.empty()){"
+                 "id=camera_target_id(entity,{});",
+                 "camera target root fallback is limited to source SubPart refs");
+  ok &= contains(gameplay_c,
+                 "if(key.parent_entity.empty()&&key.parent_subpart.empty())"
+                 "returnstd::nullopt;",
+                 "CamShot parent object-pointer refs can resolve without an entity");
+  ok &= contains(gameplay_c,
+                 "((!key.target_entity.empty()||!key.target_subpart.empty())"
+                 "?1u:0u)",
+                 "camera target debug counts direct object-pointer refs");
   ok &= contains(gameplay_c,
                  "autoprop_world=perf.renderer->attached_prop_world(subpart);",
                  "camera target refs can resolve attached prop objects");

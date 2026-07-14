@@ -11318,6 +11318,14 @@ Rejected native probe:
   Hmx `m.y`/`m.z`/`pos` into camera forward/up/eye. Authored non-zero frames
   remain unchanged; this prevents zero-authored fallback frames from becoming
   a zero camera basis.
+- 2026-07-14 CamShot object-pointer target refs:
+  ihatecompvir `CamShotFrame::Load` reads newer target/focus/parent refs as
+  direct `ObjPtr<RndTransformable>` values instead of the older
+  `LoadSubPart` entity/subpart pair. Native target resolution now allows an
+  empty-entity ref to resolve as a canonical direct object id, including the
+  same mesh-suffix stripping used for SubPart refs. The entity-root fallback
+  remains limited to non-empty entity/subpart refs, so direct object pointers
+  do not silently collapse to a performer root.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives
