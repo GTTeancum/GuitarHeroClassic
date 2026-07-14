@@ -18135,7 +18135,7 @@ std::optional<std::array<float, 2>> camera_project_target_screen_norm(
     }
     const float tan_y = std::tan(key.fov * 0.5f);
     if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
-    const float tan_x = tan_y * kNativeValidationAspect;
+    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
     camera_orthonormalize_result_rows(rows);
     const std::array<float, 3> delta = {
         target[0] - rows.position[0], target[1] - rows.position[1],
@@ -18217,7 +18217,7 @@ bool camera_apply_screen_offset_to_result_rows(
     }
     const float tan_y = std::tan(key.fov * 0.5f);
     if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return false;
-    const float tan_x = tan_y * kNativeValidationAspect;
+    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
     camera_orthonormalize_result_rows(rows);
     rows.forward = {
         rows.forward[0] - rows.right[0] * key.screen_offset[0] * tan_x -

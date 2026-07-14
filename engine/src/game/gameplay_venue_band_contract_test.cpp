@@ -180,6 +180,10 @@ int main() {
       function_body(gameplay, "choose_regular_camera_key_index_by_category"));
   const std::string camera_submit_c =
       compact(function_body(gameplay, "camera_submitted_result_rows_for_key"));
+  const std::string camera_project_target_screen_norm_c = compact(
+      function_body(gameplay, "camera_project_target_screen_norm"));
+  const std::string camera_screen_offset_result_c = compact(
+      function_body(gameplay, "camera_apply_screen_offset_to_result_rows"));
   const std::string rnd_camanim_reader_c =
       compact(function_body(gameplay, "read_rnd_camanim_like_miloeditor"));
   const std::string venue_camera_fov_loader_c =
@@ -8410,6 +8414,12 @@ int main() {
                  "rows.forward[0]-rows.right[0]*key.screen_offset[0]*tan_x-"
                  "rows.up[0]*key.screen_offset[1]*tan_y",
                  "screen offset correction adjusts submitted result forward vector");
+  ok &= contains(camera_project_target_screen_norm_c,
+                 "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
+                 "shot-filter target projection uses the CamShot source frustum aspect");
+  ok &= contains(camera_screen_offset_result_c,
+                 "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
+                 "screen offset correction uses the CamShot source frustum aspect");
   ok &= contains(gameplay_c,
                  "camera_orthonormalize_result_rows(rows);"
                  "rows.screen_offset_consumed=true;"
