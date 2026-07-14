@@ -6599,6 +6599,11 @@ bool load_clip_first_from_milos(
     return false;
 }
 
+const char* clip_source_path(const ghogx::character::CharClip& clip) {
+    return clip.source_milo_path.empty() ? "<none>"
+                                         : clip.source_milo_path.c_str();
+}
+
 std::vector<std::string> clip_candidates_by_anim_tempo(
     std::initializer_list<const char*> names, std::string_view anim_tempo) {
     std::vector<std::string> ordered;
@@ -19527,9 +19532,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (perf.band_jump_clip.loaded) {
                     std::fprintf(
                         stderr,
-                        "[world] performer band_jump clip: role=%s char=%s clip=%s\n",
+                        "[world] performer band_jump clip: role=%s char=%s clip=%s source=%s\n",
                         perf.role.c_str(), perf.character_name.c_str(),
-                        perf.band_jump_clip.name.c_str());
+                        perf.band_jump_clip.name.c_str(),
+                        clip_source_path(perf.band_jump_clip));
                 }
                 if (perf.role == "drummer") {
                     const auto drummer_active_allbeat_names =
@@ -19711,6 +19717,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  hand_character.ik_hands.size(),
                                  hand_character.ik_midis.size());
                 }
+                std::fprintf(stderr,
+                             "[world] performer clip sources: role=%s char=%s idle=%s intro=%s active=%s band_jump=%s strum=%s fret=%s\n",
+                             perf.role.c_str(), perf.character_name.c_str(),
+                             clip_source_path(perf.idle_clip),
+                             clip_source_path(perf.intro_clip),
+                             clip_source_path(perf.active_clip),
+                             clip_source_path(perf.band_jump_clip),
+                             clip_source_path(perf.strum_clip),
+                             clip_source_path(perf.fret_clip));
                 std::fprintf(stderr,
                              "[world] performer loaded: role=%s track=%s char=%s model=%s\n",
                              perf.role.c_str(), perf.event_track.c_str(),
@@ -19953,9 +19968,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ghogx::character::kCharPlayNoBlend);
                 }
                 std::fprintf(stderr,
-                             "[world] performer active clip: role=%s mode=%s clip=%s t=%.3f\n",
+                             "[world] performer active clip: role=%s mode=%s clip=%s source=%s t=%.3f\n",
                              perf.role.c_str(), desired_mode.c_str(),
-                             desired_active->name.c_str(), song_time_);
+                             desired_active->name.c_str(),
+                             clip_source_path(*desired_active), song_time_);
             }
             perf.active_player.set_speed(midi_state.main_beat_scale);
             perf.renderer->update(static_cast<float>(dt));
@@ -19995,9 +20011,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             next, ghogx::character::kCharPlayNoLoop,
                             character_driver_blend_seconds());
                         std::fprintf(stderr,
-                                     "[world] performer group clip: role=%s group=normal clip=%s t=%.3f\n",
+                                     "[world] performer group clip: role=%s group=normal clip=%s source=%s t=%.3f\n",
                                      perf.role.c_str(), next.name.c_str(),
-                                     song_time_);
+                                     clip_source_path(next), song_time_);
                     }
                 }
             }
@@ -20020,9 +20036,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         character_driver_blend_seconds());
                     std::fprintf(
                         stderr,
-                        "[world] performer band_jump: role=%s clip=%s tick=%u duration=%.3f t=%.3f\n",
+                        "[world] performer band_jump: role=%s clip=%s source=%s tick=%u duration=%.3f t=%.3f\n",
                         perf.role.c_str(), perf.band_jump_clip.name.c_str(),
-                        ev.tick, perf.last_band_jump_duration, song_time_);
+                        clip_source_path(perf.band_jump_clip), ev.tick,
+                        perf.last_band_jump_duration, song_time_);
                     break;
                 }
             }

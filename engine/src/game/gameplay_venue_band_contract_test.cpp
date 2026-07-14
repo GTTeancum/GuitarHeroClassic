@@ -3398,6 +3398,27 @@ int main() {
                  "ghogx::character::char_clip_group_get_clip_index(group)",
                  "gameplay advances active CharClipGroup through source GetClip");
   ok &= contains(gameplay_c,
+                 "constchar*clip_source_path(constghogx::character::"
+                 "CharClip&clip){returnclip.source_milo_path.empty()?"
+                 "\"<none>\":clip.source_milo_path.c_str();}",
+                 "gameplay exposes concrete source animation MILO paths for performer proof logs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performerclipsources:role=%schar=%sidle=%s"
+                 "intro=%sactive=%sband_jump=%sstrum=%sfret=%s\\n\"",
+                 "performer load logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performeractiveclip:role=%smode=%sclip=%s"
+                 "source=%st=%.3f\\n\"",
+                 "performer active-clip logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performergroupclip:role=%sgroup=normalclip=%s"
+                 "source=%st=%.3f\\n\"",
+                 "performer group-clip logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performerband_jump:role=%sclip=%ssource=%s"
+                 "tick=%uduration=%.3ft=%.3f\\n\"",
+                 "performer band-jump logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
                  "active_group=ghogx::character::load_clip_group("
                  "hdr_path_,ark_path_,main_anim_milos,\"normal\");",
                  "guitarist normal group loads full source CharClipGroup state");

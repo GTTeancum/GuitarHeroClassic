@@ -5758,6 +5758,18 @@ source authority. The front proof still shows the upper/lower arm read is not
 trustworthy, while the side proof and log keep the chain classified as an
 unresolved `chain.hair` hookup rather than a static placement problem.
 
+2026-07-14 reference-base angle check: the direct-app proof in
+`engine/out/visual_proofs/angle_and_ingame_comparison_20260714/` recaptures
+Rockabill2 `special_02` frame 70 with `--char-reference-base` and locked
+degree-based yaw/pitch values. The current `profile_base` and `yaw0_base`
+captures keep the platform level while the character pose remains airborne,
+so the lifted/forward feet are not explained by viewer camera roll. The same
+proof set includes a small2/Trogdor in-game `flr_near_rt01` capture with the
+highway hidden; its log resolves guitarist0's main/band-jump/active clips to
+`char/rockabill1/anims/gen/rockabill1_main.milo_ps2`, matching the viewer's
+source-route log. This confirms the specific leg/foot read is a pose-stack
+problem to investigate, not a reason to add foot IK or camera compensation.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
