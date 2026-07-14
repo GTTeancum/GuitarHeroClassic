@@ -30697,7 +30697,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 active_regular_camera_start_,
                                 active_camera_shot_over_, &chart_, &local_frame,
                                 &duration_frames)) {
-                            active_camera_shot_over_ = true;
                             active_camera_skip_next_crowd_update_ = true;
                             source_forced_camera_shot =
                                 active_key->next_shot_ref;
@@ -30715,6 +30714,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     source_forced_camera_shot.c_str(),
                                     local_frame, duration_frames);
                             }
+                            active_camera_shot_over_ = true;
                         }
                     }
                 }

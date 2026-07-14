@@ -159,6 +159,11 @@ Open work:
   `active_camera_shot_over_` for the regular CamShot lifetime so an authored
   `next_shot` chain can fire once per active shot instead of repeatedly forcing
   the same source `shot_over` bridge on later frames.
+- 2026-07-13 CamShot `SetShotOver` dispatch order: ihatecompvir
+  `CamShot::SetShotOver()` calls `HandleType(shot_over_msg)` before assigning
+  `mShotOver = true`. Native now resolves/logs the authored `next_shot`
+  handoff and `camshot_skip_next_update` latch before flipping
+  `active_camera_shot_over_`, preserving the source message-before-latch order.
 - 2026-07-13 `camshot_skip_next_update` bridge: GH2 `camshot.dta` sets
   `$camshot_skip_next_update TRUE` before `world do_force_shot [next_shot]`;
   the next `start_shot` skips the script-level `[crowd] crowd_update` /

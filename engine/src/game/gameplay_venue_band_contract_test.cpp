@@ -10891,11 +10891,20 @@ int main() {
                  "active_regular_camera_start_,active_camera_shot_over_,"
                  "&chart_,",
                  "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
+  ok &= appears_before(
+      gameplay_c,
+      "source_forced_camera_shot=active_key->next_shot_ref;",
+      "active_camera_shot_over_=true;",
+      "source shot_over dispatch happens before mShotOver flips");
+  ok &= appears_before(
+      gameplay_c,
+      "\"[world]camerashot_over:source_msg=shot_overshot=%s",
+      "active_camera_shot_over_=true;",
+      "source shot_over diagnostics preserve SetShotOver message-before-latch order");
   ok &= contains(gameplay_c,
-                 "active_camera_shot_over_=true;"
                  "active_camera_skip_next_crowd_update_=true;"
                  "source_forced_camera_shot=active_key->next_shot_ref;",
-                 "source shot_over bridge sets mShotOver and camshot_skip_next_update when shot_over fires");
+                 "source shot_over bridge sets camshot_skip_next_update when shot_over fires");
   ok &= contains(gameplay_h_c,
                  "boolactive_camera_skip_next_crowd_update_=false;",
                  "regular camera runtime carries the GH2 camshot_skip_next_update latch");
