@@ -8331,6 +8331,9 @@ int main() {
                  "std::stringpath_anim;boolhas_path_anim=false;",
                  "CameraKey preserves authored CamShot TransAnim path refs");
   ok &= contains(gameplay_h_c,
+                 "std::stringpath_trans_target;boolhas_path_trans_target=false;",
+                 "CameraKey preserves source RndTransAnim mTrans target refs");
+  ok &= contains(gameplay_h_c,
                  "floatpath_base_eye[3]={};"
                  "floatpath_base_forward[3]={0.0f,1.0f,0.0f};"
                  "floatpath_base_up[3]={0.0f,0.0f,1.0f};"
@@ -8462,6 +8465,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "out=resolved.trans_keys;",
                  "path-backed camera positions come from the resolved source trans keys");
+  ok &= contains(gameplay_c,
+                 "pos.path_trans_target=resolved.trans;"
+                 "pos.has_path_trans_target=true;",
+                 "path-backed camera positions retain source RndTransAnim mTrans");
   ok &= contains(gameplay_c,
                  "\"[camera-path]anim=%ssource-shapedrev=%uanim_rev=%u\"",
                  "camera path diagnostics expose source-shaped RndTransAnim metadata");
@@ -10244,8 +10251,9 @@ int main() {
                  "a_legacy_path_frame=%s%.3fb_legacy_path_frame=%s%.3f"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
                  "route=regular_camera_path_keyspath=%s"
+                 "path_trans_target=%s"
                  "path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\\n\"",
-                 "path-backed camera diagnostics separate live mPathFrame from the ignored legacy load float");
+                 "path-backed camera diagnostics separate live mPathFrame from the ignored legacy load float and source mTrans target");
   ok &= contains(gameplay_c,
                  "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
                  "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");

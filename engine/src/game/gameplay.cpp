@@ -2482,6 +2482,10 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.glow_spot_ref = from.glow_spot_ref;
     to.path_anim = from.path_anim;
     to.has_path_anim = from.has_path_anim;
+    if (!to.has_path_trans_target && from.has_path_trans_target) {
+        to.path_trans_target = from.path_trans_target;
+        to.has_path_trans_target = true;
+    }
     to.legacy_path_frame_ignored = from.legacy_path_frame_ignored;
     to.has_legacy_path_frame_ignored =
         from.has_legacy_path_frame_ignored;
@@ -9915,6 +9919,10 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
         auto& resolved = anim_it->second;
         out = resolved.trans_keys;
         if (out.empty()) return out;
+        for (auto& pos : out) {
+            pos.path_trans_target = resolved.trans;
+            pos.has_path_trans_target = true;
+        }
         if (!resolved.rot_keys.empty()) {
             for (auto& pos : out) {
                 const auto q =
@@ -15483,6 +15491,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     }
                     c.key.has_quat = c.key.positions.front().has_quat;
                     c.key.has_basis = c.key.positions.front().has_basis;
+                    c.key.path_trans_target =
+                        c.key.positions.front().path_trans_target;
+                    c.key.has_path_trans_target =
+                        c.key.positions.front().has_path_trans_target;
                     if (c.key.parent_entity.empty()) {
                         populate_camera_generated_source_rows(c.key);
                     }
@@ -32079,11 +32091,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             return path_key.has_source_path_frame_mapping ? ""
                                                                           : "none/";
                         };
+                        const CameraKey& path_target_key =
+                            a_key.has_path_trans_target
+                                ? a_key
+                                : (b_key.has_path_trans_target ? b_key
+                                                               : *key);
+                        auto path_trans_target_label =
+                            [](const CameraKey& path_key) -> const char* {
+                            if (!path_key.has_path_trans_target) return "none";
+                            return path_key.path_trans_target.empty()
+                                       ? "null"
+                                       : path_key.path_trans_target.c_str();
+                        };
                         active_camera_frame_pair_reported_ =
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -32122,7 +32146,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             b_key.has_legacy_path_frame_ignored
                                 ? b_key.legacy_path_frame_ignored
                                 : 0.0f,
-                            key->path_anim.c_str());
+                            key->path_anim.c_str(),
+                            path_trans_target_label(path_target_key));
                     }
                 }
                 const CameraKey& visibility_key =

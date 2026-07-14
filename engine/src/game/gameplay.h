@@ -196,6 +196,8 @@ class Gameplay {
     bool has_camshot_shot_tail_offset = false;
     std::string path_anim;
     bool has_path_anim = false;
+    std::string path_trans_target;
+    bool has_path_trans_target = false;
     float path_base_eye[3] = {};
     float path_base_forward[3] = {0.0f, 1.0f, 0.0f};
     float path_base_up[3] = {0.0f, 0.0f, 1.0f};
