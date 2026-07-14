@@ -1197,6 +1197,42 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  incoming_pose_clip.name = "incoming.main";
+  ghogx::character::CharClip::OutputBone incoming_output;
+  incoming_output.name = "bone_L-foreTwist.mesh";
+  incoming_pose_clip.output_bones.push_back(incoming_output);
+  ghogx::character::ClipChannelLayerStack layer_stack;
+  if (!ghogx::character::append_clip_player_layer(
+          layer_stack, transition_player, 0.25f, true) ||
+      layer_stack.layers.size() != 1 ||
+      !nearf(layer_stack.layers[0].weight, 0.25f) ||
+      !layer_stack.layers[0].overlay_override ||
+      layer_stack.layers[0].debug_name != "incoming.main" ||
+      layer_stack.layers[0].output_bones != &incoming_pose_clip.output_bones) {
+    std::cerr << "shared player layer builder mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip frame_clip;
+  frame_clip.loaded = true;
+  frame_clip.name = "frame.main";
+  frame_clip.relative = true;
+  frame_clip.frames.resize(2);
+  frame_clip.frames[1].push_back(incoming_twist);
+  if (!ghogx::character::append_clip_frame_layer(layer_stack, frame_clip, 99,
+                                                 0.75f, false) ||
+      layer_stack.layers.size() != 2 ||
+      layer_stack.layers[1].debug_name != "frame.main" ||
+      !nearf(layer_stack.layers[1].weight, 0.75f) ||
+      layer_stack.layers[1].channels.size() != 1 ||
+      layer_stack.layers[1].channels[0].bone_name !=
+          "bone_L-foreTwist.mesh" ||
+      layer_stack.layers[1].output_bones != &frame_clip.output_bones ||
+      layer_stack.relative) {
+    std::cerr << "shared frame layer builder mismatch\n";
+    ok = false;
+  }
+
   ok &= expect_indices(
       ghogx::character::source_char_clip_driver_delete_stack_order(3),
       {2, 1, 0}, "DeleteStack tail-first order");

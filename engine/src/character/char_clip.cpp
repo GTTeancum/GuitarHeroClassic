@@ -10286,6 +10286,47 @@ void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
   apply_hand_driver_output_layers(frame, character, relative, layers);
 }
 
+namespace {
+
+void update_layer_stack_relative(ClipChannelLayerStack& stack, bool relative) {
+  if (!stack.relative_set) {
+    stack.relative = relative;
+    stack.relative_set = true;
+  } else if (stack.relative != relative) {
+    stack.relative = false;
+  }
+}
+
+}  // namespace
+
+bool append_clip_player_layer(ClipChannelLayerStack& stack,
+                              const CharClipPlayer& player, float weight,
+                              bool overlay_override) {
+  if (!player.active()) return false;
+  auto channels = player.sampled_pose();
+  if (channels.empty()) return false;
+  const bool relative = player.sampled_pose_relative();
+  update_layer_stack_relative(stack, relative);
+  const CharClip* clip = player.current_clip();
+  stack.layers.push_back(ClipChannelLayer{
+      std::move(channels), weight, clip ? &clip->output_bones : nullptr,
+      clip ? clip->name : std::string{}, relative, overlay_override});
+  return true;
+}
+
+bool append_clip_frame_layer(ClipChannelLayerStack& stack, const CharClip& clip,
+                             int frame_idx, float weight,
+                             bool overlay_override) {
+  if (clip.frames.empty()) return false;
+  const int fi =
+      std::clamp(frame_idx, 0, static_cast<int>(clip.frames.size()) - 1);
+  update_layer_stack_relative(stack, clip.relative);
+  stack.layers.push_back(ClipChannelLayer{
+      clip.frames[static_cast<size_t>(fi)], weight, &clip.output_bones,
+      clip.name, clip.relative, overlay_override});
+  return true;
+}
+
 void CharClipPlayer::clear() {
   layers_.clear();
 }

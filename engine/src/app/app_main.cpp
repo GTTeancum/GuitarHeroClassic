@@ -1540,32 +1540,21 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     ghogx::character::clear_runtime_trans_worlds(renderer.character());
     // Real-time clip playback through a viewer-side CharDriver play stack.
     ghogx::character::SourceCharMainDriverHandWeights frame_hand_weights;
+    ghogx::character::ClipChannelLayerStack pose_stack;
     if (clip_frame_override >= 0) {
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
-      if (face_base_clip.loaded && !face_base_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame(face_base_clip, clip_frame_override,
-                                           renderer.character());
-      }
-      if (loaded_clip.loaded && !loaded_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame(loaded_clip, clip_frame_override,
-                                           renderer.character());
-      }
-      if (strum_clip.loaded && !strum_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame_weighted(strum_clip,
-                                                    clip_frame_override,
-                                                    frame_hand_weights.right,
-                                                    renderer.character());
-      }
-      if (fret_clip.loaded && !fret_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame_weighted(fret_clip,
-                                                    clip_frame_override,
-                                                    frame_hand_weights.left,
-                                                    renderer.character());
-      }
-      if (face_clip.loaded && !face_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame(face_clip, clip_frame_override,
-                                           renderer.character());
-      }
+      ghogx::character::append_clip_frame_layer(
+          pose_stack, loaded_clip, clip_frame_override);
+      ghogx::character::append_clip_frame_layer(
+          pose_stack, face_base_clip, clip_frame_override);
+      ghogx::character::append_clip_frame_layer(
+          pose_stack, strum_clip, clip_frame_override, frame_hand_weights.right,
+          true);
+      ghogx::character::append_clip_frame_layer(
+          pose_stack, fret_clip, clip_frame_override, frame_hand_weights.left,
+          true);
+      ghogx::character::append_clip_frame_layer(
+          pose_stack, face_clip, clip_frame_override);
     } else {
       main_player.advance(dt);
       strum_player.advance(dt);
@@ -1573,11 +1562,18 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       face_base_player.advance(dt);
       face_player.advance(dt);
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
-      face_base_player.apply(renderer.character());
-      main_player.apply(renderer.character());
-      strum_player.apply(renderer.character(), frame_hand_weights.right);
-      fret_player.apply(renderer.character(), frame_hand_weights.left);
-      face_player.apply(renderer.character());
+      ghogx::character::append_clip_player_layer(pose_stack, main_player);
+      ghogx::character::append_clip_player_layer(pose_stack,
+                                                 face_base_player);
+      ghogx::character::append_clip_player_layer(
+          pose_stack, strum_player, frame_hand_weights.right, true);
+      ghogx::character::append_clip_player_layer(
+          pose_stack, fret_player, frame_hand_weights.left, true);
+      ghogx::character::append_clip_player_layer(pose_stack, face_player);
+    }
+    if (!pose_stack.layers.empty()) {
+      ghogx::character::apply_clip_channel_layers(
+          pose_stack.layers, renderer.character(), pose_stack.relative);
     }
     // Apply decoded controller data after sampled clip layers. Do not apply
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,

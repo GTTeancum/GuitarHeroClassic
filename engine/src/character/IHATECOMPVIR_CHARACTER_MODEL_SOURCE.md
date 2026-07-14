@@ -5448,6 +5448,16 @@ frame or a live `CharClipPlayer`, but both callers use the same helper to turn
 `apply_character_controllers`. This avoids the viewer becoming a separate hand
 IK interpretation path.
 
+2026-07-14 shared clip-layer cleanup: the diagnostic `--char` viewer and the
+in-game performer update now both build sampled player lanes through
+`append_clip_player_layer` before calling `apply_clip_channel_layers`; the
+fixed-frame viewer route uses the same stack shape through
+`append_clip_frame_layer`. This ports no new pose math; it only removes the
+viewer-only sequential `CharClipPlayer::apply` lane for body/hand presentation
+so both entry points exercise the same native layer mixer while the
+`CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes` publisher
+remains the source-backed target.
+
 2026-07-14 in-game transient stack correction: ihatecompvir's
 `CharDriver::Play` constructs a new `CharClipDriver` with the previous
 `mFirst` as `mNext`, and `CharClipDriver::Exit(false)` returns that next node.

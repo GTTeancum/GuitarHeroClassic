@@ -20119,30 +20119,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     character_hand_driver_blend_seconds());
                 perf.active_strum_clip_names = {"strum_open"};
             }
-            std::vector<ghogx::character::ClipChannelLayer> pose_layers;
-            bool pose_relative = false;
-            bool pose_relative_set = false;
+            ghogx::character::ClipChannelLayerStack pose_stack;
             auto add_player_layer =
                 [&](const ghogx::character::CharClipPlayer& player,
                     float weight, bool overlay_override = false) {
-                    if (!player.active()) return;
-                    auto channels = player.sampled_pose();
-                    if (channels.empty()) return;
-                    const bool relative = player.sampled_pose_relative();
-                    if (!pose_relative_set) {
-                        pose_relative = relative;
-                        pose_relative_set = true;
-                    } else if (pose_relative != relative) {
-                        pose_relative = false;
-                    }
-                    const auto* clip = player.current_clip();
-                    pose_layers.push_back(
-                        ghogx::character::ClipChannelLayer{
-                            std::move(channels), weight,
-                            clip ? &clip->output_bones : nullptr,
-                            clip ? clip->name : std::string{},
-                            relative,
-                            overlay_override});
+                    ghogx::character::append_clip_player_layer(
+                        pose_stack, player, weight, overlay_override);
                 };
 
             if (hand_driver_active) {
@@ -20344,9 +20326,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
             ghogx::character::clear_runtime_trans_worlds(character);
-            if (!pose_layers.empty()) {
+            if (!pose_stack.layers.empty()) {
                 ghogx::character::apply_clip_channel_layers(
-                    pose_layers, character, pose_relative);
+                    pose_stack.layers, character, pose_stack.relative);
             }
             if (hand_driver_active) {
                 const uint32_t debug_hand_mask =

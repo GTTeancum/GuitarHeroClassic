@@ -1039,6 +1039,12 @@ struct ClipChannelLayer {
   bool overlay_override = false;
 };
 
+struct ClipChannelLayerStack {
+  std::vector<ClipChannelLayer> layers;
+  bool relative = false;
+  bool relative_set = false;
+};
+
 enum CharPlayFlags : uint32_t {
   kCharPlayNoDefault = 0x00000000u,
   kCharPlayNow       = 0x00000001u,
@@ -1089,6 +1095,15 @@ class CharClipPlayer {
   bool source_play_multiple_clips_ = false;
   std::vector<Layer> layers_;
 };
+
+bool append_clip_player_layer(ClipChannelLayerStack& stack,
+                              const CharClipPlayer& player,
+                              float weight = 1.0f,
+                              bool overlay_override = false);
+bool append_clip_frame_layer(ClipChannelLayerStack& stack,
+                             const CharClip& clip, int frame_idx,
+                             float weight = 1.0f,
+                             bool overlay_override = false);
 
 // Load all frames of a named CharClipSamples entry from the PS2 ARK.
 // Returns a CharClip with frames.empty() on failure.
