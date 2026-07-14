@@ -796,6 +796,9 @@ class Gameplay {
   void update_source_game_over_camera_messages(
       bool authored_gameplay_cameras_active,
       bool in_intro_camera_window);
+  bool handle_camera_active_players_changed_like_source(int players);
+  std::optional<int> consume_diagnostic_camera_active_players_changed(
+      double song_time);
   const CameraKey* camera_manager_source_shot_after(
       const std::string& current_name) const;
   bool consume_pending_regular_camera_shot();
@@ -1002,6 +1005,8 @@ class Gameplay {
   size_t next_forced_camera_event_idx_ = 0;
   size_t next_camera_one_bar_to_event_idx_ = 0;
   bool camera_solo_active_ = false;
+  int camera_faceoff_active_players_ = 0;
+  bool diagnostic_camera_active_players_change_applied_ = false;
   size_t camera_shot_counter_ = 0;
   CameraResultBuilderState camera_result_builder_state_;
   int active_force_char_lod_ = -1;

@@ -12065,7 +12065,26 @@ int main() {
   ok &= contains(gameplay_c,
                  "returnstd::clamp(env_int("
                  "\"GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS\",0),0,2);",
-                 "regular camera diagnostics can seed source faceoff_active_players");
+                 "regular camera diagnostics can seed initial source faceoff_active_players");
+  ok &= contains(gameplay_c,
+                 "boolGameplay::handle_camera_active_players_changed_like_source("
+                 "intplayers){camera_faceoff_active_players_=std::clamp("
+                 "players,0,2);camera_bars_left_=4;",
+                 "active_players_changed mirrors the source faceoff state and four-bar camera reset");
+  ok &= contains(gameplay_c,
+                 "source_msg=active_players_changedplayers=%d"
+                 "faceoff_active_players=%dbars_left=%d"
+                 "source_action=pick_new_shotresult=pending",
+                 "active_players_changed diagnostics expose the source pick_new_shot bridge");
+  ok &= contains(gameplay_c,
+                 "\"GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME\"",
+                 "camera diagnostics can trigger the source active_players_changed message at runtime");
+  ok &= contains(gameplay_c,
+                 "\"GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_PLAYERS\"",
+                 "camera diagnostics can provide the active_players_changed payload");
+  ok &= contains(gameplay_c,
+                 "constintsource_faceoff_players=camera_faceoff_active_players_;",
+                 "regular camera selection consumes the gameplay-owned faceoff_active_players state");
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Regular&&source_multi_vs){",
                  "regular camera filter mirrors the source multi_vs branch before previous-shot filters");

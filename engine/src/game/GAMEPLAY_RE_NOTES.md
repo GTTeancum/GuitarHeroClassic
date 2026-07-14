@@ -283,9 +283,12 @@ Open work:
   `{gamecfg get mode} multi_vs` and uses only `(facing left)`,
   `(facing right)`, or `(facing null)` from that active-player state instead of
   the previous-shot facing/distance transition guards. Native now has a
-  source-named multi-vs branch in the regular `ShotMatches` filter path. The
-  current proof seeds that source state diagnostically; the live multiplayer
-  `active_players_changed` event remains a separate gameplay integration.
+  source-named multi-vs branch in the regular `ShotMatches` filter path. Native
+  now carries `faceoff_active_players` as gameplay-owned camera state and has a
+  source-shaped `active_players_changed` handler that sets the state, resets
+  `camera_bars_left` to 4, and requests `pick_new_shot`; the current proof fires
+  that handler diagnostically while the real multiplayer sender remains a
+  separate gameplay integration.
 - 2026-07-13 CamShot `shot_ok` selection hook: native regular camera
   selection no longer rejects the active CamShot by authored name before
   source approval. ihatecompvir's `CameraManager::FindCameraShot` scans the

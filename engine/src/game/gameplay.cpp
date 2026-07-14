@@ -16493,7 +16493,7 @@ bool camera_source_gamecfg_mode_multi_vs() {
     return std::string_view(camera_source_gamecfg_mode()) == "multi_vs";
 }
 
-int camera_source_faceoff_active_players() {
+int camera_source_initial_faceoff_active_players() {
     return std::clamp(env_int("GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS", 0), 0, 2);
 }
 
@@ -16705,13 +16705,13 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     bool low_excitement,
     bool walking,
     bool starpower,
-    CameraShotMode mode) {
+    CameraShotMode mode,
+    int source_faceoff_players) {
     if (keys.empty()) return nullptr;
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
     const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
-    const int source_faceoff_players = camera_source_faceoff_active_players();
     auto source_filter = [&](const Gameplay::CameraKey& key) {
         return regular_camera_filter_ok(key, source_previous,
                                         low_excitement, walking, starpower,
@@ -23088,6 +23088,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     next_forced_camera_event_idx_ = 0;
     next_camera_one_bar_to_event_idx_ = 0;
     camera_solo_active_ = false;
+    camera_faceoff_active_players_ = camera_source_initial_faceoff_active_players();
+    diagnostic_camera_active_players_change_applied_ = false;
     camera_shot_counter_ = 0;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
@@ -24071,6 +24073,35 @@ bool Gameplay::queue_source_category_camera_shot(
             std::string(category).c_str(), key->name.c_str());
     }
     return true;
+}
+
+bool Gameplay::handle_camera_active_players_changed_like_source(int players) {
+    camera_faceoff_active_players_ = std::clamp(players, 0, 2);
+    camera_bars_left_ = 4;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera active_players_changed: source_msg=active_players_changed players=%d faceoff_active_players=%d bars_left=%d source_action=pick_new_shot result=pending\n",
+            players, camera_faceoff_active_players_, camera_bars_left_);
+    }
+    return true;
+}
+
+std::optional<int> Gameplay::consume_diagnostic_camera_active_players_changed(
+    double song_time) {
+    if (diagnostic_camera_active_players_change_applied_) return std::nullopt;
+    if (!env_value("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME")) {
+        return std::nullopt;
+    }
+    const double trigger_time =
+        static_cast<double>(env_float("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME",
+                                      0.0f));
+    if (song_time + 1e-6 < trigger_time) return std::nullopt;
+    diagnostic_camera_active_players_change_applied_ = true;
+    return std::clamp(
+        env_int("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_PLAYERS",
+                camera_faceoff_active_players_),
+        0, 2);
 }
 
 void Gameplay::update_source_game_over_camera_messages(
@@ -33382,6 +33413,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
+            if (const auto active_players =
+                    consume_diagnostic_camera_active_players_changed(
+                        song_time_)) {
+                if (handle_camera_active_players_changed_like_source(
+                        *active_players)) {
+                    force_camera = true;
+                    forced_camera_mode.reset();
+                    forced_camera_bars = 4;
+                }
+            }
+
             if (!source_game_over_camera_hold &&
                 (force_camera ||
                  (camera_check_shot_due && camera_bars_left_ <= 0))) {
@@ -33424,7 +33466,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const bool guitarist_starpower = star_power_.active;
                 const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
                 const int source_faceoff_players =
-                    camera_source_faceoff_active_players();
+                    camera_faceoff_active_players_;
                 const CameraKey* key = nullptr;
                 const CameraKey* source_previous_fallback =
                     active_regular_camera_.empty() && !camera_keys_.empty()
@@ -33463,7 +33505,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     key = choose_regular_camera_key_scripted(
                         regular_camera_keys_, active_regular_camera_,
                         source_previous_fallback, low_excitement, kGuitaristWalking,
-                        guitarist_starpower, camera_mode);
+                        guitarist_starpower, camera_mode,
+                        source_faceoff_players);
                 }
                 if (key) {
                     const bool shot_changed =
