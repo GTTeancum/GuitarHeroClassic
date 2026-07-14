@@ -1170,6 +1170,33 @@ bool expect_clip_driver_helpers() {
     }
   }
 
+  ghogx::character::CharClip stack_base_clip;
+  stack_base_clip.loaded = true;
+  stack_base_clip.frames.resize(30);
+  stack_base_clip.flags = 0x00400000u;
+  ghogx::character::CharClip stack_transient_clip;
+  stack_transient_clip.loaded = true;
+  stack_transient_clip.frames.resize(30);
+  stack_transient_clip.flags = 0x00000000u;
+  ghogx::character::CharClipPlayer stack_player;
+  stack_player.play(stack_base_clip,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend);
+  stack_player.set_source_driver_blend_width(0.2f);
+  stack_player.play(stack_transient_clip, ghogx::character::kCharPlayNoLoop);
+  stack_player.advance(0.1f);
+  if (!nearf(stack_player.evaluate_flags(0x00400000u), 0.5f) ||
+      stack_player.current_clip() != &stack_transient_clip) {
+    std::cerr << "non-loop transient stack did not preserve source blend\n";
+    ok = false;
+  }
+  stack_player.advance(1.0f);
+  if (stack_player.current_clip() != &stack_base_clip ||
+      !nearf(stack_player.evaluate_flags(0x00400000u), 1.0f)) {
+    std::cerr << "non-loop transient stack did not exit back to previous clip\n";
+    ok = false;
+  }
+
   ok &= expect_indices(
       ghogx::character::source_char_clip_driver_delete_stack_order(3),
       {2, 1, 0}, "DeleteStack tail-first order");

@@ -5436,6 +5436,18 @@ and stock GH2 hand drivers target `bone.servo`; native therefore treats
 instead of letting their broad clip rows blend into the main body frame before
 the bridge runs.
 
+2026-07-14 in-game transient stack correction: ihatecompvir's
+`CharDriver::Play` constructs a new `CharClipDriver` with the previous
+`mFirst` as `mNext`, and `CharClipDriver::Exit(false)` returns that next node.
+Native gameplay now plays `[band_jump]` through the same active main
+`CharClipPlayer` stack instead of an isolated `band_jump_player`, and
+`CharClipPlayer` keeps the previous layer underneath non-loop transient clips
+until the transient reaches its source duration. This is a source-stack
+continuity fix for release/neck snap behavior, not a smoothing filter or
+character-specific arm/neck offset. It does not close the separate
+`CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes` publisher
+gap behind the remaining Rockabill2/Rock1/Rock2 arm posture issues.
+
 `engine/out/visual_proofs/twist_trace_20260713/` records a direct-app
 Rockabill2 `special_02` frame 95 trace with the new opt-in arm pose logger.
 The paired controller-on and controller-off captures have the same final

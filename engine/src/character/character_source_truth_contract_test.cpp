@@ -30539,6 +30539,9 @@ int run_contract() {
                  "transition-onlytwistchanneldidnotfadethroughidentity",
                  "focused clip driver flags test covers transition-only twist rows");
   ok &= contains(clip_driver_flags_test,
+                 "non-looptransientstackdidnotexitbacktopreviousclip",
+                 "focused clip driver flags test covers source stack transient exit");
+  ok &= contains(clip_driver_flags_test,
                  "source_char_clip_runtime_dump_evidence()",
                  "focused clip driver flags test covers CharClip runtime dump evidence");
   ok &= contains(clip_driver_flags_test,
@@ -30596,6 +30599,12 @@ int run_contract() {
                  "source_char_driver_resolve_blend_width(blend_width,"
                  "source_driver_blend_width_);",
                  "native CharClipPlayer uses source driver blend fallback");
+  ok &= contains(char_clip,
+                 "if(exit_current.clip&&!play_flags_loop(*exit_current.clip,"
+                 "exit_current.flags)){constfloatduration=exit_current.clip->"
+                 "duration_seconds();if(duration>0.0f&&exit_current.time_seconds"
+                 ">=duration){layers_.pop_back();}}",
+                 "native CharClipPlayer exits non-loop transient back to previous source node");
   ok &= contains(char_clip,
                  "boolsource_char_driver_should_start_clip("
                  "boolplay_multiple_clips,boolclip_already_playing){if("

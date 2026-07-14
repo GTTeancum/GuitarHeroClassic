@@ -20020,7 +20020,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     perf.last_band_jump_started = song_time_;
                     perf.last_band_jump_duration =
                         perf.band_jump_clip.duration_seconds();
-                    perf.band_jump_player.play(
+                    perf.active_player.play(
                         perf.band_jump_clip,
                         ghogx::character::kCharPlayDirty |
                             ghogx::character::kCharPlayNoLoop,
@@ -20287,8 +20287,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
             auto active_main_driver_player =
                 [&]() -> const ghogx::character::CharClipPlayer* {
-                    if (!intro_active && perf.band_jump_player.active())
-                        return &perf.band_jump_player;
                     if (intro_active && perf.intro_player.active())
                         return &perf.intro_player;
                     if (!intro_active && performer_playing &&

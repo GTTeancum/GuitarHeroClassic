@@ -10299,11 +10299,26 @@ void CharClipPlayer::advance(float dt_seconds) {
   if (current.blend_width > 0.0f) {
     current.blend_progress += std::max(0.0f, dt_seconds);
     if (current.blend_progress >= current.blend_width && layers_.size() > 1) {
-      Layer keep = current;
-      keep.blend_width = 0.0f;
-      keep.blend_progress = 0.0f;
-      layers_.clear();
-      layers_.push_back(keep);
+      if (current.clip && !play_flags_loop(*current.clip, current.flags)) {
+        current.blend_width = 0.0f;
+        current.blend_progress = 0.0f;
+      } else {
+        Layer keep = current;
+        keep.blend_width = 0.0f;
+        keep.blend_progress = 0.0f;
+        layers_.clear();
+        layers_.push_back(keep);
+      }
+    }
+  }
+  if (layers_.size() > 1) {
+    const Layer& exit_current = layers_.back();
+    if (exit_current.clip &&
+        !play_flags_loop(*exit_current.clip, exit_current.flags)) {
+      const float duration = exit_current.clip->duration_seconds();
+      if (duration > 0.0f && exit_current.time_seconds >= duration) {
+        layers_.pop_back();
+      }
     }
   }
 }
