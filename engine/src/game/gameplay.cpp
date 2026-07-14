@@ -2367,7 +2367,9 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         if (shot.revision > 0x23 && !(shot.revision >= 47 && shot.revision <= 48))
             (void)r.boolean();
         if (shot.revision > 0x24) shot.flags = r.i32();
-        if (shot.revision >= 40 && shot.revision <= 42) (void)r.symbol();
+        std::string legacy_anim_ref;
+        if (shot.revision >= 40 && shot.revision <= 42)
+            legacy_anim_ref = r.symbol();
         if (shot.revision >= 0x2a) {
             const uint32_t crowd_count = r.u32();
             if (crowd_count > 64) throw std::runtime_error("CamShot crowd count invalid");
@@ -2394,6 +2396,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             if (count > 128) throw std::runtime_error("CamShot alt symbol count invalid");
             for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
         }
+        if (!legacy_anim_ref.empty()) shot.anims.push_back(legacy_anim_ref);
 
         shot.disabled_flags = prop_int(shot.props, "disabled", 0);
         for (auto& [key, off] : shot.frames) {

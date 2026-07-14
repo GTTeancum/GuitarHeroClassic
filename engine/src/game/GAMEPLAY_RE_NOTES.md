@@ -246,6 +246,14 @@ Open work:
   the sampled key as an unconditional assignment. Current CamShot Poll still
   supplies `source_setframe_blend=1.000`, so stock rows remain visually stable
   while the non-1 source rule is explicit and contract-guarded.
+- 2026-07-14 CamShot legacy linked anim ref:
+  ihatecompvir `CamShot::Load` reads a legacy `Symbol s258` for rev 40-42
+  shots and, after loading the normal `mAnims` list, appends the resolved
+  symbol to `mAnims` when it is non-null. Native now preserves that symbol by
+  appending it to the decoded linked anim refs, so the existing source-shaped
+  `StartAnim` / `EndAnim` route can resolve it as either a venue AnimFilter or
+  linked `RndCamAnim` FOV track. This is loader payload preservation only; it
+  does not add a new camera animation scheduler.
 - 2026-07-14 `RndCam::SetFrustum` storage shape:
   ihatecompvir `RndCam::SetFrustum` stores near plane, far plane, Y-FOV, and
   the unknown float together after the 1000:1 plane-ratio clamp. Native now

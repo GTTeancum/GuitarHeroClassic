@@ -10561,6 +10561,14 @@ int main() {
                  "shot.anims.push_back(r.symbol());",
                  "CamShot loader decodes authored linked anim refs");
   ok &= contains(gameplay_c,
+                 "std::stringlegacy_anim_ref;"
+                 "if(shot.revision>=40&&shot.revision<=42)"
+                 "legacy_anim_ref=r.symbol();",
+                 "CamShot loader preserves the source rev40-42 legacy linked anim ref");
+  ok &= contains(gameplay_c,
+                 "if(!legacy_anim_ref.empty())shot.anims.push_back(legacy_anim_ref);",
+                 "CamShot loader appends the source legacy linked anim ref after normal mAnims");
+  ok &= contains(gameplay_c,
                  "voidread_object_fields_like_miloeditor(",
                  "CamShot metadata uses the MiloEditor ObjectFields reader");
   ok &= contains(gameplay_c,
