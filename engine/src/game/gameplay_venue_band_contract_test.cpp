@@ -10024,6 +10024,15 @@ int main() {
                  "floatsource_camshot_frame_span(constGameplay::CameraKey&key)",
                  "runtime evaluates source CamShot duration plus blend spans");
   ok &= contains(gameplay_c,
+                 "returnkey.duration_frames+key.blend_frames;",
+                 "runtime mirrors CamShot::CacheFrames summing duration plus blend");
+  ok &= absent(gameplay_c,
+               "key.duration_frames>600.0f||key.blend_frames>600.0f",
+               "source CamShot frame spans must not discard long authored blends");
+  ok &= absent(gameplay_c,
+               "from.blend_frames>600.0f",
+               "same-shot CamShot blend timing must not discard long authored blends");
+  ok &= contains(gameplay_c,
                  "floatcamera_source_duration_seconds("
                  "constGameplay::CameraKey&shot){"
                  "if(rnd_animatable_rate_uses_beats("

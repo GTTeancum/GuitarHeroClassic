@@ -16270,7 +16270,7 @@ Gameplay::CameraKey camera_position_for(const Gameplay::CameraKey& shot,
 double authored_camshot_blend_seconds(const Gameplay::CameraKey& from,
                                       double fallback_seconds) {
     if (!from.has_timing || !std::isfinite(from.blend_frames) ||
-        from.blend_frames <= 0.0f || from.blend_frames > 600.0f) {
+        from.blend_frames <= 0.0f) {
         return fallback_seconds;
     }
     return static_cast<double>(from.blend_frames) / 30.0;
@@ -16279,8 +16279,7 @@ double authored_camshot_blend_seconds(const Gameplay::CameraKey& from,
 float source_camshot_frame_span(const Gameplay::CameraKey& key) {
     if (!key.has_timing || !std::isfinite(key.duration_frames) ||
         !std::isfinite(key.blend_frames) || key.duration_frames < 0.0f ||
-        key.blend_frames < 0.0f || key.duration_frames > 600.0f ||
-        key.blend_frames > 600.0f) {
+        key.blend_frames < 0.0f) {
         return 0.0f;
     }
     return key.duration_frames + key.blend_frames;

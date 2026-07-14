@@ -204,6 +204,14 @@ Open work:
   camera cues outside that random draw stream. This is a timing/source-RNG
   correction only; it does not claim final camera pose, angle composition,
   `cam_shot_ok`, or `check_shot_over` parity.
+- 2026-07-14 CamShot `CacheFrames` long blend timing:
+  ihatecompvir `CamShot::CacheFrames` sums each keyframe's `mDuration +
+  mBlend` into `mDuration` without a 600-frame sanity ceiling, and
+  `CamShotFrame::Interp` consumes the authored blend span. Native no longer
+  discards long decoded CamShot frame durations or blends while computing
+  source shot duration, `CheckShotOver`, loop spans, or same-shot position
+  blend seconds. This preserves source timing for outlier authored shots such
+  as long balcony blends instead of substituting the old native fallback.
 - 2026-07-14 CameraManager all-category randomization:
   ihatecompvir `CameraManager::SyncObjects` adds every `PlatformOk()` CamShot
   to first-seen category buckets, then `CameraManager::Randomize()` iterates
