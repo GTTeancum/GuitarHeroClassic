@@ -1918,6 +1918,147 @@ std::array<float, 4> sample_rnd_transanim_rot_keys(
                      : fast_interp_quat_xyzw(qa, qb, t);
 }
 
+struct CameraTransKeySample {
+    size_t a = 0;
+    size_t b = 0;
+    float t = 0.0f;
+};
+
+CameraTransKeySample sample_rnd_transanim_trans_key(
+    const std::vector<Gameplay::CameraKey>& keys, float frame) {
+    CameraTransKeySample sample;
+    if (keys.empty()) return sample;
+    if (keys.size() == 1 || frame < keys.front().frame) return sample;
+    if (frame >= keys.back().frame) {
+        sample.a = keys.size() - 1;
+        sample.b = sample.a;
+        return sample;
+    }
+    size_t prev = 0;
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame < keys[i].frame) break;
+        prev = i;
+    }
+    while (prev + 1 < keys.size() &&
+           keys[prev + 1].frame == keys[prev].frame) {
+        ++prev;
+    }
+    sample.a = prev;
+    sample.b = std::min(prev + 1, keys.size() - 1);
+    const float span = keys[sample.b].frame - keys[sample.a].frame;
+    sample.t = span <= 0.0001f
+                   ? 0.0f
+                   : std::clamp((frame - keys[sample.a].frame) / span, 0.0f,
+                                1.0f);
+    return sample;
+}
+
+std::array<float, 3> rnd_transanim_trans_spline_tangent(
+    const std::vector<Gameplay::CameraKey>& keys, size_t index) {
+    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+    if (keys.size() < 2) return out;
+    auto diff = [&](size_t lhs, size_t rhs) {
+        return std::array<float, 3>{
+            keys[lhs].eye[0] - keys[rhs].eye[0],
+            keys[lhs].eye[1] - keys[rhs].eye[1],
+            keys[lhs].eye[2] - keys[rhs].eye[2]};
+    };
+    if (keys.size() == 2) return diff(1, 0);
+    if (index == 0) {
+        const auto a = diff(1, 0);
+        const auto b = diff(2, 0);
+        for (int axis = 0; axis < 3; ++axis)
+            out[axis] = a[axis] * 1.5f - b[axis] * 0.25f;
+        return out;
+    }
+    if (index >= keys.size() - 1) {
+        const auto a = diff(keys.size() - 1, keys.size() - 2);
+        const auto b = diff(keys.size() - 1, keys.size() - 3);
+        for (int axis = 0; axis < 3; ++axis)
+            out[axis] = a[axis] * 1.5f - b[axis] * 0.25f;
+        return out;
+    }
+    const auto a = diff(index + 1, index - 1);
+    for (int axis = 0; axis < 3; ++axis) out[axis] = a[axis] * 0.5f;
+    return out;
+}
+
+std::array<float, 3> sample_rnd_transanim_trans_keys_once(
+    const std::vector<Gameplay::CameraKey>& keys, float frame, bool spline) {
+    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+    if (keys.empty()) return out;
+    const CameraTransKeySample sample =
+        sample_rnd_transanim_trans_key(keys, frame);
+    const auto& a = keys[sample.a];
+    const auto& b = keys[sample.b];
+    if (!spline || keys.size() < 3 || sample.a == sample.b) {
+        for (int axis = 0; axis < 3; ++axis)
+            out[axis] = a.eye[axis] + (b.eye[axis] - a.eye[axis]) * sample.t;
+        return out;
+    }
+    const auto ta = rnd_transanim_trans_spline_tangent(keys, sample.a);
+    const auto tb = rnd_transanim_trans_spline_tangent(keys, sample.b);
+    const float t = sample.t;
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+    const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f;
+    const float h10 = t3 - 2.0f * t2 + t;
+    const float h01 = -2.0f * t3 + 3.0f * t2;
+    const float h11 = t3 - t2;
+    for (int axis = 0; axis < 3; ++axis) {
+        out[axis] = a.eye[axis] * h00 + ta[axis] * h10 +
+                    b.eye[axis] * h01 + tb[axis] * h11;
+    }
+    return out;
+}
+
+std::array<float, 3> sample_rnd_transanim_trans_keys(
+    const std::vector<Gameplay::CameraKey>& keys, float frame, bool spline,
+    bool repeat) {
+    if (keys.empty()) return {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> repeat_offset = {0.0f, 0.0f, 0.0f};
+    float sample_frame = frame;
+    if (repeat && keys.size() >= 2 && std::isfinite(frame)) {
+        const float first_frame = keys.front().frame;
+        const float last_frame = keys.back().frame;
+        const float span = last_frame - first_frame;
+        if (std::isfinite(span) && span > 0.001f && frame >= last_frame) {
+            const float cycles = std::floor((frame - first_frame) / span);
+            if (std::isfinite(cycles) && cycles > 0.0f) {
+                sample_frame = frame - cycles * span;
+                for (int axis = 0; axis < 3; ++axis) {
+                    repeat_offset[axis] =
+                        (keys.back().eye[axis] - keys.front().eye[axis]) *
+                        cycles;
+                }
+            }
+        }
+    }
+    auto out = sample_rnd_transanim_trans_keys_once(keys, sample_frame, spline);
+    for (int axis = 0; axis < 3; ++axis) out[axis] += repeat_offset[axis];
+    return out;
+}
+
+std::vector<float> source_rnd_transanim_sample_frames(
+    const DecodedRndTransAnim& anim) {
+    std::vector<float> frames;
+    frames.reserve(anim.trans_keys.size() + anim.rot_keys.size() +
+                   anim.scale_keys.size());
+    auto add_frame = [&](float frame) {
+        if (std::isfinite(frame)) frames.push_back(frame);
+    };
+    for (const auto& key : anim.trans_keys) add_frame(key.frame);
+    for (const auto& key : anim.rot_keys) add_frame(key.frame);
+    for (const auto& key : anim.scale_keys) add_frame(key.frame);
+    std::sort(frames.begin(), frames.end());
+    frames.erase(std::unique(frames.begin(), frames.end(),
+                             [](float a, float b) {
+                                 return std::abs(a - b) <= 0.0001f;
+                             }),
+                 frames.end());
+    return frames;
+}
+
 void copy_camera_path_transanim_keys_from_owner(DecodedRndTransAnim& anim,
                                                 const DecodedRndTransAnim& owner) {
     anim.trans_keys = owner.trans_keys;
@@ -9917,7 +10058,19 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
         resolve_camera_path_transanim_owner(transanim_decodes, anim_ref,
                                             visiting);
         auto& resolved = anim_it->second;
-        out = resolved.trans_keys;
+        if (resolved.trans_keys.empty()) return out;
+        const std::vector<float> sample_frames =
+            source_rnd_transanim_sample_frames(resolved);
+        out.reserve(sample_frames.size());
+        for (float frame : sample_frames) {
+            Gameplay::CameraKey pos;
+            pos.frame = frame;
+            const auto eye = sample_rnd_transanim_trans_keys(
+                resolved.trans_keys, frame, resolved.trans_spline,
+                resolved.repeat_trans);
+            for (int axis = 0; axis < 3; ++axis) pos.eye[axis] = eye[axis];
+            out.push_back(std::move(pos));
+        }
         if (out.empty()) return out;
         for (auto& pos : out) {
             pos.path_trans_target = resolved.trans;
@@ -9943,7 +10096,7 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 stderr,
                 "[camera-path] anim=%s source-shaped rev=%u anim_rev=%u "
                 "trans=%s owner=%s end=0x%zX/%zu keys=%zu rot_keys=%zu "
-                "scale_keys=%zu flags=trans_spline:%d repeat:%d "
+                "scale_keys=%zu source_sample_frames=%zu added_source_frames=%zu flags=trans_spline:%d repeat:%d "
                 "scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d "
                 "first=f%.3f:(%.3f %.3f %.3f) "
                 "mid=f%.3f:(%.3f %.3f %.3f) "
@@ -9952,6 +10105,10 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 resolved.trans.c_str(), resolved.keys_owner.c_str(),
                 resolved.end_offset, transanim_sizes[anim_ref], out.size(),
                 resolved.rot_keys.size(), resolved.scale_keys.size(),
+                sample_frames.size(),
+                sample_frames.size() > resolved.trans_keys.size()
+                    ? sample_frames.size() - resolved.trans_keys.size()
+                    : size_t{0},
                 resolved.trans_spline ? 1 : 0,
                 resolved.repeat_trans ? 1 : 0,
                 resolved.scale_spline ? 1 : 0,

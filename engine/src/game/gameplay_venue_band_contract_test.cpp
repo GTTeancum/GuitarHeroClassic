@@ -8371,6 +8371,14 @@ int main() {
                  "resolved.rot_slerp);",
                  "path-backed TransAnim camera rotations honor the resolved rot_slerp flag");
   ok &= contains(gameplay_c,
+                 "std::vector<float>source_rnd_transanim_sample_frames("
+                 "constDecodedRndTransAnim&anim)",
+                 "path-backed TransAnim camera sampling merges source key-page frames");
+  ok &= contains(gameplay_c,
+                 "for(constauto&key:anim.rot_keys)add_frame(key.frame);"
+                 "for(constauto&key:anim.scale_keys)add_frame(key.frame);",
+                 "path-backed TransAnim camera sampling keeps rotation-only and scale-only source frames");
+  ok &= contains(gameplay_c,
                  "std::optional<DecodedRndTransAnim>read_rnd_transanim_like_miloeditor(",
                  "path-backed TransAnim camera positions use the source-shaped RndTransAnim reader");
   ok &= contains(gameplay_h_c,
@@ -8463,12 +8471,21 @@ int main() {
                  "owner_it->second);",
                  "path-backed camera TransAnim key pages resolve through source keys_owner");
   ok &= contains(gameplay_c,
-                 "out=resolved.trans_keys;",
-                 "path-backed camera positions come from the resolved source trans keys");
+                 "conststd::vector<float>sample_frames="
+                 "source_rnd_transanim_sample_frames(resolved);",
+                 "path-backed camera positions are emitted at merged source TransAnim sample frames");
+  ok &= contains(gameplay_c,
+                 "constautoeye=sample_rnd_transanim_trans_keys("
+                 "resolved.trans_keys,frame,resolved.trans_spline,"
+                 "resolved.repeat_trans);",
+                 "path-backed camera positions sample source translation keys at merged frames");
   ok &= contains(gameplay_c,
                  "pos.path_trans_target=resolved.trans;"
                  "pos.has_path_trans_target=true;",
                  "path-backed camera positions retain source RndTransAnim mTrans");
+  ok &= contains(gameplay_c,
+                 "source_sample_frames=%zuadded_source_frames=%zu",
+                 "camera path diagnostics expose merged source sample-frame counts");
   ok &= contains(gameplay_c,
                  "\"[camera-path]anim=%ssource-shapedrev=%uanim_rev=%u\"",
                  "camera path diagnostics expose source-shaped RndTransAnim metadata");

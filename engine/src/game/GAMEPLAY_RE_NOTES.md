@@ -11190,6 +11190,15 @@ Rejected native probe:
   through `keys_owner`, and samples the resolved trans/rot/scale pages. This
   is a source-accessor mirror for path cameras, not a per-shot camera-angle
   correction.
+- 2026-07-14 path-backed TransAnim merged source frames:
+  ihatecompvir `RndTransAnim::SetFrame` evaluates translation, rotation, and
+  scale key pages at the requested frame through `MakeTransform`, while
+  `StartFrame()` / `EndFrame()` consider all three pages. Native path-backed
+  camera loading now emits samples at the union of resolved trans/rot/scale
+  key frames, sampling translation with the source spline/repeat flags and
+  rotation with the resolved `rot_slerp` flag. This preserves authored
+  rotation-only frames such as `Camera03.tnm` instead of sampling rotation
+  only at translation key times.
 - 2026-07-14 path-backed TransAnim target proof:
   ihatecompvir `RndTransAnim::Load` reads `mTrans` before the key pages and
   `RndTransAnim::SetFrame` only applies the sampled transform when `mTrans`
