@@ -5830,6 +5830,16 @@ gameplay. The next viewer parity slice should add per-player start offsets or
 derive the exact note-trigger frame from gameplay logs before using hand stills
 as final evidence.
 
+2026-07-14 viewer hand-timing parity proof:
+`viewer_rockabill2_live_stack_handtiming_match` adds diagnostic delayed-start
+controls for the viewer's live player stacks. With `--strum-start-frame 0` and
+`--fret-start-frame 0`, the screenshot-frame viewer log now matches the
+in-game `*_nodes` proof for the compared guitarist0 rows: main
+`stand_fast_02@4.500 -> stand_fast_03@4.500` with `blendWeight=0.600`, strum
+`strum_short_01@4.000 -> strum_short_02@0.000`, and fret
+`finger_hold_ring_hi@f4:w=1.000` / `@f5:w=0.000`. These controls are proof
+alignment only; gameplay timing and clip playback remain unchanged.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

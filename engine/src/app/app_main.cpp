@@ -1127,6 +1127,9 @@ struct ViewerClipStackOptions {
   std::string prev_clip_arg;
   std::string prev_strum_clip_arg;
   std::string prev_fret_clip_arg;
+  int clip_start_frame = -1;
+  int strum_start_frame = -1;
+  int fret_start_frame = -1;
   int clip_transition_frame = -1;
   int strum_transition_frame = -1;
   int fret_transition_frame = -1;
@@ -1452,7 +1455,18 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       [](ghogx::character::CharClipPlayer& player,
          const ghogx::character::CharClip& current,
          const ghogx::character::CharClip& previous, int transition_frame,
-         float blend_seconds, uint32_t fallback_flags, const char* label) {
+         int start_frame, float blend_seconds, uint32_t fallback_flags,
+         const char* label) {
+        if (start_frame >= 0) {
+          std::fprintf(stderr,
+                       "[char] viewer stack %s: delayed start frame=%d "
+                       "prev=%s current=%s blend=%.3f transition_frame=%d\n",
+                       label, start_frame,
+                       previous.loaded ? previous.name.c_str() : "<none>",
+                       current.loaded ? current.name.c_str() : "<none>",
+                       blend_seconds, transition_frame);
+          return;
+        }
         if (previous.loaded) {
           player.play(previous, ghogx::character::kCharPlayNoLoop);
           if (current.loaded && transition_frame < 0) {
@@ -1477,12 +1491,14 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       };
   play_viewer_stack(main_player, loaded_clip, prev_clip,
                     clip_stack_options.clip_transition_frame,
+                    clip_stack_options.clip_start_frame,
                     clip_stack_options.clip_blend_seconds,
                     ghogx::character::kCharPlayLoop |
                         ghogx::character::kCharPlayNoBlend,
                     "main");
   play_viewer_stack(strum_player, strum_clip, prev_strum_clip,
                     clip_stack_options.strum_transition_frame,
+                    clip_stack_options.strum_start_frame,
                     clip_stack_options.hand_blend_seconds,
                     ghogx::character::kCharPlayLoop |
                         ghogx::character::kCharPlayNoBlend,
@@ -1492,6 +1508,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   }
   play_viewer_stack(fret_player, fret_clip, prev_fret_clip,
                     clip_stack_options.fret_transition_frame,
+                    clip_stack_options.fret_start_frame,
                     clip_stack_options.hand_blend_seconds,
                     ghogx::character::kCharPlayLoop |
                         ghogx::character::kCharPlayNoBlend,
@@ -1623,6 +1640,45 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       fret_player.advance(dt);
       face_base_player.advance(dt);
       face_player.advance(dt);
+      auto start_scheduled_viewer_stack =
+          [&](ghogx::character::CharClipPlayer& player,
+              const ghogx::character::CharClip& current,
+              const ghogx::character::CharClip& previous, int start_frame,
+              int transition_frame, float blend_seconds,
+              uint32_t fallback_flags, const char* label) {
+            if (start_frame < 0 ||
+                frame != static_cast<uint64_t>(start_frame)) {
+              return;
+            }
+            if (previous.loaded) {
+              player.play(previous, ghogx::character::kCharPlayNoLoop);
+              if (current.loaded && transition_frame < 0) {
+                player.play(current, ghogx::character::kCharPlayNoLoop,
+                            blend_seconds);
+                std::fprintf(stderr,
+                             "[char] viewer stack %s: start prev=%s "
+                             "current=%s blend=%.3f frame=%llu\n",
+                             label, previous.name.c_str(), current.name.c_str(),
+                             blend_seconds, (unsigned long long)frame);
+              } else {
+                std::fprintf(stderr,
+                             "[char] viewer stack %s: start prev=%s "
+                             "current=%s blend=%.3f frame=%llu "
+                             "transition_frame=%d\n",
+                             label, previous.name.c_str(),
+                             current.loaded ? current.name.c_str() : "<none>",
+                             blend_seconds, (unsigned long long)frame,
+                             transition_frame);
+              }
+            } else if (current.loaded) {
+              player.play(current, fallback_flags);
+              std::fprintf(stderr,
+                           "[char] viewer stack %s: start current=%s "
+                           "flags=0x%08x frame=%llu\n",
+                           label, current.name.c_str(), fallback_flags,
+                           (unsigned long long)frame);
+            }
+          };
       auto trigger_scheduled_viewer_stack =
           [&](ghogx::character::CharClipPlayer& player,
               const ghogx::character::CharClip& clip, int transition_frame,
@@ -1639,6 +1695,29 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                          label, clip.name.c_str(), blend_seconds,
                          (unsigned long long)frame);
           };
+      start_scheduled_viewer_stack(
+          main_player, loaded_clip, prev_clip, clip_stack_options.clip_start_frame,
+          clip_stack_options.clip_transition_frame,
+          clip_stack_options.clip_blend_seconds,
+          ghogx::character::kCharPlayLoop |
+              ghogx::character::kCharPlayNoBlend,
+          "main");
+      start_scheduled_viewer_stack(
+          strum_player, strum_clip, prev_strum_clip,
+          clip_stack_options.strum_start_frame,
+          clip_stack_options.strum_transition_frame,
+          clip_stack_options.hand_blend_seconds,
+          ghogx::character::kCharPlayLoop |
+              ghogx::character::kCharPlayNoBlend,
+          "strum");
+      start_scheduled_viewer_stack(
+          fret_player, fret_clip, prev_fret_clip,
+          clip_stack_options.fret_start_frame,
+          clip_stack_options.fret_transition_frame,
+          clip_stack_options.hand_blend_seconds,
+          ghogx::character::kCharPlayLoop |
+              ghogx::character::kCharPlayNoBlend,
+          "fret");
       trigger_scheduled_viewer_stack(
           main_player, loaded_clip, clip_stack_options.clip_transition_frame,
           clip_stack_options.clip_blend_seconds, "main");
@@ -1872,6 +1951,15 @@ int main(int argc, char** argv) {
       viewer_clip_stack.prev_fret_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--face-clip") == 0 && i + 1 < argc) {
       face_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--clip-start-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.clip_start_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--strum-start-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.strum_start_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--fret-start-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.fret_start_frame = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--clip-transition-frame") == 0 &&
                i + 1 < argc) {
       viewer_clip_stack.clip_transition_frame = std::atoi(argv[++i]);

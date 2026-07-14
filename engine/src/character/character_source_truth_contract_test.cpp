@@ -33340,6 +33340,12 @@ int run_contract() {
                  "viewer_clip_stack.prev_clip_arg=argv[++i];",
                  "viewer accepts previous main clip for live stack proofs");
   ok &= contains(app_main,
+                 "intstrum_start_frame=-1;",
+                 "viewer exposes delayed hand stack start diagnostics");
+  ok &= contains(app_main,
+                 "viewer_clip_stack.strum_start_frame=std::atoi(argv[++i]);",
+                 "viewer parses delayed strum stack start frame");
+  ok &= contains(app_main,
                  "player.play(previous,ghogx::character::kCharPlayNoLoop);",
                  "viewer seeds source-style previous clip nodes");
   ok &= contains(app_main,
@@ -33349,6 +33355,9 @@ int run_contract() {
   ok &= contains(app_main,
                  "trigger_scheduled_viewer_stack(",
                  "viewer can schedule live hand transition proof frames");
+  ok &= contains(app_main,
+                 "start_scheduled_viewer_stack(",
+                 "viewer can align diagnostic player-start timing to gameplay logs");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",
