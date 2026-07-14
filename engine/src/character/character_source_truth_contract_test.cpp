@@ -32445,6 +32445,15 @@ int run_contract() {
                  "staticvoiddump_arm_pose(constCharacter&character,constchar*tag)",
                  "native arm pose trace has a bounded diagnostic helper");
   ok &= contains(char_clip,
+                 "\"[armpose]char=%s%s%-22smissing\\n\"",
+                 "arm pose trace identifies the source character");
+  ok &= contains(char_clip,
+                 "\"[armw]c=%st=%sb=%sw=%.4f,%.4f,%.4f\\n\"",
+                 "arm pose trace emits compact world-position rows");
+  ok &= contains(char_clip,
+                 "\"[armr0]c=%st=%sb=%sv=%.5f,%.5f,%.5f\\n\"",
+                 "arm pose trace emits compact rotation rows");
+  ok &= contains(char_clip,
                  "dump_arm_pose(character,\"clip-frame-post\");",
                  "arm pose trace captures post-clip pose state");
   ok &= contains(char_clip,
@@ -33346,6 +33355,9 @@ int run_contract() {
                  "viewer_clip_stack.strum_start_frame=std::atoi(argv[++i]);",
                  "viewer parses delayed strum stack start frame");
   ok &= contains(app_main,
+                 "midi_fret_target=argv[++i];",
+                 "viewer accepts a gameplay-style MIDI fret target for proof parity");
+  ok &= contains(app_main,
                  "player.play(previous,ghogx::character::kCharPlayNoLoop);",
                  "viewer seeds source-style previous clip nodes");
   ok &= contains(app_main,
@@ -33358,6 +33370,15 @@ int run_contract() {
   ok &= contains(app_main,
                  "start_scheduled_viewer_stack(",
                  "viewer can align diagnostic player-start timing to gameplay logs");
+  ok &= missing(app_main,
+                "right_hand_weight=1.0f;",
+                "viewer must not force right hand IK weight from loaded clips");
+  ok &= missing(app_main,
+                "left_hand_weight=1.0f;",
+                "viewer must not force left hand IK weight from loaded clips");
+  ok &= contains(app_main,
+                 "controller_sources.midi_fret_target=midi_fret_target;",
+                 "viewer feeds MIDI fret target through shared controller source");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

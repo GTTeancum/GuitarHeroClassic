@@ -1152,6 +1152,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   float fixed_dt = 0.0f,
                   bool character_controllers = true,
                   bool reference_base = false,
+                  const std::string& midi_fret_target = "",
                   const ViewerClipStackOptions& clip_stack_options = {}) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
@@ -1441,10 +1442,6 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   keep_face_channels_only(face_base_clip);
   keep_face_channels_only(face_clip);
   keep_face_channels_only(facefx_viseme_clip);
-  if (!guitar_milo.empty() && guitar_milo != "none") {
-    if (!right_hand_weight_override && strum_clip.loaded) right_hand_weight = 1.0f;
-    if (!left_hand_weight_override && fret_clip.loaded) left_hand_weight = 1.0f;
-  }
   const bool viewer_hand_ik_weights_active =
       right_hand_weight_override || left_hand_weight_override ||
       ((!guitar_milo.empty() && guitar_milo != "none") &&
@@ -1553,6 +1550,10 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   }
   if (reference_base) {
     std::fprintf(stderr, "[char] reference base enabled\n");
+  }
+  if (!midi_fret_target.empty()) {
+    std::fprintf(stderr, "[char] midi fret target: %s\n",
+                 midi_fret_target.c_str());
   }
   if (clip_frame_override >= 0) {
     std::fprintf(stderr, "[char] clip-frame override enabled: %d\n",
@@ -1772,6 +1773,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     controller_sources.fallback_ik_weights = std::move(fallback_ik_weights);
     controller_sources.time_seconds = static_cast<float>(pose_time);
     controller_sources.controllers_enabled = character_controllers;
+    controller_sources.midi_fret_target = midi_fret_target;
+    controller_sources.midi_fret_target_enabled =
+        !midi_fret_target.empty();
     ghogx::character::apply_character_pose_controller_frame(
         renderer.character(), controller_sources);
 
@@ -1826,6 +1830,7 @@ int main(int argc, char** argv) {
   std::string strum_clip_arg;
   std::string fret_clip_arg;
   std::string face_clip_arg;
+  std::string midi_fret_target;
   ViewerClipStackOptions viewer_clip_stack;
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
@@ -1951,6 +1956,9 @@ int main(int argc, char** argv) {
       viewer_clip_stack.prev_fret_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--face-clip") == 0 && i + 1 < argc) {
       face_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--midi-fret-target") == 0 &&
+               i + 1 < argc) {
+      midi_fret_target = argv[++i];
     } else if (std::strcmp(argv[i], "--clip-start-frame") == 0 &&
                i + 1 < argc) {
       viewer_clip_stack.clip_start_frame = std::atoi(argv[++i]);
@@ -2080,7 +2088,8 @@ int main(int argc, char** argv) {
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
                          char_offset, fixed_dt, character_controllers,
-                         char_reference_base, viewer_clip_stack);
+                         char_reference_base, midi_fret_target,
+                         viewer_clip_stack);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).

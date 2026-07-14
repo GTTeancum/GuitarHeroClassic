@@ -5840,6 +5840,20 @@ in-game `*_nodes` proof for the compared guitarist0 rows: main
 `finger_hold_ring_hi@f4:w=1.000` / `@f5:w=0.000`. These controls are proof
 alignment only; gameplay timing and clip playback remain unchanged.
 
+2026-07-14 viewer/gameplay arm diff: the first Rockabill2 arm-pose diff showed
+the viewer still disagreed with gameplay only on the left IK chain even though
+spine, neck, right arm, and the live clip stack matched. Gameplay feeds
+`perf_fret_pos.spot_name` into `CharacterPoseControllerFrameSources::
+midi_fret_target`; the direct viewer had no equivalent feed. The hand-map
+recapture records the active in-game target as `spot_neck_fret11.mesh` at the
+screenshot frame. Supplying that same target through the viewer diagnostic
+`--midi-fret-target spot_neck_fret11.mesh` makes the compact `armw`/`armr*`
+rows match gameplay exactly for spine, neck, left upper/fore twist chain, left
+hand, and right arm at the proof frame. The old viewer-only assumption that a
+loaded guitar plus hand clips should force hand IK weights to `1.0` is removed;
+viewer proof parity must now feed the same live MIDI fret target that gameplay
+feeds.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

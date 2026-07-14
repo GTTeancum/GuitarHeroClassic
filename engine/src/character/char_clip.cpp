@@ -5589,27 +5589,44 @@ static void dump_leg_pose(const Character& character) {
 
 static void dump_arm_pose(const Character& character, const char* tag) {
   if (!debug_arm_pose_enabled()) return;
+  const char* compact_tag = tag;
+  if (std::strcmp(tag, "controllers-post") == 0) {
+    compact_tag = "post";
+  } else if (std::strcmp(tag, "controllers-pre") == 0) {
+    compact_tag = "pre";
+  } else if (std::strcmp(tag, "clip-frame-post") == 0) {
+    compact_tag = "clip";
+  } else if (std::strcmp(tag, "clip-frame-weighted-post") == 0) {
+    compact_tag = "clipw";
+  }
   auto dump = [&](const char* name) {
     const int i = find_bone_index(character, name);
     if (i < 0 || static_cast<size_t>(i) >= character.bones.size()) {
-      std::fprintf(stderr, "[armpose] %s %-22s missing\n", tag, name);
+      std::fprintf(stderr, "[armpose] char=%s %s %-22s missing\n",
+                   character.dir_name.c_str(), tag, name);
       return;
     }
     const auto& bone = character.bones[static_cast<size_t>(i)];
     const auto cur = character.bone_world_local_chain(bone.name);
-    const auto bind = character.bone_world_bind_local_chain(bone.name);
-    std::fprintf(
-        stderr,
-        "[armpose] %s %-22s exact=%-28s parent=%-24s "
-        "localPos=(%.4f %.4f %.4f) world=(%.4f %.4f %.4f) "
-        "bind=(%.4f %.4f %.4f) "
-        "rows=[%.5f %.5f %.5f|%.5f %.5f %.5f|%.5f %.5f %.5f]\n",
-        tag, name, bone.name.c_str(), bone.parent.c_str(), bone.local.pos[0],
-        bone.local.pos[1], bone.local.pos[2], cur[12], cur[13], cur[14],
-        bind[12], bind[13], bind[14], bone.local.rot[0][0],
-        bone.local.rot[0][1], bone.local.rot[0][2], bone.local.rot[1][0],
-        bone.local.rot[1][1], bone.local.rot[1][2], bone.local.rot[2][0],
-        bone.local.rot[2][1], bone.local.rot[2][2]);
+    std::fprintf(stderr,
+                 "[armw] c=%s t=%s b=%s w=%.4f,%.4f,%.4f\n",
+                 character.dir_name.c_str(), compact_tag, name, cur[12],
+                 cur[13], cur[14]);
+    std::fprintf(stderr,
+                 "[armr0] c=%s t=%s b=%s v=%.5f,%.5f,%.5f\n",
+                 character.dir_name.c_str(), compact_tag, name,
+                 bone.local.rot[0][0], bone.local.rot[0][1],
+                 bone.local.rot[0][2]);
+    std::fprintf(stderr,
+                 "[armr1] c=%s t=%s b=%s v=%.5f,%.5f,%.5f\n",
+                 character.dir_name.c_str(), compact_tag, name,
+                 bone.local.rot[1][0], bone.local.rot[1][1],
+                 bone.local.rot[1][2]);
+    std::fprintf(stderr,
+                 "[armr2] c=%s t=%s b=%s v=%.5f,%.5f,%.5f\n",
+                 character.dir_name.c_str(), compact_tag, name,
+                 bone.local.rot[2][0], bone.local.rot[2][1],
+                 bone.local.rot[2][2]);
   };
   dump("bone_pelvis");
   dump("bone_spine1");
