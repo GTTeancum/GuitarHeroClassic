@@ -229,6 +229,15 @@ Open work:
   camera ref logs a `camera RndCamAnim SetFrame skipped` proof row and does
   not call the native `RndCam::SetFrustum` helper. This is a source-side
   side-effect guard only; it does not infer hidden target-camera matching rules.
+- 2026-07-14 linked `RndCamAnim::SetFrame` FOV blend:
+  ihatecompvir `RndCamAnim::SetFrame` initializes `ref` from the current
+  camera Y-FOV, samples `FovKeys().AtFrame(frame, ref)`, and only when the
+  incoming SetFrame blend is not `1.0f` blends from `mCam->YFov()` to the
+  sampled value before calling `RndCam::SetFrustum`. Native now routes linked
+  CamAnim FOV through `source_rndcamanim_setframe_fov(...)` instead of treating
+  the sampled key as an unconditional assignment. Current CamShot Poll still
+  supplies `source_setframe_blend=1.000`, so stock rows remain visually stable
+  while the non-1 source rule is explicit and contract-guarded.
 - 2026-07-14 `RndCam::SetFrustum` storage shape:
   ihatecompvir `RndCam::SetFrustum` stores near plane, far plane, Y-FOV, and
   the unknown float together after the 1000:1 plane-ratio clamp. Native now

@@ -13595,6 +13595,18 @@ float sample_camera_fov_key(
     return a->fov + (b->fov - a->fov) * sample.t;
 }
 
+float source_rndcamanim_setframe_fov(float current_fov, float sampled_fov,
+                                     float source_setframe_blend) {
+    if (!std::isfinite(sampled_fov)) return current_fov;
+    const float blend = std::isfinite(source_setframe_blend)
+                            ? source_setframe_blend
+                            : 1.0f;
+    if (blend != 1.0f) {
+        return current_fov + (sampled_fov - current_fov) * blend;
+    }
+    return sampled_fov;
+}
+
 float clamp_particle_color_component(float value, int component) {
     if (!std::isfinite(value)) return component == 3 ? 1.0f : 0.0f;
     return std::clamp(value, 0.0f, component == 3 ? 1.0f : 4.0f);
@@ -22963,22 +22975,25 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
         const float sampled_fov =
             sample_camera_fov_key(anim.fov_keys, frame, previous_fov);
         if (!std::isfinite(sampled_fov)) continue;
+        const float source_setframe_blend = 1.0f;
+        const float source_fov = source_rndcamanim_setframe_fov(
+            previous_fov, sampled_fov, source_setframe_blend);
         // RndCamAnim::SetFrame samples FovKeys().AtFrame and then calls
         // RndCam::SetFrustum(cam->NearPlane(), cam->FarPlane(), ref, 1.0f).
         const float source_current_far_z = cam.far_z;
         camera_apply_rndcam_set_frustum_like_source(
-            cam, cam.near_z, cam.far_z, sampled_fov,
-            source_current_far_z);
+            cam, cam.near_z, cam.far_z, source_fov, source_current_far_z);
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             const std::string report_key = key.name + ":" + ref;
             if (!active_camera_fov_anim_reported_.count(report_key)) {
                 active_camera_fov_anim_reported_.insert(report_key);
                 std::fprintf(
                     stderr,
-                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=1.000\n",
+                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one\n",
                     key.name.c_str(), anim.name.c_str(), anim.cam.c_str(),
-                    frame, anim.anim_rate, fpu, cam.fov, previous_fov,
-                    anim.fov_keys.size());
+                    frame, anim.anim_rate, fpu, cam.fov, sampled_fov,
+                    previous_fov, anim.fov_keys.size(),
+                    source_setframe_blend);
             }
         }
     }

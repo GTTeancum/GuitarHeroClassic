@@ -8494,13 +8494,29 @@ int main() {
                  "sample_camera_fov_key(anim.fov_keys,frame,previous_fov);",
                  "linked RndCamAnim SetFrame samples source FOV keys at the active frame");
   ok &= contains(gameplay_c,
+                 "floatsource_rndcamanim_setframe_fov("
+                 "floatcurrent_fov,floatsampled_fov,"
+                 "floatsource_setframe_blend)",
+                 "linked RndCamAnim SetFrame exposes the source FOV blend helper");
+  ok &= contains(gameplay_c,
+                 "if(blend!=1.0f){returncurrent_fov+"
+                 "(sampled_fov-current_fov)*blend;}",
+                 "linked RndCamAnim SetFrame blends current YFov only for non-1 blends");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_fov=source_rndcamanim_setframe_fov("
+                 "previous_fov,sampled_fov,source_setframe_blend);",
+                 "linked RndCamAnim runtime routes sampled FOV through the source blend rule");
+  ok &= contains(gameplay_c,
                  "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,cam.near_z,cam.far_z,sampled_fov,"
+                 "cam,cam.near_z,cam.far_z,source_fov,"
                  "source_current_far_z);",
                  "linked RndCamAnim SetFrame stores the sampled FOV through RndCam::SetFrustum");
   ok &= contains(gameplay_c,
                  "\"[world]cameraRndCamAnimSetFrame:source_msg=mAnimsshot=%s",
                  "linked RndCamAnim diagnostics expose source SetFrame FOV application");
+  ok &= contains(gameplay_c,
+                 "source_blend_rule=current_to_sampled_when_not_one",
+                 "linked RndCamAnim diagnostics name the source non-1 blend behavior");
   ok &= contains(gameplay_c,
                  "anim.end_offset=r.pos;if(r.pos!=r.size)",
                  "source-shaped RndTransAnim reader must consume the whole asset");
