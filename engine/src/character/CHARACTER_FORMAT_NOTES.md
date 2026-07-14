@@ -3260,6 +3260,12 @@ Useful environment flags:
   relative-clip gate, `TryScaleDown`, and blink-weight clamp branch. This is
   `CharFaceServo` call-flow evidence only; GH2 `FaceFxLipSyncServo` placement
   remains fenced unless a matching source body is found.
+- 2026-07-14 `CharClip::PoseMeshes` call order:
+  native `source_char_clip_pose_meshes_steps` now carries the ordered concrete
+  source sequence: construct `CharBonesMeshes`, `SetName`, `StuffBones`,
+  `ScaleDown`, `ScaleAdd`, then `meshes.PoseMeshes`. The target is explicitly
+  `meshes` for each pose handoff, while actual mesh transform publication
+  remains fenced behind the incomplete `CharBonesMeshes::PoseMeshes` body.
 - 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.

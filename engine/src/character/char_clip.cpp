@@ -4391,13 +4391,19 @@ std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
 SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame) {
   SourceCharClipPoseMeshesSteps steps;
   steps.temp_meshes_name = "tmp_viseme_bones";
+  steps.call_order = {"CharBonesMeshes meshes", "meshes.SetName",
+                      "StuffBones",           "ScaleDown",
+                      "ScaleAdd",             "meshes.PoseMeshes"};
   steps.stuff_bones = true;
+  steps.scale_down_target = "meshes";
   steps.scale_down = true;
   steps.scale_down_weight = 0.0f;
+  steps.scale_add_target = "meshes";
   steps.scale_add = true;
   steps.scale_add_weight = 1.0f;
   steps.scale_add_frame = frame;
   steps.scale_add_blend = 0.0f;
+  steps.pose_meshes_target = "meshes";
   steps.pose_meshes = true;
   return steps;
 }

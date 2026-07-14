@@ -1492,13 +1492,17 @@ struct SourceCharClipRuntimeDumpEvidence {
 
 struct SourceCharClipPoseMeshesSteps {
   std::string temp_meshes_name;
+  std::vector<std::string> call_order;
   bool stuff_bones = false;
+  std::string scale_down_target;
   bool scale_down = false;
   float scale_down_weight = 0.0f;
+  std::string scale_add_target;
   bool scale_add = false;
   float scale_add_weight = 0.0f;
   float scale_add_frame = 0.0f;
   float scale_add_blend = 0.0f;
+  std::string pose_meshes_target;
   bool pose_meshes = false;
 };
 

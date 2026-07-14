@@ -1985,12 +1985,17 @@ int main() {
   const ghogx::character::SourceCharClipPoseMeshesSteps pose_steps =
       ghogx::character::source_char_clip_pose_meshes_steps(14.25f);
   if (pose_steps.temp_meshes_name != "tmp_viseme_bones" ||
+      pose_steps.call_order.size() != 6 ||
+      pose_steps.call_order[0] != "CharBonesMeshes meshes" ||
+      pose_steps.call_order[4] != "ScaleAdd" ||
       !pose_steps.stuff_bones || !pose_steps.scale_down ||
+      pose_steps.scale_down_target != "meshes" ||
       !nearf(pose_steps.scale_down_weight, 0.0f) ||
-      !pose_steps.scale_add || !nearf(pose_steps.scale_add_weight, 1.0f) ||
+      !pose_steps.scale_add || pose_steps.scale_add_target != "meshes" ||
+      !nearf(pose_steps.scale_add_weight, 1.0f) ||
       !nearf(pose_steps.scale_add_frame, 14.25f) ||
       !nearf(pose_steps.scale_add_blend, 0.0f) ||
-      !pose_steps.pose_meshes) {
+      pose_steps.pose_meshes_target != "meshes" || !pose_steps.pose_meshes) {
     std::cerr << "CharClip PoseMeshes step mismatch\n";
     ok = false;
   }

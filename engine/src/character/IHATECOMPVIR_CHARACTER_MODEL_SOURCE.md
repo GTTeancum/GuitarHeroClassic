@@ -5064,8 +5064,10 @@ note, and all report `unreadBytes=0`.
     `source_char_clip_pose_meshes_steps` port the concrete `StuffBones` /
     `PoseMeshes` call order only: list clip bones, append them into the target
     `CharBones`, create temporary `tmp_viseme_bones`, scale down at `0.0`, call
-    `ScaleAdd(meshes, 1.0, frame, 0.0)`, then pose meshes. This records source
-    dataflow without claiming the still-missing pose math bodies.
+    `ScaleAdd(meshes, 1.0, frame, 0.0)`, then pose meshes. Native records this
+    as an ordered call list and marks `meshes` as the target for `ScaleDown`,
+    `ScaleAdd`, and final `PoseMeshes`. This records source dataflow without
+    claiming the still-missing pose math bodies.
   - Native `source_char_clip_set_flags` and
     `source_char_clip_set_play_flags` port the complete `SetFlags` and
     `SetPlayFlags` dirty-state bodies: unchanged values preserve the incoming

@@ -1454,6 +1454,33 @@ int main() {
   ok &= expect_string(publisher_refresh.still_fenced.back(),
                       "CharClipDriver::Evaluate",
                       "pose publisher final fenced body");
+  const SourceCharClipPoseMeshesSteps pose_meshes_steps =
+      source_char_clip_pose_meshes_steps(18.5f);
+  ok &= expect_string(pose_meshes_steps.temp_meshes_name, "tmp_viseme_bones",
+                      "CharClip PoseMeshes temp bones name");
+  ok &= expect_size(pose_meshes_steps.call_order.size(), 6,
+                    "CharClip PoseMeshes call order count");
+  ok &= expect_string(pose_meshes_steps.call_order[0],
+                      "CharBonesMeshes meshes",
+                      "CharClip PoseMeshes constructs meshes first");
+  ok &= expect_string(pose_meshes_steps.call_order[3], "ScaleDown",
+                      "CharClip PoseMeshes calls ScaleDown before ScaleAdd");
+  ok &= expect_string(pose_meshes_steps.call_order[5], "meshes.PoseMeshes",
+                      "CharClip PoseMeshes final call");
+  ok &= expect_string(pose_meshes_steps.scale_down_target, "meshes",
+                      "CharClip PoseMeshes ScaleDown target");
+  ok &= expect_float(pose_meshes_steps.scale_down_weight, 0.0f,
+                     "CharClip PoseMeshes ScaleDown weight");
+  ok &= expect_string(pose_meshes_steps.scale_add_target, "meshes",
+                      "CharClip PoseMeshes ScaleAdd target");
+  ok &= expect_float(pose_meshes_steps.scale_add_weight, 1.0f,
+                     "CharClip PoseMeshes ScaleAdd weight");
+  ok &= expect_float(pose_meshes_steps.scale_add_frame, 18.5f,
+                     "CharClip PoseMeshes ScaleAdd frame");
+  ok &= expect_float(pose_meshes_steps.scale_add_blend, 0.0f,
+                     "CharClip PoseMeshes ScaleAdd blend");
+  ok &= expect_string(pose_meshes_steps.pose_meshes_target, "meshes",
+                      "CharClip PoseMeshes final target");
 
   const SourceCharServoBoneDefaultState servo_defaults =
       source_char_servo_bone_default_state();

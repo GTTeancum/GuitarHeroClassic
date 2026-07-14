@@ -29871,7 +29871,7 @@ int run_contract() {
                  "Native `source_char_clip_stuff_bones` and",
                  "document records native CharClip StuffBones helper");
   ok &= contains(doc,
-                 "dataflow without claiming the still-missing pose math bodies",
+                 "source dataflow without\n    claiming the still-missing pose math bodies",
                  "document fences CharClip pose math bodies");
   ok &= contains(doc,
                  "Native `source_char_clip_shares_groups` ports the complete",
@@ -30134,12 +30134,15 @@ int run_contract() {
                  "native character API fences transition dump statement bodies");
   ok &= contains(char_clip_h,
                  "structSourceCharClipPoseMeshesSteps{std::stringtemp_meshes_name;"
-                 "boolstuff_bones=false;boolscale_down=false;"
-                 "floatscale_down_weight=0.0f;boolscale_add=false;",
+                 "std::vector<std::string>call_order;boolstuff_bones=false;"
+                 "std::stringscale_down_target;boolscale_down=false;"
+                 "floatscale_down_weight=0.0f;std::stringscale_add_target;"
+                 "boolscale_add=false;",
                  "native character API exposes source CharClip PoseMeshes step row");
   ok &= contains(char_clip_h,
                  "floatscale_add_weight=0.0f;floatscale_add_frame=0.0f;"
-                 "floatscale_add_blend=0.0f;boolpose_meshes=false;};",
+                 "floatscale_add_blend=0.0f;std::stringpose_meshes_target;"
+                 "boolpose_meshes=false;};",
                  "native character API exposes source CharClip PoseMeshes args");
   ok &= contains(char_clip_h,
                  "structSourceCharClipPropSyncPlan{"
@@ -30665,12 +30668,17 @@ int run_contract() {
                  "SourceCharClipPoseMeshesStepssource_char_clip_pose_meshes_steps("
                  "floatframe){SourceCharClipPoseMeshesStepssteps;"
                  "steps.temp_meshes_name=\"tmp_viseme_bones\";"
-                 "steps.stuff_bones=true;steps.scale_down=true;"
-                 "steps.scale_down_weight=0.0f;steps.scale_add=true;",
+                 "steps.call_order={\"CharBonesMeshesmeshes\","
+                 "\"meshes.SetName\",\"StuffBones\",\"ScaleDown\","
+                 "\"ScaleAdd\",\"meshes.PoseMeshes\"};"
+                 "steps.stuff_bones=true;steps.scale_down_target=\"meshes\";"
+                 "steps.scale_down=true;",
                  "native CharClip PoseMeshes helper ports first call arguments");
   ok &= contains(char_clip,
-                 "steps.scale_add_weight=1.0f;steps.scale_add_frame=frame;"
-                 "steps.scale_add_blend=0.0f;steps.pose_meshes=true;"
+                 "steps.scale_down_weight=0.0f;steps.scale_add_target=\"meshes\";"
+                 "steps.scale_add=true;steps.scale_add_weight=1.0f;"
+                 "steps.scale_add_frame=frame;steps.scale_add_blend=0.0f;"
+                 "steps.pose_meshes_target=\"meshes\";steps.pose_meshes=true;"
                  "returnsteps;}",
                  "native CharClip PoseMeshes helper ports ScaleAdd arguments");
   ok &= contains(char_clip,
@@ -30819,6 +30827,12 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_pose_meshes_steps(14.25f)",
                  "focused clip driver flags test covers PoseMeshes step flow");
+  ok &= contains(char_bones_source_test,
+                 "pose_meshes_steps.call_order[3],\"ScaleDown\"",
+                 "focused CharBones source test covers PoseMeshes call order");
+  ok &= contains(char_bones_source_test,
+                 "pose_meshes_steps.scale_add_target,\"meshes\"",
+                 "focused CharBones source test covers PoseMeshes ScaleAdd target");
   ok &= contains(clip_driver_flags_test,
                  "append_character_pose_player_layers(",
                  "focused clip driver flags test covers shared performer player layers");
