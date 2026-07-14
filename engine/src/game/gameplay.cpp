@@ -31235,9 +31235,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (authored_gameplay_cameras_active && !in_intro_camera_window &&
             !regular_camera_keys_.empty()) {
             const uint32_t bar = camera_bar_at(chart_, song_time_);
+            bool camera_check_shot_due = false;
             if (last_camera_bar_ == UINT32_MAX) {
                 last_camera_bar_ = bar;
                 camera_bars_left_ = 0;
+                camera_check_shot_due = active_regular_camera_.empty();
             } else if (bar != last_camera_bar_) {
                 const uint32_t bars_elapsed = bar - last_camera_bar_;
                 last_camera_bar_ = bar;
@@ -31245,6 +31247,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     camera_bars_left_ =
                         std::max(0, camera_bars_left_ -
                                         static_cast<int>(bars_elapsed));
+                }
+                camera_check_shot_due = !star_power_.active;
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] camera downbeat: source_msg=downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d\n",
+                        bar, bars_elapsed, camera_bars_left_,
+                        star_power_.active ? 1 : 0,
+                        camera_check_shot_due ? 1 : 0);
                 }
             }
 
@@ -31266,7 +31277,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            if (force_camera || camera_bars_left_ <= 0) {
+            if (force_camera ||
+                (camera_check_shot_due && camera_bars_left_ <= 0)) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);

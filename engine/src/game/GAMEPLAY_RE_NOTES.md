@@ -238,6 +238,14 @@ Open work:
   zero-beat triggers, forces the next regular pick through the existing source
   duration path, and selects regular vs solo CamShots from that latch rather
   than from the already-active lighting section.
+- 2026-07-14 camera downbeat `check_camera_shot` gate:
+  GH2 `world_objects_worldbase.dta::downbeat` decrements
+  `[camera_bars_left]` on each bar, then calls `check_camera_shot` only when
+  `player0` is not in star mode. Native now keeps forced/scripted camera picks
+  immediate but routes ordinary duration-expired picks through an explicit
+  downbeat gate, so a no-acceptable-shot result waits for the next source
+  downbeat instead of retrying every frame, and star mode suppresses that
+  regular retry just like the script.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

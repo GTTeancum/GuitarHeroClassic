@@ -11065,8 +11065,21 @@ int main() {
                  "if(!selected){camera_source_no_acceptable_shot(",
                  "camera selection does not invent a fallback shot after source pick_shot fails");
   ok &= contains(gameplay_c,
-                 "if(force_camera||camera_bars_left_<=0){",
-                 "regular camera selection follows source camera_bars_left cadence");
+                 "boolcamera_check_shot_due=false;",
+                 "regular camera cadence tracks the source check_camera_shot edge");
+  ok &= contains(gameplay_c,
+                 "camera_check_shot_due=!star_power_.active;",
+                 "world_objects_worldbase.dta skips check_camera_shot during star mode");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameradownbeat:source_msg=downbeat",
+                 "camera diagnostics expose the source downbeat gate");
+  ok &= contains(gameplay_c,
+                 "if(force_camera||(camera_check_shot_due&&"
+                 "camera_bars_left_<=0)){",
+                 "regular camera selection follows source downbeat check_camera_shot cadence");
+  ok &= absent(gameplay_c,
+               "if(force_camera||camera_bars_left_<=0){",
+               "regular camera selection must not retry every frame after a source duration expires");
   ok &= absent(gameplay_c,
                "camera_bars_left_<=0||active_regular_camera_.empty()",
                "regular camera selection must not retry every frame after a failed source pick");
