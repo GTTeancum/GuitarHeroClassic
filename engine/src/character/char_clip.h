@@ -1146,6 +1146,19 @@ struct CharacterPosePlayerLayerSources {
   float fret_weight = 1.0f;
 };
 
+struct SourceCharMainDriverHandWeights;
+
+struct CharacterPosePlayerLayerBuildSources {
+  const CharClipPlayer* main = nullptr;
+  const CharClipPlayer* face_base = nullptr;
+  const CharClipPlayer* strum = nullptr;
+  const CharClipPlayer* fret = nullptr;
+  std::vector<const CharClipPlayer*> fret_extras;
+  const CharClipPlayer* face = nullptr;
+  const SourceCharMainDriverHandWeights* hand_weights = nullptr;
+  bool hand_driver_active = true;
+};
+
 struct CharacterPoseFrameLayerSources {
   const CharClip* main = nullptr;
   const CharClip* face_base = nullptr;
@@ -1157,12 +1170,21 @@ struct CharacterPoseFrameLayerSources {
   float fret_weight = 1.0f;
 };
 
+struct CharacterPoseFrameLayerBuildSources {
+  const CharClip* main = nullptr;
+  const CharClip* face_base = nullptr;
+  const CharClip* strum = nullptr;
+  const CharClip* fret = nullptr;
+  const CharClip* face = nullptr;
+  const SourceCharMainDriverHandWeights* hand_weights = nullptr;
+  int frame_idx = 0;
+  bool hand_driver_active = true;
+};
+
 struct CharacterRuntimeIkWeight {
   std::string weight_prop;
   float weight = 0.0f;
 };
-
-struct SourceCharMainDriverHandWeights;
 
 struct CharacterPoseControllerFrameSources {
   const ClipChannelLayerStack* pose_stack = nullptr;
@@ -1195,9 +1217,13 @@ bool append_clip_frame_layer(ClipChannelLayerStack& stack,
                              bool overlay_override = false);
 bool append_clip_frame_layers(ClipChannelLayerStack& stack,
                               const std::vector<ClipFrameLayerSource>& sources);
+CharacterPosePlayerLayerSources make_character_pose_player_layer_sources(
+    const CharacterPosePlayerLayerBuildSources& sources);
 bool append_character_pose_player_layers(
     ClipChannelLayerStack& stack,
     const CharacterPosePlayerLayerSources& sources);
+CharacterPoseFrameLayerSources make_character_pose_frame_layer_sources(
+    const CharacterPoseFrameLayerBuildSources& sources);
 bool append_character_pose_frame_layers(
     ClipChannelLayerStack& stack,
     const CharacterPoseFrameLayerSources& sources);

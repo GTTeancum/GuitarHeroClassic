@@ -10421,6 +10421,24 @@ bool append_clip_frame_layers(
   return appended;
 }
 
+CharacterPosePlayerLayerSources make_character_pose_player_layer_sources(
+    const CharacterPosePlayerLayerBuildSources& sources) {
+  CharacterPosePlayerLayerSources result;
+  result.main = sources.main;
+  result.face_base = sources.face_base;
+  result.face = sources.face;
+  if (!sources.hand_driver_active) return result;
+
+  result.strum = sources.strum;
+  result.fret = sources.fret;
+  result.fret_extras = sources.fret_extras;
+  if (sources.hand_weights != nullptr) {
+    result.strum_weight = sources.hand_weights->right;
+    result.fret_weight = sources.hand_weights->left;
+  }
+  return result;
+}
+
 bool append_character_pose_player_layers(
     ClipChannelLayerStack& stack,
     const CharacterPosePlayerLayerSources& sources) {
@@ -10435,6 +10453,24 @@ bool append_character_pose_player_layers(
   }
   layers.push_back({sources.face, 1.0f, false});
   return append_clip_player_layers(stack, layers);
+}
+
+CharacterPoseFrameLayerSources make_character_pose_frame_layer_sources(
+    const CharacterPoseFrameLayerBuildSources& sources) {
+  CharacterPoseFrameLayerSources result;
+  result.main = sources.main;
+  result.face_base = sources.face_base;
+  result.face = sources.face;
+  result.frame_idx = sources.frame_idx;
+  if (!sources.hand_driver_active) return result;
+
+  result.strum = sources.strum;
+  result.fret = sources.fret;
+  if (sources.hand_weights != nullptr) {
+    result.strum_weight = sources.hand_weights->right;
+    result.fret_weight = sources.hand_weights->left;
+  }
+  return result;
 }
 
 bool append_character_pose_frame_layers(

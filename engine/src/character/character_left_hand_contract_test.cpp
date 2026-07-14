@@ -303,13 +303,21 @@ int main() {
                  "right_source;",
                  "gameplay records source right.weight owner rows");
   ok &= contains(gameplay_c,
-                 "pose_player_layers.strum_weight=hand_driver_right_weight;",
-                 "right hand overlay is scaled by right.weight owner");
+                 "pose_player_inputs.hand_weights=source_hand_driver_weights?"
+                 "&*source_hand_driver_weights:nullptr;",
+                 "gameplay passes source hand weights into the shared layer builder");
+  ok &= contains(char_clip_c,
+                 "result.strum_weight=sources.hand_weights->right;",
+                 "shared layer builder scales right hand overlay by right.weight owner");
+  ok &= contains(char_clip_c,
+                 "result.fret_weight=sources.hand_weights->left;",
+                 "shared layer builder scales left hand overlay by left.weight owner");
   ok &= contains(gameplay_c,
-                 "pose_player_layers.fret_weight=hand_driver_left_weight;",
-                 "left hand overlay is scaled by left.weight owner");
+                 "make_character_pose_player_layer_sources("
+                 "pose_player_inputs);",
+                 "gameplay uses the shared pose layer builder");
   ok &= contains(gameplay_c,
-                 "pose_player_layers.fret_extras.push_back(&player);",
+                 "pose_player_inputs.fret_extras.push_back(&player);",
                  "extra left hand overlays share the source left.weight owner");
   ok &= contains(gameplay_c,
                  "\"[hand-driver-weight]role=%sleft=%.5fright=%.5f\"",

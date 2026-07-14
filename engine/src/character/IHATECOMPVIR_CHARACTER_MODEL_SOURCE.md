@@ -5489,6 +5489,17 @@ body/hand clip rows and source controller inputs become shared native frame
 state while the `CharClipSamples` / `CharBonesSamples` / `CharBones` /
 `PoseMeshes` publisher remains the source-backed target.
 
+2026-07-14 shared layer-source builder cleanup: viewer and gameplay now build
+their body/hand layer inputs through shared character helpers
+`make_character_pose_player_layer_sources` /
+`make_character_pose_frame_layer_sources`. These helpers only copy the selected
+players/clips and apply source `left.weight` / `right.weight` owner results to
+the strum/fret overlay lanes; they do not add new animation math or character-
+specific offsets. Gameplay still keeps its pre-controller postclip diagnostic
+dump, so `apply_character_pose_controller_frame` may receive an already-applied
+clip stack in-game, but the player-layer selection and source hand-weight
+scaling are no longer game/viewer-local decisions.
+
 2026-07-14 shared controller-frame contract refresh: the left-hand contract now
 checks `apply_character_pose_controller_frame` as the single runtime boundary
 where stale IK weights are cleared, source `main.drv` driver flags are fed,

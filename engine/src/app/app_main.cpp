@@ -1540,15 +1540,17 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     ghogx::character::ClipChannelLayerStack pose_stack;
     if (clip_frame_override >= 0) {
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
-      ghogx::character::CharacterPoseFrameLayerSources frame_layers;
-      frame_layers.main = &loaded_clip;
-      frame_layers.face_base = &face_base_clip;
-      frame_layers.strum = &strum_clip;
-      frame_layers.fret = &fret_clip;
-      frame_layers.face = &face_clip;
-      frame_layers.frame_idx = clip_frame_override;
-      frame_layers.strum_weight = frame_hand_weights.right;
-      frame_layers.fret_weight = frame_hand_weights.left;
+      ghogx::character::CharacterPoseFrameLayerBuildSources frame_inputs;
+      frame_inputs.main = &loaded_clip;
+      frame_inputs.face_base = &face_base_clip;
+      frame_inputs.strum = &strum_clip;
+      frame_inputs.fret = &fret_clip;
+      frame_inputs.face = &face_clip;
+      frame_inputs.hand_weights = &frame_hand_weights;
+      frame_inputs.frame_idx = clip_frame_override;
+      const ghogx::character::CharacterPoseFrameLayerSources frame_layers =
+          ghogx::character::make_character_pose_frame_layer_sources(
+              frame_inputs);
       ghogx::character::append_character_pose_frame_layers(pose_stack,
                                                            frame_layers);
     } else {
@@ -1558,14 +1560,16 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       face_base_player.advance(dt);
       face_player.advance(dt);
       frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
-      ghogx::character::CharacterPosePlayerLayerSources player_layers;
-      player_layers.main = &main_player;
-      player_layers.face_base = &face_base_player;
-      player_layers.strum = &strum_player;
-      player_layers.fret = &fret_player;
-      player_layers.face = &face_player;
-      player_layers.strum_weight = frame_hand_weights.right;
-      player_layers.fret_weight = frame_hand_weights.left;
+      ghogx::character::CharacterPosePlayerLayerBuildSources player_inputs;
+      player_inputs.main = &main_player;
+      player_inputs.face_base = &face_base_player;
+      player_inputs.strum = &strum_player;
+      player_inputs.fret = &fret_player;
+      player_inputs.face = &face_player;
+      player_inputs.hand_weights = &frame_hand_weights;
+      const ghogx::character::CharacterPosePlayerLayerSources player_layers =
+          ghogx::character::make_character_pose_player_layer_sources(
+              player_inputs);
       ghogx::character::append_character_pose_player_layers(pose_stack,
                                                             player_layers);
     }

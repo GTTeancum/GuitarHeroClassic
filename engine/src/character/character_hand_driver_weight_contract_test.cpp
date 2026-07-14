@@ -73,28 +73,34 @@ int main() {
                  "Thehand-driverlayersalsostayoutofthegenericfull-bodylane"
                  "blend.",
                  "document records hand overlays are not generic body layers");
-  ok &= contains(gameplay_c,
+  ok &= contains(char_clip_c,
                  "source_char_weight_setter_poll_with_driver_result("
                  "setter,source_weight_inputs,0.0f,flag_weight,owner_weight)",
-                 "gameplay evaluates source WeightSetter rows for driver weights");
-  ok &= contains(gameplay_c,
+                 "shared character code evaluates source WeightSetter rows for driver weights");
+  ok &= contains(char_clip_c,
                  "setter.name==\"left.weight\"||setter.weight_owner=="
                  "\"left.weight\"",
-                 "gameplay maps source left.weight owner rows");
-  ok &= contains(gameplay_c,
+                 "shared character code maps source left.weight owner rows");
+  ok &= contains(char_clip_c,
                  "setter.name==\"right.weight\"||setter.weight_owner=="
                  "\"right.weight\"",
-                 "gameplay maps source right.weight owner rows");
+                 "shared character code maps source right.weight owner rows");
   ok &= contains(gameplay_c,
-                 "add_player_layer(perf.strum_player,"
-                 "hand_driver_right_weight,true);",
+                 "make_character_pose_player_layer_sources("
+                 "pose_player_inputs);",
+                 "gameplay builds hand overlay layers through the shared helper");
+  ok &= contains(gameplay_c,
+                 "pose_player_inputs.hand_weights=source_hand_driver_weights?"
+                 "&*source_hand_driver_weights:nullptr;",
+                 "gameplay feeds source hand-driver weights into shared layer helper");
+  ok &= contains(char_clip_c,
+                 "result.strum_weight=sources.hand_weights->right;",
                  "right hand overlay uses right.weight owner");
-  ok &= contains(gameplay_c,
-                 "add_player_layer(perf.fret_player,"
-                 "hand_driver_left_weight,true);",
+  ok &= contains(char_clip_c,
+                 "result.fret_weight=sources.hand_weights->left;",
                  "left hand overlay uses left.weight owner");
   ok &= contains(gameplay_c,
-                 "add_player_layer(player,hand_driver_left_weight,true);",
+                 "pose_player_inputs.fret_extras.push_back(&player);",
                  "extra left hand overlays use left.weight owner");
   ok &= lacks(gameplay_c, "add_player_layer(perf.strum_player,1.0f,true);",
               "right hand overlay must not be hard-coded to full weight");
