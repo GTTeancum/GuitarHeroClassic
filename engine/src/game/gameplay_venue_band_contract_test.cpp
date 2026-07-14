@@ -12398,6 +12398,33 @@ int main() {
                  "size_tsource_object_order=0;",
                  "regular CamShots carry source object-directory order for cycle_shot");
   ok &= contains(gameplay_h_c,
+                 "size_tsource_frame_key_index=0;",
+                 "regular source-frame diagnostics retain the CamShot keyframe index");
+  ok &= contains(gameplay_h_c,
+                 "boolhas_source_frame_key_index=false;",
+                 "source-frame key indices are explicit diagnostics, not inferred defaults");
+  ok &= contains(gameplay_c,
+                 "key.source_frame_key_index=key_index;",
+                 "regular camera source-frame mapping carries ihatecompvir OnSetPos index");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraOnSetPosboundary:source_msg=set_pos"
+                 "source_handler=CamShot::OnSetPosshot=%sa_index=%s%zu"
+                 "b_index=%s%zusource_call=SetPos(mKeyFrames[idx],"
+                 "RndCam::Current)rb2_setpos=locals_only"
+                 "native_pose_body=not_synthesized"
+                 "route=regular_camera_source_frame_keys\\n\"",
+                 "camera diagnostics expose the source CamShot OnSetPos boundary without synthesizing SetPos");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraOnSetPosboundary:source_msg=set_pos"
+                 "source_handler=CamShot::OnSetPosshot=%sindex=%s%zu"
+                 "source_call=SetPos(mKeyFrames[idx],RndCam::Current)"
+                 "rb2_setpos=locals_onlynative_pose_body=not_synthesized"
+                 "source_phase=hold_before_blend"
+                 "route=regular_camera_source_frame_keys\\n\"",
+                 "camera hold diagnostics expose the same source OnSetPos boundary");
+  ok &= absent(gameplay_c, "native_pose_body=synthesized",
+               "native camera must not claim a recovered CamShot::SetPos body");
+  ok &= contains(gameplay_h_c,
                  "boolcycle_camera_shot_like_source();",
                  "gameplay exposes a native CameraManager cycle_shot bridge");
   ok &= contains(gameplay_c,

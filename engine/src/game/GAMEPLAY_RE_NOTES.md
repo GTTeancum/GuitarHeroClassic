@@ -27,6 +27,16 @@
   and centroids, matching ihatecompvir `GetCurrentTargetPosition()`'s
   "average non-null target pointers" rule while keeping the actual
   `UpdateTarget` callsite marked unrecovered.
+- 2026-07-14 CamShot `set_pos` boundary: GH2's authored
+  `world_objects_ps2.dta` / Xbox keyframe editor script calls
+  `{$this set_pos ...}`. ihatecompvir `CamShot` handles that message as
+  `OnSetPos`, reads the keyframe index from the script args, and calls
+  `SetPos(mKeyFrames[idx], RndCam::Current())`; the RB2 dump still exposes
+  only `SetPos` locals, not a safe body to mirror. Native now carries the
+  source keyframe index through `regular_camera_source_frame_keys` diagnostics
+  and logs an `OnSetPos` boundary row marked `native_pose_body=not_synthesized`.
+  This is proof surface for the live source route and does not change camera
+  pose math.
 - 2026-07-14 camera submit source classification: native no longer decides
   whether to bypass source `CamShotFrame::BuildTransform` / screen-offset
   composition by searching submitted debug source strings for `ps2_`. The

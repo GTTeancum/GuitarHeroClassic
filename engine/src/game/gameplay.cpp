@@ -17068,7 +17068,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     bool loop_wrapped = false;
     auto stamp_source_frame_mapping =
         [&](Gameplay::CameraKey& key, float key_blend, float cursor,
-            float duration, float blend) {
+            float duration, float blend, size_t key_index) {
             key.source_frame_local_frame = local_frame;
             key.source_frame_key_start_frame = cursor;
             key.source_frame_duration_frames = duration;
@@ -17078,16 +17078,19 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             key.source_frame_pre_loop_frames = pre_loop;
             key.source_frame_loop_frames = loop_total;
             key.source_frame_loop_start_index = loop_start_index;
+            key.source_frame_key_index = key_index;
             key.source_frame_loop_active = loop_active;
             key.source_frame_loop_wrapped = loop_wrapped;
+            key.has_source_frame_key_index = true;
             key.has_source_frame_mapping = true;
         };
     auto make_source_frame_hold =
         [&](const Gameplay::CameraKey& cur, float cursor, float duration,
-            float blend) {
+            float blend, size_t key_index) {
             Gameplay::CameraKey hold = cur;
             hold.frame = now_frame;
-            stamp_source_frame_mapping(hold, 0.0f, cursor, duration, blend);
+            stamp_source_frame_mapping(hold, 0.0f, cursor, duration, blend,
+                                       key_index);
             return std::vector<Gameplay::CameraKey>{std::move(hold)};
         };
     auto timing_duration = [](const Gameplay::CameraKey& key) {
@@ -17103,7 +17106,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     if (!std::isfinite(total) || total <= 0.001f) {
         const auto& cur = frames.front();
         return make_source_frame_hold(cur, 0.0f, timing_duration(cur),
-                                      timing_blend(cur));
+                                      timing_blend(cur), 0);
     }
     if (shot.has_camshot_looping && shot.camshot_looping) {
         loop_start_index = static_cast<size_t>(std::clamp(
@@ -17127,7 +17130,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
         }
         const auto& cur = frames.back();
         return make_source_frame_hold(cur, cursor, timing_duration(cur),
-                                      timing_blend(cur));
+                                      timing_blend(cur), frames.size() - 1);
     }
 
     float cursor = 0.0f;
@@ -17140,7 +17143,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
         if (local_frame <= cursor + span || i + 1 == frames.size()) {
             const float in_key = std::max(0.0f, local_frame - cursor);
             if (in_key < duration || blend <= 0.001f) {
-                return make_source_frame_hold(cur, cursor, duration, blend);
+                return make_source_frame_hold(cur, cursor, duration, blend, i);
             }
             const bool can_wrap =
                 shot.has_camshot_looping && shot.camshot_looping;
@@ -17148,7 +17151,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             const size_t next_index =
                 (i + 1 < frames.size()) ? i + 1 : wrap_index;
             if (next_index == i) {
-                return make_source_frame_hold(cur, cursor, duration, blend);
+                return make_source_frame_hold(cur, cursor, duration, blend, i);
             }
             const float t =
                 std::clamp((in_key - duration) / blend, 0.0f, 1.0f);
@@ -17156,8 +17159,9 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             Gameplay::CameraKey b = frames[next_index];
             a.frame = now_frame - t;
             b.frame = now_frame + (1.0f - t);
-            stamp_source_frame_mapping(a, t, cursor, duration, blend);
-            stamp_source_frame_mapping(b, t, cursor, duration, blend);
+            stamp_source_frame_mapping(a, t, cursor, duration, blend, i);
+            stamp_source_frame_mapping(b, t, cursor, duration, blend,
+                                       next_index);
             return {a, b};
         }
         cursor += span;
@@ -17165,7 +17169,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
     const auto& cur = frames.back();
     cursor = std::max(0.0f, total - source_camshot_frame_span(cur));
     return make_source_frame_hold(cur, cursor, timing_duration(cur),
-                                  timing_blend(cur));
+                                  timing_blend(cur), frames.size() - 1);
 }
 
 std::array<float, 2> camshot_result_screen_norm_for_offset(float x, float y) {
@@ -33549,6 +33553,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             key->name.c_str(),
                             a_key.camshot_zero_transform_reset ? 1 : 0,
                             b_key.camshot_zero_transform_reset ? 1 : 0);
+                        auto source_index_prefix =
+                            [](const CameraKey& source_key) -> const char* {
+                            return source_key.has_source_frame_key_index ? ""
+                                                                         : "none/";
+                        };
+                        std::fprintf(
+                            stderr,
+                            "[world] camera OnSetPos boundary: source_msg=set_pos source_handler=CamShot::OnSetPos shot=%s a_index=%s%zu b_index=%s%zu source_call=SetPos(mKeyFrames[idx],RndCam::Current) rb2_setpos=locals_only native_pose_body=not_synthesized route=regular_camera_source_frame_keys\n",
+                            key->name.c_str(), source_index_prefix(a_key),
+                            a_key.has_source_frame_key_index
+                                ? a_key.source_frame_key_index
+                                : size_t{0},
+                            source_index_prefix(b_key),
+                            b_key.has_source_frame_key_index
+                                ? b_key.source_frame_key_index
+                                : size_t{0});
                         if (has_frame_mapping &&
                             (a_key.source_frame_loop_active ||
                              a_key.source_frame_loop_wrapped)) {
@@ -33625,6 +33645,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 hold_key.source_frame_loop_active ? 1 : 0,
                                 hold_key.source_frame_loop_wrapped ? 1 : 0);
                         }
+                        auto source_index_prefix =
+                            [](const CameraKey& source_key) -> const char* {
+                            return source_key.has_source_frame_key_index ? ""
+                                                                         : "none/";
+                        };
+                        std::fprintf(
+                            stderr,
+                            "[world] camera OnSetPos boundary: source_msg=set_pos source_handler=CamShot::OnSetPos shot=%s index=%s%zu source_call=SetPos(mKeyFrames[idx],RndCam::Current) rb2_setpos=locals_only native_pose_body=not_synthesized source_phase=hold_before_blend route=regular_camera_source_frame_keys\n",
+                            key->name.c_str(), source_index_prefix(hold_key),
+                            hold_key.has_source_frame_key_index
+                                ? hold_key.source_frame_key_index
+                                : size_t{0});
                     }
                     if (!source_frame_key_route && key->has_path_anim &&
                         selected_camera.size() >= 2 &&

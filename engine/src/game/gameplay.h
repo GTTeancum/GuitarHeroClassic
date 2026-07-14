@@ -241,8 +241,10 @@ class Gameplay {
     float source_frame_pre_loop_frames = 0.0f;
     float source_frame_loop_frames = 0.0f;
     size_t source_frame_loop_start_index = 0;
+    size_t source_frame_key_index = 0;
     bool source_frame_loop_active = false;
     bool source_frame_loop_wrapped = false;
+    bool has_source_frame_key_index = false;
     bool has_source_frame_mapping = false;
     float generated_source_position[3] = {};
     float generated_source_forward[3] = {0.0f, 1.0f, 0.0f};
