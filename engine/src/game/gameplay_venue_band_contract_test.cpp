@@ -12056,6 +12056,23 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");
+  ok &= contains(gameplay_c,
+                 "camera_symbol_filter(\"facing\",{\"right\",\"null\"})",
+                 "regular camera previous-left guard matches the source right/null list only");
+  ok &= contains(gameplay_c,
+                 "camera_symbol_filter(\"facing\",{\"left\",\"null\"})",
+                 "regular camera previous-right guard matches the source left/null list only");
+  ok &= contains(gameplay_c,
+                 "camera_symbol_filter(\"distance\",{\"null\",\"near\","
+                 "\"closeup\"})",
+                 "regular camera far/behind guard matches the source null/near/closeup list only");
+  ok &= absent(gameplay_c,
+               "camera_symbol_filter(\"facing\",{\"right\",\"null\",\"\"})",
+               "regular camera facing filters must not accept native-only empty symbols");
+  ok &= absent(gameplay_c,
+               "camera_symbol_filter(\"distance\",{\"null\",\"near\","
+               "\"closeup\",\"\"})",
+               "regular camera distance filters must not accept native-only empty symbols");
   ok &= appears_before(gameplay_c,
                        "if(mode==CameraShotMode::Jump||"
                        "mode==CameraShotMode::Lighter){returntrue;}",

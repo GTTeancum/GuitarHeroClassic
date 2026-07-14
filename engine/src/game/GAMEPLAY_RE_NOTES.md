@@ -269,6 +269,13 @@ Open work:
   CamShot `distance`/`facing` fields to the literal `null` symbol so
   `CameraManager::ShotMatches` evaluates those source filter lists correctly
   for shots without explicit authored metadata.
+- 2026-07-14 CamShot transition filter exactness:
+  after the `null` default bridge, native no longer accepts an empty string as
+  an extra match for the previous-facing or far/behind distance guards. The GH2
+  script-authored lists are exactly `(facing (right null))`,
+  `(facing (left null))`, and `(distance (null near closeup))`; any empty
+  symbol acceptance would be a native-only fallback rather than
+  `CameraManager::ShotMatches` behavior.
 - 2026-07-13 CamShot `shot_ok` selection hook: native regular camera
   selection no longer rejects the active CamShot by authored name before
   source approval. ihatecompvir's `CameraManager::FindCameraShot` scans the

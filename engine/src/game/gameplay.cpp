@@ -16359,19 +16359,19 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     if (previous) {
         if (previous->facing == "left" &&
             !camera_shot_matches_source_filters(
-                key, {camera_symbol_filter("facing", {"right", "null", ""})})) {
+                key, {camera_symbol_filter("facing", {"right", "null"})})) {
             return false;
         }
         if (previous->facing == "right" &&
             !camera_shot_matches_source_filters(
-                key, {camera_symbol_filter("facing", {"left", "null", ""})})) {
+                key, {camera_symbol_filter("facing", {"left", "null"})})) {
             return false;
         }
         if (mode == CameraShotMode::Regular &&
             (previous->distance == "far" || previous->distance == "behind")) {
             if (!camera_shot_matches_source_filters(
                     key, {camera_symbol_filter(
-                             "distance", {"null", "near", "closeup", ""})})) {
+                             "distance", {"null", "near", "closeup"})})) {
                 return false;
             }
         }
