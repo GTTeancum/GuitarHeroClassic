@@ -202,6 +202,9 @@ class Gameplay {
     bool has_path_trans_target = false;
     size_t path_source_sample_frames = 0;
     size_t path_source_added_frames = 0;
+    size_t path_source_translation_keys = 0;
+    size_t path_source_rotation_keys = 0;
+    size_t path_source_scale_keys = 0;
     float path_source_start_frame = 0.0f;
     float path_source_end_frame = 0.0f;
     bool has_path_source_frame_summary = false;

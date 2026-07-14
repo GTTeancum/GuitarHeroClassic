@@ -10146,6 +10146,9 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             pos.has_path_trans_target = true;
             pos.path_source_sample_frames = sample_frames.size();
             pos.path_source_added_frames = added_source_frames;
+            pos.path_source_translation_keys = resolved.trans_keys.size();
+            pos.path_source_rotation_keys = resolved.rot_keys.size();
+            pos.path_source_scale_keys = resolved.scale_keys.size();
             pos.path_source_start_frame = sample_frames.front();
             pos.path_source_end_frame = sample_frames.back();
             pos.has_path_source_frame_summary = true;
@@ -10169,7 +10172,7 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             std::fprintf(
                 stderr,
                 "[camera-path] anim=%s source-shaped rev=%u anim_rev=%u "
-                "trans=%s owner=%s end=0x%zX/%zu keys=%zu rot_keys=%zu "
+                "trans=%s owner=%s end=0x%zX/%zu trans_keys=%zu rot_keys=%zu "
                 "scale_keys=%zu source_sample_frames=%zu added_source_frames=%zu flags=trans_spline:%d repeat:%d "
                 "scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d "
                 "first=f%.3f:(%.3f %.3f %.3f) "
@@ -10177,8 +10180,9 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 "last=f%.3f:(%.3f %.3f %.3f)\n",
                 anim_name.c_str(), resolved.revision, resolved.anim_revision,
                 resolved.trans.c_str(), resolved.keys_owner.c_str(),
-                resolved.end_offset, transanim_sizes[anim_ref], out.size(),
-                resolved.rot_keys.size(), resolved.scale_keys.size(),
+                resolved.end_offset, transanim_sizes[anim_ref],
+                resolved.trans_keys.size(), resolved.rot_keys.size(),
+                resolved.scale_keys.size(),
                 sample_frames.size(),
                 added_source_frames,
                 resolved.trans_spline ? 1 : 0,
@@ -32681,7 +32685,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -32735,6 +32739,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             path_summary_prefix(path_summary_key),
                             path_summary_key.has_path_source_frame_summary
                                 ? path_summary_key.path_source_added_frames
+                                : size_t{0},
+                            path_summary_prefix(path_summary_key),
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_translation_keys
+                                : size_t{0},
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_rotation_keys
+                                : size_t{0},
+                            path_summary_key.has_path_source_frame_summary
+                                ? path_summary_key.path_source_scale_keys
                                 : size_t{0},
                             key->path_anim.c_str(),
                             path_trans_target_label(path_target_key));

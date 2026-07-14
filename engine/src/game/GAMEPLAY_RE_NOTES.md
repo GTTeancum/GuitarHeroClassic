@@ -11323,6 +11323,13 @@ Rejected native probe:
   the live `[world] camera source path frame pair` row, so each suspicious
   path angle can be checked against the exact source page span used to build
   the camera keys.
+- 2026-07-14 path-backed TransAnim key-page proof:
+  ihatecompvir exposes `TransKeys()`, `RotKeys()`, and `ScaleKeys()` as
+  separate source pages behind `mKeysOwner`; native path camera keys now carry
+  those three source page counts beside the merged frame summary and print them
+  in the live path-frame row. This is audit support for suspicious path angles:
+  it proves whether a rendered path pose is translation-backed, rotation-only,
+  scale-only, or a mixed source page sample before changing submitted math.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures
