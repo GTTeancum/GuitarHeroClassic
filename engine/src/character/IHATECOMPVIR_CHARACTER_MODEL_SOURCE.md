@@ -572,6 +572,22 @@ into final transform rows.
    - The project hair rule is two-sided culling only. It is not permission to
      change depth priority, material sorting, or material state from mesh names.
 
+2026-07-13 current stock-controller recheck:
+`ghogx_character_bind_audit --all --types --controllers` against
+`C:\Programming\GitHub\Guitar Hero II\gh2_ps2_hybrid_assets\gen` writes
+`engine/out/source_truth_controller_inventory_20260713_continue/stock_character_controller_inventory.log`.
+All 24 built-in stock character paths report `boneTwist=0`, `neckTwist=0`,
+`collide=0`, and `boneOffset=0`. The visible guitarist rows that remain
+runtime-relevant are the nonzero `ik`, `ikMidi`, `foreTwist`, `upperTwist`,
+`hair`, `lookAt`/`eyes`, `servoBone`, `driver`, and `weightSetter` rows, plus
+`ikRod`/`posConstraint` for the smaller Grim/singer/accessory cases. This
+fresh current-state pass means `CharBoneTwist` and `CharNeckTwist` are
+source-backed format/controllers, but they are not the missing stock Rock/Rock2
+or Rockabill2 visual fix. The same pass also supports the current CharHair
+boundary: with zero stock `CharCollide` rows, a live point writeback still needs
+source proof for `Hookup(ObjPtrList<CharCollide, ObjectDir>&)` rather than a
+native collision-list guess.
+
 4. Stock evidence still needed after imports:
     - Re-run the 24 base stock character screenshot/log sheet after each clip or
       controller import.

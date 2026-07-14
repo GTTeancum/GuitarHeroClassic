@@ -1800,6 +1800,31 @@ int run_contract() {
                  "The project hair rule is two-sided culling only.",
                  "remaining import checklist fences hair material behavior");
   ok &= contains(doc,
+                 "2026-07-13 current stock-controller recheck:",
+                 "remaining import checklist records current stock controller audit");
+  ok &= contains(doc,
+                 "All 24 built-in stock character paths report "
+                 "`boneTwist=0`, `neckTwist=0`,",
+                 "stock controller audit records absent bone/neck twist rows");
+  ok &= contains(doc,
+                 "`collide=0`, and `boneOffset=0`",
+                 "stock controller audit records absent collide/bone offset rows");
+  ok &= contains(doc,
+                 "`ik`, `ikMidi`, `foreTwist`, `upperTwist`,\n"
+                 "`hair`, `lookAt`/`eyes`, `servoBone`, `driver`, and "
+                 "`weightSetter` rows",
+                 "stock controller audit records still-relevant nonzero rows");
+  ok &= contains(doc,
+                 "`CharBoneTwist` and `CharNeckTwist` are\n"
+                 "source-backed format/controllers, but they are not the "
+                 "missing stock Rock/Rock2",
+                 "stock controller audit fences absent twist controllers from visual fixes");
+  ok &= contains(doc,
+                 "with zero stock `CharCollide` rows, a live point writeback "
+                 "still needs\nsource proof for "
+                 "`Hookup(ObjPtrList<CharCollide, ObjectDir>&)`",
+                 "stock controller audit preserves CharHair hookup boundary");
+  ok &= contains(doc,
                  "focused clip audit found its real `keyboard_main` clips",
                  "remaining import checklist records metal_keyboard route finding");
   ok &= contains(doc, "## Continuation Audit 2026-07-13",
