@@ -168,10 +168,11 @@ int main() {
                  "source CharIKHand polling path is used per controller");
   ok &= contains(char_clip_c,
                  "staticvoidapply_source_ik_hands_and_fore_twists("
-                 "Character&character)",
+                 "Character&character,conststd::vector<milo_scene::Xfm>&"
+                 "bind_bones)",
                  "source hand scheduler pairs IK with matching foretwist");
   ok &= contains(char_clip_c,
-                 "apply_source_ik_hands_and_fore_twists(character);"
+                 "apply_source_ik_hands_and_fore_twists(character,bind_bones);"
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",
                  "upper twists stay after CharHair per accepted PS2 cadence");
@@ -183,25 +184,24 @@ int main() {
                  "source hand scheduler polls each IK hand");
   ok &= appears_before(hand_twist_scheduler_c,
                        "apply_source_ik_hand(character,ik);",
-                       "apply_source_fore_twist(character,ft);",
+                       "apply_source_fore_twist(character,bind_bones,ft);",
                        "matching source foretwist immediately follows hand IK");
   ok &= contains(hand_twist_scheduler_c,
                  "source_hand_matches_fore_twist(ik,ft)",
                  "source hand scheduler matches foretwist by source hand row");
   ok &= contains(fore_twist_c,
-                 "constautohand_world=character.bone_world_local_chain(hand.name);",
-                 "foretwist reads the live source WorldXfm hand row");
+                 "source_gh2_trace_fore_twist_poll_local("
+                 "ft,true,true,true,true,hand.local,forearm.local,",
+                 "foretwist reads the live GH2 trace-local hand row");
   ok &= lacks(fore_twist_c,
               "character.bone_world_local_chain_authored(hand.name)",
               "foretwist must not bypass source live WorldXfm rows");
   ok &= contains(fore_twist_c,
-                 "character.runtime_world_overrides[twist1.name]="
-                 "twist_result.twist_parent_world;",
-                 "foretwist source SetWorldXfm parent write stays a world-cache row");
+                 "twist1.local=twist_result.twist1_local;",
+                 "foretwist GH2 trace writes twist1 local row");
   ok &= contains(fore_twist_c,
-                 "character.runtime_world_overrides[twist2.name]="
-                 "twist_result.twist2_world;",
-                 "foretwist source SetWorldXfm twist2 write stays a world-cache row");
+                 "twist2.local=twist_result.twist2_local;",
+                 "foretwist GH2 trace writes twist2 local row");
   ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",

@@ -25664,14 +25664,13 @@ int run_contract() {
                  "out.twist2_world=make_output(twist2_current_world,0.666f);",
                  "native CharUpperTwist helper keeps source interpolation constants");
   ok &= contains(char_clip,
-                 "source_char_fore_twist_poll_world(ft,true,true,true,true,"
-                 "parent_world,hand_world,hand.local.pos[0],twist2.local.pos[0],",
-                 "runtime CharForeTwist path calls source helper");
+                 "source_gh2_trace_fore_twist_poll_local("
+                 "ft,true,true,true,true,hand.local,forearm.local,",
+                 "runtime CharForeTwist path calls GH2 trace-local helper");
   ok &= contains(char_clip,
-                 "source_char_upper_twist_poll_world(true,true,true,true,"
-                 "upper_parent_world,upper_world,twist1_current_world,"
-                 "twist2_current_world,",
-                 "runtime CharUpperTwist path calls source helper");
+                 "source_gh2_trace_upper_twist_poll_local("
+                 "true,true,true,upper.local,",
+                 "runtime CharUpperTwist path calls GH2 trace-local helper");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_fore_upper_twist_source_test"
                  "character_fore_upper_twist_source_test.cpp)",
@@ -25710,7 +25709,7 @@ int run_contract() {
                  "`CharForeTwist::PollDeps` publishes `hand`",
                  "document records native CharForeTwist PollDeps helper");
   ok &= contains(char_clip,
-                 "apply_source_ik_hands_and_fore_twists(character);"
+                 "apply_source_ik_hands_and_fore_twists(character,bind_bones);"
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",
                  "native keeps upper twists after CharHair per accepted cadence");
@@ -25722,28 +25721,27 @@ int run_contract() {
                  "for(size_tft_index=0;ft_index<character.fore_twists.size();",
                  "native polls each CharIKHand before scanning matching foretwists");
   ok &= contains(char_clip,
-                 "apply_source_fore_twist(character,ft);"
+                 "apply_source_fore_twist(character,bind_bones,ft);"
                  "fore_applied[ft_index]=true;",
                  "native marks matched foretwists after the paired source poll");
   ok &= contains(char_clip,
-                 "constautohand_world=character.bone_world_local_chain(hand.name);",
-                 "native CharForeTwist consumes live source WorldXfm rows");
+                 "source_gh2_trace_fore_twist_poll_local("
+                 "ft,true,true,true,true,hand.local,forearm.local,",
+                 "native CharForeTwist consumes live GH2 local hand and forearm rows");
   ok &= contains(char_clip,
-                 "character.runtime_world_overrides[twist1.name]="
-                 "twist_result.twist_parent_world;",
-                 "native CharForeTwist parent SetWorldXfm is a world-cache row");
+                 "twist1.local=twist_result.twist1_local;",
+                 "native CharForeTwist writes traced twist1 local row");
   ok &= contains(char_clip,
-                 "character.runtime_world_overrides[twist2.name]="
-                 "twist_result.twist2_world;",
-                 "native CharForeTwist twist2 SetWorldXfm is a world-cache row");
+                 "twist2.local=twist_result.twist2_local;",
+                 "native CharForeTwist writes traced twist2 local row");
   ok &= contains(char_clip,
-                 "character.runtime_world_overrides[twist1.name]="
-                 "twist_result.twist1_world;",
-                 "native CharUpperTwist first SetWorldXfm is a world-cache row");
+                 "source_gh2_trace_upper_twist_poll_local("
+                 "true,true,true,upper.local,",
+                 "native CharUpperTwist consumes live GH2 local upper row");
   ok &= contains(char_clip,
-                 "character.runtime_world_overrides[twist2.name]="
-                 "twist_result.twist2_world;",
-                 "native CharUpperTwist second SetWorldXfm is a world-cache row");
+                 "twist1.local=twist_result.twist1_local;"
+                 "twist2.local=twist_result.twist2_local;",
+                 "native CharUpperTwist writes traced local rows");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");
   ok &= contains(doc,
@@ -32096,12 +32094,12 @@ int run_contract() {
                  "native exposes Rockabill2 shoulder source-boundary helper");
   ok &= contains(
       char_clip,
-      "SourceRockabill2ShoulderPublisherBoundarysource_rockabill2_"
-      "shoulder_publisher_boundary(){",
-      "native implements Rockabill2 shoulder source-boundary helper");
+      "SourceReleasePosePublisherBoundarysource_release_pose_"
+      "publisher_boundary(){",
+      "native implements generic release-pose source-boundary helper");
   ok &= contains(char_bones_source_test,
-                 "source_rockabill2_shoulder_publisher_boundary()",
-                 "focused CharBones source test covers Rockabill2 shoulder boundary");
+                 "source_release_pose_publisher_boundary()",
+                 "focused CharBones source test covers release-pose boundary");
   ok &= contains(doc,
                  "2026-07-14 Rockabill2 green chain proof",
                  "document records Rockabill2 green chain proof");

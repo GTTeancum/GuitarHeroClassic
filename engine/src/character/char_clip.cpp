@@ -4325,20 +4325,20 @@ SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame) {
   return steps;
 }
 
-SourceRockabill2ShoulderPublisherBoundary
-source_rockabill2_shoulder_publisher_boundary() {
-  SourceRockabill2ShoulderPublisherBoundary boundary;
+SourceReleasePosePublisherBoundary
+source_release_pose_publisher_boundary() {
+  SourceReleasePosePublisherBoundary boundary;
   boundary.remaining_source_gap =
       "CharClipSamples / CharBonesSamples / CharBones / PoseMeshes publisher";
   boundary.source_evidence = {
       "CharClip::PoseMeshes builds tmp_viseme_bones from StuffBones",
       "CharClip::PoseMeshes calls ScaleDown then ScaleAdd before PoseMeshes",
       "CharBonesSamples::ScaleAddSample selects adjacent samples by mStart",
-      "Rockabill2 special_02 frame 70 logs hand IK solveWeight zero",
+      "release-pose frame logs hand IK solveWeight zero",
       "frame 70 full CharBone output diagnostic changes the body pose",
   };
   boundary.rejected_shortcuts = {
-      "Rockabill2-specific shoulder, neck, or arm offsets",
+      "character-specific shoulder, neck, or arm offsets",
       "IK or twist controller rewrites for zero-weight release frames",
       "default-on broad CharBone output without the source publisher body",
   };
@@ -6827,6 +6827,112 @@ bool source_char_upper_twist_poll_world(
   return true;
 }
 
+float source_gh2_trace_local_twist_angle(const milo_scene::Xfm& source) {
+  float r0[3] = {source.rot[0][0], source.rot[0][1], source.rot[0][2]};
+  float r1[3] = {source.rot[1][0], source.rot[1][1], source.rot[1][2]};
+  const float r0_len =
+      std::sqrt(r0[0] * r0[0] + r0[1] * r0[1] + r0[2] * r0[2]);
+  const float r1_len =
+      std::sqrt(r1[0] * r1[0] + r1[1] * r1[1] + r1[2] * r1[2]);
+  if (r0_len > 1e-6f) {
+    r0[0] /= r0_len;
+    r0[1] /= r0_len;
+    r0[2] /= r0_len;
+  }
+  if (r1_len > 1e-6f) {
+    r1[0] /= r1_len;
+    r1[1] /= r1_len;
+    r1[2] /= r1_len;
+  }
+
+  // Accepted GH2 traces build a swing-removal quaternion from local row 0,
+  // rotate local row 1 through it, then read the residual local-X twist.
+  constexpr float kHalf = 0.5f;
+  float w = std::sqrt(std::max((r0[0] + 1.0f) * kHalf, 0.0f));
+  float qx = 0.0f;
+  float qy = 0.0f;
+  float qz = 0.0f;
+  if (w > 1e-6f) {
+    const float inv = kHalf / w;
+    qy = r0[2] * inv;
+    qz = -r0[1] * inv;
+  } else {
+    qy = 1.0f;
+    w = 0.0f;
+  }
+
+  const float q_len = std::sqrt(qx * qx + qy * qy + qz * qz + w * w);
+  if (q_len > 1e-6f) {
+    qx /= q_len;
+    qy /= q_len;
+    qz /= q_len;
+    w /= q_len;
+  }
+
+  const Vec3 v{r1[0], r1[1], r1[2]};
+  const Vec3 qv{qx, qy, qz};
+  const Vec3 t = vscale(vcross(qv, v), 2.0f);
+  const Vec3 rotated = vadd(vadd(v, vscale(t, w)), vcross(qv, t));
+  return std::atan2(rotated.z, rotated.y);
+}
+
+void source_gh2_trace_write_x_twist(milo_scene::Xfm& dst,
+                                    const milo_scene::Xfm& basis,
+                                    float angle) {
+  dst = basis;
+  const float ca = std::cos(angle);
+  const float sa = std::sin(angle);
+  for (int c = 0; c < 3; ++c) {
+    dst.rot[0][c] = basis.rot[0][c];
+    dst.rot[1][c] = ca * basis.rot[1][c] - sa * basis.rot[2][c];
+    dst.rot[2][c] = sa * basis.rot[1][c] + ca * basis.rot[2][c];
+  }
+}
+
+bool source_gh2_trace_fore_twist_poll_local(
+    const CharForeTwist& twist,
+    bool has_hand,
+    bool has_forearm,
+    bool has_twist1,
+    bool has_twist2,
+    const milo_scene::Xfm& hand_local,
+    const milo_scene::Xfm& forearm_live_local,
+    const milo_scene::Xfm& twist2_bind_local,
+    SourceGh2TraceForeTwistLocalResult& out) {
+  out = {};
+  if (!has_hand || !has_forearm || !has_twist1 || !has_twist2) return false;
+
+  constexpr float kDegToRad = 0.01745329238474369049f;
+  float roll = source_gh2_trace_local_twist_angle(hand_local);
+  roll = -wrap_ps2_angle(roll + twist.offset_degrees * kDegToRad) *
+         0.3333333134651184f;
+  source_gh2_trace_write_x_twist(out.twist1_local, forearm_live_local, roll);
+  source_gh2_trace_write_x_twist(out.twist2_local, twist2_bind_local, roll);
+  out.roll_radians = roll;
+  out.applied = true;
+  return true;
+}
+
+bool source_gh2_trace_upper_twist_poll_local(
+    bool has_source,
+    bool has_twist1,
+    bool has_twist2,
+    const milo_scene::Xfm& upper_live_local,
+    const milo_scene::Xfm& twist2_bind_local,
+    SourceGh2TraceUpperTwistLocalResult& out) {
+  out = {};
+  if (!has_source || !has_twist1 || !has_twist2) return false;
+
+  const float roll = source_gh2_trace_local_twist_angle(upper_live_local);
+  out.roll_radians = roll;
+  source_gh2_trace_write_x_twist(
+      out.twist1_local, upper_live_local, roll * out.twist1_factor);
+  source_gh2_trace_write_x_twist(
+      out.twist2_local, twist2_bind_local, roll * out.twist2_factor);
+  out.applied = true;
+  return true;
+}
+
 static void write_source_elbow_z_bend(milo_scene::Xfm& dst,
                                       const milo_scene::Xfm& base,
                                       float cos_angle,
@@ -7224,6 +7330,7 @@ static void log_debug_world_row(const char* tag, const char* name,
 }
 
 static bool apply_source_fore_twist(Character& character,
+                                    const std::vector<milo_scene::Xfm>& bind_bones,
                                     const CharForeTwist& ft) {
   const int hand_i = find_bone_index(character, ft.hand);
   const int twist2_i = find_bone_index(character, ft.twist2);
@@ -7234,74 +7341,69 @@ static bool apply_source_fore_twist(Character& character,
   const int parent_i = find_bone_index(character, hand.parent);
   const int twist1_i = find_bone_index(character, twist2.parent);
   if (parent_i < 0 || twist1_i < 0) return false;
-  auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
-
-  // CharForeTwist reads live RndTransformable::WorldXfm rows. In source, any
-  // earlier SetWorldXfm cache write is visible here without rewriting locals.
-  const auto parent_world =
-      character.bone_world_local_chain(
-          character.bones[static_cast<size_t>(parent_i)].name);
-  const auto hand_world = character.bone_world_local_chain(hand.name);
-  SourceCharForeTwistPollWorldResult twist_result;
-  if (!source_char_fore_twist_poll_world(
-          ft, true, true, true, true, parent_world, hand_world,
-          hand.local.pos[0], twist2.local.pos[0], twist_result)) {
+  if (static_cast<size_t>(parent_i) >= bind_bones.size() ||
+      static_cast<size_t>(twist2_i) >= bind_bones.size()) {
     return false;
   }
-  character.runtime_world_overrides[twist1.name] =
-      twist_result.twist_parent_world;
-  character.runtime_world_overrides[twist2.name] = twist_result.twist2_world;
+  auto& forearm = character.bones[static_cast<size_t>(parent_i)];
+  auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
+
+  SourceGh2TraceForeTwistLocalResult twist_result;
+  if (!source_gh2_trace_fore_twist_poll_local(
+          ft, true, true, true, true, hand.local, forearm.local,
+          bind_bones[static_cast<size_t>(twist2_i)], twist_result)) {
+    return false;
+  }
+  twist1.local = twist_result.twist1_local;
+  twist2.local = twist_result.twist2_local;
 
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
-                 "[twist-fore-source] %s hand=%s twist1=%s twist2=%s "
-                 "offset=%.3f bias=%.3f angle=%.5f ratio=%.5f\n",
-                 ft.name.c_str(), ft.hand.c_str(), twist1.name.c_str(),
-                 ft.twist2.c_str(), ft.offset_degrees, ft.bias_degrees,
-                 twist_result.source_angle_radians,
-                 twist_result.twist2_position_ratio);
+                 "[twist-fore-gh2-trace] %s hand=%s fore=%s twist1=%s "
+                 "twist2=%s offset=%.3f bias=%.3f roll=%.5f\n",
+                 ft.name.c_str(), ft.hand.c_str(), forearm.name.c_str(),
+                 twist1.name.c_str(), ft.twist2.c_str(), ft.offset_degrees,
+                 ft.bias_degrees, twist_result.roll_radians);
+    log_debug_xfm_row_short("twist-fore-gh2-trace", twist1.name.c_str(),
+                            twist1.local);
+    log_debug_xfm_row_short("twist-fore-gh2-trace", twist2.name.c_str(),
+                            twist2.local);
   }
   return true;
 }
 
 static void apply_source_upper_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
-  (void)bind_bones;
   for (const auto& ut : character.upper_twists) {
     const int upper_i = find_bone_index(character, ut.upper_arm);
     const int twist1_i = find_bone_index(character, ut.twist1);
     const int twist2_i = find_bone_index(character, ut.twist2);
     if (upper_i < 0 || twist1_i < 0 || twist2_i < 0) continue;
+    if (static_cast<size_t>(twist2_i) >= bind_bones.size()) continue;
     auto& upper = character.bones[static_cast<size_t>(upper_i)];
     auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
     auto& twist2 = character.bones[static_cast<size_t>(twist2_i)];
     if (upper.parent.empty()) continue;
 
-    const auto upper_parent_world = character.bone_world_local_chain(upper.parent);
-    const auto upper_world = character.bone_world_local_chain(upper.name);
-    const auto twist1_current_world = character.bone_world_local_chain(twist1.name);
-    const auto twist2_current_world = character.bone_world_local_chain(twist2.name);
-    SourceCharUpperTwistPollWorldResult twist_result;
-    if (!source_char_upper_twist_poll_world(
-            true, true, true, true, upper_parent_world, upper_world,
-            twist1_current_world, twist2_current_world, twist_result)) {
+    SourceGh2TraceUpperTwistLocalResult twist_result;
+    if (!source_gh2_trace_upper_twist_poll_local(
+            true, true, true, upper.local,
+            bind_bones[static_cast<size_t>(twist2_i)], twist_result)) {
       continue;
     }
 
-    character.runtime_world_overrides[twist1.name] = twist_result.twist1_world;
-    character.runtime_world_overrides[twist2.name] = twist_result.twist2_world;
+    twist1.local = twist_result.twist1_local;
+    twist2.local = twist_result.twist2_local;
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
-                   "[twist-upper-source] %s upper=%s twist1=%s twist2=%s\n",
+                   "[twist-upper-gh2-trace] %s upper=%s twist1=%s twist2=%s "
+                   "roll=%.5f\n",
                    ut.name.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
-                   ut.twist2.c_str());
-      log_debug_xfm_row("twist-upper-upper", ut.upper_arm.c_str(),
-                        upper.local,
-                        character.bone_world_local_chain(ut.upper_arm));
-      log_debug_world_row("twist-upper-out", ut.twist1.c_str(),
-                          character.bone_world_local_chain(ut.twist1));
-      log_debug_world_row("twist-upper-out", ut.twist2.c_str(),
-                          character.bone_world_local_chain(ut.twist2));
+                   ut.twist2.c_str(), twist_result.roll_radians);
+      log_debug_xfm_row_short("twist-upper-gh2-trace", twist1.name.c_str(),
+                              twist1.local);
+      log_debug_xfm_row_short("twist-upper-gh2-trace", twist2.name.c_str(),
+                              twist2.local);
     }
   }
 }
@@ -8478,7 +8580,8 @@ static int source_ik_hand_role_rank(const CharIKHand& ik) {
   return 2;
 }
 
-static void apply_source_ik_hands_and_fore_twists(Character& character) {
+static void apply_source_ik_hands_and_fore_twists(
+    Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
   // CharForeTwist::PollDeps says it reads mHand and writes mTwist2 plus the
   // twist parent. Accepted active-song PS2 traces poll instrument performers as
   // fret/left first and strum/right second, with unknown rows preserving the
@@ -8500,7 +8603,7 @@ static void apply_source_ik_hands_and_fore_twists(Character& character) {
       if (fore_applied[ft_index]) continue;
       const CharForeTwist& ft = character.fore_twists[ft_index];
       if (!source_hand_matches_fore_twist(ik, ft)) continue;
-      apply_source_fore_twist(character, ft);
+      apply_source_fore_twist(character, bind_bones, ft);
       fore_applied[ft_index] = true;
     }
   }
@@ -8508,7 +8611,8 @@ static void apply_source_ik_hands_and_fore_twists(Character& character) {
   for (size_t ft_index = 0; ft_index < character.fore_twists.size();
        ++ft_index) {
     if (fore_applied[ft_index]) continue;
-    apply_source_fore_twist(character, character.fore_twists[ft_index]);
+    apply_source_fore_twist(character, bind_bones,
+                            character.fore_twists[ft_index]);
   }
 }
 
@@ -9452,7 +9556,7 @@ void apply_character_controllers(Character& character, float time_seconds) {
     for (const auto& b : character.bones) bind_bones.push_back(b.local);
   }
   apply_source_weight_setters(character, 0.0f);
-  apply_source_ik_hands_and_fore_twists(character);
+  apply_source_ik_hands_and_fore_twists(character, bind_bones);
   apply_char_hair(character, time_seconds);
   apply_source_upper_twists(character, bind_bones);
   apply_source_pos_constraints(character);

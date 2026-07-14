@@ -1343,7 +1343,7 @@ struct SourceCharClipPoseMeshesSteps {
   bool pose_meshes = false;
 };
 
-struct SourceRockabill2ShoulderPublisherBoundary {
+struct SourceReleasePosePublisherBoundary {
   bool zero_weight_hand_ik_does_not_explain_pose = true;
   bool full_output_graph_changes_pose = true;
   bool safe_to_blame_ik_or_twist = false;
@@ -1931,8 +1931,8 @@ std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
     const std::vector<SourceCharBonesBone>& existing_bones,
     const std::vector<SourceCharBonesBone>& listed_bones);
 SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame);
-SourceRockabill2ShoulderPublisherBoundary
-source_rockabill2_shoulder_publisher_boundary();
+SourceReleasePosePublisherBoundary
+source_release_pose_publisher_boundary();
 
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.
@@ -3570,6 +3570,22 @@ struct SourceCharUpperTwistPollWorldResult {
   std::array<float, 16> twist2_world = {};
 };
 
+struct SourceGh2TraceForeTwistLocalResult {
+  bool applied = false;
+  float roll_radians = 0.0f;
+  milo_scene::Xfm twist1_local;
+  milo_scene::Xfm twist2_local;
+};
+
+struct SourceGh2TraceUpperTwistLocalResult {
+  bool applied = false;
+  float roll_radians = 0.0f;
+  float twist1_factor = 0.6660000086f;
+  float twist2_factor = -0.3330000043f;
+  milo_scene::Xfm twist1_local;
+  milo_scene::Xfm twist2_local;
+};
+
 // Source-backed CharForeTwist::Poll/PollDeps and
 // CharUpperTwist::Poll/PollDeps helpers. These are pure translations of the
 // ihatecompvir routines; callers remain responsible for resolving object
@@ -3608,6 +3624,32 @@ bool source_char_upper_twist_poll_world(
     const std::array<float, 16>& twist1_current_world,
     const std::array<float, 16>& twist2_current_world,
     SourceCharUpperTwistPollWorldResult& out);
+
+// GH2 PS2 trace-local runtime helpers for the stock guitarist twist rows.
+// They keep the RB3 source helpers above as documentation/testing authority,
+// but publish the row shapes captured from GH2 SLUS traces for the live GH2
+// runtime path.
+float source_gh2_trace_local_twist_angle(const milo_scene::Xfm& source);
+void source_gh2_trace_write_x_twist(milo_scene::Xfm& dst,
+                                    const milo_scene::Xfm& basis,
+                                    float angle);
+bool source_gh2_trace_fore_twist_poll_local(
+    const CharForeTwist& twist,
+    bool has_hand,
+    bool has_forearm,
+    bool has_twist1,
+    bool has_twist2,
+    const milo_scene::Xfm& hand_local,
+    const milo_scene::Xfm& forearm_live_local,
+    const milo_scene::Xfm& twist2_bind_local,
+    SourceGh2TraceForeTwistLocalResult& out);
+bool source_gh2_trace_upper_twist_poll_local(
+    bool has_source,
+    bool has_twist1,
+    bool has_twist2,
+    const milo_scene::Xfm& upper_live_local,
+    const milo_scene::Xfm& twist2_bind_local,
+    SourceGh2TraceUpperTwistLocalResult& out);
 
 // Source-backed CharHair::FreezePoseRaw helper. Writes current runtime point
 // positions back into point.unk5c in the strand root-parent local basis.

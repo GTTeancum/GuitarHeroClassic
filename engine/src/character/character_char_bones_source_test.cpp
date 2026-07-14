@@ -1361,8 +1361,8 @@ int main() {
                    "CharBonesMeshes dump is not statement body");
   ok &= expect_int(pose_meshes_dump.safe_to_publish_mesh_transforms ? 1 : 0, 0,
                    "CharBonesMeshes live transform publishing remains fenced");
-  const SourceRockabill2ShoulderPublisherBoundary shoulder_boundary =
-      source_rockabill2_shoulder_publisher_boundary();
+  const SourceReleasePosePublisherBoundary shoulder_boundary =
+      source_release_pose_publisher_boundary();
   ok &= expect_int(
       shoulder_boundary.zero_weight_hand_ik_does_not_explain_pose ? 1 : 0,
       1, "Rockabill2 zero-weight hand IK does not explain shoulder issue");
@@ -1385,7 +1385,7 @@ int main() {
       "Rockabill2 shoulder source call flow evidence");
   ok &= expect_string(
       shoulder_boundary.source_evidence[3],
-      "Rockabill2 special_02 frame 70 logs hand IK solveWeight zero",
+      "release-pose frame logs hand IK solveWeight zero",
       "Rockabill2 shoulder zero-weight IK evidence");
   ok &= expect_size(shoulder_boundary.rejected_shortcuts.size(), 3,
                     "Rockabill2 shoulder rejected shortcut count");

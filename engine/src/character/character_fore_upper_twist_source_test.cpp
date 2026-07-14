@@ -23,6 +23,23 @@ std::array<float, 16> rot_x_world(float angle, float px, float py, float pz) {
           px, py, pz, 1};
 }
 
+ghogx::milo_scene::Xfm trace_local_x_source(float angle,
+                                            float px = 0.0f,
+                                            float py = 0.0f,
+                                            float pz = 0.0f) {
+  ghogx::milo_scene::Xfm xfm;
+  const float ca = std::cos(angle);
+  const float sa = std::sin(angle);
+  xfm.rot[1][1] = ca;
+  xfm.rot[1][2] = sa;
+  xfm.rot[2][1] = -sa;
+  xfm.rot[2][2] = ca;
+  xfm.pos[0] = px;
+  xfm.pos[1] = py;
+  xfm.pos[2] = pz;
+  return xfm;
+}
+
 bool near(float got, float want, const char* label) {
   if (std::fabs(got - want) <= 0.0001f) return true;
   std::cerr << label << ": got " << got << " want " << want << "\n";
@@ -74,10 +91,16 @@ bool expect_upper_rows(const std::array<float, 16>& world, float weight,
 
 int main() {
   using ghogx::character::CharForeTwist;
+  using ghogx::character::SourceGh2TraceForeTwistLocalResult;
+  using ghogx::character::SourceGh2TraceUpperTwistLocalResult;
   using ghogx::character::SourceCharForeTwistPollDeps;
   using ghogx::character::SourceCharForeTwistPollWorldResult;
   using ghogx::character::SourceCharUpperTwistPollDeps;
   using ghogx::character::SourceCharUpperTwistPollWorldResult;
+  using ghogx::character::source_gh2_trace_fore_twist_poll_local;
+  using ghogx::character::source_gh2_trace_local_twist_angle;
+  using ghogx::character::source_gh2_trace_upper_twist_poll_local;
+  using ghogx::character::source_gh2_trace_write_x_twist;
   using ghogx::character::source_char_fore_twist_poll_deps;
   using ghogx::character::source_char_fore_twist_poll_world;
   using ghogx::character::source_char_fore_twist_save_plan;
@@ -192,6 +215,74 @@ int main() {
                           7.0f, "UpperTwist first output rows");
   ok &= expect_upper_rows(upper_out.twist2_world, 0.666f, 8.0f, 9.0f,
                           10.0f, "UpperTwist second output rows");
+
+  const auto gh2_source = trace_local_x_source(kPi / 3.0f);
+  ok &= near(source_gh2_trace_local_twist_angle(gh2_source), kPi / 3.0f,
+             "GH2 trace local twist angle");
+
+  ghogx::milo_scene::Xfm gh2_written;
+  const auto write_basis = trace_local_x_source(0.0f, 2.0f, 3.0f, 4.0f);
+  source_gh2_trace_write_x_twist(gh2_written, write_basis, kPi / 6.0f);
+  ok &= near(gh2_written.pos[0], 2.0f, "GH2 trace write preserves pos x");
+  ok &= near(gh2_written.pos[1], 3.0f, "GH2 trace write preserves pos y");
+  ok &= near(gh2_written.pos[2], 4.0f, "GH2 trace write preserves pos z");
+  ok &= near(gh2_written.rot[0][0], 1.0f,
+             "GH2 trace write preserves basis row0 x");
+  ok &= near(gh2_written.rot[1][1], std::cos(kPi / 6.0f),
+             "GH2 trace write rotates row1 y");
+  ok &= near(gh2_written.rot[1][2], -std::sin(kPi / 6.0f),
+             "GH2 trace write rotates row1 z");
+  ok &= near(gh2_written.rot[2][1], std::sin(kPi / 6.0f),
+             "GH2 trace write rotates row2 y");
+  ok &= near(gh2_written.rot[2][2], std::cos(kPi / 6.0f),
+             "GH2 trace write rotates row2 z");
+
+  CharForeTwist gh2_fore;
+  gh2_fore.name = "foreTwist.gh2";
+  gh2_fore.offset_degrees = 90.0f;
+  gh2_fore.bias_degrees = 30.0f;
+  SourceGh2TraceForeTwistLocalResult gh2_fore_out;
+  const auto fore_basis = trace_local_x_source(0.0f, 11.0f, 12.0f, 13.0f);
+  const auto twist2_basis = trace_local_x_source(0.0f, 21.0f, 22.0f, 23.0f);
+  ok &= expect_bool(source_gh2_trace_fore_twist_poll_local(
+                        gh2_fore, true, true, true, true,
+                        trace_local_x_source(0.0f), fore_basis, twist2_basis,
+                        gh2_fore_out),
+                    true, "GH2 trace ForeTwist local applies");
+  ok &= near(gh2_fore_out.roll_radians, -kPi / 6.0f,
+             "GH2 trace ForeTwist rolls one third of offset");
+  ok &= near(gh2_fore_out.twist1_local.pos[0], 11.0f,
+             "GH2 trace ForeTwist twist1 preserves forearm pos");
+  ok &= near(gh2_fore_out.twist2_local.pos[0], 21.0f,
+             "GH2 trace ForeTwist twist2 preserves authored pos");
+  ok &= near(gh2_fore_out.twist1_local.rot[1][2], 0.5f,
+             "GH2 trace ForeTwist twist1 row sign");
+  ok &= near(gh2_fore_out.twist2_local.rot[2][1], -0.5f,
+             "GH2 trace ForeTwist twist2 row sign");
+
+  SourceGh2TraceUpperTwistLocalResult gh2_upper_out;
+  ok &= expect_bool(source_gh2_trace_upper_twist_poll_local(
+                        true, true, true,
+                        trace_local_x_source(kPi * 0.5f, 31.0f, 32.0f,
+                                             33.0f),
+                        trace_local_x_source(0.0f, 41.0f, 42.0f, 43.0f),
+                        gh2_upper_out),
+                    true, "GH2 trace UpperTwist local applies");
+  ok &= near(gh2_upper_out.roll_radians, kPi * 0.5f,
+             "GH2 trace UpperTwist reads source roll");
+  ok &= near(gh2_upper_out.twist1_local.pos[0], 31.0f,
+             "GH2 trace UpperTwist twist1 preserves upper pos");
+  ok &= near(gh2_upper_out.twist2_local.pos[0], 41.0f,
+             "GH2 trace UpperTwist twist2 preserves authored pos");
+  ok &= near(gh2_upper_out.twist1_local.rot[1][1],
+             std::sin(kPi * 0.5f * 0.6660000086f),
+             "GH2 trace UpperTwist twist1 uses upper basis");
+  ok &= near(gh2_upper_out.twist1_local.rot[1][2],
+             std::cos(kPi * 0.5f * 0.6660000086f),
+             "GH2 trace UpperTwist twist1 row z");
+  ok &= near(gh2_upper_out.twist2_local.rot[1][2],
+             std::sin(kPi * 0.5f * 0.3330000043f),
+             "GH2 trace UpperTwist twist2 inverse sign");
 
   return ok ? 0 : 1;
 }
