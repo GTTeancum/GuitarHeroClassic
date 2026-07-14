@@ -27,6 +27,11 @@
   and centroids, matching ihatecompvir `GetCurrentTargetPosition()`'s
   "average non-null target pointers" rule while keeping the actual
   `UpdateTarget` callsite marked unrecovered.
+- 2026-07-14 CamShot UpdateTarget parent cache proof:
+  the same debug row now carries the resolved parent world position as the
+  source `unk44` cache when `mParent` resolves. This mirrors the visible
+  ihatecompvir `UpdateTarget` side effect (`unk44.Set(mParent->WorldXfm())`)
+  without using it as a new hidden `SetPos` or `BuildTransform` body.
 - 2026-07-14 CamShot `set_pos` boundary: GH2's authored
   `world_objects_ps2.dta` / Xbox keyframe editor script calls
   `{$this set_pos ...}`. ihatecompvir `CamShot` handles that message as

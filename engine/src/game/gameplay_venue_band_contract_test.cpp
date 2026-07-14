@@ -8101,11 +8101,19 @@ int main() {
                  "CamShot target list resolution keeps source object ids ahead of inferred entities");
   ok &= contains(gameplay_c,
                  "structCameraSourceTargetUpdate{boolhas_targets=false;"
-                 "size_tresolved_count=0;",
+                 "boolhas_parent=false;size_tresolved_count=0;",
                  "camera target update preserves source HasTargets count state");
+  ok &= contains(gameplay_c,
+                 "std::array<float,3>parent_position={0.0f,0.0f,0.0f};",
+                 "camera target update carries source UpdateTarget parent cache");
   ok &= contains(gameplay_c,
                  "CameraSourceTargetUpdatecamera_update_targets_like_camshot(",
                  "native camera has an ihatecompvir CamShotFrame target update helper");
+  ok &= contains(gameplay_c,
+                 "if(constautoparent=camera_parent_for_key(key,targets)){"
+                 "update.has_parent=true;"
+                 "update.parent_position=mat4_position_game(parent->world);}",
+                 "CamShot UpdateTarget mirrors the parent WorldXfm cache when present");
   ok &= contains(gameplay_c,
                  "returncamera_update_targets_like_camshot(key,targets)."
                  "has_targets;",
@@ -8121,6 +8129,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_rule=average_non_null_targets",
                  "camera diagnostics expose GetCurrentTargetPosition averaging");
+  ok &= contains(gameplay_c,
+                 "a_parent_cached=%db_parent_cached=%d",
+                 "camera diagnostics expose the source UpdateTarget parent cache");
+  ok &= contains(gameplay_c,
+                 "a_parent=(%.3f%.3f%.3f)b_parent=(%.3f%.3f%.3f)",
+                 "camera diagnostics expose source UpdateTarget parent cache positions");
+  ok &= contains(gameplay_c,
+                 "source_rule=average_non_null_targets,parent_world_xfm",
+                 "camera diagnostics name both source UpdateTarget cached fields");
   ok &= appears_before(
       gameplay_c,
       "strip_mesh_suffix(std::string(subpart));",

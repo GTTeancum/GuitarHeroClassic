@@ -17250,8 +17250,10 @@ std::optional<CameraTarget> camera_target_for_key(
 
 struct CameraSourceTargetUpdate {
     bool has_targets = false;
+    bool has_parent = false;
     size_t resolved_count = 0;
     std::array<float, 3> centroid = {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> parent_position = {0.0f, 0.0f, 0.0f};
 };
 
 CameraSourceTargetUpdate camera_update_targets_like_camshot(
@@ -20125,6 +20127,10 @@ CameraSourceTargetUpdate camera_update_targets_like_camshot(
         for (float& v : update.centroid)
             v /= static_cast<float>(update.resolved_count);
     }
+    if (const auto parent = camera_parent_for_key(key, targets)) {
+        update.has_parent = true;
+        update.parent_position = mat4_position_game(parent->world);
+    }
     return update;
 }
 
@@ -21168,13 +21174,23 @@ void apply_camera_keys(
             "shot_a=%s shot_b=%s local_frame=%.3f "
             "a_resolved=%zu b_resolved=%zu "
             "a_centroid=(%.3f %.3f %.3f) b_centroid=(%.3f %.3f %.3f) "
+            "a_parent_cached=%d b_parent_cached=%d "
+            "a_parent=(%.3f %.3f %.3f) b_parent=(%.3f %.3f %.3f) "
             "cached_fields=unk34,unk44 callsite=not_recovered "
-            "source_rule=average_non_null_targets\n",
+            "source_rule=average_non_null_targets,parent_world_xfm\n",
             a->name.c_str(), b->name.c_str(), frame,
             a_target_update.resolved_count, b_target_update.resolved_count,
             a_target_update.centroid[0], a_target_update.centroid[1],
             a_target_update.centroid[2], b_target_update.centroid[0],
-            b_target_update.centroid[1], b_target_update.centroid[2]);
+            b_target_update.centroid[1], b_target_update.centroid[2],
+            a_target_update.has_parent ? 1 : 0,
+            b_target_update.has_parent ? 1 : 0,
+            a_target_update.parent_position[0],
+            a_target_update.parent_position[1],
+            a_target_update.parent_position[2],
+            b_target_update.parent_position[0],
+            b_target_update.parent_position[1],
+            b_target_update.parent_position[2]);
         const auto a_screen_norm = camshot_result_screen_norm_for_key(*a);
         const auto b_screen_norm = camshot_result_screen_norm_for_key(*b);
         const auto target_candidate_a =
