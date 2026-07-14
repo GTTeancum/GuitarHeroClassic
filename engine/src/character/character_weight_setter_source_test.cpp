@@ -60,6 +60,7 @@ int main() {
   using ghogx::character::source_char_weight_setter_poll;
   using ghogx::character::source_char_weight_setter_poll_deps;
   using ghogx::character::source_char_weight_setter_default_state;
+  using ghogx::character::source_char_main_driver_hand_weights_from_clip_flags;
   using ghogx::character::source_char_weight_setter_copy_plan;
   using ghogx::character::source_char_weight_setter_handler_plan;
   using ghogx::character::source_char_weight_setter_load_plan;
@@ -339,6 +340,38 @@ int main() {
   ok &= source_char_weight_setter_poll_with_driver_result(
       driver, weights, 0.0f, 0.60f, out);
   ok &= near(out, 0.50f, "driver EvaluateFlags scale offset");
+
+  Character hand_driver_character;
+  CharWeightSetter left_release = make_setter("left.weight");
+  left_release.driver = "main.drv";
+  left_release.flags = 0x00400000u;
+  left_release.offset = 0.0f;
+  left_release.scale = 1.0f;
+  left_release.weight_owner = "left.weight";
+  CharWeightSetter right_release = make_setter("right.weight");
+  right_release.driver = "main.drv";
+  right_release.flags = 0x00800000u;
+  right_release.offset = 0.0f;
+  right_release.scale = 1.0f;
+  right_release.weight_owner = "right.weight";
+  hand_driver_character.weight_setters = {left_release, right_release};
+  const auto hand_weights =
+      source_char_main_driver_hand_weights_from_clip_flags(
+          hand_driver_character, 0x00400000u, 0.33f, 0.44f);
+  ok &= near(hand_weights.left, 1.0f, "shared hand weight left flag");
+  ok &= near(hand_weights.right, 0.0f, "shared hand weight right release");
+  ok &= expect_bool(hand_weights.left_source, true,
+                    "shared hand weight left source row");
+  ok &= expect_bool(hand_weights.right_source, true,
+                    "shared hand weight right source row");
+  ok &= expect_size(hand_weights.driver_flags.size(), 2,
+                    "shared hand weight driver flag count");
+  if (hand_weights.driver_flags.size() == 2) {
+    ok &= expect_bool(hand_weights.driver_flags[0].flags == 0x00400000u, true,
+                      "shared hand weight left flag row");
+    ok &= expect_bool(hand_weights.driver_flags[1].flags == 0x00800000u, true,
+                      "shared hand weight right flag row");
+  }
 
   Character character;
   character.weight_setters.push_back(make_setter("live.weight"));

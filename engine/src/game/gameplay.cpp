@@ -20292,46 +20292,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
             float hand_driver_right_weight = 1.0f;
             bool hand_driver_left_weight_source = false;
             bool hand_driver_right_weight_source = false;
+            std::optional<ghogx::character::SourceCharMainDriverHandWeights>
+                source_hand_driver_weights;
             if (hand_driver_active) {
                 if (const auto* main_driver_player =
                         active_main_driver_player()) {
-                    std::unordered_map<std::string, float>
-                        source_weight_inputs;
-                    for (const auto& setter : character.weight_setters) {
-                        if (setter.driver != "main.drv" ||
-                            setter.flags == 0) {
-                            continue;
-                        }
-                        const float flag_weight =
-                            main_driver_player->evaluate_flags(setter.flags);
-                        float owner_weight = setter.weight;
-                        if (!ghogx::character::
-                                source_char_weight_setter_poll_with_driver_result(
-                                    setter, source_weight_inputs, 0.0f,
-                                    flag_weight, owner_weight)) {
-                            continue;
-                        }
-                        const bool left_owner =
-                            setter.name == "left.weight" ||
-                            setter.weight_owner == "left.weight";
-                        const bool right_owner =
-                            setter.name == "right.weight" ||
-                            setter.weight_owner == "right.weight";
-                        if (left_owner) {
-                            hand_driver_left_weight =
-                                std::clamp(owner_weight, 0.0f, 1.0f);
-                            hand_driver_left_weight_source = true;
-                            source_weight_inputs["left.weight"] =
-                                hand_driver_left_weight;
-                        }
-                        if (right_owner) {
-                            hand_driver_right_weight =
-                                std::clamp(owner_weight, 0.0f, 1.0f);
-                            hand_driver_right_weight_source = true;
-                            source_weight_inputs["right.weight"] =
-                                hand_driver_right_weight;
-                        }
-                    }
+                    source_hand_driver_weights =
+                        ghogx::character::
+                            source_char_main_driver_hand_weights_from_player(
+                                character, main_driver_player,
+                                hand_driver_left_weight,
+                                hand_driver_right_weight);
+                    hand_driver_left_weight = source_hand_driver_weights->left;
+                    hand_driver_right_weight =
+                        source_hand_driver_weights->right;
+                    hand_driver_left_weight_source =
+                        source_hand_driver_weights->left_source;
+                    hand_driver_right_weight_source =
+                        source_hand_driver_weights->right_source;
                 }
                 if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
                     const auto* main_driver_player =
@@ -20395,37 +20373,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             ghogx::character::clear_runtime_ik_weights(character);
             bool source_driver_flags_fed = false;
-            if (hand_driver_active) {
-                if (const auto* main_driver_player =
-                        active_main_driver_player()) {
-                    std::unordered_set<uint32_t> main_driver_flags_seen;
-                    for (const auto& setter : character.weight_setters) {
-                        if (setter.driver != "main.drv" ||
-                            setter.flags == 0) {
-                            continue;
-                        }
-                        if (!main_driver_flags_seen.insert(setter.flags)
-                                 .second) {
-                            continue;
-                        }
-                        const float flag_weight =
-                            main_driver_player->evaluate_flags(setter.flags);
-                        ghogx::character::set_runtime_driver_evaluate_flags(
-                            character, setter.driver, setter.flags,
-                            flag_weight);
-                        source_driver_flags_fed = true;
-                        if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
-                            const auto* current_clip =
-                                main_driver_player->current_clip();
-                            std::fprintf(
-                                stderr,
-                                "[driver-flags] role=%s %s flags=0x%08x "
-                                "weight=%.5f clipFlags=0x%08x "
-                                "source=gameplay-player\n",
-                                perf.role.c_str(), setter.driver.c_str(),
-                                setter.flags, flag_weight,
-                                current_clip ? current_clip->flags : 0u);
-                        }
+            if (hand_driver_active && source_hand_driver_weights) {
+                const auto* main_driver_player = active_main_driver_player();
+                for (const auto& flag :
+                     source_hand_driver_weights->driver_flags) {
+                    ghogx::character::set_runtime_driver_evaluate_flags(
+                        character, flag.driver, flag.flags, flag.weight);
+                    source_driver_flags_fed = true;
+                    if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                        const auto* current_clip =
+                            main_driver_player
+                                ? main_driver_player->current_clip()
+                                : nullptr;
+                        std::fprintf(
+                            stderr,
+                            "[driver-flags] role=%s %s flags=0x%08x "
+                            "weight=%.5f clipFlags=0x%08x "
+                            "source=gameplay-player\n",
+                            perf.role.c_str(), flag.driver.c_str(),
+                            flag.flags, flag.weight,
+                            current_clip ? current_clip->flags : 0u);
                     }
                 }
             }

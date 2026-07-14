@@ -7795,6 +7795,76 @@ bool source_char_weight_setter_poll_with_driver_result(
   return true;
 }
 
+namespace {
+
+template <typename EvaluateFlags>
+SourceCharMainDriverHandWeights source_char_main_driver_hand_weights_impl(
+    const Character& character, float fallback_left, float fallback_right,
+    EvaluateFlags evaluate_flags) {
+  SourceCharMainDriverHandWeights result;
+  result.left = fallback_left;
+  result.right = fallback_right;
+  std::unordered_map<std::string, float> source_weight_inputs;
+  std::unordered_set<uint32_t> main_driver_flags_seen;
+  for (const auto& setter : character.weight_setters) {
+    if (setter.driver != "main.drv" || setter.flags == 0) continue;
+    const float flag_weight = evaluate_flags(setter.flags);
+    if (main_driver_flags_seen.insert(setter.flags).second) {
+      result.driver_flags.push_back({setter.driver, setter.flags, flag_weight});
+    }
+
+    float owner_weight = setter.weight;
+    if (!source_char_weight_setter_poll_with_driver_result(
+            setter, source_weight_inputs, 0.0f, flag_weight, owner_weight)) {
+      continue;
+    }
+    const bool left_owner =
+        setter.name == "left.weight" || setter.weight_owner == "left.weight";
+    const bool right_owner =
+        setter.name == "right.weight" || setter.weight_owner == "right.weight";
+    if (left_owner) {
+      result.left = std::clamp(owner_weight, 0.0f, 1.0f);
+      result.left_source = true;
+      source_weight_inputs["left.weight"] = result.left;
+    }
+    if (right_owner) {
+      result.right = std::clamp(owner_weight, 0.0f, 1.0f);
+      result.right_source = true;
+      source_weight_inputs["right.weight"] = result.right;
+    }
+  }
+  return result;
+}
+
+}  // namespace
+
+SourceCharMainDriverHandWeights
+source_char_main_driver_hand_weights_from_clip_flags(
+    const Character& character, uint32_t clip_flags, float fallback_left,
+    float fallback_right) {
+  return source_char_main_driver_hand_weights_impl(
+      character, fallback_left, fallback_right,
+      [clip_flags](uint32_t flags) {
+        return source_char_driver_evaluate_flags_from_clip_flags(clip_flags,
+                                                                 flags);
+      });
+}
+
+SourceCharMainDriverHandWeights
+source_char_main_driver_hand_weights_from_player(
+    const Character& character, const CharClipPlayer* player,
+    float fallback_left, float fallback_right) {
+  if (player == nullptr || !player->active()) {
+    SourceCharMainDriverHandWeights result;
+    result.left = fallback_left;
+    result.right = fallback_right;
+    return result;
+  }
+  return source_char_main_driver_hand_weights_impl(
+      character, fallback_left, fallback_right,
+      [player](uint32_t flags) { return player->evaluate_flags(flags); });
+}
+
 SourceCharWeightSetterState source_char_weight_setter_default_state(
     const std::string& name) {
   SourceCharWeightSetterState state;

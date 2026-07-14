@@ -2694,6 +2694,27 @@ bool source_char_weight_setter_poll_with_driver_result(
     std::optional<float> driver_evaluate_flags,
     float& out_weight);
 
+struct SourceCharMainDriverFlagWeight {
+  std::string driver;
+  uint32_t flags = 0;
+  float weight = 0.0f;
+};
+
+struct SourceCharMainDriverHandWeights {
+  float left = 1.0f;
+  float right = 1.0f;
+  bool left_source = false;
+  bool right_source = false;
+  std::vector<SourceCharMainDriverFlagWeight> driver_flags;
+};
+
+SourceCharMainDriverHandWeights source_char_main_driver_hand_weights_from_clip_flags(
+    const Character& character, uint32_t clip_flags, float fallback_left,
+    float fallback_right);
+SourceCharMainDriverHandWeights source_char_main_driver_hand_weights_from_player(
+    const Character& character, const CharClipPlayer* player,
+    float fallback_left, float fallback_right);
+
 struct SourceCharWeightSetterRefOwner {
   std::string name;
   bool weight_owner_is_setter = false;

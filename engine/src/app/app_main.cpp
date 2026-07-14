@@ -1420,6 +1420,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       right_hand_weight_override || left_hand_weight_override ||
       ((!guitar_milo.empty() && guitar_milo != "none") &&
        (strum_clip.loaded || fret_clip.loaded));
+  const bool viewer_hand_ik_manual_override_active =
+      right_hand_weight_override || left_hand_weight_override;
   if (loaded_clip.loaded) {
     main_player.play(loaded_clip,
                      ghogx::character::kCharPlayLoop |
@@ -1477,6 +1479,38 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                  clip_frame_override);
   }
 
+  auto evaluate_viewer_main_driver_hand_weights =
+      [&]() -> ghogx::character::SourceCharMainDriverHandWeights {
+    ghogx::character::SourceCharMainDriverHandWeights result;
+    result.left = left_hand_weight;
+    result.right = right_hand_weight;
+    if (viewer_hand_ik_manual_override_active) return result;
+    if (clip_frame_override >= 0 && loaded_clip.loaded) {
+      return ghogx::character::source_char_main_driver_hand_weights_from_clip_flags(
+          renderer.character(), loaded_clip.flags, left_hand_weight,
+          right_hand_weight);
+    }
+    return ghogx::character::source_char_main_driver_hand_weights_from_player(
+        renderer.character(), main_player.active() ? &main_player : nullptr,
+        left_hand_weight, right_hand_weight);
+  };
+  auto feed_viewer_main_driver_flags =
+      [&](const ghogx::character::SourceCharMainDriverHandWeights& weights) {
+    for (const auto& flag : weights.driver_flags) {
+      ghogx::character::set_runtime_driver_evaluate_flags(
+          renderer.character(), flag.driver, flag.flags, flag.weight);
+      if (controller_audit_env_enabled()) {
+        std::fprintf(stderr,
+                     "[driver-flags] %s flags=0x%08x weight=%.5f "
+                     "clipFlags=0x%08x source=%s\n",
+                     flag.driver.c_str(), flag.flags, flag.weight,
+                     loaded_clip.loaded ? loaded_clip.flags : 0u,
+                     clip_frame_override >= 0 ? "frame-override"
+                                              : "player");
+      }
+    }
+  };
+
   while (!win->should_close()) {
     win->pump();
     if (win->should_close()) break;
@@ -1505,7 +1539,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     renderer.update(dt);
     ghogx::character::clear_runtime_trans_worlds(renderer.character());
     // Real-time clip playback through a viewer-side CharDriver play stack.
+    ghogx::character::SourceCharMainDriverHandWeights frame_hand_weights;
     if (clip_frame_override >= 0) {
+      frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
       if (face_base_clip.loaded && !face_base_clip.frames.empty()) {
         ghogx::character::apply_clip_frame(face_base_clip, clip_frame_override,
                                            renderer.character());
@@ -1517,13 +1553,13 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       if (strum_clip.loaded && !strum_clip.frames.empty()) {
         ghogx::character::apply_clip_frame_weighted(strum_clip,
                                                     clip_frame_override,
-                                                    right_hand_weight,
+                                                    frame_hand_weights.right,
                                                     renderer.character());
       }
       if (fret_clip.loaded && !fret_clip.frames.empty()) {
         ghogx::character::apply_clip_frame_weighted(fret_clip,
                                                     clip_frame_override,
-                                                    left_hand_weight,
+                                                    frame_hand_weights.left,
                                                     renderer.character());
       }
       if (face_clip.loaded && !face_clip.frames.empty()) {
@@ -1536,10 +1572,11 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       fret_player.advance(dt);
       face_base_player.advance(dt);
       face_player.advance(dt);
+      frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
       face_base_player.apply(renderer.character());
       main_player.apply(renderer.character());
-      strum_player.apply(renderer.character(), right_hand_weight);
-      fret_player.apply(renderer.character(), left_hand_weight);
+      strum_player.apply(renderer.character(), frame_hand_weights.right);
+      fret_player.apply(renderer.character(), frame_hand_weights.left);
       face_player.apply(renderer.character());
     }
     // Apply decoded controller data after sampled clip layers. Do not apply
@@ -1548,46 +1585,21 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // standalone transform poses.
     ghogx::character::clear_runtime_ik_weights(renderer.character());
     if (character_controllers) {
-      if (!viewer_hand_ik_weights_active) {
-        std::unordered_set<uint32_t> main_driver_flags_seen;
-        for (const auto& setter : renderer.character().weight_setters) {
-          if (setter.driver != "main.drv" || setter.flags == 0) continue;
-          if (!main_driver_flags_seen.insert(setter.flags).second) continue;
-          float flag_weight = 0.0f;
-          bool have_flag_weight = false;
-          if (clip_frame_override >= 0 && loaded_clip.loaded) {
-            flag_weight =
-                ghogx::character::source_char_driver_evaluate_flags_from_clip_flags(
-                    loaded_clip.flags, setter.flags);
-            have_flag_weight = true;
-          } else if (main_player.active()) {
-            flag_weight = main_player.evaluate_flags(setter.flags);
-            have_flag_weight = true;
-          }
-          if (!have_flag_weight) continue;
-          ghogx::character::set_runtime_driver_evaluate_flags(
-              renderer.character(), setter.driver, setter.flags, flag_weight);
-          if (controller_audit_env_enabled()) {
-            std::fprintf(stderr,
-                         "[driver-flags] %s flags=0x%08x weight=%.5f "
-                         "clipFlags=0x%08x source=%s\n",
-                         setter.driver.c_str(), setter.flags, flag_weight,
-                         loaded_clip.loaded ? loaded_clip.flags : 0u,
-                         clip_frame_override >= 0 ? "frame-override"
-                                                  : "player");
-          }
-        }
-      }
+      const auto controller_hand_weights =
+          evaluate_viewer_main_driver_hand_weights();
+      feed_viewer_main_driver_flags(controller_hand_weights);
       if (viewer_hand_ik_weights_active) {
-        if (right_hand_weight_override || strum_clip.loaded) {
+        if (right_hand_weight_override ||
+            (strum_clip.loaded && !controller_hand_weights.right_source)) {
           ghogx::character::set_runtime_ik_weight(renderer.character(),
                                                   "right.weight",
-                                                  right_hand_weight);
+                                                  frame_hand_weights.right);
         }
-        if (left_hand_weight_override || fret_clip.loaded) {
+        if (left_hand_weight_override ||
+            (fret_clip.loaded && !controller_hand_weights.left_source)) {
           ghogx::character::set_runtime_ik_weight(renderer.character(),
                                                   "left.weight",
-                                                  left_hand_weight);
+                                                  frame_hand_weights.left);
         }
       }
       ghogx::character::apply_character_controllers(

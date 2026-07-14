@@ -18077,6 +18077,17 @@ int run_contract() {
                  "std::optional<float>driver_evaluate_flags,float&out_weight);",
                  "native exposes source CharWeightSetter supplied-driver helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharMainDriverHandWeights{floatleft=1.0f;"
+                 "floatright=1.0f;boolleft_source=false;boolright_source=false;"
+                 "std::vector<SourceCharMainDriverFlagWeight>driver_flags;};",
+                 "native exposes shared source main.drv hand weight result");
+  ok &= contains(char_clip_h,
+                 "SourceCharMainDriverHandWeightssource_char_main_driver_"
+                 "hand_weights_from_player(constCharacter&character,"
+                 "constCharClipPlayer*player,floatfallback_left,"
+                 "floatfallback_right);",
+                 "native exposes shared source main.drv player hand weight helper");
+  ok &= contains(char_clip_h,
                  "structSourceCharWeightSetterRefOwner{std::stringname;"
                  "boolweight_owner_is_setter=false;};",
                  "native exposes source CharWeightSetter ref-owner row");
@@ -18395,6 +18406,25 @@ int run_contract() {
                  "constfloatstep=delta_beats/setter.beats_per_weight;",
                  "native CharWeightSetter helper ports beat smoothing");
   ok &= contains(char_clip,
+                 "SourceCharMainDriverHandWeightssource_char_main_driver_"
+                 "hand_weights_impl(constCharacter&character,floatfallback_left,"
+                 "floatfallback_right,EvaluateFlagsevaluate_flags)",
+                 "native shared main.drv hand helper owns the source row walk");
+  ok &= contains(char_clip,
+                 "source_char_weight_setter_poll_with_driver_result("
+                 "setter,source_weight_inputs,0.0f,flag_weight,owner_weight)",
+                 "native shared main.drv hand helper applies CharWeightSetter Poll");
+  ok &= contains(char_clip,
+                 "source_char_main_driver_hand_weights_from_clip_flags("
+                 "constCharacter&character,uint32_tclip_flags,"
+                 "floatfallback_left,floatfallback_right)",
+                 "native shared main.drv helper supports fixed-frame viewer captures");
+  ok &= contains(char_clip,
+                 "source_char_main_driver_hand_weights_from_player("
+                 "constCharacter&character,constCharClipPlayer*player,"
+                 "floatfallback_left,floatfallback_right)",
+                 "native shared main.drv helper supports gameplay/viewer clip players");
+  ok &= contains(char_clip,
                  "voidsource_char_weight_setter_poll_deps("
                  "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
                  "setter,conststd::vector<SourceCharWeightSetterRefOwner>&"
@@ -18473,6 +18503,12 @@ int run_contract() {
   ok &= contains(weight_setter_source_test,
                  "source_char_weight_setter_poll_with_driver_result(",
                  "focused CharWeightSetter test covers supplied-driver helper");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_main_driver_hand_weights_from_clip_flags(",
+                 "focused CharWeightSetter test covers shared main.drv hand helper");
+  ok &= contains(weight_setter_source_test,
+                 "near(hand_weights.right,0.0f,\"sharedhandweightrightrelease\")",
+                 "focused CharWeightSetter test covers shared hand release weight");
   ok &= contains(weight_setter_source_test,
                  "runtime_dump.safe_to_run_driver_branch,false",
                  "focused CharWeightSetter test fences runtime dump driver branch");

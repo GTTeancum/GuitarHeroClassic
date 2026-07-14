@@ -190,18 +190,21 @@ int main() {
                  "source_hand_matches_fore_twist(ik,ft)",
                  "source hand scheduler matches foretwist by source hand row");
   ok &= contains(fore_twist_c,
-                 "source_gh2_trace_fore_twist_poll_local("
-                 "ft,true,true,true,true,hand.local,forearm.local,",
-                 "foretwist reads the live GH2 trace-local hand row");
+                 "source_char_fore_twist_poll_world(ft,true,true,true,true,"
+                 "hand_parent_world,hand_world,hand_local_x,"
+                 "twist2.local.pos[0],twist_result)",
+                 "foretwist uses the source-backed live world-row poll");
   ok &= lacks(fore_twist_c,
               "character.bone_world_local_chain_authored(hand.name)",
               "foretwist must not bypass source live WorldXfm rows");
   ok &= contains(fore_twist_c,
-                 "twist1.local=twist_result.twist1_local;",
-                 "foretwist GH2 trace writes twist1 local row");
+                 "set_local_from_world(twist1.local,"
+                 "twist_result.twist_parent_world,twist1_parent_world);",
+                 "foretwist writes source twist-parent world back to twist1 local row");
   ok &= contains(fore_twist_c,
-                 "twist2.local=twist_result.twist2_local;",
-                 "foretwist GH2 trace writes twist2 local row");
+                 "set_local_from_world(twist2.local,twist_result.twist2_world,"
+                 "twist_result.twist_parent_world);",
+                 "foretwist writes source twist2 world back to twist2 local row");
   ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",
@@ -237,8 +240,15 @@ int main() {
                  "renderer.character());if(character_controllers){",
                  "character viewer clears stale IK weights every frame");
   ok &= contains(app_main_c,
-                 "if(!viewer_hand_ik_weights_active){",
-                 "character viewer lets main.drv flags drive release poses when no hand overlay is active");
+                 "source_char_main_driver_hand_weights_from_clip_flags("
+                 "renderer.character(),loaded_clip.flags,left_hand_weight,"
+                 "right_hand_weight);",
+                 "character viewer derives fixed-frame hand weights from the shared source helper");
+  ok &= contains(app_main_c,
+                 "source_char_main_driver_hand_weights_from_player("
+                 "renderer.character(),main_player.active()?&main_player:"
+                 "nullptr,left_hand_weight,right_hand_weight);",
+                 "character viewer derives live hand weights from the shared source helper");
   ok &= contains(app_main_c,
                  "std::stringanimation_milo_role(std::stringpath)",
                  "character viewer classifies explicit clip MILOs by source driver role");
@@ -256,25 +266,28 @@ int main() {
                  "explicit clip fallback log names the source driver row");
   ok &= contains(app_main_c,
                  "set_runtime_driver_evaluate_flags(renderer.character(),"
-                 "setter.driver,setter.flags,flag_weight);",
-                 "character viewer feeds active main.drv EvaluateFlags into source WeightSetter polling");
+                 "flag.driver,flag.flags,flag.weight);",
+                 "character viewer feeds shared source main.drv flag weights before controllers");
   ok &= contains(gameplay_c,
                  "active_main_driver_player=[&]()->constghogx::character::"
                  "CharClipPlayer*",
                  "gameplay reuses the active source main.drv player for release weights");
   ok &= contains(gameplay_c,
-                 "set_runtime_driver_evaluate_flags(character,setter.driver,"
-                 "setter.flags,flag_weight);",
-                 "gameplay feeds active main.drv EvaluateFlags into source WeightSetter polling");
+                 "source_char_main_driver_hand_weights_from_player("
+                 "character,main_driver_player,hand_driver_left_weight,"
+                 "hand_driver_right_weight);",
+                 "gameplay derives hand-driver weights from the shared source helper");
   ok &= contains(gameplay_c,
-                 "source_char_weight_setter_poll_with_driver_result("
-                 "setter,source_weight_inputs,0.0f,flag_weight,owner_weight)",
-                 "gameplay derives hand-driver layer weights from source WeightSetter rows");
+                 "set_runtime_driver_evaluate_flags(character,flag.driver,"
+                 "flag.flags,flag.weight);",
+                 "gameplay feeds shared source main.drv flag weights before controllers");
   ok &= contains(gameplay_c,
-                 "hand_driver_left_weight_source=true;",
+                 "hand_driver_left_weight_source=source_hand_driver_weights->"
+                 "left_source;",
                  "gameplay records source left.weight owner rows");
   ok &= contains(gameplay_c,
-                 "hand_driver_right_weight_source=true;",
+                 "hand_driver_right_weight_source=source_hand_driver_weights->"
+                 "right_source;",
                  "gameplay records source right.weight owner rows");
   ok &= contains(gameplay_c,
                  "add_player_layer(perf.strum_player,"
@@ -293,6 +306,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_driver_flags_fed=true;",
                  "gameplay records source driver flag rows before IK fallback");
+  ok &= contains(app_main_c,
+                 "strum_clip.loaded&&!controller_hand_weights.right_source",
+                 "character viewer direct right-hand IK weight is fallback-only under source rows");
+  ok &= contains(app_main_c,
+                 "fret_clip.loaded&&!controller_hand_weights.left_source",
+                 "character viewer direct left-hand IK weight is fallback-only under source rows");
   ok &= contains(gameplay_c,
                  "if(hand_driver_active&&!source_driver_flags_fed){",
                  "gameplay direct hand weights are fallback-only when source rows are absent");
@@ -305,14 +324,19 @@ int main() {
   ok &= appears_before(gameplay_c,
                        "clear_runtime_ik_weights(character);",
                        "set_runtime_driver_evaluate_flags(character,"
-                       "setter.driver,setter.flags,flag_weight);",
+                       "flag.driver,flag.flags,flag.weight);",
                        "gameplay clears stale hand weights before source driver flags");
   ok &= appears_before(gameplay_draw_c,
                        "set_runtime_driver_evaluate_flags(character,"
-                       "setter.driver,setter.flags,flag_weight);",
+                       "flag.driver,flag.flags,flag.weight);",
                        "ghogx::character::apply_character_controllers("
                        "character,static_cast<float>(song_time_));",
                        "gameplay source driver flags reach WeightSetter before IK solve");
+  ok &= appears_before(app_main_c,
+                       "ghogx::character::clear_runtime_ik_weights("
+                       "renderer.character());",
+                       "feed_viewer_main_driver_flags(controller_hand_weights);",
+                       "character viewer clears stale hand weights before shared source driver flags");
   ok &= appears_before(app_main_c,
                        "ghogx::character::clear_runtime_ik_weights("
                        "renderer.character());",

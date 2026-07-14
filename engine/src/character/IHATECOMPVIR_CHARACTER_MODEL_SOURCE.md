@@ -5436,6 +5436,18 @@ and stock GH2 hand drivers target `bone.servo`; native therefore treats
 instead of letting their broad clip rows blend into the main body frame before
 the bridge runs.
 
+2026-07-14 viewer/gameplay parity cleanup: the source-backed hand-weight row
+walk now lives in shared character code as
+`source_char_main_driver_hand_weights_from_player` /
+`source_char_main_driver_hand_weights_from_clip_flags`. Gameplay still selects
+the active source `main.drv` player from intro/active/idle state, and the
+diagnostic `--char` viewer still decides whether it is evaluating a fixed clip
+frame or a live `CharClipPlayer`, but both callers use the same helper to turn
+`CharClipDriver::EvaluateFlags` plus `CharWeightSetter::Poll` into
+`left.weight` / `right.weight` and the runtime driver-flag rows consumed before
+`apply_character_controllers`. This avoids the viewer becoming a separate hand
+IK interpretation path.
+
 2026-07-14 in-game transient stack correction: ihatecompvir's
 `CharDriver::Play` constructs a new `CharClipDriver` with the previous
 `mFirst` as `mNext`, and `CharClipDriver::Exit(false)` returns that next node.
