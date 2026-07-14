@@ -6432,6 +6432,12 @@ Rejected native probe:
   the source-auditable pose-span fallback or `unavailable`. This is proof
   surface only and does not promote retained writer payload rows into default
   gameplay camera submission.
+- 2026-07-14 follow-up: explicit
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE` selections are now honored before the
+  default trace-complete writer bridge gate. This preserves the source-backed
+  default promotion for normal runs, while making `native`, `writer_bridge`,
+  and retained-row selectors trustworthy A/B proof tools instead of requiring a
+  separate disable variable to avoid the default bridge.
 
 2026-06-29 retained trace matching tightened:
 - The retained PS2 source-record table is no longer matched by only

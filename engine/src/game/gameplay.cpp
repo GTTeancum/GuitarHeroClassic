@@ -20393,12 +20393,6 @@ void apply_camera_keys(
         [&](const Gameplay::CameraKey& key,
             const std::optional<CameraResultRows>& ps2_trace_result)
         -> CameraResultRows {
-        if (!env_value("GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE")) {
-            if (auto writer_rows =
-                    camera_trace_complete_writer_bridge_rows(key, targets)) {
-                return *writer_rows;
-            }
-        }
         if (const char* candidate =
                 env_value("GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE")) {
             if (std::strcmp(candidate, "writer_bridge") == 0) {
@@ -20440,6 +20434,12 @@ void apply_camera_keys(
                         return *matrix_rows;
                     }
                 }
+            }
+        }
+        if (!env_value("GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE")) {
+            if (auto writer_rows =
+                    camera_trace_complete_writer_bridge_rows(key, targets)) {
+                return *writer_rows;
             }
         }
         return camera_submitted_result_rows_for_key(key, targets);

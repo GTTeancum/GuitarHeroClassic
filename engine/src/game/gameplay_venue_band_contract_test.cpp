@@ -9895,6 +9895,14 @@ int main() {
   ok &= contains(gameplay_c,
                  "std::strcmp(candidate,\"a1\")==0",
                  "diagnostic submit selector can render the retained a1 trace row for comparison");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(candidate,\"native\")==0",
+                 "diagnostic submit selector can force the native source-shaped camera for A/B proof");
+  ok &= appears_before(
+      gameplay_c,
+      "env_value(\"GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE\")",
+      "env_value(\"GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE\")",
+      "explicit diagnostic camera submit selector runs before default trace-complete writer bridge promotion");
   ok &= absent(gameplay_c,
                "if(ps2_trace_result)return*ps2_trace_result;",
                "retained PS2 trace rows must not silently replace default native submitted cameras");
