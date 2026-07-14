@@ -11064,6 +11064,13 @@ Rejected native probe:
   `CamShot::SetFrame` local shape (`prev`, `next`, `keyBlend`) and keeps
   questionable camera angles auditable against the exact source frame-pair
   timing before any hidden pose-body work is inferred.
+- 2026-07-14 follow-up: looped non-path CamShots now preserve both the raw
+  `CameraManager::CalcFrame` local frame and the wrapped `CamShot::GetKey`
+  local frame when `mLooping`/`mLoopKeyframe` are active. The new
+  `[world] camera source frame loop ...]` proof row reports the loop keyframe,
+  pre-loop span, loop span, raw local frame, and wrapped local frame; it does
+  not change camera math, but it makes suspicious looped angle jumps auditable
+  against source frame wrapping instead of hiding the wrap inside native state.
 - 2026-07-13 follow-up: the GH2 world script's `beat` handler also updates
   `[camera_beat]` and calls `{world current_shot} check_shot`; `camshot.dta`
   routes that to native `cam_check_shot`. Native now tracks the source beat

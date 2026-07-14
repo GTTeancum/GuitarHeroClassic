@@ -8258,8 +8258,14 @@ int main() {
                  "floatsource_frame_duration_frames=0.0f;"
                  "floatsource_frame_blend_frames=0.0f;"
                  "floatsource_frame_key_blend=0.0f;"
+                 "floatsource_frame_raw_local_frame=0.0f;"
+                 "floatsource_frame_pre_loop_frames=0.0f;"
+                 "floatsource_frame_loop_frames=0.0f;"
+                 "size_tsource_frame_loop_start_index=0;"
+                 "boolsource_frame_loop_active=false;"
+                 "boolsource_frame_loop_wrapped=false;"
                  "boolhas_source_frame_mapping=false;",
-                 "CameraKey carries source CamShot SetFrame keyBlend diagnostics");
+                 "CameraKey carries source CamShot SetFrame keyBlend and loop diagnostics");
   ok &= contains(gameplay_c,
                  "if(shot.revision>0x0b&&shot.revision<0x2a)"
                  "shot.old_crowd_sym=r.symbol();",
@@ -10224,6 +10230,10 @@ int main() {
                  "local_frame=pre_loop+std::fmod(local_frame-pre_loop,loop_total);",
                  "source CamShot looping and loop_keyframe drive repeated regular shots");
   ok &= contains(gameplay_c,
+                 "constfloatraw_local_frame=camera_source_local_frame("
+                 "shot,song_time,start_time,chart);",
+                 "looping CamShot diagnostics preserve the pre-wrap source frame");
+  ok &= contains(gameplay_c,
                  "constsize_twrap_index=can_wrap?loop_start_index:i;",
                  "looping CamShot final blends wrap to the decoded loop keyframe");
   ok &= contains(gameplay_c,
@@ -10258,8 +10268,14 @@ int main() {
                  "key.source_frame_duration_frames=duration;"
                  "key.source_frame_blend_frames=blend;"
                  "key.source_frame_key_blend=key_blend;"
+                 "key.source_frame_raw_local_frame=raw_local_frame;"
+                 "key.source_frame_pre_loop_frames=pre_loop;"
+                 "key.source_frame_loop_frames=loop_total;"
+                 "key.source_frame_loop_start_index=loop_start_index;"
+                 "key.source_frame_loop_active=loop_active;"
+                 "key.source_frame_loop_wrapped=loop_wrapped;"
                  "key.has_source_frame_mapping=true;",
-                 "regular CamShot frame-pair keys carry source SetFrame local timing");
+                 "regular CamShot frame-pair keys carry source SetFrame local and loop timing");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
@@ -10271,6 +10287,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_prep=SetPreFramesource_setframe_blend=1.000\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after SetPreFrame prep");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerasourceframeloop:shot=%s"
+                 "raw_local_frame=%.3fwrapped_local_frame=%.3f"
+                 "loop_start_index=%zupre_loop=%.3floop_total=%.3f"
+                 "loop_active=%dloop_wrapped=%d"
+                 "source_locals=CamShot::GetKey(mLooping,mLoopKeyframe)\\n\"",
+                 "regular camera diagnostics expose source CamShot GetKey loop wrapping");
   ok &= contains(gameplay_c,
                  "CameraResultRowscamera_source_setframe_blend_result_rows(",
                  "runtime exposes ihatecompvir CamShotFrame::Interp SetFrame blend helper");
