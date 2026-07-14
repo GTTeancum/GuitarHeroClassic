@@ -4020,6 +4020,9 @@ note, and all report `unreadBytes=0`.
     declares the method, while
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a
     `CharIKHand__PullShoulder` symbol at `0x82395500` with size `0x9C`.
+    `band3_recomp/band3_manifest.toml` would generate bodies from
+    `assets/default.xex`, but this checkout has neither that XEX nor a
+    generated recomp output directory, so the symbol is not a source body.
     Native GHOGX therefore must not rederive that shoulder offset or claim a
     full IKElbow port until the function body is source-backed.
   - The current runtime solver is the bounded GH2 single-target slice. Source

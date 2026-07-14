@@ -788,6 +788,12 @@ int run_contract() {
       extra_dir / "rb3-retail-old/doc/dolmatchoutput_filt.txt"));
   const std::string band3_config = compact(read_file(
       extra_dir / "band3_recomp/band3_config.toml"));
+  const std::string band3_manifest = compact(read_file(
+      extra_dir / "band3_recomp/band3_manifest.toml"));
+  const bool band3_recomp_default_xex_present = std::filesystem::is_regular_file(
+      extra_dir / "band3_recomp/assets/default.xex");
+  const bool band3_recomp_generated_present = std::filesystem::is_directory(
+      extra_dir / "band3_recomp/generated");
   const std::string band3_readme = read_file(
       extra_dir / "band3_recomp/README.md");
   const std::string stock_guitar_string_sweep = read_file(
@@ -24420,6 +24426,18 @@ int run_contract() {
                 "available RB3 CharIKHand source lacks PullShoulder body");
   ok &= contains(band3_config, "CharIKHand__PullShoulder",
                  "band3_recomp exposes CharIKHand PullShoulder symbol");
+  ok &= contains(band3_manifest, "file_path=\"assets/default.xex\"",
+                 "band3_recomp manifest requires local default.xex input");
+  if (band3_recomp_default_xex_present) {
+    std::cerr << "Forbidden source-truth contract match: band3_recomp "
+                 "default.xex is not source-checkout evidence\n";
+    ok = false;
+  }
+  if (band3_recomp_generated_present) {
+    std::cerr << "Forbidden source-truth contract match: band3_recomp "
+                 "generated bodies require a refreshed source boundary\n";
+    ok = false;
+  }
   ok &= missing(char_clip, "PullShoulder(",
                 "native IKHand slice must not rederive missing PullShoulder");
   ok &= contains(rb3_char_ik_hand_cpp,
@@ -25148,6 +25166,10 @@ int run_contract() {
                  "`CharIKHand__PullShoulder` symbol at `0x82395500` with "
                  "size `0x9C`",
                  "document records PullShoulder symbol evidence");
+  ok &= contains(doc,
+                 "has neither that XEX nor a\n    generated recomp output "
+                 "directory",
+                 "document records missing PullShoulder recomp inputs");
   ok &= contains(doc,
                  "Native GHOGX therefore must not rederive that shoulder "
                  "offset",
