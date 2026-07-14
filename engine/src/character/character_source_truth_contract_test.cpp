@@ -153,6 +153,12 @@ int run_contract() {
   const std::string arm_pose_diff_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "arm_pose_diff_manifest.json"));
+  const std::string charhair_log_compare = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "compare_charhair_logs.py"));
+  const std::string charhair_diff_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "charhair_diff_manifest.json"));
   const std::string gameplay =
       compact(read_file(engine_dir / "src" / "game" / "gameplay.cpp"));
   const std::string re_anim_audit =
@@ -33484,6 +33490,58 @@ int run_contract() {
   ok &= contains(arm_pose_diff_manifest,
                  "\"finger_hold_ring_hi@f4:w=1.000\"",
                  "arm pose diff manifest requires screenshot-frame fret layer");
+  ok &= contains(charhair_log_compare,
+                 "SCREENSHOT_MARKERS=(\"screenshotsaved\",\"screenshot->\")",
+                 "CharHair log verifier stops at screenshot proof markers");
+  ok &= contains(charhair_log_compare,
+                 "SIM_COMPARE_FIELDS=(\"runtimeWriteback\","
+                 "\"resolvedPointCollides\",\"managedHookup\"",
+                 "CharHair log verifier compares runtime boundary fields");
+  ok &= contains(charhair_log_compare,
+                 "\"missingHookupOverloadBody\",",
+                 "CharHair log verifier preserves hookup-overload gap field");
+  ok &= contains(charhair_log_compare,
+                 "extract_logical_records(",
+                 "CharHair log verifier parses wrapped source sim rows");
+  ok &= contains(charhair_log_compare,
+                 "require_common_contains",
+                 "CharHair log verifier requires shared source-data fragments");
+  ok &= contains(charhair_log_compare,
+                 "BATCH-PASS",
+                 "CharHair log verifier reports manifest batch success");
+  ok &= contains(charhair_diff_manifest,
+                 "\"rockabill2_chain_charhair_boundary\"",
+                 "CharHair diff manifest records Rockabill2 chain boundary proof");
+  ok &= contains(charhair_diff_manifest,
+                 "\"rockabill2_hair_charhair_boundary\"",
+                 "CharHair diff manifest records Rockabill2 hair boundary proof");
+  ok &= contains(charhair_diff_manifest,
+                 "bone_chain01.mesh",
+                 "CharHair diff manifest requires first chain point bone");
+  ok &= contains(charhair_diff_manifest,
+                 "bone_chain03.mesh",
+                 "CharHair diff manifest requires last chain point bone");
+  ok &= contains(charhair_diff_manifest,
+                 "\"legacyInlinePoints\":\"3\"",
+                 "CharHair diff manifest records chain inline point count");
+  ok &= contains(charhair_diff_manifest,
+                 "\"legacyInlinePoints\":\"0\"",
+                 "CharHair diff manifest records hair inline point count");
+  ok &= contains(charhair_diff_manifest,
+                 "\"missingHookupOverloadBody\":\"1\"",
+                 "CharHair diff manifest records missing hookup-overload body");
+  ok &= contains(doc,
+                 "viewer_ingame_charhair_20260714",
+                 "document records viewer/gameplay CharHair diff proof");
+  ok &= contains(doc,
+                 "viewer and gameplay report the same `runtimeWriteback=0`",
+                 "document records shared CharHair runtime gap boundary");
+  ok &= contains(doc,
+                 "`missingHookupOverloadBody=1` boundary",
+                 "document records shared CharHair hookup gap boundary");
+  ok &= contains(doc,
+                 "not a viewer-only mismatch",
+                 "document records CharHair diff conclusion");
   ok &= contains(doc,
                  "arm diff verifier control",
                  "document records arm diff verifier control proof");

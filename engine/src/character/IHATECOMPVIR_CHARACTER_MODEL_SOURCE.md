@@ -5897,6 +5897,23 @@ viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
 controller-applied pose for the performer under test without mixing in other
 band members or pre-controller rows.
 
+2026-07-14 viewer/gameplay CharHair diff:
+`engine/out/visual_proofs/viewer_ingame_charhair_20260714/` recaptures the
+same Trogdor/small2/Rockabill2 frame with `GHOGX_DEBUG_CHAR_HAIR` enabled in
+both the in-game path and the direct viewer. Both logs decode `chain.hair`
+version 2 from ihatecompvir `CharHair` source evidence as one simulated strand
+rooted at `bone_chain01.mesh`, with three point bones
+`bone_chain01.mesh`/`bone_chain02.mesh`/`bone_chain03.mesh`, thigh collision
+target `bone_R-thigh.mesh`, and strand angle `70.0000`. Both logs also decode
+`hair.hair` version 2 as one simulated strand rooted at `bone_hair.mesh` with
+one point and no collision target. The accepted `tools/compare_charhair_logs.py`
+manifest proves viewer and gameplay report the same `runtimeWriteback=0` and
+`missingHookupOverloadBody=1` boundary; `chain.hair` reports
+`legacyInlinePoints=3`, while `hair.hair` reports `legacyInlinePoints=0`.
+This makes the Rockabill2 chain/hair problem a shared source-hookup/collision
+publisher gap, not a viewer-only mismatch and not evidence for a static
+accessory offset.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
