@@ -96,6 +96,17 @@ bool nearf(float got, float want) {
   return std::fabs(got - want) <= 0.0001f;
 }
 
+const ghogx::character::ClipChannel* find_pose_channel(
+    const std::vector<ghogx::character::ClipChannel>& pose,
+    ghogx::character::ClipChannel::Type type, const std::string& bone_name) {
+  for (const auto& channel : pose) {
+    if (channel.type == type && channel.bone_name == bone_name) {
+      return &channel;
+    }
+  }
+  return nullptr;
+}
+
 bool expect_starved(bool has_first, bool first_has_next,
                     uint32_t first_play_flags, bool want,
                     const char* label) {
@@ -1090,6 +1101,73 @@ bool expect_clip_driver_helpers() {
   if (!nearf(player.evaluate_flags(0x00400000u), 0.5f)) {
     std::cerr << "driver EvaluateFlags blend mismatch\n";
     ok = false;
+  }
+  ghogx::character::CharClip outgoing_pose_clip;
+  outgoing_pose_clip.loaded = true;
+  outgoing_pose_clip.frames.resize(1);
+  ghogx::character::ClipChannel outgoing_neck;
+  outgoing_neck.type = ghogx::character::ClipChannel::kQuat;
+  outgoing_neck.bone_name = "bone_neck.mesh";
+  outgoing_neck.quat[2] = 0.70710678f;
+  outgoing_neck.quat[3] = 0.70710678f;
+  ghogx::character::ClipChannel outgoing_twist;
+  outgoing_twist.type = ghogx::character::ClipChannel::kRotZ;
+  outgoing_twist.bone_name = "bone_R-upperTwist.mesh";
+  outgoing_twist.angle = 1.0f;
+  outgoing_pose_clip.frames[0] = {outgoing_neck, outgoing_twist};
+
+  ghogx::character::CharClip incoming_pose_clip;
+  incoming_pose_clip.loaded = true;
+  incoming_pose_clip.frames.resize(1);
+  ghogx::character::ClipChannel incoming_neck;
+  incoming_neck.type = ghogx::character::ClipChannel::kQuat;
+  incoming_neck.bone_name = "bone_head.mesh";
+  incoming_neck.quat[2] = 0.70710678f;
+  incoming_neck.quat[3] = 0.70710678f;
+  ghogx::character::ClipChannel incoming_twist;
+  incoming_twist.type = ghogx::character::ClipChannel::kRotX;
+  incoming_twist.bone_name = "bone_L-foreTwist.mesh";
+  incoming_twist.angle = 0.8f;
+  incoming_pose_clip.frames[0] = {incoming_neck, incoming_twist};
+
+  ghogx::character::CharClipPlayer transition_player;
+  transition_player.play(outgoing_pose_clip,
+                         ghogx::character::kCharPlayLoop |
+                             ghogx::character::kCharPlayNoBlend);
+  transition_player.set_source_driver_blend_width(1.0f);
+  transition_player.play(incoming_pose_clip, ghogx::character::kCharPlayLoop);
+  transition_player.advance(0.5f);
+  const std::vector<ghogx::character::ClipChannel> transition_pose =
+      transition_player.sampled_pose();
+  const ghogx::character::ClipChannel* faded_out_neck = find_pose_channel(
+      transition_pose, ghogx::character::ClipChannel::kQuat,
+      "bone_neck.mesh");
+  const ghogx::character::ClipChannel* faded_in_neck = find_pose_channel(
+      transition_pose, ghogx::character::ClipChannel::kQuat,
+      "bone_head.mesh");
+  const ghogx::character::ClipChannel* faded_out_twist = find_pose_channel(
+      transition_pose, ghogx::character::ClipChannel::kRotZ,
+      "bone_R-upperTwist.mesh");
+  const ghogx::character::ClipChannel* faded_in_twist = find_pose_channel(
+      transition_pose, ghogx::character::ClipChannel::kRotX,
+      "bone_L-foreTwist.mesh");
+  if (!faded_out_neck || !faded_in_neck || !faded_out_twist ||
+      !faded_in_twist) {
+    std::cerr << "transition-only channel blend dropped a pose row\n";
+    ok = false;
+  } else {
+    if (!nearf(faded_out_neck->quat[2], 0.38268343f) ||
+        !nearf(faded_out_neck->quat[3], 0.9238795f) ||
+        !nearf(faded_in_neck->quat[2], 0.38268343f) ||
+        !nearf(faded_in_neck->quat[3], 0.9238795f)) {
+      std::cerr << "transition-only quat channel did not fade through identity\n";
+      ok = false;
+    }
+    if (!nearf(faded_out_twist->angle, 0.5f) ||
+        !nearf(faded_in_twist->angle, 0.4f)) {
+      std::cerr << "transition-only twist channel did not fade through identity\n";
+      ok = false;
+    }
   }
 
   ok &= expect_indices(

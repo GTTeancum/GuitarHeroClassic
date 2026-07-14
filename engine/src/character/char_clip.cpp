@@ -9898,6 +9898,34 @@ void blend_channel_into(ClipChannel& out, const ClipChannel& rhs, float t) {
   }
 }
 
+ClipChannel identity_channel_like(const ClipChannel& ch) {
+  ClipChannel identity = ch;
+  switch (identity.type) {
+    case ClipChannel::kPos:
+      identity.pos[0] = 0.0f;
+      identity.pos[1] = 0.0f;
+      identity.pos[2] = 0.0f;
+      break;
+    case ClipChannel::kScale:
+      identity.scale[0] = 1.0f;
+      identity.scale[1] = 1.0f;
+      identity.scale[2] = 1.0f;
+      break;
+    case ClipChannel::kQuat:
+      identity.quat[0] = 0.0f;
+      identity.quat[1] = 0.0f;
+      identity.quat[2] = 0.0f;
+      identity.quat[3] = 1.0f;
+      break;
+    case ClipChannel::kRotX:
+    case ClipChannel::kRotY:
+    case ClipChannel::kRotZ:
+      identity.angle = 0.0f;
+      break;
+  }
+  return identity;
+}
+
 std::vector<ClipChannel> interpolate_frame(const CharClip& clip, float frame) {
   if (clip.frames.empty()) return {};
   const int f0 = std::clamp(static_cast<int>(std::floor(frame)), 0,
@@ -9923,15 +9951,28 @@ std::vector<ClipChannel> blend_channel_sets(std::vector<ClipChannel> previous,
   if (previous.empty() || current_weight >= 0.999f) return current;
   if (current.empty() || current_weight <= 0.001f) return previous;
 
+  const size_t previous_count = previous.size();
+  std::vector<bool> previous_matched(previous_count, false);
   for (const auto& ch : current) {
     bool matched = false;
-    for (auto& out : previous) {
+    for (size_t i = 0; i < previous_count; ++i) {
+      auto& out = previous[i];
       if (out.type != ch.type || out.bone_name != ch.bone_name) continue;
       blend_channel_into(out, ch, current_weight);
+      previous_matched[i] = true;
       matched = true;
       break;
     }
-    if (!matched) previous.push_back(ch);
+    if (!matched) {
+      ClipChannel out = identity_channel_like(ch);
+      blend_channel_into(out, ch, current_weight);
+      previous.push_back(out);
+    }
+  }
+  for (size_t i = 0; i < previous_count; ++i) {
+    if (previous_matched[i]) continue;
+    const ClipChannel identity = identity_channel_like(previous[i]);
+    blend_channel_into(previous[i], identity, current_weight);
   }
   return previous;
 }

@@ -30430,6 +30430,18 @@ int run_contract() {
   ok &= contains(char_clip,
                  "next.flags=play_flags;",
                  "native CharClipPlayer stores source-masked play flags");
+  ok &= contains(char_clip,
+                 "ClipChannelidentity_channel_like(constClipChannel&ch){"
+                 "ClipChannelidentity=ch;",
+                 "native CharClipPlayer has neutral channel helper for source-weighted transitions");
+  ok &= contains(char_clip,
+                 "ClipChannelout=identity_channel_like(ch);"
+                 "blend_channel_into(out,ch,current_weight);",
+                 "native CharClipPlayer fades incoming-only transition rows from neutral");
+  ok &= contains(char_clip,
+                 "constClipChannelidentity=identity_channel_like(previous[i]);"
+                 "blend_channel_into(previous[i],identity,current_weight);",
+                 "native CharClipPlayer fades outgoing-only transition rows to neutral");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_set_flags(0x12u,false,0x12u)",
                  "focused clip driver flags test covers unchanged SetFlags");
@@ -30514,6 +30526,12 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_transitions_dump_evidence()",
                  "focused clip driver flags test covers transition dump evidence");
+  ok &= contains(clip_driver_flags_test,
+                 "transition-onlyquatchanneldidnotfadethroughidentity",
+                 "focused clip driver flags test covers transition-only quat rows");
+  ok &= contains(clip_driver_flags_test,
+                 "transition-onlytwistchanneldidnotfadethroughidentity",
+                 "focused clip driver flags test covers transition-only twist rows");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_runtime_dump_evidence()",
                  "focused clip driver flags test covers CharClip runtime dump evidence");

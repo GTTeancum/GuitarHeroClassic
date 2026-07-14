@@ -2706,6 +2706,27 @@ Useful environment flags:
   applied the incoming clip at partial weight onto already-mutated locals,
   which is not equivalent to PS2 lane accumulation. Validation:
   `engine/out/native_song_20260614/shout_f1300_descriptor_blend.bmp`.
+- In-game arm/neck proof can diverge from the standalone viewer because
+  gameplay runs the source-style performer stack, clip transitions, hand
+  overlays, IK rows, and release/attach state together. A viewer frame mostly
+  proves decode and skinning for one sampled pose. Native transition mixing now
+  treats rows that exist on only one side of a transition as weighted rows
+  through the neutral channel value: incoming-only rows fade in from neutral,
+  and outgoing-only rows fade out to neutral. This is bounded to transition set
+  blending and follows the source weighting shape from `AnimTask::Poll`,
+  `RndTransAnim::SetFrame(frame, blend)`, and `CharBonesSamples::ScaleAddSample`
+  instead of inventing a new IK correction.
+- 2026-07-14 viewer-vs-game proof:
+  `engine/out/visual_proofs/transition_identity_vs_game_20260714/` captures a
+  readable Rockabill2 viewer `special_02` frame 70 and a small2/Trogdor
+  gameplay closeup. The viewer log applies the forced clip frame and then logs
+  both hand IK rows skipped with `solveWeight=0.000`. The gameplay log instead
+  runs `stand_fast_03`, `strum_open`, and `finger_powerchord_1` together, logs
+  `left_hand.ik` and `right_hand.ik` at `solveWeight=1.000`, and then shows
+  degenerate forearm solve rows such as `bone_L-foreArm.mesh local_r0=[0 0 0]`
+  / `bone_R-foreArm.mesh local_r0=[0 0 0]`. The visible in-game arm spike is
+  therefore still an IK/twist solve or publish issue in the full performer
+  stack, not proof that the viewer's single sampled-pose path is correct.
 - Lower-body A/B captures on 2026-06-14 prove the remaining wide/crossed leg
   problem is not a safe thigh-only toggle. `GHOGX_RELATIVE_THIGH_QUAT=1`,
   `GHOGX_PRE_RELATIVE_THIGH_QUAT=1`, `GHOGX_TRANSPOSE_CLIP_QUAT=1`,
