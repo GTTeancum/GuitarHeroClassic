@@ -8210,6 +8210,9 @@ int main() {
                  "\"target_ref_count=a:%zub:%zutarget_refs=a:%sb:%s\"",
                  "camera debug logs expose target-list member counts");
   ok &= contains(gameplay_c,
+                 "\"(source_object=\"",
+                 "camera target-ref diagnostics expose direct CamShot ObjPtr source objects");
+  ok &= contains(gameplay_c,
                  "\"target_centroid=a:(%.3f%.3f%.3f)\"",
                  "camera debug logs expose target-list centroid positions");
   ok &= contains(gameplay_c,
@@ -8557,6 +8560,14 @@ int main() {
   ok &= contains(gameplay_c,
                  "copy_camshot_runtime_fields(c.key,path_pos);",
                  "path-backed camera keys inherit CamShot runtime metadata");
+  ok &= contains(gameplay_c,
+                 "if(!path_pos.camshot_refs_decoded&&"
+                 "c.key.camshot_refs_decoded){"
+                 "copy_camshot_ref_fields(c.key,path_pos);}",
+                 "path-backed camera keys preserve the owning CamShot target/focus/parent refs");
+  ok &= contains(gameplay_c,
+                 "sync_camshot_source_record_hint(path_pos);",
+                 "path-backed camera keys refresh source-record hints after ref preservation");
   ok &= contains(gameplay_c,
                  "to.path_source_translation_keys="
                  "from.path_source_translation_keys;"

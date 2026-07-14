@@ -15778,6 +15778,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     for (auto& path_pos : path_positions) {
                         path_pos.name = c.shot;
                         copy_camshot_runtime_fields(c.key, path_pos);
+                        if (!path_pos.camshot_refs_decoded &&
+                            c.key.camshot_refs_decoded) {
+                            copy_camshot_ref_fields(c.key, path_pos);
+                        }
                         if (path_base_pose.has_basis) {
                             for (int axis = 0; axis < 3; ++axis) {
                                 path_pos.path_base_eye[axis] =
@@ -15802,6 +15806,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         if (path_pos.parent_entity.empty()) {
                             populate_camera_generated_source_rows(path_pos);
                         }
+                        sync_camshot_source_record_hint(path_pos);
                         c.key.positions.push_back(std::move(path_pos));
                     }
                     for (int axis = 0; axis < 3; ++axis) {
@@ -20123,17 +20128,29 @@ size_t camera_target_ref_count_for_key(const Gameplay::CameraKey& key) {
 }
 
 std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {
+    auto format_ref = [](std::string_view entity, std::string_view subpart,
+                         std::string_view source_object) {
+        std::string out(entity);
+        out += ":";
+        out += subpart;
+        if (!source_object.empty()) {
+            out += "(source_object=";
+            out += source_object;
+            out += ")";
+        }
+        return out;
+    };
     if (key.target_refs.empty()) {
         return key.target_entity.empty() && key.target_subpart.empty()
                    ? std::string("none")
-                   : std::string(key.target_entity + ":" + key.target_subpart);
+                   : format_ref(key.target_entity, key.target_subpart, {});
     }
     std::string out;
     for (size_t i = 0; i < key.target_refs.size(); ++i) {
         if (i > 0) out += "|";
-        out += key.target_refs[i].entity;
-        out += ":";
-        out += key.target_refs[i].subpart;
+        out += format_ref(key.target_refs[i].entity,
+                          key.target_refs[i].subpart,
+                          key.target_refs[i].source_object);
     }
     return out.empty() ? std::string("none") : out;
 }

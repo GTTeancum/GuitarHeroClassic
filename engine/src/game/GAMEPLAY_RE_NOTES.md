@@ -41,6 +41,18 @@
   before falling back to inferred subpart/root lookup. This keeps attached prop
   and direct-object camera targets source-prioritized without inventing a
   shot-specific target or broad global alias.
+- 2026-07-14 CamShot ObjPtr target proof: camera solver diagnostics now print
+  each target ref's preserved `source_object` beside the legacy entity/subpart
+  display. This does not alter submitted camera math; it makes direct-object
+  `CamShotFrame::Load` refs visible in the same `SameTargets` / resolved-target
+  row used for angle audits, instead of making an ObjPtr look like a plain
+  subpart-only token.
+- 2026-07-14 path-backed CamShot ref preservation: derived RndTransAnim path
+  keys now inherit the owning CamShot keyframe target/focus/parent refs before
+  source-record hinting. ihatecompvir `CamShot` owns `mPath` beside
+  `mKeyFrames`; sampling the path should not erase the frame's source target
+  metadata. This keeps path-backed angle composition from falling back to broad
+  performer targets solely because the active render keys came from `mPath`.
 - 2026-07-14 CamShot parent subpart lookup: ihatecompvir
   `CamShotFrame::Load` routes old-revision parent refs through `LoadSubPart`,
   the same suffix-stripping helper used by target/focus refs. Native
