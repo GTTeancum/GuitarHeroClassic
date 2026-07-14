@@ -8099,6 +8099,28 @@ int main() {
                  "camera_resolved_target_id_for_ref(ref.entity,ref.subpart,"
                  "ref.source_object,targets)",
                  "CamShot target list resolution keeps source object ids ahead of inferred entities");
+  ok &= contains(gameplay_c,
+                 "structCameraSourceTargetUpdate{boolhas_targets=false;"
+                 "size_tresolved_count=0;",
+                 "camera target update preserves source HasTargets count state");
+  ok &= contains(gameplay_c,
+                 "CameraSourceTargetUpdatecamera_update_targets_like_camshot(",
+                 "native camera has an ihatecompvir CamShotFrame target update helper");
+  ok &= contains(gameplay_c,
+                 "returncamera_update_targets_like_camshot(key,targets)."
+                 "has_targets;",
+                 "CamShot HasTargets checks the source-shaped resolved target update");
+  ok &= contains(gameplay_c,
+                 "constautoupdate=camera_update_targets_like_camshot(key,"
+                 "targets);if(!update.has_targets)returnstd::nullopt;"
+                 "returnupdate.centroid;",
+                 "CamShot target centroid reuses the source-shaped target update");
+  ok &= contains(gameplay_c,
+                 "source_call=UpdateTarget/GetCurrentTargetPosition",
+                 "camera diagnostics expose the source target update boundary");
+  ok &= contains(gameplay_c,
+                 "source_rule=average_non_null_targets",
+                 "camera diagnostics expose GetCurrentTargetPosition averaging");
   ok &= appears_before(
       gameplay_c,
       "strip_mesh_suffix(std::string(subpart));",
@@ -12365,9 +12387,9 @@ int main() {
                  "boolcamera_key_has_resolved_targets_like_camshot(",
                  "camera runtime exposes an ihatecompvir CamShot HasTargets helper");
   ok &= contains(gameplay_c,
-                 "returncamera_target_centroid_for_key(key,targets)."
-                 "has_value();",
-                 "CamShot HasTargets helper follows resolved target centroid availability");
+                 "returncamera_update_targets_like_camshot(key,targets)."
+                 "has_targets;",
+                 "CamShot HasTargets helper follows the source target update result");
   ok &= contains(gameplay_c,
                  "boolcamera_apply_pose_span_source_basis(",
                  "source seed rows can derive the traced pose-span source basis");

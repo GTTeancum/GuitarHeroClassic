@@ -19,6 +19,14 @@
   source-shaped pose-span and parent/source-seed gates instead of treating a
   merely authored target token as a live CamShot target. The older authored-ref
   helper remains for metadata/debug routing.
+- 2026-07-14 CamShot UpdateTarget proof:
+  native now routes the resolved-target count and averaged target point through
+  `camera_update_targets_like_camshot(...)`, then reuses that result for
+  `HasTargets`-style gating and `camera_target_centroid_for_key(...)`. Debug
+  camera runs emit `[world] camera UpdateTarget` with the A/B resolved counts
+  and centroids, matching ihatecompvir `GetCurrentTargetPosition()`'s
+  "average non-null target pointers" rule while keeping the actual
+  `UpdateTarget` callsite marked unrecovered.
 - 2026-07-14 CamShot target subpart lookup: ihatecompvir `LoadSubPart`
   strips a suffix such as `.mesh` before resolving/creating the target proxy
   name (`object_part.tp`). Native camera target lookup now tries the exact

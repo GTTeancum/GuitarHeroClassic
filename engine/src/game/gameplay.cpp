@@ -17244,6 +17244,16 @@ std::optional<CameraTarget> camera_target_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
 
+struct CameraSourceTargetUpdate {
+    bool has_targets = false;
+    size_t resolved_count = 0;
+    std::array<float, 3> centroid = {0.0f, 0.0f, 0.0f};
+};
+
+CameraSourceTargetUpdate camera_update_targets_like_camshot(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
 std::optional<std::array<float, 3>> camera_target_centroid_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
@@ -19192,7 +19202,7 @@ bool camera_key_has_resolved_targets_like_camshot(
     const std::unordered_map<std::string, CameraTarget>& targets) {
     // ihatecompvir CamShotFrame::HasTargets() checks resolved object pointers;
     // GetCurrentTargetPosition() then averages every non-null target.
-    return camera_target_centroid_for_key(key, targets).has_value();
+    return camera_update_targets_like_camshot(key, targets).has_targets;
 }
 
 bool camera_apply_pose_span_source_basis(
@@ -20030,34 +20040,46 @@ std::optional<CameraTarget> camera_target_for_key(
     return camera_target_for_ref(key.target_entity, key.target_subpart, targets);
 }
 
-std::optional<std::array<float, 3>> camera_target_centroid_for_key(
+CameraSourceTargetUpdate camera_update_targets_like_camshot(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    // PS2 0x00266e58 resolves every CamShot target/member ref and averages
-    // their world positions before the 0x00267008 result-frame solve.
-    std::array<float, 3> sum = {0.0f, 0.0f, 0.0f};
-    size_t count = 0;
+    CameraSourceTargetUpdate update;
     auto add_target = [&](std::string_view entity, std::string_view subpart) {
         const auto target = camera_target_for_ref(entity, subpart, targets);
         if (!target) return;
         const auto pos = mat4_position_game(target->world);
-        for (int axis = 0; axis < 3; ++axis) sum[axis] += pos[axis];
-        ++count;
+        for (int axis = 0; axis < 3; ++axis)
+            update.centroid[axis] += pos[axis];
+        ++update.resolved_count;
     };
     if (!key.target_refs.empty()) {
         for (const auto& ref : key.target_refs) {
             const auto target = camera_target_for_ref(ref, targets);
             if (!target) continue;
             const auto pos = mat4_position_game(target->world);
-            for (int axis = 0; axis < 3; ++axis) sum[axis] += pos[axis];
-            ++count;
+            for (int axis = 0; axis < 3; ++axis)
+                update.centroid[axis] += pos[axis];
+            ++update.resolved_count;
         }
     } else {
         add_target(key.target_entity, key.target_subpart);
     }
-    if (count == 0) return std::nullopt;
-    for (float& v : sum) v /= static_cast<float>(count);
-    return sum;
+    update.has_targets = update.resolved_count > 0;
+    if (update.has_targets) {
+        for (float& v : update.centroid)
+            v /= static_cast<float>(update.resolved_count);
+    }
+    return update;
+}
+
+std::optional<std::array<float, 3>> camera_target_centroid_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    // PS2 0x00266e58 resolves every CamShot target/member ref and averages
+    // their world positions before the 0x00267008 result-frame solve.
+    const auto update = camera_update_targets_like_camshot(key, targets);
+    if (!update.has_targets) return std::nullopt;
+    return update.centroid;
 }
 
 std::optional<std::array<float, 3>> camera_source_dof_point_for_key(
@@ -20667,10 +20689,18 @@ void apply_camera_keys(
             std::string::npos;
     auto submitted_result =
         camera_lerp_result_rows(result_a, result_b, interp_t);
-    const auto a_target_centroid =
-        camera_target_centroid_for_key(*a, targets);
-    const auto b_target_centroid =
-        camera_target_centroid_for_key(*b, targets);
+    const auto a_target_update =
+        camera_update_targets_like_camshot(*a, targets);
+    const auto b_target_update =
+        camera_update_targets_like_camshot(*b, targets);
+    const std::optional<std::array<float, 3>> a_target_centroid =
+        a_target_update.has_targets
+            ? std::optional<std::array<float, 3>>(a_target_update.centroid)
+            : std::nullopt;
+    const std::optional<std::array<float, 3>> b_target_centroid =
+        b_target_update.has_targets
+            ? std::optional<std::array<float, 3>>(b_target_update.centroid)
+            : std::nullopt;
     const bool same_targets_like_camshot =
         camera_targets_match_like_camshot(*a, *b, targets);
     std::optional<std::array<float, 3>> blended_target_centroid;
@@ -21065,6 +21095,20 @@ void apply_camera_keys(
             a->name.c_str(), b->name.c_str(), frame, t, interp_t,
             cam.shake_active ? 1 : 0, shake_noise_amp, shake_noise_freq,
             max_angular_offset_x, max_angular_offset_y);
+        std::fprintf(
+            stderr,
+            "[world] camera UpdateTarget: source_class=CamShotFrame "
+            "source_call=UpdateTarget/GetCurrentTargetPosition "
+            "shot_a=%s shot_b=%s local_frame=%.3f "
+            "a_resolved=%zu b_resolved=%zu "
+            "a_centroid=(%.3f %.3f %.3f) b_centroid=(%.3f %.3f %.3f) "
+            "cached_fields=unk34,unk44 callsite=not_recovered "
+            "source_rule=average_non_null_targets\n",
+            a->name.c_str(), b->name.c_str(), frame,
+            a_target_update.resolved_count, b_target_update.resolved_count,
+            a_target_update.centroid[0], a_target_update.centroid[1],
+            a_target_update.centroid[2], b_target_update.centroid[0],
+            b_target_update.centroid[1], b_target_update.centroid[2]);
         const auto a_screen_norm = camshot_result_screen_norm_for_key(*a);
         const auto b_screen_norm = camshot_result_screen_norm_for_key(*b);
         const auto target_candidate_a =
