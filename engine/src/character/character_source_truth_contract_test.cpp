@@ -25141,8 +25141,16 @@ int run_contract() {
                  "source-importable",
                  "document records missing CharIKHand PullShoulder body");
   ok &= contains(doc,
-                 "does not include its body. Native GHOGX\n    therefore "
-                 "must not rederive that shoulder offset",
+                 "latest ihatecompvir `rb3-latest` and "
+                 "`public-milo-sources/rb3`",
+                 "document records latest CharIKHand source check");
+  ok &= contains(doc,
+                 "`CharIKHand__PullShoulder` symbol at `0x82395500` with "
+                 "size `0x9C`",
+                 "document records PullShoulder symbol evidence");
+  ok &= contains(doc,
+                 "Native GHOGX therefore must not rederive that shoulder "
+                 "offset",
                  "document fences native CharIKHand PullShoulder rederivation");
   ok &= contains(bind_audit, "boolshould_dump_controllers(intargc,char**argv)",
                  "bind audit exposes controller inventory switch");

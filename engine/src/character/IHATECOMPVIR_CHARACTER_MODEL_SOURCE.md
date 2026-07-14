@@ -4014,12 +4014,14 @@ note, and all report `unreadBytes=0`.
     `CharIKHand` rows currently have `elbowCollide=<none>` and `clockwise=0`,
     so it is not wired into live runtime solving.
   - `CharIKHand::PullShoulder` is source-real but not yet source-importable:
-    `CharIKHand.cpp` calls it from `IKElbow`, and
+    the latest ihatecompvir `rb3-latest` and `public-milo-sources/rb3`
+    `CharIKHand.cpp` rows include the main `Poll` and `IKElbow` bodies, and
+    both call `PullShoulder` from `IKElbow`. `CharIKHand.h` still only
+    declares the method, while
     `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a
-    `CharIKHand__PullShoulder` symbol, but the available ihatecompvir C++ only
-    declares/calls the method and does not include its body. Native GHOGX
-    therefore must not rederive that shoulder offset or claim a full IKElbow
-    port until the function body is source-backed.
+    `CharIKHand__PullShoulder` symbol at `0x82395500` with size `0x9C`.
+    Native GHOGX therefore must not rederive that shoulder offset or claim a
+    full IKElbow port until the function body is source-backed.
   - The current runtime solver is the bounded GH2 single-target slice. Source
     branches for live multi-target publishing, `PullShoulder`, live
     `mElbowSwing`, live wrist constraint, and elbow-collision correction remain
