@@ -8662,8 +8662,8 @@ int main() {
                  "linked RndCamAnim SetFrame mirrors the source mCam gate");
   ok &= contains(gameplay_c,
                  "\"[world]cameraRndCamAnimSetFrameskipped:"
-                 "source_msg=mAnimsshot=%sanim=%scam=<none>",
-                 "linked RndCamAnim diagnostics expose source mCam skips");
+                 "source_msg=mAnimsshot=%sanim=%skeys_owner=%scam=<none>",
+                 "linked RndCamAnim diagnostics expose source mCam skips and key owners");
   ok &= contains(gameplay_c,
                  "sample_camera_fov_key(anim.fov_keys,frame,previous_fov);",
                  "linked RndCamAnim SetFrame samples source FOV keys at the active frame");
@@ -8686,8 +8686,9 @@ int main() {
                  "source_current_far_z);",
                  "linked RndCamAnim SetFrame stores the sampled FOV through RndCam::SetFrustum");
   ok &= contains(gameplay_c,
-                 "\"[world]cameraRndCamAnimSetFrame:source_msg=mAnimsshot=%s",
-                 "linked RndCamAnim diagnostics expose source SetFrame FOV application");
+                 "\"[world]cameraRndCamAnimSetFrame:source_msg=mAnimsshot=%s"
+                 "anim=%skeys_owner=%scam=%s",
+                 "linked RndCamAnim diagnostics expose source SetFrame FOV key ownership");
   ok &= contains(gameplay_c,
                  "source_blend_rule=current_to_sampled_when_not_one",
                  "linked RndCamAnim diagnostics name the source non-1 blend behavior");

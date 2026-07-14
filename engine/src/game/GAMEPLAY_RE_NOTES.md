@@ -256,6 +256,12 @@ Open work:
   and then multiplying by the decoded anim frames-per-unit before sampling
   `FovKeys().AtFrame(...)`. This is a contract/audit guard for keyed CamAnim
   FOV rows, not a fabricated angle correction.
+- 2026-07-14 linked `RndCamAnim` runtime key-owner proof:
+  ihatecompvir `RndCamAnim::FovKeys()` returns `mKeysOwner->mFovKeys`, and
+  native load already resolves owner-backed FOV pages before runtime sampling.
+  The linked `camera RndCamAnim SetFrame` and `SetFrame skipped` proof rows now
+  print `keys_owner`, so live FOV camera-angle samples can be tied back to the
+  exact source owner page instead of only the linked anim ref.
 - 2026-07-14 CamShot legacy linked anim ref:
   ihatecompvir `CamShot::Load` reads a legacy `Symbol s258` for rev 40-42
   shots and, after loading the normal `mAnims` list, appends the resolved

@@ -23374,9 +23374,10 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                     active_camera_fov_anim_reported_.insert(report_key);
                     std::fprintf(
                         stderr,
-                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0\n",
-                        key.name.c_str(), anim.name.c_str(), frame,
-                        anim.anim_rate, fpu, anim.fov_keys.size());
+                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0\n",
+                        key.name.c_str(), anim.name.c_str(),
+                        anim.keys_owner.c_str(), frame, anim.anim_rate, fpu,
+                        anim.fov_keys.size());
                 }
             }
             continue;
@@ -23400,10 +23401,11 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                 active_camera_fov_anim_reported_.insert(report_key);
                 std::fprintf(
                     stderr,
-                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one\n",
-                    key.name.c_str(), anim.name.c_str(), anim.cam.c_str(),
-                    frame, anim.anim_rate, fpu, cam.fov, sampled_fov,
-                    previous_fov, anim.fov_keys.size(),
+                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one\n",
+                    key.name.c_str(), anim.name.c_str(),
+                    anim.keys_owner.c_str(), anim.cam.c_str(), frame,
+                    anim.anim_rate, fpu, cam.fov, sampled_fov, previous_fov,
+                    anim.fov_keys.size(),
                     source_setframe_blend);
             }
         }
