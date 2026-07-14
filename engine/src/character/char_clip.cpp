@@ -8443,45 +8443,12 @@ static bool source_hand_matches_fore_twist(const CharIKHand& ik,
          channel_matches_bone(ft.hand, ik.hand);
 }
 
-static int source_instrument_hand_rank(const CharIKHand& ik) {
-  const std::string key = ik.name + " " + ik.hand + " " + ik.target + " " +
-                          ik.weight_prop;
-  if (key.find("_L-") != std::string::npos ||
-      key.find("bone_L-") != std::string::npos ||
-      key.find("left") != std::string::npos ||
-      key.find("left_") != std::string::npos ||
-      key.find("_left") != std::string::npos) {
-    return 0;
-  }
-  if (key.find("_R-") != std::string::npos ||
-      key.find("bone_R-") != std::string::npos ||
-      key.find("right") != std::string::npos ||
-      key.find("right_") != std::string::npos ||
-      key.find("_right") != std::string::npos) {
-    return 1;
-  }
-  return 2;
-}
-
 static void apply_source_ik_hands_and_fore_twists(Character& character) {
   // CharForeTwist::PollDeps says it reads mHand and writes mTwist2 plus the
-  // twist parent. Keep each source IK hand tick adjacent to the foretwist that
-  // consumes that same hand, matching the recovered GH2 performer cadence.
-  std::vector<size_t> ik_indices(character.ik_hands.size());
-  for (size_t i = 0; i < ik_indices.size(); ++i) ik_indices[i] = i;
-  std::stable_sort(ik_indices.begin(), ik_indices.end(),
-                   [&](size_t a, size_t b) {
-                     const int ar = source_instrument_hand_rank(
-                         character.ik_hands[a]);
-                     const int br = source_instrument_hand_rank(
-                         character.ik_hands[b]);
-                     if (ar != br) return ar < br;
-                     return a < b;
-                   });
-
+  // twist parent. Native walks the decoded MILO controller order; ihatecompvir
+  // source does not justify name-ranking hands as left/right roles.
   std::vector<bool> fore_applied(character.fore_twists.size(), false);
-  for (const size_t ik_index : ik_indices) {
-    const CharIKHand& ik = character.ik_hands[ik_index];
+  for (const CharIKHand& ik : character.ik_hands) {
     apply_source_ik_hand(character, ik);
     for (size_t ft_index = 0; ft_index < character.fore_twists.size();
          ++ft_index) {
