@@ -189,11 +189,19 @@ int main() {
                  "source_hand_matches_fore_twist(ik,ft)",
                  "source hand scheduler matches foretwist by source hand row");
   ok &= contains(fore_twist_c,
-                 "character.bone_world_local_chain_authored(hand.name)",
-                 "foretwist reads the source Trans hand row, not the transient final-hand bridge");
+                 "constautohand_world=character.bone_world_local_chain(hand.name);",
+                 "foretwist reads the live source WorldXfm hand row");
   ok &= lacks(fore_twist_c,
-              "constautohand_world=character.bone_world_local_chain(hand.name);",
-              "foretwist must not feed native runtime hand-world overrides back into the source roll input");
+              "character.bone_world_local_chain_authored(hand.name)",
+              "foretwist must not bypass source live WorldXfm rows");
+  ok &= contains(fore_twist_c,
+                 "character.runtime_world_overrides[twist1.name]="
+                 "twist_result.twist_parent_world;",
+                 "foretwist source SetWorldXfm parent write stays a world-cache row");
+  ok &= contains(fore_twist_c,
+                 "character.runtime_world_overrides[twist2.name]="
+                 "twist_result.twist2_world;",
+                 "foretwist source SetWorldXfm twist2 write stays a world-cache row");
   ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",

@@ -25671,6 +25671,25 @@ int run_contract() {
                  "apply_source_fore_twist(character,ft);"
                  "fore_applied[ft_index]=true;",
                  "native marks matched foretwists after the paired source poll");
+  ok &= contains(char_clip,
+                 "constautohand_world=character.bone_world_local_chain(hand.name);",
+                 "native CharForeTwist consumes live source WorldXfm rows");
+  ok &= contains(char_clip,
+                 "character.runtime_world_overrides[twist1.name]="
+                 "twist_result.twist_parent_world;",
+                 "native CharForeTwist parent SetWorldXfm is a world-cache row");
+  ok &= contains(char_clip,
+                 "character.runtime_world_overrides[twist2.name]="
+                 "twist_result.twist2_world;",
+                 "native CharForeTwist twist2 SetWorldXfm is a world-cache row");
+  ok &= contains(char_clip,
+                 "character.runtime_world_overrides[twist1.name]="
+                 "twist_result.twist1_world;",
+                 "native CharUpperTwist first SetWorldXfm is a world-cache row");
+  ok &= contains(char_clip,
+                 "character.runtime_world_overrides[twist2.name]="
+                 "twist_result.twist2_world;",
+                 "native CharUpperTwist second SetWorldXfm is a world-cache row");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");
   ok &= contains(doc,
@@ -32046,9 +32065,9 @@ int run_contract() {
                  "direction.",
                  "document records second pre-integration chat pass boundary");
   ok &= contains(doc,
-                 "the final hand world bridge must not be fed back into\n"
-                 "the foretwist roll source",
-                 "document preserves final-hand bridge and foretwist source split");
+                 "foretwist reads the live hand `WorldXfm()` produced\n"
+                 "by earlier controller writes",
+                 "document preserves live hand WorldXfm foretwist source");
   ok &= contains(doc,
                  "Rock/Rockabill hair failures remain controller-row /\n"
                  "weighted-card consumer issues",

@@ -5376,21 +5376,23 @@ offset experiments.
 Second pass over the pre-integration notes and archived chat artifacts did not
 add a fourth safe implementation direction. The compatible details refine those
 same three leads: GH2DXu/GHDX `player*_fret_pos` and `player*_fret` are
-separate accepted streams, the final hand world bridge must not be fed back into
-the foretwist roll source, upper twists stay after the hair/look-at portion of
+separate accepted streams, foretwist reads the live hand `WorldXfm()` produced
+by earlier controller writes, upper twists stay after the hair/look-at portion of
 the accepted cadence, and Rock/Rockabill hair failures remain controller-row /
 weighted-card consumer issues. This recheck is a guardrail for the next source
 implementation pass, not a license to restore removed diagnostics or old visual
 experiments.
 
-2026-07-14 source-boundary follow-up: native `apply_source_fore_twist` now
-reads `bone_world_local_chain_authored` for the hand and hand-parent rows. This
-keeps ihatecompvir's visible `CharForeTwist::Poll` math tied to source
-`RndTransformable` rows while preventing the native transient final-hand world
-bridge from becoming an input to the next controller. This is not a claim that
-the star-power arm/neck pose is fixed; zero-weight hand IK frames still point
-back at the broader `CharClipSamples` / `CharBonesSamples` / `CharBones` /
-`PoseMeshes` application path.
+2026-07-14 source-boundary correction: native `apply_source_fore_twist` now
+reads live `bone_world_local_chain` rows for the hand and hand parent, matching
+ihatecompvir's visible `CharForeTwist::Poll` use of `WorldXfm()` after earlier
+controller writes. The source `RndTransformable::SetWorldXfm` body writes the
+cached world transform and dirties children without rewriting `mLocalXfm`, so
+native foretwist and upper-twist outputs now publish through
+`runtime_world_overrides` instead of baking those controller worlds back into
+local rows. This is not a claim that the star-power arm/neck pose is fixed;
+zero-weight hand IK frames still point back at the broader `CharClipSamples` /
+`CharBonesSamples` / `CharBones` / `PoseMeshes` application path.
 
 The raw pre-integration chat adds only clarifying boundaries around the same
 hair lead: static/no-CharHair was already answered as unlikely to solve the

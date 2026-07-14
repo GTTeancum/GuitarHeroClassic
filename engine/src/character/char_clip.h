@@ -3561,7 +3561,7 @@ struct SourceCharUpperTwistPollWorldResult {
 // Source-backed CharForeTwist::Poll/PollDeps and
 // CharUpperTwist::Poll/PollDeps helpers. These are pure translations of the
 // ihatecompvir routines; callers remain responsible for resolving object
-// pointers and converting SetWorldXfm results back into local rows.
+// pointers and publishing SetWorldXfm results as live world-cache rows.
 SourceCharForeTwistSavePlan source_char_fore_twist_save_plan();
 void source_char_fore_twist_poll_deps(
     SourceCharForeTwistPollDeps& deps,

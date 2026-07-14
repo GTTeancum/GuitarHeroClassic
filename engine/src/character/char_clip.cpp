@@ -7216,29 +7216,21 @@ static bool apply_source_fore_twist(Character& character,
   if (parent_i < 0 || twist1_i < 0) return false;
   auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
 
-  // CharForeTwist reads the source RndTransformable rows. The native final
-  // hand-world bridge is transient output and must not feed back into this
-  // controller's roll source.
-  const auto parent_world = character.bone_world_local_chain_authored(
-      character.bones[static_cast<size_t>(parent_i)].name);
-  const auto hand_world = character.bone_world_local_chain_authored(hand.name);
+  // CharForeTwist reads live RndTransformable::WorldXfm rows. In source, any
+  // earlier SetWorldXfm cache write is visible here without rewriting locals.
+  const auto parent_world =
+      character.bone_world_local_chain(
+          character.bones[static_cast<size_t>(parent_i)].name);
+  const auto hand_world = character.bone_world_local_chain(hand.name);
   SourceCharForeTwistPollWorldResult twist_result;
   if (!source_char_fore_twist_poll_world(
           ft, true, true, true, true, parent_world, hand_world,
           hand.local.pos[0], twist2.local.pos[0], twist_result)) {
     return false;
   }
-  std::array<float, 16> twist1_world = twist_result.twist_parent_world;
-  if (!twist1.parent.empty()) {
-    set_local_from_world(twist1.local, twist1_world,
-                         character.bone_world_local_chain_authored(
-                             twist1.parent));
-  } else {
-    mat4_to_xfm(twist1_world, twist1.local);
-  }
-
-  set_local_from_world(twist2.local, twist_result.twist2_world,
-                       twist1_world);
+  character.runtime_world_overrides[twist1.name] =
+      twist_result.twist_parent_world;
+  character.runtime_world_overrides[twist2.name] = twist_result.twist2_world;
 
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
@@ -7276,18 +7268,8 @@ static void apply_source_upper_twists(
       continue;
     }
 
-    auto write_output = [&](milo_scene::TransObj& bone,
-                            const std::array<float, 16>& out_world) {
-      if (!bone.parent.empty()) {
-        set_local_from_world(bone.local, out_world,
-                             character.bone_world_local_chain(bone.parent));
-      } else {
-        mat4_to_xfm(out_world, bone.local);
-      }
-    };
-
-    write_output(twist1, twist_result.twist1_world);
-    write_output(twist2, twist_result.twist2_world);
+    character.runtime_world_overrides[twist1.name] = twist_result.twist1_world;
+    character.runtime_world_overrides[twist2.name] = twist_result.twist2_world;
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
                    "[twist-upper-source] %s upper=%s twist1=%s twist2=%s\n",
@@ -7296,12 +7278,10 @@ static void apply_source_upper_twists(
       log_debug_xfm_row("twist-upper-upper", ut.upper_arm.c_str(),
                         upper.local,
                         character.bone_world_local_chain(ut.upper_arm));
-      log_debug_xfm_row("twist-upper-out", ut.twist1.c_str(),
-                        twist1.local,
-                        character.bone_world_local_chain(ut.twist1));
-      log_debug_xfm_row("twist-upper-out", ut.twist2.c_str(),
-                        twist2.local,
-                        character.bone_world_local_chain(ut.twist2));
+      log_debug_world_row("twist-upper-out", ut.twist1.c_str(),
+                          character.bone_world_local_chain(ut.twist1));
+      log_debug_world_row("twist-upper-out", ut.twist2.c_str(),
+                          character.bone_world_local_chain(ut.twist2));
     }
   }
 }
