@@ -32484,6 +32484,12 @@ int run_contract() {
                  "dump(\"bone_R-upperTwist1\");",
                  "arm pose trace includes right upper twist bone");
   ok &= contains(char_clip,
+                 "dump(\"bone_L-thigh\");",
+                 "arm pose trace includes left thigh for full-body diffs");
+  ok &= contains(char_clip,
+                 "dump(\"bone_R-toe\");",
+                 "arm pose trace includes right toe for leg/foot diffs");
+  ok &= contains(char_clip,
                  "if(!force_selected_output){returnfalse;}",
                  "broad CharBone output compare rows do not write live pose");
   ok &= contains(format_notes,
@@ -33457,6 +33463,15 @@ int run_contract() {
                  "\"rockabill2_live_target_handmap_match\"",
                  "arm pose diff manifest records handmap live-target proof");
   ok &= contains(arm_pose_diff_manifest,
+                 "\"rockabill2_live_target_fullbody_match\"",
+                 "arm pose diff manifest records full-body live-target proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"bone_L-thigh\",\"bone_L-knee\",\"bone_L-toe\"",
+                 "arm pose diff manifest covers left leg rows");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"bone_R-thigh\",\"bone_R-knee\",\"bone_R-toe\"",
+                 "arm pose diff manifest covers right leg rows");
+  ok &= contains(arm_pose_diff_manifest,
                  "\"rockabill2_missing_midi_target_control\"",
                  "arm pose diff manifest records missing-target negative control");
   ok &= contains(arm_pose_diff_manifest,
@@ -33483,6 +33498,12 @@ int run_contract() {
                  "prevents a visually plausible viewer frame from being "
                  "accepted",
                  "document records context-checked viewer proof gate");
+  ok &= contains(doc,
+                 "rockabill2_live_target_fullbody_match",
+                 "document records full-body viewer/gameplay diff proof");
+  ok &= contains(doc,
+                 "passes 112 rows with `max_delta=0.000000`",
+                 "document records full-body diff result");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

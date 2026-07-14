@@ -5879,6 +5879,18 @@ and both sides must show the matching `stand_fast_02 -> stand_fast_03`,
 fragments. This prevents a visually plausible viewer frame from being accepted
 when its final rows were produced without the same live target or clip stack.
 
+2026-07-14 full-body viewer/gameplay diff:
+`engine/out/visual_proofs/viewer_ingame_diff_fullbody_20260714/` recaptures
+the same Trogdor/small2/Rockabill2 frame with compact lower-body rows added to
+the diagnostic pose dump. The accepted manifest case
+`rockabill2_live_target_fullbody_match` compares pelvis, both thighs, both
+knees, both toes, spine, neck, head, arms, and twist rows across the fresh
+in-game and direct-viewer logs. It passes 112 rows with `max_delta=0.000000`
+when the viewer is fed the same live `spot_neck_fret11.mesh` target and player
+stack. This does not prove the authored pose is final-correct against PS2; it
+does prove the viewer and gameplay are now evaluating the same decoded pose for
+the visible leg/foot-angle question at this frame.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

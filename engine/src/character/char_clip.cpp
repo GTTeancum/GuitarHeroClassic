@@ -5653,6 +5653,12 @@ static void dump_arm_pose(const Character& character, const char* tag) {
                  bone.local.rot[2][2]);
   };
   dump("bone_pelvis");
+  dump("bone_L-thigh");
+  dump("bone_L-knee");
+  dump("bone_L-toe");
+  dump("bone_R-thigh");
+  dump("bone_R-knee");
+  dump("bone_R-toe");
   dump("bone_spine1");
   dump("bone_spine2");
   dump("bone_spine3");
