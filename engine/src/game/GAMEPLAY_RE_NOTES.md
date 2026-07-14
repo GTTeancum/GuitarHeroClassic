@@ -11311,6 +11311,13 @@ Rejected native probe:
   the same source default instead of treating fallback/derived shot state as
   DOF-enabled. Stock modern GH2 CamShots still read their authored DOF bool
   during load; this is source-default plumbing, not a visual DOF override.
+- 2026-07-14 CamShotFrame zero-transform reset:
+  ihatecompvir `CamShotFrame::Load` reads the world transform into `tf70`,
+  compares it to a zero transform, and calls `unk10.Reset()` when equal.
+  Native now normalizes an all-zero Hmx matrix to identity before mapping
+  Hmx `m.y`/`m.z`/`pos` into camera forward/up/eye. Authored non-zero frames
+  remain unchanged; this prevents zero-authored fallback frames from becoming
+  a zero camera basis.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives

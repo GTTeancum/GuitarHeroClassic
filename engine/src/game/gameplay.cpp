@@ -1262,6 +1262,27 @@ HmxMatrix3x4 read_hmx_matrix(MiloCursor& r) {
     return m;
 }
 
+bool hmx_matrix_is_zero_like_source(const HmxMatrix3x4& m) {
+    for (int row = 0; row < 3; ++row) {
+        for (int col = 0; col < 3; ++col) {
+            if (m.row[row][col] != 0.0f) return false;
+        }
+    }
+    for (float v : m.pos) {
+        if (v != 0.0f) return false;
+    }
+    return true;
+}
+
+HmxMatrix3x4 source_camshot_frame_world_offset(HmxMatrix3x4 m) {
+    if (!hmx_matrix_is_zero_like_source(m)) return m;
+    m = {};
+    m.row[0][0] = 1.0f;
+    m.row[1][1] = 1.0f;
+    m.row[2][2] = 1.0f;
+    return m;
+}
+
 MiloValue read_dtb_node(MiloCursor& r,
                         std::unordered_map<std::string, MiloValue>* props);
 
@@ -2133,7 +2154,8 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     }
     key.fov = camshot_source_field_of_view(r.f32());
     key.has_fov = true;
-    const HmxMatrix3x4 world_offset = read_hmx_matrix(r);
+    const HmxMatrix3x4 world_offset =
+        source_camshot_frame_world_offset(read_hmx_matrix(r));
     for (int axis = 0; axis < 3; ++axis) {
         // Hmx Transform camera frames use m.y as the look axis and m.z as up.
         key.forward[axis] = world_offset.row[1][axis];

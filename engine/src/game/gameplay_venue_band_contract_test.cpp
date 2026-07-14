@@ -7891,6 +7891,18 @@ int main() {
                  "key.eye[axis]=world_offset.pos[axis];",
                  "CamShot frame decoder maps Matrix rows to runtime basis");
   ok &= contains(gameplay_c,
+                 "boolhmx_matrix_is_zero_like_source(constHmxMatrix3x4&m)",
+                 "CamShot frame decoder names the source zero-transform reset gate");
+  ok &= contains(gameplay_c,
+                 "HmxMatrix3x4source_camshot_frame_world_offset(HmxMatrix3x4m)",
+                 "CamShot frame decoder routes authored transforms through the source reset rule");
+  ok &= contains(gameplay_c,
+                 "m.row[0][0]=1.0f;m.row[1][1]=1.0f;m.row[2][2]=1.0f;",
+                 "CamShot zero-authored frame transform resets to identity basis");
+  ok &= contains(gameplay_c,
+                 "source_camshot_frame_world_offset(read_hmx_matrix(r))",
+                 "CamShot frame reader applies the zero-transform reset before basis mapping");
+  ok &= contains(gameplay_c,
                  "autoshot=read_camshot_like_miloeditor(body,size);"
                  "if(!shot)return{};returnshot->frames;",
                  "decode_camshot_poses is now a thin exact-reader adapter");
