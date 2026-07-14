@@ -132,11 +132,15 @@
 
 Open work:
 
-- Camera pose decoding is still heuristic and should be traced further against
-  Rexglue/PS2 `CamShot` object layout before declaring exact parity. With
-  `GHOGX_DEBUG_CAMERA=1`, native logs emit `camera-candidate` rows for each
-  plausible decoded `CamShot` pose and final `[camera]` rows for the selected
-  render-camera eye/aim/up.
+- Camera pose decoding now uses the source-shaped `CamShot::Load` /
+  MiloEditor reader: `decode_camshot_poses()` is a thin exact-reader adapter,
+  and the old packed-tail / neutral-basis scanner routes are contract-forbidden.
+  Regular camera debug rows now report
+  `source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0`.
+  The remaining camera-angle risk is downstream source result composition:
+  hidden `CamShotFrame::BuildTransform` / `SetPos` details, path/result-frame
+  writer handoff evidence, and routes without promotable retained PS2 writer
+  traces.
 - 2026-07-13 regular CamShot special/lighter pool: GH2
   `world/crowd.dta` routes `[crowd_lighters_slow]` and
   `[crowd_lighters_fast]` to `world pick_lighter_shot`, and

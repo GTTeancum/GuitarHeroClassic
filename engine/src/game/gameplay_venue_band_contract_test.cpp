@@ -11044,6 +11044,10 @@ int main() {
                  "postproc=%zuanims=%zuglow=%sshot_fields=%dcategory=%s",
                  "regular camera validation logs decoded shot-level fields including source flags");
   ok &= contains(gameplay_c,
+                 "source_reader=CamShot::Load/MiloEditorexact_reader=1"
+                 "legacy_scanner=0",
+                 "regular CamShot diagnostics prove source-shaped reader use instead of legacy pose scanners");
+  ok &= contains(gameplay_c,
                  "key.hide_crowd=intro_camera.hide_crowd;",
                  "intro TransAnim camera keys inherit selected hide_crowd");
   ok &= contains(gameplay_c,
