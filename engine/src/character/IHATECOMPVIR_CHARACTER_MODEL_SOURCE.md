@@ -70,6 +70,13 @@ records the upstream commits for the copied files:
   `5c486fd6e5e5186c0797df9c84182b056672b3f0`. The
   `ihatecompvir-extra` and `ihatecompvir-public-milo-sources` folders remain
   copied snapshots in this repo, not live Git remotes.
+- The 2026-07-14 no-drift comparison found
+  `ihatecompvir-extra/rb3-latest/src/system/char` byte-for-byte identical to
+  `ihatecompvir-live/rb3/src/system/char`, and
+  `ihatecompvir-public-milo-sources/glTFMilo/Source/glTFMilo`
+  byte-for-byte identical to `ihatecompvir-live/glTFMilo/Source/glTFMilo`.
+  The tracked `glTFMilo/SOURCE_COMMIT.txt` freshness marker is therefore
+  updated to `Fetched: 2026-07-14` without changing source files.
 
 The contract test verifies that every copied
 `ihatecompvir-extra/rb3-latest/src/system/char` `.cpp`/`.h` file is named in

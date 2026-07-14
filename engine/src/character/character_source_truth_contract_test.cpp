@@ -299,6 +299,8 @@ int run_contract() {
       source_dir / "rb3/src/system/rndobj/Trans.h"));
   const std::string gltf_program_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Program.cs"));
+  const std::string gltf_source_commit =
+      read_file(source_dir / "glTFMilo/SOURCE_COMMIT.txt");
   const std::string gltf_node_processor_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs"));
   const std::string gltf_matrix_helpers_cs = compact(read_file(
@@ -862,6 +864,15 @@ int run_contract() {
                  "`ihatecompvir-public-milo-sources` folders remain\n  "
                  "copied snapshots in this repo, not live Git remotes",
                  "document distinguishes live mirrors from copied snapshots");
+  ok &= contains(doc,
+                 "The 2026-07-14 no-drift comparison found",
+                 "document records copied/live source tree comparison");
+  ok &= contains(doc,
+                 "`glTFMilo/SOURCE_COMMIT.txt` freshness marker is therefore\n  "
+                 "updated to `Fetched: 2026-07-14` without changing source files",
+                 "document records glTFMilo snapshot marker refresh");
+  ok &= contains(gltf_source_commit, "Fetched: 2026-07-14",
+                 "glTFMilo source snapshot marker records latest fetch date");
   ok &= contains(doc,
                  "`third_party/ihatecompvir-live/rb3` was fetched and still "
                  "matches GitHub",
