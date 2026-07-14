@@ -10176,13 +10176,22 @@ std::vector<ClipChannel> blend_channel_layers(
 
 void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
                                Character& character, bool relative) {
-  const auto frame = blend_channel_layers(layers);
-  if (frame.empty()) return;
+  std::vector<ClipChannelLayer> body_layers;
+  body_layers.reserve(layers.size());
+  for (const auto& layer : layers) {
+    if (!layer.overlay_override) body_layers.push_back(layer);
+  }
+
+  const auto frame = blend_channel_layers(body_layers);
+  if (frame.empty()) {
+    apply_hand_driver_output_layers({}, character, relative, layers);
+    return;
+  }
 
   std::vector<CharClip::OutputBone> output_bones;
   std::unordered_set<std::string> output_keys;
   auto collect_output_bones = [&](bool overlay_sources) {
-    for (const auto& layer : layers) {
+    for (const auto& layer : body_layers) {
       if (layer.overlay_override != overlay_sources || !layer.output_bones) {
         continue;
       }

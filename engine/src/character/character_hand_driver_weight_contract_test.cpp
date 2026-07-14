@@ -55,6 +55,8 @@ int main() {
   const std::filesystem::path game_dir = GHOGX_GAME_SOURCE_DIR;
   const std::filesystem::path character_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::string gameplay_c = compact(read_file(game_dir / "gameplay.cpp"));
+  const std::string char_clip_c =
+      compact(read_file(character_dir / "char_clip.cpp"));
   const std::string source_doc = compact(
       read_file(character_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md"));
 
@@ -67,6 +69,10 @@ int main() {
                  "StockGH2`left_hand.drv`/`right_hand.drv`rowsname"
                  "`left.weight`/`right.weight`astheir`mWeightOwner`.",
                  "document records stock hand-driver weight owners");
+  ok &= contains(source_doc,
+                 "Thehand-driverlayersalsostayoutofthegenericfull-bodylane"
+                 "blend.",
+                 "document records hand overlays are not generic body layers");
   ok &= contains(gameplay_c,
                  "source_char_weight_setter_poll_with_driver_result("
                  "setter,source_weight_inputs,0.0f,flag_weight,owner_weight)",
@@ -97,6 +103,20 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[hand-driver-weight]role=%sleft=%.5fright=%.5f\"",
                  "runtime proof logs source hand-driver weights");
+  ok &= contains(char_clip_c,
+                 "for(constauto&layer:layers){"
+                 "if(!layer.overlay_override)body_layers.push_back(layer);}",
+                 "hand-driver overlays are excluded from generic body blend");
+  ok &= contains(char_clip_c,
+                 "constautoframe=blend_channel_layers(body_layers);",
+                 "generic lane mixer uses only source body layers");
+  ok &= contains(char_clip_c,
+                 "if(frame.empty()){apply_hand_driver_output_layers({},"
+                 "character,relative,layers);return;}",
+                 "standalone hand overlays still run through hand output bridge");
+  ok &= lacks(char_clip_c,
+              "constautoframe=blend_channel_layers(layers);",
+              "hand overlay layers must not be blended into full body frame");
 
   if (!ok) {
     std::cerr

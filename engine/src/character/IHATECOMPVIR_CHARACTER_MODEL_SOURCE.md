@@ -5429,7 +5429,12 @@ source `CharWeightSetter` result from `main.drv` flags before applying the
 layer mixer. This preserves active-playing hand clips at weight `1.0`, while
 authored release clips such as `band_jump` can fade the hand-driver lanes
 toward zero instead of leaving guitar hand overlays glued over a released
-body pose.
+body pose. The hand-driver layers also stay out of the generic full-body lane
+blend. Source `CharDriver::PollDeps` publishes its explicit `mBones` target,
+and stock GH2 hand drivers target `bone.servo`; native therefore treats
+`left_hand.drv` / `right_hand.drv` overlays as hand-output bridge sources
+instead of letting their broad clip rows blend into the main body frame before
+the bridge runs.
 
 `engine/out/visual_proofs/twist_trace_20260713/` records a direct-app
 Rockabill2 `special_02` frame 95 trace with the new opt-in arm pose logger.
