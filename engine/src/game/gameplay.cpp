@@ -32808,46 +32808,42 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         diagnostic_camera_shot_matched ? "diagnostic"
                                                        : "PickCameraShot";
                     queue_regular_camera_shot(*key, source_handler);
-                    if (shot_changed) {
+                    std::fprintf(
+                        stderr,
+                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
+                        previous_regular_camera_for_log.c_str(),
+                        key->name.c_str(), key->category.c_str(),
+                        camera_bars_left_, duration.first.c_str(),
+                        duration.second.first, duration.second.second,
+                        duration_source, duration_random_draw ? "" : "none/",
+                        duration_random_draw.value_or(size_t{0}),
+                        camera_shot_mode_label(camera_mode),
+                        diagnostic_camera_shot_matched
+                            ? "diagnostic"
+                            : source_category_for_log.c_str(),
+                        diagnostic_camera_shot_matched
+                            ? "diagnostic"
+                            : source_filters_for_log.c_str(),
+                        source_previous_name_for_log.c_str(),
+                        static_cast<unsigned int>(key->flags),
+                        (force_camera || diagnostic_camera_shot_matched) ? 1
+                                                                         : 0,
+                        shot_changed ? 1 : 0, 0, key->force_char_lod, bar,
+                        song_time_);
+                    if (diagnostic_camera_shot_matched) {
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s flags=0x%08x forced=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
-                            previous_regular_camera_for_log.c_str(),
-                            key->name.c_str(), key->category.c_str(),
-                            camera_bars_left_,
-                            duration.first.c_str(), duration.second.first,
-                            duration.second.second, duration_source,
-                            duration_random_draw ? "" : "none/",
-                            duration_random_draw.value_or(size_t{0}),
-                            camera_shot_mode_label(camera_mode),
-                            diagnostic_camera_shot_matched
-                                ? "diagnostic"
-                                : source_category_for_log.c_str(),
-                            diagnostic_camera_shot_matched
-                                ? "diagnostic"
-                                : source_filters_for_log.c_str(),
-                            source_previous_name_for_log.c_str(),
-                            static_cast<unsigned int>(key->flags),
-                            (force_camera || diagnostic_camera_shot_matched)
-                                ? 1
-                                : 0,
-                            0,
-                            key->force_char_lod, bar, song_time_);
-                        if (diagnostic_camera_shot_matched) {
-                            std::fprintf(
-                                stderr,
-                                "[world] diagnostic camera shot selected: requested=%s actual=%s "
-                                "path_offset_frames=%.3f\n",
-                                diagnostic_camera_shot_.c_str(),
-                                key->name.c_str(),
-                                diagnostic_camera_path_offset_frames_);
-                        } else if (diagnostic_camera_shot_missing) {
-                            std::fprintf(
-                                stderr,
-                                "[world] diagnostic camera shot fallback: requested=%s actual=%s category=%s\n",
-                                diagnostic_camera_shot_.c_str(),
-                                key->name.c_str(), key->category.c_str());
-                        }
+                            "[world] diagnostic camera shot selected: requested=%s actual=%s "
+                            "path_offset_frames=%.3f\n",
+                            diagnostic_camera_shot_.c_str(),
+                            key->name.c_str(),
+                            diagnostic_camera_path_offset_frames_);
+                    } else if (diagnostic_camera_shot_missing) {
+                        std::fprintf(
+                            stderr,
+                            "[world] diagnostic camera shot fallback: requested=%s actual=%s category=%s\n",
+                            diagnostic_camera_shot_.c_str(),
+                            key->name.c_str(), key->category.c_str());
                     }
                     if (should_resend_excitement_) {
                         should_resend_excitement_ = false;

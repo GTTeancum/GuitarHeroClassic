@@ -11486,3 +11486,10 @@ Rejected native probe:
   `pick_solo_camera_shot`, `band_jump`, and `pick_lighter_shot`; this does not
   change selection or camera transform math. It makes suspicious angles
   auditable as either source-script-eligible picks or later pipeline issues.
+- 2026-07-14 CameraManager same-shot selection proof: ihatecompvir
+  `CameraManager::PickCameraShot` writes accepted shots to `mNextShot`, and
+  `PrePoll()` consumes any non-null `mNextShot` through `StartShot_`, including
+  when `FindCameraShot` returned the currently active shot again. Native regular
+  camera sweep diagnostics now log every accepted pending shot, not only
+  changed-name selections, and stamp `changed=` so same-shot restarts are
+  auditable without changing selection or transform math.

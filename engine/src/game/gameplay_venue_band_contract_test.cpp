@@ -6282,6 +6282,10 @@ int main() {
                  "queue_regular_camera_shot(*key,source_handler);",
                  "regular camera selector writes mNextShot instead of changing the active shot immediately");
   ok &= contains(gameplay_c,
+                 "queue_regular_camera_shot(*key,source_handler);"
+                 "std::fprintf(stderr,\"[world]regularcamerasweep:",
+                 "regular camera sweep diagnostics log every source-accepted mNextShot, including same-shot restarts");
+  ok &= contains(gameplay_c,
                  "constboolsource_restarted_shot="
                  "consume_pending_regular_camera_shot();"
                  "if(constauto*key=find_camera_key_by_name(",
@@ -11056,7 +11060,8 @@ int main() {
                  "mode=%sfilter_source=ShotMatches"
                  "source_category=%ssource_filters=\\\"%s\\\""
                  "source_previous=%s"
-                 "flags=0x%08xforced=%dsource_next=%dforce_char_lod=%d",
+                 "flags=0x%08xforced=%dchanged=%dsource_next=%d"
+                 "force_char_lod=%d",
                  "regular camera sweep logs source matcher provenance and selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
