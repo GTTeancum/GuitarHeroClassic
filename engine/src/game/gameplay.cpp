@@ -1607,6 +1607,7 @@ struct DecodedCamShot {
     bool has_legacy_path_frame_ignored = false;
     std::string category;
     int platform_only = 0;
+    bool ps3_per_pixel = false;
     int disabled_flags = 0;
     int flags = 0;
     std::vector<std::string> hide_list;
@@ -2365,7 +2366,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
                 shot.postproc_overrides.push_back(r.symbol());
         }
         if (shot.revision > 0x23 && !(shot.revision >= 47 && shot.revision <= 48))
-            (void)r.boolean();
+            shot.ps3_per_pixel = r.boolean();
         if (shot.revision > 0x24) shot.flags = r.i32();
         std::string legacy_anim_ref;
         if (shot.revision >= 40 && shot.revision <= 42)
@@ -2455,6 +2456,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.jump_ok = prop_bool(shot.props, "jump_ok", true);
             key.lighter = shot.category == "LIGHTER";
             key.platform_only = shot.platform_only;
+            key.ps3_per_pixel = shot.ps3_per_pixel;
             key.disabled_flags = prop_int(shot.props, "disabled", 0);
             key.flags = shot.flags;
             key.hide_crowd = prop_bool(shot.props, "hide_crowd", false);
@@ -2603,6 +2605,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.glow_spot_ref = from.glow_spot_ref;
     to.next_shot_ref = from.next_shot_ref;
     to.platform_only = from.platform_only;
+    to.ps3_per_pixel = from.ps3_per_pixel;
     to.disabled_flags = from.disabled_flags;
     to.flags = from.flags;
     to.camshot_shot_fields_decoded = from.camshot_shot_fields_decoded;
@@ -2647,6 +2650,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.jump_ok = from.jump_ok;
     to.lighter = from.lighter;
     to.platform_only = from.platform_only;
+    to.ps3_per_pixel = from.ps3_per_pixel;
     to.disabled_flags = from.disabled_flags;
     to.flags = from.flags;
     to.hide_crowd = from.hide_crowd;
@@ -3318,6 +3322,7 @@ struct IntroCameraSelection {
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;
+    bool ps3_per_pixel = false;
     std::vector<std::string> hide_list_refs;
     std::vector<std::string> show_list_refs;
     std::vector<std::string> gen_hide_list_refs;
@@ -3353,6 +3358,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             bool hide_crowd = false;
             bool crowd_face_camera = false;
             int force_char_lod = -1;
+            bool ps3_per_pixel = false;
             std::vector<std::string> hide_list_refs;
             std::vector<std::string> show_list_refs;
             std::vector<std::string> gen_hide_list_refs;
@@ -3412,6 +3418,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             c.postproc_override_refs = decoded_shot->postproc_overrides;
             c.camera_anim_refs = decoded_shot->anims;
             c.glow_spot_ref = decoded_shot->glow_spot;
+            c.ps3_per_pixel = decoded_shot->ps3_per_pixel;
             c.distance = prop_symbol(decoded_shot->props, "distance");
             c.facing = prop_symbol(decoded_shot->props, "facing");
             c.hide_crowd = prop_bool(decoded_shot->props, "hide_crowd", false);
@@ -3454,6 +3461,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             selected.hide_crowd = candidates.front().hide_crowd;
             selected.crowd_face_camera = candidates.front().crowd_face_camera;
             selected.force_char_lod = candidates.front().force_char_lod;
+            selected.ps3_per_pixel = candidates.front().ps3_per_pixel;
             selected.hide_list_refs = candidates.front().hide_list_refs;
             selected.show_list_refs = candidates.front().show_list_refs;
             selected.gen_hide_list_refs = candidates.front().gen_hide_list_refs;
@@ -15570,7 +15578,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     if (key.camshot_shot_fields_decoded) {
                         std::fprintf(
                             stderr,
-                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored disabled=0x%08x\n",
+                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored ps3_per_pixel=%d disabled=0x%08x\n",
                             de.name.c_str(), pose.second,
                             key.category.c_str(),
                             key.has_shot_filter ? "" : "none/",
@@ -15589,6 +15597,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                             key.has_legacy_path_frame_ignored
                                 ? key.legacy_path_frame_ignored
                                 : 0.0f,
+                            key.ps3_per_pixel ? 1 : 0,
                             static_cast<unsigned int>(key.disabled_flags));
                     }
                     std::fprintf(
@@ -15657,6 +15666,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.low_excitement_ok = c.key.low_excitement_ok;
                 pos.jump_ok = c.key.jump_ok;
                 pos.lighter = c.key.lighter;
+                pos.ps3_per_pixel = c.key.ps3_per_pixel;
                 pos.hide_crowd = c.key.hide_crowd;
                 pos.crowd_face_camera = c.key.crowd_face_camera;
                 pos.force_char_lod = c.key.force_char_lod;
@@ -15761,7 +15771,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -15786,6 +15796,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.bad_waypoint_refs.size(),
                          key.jump_ok ? 1 : 0,
                          key.lighter ? 1 : 0, key.platform_only,
+                         key.ps3_per_pixel ? 1 : 0,
                          static_cast<unsigned int>(key.disabled_flags),
                          static_cast<unsigned int>(key.flags),
                          key.hide_crowd ? 1 : 0,
@@ -23281,10 +23292,11 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
         std::fprintf(
             stderr,
             "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds shot=%s hide_crowd=%d face_camera=%d "
-            "force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu "
+            "force_char_lod=%d ps3_per_pixel=%d hide_list=%zu show_list=%zu gen_hide=%zu "
             "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
             active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
             key.crowd_face_camera ? 1 : 0, key.force_char_lod,
+            key.ps3_per_pixel ? 1 : 0,
             key.hide_list_refs.size(), key.show_list_refs.size(),
             key.gen_hide_list_refs.size(), key.draw_override_refs.size(),
             key.postproc_override_refs.size(), key.camera_anim_refs.size(),
@@ -30414,6 +30426,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     key.hide_crowd = intro_camera.hide_crowd;
                     key.crowd_face_camera = intro_camera.crowd_face_camera;
                     key.force_char_lod = intro_camera.force_char_lod;
+                    key.ps3_per_pixel = intro_camera.ps3_per_pixel;
                     key.hide_list_refs = intro_camera.hide_list_refs;
                     key.show_list_refs = intro_camera.show_list_refs;
                     key.gen_hide_list_refs = intro_camera.gen_hide_list_refs;

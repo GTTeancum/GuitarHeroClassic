@@ -254,6 +254,13 @@ Open work:
   `StartAnim` / `EndAnim` route can resolve it as either a venue AnimFilter or
   linked `RndCamAnim` FOV track. This is loader payload preservation only; it
   does not add a new camera animation scheduler.
+- 2026-07-14 CamShot `ps3_per_pixel` payload:
+  ihatecompvir `CamShot::Load` reads `mPS3PerPixel` for rev > 0x23 except
+  47/48, `CamShot::Copy` preserves it, and propsync exposes it as
+  `ps3_per_pixel`. Native now carries that source bit through decoded
+  CamShot/CameraKey metadata and proof logs. This is source payload
+  preservation only; native does not infer a new render/postproc path from the
+  flag.
 - 2026-07-14 `RndCam::SetFrustum` storage shape:
   ihatecompvir `RndCam::SetFrustum` stores near plane, far plane, Y-FOV, and
   the unknown float together after the 1000:1 plane-ratio clamp. Native now

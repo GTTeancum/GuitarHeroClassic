@@ -6129,6 +6129,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "cameraStartAnim:source_msg=start_shot",
                  "camera StartAnim diagnostics name ihatecompvir start_shot message");
+  ok &= contains(gameplay_c,
+                 "force_char_lod=%dps3_per_pixel=%dhide_list=%zu",
+                 "camera StartAnim diagnostics expose source ps3_per_pixel state");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "\"[world]cameraStartAnim:source_msg=start_shot"
@@ -8301,9 +8304,10 @@ int main() {
                  "CameraKey preserves CamShot category/filter/clamp fields");
   ok &= contains(gameplay_h_c,
                  "booljump_ok=true;boollighter=false;"
-                 "intplatform_only=0;intdisabled_flags=0;intflags=0;"
+                 "intplatform_only=0;boolps3_per_pixel=false;"
+                 "intdisabled_flags=0;intflags=0;"
                  "boolhide_crowd=false;",
-                 "CameraKey preserves CamShot platform_only/disabled/flags beside source shot filters");
+                 "CameraKey preserves CamShot platform_only/ps3_per_pixel/disabled/flags beside source shot filters");
   ok &= contains(gameplay_h_c,
                  "structCameraResultBuilderState{"
                  "boolhas_filtered_target=false;"
@@ -8370,6 +8374,13 @@ int main() {
                  "key.platform_only=shot.platform_only;",
                  "CamShot platform_only is copied into CameraKey shot fields");
   ok &= contains(camshot_reader_c,
+                 "if(shot.revision>0x23&&!(shot.revision>=47&&"
+                 "shot.revision<=48))shot.ps3_per_pixel=r.boolean();",
+                 "CamShot reader retains source mPS3PerPixel field");
+  ok &= contains(camshot_reader_c,
+                 "key.ps3_per_pixel=shot.ps3_per_pixel;",
+                 "CamShot ps3_per_pixel is copied into CameraKey shot fields");
+  ok &= contains(camshot_reader_c,
                  "shot.disabled_flags=prop_int(shot.props,\"disabled\",0);",
                  "CamShot reader retains source disabled property for CameraManager Disabled gate");
   ok &= contains(camshot_reader_c,
@@ -8390,6 +8401,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "to.platform_only=from.platform_only;",
                  "TransAnim-backed camera keys inherit source platform_only state");
+  ok &= contains(gameplay_c,
+                 "to.ps3_per_pixel=from.ps3_per_pixel;",
+                 "TransAnim-backed camera keys inherit source ps3_per_pixel state");
   ok &= contains(gameplay_c,
                  "to.disabled_flags=from.disabled_flags;",
                  "TransAnim-backed camera keys inherit source disabled state");
@@ -10587,6 +10601,7 @@ int main() {
                  "std::stringdistance;std::stringfacing;"
                  "boolhide_crowd=false;"
                  "boolcrowd_face_camera=false;intforce_char_lod=-1;"
+                 "boolps3_per_pixel=false;"
                  "std::vector<std::string>hide_list_refs;"
                  "std::vector<std::string>show_list_refs;",
                  "intro CamShot selector has a metadata carrier");
@@ -10721,7 +10736,8 @@ int main() {
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%d"
                  "far_starpower_ok=%dbad_waypoints=%zujump_ok=%dlighter=%d"
-                 "platform_only=%ddisabled=0x%08xflags=0x%08xhide_crowd=%d"
+                 "platform_only=%dps3_per_pixel=%d"
+                 "disabled=0x%08xflags=0x%08xhide_crowd=%d"
                  "crowd_face_camera=%dforce_char_lod=%d"
                  "next_shot=%s"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
@@ -10736,6 +10752,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.force_char_lod=intro_camera.force_char_lod;",
                  "intro TransAnim camera keys inherit selected force_char_lod");
+  ok &= contains(gameplay_c,
+                 "key.ps3_per_pixel=intro_camera.ps3_per_pixel;",
+                 "intro TransAnim camera keys inherit selected ps3_per_pixel");
   ok &= contains(gameplay_c,
                  "key.hide_list_refs=intro_camera.hide_list_refs;",
                  "intro TransAnim camera keys inherit selected hide_list refs");
@@ -11400,6 +11419,9 @@ int main() {
   ok &= contains(regular_camera_loader_c,
                  "platform_only=%d",
                  "regular CamShot diagnostics expose source platform_only state");
+  ok &= contains(regular_camera_loader_c,
+                 "ps3_per_pixel=%d",
+                 "regular CamShot diagnostics expose source ps3_per_pixel state");
   ok &= contains(gameplay_c,
                  "key.far_starpower_ok=prop_bool(shot.props,"
                  "\"far_starpower_ok\",false);",

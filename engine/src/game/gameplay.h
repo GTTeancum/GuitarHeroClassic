@@ -253,6 +253,7 @@ class Gameplay {
     bool jump_ok = true;
     bool lighter = false;
     int platform_only = 0;
+    bool ps3_per_pixel = false;
     int disabled_flags = 0;
     int flags = 0;
     bool hide_crowd = false;
