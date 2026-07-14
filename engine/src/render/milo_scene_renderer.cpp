@@ -1113,8 +1113,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
 
   // A sky-ish dark blue clear so geometry silhouettes read even before textures.
   if (clear_target) {
+    const D3DCOLOR clear_color = env_enabled("GHOGX_CHARACTER_SOFT_GREEN_BG")
+                                     ? D3DCOLOR_XRGB(116, 151, 124)
+                                     : D3DCOLOR_XRGB(20, 22, 34);
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-                D3DCOLOR_XRGB(20, 22, 34), 1.0f, 0);
+                clear_color, 1.0f, 0);
   }
   dev_->BeginScene();
 

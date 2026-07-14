@@ -24507,18 +24507,24 @@ int run_contract() {
                  "DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1)",
                  "native comment cites exact source elbow bend row shape");
   ok &= contains(char_clip,
-                 "dst.rot[0][0]=0.0f;dst.rot[0][1]=0.0f;"
-                 "dst.rot[0][2]=0.0f;dst.rot[1][0]=-sin_angle;"
-                 "dst.rot[1][1]=0.0f;dst.rot[1][2]=0.0f;"
-                 "dst.rot[2][0]=sin_angle;dst.rot[2][1]=0.0f;"
-                 "dst.rot[2][2]=1.0f;",
-                 "native IKElbow helper mirrors source elbow bend rows");
+                 "source_char_ik_hand_elbow_bend_rows(floatcosine,floatsine){"
+                 "SourceCharIKHandElbowBendRowsout;out.applied=true;"
+                 "out.rows[0]={cosine,-sine,0.0f};"
+                 "out.rows[1]={sine,cosine,0.0f};"
+                 "out.rows[2]={0.0f,0.0f,1.0f};returnout;}",
+                 "native IKElbow helper mirrors source cosc/sinc bend rows");
   ok &= contains(doc,
                  "engine/out/visual_proofs/ik_elbow_source_row_20260714/",
                  "document records first source elbow-row proof directory");
   ok &= contains(doc,
                  "engine/out/visual_proofs/ik_elbow_source_row_roster_20260714/",
                  "document records roster source elbow-row proof directory");
+  ok &= contains(doc,
+                 "engine/out/visual_proofs/ik_matrix_source_no_renorm_20260714/",
+                 "document records raw source-row gameplay regression proof");
+  ok &= contains(doc,
+                 "engine/out/visual_proofs/ik_cosc_sinc_green_20260714/",
+                 "document records cosc/sinc in-game correction proof");
   ok &= contains(doc,
                  "Rockabill2, Rock1, Rock2, Glam1, Metal1, Punk1, Goth1, "
                  "Deathmetal1, and\n    Alterna1",

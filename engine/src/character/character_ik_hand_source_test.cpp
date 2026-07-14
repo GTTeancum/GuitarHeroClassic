@@ -59,6 +59,7 @@ int main() {
   using ghogx::character::source_char_ik_hand_elbow_cosine;
   using ghogx::character::source_char_ik_hand_elbow_collision_gate;
   using ghogx::character::source_char_ik_hand_elbow_swing;
+  using ghogx::character::source_char_ik_hand_elbow_bend_rows;
   using ghogx::character::source_char_ik_hand_finger_target;
   using ghogx::character::source_char_ik_hand_handler_plan;
   using ghogx::character::source_char_ik_hand_load_plan;
@@ -210,6 +211,23 @@ int main() {
   ok &= expect_bool(source_char_ik_hand_elbow_cosine(measure, -1000.0f, cosine),
                     true, "source low clamp accepted");
   ok &= expect_float(cosine, -1.0f, "source low clamp");
+
+  const auto bend_rows = source_char_ik_hand_elbow_bend_rows(0.8f, 0.6f);
+  ok &= expect_bool(bend_rows.applied, true, "elbow bend rows applied");
+  ok &= expect_float(bend_rows.rows[0][0], 0.8f,
+                     "elbow bend source cosc x.x");
+  ok &= expect_float(bend_rows.rows[0][1], -0.6f,
+                     "elbow bend source -sinc x.y");
+  ok &= expect_float(bend_rows.rows[1][0], 0.6f,
+                     "elbow bend source sinc y.x");
+  ok &= expect_float(bend_rows.rows[1][1], 0.8f,
+                     "elbow bend source cosc y.y");
+  ok &= expect_float(bend_rows.rows[2][2], 1.0f,
+                     "elbow bend source z.z");
+  ok &= expect_bool(bend_rows.rows[0][0] * bend_rows.rows[0][0] +
+                            bend_rows.rows[0][1] * bend_rows.rows[0][1] >
+                        0.99f,
+                    true, "elbow bend helper preserves a valid basis row");
 
   bool hand_changed = true;
   ok &= expect_bool(source_char_ik_hand_update_measure_lengths(

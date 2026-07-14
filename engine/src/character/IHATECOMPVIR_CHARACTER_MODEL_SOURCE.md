@@ -3968,10 +3968,22 @@ note, and all report `unreadBytes=0`.
     per-controller cache and feeds the cosine helper from the cached source
     fields without pre-clamping target distance.
   - Native `write_source_elbow_z_bend` now mirrors the visible
-    `CharIKHand::IKElbow` row write exactly:
+    `CharIKHand::IKElbow` in the handwritten C++ row writes:
     `DirtyLocalXfm().m.Set(0, 0, 0, -sqrted, 0, 0, sqrted, 0, 1)`.
-    The previous native cos/sin Z-rotation interpretation was not a 1:1 source
-    port and is no longer used for this bounded IKHand slice.
+    The ihatecompvir dump-only signature for the same function names the elbow
+    locals `c2`, `cosc`, and `sinc`, and a 2026-07-14 direct gameplay proof of
+    publishing the handwritten zero-X row through the current native skin path
+    (`engine/out/visual_proofs/ik_matrix_source_no_renorm_20260714/`) produced
+    visible Rockabill2/Rock1/Rock2 arm spikes with logged zero first rows on the
+    forearm and fore-twist bones. Native therefore treats that handwritten row
+    as a decompilation gap for the final skin-published transform and uses the
+    source-dump `cosc`/`sinc` bend basis:
+    `[cosc, -sinc, 0]`, `[sinc, cosc, 0]`, `[0, 0, 1]`.
+    Direct-app proof in
+    `engine/out/visual_proofs/ik_cosc_sinc_green_20260714/` shows the
+    Rockabill2/Rock1/Rock2 forearm ribbon collapse removed in the same Trogdor
+    small2 closeup slice, with logs showing non-zero forearm and fore-twist
+    first rows.
     Direct-app proof in
     `engine/out/visual_proofs/ik_elbow_source_row_20260714/` and
     `engine/out/visual_proofs/ik_elbow_source_row_roster_20260714/` samples

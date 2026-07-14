@@ -3189,6 +3189,11 @@ struct SourceCharIKHandMeasure {
   float aa_plus_bb = 0.0f;
 };
 
+struct SourceCharIKHandElbowBendRows {
+  bool applied = false;
+  std::array<std::array<float, 3>, 3> rows = {};
+};
+
 struct SourceCharIKHandLoadPlan {
   int32_t max_revision = 0x0c;
   bool known_revision = false;
@@ -3439,6 +3444,8 @@ bool source_char_ik_hand_elbow_cosine(
     const SourceCharIKHandMeasure& measure,
     float distance_squared,
     float& out_cosine);
+SourceCharIKHandElbowBendRows source_char_ik_hand_elbow_bend_rows(
+    float cosine, float sine);
 SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
     float char_weight,
     const std::vector<SourceCharIKHandTargetInput>& targets,

@@ -5918,6 +5918,16 @@ bool source_char_ik_hand_elbow_cosine(
   return true;
 }
 
+SourceCharIKHandElbowBendRows source_char_ik_hand_elbow_bend_rows(
+    float cosine, float sine) {
+  SourceCharIKHandElbowBendRows out;
+  out.applied = true;
+  out.rows[0] = {cosine, -sine, 0.0f};
+  out.rows[1] = {sine, cosine, 0.0f};
+  out.rows[2] = {0.0f, 0.0f, 1.0f};
+  return out;
+}
+
 static std::array<float, 16> source_xfm_to_mat4(
     const milo_scene::Xfm& xfm);
 
@@ -6938,18 +6948,14 @@ static void write_source_elbow_z_bend(milo_scene::Xfm& dst,
                                       float cos_angle,
                                       float sin_angle) {
   dst = base;
-  (void)cos_angle;
-  // CharIKHand::IKElbow writes the source sqrt branch directly with
+  // Handwritten C++ evidence:
   // DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1).
-  dst.rot[0][0] = 0.0f;
-  dst.rot[0][1] = 0.0f;
-  dst.rot[0][2] = 0.0f;
-  dst.rot[1][0] = -sin_angle;
-  dst.rot[1][1] = 0.0f;
-  dst.rot[1][2] = 0.0f;
-  dst.rot[2][0] = sin_angle;
-  dst.rot[2][1] = 0.0f;
-  dst.rot[2][2] = 1.0f;
+  // ihatecompvir's dump names the branch locals `cosc` and `sinc`; publishing
+  // the handwritten zero-X row directly collapses the native skin basis.
+  const SourceCharIKHandElbowBendRows source_rows =
+      source_char_ik_hand_elbow_bend_rows(cos_angle, sin_angle);
+  for (int r = 0; r < 3; ++r)
+    for (int c = 0; c < 3; ++c) dst.rot[r][c] = source_rows.rows[r][c];
 }
 
 static void normalize_xfm_rows(milo_scene::Xfm& xfm) {
