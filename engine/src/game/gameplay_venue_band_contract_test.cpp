@@ -8611,6 +8611,15 @@ int main() {
                  "path_pos.path_base_eye[axis]=path_base_pose.eye[axis];",
                  "path-backed camera diagnostics retain the owning CamShot body pose");
   ok &= contains(gameplay_c,
+                 "if(path_pos.has_path_source_frame_summary&&"
+                 "path_pos.path_source_rotation_keys==0&&"
+                 "!path_pos.has_quat&&!path_pos.has_basis){"
+                 "for(intaxis=0;axis<3;++axis){"
+                 "path_pos.forward[axis]=path_base_pose.forward[axis];"
+                 "path_pos.up[axis]=path_base_pose.up[axis];}"
+                 "path_pos.has_basis=true;}",
+                 "path-backed cameras preserve the owning CamShot orientation when source TransAnim has no rotation keys");
+  ok &= contains(gameplay_c,
                  "path_pos.has_path_source_frame_summary&&"
                  "path_pos.path_source_translation_keys==0&&"
                  "(path_pos.path_source_rotation_keys!=0||"

@@ -11553,6 +11553,14 @@ Rejected native probe:
   resolved path source has no translation page, and the live
   `[world] camera source path frame pair` row reports this as
   `a_path_base_translation` / `b_path_base_translation`.
+- 2026-07-14 path-backed TransAnim base orientation:
+  the same ihatecompvir `RndTransAnim::SetFrame` `LocalXfm()` start means a
+  path with translation keys but no rotation page should retain the owning
+  CamShot's current orientation until `MakeTransform` has rotation keys to
+  replace it. Native path-backed CamShot samples now copy the decoded CamShot
+  body forward/up into source path keys whose resolved `RndTransAnim` has zero
+  rotation keys, avoiding the generic fallback camera basis for
+  translation-only path cameras.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures

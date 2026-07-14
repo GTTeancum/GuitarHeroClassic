@@ -15795,6 +15795,17 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                             }
                             path_pos.has_path_base_pose = true;
                             if (path_pos.has_path_source_frame_summary &&
+                                path_pos.path_source_rotation_keys == 0 &&
+                                !path_pos.has_quat && !path_pos.has_basis) {
+                                for (int axis = 0; axis < 3; ++axis) {
+                                    path_pos.forward[axis] =
+                                        path_base_pose.forward[axis];
+                                    path_pos.up[axis] =
+                                        path_base_pose.up[axis];
+                                }
+                                path_pos.has_basis = true;
+                            }
+                            if (path_pos.has_path_source_frame_summary &&
                                 path_pos.path_source_translation_keys == 0 &&
                                 (path_pos.path_source_rotation_keys != 0 ||
                                  path_pos.path_source_scale_keys != 0)) {
