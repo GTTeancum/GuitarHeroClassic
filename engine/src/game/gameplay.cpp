@@ -33831,6 +33831,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             key->name.c_str(),
                             a_key.camshot_zero_transform_reset ? 1 : 0,
                             b_key.camshot_zero_transform_reset ? 1 : 0);
+                        std::fprintf(
+                            stderr,
+                            "[world] camera RndTransAnim SetFrame: source_call=RndTransAnim::SetFrame source_order=RndAnimatable::SetFrame_before_mTrans_gate shot=%s path=%s frame=%.3f blend=%.3f mTrans=%s target_resolved=%d submitted=a:%s%.3f b:%s%.3f make_transform_body=locals_only native_path_math=decoded_trans_rot_scale_pages\n",
+                            key->name.c_str(), key->path_anim.c_str(),
+                            local_frame, source_setframe_blend,
+                            path_trans_target_label(path_target_key),
+                            path_target_key.has_path_trans_target &&
+                                    !path_target_key.path_trans_target.empty()
+                                ? 1
+                                : 0,
+                            path_mapping_prefix(a_key),
+                            a_key.has_source_path_frame_mapping
+                                ? a_key.source_path_submitted_frame
+                                : 0.0f,
+                            path_mapping_prefix(b_key),
+                            b_key.has_source_path_frame_mapping
+                                ? b_key.source_path_submitted_frame
+                                : 0.0f);
                     }
                 }
                 const CameraKey& visibility_key =

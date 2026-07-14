@@ -10971,6 +10971,19 @@ int main() {
                  "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
                  "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraRndTransAnimSetFrame:"
+                 "source_call=RndTransAnim::SetFrame"
+                 "source_order=RndAnimatable::SetFrame_before_mTrans_gate"
+                 "shot=%spath=%sframe=%.3fblend=%.3f"
+                 "mTrans=%starget_resolved=%d"
+                 "submitted=a:%s%.3fb:%s%.3f"
+                 "make_transform_body=locals_only"
+                 "native_path_math=decoded_trans_rot_scale_pages\\n\"",
+                 "path-backed camera diagnostics expose ihatecompvir RndTransAnim SetFrame order without synthesizing MakeTransform");
+  ok &= absent(gameplay_c,
+               "make_transform_body=synthesized",
+               "camera diagnostics must not claim a synthesized MakeTransform body");
+  ok &= contains(gameplay_c,
                  "regular_camera_path_keys(*key,song_time_,"
                  "active_regular_camera_start_,&chart_,camera_targets)",
                  "runtime samples path-backed regular cameras with source-timed shot-local frames and target context");

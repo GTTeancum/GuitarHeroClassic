@@ -11624,6 +11624,16 @@ Rejected native probe:
   body forward/up into source path keys whose resolved `RndTransAnim` has zero
   rotation keys, avoiding the generic fallback camera basis for
   translation-only path cameras.
+- 2026-07-14 path-backed `RndTransAnim::SetFrame` boundary:
+  ihatecompvir `RndTransAnim::SetFrame` calls
+  `RndAnimatable::SetFrame(frame, blend)` before the `mTrans` gate, copies the
+  current local transform, calls hidden `MakeTransform(frame, tf, false,
+  blend)`, and then submits `mTrans->SetLocalXfm(tf)`. Native path camera
+  diagnostics now log that source order, frame/blend input, submitted path
+  frames, and `mTrans` target resolution while keeping `MakeTransform` marked
+  locals-only and continuing to build runtime camera rows from decoded
+  trans/rot/scale pages. This is source boundary proof, not a claim that the
+  hidden `MakeTransform` body has been recovered.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures
