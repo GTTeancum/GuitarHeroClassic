@@ -28690,6 +28690,24 @@ int run_contract() {
                  "parser uses it for the publish/skip decision",
                  "document records parser use of Grim decode support set");
   ok &= contains(doc,
+                 "2026-07-14 branch audit: the extra ihatecompvir/grim branches",
+                 "document records Grim branch audit");
+  ok &= contains(doc,
+                 "`convert_meshes` `f309b715cbda75ddfc77f7217a0dfe650b44c2e2`",
+                 "document records Grim convert_meshes branch hash");
+  ok &= contains(doc,
+                 "`model_gui` `a1600ce7bb3bf4e373196e358145ab243701da2f`",
+                 "document records Grim model_gui branch hash");
+  ok &= contains(doc,
+                 "`model/export.rs` consumes those rows for glTF animation export",
+                 "document records Grim model export sample consumer");
+  ok &= contains(doc,
+                 "They do not add support for\n    `.scale`, `.rotx`, or `.roty`",
+                 "document keeps unsupported Grim transform channels fenced");
+  ok &= contains(doc,
+                 "not as source approval for full runtime pose\n    publishing",
+                 "document fences Grim branches from runtime pose publishing");
+  ok &= contains(doc,
                  "`ClipChannel::source_weight` and",
                  "document records native channel weight retention");
   ok &= contains(doc,

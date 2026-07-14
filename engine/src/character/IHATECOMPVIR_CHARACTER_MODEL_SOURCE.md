@@ -4780,6 +4780,23 @@ note, and all report `unreadBytes=0`.
     `source_grim_char_bones_samples_decodes_channel_type` expose that decode
     set, and the GH2 clip parser uses it for the publish/skip decision while
     still consuming unsupported channel bytes to keep packed sample rows aligned.
+  - 2026-07-14 branch audit: the extra ihatecompvir/grim branches
+    `bevy_animations` `e39a640304043258a40f8651d166311332c4708c`,
+    `convert_meshes` `f309b715cbda75ddfc77f7217a0dfe650b44c2e2`,
+    `model_gui` `a1600ce7bb3bf4e373196e358145ab243701da2f`,
+    and `subdir_refactor` `52796cac0d949f3bc32d1180ee73494b107251b9`
+    were fetched into the live verification mirror and searched for
+    `CharBonesSamples` / `decode_samples` / model export behavior. The
+    animation/model branches reinforce the same boundary: `decode_samples`
+    groups `.pos`, `.quat`, and `.rotz` under mesh targets, while
+    `model/export.rs` consumes those rows for glTF animation export by adding
+    weighted position samples to the node translation and leaving broader matrix
+    composition work commented or experimental. They do not add support for
+    `.scale`, `.rotx`, or `.roty`, and they do not expose a Harmonix runtime
+    `CharBonesSamples::EvaluateChannel` / `CharBones::ScaleAdd` /
+    `PoseMeshes` body. Native must therefore treat these branches as stronger
+    decode/export evidence only, not as source approval for full runtime pose
+    publishing.
   - Grim stores each serialized channel as `CharBone { symbol, weight }` and
     attaches `bone.weight` to the decoded `.pos`, `.quat`, or `.rotz` sample
     vector. Native `ClipChannel::source_weight` and
