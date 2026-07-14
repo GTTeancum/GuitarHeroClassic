@@ -246,6 +246,16 @@ Open work:
   the sampled key as an unconditional assignment. Current CamShot Poll still
   supplies `source_setframe_blend=1.000`, so stock rows remain visually stable
   while the non-1 source rule is explicit and contract-guarded.
+- 2026-07-14 linked `RndCamAnim::SetFrame` source clock:
+  ihatecompvir `CameraManager::StartShot_` records `mCamStartTime` in the
+  active shot units, `CalcFrame()` subtracts that start time and multiplies by
+  the shot frames-per-unit, and `Poll()` passes the resulting local frame into
+  camera `SetFrame`. Native linked CamAnim FOV tracks now keep that same
+  shot-scoped clock by deriving elapsed time from
+  `active_camera_anim_start_time_`, routing it through `venue_anim_time_units`,
+  and then multiplying by the decoded anim frames-per-unit before sampling
+  `FovKeys().AtFrame(...)`. This is a contract/audit guard for keyed CamAnim
+  FOV rows, not a fabricated angle correction.
 - 2026-07-14 CamShot legacy linked anim ref:
   ihatecompvir `CamShot::Load` reads a legacy `Symbol s258` for rev 40-42
   shots and, after loading the normal `mAnims` list, appends the resolved

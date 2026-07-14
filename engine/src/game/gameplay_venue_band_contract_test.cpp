@@ -8597,6 +8597,17 @@ int main() {
                  "ghogx::render::OrbitCamera&cam,constCameraKey&key)",
                  "runtime applies active linked RndCamAnim FOV tracks");
   ok &= contains(gameplay_c,
+                 "constdoubleelapsed=std::max(0.0,"
+                 "song_time_-active_camera_anim_start_time_);",
+                 "linked RndCamAnim SetFrame uses the active shot clock");
+  ok &= contains(gameplay_c,
+                 "constdoubleunits=venue_anim_time_units(anim.anim_rate,"
+                 "active_camera_anim_start_time_,elapsed,&chart_);",
+                 "linked RndCamAnim SetFrame routes through source task time units");
+  ok &= contains(gameplay_c,
+                 "constfloatframe=static_cast<float>(units*fpu);",
+                 "linked RndCamAnim SetFrame receives the source frame units");
+  ok &= contains(gameplay_c,
                  "if(anim.cam.empty()){",
                  "linked RndCamAnim SetFrame mirrors the source mCam gate");
   ok &= contains(gameplay_c,
