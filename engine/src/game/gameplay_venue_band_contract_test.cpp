@@ -7876,9 +7876,15 @@ int main() {
                  "CamShot parser reads shot-level clip/filter fields in source order");
   ok &= contains(gameplay_c,
                  "shot.path=r.symbol();if(shot.revision>=2&&shot.revision<=44)"
-                 "shot.path_frame=r.f32();if(shot.revision>2)"
+                 "{"
+                 "shot.legacy_path_frame_ignored=r.f32();"
+                 "shot.has_legacy_path_frame_ignored=true;}"
+                 "if(shot.revision>2)"
                  "shot.category=r.symbol();",
-                 "CamShot parser reads source path_frame before category");
+                 "CamShot parser consumes the legacy path-frame float before category");
+  ok &= absent(gameplay_c,
+               "shot.path_frame=r.f32();",
+               "CamShot loader must not assign legacy path-frame payload to live mPathFrame");
   ok &= contains(gameplay_c,
                  "key.forward[axis]=world_offset.row[1][axis];"
                  "key.up[axis]=world_offset.row[2][axis];"
@@ -8216,9 +8222,11 @@ int main() {
                  "booluse_depth_of_field=false;"
                  "boolhas_use_depth_of_field=false;"
                  "floatpath_frame=-1.0f;boolhas_path_frame=false;"
+                 "floatlegacy_path_frame_ignored=-1.0f;"
+                 "boolhas_legacy_path_frame_ignored=false;"
                  "std::stringsource_ref;"
                  "boolcamshot_shot_fields_decoded=false;",
-                 "CameraKey preserves remaining CamShot shot-level fields including path_frame and source refs");
+                 "CameraKey preserves live mPathFrame plus ignored legacy path-frame provenance");
   ok &= contains(gameplay_h_c,
                  "floatsource_path_local_frame=0.0f;"
                  "floatsource_path_first_frame=0.0f;"
@@ -9994,8 +10002,9 @@ int main() {
                  "target_eye=a:(%.3f%.3f%.3f)",
                  "camera debug logs expose source-target eye candidates");
   ok &= contains(gameplay_c,
-                 "\"clip=(%.3f%.3f)path_frame=a:%s%.3fb:%s%.3f\"",
-                 "camera debug logs carry shot-level solver inputs");
+                 "\"clip=(%.3f%.3f)path_frame=a:%s%.3fb:%s%.3f\""
+                 "\"legacy_path_frame=a:%s%.3fb:%s%.3f\"",
+                 "camera debug logs carry live mPathFrame and ignored legacy payload separately");
   ok &= contains(gameplay_c,
                  "key.duration_frames=r.f32();key.blend_frames=r.f32();"
                  "key.blend_ease=r.f32();key.has_timing=true;"
@@ -10232,9 +10241,11 @@ int main() {
                  "first_transanim_frame=%s%.3fsource_local_frame=%s%.3f"
                  "a_submitted_frame=%s%.3fb_submitted_frame=%s%.3f"
                  "a_path_frame=%s%.3fb_path_frame=%s%.3f"
+                 "a_legacy_path_frame=%s%.3fb_legacy_path_frame=%s%.3f"
+                 "source_path_frame_load=CamShot::Load_legacy_float_ignored"
                  "route=regular_camera_path_keyspath=%s"
                  "path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\\n\"",
-                 "path-backed camera diagnostics expose source-timed TransAnim frame mapping and source path_frame values");
+                 "path-backed camera diagnostics separate live mPathFrame from the ignored legacy load float");
   ok &= contains(gameplay_c,
                  "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
                  "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");

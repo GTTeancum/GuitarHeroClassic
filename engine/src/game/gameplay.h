@@ -184,6 +184,8 @@ class Gameplay {
     bool has_use_depth_of_field = false;
     float path_frame = -1.0f;
     bool has_path_frame = false;
+    float legacy_path_frame_ignored = -1.0f;
+    bool has_legacy_path_frame_ignored = false;
     std::string source_ref;
     bool camshot_shot_fields_decoded = false;
     size_t camshot_pose_body_offset = 0;

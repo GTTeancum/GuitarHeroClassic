@@ -6758,8 +6758,9 @@ Rejected native probe:
   `CameraManager::CalcFrame`, the authored `RndTransAnim` key frame, the first
   path key frame, and the submitted rebased renderer frame on the selected
   path keys. The existing `[world] camera source path frame pair` row reports
-  those values next to decoded `path_frame`, making it clear which
-  `RndTransAnim::SetFrame`-shaped sample native used for the screenshot.
+  those values next to live `mPathFrame`/`path_frame` and the ignored legacy
+  load float, making it clear which `RndTransAnim::SetFrame`-shaped sample
+  native used for the screenshot.
 - This still does not claim the hidden `CamShot::SetFrame` body or exact
   `mPathFrame` consumption. The ihatecompvir source/dump prove the manager
   cadence, `mPath/mPathFrame` fields, and `RndTransAnim::SetFrame` key-owner
@@ -11070,13 +11071,18 @@ Rejected native probe:
   composition gate, not a shot-specific visual clamp.
 
 - 2026-07-13 CamShot `path_frame` source identity:
-  the float decoded immediately after `CamShot::mPath` is now named
-  `path_frame`, matching ihatecompvir's `CamShot::mPathFrame` member,
-  constructor default `-1.0f`, and `SYNC_PROP(path_frame, mPathFrame)`.
-  Native had been carrying the correct byte slot under the misleading
-  `path_ease` name; this turn renames the stored field and debug logs without
-  changing path sampling behavior. The next camera-angle fixes should continue
-  from source evidence for how `mPathFrame` is consumed at runtime.
+  the float decoded immediately after `CamShot::mPath` was renamed away from
+  the misleading `path_ease` label after matching ihatecompvir's
+  `CamShot::mPathFrame` member, constructor default `-1.0f`, and
+  `SYNC_PROP(path_frame, mPathFrame)`. Follow-up source review found the
+  stricter load boundary: ihatecompvir `CamShot::Load` reads the legacy
+  revisions 2-44 float into a local `f2b` and does not assign it to
+  `mPathFrame`, while `CamShot::Copy` also copies `mPath` without copying
+  `mPathFrame`. Native now keeps live `path_frame` at the source default
+  `-1.0f` and carries the consumed legacy float only as
+  `legacy_path_frame_ignored` diagnostics. The next camera-angle fixes should
+  continue from source evidence for how `mPathFrame` is set or consumed at
+  runtime, not from the ignored legacy load float.
 - 2026-07-14 CamShotFrame `parent_first_frame` copy boundary:
   ihatecompvir's `CamShotFrame` copy constructor copies `use_parent_rotation`
   but initializes `parent_first_frame` (`unk8bp0`) to false. Native still
@@ -11164,9 +11170,10 @@ Rejected native probe:
   `mPathFrame/path_frame`. Native now emits a debug-only
   `[world] camera source path frame pair ...]` row for path-backed regular
   CamShots, selecting the active A/B path keys for the current Poll frame and
-  reporting each key's decoded `path_frame`. This does not change rendered
-  camera behavior; it makes path-backed angle work auditable against the same
-  source-shaped cadence as non-path frame-pair shots.
+  reporting each key's live `mPathFrame` value plus the ignored legacy load
+  float. This does not change rendered camera behavior; it makes path-backed
+  angle work auditable against the same source-shaped cadence as non-path
+  frame-pair shots.
 - 2026-07-13 path-backed CamShot source clock:
   ihatecompvir `CameraManager::CalcFrame` computes the frame sent to every
   current shot from `TheTaskMgr.Time(mCurrentShot->Units())` and
