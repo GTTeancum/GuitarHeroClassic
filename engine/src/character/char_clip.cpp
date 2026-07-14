@@ -10706,9 +10706,33 @@ std::vector<ClipChannelLayer> CharClipPlayer::sampled_pose_layers(
   if (channels.empty()) return out;
   const bool relative = sampled_pose_relative();
   const CharClip* clip = current_clip();
+  std::string debug_name = clip ? clip->name : std::string{};
+  if (debug_pose_publisher_enabled() && layers_.size() > 1) {
+    auto layer_debug = [](const Layer& layer) {
+      if (!layer.clip) return std::string("<null>");
+      const float ff =
+          clip_frame_float_at_time(*layer.clip, layer.time_seconds,
+                                   layer.flags);
+      char detail[384];
+      std::snprintf(detail, sizeof(detail),
+                    "%s@%.3f;t=%.3f;flags=0x%08x;bw=%.3f;bp=%.3f",
+                    layer.clip->name.c_str(), ff, layer.time_seconds,
+                    layer.flags, layer.blend_width, layer.blend_progress);
+      return std::string(detail);
+    };
+    const Layer& prev = layers_[layers_.size() - 2];
+    const Layer& cur = layers_.back();
+    char detail[896];
+    std::snprintf(detail, sizeof(detail),
+                  "%s{nodes=%zu;prev=%s;cur=%s;blendWeight=%.3f}",
+                  debug_name.empty() ? "<none>" : debug_name.c_str(),
+                  layers_.size(), layer_debug(prev).c_str(),
+                  layer_debug(cur).c_str(), current_blend_weight());
+    debug_name = detail;
+  }
   out.push_back(ClipChannelLayer{
       std::move(channels), weight, clip ? &clip->output_bones : nullptr,
-      clip ? clip->name : std::string{}, relative, overlay_override});
+      debug_name, relative, overlay_override});
   return out;
 }
 

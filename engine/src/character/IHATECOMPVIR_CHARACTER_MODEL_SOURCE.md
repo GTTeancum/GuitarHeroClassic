@@ -5801,6 +5801,20 @@ and hand overlays 71, matching gameplay's filtered counts. Remaining
 viewer/gameplay differences must be diffed from the pose-stack log, not hidden
 with visual-only fixes.
 
+2026-07-14 live player-node proof: the `*_nodes` in-game recapture in
+`engine/out/visual_proofs/viewer_ingame_diff_20260714/` extends the diagnostic
+layer label for collapsed multi-node `CharClipPlayer` rows. At the captured
+Trogdor/small2/Rockabill2 frame, gameplay's main layer is not a standalone
+`stand_fast_03` sample: it is a source-style active-group blend
+`stand_fast_02 -> stand_fast_03` with both nodes around frame `4.5` and
+`blendWeight=0.600` at the screenshot. The right-hand layer is also a live
+transition (`strum_short_01 -> strum_short_02` around the screenshot), while
+the direct viewer proof was still standalone adjacent-frame sampling
+(`stand_fast_03@f4/@f5`, `strum_short_02@f4/@f5`). This explains why the
+viewer pose looked more extreme after the filter counts were fixed. The next
+viewer diagnostic must reproduce gameplay's live player-node stack before its
+still pose is used as evidence for character-body correctness.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.

@@ -33296,6 +33296,9 @@ int run_contract() {
                  "\"layers=%zurelative=%dsource_publisher=fencedmissing=%s\"",
                  "native pose-stack proof log carries layer count and fence state");
   ok &= contains(char_clip,
+                 "\"%s{nodes=%zu;prev=%s;cur=%s;blendWeight=%.3f}\"",
+                 "native pose-stack proof log exposes collapsed player nodes");
+  ok &= contains(char_clip,
                  "boolappend_clip_player_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipPlayerLayerSource>&sources)",
                  "native shared player layer batch implementation");
