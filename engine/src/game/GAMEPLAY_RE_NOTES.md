@@ -11326,6 +11326,14 @@ Rejected native probe:
   same mesh-suffix stripping used for SubPart refs. The entity-root fallback
   remains limited to non-empty entity/subpart refs, so direct object pointers
   do not silently collapse to a performer root.
+- 2026-07-14 CamShot ObjPtr ref preservation:
+  the native unqualified-ref helper still provides the current performer
+  context needed for namespaced character targets, but newer CamShot target,
+  focus, and parent refs now also keep the raw source object name loaded from
+  the ObjPtr stream. Runtime target resolution tries that preserved source
+  object id before using the inferred performer/subpart fallback, so exact
+  direct-object matches win without removing the native character fallback
+  needed by existing GH2 performer shots.
 
 - 2026-07-13 first regular CamShot source previous:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` derives

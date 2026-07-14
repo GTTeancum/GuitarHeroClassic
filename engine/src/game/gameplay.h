@@ -129,6 +129,7 @@ class Gameplay {
     struct TargetRef {
       std::string entity;
       std::string subpart;
+      std::string source_object;
     };
     struct SourceRecordHint {
       std::string source_ref;
@@ -164,6 +165,7 @@ class Gameplay {
     bool has_dof_fields = false;
     std::string focus_target_entity;
     std::string focus_target_subpart;
+    std::string focus_target_source_object;
     float shake_noise_amp = 0.0f;
     float shake_noise_freq = 0.0f;
     float max_angular_offset[2] = {0.0f, 0.0f};
@@ -237,6 +239,7 @@ class Gameplay {
     bool has_ps2_source_record = false;
     std::string parent_entity;
     std::string parent_subpart;
+    std::string parent_source_object;
     bool use_parent_rotation = false;
     bool camshot_refs_decoded = false;
     std::string distance;

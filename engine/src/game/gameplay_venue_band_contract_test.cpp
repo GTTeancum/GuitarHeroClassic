@@ -7914,6 +7914,7 @@ int main() {
                "old neutral-basis false-positive scanner has been removed");
   ok &= contains(gameplay_h_c,
                  "std::stringparent_entity;std::stringparent_subpart;"
+                 "std::stringparent_source_object;"
                  "booluse_parent_rotation=false;"
                  "boolcamshot_refs_decoded=false;",
                  "CameraKey keeps CamShot parent refs distinct from aim targets");
@@ -7927,8 +7928,9 @@ int main() {
                  "constint32_ttarget_count=r.i32();",
                  "CamShot ref decoder treats an empty target array as an authored empty target");
   ok &= contains(gameplay_h_c,
-                 "structTargetRef{std::stringentity;std::stringsubpart;};",
-                 "CameraKey has a typed CamShot target member ref");
+                 "structTargetRef{std::stringentity;std::stringsubpart;"
+                 "std::stringsource_object;};",
+                 "CameraKey has typed CamShot target refs with source object ids");
   ok &= contains(gameplay_h_c,
                  "std::vector<TargetRef>target_refs;",
                  "CameraKey preserves the full CamShot target member list");
@@ -7936,6 +7938,18 @@ int main() {
                  "key.target_refs.push_back("
                  "read_camshot_subpart_like_miloeditor(r,camshot_revision));",
                  "CamShot ref decoder preserves every target member ref");
+  ok &= contains(gameplay_c,
+                 "conststd::stringsource_object=r.symbol();"
+                 "key.target_refs.push_back({\"\",source_object,source_object});",
+                 "newer CamShot ObjPtr target refs preserve the direct source object id");
+  ok &= contains(gameplay_h_c,
+                 "std::stringfocus_target_entity;std::stringfocus_target_subpart;"
+                 "std::stringfocus_target_source_object;",
+                 "CameraKey preserves newer CamShot focus ObjPtr source ids");
+  ok &= contains(gameplay_h_c,
+                 "std::stringparent_entity;std::stringparent_subpart;"
+                 "std::stringparent_source_object;",
+                 "CameraKey preserves newer CamShot parent ObjPtr source ids");
   ok &= contains(gameplay_c,
                  "sync_primary_camshot_target(key);",
                  "CamShot ref decoder keeps the legacy primary target synced");
@@ -8006,6 +8020,14 @@ int main() {
                  "entity.empty()?canonical_milo_ref(std::string(subpart))"
                  ":camera_target_id(entity,subpart);",
                  "camera target lookup supports source object-pointer refs without an entity");
+  ok &= contains(gameplay_c,
+                 "camera_resolved_target_id_for_ref(entity,subpart,"
+                 "source_object,targets)",
+                 "camera target lookup tries preserved source object ids before native fallbacks");
+  ok &= contains(gameplay_c,
+                 "camera_resolved_target_id_for_ref(ref.entity,ref.subpart,"
+                 "ref.source_object,targets)",
+                 "CamShot target list resolution keeps source object ids ahead of inferred entities");
   ok &= appears_before(
       gameplay_c,
       "strip_mesh_suffix(std::string(subpart));",
@@ -8079,8 +8101,8 @@ int main() {
                  "camera runtime resolves source from CamShot parent refs");
   ok &= contains(gameplay_c,
                  "returncamera_target_for_ref(key.parent_entity,"
-                 "key.parent_subpart,targets);",
-                 "camera parent lookup mirrors LoadSubPart exact/stripped/root subpart resolution");
+                 "key.parent_subpart,key.parent_source_object,targets);",
+                 "camera parent lookup mirrors ObjPtr and LoadSubPart exact/stripped/root subpart resolution");
   ok &= contains(gameplay_c,
                  "constautoparent=camera_parent_for_key(key,targets);"
                  "if(!parent)returneye;",

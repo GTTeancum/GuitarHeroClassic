@@ -2183,7 +2183,8 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     if (camshot_revision > 0x2b) {
         const uint32_t target_count = r.u32();
         for (uint32_t i = 0; i < target_count; ++i) {
-            key.target_refs.push_back({"", r.symbol()});
+            const std::string source_object = r.symbol();
+            key.target_refs.push_back({"", source_object, source_object});
         }
     } else {
         const int32_t target_count = r.i32();
@@ -2199,6 +2200,7 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     if (camshot_revision > 0x1a) {
         if (camshot_revision > 0x2b) {
             key.focus_target_subpart = r.symbol();
+            key.focus_target_source_object = key.focus_target_subpart;
         } else {
             Gameplay::CameraKey::TargetRef focus =
                 read_camshot_subpart_like_miloeditor(r, camshot_revision);
@@ -2208,6 +2210,7 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     }
     if (camshot_revision > 0x2b) {
         key.parent_subpart = r.symbol();
+        key.parent_source_object = key.parent_subpart;
     } else {
         Gameplay::CameraKey::TargetRef parent =
             read_camshot_subpart_like_miloeditor(r, camshot_revision);
@@ -2601,6 +2604,7 @@ void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
     to.target_refs = from.target_refs;
     to.parent_entity = from.parent_entity;
     to.parent_subpart = from.parent_subpart;
+    to.parent_source_object = from.parent_source_object;
     to.use_parent_rotation = from.use_parent_rotation;
     to.camshot_refs_decoded = from.camshot_refs_decoded;
     to.camshot_pose_body_offset = from.camshot_pose_body_offset;
@@ -2692,6 +2696,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         to.focus_blur_multiplier = from.focus_blur_multiplier;
         to.focus_target_entity = from.focus_target_entity;
         to.focus_target_subpart = from.focus_target_subpart;
+        to.focus_target_source_object = from.focus_target_source_object;
         to.has_dof_fields = true;
     }
     if (!to.has_shake_fields && from.has_shake_fields) {
@@ -16820,9 +16825,25 @@ std::optional<CameraTarget> camera_target_for_ref(
     std::string_view subpart,
     const std::unordered_map<std::string, CameraTarget>& targets);
 
+std::optional<CameraTarget> camera_target_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    std::string_view source_object,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
+std::optional<CameraTarget> camera_target_for_ref(
+    const Gameplay::CameraKey::TargetRef& ref,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
 std::optional<std::string> camera_resolved_target_id_for_ref(
     std::string_view entity,
     std::string_view subpart,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
+std::optional<std::string> camera_resolved_target_id_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    std::string_view source_object,
     const std::unordered_map<std::string, CameraTarget>& targets);
 
 std::optional<CameraTarget> camera_target_for_key(
@@ -18740,7 +18761,15 @@ std::optional<CameraResultRows> camera_member_world_copy_candidate_rows_for_key(
 
     if (!key.target_refs.empty()) {
         for (const auto& ref : key.target_refs) {
-            add_member(ref.entity, ref.subpart);
+            const auto target = camera_target_for_ref(ref, targets);
+            if (!target) continue;
+            if (!rows) {
+                rows = camera_world_copy_candidate_rows(
+                    target->world, "ps2_member_world_copy_candidate");
+            }
+            const auto pos = mat4_position_game(target->world);
+            for (int axis = 0; axis < 3; ++axis) sum[axis] += pos[axis];
+            ++count;
         }
     } else {
         add_member(key.target_entity, key.target_subpart);
@@ -19460,11 +19489,45 @@ std::optional<std::string> camera_resolved_target_id_for_ref(
     return std::nullopt;
 }
 
+std::optional<std::string> camera_resolved_target_id_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    std::string_view source_object,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    if (!source_object.empty()) {
+        if (auto direct =
+                camera_resolved_target_id_for_ref({}, source_object, targets)) {
+            return direct;
+        }
+    }
+    return camera_resolved_target_id_for_ref(entity, subpart, targets);
+}
+
+std::optional<CameraTarget> camera_target_for_ref(
+    std::string_view entity,
+    std::string_view subpart,
+    std::string_view source_object,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    auto resolved_id =
+        camera_resolved_target_id_for_ref(entity, subpart, source_object, targets);
+    if (!resolved_id) return std::nullopt;
+    const auto it = targets.find(*resolved_id);
+    if (it == targets.end()) return std::nullopt;
+    return CameraTarget{it->second.world};
+}
+
+std::optional<CameraTarget> camera_target_for_ref(
+    const Gameplay::CameraKey::TargetRef& ref,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    return camera_target_for_ref(ref.entity, ref.subpart, ref.source_object,
+                                 targets);
+}
+
 std::optional<CameraTarget> camera_target_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
     for (const auto& ref : key.target_refs) {
-        if (auto target = camera_target_for_ref(ref.entity, ref.subpart, targets))
+        if (auto target = camera_target_for_ref(ref, targets))
             return target;
     }
     return camera_target_for_ref(key.target_entity, key.target_subpart, targets);
@@ -19486,7 +19549,11 @@ std::optional<std::array<float, 3>> camera_target_centroid_for_key(
     };
     if (!key.target_refs.empty()) {
         for (const auto& ref : key.target_refs) {
-            add_target(ref.entity, ref.subpart);
+            const auto target = camera_target_for_ref(ref, targets);
+            if (!target) continue;
+            const auto pos = mat4_position_game(target->world);
+            for (int axis = 0; axis < 3; ++axis) sum[axis] += pos[axis];
+            ++count;
         }
     } else {
         add_target(key.target_entity, key.target_subpart);
@@ -19500,8 +19567,10 @@ std::optional<std::array<float, 3>> camera_source_dof_point_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
     if (!key.focus_target_entity.empty() || !key.focus_target_subpart.empty()) {
-        if (const auto focus = camera_target_for_ref(
-                key.focus_target_entity, key.focus_target_subpart, targets)) {
+        if (const auto focus =
+                camera_target_for_ref(
+                    key.focus_target_entity, key.focus_target_subpart,
+                    key.focus_target_source_object, targets)) {
             return mat4_position_game(focus->world);
         }
     }
@@ -19687,7 +19756,7 @@ std::vector<std::string> camera_resolved_target_signature_for_key(
         refs.reserve(key.target_refs.size());
         for (const auto& ref : key.target_refs) {
             if (auto id = camera_resolved_target_id_for_ref(
-                    ref.entity, ref.subpart, targets)) {
+                    ref.entity, ref.subpart, ref.source_object, targets)) {
                 refs.push_back(std::move(*id));
             }
         }
@@ -19758,7 +19827,7 @@ std::optional<CameraTarget> camera_parent_for_key(
     if (key.parent_entity.empty() && key.parent_subpart.empty())
         return std::nullopt;
     return camera_target_for_ref(key.parent_entity, key.parent_subpart,
-                                 targets);
+                                 key.parent_source_object, targets);
 }
 
 std::array<float, 3> camera_authored_eye_for_key(
@@ -20301,13 +20370,28 @@ void apply_camera_keys(
         auto debug_ref_world =
             [&](const Gameplay::CameraKey& key, bool parent)
             -> const std::array<float, 16>* {
+            if (!parent && !key.target_refs.empty()) {
+                const auto resolved = camera_resolved_target_id_for_ref(
+                    key.target_refs.front().entity,
+                    key.target_refs.front().subpart,
+                    key.target_refs.front().source_object, targets);
+                if (!resolved) return nullptr;
+                const auto it = targets.find(*resolved);
+                if (it == targets.end()) return nullptr;
+                return &it->second.world;
+            }
             const std::string& entity =
                 parent ? key.parent_entity : key.target_entity;
             const std::string& subpart =
                 parent ? key.parent_subpart : key.target_subpart;
-            if (entity.empty()) return nullptr;
+            const std::string empty_source_object;
+            const std::string& source_object =
+                parent ? key.parent_source_object : empty_source_object;
+            if (entity.empty() && subpart.empty() && source_object.empty())
+                return nullptr;
             const auto resolved =
-                camera_resolved_target_id_for_ref(entity, subpart, targets);
+                camera_resolved_target_id_for_ref(entity, subpart,
+                                                  source_object, targets);
             if (!resolved) return nullptr;
             const auto it = targets.find(*resolved);
             if (it == targets.end()) return nullptr;
@@ -20351,10 +20435,12 @@ void apply_camera_keys(
                 : join_log_names(b_resolved_target_signature);
         const auto a_resolved_parent_id =
             camera_resolved_target_id_for_ref(a->parent_entity,
-                                              a->parent_subpart, targets);
+                                              a->parent_subpart,
+                                              a->parent_source_object, targets);
         const auto b_resolved_parent_id =
             camera_resolved_target_id_for_ref(b->parent_entity,
-                                              b->parent_subpart, targets);
+                                              b->parent_subpart,
+                                              b->parent_source_object, targets);
         const std::string a_resolved_parent =
             a_resolved_parent_id ? *a_resolved_parent_id : std::string("none");
         const std::string b_resolved_parent =
