@@ -33587,6 +33587,27 @@ int run_contract() {
   ok &= contains(doc,
                  "`max_delta=0.615600` on the lower body",
                  "document records rejected one-frame-late leg proof");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/standard_leg_pose_check_20260714/`",
+                 "document records standard-pose leg proof folder");
+  ok &= contains(doc,
+                 "normal `stand_fast_03` frame\n70 instead of `special_02`",
+                 "document records standard pose versus special pose check");
+  ok &= contains(doc,
+                 "the visible leg issue is not\nspecial-pose-only",
+                 "document records standard pose leg issue persists");
+  ok &= contains(doc,
+                 "`source_publisher=fenced` with missing\n"
+                 "`CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|"
+                 "CharBonesMeshes::PoseMeshes`",
+                 "document records standard pose publisher fence");
+  ok &= contains(doc,
+                 "`driven=1 live=0` rows",
+                 "document records standard pose output rows remain compare-only");
+  ok &= contains(doc,
+                 "not as permission to invent a\nfoot offset or revive broad "
+                 "output live writes",
+                 "document rejects standard pose leg shortcut fixes");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

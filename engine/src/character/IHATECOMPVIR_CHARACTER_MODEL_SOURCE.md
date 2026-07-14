@@ -5903,6 +5903,21 @@ half-frame (`stand_fast_03@5.000`) and mismatched the viewer by up to
 boundary. Future leg proofs must check the layer fragments before treating a
 viewer/gameplay visual difference as pose decoding evidence.
 
+2026-07-14 standard-pose leg check:
+`engine/out/visual_proofs/standard_leg_pose_check_20260714/` repeats the
+Rockabill2 full-body soft-green viewer proof with normal `stand_fast_03` frame
+70 instead of `special_02`. The front and side captures still show lifted /
+pitched feet relative to the reference base, so the visible leg issue is not
+special-pose-only. The logs keep the same source fence:
+`source_publisher=fenced` with missing
+`CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes`.
+They also show the lower-body output rows (`bone_L/R-thigh`, `bone_L/R-knee`,
+`bone_L/R-ankle`, `bone_L/R-toe`) as decoded `driven=1 live=0` rows, while
+Rockabill2 still reports `bone_L-foot` and `bone_R-foot` missing in the compact
+diagnostic rows. Treat this as evidence that the native fixed-frame viewer path
+still has a normal-pose leg/foot publisher gap, not as permission to invent a
+foot offset or revive broad output live writes.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
