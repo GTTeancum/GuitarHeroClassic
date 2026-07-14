@@ -10771,7 +10771,8 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "structSourceCharHairRuntime{boolinitialized=false;"
                  "booluse_post_proc=true;"
-                 "boolhookup_collected_from_object_dir=false;",
+                 "boolmanaged_hookup=false;"
+                 "boolband_character_hookup=false;",
                  "native carries CharHair postproc and hookup state into runtime");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairGetFpsResult{"
@@ -11198,6 +11199,16 @@ int run_contract() {
                  "plan.overload_body_statement_visible=false;"
                  "plan.called_overloaded_hookup=true;",
                  "native CharHair Hookup plan ports managed gate and collection");
+  ok &= contains(char_mesh_h,
+                 "structSourceBandCharacterHairHookupPlan{"
+                 "boolsets_managed_hookup=true;",
+                 "native exposes BandCharacter hair hookup plan");
+  ok &= contains(char_mesh,
+                 "SourceBandCharacterHairHookupPlansource_band_character_hair_hookup_plan(",
+                 "native implements BandCharacter hair hookup helper");
+  ok &= contains(char_mesh,
+                 "plan.hair_rows=hair_rows;plan.collide_rows=collide_rows;",
+                 "native BandCharacter helper records shared hair/collide rows");
   ok &= contains(char_mesh,
                  "SourceCharHairHookupDumpEvidencesource_char_hair_hookup_dump_evidence(){"
                  "SourceCharHairHookupDumpEvidenceevidence;evidence.range="
@@ -12978,8 +12989,14 @@ int run_contract() {
   ok &= contains(char_clip, "runtimeWriteback=%dresolvedPointCollides=0",
                  "native CharHair path logs unresolved point-collide write count");
   ok &= contains(char_clip,
-                 "defaultHookupDirCollect=%d",
-                 "native CharHair path logs default hookup and missing overload boundary");
+                 "managedHookup=%d",
+                 "native CharHair path logs managed hookup state");
+  ok &= contains(char_clip,
+                 "bandCharacterHookup=%d",
+                 "native CharHair path logs BandCharacter hookup path");
+  ok &= contains(char_clip,
+                 "defaultHookupWouldReturn=%d",
+                 "native CharHair path logs managed no-arg Hookup return");
   ok &= contains(char_clip,
                  "dirCollides=%zu",
                  "native CharHair path logs source dir collide count");
@@ -32445,8 +32462,11 @@ int run_contract() {
                  "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal",
                  "CharHair simulation log names the upstream poll/reset/sim path");
   ok &= contains(char_clip,
-                 "defaultHookupDirCollect=%d",
+                 "managedHookup=%d",
                  "CharHair simulation log keeps hookup boundary explicit");
+  ok &= contains(char_clip,
+                 "bandCharacterHookup=%d",
+                 "CharHair simulation log keeps BandCharacter hookup explicit");
   ok &= contains(char_clip,
                  "missingHookupOverloadBody=%d",
                  "CharHair simulation log keeps missing overload boundary explicit");

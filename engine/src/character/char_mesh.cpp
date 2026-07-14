@@ -6068,6 +6068,18 @@ SourceCharHairHookupPlan source_char_hair_hookup_plan(
   return plan;
 }
 
+SourceBandCharacterHairHookupPlan source_band_character_hair_hookup_plan(
+    const std::vector<std::string>& hair_rows,
+    const std::vector<std::string>& collide_rows,
+    bool in_closet) {
+  SourceBandCharacterHairHookupPlan plan;
+  plan.in_closet = in_closet;
+  plan.hair_rows = hair_rows;
+  plan.collide_rows = collide_rows;
+  plan.clears_collide_meshes_after_sync_when_not_in_closet = !in_closet;
+  return plan;
+}
+
 SourceCharHairPointCollideResolution
 source_char_hair_point_collide_resolution(const CharHairPoint& point) {
   SourceCharHairPointCollideResolution resolution;

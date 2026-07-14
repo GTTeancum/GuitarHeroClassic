@@ -7024,17 +7024,32 @@ static SourceCharHairRuntime& ensure_source_char_hair_runtime(
   SourceCharHairRuntime& state = character.source_char_hair_runtime[hair.name];
   state.use_post_proc =
       source_char_hair_set_name_use_post_proc(true, false);
+  std::vector<std::string> hair_rows;
+  hair_rows.reserve(character.hairs.size());
+  for (const auto& character_hair : character.hairs) {
+    if (!character_hair.name.empty()) hair_rows.push_back(character_hair.name);
+  }
   std::vector<std::string> dir_collides;
   dir_collides.reserve(character.collides.size());
   for (const auto& collide : character.collides) {
     if (!collide.name.empty()) dir_collides.push_back(collide.name);
   }
-  const SourceCharHairHookupPlan hookup =
-      source_char_hair_hookup_plan(false, dir_collides);
-  state.hookup_collides = hookup.collected_collides;
-  state.hookup_collected_from_object_dir = hookup.collected_from_object_dir;
+  const SourceBandCharacterHairHookupPlan character_hookup =
+      source_band_character_hair_hookup_plan(hair_rows, dir_collides, false);
+  const SourceCharHairHookupPlan default_hookup =
+      source_char_hair_hookup_plan(
+          character_hookup.sets_managed_hookup,
+          character_hookup.collide_rows);
+  state.managed_hookup = character_hookup.sets_managed_hookup;
+  state.band_character_hookup =
+      character_hookup.calls_overloaded_hookup_before_character_sync;
+  state.default_hookup_returned_for_managed =
+      default_hookup.returned_for_managed_hookup;
+  state.hookup_collides = character_hookup.collide_rows;
+  state.hookup_collected_from_object_dir =
+      character_hookup.collects_collide_rows;
   state.hookup_overload_body_statement_visible =
-      hookup.overload_body_statement_visible;
+      default_hookup.overload_body_statement_visible;
   state.legacy_inline_point_count = 0;
   for (const auto& strand : hair.strands) {
     for (const auto& point : strand.points) {
@@ -9466,13 +9481,17 @@ static void apply_char_hair(Character& character, float time_seconds) {
           "[charhair-source-sim] character=%s hair=%s "
           "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal "
           "runtimeWriteback=%d resolvedPointCollides=0 "
-          "defaultHookupDirCollect=%d dirCollides=%zu legacyInlinePoints=%d "
+          "managedHookup=%d bandCharacterHookup=%d "
+          "defaultHookupWouldReturn=%d dirCollides=%zu "
+          "legacyInlinePoints=%d "
           "hookupOverloadBody=%d missingHookupOverloadBody=%d "
           "zeroTimeBodyAvailable=0 "
           "usePostProc=%d nonzeroDelta=%d firstPoll=%d pollHookup=%d "
           "pollReset=%d pollZeroTime=%d time=%.4f\n",
           character.dir_name.c_str(), hair.name.c_str(), write_count,
-          state.hookup_collected_from_object_dir ? 1 : 0,
+          state.managed_hookup ? 1 : 0,
+          state.band_character_hookup ? 1 : 0,
+          state.default_hookup_returned_for_managed ? 1 : 0,
           state.hookup_collides.size(), state.legacy_inline_point_count,
           state.hookup_overload_body_statement_visible ? 1 : 0,
           state.hookup_overload_body_statement_visible ? 0 : 1,

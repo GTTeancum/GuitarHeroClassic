@@ -95,6 +95,7 @@ int main() {
   using ghogx::character::source_char_hair_strand_set_angle;
   using ghogx::character::source_char_hair_strand_set_root;
   using ghogx::character::source_char_hair_writeback_gate;
+  using ghogx::character::source_band_character_hair_hookup_plan;
   using ghogx::character::source_gltf_milo_collect_hair_chains_without_splitting;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
   using ghogx::character::source_char_hair_simulate_internal_collision_step;
@@ -1159,6 +1160,22 @@ int main() {
                    "hookup collide count");
   ok &= expect_bool(hookup.collected_collides[0] == "head.collide",
                     true, "hookup collide order");
+  const auto band_hookup = source_band_character_hair_hookup_plan(
+      {"chain.hair", "hair.hair"}, {"thigh.collide"}, false);
+  ok &= expect_bool(band_hookup.sets_managed_hookup, true,
+                    "BandCharacter sets hair managed hookup");
+  ok &= expect_bool(
+      band_hookup.calls_overloaded_hookup_before_character_sync, true,
+      "BandCharacter calls overloaded Hookup before Character::SyncObjects");
+  ok &= expect_bool(band_hookup.default_hookup_would_return_for_managed, true,
+                    "managed no-arg Hookup would return");
+  ok &= expect_size(band_hookup.hair_rows.size(), 2,
+                    "BandCharacter records hair row count");
+  ok &= expect_size(band_hookup.collide_rows.size(), 1,
+                    "BandCharacter records collide row count");
+  ok &= expect_bool(
+      band_hookup.clears_collide_meshes_after_sync_when_not_in_closet, true,
+      "BandCharacter clears collide meshes outside closet");
 
   ghogx::character::CharHairPoint inline_collision_point;
   inline_collision_point.collision = "head.collide";
@@ -1243,6 +1260,13 @@ int main() {
       inline_collision_character.source_char_hair_runtime.end()) {
     ok &= expect_bool(runtime_state->second.hookup_collected_from_object_dir,
                       true, "CharHair runtime collects dir collides");
+    ok &= expect_bool(runtime_state->second.managed_hookup, true,
+                      "CharHair runtime records managed hookup");
+    ok &= expect_bool(runtime_state->second.band_character_hookup, true,
+                      "CharHair runtime records BandCharacter hookup");
+    ok &= expect_bool(
+        runtime_state->second.default_hookup_returned_for_managed, true,
+        "CharHair runtime records managed no-arg Hookup return");
     ok &= expect_bool(
         runtime_state->second.hookup_overload_body_statement_visible, false,
         "CharHair runtime keeps missing Hookup overload fenced");

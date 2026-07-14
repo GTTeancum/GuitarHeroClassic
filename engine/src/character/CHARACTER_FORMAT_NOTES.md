@@ -240,7 +240,11 @@ Community metadata Rosetta:
   ihatecompvir's `CharHair::Load` still consumes the GH2 revision-2 legacy
   inline collision fields, then clears `Point.collides`; the checked source also
   lacks the overloaded collision-list `Hookup(ObjPtrList<CharCollide>&)` body
-  needed to populate the runtime point collide list. Native therefore logs
+  needed to populate the runtime point collide list. The character-level
+  BandCharacter source path sets hair rows to managed hookup and calls the
+  overloaded hookup directly with the collected character collide list before
+  `Character::SyncObjects`; native logs that path separately from the default
+  no-arg `CharHair::Hookup()` return. Native therefore logs
   decoded stiffness, inertia, gravity, weight, friction, strand roots, point
   bones, segment lengths, legacy inline collision names/types, `unk5c` rows,
   source poll/reset/sim status, directory `CharCollide` inventory, and whether
@@ -5149,6 +5153,6 @@ Viewer hand-overlay validation:
   `chain.hair` with `bone_chain01.mesh` through `bone_chain03.mesh`, legacy
   inline collision rows aimed at `bone_R-thigh.mesh`, and
   `runtimeWriteback=0` / `resolvedPointCollides=0`; newer debug logs also
-  distinguish `dirCollides` from legacy inline points and report
-  `missingHookupOverloadBody=1`. Keep this as a CharHair hookup/writeback
-  source gap, not a static chain-offset fix.
+  distinguish BandCharacter-managed hookup, `dirCollides`, and legacy inline
+  points, then report `missingHookupOverloadBody=1`. Keep this as a CharHair
+  hookup/writeback source gap, not a static chain-offset fix.

@@ -2463,6 +2463,14 @@ note, and all report `unreadBytes=0`.
     directory `CharCollide` names and the count of decoded GH2 legacy inline
     point-collision rows so proof logs can distinguish "no source collides in
     this MILO" from "collides collected but point membership unresolved."
+    `rb3/src/system/bandobj/BandCharacter.cpp` refines the character-level path:
+    the object collector pushes `CharCollide` rows into `unk5e0`, calls
+    `SetManagedHookup(true)` for each `CharHair`, pushes those hair rows into
+    `unk5f0`, and later calls `hair->Hookup(unk5e0)` before
+    `Character::SyncObjects()`. Native
+    `source_band_character_hair_hookup_plan` records that managed no-arg
+    `CharHair::Hookup()` would return, but the BandCharacter path still invokes
+    the overloaded hookup directly with the shared collide list.
     However, the overloaded
     `Hookup(ObjPtrList<CharCollide>&)` body is still declared but not
     implemented in the checked source. Native GHOGX therefore runs the checked
@@ -5527,12 +5535,16 @@ source-authored dynamic row, not a loose rigid accessory: it resolves
 `bone_R-thigh.mesh`, and polls the ihatecompvir `CharHair::Poll` /
 `DoReset` / `SimulateInternal` path. The same log still reports
 `runtimeWriteback=0`, `resolvedPointCollides=0`,
-`dirCollides=0`, nonzero `legacyInlinePoints`,
+`managedHookup=1`, `bandCharacterHookup=1`, `dirCollides=0`, nonzero `legacyInlinePoints`,
 `missingHookupOverloadBody=1`, and `zeroTimeBodyAvailable=0`, so the visible
 floating chain is a remaining CharHair hookup/collision/writeback publisher
 gap. The source-visible ObjPtrList collection is now logged; point collide
 membership is still not guessed. Do not hide it with a Rockabill2-specific
 chain offset or static mesh placement patch.
+For the older source-gap contract this still reduces to
+`runtimeWriteback=0`, `resolvedPointCollides=0`,
+`dirCollides=0`, nonzero `legacyInlinePoints`,
+`missingHookupOverloadBody=1`, and `zeroTimeBodyAvailable=0`.
 
 2026-07-14 soft-green camera scout: the direct-app proof in
 `engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` captures

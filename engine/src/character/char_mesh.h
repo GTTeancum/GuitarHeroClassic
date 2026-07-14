@@ -2926,6 +2926,9 @@ struct SourceCharHairRuntimeStrand {
 struct SourceCharHairRuntime {
   bool initialized = false;
   bool use_post_proc = true;
+  bool managed_hookup = false;
+  bool band_character_hookup = false;
+  bool default_hookup_returned_for_managed = false;
   bool hookup_collected_from_object_dir = false;
   bool hookup_overload_body_statement_visible = false;
   int legacy_inline_point_count = 0;
@@ -2960,6 +2963,18 @@ struct SourceCharHairHookupPlan {
   bool has_overload_declaration = true;
   bool overload_body_statement_visible = false;
   bool called_overloaded_hookup = false;
+};
+
+struct SourceBandCharacterHairHookupPlan {
+  bool sets_managed_hookup = true;
+  bool collects_hair_rows = true;
+  bool collects_collide_rows = true;
+  bool calls_overloaded_hookup_before_character_sync = true;
+  bool default_hookup_would_return_for_managed = true;
+  bool clears_collide_meshes_after_sync_when_not_in_closet = true;
+  bool in_closet = false;
+  std::vector<std::string> hair_rows;
+  std::vector<std::string> collide_rows;
 };
 
 struct SourceCharHairPointCollideResolution {
@@ -4622,6 +4637,10 @@ source_char_hair_rb2_mapped_body_evidence();
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);
+SourceBandCharacterHairHookupPlan source_band_character_hair_hookup_plan(
+    const std::vector<std::string>& hair_rows,
+    const std::vector<std::string>& collide_rows,
+    bool in_closet);
 SourceCharHairPointCollideResolution
 source_char_hair_point_collide_resolution(const CharHairPoint& point);
 SourceCharHairWritebackGate source_char_hair_writeback_gate(
