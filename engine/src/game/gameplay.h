@@ -215,6 +215,8 @@ class Gameplay {
     bool path_rot_slerp = false;
     bool path_rot_spline = false;
     bool has_path_source_flags = false;
+    float path_scale[3] = {1.0f, 1.0f, 1.0f};
+    bool has_path_scale = false;
     float path_base_eye[3] = {};
     float path_base_forward[3] = {0.0f, 1.0f, 0.0f};
     float path_base_up[3] = {0.0f, 0.0f, 1.0f};

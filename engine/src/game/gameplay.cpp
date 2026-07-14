@@ -2061,6 +2061,12 @@ std::array<float, 3> sample_rnd_transanim_trans_keys(
     return out;
 }
 
+std::array<float, 3> sample_rnd_transanim_scale_keys(
+    const std::vector<Gameplay::CameraKey>& keys, float frame, bool spline) {
+    if (keys.empty()) return {1.0f, 1.0f, 1.0f};
+    return sample_rnd_transanim_trans_keys_once(keys, frame, spline);
+}
+
 std::vector<float> source_rnd_transanim_sample_frames(
     const DecodedRndTransAnim& anim) {
     std::vector<float> frames;
@@ -2698,6 +2704,12 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         to.path_rot_slerp = from.path_rot_slerp;
         to.path_rot_spline = from.path_rot_spline;
         to.has_path_source_flags = true;
+    }
+    if (!to.has_path_scale && from.has_path_scale) {
+        for (int axis = 0; axis < 3; ++axis) {
+            to.path_scale[axis] = from.path_scale[axis];
+        }
+        to.has_path_scale = true;
     }
     to.legacy_path_frame_ignored = from.legacy_path_frame_ignored;
     to.has_legacy_path_frame_ignored =
@@ -10171,6 +10183,13 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             pos.path_rot_slerp = resolved.rot_slerp;
             pos.path_rot_spline = resolved.rot_spline;
             pos.has_path_source_flags = true;
+            if (!resolved.scale_keys.empty()) {
+                const auto scale = sample_rnd_transanim_scale_keys(
+                    resolved.scale_keys, pos.frame, resolved.scale_spline);
+                for (int axis = 0; axis < 3; ++axis)
+                    pos.path_scale[axis] = scale[axis];
+                pos.has_path_scale = true;
+            }
         }
         if (!resolved.rot_keys.empty()) {
             for (auto& pos : out) {
@@ -10194,9 +10213,9 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 "trans=%s owner=%s end=0x%zX/%zu trans_keys=%zu rot_keys=%zu "
                 "scale_keys=%zu source_sample_frames=%zu added_source_frames=%zu flags=trans_spline:%d repeat:%d "
                 "scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d "
-                "first=f%.3f:(%.3f %.3f %.3f) "
-                "mid=f%.3f:(%.3f %.3f %.3f) "
-                "last=f%.3f:(%.3f %.3f %.3f)\n",
+                "first=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f) "
+                "mid=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f) "
+                "last=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f)\n",
                 anim_name.c_str(), resolved.revision, resolved.anim_revision,
                 resolved.trans.c_str(), resolved.keys_owner.c_str(),
                 resolved.end_offset, transanim_sizes[anim_ref],
@@ -10210,9 +10229,21 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 resolved.follow_path ? 1 : 0,
                 resolved.rot_slerp ? 1 : 0,
                 resolved.rot_spline ? 1 : 0, first.frame,
-                first.eye[0], first.eye[1], first.eye[2], mid.frame,
-                mid.eye[0], mid.eye[1], mid.eye[2], last.frame, last.eye[0],
-                last.eye[1], last.eye[2]);
+                first.eye[0], first.eye[1], first.eye[2],
+                first.has_path_scale ? "" : "none/",
+                first.has_path_scale ? first.path_scale[0] : 0.0f,
+                first.has_path_scale ? first.path_scale[1] : 0.0f,
+                first.has_path_scale ? first.path_scale[2] : 0.0f,
+                mid.frame, mid.eye[0], mid.eye[1], mid.eye[2],
+                mid.has_path_scale ? "" : "none/",
+                mid.has_path_scale ? mid.path_scale[0] : 0.0f,
+                mid.has_path_scale ? mid.path_scale[1] : 0.0f,
+                mid.has_path_scale ? mid.path_scale[2] : 0.0f,
+                last.frame, last.eye[0], last.eye[1], last.eye[2],
+                last.has_path_scale ? "" : "none/",
+                last.has_path_scale ? last.path_scale[0] : 0.0f,
+                last.has_path_scale ? last.path_scale[1] : 0.0f,
+                last.has_path_scale ? last.path_scale[2] : 0.0f);
         }
         std::fprintf(stderr,
                      "[world] camera anim %s: %zu source keys rev=%u owner=%s\n",
@@ -15800,6 +15831,13 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         c.key.path_rot_spline =
                             c.key.positions.front().path_rot_spline;
                         c.key.has_path_source_flags = true;
+                    }
+                    if (c.key.positions.front().has_path_scale) {
+                        for (int axis = 0; axis < 3; ++axis) {
+                            c.key.path_scale[axis] =
+                                c.key.positions.front().path_scale[axis];
+                        }
+                        c.key.has_path_scale = true;
                     }
                     if (c.key.parent_entity.empty()) {
                         populate_camera_generated_source_rows(c.key);
@@ -32866,11 +32904,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             return path_key.has_path_source_flags ? ""
                                                                   : "none/";
                         };
+                        auto path_scale_prefix =
+                            [](const CameraKey& path_key) -> const char* {
+                            return path_key.has_path_scale ? "" : "none/";
+                        };
                         active_camera_frame_pair_reported_ =
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -32935,6 +32977,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             path_summary_key.has_path_source_frame_summary
                                 ? path_summary_key.path_source_scale_keys
                                 : size_t{0},
+                            path_scale_prefix(a_key),
+                            a_key.has_path_scale ? a_key.path_scale[0] : 0.0f,
+                            a_key.has_path_scale ? a_key.path_scale[1] : 0.0f,
+                            a_key.has_path_scale ? a_key.path_scale[2] : 0.0f,
+                            path_scale_prefix(b_key),
+                            b_key.has_path_scale ? b_key.path_scale[0] : 0.0f,
+                            b_key.has_path_scale ? b_key.path_scale[1] : 0.0f,
+                            b_key.has_path_scale ? b_key.path_scale[2] : 0.0f,
                             path_flags_prefix(path_flags_key),
                             path_flags_key.has_path_source_flags &&
                                     path_flags_key.path_trans_spline

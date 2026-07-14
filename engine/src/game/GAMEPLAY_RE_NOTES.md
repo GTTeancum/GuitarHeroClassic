@@ -11364,6 +11364,16 @@ Rejected native probe:
   `[world] camera source path frame pair` row as `source_path_flags`, so angle
   audits can prove whether a suspicious shot actually uses source follow-path,
   spline, repeat, or rotation interpolation modes before any math is changed.
+- 2026-07-14 path-backed TransAnim scale sample proof:
+  ihatecompvir `RndTransAnim::MakeTransform` evaluates translation, rotation,
+  and scale pages together before `SetFrame` submits the local transform.
+  Native path cameras already used scale keys for source frame union/counts;
+  they now also sample the resolved scale page with the decoded
+  `mScaleSpline` flag and carry the active A/B values into the live
+  `[world] camera source path frame pair` row as `a_path_scale` /
+  `b_path_scale`. The render pose remains driven by the recovered position and
+  rotation path until source evidence proves how non-unit camera scale affects
+  `CamShot::SetFrame`, but scale is no longer a counted-only source page.
 - 2026-07-13 diagnostic path offset source clock:
   the forced CamShot proof hook used to align `path_frame` screenshots with
   `diagnostic_camera_path_offset_frames / 30.0`. That made proof captures

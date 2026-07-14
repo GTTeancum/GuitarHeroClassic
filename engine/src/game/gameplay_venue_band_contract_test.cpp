@@ -8475,6 +8475,10 @@ int main() {
                  "boolhas_path_source_flags=false;",
                  "CameraKey preserves decoded source RndTransAnim path flags");
   ok &= contains(gameplay_h_c,
+                 "floatpath_scale[3]={1.0f,1.0f,1.0f};"
+                 "boolhas_path_scale=false;",
+                 "CameraKey preserves sampled source RndTransAnim scale values");
+  ok &= contains(gameplay_h_c,
                  "floatpath_base_eye[3]={};"
                  "floatpath_base_forward[3]={0.0f,1.0f,0.0f};"
                  "floatpath_base_up[3]={0.0f,0.0f,1.0f};"
@@ -8516,6 +8520,12 @@ int main() {
                  "to.path_rot_spline=from.path_rot_spline;"
                  "to.has_path_source_flags=true;}",
                  "CamShot runtime-field copying preserves decoded path flags");
+  ok &= contains(gameplay_c,
+                 "if(!to.has_path_scale&&from.has_path_scale){"
+                 "for(intaxis=0;axis<3;++axis){"
+                 "to.path_scale[axis]=from.path_scale[axis];}"
+                 "to.has_path_scale=true;}",
+                 "CamShot runtime-field copying preserves sampled path scale values");
   ok &= contains(gameplay_c,
                  "path_pos.path_base_eye[axis]=path_base_pose.eye[axis];",
                  "path-backed camera diagnostics retain the owning CamShot body pose");
@@ -8706,6 +8716,13 @@ int main() {
                  "pos.has_path_source_flags=true;",
                  "path-backed camera positions retain decoded source RndTransAnim path flags");
   ok &= contains(gameplay_c,
+                 "constautoscale=sample_rnd_transanim_scale_keys("
+                 "resolved.scale_keys,pos.frame,resolved.scale_spline);"
+                 "for(intaxis=0;axis<3;++axis)"
+                 "pos.path_scale[axis]=scale[axis];"
+                 "pos.has_path_scale=true;",
+                 "path-backed camera positions sample source RndTransAnim scale keys");
+  ok &= contains(gameplay_c,
                  "c.key.path_source_translation_keys="
                  "c.key.positions.front().path_source_translation_keys;"
                  "c.key.path_source_rotation_keys="
@@ -8729,11 +8746,22 @@ int main() {
                  "c.key.has_path_source_flags=true;",
                  "regular CamShot root keys retain decoded source path flags");
   ok &= contains(gameplay_c,
+                 "if(c.key.positions.front().has_path_scale){"
+                 "for(intaxis=0;axis<3;++axis){"
+                 "c.key.path_scale[axis]="
+                 "c.key.positions.front().path_scale[axis];}"
+                 "c.key.has_path_scale=true;}",
+                 "regular CamShot root keys retain sampled source path scale values");
+  ok &= contains(gameplay_c,
                  "source_sample_frames=%zuadded_source_frames=%zu",
                  "camera path diagnostics expose merged source sample-frame counts");
   ok &= contains(gameplay_c,
                  "source_key_pages=%strans:%zurot:%zuscale:%zu",
                  "camera path diagnostics expose source translation, rotation, and scale page counts");
+  ok &= contains(gameplay_c,
+                 "a_path_scale=%s(%.3f%.3f%.3f)"
+                 "b_path_scale=%s(%.3f%.3f%.3f)",
+                 "camera path diagnostics expose sampled source scale values");
   ok &= contains(gameplay_c,
                  "source_path_flags=%strans_spline:%drepeat:%d"
                  "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d",
@@ -10638,6 +10666,8 @@ int main() {
                  "source_start_frame=%s%.3fsource_end_frame=%s%.3f"
                  "source_sample_frames=%s%zuadded_source_frames=%s%zu"
                  "source_key_pages=%strans:%zurot:%zuscale:%zu"
+                 "a_path_scale=%s(%.3f%.3f%.3f)"
+                 "b_path_scale=%s(%.3f%.3f%.3f)"
                  "source_path_flags=%strans_spline:%drepeat:%d"
                  "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
