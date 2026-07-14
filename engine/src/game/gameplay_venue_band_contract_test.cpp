@@ -184,6 +184,8 @@ int main() {
       compact(function_body(gameplay, "read_rnd_camanim_like_miloeditor"));
   const std::string venue_camera_fov_loader_c =
       compact(function_body(gameplay, "load_venue_camera_fov_anims"));
+  const std::string end_camera_shot_runtime_c = compact(
+      function_body(gameplay, "Gameplay::end_camera_shot_runtime"));
   const std::string event_track_c =
       compact(function_body(gameplay, "performer_event_track_for_role"));
   const std::string classify_roles_c =
@@ -6079,6 +6081,16 @@ int main() {
                  "clear.name=active_camera_runtime_shot_;"
                  "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
                  "camera EndAnim clears only camera-owned visibility state");
+  ok &= appears_before(
+      end_camera_shot_runtime_c,
+      "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
+      "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1\\n\"",
+      "camera EndAnim mirrors ihatecompvir UnHide before stop_shot");
+  ok &= appears_before(
+      end_camera_shot_runtime_c,
+      "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1\\n\"",
+      "end_camera_shot_anims();",
+      "camera EndAnim mirrors ihatecompvir stop_shot before linked mAnims EndAnim");
   ok &= contains(gameplay_h_c,
                  "voidstart_camera_shot_runtime(constCameraKey&key,"
                  "boolsource_restart=false);",

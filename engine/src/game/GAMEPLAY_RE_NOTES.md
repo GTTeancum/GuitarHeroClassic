@@ -34,6 +34,11 @@
   consumption now restarts source timing and StartAnim state even when the
   pending CamShot name matches the active CamShot; the `changed` flag remains
   diagnostic only.
+- 2026-07-13 CamShot EndAnim order: ihatecompvir `CamShot::EndAnim()`
+  runs `UnHide()`, sends `stop_shot_msg`, then ends each linked `mAnims`
+  child. Native now restores camera-owned visibility and emits the stop-shot
+  bridge before ending shot-scoped camera anim filters, instead of ending
+  linked camera anims first.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level

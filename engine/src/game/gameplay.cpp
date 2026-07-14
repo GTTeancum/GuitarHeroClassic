@@ -21589,16 +21589,16 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
 
 void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     if (active_camera_runtime_shot_.empty()) return;
-    end_camera_shot_anims();
-    set_camera_glow_spot_ref({});
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
+    set_camera_glow_spot_ref({});
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
                      "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1\n",
                      active_camera_runtime_shot_.c_str());
     }
+    end_camera_shot_anims();
     active_camera_runtime_shot_.clear();
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
