@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot visibility lifecycle proof:
+  ihatecompvir `CamShot::DoHide()` hides the decoded drawable vectors
+  `unk5c` / `unk6c` and records restored drawables in `unkbc`, while
+  `CamShot::UnHide()` restores `unkbc` and clears `unkb4`. Native camera
+  visibility diagnostics now label decoded `hide_list`, `show_list`, and
+  `gen_hide_list` with those source vector names. This is provenance for
+  active stock GH2 hide-list shots; it does not synthesize hidden
+  `BuildTransform` / `SetPos` camera-angle math or add dependencies.
 - 2026-07-15 CamShot `CheckShotOver` gate proof:
   ihatecompvir `CamShot::CheckShotOver` is a lifetime gate, not an angle
   solver: it refuses when `mShotOver` is already latched, refuses looping

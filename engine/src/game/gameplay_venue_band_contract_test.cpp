@@ -11722,6 +11722,16 @@ int main() {
   ok &= contains(gameplay_c,
                  "for(constauto&mesh:next_shown)next_hidden.erase(mesh);",
                  "camera show_list subtracts from camera-hidden venue meshes");
+  ok &= contains(gameplay_c, "source_visibility=CamShot::DoHide/UnHide",
+                 "camera visibility diagnostics expose ihatecompvir CamShot DoHide/UnHide lifecycle");
+  ok &= contains(gameplay_c,
+                 "source_vectors=hide_list:unk5c,show_list:unk6c,",
+                 "camera visibility diagnostics name ihatecompvir hide/show vectors");
+  ok &= contains(gameplay_c,
+                 "gen_hide_list:unk64source_hidden_restore=unkbc",
+                 "camera visibility diagnostics name ihatecompvir generated-hide and restore vectors");
+  ok &= contains(gameplay_c, "source_disable_restore=unkb4",
+                 "camera visibility diagnostics name ihatecompvir disable-restore vector");
   ok &= contains(gameplay_c,
                  "venue_group_meshes_=mesh_names_by_group(venue_scene);",
                  "venue load builds a group mesh map for CamShot hide_list refs");

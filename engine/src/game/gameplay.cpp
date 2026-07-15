@@ -24120,7 +24120,11 @@ void Gameplay::apply_camera_crowd_visibility(
                      "actor_hide=%d face_camera=%d face_meshes=%zu "
                      "script_crowd_update_skipped=%d "
                      "crowd_select=%d crowd_ref=%s crowd_pairs=%zu "
-                     "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
+                     "draw_overrides=%zu postproc=%zu anims=%zu glow=%s "
+                     "source_visibility=CamShot::DoHide/UnHide "
+                     "source_vectors=hide_list:unk5c,show_list:unk6c,"
+                     "gen_hide_list:unk64 source_hidden_restore=unkbc "
+                     "source_disable_restore=unkb4\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
                      key.hide_list_refs.size(), key.gen_hide_list_refs.size(),
                      key.show_list_refs.size(),
