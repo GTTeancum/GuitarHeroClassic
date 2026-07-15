@@ -11310,6 +11310,28 @@ int main() {
                  "route=regular_camera_source_frame_keys"
                  "source_locals=CamShot::SetFrame(prev,next,keyBlend)\\n\"",
                  "regular camera diagnostics prove source frame-pair keyBlend submission");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_last_prev_key_;"
+                 "std::stringactive_camera_last_next_key_;"
+                 "size_tactive_camera_last_prev_index_=SIZE_MAX;"
+                 "size_tactive_camera_last_next_index_=SIZE_MAX;"
+                 "boolactive_camera_last_pair_null_frame_=false;",
+                 "regular camera runtime stores source-shaped CamShot SetFrame mLastPrev/mLastNext state");
+  ok &= contains(gameplay_c,
+                 "active_camera_last_prev_key_=source_setframe_prev_key;"
+                 "active_camera_last_next_key_=source_setframe_next_key;"
+                 "active_camera_last_prev_index_=source_setframe_prev_index;"
+                 "active_camera_last_next_index_=source_setframe_next_index;"
+                 "active_camera_last_pair_null_frame_=source_setframe_null_frame;",
+                 "regular camera mLastPrev/mLastNext state updates outside the diagnostic-only logging gate");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraSetFramelastpair:shot=%s"
+                 "route=regular_camera_source_frame_keys"
+                 "source_fields=mLastPrev,mLastNext"
+                 "prev=%snext=%sprev_index=%s%zunext_index=%s%zu"
+                 "nullFrame=%dchanged=%d"
+                 "source_locals=CamShot::SetFrame(prev,next,keyBlend)\\n\"",
+                 "regular camera diagnostics expose source CamShot mLastPrev/mLastNext frame-pair state");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframehold:shot=%slocal_frame=%.3f"
                  "keys=%zuframe=%.3f"
@@ -11321,6 +11343,11 @@ int main() {
                  "route=regular_camera_source_frame_keys"
                  "source_nullFrame=%dsource_locals=%s\\n\"",
                  "regular camera diagnostics distinguish source GetKey holds from rb2 nullFrame fallback");
+  ok &= contains(gameplay_c,
+                 "source_setframe_null_frame?"
+                 "std::string(\"nullFrame\"):"
+                 "source_frame_last_label(hold_key);",
+                 "regular camera mLastPrev/mLastNext state labels RB2 CamShot::SetFrame nullFrame fallback");
   ok &= contains(gameplay_c,
                  "hold_key.source_frame_null_frame?"
                  "\"CamShot::SetFrame(nullFrame)\":"

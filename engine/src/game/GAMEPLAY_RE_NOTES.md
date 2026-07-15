@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot SetFrame last-pair state:
+  FreeCamera is back-burnered unless it blocks gameplay cameras. The normal
+  gameplay camera route now keeps a runtime mirror of the source-visible
+  `CamShot` fields `mLastPrev` and `mLastNext` for non-path CamShot timing:
+  native stores the selected `mKeyFrames[...]` pair, or the RB2
+  `CamShot::SetFrame` `nullFrame` fallback when no source timing frames exist.
+  This state updates before the diagnostic logging gate, so it is not a
+  debug-only proof artifact. The new `[world] camera SetFrame last pair ...`
+  row reports `source_fields=mLastPrev,mLastNext`, the selected prev/next
+  labels, source key indices, `nullFrame`, and whether the pair changed on
+  that call. This still does not claim the hidden RB2 `CamShot::SetFrame` pose
+  body; it preserves the ihatecompvir-audited boundary while making sketchy
+  gameplay camera angles easier to inspect.
 - 2026-07-15 FreeCamera poll bridge:
   ihatecompvir `CameraManager::Poll()` calls `mCurrentShot->SetFrame(...)`
   and then `mFreeCam->Poll()` when `MiloCamera()` is inactive. The visible

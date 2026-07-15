@@ -1320,6 +1320,11 @@ class Gameplay {
   std::string active_camera_postprocess_ref_;
   std::string active_camera_shot_started_reported_;
   std::string active_camera_frame_pair_reported_;
+  std::string active_camera_last_prev_key_;
+  std::string active_camera_last_next_key_;
+  size_t active_camera_last_prev_index_ = SIZE_MAX;
+  size_t active_camera_last_next_index_ = SIZE_MAX;
+  bool active_camera_last_pair_null_frame_ = false;
   std::string active_camera_shot_over_reported_;
   std::string active_camera_shot_over_gate_reported_;
   bool active_camera_shot_over_ = false;

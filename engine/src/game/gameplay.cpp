@@ -23603,6 +23603,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_postprocess_ref_.clear();
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
+    active_camera_last_prev_key_.clear();
+    active_camera_last_next_key_.clear();
+    active_camera_last_prev_index_ = SIZE_MAX;
+    active_camera_last_next_index_ = SIZE_MAX;
+    active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
@@ -24516,6 +24521,11 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     active_camera_runtime_shot_.clear();
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
+    active_camera_last_prev_key_.clear();
+    active_camera_last_next_key_.clear();
+    active_camera_last_prev_index_ = SIZE_MAX;
+    active_camera_last_next_index_ = SIZE_MAX;
+    active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
@@ -24546,6 +24556,11 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     set_camera_glow_spot_ref({});
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
+    active_camera_last_prev_key_.clear();
+    active_camera_last_next_key_.clear();
+    active_camera_last_prev_index_ = SIZE_MAX;
+    active_camera_last_next_index_ = SIZE_MAX;
+    active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
@@ -25150,6 +25165,11 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     pending_regular_camera_local_frame_ = 0.0;
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
+    active_camera_last_prev_key_.clear();
+    active_camera_last_next_key_.clear();
+    active_camera_last_prev_index_ = SIZE_MAX;
+    active_camera_last_next_index_ = SIZE_MAX;
+    active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
@@ -32144,6 +32164,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_fov_anim_reported_.clear();
                 active_camera_shot_over_ = false;
                 active_camera_shot_over_gate_reported_.clear();
+                active_camera_last_prev_key_.clear();
+                active_camera_last_next_key_.clear();
+                active_camera_last_prev_index_ = SIZE_MAX;
+                active_camera_last_next_index_ = SIZE_MAX;
+                active_camera_last_pair_null_frame_ = false;
                 active_camera_skip_next_crowd_update_ = false;
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
@@ -34572,6 +34597,89 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_camera_shot_started_reported_ = key->name;
                     apply_venue_event("post_switch_cam", false);
                 }
+                auto source_frame_index_token =
+                    [](const CameraKey& source_key) {
+                        return source_key.has_source_frame_key_index
+                                   ? std::to_string(
+                                         source_key.source_frame_key_index)
+                                   : std::string("none");
+                    };
+                auto source_frame_index_value =
+                    [](const CameraKey& source_key) {
+                        return source_key.has_source_frame_key_index
+                                   ? source_key.source_frame_key_index
+                                   : SIZE_MAX;
+                    };
+                auto source_frame_last_label =
+                    [&](const CameraKey& source_key) {
+                        return source_key.has_source_frame_key_index
+                                   ? std::string("mKeyFrames[") +
+                                         source_frame_index_token(source_key) +
+                                         "]"
+                                   : std::string("mKeyFrames[none]");
+                    };
+                std::string source_setframe_prev_key;
+                std::string source_setframe_next_key;
+                size_t source_setframe_prev_index = SIZE_MAX;
+                size_t source_setframe_next_index = SIZE_MAX;
+                bool source_setframe_pair_valid = false;
+                bool source_setframe_null_frame = false;
+                if (source_frame_key_route && selected_camera.size() >= 2) {
+                    const CameraKey& a_key = selected_camera[0];
+                    const CameraKey& b_key = selected_camera[1];
+                    source_setframe_prev_key = source_frame_last_label(a_key);
+                    source_setframe_next_key = source_frame_last_label(b_key);
+                    source_setframe_prev_index =
+                        source_frame_index_value(a_key);
+                    source_setframe_next_index =
+                        source_frame_index_value(b_key);
+                    source_setframe_pair_valid = true;
+                } else if (source_frame_key_route &&
+                           selected_camera.size() == 1) {
+                    const CameraKey& hold_key = selected_camera.front();
+                    source_setframe_null_frame =
+                        hold_key.source_frame_null_frame;
+                    source_setframe_prev_key =
+                        source_setframe_null_frame
+                            ? std::string("nullFrame")
+                            : source_frame_last_label(hold_key);
+                    source_setframe_next_key = source_setframe_prev_key;
+                    source_setframe_prev_index =
+                        source_setframe_null_frame
+                            ? SIZE_MAX
+                            : source_frame_index_value(hold_key);
+                    source_setframe_next_index =
+                        source_setframe_prev_index;
+                    source_setframe_pair_valid = true;
+                }
+                const bool source_setframe_pair_changed =
+                    source_setframe_pair_valid &&
+                    (active_camera_last_prev_key_ !=
+                         source_setframe_prev_key ||
+                     active_camera_last_next_key_ !=
+                         source_setframe_next_key ||
+                     active_camera_last_prev_index_ !=
+                         source_setframe_prev_index ||
+                     active_camera_last_next_index_ !=
+                         source_setframe_next_index ||
+                     active_camera_last_pair_null_frame_ !=
+                         source_setframe_null_frame);
+                if (source_setframe_pair_valid) {
+                    active_camera_last_prev_key_ = source_setframe_prev_key;
+                    active_camera_last_next_key_ = source_setframe_next_key;
+                    active_camera_last_prev_index_ =
+                        source_setframe_prev_index;
+                    active_camera_last_next_index_ =
+                        source_setframe_next_index;
+                    active_camera_last_pair_null_frame_ =
+                        source_setframe_null_frame;
+                } else {
+                    active_camera_last_prev_key_.clear();
+                    active_camera_last_next_key_.clear();
+                    active_camera_last_prev_index_ = SIZE_MAX;
+                    active_camera_last_next_index_ = SIZE_MAX;
+                    active_camera_last_pair_null_frame_ = false;
+                }
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                     if (source_shot_started) {
                         std::fprintf(
@@ -34595,13 +34703,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             source_camshot_timing_frames(*key).size(),
                             source_setframe_blend);
                     }
-                    auto source_frame_index_token =
-                        [](const CameraKey& source_key) {
-                            return source_key.has_source_frame_key_index
-                                       ? std::to_string(
-                                             source_key.source_frame_key_index)
-                                       : std::string("none");
-                        };
                     if (source_frame_key_route && selected_camera.size() >= 2) {
                         const CameraKey& a_key = selected_camera[0];
                         const CameraKey& b_key = selected_camera[1];
@@ -34655,6 +34756,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             frame_mapping_prefix(), source_key_blend,
                             frame_mapping_prefix(), source_eased_key_blend,
                             frame_pair_report_key.c_str());
+                        std::fprintf(
+                            stderr,
+                            "[world] camera SetFrame last pair: shot=%s route=regular_camera_source_frame_keys source_fields=mLastPrev,mLastNext prev=%s next=%s prev_index=%s%zu next_index=%s%zu nullFrame=%d changed=%d source_locals=CamShot::SetFrame(prev,next,keyBlend)\n",
+                            key->name.c_str(),
+                            active_camera_last_prev_key_.c_str(),
+                            active_camera_last_next_key_.c_str(),
+                            active_camera_last_prev_index_ == SIZE_MAX
+                                ? "none/"
+                                : "",
+                            active_camera_last_prev_index_ == SIZE_MAX
+                                ? size_t{0}
+                                : active_camera_last_prev_index_,
+                            active_camera_last_next_index_ == SIZE_MAX
+                                ? "none/"
+                                : "",
+                            active_camera_last_next_index_ == SIZE_MAX
+                                ? size_t{0}
+                                : active_camera_last_next_index_,
+                            active_camera_last_pair_null_frame_ ? 1 : 0,
+                            source_setframe_pair_changed ? 1 : 0);
                         std::fprintf(
                             stderr,
                             "[world] camera source frame pair zero_xfm_reset: shot=%s zero_xfm_reset=a:%d b:%d source_locals=CamShotFrame::Load(Transform::Zero_Reset)\n",
@@ -34777,6 +34898,27 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             frame_mapping_prefix(), source_eased_key_blend,
                             frame_hold_report_key.c_str(),
                             hold_key.source_frame_null_frame ? 1 : 0,
+                            source_hold_locals);
+                        std::fprintf(
+                            stderr,
+                            "[world] camera SetFrame last pair: shot=%s route=regular_camera_source_frame_keys source_fields=mLastPrev,mLastNext prev=%s next=%s prev_index=%s%zu next_index=%s%zu nullFrame=%d changed=%d source_locals=%s\n",
+                            key->name.c_str(),
+                            active_camera_last_prev_key_.c_str(),
+                            active_camera_last_next_key_.c_str(),
+                            active_camera_last_prev_index_ == SIZE_MAX
+                                ? "none/"
+                                : "",
+                            active_camera_last_prev_index_ == SIZE_MAX
+                                ? size_t{0}
+                                : active_camera_last_prev_index_,
+                            active_camera_last_next_index_ == SIZE_MAX
+                                ? "none/"
+                                : "",
+                            active_camera_last_next_index_ == SIZE_MAX
+                                ? size_t{0}
+                                : active_camera_last_next_index_,
+                            active_camera_last_pair_null_frame_ ? 1 : 0,
+                            source_setframe_pair_changed ? 1 : 0,
                             source_hold_locals);
                         if (has_frame_mapping &&
                             (hold_key.source_frame_loop_active ||
