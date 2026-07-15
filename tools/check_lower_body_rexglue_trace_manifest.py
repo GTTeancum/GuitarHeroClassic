@@ -34,13 +34,13 @@ def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
 
 def check_manifest(
     manifest_path: Path, cross_check_summaries: bool
-) -> tuple[int, int, int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int, int, int, int]:
     manifest = load_json(manifest_path)
     require(
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "2446916", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "237bda5", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -79,16 +79,18 @@ def check_manifest(
         require(hook in hooks, f"missing RexGlue hook {hook}")
 
     captures = manifest.get("captures", [])
-    require(len(captures) == 7, "expected seven current RexGlue trace summaries")
+    require(len(captures) == 8, "expected eight current RexGlue trace summaries")
     runtime_total = 0
     neighborhood_total = 0
     accepted_count = 0
-    strong_in_song_total = 0
+    pose_apply_route_total = 0
+    scene_route_total = 0
+    controller_gate_total = 0
     scripted_nav_poll_total = 0
     input_guitar_edge_total = 0
     saw_truncated = False
     saw_clean_shutdown = False
-    saw_in_song_route = False
+    saw_controller_gate = False
     saw_scripted_nav_single_poll = False
     saw_poll_heartbeat = False
     saw_guitar_edge = False
@@ -108,13 +110,21 @@ def check_manifest(
             "current RexGlue capture has an unexpected GuitarPort edge count",
         )
         require(
-            capture.get("route_status") in ("route_not_reached", "in_song_route_reached"),
+            capture.get("route_status")
+            in (
+                "route_not_reached",
+                "controller_gate_without_apply",
+                "scene_marker_without_apply",
+                "pose_apply_route_reached",
+            ),
             "current RexGlue capture has an unexpected route status",
         )
         require(capture.get("accepted_row_oracle") is False, "current RexGlue capture must be non-authoritative")
         runtime_total += int(capture.get("runtime_memory_events", 0))
         neighborhood_total += int(capture.get("pose_table_neighborhood_events", 0))
-        strong_in_song_total += int(capture.get("strong_in_song_events", 0))
+        pose_apply_route_total += int(capture.get("strong_in_song_events", 0))
+        scene_route_total += int(capture.get("scene_route_markers", 0))
+        controller_gate_total += int(capture.get("controller_gate_events", 0))
         scripted_nav_poll_total += int(capture.get("scripted_nav_polls", 0))
         input_guitar_edge_total += int(capture.get("input_guitar_edges", 0))
         accepted_count += 1 if capture.get("accepted_row_oracle") else 0
@@ -133,17 +143,22 @@ def check_manifest(
             saw_truncated = True
         if capture.get("invalid_lines") == 0 and capture.get("final_event") == "capture.off":
             saw_clean_shutdown = True
-        if capture.get("strong_in_song_events") == 1:
+        if capture.get("controller_gate_events") == 1:
             require(
-                capture.get("route_status") == "in_song_route_reached",
-                "in-song marker must use the in_song_route_reached status",
+                capture.get("route_status") == "controller_gate_without_apply",
+                "controller gate must use the controller_gate_without_apply status",
             )
             require(
                 capture.get("clip_apply_events") == 0
                 and capture.get("lower_body_rows") == 0,
-                "in-song RexGlue route is not allowed to claim row authority yet",
+                "controller-gated RexGlue route is not allowed to claim row authority",
             )
-            saw_in_song_route = True
+            require(
+                "pause_controller.milo_xbox"
+                in capture.get("first_controller_gate_file", ""),
+                "controller gate capture must name pause_controller.milo_xbox",
+            )
+            saw_controller_gate = True
 
         if cross_check_summaries:
             summary = load_json(resolve_manifest_path(manifest_path, capture["summary"]))
@@ -172,8 +187,20 @@ def check_manifest(
             require(
                 summary.get("strong_in_song_events")
                 == capture.get("strong_in_song_events"),
-                "summary strong in-song event count mismatch",
+                "summary pose/apply route event count mismatch",
             )
+            if "scene_route_markers" in capture:
+                require(
+                    summary.get("scene_route_markers")
+                    == capture.get("scene_route_markers"),
+                    "summary scene route marker count mismatch",
+                )
+            if "controller_gate_events" in capture:
+                require(
+                    summary.get("controller_gate_events")
+                    == capture.get("controller_gate_events"),
+                    "summary controller gate count mismatch",
+                )
             require(
                 summary.get("route_status") == capture.get("route_status"),
                 "summary route status mismatch",
@@ -201,19 +228,23 @@ def check_manifest(
 
     require(saw_truncated, "expected the scripted RexGlue attempt to record the truncated-tail failure")
     require(saw_clean_shutdown, "expected a clean RexGlue shutdown trace with capture.off")
-    require(saw_in_song_route, "expected the clean RexGlue route to reach an in-song marker")
+    require(saw_controller_gate, "expected the clean RexGlue route to record the controller gate")
     require(saw_scripted_nav_single_poll, "expected scripted RexGlue attempt to record exactly one scripted-nav poll")
     require(saw_poll_heartbeat, "expected current RexGlue attempts to record scripted-nav poll heartbeats")
     require(saw_guitar_edge, "expected current RexGlue attempts to prove a GuitarPort input edge")
-    require(strong_in_song_total == 1, "current RexGlue captures must have exactly one in-song route marker")
+    require(pose_apply_route_total == 0, "current RexGlue captures must not claim pose/apply route markers")
+    require(scene_route_total == 1, "current RexGlue captures must record the single scene marker separately")
+    require(controller_gate_total == 2, "current RexGlue captures must record two controller gates")
     require(neighborhood_total == 0, "current RexGlue captures must have zero accepted pose-table neighborhoods")
-    require(input_guitar_edge_total == 3, "current RexGlue captures must have exactly three proven GuitarPort input edges")
+    require(input_guitar_edge_total == 4, "current RexGlue captures must have exactly four proven GuitarPort input edges")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
     return (
         runtime_total,
         neighborhood_total,
         accepted_count,
-        strong_in_song_total,
+        pose_apply_route_total,
+        scene_route_total,
+        controller_gate_total,
         scripted_nav_poll_total,
         input_guitar_edge_total,
         1 if saw_clean_shutdown else 0,
@@ -244,7 +275,9 @@ def main() -> int:
             runtime_total,
             neighborhood_total,
             accepted_count,
-            strong_in_song_total,
+            pose_apply_route_total,
+            scene_route_total,
+            controller_gate_total,
             scripted_nav_poll_total,
             input_guitar_edge_total,
             clean_shutdown_count,
@@ -256,12 +289,15 @@ def main() -> int:
         "PASS lower_body_rexglue_trace_manifest "
         f"runtime_memory_events={runtime_total} "
         f"pose_table_neighborhood_events={neighborhood_total} "
-        f"strong_in_song_events={strong_in_song_total} "
+        f"pose_apply_route_events={pose_apply_route_total} "
+        f"scene_route_markers={scene_route_total} "
+        f"controller_gate_events={controller_gate_total} "
         f"scripted_nav_polls={scripted_nav_poll_total} "
         f"guitar_edges={input_guitar_edge_total} "
         f"clean_shutdown_traces={clean_shutdown_count} "
         f"accepted_row_oracles={accepted_count} "
-        "route_status=apply_rows_not_reached "
+        "apply_status=apply_rows_not_reached "
+        "route_status=controller_gate_without_apply "
         "accepted_live_row_authority=pcsx2_rock_lower_body_mesh_rows_20260715"
     )
     return 0

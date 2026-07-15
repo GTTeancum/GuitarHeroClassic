@@ -6339,7 +6339,9 @@ Lower-body evidence audit:
   counters, commit `0fa9a89` makes the first scripted controller poll emit a
   real `A` edge so the original GuitarPort remapper can be observed, and commit
   `2446916` makes trace shutdown deterministic by clean-closing the hidden
-  trace app and flushing each JSONL line from `trace_recorder.cpp`.
+  trace app and flushing each JSONL line from `trace_recorder.cpp`, and commit
+  `237bda5` splits pose/apply route markers from scene markers and records the
+  controller gate explicitly.
   `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the
   no-focus `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the
   original CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
@@ -6347,25 +6349,33 @@ Lower-body evidence audit:
   Current RexGlue captures are still not accepted lower-body row oracles:
   `analysis/rexglue_lower_body_trace_clean_shutdown_1784129332_summary.json`
   reports `invalid_lines=0`, a final `capture.off`, `runtime=150`,
-  `insong=1`, `scripted_nav_polls=16`, and `guitar_edges=1`, but still
-  `apply=0`, `rows=0`, and `neighborhood=0`. The first proven GuitarPort edge
-  remains `wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040`.
-  Older scripted/PostMessage attempts remain recorded as truncated-tail
-  failures, while the new clean run moves the next RexGlue target from route
-  reachability to finding the CharClipSamples apply rows with named lower-body
-  channels. `tools/check_rexglue_lower_body_trace.py --require-in-song-route`
-  is now the reachability gate for future RexGlue captures, and
+  `pose_route=0`, `scene_route=1`, `controller_gate=1`,
+  `scripted_nav_polls=16`, and `guitar_edges=1`, but still `apply=0`,
+  `rows=0`, and `neighborhood=0`. The first proven GuitarPort edge remains
+  `wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040`,
+  and the controller-gate clue is `ui/gen/pause_controller.milo_xbox`. Older
+  scripted/PostMessage attempts remain recorded as truncated-tail failures,
+  including route-missed summaries such as `runtime=192 apply=0 rows=0 insong=0`
+  and the pause/controller UI string `pause_controller_msg.lbl`. The rebuilt
+  `237bda5` run
+  `analysis/rexglue_lower_body_trace_rebuilt_scaffold_1784130255_summary.json`
+  reproduces `controller_gate=1`, `runtime=192`, `scripted_nav_polls=4`, and
+  `apply=0` from the current trace executable. The next RexGlue target is
+  getting past the
+  controller/pause gate and back into the historical CharClipSamples apply rows
+  with named lower-body channels. `tools/check_rexglue_lower_body_trace.py --require-in-song-route`
+  now requires pose/apply route markers, and
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
   records that the current RexGlue evidence is clean trace scaffolding plus a
-  remaining apply-row gap, not proof of the live lower-body row path. Older trace notes remain
+  remaining controller-gate/apply-row gap, not proof of the live lower-body row path. Older trace notes remain
   useful context only: `analysis/anim_apply_trace_summary_20260606.md` shows
   historical active destination tables receiving `bone_L-ankle.quat`,
   `bone_R-ankle.quat`, `bone_L-thigh.quat`, `bone_R-thigh.quat`,
   `bone_L-knee.rotz`, `bone_R-knee.rotz`, and toe rot rows, and
   `analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md` records an earlier lower-body
   mesh-row investigation. They are not a substitute for a fresh RexGlue capture
-  that first reaches strong in-song animation/camera/crowd route markers and
-  then reaches named CharClipSamples apply rows.
+  that first gets past the controller/pause gate and then reaches named
+  CharClipSamples apply rows.
 - 2026-07-15 PCSX2 lower-body row refresh:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.json`
   samples the current GHDX/PCSX2 in-game state with direct window screenshots

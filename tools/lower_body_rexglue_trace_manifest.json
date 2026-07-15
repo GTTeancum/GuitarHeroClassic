@@ -1,7 +1,7 @@
 {
   "trace_id": "rexglue_lower_body_trace_scaffold_20260715",
   "trace_worktree": "../GuitarHeroOGX-trace360",
-  "trace_commit": "2446916",
+  "trace_commit": "237bda5",
   "scaffold": {
     "script": "smoke_trace.ps1",
     "runtime_flag": "--trace-lower-body-memory",
@@ -138,19 +138,47 @@
       "pose_table_neighborhood_events": 0,
       "clip_apply_events": 0,
       "lower_body_rows": 0,
-      "strong_in_song_events": 1,
+      "strong_in_song_events": 0,
+      "pose_apply_route_events": 0,
+      "scene_route_markers": 1,
+      "controller_gate_events": 1,
       "scripted_nav_events": 1,
       "scripted_nav_polls": 16,
       "input_guitar_edges": 1,
       "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040",
-      "route_status": "in_song_route_reached",
+      "first_controller_gate_file": "ui/gen/pause_controller.milo_xbox",
+      "route_status": "controller_gate_without_apply",
       "accepted_row_oracle": false,
       "invalid_lines": 0,
       "final_event": "capture.off",
-      "result": "clean_shutdown_in_song_marker_no_apply_rows"
+      "result": "clean_shutdown_controller_gate_no_apply_rows"
+    },
+    {
+      "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_rebuilt_scaffold_1784130255_summary.json",
+      "route": "rebuilt_scaffold_post_message_plus_scripted_xinput",
+      "trace_commit": "237bda5",
+      "events": 8709,
+      "runtime_memory_events": 192,
+      "pose_table_neighborhood_events": 0,
+      "clip_apply_events": 0,
+      "lower_body_rows": 0,
+      "strong_in_song_events": 0,
+      "pose_apply_route_events": 0,
+      "scene_route_markers": 0,
+      "controller_gate_events": 1,
+      "scripted_nav_events": 1,
+      "scripted_nav_polls": 4,
+      "input_guitar_edges": 1,
+      "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040",
+      "first_controller_gate_file": "ui/gen/pause_controller.milo_xbox",
+      "route_status": "controller_gate_without_apply",
+      "accepted_row_oracle": false,
+      "invalid_lines": 0,
+      "final_event": "prop.lookup",
+      "result": "rebuilt_scaffold_controller_gate_no_apply_rows"
     }
   ],
   "accepted_live_row_authority": "pcsx2_rock_lower_body_mesh_rows_20260715",
   "native_path": "source_output_lower_body_bridge",
-  "next_trace_target": "Use the clean RexGlue trace route to continue from the in-song marker into CharClipSamples apply rows with named lower-body channels before using RexGlue as a lower-body row oracle."
+  "next_trace_target": "Use RexGlue trace scaffolding to get past the controller/pause gate and back into the historical CharClipSamples apply path with named lower-body channels before using RexGlue as a lower-body row oracle."
 }

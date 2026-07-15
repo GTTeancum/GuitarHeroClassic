@@ -34595,6 +34595,9 @@ int run_contract() {
                  "`runtime=192 apply=0 rows=0 insong=0`",
                  "document records RexGlue route-missed lower-body trace");
   ok &= contains(doc,
+                 "`pose_route=0`, `scene_route=1`, `controller_gate=1`",
+                 "document records RexGlue controller-gated clean trace");
+  ok &= contains(doc,
                  "`route_status=route_not_reached`",
                  "document records RexGlue route reachability rejection");
   ok &= contains(doc,
@@ -34613,6 +34616,13 @@ int run_contract() {
   ok &= contains(doc,
                  "`pause_controller_msg.lbl`",
                  "document records RexGlue pause/controller UI route clue");
+  ok &= contains(doc,
+                 "`ui/gen/pause_controller.milo_xbox`",
+                 "document records RexGlue controller-gate file clue");
+  ok &= contains(
+      doc,
+      "`analysis/rexglue_lower_body_trace_rebuilt_scaffold_1784130255_summary.json`",
+      "document records rebuilt RexGlue scaffold summary");
   ok &= contains(
       doc,
       "`tools/check_lower_body_rexglue_trace_manifest.py "
@@ -34696,7 +34706,7 @@ int run_contract() {
                  "stored transform-shaped source-row band",
                  "document records stored transform-band requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"2446916\"",
+                 "\"trace_commit\":\"237bda5\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
@@ -34705,14 +34715,17 @@ int run_contract() {
                  "\"route_status\":\"route_not_reached\"",
                  "RexGlue lower-body manifest preserves rejected older routes");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"route_status\":\"in_song_route_reached\"",
-                 "RexGlue lower-body manifest records clean in-song route progress");
+                 "\"route_status\":\"controller_gate_without_apply\"",
+                 "RexGlue lower-body manifest records controller-gated clean route");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"strong_in_song_events\":0",
                  "RexGlue lower-body manifest records older missing in-song route markers");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"strong_in_song_events\":1",
-                 "RexGlue lower-body manifest records clean in-song route marker");
+                 "\"scene_route_markers\":1",
+                 "RexGlue lower-body manifest records clean scene route marker separately");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"controller_gate_events\":1",
+                 "RexGlue lower-body manifest records clean controller gate");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"invalid_lines\":0",
                  "RexGlue lower-body manifest records clean JSONL tail");
@@ -34744,7 +34757,7 @@ int run_contract() {
                  "RexGlue lower-body checker can cross-check trace summaries");
   ok &= contains(lower_body_rexglue_trace,
                  "--require-in-song-route",
-                 "RexGlue lower-body checker can require in-song route markers");
+                 "RexGlue lower-body checker can require pose/apply route markers");
   ok &= contains(lower_body_rexglue_trace,
                  "--require-scripted-nav-polls",
                  "RexGlue lower-body checker can require scripted-nav poll heartbeats");
@@ -34757,6 +34770,9 @@ int run_contract() {
   ok &= contains(lower_body_rexglue_trace,
                  "apply_rows_not_reached",
                  "RexGlue lower-body checker keeps apply-row gap explicit");
+  ok &= contains(lower_body_rexglue_trace,
+                 "controller_gate_without_apply",
+                 "RexGlue lower-body checker reports controller-gated route status");
   ok &= contains(doc,
                  "`2446916` makes trace shutdown deterministic",
                  "document records deterministic RexGlue shutdown commit");
