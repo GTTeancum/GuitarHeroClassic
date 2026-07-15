@@ -34522,11 +34522,11 @@ int run_contract() {
                  "checks the same five-body fence",
                  "document records verifier five-body fence");
   ok &= contains(doc,
-                 "verifies the four local\n  mirrors match their fetched "
-                 "remote tips",
+                 "verifies the four local mirrors match their fetched remote "
+                 "tips and\n  GitHub's live default-branch heads",
                  "document records source freshness verifier");
   ok &= contains(doc,
-                 "glTFMilo,\n  Grim, and re-notes remain format/converter "
+                 "glTFMilo, Grim,\n  and re-notes remain format/converter "
                  "evidence",
                  "document records non-rb3 source scope");
   ok &= contains(doc,
@@ -34538,6 +34538,8 @@ int run_contract() {
                  "document records updated source-gap verifier pass count");
   ok &= contains(doc, "`SUMMARY pass=60`",
                  "document records expanded source-gap verifier pass count");
+  ok &= contains(doc, "`SUMMARY pass=64`",
+                 "document records live-head source-gap verifier pass count");
   ok &= contains(doc,
                  "`tools/pose_publisher_source_gap_manifest.json` pins the "
                  "exact split-dump\n  ranges and locals",
@@ -34579,11 +34581,20 @@ int run_contract() {
                  "--require-fresh-remotes",
                  "pose publisher verifier exposes source freshness gate");
   ok &= contains(pose_publisher_source_gaps,
+                 "--require-live-heads",
+                 "pose publisher verifier exposes live source freshness gate");
+  ok &= contains(pose_publisher_source_gaps,
                  "rb3-mirror-fresh",
                  "pose publisher verifier checks rb3 mirror freshness");
   ok &= contains(pose_publisher_source_gaps,
+                 "rb3-live-head-fresh",
+                 "pose publisher verifier checks rb3 live default head");
+  ok &= contains(pose_publisher_source_gaps,
                  "gltfmilo-mirror-fresh",
                  "pose publisher verifier checks glTFMilo mirror freshness");
+  ok &= contains(pose_publisher_source_gaps,
+                 "gltfmilo-live-head-fresh",
+                 "pose publisher verifier checks glTFMilo live default head");
   ok &= contains(pose_publisher_source_gaps,
                  "rb2-charclipdriver-evaluate-range-local-map",
                  "pose publisher verifier records CharClipDriver Evaluate dump boundary");

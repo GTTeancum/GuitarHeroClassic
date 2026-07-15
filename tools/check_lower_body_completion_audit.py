@@ -360,6 +360,9 @@ def check_source_boundary(root: Path, doc: str) -> None:
     still_fenced = set(gap_manifest.get("still_fenced", []))
     require(still_fenced == EXPECTED_FENCED, f"unexpected fenced source bodies: {still_fenced}")
     require_contains(gaps_tool, "source-gap-manifest-five-body-fence", "source gap fence check")
+    require_contains(gaps_tool, "--require-live-heads", "source gap live-head option")
+    require_contains(gaps_tool, "rb3-live-head-fresh", "source gap rb3 live-head check")
+    require_contains(gaps_tool, "gltfmilo-live-head-fresh", "source gap glTFMilo live-head check")
     captures = rexglue_manifest.get("captures")
     require(isinstance(captures, list) and captures, "RexGlue manifest needs captures")
     accepted = [capture for capture in captures if capture.get("accepted_row_oracle")]

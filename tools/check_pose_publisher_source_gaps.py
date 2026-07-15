@@ -198,6 +198,46 @@ FRESHNESS_LABELS = {
     "re-notes": "re-notes-mirror-fresh",
 }
 
+LIVE_HEAD_LABELS = {
+    "rb3": "rb3-live-head-fresh",
+    "gltfmilo": "gltfmilo-live-head-fresh",
+    "grim": "grim-live-head-fresh",
+    "re-notes": "re-notes-live-head-fresh",
+}
+
+
+def git_origin_url(path: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "remote", "get-url", "origin"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout.strip() or None
+
+
+def git_ls_remote_head(url: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", url, "HEAD"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+    fields = result.stdout.split()
+    if not fields:
+        return None
+    return fields[0][:7]
+
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
@@ -224,6 +264,11 @@ def main(argv: list[str]) -> int:
         "--require-fresh-remotes",
         action="store_true",
         help="Fail if a checked mirror HEAD differs from origin/master or origin/main.",
+    )
+    parser.add_argument(
+        "--require-live-heads",
+        action="store_true",
+        help="Fail if a checked mirror HEAD differs from the live GitHub default-branch HEAD.",
     )
     parser.add_argument(
         "--gap-manifest",
@@ -392,6 +437,15 @@ def main(argv: list[str]) -> int:
                 FRESHNESS_LABELS[label],
                 bool(commit and remote_commit and commit == remote_commit),
                 f"HEAD={commit or 'unknown'} remote={remote_ref or 'none'}:{remote_commit or 'unknown'}",
+            )
+        if args.require_live_heads:
+            url = git_origin_url(path)
+            live_head = git_ls_remote_head(url) if url else None
+            record(
+                results,
+                LIVE_HEAD_LABELS[label],
+                bool(commit and live_head and commit == live_head),
+                f"HEAD={commit or 'unknown'} live=HEAD:{live_head or 'unknown'} url={url or 'none'}",
             )
 
     rb2_dump_available = dump_char.exists()

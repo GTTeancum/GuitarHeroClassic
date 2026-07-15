@@ -5212,11 +5212,12 @@ note, and all report `unreadBytes=0`.
   mirror was left stale." The command-line verifier
   `tools/check_pose_publisher_source_gaps.py --rb3-root
   third_party/ihatecompvir-live/rb3 --ihatecompvir-root
-  third_party/ihatecompvir-live --require-rb2-dump --require-fresh-remotes` now
-  checks the same five-body fence as the native notes, verifies the four local
-  mirrors match their fetched remote tips, and separately checks that glTFMilo,
-  Grim, and re-notes remain format/converter evidence, not hidden C++ runtime
-  pose publisher bodies. It proves the latest source still exposes
+  third_party/ihatecompvir-live --require-rb2-dump --require-fresh-remotes
+  --require-live-heads` now checks the same five-body fence as the native
+  notes, verifies the four local mirrors match their fetched remote tips and
+  GitHub's live default-branch heads, and separately checks that glTFMilo, Grim,
+  and re-notes remain format/converter evidence, not hidden C++ runtime pose
+  publisher bodies. It proves the latest source still exposes
   `CharClip::PoseMeshes` call order and `CharBonesSamples::ScaleAddSample`,
   while glTFMilo exposes the hair branch splitter used by the native hair
   segment helper. It does not expose reviewable C++ bodies for
@@ -5242,8 +5243,9 @@ note, and all report `unreadBytes=0`.
   gate with current Rockabill2 viewer and in-game frames; the viewer and
   gameplay logs both print `source_publisher=fenced` before the screenshot
   while the saved verifier log reports `SUMMARY pass=12`. The expanded mirror
-  scope verifier now reports `SUMMARY pass=60` when the glTFMilo/Grim/re-notes
-  checks, mirror freshness guards, RB2 empty-row guards, and the
+  scope verifier reports `SUMMARY pass=60` without live network checks and
+  `SUMMARY pass=64` when the glTFMilo/Grim/re-notes checks, mirror freshness
+  guards, live default-head guards, RB2 empty-row guards, and the
   `pose_publisher_source_gap_manifest` range/local checks are included.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
