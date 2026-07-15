@@ -11952,11 +11952,12 @@ int main() {
                  "filter_source=ShotMatches"
                  "source_category=%ssource_filters=\\\"%s\\\""
                  "source_previous=%s"
+                 "source_current=%ssource_next_before=%ssource_next_after=%s"
                  "source_walking=%dsource_walking_gate=%s"
                  "source_starpower=%d"
                  "flags=0x%08xforced=%dchanged=%dsource_next=%d"
                  "force_char_lod=%d",
-                 "regular camera sweep logs source matcher provenance and selected character LOD");
+                 "regular camera sweep logs source matcher provenance, pending source shot state, and selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
                  "distance=%sfacing=%shide_crowd=%d"
@@ -13103,6 +13104,22 @@ int main() {
                  "source_previous=%s",
                  "regular camera sweep diagnostics expose source mode, faceoff, category, filters, and previous shot");
   ok &= contains(gameplay_c,
+                 "constCameraKey*source_next_before_queue="
+                 "camera_manager_next_shot_like_source();",
+                 "regular camera sweep captures source next_shot before queueing a new PickCameraShot result");
+  ok &= contains(gameplay_c,
+                 "constCameraKey*source_current_after_queue="
+                 "camera_manager_current_shot_like_source();"
+                 "constCameraKey*source_next_after_queue="
+                 "camera_manager_next_shot_like_source();",
+                 "regular camera sweep reports current_shot and next_shot through the CameraManager state bridge after queueing");
+  ok &= contains(gameplay_c,
+                 "source_current=%ssource_next_before=%ssource_next_after=%s",
+                 "regular camera sweep diagnostics expose source current_shot and queued next_shot names");
+  ok &= contains(gameplay_c,
+                 "source_next_after_queue?1:0",
+                 "regular camera sweep source_next flag is derived from queued mNextShot instead of a hard-coded proof value");
+  ok &= contains(gameplay_c,
                  "pipeline_scope=normal_gameplay_camera"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0"
@@ -13528,7 +13545,7 @@ int main() {
                  "source do_force_shot diagnostics expose duration reset and pending next shot");
   ok &= contains(gameplay_c,
                  "source_next=%d",
-                 "regular camera sweep diagnostics expose source next_shot forcing");
+                 "regular camera sweep diagnostics expose whether CameraManager next_shot is pending");
   ok &= contains(gameplay_h_c,
                  "size_tsource_object_order=0;",
                  "regular CamShots carry source object-directory order for cycle_shot");

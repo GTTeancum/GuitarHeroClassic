@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera current/next-shot proof:
+  ihatecompvir `CameraManager::PickCameraShot` queues the accepted CamShot into
+  `mNextShot`, while `PrePoll` later consumes that pending value through
+  `StartShot_`. Native regular gameplay camera sweep diagnostics now report the
+  source-shaped `current_shot`, `next_shot` before queueing, and `next_shot`
+  after queueing from the same CameraManager bridge instead of hard-coding the
+  pending-state proof to `0`. This is source-state parity for normal gameplay
+  camera scheduling; it does not invent `BuildTransform`, `cam_shot_ok`,
+  `cam_check_shot`, `CharWalk`, or FreeCam behavior.
 - 2026-07-15 gameplay PickCameraShot failure proof:
   ihatecompvir `CameraManager::PickCameraShot` warns with the requested
   category plus every source property filter when no acceptable CamShot is

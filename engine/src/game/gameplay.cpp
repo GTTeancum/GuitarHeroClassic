@@ -34906,6 +34906,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_regular_camera_ != key->name;
                     const std::string previous_regular_camera_for_log =
                         active_regular_camera_;
+                    const CameraKey* source_next_before_queue =
+                        camera_manager_next_shot_like_source();
                     const char* source_handler =
                         diagnostic_camera_shot_matched ? "diagnostic"
                                                        : "PickCameraShot";
@@ -34920,9 +34922,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         queue_regular_camera_shot(*key, source_handler,
                                                   source_queue_local_frame);
                     }
+                    const CameraKey* source_current_after_queue =
+                        camera_manager_current_shot_like_source();
+                    const CameraKey* source_next_after_queue =
+                        camera_manager_next_shot_like_source();
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0 hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\n",
+                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0 hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -34938,13 +34944,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? "diagnostic"
                             : source_filters_for_log.c_str(),
                         source_previous_name_for_log.c_str(),
+                        source_current_after_queue
+                            ? source_current_after_queue->name.c_str()
+                            : "",
+                        source_next_before_queue
+                            ? source_next_before_queue->name.c_str()
+                            : "",
+                        source_next_after_queue
+                            ? source_next_after_queue->name.c_str()
+                            : "",
                         kGuitaristWalking ? 1 : 0,
                         camera_source_guitarist0_actually_walking_source(),
                         guitarist_starpower ? 1 : 0,
                         static_cast<unsigned int>(key->flags),
                         (force_camera || diagnostic_camera_shot_matched) ? 1
                                                                          : 0,
-                        shot_changed ? 1 : 0, 0, key->force_char_lod, bar,
+                        shot_changed ? 1 : 0,
+                        source_next_after_queue ? 1 : 0, key->force_char_lod, bar,
                         song_time_);
                     if (diagnostic_camera_shot_matched) {
                         std::fprintf(
