@@ -34172,6 +34172,18 @@ int run_contract() {
       "direct_source_publisher_absent=true",
       "lower-body follow-up proof does not overclaim source-publisher fence");
   ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "MAX_LOWEST_TOE_Z=1.25",
+      "lower-body follow-up proof guards near-floor toe band");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "MIN_PELVIS_TO_LOWEST_TOE_Z=24.0",
+      "lower-body follow-up proof guards pelvis-to-toe drop");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "standing_chain_sane=true",
+      "lower-body follow-up proof reports standing chain sanity");
+  ok &= contains(
       lower_body_glam1_metal1_ingame_proofs,
       "lower_body_glam1_metal1_ingame_20260715",
       "focused Glam1/Metal1 in-game proof uses current proof folder");
@@ -34237,8 +34249,17 @@ int run_contract() {
                  "Rockabill2 was dropped as the current\nquick visual subject",
                  "document records Rockabill2 proof subject swap");
   ok &= contains(doc,
-                 "Metal1 has a visible right shoulder/hand concern",
+                 "Metal1 has a visible\nright shoulder/hand concern",
                  "document marks Metal1 right arm follow-up");
+  ok &= contains(doc,
+                 "The checker also verifies the visible standing chain",
+                 "document records Glam1/Metal1 standing-chain proof");
+  ok &= contains(doc,
+                 "`max_lowest_toe_z=0.9705`",
+                 "document records current Glam1/Metal1 toe-floor metric");
+  ok &= contains(doc,
+                 "`min_pelvis_to_lowest_toe_z=29.7911`",
+                 "document records current Glam1/Metal1 pelvis-to-toe metric");
   ok &= contains(doc,
                  "2026-07-15 focused Glam1/Metal1 current in-game proof:",
                  "document records focused Glam1/Metal1 in-game proof");

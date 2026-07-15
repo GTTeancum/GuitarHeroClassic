@@ -16,6 +16,9 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MIN_PROOF_WIDTH = 1280
 MIN_PROOF_HEIGHT = 720
 MAX_REASONABLE_WORLD_ABS = 80.0
+MAX_LOWEST_TOE_Z = 1.25
+MIN_PELVIS_TO_LOWEST_TOE_Z = 24.0
+MIN_CHAIN_Z_DROP = 4.0
 
 LOWER_BODY_BONES = (
     "bone_pelvis",
@@ -104,7 +107,61 @@ def require_text(text: str, fragment: str, path: Path, label: str) -> None:
     require(fragment in text, f"{path}: missing {label}: {fragment}")
 
 
-def check_case(root: Path, case: ProofCase) -> float:
+@dataclass(frozen=True)
+class CaseMetrics:
+    max_abs_gap: float
+    lowest_toe_z: float
+    pelvis_to_lowest_toe_z: float
+
+
+def require_lower_chain_sanity(
+    log_path: Path,
+    case: ProofCase,
+    visible_rows: dict[tuple[str, str, str], object],
+) -> tuple[float, float]:
+    def world(bone: str) -> tuple[float, float, float]:
+        row = visible_rows.get((case.character, "lower-output", bone))
+        require(row is not None, f"{log_path}: missing visible lower-output row for {bone}")
+        return row.world
+
+    pelvis_z = world("bone_pelvis")[2]
+    toe_z_values = []
+    for side in ("L", "R"):
+        thigh_z = world(f"bone_{side}-thigh")[2]
+        knee_z = world(f"bone_{side}-knee")[2]
+        ankle_z = world(f"bone_{side}-ankle")[2]
+        toe_z = world(f"bone_{side}-toe")[2]
+        toe_z_values.append(toe_z)
+        require(
+            knee_z <= thigh_z - MIN_CHAIN_Z_DROP,
+            f"{log_path}: {side} knee is not below thigh enough "
+            f"({knee_z:.4f} vs {thigh_z:.4f})",
+        )
+        require(
+            ankle_z <= knee_z - MIN_CHAIN_Z_DROP,
+            f"{log_path}: {side} ankle is not below knee enough "
+            f"({ankle_z:.4f} vs {knee_z:.4f})",
+        )
+        require(
+            toe_z <= ankle_z,
+            f"{log_path}: {side} toe is above ankle ({toe_z:.4f} vs {ankle_z:.4f})",
+        )
+
+    lowest_toe_z = min(toe_z_values)
+    pelvis_to_lowest_toe_z = pelvis_z - lowest_toe_z
+    require(
+        lowest_toe_z <= MAX_LOWEST_TOE_Z,
+        f"{log_path}: lowest toe z {lowest_toe_z:.4f} > {MAX_LOWEST_TOE_Z:.4f}",
+    )
+    require(
+        pelvis_to_lowest_toe_z >= MIN_PELVIS_TO_LOWEST_TOE_Z,
+        f"{log_path}: pelvis/toe drop {pelvis_to_lowest_toe_z:.4f} "
+        f"< {MIN_PELVIS_TO_LOWEST_TOE_Z:.4f}",
+    )
+    return lowest_toe_z, pelvis_to_lowest_toe_z
+
+
+def check_case(root: Path, case: ProofCase) -> CaseMetrics:
     log_path = root / case.log_name
     png_path = root / case.png_name
     require(log_path.is_file(), f"{case.character} {case.view}: missing log {log_path}")
@@ -153,7 +210,14 @@ def check_case(root: Path, case: ProofCase) -> float:
         max_abs_gap <= 0.001,
         f"{log_path}: lower-output/visible gap {max_abs_gap:.6f} > 0.001",
     )
-    return max_abs_gap
+    lowest_toe_z, pelvis_to_lowest_toe_z = require_lower_chain_sanity(
+        log_path, case, visible_rows
+    )
+    return CaseMetrics(
+        max_abs_gap=max_abs_gap,
+        lowest_toe_z=lowest_toe_z,
+        pelvis_to_lowest_toe_z=pelvis_to_lowest_toe_z,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -174,19 +238,25 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        max_gap = max(check_case(args.root, case) for case in PROOF_CASES)
+        metrics = [check_case(args.root, case) for case in PROOF_CASES]
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
 
+    max_gap = max(item.max_abs_gap for item in metrics)
+    max_lowest_toe_z = max(item.lowest_toe_z for item in metrics)
+    min_pelvis_to_lowest_toe_z = min(item.pelvis_to_lowest_toe_z for item in metrics)
     characters = ",".join(sorted({case.character for case in PROOF_CASES}))
     print(
         "PASS lower_body_glam1_metal1_followup_proofs "
         f"cases={len(PROOF_CASES)} "
         f"characters={characters} "
         f"max_lower_output_visible_gap={max_gap:.6f} "
+        f"max_lowest_toe_z={max_lowest_toe_z:.4f} "
+        f"min_pelvis_to_lowest_toe_z={min_pelvis_to_lowest_toe_z:.4f} "
         f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT} "
         "live_output_rows=true direct_source_publisher_absent=true"
+        " standing_chain_sane=true"
     )
     return 0
 

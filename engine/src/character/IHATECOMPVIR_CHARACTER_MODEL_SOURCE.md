@@ -6336,9 +6336,13 @@ follow-up evidence rather than a replacement for the in-game proof above.
 Metal1 in the batch, checks all four PNGs at 1280x720 or better, and verifies
 pelvis, both thighs, both knees, both ankles, and both toes have driven
 `live=1` source-output rows whose `outPoseW` positions match the visible
-`lower-output` rows. Metal1 has a visible right shoulder/hand concern in this
-review set; that is logged as a later arm follow-up and is not used as evidence
-for or against the lower-body bridge.
+`lower-output` rows. The checker also verifies the visible standing chain:
+both knees sit below their thighs, both ankles below their knees, toes do not
+rise above ankles, at least one toe stays in the near-floor band
+(`max_lowest_toe_z=0.9705` across the four proofs), and the pelvis-to-lowest-toe
+drop stays tall (`min_pelvis_to_lowest_toe_z=29.7911`). Metal1 has a visible
+right shoulder/hand concern in this review set; that is logged as a later arm
+follow-up and is not used as evidence for or against the lower-body bridge.
 
 2026-07-15 focused Glam1/Metal1 current in-game proof:
 `engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/` replaces
