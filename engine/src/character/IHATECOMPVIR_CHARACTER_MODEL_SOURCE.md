@@ -264,8 +264,10 @@ statement body. `OutfitLoader::Load` is an empty/bodyless row at
 `0x803AC8F4 -> 0x803AC950`, `OutfitLoader::PostLoad` is empty at
 `0x803AC8F0 -> 0x803AC8F4`, and `OutfitLoader::Save`
 (`0x803AC728 -> 0x803AC8F0`) maps category/file-path loop locals without
-proving the load layout. Native keeps both rows opaque until a reviewable
-loader body or direct original-game trace proves the serialized behavior.
+proving the load layout. Native keeps both rows opaque until reviewable
+ihatecompvir source proves the serialized behavior; original-game traces may
+corroborate a future source-backed decode but are not an implementation
+authority.
 
 ## Source Coverage Matrix
 
@@ -547,8 +549,9 @@ into final transform rows.
    - Port the missing source-backed bodies for `CharClip::Load`,
      `ScaleAdd`, `RotateBy`, and related `FacingSet` behavior.
    - Port `CharClipDriver::Evaluate`/poll timing, blend, loop, beat-align,
-     and exit behavior from a reviewable source body or direct original-game
-     trace. The current `rb3-latest` file only exposes stack construction and
+     and exit behavior from a reviewable ihatecompvir source body. Original-game
+     traces may corroborate that behavior after source-backed import. The
+     current `rb3-latest` file only exposes stack construction and
      flag masking; the RB2 dump gives a function map, not enough standalone C++
      body to blindly copy.
    - Port base `CharDriver::Load`, `CharDriver::Poll`, and `EvaluateFlags`
@@ -568,7 +571,7 @@ into final transform rows.
      `CharBones` application is source-backed.
    - `CharFaceServo` is useful source context, but GH2 stock rows are
      `FaceFxLipSyncServo`; do not infer eye or mouth transforms from it unless
-     a matching GH2 source body or direct trace is available.
+     matching ihatecompvir source exists.
    - `CharLookAt::Poll` has reviewable source coverage for gate/branch math and
      native deterministic helpers already port the visible yaw-weight,
      source-radius, smoothing, range, and no-roll pieces. Live eye/look-at
@@ -582,7 +585,8 @@ into final transform rows.
      world-row writeback still needs the overloaded
      `CharHair::Hookup(ObjPtrList<CharCollide, ObjectDir>&)` body, point
      collide-list population, and `SimulateZeroTime` behavior from reviewable
-     source or direct original-game trace. The source `Hookup()` wrapper and
+     ihatecompvir source. Original-game traces may corroborate that behavior
+     after source-backed decode. The source `Hookup()` wrapper and
      `SimulateLoops` gate are already ported as deterministic plans.
      The current live `rb3` `CharHair.cpp` body is enough to confirm the
      non-managed default `Hookup()` path builds an object-directory
@@ -631,9 +635,9 @@ native collision-list guess.
   remaining live behavior is blocked on declaration-only, incomplete, or
   dump-only bodies listed above.
 - This checkpoint is a source boundary, not a completion claim. The next
-  implementable character-runtime slice needs either a newer ihatecompvir source
-  body or direct original-game trace evidence for the missing clip/pose or hair
-  writeback paths.
+  implementable character-runtime slice needs a newer ihatecompvir source body
+  for the missing clip/pose or hair writeback paths; original-game traces remain
+  corroboration only.
 
 ## Binary Layout Authorities
 
@@ -717,7 +721,7 @@ this bounded byte span on `Character` and logs it as `[dir-entry]` under
 
 Do not decode or apply root `Character`, `RndDir`, or `ObjectDir` runtime fields
 from this byte span until the GH2-era root revision/body relationship is proven
-from ihatecompvir source or equivalent trace evidence. The current source-backed
+from ihatecompvir source. The current source-backed
 deliverable for the raw byte span is inventory only: `dirVersion`, `dirType`,
 `bodyOffset`, `bodyBytes`, copied byte count, and head/tail hex proof. The
 source helper contracts above describe the visible ihatecompvir loader and sync
@@ -2544,7 +2548,7 @@ note, and all report `unreadBytes=0`.
     plus `Hmx::Object`/`CharHair` RTTI references. These rows document the
     mapped body boundaries and inventories, not permission to infer dependency
     rows, collision hookup, copy-member behavior, or native live writeback
-    without a reviewable source body or direct original-game trace.
+    without a reviewable ihatecompvir source body.
 - `rb3-latest/src/system/rndobj/Wind.cpp` and
   `rb3-latest/src/system/rndobj/Wind.h`
   - `CharHair::Load` only reads `mWind` when `gRev > 10`. Stock GH2 character
@@ -2903,7 +2907,7 @@ note, and all report `unreadBytes=0`.
     resync.
     `ComputeScore` includes runtime vectors and `RandomFloat`; live eye-target
     scoring stays fenced until the surrounding source eye-interest path is
-    ported or traced. Native `source_char_interest_compute_score_plan` records
+    ported from ihatecompvir source. Native `source_char_interest_compute_score_plan` records
     the gate and scoring steps, and
     `source_char_interest_compute_score_deterministic` ports the concrete math
     with the random jitter supplied by the caller: category/default-category
@@ -3678,7 +3682,10 @@ note, and all report `unreadBytes=0`.
     revisions 2 and 3 read a legacy string; revisions above 4 read
     `mAnimBlender` and `mMaxAnimBlend`.
   - Native GHOGX decodes/logs the same source-gated fields as passive row
-    inventory and enforces the source revision range. The viewer/gameplay fret-target helper remains diagnostic application glue until `CharIKMidi::NewSpot` / `Poll` bodies are available from source or trace.
+    inventory and enforces the source revision range. The viewer/gameplay
+    fret-target helper remains diagnostic application glue until
+    `CharIKMidi::NewSpot` / `Poll` bodies are available from ihatecompvir
+    source.
   - Native `source_char_ik_midi_*` helpers record the checked source
     constructor/`Enter` state reset, load gates, `PollDeps`, copy-member list,
     `new_spot` handler row, and prop sync rows. `Enter` clears current/new
@@ -4120,9 +4127,9 @@ note, and all report `unreadBytes=0`.
   - 2026-07-14 also restored the accepted active-song PS2 hand scheduler:
     instrument performers poll fret/left `CharIKHand` first, immediately poll
     its matching `CharForeTwist`, then poll strum/right and its matching
-    `CharForeTwist`; unknown rows keep decoded MILO order. This is based on
-    the earlier original-game trace notes and existing deterministic contract,
-    not on a Rockabill2-specific arm shape fix.
+    `CharForeTwist`; unknown rows keep decoded MILO order. The original-game
+    trace notes corroborate this deterministic contract, but do not replace
+    ihatecompvir source as implementation authority.
 - `rb3/src/system/bandobj/BandCharacter.cpp`
   - `BandCharacter::SetDeformation` is concrete source for the static
     deformation/posture setup around IK length measurement. It builds temporary
@@ -4638,8 +4645,7 @@ note, and all report `unreadBytes=0`.
     `ShortQuat` storage, plus old `doc/src-old/rb3/world/shortquat.hpp`
     declaring `ShortQuat::ToQuat`; the accessible tree does not include a
     matching `ByteQuat` type, header, or conversion implementation. Keep
-    `ByteQuat` decode fenced unless new ihatecompvir source or original-game
-    trace evidence provides that body.
+    `ByteQuat` decode fenced unless new ihatecompvir source provides that body.
   - `GHOGX_DEBUG_CLIP=1` logs accepted source `CharBonesSamples` list
     compression modes, sample counts, channel counts, source frame byte counts,
     and whether a list would require the fenced `ByteQuat` path.
@@ -4804,7 +4810,7 @@ note, and all report `unreadBytes=0`.
     local inventory, but still not copyable statements. Native
     `source_char_bones_pose_body_boundary` records this boundary: packed-row
     layout helpers remain source-backed, but applying pose math to live
-    transforms remains fenced until a real body or direct trace is available.
+    transforms remains fenced until a reviewable ihatecompvir body is available.
     Native `source_char_bones_runtime_dump_evidence` records the exact RB2
     ranges and visible locals for those mapped pose writers. That helper is
     evidence for future trace/source import targets only; it is not permission
@@ -4858,7 +4864,7 @@ note, and all report `unreadBytes=0`.
     current frame at `(1 - frac) * weight` and the next frame at
     `frac * weight`. Multi-node driver transitions still use the previous
     collapsed diagnostic layer until `CharClipDriver::ScaleAdd` has a
-    statement-level body or direct trace.
+    statement-level ihatecompvir body.
   - `Load` reads `gVer`, asserts the public source range `13..16`, then
     delegates to `LoadHeader` and `LoadData`. Native
     `source_char_bones_samples_load_version_known` ports that exact range and
@@ -4876,7 +4882,7 @@ note, and all report `unreadBytes=0`.
     The RB2 dump maps the same names and ranges, but only as a function/local
     inventory. Native `source_char_bones_samples_body_boundary` records this
     source boundary: decoding/logging rows is allowed, but broad pose publishing
-    and channel evaluation remain fenced until a real body or direct trace is
+    and channel evaluation remain fenced until a reviewable ihatecompvir body is
     available.
   - Native `source_char_bones_samples_runtime_dump_evidence` records the exact
     RB2 ranges and visible locals for the missing low-level sample bodies:
@@ -5090,8 +5096,8 @@ note, and all report `unreadBytes=0`.
     stick/arm/bones/down-vector/angle locals. This is still a range/local
     inventory only. It is not a source body for `CharClip::Load`,
     default-flag mutation, group/MRU mutation, `CheckStick`, or `SyncProperty`,
-    and native must not import those behaviors until statement-level source or
-    direct trace evidence exists.
+    and native must not import those behaviors until statement-level
+    ihatecompvir source exists.
   - Native `source_char_clip_stuff_bones` and
     `source_char_clip_pose_meshes_steps` port the concrete `StuffBones` /
     `PoseMeshes` call order only: list clip bones, append them into the target
@@ -5247,7 +5253,7 @@ note, and all report `unreadBytes=0`.
   needed by the authored fret/strum overlay path only when that path stays
   bounded to source-named hand-driver semantics. Broad body, face, lower-body,
   or full CharBone output publishing is no longer a live-write path until a
-  source-backed implementation or direct original-game trace proves it.
+  source-backed implementation from ihatecompvir proves it.
 - Current Rock2 evidence is bounded: static/bind rendering does not show the
   long-neck read, while `idle_medium_01` applies active `bone_head`,
   `bone_neck`, and spine clip rows. That points to clip/controller application,
@@ -5282,8 +5288,8 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
 - Those stock rows therefore support the bounded GH2 single-target
   `CharIKHand` runtime slice; they do not justify porting or approximating
   source branches for multi-target weighting, finger offsets, elbow swing,
-  wrist constraint, or elbow-collision correction unless another asset or
-  trace proves those fields are present.
+  wrist constraint, or elbow-collision correction unless ihatecompvir source and
+  decoded stock rows prove those fields are present.
 - The same inventory finds zero separate `CharCollide` objects in these 24
   base character MILOs. GH2 hair rows still carry authored inline collision
   targets such as `bone_head.mesh`, `bone_neck.mesh`, `bone_pelvis.mesh`,
@@ -5609,7 +5615,7 @@ diffed directly. Real-time and fixed-frame diagnostic layer names include an
 behavior change: it labels the current route until the missing source bodies
 (`CharBones::ScaleAdd`,
 `CharBonesSamples::EvaluateChannel`, and `CharBonesMeshes::PoseMeshes`) are
-ported or traced. A fresh remote-head check found the local ihatecompvir live
+ported from ihatecompvir source. A fresh remote-head check found the local ihatecompvir live
 mirrors already at origin HEAD (`rb3` `41719f2`, `grim` `1c05ca3`,
 `re-notes` `5c486fd`, and `glTFMilo` `3c02a54`), so there is no newer public
 source body to import for this boundary today.
@@ -5661,7 +5667,8 @@ statement body. Native code may use source-backed `ScaleAddSample` split
 semantics after a sample index/fraction is available, but must not claim its
 uniform-FPS diagnostic frame selector is the original `FracToSample` path.
 `source_char_bones_samples_runtime_dump_evidence` now records
-`safe_to_use_source_frac_to_sample=false` until that body is sourced or traced.
+`safe_to_use_source_frac_to_sample=false` until that body is available from
+ihatecompvir source.
 
 2026-07-14 shared controller-frame contract refresh: the left-hand contract now
 checks `apply_character_pose_controller_frame` as the single runtime boundary
@@ -6496,9 +6503,11 @@ Lower-body evidence audit:
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
-viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
-controller-applied pose for the performer under test without mixing in other
-band members or pre-controller rows.
+viewer/gameplay diffs should use `glam1` / `metal1` and `post` to compare the
+final controller-applied pose for the performer under test without mixing in
+other band members or pre-controller rows. Metal1's visible right shoulder and
+hand concern is tracked as a later arm follow-up, separate from the current
+lower-body proof.
 
 2026-07-14 viewer/gameplay CharHair diff:
 `engine/out/visual_proofs/viewer_ingame_charhair_20260714/` recaptures the

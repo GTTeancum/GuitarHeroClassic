@@ -1949,8 +1949,12 @@ int run_contract() {
                  "continuation audit records existing helper coverage");
   ok &= contains(doc,
                  "The next\n  implementable character-runtime slice needs "
-                 "either a newer ihatecompvir source",
+                 "a newer ihatecompvir source body\n  for the missing "
+                 "clip/pose or hair writeback paths",
                  "continuation audit keeps next work source-backed");
+  ok &= contains(doc,
+                 "original-game traces remain\n  corroboration only",
+                 "continuation audit keeps traces corroborative");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
@@ -14059,7 +14063,10 @@ int run_contract() {
                  "target `bone_fret.mesh`, and report\n    `unreadBytes=0`",
                  "document records refreshed CharIKMidi stock proof");
   ok &= contains(doc,
-                 "viewer/gameplay fret-target helper remains diagnostic",
+                 "viewer/gameplay\n"
+                 "    fret-target helper remains diagnostic application glue until\n"
+                 "    `CharIKMidi::NewSpot` / `Poll` bodies are available from ihatecompvir\n"
+                 "    source",
                  "document fences CharIKMidi runtime helper");
   ok &= contains(doc,
                  "ikmidi_source_decode_audit.log",
@@ -19684,9 +19691,14 @@ int run_contract() {
                  "(`0x803AC728 -> 0x803AC8F0`)",
                  "document records OutfitLoader Save dump range");
   ok &= contains(doc,
-                 "Native keeps both rows opaque until a reviewable\n"
-                 "loader body or direct original-game trace",
-                 "document keeps CharWalk and OutfitLoader opaque");
+                 "Native keeps both rows opaque until reviewable\n"
+                 "ihatecompvir source proves the serialized behavior",
+                 "document keeps CharWalk and OutfitLoader source-gated");
+  ok &= contains(doc,
+                 "original-game traces may\n"
+                 "corroborate a future source-backed decode but are not an implementation\n"
+                 "authority",
+                 "document keeps original-game traces corroborative");
   ok &= contains(rb2_char_walk_cpp,
                  "voidCharWalk::Load(classCharWalk*constthis/*r29*/,"
                  "classBinStream&d/*r30*/){",
