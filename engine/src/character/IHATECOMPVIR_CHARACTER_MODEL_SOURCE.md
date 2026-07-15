@@ -5226,13 +5226,19 @@ note, and all report `unreadBytes=0`.
   `CharClipSamples::ScaleAdd(..., int sample, float frac, int lastSample,
   float lastFrac)` writer row is also empty/bodyless. Those rows are useful
   absence evidence, not source bodies to port.
+  `tools/pose_publisher_source_gap_manifest.json` pins the exact split-dump
+  ranges and locals for those rows, plus `CharBonesMeshes::PoseMeshes`,
+  `CharBonesSamples::EvaluateChannel`, the frame-level
+  `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate`, and marks every
+  listed boundary with `portable_statement_body=false`.
   Fresh proof logs in
   `engine/out/visual_proofs/source_publisher_gap_20260715/` pair that source
   gate with current Rockabill2 viewer and in-game frames; the viewer and
   gameplay logs both print `source_publisher=fenced` before the screenshot
   while the saved verifier log reports `SUMMARY pass=12`. The expanded mirror
-  scope verifier now reports `SUMMARY pass=23` when the glTFMilo/Grim/re-notes
-  checks, mirror freshness guards, and the RB2 empty-row guards are included.
+  scope verifier now reports `SUMMARY pass=60` when the glTFMilo/Grim/re-notes
+  checks, mirror freshness guards, RB2 empty-row guards, and the
+  `pose_publisher_source_gap_manifest` range/local checks are included.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.

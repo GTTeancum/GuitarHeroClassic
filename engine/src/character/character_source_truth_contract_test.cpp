@@ -192,6 +192,9 @@ int run_contract() {
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
+  const std::string pose_publisher_source_gap_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "pose_publisher_source_gap_manifest.json"));
   const std::string charhair_log_compare = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "compare_charhair_logs.py"));
@@ -34136,8 +34139,15 @@ int run_contract() {
                  "document records source publisher fenced proof log");
   ok &= contains(doc, "`SUMMARY pass=12`",
                  "document records updated source-gap verifier pass count");
-  ok &= contains(doc, "`SUMMARY pass=23`",
-                 "document records RB2 empty-row source-gap verifier pass count");
+  ok &= contains(doc, "`SUMMARY pass=60`",
+                 "document records expanded source-gap verifier pass count");
+  ok &= contains(doc,
+                 "`tools/pose_publisher_source_gap_manifest.json` pins the "
+                 "exact split-dump\n  ranges and locals",
+                 "document records source-gap manifest boundary");
+  ok &= contains(doc,
+                 "`portable_statement_body=false`",
+                 "document records source-gap manifest keeps runtime bodies fenced");
   ok &= contains(doc,
                  "the generic\n  `CharBones::ScaleAdd()` range names the "
                  "expected compression/local buffers",
@@ -34195,6 +34205,21 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gaps,
                  "SOURCE-GAPstill-fenced=",
                  "pose publisher verifier reports still-fenced source boundary");
+  ok &= contains(pose_publisher_source_gaps,
+                 "check_gap_manifest(results,args.gap_manifest)",
+                 "pose publisher verifier checks source-gap manifest");
+  ok &= contains(pose_publisher_source_gap_manifest,
+                 "\"trace_id\":\"pose_publisher_source_gap_20260715\"",
+                 "source-gap manifest records trace id");
+  ok &= contains(pose_publisher_source_gap_manifest,
+                 "\"portable_statement_body\":false",
+                 "source-gap manifest fences RB2 dump boundaries");
+  ok &= contains(pose_publisher_source_gap_manifest,
+                 "\"range\":\"0x80321520->0x80321A64\"",
+                 "source-gap manifest records PoseMeshes RB2 range");
+  ok &= contains(pose_publisher_source_gap_manifest,
+                 "\"range\":\"0x8032D33C->0x8032DA1C\"",
+                 "source-gap manifest records CharClipDriver Evaluate RB2 range");
   ok &= contains(charhair_log_compare,
                  "SCREENSHOT_MARKERS=(\"screenshotsaved\",\"screenshot->\")",
                  "CharHair log verifier stops at screenshot proof markers");

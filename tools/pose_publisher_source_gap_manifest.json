@@ -1,0 +1,102 @@
+{
+  "trace_id": "pose_publisher_source_gap_20260715",
+  "purpose": "Pin ihatecompvir RB2 dump evidence for the lower-body pose publisher gap without treating range/local maps as portable C++ bodies.",
+  "still_fenced": [
+    "CharBones::ScaleAdd(CharBones&,float)",
+    "CharBonesSamples::EvaluateChannel",
+    "CharBonesMeshes::PoseMeshes",
+    "CharClipSamples::ScaleAdd",
+    "CharClipDriver::Evaluate"
+  ],
+  "rb2_dump_boundaries": [
+    {
+      "label": "rb2_charbones_scaleadd_generic",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBones.cpp",
+      "range": "0x8031C33C -> 0x8031CB00",
+      "signature": "void CharBones::ScaleAdd()",
+      "required_fragments": [
+        "const struct Bone * name",
+        "struct ShortVector3 * sp",
+        "const struct ByteQuat * bq",
+        "const struct ShortQuat * qs",
+        "float aweight"
+      ],
+      "portable_statement_body": false,
+      "reason": "Range and compression locals are visible, but statement-level control flow and writes are absent."
+    },
+    {
+      "label": "rb2_charbones_scaleadd_delegate_empty",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBones.cpp",
+      "range": "0x8031EA5C -> 0x8031EA78",
+      "signature": "void CharBones::ScaleAdd(class CharBones * const this /* r0 */) {}",
+      "required_fragments": [],
+      "portable_statement_body": false,
+      "reason": "The dump row is explicitly empty/bodyless."
+    },
+    {
+      "label": "rb2_charbonesmeshes_posemeshes",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBonesMeshes.cpp",
+      "range": "0x80321520 -> 0x80321A64",
+      "signature": "void CharBonesMeshes::PoseMeshes(class CharBonesMeshes * const this",
+      "required_fragments": [
+        "class ObjOwnerPtr * bone",
+        "const class Vector3 * pend",
+        "const class Quat * qend",
+        "class Vector3 blendScale"
+      ],
+      "portable_statement_body": false,
+      "reason": "Range and locals are present, but no SetWorldXfm or equivalent statement body is exposed."
+    },
+    {
+      "label": "rb2_charbonessamples_evaluatechannel",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBonesSamples.cpp",
+      "range": "0x80323654 -> 0x80323E64",
+      "signature": "void CharBonesSamples::EvaluateChannel()",
+      "required_fragments": [
+        "const char * src",
+        "const char * src2",
+        "class Quat a",
+        "class Vector3 b"
+      ],
+      "portable_statement_body": false,
+      "reason": "Range and interpolation locals are visible, but the channel decode statements are absent."
+    },
+    {
+      "label": "rb2_charclipsamples_scaleadd_frame",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharClipSamples.cpp",
+      "range": "0x80333CF4 -> 0x80333DAC",
+      "signature": "void CharClipSamples::ScaleAdd(class CharClipSamples * const this",
+      "required_fragments": [
+        "float frac",
+        "float lastFrac",
+        "int sample",
+        "int lastSample"
+      ],
+      "portable_statement_body": false,
+      "reason": "Frame/sample timing locals are visible, but the forwarding statements are absent."
+    },
+    {
+      "label": "rb2_charclipsamples_scaleadd_sample_empty",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharClipSamples.cpp",
+      "range": "0x80333DAC -> 0x80333E78",
+      "signature": "void CharClipSamples::ScaleAdd(class CharClipSamples * const this /* r28 */, class CharBones & bones /* r29 */, float weight /* f29 */, int sample /* r30 */, float frac /* f30 */, int lastSample /* r31 */, float lastFrac /* f31 */) {}",
+      "required_fragments": [],
+      "portable_statement_body": false,
+      "reason": "The sample-index writer row is explicitly empty/bodyless."
+    },
+    {
+      "label": "rb2_charclipdriver_evaluate",
+      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharClipDriver.cpp",
+      "range": "0x8032D33C -> 0x8032DA1C",
+      "signature": "float CharClipDriver::Evaluate(class CharClipDriver * const this",
+      "required_fragments": [
+        "float nextWeight",
+        "float oldFrame",
+        "float dfrac",
+        "float length"
+      ],
+      "portable_statement_body": false,
+      "reason": "Blend/timing locals are visible, but the runtime driver logic is not exposed as statements."
+    }
+  ]
+}

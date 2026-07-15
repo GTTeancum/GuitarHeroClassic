@@ -9,6 +9,7 @@ format shape but not the complete runtime body-pose publisher.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -38,6 +39,104 @@ def pose_meshes_body(text: str) -> str:
 def record(results: list[tuple[str, bool, str]], label: str, ok: bool, detail: str) -> None:
     results.append((label, ok, detail))
     print(f"{'PASS' if ok else 'FAIL'} {label}: {detail}")
+
+
+def resolve_manifest_path(manifest_path: Path, raw_path: str) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return (manifest_path.parent / path).resolve()
+
+
+def load_json(path: Path) -> dict:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"failed to read source-gap manifest {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SystemExit(f"{path}: source-gap manifest root must be an object")
+    return payload
+
+
+def check_gap_manifest(
+    results: list[tuple[str, bool, str]], manifest_path: Path
+) -> None:
+    manifest = load_json(manifest_path)
+    expected = {
+        "CharBones::ScaleAdd(CharBones&,float)",
+        "CharBonesSamples::EvaluateChannel",
+        "CharBonesMeshes::PoseMeshes",
+        "CharClipSamples::ScaleAdd",
+        "CharClipDriver::Evaluate",
+    }
+    still_fenced = set(manifest.get("still_fenced", []))
+    record(
+        results,
+        "source-gap-manifest-five-body-fence",
+        still_fenced == expected,
+        "manifest pins the five still-fenced publisher bodies",
+    )
+    boundaries = manifest.get("rb2_dump_boundaries")
+    record(
+        results,
+        "source-gap-manifest-rb2-boundary-count",
+        isinstance(boundaries, list) and len(boundaries) == 7,
+        "manifest records seven RB2 dump range/local boundaries",
+    )
+    if not isinstance(boundaries, list):
+        return
+    for item in boundaries:
+        if not isinstance(item, dict):
+            record(results, "source-gap-manifest-entry-object", False, "entry is not an object")
+            continue
+        label = str(item.get("label", "unnamed"))
+        file_value = item.get("file")
+        text = ""
+        file_ok = isinstance(file_value, str) and bool(file_value)
+        if file_ok:
+            path = resolve_manifest_path(manifest_path, file_value)
+            text = read_text(path)
+        record(results, f"source-gap-manifest-{label}-file", file_ok, str(file_value))
+        range_text = f"// Range: {item.get('range', '')}"
+        signature = str(item.get("signature", ""))
+        fragments = item.get("required_fragments", [])
+        record(
+            results,
+            f"source-gap-manifest-{label}-range",
+            bool(text and range_text in text),
+            str(item.get("range", "")),
+        )
+        record(
+            results,
+            f"source-gap-manifest-{label}-signature",
+            bool(text and signature and signature in text),
+            signature,
+        )
+        record(
+            results,
+            f"source-gap-manifest-{label}-fenced",
+            item.get("portable_statement_body") is False,
+            "portable_statement_body=false",
+        )
+        if isinstance(fragments, list):
+            missing = [
+                fragment
+                for fragment in fragments
+                if not isinstance(fragment, str) or fragment not in text
+            ]
+            record(
+                results,
+                f"source-gap-manifest-{label}-fragments",
+                not missing,
+                "required locals present" if not missing else f"missing {missing[0]}",
+            )
+        else:
+            record(
+                results,
+                f"source-gap-manifest-{label}-fragments",
+                False,
+                "required_fragments must be a list",
+            )
 
 
 def default_rb3_root(cwd: Path) -> Path:
@@ -125,6 +224,12 @@ def main(argv: list[str]) -> int:
         "--require-fresh-remotes",
         action="store_true",
         help="Fail if a checked mirror HEAD differs from origin/master or origin/main.",
+    )
+    parser.add_argument(
+        "--gap-manifest",
+        type=Path,
+        default=Path("tools/pose_publisher_source_gap_manifest.json"),
+        help="Manifest pinning RB2 dump range/local evidence for still-fenced bodies.",
     )
     args = parser.parse_args(argv)
 
@@ -271,6 +376,7 @@ def main(argv: list[str]) -> int:
         and "CharClipDriver::Evaluate(" not in c_non_rb3_text,
         "glTFMilo/grim/re-notes do not provide the five missing C++ runtime publisher bodies",
     )
+    check_gap_manifest(results, args.gap_manifest)
 
     for label, path in (
         ("rb3", rb3_root),
