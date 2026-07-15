@@ -34657,8 +34657,20 @@ int run_contract() {
                  "stable_mesh_wrappers=",
                  "PCSX2 lower-body checker reports stable mesh wrappers");
   ok &= contains(lower_body_pcsx2_row_trace,
+                 "source_matrix_rows=",
+                 "PCSX2 lower-body checker reports source transform-band rows");
+  ok &= contains(lower_body_pcsx2_row_trace,
                  "source_json_checked=",
                  "PCSX2 lower-body checker can cross-check raw trace JSON");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "COMPACT_TRANSFORM_BAND",
+                 "PCSX2 lower-body checker records compact transform band");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "STORED_TRANSFORM_BAND",
+                 "PCSX2 lower-body checker records stored transform band");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "require_transform_band_motion",
+                 "PCSX2 lower-body checker requires transform-band motion");
   ok &= contains(lower_body_pcsx2_row_trace,
                  "require_raw_row_label",
                  "PCSX2 lower-body checker requires raw bone labels");
@@ -34677,6 +34689,12 @@ int run_contract() {
   ok &= contains(doc,
                  "verifies the raw changed\n  offsets recorded for the seven moving rows",
                  "document records raw PCSX2 changed-offset requirement");
+  ok &= contains(doc,
+                 "`source_matrix_rows=7`",
+                 "document records source transform-band row count");
+  ok &= contains(doc,
+                 "stored transform-shaped source-row band",
+                 "document records stored transform-band requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"trace_commit\":\"0fa9a89\"",
                  "RexGlue lower-body manifest records trace scaffold commit");

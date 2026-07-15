@@ -6384,8 +6384,13 @@ Lower-body evidence audit:
   source/controller and stable mesh-wrapper row is labeled with the expected
   `bone_*.mesh` string at the sampled base address, verifies the raw changed
   offsets recorded for the seven moving rows (`0x4c..0xcc`), and reports
-  `stable_mesh_wrappers=9`, `moving_source_rows=7`, and
-  `source_json_checked=true`.
+  `stable_mesh_wrappers=9`, `moving_source_rows=7`,
+  `source_matrix_rows=7`, and `source_json_checked=true`. The raw offset
+  checker now requires each moving descriptor row to carry motion in the
+  stored transform-shaped source-row band (`0x8c..0xcc`) and records the
+  optional compact transform-shaped band (`0x4c..0x74`) where present; this
+  keeps the trace contract pinned to live lower-body pose data rather than
+  labels, counters, or stale named mesh wrappers.
   If a future visual proof contradicts the current result, the next RexGlue
   target is the same pose-buffer apply/output-row bridge with named lower-body
   rows, not a new foot-IK or character-name offset path.

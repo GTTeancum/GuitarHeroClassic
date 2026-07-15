@@ -10,6 +10,39 @@ import sys
 from typing import Any
 
 
+COMPACT_TRANSFORM_BAND = (
+    "0x4c",
+    "0x50",
+    "0x54",
+    "0x5c",
+    "0x60",
+    "0x64",
+    "0x6c",
+    "0x70",
+    "0x74",
+)
+
+STORED_TRANSFORM_BAND = (
+    "0x8c",
+    "0x90",
+    "0x94",
+    "0x98",
+    "0x9c",
+    "0xa0",
+    "0xa4",
+    "0xa8",
+    "0xac",
+    "0xb0",
+    "0xb4",
+    "0xb8",
+    "0xbc",
+    "0xc0",
+    "0xc4",
+    "0xc8",
+    "0xcc",
+)
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
@@ -70,7 +103,26 @@ def max_unique_count(raw_entry: dict[str, Any]) -> int:
     )
 
 
-def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, int, bool]:
+def require_transform_band_motion(
+    raw_entry: dict[str, Any],
+    row_name: str,
+    summary: dict[str, Any],
+) -> tuple[int, int]:
+    offsets = set(changed_offsets(raw_entry))
+    compact_hits = len(offsets.intersection(COMPACT_TRANSFORM_BAND))
+    stored_hits = len(offsets.intersection(STORED_TRANSFORM_BAND))
+    require(
+        stored_hits >= 9,
+        f"{row_name}: missing source-row stored transform-band motion",
+    )
+    require(
+        summary.get("offsets") == changed_offsets(raw_entry),
+        f"{row_name}: raw summary changed offsets mismatch",
+    )
+    return compact_hits, stored_hits
+
+
+def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, int, int, bool]:
     manifest = load_json(manifest_path)
     require(
         manifest.get("trace_id") == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -113,6 +165,7 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
     seen_desc: dict[str, dict[str, Any]] = {}
     moving_desc = 0
     stable_mesh = 0
+    source_matrix_rows = 0
     for pair in pairs:
         bone = pair.get("bone", "")
         require(bone.startswith("bone_") and bone.endswith(".mesh"), "bad bone label")
@@ -178,13 +231,14 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
                         summary.get("max_unique_count") == max_unique_count(raw_entry),
                         f"{entry['name']}: raw summary max_unique_count mismatch",
                     )
-                    require(
-                        summary.get("offsets") == changed_offsets(raw_entry),
-                        f"{entry['name']}: raw summary changed offsets mismatch",
+                    compact_hits, stored_hits = require_transform_band_motion(
+                        raw_entry, entry["name"], summary
                     )
+                    if compact_hits > 0 or stored_hits > 0:
+                        source_matrix_rows += 1
         checked_raw = True
 
-    return stable_mesh, moving_desc, checked_raw
+    return stable_mesh, moving_desc, source_matrix_rows, checked_raw
 
 
 def parse_args() -> argparse.Namespace:
@@ -216,7 +270,9 @@ def main() -> int:
         manifest = load_json(args.manifest)
         source_json = resolve_manifest_path(args.manifest, manifest["source_json"])
     try:
-        stable_mesh, moving_desc, checked_raw = check_manifest(args.manifest, source_json)
+        stable_mesh, moving_desc, source_matrix_rows, checked_raw = check_manifest(
+            args.manifest, source_json
+        )
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
@@ -224,6 +280,7 @@ def main() -> int:
         "PASS lower_body_pcsx2_row_trace "
         f"stable_mesh_wrappers={stable_mesh} "
         f"moving_source_rows={moving_desc} "
+        f"source_matrix_rows={source_matrix_rows} "
         f"source_json_checked={str(checked_raw).lower()} "
         "native_path=source_output_lower_body_bridge"
     )
