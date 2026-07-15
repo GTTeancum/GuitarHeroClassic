@@ -34445,6 +34445,15 @@ int run_contract() {
       doc,
       "`rock2_current_commit_lower_body_match` pass at `max_delta=0.000000`",
       "document records current-commit Rock2 lower-body zero-delta proof");
+  ok &= contains(doc,
+                 "RexGlue fallback check",
+                 "document records RexGlue lower-body fallback audit");
+  ok &= contains(doc,
+                 "`sub_8215DF28`/`sub_8215E6A0`",
+                 "document records RexGlue CharClipSamples apply hooks");
+  ok &= contains(doc,
+                 "`analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md`",
+                 "document records RexGlue/PS2 lower-body mesh-row evidence");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",

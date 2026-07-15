@@ -6295,6 +6295,48 @@ both knees, both ankles, and both toes; both
 `rockabill2_current_commit_lower_body_match` and
 `rock2_current_commit_lower_body_match` pass at `max_delta=0.000000`.
 
+Lower-body evidence audit:
+- Root cause found: the original "standing but floating with legs forward"
+  frame was not static bind pose, camera angle, hand overlays, foot IK, or a
+  character-name offset. The old proof rows show decoded lower-body output rows
+  present but not live on the visible mesh path (`live=0`), with distal
+  ankle/toe drift reaching `bad_max_abs_xyz=8.310`.
+- Source-backed native behavior: current native code rebuilds only decoded
+  facing/pelvis/thigh/knee/ankle/foot/toe rows through source `OutputBone`
+  names after the sampled fallback. `check_lower_body_bridge_boundary.py`
+  forbids character-name, foot/ankle/toe offset, and other shortcut fixes, while
+  `check_lower_body_shared_path.py` keeps viewer and gameplay routed through
+  the same shared character clip path.
+- Current runtime proof: `check_lower_body_stock_coverage.py` covers 18
+  playable in-game/viewer lower-body cases plus six support/base viewer cases,
+  and the current-commit Rockabill2/Rock2 proof pair repeats the in-game and
+  viewer comparison at `max_delta=0.000000` for the leg chain.
+- RexGlue fallback check: the local `GuitarHeroOGX-trace360` RexGlue fork does
+  not contain a separate portable character renderer for legs, but its read-only
+  trace evidence matches the native lower-body bridge. `src/trace_hooks.cpp`
+  hooks the original CharClipSamples pose-buffer apply primitives
+  `sub_8215DF28`/`sub_8215E6A0` and explicitly captures pelvis, thigh, ankle,
+  and knee rows; `analysis/anim_apply_trace_summary_20260606.md` shows active
+  PS2 destination tables receiving `bone_L-ankle.quat`,
+  `bone_R-ankle.quat`, `bone_L-thigh.quat`, `bone_R-thigh.quat`,
+  `bone_L-knee.rotz`, `bone_R-knee.rotz`, and toe rot rows. The older
+  `analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md` lower-body run also proves
+  the visible `.mesh` rows for glam/guitarist thigh, knee, ankle, and toe
+  mutate during active gameplay. If a future visual proof contradicts the
+  current result, the RexGlue path to trace is therefore the same pose-buffer
+  apply/output-row bridge, not a new foot-IK or character-name offset path.
+- Source-truth boundary: `check_pose_publisher_source_gaps.py` still reports
+  the full `CharBones::ScaleAdd(CharBones&,float)`,
+  `CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`,
+  `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate` runtime publisher
+  bodies as fenced in the available ihatecompvir sources/dumps. The lower-body
+  bridge is therefore a bounded source-data bridge, not a claim that the full
+  Harmonix pose publisher has been ported.
+- Goal status: this evidence supports the lower-body root-cause and current leg
+  behavior, but the broader GH2 character-model goal remains active until the
+  wider source publisher boundary is resolved or explicitly accepted and current
+  visual proof is signed off.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
