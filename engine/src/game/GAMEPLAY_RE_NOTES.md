@@ -2,6 +2,12 @@
 
 ## Venue Camera
 
+- 2026-07-14 proof-build dependency boundary: Windows native proof builds are
+  pinned to the MSVC `cl` toolchain in both root and engine CMake presets, and
+  `build_env.bat` no longer prepends LLVM to `PATH`. This keeps camera/venue
+  validation executables from depending on `libc++.dll` or other non-platform
+  C++ runtime DLLs, which would violate the OG Xbox-portability constraint and
+  break proof runs in sibling Codex sessions.
 - Rexglue traces show the venue director owns camera, crowd, lighting, and band
   updates together. Camera shot selection is a two-tier system:
   `pick_new_shot` / `start_shot` at roughly bar-scale cadence, plus
