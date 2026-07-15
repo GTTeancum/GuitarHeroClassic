@@ -9612,8 +9612,14 @@ int main() {
                  "\"buildtransform_body=%sbuildtransform_locals=%s\"",
                  "camera debug logs expose the audited RB2 BuildTransform boundary");
   ok &= contains(gameplay_c,
+                 "\"source_projection=%slocal_project_aspect=%.3f\"",
+                 "camera debug logs expose the audited RndCam local projection boundary");
+  ok &= contains(gameplay_c,
                  "\"rb2_dump_locals_only\"",
                  "camera debug logs avoid claiming a recovered BuildTransform body");
+  ok &= contains(gameplay_c,
+                 "\"RndCam::UpdateLocal(yRatio,t)_body_unrecovered\"",
+                 "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
                  "camera debug logs include audited RB2 BuildTransform locals");

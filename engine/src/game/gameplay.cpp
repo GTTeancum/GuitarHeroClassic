@@ -17841,6 +17841,8 @@ struct CameraResultRows {
 
 constexpr float kNativeValidationAspect = 16.0f / 9.0f;
 constexpr float kCamShotSourceFrustumAspect = 1.0f;
+constexpr const char* kCamShotLocalProjectSource =
+    "RndCam::UpdateLocal(yRatio,t)_body_unrecovered";
 
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
@@ -23060,6 +23062,7 @@ void apply_camera_keys(
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_locals=%s "
+            "source_projection=%s local_project_aspect=%.3f "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
             "freecam_priority=deferred_last freecam_affects_gameplay=0 "
@@ -23091,6 +23094,7 @@ void apply_camera_keys(
             "parent,targetPos,targetScreenPos,filter,iframe,"
             "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
             "targetDist,v",
+            kCamShotLocalProjectSource, kCamShotSourceFrustumAspect,
             source_pose_coverage, hidden_pose_boundary,
             active_hidden_gameplay_blockers, active_blocker_scope,
             result_filter_state_seeded ? 1 : 0, result_filter_step,

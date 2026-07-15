@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera projection boundary proof:
+  ihatecompvir `CamShotFrame::Interp` applies same-target screen offset through
+  `cam->LocalProjectXfm()`, and the RB2 dump for `RndCam::UpdateLocal` exposes
+  only the `yRatio` / `t` locals rather than the projection body. Native normal
+  gameplay camera diagnostics now stamp
+  `source_projection=RndCam::UpdateLocal(yRatio,t)_body_unrecovered` beside the
+  current neutral local-project aspect, so sketchy angles can be audited as
+  either recovered script/shot selection work or still-hidden projection/pose
+  math. This is proof/status plumbing only: it does not change gameplay camera
+  math, does not touch FreeCam, and adds no dependencies.
 - 2026-07-15 gameplay camera intro previous context:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` and
   `pick_solo_camera_shot` read `world current_shot` for previous facing, and
