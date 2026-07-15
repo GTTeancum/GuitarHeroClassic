@@ -6167,6 +6167,29 @@ debug row filter did not bind to the runtime character row before the screenshot
 This proof remains leg-only; arms, hair, accessories, and broad character
 motion are outside this slice.
 
+2026-07-15 multi-character lower-body gameplay proof batch 2:
+`engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/` adds
+direct gameplay captures for Rockabill1, Goth1, Goth2, Funk1, Classic, and
+Deathmetal1 using the same Trogdor Expert / small2 / Xplorer route. This pass
+explicitly supplies `--ark-dir` so the app loads stock `main.hdr` /
+`main_0.ark`; an earlier capture attempt without that archive path only drew
+the startup checkerboard and is not treated as proof. The accepted batch has
+matching direct viewer recaptures and manifest cases
+`rockabill1_current_lower_body_live_stack_match`,
+`goth1_current_lower_body_live_stack_match`,
+`goth2_current_lower_body_live_stack_match`,
+`funk1_current_lower_body_live_stack_match`,
+`classic_current_lower_body_live_stack_match`, and
+`deathmetal1_current_lower_body_live_stack_match`; each passes pelvis, both
+thighs, both knees, both ankles, and both toes at `max_delta=0.000000`.
+Rockabill1's runtime pose rows use the source/runtime short character label
+`rockabill`, and Goth2's viewer log records the source shared-driver resolution
+from `char/goth2/anims/gen/goth2_main.milo_ps2` to
+`char/goth1/anims/gen/goth1_main.milo_ps2` through `main.drv`. Deathmetal1's
+accepted screenshot frame uses `stand_fast_02` -> `stand_fast_04`; the other
+five batch-2 characters use `stand_fast_02` -> `stand_fast_03`. This proof is
+also leg-only and does not sign off arms, hair, or accessories.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

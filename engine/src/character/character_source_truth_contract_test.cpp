@@ -33658,6 +33658,27 @@ int run_contract() {
                  "\"metal1_current_lower_body_live_stack_match\"",
                  "arm pose diff manifest records Metal1 lower-body live-stack proof");
   ok &= contains(arm_pose_diff_manifest,
+                 "\"rockabill1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Rockabill1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"character\":\"rockabill\"",
+                 "arm pose diff manifest records Rockabill1 runtime row label");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"goth1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Goth1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"goth2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Goth2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"funk1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Funk1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"classic_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Classic lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"deathmetal1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Deathmetal1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
                  "\"character\":\"rock2\"",
                  "arm pose diff manifest overrides character for Rock2 proof");
   ok &= contains(arm_pose_diff_manifest,
@@ -33665,6 +33686,11 @@ int run_contract() {
                  "char/rock2/anims/gen/rock2_main.milo_ps2->"
                  "char/rock1/anims/gen/rock1_main.milo_ps2viamain.drv\"",
                  "arm pose diff manifest pins Rock2 source driver resolution");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/goth2/anims/gen/goth2_main.milo_ps2->"
+                 "char/goth1/anims/gen/goth1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Goth2 source driver resolution");
   ok &= contains(arm_pose_diff_manifest,
                  "\"stand_fast_04@4.500\"",
                  "arm pose diff manifest records Metal1 screenshot body clip");
@@ -34118,6 +34144,34 @@ int run_contract() {
   ok &= contains(doc,
                  "This proof remains leg-only; arms, hair, accessories, and broad character\nmotion are outside this slice",
                  "document keeps multi-character proof scoped to legs");
+  ok &= contains(doc,
+                 "2026-07-15 multi-character lower-body gameplay proof batch 2:",
+                 "document records second multi-character leg-only gameplay proof");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/`",
+                 "document records second multi-character proof folder");
+  ok &= contains(doc,
+                 "explicitly supplies `--ark-dir` so the app loads stock `main.hdr` /\n"
+                 "`main_0.ark`",
+                 "document records archive path requirement for gameplay proof");
+  ok &= contains(doc,
+                 "`rockabill1_current_lower_body_live_stack_match`,\n"
+                 "`goth1_current_lower_body_live_stack_match`,\n"
+                 "`goth2_current_lower_body_live_stack_match`,\n"
+                 "`funk1_current_lower_body_live_stack_match`,\n"
+                 "`classic_current_lower_body_live_stack_match`, and\n"
+                 "`deathmetal1_current_lower_body_live_stack_match`",
+                 "document lists second row-backed multi-character leg proofs");
+  ok &= contains(doc,
+                 "Rockabill1's runtime pose rows use the source/runtime short character label\n"
+                 "`rockabill`",
+                 "document records Rockabill1 runtime row label");
+  ok &= contains(doc,
+                 "Deathmetal1's\naccepted screenshot frame uses `stand_fast_02` -> `stand_fast_04`",
+                 "document records Deathmetal1 body clip boundary");
+  ok &= contains(doc,
+                 "This proof is\nalso leg-only and does not sign off arms, hair, or accessories",
+                 "document keeps second proof scoped to legs");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",
