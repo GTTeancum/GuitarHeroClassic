@@ -41,6 +41,8 @@ KINDS = (
     "crowd.world.update",
     "lighting.preset.update",
     "input.scripted_nav",
+    "input.scripted_nav.poll",
+    "input.guitar_edge",
 )
 
 STRONG_IN_SONG_MARKERS = (
@@ -96,6 +98,8 @@ def main() -> int:
     parser.add_argument("--require-clip-apply", action="store_true")
     parser.add_argument("--require-lower-body-rows", action="store_true")
     parser.add_argument("--require-in-song-route", action="store_true")
+    parser.add_argument("--require-scripted-nav-polls", action="store_true")
+    parser.add_argument("--require-guitar-input-edge", action="store_true")
     parser.add_argument("--allow-truncated-tail", action="store_true")
     parser.add_argument("--write-summary", type=Path)
     args = parser.parse_args()
@@ -117,6 +121,10 @@ def main() -> int:
     strong_in_song_events = sum(counts[kind] for kind in STRONG_IN_SONG_MARKERS)
     if args.require_in_song_route and strong_in_song_events <= 0:
         failures.append("missing strong in-song animation/camera/crowd route markers")
+    if args.require_scripted_nav_polls and counts["input.scripted_nav.poll"] <= 0:
+        failures.append("missing scripted nav poll heartbeat")
+    if args.require_guitar_input_edge and counts["input.guitar_edge"] <= 0:
+        failures.append("missing GuitarPort input edge")
     lower_body_memory = detail_text(events, "anim.lower_body.memory")
     found_channels = sorted(
         channel
@@ -133,7 +141,13 @@ def main() -> int:
         "counts": counts,
         "strong_in_song_events": strong_in_song_events,
         "route_status": "in_song_route_reached" if strong_in_song_events else "route_not_reached",
+        "scripted_nav_polls": counts["input.scripted_nav.poll"],
+        "input_guitar_edges": counts["input.guitar_edge"],
         "lower_body_channels": found_channels,
+        "first_scripted_nav_poll": (
+            detail_text(events, "input.scripted_nav.poll") or [""]
+        )[0][:300],
+        "first_guitar_edge": (detail_text(events, "input.guitar_edge") or [""])[0][:300],
         "first_runtime_memory": (detail_text(events, "anim.lower_body.runtime_memory") or [""])[
             0
         ][:300],
@@ -158,6 +172,8 @@ def main() -> int:
         f"rows={len(found_channels)} "
         f"insong={strong_in_song_events} "
         f"scripted_nav={counts['input.scripted_nav']} "
+        f"scripted_nav_polls={counts['input.scripted_nav.poll']} "
+        f"guitar_edges={counts['input.guitar_edge']} "
         f"result={summary['result']}"
     )
     for kind in KINDS:

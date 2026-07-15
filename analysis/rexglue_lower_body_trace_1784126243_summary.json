@@ -3,7 +3,7 @@
     "anim.apply.unweighted": 0,
     "anim.apply.weighted": 0,
     "anim.controller.stage_821D1190": 96,
-    "anim.controller.stage_821D1710": 37,
+    "anim.controller.stage_821D1710": 40,
     "anim.lower_body.memory": 0,
     "anim.lower_body.runtime_memory": 192,
     "anim.pose.apply_interp_source": 0,
@@ -15,22 +15,24 @@
     "char.ik.update": 16,
     "crowd.world.update": 0,
     "input.guitar_edge": 0,
-    "input.scripted_nav": 0,
-    "input.scripted_nav.poll": 0,
+    "input.scripted_nav": 1,
+    "input.scripted_nav.poll": 4,
     "lighting.preset.update": 6
   },
-  "events": 8623,
-  "failures": [],
+  "events": 8655,
+  "failures": [
+    "trace ended with a truncated json line"
+  ],
   "first_guitar_edge": "",
   "first_lower_body_rows": "",
   "first_runtime_memory": "seq=0 stage=821D1190 phase=before self=0x409A85B0 arg0=0x4046790C arg1=0x00000000 obj={obj=0x409A85B0 vt=0x8201D524 slots={0x821CF3D8,0x821CF338,0x8227F8A8,0x821CF768} object_strings=(none)} self0=0x409A85B0:[0x8201D524,0x8201D564,0x01000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x0",
-  "first_scripted_nav_poll": "",
+  "first_scripted_nav_poll": "poll=0 elapsed_ms=0 user=0 state=0x7018FAD0 buttons=0x0000 packet=1",
   "input_guitar_edges": 0,
-  "invalid_lines": 0,
+  "invalid_lines": 1,
   "lower_body_channels": [],
-  "result": "pass",
+  "result": "fail",
   "route_status": "route_not_reached",
-  "scripted_nav_polls": 0,
+  "scripted_nav_polls": 4,
   "strong_in_song_events": 0,
-  "trace": "out\\build\\win-amd64-relwithdebinfo\\captures\\trace_1784121732.jsonl"
+  "trace": "out\\build\\win-amd64-relwithdebinfo\\captures\\trace_1784126243.jsonl"
 }

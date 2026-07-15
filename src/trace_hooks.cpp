@@ -1420,7 +1420,8 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
     const uint16_t buttons = scripted_nav_buttons_ms(elapsed_ms);
 
     static std::atomic<uint32_t> s_packet{1};
-    REX_STORE_U32(state + 0, s_packet.fetch_add(1, std::memory_order_relaxed));
+    const uint32_t packet = s_packet.fetch_add(1, std::memory_order_relaxed);
+    REX_STORE_U32(state + 0, packet);
     REX_STORE_U16(state + 4, buttons);
     REX_STORE_U8(state + 6, 0);
     REX_STORE_U8(state + 7, 0);
@@ -1429,6 +1430,19 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
     REX_STORE_U16(state + 12, 0);
     REX_STORE_U16(state + 14, 0);
     ctx.r3.u64 = 0; // ERROR_SUCCESS: report the scripted controller connected.
+
+    static std::atomic<uint32_t> s_poll_count{0};
+    const uint32_t poll = s_poll_count.fetch_add(1, std::memory_order_relaxed);
+    if (poll < 16 || (poll < 4096 && (poll % 128u) == 0) ||
+        (poll % 512u) == 0) {
+        char detail[192];
+        std::snprintf(detail, sizeof detail,
+                      "poll=%u elapsed_ms=%llu user=%u state=0x%08X "
+                      "buttons=0x%04X packet=%u",
+                      poll, static_cast<unsigned long long>(elapsed_ms), user,
+                      state, buttons, packet);
+        trace360::LogEvent("input.scripted_nav.poll", detail);
+    }
 
     static std::atomic<uint32_t> s_last{0xFFFFFFFFu};
     if (s_last.exchange(buttons, std::memory_order_relaxed) != buttons) {
