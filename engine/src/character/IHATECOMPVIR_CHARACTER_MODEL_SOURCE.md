@@ -6230,6 +6230,13 @@ those only for diagnostic comparison to the visible `bone_L/R-toe` rows through
 the same `-toe0` to `-toe` equivalence already used by the native
 `channel_matches_bone` source-name matcher. This is not a runtime pose fix or a
 new bone-name guess.
+`tools/check_lower_body_stock_coverage.py` passes with `playable_ingame=18`,
+`support_viewer=6`, and `stock_total=24`. That audit ties the 18 in-game /
+viewer live-stack playable proofs in `tools/arm_pose_diff_manifest.json` to the
+six support/base direct-viewer output proofs in
+`tools/charbone_output_map_manifest.json`, requires screenshot-bearing logs and
+individual PNG visual proofs, and preserves the source-authored Metal Bass foot
+rows plus Metal Drummer `toe0` diagnostic alias.
 
 Current lower-body root-cause summary: the bad "standing but floating with legs
 forward" frame came from applying decoded sampled channels straight onto the

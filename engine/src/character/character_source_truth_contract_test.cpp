@@ -159,6 +159,9 @@ int run_contract() {
   const std::string charbone_output_map_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "charbone_output_map_manifest.json"));
+  const std::string lower_body_stock_coverage = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_stock_coverage.py"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -33895,6 +33898,22 @@ int run_contract() {
   ok &= contains(charbone_output_map_manifest,
                  "\"bone_L-toe0\":\"bone_L-toe\"",
                  "CharBone output-map manifest uses source-backed toe0 visible alias");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "PLAYABLE_INGAME_LABELS",
+      "lower-body stock coverage audit names playable in-game proof set");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "SUPPORT_VIEWER_LABELS",
+      "lower-body stock coverage audit names support viewer proof set");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "playable_ingame={len(PLAYABLE_INGAME_LABELS)}",
+      "lower-body stock coverage audit reports playable count");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "support_viewer={len(SUPPORT_VIEWER_LABELS)}",
+      "lower-body stock coverage audit reports support count");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34276,6 +34295,11 @@ int run_contract() {
       "the verifier maps\nthose only for diagnostic comparison to the visible "
       "`bone_L/R-toe` rows",
       "document limits toe0 alias to diagnostic comparison");
+  ok &= contains(
+      doc,
+      "`tools/check_lower_body_stock_coverage.py` passes with "
+      "`playable_ingame=18`,\n`support_viewer=6`, and `stock_total=24`",
+      "document records lower-body stock coverage audit result");
   ok &= contains(doc,
                  "Current lower-body root-cause summary:",
                  "document records lower-body root-cause summary");
