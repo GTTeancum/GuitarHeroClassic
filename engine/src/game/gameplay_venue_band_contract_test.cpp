@@ -192,6 +192,8 @@ int main() {
       function_body(gameplay, "camera_project_target_screen_norm"));
   const std::string camera_screen_offset_result_c = compact(
       function_body(gameplay, "camera_apply_screen_offset_to_result_rows"));
+  const std::string camera_on_has_targets_c = compact(
+      function_body(gameplay, "camera_on_has_targets_like_source"));
   const std::string rnd_camanim_reader_c =
       compact(function_body(gameplay, "read_rnd_camanim_like_miloeditor"));
   const std::string camera_position_loader_c =
@@ -13189,6 +13191,25 @@ int main() {
                  "returncamera_update_targets_like_camshot(key,targets)."
                  "has_targets;",
                  "CamShot HasTargets helper follows the source target update result");
+  ok &= contains(camera_on_has_targets_c,
+                 "constauto&frames=source_camshot_timing_frames(shot);"
+                 "result.keyframes=frames.size();",
+                 "CamShot OnHasTargets bridge indexes the source mKeyFrames list");
+  ok &= contains(camera_on_has_targets_c,
+                 "if(keyframe_index>=frames.size())returnresult;",
+                 "CamShot OnHasTargets bridge keeps invalid diagnostic indexes bounded");
+  ok &= contains(camera_on_has_targets_c,
+                 "result.has_targets="
+                 "camera_key_has_resolved_targets_like_camshot("
+                 "frames[keyframe_index],targets);",
+                 "CamShot OnHasTargets bridge returns mKeyFrames[idx].HasTargets");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraOnHasTargets:source_msg=has_targets"
+                 "source_handler=CamShot::OnHasTargetsshot=%s",
+                 "regular camera diagnostics expose CamShot::OnHasTargets");
+  ok &= contains(gameplay_c,
+                 "source_expr=mKeyFrames[idx].HasTargets",
+                 "CamShot OnHasTargets diagnostics name the audited source expression");
   ok &= contains(gameplay_c,
                  "boolcamera_apply_pose_span_source_basis(",
                  "source seed rows can derive the traced pose-span source basis");

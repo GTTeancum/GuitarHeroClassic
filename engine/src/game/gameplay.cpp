@@ -19616,6 +19616,27 @@ bool camera_key_has_resolved_targets_like_camshot(
     return camera_update_targets_like_camshot(key, targets).has_targets;
 }
 
+struct CameraSourceHasTargetsResult {
+    bool valid_index = false;
+    bool has_targets = false;
+    size_t keyframes = 0;
+};
+
+CameraSourceHasTargetsResult camera_on_has_targets_like_source(
+    const Gameplay::CameraKey& shot,
+    size_t keyframe_index,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    CameraSourceHasTargetsResult result;
+    const auto& frames = source_camshot_timing_frames(shot);
+    result.keyframes = frames.size();
+    if (keyframe_index >= frames.size()) return result;
+    result.valid_index = true;
+    result.has_targets =
+        camera_key_has_resolved_targets_like_camshot(frames[keyframe_index],
+                                                     targets);
+    return result;
+}
+
 bool camera_apply_pose_span_source_basis(
     CameraResultRows& rows,
     const Gameplay::CameraKey& key,
@@ -34428,6 +34449,33 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             b_key.has_source_frame_key_index
                                 ? b_key.source_frame_key_index
                                 : size_t{0});
+                        const size_t a_has_targets_index =
+                            a_key.has_source_frame_key_index
+                                ? a_key.source_frame_key_index
+                                : size_t{0};
+                        const size_t b_has_targets_index =
+                            b_key.has_source_frame_key_index
+                                ? b_key.source_frame_key_index
+                                : size_t{0};
+                        const CameraSourceHasTargetsResult
+                            a_has_targets =
+                                camera_on_has_targets_like_source(
+                                    *key, a_has_targets_index, camera_targets);
+                        const CameraSourceHasTargetsResult
+                            b_has_targets =
+                                camera_on_has_targets_like_source(
+                                    *key, b_has_targets_index, camera_targets);
+                        std::fprintf(
+                            stderr,
+                            "[world] camera OnHasTargets: source_msg=has_targets source_handler=CamShot::OnHasTargets shot=%s a_index=%s%zu b_index=%s%zu valid=a:%d b:%d result=a:%d b:%d keyframes=%zu source_expr=mKeyFrames[idx].HasTargets route=regular_camera_source_frame_keys\n",
+                            key->name.c_str(), source_index_prefix(a_key),
+                            a_has_targets_index, source_index_prefix(b_key),
+                            b_has_targets_index,
+                            a_has_targets.valid_index ? 1 : 0,
+                            b_has_targets.valid_index ? 1 : 0,
+                            a_has_targets.has_targets ? 1 : 0,
+                            b_has_targets.has_targets ? 1 : 0,
+                            a_has_targets.keyframes);
                         if (has_frame_mapping &&
                             (a_key.source_frame_loop_active ||
                              a_key.source_frame_loop_wrapped)) {
@@ -34529,6 +34577,21 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             hold_key.has_source_frame_key_index
                                 ? hold_key.source_frame_key_index
                                 : size_t{0});
+                        const size_t has_targets_index =
+                            hold_key.has_source_frame_key_index
+                                ? hold_key.source_frame_key_index
+                                : size_t{0};
+                        const CameraSourceHasTargetsResult has_targets =
+                            camera_on_has_targets_like_source(
+                                *key, has_targets_index, camera_targets);
+                        std::fprintf(
+                            stderr,
+                            "[world] camera OnHasTargets: source_msg=has_targets source_handler=CamShot::OnHasTargets shot=%s index=%s%zu valid=%d result=%d keyframes=%zu source_expr=mKeyFrames[idx].HasTargets source_phase=hold_before_blend route=regular_camera_source_frame_keys\n",
+                            key->name.c_str(), source_index_prefix(hold_key),
+                            has_targets_index,
+                            has_targets.valid_index ? 1 : 0,
+                            has_targets.has_targets ? 1 : 0,
+                            has_targets.keyframes);
                         }
                     }
                     if (!source_frame_key_route && key->has_path_anim &&

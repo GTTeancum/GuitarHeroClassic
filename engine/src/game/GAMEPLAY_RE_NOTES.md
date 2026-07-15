@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot `OnHasTargets` bridge:
+  ihatecompvir `CamShot::OnHasTargets` returns
+  `mKeyFrames[idx].HasTargets()`, and `HasTargets()` checks resolved
+  `ObjPtr<RndTransformable>` entries rather than raw author strings. Native
+  now exposes the same indexed source-frame query in the regular camera proof
+  path and logs the keyframe index, valid-index state, and resolved target
+  result beside the existing `OnSetPos` boundary rows. This is handler/proof
+  surface only; it does not synthesize hidden `CamShot::SetPos` /
+  `BuildTransform` math, change submitted camera rows, or add dependencies.
 - 2026-07-15 CamShot target ObjPtr fallback:
   ihatecompvir `CamShotFrame::Load` stores modern targets as direct
   `ObjPtr<RndTransformable>` entries, and `UpdateTarget()` / `SameTargets()`
