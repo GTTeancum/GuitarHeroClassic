@@ -34696,7 +34696,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ev.text == "[crowd_lighters_slow]" ? "lighter_slow"
                                                             : "lighter_fast";
                     cue_forced_camera = authored_gameplay_cameras_active &&
-                                        source_multiplayer &&
+                                        !source_multiplayer &&
                                         !did_lighter_cam_ && was_off;
                     if (cue_forced_camera) {
                         did_lighter_cam_ = true;

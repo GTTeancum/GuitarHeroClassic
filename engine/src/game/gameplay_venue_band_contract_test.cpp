@@ -13802,8 +13802,8 @@ int main() {
                  "crowd lighter messages select the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
                  "cue_forced_camera=authored_gameplay_cameras_active&&"
-                 "source_multiplayer&&!did_lighter_cam_&&was_off;",
-                 "GH2 pick_lighter_shot only forces LIGHTER cameras through the source multiplayer gate");
+                 "!source_multiplayer&&!did_lighter_cam_&&was_off;",
+                 "GH2 pick_lighter_shot only forces LIGHTER cameras when source game multiplayer is false");
   ok &= contains(gameplay_c,
                  "\"source_multiplayer=%dcrowd_group=%s\\n\"",
                  "camera script cue diagnostics expose the source multiplayer gate and active WorldCrowd crowd group");

@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay lighter camera single-player gate:
+  GH2 `world_objects_worldbase.dta::pick_lighter_shot` wraps the LIGHTER
+  camera force in `{if {! {game multiplayer}} ...}`, while still leaving the
+  crowd-lighter animation group update independent of camera forcing. Native
+  normal gameplay camera routing now mirrors that source gate: single-player
+  authored gameplay camera runs can force the first LIGHTER shot, multiplayer
+  runs do not, and the cue diagnostic prints `source_multiplayer=` beside the
+  active WorldCrowd lighter group. FreeCam remains deferred last.
 - 2026-07-15 gameplay CamShot per-key copy parity:
   ihatecompvir `CamShot::Copy` copies the owning shot's runtime state,
   including platform/filter flags, crowds, visibility, postprocess, linked
