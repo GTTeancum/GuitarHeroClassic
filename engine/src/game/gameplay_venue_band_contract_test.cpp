@@ -12986,6 +12986,12 @@ int main() {
                  "std::string_viewcurrent_walkspot)",
                  "regular camera shot_ok bridge evaluates authored bad_waypoints refs");
   ok &= contains(gameplay_c,
+                 "conststd::string*camera_source_bad_waypoint_match_ref(",
+                 "regular camera shot_ok diagnostics expose the exact authored bad_waypoint ref that matched");
+  ok &= contains(gameplay_c,
+                 "bad_waypoint_match=%sbad_waypoints=%zu",
+                 "regular camera shot_ok diagnostics include the matching bad_waypoint ref");
+  ok &= contains(gameplay_c,
                  "std::stringGameplay::camera_source_guitarist0_nearest_walkspot()const",
                  "regular camera shot_ok bridge uses the current guitarist0 walkspot source context");
   ok &= contains(gameplay_c,
@@ -12994,6 +13000,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]cameracurrent_walkspot:source_call=Waypoint::FindNearest",
                  "regular camera diagnostics expose the source current-walkspot lookup");
+  ok &= contains(gameplay_c,
+                 "mask=0x%08xcoordinate=world_stored",
+                 "regular camera current-walkspot diagnostics expose the source walk/solo-walk flag mask");
+  ok &= contains(gameplay_c,
+                 "decoded_waypoints=%zucandidate_count=%zu",
+                 "regular camera current-walkspot diagnostics distinguish missing candidates from missing venue waypoints");
   ok &= contains(gameplay_c,
                  "voidcamera_source_first_shot_ok(std::string_viewcategory)",
                  "regular camera selector exposes ihatecompvir CameraManager::FirstShotOk hook");
@@ -13019,7 +13031,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_ok:source_msg=shot_okshot=%s"
                  "previous=%scam_shot_ok=%ssource_return=%s"
-                 "result=%scurrent_walkspot=%sbad_waypoints=%zu\\n\"",
+                 "result=%scurrent_walkspot=%s"
+                 "bad_waypoint_match=%sbad_waypoints=%zu\\n\"",
                  "regular camera diagnostics expose deferred source shot_ok hook");
   ok &= absent(gameplay_c,
                "if(previous&&key.name==previous->name)continue;",

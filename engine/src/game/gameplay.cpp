@@ -16703,13 +16703,18 @@ bool camera_waypoint_refs_match(std::string_view authored_ref,
            camera_waypoint_match_key(current_waypoint);
 }
 
+const std::string* camera_source_bad_waypoint_match_ref(
+    const Gameplay::CameraKey& key, std::string_view current_walkspot) {
+    if (current_walkspot.empty() || key.bad_waypoint_refs.empty()) return nullptr;
+    for (const auto& ref : key.bad_waypoint_refs) {
+        if (camera_waypoint_refs_match(ref, current_walkspot)) return &ref;
+    }
+    return nullptr;
+}
+
 bool camera_source_bad_waypoint_rejects(
     const Gameplay::CameraKey& key, std::string_view current_walkspot) {
-    if (current_walkspot.empty() || key.bad_waypoint_refs.empty()) return false;
-    for (const auto& ref : key.bad_waypoint_refs) {
-        if (camera_waypoint_refs_match(ref, current_walkspot)) return true;
-    }
-    return false;
+    return camera_source_bad_waypoint_match_ref(key, current_walkspot) != nullptr;
 }
 
 CameraSourceShotOkReturn camera_source_deferred_cam_shot_ok_return(
@@ -16738,6 +16743,8 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     const CameraSourceShotOkReturn source_return =
         camera_source_cam_shot_ok_return(key, previous, current_walkspot);
     const bool accepted = camera_source_shot_ok_accepts(source_return);
+    const std::string* bad_waypoint_match =
+        camera_source_bad_waypoint_match_ref(key, current_walkspot);
     const char* cam_shot_ok =
         source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
             ? "bad_waypoints"
@@ -16745,12 +16752,13 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoints=%zu\n",
+            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
             cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
             accepted ? "accept" : "reject",
             std::string(current_walkspot).c_str(),
+            bad_waypoint_match ? bad_waypoint_match->c_str() : "",
             key.bad_waypoint_refs.size());
     }
     return accepted;
@@ -25097,9 +25105,13 @@ std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     const float pz = guitarist0->world_transform[14];
     const ghogx::milo_scene::WaypointObj* best = nullptr;
     float best_dist2 = std::numeric_limits<float>::max();
+    size_t decoded_waypoints = 0;
+    size_t candidate_count = 0;
     for (const auto& waypoint : venue_chars_scene_.waypoints) {
         if (!waypoint.decoded) continue;
+        ++decoded_waypoints;
         if ((waypoint.flags & (kWalkSpot | kSoloWalkSpot)) == 0) continue;
+        ++candidate_count;
         const float dx = waypoint.world_stored.pos[0] - px;
         const float dy = waypoint.world_stored.pos[1] - py;
         const float dz = waypoint.world_stored.pos[2] - pz;
@@ -25112,9 +25124,11 @@ std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera current_walkspot: source_call=Waypoint::FindNearest actor=guitarist0 flags=walk|solo_walk coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu\n",
+            "[world] camera current_walkspot: source_call=Waypoint::FindNearest actor=guitarist0 flags=walk|solo_walk mask=0x%08x coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu decoded_waypoints=%zu candidate_count=%zu\n",
+            static_cast<unsigned int>(kWalkSpot | kSoloWalkSpot),
             px, py, pz, best ? best->name.c_str() : "",
-            best ? best_dist2 : 0.0f, venue_chars_scene_.waypoints.size());
+            best ? best_dist2 : 0.0f, venue_chars_scene_.waypoints.size(),
+            decoded_waypoints, candidate_count);
     }
     return best ? best->name : std::string{};
 }
