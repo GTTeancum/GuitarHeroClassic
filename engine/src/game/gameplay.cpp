@@ -16816,6 +16816,14 @@ int camera_source_initial_faceoff_active_players() {
     return std::clamp(env_int("GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS", 0), 0, 2);
 }
 
+bool camera_source_game_multiplayer() {
+    const int diagnostic_multiplayer =
+        env_int("GHOGX_CAMERA_GAME_MULTIPLAYER", -1);
+    if (diagnostic_multiplayer >= 0) return diagnostic_multiplayer != 0;
+    return camera_source_gamecfg_mode_multi_vs() ||
+           camera_source_initial_faceoff_active_players() > 0;
+}
+
 std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
     return mode == CameraShotMode::Lighter ? "LIGHTER"
                                            : "NORMAL_CAMSHOT_CATEGORIES";
@@ -34668,6 +34676,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
 
                 bool cue_forced_camera = false;
+                const bool source_multiplayer =
+                    camera_source_game_multiplayer();
                 const uint32_t excitement =
                     venue_excitement_level(active_venue_event_);
                 if (ev.text == "[band_jump]") {
@@ -34686,6 +34696,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ev.text == "[crowd_lighters_slow]" ? "lighter_slow"
                                                             : "lighter_fast";
                     cue_forced_camera = authored_gameplay_cameras_active &&
+                                        source_multiplayer &&
                                         !did_lighter_cam_ && was_off;
                     if (cue_forced_camera) {
                         did_lighter_cam_ = true;
@@ -34717,7 +34728,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     "[world] camera script cue: source_msg=%s source_action=%s "
                     "text=%s tick=%u t=%.3f "
                     "force=%d mode=%s bars=%d excitement=%u "
-                    "crowd_group=%s\n",
+                    "source_multiplayer=%d crowd_group=%s\n",
                     camera_source_script_cue_message(ev.text),
                     camera_source_script_cue_action(ev.text),
                     ev.text.c_str(), ev.tick, song_time_,
@@ -34726,6 +34737,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ? camera_shot_mode_label(*forced_camera_mode)
                         : "regular",
                     forced_camera_bars.value_or(0), excitement,
+                    source_multiplayer ? 1 : 0,
                     active_worldcrowd_lighter_group_.empty()
                         ? "-"
                         : active_worldcrowd_lighter_group_.c_str());

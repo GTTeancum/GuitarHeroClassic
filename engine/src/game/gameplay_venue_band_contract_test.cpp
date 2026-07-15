@@ -13779,6 +13779,13 @@ int main() {
                  "while(next_forced_camera_event_idx_<chart_.text_events.size())",
                  "crowd lighter text scanner runs in the default playable 3D path");
   ok &= contains(gameplay_c,
+                 "boolcamera_source_game_multiplayer(){",
+                 "camera script cue routing exposes the source game multiplayer gate");
+  ok &= contains(gameplay_c,
+                 "constboolsource_multiplayer="
+                 "camera_source_game_multiplayer();",
+                 "camera script cue routing samples source multiplayer state for forced camera events");
+  ok &= contains(gameplay_c,
                  "if(authored_gameplay_cameras_active&&!in_intro_camera_window&&"
                  "!regular_camera_keys_.empty())",
                  "authored gameplay camera cuts run in the default playable 3D path");
@@ -13795,11 +13802,11 @@ int main() {
                  "crowd lighter messages select the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
                  "cue_forced_camera=authored_gameplay_cameras_active&&"
-                 "!did_lighter_cam_&&was_off;",
-                 "crowd lighter group changes are not gated by authored cameras");
+                 "source_multiplayer&&!did_lighter_cam_&&was_off;",
+                 "GH2 pick_lighter_shot only forces LIGHTER cameras through the source multiplayer gate");
   ok &= contains(gameplay_c,
-                 "\"crowd_group=%s\\n\"",
-                 "camera script cue diagnostics expose the active WorldCrowd crowd group");
+                 "\"source_multiplayer=%dcrowd_group=%s\\n\"",
+                 "camera script cue diagnostics expose the source multiplayer gate and active WorldCrowd crowd group");
   ok &= contains(gameplay_c,
                  "\"[world]camerascriptcue:source_msg=%ssource_action=%s\"",
                  "camera script cue diagnostics expose the recovered source message/action");
