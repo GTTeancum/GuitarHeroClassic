@@ -6540,6 +6540,27 @@ passes with `camera_views=front,side`, `cases=16`,
 above the drawn diagnostic base in profile, but the live source-output toe rows
 are within the established floor tolerance and match the visible lower-output
 rows to 0.000500; this is therefore not the old sampled-direct lower-body float.
+This batch is no longer treated as a neutral standing oracle: frames 30 and 40
+are useful row/placement samples, but they are arbitrary positions inside the
+stock UI loop.
+
+`engine/out/visual_proofs/lower_body_2p_select_start_20260715/` pins the
+start-of-loop 2P select evidence after the reviewer correction that the
+single-player select branch plays against the dressing-room geometry. These
+proofs use the stock `char_multi` `animate` path, `char_multi0.placer`,
+`reset_hair=true`, `clip=ui_loop`, and `skips_ui_enter=true`, but force frames
+0 and 10 rather than later arbitrary frames. They also pass `--guitar none` so
+no diagnostic attached Xplorer prop affects the read. `tools/check_lower_body_2p_select_start_proofs.py`
+passes with `characters=glam1,metal1`, `players=p1`,
+`frames=0,10`, `side_profile=true`, `cases=4`,
+`single_player_ui_enter_absent=true`, `single_player_geometry_absent=true`,
+`start_loop_oracle=true`, `neutral_standing_oracle=false`,
+`attached_guitar_prop_absent=true`, `max_abs_toe_z=0.2947`,
+`min_pelvis_to_toe_z=32.8514`, and `max_output_visible_gap=0.000500`. The
+source-backed conclusion is narrow: stock 2P select starts the shared UI loop
+without the single-player `ui_enter` branch or single-player screen geometry,
+but that UI loop is still a stylized character-select pose and must not replace
+main/gameplay standing-pose lower-body proof.
 
 `engine/out/visual_proofs/lower_body_2p_select_family_animate_20260715/` extends the
 corrected 2P select side-profile check beyond the active Glam1/Metal1 pair. It

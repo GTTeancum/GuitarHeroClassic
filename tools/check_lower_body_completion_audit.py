@@ -127,6 +127,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_2p_select_proofs.py",
     "tools/check_lower_body_2p_select_slot_sweep.py",
     "tools/check_lower_body_2p_select_context_proofs.py",
+    "tools/check_lower_body_2p_select_start_proofs.py",
     "tools/check_lower_body_2p_select_family_proofs.py",
     "tools/check_lower_body_2p_select_source_assets.py",
     "tools/check_lower_body_2p_select_clip_assets.py",
@@ -359,6 +360,9 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     two_player_select_context = read(
         root / "tools/check_lower_body_2p_select_context_proofs.py"
     )
+    two_player_select_start = read(
+        root / "tools/check_lower_body_2p_select_start_proofs.py"
+    )
     two_player_select_family = read(
         root / "tools/check_lower_body_2p_select_family_proofs.py"
     )
@@ -401,6 +405,11 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         root,
         "tools/check_lower_body_2p_select_context_proofs.py",
         "two-player character-select context proof checker",
+    )
+    two_player_select_start_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_start_proofs.py",
+        "two-player character-select start-loop proof checker",
     )
     two_player_select_family_output = run_checker(
         root,
@@ -621,6 +630,38 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
             f"2P select context output marker {marker}",
         )
     for marker in (
+        "lower_body_2p_select_start_20260715",
+        "frames=0,10",
+        "start_loop_oracle=true",
+        "neutral_standing_oracle=false",
+        "single_player_geometry_absent=true",
+        "attached_guitar_prop_absent=true",
+        "glam1_p1_2p_animate_ui_loop_start_f000_side",
+        "metal1_p1_2p_animate_ui_loop_start_f010_side",
+    ):
+        require_contains(
+            two_player_select_start,
+            marker,
+            f"2P select start-loop proof marker {marker}",
+        )
+    for marker in (
+        "PASS lower_body_2p_select_start_proofs",
+        "characters=glam1,metal1 players=p1",
+        "screen=multi_sel_character_screen panel=char_multi",
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
+        "frames=0,10 side_profile=true cases=4",
+        "single_player_ui_enter_absent=true single_player_geometry_absent=true",
+        "start_loop_oracle=true neutral_standing_oracle=false",
+        "attached_guitar_prop_absent=true",
+        "max_abs_toe_z=0.2947",
+        "max_output_visible_gap=0.000500",
+    ):
+        require_contains(
+            two_player_select_start_output,
+            marker,
+            f"2P select start-loop output marker {marker}",
+        )
+    for marker in (
         "lower_body_2p_select_family_animate_20260715",
         "characters=rock1,rock2,funk1,deathmetal1",
         "camera_views=side",
@@ -830,6 +871,7 @@ def main() -> int:
         "two_player_select_clip_assets=true "
         "two_player_select_char_events=true two_player_select_app_placer=true "
         "two_player_select_slot_sweep=true two_player_select_context=true "
+        "two_player_select_start_loop=true "
         "two_player_select_family=true "
         "source_boundary_active=true goal_active=true"
     )

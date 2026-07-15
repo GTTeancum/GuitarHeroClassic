@@ -201,6 +201,9 @@ int run_contract() {
   const std::string lower_body_2p_select_context_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_context_proofs.py"));
+  const std::string lower_body_2p_select_start_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_start_proofs.py"));
   const std::string lower_body_2p_select_family_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_family_proofs.py"));
@@ -34336,6 +34339,14 @@ int run_contract() {
       "lower-body completion audit reports 2P context proof");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_2p_select_start_proofs.py\"",
+      "lower-body completion audit runs 2P start-loop proof checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_start_loop=true",
+      "lower-body completion audit reports 2P start-loop proof");
+  ok &= contains(
+      lower_body_completion_audit,
       "run_checker(root,\"tools/check_lower_body_2p_select_family_proofs.py\"",
       "lower-body completion audit runs 2P source-family proof checker");
   ok &= contains(
@@ -34748,6 +34759,9 @@ int run_contract() {
                  "`engine/out/visual_proofs/lower_body_2p_select_context_animate_20260715/`",
                  "document records corrected 2P select context proof folder");
   ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_2p_select_start_20260715/`",
+                 "document records 2P select start-loop proof folder");
+  ok &= contains(doc,
                  "`engine/out/visual_proofs/lower_body_2p_select_family_animate_20260715/`",
                  "document records corrected 2P select family proof folder");
   ok &= contains(doc,
@@ -34759,6 +34773,18 @@ int run_contract() {
   ok &= contains(doc,
                  "`no_singleplayer_geometry=true`",
                  "document records corrected 2P context status");
+  ok &= contains(doc,
+                 "`start_loop_oracle=true`",
+                 "document records 2P select start-loop status");
+  ok &= contains(doc,
+                 "`neutral_standing_oracle=false`",
+                 "document records 2P select is not neutral standing proof");
+  ok &= contains(doc,
+                 "`single_player_ui_enter_absent=true`",
+                 "document records 2P start proof skips single-player ui_enter");
+  ok &= contains(doc,
+                 "`attached_guitar_prop_absent=true`",
+                 "document records 2P start proof excludes attached prop");
   ok &= contains(compact(doc),
                  "usedtheoutfit-focus`select`event,soitwasdemoted",
                  "document records rejected outfit-focus select capture");
@@ -34996,6 +35022,38 @@ int run_contract() {
       "metal1_p1_2p_animate_ui_loop_f030_side",
       "2P context checker pins Metal1 P1 side PNG");
   ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "lower_body_2p_select_start_20260715",
+      "2P start-loop checker pins proof folder");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "frames=0,10",
+      "2P start-loop checker reports start frames");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "start_loop_oracle=true",
+      "2P start-loop checker reports start-loop oracle");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "neutral_standing_oracle=false",
+      "2P start-loop checker rejects neutral standing oracle");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "single_player_geometry_absent=true",
+      "2P start-loop checker rejects single-player geometry");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "attached_guitar_prop_absent=true",
+      "2P start-loop checker rejects attached prop path");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "glam1_p1_2p_animate_ui_loop_start_f000_side",
+      "2P start-loop checker pins Glam1 frame 0 PNG");
+  ok &= contains(
+      lower_body_2p_select_start_proofs,
+      "metal1_p1_2p_animate_ui_loop_start_f010_side",
+      "2P start-loop checker pins Metal1 frame 10 PNG");
+  ok &= contains(
       lower_body_2p_select_family_proofs,
       "lower_body_2p_select_family_animate_20260715",
       "2P family checker pins proof folder");
@@ -35151,6 +35209,10 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select_context=true",
       "completion audit reports 2P context verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_start_loop=true",
+      "completion audit reports 2P start-loop verifier status");
   ok &= contains(
       lower_body_completion_audit,
       "two_player_select_family=true",
