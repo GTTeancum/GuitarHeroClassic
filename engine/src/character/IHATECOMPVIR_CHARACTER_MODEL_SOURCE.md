@@ -5172,8 +5172,14 @@ note, and all report `unreadBytes=0`.
   `CharBonesMeshes::PoseMeshes` statement body,
   `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate` remain fenced.
 - 2026-07-15 source refresh after fetch: `rb3` still resolves both `HEAD` and
-  `origin/master` to `41719f2`; `glTFMilo` stayed at `3c02a54`, `grim` at
-  `1c05ca3`, and `re-notes` at `5c486fd`. The command-line verifier
+  `origin/master` to `41719f2`; `glTFMilo` resolves both `HEAD` and
+  `origin/main` to `3c02a54`; `grim` resolves both `HEAD` and `origin/master`
+  to `1c05ca3`; and `re-notes` resolves both `HEAD` and `origin/master` to
+  `5c486fd`. Native
+  `source_char_pose_publisher_source_refresh_20260714` records both the local
+  mirror commits and the remote refs, so the remaining publisher fence means
+  "current visible ihatecompvir source lacks these bodies," not "the local
+  mirror was left stale." The command-line verifier
   `tools/check_pose_publisher_source_gaps.py --rb3-root
   third_party/ihatecompvir-live/rb3 --ihatecompvir-root
   third_party/ihatecompvir-live --require-rb2-dump` now checks the same

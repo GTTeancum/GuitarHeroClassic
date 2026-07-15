@@ -68,6 +68,28 @@ def git_short_head(path: Path) -> str | None:
     return result.stdout.strip() or None
 
 
+def git_short_ref(path: Path, ref: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--short", ref],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip() or None
+
+
+def git_remote_tip(path: Path) -> tuple[str | None, str | None]:
+    for ref in ("origin/master", "origin/main"):
+        commit = git_short_ref(path, ref)
+        if commit:
+            return ref, commit
+    return None, None
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description="Check ihatecompvir pose-publisher source coverage."
@@ -300,7 +322,14 @@ def main(argv: list[str]) -> int:
     ):
         commit = git_short_head(path)
         if commit:
-            print(f"MIRROR {label} commit={commit}")
+            remote_ref, remote_commit = git_remote_tip(path)
+            if remote_ref and remote_commit:
+                print(
+                    f"MIRROR {label} commit={commit} "
+                    f"remote_ref={remote_ref} remote_commit={remote_commit}"
+                )
+            else:
+                print(f"MIRROR {label} commit={commit}")
     print(
         "SOURCE-GAP still-fenced="
         "CharBones::ScaleAdd(CharBones&,float)|"

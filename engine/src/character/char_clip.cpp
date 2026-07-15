@@ -4472,6 +4472,14 @@ source_char_pose_publisher_source_refresh_20260714() {
   refresh.gltf_milo_commit = "3c02a54";
   refresh.grim_commit = "1c05ca3";
   refresh.re_notes_commit = "5c486fd";
+  refresh.rb3_remote_ref = "origin/master";
+  refresh.rb3_remote_commit = "41719f2";
+  refresh.gltf_milo_remote_ref = "origin/main";
+  refresh.gltf_milo_remote_commit = "3c02a54";
+  refresh.grim_remote_ref = "origin/master";
+  refresh.grim_remote_commit = "1c05ca3";
+  refresh.re_notes_remote_ref = "origin/master";
+  refresh.re_notes_remote_commit = "5c486fd";
   refresh.rb3_after_fetch = true;
   refresh.gltf_milo_after_fetch = true;
   refresh.grim_after_fetch = true;

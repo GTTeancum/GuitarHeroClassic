@@ -32621,9 +32621,15 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "structSourceCharPosePublisherSourceRefresh{std::string"
                  "rb3_commit;std::stringgltf_milo_commit;std::string"
-                 "grim_commit;std::stringre_notes_commit;bool"
-                 "rb3_after_fetch=false;",
+                 "grim_commit;std::stringre_notes_commit;std::string"
+                 "rb3_remote_ref;std::stringrb3_remote_commit;std::string"
+                 "gltf_milo_remote_ref;std::stringgltf_milo_remote_commit;",
                  "native exposes pose publisher source refresh row");
+  ok &= contains(char_clip_h,
+                 "std::stringgrim_remote_ref;std::stringgrim_remote_commit;"
+                 "std::stringre_notes_remote_ref;std::string"
+                 "re_notes_remote_commit;boolrb3_after_fetch=false;",
+                 "native refresh row records remote freshness refs");
   ok &= contains(char_clip_h,
                  "boolgltf_milo_after_fetch=false;boolgrim_after_fetch=false;"
                  "boolre_notes_after_fetch=false;bool"
@@ -32660,6 +32666,12 @@ int run_contract() {
                  "refresh.gltf_milo_commit=\"3c02a54\";",
                  "native source refresh pins glTFMilo mirror commit");
   ok &= contains(char_clip,
+                 "refresh.gltf_milo_remote_ref=\"origin/main\";",
+                 "native source refresh pins glTFMilo remote branch");
+  ok &= contains(char_clip,
+                 "refresh.rb3_remote_commit=\"41719f2\";",
+                 "native source refresh pins rb3 remote commit");
+  ok &= contains(char_clip,
                  "refresh.non_rb3_pose_publisher_bodies_present=false;",
                  "native source refresh keeps non-rb3 publisher bodies absent");
   ok &= contains(char_clip,
@@ -32675,6 +32687,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_pose_publisher_source_refresh_20260714()",
                  "focused CharBones source test covers pose publisher refresh");
+  ok &= contains(doc,
+                 "records both the local\n  mirror commits and the remote refs",
+                 "document records source refresh remote refs");
+  ok &= contains(doc,
+                 "current visible ihatecompvir source lacks these bodies",
+                 "document distinguishes missing source from stale mirror");
   ok &= contains(doc,
                  "2026-07-14 Rockabill2 green chain proof",
                  "document records Rockabill2 green chain proof");
@@ -33668,8 +33686,9 @@ int run_contract() {
                  "`41719f2`",
                  "document records refreshed rb3 head and origin");
   ok &= contains(doc,
-                 "`glTFMilo` stayed at `3c02a54`",
-                 "document records refreshed glTFMilo head");
+                 "`glTFMilo` resolves both `HEAD` and\n  `origin/main` to "
+                 "`3c02a54`",
+                 "document records refreshed glTFMilo head and origin");
   ok &= contains(doc,
                  "now checks the same\n  five-body fence",
                  "document records verifier five-body fence");

@@ -1424,6 +1424,22 @@ int main() {
                       "pose publisher grim mirror commit");
   ok &= expect_string(publisher_refresh.re_notes_commit, "5c486fd",
                       "pose publisher re-notes mirror commit");
+  ok &= expect_string(publisher_refresh.rb3_remote_ref, "origin/master",
+                      "pose publisher rb3 remote ref");
+  ok &= expect_string(publisher_refresh.rb3_remote_commit, "41719f2",
+                      "pose publisher rb3 remote commit");
+  ok &= expect_string(publisher_refresh.gltf_milo_remote_ref, "origin/main",
+                      "pose publisher glTFMilo remote ref");
+  ok &= expect_string(publisher_refresh.gltf_milo_remote_commit, "3c02a54",
+                      "pose publisher glTFMilo remote commit");
+  ok &= expect_string(publisher_refresh.grim_remote_ref, "origin/master",
+                      "pose publisher grim remote ref");
+  ok &= expect_string(publisher_refresh.grim_remote_commit, "1c05ca3",
+                      "pose publisher grim remote commit");
+  ok &= expect_string(publisher_refresh.re_notes_remote_ref, "origin/master",
+                      "pose publisher re-notes remote ref");
+  ok &= expect_string(publisher_refresh.re_notes_remote_commit, "5c486fd",
+                      "pose publisher re-notes remote commit");
   ok &= expect_int(publisher_refresh.rb3_after_fetch ? 1 : 0, 1,
                    "pose publisher rb3 mirror refreshed");
   ok &= expect_int(publisher_refresh.gltf_milo_after_fetch ? 1 : 0, 1,

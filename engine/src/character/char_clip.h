@@ -1527,6 +1527,14 @@ struct SourceCharPosePublisherSourceRefresh {
   std::string gltf_milo_commit;
   std::string grim_commit;
   std::string re_notes_commit;
+  std::string rb3_remote_ref;
+  std::string rb3_remote_commit;
+  std::string gltf_milo_remote_ref;
+  std::string gltf_milo_remote_commit;
+  std::string grim_remote_ref;
+  std::string grim_remote_commit;
+  std::string re_notes_remote_ref;
+  std::string re_notes_remote_commit;
   bool rb3_after_fetch = false;
   bool gltf_milo_after_fetch = false;
   bool grim_after_fetch = false;
