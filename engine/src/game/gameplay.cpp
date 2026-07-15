@@ -19719,15 +19719,9 @@ bool camera_apply_clamp_height_to_result_rows(
         key.clamp_height <= 0.0f) {
         return false;
     }
-    const size_t ref_count =
-        !key.target_refs.empty()
-            ? key.target_refs.size()
-            : (key.target_entity.empty() ? 0u : 1u);
-    if (ref_count != 1u) return false;
-    const auto target = camera_target_for_key(key, targets);
-    if (!target) return false;
-    const auto target_pos = mat4_position_game(target->world);
-    const float clamped_z = target_pos[2] + key.clamp_height;
+    const auto target_update = camera_update_targets_like_camshot(key, targets);
+    if (target_update.resolved_count != 1u) return false;
+    const float clamped_z = target_update.centroid[2] + key.clamp_height;
     if (!std::isfinite(clamped_z) || !std::isfinite(rows.position[2]) ||
         rows.position[2] >= clamped_z) {
         return false;

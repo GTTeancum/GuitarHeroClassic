@@ -40,6 +40,12 @@
   and centroids, matching ihatecompvir `GetCurrentTargetPosition()`'s
   "average non-null target pointers" rule while keeping the actual
   `UpdateTarget` callsite marked unrecovered.
+- 2026-07-14 clamp_height resolved-target gate: the traced one-target
+  `clamp_height` branch now consumes `camera_update_targets_like_camshot(...)`
+  and clamps against its centroid only when exactly one target resolves. This
+  matches ihatecompvir's visible `CamShotFrame::HasTargets()` /
+  `GetCurrentTargetPosition()` behavior, where null or unresolved object
+  pointers do not count as live camera targets.
 - 2026-07-14 CamShot UpdateTarget parent cache proof:
   the same debug row now carries the resolved parent world position as the
   source `unk44` cache when `mParent` resolves. This mirrors the visible

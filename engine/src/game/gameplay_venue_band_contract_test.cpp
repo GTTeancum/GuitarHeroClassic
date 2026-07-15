@@ -9026,11 +9026,11 @@ int main() {
                  "conststd::unordered_map<std::string,CameraTarget>&targets)",
                  "camera result rows apply traced single-target clamp_height");
   ok &= contains(gameplay_c,
-                 "if(ref_count!=1u)returnfalse;",
-                 "camera clamp_height follows the one-target PS2 branch gate");
+                 "if(target_update.resolved_count!=1u)returnfalse;",
+                 "camera clamp_height follows the one resolved-target PS2 branch gate");
   ok &= contains(gameplay_c,
-                 "constfloatclamped_z=target_pos[2]+key.clamp_height;",
-                 "camera clamp_height uses target world z plus authored offset");
+                 "constfloatclamped_z=target_update.centroid[2]+key.clamp_height;",
+                 "camera clamp_height uses resolved target z plus authored offset");
   ok &= contains(gameplay_c,
                  "rows.position[2]=clamped_z;"
                  "rows.source+=\"+clamp_height\";",
