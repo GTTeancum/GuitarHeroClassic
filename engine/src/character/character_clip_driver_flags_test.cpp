@@ -1256,6 +1256,9 @@ bool expect_clip_driver_helpers() {
   ghogx::character::Character lower_output_character;
   ghogx::milo_scene::TransObj lower_output_toe;
   lower_output_toe.name = "bone_R-toe.mesh";
+  lower_output_toe.local.pos[0] = 90.0f;
+  lower_output_toe.local.pos[1] = 91.0f;
+  lower_output_toe.local.pos[2] = 92.0f;
   lower_output_toe.local.rot[0][0] = 0.0f;
   lower_output_toe.local.rot[0][1] = 1.0f;
   lower_output_toe.local.rot[1][0] = -1.0f;
@@ -1269,10 +1272,19 @@ bool expect_clip_driver_helpers() {
   lower_output_clip.frames[0].back().bone_name = "bone_R-toe.mesh";
   ghogx::character::CharClip::OutputBone lower_output_bone;
   lower_output_bone.name = "bone_R-toe.trans";
+  lower_output_bone.local.pos[0] = 4.0f;
+  lower_output_bone.local.pos[1] = 5.0f;
+  lower_output_bone.local.pos[2] = 6.0f;
   lower_output_clip.output_bones.push_back(lower_output_bone);
   ghogx::character::apply_clip_frame(lower_output_clip, 0,
                                      lower_output_character);
   const auto& lower_output_local = lower_output_character.bones[0].local;
+  if (!nearf(lower_output_local.pos[0], 4.0f) ||
+      !nearf(lower_output_local.pos[1], 5.0f) ||
+      !nearf(lower_output_local.pos[2], 6.0f)) {
+    std::cerr << "lower-body output bridge did not preserve authored output local position\n";
+    ok = false;
+  }
   if (!nearf(lower_output_local.rot[0][0], 0.0f) ||
       !nearf(lower_output_local.rot[0][1], 1.0f) ||
       !nearf(lower_output_local.rot[1][0], -1.0f) ||

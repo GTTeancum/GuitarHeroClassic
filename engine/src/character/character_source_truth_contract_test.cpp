@@ -33878,6 +33878,16 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "lower_output_bone.name=\"bone_R-toe.trans\";",
                  "focused clip test constructs lower-body output graph row");
+  ok &= contains(clip_driver_flags_test,
+                 "lower_output_toe.local.pos[0]=90.0f;",
+                 "focused clip test seeds stale visible lower-body local");
+  ok &= contains(clip_driver_flags_test,
+                 "lower_output_bone.local.pos[0]=4.0f;",
+                 "focused clip test seeds authored output local");
+  ok &= contains(
+      clip_driver_flags_test,
+      "lower-bodyoutputbridgedidnotpreserveauthoredoutputlocalposition",
+      "focused clip test fails if lower-body output local is bypassed");
   ok &= contains(
       clip_driver_flags_test,
       "lower-bodyoutputbridgedidnotrebuildaxisrowfromauthoredoutputgraph",
@@ -34882,6 +34892,13 @@ int run_contract() {
       doc,
       "four sampled-fallback surfaces",
       "document records the lower-body sampled-fallback surfaces");
+  ok &= contains(doc,
+                 "`ghogx_character_clip_driver_flags_test` also seeds a "
+                 "stale\n  visible `bone_R-toe` local position",
+                 "document records deterministic stale-visible lower-body test");
+  ok &= contains(doc,
+                 "`OutputBone.local.pos=(4,5,6)`",
+                 "document records deterministic authored output local test");
   ok &= contains(
       doc,
       "lower_body_current_commit_20260715",

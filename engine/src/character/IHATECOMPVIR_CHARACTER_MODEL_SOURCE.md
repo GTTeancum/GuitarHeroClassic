@@ -6403,7 +6403,12 @@ Lower-body evidence audit:
   `check_lower_body_shared_path.py` keeps viewer and gameplay routed through
   the same shared character clip path and requires all four direct/weighted/
   layer-stack/live-player sampled fallbacks to pass through the same lower-body
-  output bridge.
+  output bridge. `ghogx_character_clip_driver_flags_test` also seeds a stale
+  visible `bone_R-toe` local position and requires the bridge to replace it with
+  the authored `OutputBone.local.pos=(4,5,6)` before checking the rotz row, so
+  the deterministic test now proves the lower-body bridge is using source
+  output graph locals rather than merely relying on direct sampled fallback
+  rotation.
 - Current runtime proof: `check_lower_body_stock_coverage.py` covers 18
   playable in-game/viewer lower-body cases plus six support/base viewer cases,
   and the current-commit Rockabill2/Rock2 proof pair repeats the in-game and
