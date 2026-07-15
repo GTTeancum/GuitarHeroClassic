@@ -6336,26 +6336,28 @@ Lower-body evidence audit:
   `580e405` added lower-body trace scaffolding for memory dumps and call timing,
   commit `2455d8a` classifies route reachability before any row capture is
   accepted, commit `5c3eeb3` adds scripted-nav poll and GuitarPort edge
-  counters, and commit `0fa9a89` makes the first scripted controller poll emit
-  a real `A` edge so the original GuitarPort remapper can be observed.
+  counters, commit `0fa9a89` makes the first scripted controller poll emit a
+  real `A` edge so the original GuitarPort remapper can be observed, and commit
+  `2446916` makes trace shutdown deterministic by clean-closing the hidden
+  trace app and flushing each JSONL line from `trace_recorder.cpp`.
   `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the
   no-focus `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the
   original CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
   plus the runtime stages `821D1190`, `821D1710`, and `CharIK_Update`.
-  Current RexGlue captures are not accepted lower-body row oracles: the latest
-  summaries report `runtime=192 apply=0 rows=0 insong=0`,
-  `scripted_nav=1`, `scripted_nav_polls=4`, `guitar_edges=1`, and
-  `route_status=route_not_reached`; the scripted/PostMessage attempts also
-  record `trace ended with a truncated json line`. The first proven GuitarPort
-  edge is `wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040`.
-  The pause UI traces include
-  `pause_title.lbl` and `pause_controller_msg.lbl`, so the current hidden route
-  is parked in pause/controller UI rather than the playable band route.
-  `tools/check_rexglue_lower_body_trace.py --require-in-song-route` is now the
-  reachability gate for future RexGlue captures, and
+  Current RexGlue captures are still not accepted lower-body row oracles:
+  `analysis/rexglue_lower_body_trace_clean_shutdown_1784129332_summary.json`
+  reports `invalid_lines=0`, a final `capture.off`, `runtime=150`,
+  `insong=1`, `scripted_nav_polls=16`, and `guitar_edges=1`, but still
+  `apply=0`, `rows=0`, and `neighborhood=0`. The first proven GuitarPort edge
+  remains `wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040`.
+  Older scripted/PostMessage attempts remain recorded as truncated-tail
+  failures, while the new clean run moves the next RexGlue target from route
+  reachability to finding the CharClipSamples apply rows with named lower-body
+  channels. `tools/check_rexglue_lower_body_trace.py --require-in-song-route`
+  is now the reachability gate for future RexGlue captures, and
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
-  records that the current RexGlue evidence is scaffolding plus a negative
-  route/reachability bound, not proof of the live lower-body row path. Older trace notes remain
+  records that the current RexGlue evidence is clean trace scaffolding plus a
+  remaining apply-row gap, not proof of the live lower-body row path. Older trace notes remain
   useful context only: `analysis/anim_apply_trace_summary_20260606.md` shows
   historical active destination tables receiving `bone_L-ankle.quat`,
   `bone_R-ankle.quat`, `bone_L-thigh.quat`, `bone_R-thigh.quat`,

@@ -34696,17 +34696,29 @@ int run_contract() {
                  "stored transform-shaped source-row band",
                  "document records stored transform-band requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"0fa9a89\"",
+                 "\"trace_commit\":\"2446916\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
                  "RexGlue lower-body manifest rejects current captures");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"route_status\":\"route_not_reached\"",
-                 "RexGlue lower-body manifest rejects current route reachability");
+                 "RexGlue lower-body manifest preserves rejected older routes");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"route_status\":\"in_song_route_reached\"",
+                 "RexGlue lower-body manifest records clean in-song route progress");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"strong_in_song_events\":0",
-                 "RexGlue lower-body manifest records missing in-song route markers");
+                 "RexGlue lower-body manifest records older missing in-song route markers");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"strong_in_song_events\":1",
+                 "RexGlue lower-body manifest records clean in-song route marker");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"invalid_lines\":0",
+                 "RexGlue lower-body manifest records clean JSONL tail");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"final_event\":\"capture.off\"",
+                 "RexGlue lower-body manifest records clean capture shutdown");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"scripted_nav_polls\":4",
                  "RexGlue lower-body manifest records scripted nav poll heartbeat");
@@ -34739,6 +34751,18 @@ int run_contract() {
   ok &= contains(lower_body_rexglue_trace,
                  "--require-guitar-input-edge",
                  "RexGlue lower-body checker can require GuitarPort input edges");
+  ok &= contains(lower_body_rexglue_trace,
+                 "clean_shutdown_traces=",
+                 "RexGlue lower-body checker reports clean shutdown traces");
+  ok &= contains(lower_body_rexglue_trace,
+                 "apply_rows_not_reached",
+                 "RexGlue lower-body checker keeps apply-row gap explicit");
+  ok &= contains(doc,
+                 "`2446916` makes trace shutdown deterministic",
+                 "document records deterministic RexGlue shutdown commit");
+  ok &= contains(doc,
+                 "`invalid_lines=0`, a final `capture.off`",
+                 "document records clean RexGlue JSONL shutdown proof");
   ok &= contains(lower_body_rexglue_trace,
                  "accepted_row_oracles=",
                  "RexGlue lower-body checker reports accepted oracle count");

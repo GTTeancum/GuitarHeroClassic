@@ -34,13 +34,13 @@ def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
 
 def check_manifest(
     manifest_path: Path, cross_check_summaries: bool
-) -> tuple[int, int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int, int]:
     manifest = load_json(manifest_path)
     require(
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "e909fd1", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "2446916", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -79,7 +79,7 @@ def check_manifest(
         require(hook in hooks, f"missing RexGlue hook {hook}")
 
     captures = manifest.get("captures", [])
-    require(len(captures) == 6, "expected six current RexGlue trace summaries")
+    require(len(captures) == 7, "expected seven current RexGlue trace summaries")
     runtime_total = 0
     neighborhood_total = 0
     accepted_count = 0
@@ -87,23 +87,30 @@ def check_manifest(
     scripted_nav_poll_total = 0
     input_guitar_edge_total = 0
     saw_truncated = False
+    saw_clean_shutdown = False
+    saw_in_song_route = False
     saw_scripted_nav_single_poll = False
     saw_poll_heartbeat = False
     saw_guitar_edge = False
     for capture in captures:
-        require(capture.get("runtime_memory_events") == 192, "unexpected runtime memory count")
+        require(
+            int(capture.get("runtime_memory_events", 0)) > 0,
+            "missing runtime memory events",
+        )
         require(
             int(capture.get("pose_table_neighborhood_events", 0)) == 0,
             "current RexGlue capture must not claim pose-table neighborhoods before clip apply rows",
         )
         require(capture.get("clip_apply_events") == 0, "current RexGlue capture must not claim clip apply rows")
         require(capture.get("lower_body_rows") == 0, "current RexGlue capture must not claim lower-body rows")
-        require(capture.get("strong_in_song_events") == 0, "current RexGlue capture must not claim an in-song route")
         require(
             int(capture.get("input_guitar_edges", 0)) in (0, 1),
             "current RexGlue capture has an unexpected GuitarPort edge count",
         )
-        require(capture.get("route_status") == "route_not_reached", "current RexGlue capture route must stay rejected")
+        require(
+            capture.get("route_status") in ("route_not_reached", "in_song_route_reached"),
+            "current RexGlue capture has an unexpected route status",
+        )
         require(capture.get("accepted_row_oracle") is False, "current RexGlue capture must be non-authoritative")
         runtime_total += int(capture.get("runtime_memory_events", 0))
         neighborhood_total += int(capture.get("pose_table_neighborhood_events", 0))
@@ -124,6 +131,19 @@ def check_manifest(
         failures = capture.get("failures", [])
         if "trace ended with a truncated json line" in failures:
             saw_truncated = True
+        if capture.get("invalid_lines") == 0 and capture.get("final_event") == "capture.off":
+            saw_clean_shutdown = True
+        if capture.get("strong_in_song_events") == 1:
+            require(
+                capture.get("route_status") == "in_song_route_reached",
+                "in-song marker must use the in_song_route_reached status",
+            )
+            require(
+                capture.get("clip_apply_events") == 0
+                and capture.get("lower_body_rows") == 0,
+                "in-song RexGlue route is not allowed to claim row authority yet",
+            )
+            saw_in_song_route = True
 
         if cross_check_summaries:
             summary = load_json(resolve_manifest_path(manifest_path, capture["summary"]))
@@ -173,14 +193,21 @@ def check_manifest(
                 == capture.get("input_guitar_edges"),
                 "summary guitar input edge count mismatch",
             )
+            if "invalid_lines" in capture:
+                require(
+                    summary.get("invalid_lines") == capture.get("invalid_lines"),
+                    "summary invalid-line count mismatch",
+                )
 
     require(saw_truncated, "expected the scripted RexGlue attempt to record the truncated-tail failure")
+    require(saw_clean_shutdown, "expected a clean RexGlue shutdown trace with capture.off")
+    require(saw_in_song_route, "expected the clean RexGlue route to reach an in-song marker")
     require(saw_scripted_nav_single_poll, "expected scripted RexGlue attempt to record exactly one scripted-nav poll")
     require(saw_poll_heartbeat, "expected current RexGlue attempts to record scripted-nav poll heartbeats")
     require(saw_guitar_edge, "expected current RexGlue attempts to prove a GuitarPort input edge")
-    require(strong_in_song_total == 0, "current RexGlue captures must have zero strong in-song route markers")
+    require(strong_in_song_total == 1, "current RexGlue captures must have exactly one in-song route marker")
     require(neighborhood_total == 0, "current RexGlue captures must have zero accepted pose-table neighborhoods")
-    require(input_guitar_edge_total == 2, "current RexGlue captures must have exactly two proven GuitarPort input edges")
+    require(input_guitar_edge_total == 3, "current RexGlue captures must have exactly three proven GuitarPort input edges")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
     return (
         runtime_total,
@@ -189,6 +216,7 @@ def check_manifest(
         strong_in_song_total,
         scripted_nav_poll_total,
         input_guitar_edge_total,
+        1 if saw_clean_shutdown else 0,
     )
 
 
@@ -219,6 +247,7 @@ def main() -> int:
             strong_in_song_total,
             scripted_nav_poll_total,
             input_guitar_edge_total,
+            clean_shutdown_count,
         ) = check_manifest(args.manifest, args.cross_check_summaries)
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
@@ -230,8 +259,9 @@ def main() -> int:
         f"strong_in_song_events={strong_in_song_total} "
         f"scripted_nav_polls={scripted_nav_poll_total} "
         f"guitar_edges={input_guitar_edge_total} "
+        f"clean_shutdown_traces={clean_shutdown_count} "
         f"accepted_row_oracles={accepted_count} "
-        "route_status=route_not_reached "
+        "route_status=apply_rows_not_reached "
         "accepted_live_row_authority=pcsx2_rock_lower_body_mesh_rows_20260715"
     )
     return 0
