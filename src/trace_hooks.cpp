@@ -76,7 +76,7 @@ uint16_t scripted_nav_buttons_ms(uint64_t elapsed_ms) {
         uint16_t buttons;
     };
     static constexpr Step kSteps[] = {
-        {2000, kA},     // title: press to begin
+        {0, kA},        // controller gate/title: make the first poll an edge
         {6250, kA},     // main menu: confirm
         {10500, kDown}, // move to Quick Play
         {12200, kA},    // select Quick Play
