@@ -9459,8 +9459,20 @@ int main() {
                  "(BuildTransform,applyScreenOffset)\\n\"",
                  "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
+                 "\"source_no_target_build_lerp(\"",
+                 "no-target CamShots still use the source BuildTransform per-key lerp shape");
+  ok &= contains(gameplay_c,
                  "\"source_branch=%ssource_filter_scope=%s\"",
                  "camera debug logs expose the source BuildTransform branch and filter scope");
+  ok &= contains(gameplay_c,
+                 "\"NoTargets:BuildTransform(applyScreenOffset=1)\"",
+                 "camera debug logs distinguish no-target BuildTransform from non-same-target shots");
+  ok &= contains(gameplay_c,
+                 "\"none_no_targets\"",
+                 "no-target BuildTransform diagnostics keep shot_filter inactive without a target");
+  ok &= contains(gameplay_c,
+                 "\"has_targets=a:%db:%d\"",
+                 "camera debug logs expose per-key source HasTargets state in the BuildTransform row");
   ok &= contains(gameplay_c,
                  "\"filtered_candidate_scope=%s\"",
                  "camera debug logs separate same-target filtered candidates from submitted rows");

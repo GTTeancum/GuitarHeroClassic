@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot no-target BuildTransform route:
+  ihatecompvir `CamShotFrame::Interp` always calls
+  `BuildTransform(cam, ..., !sameTargets)` for the current and next key before
+  lerping them, even when neither key has resolved targets. Native no-target
+  gameplay shots now submit the per-key source seed lerp
+  (`source_no_target_build_lerp(...)`) instead of falling through to the
+  generic no-target fallback, while still leaving the hidden
+  `BuildTransform` body marked `rb2_dump_locals_only`. The solver proof row
+  now separates `NoTargets:BuildTransform(applyScreenOffset=1)` from
+  `NonSameTargets` and prints A/B `HasTargets` state, so sketchy angles can be
+  triaged against the right source branch. FreeCam remains last-priority.
 - 2026-07-15 gameplay camera beat `check_shot` cadence:
   GH2 `world_objects_worldbase.dta::beat` sets `[camera_beat]` and, whenever
   `world current_shot` exists, sends that CamShot `check_shot`. Native now runs

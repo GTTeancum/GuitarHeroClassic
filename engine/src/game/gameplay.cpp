@@ -21499,6 +21499,8 @@ void apply_camera_keys(
         camera_lerp_result_rows(result_a, result_b, interp_t);
     const bool same_targets_like_camshot =
         camera_targets_match_like_camshot(*a, *b, targets);
+    const bool source_has_any_targets =
+        a_target_update.has_targets || b_target_update.has_targets;
     std::optional<std::array<float, 3>> blended_target_centroid;
     std::optional<std::array<float, 3>> filtered_target_centroid;
     std::optional<CameraResultRows> source_build_transform_result;
@@ -21704,6 +21706,13 @@ void apply_camera_keys(
                 }
             }
         }
+    } else if (!submitted_result_from_ps2_trace && !source_has_any_targets) {
+        source_build_transform_result = source_seed_result;
+        source_build_transform_result->source =
+            "source_no_target_build_lerp(" +
+            source_build_transform_result->source + ")";
+        submitted_result = *source_build_transform_result;
+        source_build_transform_order = true;
     }
     const CameraResultRows source_pre_setframe_blend_result = submitted_result;
     const float source_current_far_z = cam.far_z;
@@ -23030,6 +23039,7 @@ void apply_camera_keys(
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_locals=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
+            "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
             "state_valid=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\n",
@@ -23037,10 +23047,14 @@ void apply_camera_keys(
             source_build_transform_order ? "per_key_then_lerp"
                                          : "blended_seed",
             same_targets_like_camshot ? 0 : 1,
-            same_targets_like_camshot
+            !source_has_any_targets
+                ? "NoTargets:BuildTransform(applyScreenOffset=1)"
+                : same_targets_like_camshot
                 ? "SameTargets:BuildTransform(applyScreenOffset=0)+direct_screen_offset"
                 : "NonSameTargets:BuildTransform(applyScreenOffset=1)",
-            same_targets_like_camshot
+            !source_has_any_targets
+                ? "none_no_targets"
+                : same_targets_like_camshot
                 ? (result_filter_branch ? "diagnostic_only_same_targets"
                                         : "disabled_same_targets")
                 : (result_filter_branch ? "BuildTransform_filter" : "none"),
@@ -23052,6 +23066,8 @@ void apply_camera_keys(
             "targetDist,v",
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
+            a_target_update.has_targets ? 1 : 0,
+            b_target_update.has_targets ? 1 : 0,
             blended_target_centroid ? (*blended_target_centroid)[0] : 0.0f,
             blended_target_centroid ? (*blended_target_centroid)[1] : 0.0f,
             blended_target_centroid ? (*blended_target_centroid)[2] : 0.0f,
