@@ -92,6 +92,14 @@ def git_remote_tip(path: Path) -> tuple[str | None, str | None]:
     return None, None
 
 
+FRESHNESS_LABELS = {
+    "rb3": "rb3-mirror-fresh",
+    "gltfmilo": "gltfmilo-mirror-fresh",
+    "grim": "grim-mirror-fresh",
+    "re-notes": "re-notes-mirror-fresh",
+}
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description="Check ihatecompvir pose-publisher source coverage."
@@ -112,6 +120,11 @@ def main(argv: list[str]) -> int:
         "--require-rb2-dump",
         action="store_true",
         help="Fail if rb3/doc/rb2_dump character files are unavailable.",
+    )
+    parser.add_argument(
+        "--require-fresh-remotes",
+        action="store_true",
+        help="Fail if a checked mirror HEAD differs from origin/master or origin/main.",
     )
     args = parser.parse_args(argv)
 
@@ -258,6 +271,22 @@ def main(argv: list[str]) -> int:
         and "CharClipDriver::Evaluate(" not in c_non_rb3_text,
         "glTFMilo/grim/re-notes do not provide the five missing C++ runtime publisher bodies",
     )
+
+    for label, path in (
+        ("rb3", rb3_root),
+        ("gltfmilo", gltf_root),
+        ("grim", grim_root),
+        ("re-notes", re_notes_root),
+    ):
+        commit = git_short_head(path)
+        remote_ref, remote_commit = git_remote_tip(path)
+        if args.require_fresh_remotes:
+            record(
+                results,
+                FRESHNESS_LABELS[label],
+                bool(commit and remote_commit and commit == remote_commit),
+                f"HEAD={commit or 'unknown'} remote={remote_ref or 'none'}:{remote_commit or 'unknown'}",
+            )
 
     rb2_dump_available = dump_char.exists()
     record(

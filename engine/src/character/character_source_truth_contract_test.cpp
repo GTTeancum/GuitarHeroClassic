@@ -34104,8 +34104,12 @@ int run_contract() {
                  "`3c02a54`",
                  "document records refreshed glTFMilo head and origin");
   ok &= contains(doc,
-                 "now checks the same\n  five-body fence",
+                 "checks the same five-body fence",
                  "document records verifier five-body fence");
+  ok &= contains(doc,
+                 "verifies the four local\n  mirrors match their fetched "
+                 "remote tips",
+                 "document records source freshness verifier");
   ok &= contains(doc,
                  "glTFMilo,\n  Grim, and re-notes remain format/converter "
                  "evidence",
@@ -34117,7 +34121,7 @@ int run_contract() {
                  "document records source publisher fenced proof log");
   ok &= contains(doc, "`SUMMARY pass=12`",
                  "document records updated source-gap verifier pass count");
-  ok &= contains(doc, "`SUMMARY pass=19`",
+  ok &= contains(doc, "`SUMMARY pass=23`",
                  "document records RB2 empty-row source-gap verifier pass count");
   ok &= contains(doc,
                  "the generic\n  `CharBones::ScaleAdd()` range names the "
@@ -34149,6 +34153,15 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gaps,
                  "non-rb3-publisher-bodies-absent",
                  "pose publisher verifier keeps non-rb3 mirrors scoped");
+  ok &= contains(pose_publisher_source_gaps,
+                 "--require-fresh-remotes",
+                 "pose publisher verifier exposes source freshness gate");
+  ok &= contains(pose_publisher_source_gaps,
+                 "rb3-mirror-fresh",
+                 "pose publisher verifier checks rb3 mirror freshness");
+  ok &= contains(pose_publisher_source_gaps,
+                 "gltfmilo-mirror-fresh",
+                 "pose publisher verifier checks glTFMilo mirror freshness");
   ok &= contains(pose_publisher_source_gaps,
                  "rb2-charclipdriver-evaluate-range-local-map",
                  "pose publisher verifier records CharClipDriver Evaluate dump boundary");

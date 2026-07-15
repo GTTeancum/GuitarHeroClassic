@@ -5206,8 +5206,9 @@ note, and all report `unreadBytes=0`.
   mirror was left stale." The command-line verifier
   `tools/check_pose_publisher_source_gaps.py --rb3-root
   third_party/ihatecompvir-live/rb3 --ihatecompvir-root
-  third_party/ihatecompvir-live --require-rb2-dump` now checks the same
-  five-body fence as the native notes and separately checks that glTFMilo,
+  third_party/ihatecompvir-live --require-rb2-dump --require-fresh-remotes` now
+  checks the same five-body fence as the native notes, verifies the four local
+  mirrors match their fetched remote tips, and separately checks that glTFMilo,
   Grim, and re-notes remain format/converter evidence, not hidden C++ runtime
   pose publisher bodies. It proves the latest source still exposes
   `CharClip::PoseMeshes` call order and `CharBonesSamples::ScaleAddSample`,
@@ -5230,8 +5231,8 @@ note, and all report `unreadBytes=0`.
   gate with current Rockabill2 viewer and in-game frames; the viewer and
   gameplay logs both print `source_publisher=fenced` before the screenshot
   while the saved verifier log reports `SUMMARY pass=12`. The expanded mirror
-  scope verifier now reports `SUMMARY pass=19` when the glTFMilo/Grim/re-notes
-  checks and the RB2 empty-row guards are included.
+  scope verifier now reports `SUMMARY pass=23` when the glTFMilo/Grim/re-notes
+  checks, mirror freshness guards, and the RB2 empty-row guards are included.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.
