@@ -6273,6 +6273,20 @@ viewer/gameplay lower-body name filters are the hand-overlay strip filters,
 which prevent strum/fret overlays from carrying pelvis/thigh/knee/ankle/foot/toe
 rows over the body pose.
 
+2026-07-15 current-commit in-game lower-body proof:
+`engine/out/visual_proofs/lower_body_current_commit_20260715/` recaptures
+Rockabill2 and Rock2 through the hidden-window app path after commit `005c86f`.
+Both runs use stock PS2 `gh2_ps2_hybrid_assets/gen`, Trogdor Expert, small2,
+Xplorer, diagnostic autoplay, `flr_near_rt01`, and hidden highway/HUD. The
+Rockabill2 screenshot keeps the original failure character planted in the
+stage path instead of floating forward, while Rock2 checks a source shared-driver
+female character through `char/rock1/anims/gen/rock1_main.milo_ps2`. The logs
+record `stand_fast_03`, `source_publisher=fenced`, and the missing source call
+names `CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes`;
+they also reject the earlier accidental unsupported-ARK checkerboard run.
+`tools/check_lower_body_current_commit_proofs.py` passes with `ingame_cases=2`,
+`hud_hidden=true`, `highway_hidden=true`, and `source_publisher_fenced=true`.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

@@ -171,6 +171,9 @@ int run_contract() {
   const std::string lower_body_shared_path = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_shared_path.py"));
+  const std::string lower_body_current_commit_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_current_commit_proofs.py"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -33971,6 +33974,22 @@ int run_contract() {
       lower_body_shared_path,
       "local_filters=hand_overlay_only",
       "lower-body shared-path audit reports app-local filter boundary");
+  ok &= contains(
+      lower_body_current_commit_proofs,
+      "FORBIDDEN_LOG_MARKERS",
+      "lower-body current-commit proof rejects failed checkerboard capture");
+  ok &= contains(
+      lower_body_current_commit_proofs,
+      "COMMON_REQUIRED_LOG_MARKERS",
+      "lower-body current-commit proof requires capture markers");
+  ok &= contains(
+      lower_body_current_commit_proofs,
+      "source_publisher_fenced=true",
+      "lower-body current-commit proof reports source publisher fence");
+  ok &= contains(
+      lower_body_current_commit_proofs,
+      "char/rock1/anims/gen/rock1_main.milo_ps2",
+      "lower-body current-commit proof pins Rock2 shared-driver source");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34391,6 +34410,18 @@ int run_contract() {
       doc,
       "check_lower_body_shared_path.py",
       "document records lower-body shared viewer/gameplay path audit");
+  ok &= contains(
+      doc,
+      "lower_body_current_commit_20260715",
+      "document records current-commit lower-body proof folder");
+  ok &= contains(
+      doc,
+      "unsupported-ARK checkerboard run",
+      "document rejects failed current-commit proof attempt");
+  ok &= contains(
+      doc,
+      "`source_publisher=fenced`",
+      "document records current-commit source-publisher proof marker");
   ok &= contains(doc,
                  "`no_named_or_offset_shortcut=true`",
                  "document records lower-body bridge shortcut rejection");
