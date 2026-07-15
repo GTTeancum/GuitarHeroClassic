@@ -12006,7 +12006,8 @@ int main() {
                  "camera mode filters reject shots outside the authored category set");
   ok &= contains(gameplay_c,
                  "voidrandomize_camera_category_order("
-                 "std::vector<Gameplay::CameraKey>&keys)",
+                 "std::vector<Gameplay::CameraKey>&keys,"
+                 "intsource_seed,constchar*source_seed_source)",
                  "regular camera loader mirrors CameraManager category-local randomization");
   ok &= contains(gameplay_c,
                  "structCameraSourceRand",
@@ -12017,13 +12018,28 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(0xF9u<=++index_a)index_a=0;",
                  "camera source Rand index wrap mirrors ihatecompvir Rand::Int");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_camera_random_seed(intseed);",
+                 "gameplay exposes a source-shaped camera_random_seed diagnostic hook");
+  ok &= contains(gameplay_h_c,
+                 "voidhandle_camera_random_seed_like_source(intseed);",
+                 "gameplay exposes CameraManager::OnRandomSeed behavior");
   ok &= contains(gameplay_c,
-                 "intcamera_manager_source_random_seed(){"
-                 "returnenv_int(\"GHOGX_CAMERA_RANDOM_SEED\",0);}",
-                 "CameraManager randomization seed is exposed through a source-shaped hook");
+                 "voidGameplay::handle_camera_random_seed_like_source(intseed){"
+                 "camera_manager_random_seed_=seed;"
+                 "camera_manager_random_seed_source_=\"camera_random_seed\";",
+                 "CameraManager randomization seed is stored like source sSeed");
+  ok &= contains(gameplay_c,
+                 "source_msg=camera_random_seed"
+                 "source_manager=CameraManager::OnRandomSeed",
+                 "camera random-seed diagnostics name ihatecompvir OnRandomSeed");
   ok &= contains(gameplay_c,
                  "rand.seed(static_cast<uint32_t>(source_seed));",
                  "regular camera randomization seeds source Rand from CameraManager sSeed state");
+  ok &= contains(gameplay_c,
+                 "randomize_camera_category_order(out,camera_random_seed,"
+                 "camera_random_seed_source);",
+                 "regular camera loader passes CameraManager sSeed into Randomize");
   ok &= absent(gameplay_c,
                "rand.seed(0);",
                "regular camera randomization no longer hardcodes the source seed at the call site");
@@ -12055,8 +12071,22 @@ int main() {
                "shuffle_category(category);}",
                "regular camera randomization no longer burns RNG only for normal categories");
   ok &= contains(gameplay_c,
-                 "randomize_camera_category_order(out);",
+                 "randomize_camera_category_order(out,camera_random_seed,"
+                 "camera_random_seed_source);",
                  "regular camera CamShots are category-randomized after MILO decode");
+  ok &= absent(gameplay_c,
+               "returnenv_int(\"GHOGX_CAMERA_RANDOM_SEED\",0);",
+               "regular camera randomizer must not read diagnostic environment state directly");
+  ok &= contains(app_main_c,
+                 "--diagnostic-camera-random-seed",
+                 "app exposes a diagnostic source camera_random_seed trigger");
+  ok &= contains(app_main_c,
+                 "GetEnvironmentVariableA(\"GHOGX_CAMERA_RANDOM_SEED\"",
+                 "legacy camera seed environment input is routed before gameplay load");
+  ok &= contains(app_main_c,
+                 "engine.set_diagnostic_camera_random_seed("
+                 "*diagnostic_camera_random_seed);",
+                 "app diagnostic camera seed dispatches through Gameplay CameraManager state");
   ok &= contains(intro_camera_selector_c,
                  "if(!camshot_platform_ok_for_source("
                  "decoded_shot->platform_only)){"

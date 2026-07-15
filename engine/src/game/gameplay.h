@@ -719,6 +719,8 @@ class Gameplay {
   void set_diagnostic_camera_path_offset_frames(double frames) {
     diagnostic_camera_path_offset_frames_ = frames;
   }
+  void set_diagnostic_camera_random_seed(int seed);
+  void handle_camera_random_seed_like_source(int seed);
   bool cycle_camera_shot_like_source();
   size_t iterate_camera_shots_like_source() const;
   void set_diagnostic_rock_fill(double fill);
@@ -1275,6 +1277,8 @@ class Gameplay {
   std::string active_camera_shot_over_reported_;
   bool active_camera_shot_over_ = false;
   bool active_camera_skip_next_crowd_update_ = false;
+  int camera_manager_random_seed_ = 0;
+  std::string camera_manager_random_seed_source_ = "static_default";
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       active_camera_glow_spot_;
   std::string active_venue_event_;

@@ -43,6 +43,9 @@
 //                                      dispatch source {world cycle_shot} once
 //   ghogx_app --diagnostic-camera-iterate-shot-frame <frame>
 //                                      dispatch source {world iterate_shot} once
+//   ghogx_app --diagnostic-camera-random-seed <seed>
+//                                      dispatch source camera_random_seed before
+//                                      CameraManager::Randomize
 //   ghogx_app --diagnostic-rock <0..1>
 //                                      force initial rock meter fill for capture
 //   ghogx_app --diagnostic-star-power <0..1>
@@ -731,6 +734,9 @@ class AppEngine : public ghogx::Engine {
   }
   void set_diagnostic_camera_path_offset_frames(double frames) {
     gameplay_.set_diagnostic_camera_path_offset_frames(frames);
+  }
+  void set_diagnostic_camera_random_seed(int seed) {
+    gameplay_.set_diagnostic_camera_random_seed(seed);
   }
   bool cycle_camera_shot_like_source() {
     return gameplay_.cycle_camera_shot_like_source();
@@ -2030,6 +2036,7 @@ int main(int argc, char** argv) {
   double diagnostic_camera_path_offset_frames = 0.0;
   int diagnostic_camera_cycle_shot_frame = -1;
   int diagnostic_camera_iterate_shot_frame = -1;
+  std::optional<int> diagnostic_camera_random_seed;
   std::optional<double> diagnostic_rock_fill;
   std::optional<double> diagnostic_star_power_fill;
   bool diagnostic_star_power_active = false;
@@ -2154,6 +2161,10 @@ int main(int argc, char** argv) {
                             "--diagnostic-camera-iterate-shots-frame") == 0) &&
                i + 1 < argc) {
       diagnostic_camera_iterate_shot_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i],
+                           "--diagnostic-camera-random-seed") == 0 &&
+               i + 1 < argc) {
+      diagnostic_camera_random_seed = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--diagnostic-rock") == 0 &&
                i + 1 < argc) {
       diagnostic_rock_fill = std::atof(argv[++i]);
@@ -2371,6 +2382,21 @@ int main(int argc, char** argv) {
     std::fprintf(stderr,
                  "[ghogx] diagnostic camera iterate_shot frame: %d\n",
                  diagnostic_camera_iterate_shot_frame);
+  }
+  if (!diagnostic_camera_random_seed) {
+    char seed_env[64] = {};
+    const DWORD seed_len = GetEnvironmentVariableA(
+        "GHOGX_CAMERA_RANDOM_SEED", seed_env,
+        static_cast<DWORD>(sizeof(seed_env)));
+    if (seed_len > 0 && seed_len < sizeof(seed_env)) {
+      diagnostic_camera_random_seed = std::atoi(seed_env);
+    }
+  }
+  if (diagnostic_camera_random_seed) {
+    engine.set_diagnostic_camera_random_seed(*diagnostic_camera_random_seed);
+    std::fprintf(stderr,
+                 "[ghogx] diagnostic camera random seed: %d\n",
+                 *diagnostic_camera_random_seed);
   }
   if (diagnostic_autoplay) {
     engine.set_diagnostic_autoplay(true);

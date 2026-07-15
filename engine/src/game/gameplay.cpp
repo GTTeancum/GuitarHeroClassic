@@ -15591,11 +15591,15 @@ std::optional<Gameplay::CameraKey> decode_static_camshot_pose(
     return poses.front().first;
 }
 
-void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys);
+void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys,
+                                     int source_seed,
+                                     const char* source_seed_source);
 
 std::vector<Gameplay::CameraKey> load_regular_camera_keys(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::string& venue) {
+    const std::string& venue,
+    int camera_random_seed,
+    const char* camera_random_seed_source) {
     std::vector<Gameplay::CameraKey> out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
@@ -15990,7 +15994,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                              : 0.0f,
                          key.camshot_zero_transform_reset ? 1 : 0);
         }
-        randomize_camera_category_order(out);
+        randomize_camera_category_order(out, camera_random_seed,
+                                        camera_random_seed_source);
         if (debug_camera_enabled()) {
             std::fprintf(
                 stderr,
@@ -16277,23 +16282,15 @@ struct CameraSourceRand {
     }
 };
 
-int camera_manager_source_random_seed() {
-    return env_int("GHOGX_CAMERA_RANDOM_SEED", 0);
-}
-
-const char* camera_manager_source_random_seed_source() {
-    return env_value("GHOGX_CAMERA_RANDOM_SEED") ? "camera_random_seed"
-                                                 : "static_default";
-}
-
-void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
+void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys,
+                                     int source_seed,
+                                     const char* source_seed_source) {
     // ihatecompvir CameraManager::SyncObjects seeds sRand and randomizes every
     // first-seen category list before FindCameraShot starts moving accepted
     // shots to the back. The RB2 dump shows a temporary shot array and "which"
     // selection; mirror that remaining-list draw using the source Rand
     // implementation.
     CameraSourceRand rand;
-    const int source_seed = camera_manager_source_random_seed();
     rand.seed(static_cast<uint32_t>(source_seed));
     std::vector<std::string> categories;
     for (const auto& key : keys) {
@@ -16309,7 +16306,8 @@ void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
             stderr,
             "[world] camera Randomize: source_manager=CameraManager::Randomize categories=%zu scope=all_first_seen_category_buckets order=%s seed=%d source_seed=sSeed seed_source=%s\n",
             categories.size(), category_order.c_str(), source_seed,
-            camera_manager_source_random_seed_source());
+            source_seed_source && source_seed_source[0] ? source_seed_source
+                                                        : "static_default");
     }
     auto shuffle_category = [&](std::string_view category) {
         std::vector<size_t> indices;
@@ -24178,6 +24176,21 @@ bool Gameplay::force_camera_shot_like_source(const CameraKey& key,
     return true;
 }
 
+void Gameplay::handle_camera_random_seed_like_source(int seed) {
+    camera_manager_random_seed_ = seed;
+    camera_manager_random_seed_source_ = "camera_random_seed";
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera random_seed: source_msg=camera_random_seed source_manager=CameraManager::OnRandomSeed seed=%d result=sSeed\n",
+            camera_manager_random_seed_);
+    }
+}
+
+void Gameplay::set_diagnostic_camera_random_seed(int seed) {
+    handle_camera_random_seed_like_source(seed);
+}
+
 std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     if (!venue_chars_scene_loaded_ || venue_chars_scene_.waypoints.empty()) {
         return {};
@@ -31697,7 +31710,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             intro_camera.glow_spot_ref.c_str());
                 }
                 regular_camera_keys_ = load_regular_camera_keys(
-                    hdr_path_, ark_path_, quickplay_rig_->venue);
+                    hdr_path_, ark_path_, quickplay_rig_->venue,
+                    camera_manager_random_seed_,
+                    camera_manager_random_seed_source_.c_str());
                 intro_camera_seconds_ = intro_camera_duration_seconds(chart_);
                 std::fprintf(stderr,
                              "[world] intro camera window: %.3fs (6 bars)\n",

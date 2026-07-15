@@ -542,9 +542,11 @@ Open work:
   ihatecompvir `CameraManager::Randomize()` calls `sRand.Seed(sSeed)` before
   randomizing the category buckets, and `CameraManager::OnRandomSeed` is the
   source message that assigns `sSeed`. Native no longer hardcodes the call-site
-  seed to zero: it keeps zero as the static default and routes
-  `GHOGX_CAMERA_RANDOM_SEED` through the same source-shaped seed state for
-  diagnostics, with the chosen seed and seed source printed in the
+  seed to zero: it keeps zero as the static default and stores diagnostic seeds
+  through a `camera_random_seed` / `CameraManager::OnRandomSeed` bridge before
+  regular CamShots are loaded. The legacy `GHOGX_CAMERA_RANDOM_SEED` proof input
+  now dispatches that same bridge from the app instead of being read inside the
+  randomizer, with the chosen seed and seed source printed in the
   `CameraManager::Randomize` proof log.
 - 2026-07-14 CameraManager loader pool scope:
   the native regular CamShot loader now feeds that randomizer every decoded
