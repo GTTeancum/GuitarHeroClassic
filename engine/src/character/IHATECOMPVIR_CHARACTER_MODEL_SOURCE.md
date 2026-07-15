@@ -6435,6 +6435,9 @@ Lower-body evidence audit:
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
   records that the current RexGlue evidence is clean trace scaffolding plus a
   remaining route-to-apply-row gap, not proof of the live lower-body row path.
+  Its manifest now records `source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples`
+  and `runtime_corroboree=pcsx2_rock_lower_body_mesh_rows_20260715`, keeping
+  PCSX2 as runtime corroboration only rather than source authority.
   Older trace notes remain
   useful context only: `analysis/anim_apply_trace_summary_20260606.md` shows
   historical active destination tables receiving `bone_L-ankle.quat`,
@@ -6471,6 +6474,10 @@ Lower-body evidence audit:
   optional compact transform-shaped band (`0x4c..0x74`) where present; this
   keeps the trace contract pinned to live lower-body pose data rather than
   labels, counters, or stale named mesh wrappers.
+  The PCSX2 manifest also records
+  `source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples`;
+  the emulator trace corroborates the source-output lower-body bridge at
+  runtime, but it is not the source of truth for the native implementation.
   If a future visual proof contradicts the current result, the next RexGlue
   target is the same pose-buffer apply/output-row bridge with named lower-body
   rows, not a new foot-IK or character-name offset path.

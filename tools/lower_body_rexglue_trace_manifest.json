@@ -283,7 +283,8 @@
       "result": "scene_dispatch_reached_no_apply_rows"
     }
   ],
-  "accepted_live_row_authority": "pcsx2_rock_lower_body_mesh_rows_20260715",
+  "source_truth": "ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples",
+  "runtime_corroboree": "pcsx2_rock_lower_body_mesh_rows_20260715",
   "native_path": "source_output_lower_body_bridge",
   "next_trace_target": "Use RexGlue trace scaffolding to get beyond shared pause-UI preload/title timing and back into the historical CharClipSamples apply path with named lower-body channels before using RexGlue as a lower-body row oracle."
 }

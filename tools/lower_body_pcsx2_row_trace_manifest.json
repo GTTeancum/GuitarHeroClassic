@@ -13,6 +13,7 @@
     "active_gameplay": true,
     "focus_forced": false
   },
+  "source_truth": "ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples",
   "source_backed_conclusion": {
     "native_path": "source_output_lower_body_bridge",
     "rejects": [

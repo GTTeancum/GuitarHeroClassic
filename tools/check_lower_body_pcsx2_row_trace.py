@@ -133,6 +133,11 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
     require(runtime.get("focus_forced") is False, "trace must not force focus")
     require(runtime.get("sample_count") == 32, "unexpected manifest sample count")
     require(runtime.get("seconds") == 8.0, "unexpected manifest duration")
+    require(
+        manifest.get("source_truth")
+        == "ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples",
+        "PCSX2 trace must keep ihatecompvir as the source truth",
+    )
     require_file(
         resolve_manifest_path(manifest_path, manifest["before_sample_screenshot"]),
         "before-sample PCSX2 screenshot",
@@ -282,6 +287,7 @@ def main() -> int:
         f"moving_source_rows={moving_desc} "
         f"source_matrix_rows={source_matrix_rows} "
         f"source_json_checked={str(checked_raw).lower()} "
+        "source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples "
         "native_path=source_output_lower_body_bridge"
     )
     return 0

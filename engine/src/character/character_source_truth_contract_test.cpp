@@ -34867,6 +34867,15 @@ int run_contract() {
   ok &= contains(doc,
                  "stored transform-shaped source-row band",
                  "document records stored transform-band requirement");
+  ok &= contains(doc,
+                 "`source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples`",
+                 "document keeps lower-body trace source truth on ihatecompvir");
+  ok &= contains(doc,
+                 "`runtime_corroboree=pcsx2_rock_lower_body_mesh_rows_20260715`",
+                 "document reclassifies PCSX2 as runtime corroboration");
+  ok &= contains(doc,
+                 "it is not the source of truth for the native implementation",
+                 "document rejects PCSX2 as native implementation authority");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"trace_commit\":\"df59904\"",
                  "RexGlue lower-body manifest records current trace scaffold commit");
@@ -34932,9 +34941,20 @@ int run_contract() {
                  "RexGlue lower-body manifest records hidden PostMessage route attempt");
   ok &= contains(
       lower_body_rexglue_trace_manifest,
-      "\"accepted_live_row_authority\":"
-      "\"pcsx2_rock_lower_body_mesh_rows_20260715\"",
-      "RexGlue lower-body manifest defers live row authority to PCSX2");
+      "\"source_truth\":\"ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples\"",
+      "RexGlue lower-body manifest keeps source truth on ihatecompvir");
+  ok &= contains(
+      lower_body_rexglue_trace_manifest,
+      "\"runtime_corroboree\":\"pcsx2_rock_lower_body_mesh_rows_20260715\"",
+      "RexGlue lower-body manifest treats PCSX2 as runtime corroboration");
+  ok &= missing(
+      lower_body_rexglue_trace_manifest,
+      "\"accepted_live_row_authority\"",
+      "RexGlue lower-body manifest must not promote PCSX2 to authority");
+  ok &= contains(
+      lower_body_pcsx2_row_trace_manifest,
+      "\"source_truth\":\"ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples\"",
+      "PCSX2 lower-body manifest keeps source truth on ihatecompvir");
   ok &= contains(lower_body_rexglue_trace,
                  "--cross-check-summaries",
                  "RexGlue lower-body checker can cross-check trace summaries");
@@ -34977,6 +34997,12 @@ int run_contract() {
   ok &= contains(lower_body_rexglue_trace,
                  "song_route_events=",
                  "RexGlue lower-body checker reports song route events");
+  ok &= contains(lower_body_rexglue_trace,
+                 "runtime_corroboree=pcsx2_rock_lower_body_mesh_rows_20260715",
+                 "RexGlue lower-body checker reports PCSX2 corroboration");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples",
+                 "PCSX2 lower-body checker reports ihatecompvir source truth");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",

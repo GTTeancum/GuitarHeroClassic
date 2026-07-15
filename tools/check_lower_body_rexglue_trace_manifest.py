@@ -42,9 +42,18 @@ def check_manifest(
     )
     require(manifest.get("trace_commit") == "df59904", "unexpected RexGlue trace commit")
     require(
-        manifest.get("accepted_live_row_authority")
+        manifest.get("source_truth")
+        == "ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples",
+        "RexGlue manifest must keep ihatecompvir as the source truth",
+    )
+    require(
+        manifest.get("runtime_corroboree")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
-        "RexGlue manifest must defer accepted live rows to PCSX2",
+        "RexGlue manifest must treat PCSX2 as runtime corroboration",
+    )
+    require(
+        "accepted_live_row_authority" not in manifest,
+        "RexGlue manifest must not promote PCSX2 to source authority",
     )
     require(
         manifest.get("native_path") == "source_output_lower_body_bridge",
@@ -469,7 +478,8 @@ def main() -> int:
         f"accepted_row_oracles={accepted_count} "
         "apply_status=apply_rows_not_reached "
         "route_status=route_not_reached_until_pose_apply "
-        "accepted_live_row_authority=pcsx2_rock_lower_body_mesh_rows_20260715"
+        "source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples "
+        "runtime_corroboree=pcsx2_rock_lower_body_mesh_rows_20260715"
     )
     return 0
 
