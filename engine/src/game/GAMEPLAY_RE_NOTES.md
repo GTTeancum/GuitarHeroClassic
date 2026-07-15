@@ -434,6 +434,13 @@ Open work:
   through the same helper, so proof logs show requested/stored near/far/Y-FOV
   from the source-shaped call instead of assigning FOV as a separate native
   side effect.
+- 2026-07-14 CamShot frustum default fallback:
+  ihatecompvir `CamShot::CamShot()` initializes `mNear=1.0f` and
+  `mFar=1000.0f`, and `CamShotFrame::Interp` always drives camera projection
+  through `RndCam::SetFrustum`. Native missing-clip fallback now uses those
+  source constructor defaults through the same base/zoom SetFrustum bridge
+  instead of widening the host-renderer frustum to `6000`. This is a
+  source-default correction only; decoded GH2 shot clip planes still win.
 - 2026-07-14 `RndCam::Load` rev<12 FOV conversion:
   ihatecompvir `RndCam::Load` applies `ConvertFov(mYFov, 0.75)` for camera
   revisions below 12 after reading near/far/Y-FOV. Native static MILO Cam

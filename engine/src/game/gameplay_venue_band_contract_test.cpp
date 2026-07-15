@@ -11281,6 +11281,10 @@ int main() {
                  "if(a->has_clip_planes||b->has_clip_planes)",
                  "runtime camera applies authored CamShot clip planes");
   ok &= contains(gameplay_c,
+                 "constexprfloatkCamShotSourceDefaultNearPlane=1.0f;"
+                 "constexprfloatkCamShotSourceDefaultFarPlane=1000.0f;",
+                 "runtime camera keeps ihatecompvir CamShot constructor frustum defaults");
+  ok &= contains(gameplay_c,
                  "voidcamera_apply_rndcam_set_frustum_like_source("
                  "ghogx::render::OrbitCamera&cam,floatnear_z,floatfar_z,"
                  "floaty_fov,floatsource_current_far_z)",
@@ -11313,6 +11317,18 @@ int main() {
                  "cam,near_z,far_z,source_final_fov,"
                  "source_after_base_far_z);",
                  "runtime camera submits the zoomed CamShot frustum through the source bridge");
+  ok &= contains(gameplay_c,
+                 "camera_apply_rndcam_set_frustum_like_source("
+                 "cam,kCamShotSourceDefaultNearPlane,"
+                 "kCamShotSourceDefaultFarPlane,source_screen_offset_fov,"
+                 "source_current_far_z);",
+                 "missing CamShot clip planes use source constructor defaults through base SetFrustum");
+  ok &= contains(gameplay_c,
+                 "camera_apply_rndcam_set_frustum_like_source("
+                 "cam,kCamShotSourceDefaultNearPlane,"
+                 "kCamShotSourceDefaultFarPlane,source_final_fov,"
+                 "source_after_default_base_far_z);",
+                 "missing CamShot clip planes use source constructor defaults through zoom SetFrustum");
   ok &= appears_before(gameplay_c,
                        "camera_apply_rndcam_set_frustum_like_source("
                        "cam,near_z,far_z,source_final_fov,"

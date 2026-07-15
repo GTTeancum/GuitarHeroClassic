@@ -1715,6 +1715,8 @@ constexpr float kCamShotAngleByteScale = 81.16902f;
 constexpr float kCamShotAngleByteInv = 0.012319971f;
 constexpr float kCamShotBlurByteScale = 255.0f;
 constexpr float kCamShotBlurByteInv = 0.0039215689f;
+constexpr float kCamShotSourceDefaultNearPlane = 1.0f;
+constexpr float kCamShotSourceDefaultFarPlane = 1000.0f;
 constexpr int kMiloPlatformNone = 0;
 constexpr int kMiloPlatformPS2 = 1;
 constexpr int kMiloPlatformXBox = 2;
@@ -21117,8 +21119,18 @@ void apply_camera_keys(
                 source_after_base_far_z);
         }
     } else {
-        cam.near_z = 1.0f;
-        cam.far_z = 6000.0f;
+        // ihatecompvir CamShot constructor defaults mNear/mFar to 1/1000.
+        // Keep missing decoded planes on the same SetFrustum path as authored
+        // planes instead of widening the host renderer frustum.
+        camera_apply_rndcam_set_frustum_like_source(
+            cam, kCamShotSourceDefaultNearPlane,
+            kCamShotSourceDefaultFarPlane, source_screen_offset_fov,
+            source_current_far_z);
+        const float source_after_default_base_far_z = cam.far_z;
+        camera_apply_rndcam_set_frustum_like_source(
+            cam, kCamShotSourceDefaultNearPlane,
+            kCamShotSourceDefaultFarPlane, source_final_fov,
+            source_after_default_base_far_z);
     }
     submitted_result = camera_source_setframe_blend_result_rows(
         source_previous_frame, submitted_result, source_poll_blend);
