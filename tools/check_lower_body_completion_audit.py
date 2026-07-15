@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import struct
 import sys
 from pathlib import Path
 
@@ -34,6 +35,82 @@ LOWER_BODY_BONES = {
     "bone_R-ankle",
     "bone_R-toe",
 }
+
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+MIN_PROOF_WIDTH = 1280
+MIN_PROOF_HEIGHT = 720
+SCREENSHOT_MARKERS = ("screenshot saved", "screenshot ->", "saved screenshot")
+
+ACTIVE_PROOF_ARTIFACTS = (
+    (
+        "glam1_direct_front",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/glam1_front.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/glam1_front.log",
+        ("[char] loaded 'glam1'", "[char] reference base enabled", "t=lower-output"),
+    ),
+    (
+        "glam1_direct_side",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/glam1_side.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/glam1_side.log",
+        ("[char] loaded 'glam1'", "[char] reference base enabled", "t=lower-output"),
+    ),
+    (
+        "metal1_direct_front",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/metal1_front.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/metal1_front.log",
+        ("[char] loaded 'metal1'", "[char] reference base enabled", "t=lower-output"),
+    ),
+    (
+        "metal1_direct_side",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/metal1_side.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_20260715/metal1_side.log",
+        ("[char] loaded 'metal1'", "[char] reference base enabled", "t=lower-output"),
+    ),
+    (
+        "glam1_ingame",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/ingame_glam1_t060_flr_near_rt01.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/ingame_glam1_t060_flr_near_rt01.log",
+        (
+            "[diagnostic-highway] hidden mode=over_scene",
+            "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+            "source_publisher=fenced",
+            "layers_used=0:stand_fast_03",
+        ),
+    ),
+    (
+        "glam1_ingame_viewer",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/viewer_glam1_live_stack.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/viewer_glam1_live_stack.log",
+        (
+            "[char] viewer stack main: prev=stand_fast_02 current=stand_fast_03",
+            "[char] reference base enabled",
+            "[char] midi fret target: spot_neck_fret11.mesh",
+            "source_publisher=fenced",
+        ),
+    ),
+    (
+        "metal1_ingame",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/ingame_metal1_t060_flr_near_rt01.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/ingame_metal1_t060_flr_near_rt01.log",
+        (
+            "[diagnostic-highway] hidden mode=over_scene",
+            "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+            "source_publisher=fenced",
+            "layers_used=0:stand_fast_04",
+        ),
+    ),
+    (
+        "metal1_ingame_viewer",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/viewer_metal1_live_stack.png",
+        "engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/viewer_metal1_live_stack.log",
+        (
+            "[char] viewer stack main: prev=stand_fast_03 current=stand_fast_04",
+            "[char] reference base enabled",
+            "[char] midi fret target: spot_neck_fret11.mesh",
+            "source_publisher=fenced",
+        ),
+    ),
+)
 
 REQUIRED_FILES = (
     "tools/check_lower_body_root_cause.py",
@@ -74,6 +151,29 @@ def load_json(path: Path) -> dict:
     return payload
 
 
+def detect_text_encoding(path: Path) -> str:
+    with path.open("rb") as in_file:
+        marker = in_file.read(4)
+    if marker.startswith(b"\xff\xfe") or marker.startswith(b"\xfe\xff"):
+        return "utf-16"
+    if marker.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
+    return "utf-8"
+
+
+def read_log(path: Path) -> str:
+    return path.read_text(encoding=detect_text_encoding(path), errors="replace")
+
+
+def png_dimensions(path: Path) -> tuple[int, int]:
+    with path.open("rb") as in_file:
+        header = in_file.read(24)
+    require(header.startswith(PNG_SIGNATURE), f"{path}: not a PNG")
+    require(len(header) >= 24, f"{path}: truncated PNG header")
+    width, height = struct.unpack(">II", header[16:24])
+    return width, height
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
@@ -85,6 +185,26 @@ def require_contains(text: str, needle: str, label: str) -> None:
 
 def require_compact_contains(text: str, needle: str, label: str) -> None:
     require_contains(compact(text), compact(needle), label)
+
+
+def check_png(path: Path, label: str) -> None:
+    require(path.is_file(), f"{label}: missing PNG {path}")
+    width, height = png_dimensions(path)
+    require(
+        width >= MIN_PROOF_WIDTH and height >= MIN_PROOF_HEIGHT,
+        f"{label}: proof PNG too small {width}x{height}",
+    )
+
+
+def check_log(path: Path, label: str, required_markers: tuple[str, ...]) -> None:
+    require(path.is_file(), f"{label}: missing log {path}")
+    text = read_log(path)
+    require(
+        any(marker in text for marker in SCREENSHOT_MARKERS),
+        f"{label}: missing screenshot marker in {path}",
+    )
+    for marker in required_markers:
+        require_contains(text, marker, f"{label} log marker")
 
 
 def check_required_files(root: Path) -> None:
@@ -161,6 +281,10 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     pose_manifest = load_json(root / "tools/lower_body_glam1_metal1_ingame_pose_manifest.json")
     output_manifest = load_json(root / "tools/charbone_output_map_manifest.json")
     arm_manifest = load_json(root / "tools/arm_pose_diff_manifest.json")
+
+    for label, png_path, log_path, markers in ACTIVE_PROOF_ARTIFACTS:
+        check_png(root / png_path, label)
+        check_log(root / log_path, label, markers)
 
     require_contains(stock, "PLAYABLE_INGAME_LABELS", "playable coverage table")
     require_contains(stock, "SUPPORT_VIEWER_LABELS", "support coverage table")
@@ -277,7 +401,9 @@ def main() -> int:
     print(
         "PASS lower_body_completion_audit "
         "root_cause=true source_bridge=true active_subjects=glam1,metal1 "
-        "stock_visuals=true source_boundary_active=true goal_active=true"
+        f"proof_artifacts={len(ACTIVE_PROOF_ARTIFACTS)} "
+        "proof_min_resolution=1280x720 stock_visuals=true "
+        "source_boundary_active=true goal_active=true"
     )
     return 0
 

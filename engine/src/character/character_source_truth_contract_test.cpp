@@ -34133,12 +34133,32 @@ int run_contract() {
       "lower-body completion audit ties root cause to active subjects");
   ok &= contains(
       lower_body_completion_audit,
-      "stock_visuals=truesource_boundary_active=truegoal_active=true",
+      "proof_artifacts={len(ACTIVE_PROOF_ARTIFACTS)}",
+      "lower-body completion audit reports concrete proof artifact count");
+  ok &= contains(
+      lower_body_completion_audit,
+      "proof_min_resolution=1280x720stock_visuals=true",
+      "lower-body completion audit reports minimum proof resolution");
+  ok &= contains(
+      lower_body_completion_audit,
+      "source_boundary_active=truegoal_active=true",
       "lower-body completion audit keeps source boundary and goal status active");
   ok &= contains(
       lower_body_completion_audit,
       "EXPECTED_FENCED",
       "lower-body completion audit pins fenced source publisher set");
+  ok &= contains(
+      lower_body_completion_audit,
+      "ACTIVE_PROOF_ARTIFACTS",
+      "lower-body completion audit pins active proof artifact list");
+  ok &= contains(
+      lower_body_completion_audit,
+      "check_png(root/png_path,label)",
+      "lower-body completion audit checks proof PNG files");
+  ok &= contains(
+      lower_body_completion_audit,
+      "check_log(root/log_path,label,markers)",
+      "lower-body completion audit checks proof log files");
   ok &= contains(
       lower_body_completion_audit,
       "Newleg/poseproofrunsshouldpreferGlam1andMetal1",
@@ -34170,13 +34190,26 @@ int run_contract() {
                  "`active_subjects=glam1,metal1`",
                  "document records active Glam1/Metal1 audit subjects");
   ok &= contains(doc,
+                 "`proof_artifacts=8`,\n  `proof_min_resolution=1280x720`",
+                 "document records concrete lower-body proof artifact gate");
+  ok &= contains(doc,
+                 "cover the four isolated Glam1/Metal1 viewer PNG/log pairs",
+                 "document records isolated viewer proof artifact set");
+  ok &= contains(doc,
+                 "the four\n  current in-game/viewer PNG/log pairs",
+                 "document records current in-game/viewer proof artifact set");
+  ok &= contains(doc,
+                 "requiring screenshot markers and the\n  expected "
+                 "source/diagnostic markers",
+                 "document records proof artifact log marker requirement");
+  ok &= contains(doc,
                  "`source_boundary_active=true`, and `goal_active=true`",
                  "document records active source boundary and goal status");
   ok &= contains(doc,
-                 "This is intentionally\n  a lower-body slice audit only",
+                 "intentionally a lower-body slice audit only",
                  "document scopes completion audit to lower body");
   ok &= contains(doc,
-                 "does not sign off Metal1's shoulder/hand,\n  "
+                 "does not sign off Metal1's\n  shoulder/hand, "
                  "Metal Drummer's arm twist",
                  "document excludes arm issues from lower-body audit");
   ok &= contains(
