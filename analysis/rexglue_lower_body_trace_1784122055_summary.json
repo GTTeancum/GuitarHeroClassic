@@ -1,0 +1,25 @@
+{
+  "counts": {
+    "anim.apply.unweighted": 0,
+    "anim.apply.weighted": 0,
+    "anim.controller.stage_821D1190": 96,
+    "anim.controller.stage_821D1710": 41,
+    "anim.lower_body.memory": 0,
+    "anim.lower_body.runtime_memory": 192,
+    "anim.pose.apply_interp_source": 0,
+    "anim.pose.apply_weighted_source": 0,
+    "anim.samples.eval.before": 0,
+    "anim.samples.pose796.before": 0,
+    "char.ik.update": 16
+  },
+  "events": 8654,
+  "failures": [
+    "trace ended with a truncated json line"
+  ],
+  "first_lower_body_rows": "",
+  "first_runtime_memory": "seq=0 stage=821D1190 phase=before self=0x409A85B0 arg0=0x4046790C arg1=0x00000000 obj={obj=0x409A85B0 vt=0x8201D524 slots={0x821CF3D8,0x821CF338,0x8227F8A8,0x821CF768} object_strings=(none)} self0=0x409A85B0:[0x8201D524,0x8201D564,0x01000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x0",
+  "invalid_lines": 1,
+  "lower_body_channels": [],
+  "result": "fail",
+  "trace": "out\\build\\win-amd64-relwithdebinfo\\captures\\trace_1784122055.jsonl"
+}

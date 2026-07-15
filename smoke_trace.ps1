@@ -45,6 +45,15 @@ param(
   [int]$SelectionNavWaitMs = 350,
   [int]$SongListReadyWaitMs = 0,
   [int]$CharacterListReadyWaitMs = 0,
+  # Pass the focused lower-body memory trace flag into gh2test. This keeps
+  # leg capture runs explicit instead of making every smoke trace huge.
+  [switch]$TraceLowerBodyMemory,
+  # Drive the menu path through a trace-only XInput hook inside gh2test.
+  # This avoids foreground focus and hidden-window keyboard delivery.
+  [switch]$TraceScriptedNav,
+  # Extra raw gh2test arguments for focused tracing. Prefer named switches
+  # above when one exists, but keep this for one-off source probes.
+  [string[]]$ExtraLaunchArg = @(),
   # If set, skip the menu-nav PostMessage sequence and just leave the
   # game running for the user to drive with their physical controller
   # (Xbox One Controller via SDL; controller mode is on by default in
@@ -110,7 +119,8 @@ param(
   # detected regardless of whether the game or PowerShell console has focus.
   # No auto-nav: you drive the menus yourself.
   # Holds for InteractiveHoldMin minutes (default 10, shared with -NoAutoNav) then exits.
-  [switch]$Interactive
+  [switch]$Interactive,
+  [string]$GameDataRoot = "C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX\assets"
 )
 
 Add-Type @"
@@ -182,7 +192,7 @@ if (-not (Test-Path $exe)) {
 }
 
 $launchArgs = [System.Collections.Generic.List[string]]@(
-  '--game_data_root="C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-trace360\assets"',
+  "--game_data_root=`"$GameDataRoot`"",
   # MnK is re-enabled. The mouse-arrest symptom is solved at the EXE
   # level by an inline hook on user32!SetCursorPos that no-ops the
   # cursor-warp call MnK makes every frame (see src/main.cpp
@@ -202,6 +212,11 @@ $launchArgs.Add($(if ($Interactive) { '--mnk_user_index=0' } else { '--mnk_user_
 if ($FailSong) { $launchArgs.Add('--no_autoplay') }
 if ($SongStrumDown -gt 0 -or $CharacterStrumDown -gt 0) {
   $launchArgs.Add('--trace_dpad_right_strum_dn')
+}
+if ($TraceLowerBodyMemory) { $launchArgs.Add('--trace-lower-body-memory') }
+if ($TraceScriptedNav) { $launchArgs.Add('--trace_scripted_nav') }
+foreach ($extra in $ExtraLaunchArg) {
+  if (-not [string]::IsNullOrWhiteSpace($extra)) { $launchArgs.Add($extra) }
 }
 # -Interactive: show the window and remap keys to ASDFG guitar frets.
 if ($Interactive) {

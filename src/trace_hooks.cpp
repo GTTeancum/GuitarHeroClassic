@@ -63,6 +63,39 @@ bool trace_cmdline_has_flag(const char* flag) {
 #endif
 }
 
+bool trace_scripted_nav_enabled() {
+    static const bool enabled = trace_cmdline_has_flag("--trace_scripted_nav");
+    return enabled;
+}
+
+uint16_t scripted_nav_buttons_ms(uint64_t elapsed_ms) {
+    static constexpr uint16_t kA = 0x1000;
+    static constexpr uint16_t kDown = 0x0002;
+    struct Step {
+        uint32_t start_ms;
+        uint16_t buttons;
+    };
+    static constexpr Step kSteps[] = {
+        {2000, kA},     // title: press to begin
+        {6250, kA},     // main menu: confirm
+        {10500, kDown}, // move to Quick Play
+        {12200, kA},    // select Quick Play
+        {17000, kA},    // default difficulty
+        {22000, kA},    // default character
+        {27000, kA},    // default guitar
+        {32000, kA},    // default venue
+        {37500, kA},    // first song
+        {44500, kA},    // song confirm
+    };
+    static constexpr uint32_t kPressMs = 220;
+    for (const Step& step : kSteps) {
+        if (elapsed_ms >= step.start_ms && elapsed_ms < step.start_ms + kPressMs) {
+            return step.buttons;
+        }
+    }
+    return 0;
+}
+
 void log_periodic_call(const char* kind, std::atomic<uint32_t>& counter,
                        uint32_t this_ptr, uint32_t arg0 = 0,
                        uint32_t arg1 = 0) {
@@ -1365,6 +1398,49 @@ REX_HOOK_RAW(hmx_CharIK_Update) {
                                   arg1);
     static std::atomic<uint32_t> s_count{0};
     log_periodic_call("char.ik.update", s_count, self, arg0, arg1);
+}
+
+// --- Trace-only scripted navigation ----------------------------------------
+//
+// Hidden-window PostMessage input is not reliable enough for focused leg
+// traces. This hook writes a small scripted XInput button sequence directly
+// into the returned state, but only when --trace_scripted_nav is present.
+// It is confined to the RexGlue trace build and does not touch native code.
+
+extern "C" void __imp__sub_823B5B68(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_XamInputGetState) {
+    const uint32_t user = ctx.r3.u32;
+    const uint32_t state = ctx.r4.u32;
+    __imp__sub_823B5B68(ctx, base);
+    if (!trace_scripted_nav_enabled() || !state) return;
+
+#if REX_PLATFORM_WIN32
+    static const ULONGLONG s_start = GetTickCount64();
+    const uint64_t elapsed_ms = GetTickCount64() - s_start;
+    const uint16_t buttons = scripted_nav_buttons_ms(elapsed_ms);
+
+    static std::atomic<uint32_t> s_packet{1};
+    REX_STORE_U32(state + 0, s_packet.fetch_add(1, std::memory_order_relaxed));
+    REX_STORE_U16(state + 4, buttons);
+    REX_STORE_U8(state + 6, 0);
+    REX_STORE_U8(state + 7, 0);
+    REX_STORE_U16(state + 8, 0);
+    REX_STORE_U16(state + 10, 0);
+    REX_STORE_U16(state + 12, 0);
+    REX_STORE_U16(state + 14, 0);
+    ctx.r3.u64 = 0; // ERROR_SUCCESS: report the scripted controller connected.
+
+    static std::atomic<uint32_t> s_last{0xFFFFFFFFu};
+    if (s_last.exchange(buttons, std::memory_order_relaxed) != buttons) {
+        char detail[160];
+        std::snprintf(detail, sizeof detail,
+                      "elapsed_ms=%llu user=%u state=0x%08X buttons=0x%04X",
+                      static_cast<unsigned long long>(elapsed_ms), user, state,
+                      buttons);
+        trace360::LogEvent("input.scripted_nav", detail);
+        REXLOG_INFO("[trace_scripted_nav] {}", detail);
+    }
+#endif
 }
 
 // --- Force joypad mode = ON ------------------------------------------------
