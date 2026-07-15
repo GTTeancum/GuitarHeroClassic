@@ -1,7 +1,7 @@
 {
   "trace_id": "rexglue_lower_body_trace_scaffold_20260715",
   "trace_worktree": "../GuitarHeroOGX-trace360",
-  "trace_commit": "237bda5",
+  "trace_commit": "5fd980b",
   "scaffold": {
     "script": "smoke_trace.ps1",
     "runtime_flag": "--trace-lower-body-memory",
@@ -12,6 +12,7 @@
     "route_reachability_checker": "tools/check_rexglue_lower_body_trace.py --require-in-song-route",
     "neighborhood_checker": "tools/check_rexglue_lower_body_trace.py --require-neighborhood",
     "input_poll_checker": "tools/check_rexglue_lower_body_trace.py --require-scripted-nav-polls --require-guitar-input-edge",
+    "pause_ui_preload_checker": "tools/check_rexglue_lower_body_trace.py --require-pause-ui-preload-stack",
     "hooks": [
       "sub_8215DF28",
       "sub_8215E6A0",
@@ -147,11 +148,12 @@
       "input_guitar_edges": 1,
       "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040",
       "first_controller_gate_file": "ui/gen/pause_controller.milo_xbox",
+      "legacy_misclassified_pause_ui_preload_events": 1,
       "route_status": "controller_gate_without_apply",
       "accepted_row_oracle": false,
       "invalid_lines": 0,
       "final_event": "capture.off",
-      "result": "clean_shutdown_controller_gate_no_apply_rows"
+      "result": "clean_shutdown_legacy_pause_ui_preload_no_apply_rows"
     },
     {
       "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_rebuilt_scaffold_1784130255_summary.json",
@@ -171,14 +173,40 @@
       "input_guitar_edges": 1,
       "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040",
       "first_controller_gate_file": "ui/gen/pause_controller.milo_xbox",
+      "legacy_misclassified_pause_ui_preload_events": 1,
       "route_status": "controller_gate_without_apply",
       "accepted_row_oracle": false,
       "invalid_lines": 0,
       "final_event": "prop.lookup",
-      "result": "rebuilt_scaffold_controller_gate_no_apply_rows"
+      "result": "rebuilt_scaffold_legacy_pause_ui_preload_no_apply_rows"
+    },
+    {
+      "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_pause_ui_preload_1784134300_summary.json",
+      "route": "scripted_xinput_pause_ui_preload_stack",
+      "trace_commit": "5fd980b",
+      "events": 8685,
+      "runtime_memory_events": 192,
+      "pose_table_neighborhood_events": 0,
+      "clip_apply_events": 0,
+      "lower_body_rows": 0,
+      "strong_in_song_events": 0,
+      "pose_apply_route_events": 0,
+      "scene_route_markers": 0,
+      "pause_ui_preload_events": 2,
+      "pause_ui_preload_stack_samples": 2,
+      "scripted_nav_events": 1,
+      "scripted_nav_polls": 1,
+      "input_guitar_edges": 1,
+      "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=255 engine_word=0x00000042",
+      "first_pause_ui_preload_file": "ui/gen/pause_controller.milo_xbox",
+      "route_status": "route_not_reached",
+      "accepted_row_oracle": false,
+      "invalid_lines": 0,
+      "final_event": "prop.lookup",
+      "result": "pause_ui_preload_stack_no_apply_rows"
     }
   ],
   "accepted_live_row_authority": "pcsx2_rock_lower_body_mesh_rows_20260715",
   "native_path": "source_output_lower_body_bridge",
-  "next_trace_target": "Use RexGlue trace scaffolding to get past the controller/pause gate and back into the historical CharClipSamples apply path with named lower-body channels before using RexGlue as a lower-body row oracle."
+  "next_trace_target": "Use RexGlue trace scaffolding to get beyond shared pause-UI preload/title timing and back into the historical CharClipSamples apply path with named lower-body channels before using RexGlue as a lower-body row oracle."
 }

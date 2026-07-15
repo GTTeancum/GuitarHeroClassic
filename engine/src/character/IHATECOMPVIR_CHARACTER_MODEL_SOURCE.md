@@ -6347,27 +6347,28 @@ Lower-body evidence audit:
   original CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
   plus the runtime stages `821D1190`, `821D1710`, and `CharIK_Update`.
   Current RexGlue captures are still not accepted lower-body row oracles:
-  `analysis/rexglue_lower_body_trace_clean_shutdown_1784129332_summary.json`
-  reports `invalid_lines=0`, a final `capture.off`, `runtime=150`,
-  `pose_route=0`, `scene_route=1`, `controller_gate=1`,
-  `scripted_nav_polls=16`, and `guitar_edges=1`, but still `apply=0`,
-  `rows=0`, and `neighborhood=0`. The first proven GuitarPort edge remains
-  `wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040`,
-  and the controller-gate clue is `ui/gen/pause_controller.milo_xbox`. Older
-  scripted/PostMessage attempts remain recorded as truncated-tail failures,
-  including route-missed summaries such as `runtime=192 apply=0 rows=0 insong=0`
-  and the pause/controller UI string `pause_controller_msg.lbl`. The rebuilt
-  `237bda5` run
-  `analysis/rexglue_lower_body_trace_rebuilt_scaffold_1784130255_summary.json`
-  reproduces `controller_gate=1`, `runtime=192`, `scripted_nav_polls=4`, and
-  `apply=0` from the current trace executable. The next RexGlue target is
-  getting past the
-  controller/pause gate and back into the historical CharClipSamples apply rows
-  with named lower-body channels. `tools/check_rexglue_lower_body_trace.py --require-in-song-route`
+  `analysis/rexglue_lower_body_trace_pause_ui_preload_1784134300_summary.json`
+  (trace commit `5fd980b`) records `runtime=192`, `pose_route=0`,
+  `pause_ui_preload=2`, `scripted_nav_polls=1`, `guitar_edges=1`,
+  and `xam_states=4`, but still `apply=0`, `rows=0`, and
+  `neighborhood=0`. The earlier `pause_controller.milo_xbox` clue is now
+  reclassified as shared pause-UI preload, not proof of a controller gate:
+  the stack is `FileMgr_Lookup -> FileHandle -> File_OpenDispatch ->
+  MiloLoader_Load -> sub_82325108 -> MiloScene_Poll -> sub_8235A1C0 ->
+  Input_FrameTick`, matching the persistent pause UI preload listed in the
+  RexGlue menu notes. Older scripted/PostMessage attempts remain recorded as
+  truncated-tail or route-missed failures, including summaries such as
+  `runtime=192 apply=0 rows=0 insong=0`; their historical
+  `controller_gate_without_apply` label is kept only as a legacy
+  misclassification of the same pause-UI preload files. The next RexGlue target
+  is getting beyond shared pause-UI preload/title timing and back into the
+  historical CharClipSamples apply rows with named lower-body channels.
+  `tools/check_rexglue_lower_body_trace.py --require-in-song-route`
   now requires pose/apply route markers, and
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
   records that the current RexGlue evidence is clean trace scaffolding plus a
-  remaining controller-gate/apply-row gap, not proof of the live lower-body row path. Older trace notes remain
+  remaining route-to-apply-row gap, not proof of the live lower-body row path.
+  Older trace notes remain
   useful context only: `analysis/anim_apply_trace_summary_20260606.md` shows
   historical active destination tables receiving `bone_L-ankle.quat`,
   `bone_R-ankle.quat`, `bone_L-thigh.quat`, `bone_R-thigh.quat`,
