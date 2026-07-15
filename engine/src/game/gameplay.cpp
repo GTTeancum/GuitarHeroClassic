@@ -16816,12 +16816,17 @@ int camera_source_initial_faceoff_active_players() {
     return std::clamp(env_int("GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS", 0), 0, 2);
 }
 
-bool camera_source_game_multiplayer() {
+bool camera_source_game_multiplayer(int source_faceoff_active_players) {
     const int diagnostic_multiplayer =
         env_int("GHOGX_CAMERA_GAME_MULTIPLAYER", -1);
     if (diagnostic_multiplayer >= 0) return diagnostic_multiplayer != 0;
     return camera_source_gamecfg_mode_multi_vs() ||
-           camera_source_initial_faceoff_active_players() > 0;
+           std::clamp(source_faceoff_active_players, 0, 2) > 0;
+}
+
+bool camera_source_game_multiplayer() {
+    return camera_source_game_multiplayer(
+        camera_source_initial_faceoff_active_players());
 }
 
 std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
@@ -34677,7 +34682,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
                 bool cue_forced_camera = false;
                 const bool source_multiplayer =
-                    camera_source_game_multiplayer();
+                    camera_source_game_multiplayer(camera_faceoff_active_players_);
                 const uint32_t excitement =
                     venue_excitement_level(active_venue_event_);
                 if (ev.text == "[band_jump]") {

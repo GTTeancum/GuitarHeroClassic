@@ -13779,12 +13779,17 @@ int main() {
                  "while(next_forced_camera_event_idx_<chart_.text_events.size())",
                  "crowd lighter text scanner runs in the default playable 3D path");
   ok &= contains(gameplay_c,
-                 "boolcamera_source_game_multiplayer(){",
-                 "camera script cue routing exposes the source game multiplayer gate");
+                 "boolcamera_source_game_multiplayer("
+                 "intsource_faceoff_active_players){",
+                 "camera script cue routing exposes the source game multiplayer gate with live faceoff state");
+  ok &= contains(gameplay_c,
+                 "std::clamp(source_faceoff_active_players,0,2)>0;",
+                 "source game multiplayer fallback follows active_players_changed faceoff state");
   ok &= contains(gameplay_c,
                  "constboolsource_multiplayer="
-                 "camera_source_game_multiplayer();",
-                 "camera script cue routing samples source multiplayer state for forced camera events");
+                 "camera_source_game_multiplayer("
+                 "camera_faceoff_active_players_);",
+                 "camera script cue routing samples live source multiplayer state for forced camera events");
   ok &= contains(gameplay_c,
                  "if(authored_gameplay_cameras_active&&!in_intro_camera_window&&"
                  "!regular_camera_keys_.empty())",
