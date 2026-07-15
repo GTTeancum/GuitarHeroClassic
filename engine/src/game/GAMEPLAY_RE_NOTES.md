@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot DOF shot gate copy:
+  ihatecompvir `CamShot::Copy` copies `mUseDepthOfField`, and
+  `CamShotFrame::Interp` gates DOF on that owning-shot flag before resolving
+  focus/target distance. Native now preserves `use_depth_of_field` through
+  runtime/path camera-key copies even when the destination already has other
+  shot fields, so normal gameplay path-backed CamShots cannot drop the source
+  DOF gate. FreeCam remains deferred and no dependency surface changes.
 - 2026-07-15 gameplay CamShot AnimTarget bridge:
   ihatecompvir constructs one static `CamShot::sAnimTarget` and
   `CamShot::AnimTarget()` returns that same object for CamShot-linked

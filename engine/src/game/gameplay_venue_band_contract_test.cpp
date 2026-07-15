@@ -8977,6 +8977,12 @@ int main() {
                  "to.has_path_frame=from.has_path_frame;",
                  "CamShot runtime-field copying preserves live mPathFrame separately from ignored legacy payload");
   ok &= contains(gameplay_c,
+                 "if(!to.has_use_depth_of_field&&"
+                 "from.has_use_depth_of_field){"
+                 "to.use_depth_of_field=from.use_depth_of_field;"
+                 "to.has_use_depth_of_field=true;}",
+                 "CamShot runtime-field copying preserves the owning shot mUseDepthOfField gate");
+  ok &= contains(gameplay_c,
                  "if(from.path_preserved_base_translation){"
                  "to.path_preserved_base_translation=true;}",
                  "CamShot runtime-field copying preserves source SetFrame base-translation fallback");

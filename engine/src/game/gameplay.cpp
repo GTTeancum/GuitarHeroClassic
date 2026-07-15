@@ -2855,6 +2855,10 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         to.screen_offset[1] = from.screen_offset[1];
         to.has_screen_offset = true;
     }
+    if (!to.has_use_depth_of_field && from.has_use_depth_of_field) {
+        to.use_depth_of_field = from.use_depth_of_field;
+        to.has_use_depth_of_field = true;
+    }
     if (!to.has_dof_fields && from.has_dof_fields) {
         to.blur_depth = from.blur_depth;
         to.max_blur = from.max_blur;
