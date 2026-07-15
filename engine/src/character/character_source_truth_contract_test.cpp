@@ -198,6 +198,9 @@ int run_contract() {
   const std::string lower_body_2p_select_slot_sweep = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_slot_sweep.py"));
+  const std::string lower_body_2p_select_context_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_context_proofs.py"));
   const std::string lower_body_2p_select_source_assets = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_source_assets.py"));
@@ -34303,6 +34306,14 @@ int run_contract() {
       "lower-body completion audit reports 2P slot sweep proof");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_2p_select_context_proofs.py\"",
+      "lower-body completion audit runs 2P context proof checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_context=true",
+      "lower-body completion audit reports 2P context proof");
+  ok &= contains(
+      lower_body_completion_audit,
       "proof_min_resolution=1280x720stock_visuals=true",
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
@@ -34698,11 +34709,20 @@ int run_contract() {
                  "`engine/out/visual_proofs/lower_body_2p_select_slot_sweep_20260715/`",
                  "document records 2P select slot-sweep proof folder");
   ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_2p_select_context_20260715/`",
+                 "document records corrected 2P select context proof folder");
+  ok &= contains(doc,
                  "`two_player_select=true`",
                  "document records 2P select checker status");
   ok &= contains(doc,
                  "`both_2p_placers=true`",
                  "document records 2P slot sweep checker status");
+  ok &= contains(doc,
+                 "`no_singleplayer_geometry=true`",
+                 "document records corrected 2P context status");
+  ok &= contains(compact(doc),
+                 "staleappbinaryanddefaultXplorerprop",
+                 "document records rejected stale/no-placer capture");
   ok &= contains(compact(doc),
                  "side/profilecheckforbothreal2Pplayerslots",
                  "document records 2P slot sweep side/profile scope");
@@ -34887,6 +34907,34 @@ int run_contract() {
       "metal1_p2_2p_select_ui_loop_f030_side",
       "2P slot sweep checker pins Metal1 P2 frame 30 PNG");
   ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "lower_body_2p_select_context_20260715",
+      "2P context checker pins proof folder");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "camera_views=front,side",
+      "2P context checker reports camera views");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "no_singleplayer_geometry=true",
+      "2P context checker rejects single-player geometry oracle");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "cases=16",
+      "2P context checker reports sixteen proof cases");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "unknownarg:--char",
+      "2P context checker rejects stale CLI captures");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "glam1_p1_2p_select_ui_loop_f030_front",
+      "2P context checker pins Glam1 P1 front PNG");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "metal1_p1_2p_select_ui_loop_f030_side",
+      "2P context checker pins Metal1 P1 side PNG");
+  ok &= contains(
       lower_body_2p_select_source_assets,
       "SCREEN_MILO=\"ui/gen/multi_sel_character.milo_ps2\"",
       "2P source asset checker pins stock screen MILO");
@@ -34978,6 +35026,10 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select_slot_sweep=true",
       "completion audit reports 2P slot sweep verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_context=true",
+      "completion audit reports 2P context verifier status");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");

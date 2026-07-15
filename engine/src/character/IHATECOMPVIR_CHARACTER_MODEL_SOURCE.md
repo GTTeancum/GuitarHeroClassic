@@ -6505,6 +6505,24 @@ This is 2P select placement and lower-body row evidence only; it does not
 change the remaining fenced source-publisher bodies or sign off unrelated arm,
 hair, or accessory behavior.
 
+`engine/out/visual_proofs/lower_body_2p_select_context_20260715/` is the
+corrected visual-oracle batch for the reviewer note that single-player select
+poses lean against select-screen geometry. The first attempted recapture used a
+stale app binary and default Xplorer prop, so it did not emit `[2p-select]` rows
+and was rejected. After rebuilding `ghogx_app` and recapturing with
+`--guitar none`, the accepted logs show `multi_sel_character_screen`,
+`panel=char_multi`, `event=select`, `clip=ui_loop`, both
+`char_multi0.placer` and `char_multi1.placer`, and no attached Xplorer prop.
+The 16 individual PNGs cover Glam1 and Metal1, both 2P slots, frames 30 and 40,
+and front-camera plus side-camera views. `tools/check_lower_body_2p_select_context_proofs.py`
+passes with `camera_views=front,side`, `cases=16`,
+`no_singleplayer_geometry=true`, `max_abs_toe_z=0.4526`,
+`max_lr_toe_delta_z=0.5101`, `min_pelvis_to_toe_z=32.9791`, and
+`max_output_visible_gap=0.000500`. Metal1's shoe mesh can still read slightly
+above the drawn diagnostic base in profile, but the live source-output toe rows
+are within the established floor tolerance and match the visible lower-output
+rows to 0.000500; this is therefore not the old sampled-direct lower-body float.
+
 2026-07-15 lower-body source row authority:
 ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows
 `CharBone::StuffBones` is the source-visible row authority: an authored
