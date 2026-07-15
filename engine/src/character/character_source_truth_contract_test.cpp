@@ -34193,6 +34193,14 @@ int run_contract() {
       "lower-body completion audit reports concrete proof artifact count");
   ok &= contains(
       lower_body_completion_audit,
+      "CONTACT_SHEET_TOKENS",
+      "lower-body completion audit rejects contact-sheet proof artifacts");
+  ok &= contains(
+      lower_body_completion_audit,
+      "individual_proofs=true",
+      "lower-body completion audit reports individual proof artifacts");
+  ok &= contains(
+      lower_body_completion_audit,
       "proof_min_resolution=1280x720stock_visuals=true",
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
@@ -34246,27 +34254,31 @@ int run_contract() {
                  "`active_subjects=glam1,metal1`",
                  "document records active Glam1/Metal1 audit subjects");
   ok &= contains(doc,
-                 "`proof_artifacts=8`,\n  `proof_min_resolution=1280x720`",
+                 "`proof_artifacts=8`,\n  `individual_proofs=true`, "
+                 "`proof_min_resolution=1280x720`",
                  "document records concrete lower-body proof artifact gate");
-  ok &= contains(doc,
-                 "cover the four isolated Glam1/Metal1 viewer PNG/log pairs",
+  ok &= contains(compact(doc),
+                 "coverthefourisolatedGlam1/Metal1viewerPNG/logpairs",
                  "document records isolated viewer proof artifact set");
-  ok &= contains(doc,
-                 "the four\n  current in-game/viewer PNG/log pairs",
+  ok &= contains(compact(doc),
+                 "thefourcurrentin-game/viewerPNG/logpairs",
                  "document records current in-game/viewer proof artifact set");
   ok &= contains(doc,
-                 "requiring screenshot markers and the\n  expected "
+                 "individual high-resolution frames, not contact sheets",
+                 "document records individual proof-frame requirement");
+  ok &= contains(doc,
+                 "requiring\n  screenshot markers and the expected "
                  "source/diagnostic markers",
                  "document records proof artifact log marker requirement");
   ok &= contains(doc,
-                 "`source_boundary_active=true`, and `goal_active=true`",
+                 "`source_boundary_active=true`, and\n  `goal_active=true`",
                  "document records active source boundary and goal status");
   ok &= contains(doc,
                  "intentionally a lower-body slice audit only",
                  "document scopes completion audit to lower body");
-  ok &= contains(doc,
-                 "does not sign off Metal1's\n  shoulder/hand, "
-                 "Metal Drummer's arm twist",
+  ok &= contains(compact(doc),
+                 "doesnotsignoffMetal1'sshoulder/hand,"
+                 "MetalDrummer'sarmtwist",
                  "document excludes arm issues from lower-body audit");
   ok &= contains(
       lower_body_current_commit_proofs,

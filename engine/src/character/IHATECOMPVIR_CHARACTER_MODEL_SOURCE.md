@@ -6544,14 +6544,15 @@ Lower-body evidence audit:
   evidence roles, and the five still-fenced publisher bodies in one status
   gate. It passes with `root_cause=true`, `source_bridge=true`,
   `active_subjects=glam1,metal1`, `proof_artifacts=8`,
-  `proof_min_resolution=1280x720`, `stock_visuals=true`,
-  `source_boundary_active=true`, and `goal_active=true`. The eight artifact
-  checks cover the four isolated Glam1/Metal1 viewer PNG/log pairs and the four
-  current in-game/viewer PNG/log pairs, requiring screenshot markers and the
-  expected source/diagnostic markers before the status gate can pass. This is
-  intentionally a lower-body slice audit only; it does not sign off Metal1's
-  shoulder/hand, Metal Drummer's arm twist, hair, cloth, or the full pose
-  publisher.
+  `individual_proofs=true`, `proof_min_resolution=1280x720`,
+  `stock_visuals=true`, `source_boundary_active=true`, and
+  `goal_active=true`. The eight artifact checks cover the four isolated
+  Glam1/Metal1 viewer PNG/log pairs and the four current in-game/viewer PNG/log
+  pairs as individual high-resolution frames, not contact sheets, requiring
+  screenshot markers and the expected source/diagnostic markers before the
+  status gate can pass. This is intentionally a lower-body slice audit only; it
+  does not sign off Metal1's shoulder/hand, Metal Drummer's arm twist, hair,
+  cloth, or the full pose publisher.
 - Goal status: this evidence supports the lower-body root-cause and current leg
   behavior, but the broader GH2 character-model goal remains active until the
   wider source publisher boundary is resolved or explicitly accepted and current

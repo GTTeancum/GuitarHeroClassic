@@ -40,6 +40,7 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MIN_PROOF_WIDTH = 1280
 MIN_PROOF_HEIGHT = 720
 SCREENSHOT_MARKERS = ("screenshot saved", "screenshot ->", "saved screenshot")
+CONTACT_SHEET_TOKENS = ("contact", "sheet", "montage", "overview")
 
 ACTIVE_PROOF_ARTIFACTS = (
     (
@@ -189,6 +190,11 @@ def require_compact_contains(text: str, needle: str, label: str) -> None:
 
 def check_png(path: Path, label: str) -> None:
     require(path.is_file(), f"{label}: missing PNG {path}")
+    lower_name = path.name.lower()
+    require(
+        not any(token in lower_name for token in CONTACT_SHEET_TOKENS),
+        f"{label}: active proof must be an individual frame, not a contact sheet: {path}",
+    )
     width, height = png_dimensions(path)
     require(
         width >= MIN_PROOF_WIDTH and height >= MIN_PROOF_HEIGHT,
@@ -428,6 +434,7 @@ def main() -> int:
         "PASS lower_body_completion_audit "
         "root_cause=true source_bridge=true active_subjects=glam1,metal1 "
         f"proof_artifacts={len(ACTIVE_PROOF_ARTIFACTS)} "
+        "individual_proofs=true "
         "proof_min_resolution=1280x720 stock_visuals=true "
         "source_boundary_active=true goal_active=true"
     )
