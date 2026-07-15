@@ -189,6 +189,9 @@ int run_contract() {
   const std::string lower_body_metal1_ui_select_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_metal1_ui_select_proofs.py"));
+  const std::string lower_body_active_ui_select_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_active_ui_select_proofs.py"));
   const std::string lower_body_current_commit_pose_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_current_commit_pose_manifest.json"));
@@ -34250,6 +34253,14 @@ int run_contract() {
       "lower-body completion audit reports Metal1 UI/select flat-foot proof");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_active_ui_select_proofs.py\"",
+      "lower-body completion audit runs active UI/select checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "active_ui_select_flat_foot=true",
+      "lower-body completion audit reports active UI/select flat-foot proof");
+  ok &= contains(
+      lower_body_completion_audit,
       "proof_min_resolution=1280x720stock_visuals=true",
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
@@ -34313,6 +34324,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`metal1_ui_select_flat_foot=true`",
                  "document records Metal1 UI/select audit pass marker");
+  ok &= contains(doc,
+                 "`active_ui_select_flat_foot=true`",
+                 "document records active UI/select audit pass marker");
   ok &= contains(compact(doc),
                  "coverthefourisolatedGlam1/Metal1viewerPNG/logpairs",
                  "document records isolated viewer proof artifact set");
@@ -34332,7 +34346,8 @@ int run_contract() {
                  "document records proof artifact log marker requirement");
   ok &= contains(doc,
                  "`metal1_ui_select_flat_foot=true`,\n  "
-                 "`source_boundary_active=true`, and `goal_active=true`",
+                 "`active_ui_select_flat_foot=true`, `source_boundary_active=true`, and\n"
+                 "  `goal_active=true`",
                  "document records active source boundary and goal status");
   ok &= contains(doc,
                  "intentionally a lower-body slice audit only",
@@ -34562,6 +34577,54 @@ int run_contract() {
       lower_body_metal1_ui_select_proofs,
       "ui_select_flat_foot=true",
       "Metal1 UI/select proof checker reports flat-foot status");
+  ok &= contains(doc,
+                 "2026-07-15 active Glam1/Metal1 UI/select motion check:",
+                 "document records active Glam1/Metal1 UI/select motion check");
+  ok &= contains(
+      doc,
+      "`engine/out/visual_proofs/lower_body_active_ui_select_20260715/`",
+      "document records active UI/select proof folder");
+  ok &= contains(doc,
+                 "`char/glam1/og/gen/glam1_ui.milo_ps2`",
+                 "document records Glam1 UI model source");
+  ok &= contains(doc,
+                 "`char/glam1/anims/gen/glam1_ui.milo_ps2`",
+                 "document records Glam1 UI animation source");
+  ok &= contains(doc,
+                 "`frames=30,40`",
+                 "document records active UI/select proof frame pair");
+  ok &= contains(doc,
+                 "`cases=8`",
+                 "document records active UI/select individual proof count");
+  ok &= contains(doc,
+                 "`max_abs_toe_z=0.4526`",
+                 "document records active UI/select toe-floor metric");
+  ok &= contains(doc,
+                 "`max_lr_toe_delta_z=0.5101`",
+                 "document records active UI/select left/right toe metric");
+  ok &= contains(doc,
+                 "`max_output_visible_gap=0.000500`",
+                 "document records active UI/select output/visible gap");
+  ok &= contains(
+      lower_body_active_ui_select_proofs,
+      "lower_body_active_ui_select_20260715",
+      "active UI/select proof checker pins proof folder");
+  ok &= contains(
+      lower_body_active_ui_select_proofs,
+      "frames=30,40",
+      "active UI/select proof checker pins two-frame proof");
+  ok &= contains(
+      lower_body_active_ui_select_proofs,
+      "char/glam1/og/gen/glam1_ui.milo_ps2",
+      "active UI/select proof checker pins Glam1 UI model source");
+  ok &= contains(
+      lower_body_active_ui_select_proofs,
+      "char/metal1/og/gen/metal1_ui.milo_ps2",
+      "active UI/select proof checker pins Metal1 UI model source");
+  ok &= contains(
+      lower_body_active_ui_select_proofs,
+      "active_ui_select_flat_foot=true",
+      "active UI/select proof checker reports flat-foot status");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");

@@ -6410,6 +6410,23 @@ the current source-backed answer to the raised-left-leg question: the in-game
 `ui_select_flat_foot=true`, `max_abs_toe_z=0.2227`,
 `max_lr_toe_delta_z=0.2643`, and `min_pelvis_to_toe_z=32.9791`.
 
+2026-07-15 active Glam1/Metal1 UI/select motion check:
+`engine/out/visual_proofs/lower_body_active_ui_select_20260715/` extends the
+UI/select proof to the current active leg subjects, Glam1 and Metal1. Glam1's
+stock UI source is `char/glam1/og/gen/glam1_ui.milo_ps2` plus
+`char/glam1/anims/gen/glam1_ui.milo_ps2`; `ghogx_character_clip_audit` reports
+that animation MILO as `dir=hair_ui` with `ui_enter` and `ui_loop`, matching
+Metal1's UI/select clip shape. The proof set captures individual front and side
+frames at `ui_loop` frames 30 and 40 for both characters, with guitar disabled,
+soft-green background, reference base, and output-map diagnostics enabled.
+`tools/check_lower_body_active_ui_select_proofs.py` passes with
+`characters=glam1,metal1`, `source_models=glam1_ui,metal1_ui`,
+`source_clip=ui_loop`, `frames=30,40`, `active_ui_select_flat_foot=true`,
+`cases=8`, `max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
+`min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`. This is
+still UI/select lower-body evidence only; it does not close the broader
+source-publisher gap or sign off Metal1's open right shoulder/hand issue.
+
 2026-07-15 lower-body source row authority:
 ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows
 `CharBone::StuffBones` is the source-visible row authority: an authored
@@ -6570,8 +6587,8 @@ Lower-body evidence audit:
   `individual_proofs=true`, `proof_min_resolution=1280x720`,
   `stock_visuals=true`, `stock_checker_passed=true`,
   `stock_linked_proof_pngs=true`, `metal1_ui_select_flat_foot=true`,
-  `source_boundary_active=true`, and `goal_active=true`. The eight artifact
-  checks cover the four isolated
+  `active_ui_select_flat_foot=true`, `source_boundary_active=true`, and
+  `goal_active=true`. The eight artifact checks cover the four isolated
   Glam1/Metal1 viewer PNG/log pairs and the four current in-game/viewer PNG/log
   pairs as individual high-resolution frames, not contact sheets, while the
   stock checker is executed inside the umbrella audit to verify the 24-character

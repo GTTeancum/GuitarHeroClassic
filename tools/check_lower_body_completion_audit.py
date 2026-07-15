@@ -123,6 +123,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_metal1_followup_proofs.py",
     "tools/check_lower_body_glam1_metal1_ingame_proofs.py",
     "tools/check_lower_body_metal1_ui_select_proofs.py",
+    "tools/check_lower_body_active_ui_select_proofs.py",
     "tools/check_lower_body_pcsx2_row_trace.py",
     "tools/lower_body_pcsx2_row_trace_manifest.json",
     "tools/check_lower_body_rexglue_trace_manifest.py",
@@ -325,6 +326,12 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "tools/check_lower_body_metal1_ui_select_proofs.py",
         "Metal1 UI/select flat-foot proof checker",
     )
+    active_ui_select = read(root / "tools/check_lower_body_active_ui_select_proofs.py")
+    active_ui_select_output = run_checker(
+        root,
+        "tools/check_lower_body_active_ui_select_proofs.py",
+        "active Glam1/Metal1 UI/select proof checker",
+    )
     pose_manifest = load_json(root / "tools/lower_body_glam1_metal1_ingame_pose_manifest.json")
     output_manifest = load_json(root / "tools/charbone_output_map_manifest.json")
     arm_manifest = load_json(root / "tools/arm_pose_diff_manifest.json")
@@ -402,6 +409,31 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "max_lr_toe_delta_z=0.2643",
     ):
         require_contains(ui_select_output, marker, f"Metal1 UI/select output marker {marker}")
+    for marker in (
+        "lower_body_active_ui_select_20260715",
+        "frames=30,40",
+        "source_models=glam1_ui,metal1_ui",
+        "active_ui_select_flat_foot=true",
+        "glam1_ui_loop_f030_front.png",
+        "glam1_ui_loop_f030_side.png",
+        "glam1_ui_loop_f040_front.png",
+        "glam1_ui_loop_f040_side.png",
+        "metal1_ui_loop_f030_front.png",
+        "metal1_ui_loop_f030_side.png",
+        "metal1_ui_loop_f040_front.png",
+        "metal1_ui_loop_f040_side.png",
+    ):
+        require_contains(active_ui_select, marker, f"active UI/select proof marker {marker}")
+    for marker in (
+        "PASS lower_body_active_ui_select_proofs",
+        "characters=glam1,metal1",
+        "source_models=glam1_ui,metal1_ui source_clip=ui_loop frames=30,40",
+        "active_ui_select_flat_foot=true",
+        "cases=8",
+        "max_abs_toe_z=0.4526",
+        "max_lr_toe_delta_z=0.5101",
+    ):
+        require_contains(active_ui_select_output, marker, f"active UI/select output marker {marker}")
     cases = pose_manifest.get("cases")
     require(isinstance(cases, list) and len(cases) == 2, "Glam1/Metal1 manifest must have two cases")
     characters = {case.get("character") for case in cases if isinstance(case, dict)}
@@ -491,7 +523,7 @@ def main() -> int:
         "individual_proofs=true "
         "proof_min_resolution=1280x720 stock_visuals=true "
         "stock_checker_passed=true stock_linked_proof_pngs=true "
-        "metal1_ui_select_flat_foot=true "
+        "metal1_ui_select_flat_foot=true active_ui_select_flat_foot=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0
