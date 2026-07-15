@@ -34229,12 +34229,28 @@ int run_contract() {
       "lower-body source-row authority checker inspects sample split");
   ok &= contains(
       lower_body_source_row_authority,
+      "LIVE_SOURCE_CHAR_DIR",
+      "lower-body source-row authority checker prefers live ihatecompvir source");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "default_source_dir",
+      "lower-body source-row authority checker has fallback source resolver");
+  ok &= contains(
+      lower_body_source_row_authority,
       "native_output_subset=true",
       "lower-body source-row authority checker reports native output subset");
   ok &= contains(
       lower_body_source_row_authority,
       "no_shortcut_fix=true",
       "lower-body source-row authority checker rejects shortcut fixes");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "source_dir=",
+      "lower-body source-row authority checker reports source directory");
+  ok &= contains(
+      lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_source_row_authority.py\"",
+      "lower-body completion audit runs source-row authority checker");
   ok &= contains(
       lower_body_completion_audit,
       "PASSlower_body_completion_audit",
@@ -34370,6 +34386,12 @@ int run_contract() {
   ok &= contains(doc,
                  "does not authorize raw\nsampled-channel writeback",
                  "document rejects raw sampled lower-body writeback");
+  ok &= contains(doc,
+                 "`third_party/ihatecompvir-live/rb3/src/system/char`",
+                 "document records live ihatecompvir source authority path");
+  ok &= contains(doc,
+                 "`source_dir=` output marker",
+                 "document records source-row authority output marker");
   ok &= contains(doc,
                  "`tools/check_lower_body_completion_audit.py` now "
                  "cross-checks",

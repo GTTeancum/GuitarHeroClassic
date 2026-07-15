@@ -282,6 +282,11 @@ def check_source_bridge(root: Path, doc: str) -> None:
     boundary = read(root / "tools/check_lower_body_bridge_boundary.py")
     shared = read(root / "tools/check_lower_body_shared_path.py")
     authority = read(root / "tools/check_lower_body_source_row_authority.py")
+    authority_output = run_checker(
+        root,
+        "tools/check_lower_body_source_row_authority.py",
+        "lower-body source row authority checker",
+    )
     require_contains(
         boundary,
         "FORBIDDEN_BRIDGE_TOKENS",
@@ -309,8 +314,14 @@ def check_source_bridge(root: Path, doc: str) -> None:
         "sample_split=true",
         "native_output_subset=true",
         "no_shortcut_fix=true",
+        "source_dir=",
     ):
         require_contains(authority, marker, f"source-row authority marker {marker}")
+        require_contains(
+            authority_output,
+            marker,
+            f"source-row authority output marker {marker}",
+        )
     require_compact_contains(
         doc,
         "rebuilds only the decoded facing/pelvis/thigh/knee/ankle/foot/toe output rows\n"

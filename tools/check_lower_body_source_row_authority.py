@@ -8,7 +8,10 @@ from pathlib import Path
 import sys
 
 
-SOURCE_CHAR_DIR = Path("third_party/ihatecompvir-extra/rb3-latest/src/system/char")
+FALLBACK_SOURCE_CHAR_DIR = Path(
+    "third_party/ihatecompvir-extra/rb3-latest/src/system/char"
+)
+LIVE_SOURCE_CHAR_DIR = Path("third_party/ihatecompvir-live/rb3/src/system/char")
 NATIVE_CHAR_CLIP = Path("engine/src/character/char_clip.cpp")
 DOC_PATH = Path("engine/src/character/IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md")
 
@@ -21,6 +24,12 @@ def read(path: Path) -> str:
     if not path.is_file():
         raise RuntimeError(f"missing file: {path}")
     return path.read_text(encoding="utf-8", errors="replace")
+
+
+def default_source_dir() -> Path:
+    if LIVE_SOURCE_CHAR_DIR.is_dir():
+        return LIVE_SOURCE_CHAR_DIR
+    return FALLBACK_SOURCE_CHAR_DIR
 
 
 def extract_between(text: str, start: str, end: str, label: str) -> str:
@@ -203,7 +212,7 @@ def parse_args() -> argparse.Namespace:
             "ihatecompvir CharBone/CharClip source row ownership."
         )
     )
-    parser.add_argument("--source-dir", type=Path, default=SOURCE_CHAR_DIR)
+    parser.add_argument("--source-dir", type=Path, default=None)
     parser.add_argument("--native", type=Path, default=NATIVE_CHAR_CLIP)
     parser.add_argument("--doc", type=Path, default=DOC_PATH)
     return parser.parse_args()
@@ -211,10 +220,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    source_dir = args.source_dir or default_source_dir()
     try:
-        check_source_charbone(args.source_dir)
-        check_source_pose_meshes(args.source_dir)
-        check_source_sample_split(args.source_dir)
+        check_source_charbone(source_dir)
+        check_source_pose_meshes(source_dir)
+        check_source_sample_split(source_dir)
         check_native_bridge(args.native)
         check_doc(args.doc)
     except RuntimeError as exc:
@@ -226,7 +236,8 @@ def main() -> int:
         "charclip_posemeshes=true "
         "sample_split=true "
         "native_output_subset=true "
-        "no_shortcut_fix=true"
+        "no_shortcut_fix=true "
+        f"source_dir={source_dir.as_posix()}"
     )
     return 0
 

@@ -6557,6 +6557,13 @@ the fenced `CharBones::ScaleAdd(CharBones&, float)` /
 `CharBonesMeshes::PoseMeshes` implementation, and it does not authorize raw
 sampled-channel writeback, character-specific offsets, or foot/ankle/toe
 fixups.
+The authority checker now prefers the local live mirror
+`third_party/ihatecompvir-live/rb3/src/system/char` when present, falling back
+to the committed `third_party/ihatecompvir-extra/rb3-latest/src/system/char`
+snapshot only when the live mirror is absent. `tools/check_lower_body_completion_audit.py`
+executes `tools/check_lower_body_source_row_authority.py` and requires its
+`source_dir=` output marker, so source-row authority is verified from the
+current ihatecompvir checkout instead of being inferred from checker text alone.
 
 Lower-body evidence audit:
 - Root cause found: the original "standing but floating with legs forward"
