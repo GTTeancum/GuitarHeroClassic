@@ -13061,15 +13061,52 @@ int main() {
       "camera lifecycle exposes a source-shaped CameraManager::Enter reset helper");
   ok &= contains(gameplay_c,
                  "end_camera_shot_runtime();"
+                 "camera_manager_delete_free_cam_like_source("
+                 "\"CameraManager::Enter\");"
                  "pending_regular_camera_.clear();"
                  "active_regular_camera_.clear();"
                  "previous_regular_camera_.clear();",
-                 "CameraManager::Enter reset clears current and pending CamShots after EndAnim");
+                 "CameraManager::Enter reset clears current and pending CamShots after EndAnim and DeleteFreeCam");
   ok &= contains(gameplay_c,
                  "\"[world]cameraEnter:source_manager=CameraManager::Enter"
-                 "source_call=StartShot_(0)context=%scurrent=%s"
-                 "had_current=%dhad_pending=%dresult=cleared\\n\"",
-                 "camera diagnostics expose source Enter StartShot_(0) reset");
+                 "source_call=StartShot_(0)delete_free_cam=1"
+                 "context=%scurrent=%shad_current=%dhad_pending=%d"
+                 "had_free_cam=%dresult=cleared\\n\"",
+                 "camera diagnostics expose source Enter StartShot_(0) and DeleteFreeCam reset");
+  ok &= contains(gameplay_h_c,
+                 "boolcamera_manager_get_free_cam_like_source("
+                 "intpadnum,constchar*source_handler);",
+                 "native camera exposes CameraManager::GetFreeCam lifecycle state");
+  ok &= contains(gameplay_h_c,
+                 "boolcamera_manager_has_free_cam_like_source()const;",
+                 "native camera exposes CameraManager::HasFreeCam lifecycle state");
+  ok &= contains(gameplay_h_c,
+                 "boolcamera_manager_delete_free_cam_like_source("
+                 "constchar*source_handler);",
+                 "native camera exposes CameraManager::DeleteFreeCam lifecycle state");
+  ok &= contains(gameplay_h_c,
+                 "boolcamera_manager_free_cam_active_=false;"
+                 "intcamera_manager_free_cam_pad_=0;",
+                 "regular camera manager carries source mFreeCam allocation state");
+  ok &= contains(gameplay_c,
+                 "if(created){camera_manager_free_cam_active_=true;"
+                 "camera_manager_free_cam_pad_=padnum;}",
+                 "CameraManager::GetFreeCam creates once and preserves the first pad like source");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraget_free_cam:source_expr=get_free_cam"
+                 "source_manager=CameraManager::GetFreeCam",
+                 "camera diagnostics expose source get_free_cam routing");
+  ok &= contains(gameplay_c,
+                 "returncamera_manager_free_cam_active_;",
+                 "CameraManager::HasFreeCam mirrors the source mFreeCam pointer check");
+  ok &= contains(gameplay_c,
+                 "camera_manager_free_cam_active_=false;"
+                 "camera_manager_free_cam_pad_=0;",
+                 "CameraManager::DeleteFreeCam clears the native mFreeCam bridge");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameradelete_free_cam:source_msg=delete_free_cam"
+                 "source_manager=CameraManager::DeleteFreeCam",
+                 "camera diagnostics expose source delete_free_cam routing");
   ok &= contains(gameplay_c,
                  "cameraEnterclear_shake:source_manager="
                  "CameraManager::Enter",

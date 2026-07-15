@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 CameraManager free-camera lifecycle:
+  ihatecompvir `CameraManager::GetFreeCam(padnum)` lazily allocates
+  `new FreeCamera(mParent, 0.001f, 0.2f, 0)`, sets the pad only on creation,
+  `HasFreeCam()` returns the `mFreeCam` pointer state, `DeleteFreeCam()`
+  releases it, and `CameraManager::Enter()` calls `StartShot_(0)` followed by
+  `DeleteFreeCam()`. Native now carries that manager allocation/pad state,
+  clears it on the source-shaped Enter reset, and exposes get/has/delete
+  diagnostics. This does not implement unrecovered `FreeCamera::Poll` motion,
+  editor control, or a new runtime dependency.
 - 2026-07-15 CamShot `OnRadio` flags bridge:
   ihatecompvir `CamShot::OnRadio` reads masks from message args 2/3 and, only
   when `mFlags & i2` is non-zero, mutates flags as `(mFlags & ~i3) | i2`

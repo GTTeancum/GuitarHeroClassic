@@ -24525,8 +24525,10 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
 void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     const bool had_current = !active_regular_camera_.empty();
     const bool had_pending = !pending_regular_camera_.empty();
+    const bool had_free_cam = camera_manager_has_free_cam_like_source();
     const std::string previous_current = active_regular_camera_;
     end_camera_shot_runtime();
+    camera_manager_delete_free_cam_like_source("CameraManager::Enter");
     pending_regular_camera_.clear();
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
@@ -24557,9 +24559,10 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) context=%s current=%s had_current=%d had_pending=%d result=cleared\n",
+            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) delete_free_cam=1 context=%s current=%s had_current=%d had_pending=%d had_free_cam=%d result=cleared\n",
             context ? context : "unknown", previous_current.c_str(),
-            had_current ? 1 : 0, had_pending ? 1 : 0);
+            had_current ? 1 : 0, had_pending ? 1 : 0,
+            had_free_cam ? 1 : 0);
         std::fprintf(
             stderr,
             "[world] camera Enter clear_shake: source_manager=CameraManager::Enter result=cleared\n");
@@ -24646,6 +24649,46 @@ bool Gameplay::apply_camshot_radio_message_like_source(
         return before != key.flags;
     }
     return false;
+}
+
+bool Gameplay::camera_manager_get_free_cam_like_source(
+    int padnum, const char* source_handler) {
+    const bool created = !camera_manager_free_cam_active_;
+    if (created) {
+        camera_manager_free_cam_active_ = true;
+        camera_manager_free_cam_pad_ = padnum;
+    }
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera get_free_cam: source_expr=get_free_cam source_manager=CameraManager::GetFreeCam caller=%s pad=%d created=%d active=%d stored_pad=%d rotate_rate=0.001 slew_rate=0.200 source_return=FreeCamera\n",
+            source_handler && source_handler[0] ? source_handler
+                                                : "CameraManager::GetFreeCam",
+            padnum, created ? 1 : 0,
+            camera_manager_free_cam_active_ ? 1 : 0,
+            camera_manager_free_cam_pad_);
+    }
+    return camera_manager_free_cam_active_;
+}
+
+bool Gameplay::camera_manager_has_free_cam_like_source() const {
+    return camera_manager_free_cam_active_;
+}
+
+bool Gameplay::camera_manager_delete_free_cam_like_source(
+    const char* source_handler) {
+    const bool had_free_cam = camera_manager_free_cam_active_;
+    camera_manager_free_cam_active_ = false;
+    camera_manager_free_cam_pad_ = 0;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera delete_free_cam: source_msg=delete_free_cam source_manager=CameraManager::DeleteFreeCam caller=%s had_free_cam=%d active=0 source_release=RELEASE(mFreeCam)\n",
+            source_handler && source_handler[0] ? source_handler
+                                                : "CameraManager::DeleteFreeCam",
+            had_free_cam ? 1 : 0);
+    }
+    return had_free_cam;
 }
 
 void Gameplay::handle_camera_random_seed_like_source(int seed) {

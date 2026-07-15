@@ -805,6 +805,10 @@ class Gameplay {
   bool apply_camshot_radio_message_like_source(std::string_view shot_name,
                                                int set_mask,
                                                int clear_mask);
+  bool camera_manager_get_free_cam_like_source(int padnum,
+                                               const char* source_handler);
+  bool camera_manager_has_free_cam_like_source() const;
+  bool camera_manager_delete_free_cam_like_source(const char* source_handler);
   std::string camera_source_guitarist0_nearest_walkspot() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);
@@ -1023,6 +1027,8 @@ class Gameplay {
   int camera_faceoff_active_players_ = 0;
   bool diagnostic_camera_active_players_change_applied_ = false;
   size_t camera_shot_counter_ = 0;
+  bool camera_manager_free_cam_active_ = false;
+  int camera_manager_free_cam_pad_ = 0;
   CameraResultBuilderState camera_result_builder_state_;
   int active_force_char_lod_ = -1;
   bool source_game_lost_camera_dispatched_ = false;
