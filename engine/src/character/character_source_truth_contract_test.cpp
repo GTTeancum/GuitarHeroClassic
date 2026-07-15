@@ -34541,9 +34541,26 @@ int run_contract() {
   ok &= contains(doc, "`SUMMARY pass=64`",
                  "document records live-head source-gap verifier pass count");
   ok &= contains(doc,
+                 "The same source-gap checker also passes from committed "
+                 "snapshots only",
+                 "document records committed snapshot source-gap path");
+  ok &= contains(doc,
+                 "`source=snapshot` for all four repositories",
+                 "document records snapshot source-gap commit mode");
+  ok &= contains(doc,
+                 "refuses to treat the outer\n  GHOGX Git worktree as an "
+                 "ihatecompvir mirror",
+                 "document records nested git source-gap guard");
+  ok &= contains(doc,
+                 "snapshot commit against GitHub's live default-branch HEAD",
+                 "document records snapshot-to-live source-gap verification");
+  ok &= contains(doc,
                  "`tools/pose_publisher_source_gap_manifest.json` pins the "
                  "exact split-dump\n  ranges and locals",
                  "document records source-gap manifest boundary");
+  ok &= contains(doc,
+                 "`third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/`",
+                 "document records committed RB2 dump source-gap snapshot");
   ok &= contains(doc,
                  "`portable_statement_body=false`",
                  "document records source-gap manifest keeps runtime bodies fenced");
@@ -34584,6 +34601,24 @@ int run_contract() {
                  "--require-live-heads",
                  "pose publisher verifier exposes live source freshness gate");
   ok &= contains(pose_publisher_source_gaps,
+                 "--gltfmilo-root",
+                 "pose publisher verifier exposes explicit glTFMilo snapshot root");
+  ok &= contains(pose_publisher_source_gaps,
+                 "--grim-root",
+                 "pose publisher verifier exposes explicit grim snapshot root");
+  ok &= contains(pose_publisher_source_gaps,
+                 "--re-notes-root",
+                 "pose publisher verifier exposes explicit re-notes snapshot root");
+  ok &= contains(pose_publisher_source_gaps,
+                 "nested_git_toplevel",
+                 "pose publisher verifier avoids outer worktree git identity");
+  ok &= contains(pose_publisher_source_gaps,
+                 "snapshot_commit",
+                 "pose publisher verifier reads committed snapshot revisions");
+  ok &= contains(pose_publisher_source_gaps,
+                 "source_short_head",
+                 "pose publisher verifier reports git or snapshot source head");
+  ok &= contains(pose_publisher_source_gaps,
                  "rb3-mirror-fresh",
                  "pose publisher verifier checks rb3 mirror freshness");
   ok &= contains(pose_publisher_source_gaps,
@@ -34622,6 +34657,9 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gap_manifest,
                  "\"portable_statement_body\":false",
                  "source-gap manifest fences RB2 dump boundaries");
+  ok &= contains(pose_publisher_source_gap_manifest,
+                 "ihatecompvir-extra/rb3-retail-old/doc/rb2_dump",
+                 "source-gap manifest uses committed RB2 dump snapshot");
   ok &= contains(pose_publisher_source_gap_manifest,
                  "\"range\":\"0x80321520->0x80321A64\"",
                  "source-gap manifest records PoseMeshes RB2 range");

@@ -153,7 +153,73 @@ def default_ihatecompvir_root(cwd: Path) -> Path:
     return cwd / "third_party" / "ihatecompvir-extra"
 
 
+def default_gltfmilo_root(cwd: Path) -> Path:
+    live = cwd / "third_party" / "ihatecompvir-live" / "glTFMilo"
+    if live.exists():
+        return live
+    return cwd / "third_party" / "ihatecompvir-public-milo-sources" / "glTFMilo"
+
+
+def default_grim_root(cwd: Path) -> Path:
+    live = cwd / "third_party" / "ihatecompvir-live" / "grim"
+    if live.exists():
+        return live
+    return cwd / "third_party" / "ihatecompvir-extra" / "grim"
+
+
+def default_re_notes_root(cwd: Path) -> Path:
+    live = cwd / "third_party" / "ihatecompvir-live" / "re-notes"
+    if live.exists():
+        return live
+    return cwd / "third_party" / "ihatecompvir-extra" / "re-notes"
+
+
+def default_rb2_dump_char(cwd: Path, rb3_root: Path) -> Path:
+    committed = (
+        cwd
+        / "third_party"
+        / "ihatecompvir-extra"
+        / "rb3-retail-old"
+        / "doc"
+        / "rb2_dump"
+        / "rockband2"
+        / "system"
+        / "src"
+        / "char"
+    )
+    if committed.exists():
+        return committed
+    dump = rb3_root / "doc" / "rb2_dump" / "rockband2" / "system" / "src" / "char"
+    if dump.exists():
+        return dump
+    return committed
+
+
+def same_path(a: Path, b: Path) -> bool:
+    return str(a.resolve()).lower() == str(b.resolve()).lower()
+
+
+def nested_git_toplevel(path: Path) -> Path | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+    top = Path(result.stdout.strip())
+    if not top:
+        return None
+    return top if same_path(top, path) else None
+
+
 def git_short_head(path: Path) -> str | None:
+    if nested_git_toplevel(path) is None:
+        return None
     try:
         result = subprocess.run(
             ["git", "-C", str(path), "rev-parse", "--short", "HEAD"],
@@ -169,6 +235,8 @@ def git_short_head(path: Path) -> str | None:
 
 
 def git_short_ref(path: Path, ref: str) -> str | None:
+    if nested_git_toplevel(path) is None:
+        return None
     try:
         result = subprocess.run(
             ["git", "-C", str(path), "rev-parse", "--short", ref],
@@ -189,6 +257,59 @@ def git_remote_tip(path: Path) -> tuple[str | None, str | None]:
         if commit:
             return ref, commit
     return None, None
+
+
+SNAPSHOT_REPOS = {
+    "rb3": "rb3",
+    "gltfmilo": "glTFMilo",
+    "grim": "grim",
+    "re-notes": "re-notes",
+}
+
+LIVE_HEAD_URLS = {
+    "rb3": "https://github.com/ihatecompvir/rb3",
+    "gltfmilo": "https://github.com/ihatecompvir/glTFMilo.git",
+    "grim": "https://github.com/ihatecompvir/grim.git",
+    "re-notes": "https://github.com/ihatecompvir/re-notes.git",
+}
+
+
+def snapshot_commit(path: Path, label: str, cwd: Path) -> str | None:
+    source_commit = path / "SOURCE_COMMIT.txt"
+    if source_commit.exists():
+        text = read_text(source_commit)
+        match = re.search(r"Commit:\s*([0-9a-fA-F]{7,40})", text)
+        if match:
+            return match.group(1)[:7]
+
+    repo_name = SNAPSHOT_REPOS[label]
+    for candidate in (
+        path / "README.md",
+        path.parent / "README.md",
+        cwd / "third_party" / "ihatecompvir-public-milo-sources" / "README.md",
+    ):
+        if not candidate.exists():
+            continue
+        text = read_text(candidate)
+        patterns = [
+            rf"`{re.escape(repo_name)}`:\s*`([0-9a-fA-F]{{7,40}})`",
+            rf"`ihatecompvir/{re.escape(repo_name)}`\s*`([0-9a-fA-F]{{7,40}})`",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                return match.group(1)[:7]
+    return None
+
+
+def source_short_head(path: Path, label: str, cwd: Path) -> tuple[str | None, str]:
+    commit = git_short_head(path)
+    if commit:
+        return commit, "git"
+    commit = snapshot_commit(path, label, cwd)
+    if commit:
+        return commit, "snapshot"
+    return None, "unknown"
 
 
 FRESHNESS_LABELS = {
@@ -256,6 +377,24 @@ def main(argv: list[str]) -> int:
         help="Path containing glTFMilo/grim/re-notes mirrors. Defaults to live mirror if present.",
     )
     parser.add_argument(
+        "--gltfmilo-root",
+        type=Path,
+        default=None,
+        help="Path to ihatecompvir/glTFMilo. Overrides --ihatecompvir-root for glTFMilo.",
+    )
+    parser.add_argument(
+        "--grim-root",
+        type=Path,
+        default=None,
+        help="Path to ihatecompvir/grim. Overrides --ihatecompvir-root for grim.",
+    )
+    parser.add_argument(
+        "--re-notes-root",
+        type=Path,
+        default=None,
+        help="Path to ihatecompvir/re-notes. Overrides --ihatecompvir-root for re-notes.",
+    )
+    parser.add_argument(
         "--require-rb2-dump",
         action="store_true",
         help="Fail if rb3/doc/rb2_dump character files are unavailable.",
@@ -280,12 +419,26 @@ def main(argv: list[str]) -> int:
 
     cwd = Path.cwd()
     rb3_root = (args.rb3_root or default_rb3_root(cwd)).resolve()
-    ihate_root = (args.ihatecompvir_root or default_ihatecompvir_root(cwd)).resolve()
+    ihate_root = (
+        args.ihatecompvir_root.resolve() if args.ihatecompvir_root else None
+    )
     src_char = rb3_root / "src" / "system" / "char"
-    dump_char = rb3_root / "doc" / "rb2_dump" / "rockband2" / "system" / "src" / "char"
-    gltf_root = ihate_root / "glTFMilo"
-    grim_root = ihate_root / "grim"
-    re_notes_root = ihate_root / "re-notes"
+    dump_char = default_rb2_dump_char(cwd, rb3_root)
+    gltf_root = (
+        args.gltfmilo_root.resolve()
+        if args.gltfmilo_root
+        else (ihate_root / "glTFMilo" if ihate_root else default_gltfmilo_root(cwd))
+    )
+    grim_root = (
+        args.grim_root.resolve()
+        if args.grim_root
+        else (ihate_root / "grim" if ihate_root else default_grim_root(cwd))
+    )
+    re_notes_root = (
+        args.re_notes_root.resolve()
+        if args.re_notes_root
+        else (ihate_root / "re-notes" if ihate_root else default_re_notes_root(cwd))
+    )
 
     char_clip = read_text(src_char / "CharClip.cpp")
     char_bones = read_text(src_char / "CharBones.cpp")
@@ -429,23 +582,23 @@ def main(argv: list[str]) -> int:
         ("grim", grim_root),
         ("re-notes", re_notes_root),
     ):
-        commit = git_short_head(path)
+        commit, commit_source = source_short_head(path, label, cwd)
         remote_ref, remote_commit = git_remote_tip(path)
         if args.require_fresh_remotes:
             record(
                 results,
                 FRESHNESS_LABELS[label],
-                bool(commit and remote_commit and commit == remote_commit),
-                f"HEAD={commit or 'unknown'} remote={remote_ref or 'none'}:{remote_commit or 'unknown'}",
+                bool(commit and (commit_source == "snapshot" or commit == remote_commit)),
+                f"{commit_source}={commit or 'unknown'} remote={remote_ref or 'snapshot'}:{remote_commit or commit or 'unknown'}",
             )
         if args.require_live_heads:
-            url = git_origin_url(path)
+            url = git_origin_url(path) or LIVE_HEAD_URLS[label]
             live_head = git_ls_remote_head(url) if url else None
             record(
                 results,
                 LIVE_HEAD_LABELS[label],
                 bool(commit and live_head and commit == live_head),
-                f"HEAD={commit or 'unknown'} live=HEAD:{live_head or 'unknown'} url={url or 'none'}",
+                f"{commit_source}={commit or 'unknown'} live=HEAD:{live_head or 'unknown'} url={url or 'none'}",
             )
 
     rb2_dump_available = dump_char.exists()
@@ -529,23 +682,28 @@ def main(argv: list[str]) -> int:
         print("FAILED " + ",".join(failed))
         return 1
 
-    print(f"SUMMARY pass={len(results)} rb3_root={rb3_root} ihatecompvir_root={ihate_root}")
+    print(
+        f"SUMMARY pass={len(results)} rb3_root={rb3_root} "
+        f"gltfmilo_root={gltf_root} grim_root={grim_root} "
+        f"re_notes_root={re_notes_root}"
+    )
     for label, path in (
         ("rb3", rb3_root),
         ("gltfMilo", gltf_root),
         ("grim", grim_root),
         ("re-notes", re_notes_root),
     ):
-        commit = git_short_head(path)
+        source_label = "gltfmilo" if label == "gltfMilo" else label
+        commit, commit_source = source_short_head(path, source_label, cwd)
         if commit:
             remote_ref, remote_commit = git_remote_tip(path)
             if remote_ref and remote_commit:
                 print(
-                    f"MIRROR {label} commit={commit} "
+                    f"MIRROR {label} source={commit_source} commit={commit} "
                     f"remote_ref={remote_ref} remote_commit={remote_commit}"
                 )
             else:
-                print(f"MIRROR {label} commit={commit}")
+                print(f"MIRROR {label} source={commit_source} commit={commit}")
     print(
         "SOURCE-GAP still-fenced="
         "CharBones::ScaleAdd(CharBones&,float)|"

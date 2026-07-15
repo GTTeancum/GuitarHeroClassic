@@ -5234,7 +5234,9 @@ note, and all report `unreadBytes=0`.
   float lastFrac)` writer row is also empty/bodyless. Those rows are useful
   absence evidence, not source bodies to port.
   `tools/pose_publisher_source_gap_manifest.json` pins the exact split-dump
-  ranges and locals for those rows, plus `CharBonesMeshes::PoseMeshes`,
+  ranges and locals for those rows from the committed
+  `third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/` snapshot, plus
+  `CharBonesMeshes::PoseMeshes`,
   `CharBonesSamples::EvaluateChannel`, the frame-level
   `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate`, and marks every
   listed boundary with `portable_statement_body=false`.
@@ -5247,6 +5249,15 @@ note, and all report `unreadBytes=0`.
   `SUMMARY pass=64` when the glTFMilo/Grim/re-notes checks, mirror freshness
   guards, live default-head guards, RB2 empty-row guards, and the
   `pose_publisher_source_gap_manifest` range/local checks are included.
+  The same source-gap checker also passes from committed snapshots only:
+  `--rb3-root third_party/ihatecompvir-extra/rb3-latest --gltfmilo-root
+  third_party/ihatecompvir-public-milo-sources/glTFMilo --grim-root
+  third_party/ihatecompvir-extra/grim --re-notes-root
+  third_party/ihatecompvir-extra/re-notes --require-rb2-dump
+  --require-fresh-remotes --require-live-heads`. In that mode it records
+  `source=snapshot` for all four repositories, refuses to treat the outer
+  GHOGX Git worktree as an ihatecompvir mirror, and still verifies each
+  snapshot commit against GitHub's live default-branch HEAD.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.

@@ -363,6 +363,14 @@ def check_source_boundary(root: Path, doc: str) -> None:
     require_contains(gaps_tool, "--require-live-heads", "source gap live-head option")
     require_contains(gaps_tool, "rb3-live-head-fresh", "source gap rb3 live-head check")
     require_contains(gaps_tool, "gltfmilo-live-head-fresh", "source gap glTFMilo live-head check")
+    require_contains(gaps_tool, "nested_git_toplevel", "source gap nested git guard")
+    require_contains(gaps_tool, "snapshot_commit", "source gap committed snapshot support")
+    require_contains(gaps_tool, "default_rb2_dump_char", "source gap committed RB2 dump fallback")
+    require_contains(
+        json.dumps(gap_manifest),
+        "ihatecompvir-extra/rb3-retail-old/doc/rb2_dump",
+        "source gap manifest uses committed RB2 dump",
+    )
     captures = rexglue_manifest.get("captures")
     require(isinstance(captures, list) and captures, "RexGlue manifest needs captures")
     accepted = [capture for capture in captures if capture.get("accepted_row_oracle")]

@@ -11,7 +11,7 @@
   "rb2_dump_boundaries": [
     {
       "label": "rb2_charbones_scaleadd_generic",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBones.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharBones.cpp",
       "range": "0x8031C33C -> 0x8031CB00",
       "signature": "void CharBones::ScaleAdd()",
       "required_fragments": [
@@ -26,7 +26,7 @@
     },
     {
       "label": "rb2_charbones_scaleadd_delegate_empty",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBones.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharBones.cpp",
       "range": "0x8031EA5C -> 0x8031EA78",
       "signature": "void CharBones::ScaleAdd(class CharBones * const this /* r0 */) {}",
       "required_fragments": [],
@@ -35,7 +35,7 @@
     },
     {
       "label": "rb2_charbonesmeshes_posemeshes",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBonesMeshes.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharBonesMeshes.cpp",
       "range": "0x80321520 -> 0x80321A64",
       "signature": "void CharBonesMeshes::PoseMeshes(class CharBonesMeshes * const this",
       "required_fragments": [
@@ -49,7 +49,7 @@
     },
     {
       "label": "rb2_charbonessamples_evaluatechannel",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharBonesSamples.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharBonesSamples.cpp",
       "range": "0x80323654 -> 0x80323E64",
       "signature": "void CharBonesSamples::EvaluateChannel()",
       "required_fragments": [
@@ -63,7 +63,7 @@
     },
     {
       "label": "rb2_charclipsamples_scaleadd_frame",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharClipSamples.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharClipSamples.cpp",
       "range": "0x80333CF4 -> 0x80333DAC",
       "signature": "void CharClipSamples::ScaleAdd(class CharClipSamples * const this",
       "required_fragments": [
@@ -77,7 +77,7 @@
     },
     {
       "label": "rb2_charclipsamples_scaleadd_sample_empty",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharClipSamples.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharClipSamples.cpp",
       "range": "0x80333DAC -> 0x80333E78",
       "signature": "void CharClipSamples::ScaleAdd(class CharClipSamples * const this /* r28 */, class CharBones & bones /* r29 */, float weight /* f29 */, int sample /* r30 */, float frac /* f30 */, int lastSample /* r31 */, float lastFrac /* f31 */) {}",
       "required_fragments": [],
@@ -86,7 +86,7 @@
     },
     {
       "label": "rb2_charclipdriver_evaluate",
-      "file": "../third_party/ihatecompvir-live/rb3/doc/rb2_dump/rockband2/system/src/char/CharClipDriver.cpp",
+      "file": "../third_party/ihatecompvir-extra/rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharClipDriver.cpp",
       "range": "0x8032D33C -> 0x8032DA1C",
       "signature": "float CharClipDriver::Evaluate(class CharClipDriver * const this",
       "required_fragments": [
