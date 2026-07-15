@@ -17220,21 +17220,58 @@ double camera_source_start_time_for_local_frame(
     return song_time - elapsed_seconds;
 }
 
+struct CameraSourceShotOverStatus {
+    float local_frame = 0.0f;
+    float duration_frames = 0.0f;
+    bool mshot_over = false;
+    bool looping = false;
+    bool duration_valid = false;
+    bool local_at_duration = false;
+    bool fired = false;
+};
+
+CameraSourceShotOverStatus camera_source_shot_over_status(
+    const Gameplay::CameraKey& shot,
+    double song_time,
+    double start_time,
+    bool shot_over,
+    const ghogx::chart::Chart* chart) {
+    CameraSourceShotOverStatus status;
+    status.duration_frames = source_camshot_duration_frames(shot);
+    status.local_frame =
+        camera_source_local_frame(shot, song_time, start_time, chart);
+    status.mshot_over = shot_over;
+    status.looping = shot.has_camshot_looping && shot.camshot_looping;
+    status.duration_valid =
+        std::isfinite(status.duration_frames) && status.duration_frames >= 0.0f;
+    status.local_at_duration =
+        status.duration_valid && status.local_frame >= status.duration_frames;
+    status.fired = !status.mshot_over && !status.looping &&
+                   status.duration_valid && status.local_at_duration;
+    return status;
+}
+
+const char* camera_source_shot_over_gate_label(
+    const CameraSourceShotOverStatus& status) {
+    if (status.mshot_over) return "mShotOver_latched";
+    if (status.looping) return "mLooping";
+    if (!status.duration_valid) return "invalid_duration";
+    if (!status.local_at_duration) return "before_duration";
+    return "fire";
+}
+
 bool camera_source_check_shot_over(const Gameplay::CameraKey& shot,
                                    double song_time, double start_time,
                                    bool shot_over,
                                    const ghogx::chart::Chart* chart,
                                    float* out_local_frame,
                                    float* out_duration_frames) {
-    const float duration = source_camshot_duration_frames(shot);
-    const float local_frame =
-        camera_source_local_frame(shot, song_time, start_time, chart);
-    if (out_local_frame) *out_local_frame = local_frame;
-    if (out_duration_frames) *out_duration_frames = duration;
-    if (shot_over) return false;
-    if (shot.has_camshot_looping && shot.camshot_looping) return false;
-    if (!std::isfinite(duration) || duration < 0.0f) return false;
-    return local_frame >= duration;
+    const CameraSourceShotOverStatus status =
+        camera_source_shot_over_status(shot, song_time, start_time, shot_over,
+                                       chart);
+    if (out_local_frame) *out_local_frame = status.local_frame;
+    if (out_duration_frames) *out_duration_frames = status.duration_frames;
+    return status.fired;
 }
 
 std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
@@ -23298,6 +23335,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
     active_camera_skip_next_crowd_update_ = false;
     pending_regular_camera_start_ = 0.0;
@@ -24206,6 +24244,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
     active_camera_skip_next_crowd_update_ = false;
 }
@@ -24233,6 +24272,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
     active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
@@ -24633,6 +24673,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
     return true;
 }
@@ -24719,6 +24760,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     camera_result_builder_state_.reset();
     active_camera_shot_over_ = false;
     active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_gate_reported_.clear();
     if (world_) {
         camera_unset_shake_like_no_current_camshot(world_->camera());
     }
@@ -31617,6 +31659,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_anim_start_time_ = 0.0;
                 active_camera_fov_anim_reported_.clear();
                 active_camera_shot_over_ = false;
+                active_camera_shot_over_gate_reported_.clear();
                 active_camera_skip_next_crowd_update_ = false;
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
@@ -34442,12 +34485,37 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &regular_camera_keys_, source_setframe_blend);
                 apply_active_camera_fov_anims(world_->camera(), *key);
                 if (diagnostic_camera_shot_.empty()) {
-                    float local_frame = 0.0f;
-                    float duration_frames = 0.0f;
-                    if (camera_source_check_shot_over(
+                    const CameraSourceShotOverStatus shot_over_status =
+                        camera_source_shot_over_status(
                             *key, song_time_, active_regular_camera_start_,
-                            active_camera_shot_over_, &chart_, &local_frame,
-                            &duration_frames)) {
+                            active_camera_shot_over_, &chart_);
+                    const char* shot_over_gate =
+                        camera_source_shot_over_gate_label(shot_over_status);
+                    if (debug_camera_enabled() ||
+                        debug_venue_filters_enabled()) {
+                        const std::string shot_over_gate_report_key =
+                            key->name + ":" +
+                            active_camera_frame_pair_reported_ + ":" +
+                            shot_over_gate;
+                        if (active_camera_shot_over_gate_reported_ !=
+                            shot_over_gate_report_key) {
+                            active_camera_shot_over_gate_reported_ =
+                                shot_over_gate_report_key;
+                            std::fprintf(
+                                stderr,
+                                "[world] camera shot_over gate: source_msg=shot_over source_check=CamShot::CheckShotOver shot=%s local_frame=%.3f duration_frames=%.3f mShotOver=%d mLooping=%d duration_valid=%d local_at_duration=%d result=%s source_expr=!mShotOver&&!mLooping&&frame>=mDuration report_key=%s\n",
+                                key->name.c_str(),
+                                shot_over_status.local_frame,
+                                shot_over_status.duration_frames,
+                                shot_over_status.mshot_over ? 1 : 0,
+                                shot_over_status.looping ? 1 : 0,
+                                shot_over_status.duration_valid ? 1 : 0,
+                                shot_over_status.local_at_duration ? 1 : 0,
+                                shot_over_gate,
+                                shot_over_gate_report_key.c_str());
+                        }
+                    }
+                    if (shot_over_status.fired) {
                         const bool has_next_shot =
                             !key->next_shot_ref.empty();
                         if (active_camera_shot_over_reported_ != key->name) {
@@ -34456,7 +34524,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 stderr,
                                 "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s source_order=SetFrame_HandleType_before_mShotOver script_action=%s\n",
                                 key->name.c_str(), key->next_shot_ref.c_str(),
-                                local_frame, duration_frames,
+                                shot_over_status.local_frame,
+                                shot_over_status.duration_frames,
                                 camera_source_duration_seconds(*key),
                                 camera_source_duration_seconds_source(*key),
                                 has_next_shot ? "force_shot" : "none");

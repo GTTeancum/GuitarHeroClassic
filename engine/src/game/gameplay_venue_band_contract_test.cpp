@@ -10987,6 +10987,22 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolactive_camera_shot_over_=false;",
                  "regular camera runtime carries CamShot mShotOver state");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_shot_over_gate_reported_;",
+                 "regular camera runtime bounds CamShot CheckShotOver gate diagnostics");
+  ok &= contains(gameplay_c,
+                 "structCameraSourceShotOverStatus{",
+                 "runtime exposes CamShot CheckShotOver source gate inputs as a structured status");
+  ok &= contains(gameplay_c,
+                 "status.fired=!status.mshot_over&&!status.looping&&"
+                 "status.duration_valid&&status.local_at_duration;",
+                 "source CheckShotOver status mirrors the recovered source boolean gate");
+  ok &= contains(gameplay_c,
+                 "\"mShotOver_latched\"",
+                 "source CheckShotOver gate diagnostics distinguish the CamShot mShotOver latch");
+  ok &= contains(gameplay_c,
+                 "\"mLooping\"",
+                 "source CheckShotOver gate diagnostics distinguish looping CamShots");
   ok &= contains(gameplay_c,
                  "boolshot_over,constghogx::chart::Chart*chart,"
                  "float*out_local_frame,",
@@ -10996,14 +11012,15 @@ int main() {
                  "static_cast<double>(camera_source_frames_per_unit(shot))",
                  "source CamShot local frame uses RndAnimatable Units and FramesPerUnit");
   ok &= contains(gameplay_c,
-                 "if(shot_over)returnfalse;",
+                 "camera_source_shot_over_status(shot,song_time,start_time,"
+                 "shot_over,chart)",
                  "source CheckShotOver bridge refuses shots already marked over");
   ok &= contains(gameplay_c,
-                 "if(shot.has_camshot_looping&&shot.camshot_looping)"
-                 "returnfalse;",
+                 "status.looping=shot.has_camshot_looping&&"
+                 "shot.camshot_looping;",
                  "source CheckShotOver bridge refuses looping CamShots");
   ok &= contains(gameplay_c,
-                 "returnlocal_frame>=duration;",
+                 "returnstatus.fired;",
                  "source CheckShotOver bridge compares local frame to decoded CamShot duration");
   ok &= contains(gameplay_c,
                  "std::vector<Gameplay::CameraKey>regular_camera_source_frame_keys(",
@@ -12695,16 +12712,27 @@ int main() {
                  "regular camera runtime routes rejected check_shot results to a new pick");
   ok &= contains(gameplay_c,
                  "if(diagnostic_camera_shot_.empty()){"
-                 "floatlocal_frame=0.0f;",
+                 "constCameraSourceShotOverStatusshot_over_status=",
                  "source shot_over bridge does not disturb diagnostic camera proofs");
   ok &= contains(gameplay_c,
-                 "camera_source_check_shot_over(*key,song_time_,"
+                 "camera_source_shot_over_status(*key,song_time_,"
                  "active_regular_camera_start_",
                  "source shot_over bridge uses decoded CamShot local frame duration");
   ok &= contains(gameplay_c,
                  "active_regular_camera_start_,active_camera_shot_over_,"
-                 "&chart_,",
+                 "&chart_);",
                  "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerashot_overgate:source_msg=shot_over"
+                 "source_check=CamShot::CheckShotOver",
+                 "source shot_over diagnostics expose the CheckShotOver gate before the handler fires");
+  ok &= contains(gameplay_c,
+                 "source_expr=!mShotOver&&!mLooping&&frame>=mDuration",
+                 "source shot_over gate diagnostics name the recovered source expression");
+  ok &= contains(gameplay_c,
+                 "active_camera_shot_over_gate_reported_!="
+                 "shot_over_gate_report_key",
+                 "source shot_over gate diagnostics stay bounded by source frame-pair and gate state");
   ok &= appears_before(
       gameplay_c,
       "force_camera_shot_like_source(*next_key,\"ForceCameraShot\");",
@@ -12846,6 +12874,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=false;",
                  "source shot_over state resets with the active CamShot lifecycle");
+  ok &= contains(gameplay_c,
+                 "active_camera_shot_over_gate_reported_.clear();",
+                 "source shot_over gate diagnostics reset with the active CamShot lifecycle");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_over:source_msg=shot_overshot=%s"
                  "next_shot=%slocal_frame=%.3fduration_frames=%.3f"

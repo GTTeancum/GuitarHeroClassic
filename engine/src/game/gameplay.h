@@ -1277,6 +1277,7 @@ class Gameplay {
   std::string active_camera_shot_started_reported_;
   std::string active_camera_frame_pair_reported_;
   std::string active_camera_shot_over_reported_;
+  std::string active_camera_shot_over_gate_reported_;
   bool active_camera_shot_over_ = false;
   bool active_camera_skip_next_crowd_update_ = false;
   int camera_manager_random_seed_ = 0;

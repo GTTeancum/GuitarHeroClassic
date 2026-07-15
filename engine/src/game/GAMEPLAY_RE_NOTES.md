@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot `CheckShotOver` gate proof:
+  ihatecompvir `CamShot::CheckShotOver` is a lifetime gate, not an angle
+  solver: it refuses when `mShotOver` is already latched, refuses looping
+  shots, and otherwise compares the current source local frame against cached
+  `mDuration`. Native now computes that source gate as an auditable status and
+  emits a bounded `[world] camera shot_over gate` row with local frame,
+  duration, loop state, latch state, and the recovered
+  `!mShotOver && !mLooping && frame >= mDuration` expression before any
+  `shot_over` handler can queue `next_shot`. This does not change submitted
+  camera transforms or add dependencies; it makes suspicious angle captures
+  prove whether shot lifetime or later result composition is responsible.
 - 2026-07-15 retained writer bridge source-frame scope:
   the accepted `balcony_lft04` writer bridge evidence is tied to the stock
   path-backed diagnostic frame `source_path_local_frame=255.000`, matching the
