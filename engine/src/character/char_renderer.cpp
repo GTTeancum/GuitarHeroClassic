@@ -763,6 +763,22 @@ int character_bone_index(const Character& character, const std::string& name) {
   return -1;
 }
 
+std::optional<float> current_toe_reference_z(const Character& character) {
+  static constexpr const char* kToeBones[] = {
+      "bone_L-toe.mesh", "bone_R-toe.mesh",
+      "bone_L-toe0.mesh", "bone_R-toe0.mesh",
+      "bone_L-foot.mesh", "bone_R-foot.mesh",
+  };
+  std::optional<float> min_z;
+  for (const char* name : kToeBones) {
+    if (character_bone_index(character, name) < 0) continue;
+    const auto world = character.bone_world_local_chain(name);
+    if (!std::isfinite(world[14])) continue;
+    min_z = min_z ? std::min(*min_z, world[14]) : world[14];
+  }
+  return min_z;
+}
+
 const milo_scene::TransObj* scene_trans(
     const milo_scene::Scene& scene,
     const std::string& name) {
@@ -1537,7 +1553,9 @@ void CharRenderer::draw_impl(bool clear_target) {
                   impl.bb_max[1] - impl.bb_min[1]}) *
             0.75f +
         18.0f;
-    const float z = impl.bb_min[2] - 0.25f;
+    const float z =
+        current_toe_reference_z(impl.character).value_or(impl.bb_min[2]) -
+        0.25f;
     const float axis_w = 0.75f;
     const float axis_z = z + 0.05f;
     auto v = [](float x, float y, float z, D3DCOLOR color) {

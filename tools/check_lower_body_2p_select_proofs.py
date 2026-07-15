@@ -42,6 +42,8 @@ class ProofCase:
     log_name: str
     source_model: str
     source_clip: str
+    placer: str
+    player: int
 
 
 PROOF_CASES = (
@@ -52,6 +54,8 @@ PROOF_CASES = (
         log_name="glam1_2p_animate_ui_loop_f030_front.log",
         source_model="char/glam1/og/gen/glam1_ui.milo_ps2",
         source_clip="char/glam1/anims/gen/glam1_ui.milo_ps2",
+        placer="char_multi0.placer",
+        player=0,
     ),
     ProofCase(
         character="glam1",
@@ -60,6 +64,8 @@ PROOF_CASES = (
         log_name="glam1_2p_animate_ui_loop_f040_front.log",
         source_model="char/glam1/og/gen/glam1_ui.milo_ps2",
         source_clip="char/glam1/anims/gen/glam1_ui.milo_ps2",
+        placer="char_multi0.placer",
+        player=0,
     ),
     ProofCase(
         character="metal1",
@@ -68,6 +74,8 @@ PROOF_CASES = (
         log_name="metal1_2p_animate_ui_loop_f030_front.log",
         source_model="char/metal1/og/gen/metal1_ui.milo_ps2",
         source_clip="char/metal1/anims/gen/metal1_ui.milo_ps2",
+        placer="char_multi1.placer",
+        player=1,
     ),
     ProofCase(
         character="metal1",
@@ -76,6 +84,8 @@ PROOF_CASES = (
         log_name="metal1_2p_animate_ui_loop_f040_front.log",
         source_model="char/metal1/og/gen/metal1_ui.milo_ps2",
         source_clip="char/metal1/anims/gen/metal1_ui.milo_ps2",
+        placer="char_multi1.placer",
+        player=1,
     ),
 )
 
@@ -139,6 +149,9 @@ def check_manifest(root: Path) -> dict:
     require(placers["char_multi1.placer"]["matrix0"][9] == 35.0, "P2 placer X should be +35")
     require(placers["char_multi0.placer"]["target_mesh"] == "spot_ui.mesh", "P1 target mesh missing")
     require(placers["char_multi1.placer"]["target_mesh"] == "spot_ui.mesh", "P2 target mesh missing")
+    capture = manifest["proof_capture"]
+    require(capture["diagnostic_option"] == "--char-2p-select-placer", "2P placer option missing")
+    require(capture["reference_base"] == "live toe-row floor when toe bones exist", "live proof base missing")
     return manifest
 
 
@@ -156,6 +169,14 @@ def check_case(root: Path, case: ProofCase) -> tuple[str, CaseMetrics]:
     require_text(text, f"[char] clip-frame override enabled: {case.frame}", log_path, "frame override")
     require_text(text, "[char] reference base enabled", log_path, "reference base")
     require_text(text, "[char] screenshot ->", log_path, "screenshot marker")
+    require_text(
+        text,
+        f"[2p-select] applied_placer={case.placer} player={case.player} matrix=matrix0",
+        log_path,
+        "applied 2P placer",
+    )
+    require_text(text, "source=ui/gen/multi_sel_character.milo_ps2", log_path, "2P placer source")
+    require_text(text, "owner=multi_sel_character_panel target=spot_ui.mesh", log_path, "2P placer target")
     require_text(text, "[2p-select] script=ui/gen/multiplayer.dtb", log_path, "2P script evidence")
     require_text(text, "screen=multi_sel_character_screen", log_path, "2P screen evidence")
     require_text(text, "panel=char_multi event=animate", log_path, "2P char event")
@@ -238,8 +259,10 @@ def main() -> int:
         "characters=glam1,metal1 "
         "screen=multi_sel_character_screen panel=char_multi "
         "event=animate multiplayer_clip=ui_loop skips_ui_enter=true "
-        "placers=char_multi0.placer,char_multi1.placer frames=30,40 "
-        "cases=4 individual_proofs=true two_player_select=true "
+        "placers=char_multi0.placer,char_multi1.placer "
+        "applied_placers=char_multi0.placer,char_multi1.placer "
+        "frames=30,40 cases=4 individual_proofs=true "
+        "two_player_select=true live_reference_base=true "
         f"max_abs_toe_z={max(item.max_abs_toe_z for item in metrics):.4f} "
         f"max_lr_toe_delta_z={max(item.toe_delta_z for item in metrics):.4f} "
         f"min_pelvis_to_toe_z={min(item.min_pelvis_to_toe_z for item in metrics):.4f} "

@@ -6446,12 +6446,18 @@ plays `ui_enter` before `ui_loop`.
 
 `engine/out/visual_proofs/lower_body_2p_select_20260715/` captures individual
 front full-body screenshots for Glam1 and Metal1 at `ui_loop` frames 30 and 40,
-with guitar disabled, soft-green background, reference base, and output-map
-diagnostics enabled. `tools/check_lower_body_2p_select_proofs.py` passes with
+with guitar disabled, soft-green background, live toe-row reference base, and
+output-map diagnostics enabled. The proof app applies the decoded
+`char_multi0.placer` matrix0 to Glam1 and `char_multi1.placer` matrix0 to
+Metal1 through the diagnostic `--char-2p-select-placer` hook, so the screenshots
+no longer rely on an isolated `_ui` character pose alone. The hook is a proof
+placement transform only; it does not alter lower-body pose solving.
+`tools/check_lower_body_2p_select_proofs.py` passes with
 `characters=glam1,metal1`, `screen=multi_sel_character_screen`,
 `panel=char_multi`, `event=animate`, `multiplayer_clip=ui_loop`,
 `skips_ui_enter=true`, `placers=char_multi0.placer,char_multi1.placer`,
-`frames=30,40`, `cases=4`, `two_player_select=true`,
+`applied_placers=char_multi0.placer,char_multi1.placer`, `frames=30,40`,
+`cases=4`, `two_player_select=true`, `live_reference_base=true`,
 `max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
 `min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`. This
 supersedes treating isolated `_ui` screenshots as complete 2P select proof.

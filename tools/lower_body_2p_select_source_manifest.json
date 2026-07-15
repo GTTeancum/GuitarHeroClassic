@@ -32,5 +32,14 @@
       "target_mesh": "spot_ui.mesh"
     }
   },
+  "proof_capture": {
+    "mode": "ghogx_app character proof mode",
+    "diagnostic_option": "--char-2p-select-placer",
+    "reference_base": "live toe-row floor when toe bones exist",
+    "cases": {
+      "glam1": "char_multi0.placer",
+      "metal1": "char_multi1.placer"
+    }
+  },
   "isolated_ui_clip_caveat": "char/*/anims/gen/*_ui.milo_ps2:ui_loop is the 2P animate clip, but isolated viewer captures are not complete 2P select proof unless paired with char_multi script and placer evidence."
 }

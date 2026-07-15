@@ -1137,6 +1137,44 @@ struct ViewerClipStackOptions {
   float hand_blend_seconds = 0.08f;
 };
 
+struct CharSelectPlacer {
+  int player = -1;
+  const char* name = "";
+  std::array<float, 16> matrix = {1, 0, 0, 0, 0, 1, 0, 0,
+                                  0, 0, 1, 0, 0, 0, 0, 1};
+};
+
+std::optional<CharSelectPlacer> two_player_select_placer(int player) {
+  if (player == 0) {
+    return CharSelectPlacer{
+        0,
+        "char_multi0.placer",
+        {-0.8189f, -0.5734f, 0.0f, 0.0f,
+          0.5734f, -0.8189f, 0.0f, 0.0f,
+          0.0f,     0.0f,    1.0f, 0.0f,
+         -35.0f,  -30.0f,    0.0f, 1.0f}};
+  }
+  if (player == 1) {
+    return CharSelectPlacer{
+        1,
+        "char_multi1.placer",
+        {-0.8190f,  0.5734f, 0.0f, 0.0f,
+         -0.5734f, -0.8190f, 0.0f, 0.0f,
+          0.0f,     0.0f,    1.0f, 0.0f,
+          35.0f,  -30.0f,    0.0f, 1.0f}};
+  }
+  return std::nullopt;
+}
+
+std::array<float, 3> transform_point(const std::array<float, 16>& m,
+                                     const std::array<float, 3>& p) {
+  return {
+      p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
+      p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
+      p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14],
+  };
+}
+
 int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& milo_path,
                   const std::string& screenshot_path, int screenshot_frame,
@@ -1149,6 +1187,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& face_clip_arg = "",
                   const std::string& char_scene_milo = "",
                   const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
+                  int two_player_select_placer_player = -1,
                   float fixed_dt = 0.0f,
                   bool character_controllers = true,
                   bool reference_base = false,
@@ -1209,6 +1248,36 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   ghogx::character::CharRenderer renderer(*win);
   renderer.set_character(std::move(character), textures);
   renderer.set_world_offset(char_offset[0], char_offset[1], char_offset[2]);
+  if (two_player_select_placer_player >= 0) {
+    const auto placer = two_player_select_placer(two_player_select_placer_player);
+    if (!placer) {
+      std::fprintf(stderr,
+                   "[char] invalid --char-2p-select-placer value %d "
+                   "(expected 0 or 1)\n",
+                   two_player_select_placer_player);
+      return 2;
+    }
+    auto& cam = renderer.camera();
+    const std::array<float, 3> old_target = {
+        cam.target[0], cam.target[1], cam.target[2]};
+    const auto new_target = transform_point(placer->matrix, old_target);
+    renderer.set_world_transform(placer->matrix);
+    cam.target[0] = new_target[0];
+    cam.target[1] = new_target[1];
+    cam.target[2] = new_target[2];
+    std::fprintf(stderr,
+                 "[2p-select] applied_placer=%s player=%d matrix=matrix0 "
+                 "source=ui/gen/multi_sel_character.milo_ps2 "
+                 "owner=multi_sel_character_panel target=spot_ui.mesh "
+                 "translation=(%.1f %.1f %.1f)\n",
+                 placer->name, placer->player, placer->matrix[12],
+                 placer->matrix[13], placer->matrix[14]);
+    std::fprintf(stderr,
+                 "[2p-select] script=ui/gen/multiplayer.dtb "
+                 "screen=multi_sel_character_screen panel=char_multi "
+                 "event=animate clip=ui_loop skips_ui_enter=true "
+                 "placers=char_multi0.placer,char_multi1.placer\n");
+  }
   renderer.set_reference_base(reference_base);
 
   std::optional<ghogx::render::MiloSceneRenderer> scene_renderer;
@@ -1833,6 +1902,7 @@ int main(int argc, char** argv) {
   std::string midi_fret_target;
   ViewerClipStackOptions viewer_clip_stack;
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
+  int char_2p_select_placer_player = -1;
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
   bool character_controllers = true;
   bool char_reference_base = false;
@@ -1987,6 +2057,20 @@ int main(int argc, char** argv) {
       char_offset[0] = static_cast<float>(std::atof(argv[++i]));
       char_offset[1] = static_cast<float>(std::atof(argv[++i]));
       char_offset[2] = static_cast<float>(std::atof(argv[++i]));
+    } else if (std::strcmp(argv[i], "--char-2p-select-placer") == 0 &&
+               i + 1 < argc) {
+      const char* value = argv[++i];
+      if (std::strcmp(value, "p1") == 0 ||
+          std::strcmp(value, "player1") == 0 ||
+          std::strcmp(value, "char_multi0.placer") == 0) {
+        char_2p_select_placer_player = 0;
+      } else if (std::strcmp(value, "p2") == 0 ||
+                 std::strcmp(value, "player2") == 0 ||
+                 std::strcmp(value, "char_multi1.placer") == 0) {
+        char_2p_select_placer_player = 1;
+      } else {
+        char_2p_select_placer_player = std::atoi(value);
+      }
     } else if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
       screenshot_path = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot-frame") == 0 && i + 1 < argc) {
@@ -2087,8 +2171,8 @@ int main(int argc, char** argv) {
                          screenshot_frame, max_frames, cam_ovr, char_clip_arg,
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
-                         char_offset, fixed_dt, character_controllers,
-                         char_reference_base, midi_fret_target,
+                         char_offset, char_2p_select_placer_player, fixed_dt,
+                         character_controllers, char_reference_base, midi_fret_target,
                          viewer_clip_stack);
   }
 

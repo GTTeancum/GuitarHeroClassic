@@ -34651,6 +34651,36 @@ int run_contract() {
   ok &= contains(doc,
                  "`two_player_select=true`",
                  "document records 2P select checker status");
+  ok &= contains(doc,
+                 "`--char-2p-select-placer`",
+                 "document records applied 2P placer diagnostic hook");
+  ok &= contains(doc,
+                 "live toe-row reference base",
+                 "document records live toe-row proof base");
+  ok &= contains(
+      app_main,
+      "--char-2p-select-placer",
+      "app exposes 2P select placer diagnostic hook");
+  ok &= contains(
+      app_main,
+      "applied_placer=%splayer=%dmatrix=matrix0",
+      "app logs applied 2P placer source row");
+  ok &= contains(
+      app_main,
+      "source=ui/gen/multi_sel_character.milo_ps2",
+      "app logs 2P placer MILO source");
+  ok &= contains(
+      renderer,
+      "current_toe_reference_z",
+      "renderer has live toe-row reference base helper");
+  ok &= contains(
+      renderer,
+      "\"bone_L-toe.mesh\"",
+      "renderer live reference base checks left toe bone");
+  ok &= contains(
+      renderer,
+      "current_toe_reference_z(impl.character).value_or(impl.bb_min[2])-0.25f",
+      "renderer reference base uses live toe floor with bind fallback");
   ok &= contains(
       lower_body_2p_select_source_manifest,
       "\"screen_script\":\"ui/gen/multiplayer.dtb\"",
@@ -34668,6 +34698,14 @@ int run_contract() {
       lower_body_2p_select_source_manifest,
       "\"multiplayer\":\"playui_loop|kPlayLastkPlayGraphLoop\"",
       "2P select manifest records 2P ui_loop branch");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"diagnostic_option\":\"--char-2p-select-placer\"",
+      "2P select manifest records applied placer diagnostic option");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"reference_base\":\"livetoe-rowfloorwhentoebonesexist\"",
+      "2P select manifest records live toe-row proof base");
   ok &= contains(
       lower_body_2p_select_source_manifest,
       "\"char_multi0.placer\":{\"matrix0\":[-0.8189,-0.5734,0.0,"
@@ -34696,6 +34734,14 @@ int run_contract() {
       "2P select proof checker pins skip-ui-enter branch");
   ok &= contains(
       lower_body_2p_select_proofs,
+      "applied_placer={case.placer}",
+      "2P select proof checker requires applied source placer");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "live_reference_base=true",
+      "2P select proof checker reports live reference base");
+  ok &= contains(
+      lower_body_2p_select_proofs,
       "glam1_2p_animate_ui_loop_f030_front.png",
       "2P select proof checker pins Glam1 frame 30 PNG");
   ok &= contains(
@@ -34706,6 +34752,14 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select=true",
       "completion audit reports 2P select proof status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "applied_placers=char_multi0.placer,char_multi1.placer",
+      "completion audit requires applied 2P placers");
+  ok &= contains(
+      lower_body_completion_audit,
+      "live_reference_base=true",
+      "completion audit requires live reference base proof");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");

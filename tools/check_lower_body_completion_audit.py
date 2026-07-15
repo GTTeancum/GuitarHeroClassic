@@ -464,6 +464,8 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "\"single_player\": \"play ui_enter kPlayNoBlend, then ui_loop | kPlayLast kPlayGraphLoop\"",
         "\"multiplayer\": \"play ui_loop | kPlayLast kPlayGraphLoop\"",
         "\"target_mesh\": \"spot_ui.mesh\"",
+        "\"diagnostic_option\": \"--char-2p-select-placer\"",
+        "\"reference_base\": \"live toe-row floor when toe bones exist\"",
     ):
         require_contains(two_player_select_manifest, marker, f"2P select manifest marker {marker}")
     for marker in (
@@ -471,7 +473,10 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "characters=glam1,metal1",
         "screen=multi_sel_character_screen panel=char_multi",
         "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
-        "placers=char_multi0.placer,char_multi1.placer frames=30,40",
+        "placers=char_multi0.placer,char_multi1.placer",
+        "applied_placers=char_multi0.placer,char_multi1.placer",
+        "frames=30,40",
+        "live_reference_base=true",
         "cases=4",
         "two_player_select=true",
         "max_abs_toe_z=0.4526",
