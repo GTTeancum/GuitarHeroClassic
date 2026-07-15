@@ -4,6 +4,8 @@ if(POLICY CMP0091)
 endif()
 project(ghogx LANGUAGES C CXX)
 
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/windows_toolchain_guard.cmake)
+
 # GuitarHeroOGX native engine.
 #
 # Reads PS2-format Harmonix ARKs directly via the readers under ../tools/.
