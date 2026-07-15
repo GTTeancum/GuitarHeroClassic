@@ -6316,17 +6316,26 @@ Lower-body evidence audit:
   and the current-commit Rockabill2/Rock2 proof pair repeats the in-game and
   viewer comparison at `max_delta=0.000000` for the leg chain.
 - RexGlue fallback check: the local `GuitarHeroOGX-trace360` RexGlue fork does
-  not contain a separate portable character renderer for legs, but its read-only
-  trace evidence matches the native lower-body bridge. `src/trace_hooks.cpp`
-  hooks the original CharClipSamples pose-buffer apply primitives
-  `sub_8215DF28`/`sub_8215E6A0` and explicitly captures pelvis, thigh, ankle,
-  and knee rows; `analysis/anim_apply_trace_summary_20260606.md` shows active
-  PS2 destination tables receiving `bone_L-ankle.quat`,
+  not contain a separate portable character renderer for legs, but commit
+  `580e405` adds lower-body trace scaffolding for memory dumps and call timing.
+  `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the no-focus
+  `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the original
+  CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
+  plus the runtime stages `821D1190`, `821D1710`, and `CharIK_Update`.
+  Current RexGlue captures are not accepted lower-body row oracles: the latest
+  summaries report `runtime=192 apply=0 rows=0`, and the scripted XInput attempt
+  also records `trace ended with a truncated json line`. `tools/check_rexglue_lower_body_trace.py`
+  can validate future RexGlue captures, but
+  `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
+  records that the current RexGlue evidence is scaffolding plus a negative
+  bound, not proof of the live lower-body row path. Older trace notes remain
+  useful context only: `analysis/anim_apply_trace_summary_20260606.md` shows
+  historical active destination tables receiving `bone_L-ankle.quat`,
   `bone_R-ankle.quat`, `bone_L-thigh.quat`, `bone_R-thigh.quat`,
-  `bone_L-knee.rotz`, `bone_R-knee.rotz`, and toe rot rows. The older
-  `analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md` lower-body run also proves
-  the visible `.mesh` rows for glam/guitarist thigh, knee, ankle, and toe
-  mutate during active gameplay.
+  `bone_L-knee.rotz`, `bone_R-knee.rotz`, and toe rot rows, and
+  `analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md` records an earlier lower-body
+  mesh-row investigation. They are not a substitute for a fresh RexGlue capture
+  that reaches named CharClipSamples apply rows.
 - 2026-07-15 PCSX2 lower-body row refresh:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.json`
   samples the current GHDX/PCSX2 in-game state with direct window screenshots
@@ -6339,15 +6348,15 @@ Lower-body evidence audit:
   gameplay sample (`rock_desc_R_thigh=26`, `rock_desc_R_knee=17`,
   `rock_desc_L_ankle=21`, `rock_desc_R_ankle=13`, `rock_desc_L_toe=21`,
   `rock_desc_R_toe=13`, `rock_desc_pelvis=17`). This refresh supports the same
-  source/output-row bridge as RexGlue and rejects stale named mesh wrappers,
+  source/output-row bridge and rejects stale named mesh wrappers,
   foot IK, camera angle, and character-name offsets as the lower-body path.
   `tools/check_lower_body_pcsx2_row_trace.py --use-manifest-source-json`
   cross-checks the committed manifest against that raw PCSX2 JSON and reports
   `stable_mesh_wrappers=9`, `moving_source_rows=7`, and
   `source_json_checked=true`.
-  If a future visual proof contradicts the
-  current result, the RexGlue path to trace is therefore the same pose-buffer
-  apply/output-row bridge, not a new foot-IK or character-name offset path.
+  If a future visual proof contradicts the current result, the next RexGlue
+  target is the same pose-buffer apply/output-row bridge with named lower-body
+  rows, not a new foot-IK or character-name offset path.
 - Source-truth boundary: `check_pose_publisher_source_gaps.py` still reports
   the full `CharBones::ScaleAdd(CharBones&,float)`,
   `CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`,

@@ -1,0 +1,47 @@
+{
+  "trace_id": "rexglue_lower_body_trace_scaffold_20260715",
+  "trace_worktree": "../GuitarHeroOGX-trace360",
+  "trace_commit": "580e405",
+  "scaffold": {
+    "script": "smoke_trace.ps1",
+    "runtime_flag": "--trace-lower-body-memory",
+    "scripted_nav_flag": "--trace_scripted_nav",
+    "no_focus_forced": true,
+    "purpose": "RexGlue memory dumps and call timing only until named clip rows are captured",
+    "hooks": [
+      "sub_8215DF28",
+      "sub_8215E6A0",
+      "821D1190",
+      "821D1710",
+      "CharIK_Update"
+    ]
+  },
+  "captures": [
+    {
+      "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_1784121732_summary.json",
+      "route": "post_message_navigation",
+      "events": 8623,
+      "runtime_memory_events": 192,
+      "clip_apply_events": 0,
+      "lower_body_rows": 0,
+      "accepted_row_oracle": false,
+      "result": "runtime_memory_only"
+    },
+    {
+      "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_1784122055_summary.json",
+      "route": "scripted_xinput_navigation",
+      "events": 8654,
+      "runtime_memory_events": 192,
+      "clip_apply_events": 0,
+      "lower_body_rows": 0,
+      "accepted_row_oracle": false,
+      "result": "failed_truncated_runtime_only",
+      "failures": [
+        "trace ended with a truncated json line"
+      ]
+    }
+  ],
+  "accepted_live_row_authority": "pcsx2_rock_lower_body_mesh_rows_20260715",
+  "native_path": "source_output_lower_body_bridge",
+  "next_trace_target": "Capture CharClipSamples apply rows with named lower-body channels before using RexGlue as a lower-body row oracle."
+}

@@ -183,6 +183,12 @@ int run_contract() {
   const std::string lower_body_pcsx2_row_trace_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_pcsx2_row_trace_manifest.json"));
+  const std::string lower_body_rexglue_trace = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_rexglue_trace_manifest.py"));
+  const std::string lower_body_rexglue_trace_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "lower_body_rexglue_trace_manifest.json"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -34481,6 +34487,18 @@ int run_contract() {
                  "`analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md`",
                  "document records RexGlue/PS2 lower-body mesh-row evidence");
   ok &= contains(doc,
+                 "Current RexGlue captures are not accepted lower-body row "
+                 "oracles",
+                 "document records RexGlue current non-authoritative status");
+  ok &= contains(doc,
+                 "`runtime=192 apply=0 rows=0`",
+                 "document records RexGlue runtime-only lower-body trace");
+  ok &= contains(
+      doc,
+      "`tools/check_lower_body_rexglue_trace_manifest.py "
+      "--cross-check-summaries`",
+      "document records RexGlue trace scaffold checker command");
+  ok &= contains(doc,
                  "pcsx2_rock_lower_body_mesh_rows_20260715.json",
                  "document records current PCSX2 lower-body row refresh");
   ok &= contains(doc,
@@ -34515,6 +34533,23 @@ int run_contract() {
   ok &= contains(lower_body_pcsx2_row_trace,
                  "source_json_checked=",
                  "PCSX2 lower-body checker can cross-check raw trace JSON");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"trace_commit\":\"580e405\"",
+                 "RexGlue lower-body manifest records trace scaffold commit");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"accepted_row_oracle\":false",
+                 "RexGlue lower-body manifest rejects current captures");
+  ok &= contains(
+      lower_body_rexglue_trace_manifest,
+      "\"accepted_live_row_authority\":"
+      "\"pcsx2_rock_lower_body_mesh_rows_20260715\"",
+      "RexGlue lower-body manifest defers live row authority to PCSX2");
+  ok &= contains(lower_body_rexglue_trace,
+                 "--cross-check-summaries",
+                 "RexGlue lower-body checker can cross-check trace summaries");
+  ok &= contains(lower_body_rexglue_trace,
+                 "accepted_row_oracles=",
+                 "RexGlue lower-body checker reports accepted oracle count");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",
