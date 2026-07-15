@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot visibility copy parity:
+  ihatecompvir `CamShot::Copy` copies the decoded drawable vectors
+  `unk5c`, `unk6c`, and `unk64`, which map to hide, show, and generated-hide
+  camera visibility refs in native. `copy_camshot_shot_fields(...)` now carries
+  `hide_list_refs` and `show_list_refs` beside the existing generated-hide
+  copy, so source-frame/path variants cannot drop StartAnim visibility metadata
+  while preserving the normal gameplay camera shot. This changes source field
+  propagation only; it does not synthesize hidden pose, `BuildTransform`, or
+  FreeCam behavior.
 - 2026-07-15 gameplay camera source-coverage proof row:
   normal gameplay camera solver rows now print `pose_coverage` and
   `hidden_pose_boundary`, distinguishing retained PS2/debug payloads, native

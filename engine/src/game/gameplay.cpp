@@ -2701,6 +2701,8 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.has_crowd_selection = from.has_crowd_selection;
     to.crowd_selection_ref = from.crowd_selection_ref;
     to.crowd_selection_pairs = from.crowd_selection_pairs;
+    to.hide_list_refs = from.hide_list_refs;
+    to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
     to.draw_override_refs = from.draw_override_refs;
     to.postproc_override_refs = from.postproc_override_refs;

@@ -11732,6 +11732,12 @@ int main() {
                  "copy_camshot_shot_fields(c.key,pos);",
                  "regular camera pose variants inherit decoded shot-level fields");
   ok &= contains(gameplay_c,
+                 "to.hide_list_refs=from.hide_list_refs;",
+                 "CamShot shot-field propagation mirrors source Copy for hide_list");
+  ok &= contains(gameplay_c,
+                 "to.show_list_refs=from.show_list_refs;",
+                 "CamShot shot-field propagation mirrors source Copy for show_list");
+  ok &= contains(gameplay_c,
                  "constintdisabled_flags=decoded_shot->disabled_flags;"
                  "if(disabled_flags!=0)",
                  "intro camera selector mirrors CameraManager Disabled gate");
