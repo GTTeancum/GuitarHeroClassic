@@ -6477,7 +6477,13 @@ int main() {
                  "camera one_bar_to triggers one bar before the section marker");
   ok &= contains(gameplay_c,
                  "if(trigger_tick==0){++next_camera_one_bar_to_event_idx_;continue;}",
-                 "camera one_bar_to mirrors the source camera_beat > 0 guard");
+                 "camera one_bar_to consumes impossible zero-bar triggers");
+  ok &= contains(gameplay_c,
+                 "camera_source_one_bar_to_camera_beat_gate_open(chart,trigger_tick)",
+                 "camera one_bar_to cursor/seek helpers mirror the source camera_beat > 0 guard");
+  ok &= contains(gameplay_c,
+                 "if(!camera_source_one_bar_to_camera_beat_gate_open(chart_,trigger_tick)){",
+                 "runtime camera one_bar_to mirrors the source camera_beat > 0 guard");
   ok &= contains(gameplay_c,
                  "camera_solo_active_=*upcoming_section==\"solo\";",
                  "world_objects_worldbase.dta one_bar_to updates camera_solo before picking");
@@ -11857,6 +11863,11 @@ int main() {
                  "source_action=get_shot_duration+pick_new_shot"
                  "upcoming=%sevent_tick=%utrigger_tick=%ucamera_solo=%dforce=%d\\n\"",
                  "camera diagnostics expose source one_bar_to state changes");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraone_bar_to:source_msg=one_bar_to"
+                 "source_gate=camera_beat>0camera_beat=%u"
+                 "source_action=skipupcoming=%sevent_tick=%utrigger_tick=%u\\n\"",
+                 "camera diagnostics expose source one_bar_to camera_beat skip");
   ok &= contains(gameplay_c,
                  "voidapply_gameplay_backing_camera(",
                  "gameplay keeps the legacy backing camera as an explicit fallback");

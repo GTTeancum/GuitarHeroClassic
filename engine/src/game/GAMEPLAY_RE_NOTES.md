@@ -648,9 +648,10 @@ Open work:
   `get_shot_duration` and immediately calls `pick_new_shot`. Native now
   carries a source-shaped `camera_solo` latch, derives the synthetic
   `one_bar_to` trigger from section text events one bar early while skipping
-  zero-beat triggers, forces the next regular pick through the existing source
-  duration path, and selects regular vs solo CamShots from that latch rather
-  than from the already-active lighting section.
+  zero-bar triggers, gates each consumed trigger through the source
+  `[camera_beat] > 0` check at the trigger tick, forces the next regular pick
+  through the existing source duration path, and selects regular vs solo
+  CamShots from that latch rather than from the already-active lighting section.
 - 2026-07-14 camera downbeat `check_camera_shot` gate:
   GH2 `world_objects_worldbase.dta::downbeat` decrements
   `[camera_bars_left]` on each bar, then calls `check_camera_shot` only when

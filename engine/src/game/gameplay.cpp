@@ -17005,6 +17005,19 @@ uint32_t camera_source_one_bar_to_trigger_tick(
     return ev.tick - ticks_per_bar;
 }
 
+uint32_t camera_source_beat_for_trigger_tick(
+    const ghogx::chart::Chart& chart,
+    uint32_t trigger_tick) {
+    if (chart.ticks_per_beat == 0) return 0;
+    return trigger_tick / chart.ticks_per_beat;
+}
+
+bool camera_source_one_bar_to_camera_beat_gate_open(
+    const ghogx::chart::Chart& chart,
+    uint32_t trigger_tick) {
+    return camera_source_beat_for_trigger_tick(chart, trigger_tick) > 0;
+}
+
 size_t camera_source_one_bar_to_cursor_at(const ghogx::chart::Chart& chart,
                                           double song_time) {
     size_t index = 0;
@@ -17022,6 +17035,11 @@ size_t camera_source_one_bar_to_cursor_at(const ghogx::chart::Chart& chart,
         }
         const double trigger_time = chart.tick_to_sec(trigger_tick);
         if (trigger_time >= song_time) break;
+        if (!camera_source_one_bar_to_camera_beat_gate_open(chart,
+                                                            trigger_tick)) {
+            ++index;
+            continue;
+        }
         ++index;
     }
     return index;
@@ -17040,6 +17058,10 @@ bool camera_source_one_bar_to_solo_state_at(
         const double trigger_time =
             chart.tick_to_sec(trigger_tick);
         if (trigger_time >= song_time) break;
+        if (!camera_source_one_bar_to_camera_beat_gate_open(chart,
+                                                            trigger_tick)) {
+            continue;
+        }
         camera_solo = *section == "solo";
     }
     return camera_solo;
@@ -33705,6 +33727,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const double trigger_time = chart_.tick_to_sec(trigger_tick);
             if (trigger_time > song_time_) break;
             ++next_camera_one_bar_to_event_idx_;
+            const uint32_t source_camera_beat =
+                camera_source_beat_for_trigger_tick(chart_, trigger_tick);
+            if (!camera_source_one_bar_to_camera_beat_gate_open(
+                    chart_, trigger_tick)) {
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] camera one_bar_to: source_msg=one_bar_to source_gate=camera_beat>0 camera_beat=%u source_action=skip upcoming=%s event_tick=%u trigger_tick=%u\n",
+                        source_camera_beat,
+                        std::string(*upcoming_section).c_str(), ev.tick,
+                        trigger_tick);
+                }
+                continue;
+            }
             camera_solo_active_ = *upcoming_section == "solo";
             const bool cue_forced_camera =
                 authored_gameplay_cameras_active && !in_intro_camera_window;
