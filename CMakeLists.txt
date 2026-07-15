@@ -35,3 +35,4 @@ endif()
 
 rexglue_setup_target(gh2test)
 target_link_libraries(gh2test PRIVATE ark_v3)
+ghogx_add_windows_import_guard(gh2test)
