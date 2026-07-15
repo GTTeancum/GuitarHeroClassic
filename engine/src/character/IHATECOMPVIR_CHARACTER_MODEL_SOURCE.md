@@ -6262,6 +6262,16 @@ at `live=1` and `fixed_max_abs_xyz=0.001`.
 the `apply_lower_body_output_layer` body and requires the live bridge to filter
 through decoded source `OutputBone` keys rather than character names, offsets,
 or one-off foot/ankle/toe fixups.
+`tools/check_lower_body_shared_path.py` passes with `viewer_shared=true`,
+`gameplay_shared=true`, and `local_filters=hand_overlay_only`. That audit keeps
+the current viewer/in-game lower-body route tied to the shared `char_clip`
+stack/controller helpers: the direct viewer feeds its pose stack through
+`apply_character_pose_controller_frame`, gameplay feeds the same layer stack
+through `apply_character_pose_stack_frame` before controllers, and neither app
+owns a local lower-body publisher or `lower-output` proof path. The only
+viewer/gameplay lower-body name filters are the hand-overlay strip filters,
+which prevent strum/fret overlays from carrying pelvis/thigh/knee/ankle/foot/toe
+rows over the body pose.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current

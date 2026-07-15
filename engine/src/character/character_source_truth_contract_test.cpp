@@ -168,6 +168,9 @@ int run_contract() {
   const std::string lower_body_bridge_boundary = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_bridge_boundary.py"));
+  const std::string lower_body_shared_path = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_shared_path.py"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -33944,6 +33947,30 @@ int run_contract() {
       lower_body_bridge_boundary,
       "apply_lower_body_output_layer",
       "lower-body bridge boundary audit inspects live bridge function");
+  ok &= contains(
+      lower_body_shared_path,
+      "APP_REQUIRED",
+      "lower-body shared-path audit guards viewer entry point");
+  ok &= contains(
+      lower_body_shared_path,
+      "GAMEPLAY_REQUIRED",
+      "lower-body shared-path audit guards gameplay entry point");
+  ok &= contains(
+      lower_body_shared_path,
+      "FORBIDDEN_LOCAL_PUBLISHER",
+      "lower-body shared-path audit rejects viewer/gameplay publishers");
+  ok &= contains(
+      lower_body_shared_path,
+      "viewer_shared=true",
+      "lower-body shared-path audit reports shared viewer routing");
+  ok &= contains(
+      lower_body_shared_path,
+      "gameplay_shared=true",
+      "lower-body shared-path audit reports shared gameplay routing");
+  ok &= contains(
+      lower_body_shared_path,
+      "local_filters=hand_overlay_only",
+      "lower-body shared-path audit reports app-local filter boundary");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34360,6 +34387,10 @@ int run_contract() {
       doc,
       "check_lower_body_bridge_boundary.py",
       "document records lower-body bridge boundary audit");
+  ok &= contains(
+      doc,
+      "check_lower_body_shared_path.py",
+      "document records lower-body shared viewer/gameplay path audit");
   ok &= contains(doc,
                  "`no_named_or_offset_shortcut=true`",
                  "document records lower-body bridge shortcut rejection");
