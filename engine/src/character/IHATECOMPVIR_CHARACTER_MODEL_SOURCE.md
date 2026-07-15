@@ -5699,6 +5699,30 @@ runtime now follows ihatecompvir's world-row `CharForeTwist::Poll` and
 to local rows. This is not a name-specific visual offset and does not sign off
 the separate chain/cloth `CharHair` writeback gap.
 
+2026-07-15 current twist boundary audit: rereading native against
+ihatecompvir's `CharForeTwist::Poll` and `CharUpperTwist::Poll` did not find
+a source-backed mismatch in the decoded `CharUpperTwist` crosswalk, the
+`source_char_fore_twist_poll_world` helper, the
+`source_char_upper_twist_poll_world` helper, or the current standalone
+fore/upper twist runtime call sites. `CharUpperTwist` still follows the
+source's odd mapping: the binary/properties read as `upper_arm`, `twist1`,
+`twist2`, while source `Load` stores those rows into `mTwist2`, `mUpperArm`,
+and `mTwist1`, then `Poll` reads `mTwist2` as the source row and writes
+`mUpperArm` before `mTwist1`. The fresh direct-app proof in
+`engine/out/visual_proofs/current_twist_boundary_20260715_turn2/` requested
+`char/rockabill2/anims/gen/rockabill2_main.milo_ps2:special_02`, resolved to
+`char/rockabill1/anims/gen/rockabill1_main.milo_ps2`, and logged `special_02`
+with `191 frames`, `57 channels/frame`, and `82 output bones`. The same log
+shows active `twist-fore-source` and `twist-upper-source` rows. The matching
+in-game proof uses `GHOGX_HIDE_HIGHWAY=1`, Trogdor Expert, small2,
+Rockabill2, and `flr_near_rt01`; it is useful current visual evidence, but
+not a final signoff on authored PS2 posture. The older controller-off A/B and
+missing-live-target viewer captures must not be used as current proof. The
+remaining source-backed target for body/limb pose discrepancies is still the
+shared `CharClipSamples` / `CharBonesSamples` / `CharBones` / `PoseMeshes`
+publisher, not a fabricated twist, neck, shoulder, guitar, or character-named
+offset.
+
 2026-07-14 diagnostic clip-path correction: stock GH2 PS2 assets share some
 animation MILOs across performer variants. For example, Rock2's decoded
 `main.drv`, `right_hand.drv`, and `left_hand.drv` rows point back to Rock1

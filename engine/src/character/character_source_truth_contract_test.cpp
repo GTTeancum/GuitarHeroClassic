@@ -32582,6 +32582,39 @@ int run_contract() {
                  "Do not patch this\nwith Rockabill2-specific shoulder, neck, "
                  "arm, guitar, or mesh offsets",
                  "document rejects Rockabill2 shoulder shortcuts");
+  ok &= contains(doc, "2026-07-15 current twist boundary audit",
+                 "document records current twist boundary audit");
+  ok &= contains(
+      doc,
+      "`engine/out/visual_proofs/current_twist_boundary_20260715_turn2/`",
+      "document records current turn proof directory");
+  ok &= contains(doc,
+                 "did not find\n"
+                 "a source-backed mismatch in the decoded `CharUpperTwist` "
+                 "crosswalk",
+                 "document records no current source-backed twist mismatch");
+  ok &= contains(doc,
+                 "requested\n"
+                 "`char/rockabill2/anims/gen/rockabill2_main.milo_ps2:"
+                 "special_02`",
+                 "document records Rockabill2 requested current clip");
+  ok &= contains(doc,
+                 "resolved to\n"
+                 "`char/rockabill1/anims/gen/rockabill1_main.milo_ps2`",
+                 "document records Rockabill2 shared driver resolution");
+  ok &= contains(doc,
+                 "`191 frames`, `57 channels/frame`, and `82 output bones`",
+                 "document records current proof clip shape");
+  ok &= contains(doc, "`GHOGX_HIDE_HIGHWAY=1`",
+                 "document records current in-game highway-hidden proof");
+  ok &= contains(doc, "not a final signoff",
+                 "document fences current twist proof from final signoff");
+  ok &= contains(doc, "must not be used as current proof",
+                 "document rejects stale controls as current proof");
+  ok &= contains(doc,
+                 "not a fabricated twist, neck, shoulder, guitar, or "
+                 "character-named\noffset",
+                 "document keeps current target on source publisher");
   ok &= contains(char_clip_h,
                  "zero_weight_hand_ik_does_not_explain_pose",
                  "native exposes Rockabill2 shoulder source-boundary helper");
