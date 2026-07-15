@@ -6130,14 +6130,25 @@ int main() {
                  "clear.name=active_camera_runtime_shot_;"
                  "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
                  "camera EndAnim clears only camera-owned visibility state");
+  ok &= contains(gameplay_c,
+                 "postprocess_lifecycle=preserved_until_start_shot_reset",
+                 "camera EndAnim diagnostics preserve RndPostProc current state until the next start_shot select/reset");
+  ok &= absent(
+      end_camera_shot_runtime_c,
+      "active_camera_postprocess_ref_.clear();",
+      "camera EndAnim must not clear the current postprocess; GH2 start_shot reset/select owns that lifecycle");
   ok &= appears_before(
       end_camera_shot_runtime_c,
       "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
-      "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1\\n\"",
+      "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
+      "postprocess_lifecycle=preserved_until_start_shot_reset"
+      "active_postprocess=%s\\n\"",
       "camera EndAnim mirrors ihatecompvir UnHide before stop_shot");
   ok &= appears_before(
       end_camera_shot_runtime_c,
-      "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1\\n\"",
+      "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
+      "postprocess_lifecycle=preserved_until_start_shot_reset"
+      "active_postprocess=%s\\n\"",
       "end_camera_shot_anims();",
       "camera EndAnim mirrors ihatecompvir stop_shot before linked mAnims EndAnim");
   ok &= contains(gameplay_h_c,

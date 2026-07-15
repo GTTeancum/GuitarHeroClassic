@@ -561,6 +561,17 @@ Open work:
   and records the source select/reset action when `CamShot::StartAnim` runs.
   This is runtime state and provenance only; native still marks the render
   effect deferred until the audited postprocess renderer behavior is mirrored.
+- 2026-07-15 CamShot postprocess lifetime fix: ihatecompvir
+  `RndPostProc::Select()` persists `sCurrent`, `RndPostProc::Reset()` clears
+  it, and `CamShot::EndAnim()` only runs `UnHide()`, `stop_shot`, and linked
+  `mAnims` `EndAnim()` calls. Native therefore no longer clears
+  `active_camera_postprocess_ref_` from `end_camera_shot_runtime`; the next
+  GH2 `start_shot` `postprocess select` / `rnd reset_postproc` branch owns the
+  state change. Validation proof
+  `proofs/camera_postprocess_lifetime_20260715_002332.log` forces a source
+  `cycle_shot`, records EndAnim preserving the postprocess state, then records
+  the next `start_shot postprocess` branch; the matching rendered frame is
+  `proofs/camera_postprocess_lifetime_20260715_002332.png`.
 - 2026-07-14 CameraManager loader pool scope:
   the native regular CamShot loader now feeds that randomizer every decoded
   `PlatformOk()` CamShot with frames, rather than pruning non-normal categories
