@@ -13,6 +13,11 @@
   MSVC-compatible, and `build_env.bat` strips inherited LLVM/MSYS/MinGW PATH
   entries before setting `CC=cl` and `CXX=cl`. This remains a build-harness
   fix only; no engine runtime dependency was added.
+- 2026-07-15 proof-import guard: the venue/band contract proof now has a CTest
+  import-table check through `tools/check_windows_imports.ps1`. It fails on
+  non-platform C/C++ runtime imports such as `libc++.dll`, `libstdc++`, dynamic
+  MSVC CRT DLLs, or UCRT DLLs before the executable is treated as valid proof.
+  This is a proof-harness check only; no runtime dependency was added.
 - Rexglue traces show the venue director owns camera, crowd, lighting, and band
   updates together. Camera shot selection is a two-tier system:
   `pick_new_shot` / `start_shot` at roughly bar-scale cadence, plus

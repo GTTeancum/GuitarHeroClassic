@@ -55,7 +55,14 @@ The old `gh2test` build target (under `src/`, `generated/`, `gh2test_*.toml`) is
 
 ## Build (Win64 host harness)
 
-Requires VS2022, Clang, Ninja, and a built+installed `rexglue-sdk`. See [rexglue build state memory](../memory/rexglue_build_state.md) for the exact recipe and toolchain locations on this box.
+Native engine proof builds require VS2022/MSVC and Ninja. Always run them
+through `build_env.bat`; it pins `cl`/`link`, strips inherited LLVM/MSYS/MinGW
+paths, and keeps the PC proof executables from importing non-platform runtime
+DLLs such as `libc++.dll`.
+
+The legacy rexglue reference target still needs its own installed `rexglue-sdk`.
+That path is reference material only and must not become an engine runtime
+dependency.
 
 ```powershell
 # Configure
