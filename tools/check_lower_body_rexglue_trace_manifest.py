@@ -40,7 +40,7 @@ def check_manifest(
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "5c3eeb3", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "0fa9a89", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -70,7 +70,7 @@ def check_manifest(
         require(hook in hooks, f"missing RexGlue hook {hook}")
 
     captures = manifest.get("captures", [])
-    require(len(captures) == 4, "expected four current RexGlue trace summaries")
+    require(len(captures) == 5, "expected five current RexGlue trace summaries")
     runtime_total = 0
     accepted_count = 0
     strong_in_song_total = 0
@@ -79,12 +79,16 @@ def check_manifest(
     saw_truncated = False
     saw_scripted_nav_single_poll = False
     saw_poll_heartbeat = False
+    saw_guitar_edge = False
     for capture in captures:
         require(capture.get("runtime_memory_events") == 192, "unexpected runtime memory count")
         require(capture.get("clip_apply_events") == 0, "current RexGlue capture must not claim clip apply rows")
         require(capture.get("lower_body_rows") == 0, "current RexGlue capture must not claim lower-body rows")
         require(capture.get("strong_in_song_events") == 0, "current RexGlue capture must not claim an in-song route")
-        require(capture.get("input_guitar_edges") == 0, "current RexGlue capture must not claim guitar input edges")
+        require(
+            int(capture.get("input_guitar_edges", 0)) in (0, 1),
+            "current RexGlue capture has an unexpected GuitarPort edge count",
+        )
         require(capture.get("route_status") == "route_not_reached", "current RexGlue capture route must stay rejected")
         require(capture.get("accepted_row_oracle") is False, "current RexGlue capture must be non-authoritative")
         runtime_total += int(capture.get("runtime_memory_events", 0))
@@ -96,6 +100,12 @@ def check_manifest(
             saw_scripted_nav_single_poll = True
         if capture.get("scripted_nav_polls") == 4:
             saw_poll_heartbeat = True
+        if capture.get("input_guitar_edges") == 1:
+            saw_guitar_edge = True
+            require(
+                "engine_word=0x00000040" in capture.get("first_guitar_edge", ""),
+                "RexGlue GuitarPort edge must record the remapped engine word",
+            )
         failures = capture.get("failures", [])
         if "trace ended with a truncated json line" in failures:
             saw_truncated = True
@@ -147,8 +157,9 @@ def check_manifest(
     require(saw_truncated, "expected the scripted RexGlue attempt to record the truncated-tail failure")
     require(saw_scripted_nav_single_poll, "expected scripted RexGlue attempt to record exactly one scripted-nav poll")
     require(saw_poll_heartbeat, "expected current RexGlue attempts to record scripted-nav poll heartbeats")
+    require(saw_guitar_edge, "expected current RexGlue attempts to prove a GuitarPort input edge")
     require(strong_in_song_total == 0, "current RexGlue captures must have zero strong in-song route markers")
-    require(input_guitar_edge_total == 0, "current RexGlue captures must have zero GuitarPort input edges")
+    require(input_guitar_edge_total == 1, "current RexGlue captures must have exactly one proven GuitarPort input edge")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
     return (
         runtime_total,

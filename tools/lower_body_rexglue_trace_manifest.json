@@ -1,7 +1,7 @@
 {
   "trace_id": "rexglue_lower_body_trace_scaffold_20260715",
   "trace_worktree": "../GuitarHeroOGX-trace360",
-  "trace_commit": "5c3eeb3",
+  "trace_commit": "0fa9a89",
   "scaffold": {
     "script": "smoke_trace.ps1",
     "runtime_flag": "--trace-lower-body-memory",
@@ -87,9 +87,28 @@
       "failures": [
         "trace ended with a truncated json line"
       ]
+    },
+    {
+      "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_1784126922_summary.json",
+      "route": "post_message_plus_scripted_xinput_first_poll_edge",
+      "events": 8707,
+      "runtime_memory_events": 192,
+      "clip_apply_events": 0,
+      "lower_body_rows": 0,
+      "strong_in_song_events": 0,
+      "scripted_nav_events": 1,
+      "scripted_nav_polls": 4,
+      "input_guitar_edges": 1,
+      "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040",
+      "route_status": "route_not_reached",
+      "accepted_row_oracle": false,
+      "result": "failed_truncated_input_edge_reached_pause_route_not_reached_runtime_only",
+      "failures": [
+        "trace ended with a truncated json line"
+      ]
     }
   ],
   "accepted_live_row_authority": "pcsx2_rock_lower_body_mesh_rows_20260715",
   "native_path": "source_output_lower_body_bridge",
-  "next_trace_target": "Repair the RexGlue route so hidden navigation reaches GuitarPort input edges and strong in-song route markers, then capture CharClipSamples apply rows with named lower-body channels before using RexGlue as a lower-body row oracle."
+  "next_trace_target": "Repair the RexGlue route past the pause/controller menu after the proven GuitarPort input edge, then capture strong in-song route markers and CharClipSamples apply rows with named lower-body channels before using RexGlue as a lower-body row oracle."
 }

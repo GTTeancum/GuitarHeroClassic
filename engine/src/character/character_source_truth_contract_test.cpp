@@ -34604,8 +34604,12 @@ int run_contract() {
                  "`scripted_nav_polls=4`",
                  "document records RexGlue scripted nav poll heartbeat");
   ok &= contains(doc,
-                 "`guitar_edges=0`",
-                 "document records RexGlue missing GuitarPort input edges");
+                 "`guitar_edges=1`",
+                 "document records RexGlue proven GuitarPort input edge");
+  ok &= contains(doc,
+                 "`wButtons=0x1000 names=A strum_up=0 strum_dn=0 "
+                 "engine_word=0x00000040`",
+                 "document records RexGlue remapped GuitarPort input edge");
   ok &= contains(doc,
                  "`pause_controller_msg.lbl`",
                  "document records RexGlue pause/controller UI route clue");
@@ -34674,7 +34678,7 @@ int run_contract() {
                  "verifies the raw changed\n  offsets recorded for the seven moving rows",
                  "document records raw PCSX2 changed-offset requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"5c3eeb3\"",
+                 "\"trace_commit\":\"0fa9a89\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
@@ -34691,6 +34695,12 @@ int run_contract() {
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"input_guitar_edges\":0",
                  "RexGlue lower-body manifest records missing GuitarPort input edges");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"input_guitar_edges\":1",
+                 "RexGlue lower-body manifest records proven GuitarPort input edge");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"first_guitar_edge\":\"wButtons=0x1000names=Astrum_up=0strum_dn=0engine_word=0x00000040\"",
+                 "RexGlue lower-body manifest records remapped GuitarPort input edge");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"post_message_plus_scripted_xinput\"",
                  "RexGlue lower-body manifest records hidden PostMessage route attempt");
