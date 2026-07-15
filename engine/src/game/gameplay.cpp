@@ -20455,16 +20455,33 @@ std::optional<std::array<float, 3>> camera_target_centroid_for_key(
     return update.centroid;
 }
 
+std::optional<std::string> camera_resolved_focus_target_id_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    if (key.focus_target_entity.empty() && key.focus_target_subpart.empty() &&
+        key.focus_target_source_object.empty()) {
+        return std::nullopt;
+    }
+    return camera_resolved_target_id_for_ref(
+        key.focus_target_entity, key.focus_target_subpart,
+        key.focus_target_source_object, targets);
+}
+
+std::optional<CameraTarget> camera_focus_target_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    const auto resolved_id = camera_resolved_focus_target_id_for_key(key, targets);
+    if (!resolved_id) return std::nullopt;
+    const auto it = targets.find(*resolved_id);
+    if (it == targets.end()) return std::nullopt;
+    return CameraTarget{it->second.world};
+}
+
 std::optional<std::array<float, 3>> camera_source_dof_point_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (!key.focus_target_entity.empty() || !key.focus_target_subpart.empty()) {
-        if (const auto focus =
-                camera_target_for_ref(
-                    key.focus_target_entity, key.focus_target_subpart,
-                    key.focus_target_source_object, targets)) {
-            return mat4_position_game(focus->world);
-        }
+    if (const auto focus = camera_focus_target_for_key(key, targets)) {
+        return mat4_position_game(focus->world);
     }
     if (const auto centroid = camera_target_centroid_for_key(key, targets))
         return centroid;
@@ -21473,6 +21490,14 @@ void apply_camera_keys(
             a_resolved_parent_id ? *a_resolved_parent_id : std::string("none");
         const std::string b_resolved_parent =
             b_resolved_parent_id ? *b_resolved_parent_id : std::string("none");
+        const auto a_resolved_focus_id =
+            camera_resolved_focus_target_id_for_key(*a, targets);
+        const auto b_resolved_focus_id =
+            camera_resolved_focus_target_id_for_key(*b, targets);
+        const std::string a_resolved_focus =
+            a_resolved_focus_id ? *a_resolved_focus_id : std::string("none");
+        const std::string b_resolved_focus =
+            b_resolved_focus_id ? *b_resolved_focus_id : std::string("none");
         const auto a_target_eye = debug_ref_eye(*a, false);
         const auto a_parent_eye = debug_ref_eye(*a, true);
         const auto b_target_eye = debug_ref_eye(*b, false);
@@ -22667,7 +22692,8 @@ void apply_camera_keys(
             "b:(%.3f %.3f %.3f) "
             "a_parent=%s:%s b_parent=%s:%s resolved_parent=a:%s b:%s "
             "use_parent_rotation=a:%d b:%d "
-            "focal_target=a:%s:%s b:%s:%s "
+            "focal_target=a:%s:%s(source_object=%s) "
+            "b:%s:%s(source_object=%s) resolved_focus=a:%s b:%s "
             "parent_first_frame=a:%s%d b:%s%d "
             "filter=a:%s%.3f b:%s%.3f clamp=a:%s%.3f b:%s%.3f\n",
             frame, a->target_entity.c_str(), a->target_subpart.c_str(),
@@ -22688,7 +22714,14 @@ void apply_camera_keys(
             a_resolved_parent.c_str(), b_resolved_parent.c_str(),
             a->use_parent_rotation ? 1 : 0, b->use_parent_rotation ? 1 : 0,
             a->focus_target_entity.c_str(), a->focus_target_subpart.c_str(),
+            a->focus_target_source_object.empty()
+                ? "none"
+                : a->focus_target_source_object.c_str(),
             b->focus_target_entity.c_str(), b->focus_target_subpart.c_str(),
+            b->focus_target_source_object.empty()
+                ? "none"
+                : b->focus_target_source_object.c_str(),
+            a_resolved_focus.c_str(), b_resolved_focus.c_str(),
             a->has_parent_first_frame ? "" : "none/",
             a->parent_first_frame ? 1 : 0,
             b->has_parent_first_frame ? "" : "none/",

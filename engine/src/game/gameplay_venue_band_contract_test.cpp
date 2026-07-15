@@ -8240,6 +8240,14 @@ int main() {
                  "ref.source_object,targets)",
                  "CamShot target list resolution keeps source object ids ahead of inferred entities");
   ok &= contains(gameplay_c,
+                 "std::optional<std::string>"
+                 "camera_resolved_focus_target_id_for_key(",
+                 "CamShot focus target resolution has its own source-shaped helper");
+  ok &= contains(gameplay_c,
+                 "key.focus_target_entity,key.focus_target_subpart,"
+                 "key.focus_target_source_object,targets",
+                 "CamShot focus target resolution keeps source object ids ahead of inferred entities");
+  ok &= contains(gameplay_c,
                  "structCameraSourceTargetUpdate{boolhas_targets=false;"
                  "boolhas_parent=false;size_tresolved_count=0;",
                  "camera target update preserves source HasTargets count state");
@@ -10808,8 +10816,11 @@ int main() {
                  "\"[camera-solver]frame=%.2fvenue_source_parent_refs\"",
                  "camera debug logs expose venue source-parent diagnostic availability");
   ok &= contains(gameplay_c,
-                 "focal_target=a:%s:%sb:%s:%s",
-                 "camera solver diagnostics expose source focal_target refs");
+                 "focal_target=a:%s:%s(source_object=%s)",
+                 "camera solver diagnostics expose source focal_target ObjPtr refs");
+  ok &= contains(gameplay_c,
+                 "b:%s:%s(source_object=%s)resolved_focus=a:%sb:%s",
+                 "camera solver diagnostics expose resolved source focus ids");
   ok &= contains(gameplay_c,
                  "parent_first_frame=a:%s%db:%s%d",
                  "camera solver diagnostics expose source parent_first_frame");
@@ -10870,6 +10881,10 @@ int main() {
                  "std::optional<std::array<float,3>>"
                  "camera_source_dof_point_for_key(",
                  "CamShot DOF support resolves source focus/target points");
+  ok &= contains(gameplay_c,
+                 "if(constautofocus=camera_focus_target_for_key(key,targets)){"
+                 "returnmat4_position_game(focus->world);}",
+                 "CamShot DOF point resolution uses the source focus ObjPtr path before target fallback");
   ok &= contains(gameplay_c,
                  "structCameraSourceDofResult",
                  "CamShot DOF support records source A/B focus distances");

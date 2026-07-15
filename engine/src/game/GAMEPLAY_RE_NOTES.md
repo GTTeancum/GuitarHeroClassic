@@ -13,6 +13,14 @@
   `shot_over` handler can queue `next_shot`. This does not change submitted
   camera transforms or add dependencies; it makes suspicious angle captures
   prove whether shot lifetime or later result composition is responsible.
+- 2026-07-15 CamShot focus ObjPtr DOF proof:
+  newer ihatecompvir `CamShotFrame::Load` focus refs are direct object
+  pointers just like target and parent refs. Native now names the focus-target
+  resolver, keeps `focus_target_source_object` ahead of inferred subpart
+  fallback for DOF point lookup, and prints `resolved_focus` in camera solver
+  rows. This is source-provenance proof for `CamShotFrame::Interp` DOF
+  distance selection; it does not synthesize `BuildTransform` / `SetPos` math
+  or add runtime dependencies.
 - 2026-07-15 retained writer bridge source-frame scope:
   the accepted `balcony_lft04` writer bridge evidence is tied to the stock
   path-backed diagnostic frame `source_path_local_frame=255.000`, matching the
