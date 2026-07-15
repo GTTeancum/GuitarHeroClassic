@@ -9086,9 +9086,12 @@ int main() {
                  "id=camera_target_id(entity,{});"
                  "if(targets.find(id)!=targets.end())returnid;",
                  "CamShot same-target signatures mirror resolved subpart fallback");
-  ok &= contains(gameplay_c,
-                 "std::sort(refs.begin(),refs.end());",
-                 "CamShot same-target signatures compare the resolved target set, not authoring order");
+  ok &= absent(compact(function_body(
+                   gameplay,
+                   "std::vector<std::string> "
+                   "camera_resolved_target_signature_for_key")),
+               "std::sort(refs.begin(),refs.end());",
+               "CamShot same-target signatures preserve resolved target-list order");
   ok &= contains(gameplay_c,
                  "constboolsame_targets_like_camshot="
                  "camera_targets_match_like_camshot(*a,*b,targets);",

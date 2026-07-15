@@ -11447,9 +11447,10 @@ Rejected native probe:
   The public RB2 dump for `CamShotFrame::SameTargets` shows nested `i/j`
   locals over the target list. Native originally compared sorted authored
   target strings as a target multiset; after the resolved-target pass it now
-  compares sorted live target-table identities so unresolved authored refs do
-  not satisfy the source gate and aliases/subpart fallback can still match the
-  same resolved target object.
+  compares the resolved live target-table identities in source list order, so
+  unresolved authored refs do not satisfy the source gate, aliases/subpart
+  fallback can still match the same resolved target object, and differently
+  ordered target lists stay on the non-same-target branch.
 - `apply_camera_keys()` computes that gate once as
   `same_targets_like_camshot`, uses it for the source-shaped
   `source_screen_offset_translate_result` branch, and logs `same_targets=`
