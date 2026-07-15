@@ -33667,6 +33667,15 @@ int run_contract() {
                  "ARM_WORLD_RE=re.compile(",
                  "CharBone output-map verifier parses visible armw rows");
   ok &= contains(charbone_output_map_compare,
+                 "LEG_WORLD_RE=re.compile(",
+                 "CharBone output-map verifier parses visible legw rows");
+  ok &= contains(char_clip,
+                 "\"[legw]c=%st=%sb=%sw=%.4f,%.4f,%.4f\\n\"",
+                 "leg pose trace emits compact world-position rows");
+  ok &= contains(char_clip,
+                 "dump_leg_pose(character,\"clip\");",
+                 "leg pose trace captures post-clip lower-body state");
+  ok &= contains(charbone_output_map_compare,
                  "visible_minus_output_z_min",
                  "CharBone output-map verifier checks visible/output z gaps");
   ok &= contains(charbone_output_map_compare,
@@ -33931,6 +33940,21 @@ int run_contract() {
   ok &= contains(doc,
                  "`driven=1 live=0` rows",
                  "document records standard pose output rows remain compare-only");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_legw_20260715/`",
+                 "document records leg-only lower-body proof folder");
+  ok &= contains(doc,
+                 "`rockabill2_bind_side_legw.png` is the no-clip control and "
+                 "stands on the base",
+                 "document records bind control is not the lower-body failure");
+  ok &= contains(doc,
+                 "`rockabill2_stand_fast03_f070_side_legw.png` is the same "
+                 "character/camera with\n`stand_fast_03` frame 70",
+                 "document records posed leg-forward proof");
+  ok &= contains(doc,
+                 "localizes to sampled pose publishing / output-to-visible row "
+                 "mapping",
+                 "document localizes current lower-body issue");
   ok &= contains(doc,
                  "not as permission to invent a\nfoot offset or revive broad "
                  "output live writes",

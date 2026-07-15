@@ -28,6 +28,11 @@ ARM_WORLD_RE = re.compile(
     r"([-+0-9.eE]+),([-+0-9.eE]+),([-+0-9.eE]+)"
 )
 
+LEG_WORLD_RE = re.compile(
+    r"^\[legw\]\s+c=(\S+)\s+t=(\S+)\s+b=(\S+)\s+w="
+    r"([-+0-9.eE]+),([-+0-9.eE]+),([-+0-9.eE]+)"
+)
+
 
 def detect_text_encoding(path: Path) -> str:
     with path.open("rb") as in_file:
@@ -140,9 +145,11 @@ def parse_output_rows(
             )
             continue
         arm_match = ARM_WORLD_RE.match(record)
-        if arm_match is None:
+        leg_match = LEG_WORLD_RE.match(record)
+        world_match = arm_match if arm_match is not None else leg_match
+        if world_match is None:
             continue
-        character, tag, bone, x, y, z = arm_match.groups()
+        character, tag, bone, x, y, z = world_match.groups()
         visible_rows[(character, tag, bone)] = VisibleWorldRow(
             character=character,
             tag=tag,
@@ -293,7 +300,7 @@ def run_request(request: CompareRequest) -> int:
         visible = visible_rows.get((request.character, request.tag, bone))
         if visible is None:
             messages.append(
-                f"VISIBLE {bone}: missing [armw] c={request.character} t={request.tag}"
+                f"VISIBLE {bone}: missing [legw]/[armw] c={request.character} t={request.tag}"
             )
             continue
         if "outPoseW" not in row.vectors:

@@ -5598,7 +5598,7 @@ static int find_bone_index(const Character& character, const std::string& name) 
 static std::array<float, 16> mat4_mul(const std::array<float, 16>& a,
                                       const std::array<float, 16>& b);
 
-static void dump_leg_pose(const Character& character) {
+static void dump_leg_pose(const Character& character, const char* tag) {
   auto dump = [&](const char* name) {
     const int i = find_bone_index(character, name);
     if (i < 0 || static_cast<size_t>(i) >= character.bones.size()) return;
@@ -5606,6 +5606,10 @@ static void dump_leg_pose(const Character& character) {
     const auto& exact_name = character.bones[static_cast<size_t>(i)].name;
     const auto cur = character.bone_world_local_chain(exact_name);
     const auto bind = character.bone_world_bind_local_chain(exact_name);
+    std::fprintf(stderr,
+                 "[legw] c=%s t=%s b=%s w=%.4f,%.4f,%.4f\n",
+                 character.dir_name.c_str(), tag, name, cur[12], cur[13],
+                 cur[14]);
     std::fprintf(stderr,
                  "[legpose] %-18s exact=%-24s localPos=(%.3f %.3f %.3f) "
                  "world=(%.3f %.3f %.3f) bind=(%.3f %.3f %.3f) "
@@ -9898,7 +9902,7 @@ static void apply_clip_pose_sampled_direct(
     apply_pending_pose_weighted(mesh_poses[i], character.meshes[i].local, weight,
                                 relative);
   }
-  if (debug_leg_pose_enabled()) dump_leg_pose(character);
+  if (debug_leg_pose_enabled()) dump_leg_pose(character, "clip");
 }
 
 void apply_clip_pose_sampled(const std::vector<ClipChannel>& channels,

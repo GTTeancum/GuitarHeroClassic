@@ -6080,6 +6080,21 @@ script means native still has source call-flow evidence, glTFMilo hair/mesh
 converter evidence, and dump/range maps, not a complete source-backed
 transform publisher implementation.
 
+2026-07-15 leg-only lower-body proof:
+`engine/out/visual_proofs/lower_body_legw_20260715/` repeats the Rockabill2
+side/front check with no guitar, no character controllers, soft-green
+reference base, and leg-only compact rows from `GHOGX_DEBUG_LEG_POSE=1`.
+`rockabill2_bind_side_legw.png` is the no-clip control and stands on the base;
+`rockabill2_stand_fast03_f070_side_legw.png` is the same character/camera with
+`stand_fast_03` frame 70 and shows the legs pitched forward with the body
+floating. The paired logs contain `[legw]` rows, `source_publisher=fenced`,
+and decoded lower-body output rows still logged as `driven=1 live=0`.
+`tools/compare_charbone_output_map.py` passes on both posed front/side logs
+with 64 output rows, 8 lower-body rows checked, 9 visible leg rows, and
+`max_abs_z_gap=3.726`. This is current evidence that the visible lower-body
+problem localizes to sampled pose publishing / output-to-visible row mapping,
+not static mesh bind, hand overlays, controllers, hair, or props.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
