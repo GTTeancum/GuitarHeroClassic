@@ -34,13 +34,13 @@ def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
 
 def check_manifest(
     manifest_path: Path, cross_check_summaries: bool
-) -> tuple[int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int]:
     manifest = load_json(manifest_path)
     require(
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "0fa9a89", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "e909fd1", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -53,6 +53,10 @@ def check_manifest(
 
     scaffold = manifest.get("scaffold", {})
     require(scaffold.get("runtime_flag") == "--trace-lower-body-memory", "missing runtime flag")
+    require(
+        scaffold.get("neighborhood_event") == "anim.lower_body.neighborhood",
+        "missing lower-body neighborhood event",
+    )
     require(scaffold.get("scripted_nav_flag") == "--trace_scripted_nav", "missing nav flag")
     require(
         scaffold.get("route_reachability_checker")
@@ -64,14 +68,20 @@ def check_manifest(
         == "tools/check_rexglue_lower_body_trace.py --require-scripted-nav-polls --require-guitar-input-edge",
         "missing RexGlue input poll checker",
     )
+    require(
+        scaffold.get("neighborhood_checker")
+        == "tools/check_rexglue_lower_body_trace.py --require-neighborhood",
+        "missing RexGlue neighborhood checker",
+    )
     require(scaffold.get("no_focus_forced") is True, "RexGlue trace must not force focus")
     hooks = set(scaffold.get("hooks", []))
     for hook in ("sub_8215DF28", "sub_8215E6A0", "821D1190", "821D1710", "CharIK_Update"):
         require(hook in hooks, f"missing RexGlue hook {hook}")
 
     captures = manifest.get("captures", [])
-    require(len(captures) == 5, "expected five current RexGlue trace summaries")
+    require(len(captures) == 6, "expected six current RexGlue trace summaries")
     runtime_total = 0
+    neighborhood_total = 0
     accepted_count = 0
     strong_in_song_total = 0
     scripted_nav_poll_total = 0
@@ -82,6 +92,10 @@ def check_manifest(
     saw_guitar_edge = False
     for capture in captures:
         require(capture.get("runtime_memory_events") == 192, "unexpected runtime memory count")
+        require(
+            int(capture.get("pose_table_neighborhood_events", 0)) == 0,
+            "current RexGlue capture must not claim pose-table neighborhoods before clip apply rows",
+        )
         require(capture.get("clip_apply_events") == 0, "current RexGlue capture must not claim clip apply rows")
         require(capture.get("lower_body_rows") == 0, "current RexGlue capture must not claim lower-body rows")
         require(capture.get("strong_in_song_events") == 0, "current RexGlue capture must not claim an in-song route")
@@ -92,6 +106,7 @@ def check_manifest(
         require(capture.get("route_status") == "route_not_reached", "current RexGlue capture route must stay rejected")
         require(capture.get("accepted_row_oracle") is False, "current RexGlue capture must be non-authoritative")
         runtime_total += int(capture.get("runtime_memory_events", 0))
+        neighborhood_total += int(capture.get("pose_table_neighborhood_events", 0))
         strong_in_song_total += int(capture.get("strong_in_song_events", 0))
         scripted_nav_poll_total += int(capture.get("scripted_nav_polls", 0))
         input_guitar_edge_total += int(capture.get("input_guitar_edges", 0))
@@ -118,6 +133,11 @@ def check_manifest(
                 counts.get("anim.lower_body.runtime_memory")
                 == capture.get("runtime_memory_events"),
                 "summary runtime memory count mismatch",
+            )
+            require(
+                counts.get("anim.lower_body.neighborhood", 0)
+                == capture.get("pose_table_neighborhood_events", 0),
+                "summary lower-body neighborhood count mismatch",
             )
             require(
                 counts.get("anim.apply.weighted", 0)
@@ -159,10 +179,12 @@ def check_manifest(
     require(saw_poll_heartbeat, "expected current RexGlue attempts to record scripted-nav poll heartbeats")
     require(saw_guitar_edge, "expected current RexGlue attempts to prove a GuitarPort input edge")
     require(strong_in_song_total == 0, "current RexGlue captures must have zero strong in-song route markers")
-    require(input_guitar_edge_total == 1, "current RexGlue captures must have exactly one proven GuitarPort input edge")
+    require(neighborhood_total == 0, "current RexGlue captures must have zero accepted pose-table neighborhoods")
+    require(input_guitar_edge_total == 2, "current RexGlue captures must have exactly two proven GuitarPort input edges")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
     return (
         runtime_total,
+        neighborhood_total,
         accepted_count,
         strong_in_song_total,
         scripted_nav_poll_total,
@@ -192,6 +214,7 @@ def main() -> int:
     try:
         (
             runtime_total,
+            neighborhood_total,
             accepted_count,
             strong_in_song_total,
             scripted_nav_poll_total,
@@ -203,6 +226,7 @@ def main() -> int:
     print(
         "PASS lower_body_rexglue_trace_manifest "
         f"runtime_memory_events={runtime_total} "
+        f"pose_table_neighborhood_events={neighborhood_total} "
         f"strong_in_song_events={strong_in_song_total} "
         f"scripted_nav_polls={scripted_nav_poll_total} "
         f"guitar_edges={input_guitar_edge_total} "

@@ -1,14 +1,16 @@
 {
   "trace_id": "rexglue_lower_body_trace_scaffold_20260715",
   "trace_worktree": "../GuitarHeroOGX-trace360",
-  "trace_commit": "0fa9a89",
+  "trace_commit": "e909fd1",
   "scaffold": {
     "script": "smoke_trace.ps1",
     "runtime_flag": "--trace-lower-body-memory",
+    "neighborhood_event": "anim.lower_body.neighborhood",
     "scripted_nav_flag": "--trace_scripted_nav",
     "no_focus_forced": true,
     "purpose": "RexGlue route reachability, memory dumps, and call timing only until named clip rows are captured",
     "route_reachability_checker": "tools/check_rexglue_lower_body_trace.py --require-in-song-route",
+    "neighborhood_checker": "tools/check_rexglue_lower_body_trace.py --require-neighborhood",
     "input_poll_checker": "tools/check_rexglue_lower_body_trace.py --require-scripted-nav-polls --require-guitar-input-edge",
     "hooks": [
       "sub_8215DF28",
@@ -103,6 +105,26 @@
       "route_status": "route_not_reached",
       "accepted_row_oracle": false,
       "result": "failed_truncated_input_edge_reached_pause_route_not_reached_runtime_only",
+      "failures": [
+        "trace ended with a truncated json line"
+      ]
+    },
+    {
+      "summary": "../../GuitarHeroOGX-trace360/analysis/rexglue_lower_body_trace_1784128058_summary.json",
+      "route": "post_message_plus_scripted_xinput_neighborhood_scaffold",
+      "events": 8707,
+      "runtime_memory_events": 192,
+      "pose_table_neighborhood_events": 0,
+      "clip_apply_events": 0,
+      "lower_body_rows": 0,
+      "strong_in_song_events": 0,
+      "scripted_nav_events": 1,
+      "scripted_nav_polls": 4,
+      "input_guitar_edges": 1,
+      "first_guitar_edge": "wButtons=0x1000 names=A strum_up=0 strum_dn=0 engine_word=0x00000040",
+      "route_status": "route_not_reached",
+      "accepted_row_oracle": false,
+      "result": "failed_truncated_neighborhood_scaffold_no_apply_rows",
       "failures": [
         "trace ended with a truncated json line"
       ]
