@@ -312,6 +312,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     for marker in (
         "CONTACT_SHEET_TOKENS",
         "individual_proofs=true",
+        "linked_proof_pngs=true",
         "playable_leg_chain_sane=true",
         "support_distal_chain_sane=true",
         "MAX_PLAYABLE_LOWEST_TOE_Z = 1.0",

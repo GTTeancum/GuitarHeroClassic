@@ -130,6 +130,7 @@
       "label": "rockabill2_current_lower_body_live_stack_match",
       "expect": "match",
       "ingame_log": "../engine/out/visual_proofs/lower_body_ingame_current_20260715/ingame_rockabill2_t060_flr_near_rt01_leg_f8_current_autostart.log",
+      "ingame_png": "../engine/out/visual_proofs/lower_body_ingame_current_20260715/ingame_rockabill2_t060_flr_near_rt01_leg_f8_current.png",
       "viewer_log": "../engine/out/visual_proofs/lower_body_ingame_current_20260715/viewer_rockabill2_live_stack_leg_f8_current.log",
       "rows": [
         "armw"

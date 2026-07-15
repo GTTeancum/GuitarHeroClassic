@@ -34021,6 +34021,14 @@ int run_contract() {
       "lower-body stock coverage audit reports individual proofs");
   ok &= contains(
       lower_body_stock_coverage,
+      "require_linked_proof_png",
+      "lower-body stock coverage audit links PNG proofs to manifest cases");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "linked_proof_pngs=true",
+      "lower-body stock coverage audit reports linked proof PNGs");
+  ok &= contains(
+      lower_body_stock_coverage,
       "proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT}",
       "lower-body stock coverage audit reports proof resolution");
   ok &= contains(
@@ -34056,8 +34064,13 @@ int run_contract() {
                  "acceptingcoverage",
                  "document records stock proof required-fragment enforcement");
   ok &= contains(doc,
-                 "`stock_total=24`, and `individual_proofs=true`",
+                 "`stock_total=24`, `individual_proofs=true`, and\n"
+                 "`linked_proof_pngs=true`",
                  "document records stock individual proof marker");
+  ok &= contains(doc,
+                 "explicitly linked from\nthe manifest or to be the same-stem "
+                 "companion of its manifest log",
+                 "document records stock proof manifest linkage");
   ok &= contains(compact(doc),
                  "individualPNGvisualproofsratherthancontactsheets",
                  "document records stock proof contact-sheet rejection");
@@ -34950,8 +34963,8 @@ int run_contract() {
   ok &= contains(
       doc,
       "`tools/check_lower_body_stock_coverage.py` passes with "
-      "`playable_ingame=18`,\n`support_viewer=6`, `stock_total=24`, and "
-      "`individual_proofs=true`",
+      "`playable_ingame=18`,\n`support_viewer=6`, `stock_total=24`, "
+      "`individual_proofs=true`, and\n`linked_proof_pngs=true`",
       "document records lower-body stock coverage audit result");
   ok &= contains(compact(doc),
                  "requireleg-chainsanityacrossall18playablecases",

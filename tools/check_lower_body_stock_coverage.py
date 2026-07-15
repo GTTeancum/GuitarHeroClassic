@@ -188,14 +188,16 @@ def require_inspectable_png(path: Path) -> None:
         raise RuntimeError(f"{path}: visual proof resolution too small {width}x{height}")
 
 
-def require_png_in_folder(folder: Path, prefix: str) -> None:
-    if not folder.is_dir():
-        raise RuntimeError(f"{folder}: proof folder missing")
-    matches = [item for item in folder.glob("*.png") if item.name.startswith(prefix)]
-    if not matches:
-        raise RuntimeError(f"{folder}: no {prefix}*.png visual proof found")
-    for match in matches:
-        require_inspectable_png(match)
+def require_linked_proof_png(
+    manifest_path: Path, case: dict, field: str, log_path: Path
+) -> None:
+    proof_value = case.get(field)
+    proof_path = (
+        path_from_manifest(manifest_path, proof_value, field)
+        if proof_value is not None
+        else log_path.with_suffix(".png")
+    )
+    require_inspectable_png(proof_path)
 
 
 def require(condition: bool, message: str) -> None:
@@ -332,8 +334,8 @@ def check_playable(
         require_fragments(
             viewer_log, case.get("require_viewer_contains"), f"{label}: viewer log"
         )
-        require_png_in_folder(ingame_log.parent, "ingame_")
-        require_png_in_folder(viewer_log.parent, "viewer_")
+        require_linked_proof_png(arm_manifest_path, case, "ingame_png", ingame_log)
+        require_linked_proof_png(arm_manifest_path, case, "viewer_png", viewer_log)
         case_character = str(case.get("character", default_character))
         if character.startswith("punk"):
             require(case_character == "punk", f"{label}: expected runtime punk row label")
@@ -424,7 +426,7 @@ def main() -> int:
         f"playable_ingame={len(PLAYABLE_INGAME_LABELS)} "
         f"support_viewer={len(SUPPORT_VIEWER_LABELS)} "
         f"stock_total={len(PLAYABLE_INGAME_LABELS) + len(SUPPORT_VIEWER_LABELS)} "
-        "individual_proofs=true "
+        "individual_proofs=true linked_proof_pngs=true "
         f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT} "
         f"playable_max_lowest_toe_z={max_lowest_toe_z:.4f} "
         f"playable_min_pelvis_to_lowest_toe_z={min_pelvis_to_lowest_toe_z:.4f} "
