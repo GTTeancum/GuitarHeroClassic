@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera check-shot gate proof:
+  GH2 `world_objects_worldbase.dta::downbeat` decrements
+  `camera_bars_left`, skips `check_camera_shot` during star mode, and
+  `check_camera_shot` only refreshes duration / calls `pick_new_shot` when
+  `camera_bars_left <= 0`. Native normal gameplay camera diagnostics now log
+  that duration gate and whether the downbeat holds the current shot or reaches
+  `get_shot_duration+pick_new_shot`. The active beat `check_shot` row now also
+  names `world_objects_worldbase.dta::beat` and the source rejection route
+  `pick_new_shot_on_reject` while keeping `cam_check_shot` native-deferred.
+  This changes only proof/status output; it does not invent `cam_check_shot`
+  behavior, alter camera cadence, touch FreeCam, or add dependencies.
 - 2026-07-15 gameplay camera priority reporting:
   Normal gameplay camera diagnostics now lead with source shot state, pose
   boundaries, and hidden gameplay blockers, with FreeCam status left at the end

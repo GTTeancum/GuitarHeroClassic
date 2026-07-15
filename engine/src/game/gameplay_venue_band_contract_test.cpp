@@ -13014,6 +13014,19 @@ int main() {
                  "\"[world]cameradownbeat:source_msg=downbeat",
                  "camera diagnostics expose the source downbeat gate");
   ok &= contains(gameplay_c,
+                 "source_script=world_objects_worldbase.dta::downbeat",
+                 "camera downbeat diagnostics cite the recovered source script");
+  ok &= contains(gameplay_c,
+                 "duration_gate=camera_bars_left<=0duration_expired=%d"
+                 "source_action=%spipeline_scope=normal_gameplay_camera",
+                 "camera downbeat diagnostics expose the source duration gate before pick_new_shot");
+  ok &= contains(gameplay_c,
+                 "\"check_camera_shot:get_shot_duration+pick_new_shot\"",
+                 "camera downbeat diagnostics label the source duration-expired pick route");
+  ok &= contains(gameplay_c,
+                 "\"check_camera_shot:duration_hold\"",
+                 "camera downbeat diagnostics label the source hold-current route");
+  ok &= contains(gameplay_c,
                  "if(!source_game_over_camera_hold&&"
                  "(force_camera||(camera_check_shot_due&&"
                  "camera_bars_left_<=0))){",
@@ -13321,11 +13334,15 @@ int main() {
                "regular camera selector must not pre-reject the active shot before source shot_ok");
   ok &= contains(gameplay_c,
                  "boolcamera_source_check_shot(constGameplay::CameraKey&key,"
-                 "uint32_tbeat)",
+                 "uint32_tbeat,constchar*source_caller)",
                  "regular camera runtime exposes GH2 cam_check_shot hook");
   ok &= contains(gameplay_c,
-                 "\"[world]cameracheck_shot:source_msg=check_shotshot=%s"
-                 "beat=%ucam_check_shot=native_deferredresult=accept\\n\"",
+                 "\"[world]cameracheck_shot:source_msg=check_shot"
+                 "source_caller=%sshot=%sbeat=%u"
+                 "source_action=pick_new_shot_on_reject"
+                 "cam_check_shot=native_deferredresult=accept"
+                 "hidden_gameplay_blocker=cam_check_shot"
+                 "pipeline_scope=normal_gameplay_camera\\n\"",
                  "regular camera diagnostics expose deferred source check_shot hook");
   ok &= contains(gameplay_h_c, "uint32_tlast_camera_beat_=UINT32_MAX;",
                  "regular camera runtime tracks source beat cadence");
@@ -13353,7 +13370,8 @@ int main() {
                  "camera_beat=%uresult=state\\n\"",
                  "regular camera diagnostics expose world_objects_worldbase.dta beat latch updates");
   ok &= contains(gameplay_c,
-                 "if(!camera_source_check_shot(*active_key,source_beat)){",
+                 "if(!camera_source_check_shot(*active_key,source_beat,"
+                 "\"world_objects_worldbase.dta::beat\")){",
                  "regular camera runtime routes rejected check_shot results to a new pick");
   ok &= contains(gameplay_c,
                  "if(diagnostic_camera_shot_.empty()){"

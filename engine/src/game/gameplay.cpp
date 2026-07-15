@@ -16779,15 +16779,16 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     return accepted;
 }
 
-bool camera_source_check_shot(const Gameplay::CameraKey& key, uint32_t beat) {
+bool camera_source_check_shot(const Gameplay::CameraKey& key, uint32_t beat,
+                              const char* source_caller) {
     // GH2 camshot.dta routes check_shot to native cam_check_shot. Keep the
     // beat-time hook observable, but do not invent rejection rules while the
     // GH2-specific native body is still unrecovered.
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera check_shot: source_msg=check_shot shot=%s beat=%u cam_check_shot=native_deferred result=accept\n",
-            key.name.c_str(), beat);
+            "[world] camera check_shot: source_msg=check_shot source_caller=%s shot=%s beat=%u source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept hidden_gameplay_blocker=cam_check_shot pipeline_scope=normal_gameplay_camera\n",
+            source_caller ? source_caller : "", key.name.c_str(), beat);
     }
     return true;
 }
@@ -34780,12 +34781,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 camera_check_shot_due = !star_power_.active;
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    const bool duration_expired = camera_bars_left_ <= 0;
+                    const char* downbeat_source_action =
+                        !camera_check_shot_due
+                            ? "skip_star_mode"
+                            : duration_expired
+                            ? "check_camera_shot:get_shot_duration+pick_new_shot"
+                            : "check_camera_shot:duration_hold";
                     std::fprintf(
                         stderr,
-                        "[world] camera downbeat: source_msg=downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d\n",
+                        "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
                         bar, bars_elapsed, camera_bars_left_,
                         star_power_.active ? 1 : 0,
-                        camera_check_shot_due ? 1 : 0);
+                        camera_check_shot_due ? 1 : 0,
+                        duration_expired ? 1 : 0, downbeat_source_action);
                 }
             }
 
@@ -34794,7 +34803,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (const CameraKey* active_key =
                             find_camera_key_by_name(regular_camera_keys_,
                                                     active_regular_camera_)) {
-                        if (!camera_source_check_shot(*active_key, source_beat)) {
+                        if (!camera_source_check_shot(
+                                *active_key, source_beat,
+                                "world_objects_worldbase.dta::beat")) {
                             force_camera = true;
                             forced_camera_mode.reset();
                             forced_camera_bars.reset();
