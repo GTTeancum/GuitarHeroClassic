@@ -6351,7 +6351,10 @@ Lower-body evidence audit:
   source/output-row bridge and rejects stale named mesh wrappers,
   foot IK, camera angle, and character-name offsets as the lower-body path.
   `tools/check_lower_body_pcsx2_row_trace.py --use-manifest-source-json`
-  cross-checks the committed manifest against that raw PCSX2 JSON and reports
+  cross-checks the committed manifest against that raw PCSX2 JSON, requires
+  the direct before/after PCSX2 screenshots to exist, verifies that each sampled
+  source/controller and stable mesh-wrapper row is labeled with the expected
+  `bone_*.mesh` string at the sampled base address, and reports
   `stable_mesh_wrappers=9`, `moving_source_rows=7`, and
   `source_json_checked=true`.
   If a future visual proof contradicts the current result, the next RexGlue

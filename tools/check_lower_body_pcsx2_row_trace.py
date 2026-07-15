@@ -27,6 +27,34 @@ def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
     return (manifest.parent / path).resolve()
 
 
+def require_file(path: Path, label: str) -> None:
+    require(path.is_file(), f"missing {label}: {path}")
+    require(path.stat().st_size > 10_000, f"{label} is unexpectedly small: {path}")
+
+
+def require_raw_row_label(raw_entry: dict[str, Any], bone: str, row_name: str) -> None:
+    rows = raw_entry.get("initial_rows", [])
+    require(isinstance(rows, list) and rows, f"{row_name}: missing initial rows")
+    labeled = [row for row in rows if row.get("ascii") == bone]
+    require(labeled, f"{row_name}: raw row did not contain label {bone}")
+    label_addr = str(labeled[0].get("addr", "")).lower()
+    sample_addr = str(raw_entry.get("addr", "")).lower()
+    require(
+        label_addr.startswith(sample_addr),
+        f"{row_name}: label row is not at the sampled base address",
+    )
+
+
+def require_raw_change_detail(raw_entry: dict[str, Any], row_name: str) -> None:
+    changes = raw_entry.get("changed", [])
+    require(isinstance(changes, list) and changes, f"{row_name}: missing raw changed rows")
+    richest = max(int(change.get("unique_count", 0)) for change in changes)
+    require(richest >= 2, f"{row_name}: raw changed rows did not vary across samples")
+    for change in changes[:3]:
+        for key in ("addr", "first", "last", "unique_count"):
+            require(key in change, f"{row_name}: changed row missing {key}")
+
+
 def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, int, bool]:
     manifest = load_json(manifest_path)
     require(
@@ -38,6 +66,14 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
     require(runtime.get("focus_forced") is False, "trace must not force focus")
     require(runtime.get("sample_count") == 32, "unexpected manifest sample count")
     require(runtime.get("seconds") == 8.0, "unexpected manifest duration")
+    require_file(
+        resolve_manifest_path(manifest_path, manifest["before_sample_screenshot"]),
+        "before-sample PCSX2 screenshot",
+    )
+    require_file(
+        resolve_manifest_path(manifest_path, manifest["after_sample_screenshot"]),
+        "after-sample PCSX2 screenshot",
+    )
 
     stale = manifest.get("stale_trace_rejected", {})
     require("0x00db" in stale.get("reason", ""), "stale address rejection missing")
@@ -90,7 +126,11 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
         raw = load_json(source_json)
         raw_targets = {target["name"]: target for target in raw.get("targets", [])}
         require(raw.get("seconds") == runtime["seconds"], "raw duration mismatch")
+        require(raw.get("interval") == 0.25, "raw interval mismatch")
+        require_file(Path(raw["before_sample_screenshot"]), "raw before-sample screenshot")
+        require_file(Path(raw["screenshot"]), "raw after-sample screenshot")
         for pair in pairs:
+            bone = pair["bone"]
             for key in ("desc", "mesh"):
                 entry = pair[key]
                 raw_entry = raw_targets.get(entry["name"])
@@ -104,6 +144,11 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
                     raw_entry.get("sample_count") == runtime["sample_count"],
                     f"{entry['name']}: sample_count mismatch",
                 )
+                require_raw_row_label(raw_entry, bone, entry["name"])
+                if key == "mesh":
+                    require(raw_entry.get("changed") == [], f"{entry['name']}: mesh wrapper changed")
+                elif entry["name"] in required_moving:
+                    require_raw_change_detail(raw_entry, entry["name"])
         checked_raw = True
 
     return stable_mesh, moving_desc, checked_raw

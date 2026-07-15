@@ -34533,6 +34533,18 @@ int run_contract() {
   ok &= contains(lower_body_pcsx2_row_trace,
                  "source_json_checked=",
                  "PCSX2 lower-body checker can cross-check raw trace JSON");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "require_raw_row_label",
+                 "PCSX2 lower-body checker requires raw bone labels");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "rawbefore-samplescreenshot",
+                 "PCSX2 lower-body checker requires direct raw screenshots");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "meshwrapperchanged",
+                 "PCSX2 lower-body checker rejects moving mesh wrappers");
+  ok &= contains(doc,
+                 "row is labeled with the expected\n  `bone_*.mesh` string",
+                 "document records raw PCSX2 bone-label requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"trace_commit\":\"580e405\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
