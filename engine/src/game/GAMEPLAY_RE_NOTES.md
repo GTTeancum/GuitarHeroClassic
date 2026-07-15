@@ -11,6 +11,15 @@
   clears it on the source-shaped Enter reset, and exposes get/has/delete
   diagnostics. This does not implement unrecovered `FreeCamera::Poll` motion,
   editor control, or a new runtime dependency.
+- 2026-07-15 FreeCamera snapshot and handlers:
+  ihatecompvir `FreeCamera::UpdateFromCamera()` copies current camera FOV,
+  world transform, Euler rotation, clears the parent, and stores the DOF focal
+  plane; its handlers mutate position, rotation via `DEG2RAD`, parent DOF
+  axes, and frozen state. Native now snapshots the current submitted/orbit
+  camera FOV, pose vector, up vector, and DOF focus distance when `GetFreeCam`
+  creates the bridge, and exposes source-shaped `set_pos`, `set_rot`,
+  `set_parent_dof`, and `set_frozen` state updates. The exact `MakeEuler`
+  body and FreeCamera motion/polling remain audited boundaries.
 - 2026-07-15 CamShot `OnRadio` flags bridge:
   ihatecompvir `CamShot::OnRadio` reads masks from message args 2/3 and, only
   when `mFlags & i2` is non-zero, mutates flags as `(mFlags & ~i3) | i2`

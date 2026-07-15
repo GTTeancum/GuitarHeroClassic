@@ -13085,28 +13085,80 @@ int main() {
                  "constchar*source_handler);",
                  "native camera exposes CameraManager::DeleteFreeCam lifecycle state");
   ok &= contains(gameplay_h_c,
-                 "boolcamera_manager_free_cam_active_=false;"
-                 "intcamera_manager_free_cam_pad_=0;",
+                 "structCameraManagerFreeCamState{",
+                 "native camera carries source-shaped FreeCamera state");
+  ok &= contains(gameplay_h_c,
+                 "floatrotate_rate=0.001f;floatslew_rate=0.2f;",
+                 "FreeCamera state preserves source constructor rates");
+  ok &= contains(gameplay_h_c,
+                 "booluse_parent_rotate_x=true;"
+                 "booluse_parent_rotate_y=true;"
+                 "booluse_parent_rotate_z=true;",
+                 "FreeCamera state preserves default parent DOF axis gates");
+  ok &= contains(gameplay_h_c,
+                 "CameraManagerFreeCamStatecamera_manager_free_cam_;",
                  "regular camera manager carries source mFreeCam allocation state");
   ok &= contains(gameplay_c,
-                 "if(created){camera_manager_free_cam_active_=true;"
-                 "camera_manager_free_cam_pad_=padnum;}",
-                 "CameraManager::GetFreeCam creates once and preserves the first pad like source");
+                 "if(created){camera_manager_free_cam_={};"
+                 "camera_manager_free_cam_.active=true;"
+                 "camera_manager_update_free_cam_from_camera_like_source();"
+                 "camera_manager_free_cam_.pad=padnum;}",
+                 "CameraManager::GetFreeCam creates once, snapshots current camera, and preserves the first pad like source");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::camera_manager_update_free_cam_from_camera_like_source()",
+                 "native FreeCamera mirrors source UpdateFromCamera entrypoint");
+  ok &= contains(gameplay_c,
+                 "camera_manager_free_cam_.fov=cam.fov;"
+                 "camera_manager_free_cam_.focal_plane=cam.dof_focus_distance;",
+                 "FreeCamera snapshot captures source YFov and DOF focal plane state");
+  ok &= contains(gameplay_c,
+                 "rot_source=MakeEuler_not_synthesized",
+                 "FreeCamera snapshot keeps MakeEuler as an audited boundary");
   ok &= contains(gameplay_c,
                  "\"[world]cameraget_free_cam:source_expr=get_free_cam"
                  "source_manager=CameraManager::GetFreeCam",
                  "camera diagnostics expose source get_free_cam routing");
   ok &= contains(gameplay_c,
-                 "returncamera_manager_free_cam_active_;",
+                 "returncamera_manager_free_cam_.active;",
                  "CameraManager::HasFreeCam mirrors the source mFreeCam pointer check");
   ok &= contains(gameplay_c,
-                 "camera_manager_free_cam_active_=false;"
-                 "camera_manager_free_cam_pad_=0;",
+                 "camera_manager_free_cam_={};",
                  "CameraManager::DeleteFreeCam clears the native mFreeCam bridge");
   ok &= contains(gameplay_c,
                  "\"[world]cameradelete_free_cam:source_msg=delete_free_cam"
                  "source_manager=CameraManager::DeleteFreeCam",
                  "camera diagnostics expose source delete_free_cam routing");
+  ok &= contains(gameplay_h_c,
+                 "voidfree_camera_set_pos_like_source("
+                 "floatx,floaty,floatz,constchar*source_handler);",
+                 "native camera exposes FreeCamera::set_pos state");
+  ok &= contains(gameplay_h_c,
+                 "voidfree_camera_set_rot_like_source("
+                 "floatx_degrees,floaty_degrees,floatz_degrees,"
+                 "constchar*source_handler);",
+                 "native camera exposes FreeCamera::set_rot state");
+  ok &= contains(gameplay_h_c,
+                 "voidfree_camera_set_parent_dof_like_source("
+                 "booluse_x,booluse_y,booluse_z,constchar*source_handler);",
+                 "native camera exposes FreeCamera::set_parent_dof state");
+  ok &= contains(gameplay_h_c,
+                 "voidfree_camera_set_frozen_like_source("
+                 "boolfrozen,constchar*source_handler);",
+                 "native camera exposes FreeCamera::set_frozen state");
+  ok &= contains(gameplay_c,
+                 "camera_manager_free_cam_.position={x,y,z};",
+                 "FreeCamera::set_pos mirrors source position mutation");
+  ok &= contains(gameplay_c,
+                 "constexprfloatkDegToRad=3.14159265358979323846f/180.0f;",
+                 "FreeCamera::set_rot mirrors source DEG2RAD conversion");
+  ok &= contains(gameplay_c,
+                 "camera_manager_free_cam_.use_parent_rotate_x=use_x;"
+                 "camera_manager_free_cam_.use_parent_rotate_y=use_y;"
+                 "camera_manager_free_cam_.use_parent_rotate_z=use_z;",
+                 "FreeCamera::SetParentDof mirrors source axis gate mutation");
+  ok &= contains(gameplay_c,
+                 "camera_manager_free_cam_.frozen=frozen;",
+                 "FreeCamera::set_frozen mirrors source frozen flag mutation");
   ok &= contains(gameplay_c,
                  "cameraEnterclear_shake:source_manager="
                  "CameraManager::Enter",

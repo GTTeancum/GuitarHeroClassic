@@ -113,6 +113,24 @@ struct CameraResultBuilderState {
   }
 };
 
+struct CameraManagerFreeCamState {
+  bool active = false;
+  int pad = 0;
+  float rotate_rate = 0.001f;
+  float slew_rate = 0.2f;
+  float fov = 0.0f;
+  float focal_plane = 0.0f;
+  std::array<float, 3> position = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> forward = {0.0f, 1.0f, 0.0f};
+  std::array<float, 3> up = {0.0f, 0.0f, 1.0f};
+  std::array<float, 3> rot = {0.0f, 0.0f, 0.0f};
+  bool frozen = false;
+  bool use_parent_rotate_x = true;
+  bool use_parent_rotate_y = true;
+  bool use_parent_rotate_z = true;
+  bool snapshot_valid = false;
+};
+
 class Gameplay {
  public:
   struct QuickplayRig {
@@ -809,6 +827,17 @@ class Gameplay {
                                                const char* source_handler);
   bool camera_manager_has_free_cam_like_source() const;
   bool camera_manager_delete_free_cam_like_source(const char* source_handler);
+  void camera_manager_update_free_cam_from_camera_like_source();
+  void free_camera_set_pos_like_source(float x, float y, float z,
+                                       const char* source_handler);
+  void free_camera_set_rot_like_source(float x_degrees, float y_degrees,
+                                       float z_degrees,
+                                       const char* source_handler);
+  void free_camera_set_parent_dof_like_source(bool use_x, bool use_y,
+                                              bool use_z,
+                                              const char* source_handler);
+  void free_camera_set_frozen_like_source(bool frozen,
+                                          const char* source_handler);
   std::string camera_source_guitarist0_nearest_walkspot() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);
@@ -1027,8 +1056,7 @@ class Gameplay {
   int camera_faceoff_active_players_ = 0;
   bool diagnostic_camera_active_players_change_applied_ = false;
   size_t camera_shot_counter_ = 0;
-  bool camera_manager_free_cam_active_ = false;
-  int camera_manager_free_cam_pad_ = 0;
+  CameraManagerFreeCamState camera_manager_free_cam_;
   CameraResultBuilderState camera_result_builder_state_;
   int active_force_char_lod_ = -1;
   bool source_game_lost_camera_dispatched_ = false;

@@ -24651,35 +24651,84 @@ bool Gameplay::apply_camshot_radio_message_like_source(
     return false;
 }
 
+void Gameplay::camera_manager_update_free_cam_from_camera_like_source() {
+    camera_manager_free_cam_.snapshot_valid = false;
+    if (!world_) return;
+
+    const auto& cam = world_->camera();
+    camera_manager_free_cam_.fov = cam.fov;
+    camera_manager_free_cam_.focal_plane = cam.dof_focus_distance;
+    if (cam.result_frame.valid) {
+        for (int i = 0; i < 3; ++i) {
+            camera_manager_free_cam_.position[i] = cam.result_frame.position[i];
+            camera_manager_free_cam_.forward[i] = cam.result_frame.forward[i];
+            camera_manager_free_cam_.up[i] = cam.result_frame.up[i];
+        }
+    } else {
+        float eye[3] = {};
+        cam.eye(eye);
+        for (int i = 0; i < 3; ++i) {
+            camera_manager_free_cam_.position[i] = eye[i];
+            camera_manager_free_cam_.forward[i] = cam.target[i] - eye[i];
+        }
+        const float len = std::sqrt(
+            camera_manager_free_cam_.forward[0] *
+                camera_manager_free_cam_.forward[0] +
+            camera_manager_free_cam_.forward[1] *
+                camera_manager_free_cam_.forward[1] +
+            camera_manager_free_cam_.forward[2] *
+                camera_manager_free_cam_.forward[2]);
+        if (len > 0.0001f && std::isfinite(len)) {
+            for (float& v : camera_manager_free_cam_.forward) v /= len;
+        } else {
+            camera_manager_free_cam_.forward = {0.0f, 1.0f, 0.0f};
+        }
+        camera_manager_free_cam_.up = {0.0f, 0.0f, 1.0f};
+    }
+    camera_manager_free_cam_.snapshot_valid = true;
+}
+
 bool Gameplay::camera_manager_get_free_cam_like_source(
     int padnum, const char* source_handler) {
-    const bool created = !camera_manager_free_cam_active_;
+    const bool created = !camera_manager_free_cam_.active;
     if (created) {
-        camera_manager_free_cam_active_ = true;
-        camera_manager_free_cam_pad_ = padnum;
+        camera_manager_free_cam_ = {};
+        camera_manager_free_cam_.active = true;
+        camera_manager_update_free_cam_from_camera_like_source();
+        camera_manager_free_cam_.pad = padnum;
     }
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera get_free_cam: source_expr=get_free_cam source_manager=CameraManager::GetFreeCam caller=%s pad=%d created=%d active=%d stored_pad=%d rotate_rate=0.001 slew_rate=0.200 source_return=FreeCamera\n",
+            "[world] camera get_free_cam: source_expr=get_free_cam source_manager=CameraManager::GetFreeCam caller=%s pad=%d created=%d active=%d stored_pad=%d rotate_rate=%.3f slew_rate=%.3f source_call=FreeCamera::UpdateFromCamera snapshot=%d fov=%.6f focal_plane=%.3f pos=(%.3f %.3f %.3f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) rot_source=MakeEuler_not_synthesized source_return=FreeCamera\n",
             source_handler && source_handler[0] ? source_handler
                                                 : "CameraManager::GetFreeCam",
             padnum, created ? 1 : 0,
-            camera_manager_free_cam_active_ ? 1 : 0,
-            camera_manager_free_cam_pad_);
+            camera_manager_free_cam_.active ? 1 : 0,
+            camera_manager_free_cam_.pad, camera_manager_free_cam_.rotate_rate,
+            camera_manager_free_cam_.slew_rate,
+            camera_manager_free_cam_.snapshot_valid ? 1 : 0,
+            camera_manager_free_cam_.fov, camera_manager_free_cam_.focal_plane,
+            camera_manager_free_cam_.position[0],
+            camera_manager_free_cam_.position[1],
+            camera_manager_free_cam_.position[2],
+            camera_manager_free_cam_.forward[0],
+            camera_manager_free_cam_.forward[1],
+            camera_manager_free_cam_.forward[2],
+            camera_manager_free_cam_.up[0], camera_manager_free_cam_.up[1],
+            camera_manager_free_cam_.up[2]);
     }
-    return camera_manager_free_cam_active_;
+    return camera_manager_free_cam_.active;
 }
 
 bool Gameplay::camera_manager_has_free_cam_like_source() const {
-    return camera_manager_free_cam_active_;
+    return camera_manager_free_cam_.active;
 }
 
 bool Gameplay::camera_manager_delete_free_cam_like_source(
     const char* source_handler) {
-    const bool had_free_cam = camera_manager_free_cam_active_;
-    camera_manager_free_cam_active_ = false;
-    camera_manager_free_cam_pad_ = 0;
+    const bool had_free_cam = camera_manager_free_cam_.active;
+    camera_manager_free_cam_ = {};
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -24689,6 +24738,72 @@ bool Gameplay::camera_manager_delete_free_cam_like_source(
             had_free_cam ? 1 : 0);
     }
     return had_free_cam;
+}
+
+void Gameplay::free_camera_set_pos_like_source(float x, float y, float z,
+                                               const char* source_handler) {
+    if (!camera_manager_free_cam_.active) return;
+    camera_manager_free_cam_.position = {x, y, z};
+    camera_manager_free_cam_.snapshot_valid = true;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera free_cam set_pos: source_handler=FreeCamera::set_pos caller=%s pos=(%.3f %.3f %.3f)\n",
+            source_handler && source_handler[0] ? source_handler
+                                                : "FreeCamera::set_pos",
+            x, y, z);
+    }
+}
+
+void Gameplay::free_camera_set_rot_like_source(float x_degrees,
+                                               float y_degrees,
+                                               float z_degrees,
+                                               const char* source_handler) {
+    if (!camera_manager_free_cam_.active) return;
+    constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+    camera_manager_free_cam_.rot = {x_degrees * kDegToRad,
+                                    y_degrees * kDegToRad,
+                                    z_degrees * kDegToRad};
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera free_cam set_rot: source_handler=FreeCamera::set_rot caller=%s degrees=(%.3f %.3f %.3f) radians=(%.6f %.6f %.6f)\n",
+            source_handler && source_handler[0] ? source_handler
+                                                : "FreeCamera::set_rot",
+            x_degrees, y_degrees, z_degrees, camera_manager_free_cam_.rot[0],
+            camera_manager_free_cam_.rot[1], camera_manager_free_cam_.rot[2]);
+    }
+}
+
+void Gameplay::free_camera_set_parent_dof_like_source(
+    bool use_x, bool use_y, bool use_z, const char* source_handler) {
+    if (!camera_manager_free_cam_.active) return;
+    camera_manager_free_cam_.use_parent_rotate_x = use_x;
+    camera_manager_free_cam_.use_parent_rotate_y = use_y;
+    camera_manager_free_cam_.use_parent_rotate_z = use_z;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera free_cam set_parent_dof: source_handler=FreeCamera::SetParentDof caller=%s use=(%d %d %d)\n",
+            source_handler && source_handler[0]
+                ? source_handler
+                : "FreeCamera::set_parent_dof",
+            use_x ? 1 : 0, use_y ? 1 : 0, use_z ? 1 : 0);
+    }
+}
+
+void Gameplay::free_camera_set_frozen_like_source(bool frozen,
+                                                  const char* source_handler) {
+    if (!camera_manager_free_cam_.active) return;
+    camera_manager_free_cam_.frozen = frozen;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera free_cam set_frozen: source_handler=FreeCamera::set_frozen caller=%s frozen=%d\n",
+            source_handler && source_handler[0] ? source_handler
+                                                : "FreeCamera::set_frozen",
+            frozen ? 1 : 0);
+    }
 }
 
 void Gameplay::handle_camera_random_seed_like_source(int seed) {
