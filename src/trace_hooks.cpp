@@ -18,6 +18,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <sstream>
@@ -78,6 +79,24 @@ bool trace_force_guitar_capabilities_enabled() {
     static const bool enabled =
         trace_cmdline_has_flag("--trace_force_guitar_capabilities");
     return enabled;
+}
+
+bool trace_force_signed_in_enabled() {
+    static const bool enabled = trace_cmdline_has_flag("--trace_force_signed_in");
+    return enabled;
+}
+
+int trace_mnk_user_index() {
+#if REX_PLATFORM_WIN32
+    const char* cmd = GetCommandLineA();
+    static constexpr const char* kFlag = "--mnk_user_index=";
+    const char* p = cmd ? std::strstr(cmd, kFlag) : nullptr;
+    if (!p) return 0;
+    const long value = std::strtol(p + std::strlen(kFlag), nullptr, 10);
+    return value >= 0 && value <= 3 ? static_cast<int>(value) : 0;
+#else
+    return 0;
+#endif
 }
 
 uint16_t scripted_nav_buttons_ms(uint64_t elapsed_ms) {
@@ -1579,6 +1598,39 @@ REX_HOOK_RAW(hmx_CharIK_Update) {
 // pass-through hooks capture the input classification route so the next step
 // can be source-backed instead of guessed.
 
+extern "C" void __imp__sub_82271228(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_Input_FrameTick) {
+    const uint32_t self = ctx.r3.u32;
+    __imp__sub_82271228(ctx, base);
+    if (!trace_input_gate_enabled()) return;
+
+    static std::atomic<uint32_t> s_count{0};
+    log_input_gate_event("input.frame_tick", s_count,
+                         "self=" + fmt_ptr(self));
+}
+
+extern "C" void __imp__sub_823B56B0(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_XamUserGetSigninState) {
+    const uint32_t user = ctx.r3.u32;
+    __imp__sub_823B56B0(ctx, base);
+    const uint32_t original = ctx.r3.u32;
+    bool forced = false;
+    if (trace_force_signed_in_enabled() && user <= 3) {
+        // Generated GH2 source has a caller that treats state == 2 as the
+        // accepted profile/sign-in state. This is a trace-harness bridge only.
+        ctx.r3.u64 = 2;
+        forced = true;
+    }
+    if (!trace_input_gate_enabled()) return;
+
+    static std::atomic<uint32_t> s_count{0};
+    char detail[128];
+    std::snprintf(detail, sizeof detail,
+                  "user=%u original=%u result=%u forced=%u", user, original,
+                  ctx.r3.u32, forced ? 1u : 0u);
+    log_input_gate_event("input.signin_state", s_count, detail);
+}
+
 extern "C" void __imp__sub_82272F98(PPCContext& ctx, uint8_t* base);
 REX_HOOK_RAW(hmx_Joypad_ScanControllers) {
     const uint32_t self = ctx.r3.u32;
@@ -1692,7 +1744,7 @@ REX_HOOK_RAW(hmx_XamInputGetCapabilities) {
     const uint32_t caps = ctx.r5.u32;
     __imp__sub_823B5B60(ctx, base);
     bool forced = false;
-    if (trace_force_guitar_capabilities_enabled() && caps && user == 0) {
+    if (trace_force_guitar_capabilities_enabled() && caps && user <= 3) {
         // Generated GH2 source checks caps[1] == 7 in GuitarPort_Poll.
         // This is a trace-harness bridge only, used to reach live in-song
         // lower-body rows under RexGlue without changing native behavior.
@@ -1720,7 +1772,10 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
     const uint32_t state = ctx.r4.u32;
     __imp__sub_823B5B68(ctx, base);
     if (!trace_scripted_nav_enabled() || !state) return;
-    if (trace_force_guitar_capabilities_enabled() && user != 0) return;
+    const int scripted_user = trace_force_guitar_capabilities_enabled()
+                                  ? trace_mnk_user_index()
+                                  : 0;
+    if (static_cast<int>(user) != scripted_user) return;
 
 #if REX_PLATFORM_WIN32
     static const ULONGLONG s_start = GetTickCount64();
@@ -1748,9 +1803,9 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
         char detail[192];
         std::snprintf(detail, sizeof detail,
                       "poll=%u elapsed_ms=%llu user=%u state=0x%08X "
-                      "buttons=0x%04X strum_dn=%u packet=%u %s",
+                      "scripted_user=%d buttons=0x%04X strum_dn=%u packet=%u %s",
                       poll, static_cast<unsigned long long>(elapsed_ms), user,
-                      state, buttons, scripted_strum_dn, packet,
+                      state, scripted_user, buttons, scripted_strum_dn, packet,
                       describe_xinput_state(base, state).c_str());
         trace360::LogEvent("input.scripted_nav.poll", detail);
     }
@@ -1759,9 +1814,10 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
     if (s_last.exchange(buttons, std::memory_order_relaxed) != buttons) {
         char detail[160];
         std::snprintf(detail, sizeof detail,
-                      "elapsed_ms=%llu user=%u state=0x%08X buttons=0x%04X",
-                      static_cast<unsigned long long>(elapsed_ms), user, state,
-                      buttons);
+                      "elapsed_ms=%llu user=%u scripted_user=%d "
+                      "state=0x%08X buttons=0x%04X",
+                      static_cast<unsigned long long>(elapsed_ms), user,
+                      scripted_user, state, buttons);
         trace360::LogEvent("input.scripted_nav", detail);
         REXLOG_INFO("[trace_scripted_nav] {}", detail);
     }

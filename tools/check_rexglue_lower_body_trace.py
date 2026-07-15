@@ -49,6 +49,8 @@ KINDS = (
     "input.guitar_input.poll",
     "input.extract_state",
     "input.joypad.scan",
+    "input.signin_state",
+    "input.frame_tick",
 )
 
 POSE_APPLY_ROUTE_MARKERS = (
@@ -200,6 +202,8 @@ def main() -> int:
         "input_guitar_input_polls": counts["input.guitar_input.poll"],
         "input_extract_state": counts["input.extract_state"],
         "input_joypad_scans": counts["input.joypad.scan"],
+        "input_signin_state": counts["input.signin_state"],
+        "input_frame_ticks": counts["input.frame_tick"],
         "lower_body_channels": found_channels,
         "first_lower_body_neighborhood": (
             detail_text(events, "anim.lower_body.neighborhood") or [""]
@@ -223,6 +227,12 @@ def main() -> int:
         "first_joypad_scan": (detail_text(events, "input.joypad.scan") or [""])[
             0
         ][:300],
+        "first_signin_state": (detail_text(events, "input.signin_state") or [""])[
+            0
+        ][:300],
+        "first_frame_tick": (detail_text(events, "input.frame_tick") or [""])[0][
+            :300
+        ],
         "first_controller_gate_file": (
             [path for path in opened_paths if "pause_controller.milo" in path.replace("\\", "/")]
             or [""]
@@ -261,6 +271,8 @@ def main() -> int:
         f"guitar_input_polls={counts['input.guitar_input.poll']} "
         f"extract_state={counts['input.extract_state']} "
         f"joypad_scans={counts['input.joypad.scan']} "
+        f"signin_state={counts['input.signin_state']} "
+        f"frame_ticks={counts['input.frame_tick']} "
         f"route_status={status} "
         f"result={summary['result']}"
     )

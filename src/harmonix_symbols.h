@@ -809,6 +809,7 @@
 #define hmx_JoypadObj_BindMask          sub_8227A220   // MEDIUM; binds button mask 0xF000 (dpad+shoulder+start+back)
 #define hmx_GuitarInput_Poll            sub_8227CC98   // HIGH; per-frame guitar/controller poller; guard at 0x82788000+22416; 8-port loop
 #define hmx_GuitarPort_Poll             sub_8227B538   // HIGH; per-port poll; r3=controller_idx r4..r9=output ptrs; calls XamInputGetState+RemapButtons+GetCapabilities
+#define hmx_XamUserGetSigninState       sub_823B56B0   // HIGH; trampoline to XamUserGetSigninState(user); some callers require state == 2
 #define hmx_XamInputGetCapabilities     sub_823B5B60   // HIGH; trampoline to XamInputGetCapabilities(controller_idx, flags, &XINPUT_CAPABILITIES); GuitarPort checks subtype byte == 7
 #define hmx_XamInputGetState            sub_823B5B68   // HIGH; 3-insn trampoline: __imp__XamInputGetState(controller_idx, 0, &XINPUT_STATE)
 #define hmx_GuitarPort_RemapButtons     sub_8227B368   // HIGH; XInput wButtons u16 → engine lane u32 via 16-entry table @0x82036730 (CONFIRMED runtime); A→6/Grn B→4/Red Y→5/Yel X→7/Blu LB→2/Org; strum_up→bit0 strum_dn→bit1
