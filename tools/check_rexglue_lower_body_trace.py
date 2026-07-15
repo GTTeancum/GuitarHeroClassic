@@ -46,13 +46,16 @@ KINDS = (
     "input.guitar_edge",
 )
 
-STRONG_IN_SONG_MARKERS = (
+POSE_APPLY_ROUTE_MARKERS = (
     "anim.apply.weighted",
     "anim.apply.unweighted",
     "anim.samples.eval.before",
     "anim.samples.pose796.before",
     "anim.pose.apply_weighted_source",
     "anim.pose.apply_interp_source",
+)
+
+SCENE_ROUTE_MARKERS = (
     "camera.camshot.update",
     "camera.camshot.blend",
     "crowd.world.update",
@@ -92,6 +95,34 @@ def detail_text(events: list[dict[str, object]], kind: str) -> list[str]:
     return [str(event.get("detail", "")) for event in events if event.get("kind") == kind]
 
 
+def file_open_paths(events: list[dict[str, object]]) -> list[str]:
+    return [
+        str(event.get("path", ""))
+        for event in events
+        if event.get("kind") == "file.open"
+    ]
+
+
+def final_event_kind(events: list[dict[str, object]]) -> str:
+    for event in reversed(events):
+        kind = str(event.get("kind", ""))
+        if kind:
+            return kind
+    return ""
+
+
+def route_status(
+    pose_apply_events: int, scene_route_markers: int, controller_gate_events: int
+) -> str:
+    if pose_apply_events:
+        return "pose_apply_route_reached"
+    if controller_gate_events:
+        return "controller_gate_without_apply"
+    if scene_route_markers:
+        return "scene_marker_without_apply"
+    return "route_not_reached"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("trace", type=Path)
@@ -120,9 +151,17 @@ def main() -> int:
         counts["anim.apply.weighted"] + counts["anim.apply.unweighted"] <= 0
     ):
         failures.append("missing CharClipSamples apply hooks")
-    strong_in_song_events = sum(counts[kind] for kind in STRONG_IN_SONG_MARKERS)
-    if args.require_in_song_route and strong_in_song_events <= 0:
-        failures.append("missing strong in-song animation/camera/crowd route markers")
+    pose_apply_route_events = sum(counts[kind] for kind in POSE_APPLY_ROUTE_MARKERS)
+    scene_route_markers = sum(counts[kind] for kind in SCENE_ROUTE_MARKERS)
+    opened_paths = file_open_paths(events)
+    controller_gate_events = sum(
+        1 for path in opened_paths if "pause_controller.milo" in path.replace("\\", "/")
+    )
+    status = route_status(
+        pose_apply_route_events, scene_route_markers, controller_gate_events
+    )
+    if args.require_in_song_route and pose_apply_route_events <= 0:
+        failures.append("missing pose/apply in-song route markers")
     if args.require_scripted_nav_polls and counts["input.scripted_nav.poll"] <= 0:
         failures.append("missing scripted nav poll heartbeat")
     if args.require_guitar_input_edge and counts["input.guitar_edge"] <= 0:
@@ -143,8 +182,12 @@ def main() -> int:
         "events": len(events),
         "invalid_lines": invalid_lines,
         "counts": counts,
-        "strong_in_song_events": strong_in_song_events,
-        "route_status": "in_song_route_reached" if strong_in_song_events else "route_not_reached",
+        "strong_in_song_events": pose_apply_route_events,
+        "pose_apply_route_events": pose_apply_route_events,
+        "scene_route_markers": scene_route_markers,
+        "controller_gate_events": controller_gate_events,
+        "route_status": status,
+        "final_event": final_event_kind(events),
         "scripted_nav_polls": counts["input.scripted_nav.poll"],
         "input_guitar_edges": counts["input.guitar_edge"],
         "lower_body_channels": found_channels,
@@ -155,6 +198,10 @@ def main() -> int:
             detail_text(events, "input.scripted_nav.poll") or [""]
         )[0][:300],
         "first_guitar_edge": (detail_text(events, "input.guitar_edge") or [""])[0][:300],
+        "first_controller_gate_file": (
+            [path for path in opened_paths if "pause_controller.milo" in path.replace("\\", "/")]
+            or [""]
+        )[0][:300],
         "first_runtime_memory": (detail_text(events, "anim.lower_body.runtime_memory") or [""])[
             0
         ][:300],
@@ -178,10 +225,13 @@ def main() -> int:
         f"neighborhood={counts['anim.lower_body.neighborhood']} "
         f"apply={counts['anim.apply.weighted'] + counts['anim.apply.unweighted']} "
         f"rows={len(found_channels)} "
-        f"insong={strong_in_song_events} "
+        f"pose_route={pose_apply_route_events} "
+        f"scene_route={scene_route_markers} "
+        f"controller_gate={controller_gate_events} "
         f"scripted_nav={counts['input.scripted_nav']} "
         f"scripted_nav_polls={counts['input.scripted_nav.poll']} "
         f"guitar_edges={counts['input.guitar_edge']} "
+        f"route_status={status} "
         f"result={summary['result']}"
     )
     for kind in KINDS:
