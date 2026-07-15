@@ -166,6 +166,12 @@ std::string fmt_ptr(uint32_t v) {
     return buf;
 }
 
+std::string fmt_u16(uint16_t v) {
+    char buf[8];
+    std::snprintf(buf, sizeof buf, "0x%04X", static_cast<unsigned>(v));
+    return buf;
+}
+
 std::string fmt_vec3(float x, float y, float z) {
     return "(" + fmt_f(x) + "," + fmt_f(y) + "," + fmt_f(z) + ")";
 }
@@ -261,6 +267,168 @@ std::string read_anim_value(uint8_t* base, uint32_t table_obj,
     }
 
     return "present-unread";
+}
+
+bool lower_body_memory_trace_enabled() {
+    static const bool enabled = trace_cmdline_has_flag("--trace-lower-body-memory");
+    return enabled;
+}
+
+std::string raw_u32_words(uint8_t* base, uint32_t addr, int words) {
+    std::string out = "[";
+    for (int i = 0; i < words; ++i) {
+        if (i) out += ",";
+        out += fmt_ptr(REX_LOAD_U32(addr + static_cast<uint32_t>(i) * 4u));
+    }
+    out += "]";
+    return out;
+}
+
+std::string raw_u16_words(uint8_t* base, uint32_t addr, int words) {
+    std::string out = "[";
+    for (int i = 0; i < words; ++i) {
+        if (i) out += ",";
+        out += fmt_u16(REX_LOAD_U16(addr + static_cast<uint32_t>(i) * 2u));
+    }
+    out += "]";
+    return out;
+}
+
+std::string describe_anim_table_memory_header(uint8_t* base,
+                                              uint32_t table_obj) {
+    (void)base;
+    if (!table_obj) return "null";
+    const uint32_t channels = REX_LOAD_U32(table_obj + 12);
+    const uint32_t end_ptr = REX_LOAD_U32(table_obj + 16);
+    const int total = (channels && end_ptr >= channels)
+                          ? static_cast<int>((end_ptr - channels) / 8u)
+                          : -1;
+    char buf[512];
+    std::snprintf(
+        buf, sizeof buf,
+        "obj=%s ch=%s end=%s total=%d compressed=%u stride=%u "
+        "bounds=[%u,%u,%u,%u,%u,%u,%u] values=[pos=%s quat=%s rot=%s]",
+        fmt_ptr(table_obj).c_str(), fmt_ptr(channels).c_str(),
+        fmt_ptr(end_ptr).c_str(), total, REX_LOAD_U32(table_obj + 8),
+        REX_LOAD_U32(table_obj + 104), REX_LOAD_U32(table_obj + 24),
+        REX_LOAD_U32(table_obj + 28), REX_LOAD_U32(table_obj + 32),
+        REX_LOAD_U32(table_obj + 36), REX_LOAD_U32(table_obj + 40),
+        REX_LOAD_U32(table_obj + 44), REX_LOAD_U32(table_obj + 60),
+        fmt_ptr(REX_LOAD_U32(table_obj + 108)).c_str(),
+        fmt_ptr(REX_LOAD_U32(table_obj + 116)).c_str(),
+        fmt_ptr(REX_LOAD_U32(table_obj + 120)).c_str());
+    return buf;
+}
+
+std::string describe_anim_channel_memory(uint8_t* base, uint32_t table_obj,
+                                         const char* channel_name) {
+    const int index = find_channel_index(base, table_obj, channel_name);
+    if (index < 0) return {};
+
+    const std::string name(channel_name);
+    const bool compressed = REX_LOAD_U32(table_obj + 8) != 0;
+    const int vec_begin = static_cast<int>(REX_LOAD_U32(table_obj + 24));
+    const int vec_end = static_cast<int>(REX_LOAD_U32(table_obj + 32));
+    const int quat_begin = static_cast<int>(REX_LOAD_U32(table_obj + 32));
+    const int quat_end = static_cast<int>(REX_LOAD_U32(table_obj + 36));
+    const int rot_begin = static_cast<int>(REX_LOAD_U32(table_obj + 36));
+    const int rot_end = static_cast<int>(REX_LOAD_U32(table_obj + 60));
+
+    std::string category;
+    uint32_t addr = 0;
+    std::string raw;
+    if ((name.ends_with(".pos") || name.ends_with(".scale")) &&
+        index >= vec_begin && index < vec_end) {
+        category = name.ends_with(".pos") ? "pos" : "scale";
+        const uint32_t values = REX_LOAD_U32(table_obj + 108);
+        const int ordinal = index - vec_begin;
+        addr = values + static_cast<uint32_t>(ordinal) * 16u;
+        raw = raw_u32_words(base, addr, 4);
+    } else if (name.ends_with(".quat") && index >= quat_begin &&
+               index < quat_end) {
+        category = "quat";
+        const uint32_t values = REX_LOAD_U32(table_obj + 116);
+        const int ordinal = index - quat_begin;
+        if (compressed) {
+            addr = values + static_cast<uint32_t>(ordinal) * 8u;
+            raw = raw_u16_words(base, addr, 4);
+        } else {
+            addr = values + static_cast<uint32_t>(ordinal) * 16u;
+            raw = raw_u32_words(base, addr, 4);
+        }
+    } else if ((name.ends_with(".rotx") || name.ends_with(".roty") ||
+                name.ends_with(".rotz")) &&
+               index >= rot_begin && index < rot_end) {
+        category = "rot";
+        const uint32_t values = REX_LOAD_U32(table_obj + 120);
+        const int ordinal =
+            count_category_before(base, table_obj, rot_begin, index, ".rot");
+        if (compressed) {
+            addr = values + static_cast<uint32_t>(ordinal) * 2u;
+            raw = raw_u16_words(base, addr, 1);
+        } else {
+            addr = values + static_cast<uint32_t>(ordinal) * 4u;
+            raw = raw_u32_words(base, addr, 1);
+        }
+    } else {
+        category = "unread";
+    }
+
+    char head[256];
+    std::snprintf(head, sizeof head,
+                  "%s{idx=%d cat=%s addr=%s value=%s raw=",
+                  channel_name, index, category.c_str(), fmt_ptr(addr).c_str(),
+                  read_anim_value(base, table_obj, channel_name).c_str());
+    std::string out = head;
+    out += raw.empty() ? "[]" : raw;
+    out += "}";
+    return out;
+}
+
+std::string describe_lower_body_memory_rows(uint8_t* base,
+                                            uint32_t table_obj) {
+    static constexpr const char* kChannels[] = {
+        "bone_facing.pos",     "bone_pelvis.pos",
+        "bone_pelvis.quat",    "bone_L-thigh.quat",
+        "bone_R-thigh.quat",   "bone_L-ankle.quat",
+        "bone_R-ankle.quat",   "bone_L-foot.quat",
+        "bone_R-foot.quat",    "bone_L-knee.rotz",
+        "bone_R-knee.rotz",    "bone_L-toe.rotz",
+        "bone_R-toe.rotz",     "bone_L-toe0.rotz",
+        "bone_R-toe0.rotz",
+    };
+    std::string out = "{";
+    bool first = true;
+    for (const char* channel : kChannels) {
+        std::string row = describe_anim_channel_memory(base, table_obj, channel);
+        if (row.empty()) continue;
+        if (!first) out += " ";
+        first = false;
+        out += row;
+    }
+    out += "}";
+    return out;
+}
+
+void log_lower_body_memory_dump(uint8_t* base, const char* apply_kind,
+                                const char* phase, uint32_t seq,
+                                uint32_t src, uint32_t dst, float weight) {
+    std::string detail = "seq=" + std::to_string(seq);
+    detail += " apply=";
+    detail += apply_kind;
+    detail += " phase=";
+    detail += phase;
+    detail += " weight=";
+    detail += fmt_f(weight);
+    detail += " src_header=[";
+    detail += describe_anim_table_memory_header(base, src);
+    detail += "] dst_header=[";
+    detail += describe_anim_table_memory_header(base, dst);
+    detail += "] src_rows=";
+    detail += describe_lower_body_memory_rows(base, src);
+    detail += " dst_rows=";
+    detail += describe_lower_body_memory_rows(base, dst);
+    trace360::LogEvent("anim.lower_body.memory", detail);
 }
 
 std::string capture_selected_anim_values(uint8_t* base, uint32_t src,
@@ -784,7 +952,23 @@ REX_HOOK_RAW(sub_8215DF28) {
     const bool body_like = looks_like_body_anim(pre_detail);
     const std::string values_before =
         body_like ? capture_selected_anim_values(base, src, dst) : "";
+    uint32_t lower_body_dump_seq = 0;
+    bool lower_body_dump = false;
+    if (body_like && lower_body_memory_trace_enabled()) {
+        static std::atomic<uint32_t> s_lower_body_dump_count{0};
+        lower_body_dump_seq =
+            s_lower_body_dump_count.fetch_add(1, std::memory_order_relaxed);
+        lower_body_dump = lower_body_dump_seq < 96;
+        if (lower_body_dump) {
+            log_lower_body_memory_dump(base, "weighted", "before",
+                                       lower_body_dump_seq, src, dst, weight);
+        }
+    }
     __imp__sub_8215DF28(ctx, base);
+    if (lower_body_dump) {
+        log_lower_body_memory_dump(base, "weighted", "after",
+                                   lower_body_dump_seq, src, dst, weight);
+    }
 
     static std::atomic<uint32_t> s_count{0};
     const uint32_t n = s_count.fetch_add(1, std::memory_order_relaxed);
@@ -831,7 +1015,23 @@ REX_HOOK_RAW(sub_8215E6A0) {
     const bool body_like = looks_like_body_anim(pre_detail);
     const std::string values_before =
         body_like ? capture_selected_anim_values(base, src, dst) : "";
+    uint32_t lower_body_dump_seq = 0;
+    bool lower_body_dump = false;
+    if (body_like && lower_body_memory_trace_enabled()) {
+        static std::atomic<uint32_t> s_lower_body_dump_count{0};
+        lower_body_dump_seq =
+            s_lower_body_dump_count.fetch_add(1, std::memory_order_relaxed);
+        lower_body_dump = lower_body_dump_seq < 96;
+        if (lower_body_dump) {
+            log_lower_body_memory_dump(base, "unweighted", "before",
+                                       lower_body_dump_seq, src, dst, 1.0f);
+        }
+    }
     __imp__sub_8215E6A0(ctx, base);
+    if (lower_body_dump) {
+        log_lower_body_memory_dump(base, "unweighted", "after",
+                                   lower_body_dump_seq, src, dst, 1.0f);
+    }
 
     static std::atomic<uint32_t> s_count{0};
     const uint32_t n = s_count.fetch_add(1, std::memory_order_relaxed);
