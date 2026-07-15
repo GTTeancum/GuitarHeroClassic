@@ -6315,17 +6315,23 @@ both knees, both ankles, and both toes; both
 
 2026-07-15 direct-viewer lower-body follow-up proof:
 `engine/out/visual_proofs/lower_body_pause_ui_preload_20260715/` keeps the
-post-`5fd980b` RexGlue correction separate from character math and adds
+post-`5fd980b` RexGlue correction separate from character math and added
 individual full-body soft-green direct-viewer screenshots for Rockabill2 and
-Metal1, front and side. The logs use stock PS2 character/guitar assets,
-`stand_fast_03` frame 70, Xplorer, and the reference base. This direct-viewer
-batch does not carry the current-commit in-game `source_publisher=fenced`
-marker, so it is treated as visual/live-output follow-up evidence rather than a
-replacement for the in-game proof above. `tools/check_lower_body_metal1_followup_proofs.py`
-requires Metal1 in the batch, checks all four PNGs at 1280x720 or better, and verifies
+Metal1, front and side. After review, Rockabill2 was dropped as the current
+quick visual subject because it no longer stresses this leg proof enough.
+`engine/out/visual_proofs/lower_body_glam1_metal1_20260715/` is the active
+follow-up batch: it captures Glam1 and Metal1, front and side, using stock PS2
+character/guitar assets, `stand_fast_03` frame 70, Xplorer, and the reference
+base. This direct-viewer batch does not carry the current-commit in-game
+`source_publisher=fenced` marker, so it is treated as visual/live-output
+follow-up evidence rather than a replacement for the in-game proof above.
+`tools/check_lower_body_metal1_followup_proofs.py` now requires Glam1 and
+Metal1 in the batch, checks all four PNGs at 1280x720 or better, and verifies
 pelvis, both thighs, both knees, both ankles, and both toes have driven
 `live=1` source-output rows whose `outPoseW` positions match the visible
-`lower-output` rows at `max_lower_output_visible_gap=0.000500`.
+`lower-output` rows. Metal1 has a visible right shoulder/hand concern in this
+review set; that is logged as a later arm follow-up and is not used as evidence
+for or against the lower-body bridge.
 
 Lower-body evidence audit:
 - Root cause found: the original "standing but floating with legs forward"
@@ -6351,11 +6357,13 @@ Lower-body evidence audit:
   commit `2455d8a` classifies route reachability before any row capture is
   accepted, commit `5c3eeb3` adds scripted-nav poll and GuitarPort edge
   counters, commit `0fa9a89` makes the first scripted controller poll emit a
-  real `A` edge so the original GuitarPort remapper can be observed, and commit
+  real `A` edge so the original GuitarPort remapper can be observed, commit
   `2446916` makes trace shutdown deterministic by clean-closing the hidden
-  trace app and flushing each JSONL line from `trace_recorder.cpp`, and commit
+  trace app and flushing each JSONL line from `trace_recorder.cpp`, commit
   `237bda5` splits pose/apply route markers from scene markers and records the
-  controller gate explicitly.
+  controller gate explicitly, and commit `df59904` adds the song/scene route
+  markers used to confirm the trace can reach the pre-scene dispatch path
+  without reaching lower-body apply rows yet.
   `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the
   no-focus `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the
   original CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
@@ -6365,6 +6373,13 @@ Lower-body evidence audit:
   (trace commit `5fd980b`) records `runtime=192`, `pose_route=0`,
   `pause_ui_preload=2`, `scripted_nav_polls=1`, `guitar_edges=1`,
   and `xam_states=4`, but still `apply=0`, `rows=0`, and
+  `neighborhood=0`. `df59904` then adds
+  `analysis/rexglue_lower_body_trace_song_route_1784135584_summary.json`
+  (`song_route=6`, `song_route_status=song_loader_process_reached`) and
+  `analysis/rexglue_lower_body_trace_scene_chain_1784135771_summary.json`
+  (`song_route=12`, `song_route_status=scene_dispatch_82379738_reached`,
+  `scene_dispatch_82379738=2`, `scene_queue_82378BB0=2`,
+  `scene_update_82377210=0`), but both still record `apply=0`, `rows=0`, and
   `neighborhood=0`. The earlier `ui/gen/pause_controller.milo_xbox` clue is now
   reclassified as shared pause-UI preload, not proof of a controller gate:
   the stack is `FileMgr_Lookup -> FileHandle -> File_OpenDispatch ->
@@ -6378,7 +6393,9 @@ Lower-body evidence audit:
   is getting beyond shared pause-UI preload/title timing and back into the
   historical CharClipSamples apply rows with named lower-body channels.
   `tools/check_rexglue_lower_body_trace.py --require-in-song-route`
-  now requires pose/apply route markers, and
+  now requires pose/apply route markers,
+  `tools/check_rexglue_lower_body_trace.py --require-song-route-marker`
+  records the intermediate song/scene route progress, and
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
   records that the current RexGlue evidence is clean trace scaffolding plus a
   remaining route-to-apply-row gap, not proof of the live lower-body row path.

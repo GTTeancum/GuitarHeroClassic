@@ -34085,8 +34085,24 @@ int run_contract() {
       "lower-body current-commit proof pins Rock2 shared-driver source");
   ok &= contains(
       lower_body_metal1_followup_proofs,
+      "glam1_front.log",
+      "lower-body follow-up proof requires Glam1 front log");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
       "metal1_front.log",
       "lower-body follow-up proof requires Metal1 front log");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "char/glam1/anims/gen/glam1_main.milo_ps2",
+      "lower-body follow-up proof pins Glam1 source clip");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "lower_body_glam1_metal1_20260715",
+      "lower-body follow-up proof uses Glam1/Metal1 proof folder");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "PASSlower_body_glam1_metal1_followup_proofs",
+      "lower-body follow-up proof reports Glam1/Metal1 checker");
   ok &= contains(
       lower_body_metal1_followup_proofs,
       "characters={characters}",
@@ -34114,6 +34130,15 @@ int run_contract() {
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_glam1_metal1_20260715/`",
+                 "document records active Glam1/Metal1 proof folder");
+  ok &= contains(doc,
+                 "Rockabill2 was dropped as the current\nquick visual subject",
+                 "document records Rockabill2 proof subject swap");
+  ok &= contains(doc,
+                 "Metal1 has a visible right shoulder/hand concern",
+                 "document marks Metal1 right arm follow-up");
   ok &= contains(doc,
                  "intentionally\nnot a current bad-arm proof",
                  "document prevents stale viewer control from being reused as proof");
@@ -34643,6 +34668,19 @@ int run_contract() {
       "`tools/check_lower_body_rexglue_trace_manifest.py "
       "--cross-check-summaries`",
       "document records RexGlue trace scaffold checker command");
+  ok &= contains(
+      doc,
+      "`tools/check_rexglue_lower_body_trace.py --require-song-route-marker`",
+      "document records RexGlue song-route trace checker command");
+  ok &= contains(doc,
+                 "commit `df59904` adds the song/scene route\n  markers",
+                 "document records RexGlue song/scene marker commit");
+  ok &= contains(doc,
+                 "`song_route=12`, `song_route_status=scene_dispatch_82379738_reached`",
+                 "document records RexGlue scene dispatch route progress");
+  ok &= contains(doc,
+                 "`scene_update_82377210=0`",
+                 "document records RexGlue scene update gap");
   ok &= contains(doc,
                  "pcsx2_rock_lower_body_mesh_rows_20260715.json",
                  "document records current PCSX2 lower-body row refresh");
@@ -34721,8 +34759,20 @@ int run_contract() {
                  "stored transform-shaped source-row band",
                  "document records stored transform-band requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"5fd980b\"",
-                 "RexGlue lower-body manifest records trace scaffold commit");
+                 "\"trace_commit\":\"df59904\"",
+                 "RexGlue lower-body manifest records current trace scaffold commit");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"song_route_checker\":\"tools/check_rexglue_lower_body_trace.py--require-song-route-marker\"",
+                 "RexGlue lower-body manifest records song-route checker");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"route\":\"scripted_xinput_scene_chain_markers\"",
+                 "RexGlue lower-body manifest records scene-chain route marker capture");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"song_route_status\":\"scene_dispatch_82379738_reached\"",
+                 "RexGlue lower-body manifest records scene dispatch reachability");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"scene_update_82377210_events\":0",
+                 "RexGlue lower-body manifest records scene update not reached");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
                  "RexGlue lower-body manifest rejects current captures");
@@ -34783,6 +34833,9 @@ int run_contract() {
                  "--require-in-song-route",
                  "RexGlue lower-body checker can require pose/apply route markers");
   ok &= contains(lower_body_rexglue_trace,
+                 "--require-song-route-marker",
+                 "RexGlue lower-body checker can require song route markers");
+  ok &= contains(lower_body_rexglue_trace,
                  "--require-scripted-nav-polls",
                  "RexGlue lower-body checker can require scripted-nav poll heartbeats");
   ok &= contains(lower_body_rexglue_trace,
@@ -34812,6 +34865,9 @@ int run_contract() {
   ok &= contains(lower_body_rexglue_trace,
                  "guitar_edges=",
                  "RexGlue lower-body checker reports GuitarPort input edges");
+  ok &= contains(lower_body_rexglue_trace,
+                 "song_route_events=",
+                 "RexGlue lower-body checker reports song route events");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",

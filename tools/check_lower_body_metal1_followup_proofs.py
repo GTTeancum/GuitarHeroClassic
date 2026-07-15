@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the rockabill2/metal1 lower-body follow-up proof batch."""
+"""Verify the glam1/metal1 lower-body follow-up proof batch."""
 
 from __future__ import annotations
 
@@ -47,18 +47,18 @@ class ProofCase:
 
 PROOF_CASES = (
     ProofCase(
-        character="rockabill2",
+        character="glam1",
         view="front",
-        log_name="rockabill2_front.log",
-        png_name="rockabill2_front.png",
-        source_clip="char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+        log_name="glam1_front.log",
+        png_name="glam1_front.png",
+        source_clip="char/glam1/anims/gen/glam1_main.milo_ps2",
     ),
     ProofCase(
-        character="rockabill2",
+        character="glam1",
         view="side",
-        log_name="rockabill2_side.log",
-        png_name="rockabill2_side.png",
-        source_clip="char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+        log_name="glam1_side.log",
+        png_name="glam1_side.png",
+        source_clip="char/glam1/anims/gen/glam1_main.milo_ps2",
     ),
     ProofCase(
         character="metal1",
@@ -159,14 +159,14 @@ def check_case(root: Path, case: ProofCase) -> float:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Check the individual full-body rockabill2 and metal1 lower-body "
+            "Check the individual full-body glam1 and metal1 lower-body "
             "proof screenshots and their source-authored live output rows."
         )
     )
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path("engine/out/visual_proofs/lower_body_pause_ui_preload_20260715"),
+        default=Path("engine/out/visual_proofs/lower_body_glam1_metal1_20260715"),
     )
     return parser.parse_args()
 
@@ -181,7 +181,7 @@ def main() -> int:
 
     characters = ",".join(sorted({case.character for case in PROOF_CASES}))
     print(
-        "PASS lower_body_metal1_followup_proofs "
+        "PASS lower_body_glam1_metal1_followup_proofs "
         f"cases={len(PROOF_CASES)} "
         f"characters={characters} "
         f"max_lower_output_visible_gap={max_gap:.6f} "

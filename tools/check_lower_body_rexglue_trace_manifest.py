@@ -34,13 +34,13 @@ def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
 
 def check_manifest(
     manifest_path: Path, cross_check_summaries: bool
-) -> tuple[int, int, int, int, int, int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int, int, int, int, int, int]:
     manifest = load_json(manifest_path)
     require(
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "5fd980b", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "df59904", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -64,6 +64,11 @@ def check_manifest(
         "missing RexGlue route reachability checker",
     )
     require(
+        scaffold.get("song_route_checker")
+        == "tools/check_rexglue_lower_body_trace.py --require-song-route-marker",
+        "missing RexGlue song route checker",
+    )
+    require(
         scaffold.get("input_poll_checker")
         == "tools/check_rexglue_lower_body_trace.py --require-scripted-nav-polls --require-guitar-input-edge",
         "missing RexGlue input poll checker",
@@ -80,11 +85,23 @@ def check_manifest(
     )
     require(scaffold.get("no_focus_forced") is True, "RexGlue trace must not force focus")
     hooks = set(scaffold.get("hooks", []))
-    for hook in ("sub_8215DF28", "sub_8215E6A0", "821D1190", "821D1710", "CharIK_Update"):
+    for hook in (
+        "sub_8215DF28",
+        "sub_8215E6A0",
+        "821D1190",
+        "821D1710",
+        "CharIK_Update",
+        "hmx_SongSelect_Handler",
+        "hmx_SongLoader_ProcessQueue",
+        "sub_822A0408",
+        "sub_82379738",
+        "sub_82378BB0",
+        "sub_82377210",
+    ):
         require(hook in hooks, f"missing RexGlue hook {hook}")
 
     captures = manifest.get("captures", [])
-    require(len(captures) == 9, "expected nine current RexGlue trace summaries")
+    require(len(captures) == 11, "expected eleven current RexGlue trace summaries")
     runtime_total = 0
     neighborhood_total = 0
     accepted_count = 0
@@ -92,12 +109,15 @@ def check_manifest(
     scene_route_total = 0
     legacy_controller_gate_total = 0
     pause_ui_preload_total = 0
+    song_route_total = 0
     scripted_nav_poll_total = 0
     input_guitar_edge_total = 0
     saw_truncated = False
     saw_clean_shutdown = False
     saw_legacy_pause_ui_preload = False
     saw_pause_ui_preload_stack = False
+    saw_song_route_marker = False
+    saw_scene_dispatch_marker = False
     saw_scripted_nav_single_poll = False
     saw_poll_heartbeat = False
     saw_guitar_edge = False
@@ -133,6 +153,7 @@ def check_manifest(
         scene_route_total += int(capture.get("scene_route_markers", 0))
         legacy_controller_gate_total += int(capture.get("controller_gate_events", 0))
         pause_ui_preload_total += int(capture.get("pause_ui_preload_events", 0))
+        song_route_total += int(capture.get("song_route_events", 0))
         scripted_nav_poll_total += int(capture.get("scripted_nav_polls", 0))
         input_guitar_edge_total += int(capture.get("input_guitar_edges", 0))
         accepted_count += 1 if capture.get("accepted_row_oracle") else 0
@@ -189,6 +210,57 @@ def check_manifest(
             )
             saw_pause_ui_preload_stack = True
 
+        if capture.get("song_route_events"):
+            require(
+                capture.get("route_status") == "route_not_reached",
+                "song-route RexGlue capture must still reject pose/apply route reachability",
+            )
+            require(
+                capture.get("clip_apply_events") == 0
+                and capture.get("lower_body_rows") == 0,
+                "song-route RexGlue capture must not claim row authority",
+            )
+            require(
+                capture.get("accepted_row_oracle") is False,
+                "song-route RexGlue capture must remain non-authoritative",
+            )
+            require(
+                capture.get("song_route_status")
+                in (
+                    "song_loader_process_reached",
+                    "scene_dispatch_82379738_reached",
+                ),
+                "unexpected RexGlue song route status",
+            )
+            require(
+                int(capture.get("song_select_events", 0)) == 2,
+                "song-route RexGlue capture must record song-select before/after rows",
+            )
+            require(
+                int(capture.get("song_loader_process_events", 0)) == 2,
+                "song-route RexGlue capture must record ProcessQueue before/after rows",
+            )
+            require(
+                int(capture.get("song_loader_trigger_events", 0)) == 0,
+                "song-route RexGlue capture must not claim loader trigger rows",
+            )
+            saw_song_route_marker = True
+
+        if capture.get("scene_dispatch_82379738_events"):
+            require(
+                int(capture.get("song_flow_822A0408_events", 0)) == 2,
+                "scene-chain RexGlue capture must record sub_822A0408 before/after rows",
+            )
+            require(
+                int(capture.get("scene_queue_82378BB0_events", 0)) == 2,
+                "scene-chain RexGlue capture must record sub_82378BB0 before/after rows",
+            )
+            require(
+                int(capture.get("scene_update_82377210_events", 0)) == 0,
+                "scene-chain RexGlue capture must record that sub_82377210 did not fire",
+            )
+            saw_scene_dispatch_marker = True
+
         if cross_check_summaries:
             summary = load_json(resolve_manifest_path(manifest_path, capture["summary"]))
             counts = summary.get("counts", {})
@@ -241,6 +313,54 @@ def check_manifest(
                     == capture.get("pause_ui_preload_stack_samples"),
                     "summary pause-UI preload stack count mismatch",
                 )
+            if "song_route_events" in capture:
+                require(
+                    summary.get("song_route_events")
+                    == capture.get("song_route_events"),
+                    "summary song route event count mismatch",
+                )
+                require(
+                    summary.get("song_route_status")
+                    == capture.get("song_route_status"),
+                    "summary song route status mismatch",
+                )
+                song_counts = summary.get("song_route_counts", {})
+                require(
+                    song_counts.get("route.song_select")
+                    == capture.get("song_select_events"),
+                    "summary song-select event count mismatch",
+                )
+                require(
+                    song_counts.get("route.song_loader_process")
+                    == capture.get("song_loader_process_events"),
+                    "summary song-loader process count mismatch",
+                )
+                require(
+                    song_counts.get("route.song_loader_trigger")
+                    == capture.get("song_loader_trigger_events"),
+                    "summary song-loader trigger count mismatch",
+                )
+                if "scene_dispatch_82379738_events" in capture:
+                    require(
+                        song_counts.get("route.song_flow_822A0408")
+                        == capture.get("song_flow_822A0408_events"),
+                        "summary sub_822A0408 count mismatch",
+                    )
+                    require(
+                        song_counts.get("route.scene_dispatch_82379738")
+                        == capture.get("scene_dispatch_82379738_events"),
+                        "summary sub_82379738 count mismatch",
+                    )
+                    require(
+                        song_counts.get("route.scene_queue_82378BB0")
+                        == capture.get("scene_queue_82378BB0_events"),
+                        "summary sub_82378BB0 count mismatch",
+                    )
+                    require(
+                        song_counts.get("route.scene_update_82377210")
+                        == capture.get("scene_update_82377210_events"),
+                        "summary sub_82377210 count mismatch",
+                    )
             require(
                 summary.get("route_status") == capture.get("route_status"),
                 "summary route status mismatch",
@@ -270,15 +390,18 @@ def check_manifest(
     require(saw_clean_shutdown, "expected a clean RexGlue shutdown trace with capture.off")
     require(saw_legacy_pause_ui_preload, "expected legacy RexGlue captures to be marked as pause-UI preload")
     require(saw_pause_ui_preload_stack, "expected a corrected pause-UI preload stack capture")
+    require(saw_song_route_marker, "expected RexGlue song route markers")
+    require(saw_scene_dispatch_marker, "expected RexGlue scene dispatch markers")
     require(saw_scripted_nav_single_poll, "expected scripted RexGlue attempt to record exactly one scripted-nav poll")
     require(saw_poll_heartbeat, "expected current RexGlue attempts to record scripted-nav poll heartbeats")
     require(saw_guitar_edge, "expected current RexGlue attempts to prove a GuitarPort input edge")
     require(pose_apply_route_total == 0, "current RexGlue captures must not claim pose/apply route markers")
     require(scene_route_total == 1, "current RexGlue captures must record the single scene marker separately")
     require(legacy_controller_gate_total == 2, "current RexGlue captures must preserve two legacy pause-UI preload labels")
-    require(pause_ui_preload_total == 2, "current RexGlue captures must record two corrected pause-UI preload files")
+    require(pause_ui_preload_total == 6, "current RexGlue captures must record six corrected pause-UI preload files")
+    require(song_route_total == 18, "current RexGlue captures must record eighteen song-route marker rows")
     require(neighborhood_total == 0, "current RexGlue captures must have zero accepted pose-table neighborhoods")
-    require(input_guitar_edge_total == 5, "current RexGlue captures must have exactly five proven GuitarPort input edges")
+    require(input_guitar_edge_total == 7, "current RexGlue captures must have exactly seven proven GuitarPort input edges")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
     return (
         runtime_total,
@@ -288,6 +411,7 @@ def check_manifest(
         scene_route_total,
         legacy_controller_gate_total,
         pause_ui_preload_total,
+        song_route_total,
         scripted_nav_poll_total,
         input_guitar_edge_total,
         1 if saw_clean_shutdown else 0,
@@ -322,6 +446,7 @@ def main() -> int:
             scene_route_total,
             legacy_controller_gate_total,
             pause_ui_preload_total,
+            song_route_total,
             scripted_nav_poll_total,
             input_guitar_edge_total,
             clean_shutdown_count,
@@ -337,6 +462,7 @@ def main() -> int:
         f"scene_route_markers={scene_route_total} "
         f"legacy_pause_ui_preload_events={legacy_controller_gate_total} "
         f"pause_ui_preload_events={pause_ui_preload_total} "
+        f"song_route_events={song_route_total} "
         f"scripted_nav_polls={scripted_nav_poll_total} "
         f"guitar_edges={input_guitar_edge_total} "
         f"clean_shutdown_traces={clean_shutdown_count} "
