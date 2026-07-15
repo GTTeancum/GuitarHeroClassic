@@ -79,6 +79,7 @@ SUPPORT_OUTPUT_BONES = {
 }
 
 SCREENSHOT_MARKERS = ("screenshot saved", "saved screenshot", "screenshot ->")
+CONTACT_SHEET_TOKENS = ("contact", "sheet", "montage", "overview")
 MIN_PROOF_WIDTH = 1280
 MIN_PROOF_HEIGHT = 720
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -179,6 +180,9 @@ def png_dimensions(path: Path) -> tuple[int, int]:
 def require_inspectable_png(path: Path) -> None:
     if not path.is_file():
         raise RuntimeError(f"{path}: visual proof missing")
+    lower_name = path.name.lower()
+    if any(token in lower_name for token in CONTACT_SHEET_TOKENS):
+        raise RuntimeError(f"{path}: visual proof must be an individual frame, not a contact sheet")
     width, height = png_dimensions(path)
     if width < MIN_PROOF_WIDTH or height < MIN_PROOF_HEIGHT:
         raise RuntimeError(f"{path}: visual proof resolution too small {width}x{height}")
@@ -420,6 +424,7 @@ def main() -> int:
         f"playable_ingame={len(PLAYABLE_INGAME_LABELS)} "
         f"support_viewer={len(SUPPORT_VIEWER_LABELS)} "
         f"stock_total={len(PLAYABLE_INGAME_LABELS) + len(SUPPORT_VIEWER_LABELS)} "
+        "individual_proofs=true "
         f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT} "
         f"playable_max_lowest_toe_z={max_lowest_toe_z:.4f} "
         f"playable_min_pelvis_to_lowest_toe_z={min_pelvis_to_lowest_toe_z:.4f} "

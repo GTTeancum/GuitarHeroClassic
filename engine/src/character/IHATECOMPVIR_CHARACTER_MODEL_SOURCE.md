@@ -6261,16 +6261,17 @@ the same `-toe0` to `-toe` equivalence already used by the native
 `channel_matches_bone` source-name matcher. This is not a runtime pose fix or a
 new bone-name guess.
 `tools/check_lower_body_stock_coverage.py` passes with `playable_ingame=18`,
-`support_viewer=6`, and `stock_total=24`. That audit ties the 18 in-game /
-viewer live-stack playable proofs in `tools/arm_pose_diff_manifest.json` to the
-six support/base direct-viewer output proofs in
-`tools/charbone_output_map_manifest.json`, requires screenshot-bearing logs and
-individual PNG visual proofs, enforces each manifest case's required log
-fragments before accepting coverage, requires every linked proof PNG to be at
-least `1280x720`, and now parses both in-game and viewer final playable `armw`
-rows to require leg-chain sanity across all 18 playable cases: knees below
-thighs, ankles below knees, toes not above ankles, and at least one toe in a
-near-floor band. The current stock run reports
+`support_viewer=6`, `stock_total=24`, and `individual_proofs=true`. That audit
+ties the 18 in-game / viewer live-stack playable proofs in
+`tools/arm_pose_diff_manifest.json` to the six support/base direct-viewer output
+proofs in `tools/charbone_output_map_manifest.json`, requires
+screenshot-bearing logs and individual PNG visual proofs rather than contact
+sheets, enforces each manifest case's required log fragments before accepting
+coverage, requires every linked proof PNG to be at least `1280x720`, and now
+parses both in-game and viewer final playable `armw` rows to require leg-chain
+sanity across all 18 playable cases: knees below thighs, ankles below knees,
+toes not above ankles, and at least one toe in a near-floor band. The current
+stock run reports
 `playable_max_lowest_toe_z=0.5136` and
 `playable_min_pelvis_to_lowest_toe_z=31.0644`. For the six support/base proofs,
 the audit uses a support-safe distal-chain guard instead of a standing-thigh

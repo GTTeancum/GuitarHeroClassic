@@ -310,6 +310,8 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     require_contains(stock, "PLAYABLE_INGAME_LABELS", "playable coverage table")
     require_contains(stock, "SUPPORT_VIEWER_LABELS", "support coverage table")
     for marker in (
+        "CONTACT_SHEET_TOKENS",
+        "individual_proofs=true",
         "playable_leg_chain_sane=true",
         "support_distal_chain_sane=true",
         "MAX_PLAYABLE_LOWEST_TOE_Z = 1.0",

@@ -34013,6 +34013,14 @@ int run_contract() {
       "lower-body stock coverage audit requires proof width");
   ok &= contains(
       lower_body_stock_coverage,
+      "CONTACT_SHEET_TOKENS",
+      "lower-body stock coverage audit rejects contact-sheet proofs");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "individual_proofs=true",
+      "lower-body stock coverage audit reports individual proofs");
+  ok &= contains(
+      lower_body_stock_coverage,
       "proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT}",
       "lower-body stock coverage audit reports proof resolution");
   ok &= contains(
@@ -34043,13 +34051,18 @@ int run_contract() {
       lower_body_stock_coverage,
       "require_fragments(",
       "lower-body stock coverage audit enforces required log fragments");
-  ok &= contains(
-      doc,
-      "enforces each manifest case's required log\nfragments before accepting "
-      "coverage",
-      "document records stock proof required-fragment enforcement");
+  ok &= contains(compact(doc),
+                 "enforceseachmanifestcase'srequiredlogfragmentsbefore"
+                 "acceptingcoverage",
+                 "document records stock proof required-fragment enforcement");
   ok &= contains(doc,
-                 "requires every linked proof PNG to be at\nleast `1280x720`",
+                 "`stock_total=24`, and `individual_proofs=true`",
+                 "document records stock individual proof marker");
+  ok &= contains(compact(doc),
+                 "individualPNGvisualproofsratherthancontactsheets",
+                 "document records stock proof contact-sheet rejection");
+  ok &= contains(compact(doc),
+                 "requireseverylinkedproofPNGtobeatleast`1280x720`",
                  "document records stock proof resolution gate");
   ok &= contains(
       lower_body_root_cause,
@@ -34937,10 +34950,11 @@ int run_contract() {
   ok &= contains(
       doc,
       "`tools/check_lower_body_stock_coverage.py` passes with "
-      "`playable_ingame=18`,\n`support_viewer=6`, and `stock_total=24`",
+      "`playable_ingame=18`,\n`support_viewer=6`, `stock_total=24`, and "
+      "`individual_proofs=true`",
       "document records lower-body stock coverage audit result");
-  ok &= contains(doc,
-                 "require leg-chain sanity across all 18 playable cases",
+  ok &= contains(compact(doc),
+                 "requireleg-chainsanityacrossall18playablecases",
                  "document records all-playable leg-chain guard");
   ok &= contains(doc,
                  "`playable_max_lowest_toe_z=0.5136`",
