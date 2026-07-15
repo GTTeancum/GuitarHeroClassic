@@ -378,6 +378,14 @@ Open work:
   `camera_bars_left` to 4, and requests `pick_new_shot`; the current proof fires
   that handler diagnostically while the real multiplayer sender remains a
   separate gameplay integration.
+- 2026-07-15 source-ordered camera script filters:
+  ihatecompvir `CameraManager::ShotMatches` scans the provided property-filter
+  vector in order and rejects on the first mismatch. GH2
+  `world_objects_worldbase.dta` builds those vectors in different regular,
+  solo, jump, and lighter orders, so native now builds one
+  `camera_source_script_filters` vector from the script order and uses it for
+  both selection and diagnostics. This only preserves authored `ShotMatches`
+  ordering; it does not infer the still-deferred `cam_shot_ok` body.
 - 2026-07-13 CamShot `shot_ok` selection hook: native regular camera
   selection no longer rejects the active CamShot by authored name before
   source approval. ihatecompvir's `CameraManager::FindCameraShot` scans the

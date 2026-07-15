@@ -16241,6 +16241,15 @@ bool camera_shot_matches_source_filters(
     return true;
 }
 
+bool camera_shot_matches_source_filters(
+    const Gameplay::CameraKey& key,
+    const std::vector<CameraShotSourceFilter>& filters) {
+    for (const auto& filter : filters) {
+        if (!camera_shot_matches_source_filter(key, filter)) return false;
+    }
+    return true;
+}
+
 enum class CameraShotMode { Regular, Solo, Jump, Lighter };
 
 constexpr double kSourceWinCameraDelaySeconds = 1.75;
@@ -16302,6 +16311,120 @@ bool camera_category_filter_ok(const Gameplay::CameraKey& key,
         if (key.category == category) return true;
     }
     return false;
+}
+
+std::vector<CameraShotSourceFilter> camera_source_script_filters(
+    CameraShotMode mode,
+    const Gameplay::CameraKey* previous,
+    bool low_excitement,
+    bool walking,
+    bool starpower,
+    bool source_multi_vs,
+    int source_faceoff_active_players) {
+    std::vector<CameraShotSourceFilter> filters;
+    if (mode == CameraShotMode::Lighter) return filters;
+    if (mode == CameraShotMode::Jump) {
+        filters.push_back(camera_bool_filter("jump_ok", true));
+        return filters;
+    }
+
+    if (mode == CameraShotMode::Regular) {
+        if (source_multi_vs) {
+            if (source_faceoff_active_players == 1) {
+                filters.push_back(camera_symbol_filter("facing", {"left"}));
+            } else if (source_faceoff_active_players == 2) {
+                filters.push_back(camera_symbol_filter("facing", {"right"}));
+            } else {
+                filters.push_back(camera_symbol_filter("facing", {"null"}));
+            }
+        } else if (previous) {
+            if (previous->facing == "left") {
+                filters.push_back(
+                    camera_symbol_filter("facing", {"right", "null"}));
+            } else if (previous->facing == "right") {
+                filters.push_back(
+                    camera_symbol_filter("facing", {"left", "null"}));
+            }
+            if (previous->distance == "far" ||
+                previous->distance == "behind") {
+                filters.push_back(camera_symbol_filter(
+                    "distance", {"null", "near", "closeup"}));
+            }
+        }
+        filters.push_back(camera_symbol_filter("solo", {"ok", "never"}));
+    } else {
+        if (low_excitement)
+            filters.push_back(camera_bool_filter("low_excitement_ok", true));
+        if (walking) filters.push_back(camera_bool_filter("walk_ok", true));
+        if (starpower)
+            filters.push_back(camera_bool_filter("starpower_ok", true));
+        if (previous) {
+            if (previous->facing == "left") {
+                filters.push_back(
+                    camera_symbol_filter("facing", {"right", "null"}));
+            } else if (previous->facing == "right") {
+                filters.push_back(
+                    camera_symbol_filter("facing", {"left", "null"}));
+            }
+        }
+        filters.push_back(camera_symbol_filter("solo", {"ok", "only"}));
+        filters.push_back(camera_bool_filter("special", false));
+        return filters;
+    }
+
+    if (low_excitement)
+        filters.push_back(camera_bool_filter("low_excitement_ok", true));
+    if (walking) filters.push_back(camera_bool_filter("walk_ok", true));
+    if (starpower)
+        filters.push_back(camera_bool_filter("starpower_ok", true));
+    filters.push_back(camera_bool_filter("special", false));
+    return filters;
+}
+
+std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
+    std::string label = "(" + std::string(filter.prop) + " ";
+    switch (filter.kind) {
+    case CameraShotSourceFilterKind::Bool:
+        label += filter.bool_match ? "TRUE" : "FALSE";
+        break;
+    case CameraShotSourceFilterKind::Int:
+        label += std::to_string(filter.int_match);
+        break;
+    case CameraShotSourceFilterKind::SymbolAny:
+        if (filter.symbol_matches.size() == 1) {
+            label += std::string(filter.symbol_matches.front());
+        } else {
+            label += "(";
+            for (size_t i = 0; i < filter.symbol_matches.size(); ++i) {
+                if (i) label += " ";
+                label += std::string(filter.symbol_matches[i]);
+            }
+            label += ")";
+        }
+        break;
+    case CameraShotSourceFilterKind::FlagsAny:
+        label += filter.bool_match ? "TRUE" : "FALSE";
+        label += " ";
+        label += std::to_string(filter.mask);
+        break;
+    case CameraShotSourceFilterKind::FlagsExact:
+        label += std::to_string(filter.int_match);
+        label += " ";
+        label += std::to_string(filter.mask);
+        break;
+    }
+    label += ")";
+    return label;
+}
+
+std::string camera_source_filter_list_label(
+    const std::vector<CameraShotSourceFilter>& filters) {
+    std::vector<std::string> labels;
+    labels.reserve(filters.size());
+    for (const auto& filter : filters) {
+        labels.push_back(camera_source_filter_label(filter));
+    }
+    return join_log_names(labels);
 }
 
 struct CameraSourceRand {
@@ -16383,50 +16506,6 @@ void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys,
     }
 }
 
-bool camera_mode_filter_ok(const Gameplay::CameraKey& key,
-                           CameraShotMode mode) {
-    if (!camera_category_filter_ok(key, mode)) return false;
-    if (mode == CameraShotMode::Lighter) {
-        return true;
-    }
-    if (mode == CameraShotMode::Jump) {
-        return camera_shot_matches_source_filters(
-            key, {camera_bool_filter("jump_ok", true)});
-    }
-    if (!camera_shot_matches_source_filters(
-            key, {camera_bool_filter("special", false)})) {
-        return false;
-    }
-    if (mode == CameraShotMode::Solo) {
-        return camera_shot_matches_source_filters(
-            key, {camera_symbol_filter("solo", {"ok", "only"})});
-    }
-    return camera_shot_matches_source_filters(
-        key, {camera_symbol_filter("solo", {"ok", "never"})});
-}
-
-bool camera_state_filter_ok(const Gameplay::CameraKey& key,
-                            bool low_excitement,
-                            bool walking,
-                            bool starpower) {
-    if (low_excitement &&
-        !camera_shot_matches_source_filters(
-            key, {camera_bool_filter("low_excitement_ok", true)})) {
-        return false;
-    }
-    if (walking &&
-        !camera_shot_matches_source_filters(
-            key, {camera_bool_filter("walk_ok", true)})) {
-        return false;
-    }
-    if (starpower &&
-        !camera_shot_matches_source_filters(
-            key, {camera_bool_filter("starpower_ok", true)})) {
-        return false;
-    }
-    return true;
-}
-
 bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
                               const Gameplay::CameraKey* previous,
                               bool low_excitement,
@@ -16439,48 +16518,11 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     // pick_solo_camera_shot share the state filters, but differ in solo tags
     // and the far/behind distance repeat guard. band_jump and crowd lighters
     // use separate predicates over the same decoded CamShot pool.
-    if (!camera_mode_filter_ok(key, mode)) return false;
-    if (mode == CameraShotMode::Jump ||
-        mode == CameraShotMode::Lighter) {
-        return true;
-    }
-    if (!camera_state_filter_ok(key, low_excitement, walking, starpower))
-        return false;
-
-    if (mode == CameraShotMode::Regular && source_multi_vs) {
-        if (source_faceoff_active_players == 1) {
-            return camera_shot_matches_source_filters(
-                key, {camera_symbol_filter("facing", {"left"})});
-        }
-        if (source_faceoff_active_players == 2) {
-            return camera_shot_matches_source_filters(
-                key, {camera_symbol_filter("facing", {"right"})});
-        }
-        return camera_shot_matches_source_filters(
-            key, {camera_symbol_filter("facing", {"null"})});
-    }
-
-    if (previous) {
-        if (previous->facing == "left" &&
-            !camera_shot_matches_source_filters(
-                key, {camera_symbol_filter("facing", {"right", "null"})})) {
-            return false;
-        }
-        if (previous->facing == "right" &&
-            !camera_shot_matches_source_filters(
-                key, {camera_symbol_filter("facing", {"left", "null"})})) {
-            return false;
-        }
-        if (mode == CameraShotMode::Regular &&
-            (previous->distance == "far" || previous->distance == "behind")) {
-            if (!camera_shot_matches_source_filters(
-                    key, {camera_symbol_filter(
-                             "distance", {"null", "near", "closeup"})})) {
-                return false;
-            }
-        }
-    }
-    return true;
+    if (!camera_category_filter_ok(key, mode)) return false;
+    const auto filters = camera_source_script_filters(
+        mode, previous, low_excitement, walking, starpower, source_multi_vs,
+        source_faceoff_active_players);
+    return camera_shot_matches_source_filters(key, filters);
 }
 
 enum class CameraSourceShotOkReturn {
@@ -16655,32 +16697,9 @@ std::string camera_source_regular_script_filter_label(
     bool starpower,
     bool source_multi_vs,
     int source_faceoff_active_players) {
-    std::vector<std::string> filters;
-    if (source_multi_vs) {
-        if (source_faceoff_active_players == 1) {
-            filters.push_back("(facing left)");
-        } else if (source_faceoff_active_players == 2) {
-            filters.push_back("(facing right)");
-        } else {
-            filters.push_back("(facing null)");
-        }
-    } else if (previous) {
-        if (previous->facing == "left") {
-            filters.push_back("(facing (right null))");
-        } else if (previous->facing == "right") {
-            filters.push_back("(facing (left null))");
-        }
-        if (previous->distance == "far" ||
-            previous->distance == "behind") {
-            filters.push_back("(distance (null near closeup))");
-        }
-    }
-    filters.push_back("(solo (ok never))");
-    if (low_excitement) filters.push_back("(low_excitement_ok TRUE)");
-    if (walking) filters.push_back("(walk_ok TRUE)");
-    if (starpower) filters.push_back("(starpower_ok TRUE)");
-    filters.push_back("(special FALSE)");
-    return join_log_names(filters);
+    return camera_source_filter_list_label(camera_source_script_filters(
+        CameraShotMode::Regular, previous, low_excitement, walking, starpower,
+        source_multi_vs, source_faceoff_active_players));
 }
 
 std::string camera_source_solo_script_filter_label(
@@ -16688,20 +16707,9 @@ std::string camera_source_solo_script_filter_label(
     bool low_excitement,
     bool walking,
     bool starpower) {
-    std::vector<std::string> filters;
-    if (low_excitement) filters.push_back("(low_excitement_ok TRUE)");
-    if (walking) filters.push_back("(walk_ok TRUE)");
-    if (starpower) filters.push_back("(starpower_ok TRUE)");
-    if (previous) {
-        if (previous->facing == "left") {
-            filters.push_back("(facing (right null))");
-        } else if (previous->facing == "right") {
-            filters.push_back("(facing (left null))");
-        }
-    }
-    filters.push_back("(solo (ok only))");
-    filters.push_back("(special FALSE)");
-    return join_log_names(filters);
+    return camera_source_filter_list_label(camera_source_script_filters(
+        CameraShotMode::Solo, previous, low_excitement, walking, starpower,
+        false, 0));
 }
 
 std::string camera_source_script_filter_label(
@@ -16713,14 +16721,9 @@ std::string camera_source_script_filter_label(
     bool source_multi_vs,
     int source_faceoff_active_players) {
     if (mode == CameraShotMode::Lighter) return "none";
-    if (mode == CameraShotMode::Jump) return "(jump_ok TRUE)";
-    if (mode == CameraShotMode::Solo) {
-        return camera_source_solo_script_filter_label(
-            previous, low_excitement, walking, starpower);
-    }
-    return camera_source_regular_script_filter_label(
-        previous, low_excitement, walking, starpower, source_multi_vs,
-        source_faceoff_active_players);
+    return camera_source_filter_list_label(camera_source_script_filters(
+        mode, previous, low_excitement, walking, starpower, source_multi_vs,
+        source_faceoff_active_players));
 }
 
 void camera_source_first_shot_ok(std::string_view category) {

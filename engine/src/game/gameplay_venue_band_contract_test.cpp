@@ -178,6 +178,8 @@ int main() {
       compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string regular_camera_selector_c = compact(
       function_body(gameplay, "choose_regular_camera_key_index_by_category"));
+  const std::string camera_source_script_filters_c =
+      compact(function_body(gameplay, "camera_source_script_filters"));
   const std::string regular_camera_filter_label_c = compact(function_body(
       gameplay, "camera_source_regular_script_filter_label"));
   const std::string solo_camera_filter_label_c = compact(function_body(
@@ -11823,17 +11825,15 @@ int main() {
                  "crowd_lighters_off diagnostics name the source force_pick_shot route");
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Jump){"
-                 "returncamera_shot_matches_source_filters("
-                 "key,{camera_bool_filter(\"jump_ok\",true)});}",
+                 "filters.push_back(camera_bool_filter(\"jump_ok\",true));"
+                 "returnfilters;}",
                  "band_jump camera mode mirrors the jump_ok shot predicate");
   ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Lighter){"
-                 "returntrue;}",
+                 "if(mode==CameraShotMode::Lighter)returnfilters;",
                  "crowd lighter camera mode uses the authored LIGHTER category without extra script filters");
   ok &= appears_before(gameplay_c,
-                       "if(mode==CameraShotMode::Lighter){"
-                       "returntrue;",
-                       "camera_bool_filter(\"special\",false)",
+                       "if(mode==CameraShotMode::Lighter)returnfilters;",
+                       "filters.push_back(camera_bool_filter(\"special\",false));",
                        "LIGHTER CamShots remain selectable even when authored special");
   ok &= absent(regular_camera_loader_c,
                "if(special)continue;",
@@ -11842,13 +11842,12 @@ int main() {
                "camera_bool_filter(\"lighter\",false)",
                "camera selection relies on source categories instead of an invented lighter property filter");
   ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Solo){"
-                 "returncamera_shot_matches_source_filters("
-                 "key,{camera_symbol_filter(\"solo\",{\"ok\",\"only\"})});}",
+                 "filters.push_back(camera_symbol_filter(\"solo\","
+                 "{\"ok\",\"only\"}));",
                  "solo camera mode mirrors pick_solo_camera_shot solo filter");
   ok &= contains(gameplay_c,
-                 "returncamera_shot_matches_source_filters("
-                 "key,{camera_symbol_filter(\"solo\",{\"ok\",\"never\"})});",
+                 "filters.push_back(camera_symbol_filter(\"solo\","
+                 "{\"ok\",\"never\"}));",
                  "regular camera mode mirrors pick_regular_camera_shot solo filter");
   ok &= contains(gameplay_c,
                  "camera_solo_active_?CameraShotMode::Solo"
@@ -12115,9 +12114,14 @@ int main() {
                  "camera_shot_mode_label(camera_mode)",
                  "runtime camera logs expose regular versus solo mode");
   ok &= contains(gameplay_c,
-                 "boolcamera_mode_filter_ok(constGameplay::CameraKey&key,"
-                 "CameraShotModemode)",
-                 "camera fallback keeps mode/category predicates separate");
+                 "std::vector<CameraShotSourceFilter>"
+                 "camera_source_script_filters(",
+                 "camera selection keeps the source script filter array explicit");
+  ok &= contains(gameplay_c,
+                 "boolcamera_shot_matches_source_filters("
+                 "constGameplay::CameraKey&key,"
+                 "conststd::vector<CameraShotSourceFilter>&filters)",
+                 "regular camera selection can evaluate the authored filter array in source order");
   ok &= contains(gameplay_c,
                  "constexprstd::array<std::string_view,9>"
                  "kNormalCamShotCategoryOrder",
@@ -12351,12 +12355,16 @@ int main() {
                  "return(key.flags&filter.mask)==filter.int_match;",
                  "regular camera filters mirror CameraManager flags_exact result");
   ok &= contains(gameplay_c,
-                 "camera_shot_matches_source_filters("
-                 "key,{camera_bool_filter(\"special\",false)})",
+                 "filters.push_back(camera_bool_filter(\"special\",false));",
                  "regular/solo camera modes mirror the source special FALSE filter");
   ok &= contains(gameplay_c,
-                 "if(!camera_mode_filter_ok(key,mode))returnfalse;",
-                 "strict camera filter starts from authored mode/category predicates");
+                 "constautofilters=camera_source_script_filters("
+                 "mode,previous,low_excitement,walking,starpower,"
+                 "source_multi_vs,source_faceoff_active_players);",
+                 "strict camera filter builds the authored ShotMatches array before evaluation");
+  ok &= contains(gameplay_c,
+                 "returncamera_shot_matches_source_filters(key,filters);",
+                 "strict camera filter evaluates the source-ordered ShotMatches array directly");
   ok &= contains(gameplay_c,
                  "boolcamera_source_gamecfg_mode_multi_vs(){"
                  "returnstd::string_view(camera_source_gamecfg_mode())=="
@@ -12385,8 +12393,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "constintsource_faceoff_players=camera_faceoff_active_players_;",
                  "regular camera selection consumes the gameplay-owned faceoff_active_players state");
-  ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Regular&&source_multi_vs){",
+  ok &= contains(camera_source_script_filters_c,
+                 "if(mode==CameraShotMode::Regular){"
+                 "if(source_multi_vs){",
                  "regular camera filter mirrors the source multi_vs branch before previous-shot filters");
   ok &= contains(gameplay_c,
                  "camera_symbol_filter(\"facing\",{\"left\"})",
@@ -12415,10 +12424,11 @@ int main() {
                "\"closeup\",\"\"})",
                "regular camera distance filters must not accept native-only empty symbols");
   ok &= appears_before(gameplay_c,
-                       "if(mode==CameraShotMode::Jump||"
-                       "mode==CameraShotMode::Lighter){returntrue;}",
-                       "if(!camera_state_filter_ok(key,low_excitement,"
-                       "walking,starpower))",
+                       "if(mode==CameraShotMode::Jump){"
+                       "filters.push_back(camera_bool_filter(\"jump_ok\",true));"
+                       "returnfilters;}",
+                       "if(low_excitement)filters.push_back("
+                       "camera_bool_filter(\"low_excitement_ok\",true));",
                        "band_jump and LIGHTER pick_shot routes bypass regular/solo state filters");
   ok &= contains(gameplay_c,
                  "voidcamera_source_no_acceptable_shot(std::string_viewcategory,",
@@ -12601,25 +12611,28 @@ int main() {
                  "if(mode==CameraShotMode::Lighter)return\"none\";",
                  "LIGHTER pick_shot diagnostics expose the unfiltered source route");
   ok &= contains(camera_filter_label_c,
-                 "if(mode==CameraShotMode::Jump)return\"(jump_okTRUE)\";",
-                 "band_jump diagnostics expose the exact source jump_ok filter");
+                 "camera_source_filter_list_label("
+                 "camera_source_script_filters(",
+                 "camera diagnostics format the same source filter array used for selection");
   ok &= contains(regular_camera_filter_label_c,
-                 "\"(facing(rightnull))\"",
-                 "regular camera filter diagnostics preserve the previous-left facing guard");
-  ok &= contains(regular_camera_filter_label_c,
-                 "\"(distance(nullnearcloseup))\"",
-                 "regular camera filter diagnostics preserve the far/behind distance guard");
-  ok &= appears_before(regular_camera_filter_label_c,
-                       "\"(solo(oknever))\"",
-                       "\"(specialFALSE)\"",
-                       "regular camera filter diagnostics preserve source solo-before-special order");
+                 "camera_source_filter_list_label("
+                 "camera_source_script_filters(CameraShotMode::Regular",
+                 "regular camera diagnostics format the shared source filter array");
   ok &= contains(solo_camera_filter_label_c,
-                 "\"(solo(okonly))\"",
-                 "solo camera filter diagnostics preserve the source solo-only filter");
-  ok &= appears_before(solo_camera_filter_label_c,
-                       "\"(low_excitement_okTRUE)\"",
-                       "\"(solo(okonly))\"",
-                       "solo camera filter diagnostics preserve source state-before-solo order");
+                 "camera_source_filter_list_label("
+                 "camera_source_script_filters(CameraShotMode::Solo",
+                 "solo camera diagnostics format the shared source filter array");
+  ok &= appears_before(camera_source_script_filters_c,
+                       "filters.push_back(camera_symbol_filter(\"solo\","
+                       "{\"ok\",\"never\"}));",
+                       "filters.push_back(camera_bool_filter(\"special\",false));",
+                       "regular camera filters preserve source solo-before-special order");
+  ok &= appears_before(camera_source_script_filters_c,
+                       "if(low_excitement)filters.push_back("
+                       "camera_bool_filter(\"low_excitement_ok\",true));",
+                       "filters.push_back(camera_symbol_filter(\"solo\","
+                       "{\"ok\",\"only\"}));",
+                       "solo camera filters preserve source state-before-solo order");
   ok &= contains(gameplay_c,
                  "conststd::stringsource_filters_for_log="
                  "camera_source_script_filter_label(",
