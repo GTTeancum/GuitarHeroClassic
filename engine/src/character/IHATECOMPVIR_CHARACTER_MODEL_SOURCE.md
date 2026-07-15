@@ -5955,6 +5955,14 @@ and both sides must show the matching `stand_fast_02 -> stand_fast_03`,
 fragments. This prevents a visually plausible viewer frame from being accepted
 when its final rows were produced without the same live target or clip stack.
 
+The manifest's `rockabill2_missing_midi_target_control` case is intentionally
+not a current bad-arm proof. It uses the older viewer log that omits
+`--midi-fret-target spot_neck_fret11.mesh`; the expected mismatch proves that
+the viewer was stale when it lacked gameplay's live fret target. Future arm or
+leg screenshots may still be wrong, but they must first pass a same-frame
+viewer/gameplay log comparison with the matching live target and clip stack
+before they can be treated as evidence for a remaining source decode bug.
+
 2026-07-14 full-body viewer/gameplay diff:
 `engine/out/visual_proofs/leg_viewer_ingame_20260714/` recaptures the same
 Trogdor/small2/Rockabill2 frame with compact lower-body rows extended through

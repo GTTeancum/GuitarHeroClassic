@@ -33628,6 +33628,11 @@ int run_contract() {
                  "\"rockabill2_missing_midi_target_control\"",
                  "arm pose diff manifest records missing-target negative control");
   ok &= contains(arm_pose_diff_manifest,
+                 "\"known_control_reason\":\"viewerlogintentionallyomits"
+                 "--midi-fret-targetspot_neck_fret11.mesh;"
+                 "thisstale-viewercaseisnotcurrentposeproof\"",
+                 "arm pose diff manifest labels stale-viewer control as non-proof");
+  ok &= contains(arm_pose_diff_manifest,
                  "\"[fretpos]role=guitarist0tick=61980"
                  "spot=spot_neck_fret11.meshindex=11\"",
                  "arm pose diff manifest requires active in-game fret target");
@@ -33668,6 +33673,12 @@ int run_contract() {
   ok &= contains(charbone_output_map_manifest,
                  "\"visible_minus_output_z_min\"",
                  "CharBone output-map manifest pins visible/output z gaps");
+  ok &= contains(doc,
+                 "intentionally\nnot a current bad-arm proof",
+                 "document prevents stale viewer control from being reused as proof");
+  ok &= contains(doc,
+                 "omits\n`--midi-fret-target spot_neck_fret11.mesh`",
+                 "document names missing live fret target as stale viewer cause");
   ok &= contains(doc,
                  "`engine/out/visual_proofs/standard_leg_crosschar_20260714/`",
                  "document records standard-pose cross-character proof folder");
