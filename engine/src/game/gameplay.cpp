@@ -11699,18 +11699,25 @@ bool worlddir_camshot_override_contains(
     return overrides.find(prefixed) != overrides.end();
 }
 
+int camshot_disable_like_source(int disabled_flags, bool disable, int mask) {
+    return disable ? (disabled_flags | mask) : (disabled_flags & ~mask);
+}
+
 void apply_worlddir_camshot_override(
     DecodedCamShot& shot, std::string_view shot_name,
     const std::unordered_set<std::string>& overrides) {
     if (!worlddir_camshot_override_contains(overrides, shot_name)) return;
     constexpr int kWorldDirCamShotOverrideDisabledFlag = 0x1;
-    shot.disabled_flags |= kWorldDirCamShotOverrideDisabledFlag;
+    shot.disabled_flags = camshot_disable_like_source(
+        shot.disabled_flags, true, kWorldDirCamShotOverrideDisabledFlag);
     for (auto& frame : shot.frames)
-        frame.first.disabled_flags |= kWorldDirCamShotOverrideDisabledFlag;
+        frame.first.disabled_flags = camshot_disable_like_source(
+            frame.first.disabled_flags, true,
+            kWorldDirCamShotOverrideDisabledFlag);
     if (debug_camera_enabled()) {
         std::fprintf(
             stderr,
-            "[world] WorldDir SyncCamShots: source=WorldDir::SyncCamShots shot=%.*s disabled=1 flag=0x%08x\n",
+            "[world] WorldDir SyncCamShots: source=WorldDir::SyncCamShots source_call=CamShot::Disable shot=%.*s disabled=1 flag=0x%08x\n",
             static_cast<int>(shot_name.size()), shot_name.data(),
             static_cast<unsigned int>(kWorldDirCamShotOverrideDisabledFlag));
     }

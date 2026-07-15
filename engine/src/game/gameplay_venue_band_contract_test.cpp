@@ -12339,11 +12339,32 @@ int main() {
                  "source=WorldDir::SyncCamShots",
                  "WorldDir camera override diagnostics name the ihatecompvir source sync");
   ok &= contains(gameplay_c,
-                 "shot.disabled_flags|=kWorldDirCamShotOverrideDisabledFlag;",
-                 "WorldDir camera overrides OR disabled flag 1 onto the decoded CamShot");
+                 "intcamshot_disable_like_source(intdisabled_flags,"
+                 "booldisable,intmask)",
+                 "WorldDir camera overrides use a source-shaped CamShot::Disable helper");
   ok &= contains(gameplay_c,
-                 "frame.first.disabled_flags|=kWorldDirCamShotOverrideDisabledFlag;",
-                 "WorldDir camera overrides propagate disabled flag 1 onto CamShot frame keys");
+                 "returndisable?(disabled_flags|mask):"
+                 "(disabled_flags&~mask);",
+                 "CamShot::Disable helper mirrors the source set/clear bit rule");
+  ok &= contains(gameplay_c,
+                 "shot.disabled_flags=camshot_disable_like_source("
+                 "shot.disabled_flags,true,"
+                 "kWorldDirCamShotOverrideDisabledFlag);",
+                 "WorldDir camera overrides route decoded CamShots through CamShot::Disable semantics");
+  ok &= contains(gameplay_c,
+                 "frame.first.disabled_flags=camshot_disable_like_source("
+                 "frame.first.disabled_flags,true,"
+                 "kWorldDirCamShotOverrideDisabledFlag);",
+                 "WorldDir camera overrides propagate CamShot::Disable semantics onto copied frame keys");
+  ok &= contains(gameplay_c,
+                 "source_call=CamShot::Disable",
+                 "WorldDir camera override diagnostics name the source disabled mutator");
+  ok &= absent(gameplay_c,
+               "shot.disabled_flags|=kWorldDirCamShotOverrideDisabledFlag;",
+               "WorldDir camera overrides must not bypass CamShot::Disable with a direct shot OR");
+  ok &= absent(gameplay_c,
+               "frame.first.disabled_flags|=kWorldDirCamShotOverrideDisabledFlag;",
+               "WorldDir camera overrides must not bypass CamShot::Disable with a direct frame OR");
   ok &= contains(intro_camera_selector_c,
                  "apply_worlddir_camshot_override("
                  "*decoded_shot,de.name,worlddir_camshot_overrides);",
