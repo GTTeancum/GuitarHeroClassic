@@ -6455,7 +6455,7 @@ Lower-body evidence audit:
   the old `0x00db...` targets stayed static even though the screenshot showed
   active gameplay. A live string/ref scan then found the current rock-family
   rows: every stable `0x00ef...` mesh wrapper row stayed unchanged, while the
-  linked `0x00e...` source/controller rows moved during the same eight-second
+  linked `0x00e...` runtime descriptor rows moved during the same eight-second
   gameplay sample (`rock_desc_R_thigh=26`, `rock_desc_R_knee=17`,
   `rock_desc_L_ankle=21`, `rock_desc_R_ankle=13`, `rock_desc_L_toe=21`,
   `rock_desc_R_toe=13`, `rock_desc_pelvis=17`). This refresh supports the same
@@ -6467,17 +6467,18 @@ Lower-body evidence audit:
   source/controller and stable mesh-wrapper row is labeled with the expected
   `bone_*.mesh` string at the sampled base address, verifies the raw changed
   offsets recorded for the seven moving rows (`0x4c..0xcc`), and reports
-  `stable_mesh_wrappers=9`, `moving_source_rows=7`,
-  `source_matrix_rows=7`, and `source_json_checked=true`. The raw offset
+  `stable_mesh_wrappers=9`, `moving_runtime_rows=7`,
+  `runtime_transform_rows=7`, and `source_json_checked=true`. The raw offset
   checker now requires each moving descriptor row to carry motion in the
-  stored transform-shaped source-row band (`0x8c..0xcc`) and records the
+  stored transform-shaped runtime descriptor band (`0x8c..0xcc`) and records the
   optional compact transform-shaped band (`0x4c..0x74`) where present; this
   keeps the trace contract pinned to live lower-body pose data rather than
   labels, counters, or stale named mesh wrappers.
   The PCSX2 manifest also records
   `source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples`;
-  the emulator trace corroborates the source-output lower-body bridge at
-  runtime, but it is not the source of truth for the native implementation.
+  its `runtime_corroboree_conclusion` corroborates the source-output lower-body
+  bridge at runtime, but it is not the source of truth for the native
+  implementation.
   If a future visual proof contradicts the current result, the next RexGlue
   target is the same pose-buffer apply/output-row bridge with named lower-body
   rows, not a new foot-IK or character-name offset path.

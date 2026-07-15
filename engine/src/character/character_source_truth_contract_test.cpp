@@ -34812,10 +34812,16 @@ int run_contract() {
       "PCSX2 lower-body manifest records trace id");
   ok &= contains(lower_body_pcsx2_row_trace_manifest,
                  "\"native_path\":\"source_output_lower_body_bridge\"",
-                 "PCSX2 lower-body manifest records native source bridge");
+                 "PCSX2 lower-body manifest records native bridge under corroboration");
+  ok &= contains(lower_body_pcsx2_row_trace_manifest,
+                 "\"runtime_corroboree_conclusion\"",
+                 "PCSX2 lower-body manifest labels conclusion as runtime corroboration");
+  ok &= missing(lower_body_pcsx2_row_trace_manifest,
+                "\"source_backed_conclusion\"",
+                "PCSX2 lower-body manifest must not claim source-backed conclusion");
   ok &= contains(lower_body_pcsx2_row_trace_manifest,
                  "\"rock_desc_R_thigh\"",
-                 "PCSX2 lower-body manifest records moving source row");
+                 "PCSX2 lower-body manifest records moving runtime descriptor row");
   ok &= contains(lower_body_pcsx2_row_trace_manifest,
                  "\"rock_mesh_R_thigh\"",
                  "PCSX2 lower-body manifest records stable mesh wrapper row");
@@ -34829,8 +34835,11 @@ int run_contract() {
                  "stable_mesh_wrappers=",
                  "PCSX2 lower-body checker reports stable mesh wrappers");
   ok &= contains(lower_body_pcsx2_row_trace,
-                 "source_matrix_rows=",
-                 "PCSX2 lower-body checker reports source transform-band rows");
+                 "moving_runtime_rows=",
+                 "PCSX2 lower-body checker reports moving runtime rows");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "runtime_transform_rows=",
+                 "PCSX2 lower-body checker reports runtime transform-band rows");
   ok &= contains(lower_body_pcsx2_row_trace,
                  "source_json_checked=",
                  "PCSX2 lower-body checker can cross-check raw trace JSON");
@@ -34862,11 +34871,11 @@ int run_contract() {
                  "verifies the raw changed\n  offsets recorded for the seven moving rows",
                  "document records raw PCSX2 changed-offset requirement");
   ok &= contains(doc,
-                 "`source_matrix_rows=7`",
-                 "document records source transform-band row count");
+                 "`runtime_transform_rows=7`",
+                 "document records runtime transform-band row count");
   ok &= contains(doc,
-                 "stored transform-shaped source-row band",
-                 "document records stored transform-band requirement");
+                 "stored transform-shaped runtime descriptor band",
+                 "document records stored runtime transform-band requirement");
   ok &= contains(doc,
                  "`source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples`",
                  "document keeps lower-body trace source truth on ihatecompvir");
@@ -34874,7 +34883,8 @@ int run_contract() {
                  "`runtime_corroboree=pcsx2_rock_lower_body_mesh_rows_20260715`",
                  "document reclassifies PCSX2 as runtime corroboration");
   ok &= contains(doc,
-                 "it is not the source of truth for the native implementation",
+                 "it is not the source of truth for the native\n"
+                 "  implementation",
                  "document rejects PCSX2 as native implementation authority");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"trace_commit\":\"df59904\"",

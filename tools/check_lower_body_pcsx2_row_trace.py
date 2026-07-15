@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the focused PCSX2 lower-body mesh/source row trace summary."""
+"""Verify the focused PCSX2 lower-body runtime corroboration trace summary."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def require_transform_band_motion(
     stored_hits = len(offsets.intersection(STORED_TRANSFORM_BAND))
     require(
         stored_hits >= 9,
-        f"{row_name}: missing source-row stored transform-band motion",
+        f"{row_name}: missing runtime descriptor stored transform-band motion",
     )
     require(
         summary.get("offsets") == changed_offsets(raw_entry),
@@ -150,10 +150,14 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
     stale = manifest.get("stale_trace_rejected", {})
     require("0x00db" in stale.get("reason", ""), "stale address rejection missing")
 
-    conclusion = manifest.get("source_backed_conclusion", {})
+    require(
+        "source_backed_conclusion" not in manifest,
+        "PCSX2 trace must not claim a source-backed conclusion",
+    )
+    conclusion = manifest.get("runtime_corroboree_conclusion", {})
     require(
         conclusion.get("native_path") == "source_output_lower_body_bridge",
-        "native conclusion must stay on source output bridge",
+        "runtime corroboration must stay on source output bridge",
     )
     rejects = set(conclusion.get("rejects", []))
     for rejected in (
@@ -170,7 +174,7 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
     seen_desc: dict[str, dict[str, Any]] = {}
     moving_desc = 0
     stable_mesh = 0
-    source_matrix_rows = 0
+    runtime_transform_rows = 0
     for pair in pairs:
         bone = pair.get("bone", "")
         require(bone.startswith("bone_") and bone.endswith(".mesh"), "bad bone label")
@@ -188,7 +192,7 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
         seen_desc[desc_name] = desc
 
     require(stable_mesh == 9, "not all mesh wrapper rows stayed stable")
-    require(moving_desc >= 7, "not enough linked source/controller rows moved")
+    require(moving_desc >= 7, "not enough linked runtime descriptor rows moved")
     missing_moving = sorted(required_moving - set(seen_desc))
     require(not missing_moving, f"missing moving desc rows {missing_moving}")
     for name in sorted(required_moving):
@@ -240,10 +244,10 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
                         raw_entry, entry["name"], summary
                     )
                     if compact_hits > 0 or stored_hits > 0:
-                        source_matrix_rows += 1
+                        runtime_transform_rows += 1
         checked_raw = True
 
-    return stable_mesh, moving_desc, source_matrix_rows, checked_raw
+    return stable_mesh, moving_desc, runtime_transform_rows, checked_raw
 
 
 def parse_args() -> argparse.Namespace:
@@ -275,7 +279,7 @@ def main() -> int:
         manifest = load_json(args.manifest)
         source_json = resolve_manifest_path(args.manifest, manifest["source_json"])
     try:
-        stable_mesh, moving_desc, source_matrix_rows, checked_raw = check_manifest(
+        stable_mesh, moving_desc, runtime_transform_rows, checked_raw = check_manifest(
             args.manifest, source_json
         )
     except RuntimeError as exc:
@@ -284,8 +288,8 @@ def main() -> int:
     print(
         "PASS lower_body_pcsx2_row_trace "
         f"stable_mesh_wrappers={stable_mesh} "
-        f"moving_source_rows={moving_desc} "
-        f"source_matrix_rows={source_matrix_rows} "
+        f"moving_runtime_rows={moving_desc} "
+        f"runtime_transform_rows={runtime_transform_rows} "
         f"source_json_checked={str(checked_raw).lower()} "
         "source_truth=ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples "
         "native_path=source_output_lower_body_bridge"
