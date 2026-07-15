@@ -12396,6 +12396,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(prop==\"far_starpower_ok\")returnkey.far_starpower_ok;",
                  "CameraManager ShotMatches can evaluate authored far_starpower_ok filters");
+  ok &= absent(camera_source_script_filters_c, "\"far_starpower_ok\"",
+               "source script filters must not promote far_starpower_ok into regular/solo star-power selection");
   ok &= contains(gameplay_c,
                  "to.bad_waypoint_refs=from.bad_waypoint_refs;",
                  "path-backed CamShot runtime metadata carries bad_waypoints refs");

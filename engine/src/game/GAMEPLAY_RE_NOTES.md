@@ -387,6 +387,16 @@ Open work:
   source filter reader now exposes it as a bool property so an authored source
   filter can match it. This is not a new inferred star-power rejection rule and
   does not change the still-deferred GH2 `cam_shot_ok` predicate.
+- 2026-07-15 stock star-power filter audit:
+  the retail GH2 `world/gen/world_objects_worldbase.dtb` dump shows both
+  `pick_regular_camera_shot` and `pick_solo_camera_shot` appending only
+  `(starpower_ok TRUE)` when `{guitarist0 playing_starpower}` is true. The
+  retail `world/gen/camshot.dtb` declares `(far_starpower_ok FALSE)`, but the
+  shipped script does not add it to the regular/solo `pick_shot` filter list.
+  Native now documents that boundary beside the filter builder and the contract
+  forbids promoting `far_starpower_ok` into source-script star-power selection;
+  it remains available only to generic `ShotMatches` and the future recovered
+  `cam_shot_ok` body.
 - 2026-07-14 CamShot `distance`/`facing` source defaults:
   GH2 `world/camshot.dta` declares `(distance null)` and `(facing null)`, and
   `world_objects_worldbase.dta` uses filters such as `(facing (right null))`

@@ -16381,6 +16381,9 @@ std::vector<CameraShotSourceFilter> camera_source_script_filters(
         if (low_excitement)
             filters.push_back(camera_bool_filter("low_excitement_ok", true));
         if (walking) filters.push_back(camera_bool_filter("walk_ok", true));
+        // Stock GH2 world_objects_worldbase.dta adds only (starpower_ok TRUE)
+        // here. far_starpower_ok is decoded for generic ShotMatches/native
+        // cam_shot_ok evidence, not promoted into this script filter.
         if (starpower)
             filters.push_back(camera_bool_filter("starpower_ok", true));
         if (previous) {
@@ -16400,6 +16403,8 @@ std::vector<CameraShotSourceFilter> camera_source_script_filters(
     if (low_excitement)
         filters.push_back(camera_bool_filter("low_excitement_ok", true));
     if (walking) filters.push_back(camera_bool_filter("walk_ok", true));
+    // Keep the regular-camera star-power branch aligned with the shipped
+    // world_objects_worldbase.dta filter list: (starpower_ok TRUE) only.
     if (starpower)
         filters.push_back(camera_bool_filter("starpower_ok", true));
     filters.push_back(camera_bool_filter("special", false));
