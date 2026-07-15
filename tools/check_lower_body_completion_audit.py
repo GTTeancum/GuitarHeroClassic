@@ -127,6 +127,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_2p_select_proofs.py",
     "tools/check_lower_body_2p_select_slot_sweep.py",
     "tools/check_lower_body_2p_select_context_proofs.py",
+    "tools/check_lower_body_2p_select_family_proofs.py",
     "tools/check_lower_body_2p_select_source_assets.py",
     "tools/check_lower_body_2p_select_char_events.py",
     "tools/check_lower_body_2p_select_app_placer.py",
@@ -346,6 +347,9 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     two_player_select_context = read(
         root / "tools/check_lower_body_2p_select_context_proofs.py"
     )
+    two_player_select_family = read(
+        root / "tools/check_lower_body_2p_select_family_proofs.py"
+    )
     two_player_select_assets = read(root / "tools/check_lower_body_2p_select_source_assets.py")
     two_player_select_events = read(root / "tools/check_lower_body_2p_select_char_events.py")
     two_player_select_app = read(root / "tools/check_lower_body_2p_select_app_placer.py")
@@ -379,6 +383,11 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         root,
         "tools/check_lower_body_2p_select_context_proofs.py",
         "two-player character-select context proof checker",
+    )
+    two_player_select_family_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_family_proofs.py",
+        "two-player character-select source-family proof checker",
     )
     pose_manifest = load_json(root / "tools/lower_body_glam1_metal1_ingame_pose_manifest.json")
     output_manifest = load_json(root / "tools/charbone_output_map_manifest.json")
@@ -593,6 +602,38 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
             f"2P select context output marker {marker}",
         )
     for marker in (
+        "lower_body_2p_select_family_20260715",
+        "characters=rock1,rock2,funk1,deathmetal1",
+        "camera_views=side",
+        "frames=30,40",
+        "source_family_rock2_uses_rock1_ui_anim=true",
+        "rock1_p1_2p_select_ui_loop_f030_side",
+        "rock2_p1_2p_select_ui_loop_f030_side",
+        "funk1_p1_2p_select_ui_loop_f030_side",
+        "deathmetal1_p1_2p_select_ui_loop_f030_side",
+    ):
+        require_contains(
+            two_player_select_family,
+            marker,
+            f"2P select source-family proof marker {marker}",
+        )
+    for marker in (
+        "PASS lower_body_2p_select_family_proofs",
+        "characters=rock1,rock2,funk1,deathmetal1 players=p1,p2",
+        "screen=multi_sel_character_screen panel=char_multi",
+        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "camera_views=side frames=30,40 cases=16",
+        "source_family_rock2_uses_rock1_ui_anim=true",
+        "max_abs_toe_z=1.8758",
+        "max_lr_toe_delta_z=1.2907",
+        "max_output_visible_gap=0.000500",
+    ):
+        require_contains(
+            two_player_select_family_output,
+            marker,
+            f"2P select source-family output marker {marker}",
+        )
+    for marker in (
         "MATRIX0_OFFSET = 46",
         "MATRIX1_OFFSET = 94",
         "STRING_OFFSET = 151",
@@ -738,6 +779,7 @@ def main() -> int:
         "two_player_select=true two_player_select_source_assets=true "
         "two_player_select_char_events=true two_player_select_app_placer=true "
         "two_player_select_slot_sweep=true two_player_select_context=true "
+        "two_player_select_family=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

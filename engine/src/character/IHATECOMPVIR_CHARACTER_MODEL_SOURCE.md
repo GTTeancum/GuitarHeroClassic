@@ -6523,6 +6523,23 @@ above the drawn diagnostic base in profile, but the live source-output toe rows
 are within the established floor tolerance and match the visible lower-output
 rows to 0.000500; this is therefore not the old sampled-direct lower-body float.
 
+`engine/out/visual_proofs/lower_body_2p_select_family_20260715/` extends the
+corrected 2P select side-profile check beyond the active Glam1/Metal1 pair. It
+captures Rock1, Rock2, Funk1, and Deathmetal1 in both `char_multi0.placer` and
+`char_multi1.placer` at `ui_loop` frames 30 and 40, again with `--guitar none`
+and the stock `select` event. Rock2 is intentionally included as a separate UI
+model using the stock `char/rock1/anims/gen/rock1_ui.milo_ps2` source-family
+animation path. `tools/check_lower_body_2p_select_family_proofs.py` passes with
+`characters=rock1,rock2,funk1,deathmetal1`, `cases=16`,
+`source_family_rock2_uses_rock1_ui_anim=true`, `max_abs_toe_z=1.8758`,
+`max_lr_toe_delta_z=1.2907`, `min_pelvis_to_toe_z=30.9552`, and
+`max_output_visible_gap=0.000500`. Funk1 and Deathmetal1 have stylized select
+poses with one or both toe rows higher than the stricter Glam1/Metal1 flat-foot
+band, so this checker uses a select-pose bound instead of weakening the
+flat-foot checker. The accepted evidence is that the lower-body output rows are
+live, source-authored, and visually matched; it does not use character-specific
+offsets or a single-player select geometry read.
+
 2026-07-15 lower-body source row authority:
 ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows
 `CharBone::StuffBones` is the source-visible row authority: an authored

@@ -201,6 +201,9 @@ int run_contract() {
   const std::string lower_body_2p_select_context_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_context_proofs.py"));
+  const std::string lower_body_2p_select_family_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_family_proofs.py"));
   const std::string lower_body_2p_select_source_assets = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_source_assets.py"));
@@ -34314,6 +34317,14 @@ int run_contract() {
       "lower-body completion audit reports 2P context proof");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_2p_select_family_proofs.py\"",
+      "lower-body completion audit runs 2P source-family proof checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_family=true",
+      "lower-body completion audit reports 2P source-family proof");
+  ok &= contains(
+      lower_body_completion_audit,
       "proof_min_resolution=1280x720stock_visuals=true",
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
@@ -34712,6 +34723,9 @@ int run_contract() {
                  "`engine/out/visual_proofs/lower_body_2p_select_context_20260715/`",
                  "document records corrected 2P select context proof folder");
   ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_2p_select_family_20260715/`",
+                 "document records corrected 2P select family proof folder");
+  ok &= contains(doc,
                  "`two_player_select=true`",
                  "document records 2P select checker status");
   ok &= contains(doc,
@@ -34723,6 +34737,12 @@ int run_contract() {
   ok &= contains(compact(doc),
                  "staleappbinaryanddefaultXplorerprop",
                  "document records rejected stale/no-placer capture");
+  ok &= contains(doc,
+                 "`source_family_rock2_uses_rock1_ui_anim=true`",
+                 "document records Rock2 shared UI animation family proof");
+  ok &= contains(compact(doc),
+                 "Funk1andDeathmetal1havestylizedselectposes",
+                 "document records family checker select-pose threshold scope");
   ok &= contains(compact(doc),
                  "side/profilecheckforbothreal2Pplayerslots",
                  "document records 2P slot sweep side/profile scope");
@@ -34935,6 +34955,34 @@ int run_contract() {
       "metal1_p1_2p_select_ui_loop_f030_side",
       "2P context checker pins Metal1 P1 side PNG");
   ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "lower_body_2p_select_family_20260715",
+      "2P family checker pins proof folder");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "characters=rock1,rock2,funk1,deathmetal1",
+      "2P family checker reports source-family characters");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "source_family_rock2_uses_rock1_ui_anim=true",
+      "2P family checker records Rock2 shared UI animation source");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "MAX_SELECT_TOE_ABS_Z=2.0",
+      "2P family checker keeps select-pose toe bound separate");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "rock2_p1_2p_select_ui_loop_f030_side",
+      "2P family checker pins Rock2 P1 side PNG");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "funk1_p1_2p_select_ui_loop_f030_side",
+      "2P family checker pins Funk1 P1 side PNG");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "deathmetal1_p1_2p_select_ui_loop_f030_side",
+      "2P family checker pins Deathmetal1 P1 side PNG");
+  ok &= contains(
       lower_body_2p_select_source_assets,
       "SCREEN_MILO=\"ui/gen/multi_sel_character.milo_ps2\"",
       "2P source asset checker pins stock screen MILO");
@@ -35030,6 +35078,10 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select_context=true",
       "completion audit reports 2P context verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_family=true",
+      "completion audit reports 2P source-family verifier status");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");
