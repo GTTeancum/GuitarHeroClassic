@@ -20752,11 +20752,18 @@ struct CameraSourceDofPointContext {
 
 CameraSourceDofPointContext camera_source_dof_point_context_for_key(
     const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, CameraTarget>& targets) {
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::optional<std::array<float, 3>>& cached_target_pos =
+        std::nullopt) {
     CameraSourceDofPointContext context;
     if (const auto focus = camera_focus_target_for_key(key, targets)) {
         context.point = mat4_position_game(focus->world);
         context.source = "focus_target";
+        return context;
+    }
+    if (cached_target_pos) {
+        context.point = *cached_target_pos;
+        context.source = "cached_target_unk34";
         return context;
     }
     if (const auto centroid = camera_target_centroid_for_key(key, targets)) {
@@ -21770,9 +21777,11 @@ void apply_camera_keys(
             ? b->use_depth_of_field
             : (a->has_use_depth_of_field ? a->use_depth_of_field : false);
     const auto a_source_dof_point =
-        camera_source_dof_point_context_for_key(*a, targets);
+        camera_source_dof_point_context_for_key(*a, targets,
+                                                a_target_centroid);
     const auto b_source_dof_point =
-        camera_source_dof_point_context_for_key(*b, targets);
+        camera_source_dof_point_context_for_key(*b, targets,
+                                                b_target_centroid);
     // CamShotFrame::Interp computes DOF distances from tf130 before blending
     // tf130 with the previous camera WorldXfm through the SetFrame blend.
     const std::array<float, 3> source_dof_camera_pos =

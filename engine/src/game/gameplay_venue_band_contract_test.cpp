@@ -11038,6 +11038,15 @@ int main() {
                  "context.source=\"target_centroid\";",
                  "CamShot DOF point resolution labels the target-centroid fallback");
   ok &= contains(gameplay_c,
+                 "context.source=\"cached_target_unk34\";",
+                 "CamShot DOF target fallback consumes the UpdateTarget-cached unk34 position");
+  ok &= contains(gameplay_c,
+                 "camera_source_dof_point_context_for_key(*a,targets,a_target_centroid)",
+                 "CamShot DOF A point uses the per-frame cached target position");
+  ok &= contains(gameplay_c,
+                 "camera_source_dof_point_context_for_key(*b,targets,b_target_centroid)",
+                 "CamShot DOF B point uses the per-frame cached target position");
+  ok &= contains(gameplay_c,
                  "structCameraSourceDofResult",
                  "CamShot DOF support records source A/B focus distances");
   ok &= contains(gameplay_c,

@@ -12131,6 +12131,14 @@ Rejected native probe:
   labeling `camera=pre_setframe_blend`. This keeps non-1 SetFrame blend support
   aligned with source order without changing normal Poll rows where blend is
   `1.0f`.
+- 2026-07-15 CamShot DOF cached target position:
+  ihatecompvir `CamShotFrame::UpdateTarget` stores the averaged live target in
+  `unk34`, and the later DOF branch in `CamShotFrame::Interp` falls back to that
+  stored point when no focus target exists. Native now routes DOF fallback
+  through the same per-frame `camera_update_frame_target_cache_like_source(...)`
+  result used for the pose solve, with diagnostics labeling
+  `cached_target_unk34`. The older centroid helper remains only as a fallback
+  for callers that do not have a frame cache.
 - 2026-07-14 CamShot DOF constructor default:
   ihatecompvir `CamShot::CamShot` initializes `mUseDepthOfField` to false
   before any loaded shot data overwrites it. Native `DecodedCamShot` now uses
