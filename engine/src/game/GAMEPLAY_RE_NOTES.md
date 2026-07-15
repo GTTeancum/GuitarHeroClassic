@@ -64,6 +64,15 @@
   object beside `Cam`, `CamShot`, and `CamAnim`, but this is a dependency
   bucket fix only. It does not claim a recovered BandCamShot runtime pipeline or
   decode BandCamShot object bodies as regular GH2 `CamShot`s.
+- 2026-07-15 stock GH2 BandCamShot inventory proof:
+  `proofs/camera_bandcam_boundary_scan_20260715_074051.log` extracts and
+  lists all 68 `world/*.milo_ps2` entries from the stock hybrid ARK with the
+  in-repo `ark_tool`/`milo_tool` path. It finds 24 world MILOs containing
+  `CamShot` objects and zero containing `BandCamShot` objects. Native therefore
+  keeps `BandCamShot` as a camera-phase dependency/audit type only, while the
+  intro, direct, and regular GH2 runtime camera loaders remain explicitly
+  `CamShot`-gated. This avoids widening the GH2 loader around RB3-era source
+  material that has no stock GH2 venue object bodies.
 - 2026-07-13 CamShot resolved target presence: ihatecompvir
   `CamShotFrame::HasTargets()` checks the loaded `mTargets` object pointers,
   and `GetCurrentTargetPosition()` averages every non-null resolved target.

@@ -194,6 +194,8 @@ int main() {
       function_body(gameplay, "camera_apply_screen_offset_to_result_rows"));
   const std::string rnd_camanim_reader_c =
       compact(function_body(gameplay, "read_rnd_camanim_like_miloeditor"));
+  const std::string camera_position_loader_c =
+      compact(function_body(gameplay, "load_camera_position_keys"));
   const std::string venue_camera_fov_loader_c =
       compact(function_body(gameplay, "load_venue_camera_fov_anims"));
   const std::string start_camera_shot_runtime_c = compact(
@@ -11701,6 +11703,21 @@ int main() {
                  "type==\"Cam\"||type==\"CamShot\"||type==\"BandCamShot\"||"
                  "type==\"CamAnim\"",
                  "venue dependency audit treats ihatecompvir BandCamShot as a CamShot-derived camera dependency");
+  ok &= contains(regular_camera_loader_c,
+                 "if(de.type!=\"CamShot\"||de.offset+de.size>payload.size())"
+                 "continue;",
+                 "regular GH2 camera loader decodes only stock CamShot bodies");
+  ok &= contains(intro_camera_selector_c,
+                 "if(de.type!=\"CamShot\"||de.offset+de.size>payload.size())"
+                 "continue;",
+                 "intro GH2 camera selector decodes only stock CamShot bodies");
+  ok &= contains(camera_position_loader_c,
+                 "if(de.type!=\"CamShot\"||de.name!=shot_name||"
+                 "de.offset+de.size>payload.size()){continue;}",
+                 "direct intro GH2 camera pose loader decodes only the named stock CamShot body");
+  ok &= absent(gameplay_c,
+               "de.type==\"BandCamShot\"",
+               "BandCamShot remains dependency-only until stock GH2 venue data or recovered source requires a runtime decoder");
   ok &= contains(gameplay_c,
                  "\"[world]venuedependency:%sdir=%sentries=%zuvisual=%zuanim=%zucamera=%zubank=%zu\\n\"",
                  "venue dependency diagnostics expose visual, animation, camera, and bank categories");
