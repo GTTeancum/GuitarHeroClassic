@@ -126,6 +126,25 @@ def read_log(path: Path) -> str:
         raise RuntimeError(f"{path}: {exc}") from exc
 
 
+def compact_for_contains(value: str) -> str:
+    return "".join(value.split())
+
+
+def require_fragments(path: Path, fragments: object, label: str) -> None:
+    if fragments is None:
+        return
+    if not isinstance(fragments, list) or not all(isinstance(item, str) for item in fragments):
+        raise RuntimeError(f"{label}: required fragments must be a list of strings")
+    if not fragments:
+        return
+    text = compact_for_contains(read_log(path))
+    missing = [
+        fragment for fragment in fragments if compact_for_contains(fragment) not in text
+    ]
+    if missing:
+        raise RuntimeError(f"{label}: {path} missing required fragment {missing[0]}")
+
+
 def require_log_with_screenshot(path: Path) -> None:
     text = read_log(path)
     if not any(marker in text for marker in SCREENSHOT_MARKERS):
@@ -162,6 +181,12 @@ def check_playable(
         require(viewer_log.is_file(), f"{label}: missing viewer log {viewer_log}")
         require_log_with_screenshot(ingame_log)
         require_log_with_screenshot(viewer_log)
+        require_fragments(
+            ingame_log, case.get("require_ingame_contains"), f"{label}: in-game log"
+        )
+        require_fragments(
+            viewer_log, case.get("require_viewer_contains"), f"{label}: viewer log"
+        )
         require_png_in_folder(ingame_log.parent, "ingame_")
         require_png_in_folder(viewer_log.parent, "viewer_")
         case_character = str(case.get("character", default_character))
@@ -197,6 +222,7 @@ def check_support(output_manifest_path: Path, output_cases: dict[str, dict]) -> 
         log_path = path_from_manifest(output_manifest_path, case.get("log"), "log")
         require(log_path.is_file(), f"{label}: missing proof log {log_path}")
         require_log_with_screenshot(log_path)
+        require_fragments(log_path, case.get("require_contains"), f"{label}: proof log")
         png_path = log_path.with_suffix(".png")
         require(png_path.is_file(), f"{label}: missing visual proof {png_path}")
 

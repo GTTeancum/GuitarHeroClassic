@@ -33942,6 +33942,15 @@ int run_contract() {
       "support_viewer={len(SUPPORT_VIEWER_LABELS)}",
       "lower-body stock coverage audit reports support count");
   ok &= contains(
+      lower_body_stock_coverage,
+      "require_fragments(",
+      "lower-body stock coverage audit enforces required log fragments");
+  ok &= contains(
+      doc,
+      "enforces each manifest case's required log\nfragments before accepting "
+      "coverage",
+      "document records stock proof required-fragment enforcement");
+  ok &= contains(
       lower_body_root_cause,
       "BAD_FORWARD_Y_MIN",
       "lower-body root-cause audit pins old forward distal gap");

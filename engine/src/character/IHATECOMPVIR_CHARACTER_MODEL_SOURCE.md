@@ -6239,8 +6239,9 @@ new bone-name guess.
 viewer live-stack playable proofs in `tools/arm_pose_diff_manifest.json` to the
 six support/base direct-viewer output proofs in
 `tools/charbone_output_map_manifest.json`, requires screenshot-bearing logs and
-individual PNG visual proofs, and preserves the source-authored Metal Bass foot
-rows plus Metal Drummer `toe0` diagnostic alias.
+individual PNG visual proofs, enforces each manifest case's required log
+fragments before accepting coverage, and preserves the source-authored Metal
+Bass foot rows plus Metal Drummer `toe0` diagnostic alias.
 
 Current lower-body root-cause summary: the bad "standing but floating with legs
 forward" frame came from applying decoded sampled channels straight onto the
