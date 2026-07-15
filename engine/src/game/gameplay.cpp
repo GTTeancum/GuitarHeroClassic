@@ -20821,6 +20821,24 @@ std::array<float, 3> camera_authored_eye_for_key(
     return transform_point_game(parent->world, key.eye);
 }
 
+float camshot_source_atan_interpolator_eval(float input, float y0, float y1,
+                                            float x0, float x1,
+                                            float severity) {
+    const float source_x_mapping_y0 = -severity;
+    const float source_x_mapping_y1 = severity;
+    const float run = x1 - x0;
+    const float mapped =
+        std::fabs(run) < 0.000001f
+            ? source_x_mapping_y0
+            : source_x_mapping_y0 +
+                  (input - x0) * (source_x_mapping_y1 - source_x_mapping_y0) /
+                      run;
+    const float atan_neg = std::atan(-severity);
+    const float scale = (y1 - y0) / ((-atan_neg) - atan_neg);
+    const float offset = (y1 - y0) * 0.5f + y0;
+    return std::atan(mapped) * scale + offset;
+}
+
 float camshot_blend_ease_t(float raw_t, float blend_ease,
                            int blend_ease_mode) {
     const float t = std::clamp(raw_t, 0.0f, 1.0f);
@@ -20838,13 +20856,8 @@ float camshot_blend_ease_t(float raw_t, float blend_ease,
         x0 = -1.0f;
     }
 
-    const float run = x1 - x0;
-    const float slope = std::fabs(run) < 0.000001f ? 0.0f : (2.0f * blend_ease) / run;
-    const float x_mapped = slope * t + (-blend_ease - x0 * slope);
-    const float atan_neg = std::atan(-blend_ease);
-    const float scale = (y1 - y0) / ((-atan_neg) - atan_neg);
-    const float offset = (y1 - y0) * 0.5f + y0;
-    return std::clamp(std::atan(x_mapped) * scale + offset, 0.0f, 1.0f);
+    return camshot_source_atan_interpolator_eval(t, y0, y1, x0, x1,
+                                                 blend_ease);
 }
 
 void camera_authored_up_for_key(

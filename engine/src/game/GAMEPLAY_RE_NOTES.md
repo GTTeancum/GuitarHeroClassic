@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot blend-ease source helper:
+  ihatecompvir `CamShotFrame::Interp` remaps the outgoing keyframe blend
+  through `ATanInterpolator(fvar1, fvar2, fvar1, fvar2, mBlendEase)`, whose
+  audited `Reset/Eval` maps input through `[-severity, +severity]` and returns
+  `atan(mapped) * scale + offset` without an extra output clamp. Native now
+  routes `camshot_blend_ease_t` through a named source-shaped helper and
+  contract-guards the endpoint mapping, scale/offset, and unclamped `Eval`
+  return. This tightens keyframe interpolation provenance; it does not
+  synthesize hidden `BuildTransform` / `SetPos` camera-angle math or add
+  dependencies.
 - 2026-07-15 CamShot visibility lifecycle proof:
   ihatecompvir `CamShot::DoHide()` hides the decoded drawable vectors
   `unk5c` / `unk6c` and records restored drawables in `unkbc`, while

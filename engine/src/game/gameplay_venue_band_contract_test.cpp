@@ -10876,6 +10876,25 @@ int main() {
                  "intblend_ease_mode)",
                  "CamShot interpolation has the ihatecompvir ATan blend-ease remap");
   ok &= contains(gameplay_c,
+                 "floatcamshot_source_atan_interpolator_eval(floatinput,"
+                 "floaty0,floaty1,floatx0,floatx1,floatseverity)",
+                 "CamShot blend-ease helper mirrors ihatecompvir ATanInterpolator::Eval");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_x_mapping_y0=-severity;"
+                 "constfloatsource_x_mapping_y1=severity;",
+                 "CamShot blend-ease helper uses the source ATan x mapping endpoints");
+  ok &= contains(gameplay_c,
+                 "constfloatatan_neg=std::atan(-severity);"
+                 "constfloatscale=(y1-y0)/((-atan_neg)-atan_neg);"
+                 "constfloatoffset=(y1-y0)*0.5f+y0;",
+                 "CamShot blend-ease helper uses the source ATan scale and offset");
+  ok &= contains(gameplay_c,
+                 "returnstd::atan(mapped)*scale+offset;",
+                 "CamShot blend-ease helper does not add a non-source output clamp");
+  ok &= absent(gameplay_c,
+               "returnstd::clamp(std::atan",
+               "CamShot blend-ease helper must not clamp ATanInterpolator::Eval output");
+  ok &= contains(gameplay_c,
                  "constfloatinterp_t=camshot_blend_ease_t(t,a->blend_ease,"
                  "a->blend_ease_mode);",
                  "CamShot interpolation uses the outgoing keyframe blend_ease");
