@@ -174,6 +174,9 @@ int run_contract() {
   const std::string lower_body_current_commit_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_current_commit_proofs.py"));
+  const std::string lower_body_metal1_followup_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_metal1_followup_proofs.py"));
   const std::string lower_body_current_commit_pose_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_current_commit_pose_manifest.json"));
@@ -34081,6 +34084,22 @@ int run_contract() {
       "char/rock1/anims/gen/rock1_main.milo_ps2",
       "lower-body current-commit proof pins Rock2 shared-driver source");
   ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "metal1_front.log",
+      "lower-body follow-up proof requires Metal1 front log");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "characters={characters}",
+      "lower-body follow-up proof reports checked characters");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "live_output_rows=true",
+      "lower-body follow-up proof reports live output rows");
+  ok &= contains(
+      lower_body_metal1_followup_proofs,
+      "direct_source_publisher_absent=true",
+      "lower-body follow-up proof does not overclaim source-publisher fence");
+  ok &= contains(
       lower_body_current_commit_pose_manifest,
       "\"rockabill2_current_commit_lower_body_match\"",
       "lower-body current-commit manifest includes Rockabill2 match");
@@ -34588,41 +34607,37 @@ int run_contract() {
                  "`analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md`",
                  "document records RexGlue/PS2 lower-body mesh-row evidence");
   ok &= contains(doc,
-                 "Current RexGlue captures are not accepted lower-body row "
-                 "oracles",
+                 "Current RexGlue captures are still not accepted lower-body "
+                 "row oracles",
                  "document records RexGlue current non-authoritative status");
   ok &= contains(doc,
                  "`runtime=192 apply=0 rows=0 insong=0`",
                  "document records RexGlue route-missed lower-body trace");
   ok &= contains(doc,
-                 "`pose_route=0`, `scene_route=1`, `controller_gate=1`",
-                 "document records RexGlue controller-gated clean trace");
+                 "`pose_route=0`,\n  `pause_ui_preload=2`",
+                 "document records RexGlue corrected pause-UI preload trace");
   ok &= contains(doc,
-                 "`route_status=route_not_reached`",
-                 "document records RexGlue route reachability rejection");
+                 "shared pause-UI preload, not proof of a controller gate",
+                 "document records RexGlue controller-gate reinterpretation");
   ok &= contains(doc,
-                 "`scripted_nav=1`",
+                 "`scripted_nav_polls=1`",
                  "document records RexGlue scripted nav single-poll clue");
   ok &= contains(doc,
-                 "`scripted_nav_polls=4`",
-                 "document records RexGlue scripted nav poll heartbeat");
+                 "`pause_ui_preload=2`, `scripted_nav_polls=1`, `guitar_edges=1`",
+                 "document records RexGlue pause-UI/input summary");
   ok &= contains(doc,
                  "`guitar_edges=1`",
                  "document records RexGlue proven GuitarPort input edge");
   ok &= contains(doc,
-                 "`wButtons=0x1000 names=A strum_up=0 strum_dn=0 "
-                 "engine_word=0x00000040`",
-                 "document records RexGlue remapped GuitarPort input edge");
-  ok &= contains(doc,
-                 "`pause_controller_msg.lbl`",
-                 "document records RexGlue pause/controller UI route clue");
+                 "FileMgr_Lookup -> FileHandle -> File_OpenDispatch ->",
+                 "document records RexGlue pause-UI stack");
   ok &= contains(doc,
                  "`ui/gen/pause_controller.milo_xbox`",
-                 "document records RexGlue controller-gate file clue");
+                 "document records RexGlue pause-UI preload file clue");
   ok &= contains(
       doc,
-      "`analysis/rexglue_lower_body_trace_rebuilt_scaffold_1784130255_summary.json`",
-      "document records rebuilt RexGlue scaffold summary");
+      "`analysis/rexglue_lower_body_trace_pause_ui_preload_1784134300_summary.json`",
+      "document records corrected RexGlue pause-UI preload summary");
   ok &= contains(
       doc,
       "`tools/check_lower_body_rexglue_trace_manifest.py "
@@ -34706,7 +34721,7 @@ int run_contract() {
                  "stored transform-shaped source-row band",
                  "document records stored transform-band requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"237bda5\"",
+                 "\"trace_commit\":\"5fd980b\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
@@ -34716,7 +34731,7 @@ int run_contract() {
                  "RexGlue lower-body manifest preserves rejected older routes");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"route_status\":\"controller_gate_without_apply\"",
-                 "RexGlue lower-body manifest records controller-gated clean route");
+                 "RexGlue lower-body manifest preserves legacy route label");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"strong_in_song_events\":0",
                  "RexGlue lower-body manifest records older missing in-song route markers");
@@ -34725,7 +34740,16 @@ int run_contract() {
                  "RexGlue lower-body manifest records clean scene route marker separately");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"controller_gate_events\":1",
-                 "RexGlue lower-body manifest records clean controller gate");
+                 "RexGlue lower-body manifest preserves legacy pause-UI preload label");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"legacy_misclassified_pause_ui_preload_events\":1",
+                 "RexGlue lower-body manifest marks legacy controller-gate label");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"pause_ui_preload_events\":2",
+                 "RexGlue lower-body manifest records corrected pause-UI preload files");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"pause_ui_preload_stack_samples\":2",
+                 "RexGlue lower-body manifest records pause-UI stack samples");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"invalid_lines\":0",
                  "RexGlue lower-body manifest records clean JSONL tail");
@@ -34765,20 +34789,20 @@ int run_contract() {
                  "--require-guitar-input-edge",
                  "RexGlue lower-body checker can require GuitarPort input edges");
   ok &= contains(lower_body_rexglue_trace,
+                 "--require-pause-ui-preload-stack",
+                 "RexGlue lower-body checker can require pause-UI preload stack samples");
+  ok &= contains(lower_body_rexglue_trace,
                  "clean_shutdown_traces=",
                  "RexGlue lower-body checker reports clean shutdown traces");
   ok &= contains(lower_body_rexglue_trace,
                  "apply_rows_not_reached",
                  "RexGlue lower-body checker keeps apply-row gap explicit");
   ok &= contains(lower_body_rexglue_trace,
-                 "controller_gate_without_apply",
-                 "RexGlue lower-body checker reports controller-gated route status");
+                 "route_not_reached_until_pose_apply",
+                 "RexGlue lower-body checker reports route gap after pause-UI preload");
   ok &= contains(doc,
-                 "`2446916` makes trace shutdown deterministic",
-                 "document records deterministic RexGlue shutdown commit");
-  ok &= contains(doc,
-                 "`invalid_lines=0`, a final `capture.off`",
-                 "document records clean RexGlue JSONL shutdown proof");
+                 "legacy\n  misclassification of the same pause-UI preload files",
+                 "document records legacy RexGlue route-label correction");
   ok &= contains(lower_body_rexglue_trace,
                  "accepted_row_oracles=",
                  "RexGlue lower-body checker reports accepted oracle count");
