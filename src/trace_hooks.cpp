@@ -914,6 +914,22 @@ bool dataarray_mentions_selection(uint8_t* base, uint32_t arr) {
            s.find("set_guitar_index") != std::string::npos;
 }
 
+std::string describe_song_route_call(uint8_t* base, const char* phase, uint32_t self,
+                                     uint32_t arg0, uint32_t arg1,
+                                     uint32_t arg2, uint32_t lr,
+                                     bool has_ret, uint32_t ret) {
+    const uint32_t load_flag = REX_LOAD_U32(hmx_SongLoad_InProgress_addr);
+    char buf[256];
+    std::snprintf(buf, sizeof buf,
+                  "phase=%s this=%s r4=%s r5=%s r6=%s lr=%s load_flag=%s",
+                  phase, fmt_ptr(self).c_str(), fmt_ptr(arg0).c_str(),
+                  fmt_ptr(arg1).c_str(), fmt_ptr(arg2).c_str(),
+                  fmt_ptr(lr).c_str(), fmt_u32(load_flag).c_str());
+    std::string out = buf;
+    if (has_ret) out += " ret=" + fmt_ptr(ret);
+    return out;
+}
+
 }  // anonymous namespace
 
 // --- File opens ------------------------------------------------------------
@@ -982,6 +998,217 @@ REX_HOOK_RAW(hmx_FileMgr_Lookup) {
             trace360::LogStackSample(std::string("file_ext:") + key);
         }
     }
+}
+
+// --- Song route markers ----------------------------------------------------
+//
+// These are trace-only pass-through wrappers around the source-labeled song
+// start chain in harmonix_symbols.h. They tell us whether a no-focus RexGlue
+// run actually reaches the song/character asset path where body animation rows
+// can be observed.
+
+extern "C" void __imp__sub_8236AA38(PPCContext& ctx, uint8_t* base);  // hmx_SongSelect_Handler
+REX_HOOK_RAW(hmx_SongSelect_Handler) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.song_select", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_8236AA38(ctx, base);
+    log_limited_event("route.song_select", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_8229FC00(PPCContext& ctx, uint8_t* base);  // hmx_Campaign_StartSong
+REX_HOOK_RAW(hmx_Campaign_StartSong) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.campaign_start", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_8229FC00(ctx, base);
+    log_limited_event("route.campaign_start", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_8229E8E0(PPCContext& ctx, uint8_t* base);  // hmx_Campaign_IsSongCurrent
+REX_HOOK_RAW(hmx_Campaign_IsSongCurrent) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.campaign_is_song_current", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_8229E8E0(ctx, base);
+    log_limited_event("route.campaign_is_song_current", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_8229E6E8(PPCContext& ctx, uint8_t* base);  // hmx_Campaign_SetCurrentSong
+REX_HOOK_RAW(hmx_Campaign_SetCurrentSong) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.campaign_set_current_song", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_8229E6E8(ctx, base);
+    log_limited_event("route.campaign_set_current_song", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_8229FB20(PPCContext& ctx, uint8_t* base);  // hmx_Campaign_PreloadHUD
+REX_HOOK_RAW(hmx_Campaign_PreloadHUD) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.campaign_preload_hud", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_8229FB20(ctx, base);
+    log_limited_event("route.campaign_preload_hud", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_82379308(PPCContext& ctx, uint8_t* base);  // hmx_SongLoader_StartLoad
+REX_HOOK_RAW(hmx_SongLoader_StartLoad) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.song_loader_start", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_82379308(ctx, base);
+    log_limited_event("route.song_loader_start", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_82378D28(PPCContext& ctx, uint8_t* base);  // hmx_SongLoader_ProcessQueue
+REX_HOOK_RAW(hmx_SongLoader_ProcessQueue) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.song_loader_process", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_82378D28(ctx, base);
+    log_limited_event("route.song_loader_process", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_82376308(PPCContext& ctx, uint8_t* base);  // hmx_SongLoader_TriggerLoad
+REX_HOOK_RAW(hmx_SongLoader_TriggerLoad) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.song_loader_trigger", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_82376308(ctx, base);
+    log_limited_event("route.song_loader_trigger", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_822A0408(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(sub_822A0408) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.song_flow_822A0408", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_822A0408(ctx, base);
+    log_limited_event("route.song_flow_822A0408", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_82379738(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(sub_82379738) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.scene_dispatch_82379738", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_82379738(ctx, base);
+    log_limited_event("route.scene_dispatch_82379738", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_82378BB0(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(sub_82378BB0) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.scene_queue_82378BB0", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_82378BB0(ctx, base);
+    log_limited_event("route.scene_queue_82378BB0", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
+}
+
+extern "C" void __imp__sub_82377210(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(sub_82377210) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t arg0 = ctx.r4.u32;
+    const uint32_t arg1 = ctx.r5.u32;
+    const uint32_t arg2 = ctx.r6.u32;
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    static std::atomic<uint32_t> s_count{0};
+    log_limited_event("route.scene_update_82377210", s_count,
+                      describe_song_route_call(base, "before", self, arg0, arg1,
+                                               arg2, lr, false, 0));
+    __imp__sub_82377210(ctx, base);
+    log_limited_event("route.scene_update_82377210", s_count,
+                      describe_song_route_call(base, "after", self, arg0, arg1,
+                                               arg2, lr, true, ctx.r3.u32));
 }
 
 // --- Property registry lookups ---------------------------------------------
