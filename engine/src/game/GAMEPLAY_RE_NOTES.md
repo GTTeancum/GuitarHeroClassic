@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera source-coverage proof row:
+  normal gameplay camera solver rows now print `pose_coverage` and
+  `hidden_pose_boundary`, distinguishing retained PS2/debug payloads, native
+  path/seed rows, and the source-visible `CamShotFrame::Interp` order that
+  still depends on unrecovered `BuildTransform` pose math. This is deliberately
+  a proof/triage improvement, not a one-off angle tweak: sketchy gameplay
+  camera shots can now be sorted by whether they are blocked on hidden camera
+  bodies. FreeCam remains deferred.
 - 2026-07-15 gameplay CamShot no-target BuildTransform route:
   ihatecompvir `CamShotFrame::Interp` always calls
   `BuildTransform(cam, ..., !sameTargets)` for the current and next key before

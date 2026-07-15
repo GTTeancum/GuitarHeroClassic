@@ -21910,6 +21910,18 @@ void apply_camera_keys(
         const auto screen_norm =
             camshot_result_screen_norm_for_offset(cam.screen_offset[0],
                                                   cam.screen_offset[1]);
+        const char* source_pose_coverage =
+            submitted_result_from_ps2_trace
+                ? "retained_ps2_trace_payload"
+                : source_build_transform_order
+                ? "visible_Interp_order_unrecovered_BuildTransform"
+                : "native_submitted_seed_or_path";
+        const char* hidden_pose_boundary =
+            submitted_result_from_ps2_trace
+                ? "retained_ps2_trace_payload"
+                : source_build_transform_order
+                ? "CamShotFrame::BuildTransform"
+                : "CamShot::SetPos/BuildTransform";
         std::fprintf(
             stderr,
             "[world] camera Shake: source_class=CamShot source_call=CamShot::Shake "
@@ -23038,6 +23050,7 @@ void apply_camera_keys(
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_locals=%s "
+            "pose_coverage=%s hidden_pose_boundary=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
@@ -23064,6 +23077,7 @@ void apply_camera_keys(
             "parent,targetPos,targetScreenPos,filter,iframe,"
             "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
             "targetDist,v",
+            source_pose_coverage, hidden_pose_boundary,
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             a_target_update.has_targets ? 1 : 0,

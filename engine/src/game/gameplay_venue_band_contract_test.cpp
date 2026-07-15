@@ -9474,6 +9474,15 @@ int main() {
                  "\"has_targets=a:%db:%d\"",
                  "camera debug logs expose per-key source HasTargets state in the BuildTransform row");
   ok &= contains(gameplay_c,
+                 "\"pose_coverage=%shidden_pose_boundary=%s\"",
+                 "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
+  ok &= contains(gameplay_c,
+                 "\"visible_Interp_order_unrecovered_BuildTransform\"",
+                 "camera debug logs identify source-visible Interp order with unrecovered BuildTransform math");
+  ok &= contains(gameplay_c,
+                 "\"retained_ps2_trace_payload\"",
+                 "camera debug logs identify retained PS2 trace payload rows separately from native source math");
+  ok &= contains(gameplay_c,
                  "\"filtered_candidate_scope=%s\"",
                  "camera debug logs separate same-target filtered candidates from submitted rows");
   ok &= contains(gameplay_c,
