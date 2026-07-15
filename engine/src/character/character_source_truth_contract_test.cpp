@@ -32594,9 +32594,9 @@ int run_contract() {
                  "Current source-truth removes broad lower-body\n  output live writes",
                  "format notes fence lower-body CharBone output as compare-only");
   ok &= contains(doc,
-                 "Broad CharBone output bridges for full body, face, or lower body "
-                 "are\n  removed as live-write switches",
-                 "native rules remove broad CharBone bridges");
+                 "Broad CharBone output enable switches for full body, face, or arbitrary\n"
+                 "  lower-body publishing are removed",
+                 "native rules remove broad CharBone bridge switches");
   ok &= contains(doc,
                  "shared clip-layer appenders\nnow strip `bone_facing`, "
                  "`bone_pelvis`, thigh/knee/ankle/foot/toe rows from\n"
@@ -32607,9 +32607,13 @@ int run_contract() {
                  "channels);",
                  "shared layer appenders enforce lower-body overlay fence");
   ok &= contains(doc,
-                 "must not be restored as enable\n  switches without the "
-                 "source `PoseMeshes` publisher",
-                 "native rules reject CharBone bridge switches");
+                 "The current exception is the narrow\n  source-authored "
+                 "lower-body bridge documented above",
+                 "native rules allow only the source-authored lower-body bridge");
+  ok &= contains(doc,
+                 "Do not expand this into\n  broad body, face, arm, "
+                 "accessory, or hair output publishing",
+                 "native rules reject broad bridge expansion");
   ok &= contains(doc,
                  "engine/out/visual_proofs/twist_trace_20260713/",
                  "document records direct-app arm pose trace proof");
@@ -33679,8 +33683,57 @@ int run_contract() {
                  "\"deathmetal1_current_lower_body_live_stack_match\"",
                  "arm pose diff manifest records Deathmetal1 lower-body live-stack proof");
   ok &= contains(arm_pose_diff_manifest,
+                 "\"alterna1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Alterna1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"alterna2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Alterna2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"deathmetal2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Deathmetal2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"glam2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Glam2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"metal2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Metal2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"punk1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Punk1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"punk2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Punk2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"character\":\"punk\"",
+                 "arm pose diff manifest records Punk runtime row label");
+  ok &= contains(arm_pose_diff_manifest,
                  "\"character\":\"rock2\"",
                  "arm pose diff manifest overrides character for Rock2 proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/alterna2/anims/gen/alterna2_main.milo_ps2->"
+                 "char/alterna1/anims/gen/alterna1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Alterna2 source driver resolution");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/deathmetal2/anims/gen/deathmetal2_main.milo_ps2->"
+                 "char/deathmetal1/anims/gen/deathmetal1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Deathmetal2 source driver resolution");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/glam2/anims/gen/glam2_main.milo_ps2->"
+                 "char/glam1/anims/gen/glam1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Glam2 source driver resolution");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/metal2/anims/gen/metal2_main.milo_ps2->"
+                 "char/metal1/anims/gen/metal1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Metal2 source driver resolution");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/punk2/anims/gen/punk2_main.milo_ps2->"
+                 "char/punk1/anims/gen/punk1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Punk2 source driver resolution");
   ok &= contains(arm_pose_diff_manifest,
                  "\"[clip]resolvedshareddrivermilo:"
                  "char/rock2/anims/gen/rock2_main.milo_ps2->"
@@ -34172,6 +34225,40 @@ int run_contract() {
   ok &= contains(doc,
                  "This proof is\nalso leg-only and does not sign off arms, hair, or accessories",
                  "document keeps second proof scoped to legs");
+  ok &= contains(doc,
+                 "2026-07-15 multi-character lower-body gameplay proof batch 3:",
+                 "document records third multi-character leg-only gameplay proof");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/`",
+                 "document records third multi-character proof folder");
+  ok &= contains(doc,
+                 "`alterna1_current_lower_body_live_stack_match`,\n"
+                 "`alterna2_current_lower_body_live_stack_match`,\n"
+                 "`deathmetal2_current_lower_body_live_stack_match`,\n"
+                 "`glam2_current_lower_body_live_stack_match`,\n"
+                 "`metal2_current_lower_body_live_stack_match`,\n"
+                 "`punk1_current_lower_body_live_stack_match`, and\n"
+                 "`punk2_current_lower_body_live_stack_match`",
+                 "document lists third row-backed multi-character leg proofs");
+  ok &= contains(doc,
+                 "Punk1 and\nPunk2 both publish compact pose rows under the runtime short label `punk`",
+                 "document records Punk runtime row label");
+  ok &= contains(doc,
+                 "Current lower-body root-cause summary:",
+                 "document records lower-body root-cause summary");
+  ok &= contains(doc,
+                 "visible direct path drifted at ankle/toe by roughly\n"
+                 "7-8 units forward and 2-4 units high",
+                 "document records measured lower-body drift");
+  ok &= contains(doc,
+                 "rebuilds only the decoded facing/pelvis/thigh/knee/ankle/foot/toe "
+                 "output rows\nfrom the clip's authored `*.trans` output graph",
+                 "document scopes lower-body output graph bridge");
+  ok &= contains(doc,
+                 "not a character-specific\noffset, camera correction, "
+                 "animation-name rule, foot-IK guess, or broad\n"
+                 "body/face/arm/hair writeback",
+                 "document rejects fabricated lower-body fixes");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

@@ -6190,6 +6190,38 @@ accepted screenshot frame uses `stand_fast_02` -> `stand_fast_04`; the other
 five batch-2 characters use `stand_fast_02` -> `stand_fast_03`. This proof is
 also leg-only and does not sign off arms, hair, or accessories.
 
+2026-07-15 multi-character lower-body gameplay proof batch 3:
+`engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/` adds direct
+Trogdor Expert / small2 / Xplorer gameplay captures and matching viewer
+recaptures for Alterna1, Alterna2, Deathmetal2, Glam2, Metal2, Punk1, and
+Punk2. The accepted manifest cases
+`alterna1_current_lower_body_live_stack_match`,
+`alterna2_current_lower_body_live_stack_match`,
+`deathmetal2_current_lower_body_live_stack_match`,
+`glam2_current_lower_body_live_stack_match`,
+`metal2_current_lower_body_live_stack_match`,
+`punk1_current_lower_body_live_stack_match`, and
+`punk2_current_lower_body_live_stack_match` each pass pelvis, both thighs, both
+knees, both ankles, and both toes at `max_delta=0.000000`. Alterna2,
+Deathmetal2, Glam2, Metal2, and Punk2 viewer logs also pin their source
+shared-driver `main.drv` route to the sibling/base animation MILO. Punk1 and
+Punk2 both publish compact pose rows under the runtime short label `punk`,
+converting the earlier Punk visual-only proof into row-backed coverage.
+
+Current lower-body root-cause summary: the bad "standing but floating with legs
+forward" frame came from applying decoded sampled channels straight onto the
+visible mesh skeleton after the source `CharBones::ScaleAdd` /
+`CharBonesSamples::EvaluateChannel` / `CharBonesMeshes::PoseMeshes` publisher
+remained fenced. In the failing Rockabill2 frame, the clip's decoded
+`OutputBone` graph already contained driven lower-body rows; pelvis, thigh, and
+knee agreed, while the visible direct path drifted at ankle/toe by roughly
+7-8 units forward and 2-4 units high. The current native leg fix therefore
+rebuilds only the decoded facing/pelvis/thigh/knee/ankle/foot/toe output rows
+from the clip's authored `*.trans` output graph after the sampled fallback.
+That is a narrow source-authored leg publisher bridge, not a character-specific
+offset, camera correction, animation-name rule, foot-IK guess, or broad
+body/face/arm/hair writeback.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
@@ -6224,10 +6256,14 @@ accessory offset.
   `lod1.grp`), not `_lod1` or `lod_` name prefixes.
 - Renderer state such as blend, z write, alpha test, wrap, and draw order must
   come from source material/drawable rows.
-- Broad CharBone output bridges for full body, face, or lower body are
-  removed as live-write switches unless/until a source `CharBones` publisher is
-  ported. They may remain as comparison logs, but must not be restored as enable
-  switches without the source `PoseMeshes` publisher.
+- Broad CharBone output enable switches for full body, face, or arbitrary
+  lower-body publishing are removed unless/until the complete source
+  `CharBones` publisher is ported. The current exception is the narrow
+  source-authored lower-body bridge documented above: only decoded
+  facing/pelvis/thigh/knee/ankle/foot/toe `OutputBone` rows from the active
+  clip may write the matching visible lower-body bones. Do not expand this into
+  broad body, face, arm, accessory, or hair output publishing without the source
+  `PoseMeshes` publisher.
 - Project override: hair polygons/textures render two-sided. Native therefore
   forces no backface culling for shared hair-token mesh/material/texture
   surfaces and meshes whose own transform, parent, or active bone palette
