@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -121,6 +122,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_stock_coverage.py",
     "tools/check_lower_body_metal1_followup_proofs.py",
     "tools/check_lower_body_glam1_metal1_ingame_proofs.py",
+    "tools/check_lower_body_metal1_ui_select_proofs.py",
     "tools/check_lower_body_pcsx2_row_trace.py",
     "tools/lower_body_pcsx2_row_trace_manifest.json",
     "tools/check_lower_body_rexglue_trace_manifest.py",
@@ -213,6 +215,19 @@ def check_log(path: Path, label: str, required_markers: tuple[str, ...]) -> None
         require_contains(text, marker, f"{label} log marker")
 
 
+def run_checker(root: Path, script: str, label: str) -> str:
+    result = subprocess.run(
+        [sys.executable, str(root / script)],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=False,
+    )
+    require(result.returncode == 0, f"{label} failed:\n{result.stdout}")
+    return result.stdout
+
+
 def check_required_files(root: Path) -> None:
     missing = [path for path in REQUIRED_FILES if not (root / path).is_file()]
     require(not missing, f"missing lower-body audit files: {missing}")
@@ -297,8 +312,19 @@ def check_source_bridge(root: Path, doc: str) -> None:
 
 def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     stock = read(root / "tools/check_lower_body_stock_coverage.py")
+    stock_output = run_checker(
+        root,
+        "tools/check_lower_body_stock_coverage.py",
+        "lower-body stock coverage checker",
+    )
     followup = read(root / "tools/check_lower_body_metal1_followup_proofs.py")
     ingame = read(root / "tools/check_lower_body_glam1_metal1_ingame_proofs.py")
+    ui_select = read(root / "tools/check_lower_body_metal1_ui_select_proofs.py")
+    ui_select_output = run_checker(
+        root,
+        "tools/check_lower_body_metal1_ui_select_proofs.py",
+        "Metal1 UI/select flat-foot proof checker",
+    )
     pose_manifest = load_json(root / "tools/lower_body_glam1_metal1_ingame_pose_manifest.json")
     output_manifest = load_json(root / "tools/charbone_output_map_manifest.json")
     arm_manifest = load_json(root / "tools/arm_pose_diff_manifest.json")
@@ -310,6 +336,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     require_contains(stock, "PLAYABLE_INGAME_LABELS", "playable coverage table")
     require_contains(stock, "SUPPORT_VIEWER_LABELS", "support coverage table")
     for marker in (
+        "PASS lower_body_stock_coverage",
         "CONTACT_SHEET_TOKENS",
         "individual_proofs=true",
         "linked_proof_pngs=true",
@@ -321,6 +348,14 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "MIN_SUPPORT_DISTAL_Z_DROP = 10.0",
     ):
         require_contains(stock, marker, f"stock coverage marker {marker}")
+    for marker in (
+        "PASS lower_body_stock_coverage",
+        "playable_ingame=18 support_viewer=6 stock_total=24",
+        "individual_proofs=true linked_proof_pngs=true",
+        "playable_leg_chain_sane=true",
+        "support_distal_chain_sane=true",
+    ):
+        require_contains(stock_output, marker, f"stock coverage output marker {marker}")
     for marker in (
         "lower_body_glam1_metal1_20260715",
         "standing_chain_sane=true",
@@ -351,6 +386,22 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         'viewer_metal1_live_stack.png',
     ):
         require_contains(ingame, marker, f"Glam1/Metal1 in-game case marker {marker}")
+    for marker in (
+        "lower_body_metal1_ui_select_20260715",
+        "source_model=metal1_ui source_clip=ui_loop",
+        "ui_select_flat_foot=true",
+        "max_abs_toe_z=",
+        "max_lr_toe_delta_z=",
+    ):
+        require_contains(ui_select, marker, f"Metal1 UI/select proof marker {marker}")
+    for marker in (
+        "PASS lower_body_metal1_ui_select_proofs",
+        "character=metal1 source_model=metal1_ui source_clip=ui_loop",
+        "ui_select_flat_foot=true",
+        "max_abs_toe_z=0.2227",
+        "max_lr_toe_delta_z=0.2643",
+    ):
+        require_contains(ui_select_output, marker, f"Metal1 UI/select output marker {marker}")
     cases = pose_manifest.get("cases")
     require(isinstance(cases, list) and len(cases) == 2, "Glam1/Metal1 manifest must have two cases")
     characters = {case.get("character") for case in cases if isinstance(case, dict)}
@@ -439,6 +490,8 @@ def main() -> int:
         f"proof_artifacts={len(ACTIVE_PROOF_ARTIFACTS)} "
         "individual_proofs=true "
         "proof_min_resolution=1280x720 stock_visuals=true "
+        "stock_checker_passed=true stock_linked_proof_pngs=true "
+        "metal1_ui_select_flat_foot=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

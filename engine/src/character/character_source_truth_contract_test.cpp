@@ -186,6 +186,9 @@ int run_contract() {
   const std::string lower_body_glam1_metal1_ingame_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_glam1_metal1_ingame_proofs.py"));
+  const std::string lower_body_metal1_ui_select_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_metal1_ui_select_proofs.py"));
   const std::string lower_body_current_commit_pose_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_current_commit_pose_manifest.json"));
@@ -34227,6 +34230,26 @@ int run_contract() {
       "lower-body completion audit reports individual proof artifacts");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_stock_coverage.py\"",
+      "lower-body completion audit runs stock coverage checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "stock_checker_passed=true",
+      "lower-body completion audit reports stock checker pass");
+  ok &= contains(
+      lower_body_completion_audit,
+      "stock_linked_proof_pngs=true",
+      "lower-body completion audit reports stock proof PNG linkage");
+  ok &= contains(
+      lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_metal1_ui_select_proofs.py\"",
+      "lower-body completion audit runs Metal1 UI/select checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "metal1_ui_select_flat_foot=true",
+      "lower-body completion audit reports Metal1 UI/select flat-foot proof");
+  ok &= contains(
+      lower_body_completion_audit,
       "proof_min_resolution=1280x720stock_visuals=true",
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
@@ -34283,6 +34306,13 @@ int run_contract() {
                  "`proof_artifacts=8`,\n  `individual_proofs=true`, "
                  "`proof_min_resolution=1280x720`",
                  "document records concrete lower-body proof artifact gate");
+  ok &= contains(doc,
+                 "`stock_checker_passed=true`,\n  "
+                 "`stock_linked_proof_pngs=true`",
+                 "document records dynamic stock coverage pass markers");
+  ok &= contains(doc,
+                 "`metal1_ui_select_flat_foot=true`",
+                 "document records Metal1 UI/select audit pass marker");
   ok &= contains(compact(doc),
                  "coverthefourisolatedGlam1/Metal1viewerPNG/logpairs",
                  "document records isolated viewer proof artifact set");
@@ -34292,12 +34322,17 @@ int run_contract() {
   ok &= contains(doc,
                  "individual high-resolution frames, not contact sheets",
                  "document records individual proof-frame requirement");
+  ok &= contains(compact(doc),
+                 "stockcheckerisexecutedinsidetheumbrellaaudittoverify"
+                 "the24-characterprooflogsandlinkedvisualPNGs",
+                 "document records umbrella stock checker execution");
   ok &= contains(doc,
-                 "requiring\n  screenshot markers and the expected "
+                 "require\n  screenshot markers and the expected "
                  "source/diagnostic markers",
                  "document records proof artifact log marker requirement");
   ok &= contains(doc,
-                 "`source_boundary_active=true`, and\n  `goal_active=true`",
+                 "`metal1_ui_select_flat_foot=true`,\n  "
+                 "`source_boundary_active=true`, and `goal_active=true`",
                  "document records active source boundary and goal status");
   ok &= contains(doc,
                  "intentionally a lower-body slice audit only",
@@ -34474,7 +34509,61 @@ int run_contract() {
                  "Glam1 and Metal1 at `max_delta=0.000000`",
                  "document records focused Glam1/Metal1 exact row compare");
   ok &= contains(doc,
-                 "does\nnot sign off Metal1's visible right shoulder/hand concern",
+                 "Metal1's proof pose visibly raises\nthe left leg because "
+                 "the authored `stand_fast_04` frame",
+                 "document records Metal1 raised leg as authored animation");
+  ok &= contains(doc,
+                 "left toe at\nabout `z=4.778` while the right toe is near "
+                 "the stage at about `z=0.320`",
+                 "document records Metal1 toe-height evidence");
+  ok &= contains(doc,
+                 "2026-07-15 Metal1 UI/select flat-foot reference:",
+                 "document records Metal1 UI/select flat-foot reference");
+  ok &= contains(doc,
+                 "`ui/gen/multi_sel_character.milo_ps2`",
+                 "document records two-player character-select source asset");
+  ok &= contains(doc,
+                 "`ui_enter` and `ui_loop`",
+                 "document records Metal1 UI/select source clips");
+  ok &= contains(
+      doc,
+      "`engine/out/visual_proofs/lower_body_metal1_ui_select_20260715/`",
+      "document records Metal1 UI/select proof folder");
+  ok &= contains(doc,
+                 "`max_abs_toe_z=0.2227`",
+                 "document records Metal1 UI/select toe-floor metric");
+  ok &= contains(doc,
+                 "`max_lr_toe_delta_z=0.2643`",
+                 "document records Metal1 UI/select left/right toe metric");
+  ok &= contains(doc,
+                 "`min_pelvis_to_toe_z=32.9791`",
+                 "document records Metal1 UI/select pelvis-to-toe metric");
+  ok &= contains(
+      lower_body_metal1_ui_select_proofs,
+      "lower_body_metal1_ui_select_20260715",
+      "Metal1 UI/select proof checker pins proof folder");
+  ok &= contains(
+      lower_body_metal1_ui_select_proofs,
+      "char/metal1/og/gen/metal1_ui.milo_ps2",
+      "Metal1 UI/select proof checker pins UI model source");
+  ok &= contains(
+      lower_body_metal1_ui_select_proofs,
+      "char/metal1/anims/gen/metal1_ui.milo_ps2",
+      "Metal1 UI/select proof checker pins UI animation source");
+  ok &= contains(
+      lower_body_metal1_ui_select_proofs,
+      "MAX_FLAT_TOE_ABS_Z=0.75",
+      "Metal1 UI/select proof checker bounds toe floor height");
+  ok &= contains(
+      lower_body_metal1_ui_select_proofs,
+      "MAX_LEFT_RIGHT_TOE_DELTA_Z=0.50",
+      "Metal1 UI/select proof checker bounds left/right toe delta");
+  ok &= contains(
+      lower_body_metal1_ui_select_proofs,
+      "ui_select_flat_foot=true",
+      "Metal1 UI/select proof checker reports flat-foot status");
+  ok &= contains(compact(doc),
+                 "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");
   ok &= contains(doc,
                  "Reviewer directive update: Rockabill is no longer the "

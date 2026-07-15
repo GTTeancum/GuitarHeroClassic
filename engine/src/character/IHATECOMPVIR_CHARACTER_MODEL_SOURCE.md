@@ -6386,8 +6386,29 @@ Metal1 uses `stand_fast_03 -> stand_fast_04`. The proof logs retain
 `lower_body_rows=true`, and `source_publisher_fenced=true`.
 `tools/lower_body_glam1_metal1_ingame_pose_manifest.json` then compares in-game
 and viewer pelvis, both thighs, both knees, both ankles, and both toes for
-Glam1 and Metal1 at `max_delta=0.000000`. This remains leg-only proof; it does
-not sign off Metal1's visible right shoulder/hand concern.
+Glam1 and Metal1 at `max_delta=0.000000`. Metal1's proof pose visibly raises
+the left leg because the authored `stand_fast_04` frame carries the left toe at
+about `z=4.778` while the right toe is near the stage at about `z=0.320`; both
+in-game and viewer logs report the same rows, so this is animation evidence, not
+a lower-body bridge regression. This remains leg-only proof; it does not sign
+off Metal1's visible right shoulder/hand concern.
+
+2026-07-15 Metal1 UI/select flat-foot reference:
+The stock archive contains the two-player character-select screen
+`ui/gen/multi_sel_character.milo_ps2`, and Metal1's UI character source data is
+split into `char/metal1/og/gen/metal1_ui.milo_ps2` plus
+`char/metal1/anims/gen/metal1_ui.milo_ps2`. `ghogx_character_clip_audit`
+reports that UI animation MILO as `dir=metal_ui` with the two source clips
+`ui_enter` and `ui_loop`. `engine/out/visual_proofs/lower_body_metal1_ui_select_20260715/`
+captures individual front and side screenshots of `ui_loop` frame 30 with the
+guitar prop disabled and the soft-green character background enabled. This is
+the current source-backed answer to the raised-left-leg question: the in-game
+`stand_fast_04` frame is an authored active-stage pose, while the UI/select
+`ui_loop` frame provides a flat-foot reference. The proof checker
+`tools/check_lower_body_metal1_ui_select_proofs.py` passes with
+`character=metal1`, `source_model=metal1_ui`, `source_clip=ui_loop`,
+`ui_select_flat_foot=true`, `max_abs_toe_z=0.2227`,
+`max_lr_toe_delta_z=0.2643`, and `min_pelvis_to_toe_z=32.9791`.
 
 2026-07-15 lower-body source row authority:
 ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows
@@ -6547,10 +6568,14 @@ Lower-body evidence audit:
   gate. It passes with `root_cause=true`, `source_bridge=true`,
   `active_subjects=glam1,metal1`, `proof_artifacts=8`,
   `individual_proofs=true`, `proof_min_resolution=1280x720`,
-  `stock_visuals=true`, `source_boundary_active=true`, and
-  `goal_active=true`. The eight artifact checks cover the four isolated
+  `stock_visuals=true`, `stock_checker_passed=true`,
+  `stock_linked_proof_pngs=true`, `metal1_ui_select_flat_foot=true`,
+  `source_boundary_active=true`, and `goal_active=true`. The eight artifact
+  checks cover the four isolated
   Glam1/Metal1 viewer PNG/log pairs and the four current in-game/viewer PNG/log
-  pairs as individual high-resolution frames, not contact sheets, requiring
+  pairs as individual high-resolution frames, not contact sheets, while the
+  stock checker is executed inside the umbrella audit to verify the 24-character
+  proof logs and linked visual PNGs. The active artifact checks require
   screenshot markers and the expected source/diagnostic markers before the
   status gate can pass. This is intentionally a lower-body slice audit only; it
   does not sign off Metal1's shoulder/hand, Metal Drummer's arm twist, hair,
