@@ -125,6 +125,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_metal1_ui_select_proofs.py",
     "tools/check_lower_body_active_ui_select_proofs.py",
     "tools/check_lower_body_2p_select_proofs.py",
+    "tools/check_lower_body_2p_select_slot_sweep.py",
     "tools/check_lower_body_2p_select_source_assets.py",
     "tools/check_lower_body_2p_select_char_events.py",
     "tools/check_lower_body_2p_select_app_placer.py",
@@ -338,6 +339,9 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "active Glam1/Metal1 UI/select proof checker",
     )
     two_player_select = read(root / "tools/check_lower_body_2p_select_proofs.py")
+    two_player_select_slot_sweep = read(
+        root / "tools/check_lower_body_2p_select_slot_sweep.py"
+    )
     two_player_select_assets = read(root / "tools/check_lower_body_2p_select_source_assets.py")
     two_player_select_events = read(root / "tools/check_lower_body_2p_select_char_events.py")
     two_player_select_app = read(root / "tools/check_lower_body_2p_select_app_placer.py")
@@ -361,6 +365,11 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         root,
         "tools/check_lower_body_2p_select_proofs.py",
         "two-player character-select proof checker",
+    )
+    two_player_select_slot_sweep_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_slot_sweep.py",
+        "two-player character-select slot-sweep proof checker",
     )
     pose_manifest = load_json(root / "tools/lower_body_glam1_metal1_ingame_pose_manifest.json")
     output_manifest = load_json(root / "tools/charbone_output_map_manifest.json")
@@ -513,6 +522,37 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     ):
         require_contains(two_player_select_output, marker, f"2P select output marker {marker}")
     for marker in (
+        "lower_body_2p_select_slot_sweep_20260715",
+        "players=p1,p2",
+        "side_profile=true",
+        "frames=30,40",
+        "both_2p_placers=true",
+        "glam1_p1_2p_select_ui_loop_f030_side",
+        "glam1_p2_2p_select_ui_loop_f030_side",
+        "metal1_p1_2p_select_ui_loop_f030_side",
+        "metal1_p2_2p_select_ui_loop_f030_side",
+    ):
+        require_contains(
+            two_player_select_slot_sweep,
+            marker,
+            f"2P select slot-sweep proof marker {marker}",
+        )
+    for marker in (
+        "PASS lower_body_2p_select_slot_sweep",
+        "characters=glam1,metal1 players=p1,p2",
+        "screen=multi_sel_character_screen panel=char_multi",
+        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "side_profile=true frames=30,40 cases=8",
+        "individual_proofs=true both_2p_placers=true",
+        "max_abs_toe_z=0.4526",
+        "max_lr_toe_delta_z=0.5101",
+    ):
+        require_contains(
+            two_player_select_slot_sweep_output,
+            marker,
+            f"2P select slot-sweep output marker {marker}",
+        )
+    for marker in (
         "MATRIX0_OFFSET = 46",
         "MATRIX1_OFFSET = 94",
         "STRING_OFFSET = 151",
@@ -657,6 +697,7 @@ def main() -> int:
         "metal1_ui_select_flat_foot=true active_ui_select_flat_foot=true "
         "two_player_select=true two_player_select_source_assets=true "
         "two_player_select_char_events=true two_player_select_app_placer=true "
+        "two_player_select_slot_sweep=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

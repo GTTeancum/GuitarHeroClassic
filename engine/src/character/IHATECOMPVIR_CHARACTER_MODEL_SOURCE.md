@@ -6488,6 +6488,23 @@ proof placement/event transform only; it does not alter lower-body pose solving.
 `min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`. This
 supersedes treating isolated `_ui` screenshots as complete 2P select proof.
 
+`engine/out/visual_proofs/lower_body_2p_select_slot_sweep_20260715/` adds the
+missing side/profile check for both real 2P player slots. Glam1 and Metal1 are
+captured with the same stock `ui_loop` `select` event at frames 30 and 40 in
+both `char_multi0.placer` and `char_multi1.placer`, with guitar disabled,
+soft-green background, and the live toe-row reference base. The intent is to
+catch the exact lower-body read that was obscured by front-only or
+single-player-context screenshots: if the feet project forward or float, the
+side view and output/visible row comparison should fail. The verifier
+`tools/check_lower_body_2p_select_slot_sweep.py` passes with
+`characters=glam1,metal1`, `players=p1,p2`, `side_profile=true`,
+`frames=30,40`, `cases=8`, `both_2p_placers=true`,
+`max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
+`min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`.
+This is 2P select placement and lower-body row evidence only; it does not
+change the remaining fenced source-publisher bodies or sign off unrelated arm,
+hair, or accessory behavior.
+
 2026-07-15 lower-body source row authority:
 ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows
 `CharBone::StuffBones` is the source-visible row authority: an authored
