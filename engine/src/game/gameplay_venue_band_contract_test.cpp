@@ -13027,20 +13027,26 @@ int main() {
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");
   ok &= contains(gameplay_c,
                  "size_tcamera_source_camera_shots_prescan_count(",
-                 "regular camera diagnostics expose a non-mutating pre-shot_ok candidate count");
+                 "regular camera diagnostics expose a non-mutating source-shaped NumCameraShots count");
   ok &= contains(gameplay_c,
                  "if(key.disabled_flags!=0)continue;"
                  "if(!predicate(key))continue;"
+                 "constCameraSourceShotOkReturnsource_return="
+                 "camera_source_cam_shot_ok_return(key,previous,"
+                 "current_walkspot);"
+                 "if(!camera_source_shot_ok_accepts(source_return))continue;"
                  "++count;",
-                 "regular camera diagnostic prescan mirrors Disabled and ShotMatches without extra ShotOk calls");
+                 "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and pure ShotOk acceptance");
   ok &= contains(gameplay_c,
                  "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
                  "category=%smode=%sprevious=%scount=%zu"
-                 "shot_ok_probe=0source_call=nonesource_mutates_category=0\\n\"",
-                 "regular camera diagnostics label prescan counts as non-source-call proof");
+                 "shot_ok_probe=1source_call=CameraManager::NumCameraShots"
+                 "source_first_shot_ok=omitted_non_mutating_diagnostic"
+                 "source_mutates_category=0\\n\"",
+                 "regular camera diagnostics label source-shaped NumCameraShots counts as non-mutating proof");
   ok &= absent(gameplay_c,
                "camera_source_num_camera_shots_probe(",
-               "regular camera selection must not run a debug NumCameraShots probe with extra ShotOk calls");
+               "regular camera selection must not dispatch an extra debug NumCameraShots message");
   ok &= appears_before(gameplay_c,
                        "constsize_tnum_shots="
                        "camera_source_camera_shots_prescan_count(",

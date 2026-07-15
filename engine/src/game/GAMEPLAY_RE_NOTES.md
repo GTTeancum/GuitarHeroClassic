@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera NumCameraShots proof count:
+  ihatecompvir `CameraManager::NumCameraShots` counts candidates only after
+  `Disabled() == 0`, `ShotMatches(...)`, and `ShotOk(mCurrentShot)` all accept.
+  Native gameplay camera diagnostics now use the same pure `ShotOk` return
+  shape for the non-mutating prescan count, so source-pinned bad-waypoint
+  rejections no longer appear as available shots in the proof row. The real
+  `FirstShotOk` dispatch and `FindCameraShot` category move still happen once
+  on the actual pick path; this does not add FreeCam work or dependencies.
 - 2026-07-15 gameplay camera no native sweep fallback:
   ihatecompvir `CameraManager` consumes `mNextShot` through `StartShot_` and
   samples the active CamShot with `SetPreFrame` / `SetFrame`; it does not keep a
@@ -875,11 +883,11 @@ Open work:
   ihatecompvir `CameraManager::PickCameraShot` does not call
   `NumCameraShots`; it reaches `FindCameraShot`, sends a single
   `first_shot_ok(category)`, then runs the live `ShotOk(mCurrentShot)` scan.
-  Native debug rows now keep the candidate count as a non-source-call prescan
-  over `Disabled()` and `ShotMatches(...)` only, with
-  `shot_ok_probe=0 source_call=none`. This prevents debug logging from sending
-  extra `shot_ok` messages before the real selection path, which matters once
-  the deferred GH2 `cam_shot_ok` body is recovered.
+  Native debug rows keep the candidate count as a non-mutating prescan before
+  the real `first_shot_ok`/`FindCameraShot` path. As of the 2026-07-15
+  NumCameraShots proof update, that prescan applies the pure `ShotOk` return
+  shape too, so `shot_ok_probe=1` means source-shaped counting without sending
+  extra script messages or moving the category list.
 - 2026-07-14 camera duration `random_int` source Rand:
   ihatecompvir `DataFunc::DataRandomInt` routes through `RandomInt(low, high)`,
   while the recovered source global starts as `gRand(0x29A)` and

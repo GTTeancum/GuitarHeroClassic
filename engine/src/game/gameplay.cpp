@@ -16980,6 +16980,8 @@ template <typename Predicate>
 size_t camera_source_camera_shots_prescan_count(
     const std::vector<Gameplay::CameraKey>& keys,
     CameraShotMode mode,
+    const Gameplay::CameraKey* previous,
+    std::string_view current_walkspot,
     Predicate&& predicate) {
     auto count_category = [&](std::string_view category) {
         size_t count = 0;
@@ -16987,6 +16989,10 @@ size_t camera_source_camera_shots_prescan_count(
             if (key.category != category) continue;
             if (key.disabled_flags != 0) continue;
             if (!predicate(key)) continue;
+            const CameraSourceShotOkReturn source_return =
+                camera_source_cam_shot_ok_return(key, previous,
+                                                 current_walkspot);
+            if (!camera_source_shot_ok_accepts(source_return)) continue;
             ++count;
         }
         return count;
@@ -17029,10 +17035,10 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
         const std::string_view source_category =
             camera_source_pick_shot_category(mode);
         const size_t num_shots = camera_source_camera_shots_prescan_count(
-            keys, mode, source_filter);
+            keys, mode, source_previous, current_walkspot, source_filter);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=%s previous=%s count=%zu shot_ok_probe=0 source_call=none source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=%s previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(source_category).c_str(),
             camera_shot_mode_label(mode),
             source_previous ? source_previous->name.c_str() : "",
@@ -17076,11 +17082,16 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
 
 size_t camera_source_category_prescan_count(
     const std::vector<Gameplay::CameraKey>& keys,
-    std::string_view category) {
+    std::string_view category,
+    const Gameplay::CameraKey* previous,
+    std::string_view current_walkspot) {
     size_t count = 0;
     for (const auto& key : keys) {
         if (key.category != category) continue;
         if (key.disabled_flags != 0) continue;
+        const CameraSourceShotOkReturn source_return =
+            camera_source_cam_shot_ok_return(key, previous, current_walkspot);
+        if (!camera_source_shot_ok_accepts(source_return)) continue;
         ++count;
     }
     return count;
@@ -17098,11 +17109,11 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-        const size_t num_shots =
-            camera_source_category_prescan_count(keys, category);
+        const size_t num_shots = camera_source_category_prescan_count(
+            keys, category, source_previous, current_walkspot);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=0 source_call=none source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(category).c_str(),
             source_previous ? source_previous->name.c_str() : "",
             num_shots);
