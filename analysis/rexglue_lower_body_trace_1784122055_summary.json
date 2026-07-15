@@ -10,7 +10,12 @@
     "anim.pose.apply_weighted_source": 0,
     "anim.samples.eval.before": 0,
     "anim.samples.pose796.before": 0,
-    "char.ik.update": 16
+    "camera.camshot.blend": 0,
+    "camera.camshot.update": 0,
+    "char.ik.update": 16,
+    "crowd.world.update": 0,
+    "input.scripted_nav": 1,
+    "lighting.preset.update": 6
   },
   "events": 8654,
   "failures": [
@@ -21,5 +26,7 @@
   "invalid_lines": 1,
   "lower_body_channels": [],
   "result": "fail",
+  "route_status": "route_not_reached",
+  "strong_in_song_events": 0,
   "trace": "out\\build\\win-amd64-relwithdebinfo\\captures\\trace_1784122055.jsonl"
 }

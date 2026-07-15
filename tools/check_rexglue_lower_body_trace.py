@@ -36,6 +36,23 @@ KINDS = (
     "anim.controller.stage_821D1190",
     "anim.controller.stage_821D1710",
     "char.ik.update",
+    "camera.camshot.update",
+    "camera.camshot.blend",
+    "crowd.world.update",
+    "lighting.preset.update",
+    "input.scripted_nav",
+)
+
+STRONG_IN_SONG_MARKERS = (
+    "anim.apply.weighted",
+    "anim.apply.unweighted",
+    "anim.samples.eval.before",
+    "anim.samples.pose796.before",
+    "anim.pose.apply_weighted_source",
+    "anim.pose.apply_interp_source",
+    "camera.camshot.update",
+    "camera.camshot.blend",
+    "crowd.world.update",
 )
 
 
@@ -78,6 +95,7 @@ def main() -> int:
     parser.add_argument("--require-runtime-memory", action="store_true")
     parser.add_argument("--require-clip-apply", action="store_true")
     parser.add_argument("--require-lower-body-rows", action="store_true")
+    parser.add_argument("--require-in-song-route", action="store_true")
     parser.add_argument("--allow-truncated-tail", action="store_true")
     parser.add_argument("--write-summary", type=Path)
     args = parser.parse_args()
@@ -96,6 +114,9 @@ def main() -> int:
         counts["anim.apply.weighted"] + counts["anim.apply.unweighted"] <= 0
     ):
         failures.append("missing CharClipSamples apply hooks")
+    strong_in_song_events = sum(counts[kind] for kind in STRONG_IN_SONG_MARKERS)
+    if args.require_in_song_route and strong_in_song_events <= 0:
+        failures.append("missing strong in-song animation/camera/crowd route markers")
     lower_body_memory = detail_text(events, "anim.lower_body.memory")
     found_channels = sorted(
         channel
@@ -110,6 +131,8 @@ def main() -> int:
         "events": len(events),
         "invalid_lines": invalid_lines,
         "counts": counts,
+        "strong_in_song_events": strong_in_song_events,
+        "route_status": "in_song_route_reached" if strong_in_song_events else "route_not_reached",
         "lower_body_channels": found_channels,
         "first_runtime_memory": (detail_text(events, "anim.lower_body.runtime_memory") or [""])[
             0
@@ -133,6 +156,8 @@ def main() -> int:
         f"runtime={counts['anim.lower_body.runtime_memory']} "
         f"apply={counts['anim.apply.weighted'] + counts['anim.apply.unweighted']} "
         f"rows={len(found_channels)} "
+        f"insong={strong_in_song_events} "
+        f"scripted_nav={counts['input.scripted_nav']} "
         f"result={summary['result']}"
     )
     for kind in KINDS:
