@@ -6148,6 +6148,25 @@ Punk, Goth2, Metal1, Funk1, and Classic `stand_fast_03` frame-70 side captures
 where post-bridge `lower-output` rows match visible lower-body rows at
 `max_abs_xyz_gap=0.001`.
 
+2026-07-15 multi-character lower-body gameplay proof:
+`engine/out/visual_proofs/lower_body_multichar_ingame_20260715/` adds direct
+Trogdor Expert / small2 / Xplorer gameplay captures with the highway and HUD
+hidden for Rock1, Rock2, Glam1, Metal1, and Punk. Rock1, Rock2, Glam1, and
+Metal1 have matching viewer recaptures using the same live performer stack at
+the screenshot boundary; the manifest cases
+`rock1_current_lower_body_live_stack_match`,
+`rock2_current_lower_body_live_stack_match`,
+`glam1_current_lower_body_live_stack_match`, and
+`metal1_current_lower_body_live_stack_match` each pass pelvis, both thighs,
+both knees, both ankles, and both toes at `max_delta=0.000000`. Rock2's viewer
+log also records the source shared-driver resolution from
+`char/rock2/anims/gen/rock2_main.milo_ps2` to
+`char/rock1/anims/gen/rock1_main.milo_ps2` through `main.drv`. Punk's capture
+is retained as visual gameplay evidence only in this proof set because the
+debug row filter did not bind to the runtime character row before the screenshot.
+This proof remains leg-only; arms, hair, accessories, and broad character
+motion are outside this slice.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

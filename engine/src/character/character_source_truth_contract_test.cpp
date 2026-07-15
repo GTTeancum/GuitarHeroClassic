@@ -33646,6 +33646,29 @@ int run_contract() {
                  "\"rockabill2_current_lower_body_live_stack_match\"",
                  "arm pose diff manifest records current lower-body live-stack proof");
   ok &= contains(arm_pose_diff_manifest,
+                 "\"rock1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Rock1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"rock2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Rock2 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"glam1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Glam1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"metal1_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records Metal1 lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"character\":\"rock2\"",
+                 "arm pose diff manifest overrides character for Rock2 proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[clip]resolvedshareddrivermilo:"
+                 "char/rock2/anims/gen/rock2_main.milo_ps2->"
+                 "char/rock1/anims/gen/rock1_main.milo_ps2viamain.drv\"",
+                 "arm pose diff manifest pins Rock2 source driver resolution");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"stand_fast_04@4.500\"",
+                 "arm pose diff manifest records Metal1 screenshot body clip");
+  ok &= contains(arm_pose_diff_manifest,
                  "\"rows\":[\"armw\"]",
                  "arm pose diff manifest keeps current lower-body proof position-only");
   ok &= contains(arm_pose_diff_manifest,
@@ -34077,6 +34100,24 @@ int run_contract() {
   ok &= contains(doc,
                  "explicitly leg-only; it does not sign off arm twist,\nhair, or accessory motion",
                  "document keeps current proof scoped to legs");
+  ok &= contains(doc,
+                 "2026-07-15 multi-character lower-body gameplay proof:",
+                 "document records multi-character leg-only gameplay proof");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_multichar_ingame_20260715/`",
+                 "document records multi-character lower-body proof folder");
+  ok &= contains(doc,
+                 "`rock1_current_lower_body_live_stack_match`,\n"
+                 "`rock2_current_lower_body_live_stack_match`,\n"
+                 "`glam1_current_lower_body_live_stack_match`, and\n"
+                 "`metal1_current_lower_body_live_stack_match`",
+                 "document lists row-backed multi-character leg proofs");
+  ok &= contains(doc,
+                 "Punk's capture\nis retained as visual gameplay evidence only",
+                 "document marks Punk lower-body proof as visual-only");
+  ok &= contains(doc,
+                 "This proof remains leg-only; arms, hair, accessories, and broad character\nmotion are outside this slice",
+                 "document keeps multi-character proof scoped to legs");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",
