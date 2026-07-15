@@ -6198,8 +6198,19 @@ int main() {
                  "constboolhas_source_crowd=",
                  "camera StartAnim applies the authored CamShot crowd payload before resetting carried state");
   ok &= contains(gameplay_c,
+                 "constboolhas_source_crowd=key.has_crowd_selection||"
+                 "!key.crowd_selection_ref.empty()||"
+                 "!key.crowd_selection_pairs.empty();",
+                 "camera StartAnim treats decoded crowd pairs as source crowd entries");
+  ok &= contains(gameplay_c,
                  "source_call=WorldDir::SetCrowds",
                  "camera StartAnim diagnostics expose the ihatecompvir WorldDir::SetCrowds phase");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
+                 "\"[world]cameraStartAnim:source_call=WorldDir::SetCrowds"
+                 "source_order=after_start_shot_before_state_resetshot=%s"
+                 "source_crowds=%d",
+                 "camera StartAnim reports WorldDir::SetCrowds even when CamShot mCrowds is empty");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
@@ -6242,6 +6253,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_call=CamShotCrowd::Set3DCrowd",
                  "camera StartAnim diagnostics expose the ihatecompvir CamShotCrowd::Set3DCrowd phase");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "if(debug_venue_filters_enabled()&&has_source_crowd){"
+                 "std::fprintf(stderr,"
+                 "\"[world]cameraStartAnim:source_call=CamShotCrowd::Set3DCrowd"
+                 "source_order=after_linked_mAnimsshot=%s"
+                 "source_crowds=%d",
+                 "camera StartAnim only reports CamShotCrowd::Set3DCrowd for source crowd entries");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "start_camera_shot_anims(key,active_camera_runtime_shot_);",

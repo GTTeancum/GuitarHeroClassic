@@ -224,6 +224,13 @@
   Native now applies the decoded crowd payload before resetting the carried
   camera result-builder state, keeps the reset before linked camera anims, and
   logs source-shaped `SetCrowds` / `Set3DCrowd` proof rows during validation.
+- 2026-07-15 CamShot StartAnim empty-crowd call proof: the same source body
+  calls `WorldDir::SetCrowds(mCrowds)` for every `WorldDir`-backed shot, even
+  when the crowd list is empty; only the later per-entry
+  `CamShotCrowd::Set3DCrowd()` loop is conditional on crowd entries. Native now
+  reports `WorldDir::SetCrowds` unconditionally during venue validation and
+  treats decoded crowd-selection pairs as source crowd entries for the
+  per-crowd proof row, without inventing additional crowd draw behavior.
 - 2026-07-14 CamShot StartAnim reset fields:
   the same source reset clears `mShotOver` plus the shake accumulator vectors
   before linked `mAnims` start. Native now resets the shot-over latch and
