@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot per-key copy parity:
+  ihatecompvir `CamShot::Copy` copies the owning shot's runtime state,
+  including platform/filter flags, crowds, visibility, postprocess, linked
+  anims, glow, path, and FOV/DOF/frustum fields. Native regular gameplay
+  camera pose variants now route through `copy_camshot_runtime_fields(...)`
+  before installation, so multi-key CamShots inherit complete source shot
+  metadata instead of only the previous hand-picked subset. FreeCam remains
+  deferred last and this adds no dependency surface.
 - 2026-07-15 gameplay camera priority/proof scope:
   normal gameplay camera parity is tracked separately from FreeCam. FreeCam is
   deferred last unless it blocks regular gameplay camera behavior, and the

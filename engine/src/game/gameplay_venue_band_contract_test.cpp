@@ -11793,6 +11793,9 @@ int main() {
                  "copy_camshot_shot_fields(c.key,pos);",
                  "regular camera pose variants inherit decoded shot-level fields");
   ok &= contains(gameplay_c,
+                 "copy_camshot_runtime_fields(c.key,pos);",
+                 "regular camera pose variants inherit complete CamShot runtime metadata");
+  ok &= contains(gameplay_c,
                  "to.hide_list_refs=from.hide_list_refs;",
                  "CamShot shot-field propagation mirrors source Copy for hide_list");
   ok &= contains(gameplay_c,

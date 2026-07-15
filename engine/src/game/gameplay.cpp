@@ -15945,6 +15945,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.next_shot_ref = c.key.next_shot_ref;
                 pos.path_anim = c.key.path_anim;
                 pos.has_path_anim = c.key.has_path_anim;
+                copy_camshot_runtime_fields(c.key, pos);
                 if (!pos.camshot_shot_fields_decoded &&
                     c.key.camshot_shot_fields_decoded) {
                     copy_camshot_shot_fields(c.key, pos);
