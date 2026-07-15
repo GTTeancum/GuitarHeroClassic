@@ -670,6 +670,11 @@ Open work:
   `source_walking_gate=guitarist0::actually_walking(native_deferred)`. This is
   proof/status plumbing only; it prevents an inline hard-coded false from
   masquerading as a completed camera filter.
+- 2026-07-15 follow-up: the runtime proof label now expands that deferred
+  gate to `native_deferred:CharWalk_body_unrecovered`. This keeps
+  `source_walking=0` from being misread as source proof that guitarist0 is
+  stationary; it means the recovered GH2 script gate is present, but the
+  native `CharWalk::actually_walking` body is still not implemented.
 - 2026-07-14 camera low-excitement predicate:
   GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` and
   `pick_solo_camera_shot` add `(low_excitement_ok TRUE)` when

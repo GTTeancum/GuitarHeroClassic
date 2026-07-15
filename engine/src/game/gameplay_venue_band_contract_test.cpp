@@ -12438,8 +12438,9 @@ int main() {
                  "boolcamera_source_guitarist0_actually_walking(){",
                  "regular camera runtime exposes the source guitarist0 actually_walking predicate");
   ok &= contains(gameplay_c,
-                 "return\"guitarist0::actually_walking(native_deferred)\";",
-                 "regular camera diagnostics label the deferred CharWalk walking gate");
+                 "return\"guitarist0::actually_walking("
+                 "native_deferred:CharWalk_body_unrecovered)\";",
+                 "regular camera diagnostics label the deferred CharWalk walking gate without implying a proven stationary state");
   ok &= contains(gameplay_c,
                  "constboolkGuitaristWalking="
                  "camera_source_guitarist0_actually_walking();",

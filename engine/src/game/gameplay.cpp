@@ -16617,7 +16617,7 @@ bool camera_source_guitarist0_actually_walking() {
 }
 
 const char* camera_source_guitarist0_actually_walking_source() {
-    return "guitarist0::actually_walking(native_deferred)";
+    return "guitarist0::actually_walking(native_deferred:CharWalk_body_unrecovered)";
 }
 
 const char* camera_source_gamecfg_mode() {
