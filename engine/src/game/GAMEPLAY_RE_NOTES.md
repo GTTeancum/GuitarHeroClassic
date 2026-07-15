@@ -572,6 +572,13 @@ Open work:
   `cycle_shot`, records EndAnim preserving the postprocess state, then records
   the next `start_shot postprocess` branch; the matching rendered frame is
   `proofs/camera_postprocess_lifetime_20260715_002332.png`.
+- 2026-07-15 CamShot `glow_spot` lifetime fix: ihatecompvir
+  `CamShot::EndAnim()` has the same limited body above and never clears
+  `mGlowSpot`; the recovered CamShot source only constructs, copies, loads, and
+  property-syncs that member. Native therefore no longer clears
+  `active_camera_glow_spot_ref_` from `end_camera_shot_runtime`; the next
+  CamShot `StartAnim` replaces it, while `CameraManager::Enter` /
+  `StartShot_(0)` owns the no-current-shot renderer clear.
 - 2026-07-14 CameraManager loader pool scope:
   the native regular CamShot loader now feeds that randomizer every decoded
   `PlatformOk()` CamShot with frames, rather than pruning non-normal categories

@@ -6137,18 +6137,29 @@ int main() {
       end_camera_shot_runtime_c,
       "active_camera_postprocess_ref_.clear();",
       "camera EndAnim must not clear the current postprocess; GH2 start_shot reset/select owns that lifecycle");
+  ok &= absent(
+      end_camera_shot_runtime_c, "set_camera_glow_spot_ref({});",
+      "camera EndAnim must not clear the current glow_spot; the active CamShot or no-current camera manager state owns that lifecycle");
+  ok &= contains(
+      gameplay_c,
+      "active_camera_postprocess_ref_.clear();"
+      "set_camera_glow_spot_ref({});"
+      "active_camera_shot_started_reported_.clear();",
+      "CameraManager Enter/StartShot_(0) clears glow_spot only when there is no current CamShot");
   ok &= appears_before(
       end_camera_shot_runtime_c,
       "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
-      "active_postprocess=%s\\n\"",
+      "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
+      "active_glow=%s\\n\"",
       "camera EndAnim mirrors ihatecompvir UnHide before stop_shot");
   ok &= appears_before(
       end_camera_shot_runtime_c,
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
-      "active_postprocess=%s\\n\"",
+      "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
+      "active_glow=%s\\n\"",
       "end_camera_shot_anims();",
       "camera EndAnim mirrors ihatecompvir stop_shot before linked mAnims EndAnim");
   ok &= contains(gameplay_h_c,

@@ -24070,18 +24070,20 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
-    set_camera_glow_spot_ref({});
     if (world_) {
         camera_unset_dof_proc_like_source(world_->camera());
         camera_unset_shake_like_no_current_camshot(world_->camera());
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1 postprocess_lifecycle=preserved_until_start_shot_reset active_postprocess=%s\n",
+                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1 postprocess_lifecycle=preserved_until_start_shot_reset active_postprocess=%s glow_lifecycle=preserved_until_start_shot_or_manager_clear active_glow=%s\n",
                      active_camera_runtime_shot_.c_str(),
                      active_camera_postprocess_ref_.empty()
                          ? "<none>"
-                         : active_camera_postprocess_ref_.c_str());
+                         : active_camera_postprocess_ref_.c_str(),
+                     active_camera_glow_spot_ref_.empty()
+                         ? "<none>"
+                         : active_camera_glow_spot_ref_.c_str());
         std::fprintf(stderr,
                      "[world] camera EndAnim clear_shake: source_manager=CameraManager::StartShot_(0) shot=%s result=cleared\n",
                      active_camera_runtime_shot_.c_str());
@@ -24114,6 +24116,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_anim_start_time_ = 0.0;
     active_camera_fov_anim_reported_.clear();
     active_camera_postprocess_ref_.clear();
+    set_camera_glow_spot_ref({});
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
