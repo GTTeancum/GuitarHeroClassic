@@ -125,6 +125,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_metal1_ui_select_proofs.py",
     "tools/check_lower_body_active_ui_select_proofs.py",
     "tools/check_lower_body_2p_select_proofs.py",
+    "tools/check_lower_body_2p_select_source_assets.py",
     "tools/lower_body_2p_select_source_manifest.json",
     "tools/check_lower_body_pcsx2_row_trace.py",
     "tools/lower_body_pcsx2_row_trace_manifest.json",
@@ -335,7 +336,13 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "active Glam1/Metal1 UI/select proof checker",
     )
     two_player_select = read(root / "tools/check_lower_body_2p_select_proofs.py")
+    two_player_select_assets = read(root / "tools/check_lower_body_2p_select_source_assets.py")
     two_player_select_manifest = read(root / "tools/lower_body_2p_select_source_manifest.json")
+    two_player_select_assets_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_source_assets.py",
+        "two-player character-select stock asset checker",
+    )
     two_player_select_output = run_checker(
         root,
         "tools/check_lower_body_2p_select_proofs.py",
@@ -483,6 +490,24 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "max_lr_toe_delta_z=0.5101",
     ):
         require_contains(two_player_select_output, marker, f"2P select output marker {marker}")
+    for marker in (
+        "MATRIX0_OFFSET = 46",
+        "MATRIX1_OFFSET = 94",
+        "STRING_OFFSET = 151",
+        "BandPlacer__char_multi0.placer",
+        "BandPlacer__char_multi1.placer",
+        "target_mesh",
+    ):
+        require_contains(two_player_select_assets, marker, f"2P select asset checker marker {marker}")
+    for marker in (
+        "PASS lower_body_2p_select_source_assets",
+        "source=stock_GH2_PS2",
+        "screen_milo=ui/gen/multi_sel_character.milo_ps2",
+        "entries=char_multi0.placer,char_multi1.placer",
+        "matrix0_offset=46 matrix1_offset=94",
+        "target_group=mgs_camerafix.grp target_mesh=spot_ui.mesh",
+    ):
+        require_contains(two_player_select_assets_output, marker, f"2P select asset output marker {marker}")
     cases = pose_manifest.get("cases")
     require(isinstance(cases, list) and len(cases) == 2, "Glam1/Metal1 manifest must have two cases")
     characters = {case.get("character") for case in cases if isinstance(case, dict)}
@@ -573,7 +598,7 @@ def main() -> int:
         "proof_min_resolution=1280x720 stock_visuals=true "
         "stock_checker_passed=true stock_linked_proof_pngs=true "
         "metal1_ui_select_flat_foot=true active_ui_select_flat_foot=true "
-        "two_player_select=true "
+        "two_player_select=true two_player_select_source_assets=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

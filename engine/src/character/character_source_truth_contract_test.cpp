@@ -195,6 +195,9 @@ int run_contract() {
   const std::string lower_body_2p_select_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_proofs.py"));
+  const std::string lower_body_2p_select_source_assets = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_source_assets.py"));
   const std::string lower_body_2p_select_source_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_2p_select_source_manifest.json"));
@@ -34657,6 +34660,12 @@ int run_contract() {
   ok &= contains(doc,
                  "live toe-row reference base",
                  "document records live toe-row proof base");
+  ok &= contains(doc,
+                 "`tools/check_lower_body_2p_select_source_assets.py`",
+                 "document records stock BandPlacer asset verifier");
+  ok &= contains(doc,
+                 "`max_manifest_delta=0.000046`",
+                 "document records stock BandPlacer manifest delta");
   ok &= contains(
       app_main,
       "--char-2p-select-placer",
@@ -34741,6 +34750,30 @@ int run_contract() {
       "live_reference_base=true",
       "2P select proof checker reports live reference base");
   ok &= contains(
+      lower_body_2p_select_source_assets,
+      "SCREEN_MILO=\"ui/gen/multi_sel_character.milo_ps2\"",
+      "2P source asset checker pins stock screen MILO");
+  ok &= contains(
+      lower_body_2p_select_source_assets,
+      "MATRIX0_OFFSET=46",
+      "2P source asset checker pins matrix0 byte offset");
+  ok &= contains(
+      lower_body_2p_select_source_assets,
+      "MATRIX1_OFFSET=94",
+      "2P source asset checker pins matrix1 byte offset");
+  ok &= contains(
+      lower_body_2p_select_source_assets,
+      "STRING_OFFSET=151",
+      "2P source asset checker pins target-string byte offset");
+  ok &= contains(
+      lower_body_2p_select_source_assets,
+      "\"entry\":\"BandPlacer__char_multi0.placer\"",
+      "2P source asset checker pins P1 BandPlacer entry");
+  ok &= contains(
+      lower_body_2p_select_source_assets,
+      "\"entry\":\"BandPlacer__char_multi1.placer\"",
+      "2P source asset checker pins P2 BandPlacer entry");
+  ok &= contains(
       lower_body_2p_select_proofs,
       "glam1_2p_animate_ui_loop_f030_front.png",
       "2P select proof checker pins Glam1 frame 30 PNG");
@@ -34760,6 +34793,18 @@ int run_contract() {
       lower_body_completion_audit,
       "live_reference_base=true",
       "completion audit requires live reference base proof");
+  ok &= contains(
+      lower_body_completion_audit,
+      "check_lower_body_2p_select_source_assets.py",
+      "completion audit requires stock BandPlacer verifier");
+  ok &= contains(
+      lower_body_completion_audit,
+      "PASSlower_body_2p_select_source_assets",
+      "completion audit runs stock BandPlacer verifier");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_source_assets=true",
+      "completion audit reports stock BandPlacer verifier status");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");

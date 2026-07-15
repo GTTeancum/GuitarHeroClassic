@@ -6443,6 +6443,15 @@ X=`+35`, both targeting `spot_ui.mesh` under `mgs_camerafix.grp`. The
 `char_objects_ps2` rule for `animate` means multiplayer skips `ui_enter` and
 loops `ui_loop | kPlayLast kPlayGraphLoop`; single-player is the branch that
 plays `ui_enter` before `ui_loop`.
+`tools/check_lower_body_2p_select_source_assets.py` re-extracts
+`ui/gen/multi_sel_character.milo_ps2` from the stock GH2 PS2 ARK and decodes
+the two `BandPlacer` entry bodies directly: `matrix0` starts at byte 46,
+`matrix1` starts at byte 94, and the `mgs_camerafix.grp` / `spot_ui.mesh`
+targets are length-prefixed at byte 151. The checker currently passes with
+`source=stock_GH2_PS2`, `entries=char_multi0.placer,char_multi1.placer`,
+`matrix0_offset=46`, `matrix1_offset=94`, `target_mesh=spot_ui.mesh`, and
+`max_manifest_delta=0.000046`, proving the committed placer manifest is derived
+from stock asset bytes.
 
 `engine/out/visual_proofs/lower_body_2p_select_20260715/` captures individual
 front full-body screenshots for Glam1 and Metal1 at `ui_loop` frames 30 and 40,
