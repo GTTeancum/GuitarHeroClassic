@@ -6275,17 +6275,25 @@ rows over the body pose.
 
 2026-07-15 current-commit in-game lower-body proof:
 `engine/out/visual_proofs/lower_body_current_commit_20260715/` recaptures
-Rockabill2 and Rock2 through the hidden-window app path after commit `005c86f`.
-Both runs use stock PS2 `gh2_ps2_hybrid_assets/gen`, Trogdor Expert, small2,
-Xplorer, diagnostic autoplay, `flr_near_rt01`, and hidden highway/HUD. The
-Rockabill2 screenshot keeps the original failure character planted in the
-stage path instead of floating forward, while Rock2 checks a source shared-driver
-female character through `char/rock1/anims/gen/rock1_main.milo_ps2`. The logs
-record `stand_fast_03`, `source_publisher=fenced`, and the missing source call
-names `CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes`;
+Rockabill2 and Rock2 through the hidden-window app path after commits `005c86f`
+and `800f03a`, then recaptures matching direct viewer frames. Both in-game runs
+use stock PS2 `gh2_ps2_hybrid_assets/gen`, Trogdor Expert, small2, Xplorer,
+diagnostic autoplay, `flr_near_rt01`, and hidden highway/HUD. The viewer runs
+use the same live main stack, `stand_fast_02 -> stand_fast_03`, frame 8,
+`spot_neck_fret11.mesh`, and the reference base. The Rockabill2 screenshot
+keeps the original failure character planted in the stage path instead of
+floating forward, while Rock2 checks a source shared-driver female character
+through `char/rock1/anims/gen/rock1_main.milo_ps2`. The logs record
+`stand_fast_03`, `source_publisher=fenced`, and the missing source call names
+`CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes`;
 they also reject the earlier accidental unsupported-ARK checkerboard run.
 `tools/check_lower_body_current_commit_proofs.py` passes with `ingame_cases=2`,
-`hud_hidden=true`, `highway_hidden=true`, and `source_publisher_fenced=true`.
+`viewer_cases=2`, `hud_hidden=true`, `highway_hidden=true`, and
+`source_publisher_fenced=true`. `tools/lower_body_current_commit_pose_manifest.json`
+then compares those current in-game and viewer logs for pelvis, both thighs,
+both knees, both ankles, and both toes; both
+`rockabill2_current_commit_lower_body_match` and
+`rock2_current_commit_lower_body_match` pass at `max_delta=0.000000`.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current

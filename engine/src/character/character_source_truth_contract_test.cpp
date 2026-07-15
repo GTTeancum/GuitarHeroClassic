@@ -174,6 +174,9 @@ int run_contract() {
   const std::string lower_body_current_commit_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_current_commit_proofs.py"));
+  const std::string lower_body_current_commit_pose_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "lower_body_current_commit_pose_manifest.json"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -33988,8 +33991,24 @@ int run_contract() {
       "lower-body current-commit proof reports source publisher fence");
   ok &= contains(
       lower_body_current_commit_proofs,
+      "viewer_cases={len(PROOF_CASES)}",
+      "lower-body current-commit proof reports viewer cases");
+  ok &= contains(
+      lower_body_current_commit_proofs,
       "char/rock1/anims/gen/rock1_main.milo_ps2",
       "lower-body current-commit proof pins Rock2 shared-driver source");
+  ok &= contains(
+      lower_body_current_commit_pose_manifest,
+      "\"rockabill2_current_commit_lower_body_match\"",
+      "lower-body current-commit manifest includes Rockabill2 match");
+  ok &= contains(
+      lower_body_current_commit_pose_manifest,
+      "\"rock2_current_commit_lower_body_match\"",
+      "lower-body current-commit manifest includes Rock2 match");
+  ok &= contains(
+      lower_body_current_commit_pose_manifest,
+      "viewer_rock2_live_stack_leg_f8_commit800f03a.log",
+      "lower-body current-commit manifest uses current viewer proof logs");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34418,6 +34437,14 @@ int run_contract() {
       doc,
       "unsupported-ARK checkerboard run",
       "document rejects failed current-commit proof attempt");
+  ok &= contains(
+      doc,
+      "`tools/lower_body_current_commit_pose_manifest.json`",
+      "document records current-commit lower-body pose manifest");
+  ok &= contains(
+      doc,
+      "`rock2_current_commit_lower_body_match` pass at `max_delta=0.000000`",
+      "document records current-commit Rock2 lower-body zero-delta proof");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",
