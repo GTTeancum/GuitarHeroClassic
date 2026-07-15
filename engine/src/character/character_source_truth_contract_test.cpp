@@ -34600,6 +34600,15 @@ int run_contract() {
   ok &= contains(doc,
                  "`scripted_nav=1`",
                  "document records RexGlue scripted nav single-poll clue");
+  ok &= contains(doc,
+                 "`scripted_nav_polls=4`",
+                 "document records RexGlue scripted nav poll heartbeat");
+  ok &= contains(doc,
+                 "`guitar_edges=0`",
+                 "document records RexGlue missing GuitarPort input edges");
+  ok &= contains(doc,
+                 "`pause_controller_msg.lbl`",
+                 "document records RexGlue pause/controller UI route clue");
   ok &= contains(
       doc,
       "`tools/check_lower_body_rexglue_trace_manifest.py "
@@ -34665,7 +34674,7 @@ int run_contract() {
                  "verifies the raw changed\n  offsets recorded for the seven moving rows",
                  "document records raw PCSX2 changed-offset requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"2455d8a\"",
+                 "\"trace_commit\":\"5c3eeb3\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
@@ -34676,6 +34685,15 @@ int run_contract() {
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"strong_in_song_events\":0",
                  "RexGlue lower-body manifest records missing in-song route markers");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"scripted_nav_polls\":4",
+                 "RexGlue lower-body manifest records scripted nav poll heartbeat");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"input_guitar_edges\":0",
+                 "RexGlue lower-body manifest records missing GuitarPort input edges");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"post_message_plus_scripted_xinput\"",
+                 "RexGlue lower-body manifest records hidden PostMessage route attempt");
   ok &= contains(
       lower_body_rexglue_trace_manifest,
       "\"accepted_live_row_authority\":"
@@ -34688,11 +34706,20 @@ int run_contract() {
                  "--require-in-song-route",
                  "RexGlue lower-body checker can require in-song route markers");
   ok &= contains(lower_body_rexglue_trace,
+                 "--require-scripted-nav-polls",
+                 "RexGlue lower-body checker can require scripted-nav poll heartbeats");
+  ok &= contains(lower_body_rexglue_trace,
+                 "--require-guitar-input-edge",
+                 "RexGlue lower-body checker can require GuitarPort input edges");
+  ok &= contains(lower_body_rexglue_trace,
                  "accepted_row_oracles=",
                  "RexGlue lower-body checker reports accepted oracle count");
   ok &= contains(lower_body_rexglue_trace,
                  "route_status=route_not_reached",
                  "RexGlue lower-body checker reports rejected route status");
+  ok &= contains(lower_body_rexglue_trace,
+                 "guitar_edges=",
+                 "RexGlue lower-body checker reports GuitarPort input edges");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",

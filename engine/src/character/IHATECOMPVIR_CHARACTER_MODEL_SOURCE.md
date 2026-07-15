@@ -6334,17 +6334,21 @@ Lower-body evidence audit:
 - RexGlue fallback check: the local `GuitarHeroOGX-trace360` RexGlue fork does
   not contain a separate portable character renderer for legs, but commit
   `580e405` added lower-body trace scaffolding for memory dumps and call timing,
-  and commit `2455d8a` classifies route reachability before any row capture is
-  accepted. `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the
+  commit `2455d8a` classifies route reachability before any row capture is
+  accepted, and commit `5c3eeb3` adds scripted-nav poll and GuitarPort edge
+  counters. `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the
   no-focus `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the
   original CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
   plus the runtime stages `821D1190`, `821D1710`, and `CharIK_Update`.
   Current RexGlue captures are not accepted lower-body row oracles: the latest
-  summaries report `runtime=192 apply=0 rows=0 insong=0`
-  with `route_status=route_not_reached`; the scripted XInput attempt records
-  only `scripted_nav=1` and also records `trace ended with a truncated json
-  line`. `tools/check_rexglue_lower_body_trace.py --require-in-song-route` is
-  now the reachability gate for future RexGlue captures, and
+  summaries report `runtime=192 apply=0 rows=0 insong=0`,
+  `scripted_nav=1`, `scripted_nav_polls=4`, `guitar_edges=0`, and
+  `route_status=route_not_reached`; the scripted/PostMessage attempts also
+  record `trace ended with a truncated json line`. The pause UI traces include
+  `pause_title.lbl` and `pause_controller_msg.lbl`, so the current hidden route
+  is parked in pause/controller UI rather than the playable band route.
+  `tools/check_rexglue_lower_body_trace.py --require-in-song-route` is now the
+  reachability gate for future RexGlue captures, and
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
   records that the current RexGlue evidence is scaffolding plus a negative
   route/reachability bound, not proof of the live lower-body row path. Older trace notes remain

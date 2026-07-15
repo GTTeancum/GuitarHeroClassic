@@ -32,13 +32,15 @@ def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
     return (manifest.parent / path).resolve()
 
 
-def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[int, int]:
+def check_manifest(
+    manifest_path: Path, cross_check_summaries: bool
+) -> tuple[int, int, int, int, int]:
     manifest = load_json(manifest_path)
     require(
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "2455d8a", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "5c3eeb3", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -57,30 +59,43 @@ def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[in
         == "tools/check_rexglue_lower_body_trace.py --require-in-song-route",
         "missing RexGlue route reachability checker",
     )
+    require(
+        scaffold.get("input_poll_checker")
+        == "tools/check_rexglue_lower_body_trace.py --require-scripted-nav-polls --require-guitar-input-edge",
+        "missing RexGlue input poll checker",
+    )
     require(scaffold.get("no_focus_forced") is True, "RexGlue trace must not force focus")
     hooks = set(scaffold.get("hooks", []))
     for hook in ("sub_8215DF28", "sub_8215E6A0", "821D1190", "821D1710", "CharIK_Update"):
         require(hook in hooks, f"missing RexGlue hook {hook}")
 
     captures = manifest.get("captures", [])
-    require(len(captures) == 2, "expected two current RexGlue trace summaries")
+    require(len(captures) == 4, "expected four current RexGlue trace summaries")
     runtime_total = 0
     accepted_count = 0
     strong_in_song_total = 0
+    scripted_nav_poll_total = 0
+    input_guitar_edge_total = 0
     saw_truncated = False
     saw_scripted_nav_single_poll = False
+    saw_poll_heartbeat = False
     for capture in captures:
         require(capture.get("runtime_memory_events") == 192, "unexpected runtime memory count")
         require(capture.get("clip_apply_events") == 0, "current RexGlue capture must not claim clip apply rows")
         require(capture.get("lower_body_rows") == 0, "current RexGlue capture must not claim lower-body rows")
         require(capture.get("strong_in_song_events") == 0, "current RexGlue capture must not claim an in-song route")
+        require(capture.get("input_guitar_edges") == 0, "current RexGlue capture must not claim guitar input edges")
         require(capture.get("route_status") == "route_not_reached", "current RexGlue capture route must stay rejected")
         require(capture.get("accepted_row_oracle") is False, "current RexGlue capture must be non-authoritative")
         runtime_total += int(capture.get("runtime_memory_events", 0))
         strong_in_song_total += int(capture.get("strong_in_song_events", 0))
+        scripted_nav_poll_total += int(capture.get("scripted_nav_polls", 0))
+        input_guitar_edge_total += int(capture.get("input_guitar_edges", 0))
         accepted_count += 1 if capture.get("accepted_row_oracle") else 0
         if capture.get("scripted_nav_events") == 1:
             saw_scripted_nav_single_poll = True
+        if capture.get("scripted_nav_polls") == 4:
+            saw_poll_heartbeat = True
         failures = capture.get("failures", [])
         if "trace ended with a truncated json line" in failures:
             saw_truncated = True
@@ -118,12 +133,30 @@ def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[in
                 == capture.get("scripted_nav_events"),
                 "summary scripted nav event count mismatch",
             )
+            require(
+                summary.get("scripted_nav_polls")
+                == capture.get("scripted_nav_polls"),
+                "summary scripted nav poll count mismatch",
+            )
+            require(
+                summary.get("input_guitar_edges")
+                == capture.get("input_guitar_edges"),
+                "summary guitar input edge count mismatch",
+            )
 
     require(saw_truncated, "expected the scripted RexGlue attempt to record the truncated-tail failure")
     require(saw_scripted_nav_single_poll, "expected scripted RexGlue attempt to record exactly one scripted-nav poll")
+    require(saw_poll_heartbeat, "expected current RexGlue attempts to record scripted-nav poll heartbeats")
     require(strong_in_song_total == 0, "current RexGlue captures must have zero strong in-song route markers")
+    require(input_guitar_edge_total == 0, "current RexGlue captures must have zero GuitarPort input edges")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
-    return runtime_total, accepted_count, strong_in_song_total
+    return (
+        runtime_total,
+        accepted_count,
+        strong_in_song_total,
+        scripted_nav_poll_total,
+        input_guitar_edge_total,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -146,9 +179,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        runtime_total, accepted_count, strong_in_song_total = check_manifest(
-            args.manifest, args.cross_check_summaries
-        )
+        (
+            runtime_total,
+            accepted_count,
+            strong_in_song_total,
+            scripted_nav_poll_total,
+            input_guitar_edge_total,
+        ) = check_manifest(args.manifest, args.cross_check_summaries)
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
@@ -156,6 +193,8 @@ def main() -> int:
         "PASS lower_body_rexglue_trace_manifest "
         f"runtime_memory_events={runtime_total} "
         f"strong_in_song_events={strong_in_song_total} "
+        f"scripted_nav_polls={scripted_nav_poll_total} "
+        f"guitar_edges={input_guitar_edge_total} "
         f"accepted_row_oracles={accepted_count} "
         "route_status=route_not_reached "
         "accepted_live_row_authority=pcsx2_rock_lower_body_mesh_rows_20260715"
