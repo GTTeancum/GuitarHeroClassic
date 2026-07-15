@@ -1806,6 +1806,22 @@ int main() {
   ok &= expect_num_frames(
       ghogx::character::source_char_clip_num_frames_plan(2, 3, 1000), 3,
       "one sample count ignored");
+  const ghogx::character::SourceCharClipTimingBodyBoundary timing_boundary =
+      ghogx::character::source_char_clip_timing_body_boundary();
+  if (!timing_boundary.constructor_sets_frames_per_sec_30 ||
+      !timing_boundary.inline_start_end_length_beats_present ||
+      !timing_boundary.prop_sync_exposes_length_seconds ||
+      !timing_boundary.prop_sync_exposes_average_beats_per_sec ||
+      timing_boundary.length_seconds_body_visible ||
+      timing_boundary.average_beats_per_second_body_visible ||
+      timing_boundary.safe_to_import_seconds_math ||
+      timing_boundary.fenced_bodies.size() != 2 ||
+      timing_boundary.fenced_bodies[0] != "CharClip::LengthSeconds" ||
+      timing_boundary.fenced_bodies[1] !=
+          "CharClip::AverageBeatsPerSecond") {
+    std::cerr << "CharClip timing body boundary mismatch\n";
+    ok = false;
+  }
   ok &= expect_beat_event(
       ghogx::character::source_char_clip_beat_event_default(), "", 0.0f,
       "BeatEvent default");

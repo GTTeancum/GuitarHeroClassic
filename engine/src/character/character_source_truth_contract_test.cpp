@@ -29760,6 +29760,18 @@ int run_contract() {
                  "intNumFrames()const{returnMax<int>(Max<int>(1,"
                  "mFull.mNumSamples),mFull.mFrames.size());}",
                  "latest CharClip header exposes NumFrames full-only expression");
+  ok &= contains(rb3_latest_char_clip_h,
+                 "floatStartBeat()const{returnmBeatTrack.front().value;}"
+                 "floatEndBeat()const{returnmBeatTrack.back().value;}"
+                 "floatLengthBeats()const{returnEndBeat()-StartBeat();}",
+                 "latest CharClip header exposes inline beat timing helpers");
+  ok &= missing(rb3_latest_char_clip_cpp, "floatCharClip::LengthSeconds(",
+                "latest CharClip source lacks LengthSeconds body");
+  ok &= missing(rb3_latest_char_clip_cpp,
+                "floatCharClip::AverageBeatsPerSecond(",
+                "latest CharClip source lacks AverageBeatsPerSecond body");
+  ok &= contains(rb2_char_clip_cpp, "voidCharClip::SetFramesPerSec(){}",
+                 "RB2 dump only maps bodyless SetFramesPerSec for clip timing");
   ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::BeatEvent::Load(BinStream&bs){bs>>event;"
                  "bs>>beat;}",
@@ -30003,6 +30015,14 @@ int run_contract() {
                  "`mOne` sample count does not\n    contribute to the reported "
                  "clip frame count",
                  "document records source CharClip NumFrames one-sample boundary");
+  ok &= contains(doc,
+                 "Native `source_char_clip_timing_body_boundary` records the "
+                 "timing limit",
+                 "document records native CharClip timing body boundary");
+  ok &= contains(doc,
+                 "must not\n    invent seconds/beat-rate math for viewer/"
+                 "gameplay pose comparison",
+                 "document fences CharClip timing math invention");
   ok &= contains(doc,
                  "unchanged values preserve the incoming\n    dirty state",
                  "document records source CharClip unchanged dirty behavior");
@@ -30619,6 +30639,14 @@ int run_contract() {
                  "full_frame_count);",
                  "native CharClip NumFrames helper ports source expression");
   ok &= contains(char_clip,
+                 "SourceCharClipTimingBodyBoundarysource_char_clip_timing_body_"
+                 "boundary(){SourceCharClipTimingBodyBoundaryboundary;",
+                 "native CharClip timing body boundary is implemented");
+  ok &= contains(char_clip,
+                 "boundary.fenced_bodies={\"CharClip::LengthSeconds\","
+                 "\"CharClip::AverageBeatsPerSecond\"};",
+                 "native CharClip timing body boundary fences missing bodies");
+  ok &= contains(char_clip,
                  "SourceCharClipBeatEventsource_char_clip_beat_event_default(){"
                  "returnSourceCharClipBeatEvent{};}",
                  "native CharClip BeatEvent default helper returns source defaults");
@@ -30861,6 +30889,9 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_num_frames_plan(2,3,1000)",
                  "focused clip driver flags test covers ignored one-sample count");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_timing_body_boundary()",
+                 "focused clip driver flags test covers CharClip timing body boundary");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_beat_event_default()",
                  "focused clip driver flags test covers BeatEvent default");

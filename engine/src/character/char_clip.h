@@ -1414,6 +1414,18 @@ struct SourceCharClipNumFramesPlan {
   bool ignores_one_num_samples = true;
 };
 
+struct SourceCharClipTimingBodyBoundary {
+  bool constructor_sets_frames_per_sec_30 = true;
+  bool inline_start_end_length_beats_present = true;
+  bool prop_sync_exposes_length_seconds = true;
+  bool prop_sync_exposes_average_beats_per_sec = true;
+  bool length_seconds_body_visible = false;
+  bool average_beats_per_second_body_visible = false;
+  bool safe_to_import_seconds_math = false;
+  std::vector<std::string> source_authorities;
+  std::vector<std::string> fenced_bodies;
+};
+
 struct SourceCharClipBeatEvent {
   std::string event;
   float beat = 0.0f;
@@ -2094,6 +2106,7 @@ SourceCharClipNumFramesPlan source_char_clip_num_frames_plan(
     int full_num_samples,
     int full_frame_count,
     int one_num_samples);
+SourceCharClipTimingBodyBoundary source_char_clip_timing_body_boundary();
 SourceCharClipBeatEvent source_char_clip_beat_event_default();
 SourceCharClipBeatEvent source_char_clip_beat_event_copy(
     const SourceCharClipBeatEvent& source);

@@ -4225,6 +4225,17 @@ SourceCharClipNumFramesPlan source_char_clip_num_frames_plan(
   return plan;
 }
 
+SourceCharClipTimingBodyBoundary source_char_clip_timing_body_boundary() {
+  SourceCharClipTimingBodyBoundary boundary;
+  boundary.source_authorities = {
+      "rb3/src/system/char/CharClip.cpp",
+      "rb3/src/system/char/CharClip.h",
+      "rb3/doc/rb2_dump/rockband2/system/src/char/CharClip.cpp"};
+  boundary.fenced_bodies = {"CharClip::LengthSeconds",
+                            "CharClip::AverageBeatsPerSecond"};
+  return boundary;
+}
+
 SourceCharClipBeatEvent source_char_clip_beat_event_default() {
   return SourceCharClipBeatEvent{};
 }
