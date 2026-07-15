@@ -583,6 +583,14 @@ Open work:
   routes that check through `camera_low_excitement_like_source(...)` and the
   shared numeric `venue_excitement_level(...)` mapper instead of rechecking
   event-name substrings at the camera call site.
+- 2026-07-14 camera duration excitement key:
+  GH2 `world_objects_worldbase.dta::get_shot_duration` finds the duration row
+  with `{find {world get camera_durations} {world get excitement_level}}`, and
+  `macros.dta` defines the five excitement symbols as numeric values 0..4.
+  Native `camera_excitement_duration_key(...)` now derives the duration row
+  from the shared `venue_excitement_level(...)` mapper, so the camera duration
+  path follows the source numeric world state instead of maintaining its own
+  event-name substring ladder.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

@@ -7852,6 +7852,23 @@ int main() {
                  "active_venue_event_)",
                  "regular camera uses active-excitement duration rows");
   ok &= contains(gameplay_c,
+                 "std::stringcamera_excitement_duration_key("
+                 "std::string_viewvenue_event){switch("
+                 "venue_excitement_level(venue_event)){",
+                 "camera duration row lookup mirrors world get excitement_level");
+  ok &= contains(gameplay_c,
+                 "case0:return\"kExcitementBoot\";case1:return"
+                 "\"kExcitementBad\";",
+                 "camera duration key preserves boot/bad numeric rows");
+  ok &= contains(gameplay_c,
+                 "case3:return\"kExcitementGreat\";case4:return"
+                 "\"kExcitementPeak\";",
+                 "camera duration key preserves great/peak numeric rows");
+  ok &= absent(gameplay_c,
+               "if(venue_event.find(\"bad\")!=std::string_view::npos)"
+               "return\"kExcitementBad\";",
+               "camera duration key must not duplicate event-name substring checks");
+  ok &= contains(gameplay_c,
                  "world_objects_worldbase.dta::get_shot_durationusesrandom_int",
                  "camera duration picker remains tied to the PS2 random_int script route");
   ok &= contains(gameplay_c,

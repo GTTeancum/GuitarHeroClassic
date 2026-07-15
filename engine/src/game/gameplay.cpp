@@ -17004,15 +17004,19 @@ int source_random_int_camera_duration_bars(int min_bars, int max_bars,
 }
 
 std::string camera_excitement_duration_key(std::string_view venue_event) {
-    if (venue_event.find("peak") != std::string_view::npos)
-        return "kExcitementPeak";
-    if (venue_event.find("great") != std::string_view::npos)
-        return "kExcitementGreat";
-    if (venue_event.find("bad") != std::string_view::npos)
-        return "kExcitementBad";
-    if (venue_event.find("boot") != std::string_view::npos)
-        return "kExcitementBoot";
-    return "kExcitementOkay";
+    switch (venue_excitement_level(venue_event)) {
+        case 0:
+            return "kExcitementBoot";
+        case 1:
+            return "kExcitementBad";
+        case 3:
+            return "kExcitementGreat";
+        case 4:
+            return "kExcitementPeak";
+        case 2:
+        default:
+            return "kExcitementOkay";
+    }
 }
 
 std::pair<std::string, std::pair<int, int>> camera_duration_range_for_event(
