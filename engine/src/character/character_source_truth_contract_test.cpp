@@ -177,6 +177,12 @@ int run_contract() {
   const std::string lower_body_current_commit_pose_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_current_commit_pose_manifest.json"));
+  const std::string lower_body_pcsx2_row_trace = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_pcsx2_row_trace.py"));
+  const std::string lower_body_pcsx2_row_trace_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "lower_body_pcsx2_row_trace_manifest.json"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -34463,6 +34469,32 @@ int run_contract() {
   ok &= contains(doc,
                  "every stable `0x00ef...` mesh wrapper row stayed unchanged",
                  "document records stable PCSX2 mesh wrapper rows");
+  ok &= contains(doc,
+                 "`tools/check_lower_body_pcsx2_row_trace.py "
+                 "--use-manifest-source-json`",
+                 "document records PCSX2 lower-body row checker command");
+  ok &= contains(doc,
+                 "`source_json_checked=true`",
+                 "document records raw PCSX2 JSON cross-check");
+  ok &= contains(
+      lower_body_pcsx2_row_trace_manifest,
+      "\"trace_id\":\"pcsx2_rock_lower_body_mesh_rows_20260715\"",
+      "PCSX2 lower-body manifest records trace id");
+  ok &= contains(lower_body_pcsx2_row_trace_manifest,
+                 "\"native_path\":\"source_output_lower_body_bridge\"",
+                 "PCSX2 lower-body manifest records native source bridge");
+  ok &= contains(lower_body_pcsx2_row_trace_manifest,
+                 "\"rock_desc_R_thigh\"",
+                 "PCSX2 lower-body manifest records moving source row");
+  ok &= contains(lower_body_pcsx2_row_trace_manifest,
+                 "\"rock_mesh_R_thigh\"",
+                 "PCSX2 lower-body manifest records stable mesh wrapper row");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "stable_mesh_wrappers=",
+                 "PCSX2 lower-body checker reports stable mesh wrappers");
+  ok &= contains(lower_body_pcsx2_row_trace,
+                 "source_json_checked=",
+                 "PCSX2 lower-body checker can cross-check raw trace JSON");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",

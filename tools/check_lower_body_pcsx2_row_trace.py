@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Verify the focused PCSX2 lower-body mesh/source row trace summary."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import sys
+from typing import Any
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise RuntimeError(message)
+
+
+def load_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def resolve_manifest_path(manifest: Path, raw_path: str) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return (manifest.parent / path).resolve()
+
+
+def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, int, bool]:
+    manifest = load_json(manifest_path)
+    require(
+        manifest.get("trace_id") == "pcsx2_rock_lower_body_mesh_rows_20260715",
+        "unexpected trace id",
+    )
+    runtime = manifest.get("runtime", {})
+    require(runtime.get("active_gameplay") is True, "trace was not active gameplay")
+    require(runtime.get("focus_forced") is False, "trace must not force focus")
+    require(runtime.get("sample_count") == 32, "unexpected manifest sample count")
+    require(runtime.get("seconds") == 8.0, "unexpected manifest duration")
+
+    stale = manifest.get("stale_trace_rejected", {})
+    require("0x00db" in stale.get("reason", ""), "stale address rejection missing")
+
+    conclusion = manifest.get("source_backed_conclusion", {})
+    require(
+        conclusion.get("native_path") == "source_output_lower_body_bridge",
+        "native conclusion must stay on source output bridge",
+    )
+    rejects = set(conclusion.get("rejects", []))
+    for rejected in (
+        "stale_named_mesh_wrapper_rows",
+        "foot_ik",
+        "camera_angle",
+        "character_name_offset",
+    ):
+        require(rejected in rejects, f"missing rejected shortcut {rejected}")
+
+    pairs = manifest.get("pairs", [])
+    require(len(pairs) == 9, "expected pelvis plus eight lower-body pairs")
+    required_moving = set(manifest.get("required_moving_desc_rows", []))
+    seen_desc: dict[str, dict[str, Any]] = {}
+    moving_desc = 0
+    stable_mesh = 0
+    for pair in pairs:
+        bone = pair.get("bone", "")
+        require(bone.startswith("bone_") and bone.endswith(".mesh"), "bad bone label")
+        desc = pair.get("desc", {})
+        mesh = pair.get("mesh", {})
+        desc_name = desc.get("name")
+        mesh_name = mesh.get("name")
+        require(desc_name and mesh_name, f"{bone}: missing row names")
+        require(str(desc.get("addr", "")).startswith("0x00e"), f"{desc_name}: bad desc addr")
+        require(str(mesh.get("addr", "")).startswith("0x00ef"), f"{mesh_name}: bad mesh addr")
+        require(mesh.get("changed_count") == 0, f"{mesh_name}: wrapper row moved")
+        stable_mesh += 1
+        if desc.get("changed_count", 0) > 0:
+            moving_desc += 1
+        seen_desc[desc_name] = desc
+
+    require(stable_mesh == 9, "not all mesh wrapper rows stayed stable")
+    require(moving_desc >= 7, "not enough linked source/controller rows moved")
+    missing_moving = sorted(required_moving - set(seen_desc))
+    require(not missing_moving, f"missing moving desc rows {missing_moving}")
+    for name in sorted(required_moving):
+        require(seen_desc[name].get("changed_count", 0) > 0, f"{name} did not move")
+
+    checked_raw = False
+    if source_json is not None:
+        raw = load_json(source_json)
+        raw_targets = {target["name"]: target for target in raw.get("targets", [])}
+        require(raw.get("seconds") == runtime["seconds"], "raw duration mismatch")
+        for pair in pairs:
+            for key in ("desc", "mesh"):
+                entry = pair[key]
+                raw_entry = raw_targets.get(entry["name"])
+                require(raw_entry is not None, f"raw missing {entry['name']}")
+                require(raw_entry.get("addr") == entry["addr"], f"{entry['name']}: addr mismatch")
+                require(
+                    raw_entry.get("changed_count") == entry["changed_count"],
+                    f"{entry['name']}: changed_count mismatch",
+                )
+                require(
+                    raw_entry.get("sample_count") == runtime["sample_count"],
+                    f"{entry['name']}: sample_count mismatch",
+                )
+        checked_raw = True
+
+    return stable_mesh, moving_desc, checked_raw
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Check the committed PCSX2 lower-body row trace manifest."
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("tools/lower_body_pcsx2_row_trace_manifest.json"),
+    )
+    parser.add_argument(
+        "--source-json",
+        type=Path,
+        help="Optional raw PCSX2 JSON to cross-check against the manifest.",
+    )
+    parser.add_argument(
+        "--use-manifest-source-json",
+        action="store_true",
+        help="Cross-check the raw JSON path recorded in the manifest.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    source_json = args.source_json
+    if args.use_manifest_source_json:
+        manifest = load_json(args.manifest)
+        source_json = resolve_manifest_path(args.manifest, manifest["source_json"])
+    try:
+        stable_mesh, moving_desc, checked_raw = check_manifest(args.manifest, source_json)
+    except RuntimeError as exc:
+        print(f"FAIL {exc}", file=sys.stderr)
+        return 1
+    print(
+        "PASS lower_body_pcsx2_row_trace "
+        f"stable_mesh_wrappers={stable_mesh} "
+        f"moving_source_rows={moving_desc} "
+        f"source_json_checked={str(checked_raw).lower()} "
+        "native_path=source_output_lower_body_bridge"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

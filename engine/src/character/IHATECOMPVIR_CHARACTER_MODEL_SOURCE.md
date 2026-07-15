@@ -6337,6 +6337,10 @@ Lower-body evidence audit:
   `rock_desc_R_toe=13`, `rock_desc_pelvis=17`). This refresh supports the same
   source/output-row bridge as RexGlue and rejects stale named mesh wrappers,
   foot IK, camera angle, and character-name offsets as the lower-body path.
+  `tools/check_lower_body_pcsx2_row_trace.py --use-manifest-source-json`
+  cross-checks the committed manifest against that raw PCSX2 JSON and reports
+  `stable_mesh_wrappers=9`, `moving_source_rows=7`, and
+  `source_json_checked=true`.
   If a future visual proof contradicts the
   current result, the RexGlue path to trace is therefore the same pose-buffer
   apply/output-row bridge, not a new foot-IK or character-name offset path.
