@@ -62,6 +62,7 @@ void write_line_locked(const std::string& line) {
     if (!g_fp) return;
     std::fwrite(line.data(), 1, line.size(), g_fp);
     std::fputc('\n', g_fp);
+    std::fflush(g_fp);
 }
 
 // Common prefix: opening brace, timestamp, kind. Caller appends remaining
@@ -93,6 +94,7 @@ bool Init(const std::string& output_path) {
         g_initialized = false;
         return false;
     }
+    std::setvbuf(g_fp, nullptr, _IONBF, 0);
     // Header event so the file is never empty even if nothing else is captured.
     std::string line;
     start_event(line, "trace.init");

@@ -140,6 +140,7 @@ public class P {
 
 $WM_KEYDOWN     = 0x0100
 $WM_KEYUP       = 0x0101
+$WM_CLOSE       = 0x0010
 $WM_LBUTTONDOWN = 0x0201
 $WM_LBUTTONUP   = 0x0202
 $MK_LBUTTON     = 0x0001
@@ -183,6 +184,29 @@ function Find-PidWindow([int]$pid_) {
   $script:_found_hwnd = [IntPtr]::Zero
   [P]::EnumWindows($cb, [IntPtr]::Zero) | Out-Null
   return $script:_found_hwnd
+}
+
+function Stop-TraceProcess([System.Diagnostics.Process]$proc, [IntPtr]$hwnd, [string]$reason) {
+  if ($proc.HasExited) { return }
+  Write-Host "$reason; requesting clean trace shutdown"
+  $target = $hwnd
+  if ($target -eq [IntPtr]::Zero) {
+    $target = Find-PidWindow $proc.Id
+  }
+  if ($target -ne [IntPtr]::Zero) {
+    [P]::PostMessageW($target, $WM_CLOSE, [IntPtr]0, [IntPtr]0) | Out-Null
+  }
+  for ($i = 0; $i -lt 60; $i++) {
+    if ($proc.HasExited) {
+      Write-Host "process exited cleanly"
+      return
+    }
+    Start-Sleep -Milliseconds 250
+  }
+  if (-not $proc.HasExited) {
+    Write-Host "clean shutdown timed out; forcing stop"
+    Stop-Process -Id $proc.Id -Force
+  }
 }
 
 $exe = "C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-trace360\out\build\win-amd64-relwithdebinfo\gh2test.exe"
@@ -321,7 +345,7 @@ if ($NoAutoNav) {
       Write-Host "  ... $([int]($remaining/60)) min remaining"
     }
   }
-  if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+  Stop-TraceProcess $p $hwnd "no-autonav hold elapsed"
   $captures = Join-Path (Split-Path $exe) "captures"
   $latest = Get-ChildItem $captures -Filter "trace_*.jsonl" -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -453,8 +477,7 @@ if ($FailSong) {
     }
   }
   if (-not $p.HasExited) {
-    Write-Host ("Fail-song timeout reached at {0}s. Stopping." -f [int]$sw.Elapsed.TotalSeconds)
-    Stop-Process -Id $p.Id -Force
+    Stop-TraceProcess $p $hwnd ("Fail-song timeout reached at {0}s" -f [int]$sw.Elapsed.TotalSeconds)
   }
 } elseif ($Interactive) {
   # Interactive key-forwarding loop.
@@ -532,8 +555,7 @@ if ($FailSong) {
     Start-Sleep -Milliseconds 16   # ~60 Hz poll
   }
   if (-not $p.HasExited) {
-    Write-Host ("Interactive timeout at {0}s. Stopping." -f [int]$sw.Elapsed.TotalSeconds)
-    Stop-Process -Id $p.Id -Force
+    Stop-TraceProcess $p $hwnd ("Interactive timeout at {0}s" -f [int]$sw.Elapsed.TotalSeconds)
   }
 } elseif ($PracticeMode) {
   # Practice mode: hold for PracticeHoldSec seconds.
@@ -568,8 +590,7 @@ if ($FailSong) {
     }
   }
   if (-not $p.HasExited) {
-    Write-Host ("Practice timeout reached at {0}s. Stopping." -f [int]$sw.Elapsed.TotalSeconds)
-    Stop-Process -Id $p.Id -Force
+    Stop-TraceProcess $p $hwnd ("Practice timeout reached at {0}s" -f [int]$sw.Elapsed.TotalSeconds)
   }
 } elseif ($FullSong) {
   # Full-song mode: hold up to $FullSongMaxSec and stop early if the
@@ -609,8 +630,7 @@ if ($FailSong) {
     }
   }
   if (-not $p.HasExited) {
-    Write-Host ("Full-song timeout reached; max {0} s elapsed. Stopping." -f $FullSongMaxSec)
-    Stop-Process -Id $p.Id -Force
+    Stop-TraceProcess $p $hwnd ("Full-song timeout reached; max {0} s elapsed" -f $FullSongMaxSec)
   }
 } else {
   Write-Host "Holding $GameplayHoldSec s for gameplay capture..."
@@ -632,8 +652,7 @@ if ($FailSong) {
     Start-Sleep -Seconds $GameplayHoldSec
   }
   if (-not $p.HasExited) {
-    Write-Host "stopping process"
-    Stop-Process -Id $p.Id -Force
+    Stop-TraceProcess $p $hwnd "gameplay hold elapsed"
   }
 }
 
