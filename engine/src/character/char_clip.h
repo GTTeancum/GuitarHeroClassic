@@ -1524,11 +1524,15 @@ struct SourceReleasePosePublisherBoundary {
 
 struct SourceCharPosePublisherSourceRefresh {
   std::string rb3_commit;
+  std::string gltf_milo_commit;
   std::string grim_commit;
   std::string re_notes_commit;
   bool rb3_after_fetch = false;
+  bool gltf_milo_after_fetch = false;
   bool grim_after_fetch = false;
   bool re_notes_after_fetch = false;
+  bool gltf_milo_hair_segment_source_present = false;
+  bool non_rb3_pose_publisher_bodies_present = false;
   bool char_clip_pose_meshes_body = false;
   bool char_bones_samples_scale_add_sample_body = false;
   bool char_bones_scale_add_body = false;

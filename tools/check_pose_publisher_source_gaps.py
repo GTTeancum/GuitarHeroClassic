@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -46,6 +47,27 @@ def default_rb3_root(cwd: Path) -> Path:
     return cwd / "third_party" / "ihatecompvir-extra" / "rb3-latest"
 
 
+def default_ihatecompvir_root(cwd: Path) -> Path:
+    live = cwd / "third_party" / "ihatecompvir-live"
+    if live.exists():
+        return live
+    return cwd / "third_party" / "ihatecompvir-extra"
+
+
+def git_short_head(path: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--short", "HEAD"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip() or None
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description="Check ihatecompvir pose-publisher source coverage."
@@ -57,6 +79,12 @@ def main(argv: list[str]) -> int:
         help="Path to ihatecompvir/rb3 source root. Defaults to live mirror if present.",
     )
     parser.add_argument(
+        "--ihatecompvir-root",
+        type=Path,
+        default=None,
+        help="Path containing glTFMilo/grim/re-notes mirrors. Defaults to live mirror if present.",
+    )
+    parser.add_argument(
         "--require-rb2-dump",
         action="store_true",
         help="Fail if rb3/doc/rb2_dump character files are unavailable.",
@@ -65,8 +93,12 @@ def main(argv: list[str]) -> int:
 
     cwd = Path.cwd()
     rb3_root = (args.rb3_root or default_rb3_root(cwd)).resolve()
+    ihate_root = (args.ihatecompvir_root or default_ihatecompvir_root(cwd)).resolve()
     src_char = rb3_root / "src" / "system" / "char"
     dump_char = rb3_root / "doc" / "rb2_dump" / "rockband2" / "system" / "src" / "char"
+    gltf_root = ihate_root / "glTFMilo"
+    grim_root = ihate_root / "grim"
+    re_notes_root = ihate_root / "re-notes"
 
     char_clip = read_text(src_char / "CharClip.cpp")
     char_bones = read_text(src_char / "CharBones.cpp")
@@ -143,6 +175,66 @@ def main(argv: list[str]) -> int:
         "CharClipDriver::Evaluate is not implemented in visible rb3 source",
     )
 
+    gltf_node_processor = read_text(
+        gltf_root / "Source" / "glTFMilo" / "Core" / "NodeProcessor.cs"
+    )
+    gltf_options = read_text(gltf_root / "Source" / "Options.cs")
+    grim_char_bones_samples = read_text(
+        grim_root / "core" / "grim" / "src" / "scene" / "char_bones_samples" / "io.rs"
+    )
+    grim_char_clip_samples = read_text(
+        grim_root / "core" / "grim" / "src" / "scene" / "char_clip_samples" / "io.rs"
+    )
+    re_notes_char_bones_samples = read_text(
+        re_notes_root / "templates" / "milo" / "char_bones_samples.bt"
+    )
+    re_notes_char_clip_samples = read_text(
+        re_notes_root / "templates" / "milo" / "char_clip_samples.bt"
+    )
+    non_rb3_text = "\n".join(
+        [
+            gltf_node_processor,
+            gltf_options,
+            grim_char_bones_samples,
+            grim_char_clip_samples,
+            re_notes_char_bones_samples,
+            re_notes_char_clip_samples,
+        ]
+    )
+    c_non_rb3_text = compact(non_rb3_text)
+    record(
+        results,
+        "gltfmilo-hair-branch-source-present",
+        "CollectHairChainsSplitAtBranches" in gltf_node_processor
+        and "disable-splitting" in gltf_options,
+        "glTFMilo exposes hair branch splitting/diagnostic source, not pose publisher bodies",
+    )
+    record(
+        results,
+        "grim-sample-format-source-present",
+        "load_char_bones_samples_header" in grim_char_bones_samples
+        and "load_char_bones_samples_data" in grim_char_bones_samples
+        and "load_char_bones_samples(&mut self.full" in grim_char_clip_samples,
+        "grim exposes CharBonesSamples/CharClipSamples format loaders",
+    )
+    record(
+        results,
+        "re-notes-sample-template-source-present",
+        "CharBonesSamples char_bones_samples" in re_notes_char_bones_samples
+        and '#include "char_bones_samples.bt"' in re_notes_char_clip_samples,
+        "re-notes exposes sample templates as format maps",
+    )
+    record(
+        results,
+        "non-rb3-publisher-bodies-absent",
+        "CharBones::ScaleAdd(CharBones&" not in c_non_rb3_text
+        and "CharBonesSamples::EvaluateChannel(" not in c_non_rb3_text
+        and "CharBonesMeshes::PoseMeshes(" not in c_non_rb3_text
+        and "CharClipSamples::ScaleAdd(" not in c_non_rb3_text
+        and "CharClipDriver::Evaluate(" not in c_non_rb3_text,
+        "glTFMilo/grim/re-notes do not provide the five missing C++ runtime publisher bodies",
+    )
+
     rb2_dump_available = dump_char.exists()
     record(
         results,
@@ -199,7 +291,16 @@ def main(argv: list[str]) -> int:
         print("FAILED " + ",".join(failed))
         return 1
 
-    print(f"SUMMARY pass={len(results)} rb3_root={rb3_root}")
+    print(f"SUMMARY pass={len(results)} rb3_root={rb3_root} ihatecompvir_root={ihate_root}")
+    for label, path in (
+        ("rb3", rb3_root),
+        ("gltfMilo", gltf_root),
+        ("grim", grim_root),
+        ("re-notes", re_notes_root),
+    ):
+        commit = git_short_head(path)
+        if commit:
+            print(f"MIRROR {label} commit={commit}")
     print(
         "SOURCE-GAP still-fenced="
         "CharBones::ScaleAdd(CharBones&,float)|"

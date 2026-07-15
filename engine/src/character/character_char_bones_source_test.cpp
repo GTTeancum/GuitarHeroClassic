@@ -1418,16 +1418,26 @@ int main() {
       source_char_pose_publisher_source_refresh_20260714();
   ok &= expect_string(publisher_refresh.rb3_commit, "41719f2",
                       "pose publisher rb3 mirror commit");
+  ok &= expect_string(publisher_refresh.gltf_milo_commit, "3c02a54",
+                      "pose publisher glTFMilo mirror commit");
   ok &= expect_string(publisher_refresh.grim_commit, "1c05ca3",
                       "pose publisher grim mirror commit");
   ok &= expect_string(publisher_refresh.re_notes_commit, "5c486fd",
                       "pose publisher re-notes mirror commit");
   ok &= expect_int(publisher_refresh.rb3_after_fetch ? 1 : 0, 1,
                    "pose publisher rb3 mirror refreshed");
+  ok &= expect_int(publisher_refresh.gltf_milo_after_fetch ? 1 : 0, 1,
+                   "pose publisher glTFMilo mirror refreshed");
   ok &= expect_int(publisher_refresh.grim_after_fetch ? 1 : 0, 1,
                    "pose publisher grim mirror refreshed");
   ok &= expect_int(publisher_refresh.re_notes_after_fetch ? 1 : 0, 1,
                    "pose publisher re-notes mirror refreshed");
+  ok &= expect_int(
+      publisher_refresh.gltf_milo_hair_segment_source_present ? 1 : 0, 1,
+      "pose publisher glTFMilo hair segment source present");
+  ok &= expect_int(
+      publisher_refresh.non_rb3_pose_publisher_bodies_present ? 1 : 0, 0,
+      "pose publisher non-rb3 mirrors lack runtime bodies");
   ok &= expect_int(publisher_refresh.char_clip_pose_meshes_body ? 1 : 0, 1,
                    "pose publisher CharClip PoseMeshes body present");
   ok &= expect_int(

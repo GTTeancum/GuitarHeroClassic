@@ -4469,11 +4469,15 @@ SourceCharPosePublisherSourceRefresh
 source_char_pose_publisher_source_refresh_20260714() {
   SourceCharPosePublisherSourceRefresh refresh;
   refresh.rb3_commit = "41719f2";
+  refresh.gltf_milo_commit = "3c02a54";
   refresh.grim_commit = "1c05ca3";
   refresh.re_notes_commit = "5c486fd";
   refresh.rb3_after_fetch = true;
+  refresh.gltf_milo_after_fetch = true;
   refresh.grim_after_fetch = true;
   refresh.re_notes_after_fetch = true;
+  refresh.gltf_milo_hair_segment_source_present = true;
+  refresh.non_rb3_pose_publisher_bodies_present = false;
   refresh.char_clip_pose_meshes_body = true;
   refresh.char_bones_samples_scale_add_sample_body = true;
   refresh.char_bones_scale_add_body = false;

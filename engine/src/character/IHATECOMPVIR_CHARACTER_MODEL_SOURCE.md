@@ -5172,20 +5172,27 @@ note, and all report `unreadBytes=0`.
   `CharBonesMeshes::PoseMeshes` statement body,
   `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate` remain fenced.
 - 2026-07-15 source refresh after fetch: `rb3` still resolves both `HEAD` and
-  `origin/master` to `41719f2`. The command-line verifier
+  `origin/master` to `41719f2`; `glTFMilo` stayed at `3c02a54`, `grim` at
+  `1c05ca3`, and `re-notes` at `5c486fd`. The command-line verifier
   `tools/check_pose_publisher_source_gaps.py --rb3-root
-  third_party/ihatecompvir-live/rb3 --require-rb2-dump` now checks the same
-  five-body fence as the native notes. It proves the latest source still
-  exposes `CharClip::PoseMeshes` call order and
-  `CharBonesSamples::ScaleAddSample`, but does not expose reviewable C++
-  bodies for `CharBones::ScaleAdd(CharBones&,float)`,
+  third_party/ihatecompvir-live/rb3 --ihatecompvir-root
+  third_party/ihatecompvir-live --require-rb2-dump` now checks the same
+  five-body fence as the native notes and separately checks that glTFMilo,
+  Grim, and re-notes remain format/converter evidence, not hidden C++ runtime
+  pose publisher bodies. It proves the latest source still exposes
+  `CharClip::PoseMeshes` call order and `CharBonesSamples::ScaleAddSample`,
+  while glTFMilo exposes the hair branch splitter used by the native hair
+  segment helper. It does not expose reviewable C++ bodies for
+  `CharBones::ScaleAdd(CharBones&,float)`,
   `CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`,
   `CharClipSamples::ScaleAdd`, or `CharClipDriver::Evaluate`.
   Fresh proof logs in
   `engine/out/visual_proofs/source_publisher_gap_20260715/` pair that source
   gate with current Rockabill2 viewer and in-game frames; the viewer and
   gameplay logs both print `source_publisher=fenced` before the screenshot
-  while the saved verifier log reports `SUMMARY pass=12`.
+  while the saved verifier log reports `SUMMARY pass=12`. The expanded mirror
+  scope verifier now reports `SUMMARY pass=16` when the glTFMilo/Grim/re-notes
+  checks are included.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.
@@ -6007,10 +6014,11 @@ ihatecompvir call flow (`CharClip::PoseMeshes`, `CharBonesSamples::ScaleAddSampl
 and the `CharBones::ScaleAdd(CharClip*)` delegate) while requiring the remaining
 publisher bodies to stay explicitly fenced:
 `CharBones::ScaleAdd(CharBones&,float)`,
-`CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`, and
-`CharClipSamples::ScaleAdd`. Passing this script means native still has source
-call-flow evidence and dump/range maps, not a complete source-backed transform
-publisher implementation.
+`CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`,
+`CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate`. Passing this
+script means native still has source call-flow evidence, glTFMilo hair/mesh
+converter evidence, and dump/range maps, not a complete source-backed
+transform publisher implementation.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current

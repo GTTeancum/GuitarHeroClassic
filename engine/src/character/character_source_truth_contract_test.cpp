@@ -32620,9 +32620,16 @@ int run_contract() {
                  "native exposes Rockabill2 shoulder source-boundary helper");
   ok &= contains(char_clip_h,
                  "structSourceCharPosePublisherSourceRefresh{std::string"
-                 "rb3_commit;std::stringgrim_commit;std::string"
-                 "re_notes_commit;boolrb3_after_fetch=false;",
+                 "rb3_commit;std::stringgltf_milo_commit;std::string"
+                 "grim_commit;std::stringre_notes_commit;bool"
+                 "rb3_after_fetch=false;",
                  "native exposes pose publisher source refresh row");
+  ok &= contains(char_clip_h,
+                 "boolgltf_milo_after_fetch=false;boolgrim_after_fetch=false;"
+                 "boolre_notes_after_fetch=false;bool"
+                 "gltf_milo_hair_segment_source_present=false;bool"
+                 "non_rb3_pose_publisher_bodies_present=false;",
+                 "native refresh row records non-rb3 mirror scope");
   ok &= contains(char_clip_h,
                  "boolchar_clip_pose_meshes_body=false;bool"
                  "char_bones_samples_scale_add_sample_body=false;bool"
@@ -32649,6 +32656,12 @@ int run_contract() {
   ok &= contains(char_clip,
                  "refresh.rb3_commit=\"41719f2\";",
                  "native source refresh pins rb3 mirror commit");
+  ok &= contains(char_clip,
+                 "refresh.gltf_milo_commit=\"3c02a54\";",
+                 "native source refresh pins glTFMilo mirror commit");
+  ok &= contains(char_clip,
+                 "refresh.non_rb3_pose_publisher_bodies_present=false;",
+                 "native source refresh keeps non-rb3 publisher bodies absent");
   ok &= contains(char_clip,
                  "refresh.char_bones_scale_add_body=false;",
                  "native source refresh keeps CharBones ScaleAdd fenced");
@@ -33655,8 +33668,15 @@ int run_contract() {
                  "`41719f2`",
                  "document records refreshed rb3 head and origin");
   ok &= contains(doc,
+                 "`glTFMilo` stayed at `3c02a54`",
+                 "document records refreshed glTFMilo head");
+  ok &= contains(doc,
                  "now checks the same\n  five-body fence",
                  "document records verifier five-body fence");
+  ok &= contains(doc,
+                 "glTFMilo,\n  Grim, and re-notes remain format/converter "
+                 "evidence",
+                 "document records non-rb3 source scope");
   ok &= contains(doc,
                  "`engine/out/visual_proofs/source_publisher_gap_20260715/`",
                  "document records current source publisher proof folder");
@@ -33664,6 +33684,8 @@ int run_contract() {
                  "document records source publisher fenced proof log");
   ok &= contains(doc, "`SUMMARY pass=12`",
                  "document records updated source-gap verifier pass count");
+  ok &= contains(doc, "`SUMMARY pass=16`",
+                 "document records expanded source-gap verifier pass count");
   ok &= contains(pose_publisher_source_gaps,
                  "charclip-posemeshes-call-order",
                  "pose publisher verifier checks CharClip PoseMeshes call order");
@@ -33682,6 +33704,12 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gaps,
                  "charclipdriver-evaluate-body-missing",
                  "pose publisher verifier requires missing CharClipDriver Evaluate body");
+  ok &= contains(pose_publisher_source_gaps,
+                 "gltfmilo-hair-branch-source-present",
+                 "pose publisher verifier records glTFMilo hair branch source");
+  ok &= contains(pose_publisher_source_gaps,
+                 "non-rb3-publisher-bodies-absent",
+                 "pose publisher verifier keeps non-rb3 mirrors scoped");
   ok &= contains(pose_publisher_source_gaps,
                  "rb2-charclipdriver-evaluate-range-local-map",
                  "pose publisher verifier records CharClipDriver Evaluate dump boundary");
