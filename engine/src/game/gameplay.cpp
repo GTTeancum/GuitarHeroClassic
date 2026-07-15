@@ -1777,6 +1777,14 @@ bool camshot_platform_ok_for_source(int platform_only) {
     return camshot_source_platform_for_ok() == platform_only;
 }
 
+int camshot_on_get_occluded_like_source() {
+    return 0;
+}
+
+int camshot_on_set_all_crowd_chars_3d_like_source() {
+    return 0;
+}
+
 std::optional<DecodedRndCamAnim> read_rnd_camanim_like_miloeditor(
     const uint8_t* body, size_t size) {
     try {
@@ -25027,6 +25035,12 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             stderr,
             "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1 reset_shot_over=1 reset_shake=1\n",
             active_camera_runtime_shot_.c_str());
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim handlers: source_handlers=CamShot::OnGetOccluded/CamShot::OnSetAllCrowdChars3D shot=%s get_occluded=%d set_all_to_3D=%d source_return=DataNode(0) submitted_transform=unchanged\n",
+            active_camera_runtime_shot_.c_str(),
+            camshot_on_get_occluded_like_source(),
+            camshot_on_set_all_crowd_chars_3d_like_source());
     }
     if (skip_script_crowd_update) {
         if (debug_venue_filters_enabled()) {

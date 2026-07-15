@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot no-op handler boundary:
+  ihatecompvir `CamShot::OnGetOccluded` and `CamShot::OnSetAllCrowdChars3D`
+  both return `DataNode(0)`. Native now names those source handler values in
+  the camera `StartAnim` proof row and keeps them diagnostic-only, so future
+  angle work cannot treat either handler as an occlusion solver, crowd-3D
+  mutator, or hidden transform adjustment without new audited source. Submitted
+  camera rows and dependencies are unchanged.
 - 2026-07-15 CamShot `OnHasTargets` bridge:
   ihatecompvir `CamShot::OnHasTargets` returns
   `mKeyFrames[idx].HasTargets()`, and `HasTargets()` checks resolved

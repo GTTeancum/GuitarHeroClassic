@@ -184,6 +184,10 @@ int main() {
       gameplay, "camera_source_regular_script_filter_label"));
   const std::string solo_camera_filter_label_c = compact(function_body(
       gameplay, "camera_source_solo_script_filter_label"));
+  const std::string camshot_get_occluded_c =
+      compact(function_body(gameplay, "camshot_on_get_occluded_like_source"));
+  const std::string camshot_set_all_to_3d_c = compact(function_body(
+      gameplay, "camshot_on_set_all_crowd_chars_3d_like_source"));
   const std::string camera_filter_label_c =
       compact(function_body(gameplay, "camera_source_script_filter_label"));
   const std::string camera_submit_c =
@@ -6226,6 +6230,18 @@ int main() {
                  "source_state_reset=CamShot::StartAnimshot=%s"
                  "reset_result_builder=1reset_shot_over=1reset_shake=1",
                  "camera StartAnim diagnostics expose source reset fields");
+  ok &= contains(camshot_get_occluded_c,
+                 "return0;",
+                 "CamShot OnGetOccluded mirrors ihatecompvir DataNode(0)");
+  ok &= contains(camshot_set_all_to_3d_c,
+                 "return0;",
+                 "CamShot OnSetAllCrowdChars3D mirrors ihatecompvir DataNode(0)");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraStartAnimhandlers:source_handlers="
+                 "CamShot::OnGetOccluded/CamShot::OnSetAllCrowdChars3D"
+                 "shot=%sget_occluded=%dset_all_to_3D=%d"
+                 "source_return=DataNode(0)submitted_transform=unchanged\\n\"",
+                 "camera StartAnim diagnostics expose source no-op handler values");
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_anims"
                  "(constCameraKey&key,conststd::string&runtime_name)",
