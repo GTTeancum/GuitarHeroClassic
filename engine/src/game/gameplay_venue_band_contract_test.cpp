@@ -11354,6 +11354,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_check=CamShot::CheckShotStartedruntime_flag=unk120p4serialized_flag=none",
                  "shot_started bridge is documented as a runtime CamShot bit, not a serialized MILO field");
+  ok &= contains(gameplay_h_c,
+                 "boolactive_camera_shot_started_=false;",
+                 "regular camera runtime carries a source-shaped CheckShotStarted latch separate from diagnostics");
+  ok &= contains(gameplay_c,
+                 "constboolsource_shot_started=!active_camera_shot_started_;"
+                 "if(source_shot_started){active_camera_shot_started_=true;",
+                 "shot_started dispatch is driven by the source runtime latch, not the proof-report string");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_starteddispatch:"
                  "source_msg=shot_startedsource_script=world/camshot.dta"

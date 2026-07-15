@@ -1318,6 +1318,7 @@ class Gameplay {
   std::unordered_set<std::string> active_camera_fov_anim_reported_;
   std::string active_camera_glow_spot_ref_;
   std::string active_camera_postprocess_ref_;
+  bool active_camera_shot_started_ = false;
   std::string active_camera_shot_started_reported_;
   std::string active_camera_frame_pair_reported_;
   std::string active_camera_last_prev_key_;

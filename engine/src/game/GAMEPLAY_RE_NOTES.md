@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot started latch:
+  ihatecompvir exposes `CamShot::CheckShotStarted()` as a runtime bit
+  (`unk120p4`), while the bit is not serialized in the audited MILO payload.
+  Native normal gameplay camera dispatch now carries a separate
+  `active_camera_shot_started_` latch for the `shot_started`/`post_switch_cam`
+  bridge instead of using the diagnostic "already reported" string as
+  behavior state. This is lifecycle/source-state parity only; it does not
+  change hidden `SetFrame`, `BuildTransform`, or FreeCam math.
 - 2026-07-15 gameplay CamShot visibility copy parity:
   ihatecompvir `CamShot::Copy` copies the decoded drawable vectors
   `unk5c`, `unk6c`, and `unk64`, which map to hide, show, and generated-hide

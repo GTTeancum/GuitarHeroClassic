@@ -23857,6 +23857,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_glow_spot_ref_.clear();
     active_camera_glow_spot_.reset();
     active_camera_postprocess_ref_.clear();
+    active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
@@ -24775,6 +24776,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     }
     end_camera_shot_anims();
     active_camera_runtime_shot_.clear();
+    active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
@@ -24811,6 +24813,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_postprocess_ref_.clear();
     set_camera_glow_spot_ref({});
     active_camera_shot_started_reported_.clear();
+    active_camera_shot_started_ = false;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -25432,6 +25435,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_position_index_ = 0;
     pending_regular_camera_start_ = 0.0;
     pending_regular_camera_local_frame_ = 0.0;
+    active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
@@ -25453,6 +25457,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
         active_camera_skip_next_crowd_update_;
     end_camera_shot_runtime(skip_script_crowd_update);
     active_camera_runtime_shot_ = runtime_name;
+    active_camera_shot_started_ = false;
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -34865,8 +34870,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const float source_shot_local_frame = camera_source_local_frame(
                     *key, song_time_, active_regular_camera_start_, &chart_);
                 const bool source_shot_started =
-                    active_camera_shot_started_reported_ != key->name;
+                    !active_camera_shot_started_;
                 if (source_shot_started) {
+                    active_camera_shot_started_ = true;
                     active_camera_shot_started_reported_ = key->name;
                     apply_venue_event("post_switch_cam", false);
                 }
