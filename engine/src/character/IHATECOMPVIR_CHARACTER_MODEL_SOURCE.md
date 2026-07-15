@@ -6270,10 +6270,12 @@ Rockabill2 `stand_fast_03` frame-70 side proof pair: the old
 `lower_body_output_bridge_20260715` log has the matching source-authored rows
 at `live=1` and `fixed_max_abs_xyz=0.001`.
 `tools/check_lower_body_bridge_boundary.py` passes with
-`source_output_subset=true` and `no_named_or_offset_shortcut=true`; it inspects
+`source_output_subset=true`, `single_output_publisher=true`,
+`no_direct_bone_write=true`, and `no_named_or_offset_shortcut=true`; it inspects
 the `apply_lower_body_output_layer` body and requires the live bridge to filter
 through decoded source `OutputBone` keys rather than character names, offsets,
-or one-off foot/ankle/toe fixups.
+or one-off foot/ankle/toe fixups. It also forbids sampled-direct fallback,
+direct bone writes, and extra publisher calls inside that lower-body bridge.
 `tools/check_lower_body_shared_path.py` passes with `viewer_shared=true`,
 `gameplay_shared=true`, and `local_filters=hand_overlay_only`. That audit keeps
 the current viewer/in-game lower-body route tied to the shared `char_clip`

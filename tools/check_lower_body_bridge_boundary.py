@@ -31,6 +31,14 @@ FORBIDDEN_BRIDGE_TOKENS = (
     "fixup",
 )
 
+FORBIDDEN_BRIDGE_BODY_TOKENS = (
+    "apply_clip_pose_sampled_direct",
+    "find_bone_index(",
+    "character.bones",
+    "target.local",
+    "apply_pending_pose",
+)
+
 
 def extract_between(text: str, start: str, end: str) -> str:
     start_at = text.find(start)
@@ -50,6 +58,12 @@ def require_contains(block: str, needle: str, label: str) -> None:
 def require_absent(block: str, needle: str, label: str) -> None:
     if needle in block:
         raise RuntimeError(f"forbidden {label}: {needle}")
+
+
+def require_count(block: str, needle: str, expected: int, label: str) -> None:
+    count = block.count(needle)
+    if count != expected:
+        raise RuntimeError(f"{label}: expected {expected}, found {count}: {needle}")
 
 
 def check_boundary(path: Path) -> None:
@@ -75,6 +89,11 @@ def check_boundary(path: Path) -> None:
     )
     require_contains(
         bridge,
+        "if (frame.empty() || source_output_bones.empty()) return;",
+        "empty input guard",
+    )
+    require_contains(
+        bridge,
         "if (!is_lower_body_pose_channel_name(key)) continue;",
         "source output row lower-body filter",
     )
@@ -85,8 +104,18 @@ def check_boundary(path: Path) -> None:
     )
     require_contains(
         bridge,
+        "if (lower_output_bones.empty()) return;",
+        "empty source output subset guard",
+    )
+    require_contains(
+        bridge,
         "if (lower_keys.find(strip_transform_suffix(ch.bone_name)) ==",
         "frame channels filtered through source output keys",
+    )
+    require_contains(
+        bridge,
+        "if (lower_channels.empty()) return;",
+        "empty filtered frame guard",
     )
     require_contains(
         bridge,
@@ -94,10 +123,18 @@ def check_boundary(path: Path) -> None:
         "                                   lower_output_bones, true)",
         "forced live selected output graph bridge",
     )
+    require_count(
+        bridge,
+        "apply_clip_pose_output_layer(",
+        1,
+        "lower-body bridge must have exactly one output-layer publisher call",
+    )
     require_contains(bridge, 'dump_leg_pose(character, "lower-output")', "lower-output proof tag")
 
     for token in FORBIDDEN_BRIDGE_TOKENS:
         require_absent(bridge, token, "lower-body bridge shortcut")
+    for token in FORBIDDEN_BRIDGE_BODY_TOKENS:
+        require_absent(bridge, token, "lower-body bridge broad publisher")
 
 
 def parse_args() -> argparse.Namespace:
@@ -121,7 +158,11 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
-    print("PASS lower_body_bridge_boundary source_output_subset=true no_named_or_offset_shortcut=true")
+    print(
+        "PASS lower_body_bridge_boundary source_output_subset=true "
+        "single_output_publisher=true no_direct_bone_write=true "
+        "no_named_or_offset_shortcut=true"
+    )
     return 0
 
 

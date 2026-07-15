@@ -33986,6 +33986,22 @@ int run_contract() {
       "lower-body bridge boundary audit reports source output subset");
   ok &= contains(
       lower_body_bridge_boundary,
+      "single_output_publisher=true",
+      "lower-body bridge boundary audit reports single publisher");
+  ok &= contains(
+      lower_body_bridge_boundary,
+      "no_direct_bone_write=true",
+      "lower-body bridge boundary audit reports no direct bone write");
+  ok &= contains(
+      lower_body_bridge_boundary,
+      "FORBIDDEN_BRIDGE_BODY_TOKENS",
+      "lower-body bridge boundary audit rejects broad publisher tokens");
+  ok &= contains(
+      lower_body_bridge_boundary,
+      "require_count(",
+      "lower-body bridge boundary audit counts output publisher calls");
+  ok &= contains(
+      lower_body_bridge_boundary,
       "apply_lower_body_output_layer",
       "lower-body bridge boundary audit inspects live bridge function");
   ok &= contains(
