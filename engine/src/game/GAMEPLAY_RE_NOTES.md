@@ -8,6 +8,11 @@
   validation executables from depending on `libc++.dll` or other non-platform
   C++ runtime DLLs, which would violate the OG Xbox-portability constraint and
   break proof runs in sibling Codex sessions.
+- 2026-07-14 proof-build guard hardening: Windows proof builds now reject any
+  Clang, MSYS, or MinGW compiler path instead of allowing `clang-cl` as merely
+  MSVC-compatible, and `build_env.bat` strips inherited LLVM/MSYS/MinGW PATH
+  entries before setting `CC=cl` and `CXX=cl`. This remains a build-harness
+  fix only; no engine runtime dependency was added.
 - Rexglue traces show the venue director owns camera, crowd, lighting, and band
   updates together. Camera shot selection is a two-tier system:
   `pick_new_shot` / `start_shot` at roughly bar-scale cadence, plus
