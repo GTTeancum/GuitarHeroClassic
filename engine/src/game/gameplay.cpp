@@ -1723,6 +1723,7 @@ constexpr float kCamShotBlurByteScale = 255.0f;
 constexpr float kCamShotBlurByteInv = 0.0039215689f;
 constexpr float kCamShotSourceDefaultNearPlane = 1.0f;
 constexpr float kCamShotSourceDefaultFarPlane = 1000.0f;
+constexpr const char* kSourceCamShotAnimTarget = "CamShot::sAnimTarget";
 constexpr int kMiloPlatformNone = 0;
 constexpr int kMiloPlatformPS2 = 1;
 constexpr int kMiloPlatformXBox = 2;
@@ -23856,6 +23857,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
     active_camera_anim_event_.clear();
+    active_camera_anim_target_.clear();
     active_camera_fov_anim_refs_.clear();
     active_camera_anim_start_time_ = 0.0;
     active_camera_fov_anim_reported_.clear();
@@ -24579,6 +24581,7 @@ std::string camera_anim_event_name(const std::string& runtime_name) {
 
 void Gameplay::end_camera_shot_anims() {
     const std::string event_name = active_camera_anim_event_;
+    const std::string target = active_camera_anim_target_;
     size_t removed = 0;
     if (!event_name.empty()) {
         const size_t before = active_venue_anim_filters_.size();
@@ -24593,13 +24596,15 @@ void Gameplay::end_camera_shot_anims() {
     }
     const size_t fov_ended = active_camera_fov_anim_refs_.size();
     if ((debug_venue_filters_enabled() || debug_camera_enabled()) &&
-        (!event_name.empty() || fov_ended > 0)) {
+        (!event_name.empty() || fov_ended > 0 || !target.empty())) {
         std::fprintf(
             stderr,
-            "[world] camera EndAnim: source_msg=stop_shot anim_event=%s filters_ended=%zu cam_fov_ended=%zu\n",
-            event_name.c_str(), removed, fov_ended);
+            "[world] camera EndAnim: source_msg=stop_shot anim_event=%s anim_target=%s filters_ended=%zu cam_fov_ended=%zu target_cleared=%d source_target=CamShot::sAnimTarget\n",
+            event_name.c_str(), target.c_str(), removed, fov_ended,
+            !target.empty() ? 1 : 0);
     }
     active_camera_anim_event_.clear();
+    active_camera_anim_target_.clear();
     active_camera_fov_anim_refs_.clear();
     active_camera_anim_start_time_ = 0.0;
     active_camera_fov_anim_reported_.clear();
@@ -24609,7 +24614,19 @@ void Gameplay::end_camera_shot_anims() {
 void Gameplay::start_camera_shot_anims(const CameraKey& key,
                                        const std::string& runtime_name) {
     end_camera_shot_anims();
-    if (key.camera_anim_refs.empty()) return;
+    active_camera_anim_target_ = kSourceCamShotAnimTarget;
+    if ((debug_venue_filters_enabled() || debug_camera_enabled()) &&
+        !key.camera_anim_refs.empty()) {
+        std::fprintf(
+            stderr,
+            "[world] camera AnimTarget: source_call=CamShot::AnimTarget source_static=sAnimTarget shot=%s target=%s shared=1 list_children=%zu source_children=CamShot::ListAnimChildren(mAnims)\n",
+            runtime_name.c_str(), active_camera_anim_target_.c_str(),
+            key.camera_anim_refs.size());
+    }
+    if (key.camera_anim_refs.empty()) {
+        active_camera_anim_target_.clear();
+        return;
+    }
 
     std::vector<VenueAnimFilter> filters;
     std::vector<std::string> fov_anims;
@@ -24648,6 +24665,7 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
     }
 
     active_camera_anim_event_ = camera_anim_event_name(runtime_name);
+    active_camera_anim_target_ = kSourceCamShotAnimTarget;
     const bool source_camera_manager_shot =
         !active_regular_camera_.empty() &&
         active_regular_camera_ == runtime_name;
@@ -24812,6 +24830,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_position_index_ = 0;
     previous_camera_position_index_ = 0;
     active_camera_anim_event_.clear();
+    active_camera_anim_target_.clear();
     active_camera_fov_anim_refs_.clear();
     active_camera_anim_start_time_ = 0.0;
     active_camera_fov_anim_reported_.clear();
@@ -32519,6 +32538,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 pending_regular_camera_local_frame_ = 0.0;
                 active_camera_runtime_shot_.clear();
                 active_camera_anim_event_.clear();
+                active_camera_anim_target_.clear();
                 active_camera_fov_anim_refs_.clear();
                 active_camera_anim_start_time_ = 0.0;
                 active_camera_fov_anim_reported_.clear();

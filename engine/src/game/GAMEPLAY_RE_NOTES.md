@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot AnimTarget bridge:
+  ihatecompvir constructs one static `CamShot::sAnimTarget` and
+  `CamShot::AnimTarget()` returns that same object for CamShot-linked
+  animation tasks, while `CamShot::ListAnimChildren()` contributes each
+  `mAnims` child. Native now carries a source-named active CamShot anim target
+  through linked `mAnims` StartAnim/EndAnim diagnostics and clears it with the
+  shot-scoped animation lifecycle. This is regular gameplay camera animation
+  plumbing/proof only; it does not synthesize `BuildTransform`, `SetPos`,
+  `cam_shot_ok`, `cam_check_shot`, `CharWalk`, or FreeCam behavior.
 - 2026-07-15 normal gameplay camera scope proof:
   FreeCam remains last-priority unless it blocks normal gameplay cameras. The
   regular camera sweep row now labels `pipeline_scope=normal_gameplay_camera`,

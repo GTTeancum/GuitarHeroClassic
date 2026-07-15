@@ -6107,6 +6107,13 @@ int main() {
                  "std::stringactive_camera_anim_event_;",
                  "camera runtime tracks linked CamShot mAnims separately");
   ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_anim_target_;",
+                 "camera runtime tracks the source CamShot AnimTarget identity");
+  ok &= contains(gameplay_c,
+                 "constexprconstchar*kSourceCamShotAnimTarget="
+                 "\"CamShot::sAnimTarget\";",
+                 "camera runtime names ihatecompvir CamShot::sAnimTarget");
+  ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_postprocess_ref_;",
                  "camera runtime tracks the active camshot.dta postprocess ref");
   ok &= contains(gameplay_h_c,
@@ -6129,10 +6136,19 @@ int main() {
                  "conststd::stringevent_name=active_camera_anim_event_;",
                  "camera EndAnim has an explicit linked-mAnims shutdown path");
   ok &= contains(gameplay_c,
+                 "conststd::stringtarget=active_camera_anim_target_;",
+                 "camera EndAnim captures the active CamShot AnimTarget before clearing it");
+  ok &= contains(gameplay_c,
                  "active_camera_fov_anim_refs_.clear();"
                  "active_camera_anim_start_time_=0.0;"
                  "active_camera_fov_anim_reported_.clear();",
                  "camera EndAnim clears shot-scoped linked CamAnim FOV state");
+  ok &= contains(gameplay_c,
+                 "active_camera_anim_target_.clear();",
+                 "camera EndAnim clears the active CamShot AnimTarget bridge");
+  ok &= contains(gameplay_c,
+                 "source_target=CamShot::sAnimTarget",
+                 "camera EndAnim diagnostics name the ihatecompvir static AnimTarget");
   ok &= contains(gameplay_c,
                  "returnactive.event_name==event_name;",
                  "camera EndAnim removes only the active shot-scoped anim event");
@@ -6246,6 +6262,15 @@ int main() {
                  "voidGameplay::start_camera_shot_anims"
                  "(constCameraKey&key,conststd::string&runtime_name)",
                  "camera StartAnim has an explicit linked-mAnims start path");
+  ok &= contains(gameplay_c,
+                 "active_camera_anim_target_=kSourceCamShotAnimTarget;",
+                 "camera StartAnim assigns the source CamShot static AnimTarget before linked mAnims");
+  ok &= contains(gameplay_c,
+                 "source_call=CamShot::AnimTargetsource_static=sAnimTarget",
+                 "camera StartAnim diagnostics expose ihatecompvir CamShot::AnimTarget");
+  ok &= contains(gameplay_c,
+                 "source_children=CamShot::ListAnimChildren(mAnims)",
+                 "camera StartAnim diagnostics expose ihatecompvir CamShot::ListAnimChildren over mAnims");
   ok &= contains(gameplay_c,
                  "constautodirect_it=venue_direct_anim_filters_.find(ref);",
                  "camera StartAnim resolves linked mAnims through the venue MILO direct-ref map");

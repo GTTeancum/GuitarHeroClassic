@@ -1316,6 +1316,7 @@ class Gameplay {
   std::vector<std::pair<int, int>> venue_camera_crowd_selection_pairs_;
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
+  std::string active_camera_anim_target_;
   std::vector<std::string> active_camera_fov_anim_refs_;
   double active_camera_anim_start_time_ = 0.0;
   std::unordered_set<std::string> active_camera_fov_anim_reported_;
