@@ -6286,17 +6286,19 @@ visible mesh skeleton after the source `CharBones::ScaleAdd` /
 `CharBonesSamples::EvaluateChannel` / `CharBonesMeshes::PoseMeshes` publisher
 remained fenced. In the failing Rockabill2 frame, the clip's decoded
 `OutputBone` graph already contained driven lower-body rows; pelvis, thigh, and
-knee agreed, while the visible direct path drifted at ankle/toe by roughly
-7-8 units forward and 2-4 units high. The current native leg fix therefore
-rebuilds only the decoded facing/pelvis/thigh/knee/ankle/foot/toe output rows
-from the clip's authored `*.trans` output graph after the sampled fallback.
+knee agreed at `bad_proximal_max_abs_xyz=0.0005`, while the visible direct path
+drifted at ankle/toe with `bad_distal_max_abs_xyz=8.310`, roughly 7-8 units
+forward and 2-4 units high. The current native leg fix therefore rebuilds only
+the decoded facing/pelvis/thigh/knee/ankle/foot/toe output rows from the clip's
+authored `*.trans` output graph after the sampled fallback.
 That is a narrow source-authored leg publisher bridge, not a character-specific
 offset, camera correction, animation-name rule, foot-IK guess, or broad
 body/face/arm/hair writeback.
 `tools/check_lower_body_root_cause.py` pins that explanation against the
 Rockabill2 `stand_fast_03` frame-70 side proof pair: the old
 `lower_body_legw_20260715` log has decoded driven rows with `live=0` and
-`bad_max_abs_xyz=8.310`, while the bridged
+`bad_max_abs_xyz=8.310`, reports `proximal_rows=aligned` and
+`distal_rows=drifted`, while the bridged
 `lower_body_output_bridge_20260715` log has the matching source-authored rows
 at `live=1` and `fixed_max_abs_xyz=0.001`.
 `tools/check_lower_body_bridge_boundary.py` passes with

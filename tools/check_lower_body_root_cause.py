@@ -10,16 +10,22 @@ import sys
 from compare_charbone_output_map import parse_output_rows, read_log_text
 
 
-LOWER_BODY_BONES = (
+PROXIMAL_BONES = (
+    "bone_pelvis",
     "bone_L-thigh",
     "bone_L-knee",
-    "bone_L-ankle",
-    "bone_L-toe",
     "bone_R-thigh",
     "bone_R-knee",
+)
+
+DISTAL_BONES = (
+    "bone_L-ankle",
+    "bone_L-toe",
     "bone_R-ankle",
     "bone_R-toe",
 )
+
+LOWER_BODY_BONES = PROXIMAL_BONES + DISTAL_BONES
 
 BAD_FORWARD_Y_MIN = {
     "bone_L-ankle": 6.0,
@@ -88,6 +94,26 @@ def check_root_cause(args: argparse.Namespace) -> None:
         require_live=True,
     )
 
+    bad_proximal_max = max(
+        abs(component)
+        for bone in PROXIMAL_BONES
+        for component in bad_gaps[bone]
+    )
+    bad_distal_max = max(
+        abs(component)
+        for bone in DISTAL_BONES
+        for component in bad_gaps[bone]
+    )
+    if bad_proximal_max > args.max_bad_proximal_gap:
+        raise RuntimeError(
+            f"{args.bad_log}: bad proximal gap {bad_proximal_max:.6f} > "
+            f"{args.max_bad_proximal_gap:.6f}"
+        )
+    if bad_distal_max < args.min_bad_distal_max:
+        raise RuntimeError(
+            f"{args.bad_log}: bad distal gap {bad_distal_max:.3f} < "
+            f"{args.min_bad_distal_max:.3f}"
+        )
     for bone, required in BAD_FORWARD_Y_MIN.items():
         got = bad_gaps[bone][1]
         if got < required:
@@ -111,7 +137,10 @@ def check_root_cause(args: argparse.Namespace) -> None:
     print(
         "PASS lower_body_root_cause "
         f"bad_max_abs_xyz={bad_max:.3f} "
+        f"bad_proximal_max_abs_xyz={bad_proximal_max:.4f} "
+        f"bad_distal_max_abs_xyz={bad_distal_max:.3f} "
         f"fixed_max_abs_xyz={fixed_max:.3f} "
+        "proximal_rows=aligned distal_rows=drifted "
         "bad_rows=driven_live0 fixed_rows=driven_live1"
     )
 
@@ -144,6 +173,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bad-tag", default="clip")
     parser.add_argument("--fixed-tag", default="lower-output")
     parser.add_argument("--min-bad-max", type=float, default=8.0)
+    parser.add_argument("--max-bad-proximal-gap", type=float, default=0.001)
+    parser.add_argument("--min-bad-distal-max", type=float, default=8.0)
     parser.add_argument("--max-fixed-gap", type=float, default=0.001)
     return parser.parse_args()
 

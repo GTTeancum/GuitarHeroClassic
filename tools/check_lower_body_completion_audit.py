@@ -217,6 +217,12 @@ def check_root_cause(root: Path, doc: str) -> None:
     require_contains(doc, 'Current lower-body root-cause summary:', "root-cause heading")
     require_contains(doc, 'standing but floating with legs\nforward', "floating-leg symptom")
     require_contains(doc, "bad_max_abs_xyz=8.310", "bad max drift metric")
+    require_contains(
+        doc,
+        "bad_proximal_max_abs_xyz=0.0005",
+        "bad proximal sanity metric",
+    )
+    require_contains(doc, "bad_distal_max_abs_xyz=8.310", "bad distal drift metric")
     require_contains(doc, "fixed_max_abs_xyz=0.001", "fixed max drift metric")
     require_compact_contains(
         doc,
@@ -226,6 +232,15 @@ def check_root_cause(root: Path, doc: str) -> None:
     )
     require_contains(tool, "BAD_FORWARD_Y_MIN", "forward drift threshold")
     require_contains(tool, "BAD_TOE_Z_MIN", "toe height threshold")
+    require_contains(tool, "PROXIMAL_BONES", "proximal lower-body split")
+    require_contains(tool, "DISTAL_BONES", "distal lower-body split")
+    require_contains(tool, "max_bad_proximal_gap", "proximal gap threshold")
+    require_contains(tool, "min_bad_distal_max", "distal gap threshold")
+    require_contains(
+        tool,
+        "proximal_rows=aligned distal_rows=drifted",
+        "proximal/distal root-cause status",
+    )
     require_contains(
         tool,
         "bad_rows=driven_live0 fixed_rows=driven_live1",

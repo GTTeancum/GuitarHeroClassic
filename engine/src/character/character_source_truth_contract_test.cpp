@@ -34061,6 +34061,26 @@ int run_contract() {
       "lower-body root-cause audit pins old high toe gap");
   ok &= contains(
       lower_body_root_cause,
+      "PROXIMAL_BONES",
+      "lower-body root-cause audit splits proximal rows");
+  ok &= contains(
+      lower_body_root_cause,
+      "DISTAL_BONES",
+      "lower-body root-cause audit splits distal rows");
+  ok &= contains(
+      lower_body_root_cause,
+      "max_bad_proximal_gap",
+      "lower-body root-cause audit limits old proximal drift");
+  ok &= contains(
+      lower_body_root_cause,
+      "min_bad_distal_max",
+      "lower-body root-cause audit requires old distal drift");
+  ok &= contains(
+      lower_body_root_cause,
+      "proximal_rows=aligneddistal_rows=drifted",
+      "lower-body root-cause audit reports proximal/distal split");
+  ok &= contains(
+      lower_body_root_cause,
       "bad_rows=driven_live0fixed_rows=driven_live1",
       "lower-body root-cause audit reports old/fixed live-row transition");
   ok &= contains(
@@ -34929,12 +34949,14 @@ int run_contract() {
                  "Current lower-body root-cause summary:",
                  "document records lower-body root-cause summary");
   ok &= contains(doc,
-                 "visible direct path drifted at ankle/toe by roughly\n"
-                 "7-8 units forward and 2-4 units high",
+                 "visible direct path\ndrifted at ankle/toe with "
+                 "`bad_distal_max_abs_xyz=8.310`, roughly 7-8 units\n"
+                 "forward and 2-4 units high",
                  "document records measured lower-body drift");
   ok &= contains(doc,
-                 "rebuilds only the decoded facing/pelvis/thigh/knee/ankle/foot/toe "
-                 "output rows\nfrom the clip's authored `*.trans` output graph",
+                 "rebuilds only\nthe decoded "
+                 "facing/pelvis/thigh/knee/ankle/foot/toe output rows from "
+                 "the clip's\nauthored `*.trans` output graph",
                  "document scopes lower-body output graph bridge");
   ok &= contains(doc,
                  "not a character-specific\noffset, camera correction, "
@@ -34948,6 +34970,15 @@ int run_contract() {
   ok &= contains(doc,
                  "`bad_max_abs_xyz=8.310`",
                  "document records bad lower-body root-cause gap");
+  ok &= contains(doc,
+                 "`bad_proximal_max_abs_xyz=0.0005`",
+                 "document records aligned lower-body proximal rows");
+  ok &= contains(doc,
+                 "`bad_distal_max_abs_xyz=8.310`",
+                 "document records drifting lower-body distal rows");
+  ok &= contains(doc,
+                 "`proximal_rows=aligned` and\n`distal_rows=drifted`",
+                 "document records lower-body proximal/distal status");
   ok &= contains(doc,
                  "`fixed_max_abs_xyz=0.001`",
                  "document records fixed lower-body root-cause gap");
