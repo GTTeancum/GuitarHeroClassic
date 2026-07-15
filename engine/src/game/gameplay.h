@@ -802,6 +802,9 @@ class Gameplay {
   bool force_camera_shot_like_source(const CameraKey& key,
                                      const char* source_handler,
                                      double source_local_frame = 0.0);
+  bool apply_camshot_radio_message_like_source(std::string_view shot_name,
+                                               int set_mask,
+                                               int clear_mask);
   std::string camera_source_guitarist0_nearest_walkspot() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);

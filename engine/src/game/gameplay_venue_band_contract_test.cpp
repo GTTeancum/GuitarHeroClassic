@@ -12541,6 +12541,23 @@ int main() {
                  "return(key.flags&filter.mask)==filter.int_match;",
                  "regular camera filters mirror CameraManager flags_exact result");
   ok &= contains(gameplay_c,
+                 "intcamshot_radio_flags_like_source("
+                 "intflags,intset_mask,intclear_mask){"
+                 "if((flags&set_mask)!=0){"
+                 "return(flags&~clear_mask)|set_mask;}returnflags;}",
+                 "CamShot radio handler mirrors ihatecompvir mFlags mask mutation");
+  ok &= contains(gameplay_h_c,
+                 "boolapply_camshot_radio_message_like_source("
+                 "std::string_viewshot_name,intset_mask,intclear_mask);",
+                 "native camera exposes a CamShot::OnRadio bridge for decoded shots");
+  ok &= contains(gameplay_c,
+                 "key.flags=camshot_radio_flags_like_source("
+                 "key.flags,set_mask,clear_mask);",
+                 "CamShot::OnRadio bridge mutates the decoded shot flags used by ShotMatches");
+  ok &= contains(gameplay_c,
+                 "source_msg=radiosource_handler=CamShot::OnRadio",
+                 "camera radio diagnostics name the ihatecompvir handler");
+  ok &= contains(gameplay_c,
                  "filters.push_back(camera_bool_filter(\"special\",false));",
                  "regular/solo camera modes mirror the source special FALSE filter");
   ok &= contains(gameplay_c,

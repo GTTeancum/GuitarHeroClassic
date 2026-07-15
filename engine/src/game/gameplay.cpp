@@ -11751,6 +11751,13 @@ int camshot_disable_like_source(int disabled_flags, bool disable, int mask) {
     return disable ? (disabled_flags | mask) : (disabled_flags & ~mask);
 }
 
+int camshot_radio_flags_like_source(int flags, int set_mask, int clear_mask) {
+    if ((flags & set_mask) != 0) {
+        return (flags & ~clear_mask) | set_mask;
+    }
+    return flags;
+}
+
 void apply_worlddir_camshot_override(
     DecodedCamShot& shot, std::string_view shot_name,
     const std::unordered_set<std::string>& overrides) {
@@ -24617,6 +24624,28 @@ bool Gameplay::force_camera_shot_like_source(const CameraKey& key,
                                             : "CameraManager::ForceCameraShot",
         source_local_frame);
     return true;
+}
+
+bool Gameplay::apply_camshot_radio_message_like_source(
+    std::string_view shot_name, int set_mask, int clear_mask) {
+    for (auto& key : regular_camera_keys_) {
+        if (key.name != shot_name) continue;
+        const int before = key.flags;
+        key.flags =
+            camshot_radio_flags_like_source(key.flags, set_mask, clear_mask);
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera radio: source_msg=radio source_handler=CamShot::OnRadio shot=%s set_mask=0x%08x clear_mask=0x%08x flags_before=0x%08x flags_after=0x%08x changed=%d source_return=DataNode(0)\n",
+                key.name.c_str(), static_cast<unsigned int>(set_mask),
+                static_cast<unsigned int>(clear_mask),
+                static_cast<unsigned int>(before),
+                static_cast<unsigned int>(key.flags),
+                before != key.flags ? 1 : 0);
+        }
+        return before != key.flags;
+    }
+    return false;
 }
 
 void Gameplay::handle_camera_random_seed_like_source(int seed) {

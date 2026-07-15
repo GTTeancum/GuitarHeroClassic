@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot `OnRadio` flags bridge:
+  ihatecompvir `CamShot::OnRadio` reads masks from message args 2/3 and, only
+  when `mFlags & i2` is non-zero, mutates flags as `(mFlags & ~i3) | i2`
+  before returning `DataNode(0)`. Native now has the same mask helper plus a
+  decoded-shot bridge that updates the `CameraKey::flags` consumed by the
+  existing `flags_any` / `flags_exact` `ShotMatches` path. The stock GH2 asset
+  scan found no authored `radio` messages, so this is a source-backed state
+  boundary for future script routing, not a visible camera-angle solver and
+  not a dependency change.
 - 2026-07-15 CamShot no-op handler boundary:
   ihatecompvir `CamShot::OnGetOccluded` and `CamShot::OnSetAllCrowdChars3D`
   both return `DataNode(0)`. Native now names those source handler values in
