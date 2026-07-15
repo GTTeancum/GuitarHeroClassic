@@ -6496,7 +6496,8 @@ proof placement/event transform only; it does not alter lower-body pose solving.
 `tools/check_lower_body_2p_select_proofs.py` passes with
 `characters=glam1,metal1`, `screen=multi_sel_character_screen`,
 `panel=char_multi`, `event=animate`, `multiplayer_clip=ui_loop`,
-`skips_ui_enter=true`, `char_objects=char/gen/char_objects.dtb`,
+`skips_ui_enter=true`, `single_player_ui_enter_clip_absent=true`,
+`char_objects=char/gen/char_objects.dtb`,
 `placers=char_multi0.placer,char_multi1.placer`,
 `applied_placers=char_multi0.placer,char_multi1.placer`, `frames=30,40`,
 `cases=4`, `two_player_select=true`, `live_reference_base=true`,
@@ -6516,6 +6517,7 @@ side view and output/visible row comparison should fail. The verifier
 `tools/check_lower_body_2p_select_slot_sweep.py` passes with
 `characters=glam1,metal1`, `players=p1,p2`, `side_profile=true`,
 `frames=30,40`, `cases=8`, `both_2p_placers=true`,
+`single_player_ui_enter_clip_absent=true`,
 `max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
 `min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`.
 This is 2P select placement and lower-body row evidence only; it does not
@@ -6574,6 +6576,7 @@ and the stock `animate` event. Rock2 is intentionally included as a separate UI
 model using the stock `char/rock1/anims/gen/rock1_ui.milo_ps2` source-family
 animation path. `tools/check_lower_body_2p_select_family_proofs.py` passes with
 `characters=rock1,rock2,funk1,deathmetal1`, `cases=16`,
+`single_player_ui_enter_clip_absent=true`,
 `source_family_rock2_uses_rock1_ui_anim=true`, `max_abs_toe_z=1.8758`,
 `max_lr_toe_delta_z=1.2907`, `min_pelvis_to_toe_z=30.9552`, and
 `max_output_visible_gap=0.000500`. Funk1 and Deathmetal1 have stylized select

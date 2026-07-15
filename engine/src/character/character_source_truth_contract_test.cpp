@@ -34967,6 +34967,14 @@ int run_contract() {
       "2P select proof checker pins skip-ui-enter branch");
   ok &= contains(
       lower_body_2p_select_proofs,
+      "\"[clip]'ui_enter'\"notintext",
+      "2P select proof checker rejects single-player ui_enter clip");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "single_player_ui_enter_clip_absent=true",
+      "2P select proof checker reports ui_enter absence");
+  ok &= contains(
+      lower_body_2p_select_proofs,
       "char_objects=char/gen/char_objects.dtb",
       "2P select proof checker pins char_objects source");
   ok &= contains(
@@ -34997,6 +35005,14 @@ int run_contract() {
       lower_body_2p_select_slot_sweep,
       "both_2p_placers=true",
       "2P slot sweep checker reports both 2P placers");
+  ok &= contains(
+      lower_body_2p_select_slot_sweep,
+      "\"[clip]'ui_enter'\"notintext",
+      "2P slot sweep checker rejects single-player ui_enter clip");
+  ok &= contains(
+      lower_body_2p_select_slot_sweep,
+      "single_player_ui_enter_clip_absent=true",
+      "2P slot sweep checker reports ui_enter absence");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
       "cases=8",
@@ -35097,6 +35113,14 @@ int run_contract() {
       lower_body_2p_select_family_proofs,
       "source_family_rock2_uses_rock1_ui_anim=true",
       "2P family checker records Rock2 shared UI animation source");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "\"[clip]'ui_enter'\"notintext",
+      "2P family checker rejects single-player ui_enter clip");
+  ok &= contains(
+      lower_body_2p_select_family_proofs,
+      "single_player_ui_enter_clip_absent=true",
+      "2P family checker reports ui_enter absence");
   ok &= contains(
       lower_body_2p_select_family_proofs,
       "MAX_SELECT_TOE_ABS_Z=2.0",

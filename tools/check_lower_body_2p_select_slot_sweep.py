@@ -171,6 +171,10 @@ def check_case(root: Path, case: ProofCase) -> CaseMetrics:
     require_text(text, "screen=multi_sel_character_screen", log_path, "2P screen")
     require_text(text, "panel=char_multi event=animate", log_path, "2P animate event")
     require_text(text, "clip=ui_loop skips_ui_enter=true", log_path, "2P clip rule")
+    require(
+        "[clip] 'ui_enter'" not in text,
+        f"{log_path}: single-player ui_enter clip should not play in 2P animate",
+    )
     require_text(text, "char_objects=char/gen/char_objects.dtb", log_path, "char_objects source")
     require_text(text, "reset_hair=true", log_path, "2P animate reset hair rule")
     require_text(text, "placers=char_multi0.placer,char_multi1.placer", log_path, "2P placers")
@@ -260,6 +264,7 @@ def main() -> int:
         "characters=glam1,metal1 players=p1,p2 "
         "screen=multi_sel_character_screen panel=char_multi "
         "event=animate multiplayer_clip=ui_loop skips_ui_enter=true "
+        "single_player_ui_enter_clip_absent=true "
         "side_profile=true frames=30,40 cases=8 "
         "individual_proofs=true both_2p_placers=true "
         f"max_abs_toe_z={max(item.max_abs_toe_z for item in metrics):.4f} "
