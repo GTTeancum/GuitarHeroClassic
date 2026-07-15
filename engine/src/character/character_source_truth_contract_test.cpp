@@ -33643,6 +33643,15 @@ int run_contract() {
                  "\"rockabill2_live_target_fullbody_match\"",
                  "arm pose diff manifest records full-body live-target proof");
   ok &= contains(arm_pose_diff_manifest,
+                 "\"rockabill2_current_lower_body_live_stack_match\"",
+                 "arm pose diff manifest records current lower-body live-stack proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"rows\":[\"armw\"]",
+                 "arm pose diff manifest keeps current lower-body proof position-only");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"[diagnostic-hud]GHOGX_HIDE_HUDactive;skippingHUDdraw\"",
+                 "arm pose diff manifest records HUD-hidden in-game leg proof");
+  ok &= contains(arm_pose_diff_manifest,
                  "\"bone_L-thigh\",\"bone_L-knee\",\"bone_L-ankle\","
                  "\"bone_L-toe\"",
                  "arm pose diff manifest covers left leg rows");
@@ -33754,6 +33763,18 @@ int run_contract() {
   ok &= contains(charbone_output_map_manifest,
                  "\"visible_minus_output_y_min\"",
                  "CharBone output-map manifest pins visible/output forward gaps");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"rockabill2_output_bridge_f70_side_live_match\"",
+                 "CharBone output-map manifest records current Rockabill2 live bridge proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"punk_output_bridge_f70_side_live_match\"",
+                 "CharBone output-map manifest records current Punk live bridge proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"metal1_output_bridge_f70_side_live_match\"",
+                 "CharBone output-map manifest records current Metal1 live bridge proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"require_live\":true",
+                 "CharBone output-map manifest requires live lower-output bridge rows");
   ok &= contains(doc,
                  "intentionally\nnot a current bad-arm proof",
                  "document prevents stale viewer control from being reused as proof");
@@ -34044,6 +34065,18 @@ int run_contract() {
   ok &= contains(doc,
                  "`max_abs_xyz_gap=0.001`",
                  "document records lower-body output bridge numeric proof");
+  ok &= contains(doc,
+                 "2026-07-15 current leg-only gameplay/viewer proof:",
+                 "document records current leg-only proof");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_ingame_current_20260715/`",
+                 "document records current in-game lower-body proof folder");
+  ok &= contains(doc,
+                 "passes pelvis, both thighs,\nboth knees, both ankles, and both toes at `max_delta=0.000000`",
+                 "document records current lower-body viewer/gameplay match result");
+  ok &= contains(doc,
+                 "explicitly leg-only; it does not sign off arm twist,\nhair, or accessory motion",
+                 "document keeps current proof scoped to legs");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

@@ -6131,6 +6131,23 @@ can require `live=1` output rows and a `max_abs_xyz_gap` tolerance; the side
 and front logs pass with `max_abs_xyz_gap=0.001` for the eight checked
 lower-body rows using the post-bridge `lower-output` leg trace.
 
+2026-07-15 current leg-only gameplay/viewer proof:
+`engine/out/visual_proofs/lower_body_ingame_current_20260715/` recaptures the
+same source-routed Trogdor Expert / small2 / Rockabill2 / Xplorer
+`flr_near_rt01` gameplay frame with `GHOGX_HIDE_HIGHWAY=1` and
+`GHOGX_HIDE_HUD=1`, then recaptures the direct viewer with the matching live
+player stack and `--midi-fret-target spot_neck_fret11.mesh`. The current
+gameplay screenshot shows the guitarist planted in the real stage path, and
+the lower-body-only manifest case
+`rockabill2_current_lower_body_live_stack_match` passes pelvis, both thighs,
+both knees, both ankles, and both toes at `max_delta=0.000000` against the
+viewer log. This proof is explicitly leg-only; it does not sign off arm twist,
+hair, or accessory motion. The cross-character viewer proof folder
+`engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/` also keeps
+Punk, Goth2, Metal1, Funk1, and Classic `stand_fast_03` frame-70 side captures
+where post-bridge `lower-output` rows match visible lower-body rows at
+`max_abs_xyz_gap=0.001`.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

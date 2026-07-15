@@ -197,6 +197,102 @@
         "bone_L-toe": 2.0,
         "bone_R-toe": 1.0
       }
+    },
+    {
+      "label": "rockabill2_output_bridge_f70_front_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_output_bridge_20260715/rockabill2_stand_fast03_f070_front_output_bridge.log",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03' from char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "rockabill2_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_output_bridge_20260715/rockabill2_stand_fast03_f070_side_output_bridge.log",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03' from char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "punk_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/punk1_stand_fast03_f070_side_output_bridge.log",
+      "character": "punk",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'punk'",
+        "[clip] 'stand_fast_03' from char/punk1/anims/gen/punk1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "goth2_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/goth2_stand_fast03_f070_side_output_bridge.log",
+      "character": "goth2",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'goth2'",
+        "[clip] 'stand_fast_03' from char/goth1/anims/gen/goth1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "metal1_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/metal1_stand_fast03_f070_side_output_bridge.log",
+      "character": "metal1",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal1'",
+        "[clip] 'stand_fast_03' from char/metal1/anims/gen/metal1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "funk1_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/funk1_stand_fast03_f070_side_output_bridge.log",
+      "character": "funk1",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'funk1'",
+        "[clip] 'stand_fast_03' from char/funk1/anims/gen/funk1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "classic_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/classic_stand_fast03_f070_side_output_bridge.log",
+      "character": "classic",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'classic'",
+        "[clip] 'stand_fast_03' from char/classic/anims/gen/classic_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
     }
   ]
 }
