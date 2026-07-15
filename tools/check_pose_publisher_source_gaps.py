@@ -74,12 +74,14 @@ def main(argv: list[str]) -> int:
     char_bones_samples = read_text(src_char / "CharBonesSamples.cpp")
     char_bones_samples_h = read_text(src_char / "CharBonesSamples.h")
     char_bones_meshes = read_text(src_char / "CharBonesMeshes.cpp")
+    char_clip_driver = read_text(src_char / "CharClipDriver.cpp")
 
     c_char_clip = compact(char_clip)
     c_char_bones = compact(char_bones)
     c_char_bones_h = compact(char_bones_h)
     c_char_bones_samples = compact(char_bones_samples)
     c_char_bones_samples_h = compact(char_bones_samples_h)
+    c_char_clip_driver = compact(char_clip_driver)
     meshes_pose_body = pose_meshes_body(char_bones_meshes)
     c_meshes_pose_body = compact(meshes_pose_body)
 
@@ -134,6 +136,12 @@ def main(argv: list[str]) -> int:
         and "WorldXfm" not in meshes_pose_body,
         "Latest CharBonesMeshes::PoseMeshes body is a stub-like fragment with no transform publication",
     )
+    record(
+        results,
+        "charclipdriver-evaluate-body-missing",
+        "CharClipDriver::Evaluate(" not in c_char_clip_driver,
+        "CharClipDriver::Evaluate is not implemented in visible rb3 source",
+    )
 
     rb2_dump_available = dump_char.exists()
     record(
@@ -146,9 +154,11 @@ def main(argv: list[str]) -> int:
         dump_meshes = read_text(dump_char / "CharBonesMeshes.cpp")
         dump_samples = read_text(dump_char / "CharBonesSamples.cpp")
         dump_clip_samples = read_text(dump_char / "CharClipSamples.cpp")
+        dump_clip_driver = read_text(dump_char / "CharClipDriver.cpp")
         c_dump_meshes = compact(dump_meshes)
         c_dump_samples = compact(dump_samples)
         c_dump_clip_samples = compact(dump_clip_samples)
+        c_dump_clip_driver = compact(dump_clip_driver)
         record(
             results,
             "rb2-posemeshes-range-local-map",
@@ -174,6 +184,14 @@ def main(argv: list[str]) -> int:
             and "floatlastFrac" in c_dump_clip_samples,
             "RB2 dump maps CharClipSamples ScaleAdd overloads but leaves the sample writer body empty/bodyless",
         )
+        record(
+            results,
+            "rb2-charclipdriver-evaluate-range-local-map",
+            "floatCharClipDriver::Evaluate(classCharClipDriver*constthis" in c_dump_clip_driver
+            and "floatnextWeight" in c_dump_clip_driver
+            and "floatoldFrame" in c_dump_clip_driver,
+            "RB2 dump maps CharClipDriver Evaluate range/locals but not a portable statement body",
+        )
 
     failed = [label for label, ok, _ in results if not ok]
     if failed:
@@ -187,7 +205,8 @@ def main(argv: list[str]) -> int:
         "CharBones::ScaleAdd(CharBones&,float)|"
         "CharBonesSamples::EvaluateChannel|"
         "CharBonesMeshes::PoseMeshes|"
-        "CharClipSamples::ScaleAdd"
+        "CharClipSamples::ScaleAdd|"
+        "CharClipDriver::Evaluate"
     )
     return 0
 

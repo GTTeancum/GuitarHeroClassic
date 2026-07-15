@@ -5171,6 +5171,21 @@ note, and all report `unreadBytes=0`.
   `CharBonesSamples::EvaluateChannel`,
   `CharBonesMeshes::PoseMeshes` statement body,
   `CharClipSamples::ScaleAdd`, and `CharClipDriver::Evaluate` remain fenced.
+- 2026-07-15 source refresh after fetch: `rb3` still resolves both `HEAD` and
+  `origin/master` to `41719f2`. The command-line verifier
+  `tools/check_pose_publisher_source_gaps.py --rb3-root
+  third_party/ihatecompvir-live/rb3 --require-rb2-dump` now checks the same
+  five-body fence as the native notes. It proves the latest source still
+  exposes `CharClip::PoseMeshes` call order and
+  `CharBonesSamples::ScaleAddSample`, but does not expose reviewable C++
+  bodies for `CharBones::ScaleAdd(CharBones&,float)`,
+  `CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`,
+  `CharClipSamples::ScaleAdd`, or `CharClipDriver::Evaluate`.
+  Fresh proof logs in
+  `engine/out/visual_proofs/source_publisher_gap_20260715/` pair that source
+  gate with current Rockabill2 viewer and in-game frames; the viewer and
+  gameplay logs both print `source_publisher=fenced` before the screenshot
+  while the saved verifier log reports `SUMMARY pass=12`.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.

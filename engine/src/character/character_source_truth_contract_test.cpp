@@ -33638,12 +33638,32 @@ int run_contract() {
   ok &= contains(doc,
                  "`tools/check_pose_publisher_source_gaps.py`",
                  "document records pose publisher source-gap verifier");
+  ok &= contains(doc, "`CharBones::ScaleAdd(CharBones&,float)`",
+                 "document records still-fenced CharBones ScaleAdd body");
+  ok &= contains(doc, "`CharBonesSamples::EvaluateChannel`",
+                 "document records still-fenced CharBonesSamples EvaluateChannel body");
+  ok &= contains(doc, "`CharBonesMeshes::PoseMeshes`",
+                 "document records still-fenced CharBonesMeshes PoseMeshes body");
+  ok &= contains(doc, "`CharClipSamples::ScaleAdd`",
+                 "document records still-fenced CharClipSamples ScaleAdd body");
+  ok &= contains(doc, "`CharClipDriver::Evaluate`",
+                 "document records still-fenced CharClipDriver Evaluate body");
+  ok &= contains(doc, "2026-07-15 source refresh after fetch",
+                 "document records current source refresh");
   ok &= contains(doc,
-                 "`CharBones::ScaleAdd(CharBones&,float)`,\n"
-                 "`CharBonesSamples::EvaluateChannel`, "
-                 "`CharBonesMeshes::PoseMeshes`, and\n"
-                 "`CharClipSamples::ScaleAdd`",
-                 "document records still-fenced pose publisher bodies");
+                 "`rb3` still resolves both `HEAD` and\n  `origin/master` to "
+                 "`41719f2`",
+                 "document records refreshed rb3 head and origin");
+  ok &= contains(doc,
+                 "now checks the same\n  five-body fence",
+                 "document records verifier five-body fence");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/source_publisher_gap_20260715/`",
+                 "document records current source publisher proof folder");
+  ok &= contains(doc, "`source_publisher=fenced`",
+                 "document records source publisher fenced proof log");
+  ok &= contains(doc, "`SUMMARY pass=12`",
+                 "document records updated source-gap verifier pass count");
   ok &= contains(pose_publisher_source_gaps,
                  "charclip-posemeshes-call-order",
                  "pose publisher verifier checks CharClip PoseMeshes call order");
@@ -33659,6 +33679,15 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gaps,
                  "posemeshes-latest-source-stub",
                  "pose publisher verifier records latest PoseMeshes stub");
+  ok &= contains(pose_publisher_source_gaps,
+                 "charclipdriver-evaluate-body-missing",
+                 "pose publisher verifier requires missing CharClipDriver Evaluate body");
+  ok &= contains(pose_publisher_source_gaps,
+                 "rb2-charclipdriver-evaluate-range-local-map",
+                 "pose publisher verifier records CharClipDriver Evaluate dump boundary");
+  ok &= contains(pose_publisher_source_gaps,
+                 "CharClipDriver::Evaluate",
+                 "pose publisher verifier summary includes CharClipDriver Evaluate");
   ok &= contains(pose_publisher_source_gaps,
                  "SOURCE-GAPstill-fenced=",
                  "pose publisher verifier reports still-fenced source boundary");
