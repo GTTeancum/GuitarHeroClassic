@@ -253,6 +253,7 @@ class Gameplay {
     bool has_generated_source_rows = false;
     std::string target_entity;
     std::string target_subpart;
+    std::string target_source_object;
     std::vector<TargetRef> target_refs;
     SourceRecordHint ps2_source_record;
     bool has_ps2_source_record = false;

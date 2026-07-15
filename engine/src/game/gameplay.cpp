@@ -2565,7 +2565,8 @@ const char* camshot_entity_from_name(std::string_view name) {
 }
 
 bool camshot_target_ref_empty(const Gameplay::CameraKey::TargetRef& ref) {
-    return ref.entity.empty() && ref.subpart.empty();
+    return ref.entity.empty() && ref.subpart.empty() &&
+           ref.source_object.empty();
 }
 
 void sync_primary_camshot_target(Gameplay::CameraKey& key) {
@@ -2576,10 +2577,12 @@ void sync_primary_camshot_target(Gameplay::CameraKey& key) {
     if (key.target_refs.empty()) {
         key.target_entity.clear();
         key.target_subpart.clear();
+        key.target_source_object.clear();
         return;
     }
     key.target_entity = key.target_refs.front().entity;
     key.target_subpart = key.target_refs.front().subpart;
+    key.target_source_object = key.target_refs.front().source_object;
 }
 
 void resolve_unqualified_camshot_target(std::string_view shot_name,
@@ -2678,6 +2681,7 @@ void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
                              Gameplay::CameraKey& to) {
     to.target_entity = from.target_entity;
     to.target_subpart = from.target_subpart;
+    to.target_source_object = from.target_source_object;
     to.target_refs = from.target_refs;
     to.focus_target_entity = from.focus_target_entity;
     to.focus_target_subpart = from.focus_target_subpart;
@@ -19486,8 +19490,10 @@ std::optional<CameraResultRows> camera_member_world_copy_candidate_rows_for_key(
     std::optional<CameraResultRows> rows;
     std::array<float, 3> sum = {0.0f, 0.0f, 0.0f};
     size_t count = 0;
-    auto add_member = [&](std::string_view entity, std::string_view subpart) {
-        const auto target = camera_target_for_ref(entity, subpart, targets);
+    auto add_member = [&](std::string_view entity, std::string_view subpart,
+                          std::string_view source_object) {
+        const auto target =
+            camera_target_for_ref(entity, subpart, source_object, targets);
         if (!target) return;
         if (!rows) {
             rows = camera_world_copy_candidate_rows(
@@ -19511,7 +19517,8 @@ std::optional<CameraResultRows> camera_member_world_copy_candidate_rows_for_key(
             ++count;
         }
     } else {
-        add_member(key.target_entity, key.target_subpart);
+        add_member(key.target_entity, key.target_subpart,
+                   key.target_source_object);
     }
     if (!rows || count == 0) return std::nullopt;
     for (int axis = 0; axis < 3; ++axis)
@@ -19525,10 +19532,13 @@ bool camera_apply_clamp_height_to_result_rows(
     const std::unordered_map<std::string, CameraTarget>& targets);
 
 bool camera_key_has_target_refs(const Gameplay::CameraKey& key) {
-    if (!key.target_entity.empty()) return true;
+    if (!key.target_entity.empty() || !key.target_subpart.empty() ||
+        !key.target_source_object.empty())
+        return true;
     return std::any_of(key.target_refs.begin(), key.target_refs.end(),
                        [](const Gameplay::CameraKey::TargetRef& ref) {
-                           return !ref.entity.empty() || !ref.subpart.empty();
+                           return !ref.entity.empty() || !ref.subpart.empty() ||
+                                  !ref.source_object.empty();
                        });
 }
 
@@ -20418,15 +20428,18 @@ std::optional<CameraTarget> camera_target_for_key(
         if (auto target = camera_target_for_ref(ref, targets))
             return target;
     }
-    return camera_target_for_ref(key.target_entity, key.target_subpart, targets);
+    return camera_target_for_ref(key.target_entity, key.target_subpart,
+                                 key.target_source_object, targets);
 }
 
 CameraSourceTargetUpdate camera_update_targets_like_camshot(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
     CameraSourceTargetUpdate update;
-    auto add_target = [&](std::string_view entity, std::string_view subpart) {
-        const auto target = camera_target_for_ref(entity, subpart, targets);
+    auto add_target = [&](std::string_view entity, std::string_view subpart,
+                          std::string_view source_object) {
+        const auto target =
+            camera_target_for_ref(entity, subpart, source_object, targets);
         if (!target) return;
         const auto pos = mat4_position_game(target->world);
         for (int axis = 0; axis < 3; ++axis)
@@ -20443,7 +20456,8 @@ CameraSourceTargetUpdate camera_update_targets_like_camshot(
             ++update.resolved_count;
         }
     } else {
-        add_target(key.target_entity, key.target_subpart);
+        add_target(key.target_entity, key.target_subpart,
+                   key.target_source_object);
     }
     update.has_targets = update.resolved_count > 0;
     if (update.has_targets) {
@@ -20686,7 +20700,8 @@ camera_entity_only_target_alias_world_copy_candidate_rows_for_key(
 size_t camera_target_ref_count_for_key(const Gameplay::CameraKey& key) {
     return !key.target_refs.empty()
                ? key.target_refs.size()
-               : ((!key.target_entity.empty() || !key.target_subpart.empty())
+               : ((!key.target_entity.empty() || !key.target_subpart.empty() ||
+                   !key.target_source_object.empty())
                       ? 1u
                       : 0u);
 }
@@ -20705,9 +20720,11 @@ std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {
         return out;
     };
     if (key.target_refs.empty()) {
-        return key.target_entity.empty() && key.target_subpart.empty()
+        return key.target_entity.empty() && key.target_subpart.empty() &&
+                       key.target_source_object.empty()
                    ? std::string("none")
-                   : format_ref(key.target_entity, key.target_subpart, {});
+                   : format_ref(key.target_entity, key.target_subpart,
+                                key.target_source_object);
     }
     std::string out;
     for (size_t i = 0; i < key.target_refs.size(); ++i) {
@@ -20731,9 +20748,11 @@ std::vector<std::string> camera_resolved_target_signature_for_key(
                 refs.push_back(std::move(*id));
             }
         }
-    } else if (!key.target_entity.empty() || !key.target_subpart.empty()) {
+    } else if (!key.target_entity.empty() || !key.target_subpart.empty() ||
+               !key.target_source_object.empty()) {
         if (auto id = camera_resolved_target_id_for_ref(
-                key.target_entity, key.target_subpart, targets)) {
+                key.target_entity, key.target_subpart,
+                key.target_source_object, targets)) {
             refs.push_back(std::move(*id));
         }
     }
@@ -20785,7 +20804,8 @@ std::array<float, 3> camera_authored_at_for_key(
                 eye[1] + world_forward[1] * 100.0f,
                 eye[2] + world_forward[2] * 100.0f};
     }
-    if (!key.target_entity.empty() || !key.target_refs.empty()) {
+    if (!key.target_entity.empty() || !key.target_subpart.empty() ||
+        !key.target_source_object.empty() || !key.target_refs.empty()) {
         if (auto centroid = camera_target_centroid_for_key(key, targets))
             return *centroid;
         if (auto target = camera_target_for_key(key, targets))
@@ -21471,9 +21491,8 @@ void apply_camera_keys(
                 parent ? key.parent_entity : key.target_entity;
             const std::string& subpart =
                 parent ? key.parent_subpart : key.target_subpart;
-            const std::string empty_source_object;
             const std::string& source_object =
-                parent ? key.parent_source_object : empty_source_object;
+                parent ? key.parent_source_object : key.target_source_object;
             if (entity.empty() && subpart.empty() && source_object.empty())
                 return nullptr;
             const auto resolved =

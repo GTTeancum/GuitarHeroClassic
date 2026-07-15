@@ -8124,6 +8124,8 @@ int main() {
                  "std::stringsource_object;};",
                  "CameraKey has typed CamShot target refs with source object ids");
   ok &= contains(gameplay_h_c,
+                 "std::stringtarget_entity;std::stringtarget_subpart;"
+                 "std::stringtarget_source_object;"
                  "std::vector<TargetRef>target_refs;",
                  "CameraKey preserves the full CamShot target member list");
   ok &= contains(gameplay_c,
@@ -8145,6 +8147,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "sync_primary_camshot_target(key);",
                  "CamShot ref decoder keeps the legacy primary target synced");
+  ok &= contains(gameplay_c,
+                 "key.target_source_object=key.target_refs.front().source_object;",
+                 "CamShot primary target sync preserves the direct ObjPtr source id");
   ok &= absent(gameplay_c,
                "parent_subpart=\"spot_neck_fret20.mesh\"",
                "blank CamShot refs are not replaced with an old traced default source prop");
@@ -8184,6 +8189,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "copy_camshot_ref_fields(c.key,pos);",
                  "regular camera pose variants inherit fallback parent refs");
+  ok &= contains(gameplay_c,
+                 "to.target_entity=from.target_entity;"
+                 "to.target_subpart=from.target_subpart;"
+                 "to.target_source_object=from.target_source_object;"
+                 "to.target_refs=from.target_refs;",
+                 "CamShot ref field copying preserves source target refs");
   ok &= contains(gameplay_c,
                  "to.focus_target_entity=from.focus_target_entity;"
                  "to.focus_target_subpart=from.focus_target_subpart;"
@@ -8304,7 +8315,8 @@ int main() {
                "returnstd::nullopt;",
                "CamShot parent lookup must not drop direct ObjPtr source objects");
   ok &= contains(gameplay_c,
-                 "((!key.target_entity.empty()||!key.target_subpart.empty())"
+                 "((!key.target_entity.empty()||!key.target_subpart.empty()||"
+                 "!key.target_source_object.empty())"
                  "?1u:0u)",
                  "camera target debug counts direct object-pointer refs");
   ok &= contains(gameplay_c,
@@ -8385,7 +8397,8 @@ int main() {
                  "transform_vector_game(parent->world,key.forward)",
                  "basis-bearing CamShots preserve decoded look direction before target fallback");
   ok &= contains(gameplay_c,
-                 "if(!key.target_entity.empty()||!key.target_refs.empty()){"
+                 "if(!key.target_entity.empty()||!key.target_subpart.empty()||"
+                 "!key.target_source_object.empty()||!key.target_refs.empty()){"
                  "if(autocentroid=camera_target_centroid_for_key(key,targets))",
                  "camera target ref centroid is the fallback when no authored orientation exists");
   ok &= contains(gameplay_c,

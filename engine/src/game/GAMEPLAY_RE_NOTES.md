@@ -12,6 +12,16 @@
   return. This tightens keyframe interpolation provenance; it does not
   synthesize hidden `BuildTransform` / `SetPos` camera-angle math or add
   dependencies.
+- 2026-07-15 CamShot primary target ObjPtr preservation:
+  ihatecompvir `CamShotFrame::Load` stores newer target refs as direct
+  `ObjPtr<RndTransformable>` entries, and `UpdateTarget()` / `HasTargets()`
+  operate on the resolved object list. Native already preserved those ids in
+  `target_refs`; it now also keeps the first ref's source object on the legacy
+  primary target fields used by fallback/debug paths. Target lookup,
+  `UpdateTarget` averaging, SameTargets signatures, and target diagnostics use
+  that preserved source id before inferred entity/subpart fallback. This is a
+  source-ref preservation fix only; it adds no runtime dependency or
+  compiler-runtime DLL requirement.
 - 2026-07-15 CamShot visibility lifecycle proof:
   ihatecompvir `CamShot::DoHide()` hides the decoded drawable vectors
   `unk5c` / `unk6c` and records restored drawables in `unkbc`, while
