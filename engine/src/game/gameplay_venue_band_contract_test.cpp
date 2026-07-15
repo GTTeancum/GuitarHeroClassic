@@ -8150,6 +8150,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.target_source_object=key.target_refs.front().source_object;",
                  "CamShot primary target sync preserves the direct ObjPtr source id");
+  ok &= contains(gameplay_c,
+                 "std::stringcamshot_target_refs_load_debug_string("
+                 "constGameplay::CameraKey&key)",
+                 "CamShot load diagnostics have a source-object target-ref formatter");
   ok &= absent(gameplay_c,
                "parent_subpart=\"spot_neck_fret20.mesh\"",
                "blank CamShot refs are not replaced with an old traced default source prop");
@@ -8728,6 +8732,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "focal_target=%s:%s",
                  "camera debug logs expose source focal_target refs");
+  ok &= contains(gameplay_c,
+                 "target_source_object=%sparent_source_object=%s"
+                 "focal_source_object=%starget_refs=%s",
+                 "regular CamShot load logs expose preserved ObjPtr source ids");
+  ok &= contains(gameplay_c,
+                 "focal_source_object=%s",
+                 "camera candidate logs expose preserved focus ObjPtr source ids");
   ok &= contains(gameplay_c,
                  "parent_first_frame=%s%d",
                  "camera debug logs expose source parent_first_frame");
@@ -11639,7 +11650,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]regularCamShot%sdistance=%sfacing=%starget=%s:%s"
                  "parent=%s:%sfocal_target=%s:%sparent_first_frame=%s%d"
-                 "parent_rot=%drefs=%dposes=%zuloop=%d"
+                 "parent_rot=%drefs=%dtarget_source_object=%s"
+                 "parent_source_object=%sfocal_source_object=%s"
+                 "target_refs=%sposes=%zuloop=%d"
                  "loop_keyframe=%danim_rate=%dfpu=%.1fposebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%d"

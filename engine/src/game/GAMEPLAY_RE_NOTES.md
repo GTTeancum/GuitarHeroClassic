@@ -22,6 +22,13 @@
   that preserved source id before inferred entity/subpart fallback. This is a
   source-ref preservation fix only; it adds no runtime dependency or
   compiler-runtime DLL requirement.
+- 2026-07-15 CamShot ObjPtr load diagnostics:
+  regular CamShot load/candidate logs now print the preserved target, parent,
+  and focus source-object ids plus the full target-ref list using the same
+  `source_object=` shape as runtime solver rows. This does not change submitted
+  camera transforms; it makes sketchy-angle captures auditable from
+  `CamShotFrame::Load` through `UpdateTarget`, `SameTargets`, and the submitted
+  solver path without adding dependencies.
 - 2026-07-15 CamShot visibility lifecycle proof:
   ihatecompvir `CamShot::DoHide()` hides the decoded drawable vectors
   `unk5c` / `unk6c` and records restored drawables in `unkbc`, while
