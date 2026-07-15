@@ -23,7 +23,8 @@ should only be checked against one of the supported aspect modes.
 - Re-check note, sustain, rail, fret-button, and hit-effect alignment in 4:3.
 - Re-check the far-end fade and highway angle/perspective against captured GH2
   evidence.
-- Keep unresolved track-explode/particle debris opt-in until its source timing,
-  texture, and screen-space placement are traced.
+- Keep the broken track-explode mesh/particle debris purged from the highway.
+  It produced large tan spike/square artifacts and must not be exposed by
+  runtime flags until a source-true replacement is traced and rebuilt.
 - Re-check wrong-pick, missed-note silence, star phrase completion stinger, and
   star meter gain behavior with short focused captures.

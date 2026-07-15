@@ -2422,10 +2422,6 @@ int main() {
                  "append_particle(smash_combo_particles_,\"smash_combo_burst.part\","
                  "\"smash_combo.view\");",
                  "highway loads authored combo-hit particles");
-  ok &= contains(highway_renderer_c,
-                 "append_particle(track_explode_particles_,\"track_explode_01.part\","
-                 "\"track_explode.view\");",
-                 "highway loads authored track-explode particle systems");
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshheld_tight_tail_mesh_;",
                  "highway stores the authored tight held sustain core mesh");
@@ -2447,9 +2443,6 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "std::vector<RuntimeParticleSystem>smash_combo_particles_;",
                  "highway stores the authored combo-hit particle systems");
-  ok &= contains(highway_renderer_h_c,
-                 "std::vector<RuntimeParticleSystem>track_explode_particles_;",
-                 "highway stores the authored track-explode particle systems");
   ok &= contains(highway_renderer_c,
                  "star_tail_mesh_=convert_mesh(\"tail02.mesh\","
                  "\"tail_glow_star.mat\");",
@@ -2870,41 +2863,15 @@ int main() {
                  "std::array<ColorAnimState,3>combo_lightning_color_anim_;",
                  "highway keeps the authored combo-lightning material color animations");
   ok &= contains(highway_renderer_c,
-                 "mesh.name.rfind(\"track_explode\",0)!=0",
-                 "highway discovers native track-explode meshes by authored name prefix");
-  ok &= contains(highway_renderer_c,
-                 "track_explode_meshes_.push_back(std::move(mesh));",
-                 "highway keeps the native track-explode mesh family");
-  ok &= contains(highway_renderer_h_c,
-                 "std::vector<RuntimeMesh>track_explode_meshes_;",
-                 "highway stores authored track-explode meshes for bad feedback");
-  ok &= contains(highway_renderer_c,
-                 "GHOGX_FORCE_HIGHWAY_TRACK_EXPLODE",
-                 "highway has a diagnostic gate for visual track-explode captures");
-  ok &= contains(highway_renderer_c,
-                 "GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE",
-                 "highway keeps authored track-explode bad feedback behind an explicit validation gate");
-  ok &= contains(highway_renderer_c,
-                 "GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE",
-                 "highway keeps an explicit opt-out for native track-explode captures");
-  ok &= contains(highway_renderer_c,
                  "\"[highway-bad-feedback]t=%.3fflash=%.3fside=%.3f\""
-                 "\"explode=%denabled=%dforced=%ddisabled=%dmeshes=%zu\""
-                 "\"particles=%zuparticles_enabled=%dfade_top=%.3f\""
-                 "\"fade_dist=%.3falpha=%dmiss_mesh=%d\\n\"",
-                 "highway exposes focused bad-feedback proof rows with far-fade trace data");
-  ok &= contains(highway_renderer_c,
-                 "constbooltrack_explode_particles_enabled="
-                 "env_enabled(\"GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE_PARTICLES\")&&"
-                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE_PARTICLES\");",
-                 "unresolved track-explode ParticleSys debris is opt-in until traced");
-  ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh_scaled_with_texture(mesh,mesh.texture_name,0.0f,0.0f,"
-                 "D3DCOLOR_ARGB(track_explode_alpha,255,255,255),"
-                 "highway_root.x_scale,1.0f,1.0f,true,0.0f,0.0f,true,"
-                 "0.0f,false,0.0f,true,source_fade_top_y,"
-                 "source_fade_alpha_dist);",
-                 "highway draws native track-explode meshes through the measured far-fade band");
+                 "\"explode=purgedfade_top=%.3ffade_dist=%.3fmiss_mesh=%d\\n\"",
+                 "bad-feedback diagnostics prove the broken track-explode highway layer is purged");
+  ok &= absent(highway_renderer_c,
+               "track_explode",
+               "broken track-explode geometry must not be loadable or drawable by the highway renderer");
+  ok &= absent(highway_renderer_h_c,
+               "track_explode",
+               "broken track-explode storage must stay out of the highway renderer");
   ok &= contains(highway_renderer_c,
                  "starcollect=%d",
                  "highway logs native star-collect hit-flame availability");
@@ -3223,11 +3190,6 @@ int main() {
                  "depth_fade_for(world_y,depth_fade_top_y,"
                  "depth_fade_alpha_dist):1.0f;",
                  "runtime ParticleSys quads can share the highway far-depth fade");
-  ok &= contains(highway_renderer_c,
-                 "draw_runtime_particles(track_explode_particles_,0.0f,0.0f,"
-                 "song_time,track_explode_f,true,highway_root.x_scale,true,"
-                 "source_fade_top_y,source_fade_alpha_dist);",
-                 "bad-feedback track explode ParticleSys children use the measured far-fade band");
   ok &= contains(highway_renderer_c,
                  "draw_whammy_tail_segment(lane,sustain.start_time,"
                  "sustain.end_time,&whammy_tail_line_material_,"

@@ -344,7 +344,6 @@ class HighwayRenderer {
   std::vector<RuntimeParticleSystem> smash_bonus_particles_;
   std::vector<RuntimeParticleSystem> smash_star_particles_;
   std::vector<RuntimeParticleSystem> smash_combo_particles_;
-  std::vector<RuntimeParticleSystem> track_explode_particles_;
   RuntimeMesh star_base_mesh_;
   RuntimeMesh star_overlay_mesh_;
   RuntimeMesh star_black_top_mesh_;
@@ -416,7 +415,6 @@ class HighwayRenderer {
   std::array<MeshTransformAnim, 3> combo_lightning_anim_;
   std::array<float, 3> combo_lightning_anim_duration_frames_ = {};
   std::array<ColorAnimState, 3> combo_lightning_color_anim_;
-  std::vector<RuntimeMesh> track_explode_meshes_;
   std::string smasher_normal_texture_name_;
   std::array<std::string, 5> smasher_texture_names_;
   std::array<std::string, 5> smasher_add_texture_names_;

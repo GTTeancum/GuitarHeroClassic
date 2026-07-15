@@ -2351,7 +2351,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   smash_bonus_particles_.clear();
   smash_star_particles_.clear();
   smash_combo_particles_.clear();
-  track_explode_particles_.clear();
   star_base_mesh_ = RuntimeMesh{};
   star_overlay_mesh_ = RuntimeMesh{};
   star_black_top_mesh_ = RuntimeMesh{};
@@ -2423,7 +2422,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   for (auto& anim : combo_lightning_anim_) anim = MeshTransformAnim{};
   combo_lightning_anim_duration_frames_.fill(0.0f);
   for (auto& anim : combo_lightning_color_anim_) anim = ColorAnimState{};
-  track_explode_meshes_.clear();
   smasher_normal_texture_name_.clear();
   smasher_texture_names_.fill({});
   smasher_add_texture_names_.fill({});
@@ -2800,12 +2798,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                     "smash_star.view");
     append_particle(smash_combo_particles_, "smash_combo_burst.part",
                     "smash_combo.view");
-    append_particle(track_explode_particles_, "track_explode_01.part",
-                    "track_explode.view");
-    append_particle(track_explode_particles_, "track_explode_2.part",
-                    "track_explode.view");
-    append_particle(track_explode_particles_, "track_explode_3.part",
-                    "track_explode.view");
     star_phrase_tail_mesh_ = convert_mesh("tail02.mesh", "tail_star.mat");
     star_tail_mesh_ = convert_mesh("tail02.mesh", "tail_glow_star.mat");
     if (!star_tail_mesh_.ok) {
@@ -2901,19 +2893,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                      combo_lightning_anim_[i].scale_keys.size(),
                      combo_lightning_anim_duration_frames_[i]);
       }
-    }
-    std::vector<std::string> explode_names;
-    for (const auto& mesh : track_scene.meshes) {
-      if (mesh.name.rfind("track_explode", 0) != 0) continue;
-      if (!mesh.decoded || mesh.verts.empty() || mesh.indices.empty()) continue;
-      explode_names.push_back(mesh.name);
-    }
-    std::sort(explode_names.begin(), explode_names.end());
-    explode_names.erase(std::unique(explode_names.begin(), explode_names.end()),
-                        explode_names.end());
-    for (const auto& mesh_name : explode_names) {
-      RuntimeMesh mesh = convert_mesh(mesh_name);
-      if (mesh.ok) track_explode_meshes_.push_back(std::move(mesh));
     }
     const auto side_rail_anims = load_track_mat_anim_colors(hdr_path, ark_path);
     side_rails_none_ =
@@ -3115,7 +3094,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                  star_miss_mesh_.ok ? 1 : 0,
                  star_miss_top_mesh_.ok ? 1 : 0);
     std::fprintf(stderr,
-                 "[highway] native track meshes: surface=%d mask=%d rails=%d lines=%d spglow=%d smasher=%d hitflame=%d starcollect=%d miss=%d combo=%d explode=%zu\n",
+                 "[highway] native track meshes: surface=%d mask=%d rails=%d lines=%d spglow=%d smasher=%d hitflame=%d starcollect=%d miss=%d combo=%d\n",
                  track_surface_mesh_.ok ? 1 : 0,
                  track_mask_mesh_.ok ? 1 : 0,
                  track_side_rails_mesh_.ok ? 1 : 0,
@@ -3128,8 +3107,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                  static_cast<int>(std::count_if(
                      combo_lightning_mesh_.begin(),
                      combo_lightning_mesh_.end(),
-                     [](const RuntimeMesh& m) { return m.ok; })),
-                 track_explode_meshes_.size());
+                     [](const RuntimeMesh& m) { return m.ok; })));
     std::fprintf(stderr,
                  "[highway] side-rail MatAnim states: none=%d warning=%d star=%d warning_star=%d\n",
                  side_rails_none_.ok ? 1 : 0,
@@ -3177,9 +3155,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                  "[highway] native hit particles: normal=%zu bonus=%zu star=%zu combo=%zu\n",
                  smash_normal_particles_.size(), smash_bonus_particles_.size(),
                  smash_star_particles_.size(), smash_combo_particles_.size());
-    std::fprintf(stderr,
-                 "[highway] native track-explode particles: debris=%zu\n",
-                 track_explode_particles_.size());
     std::fprintf(stderr,
                  "[highway] native bonus meshes: gem=%d overlay=%d tail=%d smasher=%d flame=%d\n",
                  bonus_gem_mesh_.ok ? 1 : 0,
@@ -4124,64 +4099,17 @@ void HighwayRenderer::draw_impl(double song_time,
     dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
   }
 
-  const bool track_explode_forced =
-      env_enabled("GHOGX_FORCE_HIGHWAY_TRACK_EXPLODE");
-  const bool track_explode_enabled =
-      env_enabled("GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE");
-  const bool track_explode_disabled =
-      env_enabled("GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE");
-  const bool track_explode_active =
-      (track_explode_forced ||
-       (track_explode_enabled && bad_feedback_flash > 0.01f)) &&
-      !track_explode_disabled;
-  const float track_explode_f =
-      track_explode_forced ? 1.0f
-                           : std::clamp(bad_feedback_flash, 0.0f, 1.0f);
-  const bool track_explode_particles_enabled =
-      env_enabled("GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE_PARTICLES") &&
-      !env_enabled("GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE_PARTICLES");
-  const int track_explode_alpha =
-      track_explode_active
-          ? std::clamp(static_cast<int>(96.0f + track_explode_f * 159.0f),
-                       0, 255)
-          : 0;
   static int bad_feedback_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HIGHWAY_BAD_FEEDBACK") &&
-      (track_explode_active || bad_feedback_flash > 0.001f ||
-       side_rail_warning > 0.001f) &&
+      (bad_feedback_flash > 0.001f || side_rail_warning > 0.001f) &&
       bad_feedback_debug_budget < 240) {
     std::fprintf(stderr,
                  "[highway-bad-feedback] t=%.3f flash=%.3f side=%.3f "
-                 "explode=%d enabled=%d forced=%d disabled=%d meshes=%zu "
-                 "particles=%zu particles_enabled=%d fade_top=%.3f "
-                 "fade_dist=%.3f alpha=%d miss_mesh=%d\n",
+                 "explode=purged fade_top=%.3f fade_dist=%.3f miss_mesh=%d\n",
                  song_time, bad_feedback_flash, side_rail_warning,
-                 track_explode_active ? 1 : 0,
-                 track_explode_enabled ? 1 : 0,
-                 track_explode_forced ? 1 : 0,
-                 track_explode_disabled ? 1 : 0,
-                 track_explode_meshes_.size(), track_explode_particles_.size(),
-                 track_explode_particles_enabled ? 1 : 0, source_fade_top_y,
-                 source_fade_alpha_dist, track_explode_alpha,
+                 source_fade_top_y, source_fade_alpha_dist,
                  miss_mesh_.ok ? 1 : 0);
     ++bad_feedback_debug_budget;
-  }
-  if (native_track_enabled && track_explode_active &&
-      !track_explode_meshes_.empty()) {
-    if (!track_explode_particles_.empty() &&
-        track_explode_particles_enabled) {
-      draw_runtime_particles(track_explode_particles_, 0.0f, 0.0f, song_time,
-                             track_explode_f, true, highway_root.x_scale, true,
-                             source_fade_top_y, source_fade_alpha_dist);
-    }
-    for (const auto& mesh : track_explode_meshes_) {
-      draw_runtime_mesh_scaled_with_texture(
-          mesh, mesh.texture_name, 0.0f, 0.0f,
-          D3DCOLOR_ARGB(track_explode_alpha, 255, 255, 255),
-          highway_root.x_scale, 1.0f, 1.0f, true, 0.0f, 0.0f, true,
-          0.0f, false, 0.0f, true, source_fade_top_y,
-          source_fade_alpha_dist);
-    }
   }
 
   if (difficulty < 0 || difficulty > 3) {
