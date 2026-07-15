@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot UpdateTarget cache handoff:
+  ihatecompvir `CamShotFrame::UpdateTarget()` caches
+  `GetCurrentTargetPosition(unk34)` and the parent `WorldXfm` in `unk44`; the
+  RB2 dump names the same fields `mLastTargetPos` and `mLastParentPos`. Native
+  now samples a per-frame `CameraSourceFrameTargetCache` before the gameplay
+  `CamShotFrame::Interp` target math and feeds `last_target_pos` into the
+  same-target/non-same-target branches, keeping the cached `unk34` handoff
+  explicit instead of recomputing anonymous centroids at each use. The debug
+  row now names `cache_source=CamShotFrame::UpdateTarget` and reports whether
+  each A/B key has a cached target. This does not synthesize the hidden
+  `BuildTransform` body.
 - 2026-07-15 gameplay CamShot SetFrame last-pair state:
   FreeCamera is back-burnered unless it blocks gameplay cameras. The normal
   gameplay camera route now keeps a runtime mirror of the source-visible

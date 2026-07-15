@@ -8288,13 +8288,36 @@ int main() {
                  "std::array<float,3>parent_position={0.0f,0.0f,0.0f};",
                  "camera target update carries source UpdateTarget parent cache");
   ok &= contains(gameplay_c,
+                 "std::array<float,16>parent_world={1.0f,0.0f,0.0f,0.0f,"
+                 "0.0f,1.0f,0.0f,0.0f,"
+                 "0.0f,0.0f,1.0f,0.0f,"
+                 "0.0f,0.0f,0.0f,1.0f};",
+                 "camera target update preserves source UpdateTarget parent WorldXfm cache");
+  ok &= contains(gameplay_c,
+                 "structCameraSourceFrameTargetCache{"
+                 "CameraSourceTargetUpdateupdate;"
+                 "std::optional<std::array<float,3>>last_target_pos;"
+                 "std::optional<std::array<float,16>>last_parent_pos;};",
+                 "camera runtime has a source-shaped CamShotFrame UpdateTarget cache");
+  ok &= contains(gameplay_c,
                  "CameraSourceTargetUpdatecamera_update_targets_like_camshot(",
                  "native camera has an ihatecompvir CamShotFrame target update helper");
   ok &= contains(gameplay_c,
                  "if(constautoparent=camera_parent_for_key(key,targets)){"
                  "update.has_parent=true;"
-                 "update.parent_position=mat4_position_game(parent->world);}",
+                 "update.parent_position=mat4_position_game(parent->world);"
+                 "update.parent_world=parent->world;}",
                  "CamShot UpdateTarget mirrors the parent WorldXfm cache when present");
+  ok &= contains(gameplay_c,
+                 "CameraSourceFrameTargetCachecamera_update_frame_target_cache_like_source(",
+                 "camera runtime exposes the source CamShotFrame UpdateTarget cache helper");
+  ok &= contains(gameplay_c,
+                 "cache.update=camera_update_targets_like_camshot(key,targets);"
+                 "if(cache.update.has_targets){"
+                 "cache.last_target_pos=cache.update.centroid;}"
+                 "if(cache.update.has_parent){"
+                 "cache.last_parent_pos=cache.update.parent_world;}",
+                 "CamShotFrame UpdateTarget cache stores unk34 and unk44 source fields");
   ok &= contains(gameplay_c,
                  "returncamera_update_targets_like_camshot(key,targets)."
                  "has_targets;",
@@ -8308,8 +8331,23 @@ int main() {
                  "source_call=UpdateTarget/GetCurrentTargetPosition",
                  "camera diagnostics expose the source target update boundary");
   ok &= contains(gameplay_c,
+                 "constautoa_frame_target_cache="
+                 "camera_update_frame_target_cache_like_source(*a,targets);"
+                 "constautob_frame_target_cache="
+                 "camera_update_frame_target_cache_like_source(*b,targets);",
+                 "regular camera SetFrame samples source UpdateTarget cache before Interp target math");
+  ok &= contains(gameplay_c,
+                 "conststd::optional<std::array<float,3>>a_target_centroid="
+                 "a_frame_target_cache.last_target_pos;"
+                 "conststd::optional<std::array<float,3>>b_target_centroid="
+                 "b_frame_target_cache.last_target_pos;",
+                 "regular camera Interp target centroids come from cached unk34 fields");
+  ok &= contains(gameplay_c,
                  "source_rule=average_non_null_targets",
                  "camera diagnostics expose GetCurrentTargetPosition averaging");
+  ok &= contains(gameplay_c,
+                 "cache_source=CamShotFrame::UpdateTarget",
+                 "camera diagnostics expose the cached UpdateTarget source");
   ok &= contains(gameplay_c,
                  "a_parent_cached=%db_parent_cached=%d",
                  "camera diagnostics expose the source UpdateTarget parent cache");

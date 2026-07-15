@@ -17627,9 +17627,23 @@ struct CameraSourceTargetUpdate {
     size_t resolved_count = 0;
     std::array<float, 3> centroid = {0.0f, 0.0f, 0.0f};
     std::array<float, 3> parent_position = {0.0f, 0.0f, 0.0f};
+    std::array<float, 16> parent_world = {1.0f, 0.0f, 0.0f, 0.0f,
+                                          0.0f, 1.0f, 0.0f, 0.0f,
+                                          0.0f, 0.0f, 1.0f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 1.0f};
 };
 
 CameraSourceTargetUpdate camera_update_targets_like_camshot(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
+struct CameraSourceFrameTargetCache {
+    CameraSourceTargetUpdate update;
+    std::optional<std::array<float, 3>> last_target_pos;
+    std::optional<std::array<float, 16>> last_parent_pos;
+};
+
+CameraSourceFrameTargetCache camera_update_frame_target_cache_like_source(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
 
@@ -20573,8 +20587,23 @@ CameraSourceTargetUpdate camera_update_targets_like_camshot(
     if (const auto parent = camera_parent_for_key(key, targets)) {
         update.has_parent = true;
         update.parent_position = mat4_position_game(parent->world);
+        update.parent_world = parent->world;
     }
     return update;
+}
+
+CameraSourceFrameTargetCache camera_update_frame_target_cache_like_source(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    CameraSourceFrameTargetCache cache;
+    cache.update = camera_update_targets_like_camshot(key, targets);
+    if (cache.update.has_targets) {
+        cache.last_target_pos = cache.update.centroid;
+    }
+    if (cache.update.has_parent) {
+        cache.last_parent_pos = cache.update.parent_world;
+    }
+    return cache;
 }
 
 std::optional<std::array<float, 3>> camera_target_centroid_for_key(
@@ -21267,18 +21296,18 @@ void apply_camera_keys(
         camera_submitted_rows_use_matrix_payload(submitted_rows_b.kind);
     auto submitted_result =
         camera_lerp_result_rows(result_a, result_b, interp_t);
-    const auto a_target_update =
-        camera_update_targets_like_camshot(*a, targets);
-    const auto b_target_update =
-        camera_update_targets_like_camshot(*b, targets);
+    const auto a_frame_target_cache =
+        camera_update_frame_target_cache_like_source(*a, targets);
+    const auto b_frame_target_cache =
+        camera_update_frame_target_cache_like_source(*b, targets);
+    const CameraSourceTargetUpdate& a_target_update =
+        a_frame_target_cache.update;
+    const CameraSourceTargetUpdate& b_target_update =
+        b_frame_target_cache.update;
     const std::optional<std::array<float, 3>> a_target_centroid =
-        a_target_update.has_targets
-            ? std::optional<std::array<float, 3>>(a_target_update.centroid)
-            : std::nullopt;
+        a_frame_target_cache.last_target_pos;
     const std::optional<std::array<float, 3>> b_target_centroid =
-        b_target_update.has_targets
-            ? std::optional<std::array<float, 3>>(b_target_update.centroid)
-            : std::nullopt;
+        b_frame_target_cache.last_target_pos;
     const bool same_targets_like_camshot =
         camera_targets_match_like_camshot(*a, *b, targets);
     std::optional<std::array<float, 3>> blended_target_centroid;
@@ -21700,6 +21729,8 @@ void apply_camera_keys(
             "a_centroid=(%.3f %.3f %.3f) b_centroid=(%.3f %.3f %.3f) "
             "a_parent_cached=%d b_parent_cached=%d "
             "a_parent=(%.3f %.3f %.3f) b_parent=(%.3f %.3f %.3f) "
+            "target_cache=a:%d b:%d "
+            "cache_source=CamShotFrame::UpdateTarget "
             "cached_fields=unk34,unk44 callsite=not_recovered "
             "source_rule=average_non_null_targets,parent_world_xfm\n",
             a->name.c_str(), b->name.c_str(), frame,
@@ -21714,7 +21745,9 @@ void apply_camera_keys(
             a_target_update.parent_position[2],
             b_target_update.parent_position[0],
             b_target_update.parent_position[1],
-            b_target_update.parent_position[2]);
+            b_target_update.parent_position[2],
+            a_frame_target_cache.last_target_pos ? 1 : 0,
+            b_frame_target_cache.last_target_pos ? 1 : 0);
         const auto a_screen_norm = camshot_result_screen_norm_for_key(*a);
         const auto b_screen_norm = camshot_result_screen_norm_for_key(*b);
         const auto target_candidate_a =
