@@ -294,6 +294,60 @@ std::string raw_u16_words(uint8_t* base, uint32_t addr, int words) {
     return out;
 }
 
+std::string summarize_guest_object(uint8_t* base, uint32_t obj);
+
+bool looks_like_guest_pointer(uint32_t addr) {
+    return addr >= 0x40000000u && addr < 0x83000000u;
+}
+
+std::string describe_raw_words(uint8_t* base, const char* label,
+                               uint32_t addr, int words) {
+    std::string out(label);
+    out += "=";
+    if (!looks_like_guest_pointer(addr)) {
+        out += fmt_ptr(addr);
+        out += "(not_ptr)";
+        return out;
+    }
+    out += fmt_ptr(addr);
+    out += ":";
+    out += raw_u32_words(base, addr, words);
+    return out;
+}
+
+void log_lower_body_runtime_memory(uint8_t* base, const char* stage,
+                                   const char* phase, uint32_t self,
+                                   uint32_t arg0, uint32_t arg1) {
+    if (!lower_body_memory_trace_enabled()) return;
+    static std::atomic<uint32_t> s_runtime_dump_count{0};
+    const uint32_t seq =
+        s_runtime_dump_count.fetch_add(1, std::memory_order_relaxed);
+    if (seq >= 192) return;
+
+    std::string detail = "seq=" + std::to_string(seq);
+    detail += " stage=";
+    detail += stage;
+    detail += " phase=";
+    detail += phase;
+    detail += " self=";
+    detail += fmt_ptr(self);
+    detail += " arg0=";
+    detail += fmt_ptr(arg0);
+    detail += " arg1=";
+    detail += fmt_ptr(arg1);
+    detail += " obj={";
+    detail += summarize_guest_object(base, self);
+    detail += "} ";
+    detail += describe_raw_words(base, "self0", self, 16);
+    detail += " ";
+    detail += describe_raw_words(base, "self64", self + 64, 16);
+    detail += " ";
+    detail += describe_raw_words(base, "arg0", arg0, 12);
+    detail += " ";
+    detail += describe_raw_words(base, "arg1", arg1, 8);
+    trace360::LogEvent("anim.lower_body.runtime_memory", detail);
+}
+
 std::string describe_anim_table_memory_header(uint8_t* base,
                                               uint32_t table_obj) {
     (void)base;
@@ -1184,13 +1238,20 @@ REX_HOOK_RAW(sub_821D1190) {
     const uint32_t arg0 = ctx.r4.u32;
     const uint32_t arg1 = ctx.r5.u32;
     static std::atomic<uint32_t> s_count{0};
-    if (!is_menu_anim_object(base, self)) {
+    const bool trace_object = !is_menu_anim_object(base, self);
+    if (trace_object) {
+        log_lower_body_runtime_memory(base, "821D1190", "before", self, arg0,
+                                      arg1);
         log_limited_event("anim.controller.stage_821D1190", s_count,
                           "self=" + fmt_ptr(self) + " arg0=" + fmt_ptr(arg0) +
                               " arg1=" + fmt_ptr(arg1) + " " +
                               summarize_guest_object(base, self));
     }
     __imp__sub_821D1190(ctx, base);
+    if (trace_object) {
+        log_lower_body_runtime_memory(base, "821D1190", "after", self, arg0,
+                                      arg1);
+    }
 }
 
 extern "C" void __imp__sub_821D1710(PPCContext& ctx, uint8_t* base);
@@ -1199,13 +1260,20 @@ REX_HOOK_RAW(sub_821D1710) {
     const uint32_t arg0 = ctx.r4.u32;
     const uint32_t arg1 = ctx.r5.u32;
     static std::atomic<uint32_t> s_count{0};
-    if (!is_menu_anim_object(base, self)) {
+    const bool trace_object = !is_menu_anim_object(base, self);
+    if (trace_object) {
+        log_lower_body_runtime_memory(base, "821D1710", "before", self, arg0,
+                                      arg1);
         log_limited_event("anim.controller.stage_821D1710", s_count,
                           "self=" + fmt_ptr(self) + " arg0=" + fmt_ptr(arg0) +
                               " arg1=" + fmt_ptr(arg1) + " " +
                               summarize_guest_object(base, self));
     }
     __imp__sub_821D1710(ctx, base);
+    if (trace_object) {
+        log_lower_body_runtime_memory(base, "821D1710", "after", self, arg0,
+                                      arg1);
+    }
 }
 
 extern "C" void __imp__sub_8214CAC8(PPCContext& ctx, uint8_t* base);
@@ -1290,7 +1358,11 @@ REX_HOOK_RAW(hmx_CharIK_Update) {
     const uint32_t self = ctx.r3.u32;
     const uint32_t arg0 = ctx.r4.u32;
     const uint32_t arg1 = ctx.r5.u32;
+    log_lower_body_runtime_memory(base, "CharIK_Update", "before", self, arg0,
+                                  arg1);
     __imp__sub_8214CD88(ctx, base);
+    log_lower_body_runtime_memory(base, "CharIK_Update", "after", self, arg0,
+                                  arg1);
     static std::atomic<uint32_t> s_count{0};
     log_periodic_call("char.ik.update", s_count, self, arg0, arg1);
 }
