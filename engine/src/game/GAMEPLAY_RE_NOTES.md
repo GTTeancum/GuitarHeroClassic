@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 normal gameplay camera scope proof:
+  FreeCam remains last-priority unless it blocks normal gameplay cameras. The
+  regular camera sweep row now labels `pipeline_scope=normal_gameplay_camera`,
+  `freecam_priority=deferred_last`, and `freecam_affects_gameplay=0`, while
+  keeping the remaining gameplay-camera blockers explicit:
+  `BuildTransform`, `cam_shot_ok`, `cam_check_shot`, and
+  `CharWalk::actually_walking`. This is a proof/triage guard only; it does not
+  change hidden camera math, gameplay HUD/venue state, or add dependencies.
 - 2026-07-15 gameplay `first_shot_ok` return proof:
   ihatecompvir `CameraManager::FindCameraShot` sends `first_shot_ok(category)`
   before scanning, and `CameraManager::FirstShotOk` discards the handler

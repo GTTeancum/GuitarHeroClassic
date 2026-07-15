@@ -12992,6 +12992,12 @@ int main() {
                  "source_previous=%s",
                  "regular camera sweep diagnostics expose source mode, faceoff, category, filters, and previous shot");
   ok &= contains(gameplay_c,
+                 "pipeline_scope=normal_gameplay_camera"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0"
+                 "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk",
+                 "regular camera sweep diagnostics keep normal gameplay camera scope separate from deferred FreeCam work");
+  ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
                  "constGameplay::CameraKey*previous,"
                  "std::string_viewcurrent_walkspot)",
