@@ -6254,8 +6254,13 @@ six support/base direct-viewer output proofs in
 `tools/charbone_output_map_manifest.json`, requires screenshot-bearing logs and
 individual PNG visual proofs, enforces each manifest case's required log
 fragments before accepting coverage, requires every linked proof PNG to be at
-least `1280x720`, and preserves the source-authored Metal Bass foot rows plus
-Metal Drummer `toe0` diagnostic alias.
+least `1280x720`, and now parses both in-game and viewer final playable `armw`
+rows to require leg-chain sanity across all 18 playable cases: knees below
+thighs, ankles below knees, toes not above ankles, and at least one toe in a
+near-floor band. The current stock run reports
+`playable_max_lowest_toe_z=0.5136` and
+`playable_min_pelvis_to_lowest_toe_z=31.0644`. The same audit preserves the
+source-authored Metal Bass foot rows plus Metal Drummer `toe0` diagnostic alias.
 
 Current lower-body root-cause summary: the bad "standing but floating with legs
 forward" frame came from applying decoded sampled channels straight onto the

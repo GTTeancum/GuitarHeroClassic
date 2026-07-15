@@ -9,6 +9,8 @@ from pathlib import Path
 import struct
 import sys
 
+from compare_arm_pose_logs import RowKey, read_pose_rows
+
 
 LOWER_BODY_BONES = {
     "bone_pelvis",
@@ -79,6 +81,9 @@ SCREENSHOT_MARKERS = ("screenshot saved", "saved screenshot", "screenshot ->")
 MIN_PROOF_WIDTH = 1280
 MIN_PROOF_HEIGHT = 720
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+MAX_PLAYABLE_LOWEST_TOE_Z = 1.0
+MIN_PLAYABLE_PELVIS_TO_LOWEST_TOE_Z = 30.0
+MIN_PLAYABLE_CHAIN_Z_DROP = 8.0
 
 
 def detect_text_encoding(path: Path) -> str:
@@ -191,9 +196,62 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
+def playable_leg_chain_metrics(log_path: Path, character: str, tag: str) -> tuple[float, float]:
+    rows, _ = read_pose_rows(
+        log_path,
+        character=character,
+        tag=tag,
+        require_screenshot_marker=True,
+    )
+
+    def world(bone: str) -> tuple[float, float, float]:
+        key = RowKey("armw", bone)
+        row = rows.get(key)
+        require(row is not None, f"{log_path}: missing playable leg-chain row {bone}")
+        return row.values
+
+    pelvis_z = world("bone_pelvis")[2]
+    toe_z_values = []
+    for side in ("L", "R"):
+        thigh_z = world(f"bone_{side}-thigh")[2]
+        knee_z = world(f"bone_{side}-knee")[2]
+        ankle_z = world(f"bone_{side}-ankle")[2]
+        toe_z = world(f"bone_{side}-toe")[2]
+        toe_z_values.append(toe_z)
+        require(
+            knee_z <= thigh_z - MIN_PLAYABLE_CHAIN_Z_DROP,
+            f"{log_path}: {side} knee is not below thigh enough "
+            f"({knee_z:.4f} vs {thigh_z:.4f})",
+        )
+        require(
+            ankle_z <= knee_z - MIN_PLAYABLE_CHAIN_Z_DROP,
+            f"{log_path}: {side} ankle is not below knee enough "
+            f"({ankle_z:.4f} vs {knee_z:.4f})",
+        )
+        require(
+            toe_z <= ankle_z,
+            f"{log_path}: {side} toe is above ankle ({toe_z:.4f} vs {ankle_z:.4f})",
+        )
+
+    lowest_toe_z = min(toe_z_values)
+    pelvis_to_lowest_toe_z = pelvis_z - lowest_toe_z
+    require(
+        lowest_toe_z <= MAX_PLAYABLE_LOWEST_TOE_Z,
+        f"{log_path}: lowest toe z {lowest_toe_z:.4f} > {MAX_PLAYABLE_LOWEST_TOE_Z:.4f}",
+    )
+    require(
+        pelvis_to_lowest_toe_z >= MIN_PLAYABLE_PELVIS_TO_LOWEST_TOE_Z,
+        f"{log_path}: pelvis/toe drop {pelvis_to_lowest_toe_z:.4f} "
+        f"< {MIN_PLAYABLE_PELVIS_TO_LOWEST_TOE_Z:.4f}",
+    )
+    return lowest_toe_z, pelvis_to_lowest_toe_z
+
+
 def check_playable(
     arm_manifest_path: Path, arm_cases: dict[str, dict], default_character: str
-) -> None:
+) -> tuple[float, float]:
+    max_lowest_toe_z = float("-inf")
+    min_pelvis_to_lowest_toe_z = float("inf")
     for character, label in PLAYABLE_INGAME_LABELS.items():
         case = arm_cases.get(label)
         require(case is not None, f"missing playable lower-body case {label}")
@@ -223,6 +281,15 @@ def check_playable(
             require(case_character == "rockabill", f"{label}: expected runtime rockabill row label")
         else:
             require(case_character == character, f"{label}: wrong character row label")
+        for log_path in (ingame_log, viewer_log):
+            lowest_toe_z, pelvis_to_lowest_toe_z = playable_leg_chain_metrics(
+                log_path, case_character, str(case.get("tag", "post"))
+            )
+            max_lowest_toe_z = max(max_lowest_toe_z, lowest_toe_z)
+            min_pelvis_to_lowest_toe_z = min(
+                min_pelvis_to_lowest_toe_z, pelvis_to_lowest_toe_z
+            )
+    return max_lowest_toe_z, min_pelvis_to_lowest_toe_z
 
 
 def check_support(output_manifest_path: Path, output_cases: dict[str, dict]) -> None:
@@ -275,7 +342,9 @@ def main() -> int:
         arm_cases = cases_by_label(arm_manifest, args.arm_manifest)
         output_cases = cases_by_label(output_manifest, args.output_manifest)
         output_cases["__default_bones__"] = output_manifest.get("bones", [])
-        check_playable(args.arm_manifest, arm_cases, str(arm_manifest.get("character", "rockabill2")))
+        max_lowest_toe_z, min_pelvis_to_lowest_toe_z = check_playable(
+            args.arm_manifest, arm_cases, str(arm_manifest.get("character", "rockabill2"))
+        )
         check_support(args.output_manifest, output_cases)
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
@@ -285,7 +354,10 @@ def main() -> int:
         f"playable_ingame={len(PLAYABLE_INGAME_LABELS)} "
         f"support_viewer={len(SUPPORT_VIEWER_LABELS)} "
         f"stock_total={len(PLAYABLE_INGAME_LABELS) + len(SUPPORT_VIEWER_LABELS)} "
-        f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT}"
+        f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT} "
+        f"playable_max_lowest_toe_z={max_lowest_toe_z:.4f} "
+        f"playable_min_pelvis_to_lowest_toe_z={min_pelvis_to_lowest_toe_z:.4f} "
+        "playable_leg_chain_sane=true"
     )
     return 0
 

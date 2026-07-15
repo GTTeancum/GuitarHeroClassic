@@ -33978,6 +33978,18 @@ int run_contract() {
       "lower-body stock coverage audit reports proof resolution");
   ok &= contains(
       lower_body_stock_coverage,
+      "MAX_PLAYABLE_LOWEST_TOE_Z=1.0",
+      "lower-body stock coverage audit guards playable toe floor band");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "MIN_PLAYABLE_PELVIS_TO_LOWEST_TOE_Z=30.0",
+      "lower-body stock coverage audit guards playable pelvis-to-toe drop");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "playable_leg_chain_sane=true",
+      "lower-body stock coverage audit reports playable leg-chain sanity");
+  ok &= contains(
+      lower_body_stock_coverage,
       "require_fragments(",
       "lower-body stock coverage audit enforces required log fragments");
   ok &= contains(
@@ -34706,6 +34718,15 @@ int run_contract() {
       "`tools/check_lower_body_stock_coverage.py` passes with "
       "`playable_ingame=18`,\n`support_viewer=6`, and `stock_total=24`",
       "document records lower-body stock coverage audit result");
+  ok &= contains(doc,
+                 "require leg-chain sanity across all 18 playable cases",
+                 "document records all-playable leg-chain guard");
+  ok &= contains(doc,
+                 "`playable_max_lowest_toe_z=0.5136`",
+                 "document records all-playable toe-floor metric");
+  ok &= contains(doc,
+                 "`playable_min_pelvis_to_lowest_toe_z=31.0644`",
+                 "document records all-playable pelvis-to-toe metric");
   ok &= contains(doc,
                  "Current lower-body root-cause summary:",
                  "document records lower-body root-cause summary");
