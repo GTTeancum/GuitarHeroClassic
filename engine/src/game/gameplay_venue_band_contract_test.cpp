@@ -12127,6 +12127,26 @@ int main() {
                  "return((key.flags&filter.mask)!=0)==filter.bool_match;",
                  "regular camera filters mirror CameraManager flags_any result");
   ok &= contains(gameplay_c,
+                 "CameraShotSourceFilterKind::Int",
+                 "regular camera filters can mirror scalar DataNode property comparisons");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_int_filter(std::string_viewprop,intmatch)",
+                 "regular camera filters expose source-shaped integer property filters");
+  ok &= contains(gameplay_c,
+                 "std::optional<int>camera_filter_int_property(",
+                 "regular camera filters can evaluate integer CamShot properties");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"flags\")returnkey.flags;"
+                 "if(prop==\"platform_only\")returnkey.platform_only;",
+                 "regular camera integer filters expose decoded flags and platform_only");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"ps3_per_pixel\")returnkey.ps3_per_pixel?1:0;"
+                 "if(prop==\"disabled\")returnkey.disabled_flags;",
+                 "regular camera integer filters expose decoded ps3_per_pixel and disabled state");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"force_char_lod\")returnkey.force_char_lod;",
+                 "regular camera integer filters expose decoded force_char_lod");
+  ok &= contains(gameplay_c,
                  "caseCameraShotSourceFilterKind::FlagsExact:",
                  "regular camera filters mirror CameraManager flags_exact semantics");
   ok &= contains(gameplay_c,

@@ -16056,6 +16056,7 @@ bool string_in(std::string_view value,
 
 enum class CameraShotSourceFilterKind {
     Bool,
+    Int,
     SymbolAny,
     FlagsAny,
     FlagsExact,
@@ -16075,6 +16076,14 @@ CameraShotSourceFilter camera_bool_filter(std::string_view prop, bool match) {
     filter.kind = CameraShotSourceFilterKind::Bool;
     filter.prop = prop;
     filter.bool_match = match;
+    return filter;
+}
+
+CameraShotSourceFilter camera_int_filter(std::string_view prop, int match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Int;
+    filter.prop = prop;
+    filter.int_match = match;
     return filter;
 }
 
@@ -16119,6 +16128,17 @@ std::optional<bool> camera_filter_bool_property(
     return std::nullopt;
 }
 
+std::optional<int> camera_filter_int_property(
+    const Gameplay::CameraKey& key,
+    std::string_view prop) {
+    if (prop == "flags") return key.flags;
+    if (prop == "platform_only") return key.platform_only;
+    if (prop == "ps3_per_pixel") return key.ps3_per_pixel ? 1 : 0;
+    if (prop == "disabled") return key.disabled_flags;
+    if (prop == "force_char_lod") return key.force_char_lod;
+    return std::nullopt;
+}
+
 std::optional<std::string_view> camera_filter_symbol_property(
     const Gameplay::CameraKey& key,
     std::string_view prop) {
@@ -16135,6 +16155,10 @@ bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
         case CameraShotSourceFilterKind::Bool: {
             const auto value = camera_filter_bool_property(key, filter.prop);
             return value && *value == filter.bool_match;
+        }
+        case CameraShotSourceFilterKind::Int: {
+            const auto value = camera_filter_int_property(key, filter.prop);
+            return value && *value == filter.int_match;
         }
         case CameraShotSourceFilterKind::SymbolAny: {
             const auto value = camera_filter_symbol_property(key, filter.prop);

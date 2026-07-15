@@ -46,6 +46,15 @@
   matches ihatecompvir's visible `CamShotFrame::HasTargets()` /
   `GetCurrentTargetPosition()` behavior, where null or unresolved object
   pointers do not count as live camera targets.
+- 2026-07-14 ShotMatches scalar property bridge: ihatecompvir
+  `CameraManager::MakeCategoryAndFilters` stores non-`flags_any` /
+  `flags_exact` matches as generic `DataNode` comparisons, and
+  `ShotMatches` evaluates the CamShot property before comparing it. Native
+  `camera_shot_matches_source_filter(...)` now has an explicit integer
+  property path for decoded `flags`, `platform_only`, `ps3_per_pixel`,
+  `disabled`, and `force_char_lod`, so authored scalar property filters can
+  flow through the same source-shaped evaluator without inventing new camera
+  predicates.
 - 2026-07-14 CamShot UpdateTarget parent cache proof:
   the same debug row now carries the resolved parent world position as the
   source `unk44` cache when `mParent` resolves. This mirrors the visible
