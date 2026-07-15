@@ -1329,6 +1329,47 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  ghogx::character::Character shared_lower_output_character;
+  ghogx::milo_scene::TransObj shared_lower_output_toe;
+  shared_lower_output_toe.name = "bone_R-toe.mesh";
+  shared_lower_output_toe.local.pos[0] = 90.0f;
+  shared_lower_output_toe.local.pos[1] = 91.0f;
+  shared_lower_output_toe.local.pos[2] = 92.0f;
+  shared_lower_output_character.bones.push_back(shared_lower_output_toe);
+  ghogx::character::CharClip shared_lower_output_clip;
+  shared_lower_output_clip.loaded = true;
+  shared_lower_output_clip.name = "shared_lower_output_stack_test";
+  shared_lower_output_clip.frames.resize(1);
+  shared_lower_output_clip.frames[0].push_back(rotz_channel);
+  shared_lower_output_clip.frames[0].back().bone_name = "bone_R-toe.mesh";
+  ghogx::character::CharClip::OutputBone shared_lower_output_bone;
+  shared_lower_output_bone.name = "bone_R-toe.trans";
+  shared_lower_output_bone.local.pos[0] = 4.0f;
+  shared_lower_output_bone.local.pos[1] = 5.0f;
+  shared_lower_output_bone.local.pos[2] = 6.0f;
+  shared_lower_output_clip.output_bones.push_back(shared_lower_output_bone);
+  ghogx::character::ClipChannelLayerStack shared_lower_output_stack;
+  if (!ghogx::character::append_clip_frame_layer(
+          shared_lower_output_stack, shared_lower_output_clip, 0, 0.25f,
+          false)) {
+    std::cerr << "shared lower-body layer stack did not append source clip\n";
+    ok = false;
+  }
+  const auto shared_lower_output_result =
+      ghogx::character::apply_character_pose_stack_frame(
+          shared_lower_output_character, &shared_lower_output_stack);
+  const auto& shared_lower_output_local =
+      shared_lower_output_character.bones[0].local;
+  if (!shared_lower_output_result.applied_clip_layers ||
+      shared_lower_output_result.applied_layer_count != 1 ||
+      !shared_lower_output_result.source_pose_publisher_fenced ||
+      !nearf(shared_lower_output_local.pos[0], 4.0f) ||
+      !nearf(shared_lower_output_local.pos[1], 5.0f) ||
+      !nearf(shared_lower_output_local.pos[2], 6.0f)) {
+    std::cerr << "shared lower-body layer stack did not use authored output local\n";
+    ok = false;
+  }
+
   ghogx::character::CharClip stack_base_clip;
   stack_base_clip.loaded = true;
   stack_base_clip.frames.resize(30);

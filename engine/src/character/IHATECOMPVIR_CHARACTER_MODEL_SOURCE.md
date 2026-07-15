@@ -6412,7 +6412,11 @@ Lower-body evidence audit:
   lower-body position channel at 25% must blend from authored
   `OutputBone.local.pos=(4,5,6)` toward `(10,20,30)` and produce
   `(5.5,8.75,12)`, proving the weighted fallback path is source-output-local
-  based too.
+  based too. A separate stack test pushes `shared_lower_output_stack_test`
+  through `append_clip_frame_layer` and `apply_character_pose_stack_frame`;
+  it starts from the same stale visible toe local and must still resolve to
+  `OutputBone.local.pos=(4,5,6)`, proving the shared viewer/gameplay stack
+  route is source-output-local based before controllers run.
 - Current runtime proof: `check_lower_body_stock_coverage.py` covers 18
   playable in-game/viewer lower-body cases plus six support/base viewer cases,
   and the current-commit Rockabill2/Rock2 proof pair repeats the in-game and

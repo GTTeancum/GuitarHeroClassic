@@ -33898,6 +33898,22 @@ int run_contract() {
       clip_driver_flags_test,
       "weightedlower-bodyoutputbridgedidnotblendfromauthoredoutputlocal",
       "focused clip test fails if weighted lower-body output local is bypassed");
+  ok &= contains(clip_driver_flags_test,
+                 "shared_lower_output_clip.name=\"shared_lower_output_stack_test\";",
+                 "focused clip test constructs shared lower-body output stack case");
+  ok &= contains(clip_driver_flags_test,
+                 "append_clip_frame_layer(shared_lower_output_stack,"
+                 "shared_lower_output_clip,0,0.25f,false)",
+                 "focused clip test appends shared lower-body output stack");
+  ok &= contains(
+      clip_driver_flags_test,
+      "apply_character_pose_stack_frame(shared_lower_output_character,"
+      "&shared_lower_output_stack)",
+      "focused clip test exercises shared lower-body stack frame route");
+  ok &= contains(
+      clip_driver_flags_test,
+      "sharedlower-bodylayerstackdidnotuseauthoredoutputlocal",
+      "focused clip test fails if shared lower-body output local is bypassed");
   ok &= contains(
       clip_driver_flags_test,
       "lower-bodyoutputbridgedidnotrebuildaxisrowfromauthoredoutputgraph",
@@ -34915,6 +34931,16 @@ int run_contract() {
   ok &= contains(doc,
                  "produce\n  `(5.5,8.75,12)`",
                  "document records deterministic weighted lower-body output");
+  ok &= contains(doc,
+                 "`shared_lower_output_stack_test`",
+                 "document records deterministic shared lower-body stack test");
+  ok &= contains(doc,
+                 "`apply_character_pose_stack_frame`",
+                 "document records shared lower-body stack frame route");
+  ok &= contains(
+      doc,
+      "shared viewer/gameplay stack\n  route is source-output-local based",
+      "document records shared lower-body stack source-output-local proof");
   ok &= contains(
       doc,
       "lower_body_current_commit_20260715",
