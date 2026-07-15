@@ -288,6 +288,7 @@ class Gameplay {
     std::vector<std::string> bad_waypoint_refs;
     std::vector<std::string> draw_override_refs;
     std::vector<std::string> postproc_override_refs;
+    std::string postprocess_ref;
     std::vector<std::string> camera_anim_refs;
     std::string glow_spot_ref;
     std::vector<CameraKey> source_camshot_keyframes;
@@ -1272,6 +1273,7 @@ class Gameplay {
   double active_camera_anim_start_time_ = 0.0;
   std::unordered_set<std::string> active_camera_fov_anim_reported_;
   std::string active_camera_glow_spot_ref_;
+  std::string active_camera_postprocess_ref_;
   std::string active_camera_shot_started_reported_;
   std::string active_camera_frame_pair_reported_;
   std::string active_camera_shot_over_reported_;

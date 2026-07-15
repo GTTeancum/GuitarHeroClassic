@@ -548,6 +548,14 @@ Open work:
   now dispatches that same bridge from the app instead of being read inside the
   randomizer, with the chosen seed and seed source printed in the
   `CameraManager::Randomize` proof log.
+- 2026-07-15 CamShot `postprocess` start-shot bridge:
+  GH2 `world/camshot.dta` has an Xbox-only `start_shot` branch that either
+  selects the authored `[postprocess]` object or calls `rnd reset_postproc`.
+  Native now decodes the single `postprocess` object-field ref separately from
+  CamShot `postproc_overrides`, carries it through intro/regular CamShot keys,
+  and records the source select/reset action when `CamShot::StartAnim` runs.
+  This is runtime state and provenance only; native still marks the render
+  effect deferred until the audited postprocess renderer behavior is mirrored.
 - 2026-07-14 CameraManager loader pool scope:
   the native regular CamShot loader now feeds that randomizer every decoded
   `PlatformOk()` CamShot with frames, rather than pruning non-normal categories

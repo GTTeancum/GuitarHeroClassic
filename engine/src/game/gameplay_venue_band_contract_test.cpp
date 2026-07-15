@@ -6097,6 +6097,9 @@ int main() {
                  "std::stringactive_camera_anim_event_;",
                  "camera runtime tracks linked CamShot mAnims separately");
   ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_postprocess_ref_;",
+                 "camera runtime tracks the active camshot.dta postprocess ref");
+  ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<VenueAnimFilter>>"
                  "venue_direct_anim_filters_;",
                  "venue MILO direct anim refs are available for CamShot mAnims");
@@ -6155,6 +6158,21 @@ int main() {
   ok &= contains(gameplay_c,
                  "force_char_lod=%dps3_per_pixel=%dhide_list=%zu",
                  "camera StartAnim diagnostics expose source ps3_per_pixel state");
+  ok &= contains(gameplay_c,
+                 "active_camera_postprocess_ref_=canonical_milo_ref("
+                 "key.postprocess_ref);",
+                 "camera StartAnim stores the source postprocess ref");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerastart_shotpostprocess:"
+                 "source_script=world/camshot.dtasource_platform=HX_XBOX"
+                 "shot=%spostprocess=%saction=%sresult=%s"
+                 "postproc_overrides=%zurender_effect=native_deferred\\n\"",
+                 "camera StartAnim mirrors the Xbox postprocess select/reset branch without claiming rendering");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "active_camera_postprocess_ref_=canonical_milo_ref(key.postprocess_ref);",
+      "active_force_char_lod_=key.force_char_lod;",
+      "camera start_shot postprocess branch runs before world set_min_lod");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "\"[world]cameraStartAnim:source_msg=start_shot"
@@ -11207,6 +11225,9 @@ int main() {
                  "std::vector<std::string>postproc_override_refs;",
                  "CameraKey keeps authored CamShot postproc override refs");
   ok &= contains(gameplay_h_c,
+                 "std::stringpostprocess_ref;",
+                 "CameraKey keeps the authored camshot.dta postprocess object ref");
+  ok &= contains(gameplay_h_c,
                  "std::vector<std::string>camera_anim_refs;"
                  "std::stringglow_spot_ref;",
                  "CameraKey keeps authored CamShot anim and glow refs");
@@ -11252,6 +11273,13 @@ int main() {
                  "conststd::unordered_map<std::string,MiloValue>&props,",
                  "CamShot ObjectFields parser exposes source ref-list properties");
   ok &= contains(gameplay_c,
+                 "std::stringprop_ref(conststd::unordered_map<std::string,MiloValue>&props,"
+                 "std::string_viewkey)",
+                 "CamShot ObjectFields parser exposes single source object refs");
+  ok &= contains(gameplay_c,
+                 "key.postprocess_ref=prop_ref(shot.props,\"postprocess\");",
+                 "regular CamShot loader decodes the camshot.dta postprocess object ref");
+  ok &= contains(gameplay_c,
                  "structIntroCameraSelection{std::stringshot;"
                  "std::stringanim=\"Intro.tnm\";"
                  "std::stringdistance;std::stringfacing;"
@@ -11288,6 +11316,9 @@ int main() {
                  "c.postproc_override_refs=decoded_shot->postproc_overrides;",
                  "intro CamShot selector decodes postproc override refs");
   ok &= contains(gameplay_c,
+                 "c.postprocess_ref=prop_ref(decoded_shot->props,\"postprocess\");",
+                 "intro CamShot selector decodes the camshot.dta postprocess object ref");
+  ok &= contains(gameplay_c,
                  "c.camera_anim_refs=decoded_shot->anims;",
                  "intro CamShot selector decodes linked anim refs");
   ok &= contains(gameplay_c,
@@ -11305,6 +11336,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "selected.gen_hide_list_refs=candidates.front().gen_hide_list_refs;",
                  "selected intro TransAnim route preserves generated hide refs");
+  ok &= contains(gameplay_c,
+                 "selected.postprocess_ref=candidates.front().postprocess_ref;",
+                 "selected intro TransAnim route preserves postprocess refs");
   ok &= contains(gameplay_c,
                  "c.key=decoded_poses.front().first;",
                  "regular camera loader decodes CamShot hide_crowd");
@@ -11431,7 +11465,8 @@ int main() {
                  "crowd_face_camera=%dforce_char_lod=%d"
                  "next_shot=%s"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
-                 "postproc=%zuanims=%zuglow=%sshot_fields=%dcategory=%s",
+                 "postproc_overrides=%zupostprocess=%sanims=%zuglow=%s"
+                 "shot_fields=%dcategory=%s",
                  "regular camera validation logs decoded shot-level fields including source flags");
   ok &= contains(gameplay_c,
                  "source_reader=CamShot::Load/MiloEditorexact_reader=1"
@@ -11508,7 +11543,7 @@ int main() {
                  "distance=%sfacing=%shide_crowd=%d"
                  "crowd_face_camera=%dforce_char_lod=%d"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
-                 "postproc=%zuanims=%zuglow=%s\\n\"",
+                 "postproc_overrides=%zupostprocess=%sanims=%zuglow=%s\\n\"",
                  "intro TransAnim camera flag/LOD stamping is runtime-verifiable");
   ok &= contains(gameplay_c,
                  "venue_crowd_meshes_=mesh_names_for_crowd(venue_scene);",

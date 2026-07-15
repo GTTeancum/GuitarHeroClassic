@@ -1596,6 +1596,12 @@ std::vector<std::string> prop_refs(
     return refs;
 }
 
+std::string prop_ref(const std::unordered_map<std::string, MiloValue>& props,
+                     std::string_view key) {
+    const auto refs = prop_refs(props, key);
+    return refs.empty() ? std::string{} : refs.front();
+}
+
 struct DecodedCamShot {
     uint16_t revision = 0;
     uint16_t anim_revision = 0;
@@ -2496,6 +2502,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.bad_waypoint_refs = prop_refs(shot.props, "bad_waypoints");
             key.draw_override_refs = shot.draw_overrides;
             key.postproc_override_refs = shot.postproc_overrides;
+            key.postprocess_ref = prop_ref(shot.props, "postprocess");
             key.camera_anim_refs = shot.anims;
             key.glow_spot_ref = shot.glow_spot;
             sync_primary_camshot_target(key);
@@ -2626,6 +2633,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.gen_hide_list_refs = from.gen_hide_list_refs;
     to.draw_override_refs = from.draw_override_refs;
     to.postproc_override_refs = from.postproc_override_refs;
+    to.postprocess_ref = from.postprocess_ref;
     to.camera_anim_refs = from.camera_anim_refs;
     to.glow_spot_ref = from.glow_spot_ref;
     to.next_shot_ref = from.next_shot_ref;
@@ -2696,6 +2704,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.bad_waypoint_refs = from.bad_waypoint_refs;
     to.draw_override_refs = from.draw_override_refs;
     to.postproc_override_refs = from.postproc_override_refs;
+    to.postprocess_ref = from.postprocess_ref;
     to.camera_anim_refs = from.camera_anim_refs;
     to.glow_spot_ref = from.glow_spot_ref;
     to.path_anim = from.path_anim;
@@ -3381,6 +3390,7 @@ struct IntroCameraSelection {
     std::vector<std::string> gen_hide_list_refs;
     std::vector<std::string> draw_override_refs;
     std::vector<std::string> postproc_override_refs;
+    std::string postprocess_ref;
     std::vector<std::string> camera_anim_refs;
     std::string glow_spot_ref;
 };
@@ -3417,6 +3427,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             std::vector<std::string> gen_hide_list_refs;
             std::vector<std::string> draw_override_refs;
             std::vector<std::string> postproc_override_refs;
+            std::string postprocess_ref;
             std::vector<std::string> camera_anim_refs;
             std::string glow_spot_ref;
         };
@@ -3469,6 +3480,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             c.gen_hide_list_refs = decoded_shot->gen_hide_list;
             c.draw_override_refs = decoded_shot->draw_overrides;
             c.postproc_override_refs = decoded_shot->postproc_overrides;
+            c.postprocess_ref = prop_ref(decoded_shot->props, "postprocess");
             c.camera_anim_refs = decoded_shot->anims;
             c.glow_spot_ref = decoded_shot->glow_spot;
             c.ps3_per_pixel = decoded_shot->ps3_per_pixel;
@@ -3522,6 +3534,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
                 candidates.front().draw_override_refs;
             selected.postproc_override_refs =
                 candidates.front().postproc_override_refs;
+            selected.postprocess_ref = candidates.front().postprocess_ref;
             selected.camera_anim_refs = candidates.front().camera_anim_refs;
             selected.glow_spot_ref = candidates.front().glow_spot_ref;
             return selected;
@@ -10132,6 +10145,8 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                     pose.first.gen_hide_list_refs = gen_hide_list_refs;
                     pose.first.draw_override_refs = draw_override_refs;
                     pose.first.postproc_override_refs = postproc_override_refs;
+                    pose.first.postprocess_ref =
+                        prop_ref(decoded_shot->props, "postprocess");
                     pose.first.camera_anim_refs = camera_anim_refs;
                     pose.first.glow_spot_ref = glow_spot_ref;
                     out.push_back(pose.first);
@@ -15935,7 +15950,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -15972,6 +15987,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.gen_hide_list_refs.size(),
                          key.draw_override_refs.size(),
                          key.postproc_override_refs.size(),
+                         canonical_milo_ref(key.postprocess_ref).c_str(),
                          key.camera_anim_refs.size(),
                          key.glow_spot_ref.c_str(),
                          key.camshot_shot_fields_decoded ? 1 : 0,
@@ -23165,6 +23181,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_fov_anim_reported_.clear();
     active_camera_glow_spot_ref_.clear();
     active_camera_glow_spot_.reset();
+    active_camera_postprocess_ref_.clear();
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
@@ -24054,6 +24071,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
     set_camera_glow_spot_ref({});
+    active_camera_postprocess_ref_.clear();
     if (world_) {
         camera_unset_dof_proc_like_source(world_->camera());
         camera_unset_shake_like_no_current_camshot(world_->camera());
@@ -24093,6 +24111,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_fov_anim_refs_.clear();
     active_camera_anim_start_time_ = 0.0;
     active_camera_fov_anim_reported_.clear();
+    active_camera_postprocess_ref_.clear();
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
     active_camera_shot_over_reported_.clear();
@@ -24513,14 +24532,30 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             stderr,
             "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds shot=%s hide_crowd=%d face_camera=%d "
             "force_char_lod=%d ps3_per_pixel=%d hide_list=%zu show_list=%zu gen_hide=%zu "
-            "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
+            "draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s\n",
             active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
             key.crowd_face_camera ? 1 : 0, key.force_char_lod,
             key.ps3_per_pixel ? 1 : 0,
             key.hide_list_refs.size(), key.show_list_refs.size(),
             key.gen_hide_list_refs.size(), key.draw_override_refs.size(),
-            key.postproc_override_refs.size(), key.camera_anim_refs.size(),
+            key.postproc_override_refs.size(),
+            canonical_milo_ref(key.postprocess_ref).c_str(),
+            key.camera_anim_refs.size(),
             key.glow_spot_ref.c_str());
+    }
+    active_camera_postprocess_ref_ = canonical_milo_ref(key.postprocess_ref);
+    if (debug_venue_filters_enabled() || debug_camera_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera start_shot postprocess: source_script=world/camshot.dta source_platform=HX_XBOX shot=%s postprocess=%s action=%s result=%s postproc_overrides=%zu render_effect=native_deferred\n",
+            active_camera_runtime_shot_.c_str(),
+            active_camera_postprocess_ref_.empty()
+                ? "<none>"
+                : active_camera_postprocess_ref_.c_str(),
+            active_camera_postprocess_ref_.empty() ? "rnd reset_postproc"
+                                                   : "postprocess select",
+            active_camera_postprocess_ref_.empty() ? "cleared" : "selected",
+            key.postproc_override_refs.size());
     }
     active_force_char_lod_ = key.force_char_lod;
     if (debug_venue_filters_enabled()) {
@@ -31687,13 +31722,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     key.draw_override_refs = intro_camera.draw_override_refs;
                     key.postproc_override_refs =
                         intro_camera.postproc_override_refs;
+                    key.postprocess_ref = intro_camera.postprocess_ref;
                     key.camera_anim_refs = intro_camera.camera_anim_refs;
                     key.glow_spot_ref = intro_camera.glow_spot_ref;
                 }
                 if (debug_venue_filters_enabled()) {
                         std::fprintf(
                             stderr,
-                            "[world] intro camera flags: shot=%s anim=%s keys=%zu distance=%s facing=%s hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
+                            "[world] intro camera flags: shot=%s anim=%s keys=%zu distance=%s facing=%s hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s\n",
                             intro_camera.shot.c_str(),
                             intro_camera.anim.c_str(), camera_keys_.size(),
                             intro_camera.distance.c_str(),
@@ -31706,6 +31742,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             intro_camera.gen_hide_list_refs.size(),
                             intro_camera.draw_override_refs.size(),
                             intro_camera.postproc_override_refs.size(),
+                            canonical_milo_ref(
+                                intro_camera.postprocess_ref).c_str(),
                             intro_camera.camera_anim_refs.size(),
                             intro_camera.glow_spot_ref.c_str());
                 }
