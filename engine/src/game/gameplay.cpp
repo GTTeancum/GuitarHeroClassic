@@ -23065,13 +23065,13 @@ void apply_camera_keys(
             "source_projection=%s local_project_aspect=%.3f "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
-            "freecam_priority=deferred_last freecam_affects_gameplay=0 "
             "hidden_gameplay_blockers=%s active_blocker_scope=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
             "state_valid=%d "
-            "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\n",
+            "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
+            "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, result_filter_branch ? 1 : 0,
             source_build_transform_order ? "current_frame_twice"
                                          : "blended_seed",
@@ -34952,7 +34952,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         camera_manager_next_shot_like_source();
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0 hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\n",
+                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f pipeline_scope=normal_gameplay_camera hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),

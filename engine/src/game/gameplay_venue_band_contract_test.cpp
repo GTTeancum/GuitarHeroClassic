@@ -9554,7 +9554,8 @@ int main() {
                  "same-target CamShot screen offset preserves the cached-target blended transform");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp"
-                 "(BuildTransform,applyScreenOffset)\\n\"",
+                 "(BuildTransform,applyScreenOffset)\""
+                 "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\\n\"",
                  "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
                  "\"source_no_target_current_build_twice(\"",
@@ -9584,9 +9585,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"pose_coverage=%shidden_pose_boundary=%s\""
                  "\"pipeline_scope=normal_gameplay_camera\""
-                 "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\""
                  "\"hidden_gameplay_blockers=%sactive_blocker_scope=%s\"",
-                 "camera solver diagnostics keep gameplay camera pose triage separate from deferred FreeCam work");
+                 "camera solver diagnostics lead with gameplay camera pose triage");
+  ok &= contains(gameplay_c,
+                 "\"source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\""
+                 "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0",
+                 "camera solver diagnostics leave deferred FreeCam status at the end");
   ok &= contains(gameplay_c,
                  "submitted_result_from_ps2_trace?"
                  "\"cam_shot_ok|cam_check_shot|CharWalk\":"
@@ -13226,10 +13230,10 @@ int main() {
                  "regular camera sweep source_next flag is derived from queued mNextShot instead of a hard-coded proof value");
   ok &= contains(gameplay_c,
                  "pipeline_scope=normal_gameplay_camera"
+                 "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk"
                  "freecam_priority=deferred_last"
-                 "freecam_affects_gameplay=0"
-                 "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk",
-                 "regular camera sweep diagnostics keep normal gameplay camera scope separate from deferred FreeCam work");
+                 "freecam_affects_gameplay=0",
+                 "regular camera sweep diagnostics report gameplay blockers before deferred FreeCam status");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
                  "constGameplay::CameraKey*previous,"

@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera priority reporting:
+  Normal gameplay camera diagnostics now lead with source shot state, pose
+  boundaries, and hidden gameplay blockers, with FreeCam status left at the end
+  as `freecam_priority=deferred_last freecam_affects_gameplay=0`. This reflects
+  the current priority order: gameplay camera parity first, FreeCam last unless
+  it blocks normal play. This changes only diagnostics; it does not change camera
+  math, gameplay behavior, or dependencies.
 - 2026-07-15 gameplay camera projection boundary proof:
   ihatecompvir `CamShotFrame::Interp` applies same-target screen offset through
   `cam->LocalProjectXfm()`, and the RB2 dump for `RndCam::UpdateLocal` exposes
