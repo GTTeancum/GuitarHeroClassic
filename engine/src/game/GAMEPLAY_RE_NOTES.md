@@ -11865,6 +11865,13 @@ Rejected native probe:
   the live `[world] camera source path frame pair` row, so each suspicious
   path angle can be checked against the exact source page span used to build
   the camera keys.
+- 2026-07-15 follow-up: native path-camera sampling now explicitly inserts the
+  source `RndTransAnim::StartFrame()` and `EndFrame()` sentinels into the
+  merged trans/rot/scale sample-frame list before deduping. This mirrors the
+  source accessors' empty-page `0.0` behavior without guessing the hidden
+  `MakeTransform` body, so targetless or rotation-only path cameras keep the
+  source-held span boundary instead of silently starting at the first authored
+  non-empty key page.
 - 2026-07-14 path-backed TransAnim key-page proof:
   ihatecompvir exposes `TransKeys()`, `RotKeys()`, and `ScaleKeys()` as
   separate source pages behind `mKeysOwner`; native path camera keys now carry

@@ -8842,6 +8842,24 @@ int main() {
                  "constDecodedRndTransAnim&anim)",
                  "path-backed TransAnim camera sampling merges source key-page frames");
   ok &= contains(gameplay_c,
+                 "floatsource_rnd_transanim_start_frame("
+                 "constDecodedRndTransAnim&anim){returnstd::min({"
+                 "source_rnd_transanim_first_frame(anim.trans_keys),"
+                 "source_rnd_transanim_first_frame(anim.rot_keys),"
+                 "source_rnd_transanim_first_frame(anim.scale_keys)});}",
+                 "path-backed TransAnim camera sampling mirrors RndTransAnim::StartFrame over all key pages");
+  ok &= contains(gameplay_c,
+                 "floatsource_rnd_transanim_end_frame("
+                 "constDecodedRndTransAnim&anim){returnstd::max({"
+                 "source_rnd_transanim_last_frame(anim.trans_keys),"
+                 "source_rnd_transanim_last_frame(anim.rot_keys),"
+                 "source_rnd_transanim_last_frame(anim.scale_keys)});}",
+                 "path-backed TransAnim camera sampling mirrors RndTransAnim::EndFrame over all key pages");
+  ok &= contains(gameplay_c,
+                 "add_frame(source_rnd_transanim_start_frame(anim));"
+                 "add_frame(source_rnd_transanim_end_frame(anim));",
+                 "path-backed TransAnim camera sampling includes source start/end sentinels before key-page frames");
+  ok &= contains(gameplay_c,
                  "for(constauto&key:anim.rot_keys)add_frame(key.frame);"
                  "for(constauto&key:anim.scale_keys)add_frame(key.frame);",
                  "path-backed TransAnim camera sampling keeps rotation-only and scale-only source frames");
@@ -9028,6 +9046,9 @@ int main() {
                  "pos.path_source_end_frame=sample_frames.back();"
                  "pos.has_path_source_frame_summary=true;",
                  "path-backed camera positions retain source RndTransAnim page counts, start/end, and merged frame counts");
+  ok &= contains(gameplay_c,
+                 "source_span=RndTransAnim::StartFrame/EndFrame",
+                 "path-backed camera diagnostics name the source TransAnim span accessors");
   ok &= contains(gameplay_c,
                  "pos.path_trans_spline=resolved.trans_spline;"
                  "pos.path_repeat_trans=resolved.repeat_trans;"
@@ -11227,6 +11248,7 @@ int main() {
                  "source_path_flags=%strans_spline:%drepeat:%d"
                  "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
+                 "source_span=RndTransAnim::StartFrame/EndFrame"
                  "route=regular_camera_path_keyspath=%s"
                  "path_trans_target=%s"
                  "source_gate=RndTransAnim::SetFrame_mTrans"

@@ -2083,14 +2083,38 @@ std::array<float, 3> sample_rnd_transanim_scale_keys(
     return sample_rnd_transanim_trans_keys_once(keys, frame, spline);
 }
 
+float source_rnd_transanim_first_frame(
+    const std::vector<Gameplay::CameraKey>& keys) {
+    return keys.empty() ? 0.0f : keys.front().frame;
+}
+
+float source_rnd_transanim_last_frame(
+    const std::vector<Gameplay::CameraKey>& keys) {
+    return keys.empty() ? 0.0f : keys.back().frame;
+}
+
+float source_rnd_transanim_start_frame(const DecodedRndTransAnim& anim) {
+    return std::min({source_rnd_transanim_first_frame(anim.trans_keys),
+                     source_rnd_transanim_first_frame(anim.rot_keys),
+                     source_rnd_transanim_first_frame(anim.scale_keys)});
+}
+
+float source_rnd_transanim_end_frame(const DecodedRndTransAnim& anim) {
+    return std::max({source_rnd_transanim_last_frame(anim.trans_keys),
+                     source_rnd_transanim_last_frame(anim.rot_keys),
+                     source_rnd_transanim_last_frame(anim.scale_keys)});
+}
+
 std::vector<float> source_rnd_transanim_sample_frames(
     const DecodedRndTransAnim& anim) {
     std::vector<float> frames;
     frames.reserve(anim.trans_keys.size() + anim.rot_keys.size() +
-                   anim.scale_keys.size());
+                   anim.scale_keys.size() + 2);
     auto add_frame = [&](float frame) {
         if (std::isfinite(frame)) frames.push_back(frame);
     };
+    add_frame(source_rnd_transanim_start_frame(anim));
+    add_frame(source_rnd_transanim_end_frame(anim));
     for (const auto& key : anim.trans_keys) add_frame(key.frame);
     for (const auto& key : anim.rot_keys) add_frame(key.frame);
     for (const auto& key : anim.scale_keys) add_frame(key.frame);
@@ -10293,6 +10317,7 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 "trans=%s owner=%s end=0x%zX/%zu trans_keys=%zu rot_keys=%zu "
                 "scale_keys=%zu source_sample_frames=%zu added_source_frames=%zu flags=trans_spline:%d repeat:%d "
                 "scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d "
+                "source_span=RndTransAnim::StartFrame/EndFrame "
                 "source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d "
                 "mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only "
                 "first=f%.3f:(%.3f %.3f %.3f) scale=%s(%.3f %.3f %.3f) "
@@ -34380,7 +34405,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             key->name + ":path";
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only native_path_submit=decoded_trans_rot_scale_pages path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored source_span=RndTransAnim::StartFrame/EndFrame route=regular_camera_path_keys path=%s path_trans_target=%s source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only native_path_submit=decoded_trans_rot_scale_pages path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), source_shot_local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
