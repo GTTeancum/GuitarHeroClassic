@@ -6464,6 +6464,22 @@ targets are length-prefixed at byte 151. The checker currently passes with
 `matrix0_offset=46`, `matrix1_offset=94`, `target_mesh=spot_ui.mesh`, and
 `max_manifest_delta=0.000046`, proving the committed placer manifest is derived
 from stock asset bytes.
+
+`tools/check_lower_body_2p_select_clip_assets.py` separately verifies the stock
+2P character-select animation identity from ARK and MILO rows. It lists the
+stock archive, rejects hidden per-character `2p` / `multi` / `select` animation
+MILOs for the active and source-family proof subjects, extracts
+`ui/gen/multi_sel_character.milo_ps2` and `ui/gen/char_multi.milo_ps2`, and
+requires those screen MILOs to be `PanelDir` containers with no
+`CharClipSamples` / `CharClipSet` body motion. It then extracts the relevant
+per-character `*_ui` animation MILOs and requires a `*_ui` `CharClipSet` with
+exactly `ui_enter` and `ui_loop`. The checker currently passes with
+`screen_body_clips=absent`, `per_character_motion=ui_clipset`,
+`ui_clip_samples=ui_enter,ui_loop`, `separate_2p_anim_assets=absent`,
+`rock2_shared_ui_anim=rock1_ui`, and `stock_asset_identity=true`. This pins the
+source-backed explanation: the true 2P select distinction is event and placer
+context, not a separate stock body-animation file.
+
 `tools/check_lower_body_2p_select_app_placer.py` also verifies that the native
 diagnostic `--char-2p-select-placer` matrices still match the stock manifest
 `matrix0` rows and that the proof hook exposes `--char-2p-select-event`.

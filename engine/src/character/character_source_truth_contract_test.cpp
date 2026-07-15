@@ -207,6 +207,9 @@ int run_contract() {
   const std::string lower_body_2p_select_source_assets = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_source_assets.py"));
+  const std::string lower_body_2p_select_clip_assets = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_clip_assets.py"));
   const std::string lower_body_2p_select_char_events = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_char_events.py"));
@@ -34781,6 +34784,18 @@ int run_contract() {
                  "`tools/check_lower_body_2p_select_source_assets.py`",
                  "document records stock BandPlacer asset verifier");
   ok &= contains(doc,
+                 "`tools/check_lower_body_2p_select_clip_assets.py`",
+                 "document records stock clip asset verifier");
+  ok &= contains(doc,
+                 "`screen_body_clips=absent`",
+                 "document records 2P screen body clips absent");
+  ok &= contains(doc,
+                 "`separate_2p_anim_assets=absent`",
+                 "document records separate 2P anim assets absent");
+  ok &= contains(doc,
+                 "`rock2_shared_ui_anim=rock1_ui`",
+                 "document records Rock2 shared UI animation source");
+  ok &= contains(doc,
                  "`tools/check_lower_body_2p_select_char_events.py`",
                  "document records stock character event verifier");
   ok &= contains(doc,
@@ -35033,6 +35048,34 @@ int run_contract() {
       "\"entry\":\"BandPlacer__char_multi1.placer\"",
       "2P source asset checker pins P2 BandPlacer entry");
   ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "SCREEN_MILOS=(",
+      "2P clip asset checker pins screen MILO set");
+  ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "CHARACTER_SOURCES={",
+      "2P clip asset checker pins character UI source map");
+  ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "ABSENT_CHARACTER_ANIMS",
+      "2P clip asset checker pins absent shared anim rows");
+  ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "FORBIDDEN_ANIM_TOKENS=(\"2p\",\"multi\",\"select\")",
+      "2P clip asset checker rejects invented 2P/select anim sources");
+  ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "screen_body_clips=absent",
+      "2P clip asset checker reports screen body clips absent");
+  ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "separate_2p_anim_assets=absent",
+      "2P clip asset checker reports separate 2P anim assets absent");
+  ok &= contains(
+      lower_body_2p_select_clip_assets,
+      "rock2_shared_ui_anim=rock1_ui",
+      "2P clip asset checker records Rock2 shared UI animation");
+  ok &= contains(
       lower_body_2p_select_char_events,
       "MULTIPLAYER_DTB=\"ui/gen/multiplayer.dtb\"",
       "2P event checker pins stock multiplayer script");
@@ -35088,6 +35131,10 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select_source_assets=true",
       "completion audit reports stock BandPlacer verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_clip_assets=true",
+      "completion audit reports stock 2P clip asset verifier status");
   ok &= contains(
       lower_body_completion_audit,
       "two_player_select_char_events=true",

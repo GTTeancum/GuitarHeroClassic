@@ -129,6 +129,7 @@ REQUIRED_FILES = (
     "tools/check_lower_body_2p_select_context_proofs.py",
     "tools/check_lower_body_2p_select_family_proofs.py",
     "tools/check_lower_body_2p_select_source_assets.py",
+    "tools/check_lower_body_2p_select_clip_assets.py",
     "tools/check_lower_body_2p_select_char_events.py",
     "tools/check_lower_body_2p_select_app_placer.py",
     "tools/lower_body_2p_select_source_manifest.json",
@@ -362,6 +363,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         root / "tools/check_lower_body_2p_select_family_proofs.py"
     )
     two_player_select_assets = read(root / "tools/check_lower_body_2p_select_source_assets.py")
+    two_player_select_clip_assets = read(root / "tools/check_lower_body_2p_select_clip_assets.py")
     two_player_select_events = read(root / "tools/check_lower_body_2p_select_char_events.py")
     two_player_select_app = read(root / "tools/check_lower_body_2p_select_app_placer.py")
     two_player_select_manifest = read(root / "tools/lower_body_2p_select_source_manifest.json")
@@ -369,6 +371,11 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         root,
         "tools/check_lower_body_2p_select_source_assets.py",
         "two-player character-select stock asset checker",
+    )
+    two_player_select_clip_assets_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_clip_assets.py",
+        "two-player character-select stock clip asset checker",
     )
     two_player_select_events_output = run_checker(
         root,
@@ -664,6 +671,37 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     ):
         require_contains(two_player_select_assets_output, marker, f"2P select asset output marker {marker}")
     for marker in (
+        "SCREEN_MILOS = (",
+        "CHARACTER_SOURCES = {",
+        "ABSENT_CHARACTER_ANIMS",
+        "FORBIDDEN_ANIM_TOKENS",
+        "screen_body_clips=absent",
+        "separate_2p_anim_assets=absent",
+        "rock2_shared_ui_anim=rock1_ui",
+    ):
+        require_contains(
+            two_player_select_clip_assets,
+            marker,
+            f"2P select clip asset checker marker {marker}",
+        )
+    for marker in (
+        "PASS lower_body_2p_select_clip_assets",
+        "source=stock_GH2_PS2",
+        "characters=glam1,metal1,rock1,rock2,funk1,deathmetal1",
+        "screen_milos=multi_sel_character,char_multi",
+        "screen_body_clips=absent",
+        "per_character_motion=ui_clipset",
+        "ui_clip_samples=ui_enter,ui_loop",
+        "separate_2p_anim_assets=absent",
+        "rock2_shared_ui_anim=rock1_ui",
+        "stock_asset_identity=true",
+    ):
+        require_contains(
+            two_player_select_clip_assets_output,
+            marker,
+            f"2P select clip asset output marker {marker}",
+        )
+    for marker in (
         "MULTIPLAYER_DTB = \"ui/gen/multiplayer.dtb\"",
         "CHAR_OBJECTS_DTB = \"char/gen/char_objects.dtb\"",
         "char_multichar_event",
@@ -789,6 +827,7 @@ def main() -> int:
         "stock_checker_passed=true stock_linked_proof_pngs=true "
         "metal1_ui_select_flat_foot=true active_ui_select_flat_foot=true "
         "two_player_select=true two_player_select_source_assets=true "
+        "two_player_select_clip_assets=true "
         "two_player_select_char_events=true two_player_select_app_placer=true "
         "two_player_select_slot_sweep=true two_player_select_context=true "
         "two_player_select_family=true "
