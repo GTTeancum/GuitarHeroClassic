@@ -6351,6 +6351,24 @@ and viewer pelvis, both thighs, both knees, both ankles, and both toes for
 Glam1 and Metal1 at `max_delta=0.000000`. This remains leg-only proof; it does
 not sign off Metal1's visible right shoulder/hand concern.
 
+2026-07-15 lower-body source row authority:
+ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows
+`CharBone::StuffBones` is the source-visible row authority: an authored
+`CharBone` contributes position, scale, and rotation rows only when the matching
+context bit is active, names each row through `CharBones::ChannelName`, and
+uses `GetWeight(context)`. `rb3-latest/src/system/char/CharClip.cpp` shows
+`CharClip::PoseMeshes` builds `tmp_viseme_bones`, calls `StuffBones(meshes)`,
+then `ScaleDown`, `ScaleAdd`, and `meshes.PoseMeshes()`. `CharBonesSamples.cpp`
+shows the adjacent-sample split used by `ScaleAddSample` before it delegates to
+`CharBones::ScaleAdd`. Together, these source-visible rows explain why the
+native lower-body bridge is allowed to publish only the active clip's decoded
+lower-body `OutputBone` subset: those are the authored rows that should bridge
+sampled clip data into mesh posing. This is still not a full replacement for
+the fenced `CharBones::ScaleAdd(CharBones&, float)` /
+`CharBonesMeshes::PoseMeshes` implementation, and it does not authorize raw
+sampled-channel writeback, character-specific offsets, or foot/ankle/toe
+fixups.
+
 Lower-body evidence audit:
 - Root cause found: the original "standing but floating with legs forward"
   frame was not static bind pose, camera angle, hand overlays, foot IK, or a

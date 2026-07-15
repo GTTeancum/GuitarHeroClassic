@@ -171,6 +171,9 @@ int run_contract() {
   const std::string lower_body_shared_path = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_shared_path.py"));
+  const std::string lower_body_source_row_authority = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_source_row_authority.py"));
   const std::string lower_body_current_commit_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_current_commit_proofs.py"));
@@ -34061,6 +34064,41 @@ int run_contract() {
       lower_body_shared_path,
       "local_filters=hand_overlay_only",
       "lower-body shared-path audit reports app-local filter boundary");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "CharBone::StuffBones",
+      "lower-body source-row authority checker inspects CharBone::StuffBones");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "CharClip::PoseMeshes",
+      "lower-body source-row authority checker inspects CharClip::PoseMeshes");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "CharBonesSamples::ScaleAddSample",
+      "lower-body source-row authority checker inspects sample split");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "native_output_subset=true",
+      "lower-body source-row authority checker reports native output subset");
+  ok &= contains(
+      lower_body_source_row_authority,
+      "no_shortcut_fix=true",
+      "lower-body source-row authority checker rejects shortcut fixes");
+  ok &= contains(doc,
+                 "2026-07-15 lower-body source row authority:",
+                 "document records lower-body source row authority");
+  ok &= contains(doc,
+                 "`CharBone::StuffBones` is the source-visible row authority",
+                 "document records CharBone row authority");
+  ok &= contains(doc,
+                 "`CharClip::PoseMeshes` builds `tmp_viseme_bones`",
+                 "document records CharClip PoseMeshes row handoff");
+  ok &= contains(doc,
+                 "active clip's decoded\nlower-body `OutputBone` subset",
+                 "document bounds lower-body bridge to decoded output subset");
+  ok &= contains(doc,
+                 "does not authorize raw\nsampled-channel writeback",
+                 "document rejects raw sampled lower-body writeback");
   ok &= contains(
       lower_body_current_commit_proofs,
       "FORBIDDEN_LOG_MARKERS",
