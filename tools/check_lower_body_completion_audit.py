@@ -126,6 +126,8 @@ REQUIRED_FILES = (
     "tools/check_lower_body_active_ui_select_proofs.py",
     "tools/check_lower_body_2p_select_proofs.py",
     "tools/check_lower_body_2p_select_source_assets.py",
+    "tools/check_lower_body_2p_select_char_events.py",
+    "tools/check_lower_body_2p_select_app_placer.py",
     "tools/lower_body_2p_select_source_manifest.json",
     "tools/check_lower_body_pcsx2_row_trace.py",
     "tools/lower_body_pcsx2_row_trace_manifest.json",
@@ -337,11 +339,23 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     )
     two_player_select = read(root / "tools/check_lower_body_2p_select_proofs.py")
     two_player_select_assets = read(root / "tools/check_lower_body_2p_select_source_assets.py")
+    two_player_select_events = read(root / "tools/check_lower_body_2p_select_char_events.py")
+    two_player_select_app = read(root / "tools/check_lower_body_2p_select_app_placer.py")
     two_player_select_manifest = read(root / "tools/lower_body_2p_select_source_manifest.json")
     two_player_select_assets_output = run_checker(
         root,
         "tools/check_lower_body_2p_select_source_assets.py",
         "two-player character-select stock asset checker",
+    )
+    two_player_select_events_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_char_events.py",
+        "two-player character-select stock char event checker",
+    )
+    two_player_select_app_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_app_placer.py",
+        "two-player character-select app placer checker",
     )
     two_player_select_output = run_checker(
         root,
@@ -451,27 +465,34 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     ):
         require_contains(active_ui_select_output, marker, f"active UI/select output marker {marker}")
     for marker in (
-        "lower_body_2p_select_20260715",
+        "lower_body_2p_select_event_20260715",
         "multi_sel_character_screen",
         "panel=char_multi",
-        "event=animate",
+        "event=select",
         "skips_ui_enter=true",
+        "char_objects=char/gen/char_objects.dtb",
+        "reset_hair=false",
         "char_multi0.placer",
         "char_multi1.placer",
-        "glam1_2p_animate_ui_loop_f030_front.png",
-        "glam1_2p_animate_ui_loop_f040_front.png",
-        "metal1_2p_animate_ui_loop_f030_front.png",
-        "metal1_2p_animate_ui_loop_f040_front.png",
+        "glam1_2p_select_ui_loop_f030_front.png",
+        "glam1_2p_select_ui_loop_f040_front.png",
+        "metal1_2p_select_ui_loop_f030_front.png",
+        "metal1_2p_select_ui_loop_f040_front.png",
     ):
         require_contains(two_player_select, marker, f"2P select proof marker {marker}")
     for marker in (
         "\"screen_script\": \"ui/gen/multiplayer.dtb\"",
         "\"screen\": \"multi_sel_character_screen\"",
         "\"scroll_event\": \"{char_multi char_event $playerNum animate}\"",
-        "\"single_player\": \"play ui_enter kPlayNoBlend, then ui_loop | kPlayLast kPlayGraphLoop\"",
-        "\"multiplayer\": \"play ui_loop | kPlayLast kPlayGraphLoop\"",
+        "\"outfit_focus_event\": \"{char_multi char_event [player_num] select}\"",
+        "\"char_objects_source\": \"char/gen/char_objects.dtb\"",
+        "\"single_player_animate\": \"reset_hair, then play ui_enter kPlayNoBlend, then play ui_loop | kPlayLast kPlayGraphLoop\"",
+        "\"multiplayer_animate\": \"reset_hair, then play ui_loop | kPlayLast kPlayGraphLoop\"",
+        "\"select\": \"play ui_loop | kPlayLast kPlayGraphLoop\"",
         "\"target_mesh\": \"spot_ui.mesh\"",
         "\"diagnostic_option\": \"--char-2p-select-placer\"",
+        "\"diagnostic_event_option\": \"--char-2p-select-event select\"",
+        "\"event\": \"select\"",
         "\"reference_base\": \"live toe-row floor when toe bones exist\"",
     ):
         require_contains(two_player_select_manifest, marker, f"2P select manifest marker {marker}")
@@ -479,7 +500,8 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "PASS lower_body_2p_select_proofs",
         "characters=glam1,metal1",
         "screen=multi_sel_character_screen panel=char_multi",
-        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
+        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "char_objects=char/gen/char_objects.dtb",
         "placers=char_multi0.placer,char_multi1.placer",
         "applied_placers=char_multi0.placer,char_multi1.placer",
         "frames=30,40",
@@ -508,6 +530,41 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "target_group=mgs_camerafix.grp target_mesh=spot_ui.mesh",
     ):
         require_contains(two_player_select_assets_output, marker, f"2P select asset output marker {marker}")
+    for marker in (
+        "MULTIPLAYER_DTB = \"ui/gen/multiplayer.dtb\"",
+        "CHAR_OBJECTS_DTB = \"char/gen/char_objects.dtb\"",
+        "char_multichar_event",
+        "animate_multiplayer=reset_hair+ui_loop",
+        "select=ui_loop",
+    ):
+        require_contains(two_player_select_events, marker, f"2P select event checker marker {marker}")
+    for marker in (
+        "PASS lower_body_2p_select_char_events",
+        "source=stock_GH2_PS2",
+        "screen_script=ui/gen/multiplayer.dtb",
+        "char_objects=char/gen/char_objects.dtb",
+        "events=animate,select",
+        "animate_multiplayer=reset_hair+ui_loop",
+        "select=ui_loop",
+        "single_player=ui_enter+ui_loop",
+    ):
+        require_contains(two_player_select_events_output, marker, f"2P select event output marker {marker}")
+    for marker in (
+        "compact_matrix16_to_source_matrix12",
+        "--char-2p-select-placer",
+        "--char-2p-select-event",
+        "applied_placer=%s",
+        "char_multi0.placer",
+        "char_multi1.placer",
+    ):
+        require_contains(two_player_select_app, marker, f"2P select app placer marker {marker}")
+    for marker in (
+        "PASS lower_body_2p_select_app_placer",
+        "players=0,1",
+        "app_placers=char_multi0.placer,char_multi1.placer",
+        "manifest_matrix=matrix0",
+    ):
+        require_contains(two_player_select_app_output, marker, f"2P select app placer output marker {marker}")
     cases = pose_manifest.get("cases")
     require(isinstance(cases, list) and len(cases) == 2, "Glam1/Metal1 manifest must have two cases")
     characters = {case.get("character") for case in cases if isinstance(case, dict)}
@@ -599,6 +656,7 @@ def main() -> int:
         "stock_checker_passed=true stock_linked_proof_pngs=true "
         "metal1_ui_select_flat_foot=true active_ui_select_flat_foot=true "
         "two_player_select=true two_player_select_source_assets=true "
+        "two_player_select_char_events=true two_player_select_app_placer=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

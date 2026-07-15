@@ -198,6 +198,12 @@ int run_contract() {
   const std::string lower_body_2p_select_source_assets = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_2p_select_source_assets.py"));
+  const std::string lower_body_2p_select_char_events = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_char_events.py"));
+  const std::string lower_body_2p_select_app_placer = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_app_placer.py"));
   const std::string lower_body_2p_select_source_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_2p_select_source_manifest.json"));
@@ -34270,6 +34276,22 @@ int run_contract() {
       "lower-body completion audit reports active UI/select flat-foot proof");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_2p_select_char_events.py\"",
+      "lower-body completion audit runs stock 2P select event checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_char_events=true",
+      "lower-body completion audit reports stock 2P select event proof");
+  ok &= contains(
+      lower_body_completion_audit,
+      "run_checker(root,\"tools/check_lower_body_2p_select_app_placer.py\"",
+      "lower-body completion audit runs app 2P placer checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_app_placer=true",
+      "lower-body completion audit reports app 2P placer proof");
+  ok &= contains(
+      lower_body_completion_audit,
       "proof_min_resolution=1280x720stock_visuals=true",
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
@@ -34355,9 +34377,14 @@ int run_contract() {
                  "document records proof artifact log marker requirement");
   ok &= contains(doc,
                  "`metal1_ui_select_flat_foot=true`,\n  "
-                 "`active_ui_select_flat_foot=true`, `source_boundary_active=true`, and\n"
-                 "  `goal_active=true`",
+                 "`active_ui_select_flat_foot=true`, `two_player_select=true`,\n"
+                 "  `two_player_select_source_assets=true`,",
                  "document records active source boundary and goal status");
+  ok &= contains(doc,
+                 "`two_player_select_char_events=true`,\n  "
+                 "`two_player_select_app_placer=true`, `source_boundary_active=true`, and\n"
+                 "  `goal_active=true`",
+                 "document records 2P select audit guard status");
   ok &= contains(doc,
                  "intentionally a lower-body slice audit only",
                  "document scopes completion audit to lower body");
@@ -34635,8 +34662,8 @@ int run_contract() {
       "active_ui_select_flat_foot=true",
       "active UI/select proof checker reports flat-foot status");
   ok &= contains(doc,
-                 "2026-07-15 two-player character-select animate branch proof:",
-                 "document records two-player select animate branch proof");
+                 "2026-07-15 two-player character-select event proof:",
+                 "document records two-player select event proof");
   ok &= contains(compact(doc),
                  "`ui/gen/multiplayer.dtb`scriptdrivestheactualtwo-player"
                  "character-selectpath",
@@ -34644,12 +34671,17 @@ int run_contract() {
   ok &= contains(doc,
                  "`{char_multi char_event $playerNum animate}`",
                  "document records char_multi animate event");
-  ok &= contains(compact(doc),
-                 "multiplayerskips`ui_enter`andloops`ui_loop|"
-                 "kPlayLastkPlayGraphLoop`",
-                 "document records 2P skips ui_enter");
   ok &= contains(doc,
-                 "`engine/out/visual_proofs/lower_body_2p_select_20260715/`",
+                 "`{char_multi char_event [player_num] select}`",
+                 "document records char_multi select event");
+  ok &= contains(compact(doc),
+                 "Stock`char/gen/char_objects.dtb`containsthecharactereventrows",
+                 "document records stock char_objects event source");
+  ok &= contains(compact(doc),
+                 "Thereisthereforenoseparatestock2Pclipnamefoundhere",
+                 "document records no separate 2P clip name");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_2p_select_event_20260715/`",
                  "document records 2P select proof folder");
   ok &= contains(doc,
                  "`two_player_select=true`",
@@ -34658,11 +34690,20 @@ int run_contract() {
                  "`--char-2p-select-placer`",
                  "document records applied 2P placer diagnostic hook");
   ok &= contains(doc,
+                 "`--char-2p-select-event`",
+                 "document records applied 2P event diagnostic hook");
+  ok &= contains(doc,
                  "live toe-row reference base",
                  "document records live toe-row proof base");
   ok &= contains(doc,
                  "`tools/check_lower_body_2p_select_source_assets.py`",
                  "document records stock BandPlacer asset verifier");
+  ok &= contains(doc,
+                 "`tools/check_lower_body_2p_select_char_events.py`",
+                 "document records stock character event verifier");
+  ok &= contains(doc,
+                 "`tools/check_lower_body_2p_select_app_placer.py`",
+                 "document records app placer verifier");
   ok &= contains(doc,
                  "`max_manifest_delta=0.000046`",
                  "document records stock BandPlacer manifest delta");
@@ -34672,12 +34713,20 @@ int run_contract() {
       "app exposes 2P select placer diagnostic hook");
   ok &= contains(
       app_main,
+      "--char-2p-select-event",
+      "app exposes 2P select event diagnostic hook");
+  ok &= contains(
+      app_main,
       "applied_placer=%splayer=%dmatrix=matrix0",
       "app logs applied 2P placer source row");
   ok &= contains(
       app_main,
       "source=ui/gen/multi_sel_character.milo_ps2",
       "app logs 2P placer MILO source");
+  ok &= contains(
+      app_main,
+      "char_objects=char/gen/char_objects.dtb",
+      "app logs 2P character event source");
   ok &= contains(
       renderer,
       "current_toe_reference_z",
@@ -34700,17 +34749,37 @@ int run_contract() {
       "2P select manifest pins char_multi animate event");
   ok &= contains(
       lower_body_2p_select_source_manifest,
-      "\"single_player\":\"playui_enterkPlayNoBlend,thenui_loop|"
+      "\"outfit_focus_event\":\"{char_multichar_event[player_num]select}\"",
+      "2P select manifest pins char_multi select event");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"char_objects_source\":\"char/gen/char_objects.dtb\"",
+      "2P select manifest pins char_objects source");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"single_player_animate\":\"reset_hair,thenplayui_enterkPlayNoBlend,thenplayui_loop|"
       "kPlayLastkPlayGraphLoop\"",
       "2P select manifest records single-player ui_enter branch");
   ok &= contains(
       lower_body_2p_select_source_manifest,
-      "\"multiplayer\":\"playui_loop|kPlayLastkPlayGraphLoop\"",
-      "2P select manifest records 2P ui_loop branch");
+      "\"multiplayer_animate\":\"reset_hair,thenplayui_loop|kPlayLastkPlayGraphLoop\"",
+      "2P select manifest records 2P animate ui_loop branch");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"select\":\"playui_loop|kPlayLastkPlayGraphLoop\"",
+      "2P select manifest records 2P select ui_loop branch");
   ok &= contains(
       lower_body_2p_select_source_manifest,
       "\"diagnostic_option\":\"--char-2p-select-placer\"",
       "2P select manifest records applied placer diagnostic option");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"diagnostic_event_option\":\"--char-2p-select-eventselect\"",
+      "2P select manifest records applied event diagnostic option");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"event\":\"select\"",
+      "2P select manifest records select proof event");
   ok &= contains(
       lower_body_2p_select_source_manifest,
       "\"reference_base\":\"livetoe-rowfloorwhentoebonesexist\"",
@@ -34727,7 +34796,7 @@ int run_contract() {
       "2P select manifest records P2 placer matrix");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "lower_body_2p_select_20260715",
+      "lower_body_2p_select_event_20260715",
       "2P select proof checker pins proof folder");
   ok &= contains(
       lower_body_2p_select_proofs,
@@ -34739,8 +34808,20 @@ int run_contract() {
       "2P select proof checker pins char_multi panel");
   ok &= contains(
       lower_body_2p_select_proofs,
+      "event=select",
+      "2P select proof checker pins select event");
+  ok &= contains(
+      lower_body_2p_select_proofs,
       "skips_ui_enter=true",
       "2P select proof checker pins skip-ui-enter branch");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "char_objects=char/gen/char_objects.dtb",
+      "2P select proof checker pins char_objects source");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "reset_hair=false",
+      "2P select proof checker pins select reset-hair rule");
   ok &= contains(
       lower_body_2p_select_proofs,
       "applied_placer={case.placer}",
@@ -34774,12 +34855,36 @@ int run_contract() {
       "\"entry\":\"BandPlacer__char_multi1.placer\"",
       "2P source asset checker pins P2 BandPlacer entry");
   ok &= contains(
+      lower_body_2p_select_char_events,
+      "MULTIPLAYER_DTB=\"ui/gen/multiplayer.dtb\"",
+      "2P event checker pins stock multiplayer script");
+  ok &= contains(
+      lower_body_2p_select_char_events,
+      "CHAR_OBJECTS_DTB=\"char/gen/char_objects.dtb\"",
+      "2P event checker pins stock char_objects source");
+  ok &= contains(
+      lower_body_2p_select_char_events,
+      "PASSlower_body_2p_select_char_events",
+      "2P event checker reports pass status");
+  ok &= contains(
+      lower_body_2p_select_char_events,
+      "events=animate,select",
+      "2P event checker reports animate/select events");
+  ok &= contains(
+      lower_body_2p_select_app_placer,
+      "compact_matrix16_to_source_matrix12",
+      "2P app placer checker compares app matrix to manifest matrix");
+  ok &= contains(
+      lower_body_2p_select_app_placer,
+      "--char-2p-select-event",
+      "2P app placer checker requires event option");
+  ok &= contains(
       lower_body_2p_select_proofs,
-      "glam1_2p_animate_ui_loop_f030_front.png",
+      "glam1_2p_select_ui_loop_f030_front.png",
       "2P select proof checker pins Glam1 frame 30 PNG");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "metal1_2p_animate_ui_loop_f040_front.png",
+      "metal1_2p_select_ui_loop_f040_front.png",
       "2P select proof checker pins Metal1 frame 40 PNG");
   ok &= contains(
       lower_body_completion_audit,
@@ -34805,6 +34910,14 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select_source_assets=true",
       "completion audit reports stock BandPlacer verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_char_events=true",
+      "completion audit reports stock char event verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select_app_placer=true",
+      "completion audit reports app placer verifier status");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");

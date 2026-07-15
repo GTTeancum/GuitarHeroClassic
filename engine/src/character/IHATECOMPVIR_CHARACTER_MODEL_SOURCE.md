@@ -6429,20 +6429,32 @@ soft-green background, reference base, and output-map diagnostics enabled.
 still UI/select lower-body evidence only; it does not close the broader
 source-publisher gap or sign off Metal1's open right shoulder/hand issue.
 
-2026-07-15 two-player character-select animate branch proof:
+2026-07-15 two-player character-select event proof:
 The stock `ui/gen/multiplayer.dtb` script drives the actual two-player
 character-select path, not the single-player `char_single` screen alone. On
 `multi_sel_character_screen`, `multi_sel_character_panel` loads
 `ui/gen/multi_sel_character.milo_ps2`, `char_multi` loads
 `ui/gen/char_multi.milo_ps2`, scrolling a player calls
-`{char_multi char_event $playerNum animate}`, and transition completion sets
-`char_multi0.placer` / `char_multi1.placer` from the multiplayer screen. The
-decoded placer evidence in `tools/lower_body_2p_select_source_manifest.json`
-records `char_multi0.placer` at about X=`-35` and `char_multi1.placer` at about
-X=`+35`, both targeting `spot_ui.mesh` under `mgs_camerafix.grp`. The
-`char_objects_ps2` rule for `animate` means multiplayer skips `ui_enter` and
-loops `ui_loop | kPlayLast kPlayGraphLoop`; single-player is the branch that
-plays `ui_enter` before `ui_loop`.
+`{char_multi char_event $playerNum animate}`, and the two outfit panels call
+`{char_multi char_event [player_num] select}` after focus/load changes. Stock
+`char/gen/char_objects.dtb` contains the character event rows: multiplayer
+`animate` does `reset_hair` and then loops `ui_loop | kPlayLast
+kPlayGraphLoop`; the single-player `animate` branch is the one that plays
+`ui_enter kPlayNoBlend` before the same `ui_loop`; and the `select` event loops
+`ui_loop | kPlayLast kPlayGraphLoop` directly. There is therefore no separate
+stock 2P clip name found here; the important distinction is the 2P menu event
+and placement context, not a different animation file.
+`tools/check_lower_body_2p_select_char_events.py` re-extracts
+`ui/gen/multiplayer.dtb` and `char/gen/char_objects.dtb` from the stock GH2 PS2
+ARK and currently passes with `source=stock_GH2_PS2`,
+`events=animate,select`, `animate_multiplayer=reset_hair+ui_loop`,
+`select=ui_loop`, and `single_player=ui_enter+ui_loop`.
+
+Transition completion sets `char_multi0.placer` / `char_multi1.placer` from the
+multiplayer screen. The decoded placer evidence in
+`tools/lower_body_2p_select_source_manifest.json` records
+`char_multi0.placer` at about X=`-35` and `char_multi1.placer` at about X=`+35`,
+both targeting `spot_ui.mesh` under `mgs_camerafix.grp`.
 `tools/check_lower_body_2p_select_source_assets.py` re-extracts
 `ui/gen/multi_sel_character.milo_ps2` from the stock GH2 PS2 ARK and decodes
 the two `BandPlacer` entry bodies directly: `matrix0` starts at byte 46,
@@ -6452,19 +6464,24 @@ targets are length-prefixed at byte 151. The checker currently passes with
 `matrix0_offset=46`, `matrix1_offset=94`, `target_mesh=spot_ui.mesh`, and
 `max_manifest_delta=0.000046`, proving the committed placer manifest is derived
 from stock asset bytes.
+`tools/check_lower_body_2p_select_app_placer.py` also verifies that the native
+diagnostic `--char-2p-select-placer` matrices still match the stock manifest
+`matrix0` rows and that the proof hook exposes `--char-2p-select-event`.
 
-`engine/out/visual_proofs/lower_body_2p_select_20260715/` captures individual
-front full-body screenshots for Glam1 and Metal1 at `ui_loop` frames 30 and 40,
-with guitar disabled, soft-green background, live toe-row reference base, and
-output-map diagnostics enabled. The proof app applies the decoded
+`engine/out/visual_proofs/lower_body_2p_select_event_20260715/` captures
+individual front full-body screenshots for Glam1 and Metal1 at `ui_loop` frames
+30 and 40 using the 2P `select` event label, with guitar disabled, soft-green
+background, live toe-row reference base, and output-map diagnostics enabled.
+The proof app applies the decoded
 `char_multi0.placer` matrix0 to Glam1 and `char_multi1.placer` matrix0 to
 Metal1 through the diagnostic `--char-2p-select-placer` hook, so the screenshots
-no longer rely on an isolated `_ui` character pose alone. The hook is a proof
-placement transform only; it does not alter lower-body pose solving.
+no longer rely on the single-player dressing-room screen context. The hook is a
+proof placement/event transform only; it does not alter lower-body pose solving.
 `tools/check_lower_body_2p_select_proofs.py` passes with
 `characters=glam1,metal1`, `screen=multi_sel_character_screen`,
-`panel=char_multi`, `event=animate`, `multiplayer_clip=ui_loop`,
-`skips_ui_enter=true`, `placers=char_multi0.placer,char_multi1.placer`,
+`panel=char_multi`, `event=select`, `multiplayer_clip=ui_loop`,
+`skips_ui_enter=true`, `char_objects=char/gen/char_objects.dtb`,
+`placers=char_multi0.placer,char_multi1.placer`,
 `applied_placers=char_multi0.placer,char_multi1.placer`, `frames=30,40`,
 `cases=4`, `two_player_select=true`, `live_reference_base=true`,
 `max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
@@ -6631,7 +6648,10 @@ Lower-body evidence audit:
   `individual_proofs=true`, `proof_min_resolution=1280x720`,
   `stock_visuals=true`, `stock_checker_passed=true`,
   `stock_linked_proof_pngs=true`, `metal1_ui_select_flat_foot=true`,
-  `active_ui_select_flat_foot=true`, `source_boundary_active=true`, and
+  `active_ui_select_flat_foot=true`, `two_player_select=true`,
+  `two_player_select_source_assets=true`,
+  `two_player_select_char_events=true`,
+  `two_player_select_app_placer=true`, `source_boundary_active=true`, and
   `goal_active=true`. The eight artifact checks cover the four isolated
   Glam1/Metal1 viewer PNG/log pairs and the four current in-game/viewer PNG/log
   pairs as individual high-resolution frames, not contact sheets, while the

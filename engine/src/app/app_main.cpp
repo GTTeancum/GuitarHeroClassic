@@ -1188,6 +1188,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& char_scene_milo = "",
                   const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
                   int two_player_select_placer_player = -1,
+                  const std::string& two_player_select_event = "animate",
                   float fixed_dt = 0.0f,
                   bool character_controllers = true,
                   bool reference_base = false,
@@ -1257,6 +1258,14 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                    two_player_select_placer_player);
       return 2;
     }
+    if (two_player_select_event != "animate" &&
+        two_player_select_event != "select") {
+      std::fprintf(stderr,
+                   "[char] invalid --char-2p-select-event value %s "
+                   "(expected animate or select)\n",
+                   two_player_select_event.c_str());
+      return 2;
+    }
     auto& cam = renderer.camera();
     const std::array<float, 3> old_target = {
         cam.target[0], cam.target[1], cam.target[2]};
@@ -1275,8 +1284,12 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     std::fprintf(stderr,
                  "[2p-select] script=ui/gen/multiplayer.dtb "
                  "screen=multi_sel_character_screen panel=char_multi "
-                 "event=animate clip=ui_loop skips_ui_enter=true "
-                 "placers=char_multi0.placer,char_multi1.placer\n");
+                 "event=%s clip=ui_loop skips_ui_enter=true "
+                 "char_objects=char/gen/char_objects.dtb "
+                 "reset_hair=%s "
+                 "placers=char_multi0.placer,char_multi1.placer\n",
+                 two_player_select_event.c_str(),
+                 two_player_select_event == "animate" ? "true" : "false");
   }
   renderer.set_reference_base(reference_base);
 
@@ -1903,6 +1916,7 @@ int main(int argc, char** argv) {
   ViewerClipStackOptions viewer_clip_stack;
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
   int char_2p_select_placer_player = -1;
+  std::string char_2p_select_event = "animate";
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
   bool character_controllers = true;
   bool char_reference_base = false;
@@ -2071,6 +2085,9 @@ int main(int argc, char** argv) {
       } else {
         char_2p_select_placer_player = std::atoi(value);
       }
+    } else if (std::strcmp(argv[i], "--char-2p-select-event") == 0 &&
+               i + 1 < argc) {
+      char_2p_select_event = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
       screenshot_path = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot-frame") == 0 && i + 1 < argc) {
@@ -2171,7 +2188,8 @@ int main(int argc, char** argv) {
                          screenshot_frame, max_frames, cam_ovr, char_clip_arg,
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
-                         char_offset, char_2p_select_placer_player, fixed_dt,
+                         char_offset, char_2p_select_placer_player,
+                         char_2p_select_event, fixed_dt,
                          character_controllers, char_reference_base, midi_fret_target,
                          viewer_clip_stack);
   }
