@@ -34595,22 +34595,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            const uint32_t beat = camera_beat_at(chart_, song_time_);
-            if (last_camera_beat_ == UINT32_MAX) {
-                last_camera_beat_ = beat;
-            } else if (beat != last_camera_beat_) {
-                last_camera_beat_ = beat;
+            auto source_check_active_camera_on_beat = [&](uint32_t source_beat) {
                 if (!active_regular_camera_.empty()) {
                     if (const CameraKey* active_key =
                             find_camera_key_by_name(regular_camera_keys_,
                                                     active_regular_camera_)) {
-                        if (!camera_source_check_shot(*active_key, beat)) {
+                        if (!camera_source_check_shot(*active_key, source_beat)) {
                             force_camera = true;
                             forced_camera_mode.reset();
                             forced_camera_bars.reset();
                         }
                     }
                 }
+            };
+            const uint32_t beat = camera_beat_at(chart_, song_time_);
+            if (last_camera_beat_ == UINT32_MAX) {
+                last_camera_beat_ = beat;
+                source_check_active_camera_on_beat(beat);
+            } else if (beat != last_camera_beat_) {
+                last_camera_beat_ = beat;
+                source_check_active_camera_on_beat(beat);
             }
 
             if (const auto active_players =

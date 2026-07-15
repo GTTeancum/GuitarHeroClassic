@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera beat `check_shot` cadence:
+  GH2 `world_objects_worldbase.dta::beat` sets `[camera_beat]` and, whenever
+  `world current_shot` exists, sends that CamShot `check_shot`. Native now runs
+  the source-shaped `camera_source_check_shot(...)` hook on the first observed
+  beat as well as later beat changes instead of treating the first beat as a
+  pure initialization guard. This is normal gameplay camera cadence work; the
+  hidden native `cam_check_shot` body remains deferred and FreeCam remains
+  last-priority unless it blocks gameplay cameras.
 - 2026-07-15 gameplay CamShot cached parent seed handoff:
   FreeCam remains last-priority unless it blocks normal gameplay cameras. Native
   gameplay `SetFrame` now feeds the `CamShotFrame::UpdateTarget()` cached parent

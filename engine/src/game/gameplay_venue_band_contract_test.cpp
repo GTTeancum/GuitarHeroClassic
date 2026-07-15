@@ -13058,7 +13058,12 @@ int main() {
                  "constuint32_tbeat=camera_beat_at(chart_,song_time_);",
                  "regular camera runtime checks the active CamShot on beat ticks");
   ok &= contains(gameplay_c,
-                 "if(!camera_source_check_shot(*active_key,beat)){",
+                 "if(last_camera_beat_==UINT32_MAX){"
+                 "last_camera_beat_=beat;"
+                 "source_check_active_camera_on_beat(beat);}",
+                 "regular camera runtime checks the current CamShot on the first observed source beat");
+  ok &= contains(gameplay_c,
+                 "if(!camera_source_check_shot(*active_key,source_beat)){",
                  "regular camera runtime routes rejected check_shot results to a new pick");
   ok &= contains(gameplay_c,
                  "if(diagnostic_camera_shot_.empty()){"
