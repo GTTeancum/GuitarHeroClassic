@@ -1463,6 +1463,20 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `source_gltf_milo_process_group_node_plan` mirror those exporter hierarchy
     decisions only; they do not alter GH2 stock transform solving or renderer
     group membership.
+    Native now mirrors the full 492-name
+    `Source/Shared/BoneNames.cs::rb3SkeletonBones` list for this boundary.
+    Problem-relevant names verified directly against that list include
+    `bone_L-upperTwist1.mesh`, `bone_L-upperTwist2.mesh`,
+    `bone_R-upperTwist1.mesh`, `bone_R-upperTwist2.mesh`,
+    `bone_L-foreTwist1.mesh`, `bone_L-foreTwist2.mesh`,
+    `bone_R-foreTwist1.mesh`, `bone_R-foreTwist2.mesh`, `bone_neck.mesh`,
+    `bone_neckTwist.mesh`, `bone_head.mesh`, `bone_jaw.mesh`,
+    `bone_jaw_base.mesh`, `bone_eyes.mesh`, `bone_lowerteeth-base.mesh`,
+    `bone_upperteeth-base.mesh`, `bone_hair.mesh`, `bone_guitar.mesh`,
+    `bone_L-hand_fret.mesh`, `bone_target_fret.mesh`, and
+    `spot_neck_fret20.mesh`. The direct native lookup remains exact to the
+    source strings, so `bone_pelvis` without `.mesh` and custom child names such
+    as `bone_hair_front.mesh` are not silently promoted into source stock bones.
   - `NodeProcessor.ProcessLightNode` creates a `Light` row named
     `<node>.lit`, sets the selected game's light revision and object-fields
     revision 2, copies range and RGB color from `node.PunctualLight` with

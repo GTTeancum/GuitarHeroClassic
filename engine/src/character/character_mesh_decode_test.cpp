@@ -2010,6 +2010,28 @@ int main() {
   CHECK(!complete_group_section_io.write_pads_to_group_sizes_count);
   CHECK(complete_group_section_io.write_group_section_count == 2);
 
+  CHECK(ghogx::character::source_gltf_milo_rb3_skeleton_bone_name_count() ==
+        492);
+  const std::vector<std::string> problem_relevant_source_bones = {
+      "bone_L-upperTwist1.mesh",  "bone_L-upperTwist2.mesh",
+      "bone_R-upperTwist1.mesh",  "bone_R-upperTwist2.mesh",
+      "bone_L-foreTwist1.mesh",   "bone_L-foreTwist2.mesh",
+      "bone_R-foreTwist1.mesh",   "bone_R-foreTwist2.mesh",
+      "bone_neck.mesh",           "bone_neckTwist.mesh",
+      "bone_head.mesh",           "bone_jaw.mesh",
+      "bone_jaw_base.mesh",       "bone_eyes.mesh",
+      "bone_lowerteeth-base.mesh", "bone_upperteeth-base.mesh",
+      "bone_hair.mesh",           "bone_guitar.mesh",
+      "bone_L-hand_fret.mesh",    "bone_target_fret.mesh",
+      "spot_neck_fret20.mesh"};
+  for (const std::string& name : problem_relevant_source_bones) {
+    CHECK(ghogx::character::source_gltf_milo_is_rb3_skeleton_bone_name(name));
+  }
+  CHECK(!ghogx::character::source_gltf_milo_is_rb3_skeleton_bone_name(
+      "bone_pelvis"));
+  CHECK(!ghogx::character::source_gltf_milo_is_rb3_skeleton_bone_name(
+      "bone_hair_front.mesh"));
+
   const auto new_parent_group_section_io =
       ghogx::character::source_milo_editor_rndmesh_group_section_io_plan(
           3, true, 25, 0);
@@ -2038,6 +2060,21 @@ int main() {
   CHECK(rb3_character_bone.skipped_character_rb3_skeleton_bone);
   CHECK(!rb3_character_bone.creates_trans_entry);
 
+  bone_node.name = "bone_L-upperTwist1.mesh";
+  bone_node.is_rb3_skeleton_bone = false;
+  const auto source_list_character_bone =
+      ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);
+  CHECK(source_list_character_bone.skipped_character_rb3_skeleton_bone);
+  CHECK(!source_list_character_bone.creates_trans_entry);
+
+  bone_node.name = "spot_neck_fret20.mesh";
+  const auto source_list_fret_spot =
+      ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);
+  CHECK(source_list_fret_spot.skipped_character_rb3_skeleton_bone);
+  CHECK(!source_list_fret_spot.creates_trans_entry);
+
+  bone_node.name = "bone_pelvis";
+  bone_node.is_rb3_skeleton_bone = true;
   bone_node.type = "instrument";
   const auto rb3_instrument_bone =
       ghogx::character::source_gltf_milo_process_bone_node_plan(bone_node);

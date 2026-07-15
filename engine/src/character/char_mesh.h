@@ -59,6 +59,7 @@
 #include "milo_scene/milo_scene.h"  // Xfm, TransObj, MatObj
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -1425,6 +1426,10 @@ struct SourceGltfMiloBoneNodePlan {
   bool copies_world_matrix = false;
   std::string parent_name;
 };
+
+std::vector<std::string> source_gltf_milo_rb3_skeleton_bone_names();
+std::size_t source_gltf_milo_rb3_skeleton_bone_name_count();
+bool source_gltf_milo_is_rb3_skeleton_bone_name(const std::string& name);
 
 struct SourceGltfMiloGroupNodeInput {
   std::string name;

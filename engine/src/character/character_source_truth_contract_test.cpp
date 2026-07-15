@@ -331,6 +331,8 @@ int run_contract() {
       read_file(source_dir / "glTFMilo/SOURCE_COMMIT.txt");
   const std::string gltf_node_processor_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs"));
+  const std::string gltf_bone_names_cs = compact(read_file(
+      source_dir / "glTFMilo/Source/Shared/BoneNames.cs"));
   const std::string gltf_matrix_helpers_cs = compact(read_file(
       source_dir / "glTFMilo/Source/Shared/MatrixHelpers.cs"));
   const std::string gltf_node_helpers_cs = compact(read_file(
@@ -6716,6 +6718,21 @@ int run_contract() {
                  "if(type==\"character\"&&BoneNames.rb3SkeletonBones.Contains("
                  "node.Name))return;",
                  "glTFMilo ProcessBoneNode skips RB3 skeleton bones only for characters");
+  ok &= contains(gltf_bone_names_cs, "publicstaticList<string>rb3SkeletonBones",
+                 "glTFMilo exposes rb3SkeletonBones source list");
+  const std::vector<std::string> rb3_problem_names = {
+      "\"bone_L-upperTwist1.mesh\"", "\"bone_R-upperTwist2.mesh\"",
+      "\"bone_L-foreTwist1.mesh\"",  "\"bone_R-foreTwist2.mesh\"",
+      "\"bone_neck.mesh\"",          "\"bone_neckTwist.mesh\"",
+      "\"bone_head.mesh\"",          "\"bone_jaw.mesh\"",
+      "\"bone_eyes.mesh\"",          "\"bone_lowerteeth-base.mesh\"",
+      "\"bone_upperteeth-base.mesh\"", "\"bone_hair.mesh\"",
+      "\"bone_guitar.mesh\"",        "\"bone_L-hand_fret.mesh\"",
+      "\"bone_target_fret.mesh\"",   "\"spot_neck_fret20.mesh\""};
+  for (const std::string& name : rb3_problem_names) {
+    ok &= contains(gltf_bone_names_cs, name,
+                   "glTFMilo rb3SkeletonBones includes problem-relevant name");
+  }
   ok &= contains(gltf_node_processor_cs,
                  "stringparentName=NodeHelpers.GetParentBoneName(node,model)"
                  "??fallbackParent;",
@@ -8086,9 +8103,19 @@ int run_contract() {
                  "true;returnplan;}",
                  "native preserves ProcessBoneNode neutral skip");
   ok &= contains(char_mesh,
-                 "if(input.type==\"character\"&&input.is_rb3_skeleton_bone){"
+                 "source_gltf_milo_is_rb3_skeleton_bone_name(input.name);",
+                 "native consults glTFMilo rb3SkeletonBones source list");
+  ok &= contains(char_mesh,
+                 "if(input.type==\"character\"&&is_rb3_skeleton_bone){"
                  "plan.skipped_character_rb3_skeleton_bone=true;returnplan;}",
                  "native preserves ProcessBoneNode character skeleton skip");
+  ok &= contains(char_mesh_h,
+                 "std::vector<std::string>source_gltf_milo_rb3_skeleton_bone_"
+                 "names();",
+                 "native exposes source rb3SkeletonBones list helper");
+  ok &= contains(char_mesh_h,
+                 "std::size_tsource_gltf_milo_rb3_skeleton_bone_name_count();",
+                 "native exposes source rb3SkeletonBones count helper");
   ok &= contains(char_mesh,
                  "plan.parent_name=input.has_parent_bone?input.parent_bone:"
                  "input.fallback_parent;",
