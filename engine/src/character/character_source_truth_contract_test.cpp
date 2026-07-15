@@ -162,6 +162,9 @@ int run_contract() {
   const std::string lower_body_stock_coverage = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_stock_coverage.py"));
+  const std::string lower_body_root_cause = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_root_cause.py"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -33914,6 +33917,18 @@ int run_contract() {
       lower_body_stock_coverage,
       "support_viewer={len(SUPPORT_VIEWER_LABELS)}",
       "lower-body stock coverage audit reports support count");
+  ok &= contains(
+      lower_body_root_cause,
+      "BAD_FORWARD_Y_MIN",
+      "lower-body root-cause audit pins old forward distal gap");
+  ok &= contains(
+      lower_body_root_cause,
+      "BAD_TOE_Z_MIN",
+      "lower-body root-cause audit pins old high toe gap");
+  ok &= contains(
+      lower_body_root_cause,
+      "bad_rows=driven_live0fixed_rows=driven_live1",
+      "lower-body root-cause audit reports old/fixed live-row transition");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34316,6 +34331,16 @@ int run_contract() {
                  "animation-name rule, foot-IK guess, or broad\n"
                  "body/face/arm/hair writeback",
                  "document rejects fabricated lower-body fixes");
+  ok &= contains(
+      doc,
+      "`tools/check_lower_body_root_cause.py` pins that explanation",
+      "document records lower-body root-cause audit");
+  ok &= contains(doc,
+                 "`bad_max_abs_xyz=8.310`",
+                 "document records bad lower-body root-cause gap");
+  ok &= contains(doc,
+                 "`fixed_max_abs_xyz=0.001`",
+                 "document records fixed lower-body root-cause gap");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

@@ -6251,6 +6251,12 @@ from the clip's authored `*.trans` output graph after the sampled fallback.
 That is a narrow source-authored leg publisher bridge, not a character-specific
 offset, camera correction, animation-name rule, foot-IK guess, or broad
 body/face/arm/hair writeback.
+`tools/check_lower_body_root_cause.py` pins that explanation against the
+Rockabill2 `stand_fast_03` frame-70 side proof pair: the old
+`lower_body_legw_20260715` log has decoded driven rows with `live=0` and
+`bad_max_abs_xyz=8.310`, while the bridged
+`lower_body_output_bridge_20260715` log has the matching source-authored rows
+at `live=1` and `fixed_max_abs_xyz=0.001`.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
