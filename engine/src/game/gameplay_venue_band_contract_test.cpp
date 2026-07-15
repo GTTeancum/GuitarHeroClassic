@@ -8273,6 +8273,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"(source_object=\"",
                  "camera target-ref diagnostics expose direct CamShot ObjPtr source objects");
+  ok &= absent(compact(function_body(
+                   gameplay,
+                   "std::vector<std::string> "
+                   "camera_resolved_target_signature_for_key")),
+               "std::sort(refs.begin(),refs.end());",
+               "CamShot SameTargets preserves resolved target-list order");
   ok &= contains(gameplay_c,
                  "\"target_centroid=a:(%.3f%.3f%.3f)\"",
                  "camera debug logs expose target-list centroid positions");

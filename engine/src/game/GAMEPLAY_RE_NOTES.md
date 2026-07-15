@@ -112,6 +112,13 @@
   that resolve in the live target table, including the same subpart-to-entity
   fallback used by the resolved target lookup, instead of matching merely
   authored target strings.
+- 2026-07-14 CamShot SameTargets target order:
+  ihatecompvir `CamShotFrame::SameTargets` works over the frame's resolved
+  target pointer list, so target order remains part of the source branch
+  decision. Native now preserves resolved target-list order in
+  `camera_targets_match_like_camshot(...)` instead of sorting the refs into a
+  set-like signature. Frames with the same resolved objects in different
+  authored order stay on the non-same-target `BuildTransform` route.
 - 2026-07-13 CameraManager same-shot restart: ihatecompvir
   `CameraManager::PrePoll()` calls `StartShot_(mNextShot)` whenever
   `mNextShot` is set, and `StartShot_` always runs the current shot's

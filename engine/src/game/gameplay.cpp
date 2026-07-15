@@ -20493,7 +20493,9 @@ std::vector<std::string> camera_resolved_target_signature_for_key(
             refs.push_back(std::move(*id));
         }
     }
-    std::sort(refs.begin(), refs.end());
+    // CamShotFrame::SameTargets walks the resolved target list; two frames with
+    // the same objects in different authored order must stay in the non-same
+    // target branch.
     return refs;
 }
 
