@@ -52,6 +52,7 @@ KINDS = (
     "input.signin_state",
     "input.frame_tick",
     "input.xam_state",
+    "route.pause_ui_preload_file",
 )
 
 POSE_APPLY_ROUTE_MARKERS = (
@@ -119,13 +120,17 @@ def final_event_kind(events: list[dict[str, object]]) -> str:
     return ""
 
 
-def route_status(
-    pose_apply_events: int, scene_route_markers: int, controller_gate_events: int
-) -> str:
+def count_stack_tags(events: list[dict[str, object]], prefix: str) -> int:
+    return sum(
+        1
+        for event in events
+        if event.get("kind") == "stack" and str(event.get("tag", "")).startswith(prefix)
+    )
+
+
+def route_status(pose_apply_events: int, scene_route_markers: int) -> str:
     if pose_apply_events:
         return "pose_apply_route_reached"
-    if controller_gate_events:
-        return "controller_gate_without_apply"
     if scene_route_markers:
         return "scene_marker_without_apply"
     return "route_not_reached"
@@ -142,6 +147,7 @@ def main() -> int:
     parser.add_argument("--require-scripted-nav-polls", action="store_true")
     parser.add_argument("--require-guitar-input-edge", action="store_true")
     parser.add_argument("--require-xam-state", action="store_true")
+    parser.add_argument("--require-pause-ui-preload-stack", action="store_true")
     parser.add_argument("--allow-truncated-tail", action="store_true")
     parser.add_argument("--write-summary", type=Path)
     args = parser.parse_args()
@@ -163,12 +169,16 @@ def main() -> int:
     pose_apply_route_events = sum(counts[kind] for kind in POSE_APPLY_ROUTE_MARKERS)
     scene_route_markers = sum(counts[kind] for kind in SCENE_ROUTE_MARKERS)
     opened_paths = file_open_paths(events)
-    controller_gate_events = sum(
-        1 for path in opened_paths if "pause_controller.milo" in path.replace("\\", "/")
+    pause_ui_preload_events = sum(
+        1
+        for path in opened_paths
+        if "pause_controller.milo" in path.replace("\\", "/")
+        or "pract_pause.milo" in path.replace("\\", "/")
     )
-    status = route_status(
-        pose_apply_route_events, scene_route_markers, controller_gate_events
+    pause_ui_preload_stack_samples = count_stack_tags(
+        events, "file.pause_ui_preload:"
     )
+    status = route_status(pose_apply_route_events, scene_route_markers)
     if args.require_in_song_route and pose_apply_route_events <= 0:
         failures.append("missing pose/apply in-song route markers")
     if args.require_scripted_nav_polls and counts["input.scripted_nav.poll"] <= 0:
@@ -177,6 +187,8 @@ def main() -> int:
         failures.append("missing GuitarPort input edge")
     if args.require_xam_state and counts["input.xam_state"] <= 0:
         failures.append("missing raw XamInputGetState rows")
+    if args.require_pause_ui_preload_stack and pause_ui_preload_stack_samples <= 0:
+        failures.append("missing pause-UI preload file stack sample")
     lower_body_memory = detail_text(events, "anim.lower_body.memory")
     found_channels = sorted(
         channel
@@ -196,7 +208,9 @@ def main() -> int:
         "strong_in_song_events": pose_apply_route_events,
         "pose_apply_route_events": pose_apply_route_events,
         "scene_route_markers": scene_route_markers,
-        "controller_gate_events": controller_gate_events,
+        "pause_ui_preload_events": pause_ui_preload_events,
+        "pause_ui_preload_file_markers": counts["route.pause_ui_preload_file"],
+        "pause_ui_preload_stack_samples": pause_ui_preload_stack_samples,
         "route_status": status,
         "final_event": final_event_kind(events),
         "scripted_nav_polls": counts["input.scripted_nav.poll"],
@@ -241,8 +255,16 @@ def main() -> int:
         "first_xam_state": (detail_text(events, "input.xam_state") or [""])[0][
             :300
         ],
-        "first_controller_gate_file": (
-            [path for path in opened_paths if "pause_controller.milo" in path.replace("\\", "/")]
+        "first_pause_ui_preload_marker": (
+            detail_text(events, "route.pause_ui_preload_file") or [""]
+        )[0][:300],
+        "first_pause_ui_preload_file": (
+            [
+                path
+                for path in opened_paths
+                if "pause_controller.milo" in path.replace("\\", "/")
+                or "pract_pause.milo" in path.replace("\\", "/")
+            ]
             or [""]
         )[0][:300],
         "first_runtime_memory": (detail_text(events, "anim.lower_body.runtime_memory") or [""])[
@@ -270,7 +292,9 @@ def main() -> int:
         f"rows={len(found_channels)} "
         f"pose_route={pose_apply_route_events} "
         f"scene_route={scene_route_markers} "
-        f"controller_gate={controller_gate_events} "
+        f"pause_ui_preload={pause_ui_preload_events} "
+        f"pause_ui_preload_markers={counts['route.pause_ui_preload_file']} "
+        f"pause_ui_preload_stacks={pause_ui_preload_stack_samples} "
         f"scripted_nav={counts['input.scripted_nav']} "
         f"scripted_nav_polls={counts['input.scripted_nav.poll']} "
         f"guitar_edges={counts['input.guitar_edge']} "

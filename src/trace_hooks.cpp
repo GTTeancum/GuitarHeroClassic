@@ -946,6 +946,19 @@ REX_HOOK_RAW(hmx_FileMgr_Lookup) {
     const uint32_t sz  = (found && out_d) ? REX_LOAD_U32(out_d) : 0;
     auto path = read_guest_string(base, path_addr);
     trace360::LogFileOpen(path, off, sz, found);
+    if (found && (path.find("pause_controller.milo") != std::string::npos ||
+                  path.find("pract_pause.milo") != std::string::npos)) {
+        trace360::LogEvent("route.pause_ui_preload_file", path);
+        bool first_pause_ui_path = false;
+        {
+            std::lock_guard<std::mutex> lk(g_seen_mu);
+            first_pause_ui_path =
+                g_file_stack_seen.insert(std::string("pause-ui:") + path).second;
+        }
+        if (first_pause_ui_path) {
+            trace360::LogStackSample(std::string("file.pause_ui_preload:") + path);
+        }
+    }
 
     // Phase 4c addition: stack-sample the FIRST occurrence of each
     // unique file extension category, so the next capture pins the
