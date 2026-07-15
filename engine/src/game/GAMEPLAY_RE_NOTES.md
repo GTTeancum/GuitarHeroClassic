@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera beat state latch:
+  `world_objects_worldbase.dta` stores a `camera_beat` script variable in the
+  `beat` handler, gates `one_bar_to` on `camera_beat > 0`, and resets it in
+  `reset_camera`. Native now carries a distinct `camera_beat_state_` beside the
+  internal `last_camera_beat_` cadence marker, updates it before normal
+  gameplay `one_bar_to`/`check_shot` work, restores it for diagnostic seeks, and
+  clears it at the intro/reset path. This is source script state fidelity only:
+  `cam_check_shot` remains the audited native-deferred predicate, FreeCam stays
+  deferred last, and no dependencies are added.
 - 2026-07-15 gameplay camera NumCameraShots proof count:
   ihatecompvir `CameraManager::NumCameraShots` counts candidates only after
   `Disabled() == 0`, `ShotMatches(...)`, and `ShotOk(mCurrentShot)` all accept.

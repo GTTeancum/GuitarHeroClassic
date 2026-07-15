@@ -6543,6 +6543,8 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolcamera_solo_active_=false;",
                  "runtime carries the source camera_solo latch");
+  ok &= contains(gameplay_h_c, "uint32_tcamera_beat_state_=0;",
+                 "runtime carries the world_objects_worldbase.dta camera_beat latch");
   ok &= contains(gameplay_c,
                  "while(next_section_venue_event_idx_<chart_.text_events.size()"
                  "&&chart_.tick_to_sec(chart_.text_events["
@@ -6561,6 +6563,9 @@ int main() {
                  "camera_solo_active_="
                  "camera_source_one_bar_to_solo_state_at(chart_,song_time_);",
                  "diagnostic seek restores the source camera_solo latch");
+  ok &= contains(gameplay_c,
+                 "camera_beat_state_=camera_beat_at(chart_,song_time_);",
+                 "diagnostic seek restores the source camera_beat latch");
   ok &= contains(gameplay_c,
                  "while(next_section_venue_event_idx_<chart_.text_events.size())"
                  "{constauto&ev=chart_.text_events[next_section_venue_event_idx_];",
@@ -6582,8 +6587,12 @@ int main() {
                  "camera_source_one_bar_to_camera_beat_gate_open(chart,trigger_tick)",
                  "camera one_bar_to cursor/seek helpers mirror the source camera_beat > 0 guard");
   ok &= contains(gameplay_c,
-                 "if(!camera_source_one_bar_to_camera_beat_gate_open(chart_,trigger_tick)){",
-                 "runtime camera one_bar_to mirrors the source camera_beat > 0 guard");
+                 "if(!camera_source_one_bar_to_camera_beat_gate_open(camera_beat_state_)){",
+                 "runtime camera one_bar_to mirrors the stored source camera_beat > 0 guard");
+  ok &= contains(gameplay_c,
+                 "camera_bars_left_=6;last_camera_bar_=UINT32_MAX;"
+                 "last_camera_beat_=UINT32_MAX;camera_beat_state_=0;",
+                 "intro_start_msg/reset_camera clears source camera_beat before normal one_bar_to work");
   ok &= contains(gameplay_c,
                  "camera_solo_active_=*upcoming_section==\"solo\";",
                  "world_objects_worldbase.dta one_bar_to updates camera_solo before picking");
@@ -13265,18 +13274,29 @@ int main() {
                  "regular camera diagnostics expose deferred source check_shot hook");
   ok &= contains(gameplay_h_c, "uint32_tlast_camera_beat_=UINT32_MAX;",
                  "regular camera runtime tracks source beat cadence");
+  ok &= contains(gameplay_h_c, "uint32_tcamera_beat_state_=0;",
+                 "regular camera runtime stores the source camera_beat script variable separately from cadence bookkeeping");
   ok &= contains(gameplay_c,
                  "uint32_tcamera_beat_at(constghogx::chart::Chart&chart,"
                  "doublesong_time)",
                  "regular camera runtime derives the source camera_beat value");
   ok &= contains(gameplay_c,
-                 "constuint32_tbeat=camera_beat_at(chart_,song_time_);",
-                 "regular camera runtime checks the active CamShot on beat ticks");
+                 "camera_beat_state_=camera_beat_at(chart_,song_time_);",
+                 "regular camera runtime updates the source camera_beat script variable before one_bar_to/check_shot work");
+  ok &= contains(gameplay_c,
+                 "constuint32_tbeat=camera_beat_state_;",
+                 "regular camera runtime checks the active CamShot from the stored source camera_beat latch");
   ok &= contains(gameplay_c,
                  "if(last_camera_beat_==UINT32_MAX){"
-                 "last_camera_beat_=beat;"
-                 "source_check_active_camera_on_beat(beat);}",
-                 "regular camera runtime checks the current CamShot on the first observed source beat");
+                 "last_camera_beat_=beat;",
+                 "regular camera runtime latches the first observed source beat");
+  ok &= contains(gameplay_c,
+                 "source_check_active_camera_on_beat(beat);",
+                 "regular camera runtime checks the current CamShot on source beat updates");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerabeat:source_msg=beat"
+                 "camera_beat=%uresult=state\\n\"",
+                 "regular camera diagnostics expose world_objects_worldbase.dta beat latch updates");
   ok &= contains(gameplay_c,
                  "if(!camera_source_check_shot(*active_key,source_beat)){",
                  "regular camera runtime routes rejected check_shot results to a new pick");

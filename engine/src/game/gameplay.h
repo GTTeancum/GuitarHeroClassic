@@ -1056,6 +1056,7 @@ class Gameplay {
   int camera_bars_left_ = 0;
   uint32_t last_camera_bar_ = UINT32_MAX;
   uint32_t last_camera_beat_ = UINT32_MAX;
+  uint32_t camera_beat_state_ = 0;
   size_t next_forced_camera_event_idx_ = 0;
   size_t next_camera_one_bar_to_event_idx_ = 0;
   bool camera_solo_active_ = false;

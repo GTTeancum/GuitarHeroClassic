@@ -17193,9 +17193,15 @@ uint32_t camera_source_beat_for_trigger_tick(
 }
 
 bool camera_source_one_bar_to_camera_beat_gate_open(
+    uint32_t camera_beat) {
+    return camera_beat > 0;
+}
+
+bool camera_source_one_bar_to_camera_beat_gate_open(
     const ghogx::chart::Chart& chart,
     uint32_t trigger_tick) {
-    return camera_source_beat_for_trigger_tick(chart, trigger_tick) > 0;
+    return camera_source_one_bar_to_camera_beat_gate_open(
+        camera_source_beat_for_trigger_tick(chart, trigger_tick));
 }
 
 size_t camera_source_one_bar_to_cursor_at(const ghogx::chart::Chart& chart,
@@ -23887,6 +23893,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     camera_bars_left_ = 0;
     last_camera_bar_ = UINT32_MAX;
     last_camera_beat_ = UINT32_MAX;
+    camera_beat_state_ = 0;
     next_forced_camera_event_idx_ = 0;
     next_camera_one_bar_to_event_idx_ = 0;
     camera_solo_active_ = false;
@@ -30508,6 +30515,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
         camera_source_one_bar_to_solo_state_at(chart_, song_time_);
     last_camera_bar_ = UINT32_MAX;
     last_camera_beat_ = UINT32_MAX;
+    camera_beat_state_ = camera_beat_at(chart_, song_time_);
     camera_bars_left_ = 0;
     reset_camera_manager_like_source_enter("diagnostic_seek");
     did_lighter_cam_ = false;
@@ -32770,6 +32778,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
                 last_camera_beat_ = UINT32_MAX;
+                camera_beat_state_ = 0;
                 next_camera_one_bar_to_event_idx_ = 0;
                 camera_solo_active_ = false;
                 active_camera_skip_next_crowd_update_ = false;
@@ -34591,6 +34600,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;
+        camera_beat_state_ = camera_beat_at(chart_, song_time_);
         while (next_camera_one_bar_to_event_idx_ < chart_.text_events.size()) {
             const auto& ev =
                 chart_.text_events[next_camera_one_bar_to_event_idx_];
@@ -34608,15 +34618,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const double trigger_time = chart_.tick_to_sec(trigger_tick);
             if (trigger_time > song_time_) break;
             ++next_camera_one_bar_to_event_idx_;
-            const uint32_t source_camera_beat =
-                camera_source_beat_for_trigger_tick(chart_, trigger_tick);
             if (!camera_source_one_bar_to_camera_beat_gate_open(
-                    chart_, trigger_tick)) {
+                    camera_beat_state_)) {
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                     std::fprintf(
                         stderr,
                         "[world] camera one_bar_to: source_msg=one_bar_to source_gate=camera_beat>0 camera_beat=%u source_action=skip upcoming=%s event_tick=%u trigger_tick=%u\n",
-                        source_camera_beat,
+                        camera_beat_state_,
                         std::string(*upcoming_section).c_str(), ev.tick,
                         trigger_tick);
                 }
@@ -34769,12 +34777,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
             };
-            const uint32_t beat = camera_beat_at(chart_, song_time_);
+            const uint32_t beat = camera_beat_state_;
             if (last_camera_beat_ == UINT32_MAX) {
                 last_camera_beat_ = beat;
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] camera beat: source_msg=beat camera_beat=%u result=state\n",
+                        camera_beat_state_);
+                }
                 source_check_active_camera_on_beat(beat);
             } else if (beat != last_camera_beat_) {
                 last_camera_beat_ = beat;
+                if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] camera beat: source_msg=beat camera_beat=%u result=state\n",
+                        camera_beat_state_);
+                }
                 source_check_active_camera_on_beat(beat);
             }
 
