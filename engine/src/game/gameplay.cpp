@@ -17651,19 +17651,41 @@ std::optional<std::array<float, 3>> camera_target_centroid_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
 
+std::optional<std::array<float, 16>> camera_parent_world_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
+
 std::array<float, 3> camera_authored_eye_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
+
+std::array<float, 3> camera_authored_eye_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
 
 std::array<float, 3> camera_authored_at_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
     const float eye[3]);
 
+std::array<float, 3> camera_authored_at_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const float eye[3],
+    const std::array<float, 16>* cached_parent_world);
+
 void camera_authored_up_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
     float out[3]);
+
+void camera_authored_up_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    float out[3],
+    const std::array<float, 16>* cached_parent_world);
 
 std::array<float, 3> camera_normalized_axis(
     std::array<float, 3> v,
@@ -19669,20 +19691,38 @@ CameraSourceHasTargetsResult camera_on_has_targets_like_source(
 bool camera_apply_pose_span_source_basis(
     CameraResultRows& rows,
     const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
+
+bool camera_apply_pose_span_source_basis(
+    CameraResultRows& rows,
+    const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
+    return camera_apply_pose_span_source_basis(rows, key, targets, nullptr);
+}
+
+bool camera_apply_pose_span_source_basis(
+    CameraResultRows& rows,
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
     if (!key.camshot_refs_decoded || key.use_parent_rotation ||
         key.has_path_anim ||
         camera_key_has_resolved_targets_like_camshot(key, targets) ||
         key.positions.size() < 2) {
         return false;
     }
-    if (!camera_parent_for_key(key, targets)) return false;
+    if (!camera_parent_world_for_key(key, targets, cached_parent_world)) {
+        return false;
+    }
 
     const auto first = camera_authored_eye_for_key(key.positions.front(),
-                                                   targets);
+                                                   targets,
+                                                   cached_parent_world);
     for (size_t i = 1; i < key.positions.size(); ++i) {
         const auto next = camera_authored_eye_for_key(key.positions[i],
-                                                      targets);
+                                                      targets,
+                                                      cached_parent_world);
         const std::array<float, 3> span = {
             first[0] - next[0], first[1] - next[1], first[2] - next[2]};
         const float span_len =
@@ -19707,6 +19747,11 @@ bool camera_apply_pose_span_source_basis(
     }
     return false;
 }
+
+CameraResultRows camera_source_seed_result_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
 
 struct CameraPoseSpanDebugShape {
     const char* reason = "not_checked";
@@ -19845,6 +19890,13 @@ std::optional<CameraResultRows> camera_ps2_writer_bridge_from_builder_rows(
 CameraResultRows camera_source_seed_result_rows_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
+    return camera_source_seed_result_rows_for_key(key, targets, nullptr);
+}
+
+CameraResultRows camera_source_seed_result_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
     CameraResultRows rows;
     if (key.has_generated_source_rows) {
         rows.source = "generated_source_seed";
@@ -19860,16 +19912,23 @@ CameraResultRows camera_source_seed_result_rows_for_key(
         camera_apply_clamp_height_to_result_rows(rows, key, targets);
         return rows;
     }
-    const auto parent = camera_parent_for_key(key, targets);
-    rows.source = parent ? "parent+source_seed" : "source_seed";
-    rows.position = camera_authored_eye_for_key(key, targets);
+    const auto parent_world =
+        camera_parent_world_for_key(key, targets, cached_parent_world);
+    rows.source = parent_world
+                      ? (cached_parent_world
+                             ? "cached_parent+source_seed"
+                             : "parent+source_seed")
+                      : "source_seed";
+    rows.position = camera_authored_eye_for_key(key, targets,
+                                                cached_parent_world);
     rows.forward = camera_key_local_forward(key);
     rows.up = camera_key_local_up(key);
-    if (parent && key.use_parent_rotation) {
-        rows.forward = transform_vector_game(parent->world, rows.forward.data());
-        rows.up = transform_vector_game(parent->world, rows.up.data());
+    if (parent_world && key.use_parent_rotation) {
+        rows.forward = transform_vector_game(*parent_world, rows.forward.data());
+        rows.up = transform_vector_game(*parent_world, rows.up.data());
     }
-    camera_apply_pose_span_source_basis(rows, key, targets);
+    camera_apply_pose_span_source_basis(rows, key, targets,
+                                        cached_parent_world);
     camera_orthonormalize_result_rows(rows);
     camera_apply_clamp_height_to_result_rows(rows, key, targets);
     return rows;
@@ -20078,10 +20137,34 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
 
 std::optional<CameraResultRows> camera_target_list_result_rows_for_key(
     const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
+
+CameraResultRows camera_submitted_result_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
+
+CameraResultRows camera_writer_bridge_builder_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world);
+
+std::optional<CameraResultRows> camera_target_list_result_rows_for_key(
+    const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
+    return camera_target_list_result_rows_for_key(key, targets, nullptr);
+}
+
+std::optional<CameraResultRows> camera_target_list_result_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
     const auto centroid = camera_target_centroid_for_key(key, targets);
     if (!centroid) return std::nullopt;
-    CameraResultRows rows = camera_source_seed_result_rows_for_key(key, targets);
+    CameraResultRows rows =
+        camera_source_seed_result_rows_for_key(key, targets,
+                                               cached_parent_world);
     return camera_target_list_result_rows_from_seed(rows, key, *centroid,
                                                     nullptr);
 }
@@ -20119,22 +20202,38 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
 CameraResultRows camera_submitted_result_rows_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (auto target_rows = camera_target_list_result_rows_for_key(key, targets))
+    return camera_submitted_result_rows_for_key(key, targets, nullptr);
+}
+
+CameraResultRows camera_submitted_result_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
+    if (auto target_rows =
+            camera_target_list_result_rows_for_key(key, targets,
+                                                   cached_parent_world)) {
         return *target_rows;
-    const auto parent = camera_parent_for_key(key, targets);
+    }
+    const auto parent_world =
+        camera_parent_world_for_key(key, targets, cached_parent_world);
     if (key.has_generated_source_rows ||
-        (parent && !camera_key_has_resolved_targets_like_camshot(key,
-                                                                 targets))) {
-        return camera_source_seed_result_rows_for_key(key, targets);
+        (parent_world &&
+         !camera_key_has_resolved_targets_like_camshot(key, targets))) {
+        return camera_source_seed_result_rows_for_key(key, targets,
+                                                      cached_parent_world);
     }
     CameraResultRows rows;
-    rows.source = parent ? "parent" : "raw";
-    const auto eye = camera_authored_eye_for_key(key, targets);
-    const auto at = camera_authored_at_for_key(key, targets, eye.data());
+    rows.source = parent_world
+                      ? (cached_parent_world ? "cached_parent" : "parent")
+                      : "raw";
+    const auto eye = camera_authored_eye_for_key(key, targets,
+                                                cached_parent_world);
+    const auto at = camera_authored_at_for_key(key, targets, eye.data(),
+                                               cached_parent_world);
     rows.position = eye;
     rows.forward = {at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]};
     float up[3] = {};
-    camera_authored_up_for_key(key, targets, up);
+    camera_authored_up_for_key(key, targets, up, cached_parent_world);
     rows.up = {up[0], up[1], up[2]};
     camera_orthonormalize_result_rows(rows);
     return rows;
@@ -20143,6 +20242,13 @@ CameraResultRows camera_submitted_result_rows_for_key(
 CameraResultRows camera_writer_bridge_builder_rows_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
+    return camera_writer_bridge_builder_rows_for_key(key, targets, nullptr);
+}
+
+CameraResultRows camera_writer_bridge_builder_rows_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
     if (auto ps2_builder_rows =
             camera_ps2_result_builder_basis_candidate_rows(key)) {
         ps2_builder_rows->source =
@@ -20158,7 +20264,8 @@ CameraResultRows camera_writer_bridge_builder_rows_for_key(
         return *ps2_builder_rows;
     }
     CameraResultRows native_rows =
-        camera_submitted_result_rows_for_key(key, targets);
+        camera_submitted_result_rows_for_key(key, targets,
+                                             cached_parent_world);
     native_rows.source =
         "native_writer_bridge_builder(" + native_rows.source + ")";
     return native_rows;
@@ -20914,11 +21021,35 @@ bool camera_targets_match_like_camshot(const Gameplay::CameraKey& a,
     return a_refs == camera_resolved_target_signature_for_key(b, targets);
 }
 
+std::optional<std::array<float, 16>> camera_parent_world_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
+    if (key.parent_entity.empty() && key.parent_subpart.empty() &&
+        key.parent_source_object.empty()) {
+        return std::nullopt;
+    }
+    if (cached_parent_world) return *cached_parent_world;
+    if (const auto parent = camera_parent_for_key(key, targets)) {
+        return parent->world;
+    }
+    return std::nullopt;
+}
+
 std::array<float, 3> camera_authored_at_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
     const float eye[3]) {
-    const auto parent = camera_parent_for_key(key, targets);
+    return camera_authored_at_for_key(key, targets, eye, nullptr);
+}
+
+std::array<float, 3> camera_authored_at_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const float eye[3],
+    const std::array<float, 16>* cached_parent_world) {
+    const auto parent_world =
+        camera_parent_world_for_key(key, targets, cached_parent_world);
     if (key.has_quat) {
         float q[4] = {key.quat[0], key.quat[1], key.quat[2], key.quat[3]};
         const float n =
@@ -20931,8 +21062,8 @@ std::array<float, 3> camera_authored_at_for_key(
                             1.0f - 2.0f * (x * x + z * z),
                             2.0f * (y * z + x * w)};
         const auto world_forward =
-            (parent && key.use_parent_rotation)
-                ? transform_vector_game(parent->world, forward)
+            (parent_world && key.use_parent_rotation)
+                ? transform_vector_game(*parent_world, forward)
                 : std::array<float, 3>{forward[0], forward[1], forward[2]};
         return {eye[0] + world_forward[0] * 100.0f,
                 eye[1] + world_forward[1] * 100.0f,
@@ -20940,8 +21071,8 @@ std::array<float, 3> camera_authored_at_for_key(
     }
     if (key.has_basis) {
         const auto world_forward =
-            (parent && key.use_parent_rotation)
-                ? transform_vector_game(parent->world, key.forward)
+            (parent_world && key.use_parent_rotation)
+                ? transform_vector_game(*parent_world, key.forward)
                 : std::array<float, 3>{key.forward[0], key.forward[1],
                                        key.forward[2]};
         return {eye[0] + world_forward[0] * 100.0f,
@@ -20971,18 +21102,26 @@ std::optional<CameraTarget> camera_parent_for_key(
 std::array<float, 3> camera_authored_eye_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
+    return camera_authored_eye_for_key(key, targets, nullptr);
+}
+
+std::array<float, 3> camera_authored_eye_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::array<float, 16>* cached_parent_world) {
     std::array<float, 3> eye = {key.eye[0], key.eye[1], key.eye[2]};
-    const auto parent = camera_parent_for_key(key, targets);
-    if (!parent) return eye;
+    const auto parent_world =
+        camera_parent_world_for_key(key, targets, cached_parent_world);
+    if (!parent_world) return eye;
     // CamShot keyframe targets are resolved in camera_authored_at_for_key().
-    // The separate parent field is the traced live source used by the PS2
-    // Trans path to resolve a path-frame camera offset.
+    // CamShotFrame::UpdateTarget caches mParent->WorldXfm() into unk44 before
+    // Interp / BuildTransform consume the parent transform.
     if (!key.use_parent_rotation) {
-        return {key.eye[0] + parent->world[12],
-                key.eye[1] + parent->world[13],
-                key.eye[2] + parent->world[14]};
+        return {key.eye[0] + (*parent_world)[12],
+                key.eye[1] + (*parent_world)[13],
+                key.eye[2] + (*parent_world)[14]};
     }
-    return transform_point_game(parent->world, key.eye);
+    return transform_point_game(*parent_world, key.eye);
 }
 
 float camshot_source_atan_interpolator_eval(float input, float y0, float y1,
@@ -21028,7 +21167,16 @@ void camera_authored_up_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
     float out[3]) {
-    const std::optional<CameraTarget> parent = camera_parent_for_key(key, targets);
+    camera_authored_up_for_key(key, targets, out, nullptr);
+}
+
+void camera_authored_up_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    float out[3],
+    const std::array<float, 16>* cached_parent_world) {
+    const auto parent_world =
+        camera_parent_world_for_key(key, targets, cached_parent_world);
     if (key.has_quat) {
         float q[4] = {key.quat[0], key.quat[1], key.quat[2], key.quat[3]};
         const float n =
@@ -21041,8 +21189,8 @@ void camera_authored_up_for_key(
                        2.0f * (y * z - x * w),
                        1.0f - 2.0f * (x * x + y * y)};
         const auto world_up =
-            (parent && key.use_parent_rotation)
-                ? transform_vector_game(parent->world, up)
+            (parent_world && key.use_parent_rotation)
+                ? transform_vector_game(*parent_world, up)
                 : std::array<float, 3>{up[0], up[1], up[2]};
         out[0] = world_up[0];
         out[1] = world_up[1];
@@ -21051,8 +21199,8 @@ void camera_authored_up_for_key(
     }
     if (key.has_basis) {
         const auto world_up =
-            (parent && key.use_parent_rotation)
-                ? transform_vector_game(parent->world, key.up)
+            (parent_world && key.use_parent_rotation)
+                ? transform_vector_game(*parent_world, key.up)
                 : std::array<float, 3>{key.up[0], key.up[1], key.up[2]};
         out[0] = world_up[0];
         out[1] = world_up[1];
@@ -21102,25 +21250,51 @@ void apply_camera_keys(
     t = std::clamp(t, 0.0f, 1.0f);
     const float interp_t =
         camshot_blend_ease_t(t, a->blend_ease, a->blend_ease_mode);
+    const auto a_frame_target_cache =
+        camera_update_frame_target_cache_like_source(*a, targets);
+    const auto b_frame_target_cache =
+        camera_update_frame_target_cache_like_source(*b, targets);
+    const CameraSourceTargetUpdate& a_target_update =
+        a_frame_target_cache.update;
+    const CameraSourceTargetUpdate& b_target_update =
+        b_frame_target_cache.update;
+    const std::optional<std::array<float, 3>> a_target_centroid =
+        a_frame_target_cache.last_target_pos;
+    const std::optional<std::array<float, 3>> b_target_centroid =
+        b_frame_target_cache.last_target_pos;
+    const std::array<float, 16>* a_cached_parent_world =
+        a_frame_target_cache.last_parent_pos
+            ? &*a_frame_target_cache.last_parent_pos
+            : nullptr;
+    const std::array<float, 16>* b_cached_parent_world =
+        b_frame_target_cache.last_parent_pos
+            ? &*b_frame_target_cache.last_parent_pos
+            : nullptr;
     cam.authored = true;
     float eye_a[3] = {};
     float eye_b[3] = {};
-    const auto authored_eye_a = camera_authored_eye_for_key(*a, targets);
-    const auto authored_eye_b = camera_authored_eye_for_key(*b, targets);
+    const auto authored_eye_a =
+        camera_authored_eye_for_key(*a, targets, a_cached_parent_world);
+    const auto authored_eye_b =
+        camera_authored_eye_for_key(*b, targets, b_cached_parent_world);
     for (int i = 0; i < 3; ++i) {
         eye_a[i] = authored_eye_a[i];
         eye_b[i] = authored_eye_b[i];
         cam.authored_eye[i] =
             eye_a[i] + (eye_b[i] - eye_a[i]) * interp_t;
     }
-    const auto at_a = camera_authored_at_for_key(*a, targets, eye_a);
-    const auto at_b = camera_authored_at_for_key(*b, targets, eye_b);
+    const auto at_a =
+        camera_authored_at_for_key(*a, targets, eye_a,
+                                   a_cached_parent_world);
+    const auto at_b =
+        camera_authored_at_for_key(*b, targets, eye_b,
+                                   b_cached_parent_world);
     for (int i = 0; i < 3; ++i)
         cam.authored_at[i] = at_a[i] + (at_b[i] - at_a[i]) * interp_t;
     float up_a[3] = {};
     float up_b[3] = {};
-    camera_authored_up_for_key(*a, targets, up_a);
-    camera_authored_up_for_key(*b, targets, up_b);
+    camera_authored_up_for_key(*a, targets, up_a, a_cached_parent_world);
+    camera_authored_up_for_key(*b, targets, up_b, b_cached_parent_world);
     for (int i = 0; i < 3; ++i)
         cam.authored_up[i] = up_a[i] + (up_b[i] - up_a[i]) * interp_t;
     if (a->has_fov || b->has_fov) {
@@ -21184,7 +21358,8 @@ void apply_camera_keys(
     cam.screen_offset[0] = sx_a + (sx_b - sx_a) * interp_t;
     cam.screen_offset[1] = sy_a + (sy_b - sy_a) * interp_t;
     auto camera_source_seed_rows_for_runtime =
-        [&](const Gameplay::CameraKey& key) {
+        [&](const Gameplay::CameraKey& key,
+            const std::array<float, 16>* cached_parent_world) {
             if (venue_targets) {
                 if (auto ps2_source_record_rows =
                         camera_ps2_source_record_trace_context_source_seed_rows(
@@ -21192,10 +21367,13 @@ void apply_camera_keys(
                     return *ps2_source_record_rows;
                 }
             }
-            return camera_source_seed_result_rows_for_key(key, targets);
+            return camera_source_seed_result_rows_for_key(
+                key, targets, cached_parent_world);
         };
-    const auto source_seed_a = camera_source_seed_rows_for_runtime(*a);
-    const auto source_seed_b = camera_source_seed_rows_for_runtime(*b);
+    const auto source_seed_a =
+        camera_source_seed_rows_for_runtime(*a, a_cached_parent_world);
+    const auto source_seed_b =
+        camera_source_seed_rows_for_runtime(*b, b_cached_parent_world);
     const auto source_seed_result =
         camera_lerp_result_rows(source_seed_a, source_seed_b, interp_t);
     const auto ps2_trace_result_a =
@@ -21203,9 +21381,11 @@ void apply_camera_keys(
     const auto ps2_trace_result_b =
         camera_ps2_source_record_trace_result_frame_rows(*b);
     const auto writer_bridge_builder_a =
-        camera_writer_bridge_builder_rows_for_key(*a, targets);
+        camera_writer_bridge_builder_rows_for_key(*a, targets,
+                                                  a_cached_parent_world);
     const auto writer_bridge_builder_b =
-        camera_writer_bridge_builder_rows_for_key(*b, targets);
+        camera_writer_bridge_builder_rows_for_key(*b, targets,
+                                                  b_cached_parent_world);
     const auto ps2_writer_bridge_a =
         camera_ps2_writer_bridge_from_builder_rows(
             *a, targets, writer_bridge_builder_a);
@@ -21214,13 +21394,15 @@ void apply_camera_keys(
             *b, targets, writer_bridge_builder_b);
     auto camera_submitted_rows_for_runtime =
         [&](const Gameplay::CameraKey& key,
-            const std::optional<CameraResultRows>& ps2_trace_result)
+            const std::optional<CameraResultRows>& ps2_trace_result,
+            const std::array<float, 16>* cached_parent_world)
         -> CameraSubmittedRows {
         if (const char* candidate =
                 env_value("GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE")) {
             if (std::strcmp(candidate, "writer_bridge") == 0) {
                 const auto builder_rows =
-                    camera_writer_bridge_builder_rows_for_key(key, targets);
+                    camera_writer_bridge_builder_rows_for_key(
+                        key, targets, cached_parent_world);
                 if (auto writer_rows =
                         camera_ps2_writer_bridge_from_builder_rows(
                             key, targets, builder_rows)) {
@@ -21228,7 +21410,8 @@ void apply_camera_keys(
                             CameraSubmittedRowsKind::kDebugWriterBridge};
                 }
             } else if (std::strcmp(candidate, "native") == 0) {
-                return {camera_submitted_result_rows_for_key(key, targets),
+                return {camera_submitted_result_rows_for_key(
+                            key, targets, cached_parent_world),
                         CameraSubmittedRowsKind::kNative};
             }
             if (ps2_trace_result) {
@@ -21274,13 +21457,16 @@ void apply_camera_keys(
                         CameraSubmittedRowsKind::kTraceCompleteWriterBridge};
             }
         }
-        return {camera_submitted_result_rows_for_key(key, targets),
+        return {camera_submitted_result_rows_for_key(
+                    key, targets, cached_parent_world),
                 CameraSubmittedRowsKind::kNative};
     };
     const auto submitted_rows_a =
-        camera_submitted_rows_for_runtime(*a, ps2_trace_result_a);
+        camera_submitted_rows_for_runtime(*a, ps2_trace_result_a,
+                                          a_cached_parent_world);
     const auto submitted_rows_b =
-        camera_submitted_rows_for_runtime(*b, ps2_trace_result_b);
+        camera_submitted_rows_for_runtime(*b, ps2_trace_result_b,
+                                          b_cached_parent_world);
     const auto& result_a = submitted_rows_a.rows;
     const auto& result_b = submitted_rows_b.rows;
     const bool submitted_result_from_ps2_trace =
@@ -21296,18 +21482,6 @@ void apply_camera_keys(
         camera_submitted_rows_use_matrix_payload(submitted_rows_b.kind);
     auto submitted_result =
         camera_lerp_result_rows(result_a, result_b, interp_t);
-    const auto a_frame_target_cache =
-        camera_update_frame_target_cache_like_source(*a, targets);
-    const auto b_frame_target_cache =
-        camera_update_frame_target_cache_like_source(*b, targets);
-    const CameraSourceTargetUpdate& a_target_update =
-        a_frame_target_cache.update;
-    const CameraSourceTargetUpdate& b_target_update =
-        b_frame_target_cache.update;
-    const std::optional<std::array<float, 3>> a_target_centroid =
-        a_frame_target_cache.last_target_pos;
-    const std::optional<std::array<float, 3>> b_target_centroid =
-        b_frame_target_cache.last_target_pos;
     const bool same_targets_like_camshot =
         camera_targets_match_like_camshot(*a, *b, targets);
     std::optional<std::array<float, 3>> blended_target_centroid;

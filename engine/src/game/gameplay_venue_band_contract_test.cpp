@@ -8357,6 +8357,29 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_rule=average_non_null_targets,parent_world_xfm",
                  "camera diagnostics name both source UpdateTarget cached fields");
+  ok &= contains(gameplay_c,
+                 "std::optional<std::array<float,16>>"
+                 "camera_parent_world_for_key(",
+                 "regular camera has a source cached parent WorldXfm resolver");
+  ok &= contains(gameplay_c,
+                 "conststd::array<float,16>*a_cached_parent_world="
+                 "a_frame_target_cache.last_parent_pos",
+                 "regular camera exposes the cached parent pointer from UpdateTarget");
+  ok &= contains(gameplay_c,
+                 "camera_authored_eye_for_key(*a,targets,"
+                 "a_cached_parent_world)",
+                 "regular camera authored eye consumes source cached parent state");
+  ok &= contains(gameplay_c,
+                 "camera_source_seed_rows_for_runtime(*a,"
+                 "a_cached_parent_world)",
+                 "regular camera source seed consumes source cached parent state");
+  ok &= contains(gameplay_c,
+                 "camera_submitted_rows_for_runtime(*a,"
+                 "ps2_trace_result_a,a_cached_parent_world)",
+                 "regular camera submitted rows consume source cached parent state");
+  ok &= contains(gameplay_c,
+                 "cached_parent+source_seed",
+                 "camera source seed diagnostics distinguish cached parent usage");
   ok &= appears_before(
       gameplay_c,
       "strip_mesh_suffix(std::string(subpart));",
@@ -8438,24 +8461,26 @@ int main() {
                  "key.parent_subpart,key.parent_source_object,targets);",
                  "camera parent lookup mirrors ObjPtr and LoadSubPart exact/stripped/root subpart resolution");
   ok &= contains(gameplay_c,
-                 "constautoparent=camera_parent_for_key(key,targets);"
-                 "if(!parent)returneye;",
-                 "camera eye movement uses parent refs instead of aim target refs");
+                 "constautoparent_world=camera_parent_world_for_key("
+                 "key,targets,cached_parent_world);"
+                 "if(!parent_world)returneye;",
+                 "camera eye movement uses cached parent refs instead of aim target refs");
   ok &= contains(gameplay_c,
-                 "returntransform_point_game(parent->world,key.eye);",
-                 "camera parent source applies the full path-frame transform");
+                 "returntransform_point_game(*parent_world,key.eye);",
+                 "camera parent source applies the cached full path-frame transform");
   ok &= contains(gameplay_c,
-                 "if(!key.use_parent_rotation){return{key.eye[0]+parent->world[12]",
-                 "camera parent source can translate without rotating when authored");
+                 "if(!key.use_parent_rotation){return{key.eye[0]+"
+                 "(*parent_world)[12]",
+                 "camera parent source can translate from cached parent without rotating when authored");
   ok &= contains(gameplay_c,
-                 "(parent&&key.use_parent_rotation)?"
-                 "transform_vector_game(parent->world,key.forward)",
-                 "camera parent source gates authored basis rotation by use_parent_rotation");
+                 "(parent_world&&key.use_parent_rotation)?"
+                 "transform_vector_game(*parent_world,key.forward)",
+                 "camera parent source gates cached authored basis rotation by use_parent_rotation");
   ok &= contains(gameplay_c,
                  "if(key.has_basis){constautoworld_forward="
-                 "(parent&&key.use_parent_rotation)?"
-                 "transform_vector_game(parent->world,key.forward)",
-                 "basis-bearing CamShots preserve decoded look direction before target fallback");
+                 "(parent_world&&key.use_parent_rotation)?"
+                 "transform_vector_game(*parent_world,key.forward)",
+                 "basis-bearing CamShots preserve decoded cached-parent look direction before target fallback");
   ok &= contains(gameplay_c,
                  "if(!key.target_entity.empty()||!key.target_subpart.empty()||"
                  "!key.target_source_object.empty()||!key.target_refs.empty()){"
@@ -8470,15 +8495,16 @@ int main() {
                  "camera result builder has a target-list result-row branch");
   ok &= contains(gameplay_c,
                  "CameraResultRowsrows="
-                 "camera_source_seed_result_rows_for_key(key,targets);",
-                 "target-list result rows start from the shared source seed rows");
+                 "camera_source_seed_result_rows_for_key(key,targets,"
+                 "cached_parent_world);",
+                 "target-list result rows start from the shared cached-parent source seed rows");
   ok &= contains(gameplay_c,
                  "rows.source+=\"+target_list\";",
                  "target-list result rows preserve source-seed provenance");
   ok &= contains(gameplay_c,
                  "if(autotarget_rows=camera_target_list_result_rows_for_key"
-                 "(key,targets))return*target_rows;",
-                 "submitted CamShot result rows use the traced target-list branch first");
+                 "(key,targets,cached_parent_world)){return*target_rows;}",
+                 "submitted CamShot result rows use the cached-parent target-list branch first");
   ok &= contains(gameplay_c,
                  "\"target_ref_count=a:%zub:%zutarget_refs=a:%sb:%s\"",
                  "camera debug logs expose target-list member counts");
@@ -8508,14 +8534,14 @@ int main() {
                  "\"target_centroid=a:(%.3f%.3f%.3f)\"",
                  "camera debug logs expose target-list centroid positions");
   ok &= contains(gameplay_c,
-                 "conststd::optional<CameraTarget>parent="
-                 "camera_parent_for_key(key,targets);",
-                 "camera up rotation is driven by the CamShot parent/source ref");
+                 "constautoparent_world=camera_parent_world_for_key("
+                 "key,targets,cached_parent_world);",
+                 "camera up rotation is driven by the cached CamShot parent/source ref");
   ok &= contains(gameplay_c,
                  "if(key.has_basis){constautoworld_forward="
-                 "(parent&&key.use_parent_rotation)?"
-                 "transform_vector_game(parent->world,key.forward)",
-                 "empty-target camera shots preserve decoded basis as look direction");
+                 "(parent_world&&key.use_parent_rotation)?"
+                 "transform_vector_game(*parent_world,key.forward)",
+                 "empty-target camera shots preserve cached-parent decoded basis as look direction");
   ok &= contains(gameplay_h_c,
                  "floatduration_frames=0.0f;floatblend_frames=0.0f;"
                  "floatblend_ease=0.0f;intblend_ease_mode=0;"
@@ -13408,8 +13434,10 @@ int main() {
                  "rows.source=\"generated_source_seed\";",
                  "source seed rows prefer the generated PS2 source object when present");
   ok &= contains(gameplay_c,
-                 "rows.source=parent?\"parent+source_seed\":\"source_seed\";",
-                 "source seed diagnostics preserve parent/source provenance");
+                 "rows.source=parent_world?(cached_parent_world?"
+                 "\"cached_parent+source_seed\":\"parent+source_seed\"):"
+                 "\"source_seed\";",
+                 "source seed diagnostics preserve cached parent/source provenance");
   ok &= contains(gameplay_c,
                  "boolcamera_key_has_resolved_targets_like_camshot(",
                  "camera runtime exposes an ihatecompvir CamShot HasTargets helper");
@@ -13458,10 +13486,11 @@ int main() {
                  "pose-span source rows label the traced source-object basis");
   ok &= contains(gameplay_c,
                  "if(key.has_generated_source_rows||"
-                 "(parent&&!camera_key_has_resolved_targets_like_camshot("
+                 "(parent_world&&!camera_key_has_resolved_targets_like_camshot("
                  "key,targets))){"
-                 "returncamera_source_seed_result_rows_for_key(key,targets);}",
-                 "targetless generated or parent-source CamShots use resolved CamShot targets");
+                 "returncamera_source_seed_result_rows_for_key(key,targets,"
+                 "cached_parent_world);}",
+                 "targetless generated or cached parent-source CamShots use resolved CamShot targets");
   ok &= contains(gameplay_c,
                  "log_result_rows(\"source_seed_candidate\",source_seed_result,1,1);",
                  "debug camera logs compare source seed rows before submitted rows");

@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay CamShot cached parent seed handoff:
+  FreeCam remains last-priority unless it blocks normal gameplay cameras. Native
+  gameplay `SetFrame` now feeds the `CamShotFrame::UpdateTarget()` cached parent
+  `WorldXfm` (`unk44`) into authored eye/at/up, source seed rows, and submitted
+  fallback rows instead of only logging that cache exists. This keeps
+  `BuildTransform`-support math tied to the same source cache point as the
+  target centroid (`unk34`) while still not synthesizing the unrecovered RB2
+  `CamShot::SetPos` body or adding dependencies.
 - 2026-07-15 gameplay CamShot UpdateTarget cache handoff:
   ihatecompvir `CamShotFrame::UpdateTarget()` caches
   `GetCurrentTargetPosition(unk34)` and the parent `WorldXfm` in `unk44`; the
