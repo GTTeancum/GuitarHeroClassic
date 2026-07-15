@@ -25546,28 +25546,29 @@ size_t Gameplay::iterate_camera_shots_like_source() const {
 
 bool Gameplay::consume_pending_regular_camera_shot() {
     if (pending_regular_camera_.empty()) return false;
+    const double queued_start_preview = pending_regular_camera_start_;
+    const double source_local_frame = pending_regular_camera_local_frame_;
+    const std::string previous_current = active_regular_camera_;
     const std::string next_shot = std::move(pending_regular_camera_);
     pending_regular_camera_.clear();
-    const bool shot_changed = active_regular_camera_ != next_shot;
+    const bool shot_changed = previous_current != next_shot;
     const CameraKey* next_key =
         find_camera_key_by_name(regular_camera_keys_, next_shot);
     const double source_start_time =
         next_key ? camera_source_start_time_for_local_frame(
-                       *next_key, song_time_, pending_regular_camera_local_frame_,
-                       &chart_)
+                       *next_key, song_time_, source_local_frame, &chart_)
                  : song_time_;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
             "[world] camera PrePoll: source_manager=PrePoll source_field=mNextShot shot=%s previous=%s changed=%d source_start=CameraManager::StartShot_ start_time=%.3f queued_start_preview=%.3f local_frame=%.3f\n",
-            next_shot.c_str(), active_regular_camera_.c_str(),
-            shot_changed ? 1 : 0, source_start_time,
-            pending_regular_camera_start_, pending_regular_camera_local_frame_);
+            next_shot.c_str(), previous_current.c_str(), shot_changed ? 1 : 0,
+            source_start_time, queued_start_preview, source_local_frame);
     }
     // CameraManager::PrePoll always calls StartShot_(mNextShot) when mNextShot
     // is set, even if it points to the same CamShot. Preserve that restart so
     // source-local frame timing and StartAnim state reset on repeated picks.
-    previous_regular_camera_ = active_regular_camera_;
+    previous_regular_camera_ = previous_current;
     previous_camera_position_index_ = active_camera_position_index_;
     active_regular_camera_ = next_shot;
     active_regular_camera_start_ = source_start_time;
@@ -25586,6 +25587,20 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     active_camera_shot_over_ = false;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const CameraKey* source_current_after =
+            camera_manager_current_shot_like_source();
+        const CameraKey* source_next_after =
+            camera_manager_next_shot_like_source();
+        std::fprintf(
+            stderr,
+            "[world] camera PrePoll consumed: source_manager=PrePoll source_call=StartShot_(mNextShot) source_field=mCurrentShot,mNextShot source_order=after_StartShot_before_SetPreFrame previous=%s current=%s next_after=%s source_current_after=%s source_next_after=%s local_frame=%.3f start_time=%.3f result=SetPreFrame_ready pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            previous_current.c_str(), active_regular_camera_.c_str(),
+            pending_regular_camera_.c_str(),
+            source_current_after ? source_current_after->name.c_str() : "",
+            source_next_after ? source_next_after->name.c_str() : "",
+            source_local_frame, source_start_time);
+    }
     return true;
 }
 

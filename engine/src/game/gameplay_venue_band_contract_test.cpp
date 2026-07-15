@@ -6392,6 +6392,14 @@ int main() {
                  "pending_regular_camera_local_frame_=std::isfinite("
                  "source_local_frame)?source_local_frame:0.0;",
                  "regular camera mNextShot bridge uses source-local frame zero unless a diagnostic frame is explicitly supplied");
+  ok &= contains(gameplay_c,
+                 "constdoublequeued_start_preview="
+                 "pending_regular_camera_start_;"
+                 "constdoublesource_local_frame="
+                 "pending_regular_camera_local_frame_;"
+                 "conststd::stringprevious_current="
+                 "active_regular_camera_;",
+                 "regular camera PrePoll preserves queued source-state proof values before clearing mNextShot");
   ok &= contains(gameplay_h_c,
                  "doublepending_regular_camera_local_frame_=0.0;",
                  "regular camera mNextShot bridge stores requested local-frame offset separately from source start time");
@@ -6435,7 +6443,7 @@ int main() {
                  "camera_source_start_time_for_local_frame(",
                  "regular camera PrePoll consumption computes mCamStartTime from the consume-time clock");
   ok &= contains(gameplay_c,
-                 "previous_regular_camera_=active_regular_camera_;"
+                 "previous_regular_camera_=previous_current;"
                  "previous_camera_position_index_=active_camera_position_index_;"
                  "active_regular_camera_=next_shot;"
                  "active_regular_camera_start_=source_start_time;"
@@ -6443,8 +6451,30 @@ int main() {
                  "active_camera_position_index_=0;",
                  "regular camera pending mNextShot always restarts source shot timing");
   ok &= contains(gameplay_c,
-                 "active_camera_shot_over_=false;returntrue;",
+                 "active_camera_shot_over_=false;",
                  "regular camera pending mNextShot returns consumed even for same-shot restarts");
+  ok &= contains(gameplay_c,
+                 "constCameraKey*source_current_after="
+                 "camera_manager_current_shot_like_source();"
+                 "constCameraKey*source_next_after="
+                 "camera_manager_next_shot_like_source();",
+                 "regular camera PrePoll reads source current_shot and next_shot after consumption");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraPrePollconsumed:"
+                 "source_manager=PrePoll"
+                 "source_call=StartShot_(mNextShot)"
+                 "source_field=mCurrentShot,mNextShot"
+                 "source_order=after_StartShot_before_SetPreFrame",
+                 "regular camera PrePoll consumed diagnostics mirror ihatecompvir StartShot then mNextShot clear order");
+  ok &= contains(gameplay_c,
+                 "source_current_after=%s"
+                 "source_next_after=%s"
+                 "local_frame=%.3fstart_time=%.3f"
+                 "result=SetPreFrame_ready"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0",
+                 "regular camera PrePoll consumed diagnostics keep gameplay camera state ahead of deferred FreeCam");
   ok &= absent(gameplay_c,
                "camera_source_check_shot_started(",
                "CameraManager::PickCameraShot has no native same-current/unstarted CheckShotStarted guard");

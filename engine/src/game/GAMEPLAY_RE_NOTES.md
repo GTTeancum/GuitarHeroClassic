@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera PrePoll consumption proof:
+  ihatecompvir `CameraManager::PrePoll` calls `StartShot_(mNextShot)`, clears
+  `mNextShot`, then calls `mCurrentShot->SetPreFrame(CalcFrame(), 1.0f)`.
+  Native normal gameplay camera diagnostics now log the post-consumption
+  `mCurrentShot`/`mNextShot` state from the CameraManager bridge before the
+  SetPreFrame-ready step, proving that queued gameplay picks become the current
+  shot and the pending slot is empty. FreeCam is explicitly stamped
+  deferred-last in that proof; this does not synthesize `BuildTransform`,
+  `cam_shot_ok`, `cam_check_shot`, `CharWalk`, `SetPos`, or FreeCam behavior,
+  and it adds no dependency surface.
 - 2026-07-15 gameplay camera current/next-shot proof:
   ihatecompvir `CameraManager::PickCameraShot` queues the accepted CamShot into
   `mNextShot`, while `PrePoll` later consumes that pending value through
