@@ -6531,11 +6531,15 @@ and scrolling use `{char_multi char_event $playerNum animate}`. After rebuilding
 `multi_sel_character_screen`, `panel=char_multi`, `event=animate`,
 `clip=ui_loop`, both
 `char_multi0.placer` and `char_multi1.placer`, and no attached Xplorer prop.
+The checker also rejects any `[clip] 'ui_enter'` playback in this batch,
+because that is the single-player branch that can pose the character against
+select-screen support geometry.
 The 16 individual PNGs cover Glam1 and Metal1, both 2P slots, frames 30 and 40,
 and front-camera plus side-camera views. `tools/check_lower_body_2p_select_context_proofs.py`
 passes with `camera_views=front,side`, `cases=16`,
-`no_singleplayer_geometry=true`, `max_abs_toe_z=0.4526`,
-`max_lr_toe_delta_z=0.5101`, `min_pelvis_to_toe_z=32.9791`, and
+`no_singleplayer_geometry=true`, `single_player_ui_enter_clip_absent=true`,
+`max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
+`min_pelvis_to_toe_z=32.9791`, and
 `max_output_visible_gap=0.000500`. Metal1's shoe mesh can still read slightly
 above the drawn diagnostic base in profile, but the live source-output toe rows
 are within the established floor tolerance and match the visible lower-output

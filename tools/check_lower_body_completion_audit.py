@@ -611,6 +611,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "frames=30,40",
         "both_2p_placers=true",
         "no_singleplayer_geometry=true",
+        "ui_enter` support-geometry pose",
         "glam1_p1_2p_animate_ui_loop_f030_front",
         "glam1_p1_2p_animate_ui_loop_f030_side",
         "metal1_p1_2p_animate_ui_loop_f030_front",
@@ -628,6 +629,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
         "camera_views=front,side frames=30,40 cases=16",
         "individual_proofs=true both_2p_placers=true no_singleplayer_geometry=true",
+        "single_player_ui_enter_clip_absent=true",
         "max_abs_toe_z=0.4526",
         "max_lr_toe_delta_z=0.5101",
     ):

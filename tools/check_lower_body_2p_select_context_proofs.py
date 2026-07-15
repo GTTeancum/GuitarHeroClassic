@@ -4,7 +4,8 @@
 This is the corrected character-select visual oracle: the stock two-player
 animate event, both 2P placers, two frames about ten frames apart, and both
 front-camera and side-camera views.  It intentionally rejects treating the old
-single-player select geometry read as lower-body evidence.
+single-player select geometry read, or its `ui_enter` support-geometry pose, as
+lower-body evidence.
 """
 
 from __future__ import annotations
@@ -189,6 +190,10 @@ def check_case(root: Path, case: ProofCase) -> CaseMetrics:
     require_text(text, "screen=multi_sel_character_screen", log_path, "2P screen")
     require_text(text, "panel=char_multi event=animate", log_path, "2P animate event")
     require_text(text, "clip=ui_loop skips_ui_enter=true", log_path, "2P clip rule")
+    require(
+        "[clip] 'ui_enter'" not in text,
+        f"{log_path}: single-player ui_enter clip should not play in 2P animate",
+    )
     require_text(text, "char_objects=char/gen/char_objects.dtb", log_path, "char_objects source")
     require_text(text, "reset_hair=true", log_path, "2P animate reset hair rule")
     require_text(text, "placers=char_multi0.placer,char_multi1.placer", log_path, "2P placers")
@@ -280,6 +285,7 @@ def main() -> int:
         "event=animate multiplayer_clip=ui_loop skips_ui_enter=true "
         "camera_views=front,side frames=30,40 cases=16 "
         "individual_proofs=true both_2p_placers=true no_singleplayer_geometry=true "
+        "single_player_ui_enter_clip_absent=true "
         f"max_abs_toe_z={max(item.max_abs_toe_z for item in metrics):.4f} "
         f"max_lr_toe_delta_z={max(item.toe_delta_z for item in metrics):.4f} "
         f"min_pelvis_to_toe_z={min(item.min_pelvis_to_toe_z for item in metrics):.4f} "

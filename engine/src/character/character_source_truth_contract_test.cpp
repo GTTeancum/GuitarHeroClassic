@@ -34795,6 +34795,9 @@ int run_contract() {
                  "`no_singleplayer_geometry=true`",
                  "document records corrected 2P context status");
   ok &= contains(doc,
+                 "`single_player_ui_enter_clip_absent=true`",
+                 "document records 2P context skips ui_enter");
+  ok &= contains(doc,
                  "`start_loop_oracle=true`",
                  "document records 2P select start-loop status");
   ok &= contains(doc,
@@ -35028,6 +35031,14 @@ int run_contract() {
       "2P context checker rejects single-player geometry oracle");
   ok &= contains(
       lower_body_2p_select_context_proofs,
+      "\"[clip]'ui_enter'\"notintext",
+      "2P context checker rejects single-player ui_enter clip");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
+      "single_player_ui_enter_clip_absent=true",
+      "2P context checker reports ui_enter absence");
+  ok &= contains(
+      lower_body_2p_select_context_proofs,
       "cases=16",
       "2P context checker reports sixteen proof cases");
   ok &= contains(
@@ -35230,6 +35241,10 @@ int run_contract() {
       lower_body_completion_audit,
       "two_player_select_context=true",
       "completion audit reports 2P context verifier status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "single_player_ui_enter_clip_absent=true",
+      "completion audit requires 2P context to skip ui_enter");
   ok &= contains(
       lower_body_completion_audit,
       "two_player_select_start_loop=true",
