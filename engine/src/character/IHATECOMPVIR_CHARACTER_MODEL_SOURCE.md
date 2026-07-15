@@ -6603,6 +6603,16 @@ snapshot only when the live mirror is absent. `tools/check_lower_body_completion
 executes `tools/check_lower_body_source_row_authority.py` and requires its
 `source_dir=` output marker, so source-row authority is verified from the
 current ihatecompvir checkout instead of being inferred from checker text alone.
+The same completion audit now executes
+`tools/check_pose_publisher_source_gaps.py --require-rb2-dump --require-fresh-remotes --require-live-heads`
+instead of only inspecting the checker text. On 2026-07-15 that live-head run
+passes with `SUMMARY pass=64`, confirms `rb3` `41719f2`, `glTFMilo`
+`3c02a54`, `grim` `1c05ca3`, and `re-notes` `5c486fd` match their GitHub
+default-branch heads, and still reports the five fenced publisher bodies:
+`CharBones::ScaleAdd(CharBones&,float)`, `CharBonesSamples::EvaluateChannel`,
+`CharBonesMeshes::PoseMeshes`, `CharClipSamples::ScaleAdd`, and
+`CharClipDriver::Evaluate`. That keeps the current lower-body bridge grounded
+in latest available ihatecompvir evidence rather than stale local source.
 
 Lower-body evidence audit:
 - Root cause found: the original "standing but floating with legs forward"

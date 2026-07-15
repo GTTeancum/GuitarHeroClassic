@@ -34259,6 +34259,27 @@ int run_contract() {
       "lower-body completion audit runs source-row authority checker");
   ok &= contains(
       lower_body_completion_audit,
+      "run_checker(root,\"tools/check_pose_publisher_source_gaps.py\"",
+      "lower-body completion audit runs pose publisher source-gap checker");
+  ok &= contains(
+      lower_body_completion_audit,
+      "(\"--require-rb2-dump\",\"--require-fresh-remotes\","
+      "\"--require-live-heads\")",
+      "lower-body completion audit requires fresh live source mirrors");
+  ok &= contains(
+      lower_body_completion_audit,
+      "SUMMARYpass=64",
+      "lower-body completion audit checks live-head source-gap output");
+  ok &= contains(
+      lower_body_completion_audit,
+      "FENCED_SOURCE_GAP_OUTPUT",
+      "lower-body completion audit checks still-fenced source-gap output");
+  ok &= contains(
+      lower_body_completion_audit,
+      "CharClipSamples::ScaleAdd|CharClipDriver::Evaluate",
+      "lower-body completion audit pins still-fenced source-gap marker content");
+  ok &= contains(
+      lower_body_completion_audit,
       "PASSlower_body_completion_audit",
       "lower-body completion audit reports pass status");
   ok &= contains(
@@ -35342,6 +35363,15 @@ int run_contract() {
                  "document records expanded source-gap verifier pass count");
   ok &= contains(doc, "`SUMMARY pass=64`",
                  "document records live-head source-gap verifier pass count");
+  ok &= contains(doc,
+                 "`tools/check_pose_publisher_source_gaps.py "
+                 "--require-rb2-dump --require-fresh-remotes "
+                 "--require-live-heads`",
+                 "document records completion audit live-head source-gap command");
+  ok &= contains(doc,
+                 "That keeps the current lower-body bridge grounded\nin latest "
+                 "available ihatecompvir evidence rather than stale local source",
+                 "document records latest-source lower-body bridge boundary");
   ok &= contains(doc,
                  "The same source-gap checker also passes from committed "
                  "snapshots only",

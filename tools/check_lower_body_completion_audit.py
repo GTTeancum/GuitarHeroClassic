@@ -24,6 +24,11 @@ EXPECTED_FENCED = {
     "CharClipSamples::ScaleAdd",
     "CharClipDriver::Evaluate",
 }
+FENCED_SOURCE_GAP_OUTPUT = (
+    "SOURCE-GAP still-fenced=CharBones::ScaleAdd(CharBones&,float)|"
+    "CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes|"
+    "CharClipSamples::ScaleAdd|CharClipDriver::Evaluate"
+)
 
 LOWER_BODY_BONES = {
     "bone_pelvis",
@@ -226,9 +231,11 @@ def check_log(path: Path, label: str, required_markers: tuple[str, ...]) -> None
         require_contains(text, marker, f"{label} log marker")
 
 
-def run_checker(root: Path, script: str, label: str) -> str:
+def run_checker(
+    root: Path, script: str, label: str, args: tuple[str, ...] = ()
+) -> str:
     result = subprocess.run(
-        [sys.executable, str(root / script)],
+        [sys.executable, str(root / script), *args],
         cwd=root,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -802,6 +809,12 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
 
 def check_source_boundary(root: Path, doc: str) -> None:
     gaps_tool = read(root / "tools/check_pose_publisher_source_gaps.py")
+    gaps_output = run_checker(
+        root,
+        "tools/check_pose_publisher_source_gaps.py",
+        "pose publisher source-gap checker",
+        ("--require-rb2-dump", "--require-fresh-remotes", "--require-live-heads"),
+    )
     rexglue = read(root / "tools/check_lower_body_rexglue_trace_manifest.py")
     pcsx2 = read(root / "tools/check_lower_body_pcsx2_row_trace.py")
     gap_manifest = load_json(root / "tools/pose_publisher_source_gap_manifest.json")
@@ -816,6 +829,19 @@ def check_source_boundary(root: Path, doc: str) -> None:
     require_contains(gaps_tool, "nested_git_toplevel", "source gap nested git guard")
     require_contains(gaps_tool, "snapshot_commit", "source gap committed snapshot support")
     require_contains(gaps_tool, "default_rb2_dump_char", "source gap committed RB2 dump fallback")
+    for marker in (
+        "SUMMARY pass=64",
+        "rb3-live-head-fresh",
+        "gltfmilo-live-head-fresh",
+        "grim-live-head-fresh",
+        "re-notes-live-head-fresh",
+        "MIRROR rb3 source=git",
+        "MIRROR gltfMilo source=git",
+        "MIRROR grim source=git",
+        "MIRROR re-notes source=git",
+        FENCED_SOURCE_GAP_OUTPUT,
+    ):
+        require_contains(gaps_output, marker, f"source gap live-head output {marker}")
     require_contains(
         json.dumps(gap_manifest),
         "ihatecompvir-extra/rb3-retail-old/doc/rb2_dump",
