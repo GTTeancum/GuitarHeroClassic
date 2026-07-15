@@ -20785,7 +20785,8 @@ std::array<float, 3> camera_authored_at_for_key(
 std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (key.parent_entity.empty() && key.parent_subpart.empty())
+    if (key.parent_entity.empty() && key.parent_subpart.empty() &&
+        key.parent_source_object.empty())
         return std::nullopt;
     return camera_target_for_ref(key.parent_entity, key.parent_subpart,
                                  key.parent_source_object, targets);
@@ -22708,7 +22709,9 @@ void apply_camera_keys(
             "resolved_targets=a:%s b:%s same_targets=%d "
             "target_centroid=a:(%.3f %.3f %.3f) "
             "b:(%.3f %.3f %.3f) "
-            "a_parent=%s:%s b_parent=%s:%s resolved_parent=a:%s b:%s "
+            "a_parent=%s:%s(source_object=%s) "
+            "b_parent=%s:%s(source_object=%s) "
+            "resolved_parent=a:%s b:%s "
             "use_parent_rotation=a:%d b:%d "
             "focal_target=a:%s:%s(source_object=%s) "
             "b:%s:%s(source_object=%s) resolved_focus=a:%s b:%s "
@@ -22728,7 +22731,13 @@ void apply_camera_keys(
             b_target_centroid ? (*b_target_centroid)[1] : 0.0f,
             b_target_centroid ? (*b_target_centroid)[2] : 0.0f,
             a->parent_entity.c_str(), a->parent_subpart.c_str(),
+            a->parent_source_object.empty()
+                ? "none"
+                : a->parent_source_object.c_str(),
             b->parent_entity.c_str(), b->parent_subpart.c_str(),
+            b->parent_source_object.empty()
+                ? "none"
+                : b->parent_source_object.c_str(),
             a_resolved_parent.c_str(), b_resolved_parent.c_str(),
             a->use_parent_rotation ? 1 : 0, b->use_parent_rotation ? 1 : 0,
             a->focus_target_entity.c_str(), a->focus_target_subpart.c_str(),

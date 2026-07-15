@@ -183,6 +183,17 @@
   shared exact -> source-stripped subpart -> root lookup, so parent-source
   eye/basis transforms do not collapse to the broad performer root when the
   live target table stores stripped member names.
+- 2026-07-15 CamShot direct ObjPtr parent lookup:
+  newer ihatecompvir `CamShotFrame::Load` reads `mParent` as an object
+  pointer, just like direct target and focus refs. Native already preserved
+  that `parent_source_object`, but the parent gate still returned "no parent"
+  when only the direct object id was present. `camera_parent_for_key(...)` now
+  treats `parent_source_object` as a live parent ref and sends it through the
+  shared direct-object resolver before any inferred fallback. This can change
+  submitted camera eye/basis transforms for direct-parent CamShots, and is a
+  source lookup fix rather than a shot-specific angle tweak. Camera solver
+  diagnostics now print the parent `source_object` next to each A/B parent ref
+  so angle captures can prove whether the direct ObjPtr route is active.
 - 2026-07-14 CamShot performer base refs: ihatecompvir `LoadSubPart`
   resolves an empty subpart by returning the direct object transform when it
   exists, or by naming a generated `object_base.tp` proxy if it has to assume a

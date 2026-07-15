@@ -8296,9 +8296,13 @@ int main() {
                  "id=camera_target_id(entity,{});",
                  "camera target root fallback is limited to source SubPart refs");
   ok &= contains(gameplay_c,
-                 "if(key.parent_entity.empty()&&key.parent_subpart.empty())"
-                 "returnstd::nullopt;",
+                 "if(key.parent_entity.empty()&&key.parent_subpart.empty()&&"
+                 "key.parent_source_object.empty())returnstd::nullopt;",
                  "CamShot parent object-pointer refs can resolve without an entity");
+  ok &= absent(gameplay_c,
+               "if(key.parent_entity.empty()&&key.parent_subpart.empty())"
+               "returnstd::nullopt;",
+               "CamShot parent lookup must not drop direct ObjPtr source objects");
   ok &= contains(gameplay_c,
                  "((!key.target_entity.empty()||!key.target_subpart.empty())"
                  "?1u:0u)",
@@ -8408,6 +8412,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"(source_object=\"",
                  "camera target-ref diagnostics expose direct CamShot ObjPtr source objects");
+  ok &= contains(gameplay_c,
+                 "\"a_parent=%s:%s(source_object=%s)\"",
+                 "camera diagnostics expose direct CamShot parent ObjPtr source objects");
   ok &= absent(compact(function_body(
                    gameplay,
                    "std::vector<std::string> "
@@ -9261,7 +9268,9 @@ int main() {
                  "\"resolved_targets=a:%sb:%ssame_targets=%d\"",
                  "camera result diagnostics expose the resolved CamShot SameTargets signature");
   ok &= contains(gameplay_c,
-                 "\"a_parent=%s:%sb_parent=%s:%sresolved_parent=a:%sb:%s\"",
+                 "\"a_parent=%s:%s(source_object=%s)\""
+                 "\"b_parent=%s:%s(source_object=%s)\""
+                 "\"resolved_parent=a:%sb:%s\"",
                  "camera solver diagnostics expose resolved CamShot parent refs");
   ok &= contains(gameplay_c,
                  "floatcamera_result_builder_shot_filter_step(",
