@@ -6510,6 +6510,15 @@ Lower-body evidence audit:
   bodies as fenced in the available ihatecompvir sources/dumps. The lower-body
   bridge is therefore a bounded source-data bridge, not a claim that the full
   Harmonix pose publisher has been ported.
+- Audit guard: `tools/check_lower_body_completion_audit.py` now cross-checks
+  the root-cause proof, source-authored lower-body bridge boundary, active
+  Glam1/Metal1 proof subjects, full stock visual coverage, RexGlue/PCSX2
+  evidence roles, and the five still-fenced publisher bodies in one status
+  gate. It passes with `root_cause=true`, `source_bridge=true`,
+  `active_subjects=glam1,metal1`, `stock_visuals=true`,
+  `source_boundary_active=true`, and `goal_active=true`. This is intentionally
+  a lower-body slice audit only; it does not sign off Metal1's shoulder/hand,
+  Metal Drummer's arm twist, hair, cloth, or the full pose publisher.
 - Goal status: this evidence supports the lower-body root-cause and current leg
   behavior, but the broader GH2 character-model goal remains active until the
   wider source publisher boundary is resolved or explicitly accepted and current

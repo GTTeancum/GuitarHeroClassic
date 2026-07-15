@@ -174,6 +174,9 @@ int run_contract() {
   const std::string lower_body_source_row_authority = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_source_row_authority.py"));
+  const std::string lower_body_completion_audit = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_completion_audit.py"));
   const std::string lower_body_current_commit_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_current_commit_proofs.py"));
@@ -34120,6 +34123,30 @@ int run_contract() {
       lower_body_source_row_authority,
       "no_shortcut_fix=true",
       "lower-body source-row authority checker rejects shortcut fixes");
+  ok &= contains(
+      lower_body_completion_audit,
+      "PASSlower_body_completion_audit",
+      "lower-body completion audit reports pass status");
+  ok &= contains(
+      lower_body_completion_audit,
+      "root_cause=truesource_bridge=trueactive_subjects=glam1,metal1",
+      "lower-body completion audit ties root cause to active subjects");
+  ok &= contains(
+      lower_body_completion_audit,
+      "stock_visuals=truesource_boundary_active=truegoal_active=true",
+      "lower-body completion audit keeps source boundary and goal status active");
+  ok &= contains(
+      lower_body_completion_audit,
+      "EXPECTED_FENCED",
+      "lower-body completion audit pins fenced source publisher set");
+  ok &= contains(
+      lower_body_completion_audit,
+      "Newleg/poseproofrunsshouldpreferGlam1andMetal1",
+      "lower-body completion audit enforces current proof subjects");
+  ok &= contains(
+      lower_body_completion_audit,
+      "MetalDrummeralsohasavisiblearm-twistconcern",
+      "lower-body completion audit keeps drummer twist out of leg signoff");
   ok &= contains(doc,
                  "2026-07-15 lower-body source row authority:",
                  "document records lower-body source row authority");
@@ -34135,6 +34162,23 @@ int run_contract() {
   ok &= contains(doc,
                  "does not authorize raw\nsampled-channel writeback",
                  "document rejects raw sampled lower-body writeback");
+  ok &= contains(doc,
+                 "`tools/check_lower_body_completion_audit.py` now "
+                 "cross-checks",
+                 "document records lower-body completion audit");
+  ok &= contains(doc,
+                 "`active_subjects=glam1,metal1`",
+                 "document records active Glam1/Metal1 audit subjects");
+  ok &= contains(doc,
+                 "`source_boundary_active=true`, and `goal_active=true`",
+                 "document records active source boundary and goal status");
+  ok &= contains(doc,
+                 "This is intentionally\n  a lower-body slice audit only",
+                 "document scopes completion audit to lower body");
+  ok &= contains(doc,
+                 "does not sign off Metal1's shoulder/hand,\n  "
+                 "Metal Drummer's arm twist",
+                 "document excludes arm issues from lower-body audit");
   ok &= contains(
       lower_body_current_commit_proofs,
       "FORBIDDEN_LOG_MARKERS",
