@@ -1786,6 +1786,14 @@ int camshot_on_set_all_crowd_chars_3d_like_source() {
     return 0;
 }
 
+int camshot_gen_hide_list_like_source() {
+    return 0;
+}
+
+int camshot_clear_hide_list_like_source() {
+    return 0;
+}
+
 std::optional<DecodedRndCamAnim> read_rnd_camanim_like_miloeditor(
     const uint8_t* body, size_t size) {
     try {
@@ -25652,6 +25660,12 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             active_camera_runtime_shot_.c_str(),
             camshot_on_get_occluded_like_source(),
             camshot_on_set_all_crowd_chars_3d_like_source());
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim hide handlers: source_handlers=CamShot::HANDLE_EXPR(gen_hide_list,0)/CamShot::HANDLE_EXPR(clear_hide_list,0) shot=%s gen_hide_list=%d clear_hide_list=%d source_return=DataNode(0) submitted_visibility=unchanged\n",
+            active_camera_runtime_shot_.c_str(),
+            camshot_gen_hide_list_like_source(),
+            camshot_clear_hide_list_like_source());
     }
     if (skip_script_crowd_update) {
         if (debug_venue_filters_enabled()) {

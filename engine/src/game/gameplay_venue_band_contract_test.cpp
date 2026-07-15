@@ -188,6 +188,10 @@ int main() {
       compact(function_body(gameplay, "camshot_on_get_occluded_like_source"));
   const std::string camshot_set_all_to_3d_c = compact(function_body(
       gameplay, "camshot_on_set_all_crowd_chars_3d_like_source"));
+  const std::string camshot_gen_hide_list_c =
+      compact(function_body(gameplay, "camshot_gen_hide_list_like_source"));
+  const std::string camshot_clear_hide_list_c =
+      compact(function_body(gameplay, "camshot_clear_hide_list_like_source"));
   const std::string camera_filter_label_c =
       compact(function_body(gameplay, "camera_source_script_filter_label"));
   const std::string camera_submit_c =
@@ -6252,12 +6256,25 @@ int main() {
   ok &= contains(camshot_set_all_to_3d_c,
                  "return0;",
                  "CamShot OnSetAllCrowdChars3D mirrors ihatecompvir DataNode(0)");
+  ok &= contains(camshot_gen_hide_list_c,
+                 "return0;",
+                 "CamShot gen_hide_list mirrors ihatecompvir HANDLE_EXPR(..., 0)");
+  ok &= contains(camshot_clear_hide_list_c,
+                 "return0;",
+                 "CamShot clear_hide_list mirrors ihatecompvir HANDLE_EXPR(..., 0)");
   ok &= contains(gameplay_c,
                  "\"[world]cameraStartAnimhandlers:source_handlers="
                  "CamShot::OnGetOccluded/CamShot::OnSetAllCrowdChars3D"
                  "shot=%sget_occluded=%dset_all_to_3D=%d"
                  "source_return=DataNode(0)submitted_transform=unchanged\\n\"",
                  "camera StartAnim diagnostics expose source no-op handler values");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraStartAnimhidehandlers:source_handlers="
+                 "CamShot::HANDLE_EXPR(gen_hide_list,0)/"
+                 "CamShot::HANDLE_EXPR(clear_hide_list,0)"
+                 "shot=%sgen_hide_list=%dclear_hide_list=%d"
+                 "source_return=DataNode(0)submitted_visibility=unchanged\\n\"",
+                 "camera StartAnim diagnostics expose source hide-list no-op handler values");
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_anims"
                  "(constCameraKey&key,conststd::string&runtime_name)",

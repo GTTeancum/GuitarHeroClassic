@@ -150,6 +150,14 @@
   list. This is regular gameplay/venue camera state plumbing; it does not
   synthesize hidden `BuildTransform` or FreeCamera behavior, and it adds no
   dependency.
+- 2026-07-15 CamShot hide-list handler boundary:
+  ihatecompvir registers `HANDLE_EXPR(gen_hide_list, 0)` and
+  `HANDLE_EXPR(clear_hide_list, 0)` in the CamShot handler table. Native now
+  exposes those regular gameplay camera handlers as explicit zero-return proof
+  helpers and logs them as diagnostic-only during `StartAnim`, with submitted
+  visibility unchanged. This prevents future angle or visibility work from
+  treating either message as hidden solver behavior without new audited source;
+  it does not touch FreeCam or add dependencies.
 - 2026-07-15 CamShot no-op handler boundary:
   ihatecompvir `CamShot::OnGetOccluded` and `CamShot::OnSetAllCrowdChars3D`
   both return `DataNode(0)`. Native now names those source handler values in
