@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 CamShot target ObjPtr fallback:
+  ihatecompvir `CamShotFrame::Load` stores modern targets as direct
+  `ObjPtr<RndTransformable>` entries, and `UpdateTarget()` / `SameTargets()`
+  consume the resolved object list, not just textual entity/subpart pairs.
+  Native now falls back to the preserved primary source object when a decoded
+  target-ref list resolves zero objects, so a bridge-side textual miss cannot
+  suppress a direct ObjPtr target that was already loaded. If any authored ref
+  resolves, the list average/order remains authoritative. This changes only
+  source-object resolution and adds no dependency.
 - 2026-07-15 CamShot blend-ease source helper:
   ihatecompvir `CamShotFrame::Interp` remaps the outgoing keyframe blend
   through `ATanInterpolator(fvar1, fvar2, fvar1, fvar2, mBlendEase)`, whose

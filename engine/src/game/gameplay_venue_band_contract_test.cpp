@@ -8430,6 +8430,16 @@ int main() {
                  "\"(source_object=\"",
                  "camera target-ref diagnostics expose direct CamShot ObjPtr source objects");
   ok &= contains(gameplay_c,
+                 "if(update.resolved_count==0){add_target("
+                 "key.target_entity,key.target_subpart,"
+                 "key.target_source_object);}",
+                 "CamShot UpdateTarget falls back to the preserved direct source object when target refs do not resolve");
+  ok &= contains(gameplay_c,
+                 "if(refs.empty()&&(!key.target_entity.empty()||"
+                 "!key.target_subpart.empty()||"
+                 "!key.target_source_object.empty()))",
+                 "CamShot SameTargets falls back to the preserved direct source object when target refs do not resolve");
+  ok &= contains(gameplay_c,
                  "\"a_parent=%s:%s(source_object=%s)\"",
                  "camera diagnostics expose direct CamShot parent ObjPtr source objects");
   ok &= absent(compact(function_body(

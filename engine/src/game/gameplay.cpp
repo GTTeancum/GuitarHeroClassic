@@ -19578,6 +19578,10 @@ std::optional<CameraResultRows> camera_member_world_copy_candidate_rows_for_key(
             for (int axis = 0; axis < 3; ++axis) sum[axis] += pos[axis];
             ++count;
         }
+        if (count == 0) {
+            add_member(key.target_entity, key.target_subpart,
+                       key.target_source_object);
+        }
     } else {
         add_member(key.target_entity, key.target_subpart,
                    key.target_source_object);
@@ -20517,6 +20521,10 @@ CameraSourceTargetUpdate camera_update_targets_like_camshot(
                 update.centroid[axis] += pos[axis];
             ++update.resolved_count;
         }
+        if (update.resolved_count == 0) {
+            add_target(key.target_entity, key.target_subpart,
+                       key.target_source_object);
+        }
     } else {
         add_target(key.target_entity, key.target_subpart,
                    key.target_source_object);
@@ -20807,6 +20815,15 @@ std::vector<std::string> camera_resolved_target_signature_for_key(
         for (const auto& ref : key.target_refs) {
             if (auto id = camera_resolved_target_id_for_ref(
                     ref.entity, ref.subpart, ref.source_object, targets)) {
+                refs.push_back(std::move(*id));
+            }
+        }
+        if (refs.empty() &&
+            (!key.target_entity.empty() || !key.target_subpart.empty() ||
+             !key.target_source_object.empty())) {
+            if (auto id = camera_resolved_target_id_for_ref(
+                    key.target_entity, key.target_subpart,
+                    key.target_source_object, targets)) {
                 refs.push_back(std::move(*id));
             }
         }
