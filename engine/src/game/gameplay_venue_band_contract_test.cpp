@@ -9525,6 +9525,12 @@ int main() {
                  "\"pose_coverage=%shidden_pose_boundary=%s\"",
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
+                 "\"pose_coverage=%shidden_pose_boundary=%s\""
+                 "\"pipeline_scope=normal_gameplay_camera\""
+                 "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\""
+                 "\"hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\"",
+                 "camera solver diagnostics keep gameplay camera pose triage separate from deferred FreeCam work");
+  ok &= contains(gameplay_c,
                  "\"visible_Interp_order_unrecovered_BuildTransform\"",
                  "camera debug logs identify source-visible Interp order with unrecovered BuildTransform math");
   ok &= contains(gameplay_c,

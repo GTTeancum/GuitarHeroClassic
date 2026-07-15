@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera priority/proof scope:
+  normal gameplay camera parity is tracked separately from FreeCam. FreeCam is
+  deferred last unless it blocks regular gameplay camera behavior, and the
+  camera solver proof row now repeats `pipeline_scope=normal_gameplay_camera`,
+  `freecam_priority=deferred_last`, `freecam_affects_gameplay=0`, and the
+  remaining hidden gameplay blockers beside `pose_coverage` /
+  `hidden_pose_boundary`. This is a proof/reporting guard only; it does not
+  change camera math, promote FreeCam work, or add dependencies.
 - 2026-07-15 gameplay CamShot DOF shot gate copy:
   ihatecompvir `CamShot::Copy` copies `mUseDepthOfField`, and
   `CamShotFrame::Interp` gates DOF on that owning-shot flag before resolving
