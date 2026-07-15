@@ -8417,6 +8417,9 @@ int main() {
                  "boolhas_shot_filter=false;floatclamp_height=0.0f;"
                  "boolhas_clamp_height=false;",
                  "CameraKey preserves CamShot category/filter/clamp fields");
+  ok &= contains(gameplay_c,
+                 "boollooping=true;",
+                 "DecodedCamShot mirrors ihatecompvir CamShot constructor mLooping default");
   ok &= contains(gameplay_h_c,
                  "booljump_ok=true;boollighter=false;"
                  "intplatform_only=0;boolps3_per_pixel=false;"

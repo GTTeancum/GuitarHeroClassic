@@ -11799,6 +11799,13 @@ Rejected native probe:
   the same source default instead of treating fallback/derived shot state as
   DOF-enabled. Stock modern GH2 CamShots still read their authored DOF bool
   during load; this is source-default plumbing, not a visual DOF override.
+- 2026-07-14 CamShot looping constructor default:
+  ihatecompvir `CamShot::CamShot` initializes `mLooping` to true before loaded
+  shot data overwrites it. Native `DecodedCamShot` now uses that source
+  constructor default while still reading the authored loop bit for modern GH2
+  CamShots. This keeps fallback/derived shot state source-shaped and preserves
+  the `CheckShotOver` gate (`!mShotOver && !mLooping && frame >= mDuration`)
+  without inventing a new shot-over rule.
 - 2026-07-14 CamShotFrame zero-transform reset:
   ihatecompvir `CamShotFrame::Load` reads the world transform into `tf70`,
   compares it to a zero transform, and calls `unk10.Reset()` when equal.

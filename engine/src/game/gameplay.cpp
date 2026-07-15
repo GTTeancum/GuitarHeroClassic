@@ -1602,7 +1602,7 @@ struct DecodedCamShot {
     int anim_rate = 0;
     std::unordered_map<std::string, MiloValue> props;
     std::vector<std::pair<Gameplay::CameraKey, size_t>> frames;
-    bool looping = false;
+    bool looping = true;
     int loop_keyframe = 0;
     float near_plane = 1.0f;
     float far_plane = 1000.0f;
