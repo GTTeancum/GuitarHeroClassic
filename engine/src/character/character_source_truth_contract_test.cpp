@@ -177,9 +177,15 @@ int run_contract() {
   const std::string lower_body_metal1_followup_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_metal1_followup_proofs.py"));
+  const std::string lower_body_glam1_metal1_ingame_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_glam1_metal1_ingame_proofs.py"));
   const std::string lower_body_current_commit_pose_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_current_commit_pose_manifest.json"));
+  const std::string lower_body_glam1_metal1_ingame_pose_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "lower_body_glam1_metal1_ingame_pose_manifest.json"));
   const std::string lower_body_pcsx2_row_trace = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_pcsx2_row_trace.py"));
@@ -34116,6 +34122,50 @@ int run_contract() {
       "direct_source_publisher_absent=true",
       "lower-body follow-up proof does not overclaim source-publisher fence");
   ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "lower_body_glam1_metal1_ingame_20260715",
+      "focused Glam1/Metal1 in-game proof uses current proof folder");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "ingame_glam1_t060_flr_near_rt01.log",
+      "focused Glam1/Metal1 in-game proof requires Glam1 gameplay log");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "viewer_metal1_live_stack.log",
+      "focused Glam1/Metal1 in-game proof requires Metal1 viewer log");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "text.replace(\"\\x00\",\"\")",
+      "focused Glam1/Metal1 in-game proof normalizes captured log encoding");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "source_publisher_fenced=true",
+      "focused Glam1/Metal1 in-game proof reports source publisher fence");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "lower_body_rows=true",
+      "focused Glam1/Metal1 in-game proof reports lower-body rows");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_proofs,
+      "characters=glam1,metal1",
+      "focused Glam1/Metal1 in-game proof reports checked characters");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_pose_manifest,
+      "\"glam1_current_ingame_viewer_lower_body_match\"",
+      "focused Glam1/Metal1 manifest includes Glam1 match");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_pose_manifest,
+      "\"metal1_current_ingame_viewer_lower_body_match\"",
+      "focused Glam1/Metal1 manifest includes Metal1 match");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_pose_manifest,
+      "viewer_metal1_live_stack.log",
+      "focused Glam1/Metal1 manifest uses Metal1 viewer proof log");
+  ok &= contains(
+      lower_body_glam1_metal1_ingame_pose_manifest,
+      "\"layers_used=0:stand_fast_04\"",
+      "focused Glam1/Metal1 manifest pins Metal1 active body layer");
+  ok &= contains(
       lower_body_current_commit_pose_manifest,
       "\"rockabill2_current_commit_lower_body_match\"",
       "lower-body current-commit manifest includes Rockabill2 match");
@@ -34139,6 +34189,27 @@ int run_contract() {
   ok &= contains(doc,
                  "Metal1 has a visible right shoulder/hand concern",
                  "document marks Metal1 right arm follow-up");
+  ok &= contains(doc,
+                 "2026-07-15 focused Glam1/Metal1 current in-game proof:",
+                 "document records focused Glam1/Metal1 in-game proof");
+  ok &= contains(
+      doc,
+      "`engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/`",
+      "document records focused Glam1/Metal1 in-game proof folder");
+  ok &= contains(doc,
+                 "Glam1 uses `stand_fast_02 -> stand_fast_03`, while\n"
+                 "Metal1 uses `stand_fast_03 -> stand_fast_04`",
+                 "document records focused Glam1/Metal1 body clip transitions");
+  ok &= contains(doc,
+                 "`tools/check_lower_body_glam1_metal1_ingame_proofs.py` "
+                 "passes with\n`characters=glam1,metal1`",
+                 "document records focused Glam1/Metal1 proof checker");
+  ok &= contains(doc,
+                 "Glam1 and Metal1 at `max_delta=0.000000`",
+                 "document records focused Glam1/Metal1 exact row compare");
+  ok &= contains(doc,
+                 "does\nnot sign off Metal1's visible right shoulder/hand concern",
+                 "document keeps focused Glam1/Metal1 proof scoped to legs");
   ok &= contains(doc,
                  "intentionally\nnot a current bad-arm proof",
                  "document prevents stale viewer control from being reused as proof");

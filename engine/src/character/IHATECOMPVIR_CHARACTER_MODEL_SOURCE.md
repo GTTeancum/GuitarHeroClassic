@@ -6333,6 +6333,24 @@ pelvis, both thighs, both knees, both ankles, and both toes have driven
 review set; that is logged as a later arm follow-up and is not used as evidence
 for or against the lower-body bridge.
 
+2026-07-15 focused Glam1/Metal1 current in-game proof:
+`engine/out/visual_proofs/lower_body_glam1_metal1_ingame_20260715/` replaces
+Rockabill as the current quick lower-body review subject and captures direct
+Trogdor Expert / small2 / Xplorer gameplay frames for Glam1 and Metal1 with
+`flr_near_rt01`, diagnostic autoplay, and hidden highway/HUD. Matching direct
+viewer captures use the same stock PS2 assets, reference base, and
+`spot_neck_fret11.mesh`: Glam1 uses `stand_fast_02 -> stand_fast_03`, while
+Metal1 uses `stand_fast_03 -> stand_fast_04`. The proof logs retain
+`source_publisher=fenced` and the missing source call names
+`CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes`.
+`tools/check_lower_body_glam1_metal1_ingame_proofs.py` passes with
+`characters=glam1,metal1`, `hud_hidden=true`, `highway_hidden=true`,
+`lower_body_rows=true`, and `source_publisher_fenced=true`.
+`tools/lower_body_glam1_metal1_ingame_pose_manifest.json` then compares in-game
+and viewer pelvis, both thighs, both knees, both ankles, and both toes for
+Glam1 and Metal1 at `max_delta=0.000000`. This remains leg-only proof; it does
+not sign off Metal1's visible right shoulder/hand concern.
+
 Lower-body evidence audit:
 - Root cause found: the original "standing but floating with legs forward"
   frame was not static bind pose, camera angle, hand overlays, foot IK, or a
