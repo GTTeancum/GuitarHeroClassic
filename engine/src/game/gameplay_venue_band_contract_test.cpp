@@ -10219,29 +10219,48 @@ int main() {
                  "camera_trace_complete_writer_bridge_rows(",
                  "runtime can exercise the trace-complete writer bridge through a guarded path");
   ok &= contains(gameplay_c,
-                 "evaluation.has_complete_writer_builder_pair&&",
+                 "!evaluation.has_complete_writer_builder_pair",
                  "shared trace-complete writer bridge gate refuses rows without immediate builder-pair evidence");
   ok &= contains(gameplay_c,
-                 "evaluation.has_writer_bridge_payload_delta&&",
+                 "!evaluation.has_writer_bridge_payload_delta",
                  "shared trace-complete writer bridge gate refuses complete-pair traces without sampled writer payload delta evidence");
   ok &= contains(gameplay_c,
-                 "evaluation.writer_bridge_payload_delta_support_count>0&&",
+                 "evaluation.writer_bridge_payload_delta_support_count<=0",
                  "shared trace-complete writer bridge gate requires positive payload-delta support trace count");
   ok &= contains(gameplay_c,
-                 "evaluation.writer_bridge_payload_delta_min_distance>0.0f&&",
+                 "evaluation.writer_bridge_payload_delta_min_distance<=0.0f",
                  "shared trace-complete writer bridge gate requires a measured payload-delta distance range");
   ok &= contains(gameplay_c,
-                 "evaluation.writer_bridge_payload_delta_max_distance>=evaluation.writer_bridge_payload_delta_min_distance",
+                 "evaluation.writer_bridge_payload_delta_max_distance<evaluation.writer_bridge_payload_delta_min_distance",
                  "shared trace-complete writer bridge gate rejects invalid payload-delta distance ranges");
   ok &= contains(gameplay_c,
-                 "evaluation.camera_system_shape==\"complete_writer_builder_pair\"",
+                 "evaluation.camera_system_shape!=\"complete_writer_builder_pair\"",
                  "shared trace-complete writer bridge gate requires the analyzer's complete camera-system graph shape");
   ok &= contains(gameplay_c,
-                 "evaluation.complete_writer_builder_pair_count>0&&",
+                 "evaluation.complete_writer_builder_pair_count<=0",
                  "shared trace-complete writer bridge gate requires positive complete writer-builder pair evidence");
   ok &= contains(gameplay_c,
-                 "evaluation.incomplete_writer_builder_pair_count==0",
+                 "evaluation.incomplete_writer_builder_pair_count!=0",
                  "shared trace-complete writer bridge gate refuses mixed or incomplete writer-builder pair evidence");
+  ok &= contains(gameplay_c,
+                 "evaluation.has_trace_source_path_local_frame",
+                 "shared trace-complete writer bridge gate can require an audited source path-local frame");
+  ok &= contains(gameplay_c,
+                 "!evaluation.has_runtime_source_path_local_frame",
+                 "shared trace-complete writer bridge gate refuses path-scoped traces without a live source path frame");
+  ok &= contains(gameplay_c,
+                 "evaluation.runtime_source_path_local_frame-"
+                 "evaluation.trace_source_path_local_frame",
+                 "shared trace-complete writer bridge gate compares live source path frame against the retained trace frame");
+  ok &= contains(gameplay_c,
+                 "\"source_path_frame_mismatch\"",
+                 "camera writer-bridge gate diagnostics distinguish retained trace frame mismatches");
+  ok &= contains(gameplay_c,
+                 "trace_source_path_local_frame",
+                 "retained PS2 trace context carries the audited source path-local frame");
+  ok &= contains(gameplay_c,
+                 "true,255.0f,0.001f",
+                 "retained balcony_lft04 writer bridge is scoped to the accepted path-local frame 255 proof");
   ok &= contains(gameplay_c,
                  "GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE",
                  "trace-complete writer bridge submission is default-on only behind the shared evidence gate and keeps an explicit A/B disable");
@@ -10367,6 +10386,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "prev_a0=",
                  "generic PS2 writer bridge provenance requires the immediate result-builder id");
+  ok &= contains(gameplay_c,
+                 "runtime_source_path_frame=",
+                 "generic PS2 writer bridge provenance includes the live source path frame when a retained trace is frame-scoped");
+  ok &= contains(gameplay_c,
+                 "source_path_frame_tolerance=",
+                 "generic PS2 writer bridge provenance includes the retained trace frame tolerance");
   ok &= contains(gameplay_c,
                  "\"0x008269f0\"",
                  "retained PS2 writer-builder pair preserves the accepted result-builder object id");

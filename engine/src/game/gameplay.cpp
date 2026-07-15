@@ -9374,6 +9374,11 @@ struct Ps2SourceRecordTraceContext {
     float writer_bridge_payload_delta_max_distance = 0.0f;
     int complete_writer_builder_pair_count = 0;
     int incomplete_writer_builder_pair_count = 0;
+    bool has_trace_source_path_local_frame = false;
+    float trace_source_path_local_frame = 0.0f;
+    float trace_source_path_local_frame_tolerance = 0.0f;
+    bool has_runtime_source_path_local_frame = false;
+    float runtime_source_path_local_frame = 0.0f;
     std::string camera_system_shape;
     std::string writer_builder_pair_trace_artifact;
     std::string writer_source_builder;
@@ -9413,6 +9418,11 @@ struct Ps2SourceRecordEvaluation {
     float writer_bridge_payload_delta_max_distance = 0.0f;
     int complete_writer_builder_pair_count = 0;
     int incomplete_writer_builder_pair_count = 0;
+    bool has_trace_source_path_local_frame = false;
+    float trace_source_path_local_frame = 0.0f;
+    float trace_source_path_local_frame_tolerance = 0.0f;
+    bool has_runtime_source_path_local_frame = false;
+    float runtime_source_path_local_frame = 0.0f;
     std::string camera_system_shape;
     std::string writer_builder_pair_trace_artifact;
     std::string writer_source_builder;
@@ -9469,6 +9479,9 @@ struct Ps2SourceRecordTraceEntry {
     std::array<float, 3> writer_up;
     std::string_view writer_trace_artifact;
     std::string_view trace_artifact;
+    bool has_trace_source_path_local_frame;
+    float trace_source_path_local_frame;
+    float trace_source_path_local_frame_tolerance;
 };
 
 constexpr Ps2SourceRecordTraceEntry kRetainedPs2SourceRecordTraceTable[] = {
@@ -9516,7 +9529,10 @@ constexpr Ps2SourceRecordTraceEntry kRetainedPs2SourceRecordTraceTable[] = {
       {0.877965f, 0.477960f, 0.000558f},
       {-0.071399f, 0.129998f, 0.988622f},
       "gh2dxu_arena_writer_handoff_statefile_20260629_025058",
-      "gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628"},
+      "gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628",
+      true,
+      255.0f,
+      0.001f},
 };
 
 bool ps2_source_record_trace_entry_matches_key(
@@ -9571,6 +9587,16 @@ ps2_source_record_trace_context_for_key(const Gameplay::CameraKey& key) {
             entry.complete_writer_builder_pair_count;
         context.incomplete_writer_builder_pair_count =
             entry.incomplete_writer_builder_pair_count;
+        context.has_trace_source_path_local_frame =
+            entry.has_trace_source_path_local_frame;
+        context.trace_source_path_local_frame =
+            entry.trace_source_path_local_frame;
+        context.trace_source_path_local_frame_tolerance =
+            entry.trace_source_path_local_frame_tolerance;
+        context.has_runtime_source_path_local_frame =
+            key.has_source_path_frame_mapping;
+        context.runtime_source_path_local_frame =
+            key.source_path_local_frame;
         context.camera_system_shape = std::string(entry.camera_system_shape);
         context.writer_builder_pair_trace_artifact =
             std::string(entry.writer_builder_pair_trace_artifact);
@@ -9638,6 +9664,16 @@ evaluate_retained_ps2_source_record_trace_context(
         trace_context->complete_writer_builder_pair_count;
     evaluation.incomplete_writer_builder_pair_count =
         trace_context->incomplete_writer_builder_pair_count;
+    evaluation.has_trace_source_path_local_frame =
+        trace_context->has_trace_source_path_local_frame;
+    evaluation.trace_source_path_local_frame =
+        trace_context->trace_source_path_local_frame;
+    evaluation.trace_source_path_local_frame_tolerance =
+        trace_context->trace_source_path_local_frame_tolerance;
+    evaluation.has_runtime_source_path_local_frame =
+        trace_context->has_runtime_source_path_local_frame;
+    evaluation.runtime_source_path_local_frame =
+        trace_context->runtime_source_path_local_frame;
     evaluation.camera_system_shape = trace_context->camera_system_shape;
     evaluation.writer_builder_pair_trace_artifact =
         trace_context->writer_builder_pair_trace_artifact;
@@ -19048,15 +19084,27 @@ std::string camera_format_metric_float(float value) {
 
 bool camera_has_promotable_writer_bridge_evidence(
     const Ps2SourceRecordEvaluation& evaluation) {
-    return evaluation.has_complete_writer_builder_pair &&
-           evaluation.has_writer_bridge_payload_delta &&
-           evaluation.writer_bridge_payload_delta_support_count > 0 &&
-           evaluation.writer_bridge_payload_delta_min_distance > 0.0f &&
-           evaluation.writer_bridge_payload_delta_max_distance >=
-               evaluation.writer_bridge_payload_delta_min_distance &&
-           evaluation.camera_system_shape == "complete_writer_builder_pair" &&
-           evaluation.complete_writer_builder_pair_count > 0 &&
-           evaluation.incomplete_writer_builder_pair_count == 0;
+    if (!evaluation.has_complete_writer_builder_pair ||
+        !evaluation.has_writer_bridge_payload_delta ||
+        evaluation.writer_bridge_payload_delta_support_count <= 0 ||
+        evaluation.writer_bridge_payload_delta_min_distance <= 0.0f ||
+        evaluation.writer_bridge_payload_delta_max_distance <
+            evaluation.writer_bridge_payload_delta_min_distance ||
+        evaluation.camera_system_shape != "complete_writer_builder_pair" ||
+        evaluation.complete_writer_builder_pair_count <= 0 ||
+        evaluation.incomplete_writer_builder_pair_count != 0) {
+        return false;
+    }
+    if (!evaluation.has_trace_source_path_local_frame) {
+        return true;
+    }
+    if (!evaluation.has_runtime_source_path_local_frame) {
+        return false;
+    }
+    const float tolerance =
+        std::max(evaluation.trace_source_path_local_frame_tolerance, 0.0f);
+    return std::abs(evaluation.runtime_source_path_local_frame -
+                    evaluation.trace_source_path_local_frame) <= tolerance;
 }
 
 const char* camera_writer_bridge_gate_label(
@@ -19090,6 +19138,19 @@ const char* camera_writer_bridge_gate_label(
     if (evaluation->incomplete_writer_builder_pair_count != 0) {
         return "incomplete_pair";
     }
+    if (evaluation->has_trace_source_path_local_frame &&
+        !evaluation->has_runtime_source_path_local_frame) {
+        return "missing_source_path_frame";
+    }
+    if (evaluation->has_trace_source_path_local_frame) {
+        const float tolerance =
+            std::max(evaluation->trace_source_path_local_frame_tolerance,
+                     0.0f);
+        if (std::abs(evaluation->runtime_source_path_local_frame -
+                     evaluation->trace_source_path_local_frame) > tolerance) {
+            return "source_path_frame_mismatch";
+        }
+    }
     return "not_promotable";
 }
 
@@ -19115,7 +19176,19 @@ std::string camera_writer_builder_pair_provenance(
            std::to_string(evaluation.incomplete_writer_builder_pair_count) +
            " trace=" + evaluation.writer_builder_pair_trace_artifact +
            " prev2_a0=" + evaluation.writer_source_builder +
-           " prev_a0=" + evaluation.writer_result_builder;
+           " prev_a0=" + evaluation.writer_result_builder +
+           (evaluation.has_trace_source_path_local_frame
+                ? " trace_source_path_frame=" +
+                      camera_format_metric_float(
+                          evaluation.trace_source_path_local_frame) +
+                      " runtime_source_path_frame=" +
+                      camera_format_metric_float(
+                          evaluation.runtime_source_path_local_frame) +
+                      " source_path_frame_tolerance=" +
+                      camera_format_metric_float(
+                          evaluation
+                              .trace_source_path_local_frame_tolerance)
+                : "");
 }
 
 std::optional<CameraResultRows> camera_ps2_result_builder_basis_candidate_rows(
@@ -22049,13 +22122,29 @@ void apply_camera_keys(
                        ? evaluation->writer_builder_pair_trace_artifact.c_str()
                        : "none";
         };
+        auto writer_bridge_runtime_frame_prefix =
+            [](const std::optional<Ps2SourceRecordEvaluation>& evaluation)
+            -> const char* {
+            return evaluation && evaluation->has_runtime_source_path_local_frame
+                       ? ""
+                       : "none/";
+        };
+        auto writer_bridge_trace_frame_prefix =
+            [](const std::optional<Ps2SourceRecordEvaluation>& evaluation)
+            -> const char* {
+            return evaluation && evaluation->has_trace_source_path_local_frame
+                       ? ""
+                       : "none/";
+        };
         std::fprintf(
             stderr,
             "[camera-solver] frame=%.2f writer_bridge_gate a=%s "
             "promoted=%d shape=%s complete=%d incomplete=%d "
             "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
+            "source_path_frame=a:%s%.3f trace:%s%.3f tol=%.3f "
             "b=%s promoted=%d shape=%s complete=%d incomplete=%d "
             "payload_delta=%d support=%d dist=(%.6f %.6f) trace=%s "
+            "source_path_frame=b:%s%.3f trace:%s%.3f tol=%.3f "
             "delta_source=a:%s b:%s "
             "submitted_kind=a:%s b:%s "
             "skip_source_build_transform=%d "
@@ -22091,6 +22180,18 @@ void apply_camera_keys(
                       ->writer_bridge_payload_delta_max_distance
                 : 0.0f,
             writer_bridge_gate_trace(writer_bridge_gate_eval_a),
+            writer_bridge_runtime_frame_prefix(writer_bridge_gate_eval_a),
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a->runtime_source_path_local_frame
+                : 0.0f,
+            writer_bridge_trace_frame_prefix(writer_bridge_gate_eval_a),
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a->trace_source_path_local_frame
+                : 0.0f,
+            writer_bridge_gate_eval_a
+                ? writer_bridge_gate_eval_a
+                      ->trace_source_path_local_frame_tolerance
+                : 0.0f,
             camera_writer_bridge_gate_label(writer_bridge_gate_eval_b),
             writer_bridge_gate_eval_b &&
                     camera_has_promotable_writer_bridge_evidence(
@@ -22121,6 +22222,18 @@ void apply_camera_keys(
                       ->writer_bridge_payload_delta_max_distance
                 : 0.0f,
             writer_bridge_gate_trace(writer_bridge_gate_eval_b),
+            writer_bridge_runtime_frame_prefix(writer_bridge_gate_eval_b),
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b->runtime_source_path_local_frame
+                : 0.0f,
+            writer_bridge_trace_frame_prefix(writer_bridge_gate_eval_b),
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b->trace_source_path_local_frame
+                : 0.0f,
+            writer_bridge_gate_eval_b
+                ? writer_bridge_gate_eval_b
+                      ->trace_source_path_local_frame_tolerance
+                : 0.0f,
             camera_writer_bridge_delta_source_label(*a, targets),
             camera_writer_bridge_delta_source_label(*b, targets),
             camera_submitted_rows_kind_label(submitted_rows_a.kind),

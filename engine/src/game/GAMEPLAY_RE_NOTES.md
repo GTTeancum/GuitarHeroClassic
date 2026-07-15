@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-15 retained writer bridge source-frame scope:
+  the accepted `balcony_lft04` writer bridge evidence is tied to the stock
+  path-backed diagnostic frame `source_path_local_frame=255.000`, matching the
+  retained GHDX `f12=255.0` source trace and the native
+  `--diagnostic-camera-path-offset 255` proof. Native now stores that source
+  path-local frame on the retained trace record and refuses default
+  trace-complete writer-bridge promotion when the live path frame is missing or
+  does not match the retained frame. Diagnostic `writer_bridge_gate` rows now
+  print both live and trace source-frame values and report
+  `source_path_frame_mismatch` instead of smearing one accepted writer payload
+  across the whole path CamShot timeline. This tightens the audited PS2 bridge;
+  it does not add dependencies or synthesize hidden `CamShot::SetPos` math.
 - 2026-07-14 proof-build dependency boundary: Windows native proof builds are
   pinned to the MSVC `cl` toolchain in both root and engine CMake presets, and
   `build_env.bat` no longer prepends LLVM to `PATH`. This keeps camera/venue
