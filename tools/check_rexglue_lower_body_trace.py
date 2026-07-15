@@ -51,6 +51,7 @@ KINDS = (
     "input.joypad.scan",
     "input.signin_state",
     "input.frame_tick",
+    "input.xam_state",
 )
 
 POSE_APPLY_ROUTE_MARKERS = (
@@ -140,6 +141,7 @@ def main() -> int:
     parser.add_argument("--require-in-song-route", action="store_true")
     parser.add_argument("--require-scripted-nav-polls", action="store_true")
     parser.add_argument("--require-guitar-input-edge", action="store_true")
+    parser.add_argument("--require-xam-state", action="store_true")
     parser.add_argument("--allow-truncated-tail", action="store_true")
     parser.add_argument("--write-summary", type=Path)
     args = parser.parse_args()
@@ -173,6 +175,8 @@ def main() -> int:
         failures.append("missing scripted nav poll heartbeat")
     if args.require_guitar_input_edge and counts["input.guitar_edge"] <= 0:
         failures.append("missing GuitarPort input edge")
+    if args.require_xam_state and counts["input.xam_state"] <= 0:
+        failures.append("missing raw XamInputGetState rows")
     lower_body_memory = detail_text(events, "anim.lower_body.memory")
     found_channels = sorted(
         channel
@@ -204,6 +208,7 @@ def main() -> int:
         "input_joypad_scans": counts["input.joypad.scan"],
         "input_signin_state": counts["input.signin_state"],
         "input_frame_ticks": counts["input.frame_tick"],
+        "input_xam_states": counts["input.xam_state"],
         "lower_body_channels": found_channels,
         "first_lower_body_neighborhood": (
             detail_text(events, "anim.lower_body.neighborhood") or [""]
@@ -231,6 +236,9 @@ def main() -> int:
             0
         ][:300],
         "first_frame_tick": (detail_text(events, "input.frame_tick") or [""])[0][
+            :300
+        ],
+        "first_xam_state": (detail_text(events, "input.xam_state") or [""])[0][
             :300
         ],
         "first_controller_gate_file": (
@@ -273,6 +281,7 @@ def main() -> int:
         f"joypad_scans={counts['input.joypad.scan']} "
         f"signin_state={counts['input.signin_state']} "
         f"frame_ticks={counts['input.frame_tick']} "
+        f"xam_states={counts['input.xam_state']} "
         f"route_status={status} "
         f"result={summary['result']}"
     )

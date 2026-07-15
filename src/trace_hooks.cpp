@@ -1771,6 +1771,13 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
     const uint32_t user = ctx.r3.u32;
     const uint32_t state = ctx.r4.u32;
     __imp__sub_823B5B68(ctx, base);
+    if (trace_input_gate_enabled()) {
+        static std::atomic<uint32_t> s_raw_count{0};
+        std::string detail = "user=" + std::to_string(user) +
+                             " result=" + fmt_u32(ctx.r3.u32) + " " +
+                             describe_xinput_state(base, state);
+        log_input_gate_event("input.xam_state", s_raw_count, detail);
+    }
     if (!trace_scripted_nav_enabled() || !state) return;
     const int scripted_user = trace_force_guitar_capabilities_enabled()
                                   ? trace_mnk_user_index()
