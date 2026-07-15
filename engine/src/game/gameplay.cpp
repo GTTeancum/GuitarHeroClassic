@@ -34345,9 +34345,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                     }
                     if (!source_frame_key_route && key->has_path_anim &&
-                        selected_camera.size() >= 2 &&
-                        active_camera_frame_pair_reported_ !=
-                            key->name + ":path") {
+                        selected_camera.size() >= 2) {
                         const float world_frame =
                             static_cast<float>(song_time_ * 30.0);
                         size_t b_index = selected_camera.size() - 1;
@@ -34360,6 +34358,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         const size_t a_index = b_index > 0 ? b_index - 1 : 0;
                         const CameraKey& a_key = selected_camera[a_index];
                         const CameraKey& b_key = selected_camera[b_index];
+                        auto path_frame_report_token =
+                            [](const CameraKey& path_key) {
+                                char buf[64] = {};
+                                if (path_key.has_source_path_frame_mapping) {
+                                    std::snprintf(
+                                        buf, sizeof(buf), "%.3f",
+                                        path_key.source_path_authored_frame);
+                                } else {
+                                    std::snprintf(buf, sizeof(buf), "none");
+                                }
+                                return std::string(buf);
+                            };
+                        const std::string path_frame_pair_report_key =
+                            key->name + ":path:" +
+                            path_frame_report_token(a_key) + ":" +
+                            path_frame_report_token(b_key);
+                        if (active_camera_frame_pair_reported_ !=
+                            path_frame_pair_report_key) {
                         auto path_mapping_prefix = [](const CameraKey& path_key) {
                             return path_key.has_source_path_frame_mapping ? ""
                                                                           : "none/";
@@ -34402,10 +34418,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             return path_key.has_path_scale ? "" : "none/";
                         };
                         active_camera_frame_pair_reported_ =
-                            key->name + ":path";
+                            path_frame_pair_report_key;
                         std::fprintf(
                             stderr,
-                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored source_span=RndTransAnim::StartFrame/EndFrame route=regular_camera_path_keys path=%s path_trans_target=%s source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only native_path_submit=decoded_trans_rot_scale_pages path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
+                            "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored source_span=RndTransAnim::StartFrame/EndFrame route=regular_camera_path_keys report_key=%s source_report_scope=path_key_pair_change path=%s path_trans_target=%s source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only native_path_submit=decoded_trans_rot_scale_pages path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
                             key->name.c_str(), source_shot_local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
@@ -34505,6 +34521,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     path_flags_key.path_rot_spline
                                 ? 1
                                 : 0,
+                            path_frame_pair_report_key.c_str(),
                             key->path_anim.c_str(),
                             path_trans_target_label(path_target_key),
                             path_target_key.has_path_trans_target &&
@@ -34535,6 +34552,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             b_key.has_source_path_frame_mapping
                                 ? b_key.source_path_submitted_frame
                                 : 0.0f);
+                        }
                     }
                 }
                 const CameraKey& visibility_key =

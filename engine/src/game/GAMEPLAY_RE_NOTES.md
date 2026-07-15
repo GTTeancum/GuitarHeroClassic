@@ -11778,6 +11778,11 @@ Rejected native probe:
   float. This does not change rendered camera behavior; it makes path-backed
   angle work auditable against the same source-shaped cadence as non-path
   frame-pair shots.
+- 2026-07-15 follow-up: the path-backed frame-pair proof is now keyed by the
+  active source `RndTransAnim` A/B authored frames rather than only by CamShot
+  name. Long moving path shots can therefore emit later source pair transitions
+  when the active path keys change, while still leaving the unrecovered
+  `CamShot::SetPos(pathXfm)` body marked locals-only.
 - 2026-07-13 path-backed CamShot source clock:
   ihatecompvir `CameraManager::CalcFrame` computes the frame sent to every
   current shot from `TheTaskMgr.Time(mCurrentShot->Units())` and

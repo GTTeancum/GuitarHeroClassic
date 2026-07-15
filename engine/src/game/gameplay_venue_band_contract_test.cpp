@@ -11249,7 +11249,9 @@ int main() {
                  "scale_spline:%dfollow_path:%drot_slerp:%drot_spline:%d"
                  "source_path_frame_load=CamShot::Load_legacy_float_ignored"
                  "source_span=RndTransAnim::StartFrame/EndFrame"
-                 "route=regular_camera_path_keyspath=%s"
+                 "route=regular_camera_path_keys"
+                 "report_key=%ssource_report_scope=path_key_pair_change"
+                 "path=%s"
                  "path_trans_target=%s"
                  "source_gate=RndTransAnim::SetFrame_mTrans"
                  "source_trans_target_resolved=%d"
@@ -11258,6 +11260,10 @@ int main() {
                  "native_path_submit=decoded_trans_rot_scale_pages"
                  "path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\\n\"",
                  "path-backed camera diagnostics separate live mPathFrame from the ignored legacy load float and source mTrans target");
+  ok &= contains(gameplay_c,
+                 "key->name+\":path:\"+path_frame_report_token(a_key)+"
+                 "\":\"+path_frame_report_token(b_key)",
+                 "path-backed camera diagnostics are keyed by active RndTransAnim source frame pair");
   ok &= contains(gameplay_c,
                  "constfloatworld_frame=static_cast<float>(song_time_*30.0);",
                  "path-backed camera frame-pair diagnostics use the current Poll SetFrame frame");
