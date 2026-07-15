@@ -81,6 +81,7 @@ class CompareRequest:
     visible_minus_output_x_min: dict[str, float]
     visible_minus_output_y_min: dict[str, float]
     visible_minus_output_z_min: dict[str, float]
+    max_abs_xyz_gap: float | None
     require_screenshot_marker: bool
 
 
@@ -232,6 +233,11 @@ def requests_from_manifest(path: Path) -> list[CompareRequest]:
                 visible_minus_output_x_min=z_gap_map_from_manifest(
                     case.get("visible_minus_output_x_min")
                 ),
+                max_abs_xyz_gap=(
+                    float(case["max_abs_xyz_gap"])
+                    if "max_abs_xyz_gap" in case
+                    else None
+                ),
                 require_screenshot_marker=not bool(
                     case.get("allow_no_screenshot_marker", False)
                 ),
@@ -249,6 +255,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--character", default="rockabill2")
     parser.add_argument("--tag", default="post")
     parser.add_argument("--bone", action="append", dest="bones")
+    parser.add_argument("--require-live", action="store_true")
+    parser.add_argument("--max-abs-xyz-gap", type=float)
     parser.add_argument("--allow-no-screenshot-marker", action="store_true")
     return parser.parse_args()
 
@@ -263,11 +271,12 @@ def request_from_args(args: argparse.Namespace) -> CompareRequest:
         tag=args.tag,
         bones=tuple(args.bones or ()),
         require_driven=True,
-        require_live=False,
+        require_live=args.require_live,
         require_fragments=(),
         visible_minus_output_x_min={},
         visible_minus_output_y_min={},
         visible_minus_output_z_min={},
+        max_abs_xyz_gap=args.max_abs_xyz_gap,
         require_screenshot_marker=not args.allow_no_screenshot_marker,
     )
 
@@ -346,6 +355,12 @@ def run_request(request: CompareRequest) -> int:
             messages.append(
                 f"Z-GAP {bone}: visible_minus_output={z_gap:.3f} required={required_z_gap:.3f}"
             )
+    if (request.max_abs_xyz_gap is not None and
+            max_abs_xyz_gap > request.max_abs_xyz_gap):
+        messages.append(
+            f"MAX-ABS-XYZ-GAP got={max_abs_xyz_gap:.6f} "
+            f"required<={request.max_abs_xyz_gap:.6f}"
+        )
 
     if messages:
         print(

@@ -1236,6 +1236,50 @@ bool expect_clip_driver_helpers() {
     std::cerr << "Grim rotz pose application did not use PI-scaled angle\n";
     ok = false;
   }
+  ghogx::character::Character weighted_rotz_character;
+  ghogx::milo_scene::TransObj weighted_rotz_bone;
+  weighted_rotz_bone.name = "bone_pelvis.mesh";
+  weighted_rotz_character.bones.push_back(weighted_rotz_bone);
+  ghogx::character::ClipChannel weighted_rotz_channel = rotz_channel;
+  weighted_rotz_channel.source_weight = 0.5f;
+  ghogx::character::apply_clip_pose_sampled({weighted_rotz_channel}, 1.0f,
+                                            weighted_rotz_character);
+  const auto& weighted_rotz_local = weighted_rotz_character.bones[0].local;
+  constexpr float kSqrtHalf = 0.70710678f;
+  if (!nearf(weighted_rotz_local.rot[0][0], kSqrtHalf) ||
+      !nearf(weighted_rotz_local.rot[0][1], kSqrtHalf) ||
+      !nearf(weighted_rotz_local.rot[1][0], -kSqrtHalf) ||
+      !nearf(weighted_rotz_local.rot[1][1], kSqrtHalf)) {
+    std::cerr << "source-weighted Grim rotz pose application ignored channel weight\n";
+    ok = false;
+  }
+  ghogx::character::Character lower_output_character;
+  ghogx::milo_scene::TransObj lower_output_toe;
+  lower_output_toe.name = "bone_R-toe.mesh";
+  lower_output_toe.local.rot[0][0] = 0.0f;
+  lower_output_toe.local.rot[0][1] = 1.0f;
+  lower_output_toe.local.rot[1][0] = -1.0f;
+  lower_output_toe.local.rot[1][1] = 0.0f;
+  lower_output_character.bones.push_back(lower_output_toe);
+  ghogx::character::CharClip lower_output_clip;
+  lower_output_clip.loaded = true;
+  lower_output_clip.name = "lower_output_test";
+  lower_output_clip.frames.resize(1);
+  lower_output_clip.frames[0].push_back(rotz_channel);
+  lower_output_clip.frames[0].back().bone_name = "bone_R-toe.mesh";
+  ghogx::character::CharClip::OutputBone lower_output_bone;
+  lower_output_bone.name = "bone_R-toe.trans";
+  lower_output_clip.output_bones.push_back(lower_output_bone);
+  ghogx::character::apply_clip_frame(lower_output_clip, 0,
+                                     lower_output_character);
+  const auto& lower_output_local = lower_output_character.bones[0].local;
+  if (!nearf(lower_output_local.rot[0][0], 0.0f) ||
+      !nearf(lower_output_local.rot[0][1], 1.0f) ||
+      !nearf(lower_output_local.rot[1][0], -1.0f) ||
+      !nearf(lower_output_local.rot[1][1], 0.0f)) {
+    std::cerr << "lower-body output bridge did not rebuild axis row from authored output graph\n";
+    ok = false;
+  }
 
   ghogx::character::CharClip stack_base_clip;
   stack_base_clip.loaded = true;

@@ -29416,6 +29416,25 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "floatsource_weight=1.0f;",
                  "native ClipChannel retains source sample weight");
+  ok &= contains(char_clip,
+                 "returnstd::max(0.0f,frame_weight*channel->source_weight);",
+                 "native direct pose application multiplies source channel weight");
+  ok &= contains(char_clip,
+                 "source_channel_weight_is_full(pose.pos)",
+                 "native direct pose fast path respects authored source weights");
+  ok &= contains(char_clip,
+                 "dump_pose_source_weight_channel(ch,weight,\"bone\");",
+                 "native leg trace records matched pose channel source weights");
+  ok &= contains(char_clip,
+                 "\"[legch]target=%sb=%stype=%ssourceWeight=%.4f\"",
+                 "native leg trace emits source-weighted channel rows");
+  ok &= contains(clip_driver_flags_test,
+                 "weighted_rotz_channel.source_weight=0.5f;",
+                 "focused clip test covers source-weighted rotz pose application");
+  ok &= contains(
+      clip_driver_flags_test,
+      "source-weightedGrimrotzposeapplicationignoredchannelweight",
+      "focused clip test fails if source row weights are ignored");
   ok &= contains(char_clip_h,
                  "floatsource_grim_char_bones_samples_channel_weight("
                  "conststd::vector<float>&weights,size_tindex);",
@@ -32506,8 +32525,8 @@ int run_contract() {
                  "samplemathbodiesarestillabsentfromthecheckedpublicC++source",
                  "clip decoder comment states incomplete sample math boundary");
   ok &= contains(compact(read_file(char_dir / "char_clip.h")),
-                 "broadoutputpublishingremainsdiagnostic",
-                 "clip header states output publishing boundary");
+                 "Broadbodyandfaceoutputpublishingstay",
+                 "clip header states broad body and face output publishing boundary");
   ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT",
                 "lower-body CharBone output live-write switch removed");
   ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER",
@@ -33675,6 +33694,23 @@ int run_contract() {
   ok &= contains(char_clip,
                  "dump_leg_pose(character,\"clip\");",
                  "leg pose trace captures post-clip lower-body state");
+  ok &= contains(char_clip,
+                 "apply_lower_body_output_layer(frame,1.0f,character,"
+                 "relative,output_bones);",
+                 "native applies source-authored lower-body output rows after direct fallback");
+  ok &= contains(char_clip,
+                 "dump_leg_pose(character,\"lower-output\");",
+                 "leg pose trace captures post-lower-output bridge state");
+  ok &= contains(char_clip_h,
+                 "nativepathonlybridgessource-authoredlower-bodyrows",
+                 "header fences broad publisher while allowing lower-body output bridge");
+  ok &= contains(clip_driver_flags_test,
+                 "lower_output_bone.name=\"bone_R-toe.trans\";",
+                 "focused clip test constructs lower-body output graph row");
+  ok &= contains(
+      clip_driver_flags_test,
+      "lower-bodyoutputbridgedidnotrebuildaxisrowfromauthoredoutputgraph",
+      "focused clip test fails if lower-body output bridge is bypassed");
   ok &= contains(charbone_output_map_compare,
                  "visible_minus_output_z_min",
                  "CharBone output-map verifier checks visible/output z gaps");
@@ -33684,6 +33720,12 @@ int run_contract() {
   ok &= contains(charbone_output_map_compare,
                  "max_abs_xyz_gap",
                  "CharBone output-map verifier reports largest axis gap");
+  ok &= contains(charbone_output_map_compare,
+                 "parser.add_argument(\"--require-live\",action=\"store_true\")",
+                 "CharBone output-map verifier can require live output rows");
+  ok &= contains(charbone_output_map_compare,
+                 "parser.add_argument(\"--max-abs-xyz-gap\",type=float)",
+                 "CharBone output-map verifier supports max gap tolerance");
   ok &= contains(charbone_output_map_compare,
                  "parser.add_argument(\"--character\",default=\"rockabill2\")",
                  "CharBone output-map verifier supports character selection");
@@ -33980,6 +34022,28 @@ int run_contract() {
                  "not as permission to invent a\nfoot offset or revive broad "
                  "output live writes",
                  "document rejects standard pose leg shortcut fixes");
+  ok &= contains(doc,
+                 "2026-07-15 source-weighted pose application:",
+                 "document records source-weighted sampled pose application");
+  ok &= contains(doc,
+                 "multiplies each decoded channel's retained "
+                 "`ClipChannel::source_weight`",
+                 "document records native source channel weight application");
+  ok &= contains(doc,
+                 "`sourceWeight`, `frameWeight`, and `effWeight`",
+                 "document records leg-channel source weight proof rows");
+  ok &= contains(doc,
+                 "2026-07-15 lower-body output bridge:",
+                 "document records lower-body source output bridge");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_output_bridge_20260715/`",
+                 "document records lower-body output bridge proof folder");
+  ok &= contains(doc,
+                 "`CharClipSamples::ScaleAdd` -> `CharBones` -> `PoseMeshes`",
+                 "document ties lower-body bridge to source pose call shape");
+  ok &= contains(doc,
+                 "`max_abs_xyz_gap=0.001`",
+                 "document records lower-body output bridge numeric proof");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

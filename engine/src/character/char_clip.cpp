@@ -9005,6 +9005,77 @@ static void apply_clip_pose_sampled_direct(
     const std::vector<ClipChannel>& channels, float weight, Character& character,
     bool relative);
 
+static float effective_pose_channel_weight(float frame_weight,
+                                           const ClipChannel* channel) {
+  if (channel == nullptr) return 0.0f;
+  return std::max(0.0f, frame_weight * channel->source_weight);
+}
+
+static bool source_channel_weight_is_full(const ClipChannel* channel) {
+  return channel == nullptr ||
+         std::fabs(channel->source_weight - 1.0f) <= 0.001f;
+}
+
+static const char* pose_debug_channel_type_name(ClipChannel::Type type) {
+  switch (type) {
+    case ClipChannel::kPos: return "pos";
+    case ClipChannel::kScale: return "scale";
+    case ClipChannel::kQuat: return "quat";
+    case ClipChannel::kRotX: return "rotx";
+    case ClipChannel::kRotY: return "roty";
+    case ClipChannel::kRotZ: return "rotz";
+  }
+  return "?";
+}
+
+static bool is_lower_body_pose_channel_name(const std::string& bone_name) {
+  std::string lower = bone_name;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return lower.find("bone_facing") != std::string::npos ||
+         lower.find("bone_pelvis") != std::string::npos ||
+         lower.find("-thigh") != std::string::npos ||
+         lower.find("-knee") != std::string::npos ||
+         lower.find("-ankle") != std::string::npos ||
+         lower.find("-foot") != std::string::npos ||
+         lower.find("-toe") != std::string::npos;
+}
+
+static void dump_pose_source_weight_channel(const ClipChannel& ch,
+                                            float frame_weight,
+                                            const char* target_kind) {
+  if (!debug_leg_pose_enabled() ||
+      !is_lower_body_pose_channel_name(ch.bone_name)) {
+    return;
+  }
+  std::fprintf(stderr,
+               "[legch] target=%s b=%s type=%s sourceWeight=%.4f "
+               "frameWeight=%.4f effWeight=%.4f",
+               target_kind, ch.bone_name.c_str(),
+               pose_debug_channel_type_name(ch.type), ch.source_weight,
+               frame_weight, effective_pose_channel_weight(frame_weight, &ch));
+  switch (ch.type) {
+    case ClipChannel::kPos:
+      std::fprintf(stderr, " pos=(%.4f %.4f %.4f)", ch.pos[0], ch.pos[1],
+                   ch.pos[2]);
+      break;
+    case ClipChannel::kScale:
+      std::fprintf(stderr, " scale=(%.4f %.4f %.4f)", ch.scale[0],
+                   ch.scale[1], ch.scale[2]);
+      break;
+    case ClipChannel::kQuat:
+      std::fprintf(stderr, " quat=(%.4f %.4f %.4f %.4f)", ch.quat[0],
+                   ch.quat[1], ch.quat[2], ch.quat[3]);
+      break;
+    case ClipChannel::kRotX:
+    case ClipChannel::kRotY:
+    case ClipChannel::kRotZ:
+      std::fprintf(stderr, " angle=%.4f", ch.angle);
+      break;
+  }
+  std::fprintf(stderr, "\n");
+}
+
 static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
                                bool relative = false) {
   if (pose.quat) {
@@ -9097,12 +9168,18 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
                                         bool relative = false) {
   weight = std::clamp(weight, 0.0f, 1.0f);
   if (weight <= 0.0f) return;
-  if (weight >= 0.999f) {
+  if (weight >= 0.999f && source_channel_weight_is_full(pose.pos) &&
+      source_channel_weight_is_full(pose.scale) &&
+      source_channel_weight_is_full(pose.quat) &&
+      source_channel_weight_is_full(pose.rotx) &&
+      source_channel_weight_is_full(pose.roty) &&
+      source_channel_weight_is_full(pose.rotz)) {
     apply_pending_pose(pose, local, relative);
     return;
   }
 
-  if (pose.quat) {
+  const float quat_weight = effective_pose_channel_weight(weight, pose.quat);
+  if (pose.quat && quat_weight > 0.0f) {
     float scale[3] = {};
     for (int r = 0; r < 3; ++r) {
       scale[r] = std::sqrt(local.rot[r][0] * local.rot[r][0] +
@@ -9124,59 +9201,71 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
       for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c)
           local.rot[r][c] =
-              local.rot[r][c] * (1.0f - weight) + out[r][c] * weight;
+              local.rot[r][c] * (1.0f - quat_weight) +
+              out[r][c] * quat_weight;
     } else {
       for (int r = 0; r < 3; ++r) {
         for (int c = 0; c < 3; ++c) {
           const float target = rot[r][c] * scale[r];
-          local.rot[r][c] = local.rot[r][c] * (1.0f - weight) + target * weight;
+          local.rot[r][c] =
+              local.rot[r][c] * (1.0f - quat_weight) +
+              target * quat_weight;
         }
       }
     }
     renormalize_rows(local);
   }
-  if (pose.rotx) {
+  const float rotx_weight = effective_pose_channel_weight(weight, pose.rotx);
+  if (pose.rotx && rotx_weight > 0.0f) {
     post_rotate_axis(
         local, ClipChannel::kRotX,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
                                                        pose.rotx->angle) *
-            weight);
+            rotx_weight);
   }
-  if (pose.roty) {
+  const float roty_weight = effective_pose_channel_weight(weight, pose.roty);
+  if (pose.roty && roty_weight > 0.0f) {
     post_rotate_axis(
         local, ClipChannel::kRotY,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
                                                        pose.roty->angle) *
-            weight);
+            roty_weight);
   }
-  if (pose.rotz) {
+  const float rotz_weight = effective_pose_channel_weight(weight, pose.rotz);
+  if (pose.rotz && rotz_weight > 0.0f) {
     post_rotate_axis(
         local, ClipChannel::kRotZ,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
                                                        pose.rotz->angle) *
-            weight);
+            rotz_weight);
   }
-  if (pose.scale) {
-    const float sx = 1.0f + (pose.scale->scale[0] - 1.0f) * weight;
-    const float sy = 1.0f + (pose.scale->scale[1] - 1.0f) * weight;
-    const float sz = 1.0f + (pose.scale->scale[2] - 1.0f) * weight;
+  const float scale_weight = effective_pose_channel_weight(weight, pose.scale);
+  if (pose.scale && scale_weight > 0.0f) {
+    const float sx = 1.0f + (pose.scale->scale[0] - 1.0f) * scale_weight;
+    const float sy = 1.0f + (pose.scale->scale[1] - 1.0f) * scale_weight;
+    const float sz = 1.0f + (pose.scale->scale[2] - 1.0f) * scale_weight;
     for (int r = 0; r < 3; ++r) {
       local.rot[r][0] *= sx;
       local.rot[r][1] *= sy;
       local.rot[r][2] *= sz;
     }
   }
+  const float pos_weight = effective_pose_channel_weight(weight, pose.pos);
   if (pose.pos &&
+      pos_weight > 0.0f &&
       (!is_hand_bone(pose.pos->bone_name) ||
        is_ik_hand_target_bone(pose.pos->bone_name))) {
     if (relative) {
-      local.pos[0] += pose.pos->pos[0] * weight;
-      local.pos[1] += pose.pos->pos[1] * weight;
-      local.pos[2] += pose.pos->pos[2] * weight;
+      local.pos[0] += pose.pos->pos[0] * pos_weight;
+      local.pos[1] += pose.pos->pos[1] * pos_weight;
+      local.pos[2] += pose.pos->pos[2] * pos_weight;
     } else {
-      local.pos[0] = local.pos[0] * (1.0f - weight) + pose.pos->pos[0] * weight;
-      local.pos[1] = local.pos[1] * (1.0f - weight) + pose.pos->pos[1] * weight;
-      local.pos[2] = local.pos[2] * (1.0f - weight) + pose.pos->pos[2] * weight;
+      local.pos[0] = local.pos[0] * (1.0f - pos_weight) +
+                     pose.pos->pos[0] * pos_weight;
+      local.pos[1] = local.pos[1] * (1.0f - pos_weight) +
+                     pose.pos->pos[1] * pos_weight;
+      local.pos[2] = local.pos[2] * (1.0f - pos_weight) +
+                     pose.pos->pos[2] * pos_weight;
     }
   }
 }
@@ -9573,6 +9662,40 @@ static void apply_hand_driver_output_layer(
                                hand_output_bones, true);
 }
 
+static void apply_lower_body_output_layer(
+    const std::vector<ClipChannel>& frame, float weight, Character& character,
+    bool relative,
+    const std::vector<CharClip::OutputBone>& source_output_bones) {
+  if (frame.empty() || source_output_bones.empty()) return;
+
+  std::vector<CharClip::OutputBone> lower_output_bones;
+  std::unordered_set<std::string> lower_keys;
+  for (const auto& out : source_output_bones) {
+    const std::string key = strip_transform_suffix(out.name);
+    if (!is_lower_body_pose_channel_name(key)) continue;
+    if (!lower_keys.insert(key).second) continue;
+    lower_output_bones.push_back(out);
+  }
+  if (lower_output_bones.empty()) return;
+
+  std::vector<ClipChannel> lower_channels;
+  lower_channels.reserve(frame.size());
+  for (const auto& ch : frame) {
+    if (lower_keys.find(strip_transform_suffix(ch.bone_name)) ==
+        lower_keys.end()) {
+      continue;
+    }
+    lower_channels.push_back(ch);
+  }
+  if (lower_channels.empty()) return;
+
+  if (apply_clip_pose_output_layer(lower_channels, weight, character, relative,
+                                   lower_output_bones, true) &&
+      debug_leg_pose_enabled()) {
+    dump_leg_pose(character, "lower-output");
+  }
+}
+
 static void apply_hand_driver_output_layers(
     const std::vector<ClipChannel>& frame, Character& character, bool relative,
     const std::vector<ClipChannelLayer>& layers) {
@@ -9877,6 +10000,7 @@ static void apply_clip_pose_sampled_direct(
         case ClipChannel::kRotZ: poses[i].rotz = &ch; break;
       }
       matched = true;
+      dump_pose_source_weight_channel(ch, weight, "bone");
       break;
     }
     if (matched) continue;
@@ -9924,6 +10048,8 @@ void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character)
                                     clip.relative, clip.output_bones)) {
     apply_clip_pose_sampled_direct(clip.frames[(size_t)fi], 1.0f, character,
                                    clip.relative);
+    apply_lower_body_output_layer(clip.frames[(size_t)fi], 1.0f, character,
+                                  clip.relative, clip.output_bones);
   }
   dump_arm_pose(character, "clip-frame-post");
 }
@@ -9936,6 +10062,8 @@ void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
                                     clip.relative, clip.output_bones)) {
     apply_clip_pose_sampled_direct(clip.frames[(size_t)fi], weight, character,
                                    clip.relative);
+    apply_lower_body_output_layer(clip.frames[(size_t)fi], weight, character,
+                                  clip.relative, clip.output_bones);
   }
   dump_arm_pose(character, "clip-frame-weighted-post");
 }
@@ -10367,6 +10495,7 @@ void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
     return;
   }
   apply_clip_pose_sampled_direct(frame, 1.0f, character, relative);
+  apply_lower_body_output_layer(frame, 1.0f, character, relative, output_bones);
   apply_hand_driver_output_layers(frame, character, relative, layers);
 }
 
@@ -10734,6 +10863,8 @@ void CharClipPlayer::apply(Character& character, float weight) const {
   }
   apply_clip_pose_sampled_direct(frame, weight, character, relative);
   if (current) {
+    apply_lower_body_output_layer(frame, weight, character, relative,
+                                  current->output_bones);
     apply_hand_driver_output_layer(frame, character, relative,
                                    current->output_bones);
   }

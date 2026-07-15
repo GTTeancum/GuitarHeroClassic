@@ -6099,6 +6099,38 @@ evidence that the visible lower-body problem localizes to sampled pose
 publishing / output-to-visible row mapping for the distal leg chain, not static
 mesh bind, hand overlays, controllers, hair, or props.
 
+2026-07-15 source-weighted pose application:
+ihatecompvir Grim stores a per-channel `CharBone { symbol, weight }` row and
+attaches that weight to decoded `.pos`, `.quat`, and `.rotz` sample vectors.
+The RB3/RB2 `CharBonesSamples::ScaleAddSample` path passes the frame/sample
+weight directly into `CharBones::ScaleAdd`, whose dump names separate
+`fweight`, `qweight`, and `aweight` locals. Native direct pose application now
+multiplies each decoded channel's retained `ClipChannel::source_weight` into
+the incoming frame/layer weight before writing position, scale, quaternion, or
+axis rows. `GHOGX_DEBUG_LEG_POSE=1` also emits `[legch]` rows with
+`sourceWeight`, `frameWeight`, and `effWeight` for pelvis/facing/thigh/knee/
+ankle/foot/toe channels, so visual proofs can distinguish a source-weighted
+row from a full-strength row. This is not permission to invent distal-foot
+offsets or revive broad lower-body output live writes; it is the source-backed
+row-weight application step that was missing from the sampled-pose path.
+
+2026-07-15 lower-body output bridge:
+the Rockabill2 `stand_fast_03` frame 70 logs proved the source-weighted rows
+were all `sourceWeight=1.0000`, so row weight was not the visible floating-leg
+cause. The next source-backed discrepancy was path selection: the clip's
+authored CharBone output graph matched pelvis, thigh, and knee rows while the
+direct sampled fallback drifted at ankle/toe. Native now rebuilds only
+pelvis/facing/thigh/knee/ankle/foot/toe rows from the clip's source-authored
+output graph after the direct fallback, matching the Harmonix
+`CharClipSamples::ScaleAdd` -> `CharBones` -> `PoseMeshes` call shape without
+promoting broad body, face, arm, or hair output publishing. Proofs in
+`engine/out/visual_proofs/lower_body_output_bridge_20260715/` show the prior
+side-view forward-leg/floating failure corrected for Rockabill2
+`stand_fast_03` frame 70. The updated `tools/compare_charbone_output_map.py`
+can require `live=1` output rows and a `max_abs_xyz_gap` tolerance; the side
+and front logs pass with `max_abs_xyz_gap=0.001` for the eight checked
+lower-body rows using the post-bridge `lower-output` leg trace.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
