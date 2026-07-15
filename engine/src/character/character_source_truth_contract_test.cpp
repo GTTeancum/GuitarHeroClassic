@@ -34454,6 +34454,15 @@ int run_contract() {
   ok &= contains(doc,
                  "`analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md`",
                  "document records RexGlue/PS2 lower-body mesh-row evidence");
+  ok &= contains(doc,
+                 "pcsx2_rock_lower_body_mesh_rows_20260715.json",
+                 "document records current PCSX2 lower-body row refresh");
+  ok &= contains(doc,
+                 "`rock_desc_R_thigh=26`",
+                 "document records moving PCSX2 lower-body source row");
+  ok &= contains(doc,
+                 "every stable `0x00ef...` mesh wrapper row stayed unchanged",
+                 "document records stable PCSX2 mesh wrapper rows");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",

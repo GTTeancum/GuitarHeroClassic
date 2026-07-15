@@ -6322,7 +6322,22 @@ Lower-body evidence audit:
   `bone_L-knee.rotz`, `bone_R-knee.rotz`, and toe rot rows. The older
   `analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md` lower-body run also proves
   the visible `.mesh` rows for glam/guitarist thigh, knee, ankle, and toe
-  mutate during active gameplay. If a future visual proof contradicts the
+  mutate during active gameplay.
+- 2026-07-15 PCSX2 lower-body row refresh:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.json`
+  samples the current GHDX/PCSX2 in-game state with direct window screenshots
+  beside the JSON. The first stale-address pass
+  `pcsx2_lower_body_mesh_rows_20260715.json` is rejected as evidence because
+  the old `0x00db...` targets stayed static even though the screenshot showed
+  active gameplay. A live string/ref scan then found the current rock-family
+  rows: every stable `0x00ef...` mesh wrapper row stayed unchanged, while the
+  linked `0x00e...` source/controller rows moved during the same eight-second
+  gameplay sample (`rock_desc_R_thigh=26`, `rock_desc_R_knee=17`,
+  `rock_desc_L_ankle=21`, `rock_desc_R_ankle=13`, `rock_desc_L_toe=21`,
+  `rock_desc_R_toe=13`, `rock_desc_pelvis=17`). This refresh supports the same
+  source/output-row bridge as RexGlue and rejects stale named mesh wrappers,
+  foot IK, camera angle, and character-name offsets as the lower-body path.
+  If a future visual proof contradicts the
   current result, the RexGlue path to trace is therefore the same pose-buffer
   apply/output-row bridge, not a new foot-IK or character-name offset path.
 - Source-truth boundary: `check_pose_publisher_source_gaps.py` still reports
