@@ -8147,10 +8147,10 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolcamshot_zero_transform_reset=false;",
                  "CameraKey preserves CamShot zero-transform reset provenance");
-  ok &= contains(gameplay_c,
-                 "to.camshot_zero_transform_reset="
-                 "from.camshot_zero_transform_reset;",
-                 "CamShot runtime-field copying preserves zero-transform reset provenance");
+  ok &= absent(gameplay_c,
+               "to.camshot_zero_transform_reset="
+               "from.camshot_zero_transform_reset;",
+               "CamShot zero-transform reset remains a per-keyframe Load field");
   ok &= contains(gameplay_c,
                  "zero_xfm_reset=a:%db:%d",
                  "camera frame-pair logs expose CamShot zero-transform reset provenance");

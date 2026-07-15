@@ -2761,7 +2761,6 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.source_object_order = from.source_object_order;
     to.distance = from.distance;
     to.facing = from.facing;
-    to.camshot_zero_transform_reset = from.camshot_zero_transform_reset;
     to.solo = from.solo;
     to.special = from.special;
     to.walk_ok = from.walk_ok;
