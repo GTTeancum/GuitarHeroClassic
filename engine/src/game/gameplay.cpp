@@ -25100,14 +25100,21 @@ std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     for (const auto& waypoint : venue_chars_scene_.waypoints) {
         if (!waypoint.decoded) continue;
         if ((waypoint.flags & (kWalkSpot | kSoloWalkSpot)) == 0) continue;
-        const float dx = waypoint.local.pos[0] - px;
-        const float dy = waypoint.local.pos[1] - py;
-        const float dz = waypoint.local.pos[2] - pz;
+        const float dx = waypoint.world_stored.pos[0] - px;
+        const float dy = waypoint.world_stored.pos[1] - py;
+        const float dz = waypoint.world_stored.pos[2] - pz;
         const float dist2 = dx * dx + dy * dy + dz * dz;
         if (!best || dist2 < best_dist2) {
             best = &waypoint;
             best_dist2 = dist2;
         }
+    }
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera current_walkspot: source_call=Waypoint::FindNearest actor=guitarist0 flags=walk|solo_walk coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu\n",
+            px, py, pz, best ? best->name.c_str() : "",
+            best ? best_dist2 : 0.0f, venue_chars_scene_.waypoints.size());
     }
     return best ? best->name : std::string{};
 }

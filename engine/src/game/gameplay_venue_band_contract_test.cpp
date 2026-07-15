@@ -12989,6 +12989,12 @@ int main() {
                  "std::stringGameplay::camera_source_guitarist0_nearest_walkspot()const",
                  "regular camera shot_ok bridge uses the current guitarist0 walkspot source context");
   ok &= contains(gameplay_c,
+                 "waypoint.world_stored.pos[0]-px",
+                 "regular camera current walkspot uses Waypoint world position for FindNearest distance");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameracurrent_walkspot:source_call=Waypoint::FindNearest",
+                 "regular camera diagnostics expose the source current-walkspot lookup");
+  ok &= contains(gameplay_c,
                  "voidcamera_source_first_shot_ok(std::string_viewcategory)",
                  "regular camera selector exposes ihatecompvir CameraManager::FirstShotOk hook");
   ok &= contains(gameplay_c,

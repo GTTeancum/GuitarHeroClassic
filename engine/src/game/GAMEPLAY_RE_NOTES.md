@@ -594,6 +594,14 @@ Open work:
   `bad_waypoints` refs match that current walkspot. The rest of `cam_shot_ok`
   remains `native_deferred_accept`; this is a source-pinned field rule, not a
   general inferred shot_ok body.
+- 2026-07-15 CamShot current walkspot source space:
+  ihatecompvir `Waypoint::FindNearest(position, flags)` scans the registered
+  Waypoint objects, and Waypoint is a `Trans` object with a stored world
+  transform. Native `camera_source_guitarist0_nearest_walkspot()` now compares
+  guitarist0's world position against each decoded walk/solo-walk waypoint's
+  stored world position instead of the local row before feeding that result to
+  the existing `bad_waypoints` `shot_ok` gate. This does not recover the hidden
+  `cam_shot_ok` body or the `actually_walking` CharWalk predicate.
 - 2026-07-13 CameraManager `first_shot_ok` hook: ihatecompvir sends
   `first_shot_ok(category)` at the start of `FindCameraShot`, before any
   category scan or `shot_ok` calls. A follow-up audit of
