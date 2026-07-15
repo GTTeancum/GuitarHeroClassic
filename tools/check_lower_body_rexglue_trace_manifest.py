@@ -38,7 +38,7 @@ def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[in
         manifest.get("trace_id") == "rexglue_lower_body_trace_scaffold_20260715",
         "unexpected RexGlue trace scaffold id",
     )
-    require(manifest.get("trace_commit") == "580e405", "unexpected RexGlue trace commit")
+    require(manifest.get("trace_commit") == "2455d8a", "unexpected RexGlue trace commit")
     require(
         manifest.get("accepted_live_row_authority")
         == "pcsx2_rock_lower_body_mesh_rows_20260715",
@@ -52,6 +52,11 @@ def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[in
     scaffold = manifest.get("scaffold", {})
     require(scaffold.get("runtime_flag") == "--trace-lower-body-memory", "missing runtime flag")
     require(scaffold.get("scripted_nav_flag") == "--trace_scripted_nav", "missing nav flag")
+    require(
+        scaffold.get("route_reachability_checker")
+        == "tools/check_rexglue_lower_body_trace.py --require-in-song-route",
+        "missing RexGlue route reachability checker",
+    )
     require(scaffold.get("no_focus_forced") is True, "RexGlue trace must not force focus")
     hooks = set(scaffold.get("hooks", []))
     for hook in ("sub_8215DF28", "sub_8215E6A0", "821D1190", "821D1710", "CharIK_Update"):
@@ -61,14 +66,21 @@ def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[in
     require(len(captures) == 2, "expected two current RexGlue trace summaries")
     runtime_total = 0
     accepted_count = 0
+    strong_in_song_total = 0
     saw_truncated = False
+    saw_scripted_nav_single_poll = False
     for capture in captures:
         require(capture.get("runtime_memory_events") == 192, "unexpected runtime memory count")
         require(capture.get("clip_apply_events") == 0, "current RexGlue capture must not claim clip apply rows")
         require(capture.get("lower_body_rows") == 0, "current RexGlue capture must not claim lower-body rows")
+        require(capture.get("strong_in_song_events") == 0, "current RexGlue capture must not claim an in-song route")
+        require(capture.get("route_status") == "route_not_reached", "current RexGlue capture route must stay rejected")
         require(capture.get("accepted_row_oracle") is False, "current RexGlue capture must be non-authoritative")
         runtime_total += int(capture.get("runtime_memory_events", 0))
+        strong_in_song_total += int(capture.get("strong_in_song_events", 0))
         accepted_count += 1 if capture.get("accepted_row_oracle") else 0
+        if capture.get("scripted_nav_events") == 1:
+            saw_scripted_nav_single_poll = True
         failures = capture.get("failures", [])
         if "trace ended with a truncated json line" in failures:
             saw_truncated = True
@@ -92,10 +104,26 @@ def check_manifest(manifest_path: Path, cross_check_summaries: bool) -> tuple[in
                 len(summary.get("lower_body_channels", [])) == capture.get("lower_body_rows"),
                 "summary lower-body row count mismatch",
             )
+            require(
+                summary.get("strong_in_song_events")
+                == capture.get("strong_in_song_events"),
+                "summary strong in-song event count mismatch",
+            )
+            require(
+                summary.get("route_status") == capture.get("route_status"),
+                "summary route status mismatch",
+            )
+            require(
+                counts.get("input.scripted_nav", 0)
+                == capture.get("scripted_nav_events"),
+                "summary scripted nav event count mismatch",
+            )
 
     require(saw_truncated, "expected the scripted RexGlue attempt to record the truncated-tail failure")
+    require(saw_scripted_nav_single_poll, "expected scripted RexGlue attempt to record exactly one scripted-nav poll")
+    require(strong_in_song_total == 0, "current RexGlue captures must have zero strong in-song route markers")
     require(accepted_count == 0, "no current RexGlue capture may be accepted as a row oracle")
-    return runtime_total, accepted_count
+    return runtime_total, accepted_count, strong_in_song_total
 
 
 def parse_args() -> argparse.Namespace:
@@ -118,14 +146,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        runtime_total, accepted_count = check_manifest(args.manifest, args.cross_check_summaries)
+        runtime_total, accepted_count, strong_in_song_total = check_manifest(
+            args.manifest, args.cross_check_summaries
+        )
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
     print(
         "PASS lower_body_rexglue_trace_manifest "
         f"runtime_memory_events={runtime_total} "
+        f"strong_in_song_events={strong_in_song_total} "
         f"accepted_row_oracles={accepted_count} "
+        "route_status=route_not_reached "
         "accepted_live_row_authority=pcsx2_rock_lower_body_mesh_rows_20260715"
     )
     return 0

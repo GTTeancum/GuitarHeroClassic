@@ -6333,25 +6333,29 @@ Lower-body evidence audit:
   viewer comparison at `max_delta=0.000000` for the leg chain.
 - RexGlue fallback check: the local `GuitarHeroOGX-trace360` RexGlue fork does
   not contain a separate portable character renderer for legs, but commit
-  `580e405` adds lower-body trace scaffolding for memory dumps and call timing.
-  `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the no-focus
-  `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the original
-  CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
+  `580e405` added lower-body trace scaffolding for memory dumps and call timing,
+  and commit `2455d8a` classifies route reachability before any row capture is
+  accepted. `smoke_trace.ps1` now forwards `--trace-lower-body-memory` and the
+  no-focus `--trace_scripted_nav` option, while `src/trace_hooks.cpp` hooks the
+  original CharClipSamples pose-buffer apply primitives `sub_8215DF28`/`sub_8215E6A0`
   plus the runtime stages `821D1190`, `821D1710`, and `CharIK_Update`.
   Current RexGlue captures are not accepted lower-body row oracles: the latest
-  summaries report `runtime=192 apply=0 rows=0`, and the scripted XInput attempt
-  also records `trace ended with a truncated json line`. `tools/check_rexglue_lower_body_trace.py`
-  can validate future RexGlue captures, but
+  summaries report `runtime=192 apply=0 rows=0 insong=0`
+  with `route_status=route_not_reached`; the scripted XInput attempt records
+  only `scripted_nav=1` and also records `trace ended with a truncated json
+  line`. `tools/check_rexglue_lower_body_trace.py --require-in-song-route` is
+  now the reachability gate for future RexGlue captures, and
   `tools/check_lower_body_rexglue_trace_manifest.py --cross-check-summaries`
   records that the current RexGlue evidence is scaffolding plus a negative
-  bound, not proof of the live lower-body row path. Older trace notes remain
+  route/reachability bound, not proof of the live lower-body row path. Older trace notes remain
   useful context only: `analysis/anim_apply_trace_summary_20260606.md` shows
   historical active destination tables receiving `bone_L-ankle.quat`,
   `bone_R-ankle.quat`, `bone_L-thigh.quat`, `bone_R-thigh.quat`,
   `bone_L-knee.rotz`, `bone_R-knee.rotz`, and toe rot rows, and
   `analysis/ps2_trace/CHARACTER_DEFORM_FORMAT.md` records an earlier lower-body
   mesh-row investigation. They are not a substitute for a fresh RexGlue capture
-  that reaches named CharClipSamples apply rows.
+  that first reaches strong in-song animation/camera/crowd route markers and
+  then reaches named CharClipSamples apply rows.
 - 2026-07-15 PCSX2 lower-body row refresh:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.json`
   samples the current GHDX/PCSX2 in-game state with direct window screenshots

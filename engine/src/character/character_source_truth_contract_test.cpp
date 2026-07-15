@@ -34592,8 +34592,14 @@ int run_contract() {
                  "oracles",
                  "document records RexGlue current non-authoritative status");
   ok &= contains(doc,
-                 "`runtime=192 apply=0 rows=0`",
-                 "document records RexGlue runtime-only lower-body trace");
+                 "`runtime=192 apply=0 rows=0 insong=0`",
+                 "document records RexGlue route-missed lower-body trace");
+  ok &= contains(doc,
+                 "`route_status=route_not_reached`",
+                 "document records RexGlue route reachability rejection");
+  ok &= contains(doc,
+                 "`scripted_nav=1`",
+                 "document records RexGlue scripted nav single-poll clue");
   ok &= contains(
       doc,
       "`tools/check_lower_body_rexglue_trace_manifest.py "
@@ -34659,11 +34665,17 @@ int run_contract() {
                  "verifies the raw changed\n  offsets recorded for the seven moving rows",
                  "document records raw PCSX2 changed-offset requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
-                 "\"trace_commit\":\"580e405\"",
+                 "\"trace_commit\":\"2455d8a\"",
                  "RexGlue lower-body manifest records trace scaffold commit");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"accepted_row_oracle\":false",
                  "RexGlue lower-body manifest rejects current captures");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"route_status\":\"route_not_reached\"",
+                 "RexGlue lower-body manifest rejects current route reachability");
+  ok &= contains(lower_body_rexglue_trace_manifest,
+                 "\"strong_in_song_events\":0",
+                 "RexGlue lower-body manifest records missing in-song route markers");
   ok &= contains(
       lower_body_rexglue_trace_manifest,
       "\"accepted_live_row_authority\":"
@@ -34673,8 +34685,14 @@ int run_contract() {
                  "--cross-check-summaries",
                  "RexGlue lower-body checker can cross-check trace summaries");
   ok &= contains(lower_body_rexglue_trace,
+                 "--require-in-song-route",
+                 "RexGlue lower-body checker can require in-song route markers");
+  ok &= contains(lower_body_rexglue_trace,
                  "accepted_row_oracles=",
                  "RexGlue lower-body checker reports accepted oracle count");
+  ok &= contains(lower_body_rexglue_trace,
+                 "route_status=route_not_reached",
+                 "RexGlue lower-body checker reports rejected route status");
   ok &= contains(
       doc,
       "`source_publisher=fenced`",
