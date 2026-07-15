@@ -22,10 +22,28 @@ $forbidden = @(
   '^api-ms-win-crt-.*\.dll$'
 )
 
+$scan = New-Object System.Collections.Generic.List[string]
+foreach ($item in $Path) {
+  $resolved = Resolve-Path -LiteralPath $item
+  foreach ($match in $resolved) {
+    if ((Get-Item -LiteralPath $match.Path).PSIsContainer) {
+      Get-ChildItem -LiteralPath $match.Path -Recurse -Filter *.exe |
+        Where-Object { $_.FullName -notmatch '\\CMakeFiles\\' } |
+        ForEach-Object { $scan.Add($_.FullName) }
+    } else {
+      $scan.Add($match.Path)
+    }
+  }
+}
+
+$scan = $scan | Sort-Object -Unique
+if ($scan.Count -eq 0) {
+  throw "No executable files were found to check."
+}
+
 $failed = $false
 
-foreach ($item in $Path) {
-  $exe = (Resolve-Path -LiteralPath $item).Path
+foreach ($exe in $scan) {
   $output = & $dumpbin.Source /dependents $exe 2>&1
   if ($LASTEXITCODE -ne 0) {
     $output | ForEach-Object { Write-Error $_ }

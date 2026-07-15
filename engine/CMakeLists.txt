@@ -102,3 +102,13 @@ if(WIN32)
         target_compile_options(ghogx_viewer PRIVATE -Wall -Wextra)
     endif()
 endif()
+
+if(WIN32)
+    find_program(GHOGX_POWERSHELL powershell.exe)
+    if(GHOGX_POWERSHELL)
+        add_test(NAME ghogx_all_exe_imports
+                 COMMAND ${GHOGX_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
+                         -File "${CMAKE_SOURCE_DIR}/../tools/check_windows_imports.ps1"
+                         "${CMAKE_BINARY_DIR}")
+    endif()
+endif()
