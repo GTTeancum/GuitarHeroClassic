@@ -6523,6 +6523,15 @@ other band members or pre-controller rows. Metal1's visible right shoulder and
 hand concern is tracked as a later arm follow-up, separate from the current
 lower-body proof.
 
+Reviewer directive update: Rockabill is no longer the active quick test subject
+for this slice. New leg/pose proof runs should prefer Glam1 and Metal1.
+Metal1's visible right shoulder/hand abnormality remains an open arm-follow-up
+note only; it is not a lower-body bridge fix and should not be hidden by leg
+proof signoff. Metal Drummer also has a visible arm-twist concern in the
+support-character review set; once the lower-body slice is accepted, revisit
+that as part of the arm/twist follow-up rather than treating support lower-body
+coverage as full character signoff.
+
 2026-07-14 viewer/gameplay CharHair diff:
 `engine/out/visual_proofs/viewer_ingame_charhair_20260714/` recaptures the
 same Trogdor/small2/Rockabill2 frame with `GHOGX_DEBUG_CHAR_HAIR` enabled in

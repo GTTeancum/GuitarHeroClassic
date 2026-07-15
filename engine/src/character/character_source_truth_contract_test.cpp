@@ -34306,6 +34306,21 @@ int run_contract() {
                  "does\nnot sign off Metal1's visible right shoulder/hand concern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");
   ok &= contains(doc,
+                 "Reviewer directive update: Rockabill is no longer the "
+                 "active quick test subject",
+                 "document records current Glam1/Metal1 subject directive");
+  ok &= contains(doc,
+                 "Metal1's visible right shoulder/hand abnormality remains an "
+                 "open arm-follow-up",
+                 "document keeps Metal1 right arm concern open");
+  ok &= contains(doc,
+                 "Metal Drummer also has a visible arm-twist concern",
+                 "document keeps Metal Drummer arm-twist concern open");
+  ok &= contains(doc,
+                 "rather than treating support lower-body\ncoverage as full "
+                 "character signoff",
+                 "document keeps support lower-body proof scoped to legs");
+  ok &= contains(doc,
                  "intentionally\nnot a current bad-arm proof",
                  "document prevents stale viewer control from being reused as proof");
   ok &= contains(doc,
