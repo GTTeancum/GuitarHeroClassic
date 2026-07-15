@@ -24740,6 +24740,31 @@ bool Gameplay::camera_manager_delete_free_cam_like_source(
     return had_free_cam;
 }
 
+void Gameplay::camera_manager_poll_free_cam_like_source(
+    const char* source_context) {
+    if (!camera_manager_free_cam_.active || !world_) return;
+    const auto& cam = world_->camera();
+    ++camera_manager_free_cam_.poll_count;
+    camera_manager_free_cam_.poll_dof_enabled = cam.dof_active;
+    camera_manager_free_cam_.poll_blur_depth = cam.dof_blur_depth;
+    camera_manager_free_cam_.poll_max_blur = cam.dof_max_blur;
+    camera_manager_free_cam_.poll_min_blur = cam.dof_min_blur;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera free_cam Poll: source_manager=CameraManager::Poll source_call=FreeCamera::Poll source_order=after_CamShot_SetFrame context=%s count=%llu dof_reads=TheDOFProc::Enabled/BlurDepth/MaxBlur/MinBlur enabled=%d blur=(%.3f %.3f %.3f) frozen=%d native_motion=not_synthesized rb2_poll_body=unrecovered\n",
+            source_context && source_context[0] ? source_context
+                                                : "CameraManager::Poll",
+            static_cast<unsigned long long>(
+                camera_manager_free_cam_.poll_count),
+            camera_manager_free_cam_.poll_dof_enabled ? 1 : 0,
+            camera_manager_free_cam_.poll_blur_depth,
+            camera_manager_free_cam_.poll_max_blur,
+            camera_manager_free_cam_.poll_min_blur,
+            camera_manager_free_cam_.frozen ? 1 : 0);
+    }
+}
+
 void Gameplay::free_camera_set_pos_like_source(float x, float y, float z,
                                                const char* source_handler) {
     if (!camera_manager_free_cam_.active) return;
@@ -34280,6 +34305,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         : active_worldcrowd_lighter_group_.c_str());
             }
         }
+        bool source_camera_manager_poll_suppressed = false;
         if (authored_gameplay_cameras_active && !in_intro_camera_window &&
             !regular_camera_keys_.empty()) {
             const uint32_t bar = camera_bar_at(chart_, song_time_);
@@ -34485,6 +34511,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             const bool source_milo_camera_active =
                 camera_manager_milo_camera_active_like_source();
+            source_camera_manager_poll_suppressed = source_milo_camera_active;
             if (source_milo_camera_active) {
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                     std::fprintf(
@@ -35114,6 +35141,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                           camera_keys_.front());
         } else {
             end_camera_shot_runtime();
+        }
+        if (!source_camera_manager_poll_suppressed) {
+            camera_manager_poll_free_cam_like_source("CameraManager::Poll");
         }
         if (debug_gameplay_camera_enabled()) {
             const char* target_env =

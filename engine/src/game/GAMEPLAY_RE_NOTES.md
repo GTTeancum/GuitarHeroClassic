@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 FreeCamera poll bridge:
+  ihatecompvir `CameraManager::Poll()` calls `mCurrentShot->SetFrame(...)`
+  and then `mFreeCam->Poll()` when `MiloCamera()` is inactive. The visible
+  `FreeCamera::Poll()` body only reads DOF `Enabled`, `BlurDepth`, `MaxBlur`,
+  and `MinBlur`; the RB2 dump lists joypad/movement locals but does not expose
+  a safe body. Native now preserves that poll ordering, records the visible DOF
+  readback, and keeps movement/rotation output explicitly
+  `not_synthesized`.
 - 2026-07-15 CameraManager free-camera lifecycle:
   ihatecompvir `CameraManager::GetFreeCam(padnum)` lazily allocates
   `new FreeCamera(mParent, 0.001f, 0.2f, 0)`, sets the pad only on creation,

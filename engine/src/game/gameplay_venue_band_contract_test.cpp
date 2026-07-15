@@ -13096,6 +13096,13 @@ int main() {
                  "booluse_parent_rotate_z=true;",
                  "FreeCamera state preserves default parent DOF axis gates");
   ok &= contains(gameplay_h_c,
+                 "uint64_tpoll_count=0;"
+                 "boolpoll_dof_enabled=false;"
+                 "floatpoll_blur_depth=0.0f;"
+                 "floatpoll_max_blur=0.0f;"
+                 "floatpoll_min_blur=0.0f;",
+                 "FreeCamera state preserves visible Poll DOF readback fields");
+  ok &= contains(gameplay_h_c,
                  "CameraManagerFreeCamStatecamera_manager_free_cam_;",
                  "regular camera manager carries source mFreeCam allocation state");
   ok &= contains(gameplay_c,
@@ -13159,6 +13166,38 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_manager_free_cam_.frozen=frozen;",
                  "FreeCamera::set_frozen mirrors source frozen flag mutation");
+  ok &= contains(gameplay_h_c,
+                 "voidcamera_manager_poll_free_cam_like_source("
+                 "constchar*source_context);",
+                 "native camera exposes CameraManager::Poll free-cam bridge");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::camera_manager_poll_free_cam_like_source("
+                 "constchar*source_context)",
+                 "native camera implements source-shaped FreeCamera::Poll bridge");
+  ok &= contains(gameplay_c,
+                 "++camera_manager_free_cam_.poll_count;"
+                 "camera_manager_free_cam_.poll_dof_enabled=cam.dof_active;"
+                 "camera_manager_free_cam_.poll_blur_depth=cam.dof_blur_depth;"
+                 "camera_manager_free_cam_.poll_max_blur=cam.dof_max_blur;"
+                 "camera_manager_free_cam_.poll_min_blur=cam.dof_min_blur;",
+                 "FreeCamera::Poll mirrors the visible source DOF read sequence");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerafree_camPoll:source_manager="
+                 "CameraManager::Pollsource_call=FreeCamera::Poll"
+                 "source_order=after_CamShot_SetFrame",
+                 "FreeCamera::Poll diagnostics preserve source poll ordering");
+  ok &= contains(gameplay_c,
+                 "native_motion=not_synthesizedrb2_poll_body=unrecovered",
+                 "FreeCamera::Poll bridge forbids invented joypad motion");
+  ok &= contains(gameplay_c,
+                 "source_camera_manager_poll_suppressed="
+                 "source_milo_camera_active;",
+                 "CameraManager::Poll suppresses FreeCamera::Poll behind MiloCamera like source");
+  ok &= contains(gameplay_c,
+                 "if(!source_camera_manager_poll_suppressed){"
+                 "camera_manager_poll_free_cam_like_source("
+                 "\"CameraManager::Poll\");}",
+                 "CameraManager::Poll calls FreeCamera::Poll after regular camera work");
   ok &= contains(gameplay_c,
                  "cameraEnterclear_shake:source_manager="
                  "CameraManager::Enter",

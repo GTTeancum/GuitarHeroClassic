@@ -129,6 +129,11 @@ struct CameraManagerFreeCamState {
   bool use_parent_rotate_y = true;
   bool use_parent_rotate_z = true;
   bool snapshot_valid = false;
+  uint64_t poll_count = 0;
+  bool poll_dof_enabled = false;
+  float poll_blur_depth = 0.0f;
+  float poll_max_blur = 0.0f;
+  float poll_min_blur = 0.0f;
 };
 
 class Gameplay {
@@ -828,6 +833,7 @@ class Gameplay {
   bool camera_manager_has_free_cam_like_source() const;
   bool camera_manager_delete_free_cam_like_source(const char* source_handler);
   void camera_manager_update_free_cam_from_camera_like_source();
+  void camera_manager_poll_free_cam_like_source(const char* source_context);
   void free_camera_set_pos_like_source(float x, float y, float z,
                                        const char* source_handler);
   void free_camera_set_rot_like_source(float x_degrees, float y_degrees,
