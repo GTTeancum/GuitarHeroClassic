@@ -24144,6 +24144,40 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
     }
 }
 
+const Gameplay::CameraKey*
+Gameplay::camera_manager_current_shot_like_source() const {
+    if (active_regular_camera_.empty()) return nullptr;
+    return find_camera_key_by_name(regular_camera_keys_, active_regular_camera_);
+}
+
+const Gameplay::CameraKey*
+Gameplay::camera_manager_next_shot_like_source() const {
+    if (pending_regular_camera_.empty()) return nullptr;
+    return find_camera_key_by_name(regular_camera_keys_, pending_regular_camera_);
+}
+
+bool Gameplay::force_camera_shot_like_source(const CameraKey& key,
+                                             const char* source_handler,
+                                             double source_local_frame) {
+    const CameraKey* current = camera_manager_current_shot_like_source();
+    const CameraKey* next_before = camera_manager_next_shot_like_source();
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera ForceCameraShot: source_manager=CameraManager::ForceCameraShot source_expr=current_shot current=%s source_expr=next_shot next_before=%s shot=%s caller=%s result=mNextShot\n",
+            current ? current->name.c_str() : "",
+            next_before ? next_before->name.c_str() : "", key.name.c_str(),
+            source_handler && source_handler[0] ? source_handler
+                                                : "CameraManager::ForceCameraShot");
+    }
+    queue_regular_camera_shot(
+        key,
+        source_handler && source_handler[0] ? source_handler
+                                            : "CameraManager::ForceCameraShot",
+        source_local_frame);
+    return true;
+}
+
 std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     if (!venue_chars_scene_loaded_ || venue_chars_scene_.waypoints.empty()) {
         return {};
@@ -24369,7 +24403,7 @@ bool Gameplay::cycle_camera_shot_like_source() {
             "[world] camera cycle_shot: source_msg=cycle_shot source_manager=CameraManager::OnCycleShot current=%s after=%s source_call=ForceCameraShot result=pending\n",
             active_regular_camera_.c_str(), after->name.c_str());
     }
-    queue_regular_camera_shot(*after, "CameraManager::OnCycleShot");
+    force_camera_shot_like_source(*after, "CameraManager::OnCycleShot");
     return true;
 }
 
@@ -33702,8 +33736,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         diagnostic_camera_shot_matched
                             ? diagnostic_camera_path_offset_frames_
                             : 0.0;
-                    queue_regular_camera_shot(*key, source_handler,
-                                              source_queue_local_frame);
+                    if (diagnostic_camera_shot_matched) {
+                        force_camera_shot_like_source(*key, source_handler,
+                                                      source_queue_local_frame);
+                    } else {
+                        queue_regular_camera_shot(*key, source_handler,
+                                                  source_queue_local_frame);
+                    }
                     std::fprintf(
                         stderr,
                         "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f\n",
@@ -34265,8 +34304,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     duration.second.first,
                                     duration.second.second,
                                     duration_random_draw);
-                                queue_regular_camera_shot(*next_key,
-                                                          "ForceCameraShot");
+                                force_camera_shot_like_source(
+                                    *next_key, "ForceCameraShot");
                             }
                         }
                         active_camera_shot_over_ = true;

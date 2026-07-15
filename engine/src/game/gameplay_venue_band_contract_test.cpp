@@ -198,6 +198,8 @@ int main() {
       function_body(gameplay, "Gameplay::start_camera_shot_runtime"));
   const std::string end_camera_shot_runtime_c = compact(
       function_body(gameplay, "Gameplay::end_camera_shot_runtime"));
+  const std::string force_camera_shot_c = compact(
+      function_body(gameplay, "Gameplay::force_camera_shot_like_source"));
   const std::string iterate_camera_shots_c = compact(
       function_body(gameplay, "Gameplay::iterate_camera_shots_like_source"));
   const std::string event_track_c =
@@ -3791,9 +3793,10 @@ int main() {
       gameplay_c,
       "constdoublesource_queue_local_frame="
       "diagnostic_camera_shot_matched?diagnostic_camera_path_offset_frames_:0.0;"
-      "queue_regular_camera_shot(*key,source_handler,"
-      "source_queue_local_frame);",
-      "diagnostic forced camera queues the requested source local path-frame through mNextShot while source picks stay at zero");
+      "if(diagnostic_camera_shot_matched){"
+      "force_camera_shot_like_source(*key,source_handler,"
+      "source_queue_local_frame);}",
+      "diagnostic forced camera queues the requested source local path-frame through CameraManager::ForceCameraShot");
   ok &= contains(gameplay_c,
                  "pending_regular_camera_start_=camera_source_start_time_for_local_frame("
                  "key,song_time_,pending_regular_camera_local_frame_,&chart_);",
@@ -6261,6 +6264,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]cameramNextShot:source_manager=%ssource_field=mNextShot",
                  "regular camera diagnostics expose CameraManager mNextShot assignment");
+  ok &= contains(gameplay_h_c,
+                 "constCameraKey*camera_manager_current_shot_like_source()const;",
+                 "camera runtime exposes CameraManager current_shot state");
+  ok &= contains(gameplay_h_c,
+                 "constCameraKey*camera_manager_next_shot_like_source()const;",
+                 "camera runtime exposes CameraManager next_shot state");
+  ok &= contains(force_camera_shot_c,
+                 "source_manager=CameraManager::ForceCameraShot",
+                 "camera force-shot bridge names ihatecompvir CameraManager::ForceCameraShot");
+  ok &= contains(force_camera_shot_c,
+                 "source_expr=current_shot",
+                 "camera force-shot diagnostics read the source current_shot expression");
+  ok &= contains(force_camera_shot_c,
+                 "source_expr=next_shot",
+                 "camera force-shot diagnostics read the source next_shot expression before overwrite");
+  ok &= contains(force_camera_shot_c,
+                 "queue_regular_camera_shot(key,",
+                 "CameraManager::ForceCameraShot writes the native mNextShot bridge");
   ok &= contains(gameplay_c,
                  "boolGameplay::consume_pending_regular_camera_shot(){"
                  "if(pending_regular_camera_.empty())returnfalse;",
@@ -6301,9 +6322,11 @@ int main() {
                  "source_queue_local_frame);",
                  "regular camera selector writes mNextShot instead of changing the active shot immediately");
   ok &= contains(gameplay_c,
+                 "if(diagnostic_camera_shot_matched){"
+                 "force_camera_shot_like_source(*key,source_handler,"
+                 "source_queue_local_frame);}else{"
                  "queue_regular_camera_shot(*key,source_handler,"
-                 "source_queue_local_frame);std::fprintf(stderr,"
-                 "\"[world]regularcamerasweep:",
+                 "source_queue_local_frame);}",
                  "regular camera sweep diagnostics log every source-accepted mNextShot, including same-shot restarts");
   ok &= contains(gameplay_c,
                  "constboolsource_restarted_shot="
@@ -12539,7 +12562,7 @@ int main() {
                  "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
   ok &= appears_before(
       gameplay_c,
-      "queue_regular_camera_shot(*next_key,\"ForceCameraShot\");",
+      "force_camera_shot_like_source(*next_key,\"ForceCameraShot\");",
       "active_camera_shot_over_=true;",
       "source shot_over force_shot queues before mShotOver flips");
   ok &= contains(gameplay_c,
@@ -12559,7 +12582,7 @@ int main() {
                  "duration_random_draw);",
                  "world_objects_worldbase.dta::do_force_shot refreshes camera_bars_left from get_shot_duration");
   ok &= contains(gameplay_c,
-                 "queue_regular_camera_shot(*next_key,\"ForceCameraShot\");",
+                 "force_camera_shot_like_source(*next_key,\"ForceCameraShot\");",
                  "source shot_over next_shot enters the pending bridge through CameraManager::ForceCameraShot");
   ok &= appears_before(
       gameplay_c,
@@ -12750,7 +12773,7 @@ int main() {
                  "boolGameplay::cycle_camera_shot_like_source(){",
                  "camera runtime exposes source OnCycleShot");
   ok &= contains(gameplay_c,
-                 "queue_regular_camera_shot(*after,\"CameraManager::OnCycleShot\");",
+                 "force_camera_shot_like_source(*after,\"CameraManager::OnCycleShot\");",
                  "source cycle_shot queues through CameraManager ForceCameraShot/mNextShot");
   ok &= contains(iterate_camera_shots_c,
                  "source_manager=CameraManager::OnIterateShot",

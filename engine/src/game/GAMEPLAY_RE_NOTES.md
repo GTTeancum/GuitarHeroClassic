@@ -11446,6 +11446,14 @@ Rejected native probe:
   decoded source category buckets in the same category-before-shot shape,
   logging var-write/restore boundaries without changing the live selected
   camera or inventing script command execution.
+- 2026-07-14 CameraManager state/force-shot bridge: ihatecompvir handles
+  `current_shot`, `next_shot`, and `force_shot` directly on `CameraManager`.
+  Native now exposes source-shaped current/next accessors and routes diagnostic
+  forced shots, `cycle_shot`, and authored `shot_over -> do_force_shot`
+  handoffs through `force_camera_shot_like_source()`, which logs the
+  `current_shot` / pre-overwrite `next_shot` state before writing the existing
+  `mNextShot` mirror. This does not add a new selection rule; it centralizes the
+  source handoff boundary so script-visible camera state is no longer implicit.
 - 2026-07-14 follow-up: ihatecompvir `CameraManager::StartShot_` runs
   `CamShot::StartAnim`, records `mCamStartTime`, then, when `venue_test != 1`,
   calls `TheWiiRnd.SetTriFrameRendering(true)` and resets `gCooldown = 0`.

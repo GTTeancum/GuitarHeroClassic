@@ -793,6 +793,11 @@ class Gameplay {
   void queue_regular_camera_shot(const CameraKey& key,
                                  const char* source_handler,
                                  double source_local_frame = 0.0);
+  const CameraKey* camera_manager_current_shot_like_source() const;
+  const CameraKey* camera_manager_next_shot_like_source() const;
+  bool force_camera_shot_like_source(const CameraKey& key,
+                                     const char* source_handler,
+                                     double source_local_frame = 0.0);
   std::string camera_source_guitarist0_nearest_walkspot() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);
