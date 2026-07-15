@@ -165,6 +165,9 @@ int run_contract() {
   const std::string lower_body_root_cause = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_root_cause.py"));
+  const std::string lower_body_bridge_boundary = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_bridge_boundary.py"));
   const std::string pose_publisher_source_gaps = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_pose_publisher_source_gaps.py"));
@@ -33929,6 +33932,18 @@ int run_contract() {
       lower_body_root_cause,
       "bad_rows=driven_live0fixed_rows=driven_live1",
       "lower-body root-cause audit reports old/fixed live-row transition");
+  ok &= contains(
+      lower_body_bridge_boundary,
+      "FORBIDDEN_BRIDGE_TOKENS",
+      "lower-body bridge boundary audit rejects named/offset shortcuts");
+  ok &= contains(
+      lower_body_bridge_boundary,
+      "source_output_subset=true",
+      "lower-body bridge boundary audit reports source output subset");
+  ok &= contains(
+      lower_body_bridge_boundary,
+      "apply_lower_body_output_layer",
+      "lower-body bridge boundary audit inspects live bridge function");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34341,6 +34356,13 @@ int run_contract() {
   ok &= contains(doc,
                  "`fixed_max_abs_xyz=0.001`",
                  "document records fixed lower-body root-cause gap");
+  ok &= contains(
+      doc,
+      "check_lower_body_bridge_boundary.py",
+      "document records lower-body bridge boundary audit");
+  ok &= contains(doc,
+                 "`no_named_or_offset_shortcut=true`",
+                 "document records lower-body bridge shortcut rejection");
   ok &= contains(app_main,
                  "ghogx::character::CharacterPosePlayerLayerSources"
                  "player_layers",

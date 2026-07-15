@@ -6257,6 +6257,11 @@ Rockabill2 `stand_fast_03` frame-70 side proof pair: the old
 `bad_max_abs_xyz=8.310`, while the bridged
 `lower_body_output_bridge_20260715` log has the matching source-authored rows
 at `live=1` and `fixed_max_abs_xyz=0.001`.
+`tools/check_lower_body_bridge_boundary.py` passes with
+`source_output_subset=true` and `no_named_or_offset_shortcut=true`; it inspects
+the `apply_lower_body_output_layer` body and requires the live bridge to filter
+through decoded source `OutputBone` keys rather than character names, offsets,
+or one-off foot/ankle/toe fixups.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
