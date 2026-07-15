@@ -129,6 +129,7 @@
     {
       "label": "rockabill2_missing_midi_target_control",
       "expect": "mismatch",
+      "proof_role": "diagnostic_control",
       "known_control_reason": "viewer log intentionally omits --midi-fret-target spot_neck_fret11.mesh; this stale-viewer case is not current pose proof",
       "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armfiltered.log",
       "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armshort.log",

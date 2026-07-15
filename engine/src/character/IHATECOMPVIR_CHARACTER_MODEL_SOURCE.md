@@ -5968,6 +5968,22 @@ the viewer was stale when it lacked gameplay's live fret target. Future arm or
 leg screenshots may still be wrong, but they must first pass a same-frame
 viewer/gameplay log comparison with the matching live target and clip stack
 before they can be treated as evidence for a remaining source decode bug.
+The verifier now enforces that boundary in the manifest: any expected-mismatch
+case must be marked `proof_role: diagnostic_control` and must include a
+`known_control_reason`. Matching proof cases must remain `proof_role: current`
+and may not carry a control reason, so A/B or stale-viewer diagnostics cannot
+silently masquerade as current source-backed gameplay evidence.
+
+2026-07-15 proof-role contract recapture:
+`engine/out/visual_proofs/proof_role_contract_20260715/` contains fresh
+current-build individual screenshots and logs for the same rule. The current
+in-game Trogdor/small2/Rockabill2/Xplorer proof and the current viewer proof
+with `--midi-fret-target spot_neck_fret11.mesh` compare at
+`max_delta=0.000000` across 88 torso/arm/twist rows. The same viewer setup
+without the MIDI fret target remains an explicit diagnostic control with
+`max_delta=7.772200`. This is proof of viewer/gameplay configuration parity
+and stale-viewer rejection only; the shared source-publisher gap remains the
+five fenced bodies listed by `tools/check_pose_publisher_source_gaps.py`.
 
 2026-07-14 full-body viewer/gameplay diff:
 `engine/out/visual_proofs/leg_viewer_ingame_20260714/` recaptures the same

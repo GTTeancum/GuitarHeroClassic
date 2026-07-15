@@ -33582,6 +33582,21 @@ int run_contract() {
                  "EXPECTED-MISMATCH",
                  "arm pose log verifier can prove stale-viewer controls fail");
   ok &= contains(arm_pose_log_compare,
+                 "proof_role!=\"diagnostic_control\"",
+                 "arm pose log verifier requires mismatch cases to be diagnostic controls");
+  ok &= contains(arm_pose_log_compare,
+                 "diagnosticcontrolmustinclude",
+                 "arm pose log verifier requires a stale-viewer/control reason");
+  ok &= contains(arm_pose_log_compare,
+                 "known_control_reason",
+                 "arm pose log verifier prints/validates the control reason field");
+  ok &= contains(arm_pose_log_compare,
+                 "matchingproofmustbeproof_rolecurrent",
+                 "arm pose log verifier keeps current proofs separate from controls");
+  ok &= contains(arm_pose_log_compare,
+                 "withnoknown_control_reason",
+                 "arm pose log verifier rejects control reasons on current proofs");
+  ok &= contains(arm_pose_log_compare,
                  "requests_from_manifest(",
                  "arm pose log verifier can batch manifest proof pairs");
   ok &= contains(arm_pose_log_compare,
@@ -33632,6 +33647,9 @@ int run_contract() {
                  "--midi-fret-targetspot_neck_fret11.mesh;"
                  "thisstale-viewercaseisnotcurrentposeproof\"",
                  "arm pose diff manifest labels stale-viewer control as non-proof");
+  ok &= contains(arm_pose_diff_manifest,
+                 "\"proof_role\":\"diagnostic_control\"",
+                 "arm pose diff manifest marks stale-viewer case as diagnostic-only");
   ok &= contains(arm_pose_diff_manifest,
                  "\"[fretpos]role=guitarist0tick=61980"
                  "spot=spot_neck_fret11.meshindex=11\"",

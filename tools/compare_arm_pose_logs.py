@@ -129,6 +129,8 @@ class CompareRequest:
     row_types: tuple[str, ...]
     tolerance: float
     expect: str
+    proof_role: str
+    known_control_reason: str
     require_screenshot_marker: bool
     require_ingame_contains: tuple[str, ...]
     require_viewer_contains: tuple[str, ...]
@@ -178,6 +180,28 @@ def requests_from_manifest(path: Path) -> list[CompareRequest]:
         expect = str(case.get("expect", "match"))
         if expect not in ("match", "mismatch"):
             raise RuntimeError(f"{path}: case {index} has invalid expect '{expect}'")
+        proof_role = str(case.get("proof_role", "current"))
+        if proof_role not in ("current", "diagnostic_control"):
+            raise RuntimeError(
+                f"{path}: case {index} has invalid proof_role '{proof_role}'"
+            )
+        known_control_reason = str(case.get("known_control_reason", ""))
+        if expect == "mismatch":
+            if proof_role != "diagnostic_control":
+                raise RuntimeError(
+                    f"{path}: case {index} expected mismatch must be proof_role "
+                    "diagnostic_control"
+                )
+            if not known_control_reason:
+                raise RuntimeError(
+                    f"{path}: case {index} diagnostic control must include "
+                    "known_control_reason"
+                )
+        elif proof_role != "current" or known_control_reason:
+            raise RuntimeError(
+                f"{path}: case {index} matching proof must be proof_role current "
+                "with no known_control_reason"
+            )
         label = str(case.get("label", f"case{index}"))
         requests.append(
             CompareRequest(
@@ -190,6 +214,8 @@ def requests_from_manifest(path: Path) -> list[CompareRequest]:
                 row_types=tuple_from_manifest(case.get("rows"), DEFAULT_ROWS, "rows"),
                 tolerance=float(case.get("tolerance", default_tolerance)),
                 expect=expect,
+                proof_role=proof_role,
+                known_control_reason=known_control_reason,
                 require_screenshot_marker=not bool(
                     case.get("allow_no_screenshot_marker", False)
                 ),
@@ -221,6 +247,12 @@ def request_from_args(args: argparse.Namespace) -> CompareRequest:
         row_types=tuple(args.rows) if args.rows else DEFAULT_ROWS,
         tolerance=args.tolerance,
         expect=args.expect,
+        proof_role="current" if args.expect == "match" else "diagnostic_control",
+        known_control_reason=(
+            "explicit command-line expected mismatch"
+            if args.expect == "mismatch"
+            else ""
+        ),
         require_screenshot_marker=not args.allow_no_screenshot_marker,
         require_ingame_contains=(),
         require_viewer_contains=(),
@@ -367,6 +399,8 @@ def run_request(request: CompareRequest) -> int:
                 f"EXPECTED-MISMATCH label={request.label} compared={compared} "
                 f"character={request.character} tag={request.tag} "
                 f"max_delta={max_delta:.6f} tolerance={request.tolerance:.6f} "
+                f"proof_role={request.proof_role} "
+                f"known_control_reason={request.known_control_reason!r} "
                 f"{marker_text}"
             )
             for message in messages[:20]:

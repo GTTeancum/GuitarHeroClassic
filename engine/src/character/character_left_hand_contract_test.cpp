@@ -132,7 +132,7 @@ int main() {
                  "character viewer fixed-dt capture cannot drift under debug logging");
   ok &= contains(app_main_c,
                  "char_offset,fixed_dt,character_controllers,"
-                 "char_reference_base);",
+                 "char_reference_base,midi_fret_target,viewer_clip_stack);",
                  "parsed fixed dt reaches character viewer proof path");
   ok &= contains(app_main_c,
                  "--no-character-controllers",
@@ -157,7 +157,8 @@ int main() {
                  "renderer.set_reference_base(reference_base);",
                  "character viewer forwards the reference-base diagnostic to the renderer");
   ok &= contains(app_main_c,
-                 "char_offset,fixed_dt,character_controllers,char_reference_base);",
+                 "char_offset,fixed_dt,character_controllers,char_reference_base,"
+                 "midi_fret_target,viewer_clip_stack);",
                  "parsed reference-base diagnostic reaches character viewer proof path");
   ok &= contains(char_renderer_c,
                  "voidCharRenderer::set_reference_base(boolenabled){"
