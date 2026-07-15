@@ -6195,6 +6195,18 @@ int main() {
       "active_camera_postprocess_ref_=canonical_milo_ref(key.postprocess_ref);",
       "active_force_char_lod_=key.force_char_lod;",
       "camera start_shot postprocess branch runs before world set_min_lod");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "if(key.category==\"LOSE\"",
+                 "camera start_shot mirrors the LOSE-category lose_teleport branch");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "source_msg=guitarist0.lose_teleportshot=%scategory=%s"
+                 "result=native_deferred",
+                 "camera LOSE start_shot diagnostics name the sourced character message");
+  ok &= appears_before(
+      start_camera_shot_runtime_c,
+      "source_msg=guitarist0.lose_teleport",
+      "active_force_char_lod_=key.force_char_lod;",
+      "camshot.dta sends guitarist0 lose_teleport before world set_min_lod");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "\"[world]cameraStartAnim:source_msg=start_shot"

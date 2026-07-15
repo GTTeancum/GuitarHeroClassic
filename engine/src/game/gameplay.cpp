@@ -24562,6 +24562,13 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             active_camera_postprocess_ref_.empty() ? "cleared" : "selected",
             key.postproc_override_refs.size());
     }
+    if (key.category == "LOSE" &&
+        (debug_venue_filters_enabled() || debug_camera_enabled())) {
+        std::fprintf(
+            stderr,
+            "[world] camera start_shot lose_teleport: source_script=world/camshot.dta source_msg=guitarist0.lose_teleport shot=%s category=%s result=native_deferred\n",
+            active_camera_runtime_shot_.c_str(), key.category.c_str());
+    }
     active_force_char_lod_ = key.force_char_lod;
     if (debug_venue_filters_enabled()) {
         std::fprintf(

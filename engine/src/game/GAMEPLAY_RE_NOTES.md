@@ -18,6 +18,12 @@
   non-platform C/C++ runtime imports such as `libc++.dll`, `libstdc++`, dynamic
   MSVC CRT DLLs, or UCRT DLLs before the executable is treated as valid proof.
   This is a proof-harness check only; no runtime dependency was added.
+- 2026-07-15 camera LOSE start-shot bridge: GH2 `world/camshot.dta::start_shot`
+  sends `guitarist0 lose_teleport` for `category == LOSE` before
+  `world set_min_lod`. Native now routes and logs that camera-start message in
+  the same order, but marks the actual character teleport effect
+  `native_deferred` because the recovered character DTA only proves sink
+  registration here, not the native handler body.
 - Rexglue traces show the venue director owns camera, crowd, lighting, and band
   updates together. Camera shot selection is a two-tier system:
   `pick_new_shot` / `start_shot` at roughly bar-scale cadence, plus
