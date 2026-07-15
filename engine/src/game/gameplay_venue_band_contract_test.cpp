@@ -9098,16 +9098,16 @@ int main() {
                  "song_time_-active_camera_anim_start_time_);",
                  "linked RndCamAnim SetFrame uses the active shot clock");
   ok &= contains(gameplay_c,
-                 "constdoubleunits=venue_anim_time_units(anim.anim_rate,"
-                 "active_camera_anim_start_time_,elapsed,&chart_);",
-                 "linked RndCamAnim SetFrame routes through source task time units");
-  ok &= contains(gameplay_c,
-                 "constfloatframe=static_cast<float>(units*fpu);",
-                 "linked RndCamAnim SetFrame receives the source frame units");
-  ok &= contains(gameplay_c,
                  "constfloatshot_local_frame=camera_source_local_frame("
                  "key,song_time_,active_camera_anim_start_time_,&chart_);",
-                 "linked RndCamAnim diagnostics compare FOV frame to the owning CamShot source-local frame");
+                 "linked RndCamAnim SetFrame is clocked by the owning CamShot source-local frame");
+  ok &= contains(gameplay_c,
+                 "constfloatframe=shot_local_frame;",
+                 "linked RndCamAnim SetFrame receives the CamShot SetFrame frame");
+  ok &= contains(gameplay_c,
+                 "constdoubleindependent_units="
+                 "fpu>0.0001f?static_cast<double>(frame)/fpu:0.0;",
+                 "linked RndCamAnim diagnostics expose the child-rate units without using them as the source frame");
   ok &= contains(gameplay_c,
                  "if(anim.cam.empty()){",
                  "linked RndCamAnim SetFrame mirrors the source mCam gate");
@@ -9144,7 +9144,10 @@ int main() {
                  "source_blend_rule=current_to_sampled_when_not_one",
                  "linked RndCamAnim diagnostics name the source non-1 blend behavior");
   ok &= contains(gameplay_c,
-                 "source_start=%.3fsource_elapsed=%.3fsource_units=%.3f"
+                 "source_frame_provider=CamShot::SetFrame",
+                 "linked RndCamAnim diagnostics name the source frame provider");
+  ok &= contains(gameplay_c,
+                 "source_start=%.3fsource_elapsed=%.3findependent_units=%.3f"
                  "shot_local_frame=%.3f",
                  "linked RndCamAnim diagnostics expose the source clock used for FOV sampling");
   ok &= contains(gameplay_c,

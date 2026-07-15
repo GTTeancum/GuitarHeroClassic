@@ -24660,16 +24660,16 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
     if (active_camera_fov_anim_refs_.empty()) return;
     const double elapsed =
         std::max(0.0, song_time_ - active_camera_anim_start_time_);
+    const float shot_local_frame = camera_source_local_frame(
+        key, song_time_, active_camera_anim_start_time_, &chart_);
     for (const auto& ref : active_camera_fov_anim_refs_) {
         const auto anim_it = venue_camera_fov_anims_.find(ref);
         if (anim_it == venue_camera_fov_anims_.end()) continue;
         const auto& anim = anim_it->second;
         const float fpu = rnd_animatable_frames_per_unit(anim.anim_rate);
-        const double units = venue_anim_time_units(
-            anim.anim_rate, active_camera_anim_start_time_, elapsed, &chart_);
-        const float frame = static_cast<float>(units * fpu);
-        const float shot_local_frame = camera_source_local_frame(
-            key, song_time_, active_camera_anim_start_time_, &chart_);
+        const float frame = shot_local_frame;
+        const double independent_units =
+            fpu > 0.0001f ? static_cast<double>(frame) / fpu : 0.0;
         if (anim.cam.empty()) {
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 const std::string report_key =
@@ -24678,11 +24678,11 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                     active_camera_fov_anim_reported_.insert(report_key);
                     std::fprintf(
                         stderr,
-                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0 source_start=%.3f source_elapsed=%.3f source_units=%.3f shot_local_frame=%.3f\n",
+                        "[world] camera RndCamAnim SetFrame skipped: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=<none> frame=%.3f anim_rate=%d fpu=%.1f keys=%zu source_gate=RndCamAnim::mCam target_resolved=0 source_frame_provider=CamShot::SetFrame source_start=%.3f source_elapsed=%.3f independent_units=%.3f shot_local_frame=%.3f\n",
                         key.name.c_str(), anim.name.c_str(),
                         anim.keys_owner.c_str(), frame, anim.anim_rate, fpu,
                         anim.fov_keys.size(), active_camera_anim_start_time_,
-                        elapsed, units, shot_local_frame);
+                        elapsed, independent_units, shot_local_frame);
                 }
             }
             continue;
@@ -24706,13 +24706,13 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                 active_camera_fov_anim_reported_.insert(report_key);
                 std::fprintf(
                     stderr,
-                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one source_start=%.3f source_elapsed=%.3f source_units=%.3f shot_local_frame=%.3f\n",
+                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one source_frame_provider=CamShot::SetFrame source_start=%.3f source_elapsed=%.3f independent_units=%.3f shot_local_frame=%.3f\n",
                     key.name.c_str(), anim.name.c_str(),
                     anim.keys_owner.c_str(), anim.cam.c_str(), frame,
                     anim.anim_rate, fpu, cam.fov, sampled_fov, previous_fov,
                     anim.fov_keys.size(),
                     source_setframe_blend, active_camera_anim_start_time_,
-                    elapsed, units, shot_local_frame);
+                    elapsed, independent_units, shot_local_frame);
             }
         }
     }
