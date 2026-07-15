@@ -6468,9 +6468,9 @@ from stock asset bytes.
 diagnostic `--char-2p-select-placer` matrices still match the stock manifest
 `matrix0` rows and that the proof hook exposes `--char-2p-select-event`.
 
-`engine/out/visual_proofs/lower_body_2p_select_event_20260715/` captures
+`engine/out/visual_proofs/lower_body_2p_select_animate_20260715/` captures
 individual front full-body screenshots for Glam1 and Metal1 at `ui_loop` frames
-30 and 40 using the 2P `select` event label, with guitar disabled, soft-green
+30 and 40 using the stock 2P screen `animate` event, with guitar disabled, soft-green
 background, live toe-row reference base, and output-map diagnostics enabled.
 The proof app applies the decoded
 `char_multi0.placer` matrix0 to Glam1 and `char_multi1.placer` matrix0 to
@@ -6479,18 +6479,19 @@ no longer rely on the single-player dressing-room screen context. The hook is a
 proof placement/event transform only; it does not alter lower-body pose solving.
 `tools/check_lower_body_2p_select_proofs.py` passes with
 `characters=glam1,metal1`, `screen=multi_sel_character_screen`,
-`panel=char_multi`, `event=select`, `multiplayer_clip=ui_loop`,
+`panel=char_multi`, `event=animate`, `multiplayer_clip=ui_loop`,
 `skips_ui_enter=true`, `char_objects=char/gen/char_objects.dtb`,
 `placers=char_multi0.placer,char_multi1.placer`,
 `applied_placers=char_multi0.placer,char_multi1.placer`, `frames=30,40`,
 `cases=4`, `two_player_select=true`, `live_reference_base=true`,
 `max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
 `min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`. This
-supersedes treating isolated `_ui` screenshots as complete 2P select proof.
+supersedes treating isolated `_ui` screenshots or the outfit-focus `select`
+event as complete 2P select proof.
 
-`engine/out/visual_proofs/lower_body_2p_select_slot_sweep_20260715/` adds the
+`engine/out/visual_proofs/lower_body_2p_select_slot_animate_20260715/` adds the
 missing side/profile check for both real 2P player slots. Glam1 and Metal1 are
-captured with the same stock `ui_loop` `select` event at frames 30 and 40 in
+captured with the same stock `ui_loop` `animate` event at frames 30 and 40 in
 both `char_multi0.placer` and `char_multi1.placer`, with guitar disabled,
 soft-green background, and the live toe-row reference base. The intent is to
 catch the exact lower-body read that was obscured by front-only or
@@ -6505,13 +6506,14 @@ This is 2P select placement and lower-body row evidence only; it does not
 change the remaining fenced source-publisher bodies or sign off unrelated arm,
 hair, or accessory behavior.
 
-`engine/out/visual_proofs/lower_body_2p_select_context_20260715/` is the
-corrected visual-oracle batch for the reviewer note that single-player select
-poses lean against select-screen geometry. The first attempted recapture used a
-stale app binary and default Xplorer prop, so it did not emit `[2p-select]` rows
-and was rejected. After rebuilding `ghogx_app` and recapturing with
-`--guitar none`, the accepted logs show `multi_sel_character_screen`,
-`panel=char_multi`, `event=select`, `clip=ui_loop`, both
+`engine/out/visual_proofs/lower_body_2p_select_context_animate_20260715/` is
+the corrected visual-oracle batch for the reviewer note that single-player
+select poses lean against select-screen geometry. The first attempted recapture
+used the outfit-focus `select` event, so it was demoted: stock 2P screen entry
+and scrolling use `{char_multi char_event $playerNum animate}`. After rebuilding
+`ghogx_app` and recapturing with `--guitar none`, the accepted logs show
+`multi_sel_character_screen`, `panel=char_multi`, `event=animate`,
+`clip=ui_loop`, both
 `char_multi0.placer` and `char_multi1.placer`, and no attached Xplorer prop.
 The 16 individual PNGs cover Glam1 and Metal1, both 2P slots, frames 30 and 40,
 and front-camera plus side-camera views. `tools/check_lower_body_2p_select_context_proofs.py`
@@ -6523,11 +6525,11 @@ above the drawn diagnostic base in profile, but the live source-output toe rows
 are within the established floor tolerance and match the visible lower-output
 rows to 0.000500; this is therefore not the old sampled-direct lower-body float.
 
-`engine/out/visual_proofs/lower_body_2p_select_family_20260715/` extends the
+`engine/out/visual_proofs/lower_body_2p_select_family_animate_20260715/` extends the
 corrected 2P select side-profile check beyond the active Glam1/Metal1 pair. It
 captures Rock1, Rock2, Funk1, and Deathmetal1 in both `char_multi0.placer` and
 `char_multi1.placer` at `ui_loop` frames 30 and 40, again with `--guitar none`
-and the stock `select` event. Rock2 is intentionally included as a separate UI
+and the stock `animate` event. Rock2 is intentionally included as a separate UI
 model using the stock `char/rock1/anims/gen/rock1_ui.milo_ps2` source-family
 animation path. `tools/check_lower_body_2p_select_family_proofs.py` passes with
 `characters=rock1,rock2,funk1,deathmetal1`, `cases=16`,

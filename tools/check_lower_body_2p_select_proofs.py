@@ -50,8 +50,8 @@ PROOF_CASES = (
     ProofCase(
         character="glam1",
         frame=30,
-        png_name="glam1_2p_select_ui_loop_f030_front.png",
-        log_name="glam1_2p_select_ui_loop_f030_front.log",
+        png_name="glam1_2p_animate_ui_loop_f030_front.png",
+        log_name="glam1_2p_animate_ui_loop_f030_front.log",
         source_model="char/glam1/og/gen/glam1_ui.milo_ps2",
         source_clip="char/glam1/anims/gen/glam1_ui.milo_ps2",
         placer="char_multi0.placer",
@@ -60,8 +60,8 @@ PROOF_CASES = (
     ProofCase(
         character="glam1",
         frame=40,
-        png_name="glam1_2p_select_ui_loop_f040_front.png",
-        log_name="glam1_2p_select_ui_loop_f040_front.log",
+        png_name="glam1_2p_animate_ui_loop_f040_front.png",
+        log_name="glam1_2p_animate_ui_loop_f040_front.log",
         source_model="char/glam1/og/gen/glam1_ui.milo_ps2",
         source_clip="char/glam1/anims/gen/glam1_ui.milo_ps2",
         placer="char_multi0.placer",
@@ -70,8 +70,8 @@ PROOF_CASES = (
     ProofCase(
         character="metal1",
         frame=30,
-        png_name="metal1_2p_select_ui_loop_f030_front.png",
-        log_name="metal1_2p_select_ui_loop_f030_front.log",
+        png_name="metal1_2p_animate_ui_loop_f030_front.png",
+        log_name="metal1_2p_animate_ui_loop_f030_front.log",
         source_model="char/metal1/og/gen/metal1_ui.milo_ps2",
         source_clip="char/metal1/anims/gen/metal1_ui.milo_ps2",
         placer="char_multi1.placer",
@@ -80,8 +80,8 @@ PROOF_CASES = (
     ProofCase(
         character="metal1",
         frame=40,
-        png_name="metal1_2p_select_ui_loop_f040_front.png",
-        log_name="metal1_2p_select_ui_loop_f040_front.log",
+        png_name="metal1_2p_animate_ui_loop_f040_front.png",
+        log_name="metal1_2p_animate_ui_loop_f040_front.log",
         source_model="char/metal1/og/gen/metal1_ui.milo_ps2",
         source_clip="char/metal1/anims/gen/metal1_ui.milo_ps2",
         placer="char_multi1.placer",
@@ -161,14 +161,15 @@ def check_manifest(root: Path) -> dict:
     require(placers["char_multi1.placer"]["target_mesh"] == "spot_ui.mesh", "P2 target mesh missing")
     capture = manifest["proof_capture"]
     require(capture["diagnostic_option"] == "--char-2p-select-placer", "2P placer option missing")
-    require(capture["diagnostic_event_option"] == "--char-2p-select-event select", "2P select event option missing")
-    require(capture["event"] == "select", "proof capture should use the 2P select event")
+    require(capture["diagnostic_event_option"] == "--char-2p-select-event animate", "2P animate event option missing")
+    require(capture["event"] == "animate", "proof capture should use the 2P animate event")
+    require("animate" in manifest["proof_event_rationale"], "2P animate event rationale missing")
     require(capture["reference_base"] == "live toe-row floor when toe bones exist", "live proof base missing")
     return manifest
 
 
 def check_case(root: Path, case: ProofCase) -> tuple[str, CaseMetrics]:
-    proof_root = root / "engine/out/visual_proofs/lower_body_2p_select_event_20260715"
+    proof_root = root / "engine/out/visual_proofs/lower_body_2p_select_animate_20260715"
     log_path = proof_root / case.log_name
     png_path = proof_root / case.png_name
     require(log_path.is_file(), f"{case.character} frame {case.frame}: missing log")
@@ -191,10 +192,10 @@ def check_case(root: Path, case: ProofCase) -> tuple[str, CaseMetrics]:
     require_text(text, "owner=multi_sel_character_panel target=spot_ui.mesh", log_path, "2P placer target")
     require_text(text, "[2p-select] script=ui/gen/multiplayer.dtb", log_path, "2P script evidence")
     require_text(text, "screen=multi_sel_character_screen", log_path, "2P screen evidence")
-    require_text(text, "panel=char_multi event=select", log_path, "2P char event")
+    require_text(text, "panel=char_multi event=animate", log_path, "2P char event")
     require_text(text, "clip=ui_loop skips_ui_enter=true", log_path, "2P clip rule")
     require_text(text, "char_objects=char/gen/char_objects.dtb", log_path, "2P char_objects source")
-    require_text(text, "reset_hair=false", log_path, "2P select reset-hair rule")
+    require_text(text, "reset_hair=true", log_path, "2P animate reset-hair rule")
     require_text(text, "placers=char_multi0.placer,char_multi1.placer", log_path, "2P placers")
     require("prop 'xplorer' attached" not in text, f"{log_path}: guitar prop should be absent")
 
@@ -272,7 +273,7 @@ def main() -> int:
         "PASS lower_body_2p_select_proofs "
         "characters=glam1,metal1 "
         "screen=multi_sel_character_screen panel=char_multi "
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true "
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true "
         "char_objects=char/gen/char_objects.dtb "
         "placers=char_multi0.placer,char_multi1.placer "
         "applied_placers=char_multi0.placer,char_multi1.placer "

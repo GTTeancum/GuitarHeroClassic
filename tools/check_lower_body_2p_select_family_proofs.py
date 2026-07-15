@@ -32,22 +32,22 @@ LOWER_BODY_BONES = (
 )
 
 EXPECTED_PROOF_STEMS = (
-    "rock1_p1_2p_select_ui_loop_f030_side",
-    "rock1_p1_2p_select_ui_loop_f040_side",
-    "rock1_p2_2p_select_ui_loop_f030_side",
-    "rock1_p2_2p_select_ui_loop_f040_side",
-    "rock2_p1_2p_select_ui_loop_f030_side",
-    "rock2_p1_2p_select_ui_loop_f040_side",
-    "rock2_p2_2p_select_ui_loop_f030_side",
-    "rock2_p2_2p_select_ui_loop_f040_side",
-    "funk1_p1_2p_select_ui_loop_f030_side",
-    "funk1_p1_2p_select_ui_loop_f040_side",
-    "funk1_p2_2p_select_ui_loop_f030_side",
-    "funk1_p2_2p_select_ui_loop_f040_side",
-    "deathmetal1_p1_2p_select_ui_loop_f030_side",
-    "deathmetal1_p1_2p_select_ui_loop_f040_side",
-    "deathmetal1_p2_2p_select_ui_loop_f030_side",
-    "deathmetal1_p2_2p_select_ui_loop_f040_side",
+    "rock1_p1_2p_animate_ui_loop_f030_side",
+    "rock1_p1_2p_animate_ui_loop_f040_side",
+    "rock1_p2_2p_animate_ui_loop_f030_side",
+    "rock1_p2_2p_animate_ui_loop_f040_side",
+    "rock2_p1_2p_animate_ui_loop_f030_side",
+    "rock2_p1_2p_animate_ui_loop_f040_side",
+    "rock2_p2_2p_animate_ui_loop_f030_side",
+    "rock2_p2_2p_animate_ui_loop_f040_side",
+    "funk1_p1_2p_animate_ui_loop_f030_side",
+    "funk1_p1_2p_animate_ui_loop_f040_side",
+    "funk1_p2_2p_animate_ui_loop_f030_side",
+    "funk1_p2_2p_animate_ui_loop_f040_side",
+    "deathmetal1_p1_2p_animate_ui_loop_f030_side",
+    "deathmetal1_p1_2p_animate_ui_loop_f040_side",
+    "deathmetal1_p2_2p_animate_ui_loop_f030_side",
+    "deathmetal1_p2_2p_animate_ui_loop_f040_side",
 )
 
 
@@ -67,7 +67,7 @@ class ProofCase:
     @property
     def stem(self) -> str:
         return (
-            f"{self.character}_{self.slot}_2p_select_ui_loop_"
+            f"{self.character}_{self.slot}_2p_animate_ui_loop_"
             f"f{self.frame:03d}_side"
         )
 
@@ -181,10 +181,10 @@ def check_case(root: Path, case: ProofCase) -> CaseMetrics:
     )
     require_text(text, "source=ui/gen/multi_sel_character.milo_ps2", log_path, "2P source MILO")
     require_text(text, "screen=multi_sel_character_screen", log_path, "2P screen")
-    require_text(text, "panel=char_multi event=select", log_path, "2P select event")
+    require_text(text, "panel=char_multi event=animate", log_path, "2P animate event")
     require_text(text, "clip=ui_loop skips_ui_enter=true", log_path, "2P clip rule")
     require_text(text, "char_objects=char/gen/char_objects.dtb", log_path, "char_objects source")
-    require_text(text, "reset_hair=false", log_path, "2P select reset hair rule")
+    require_text(text, "reset_hair=true", log_path, "2P animate reset hair rule")
     require("prop 'xplorer' attached" not in text, f"{log_path}: guitar prop should be absent")
 
     rows, visible_rows, screenshot_line = parse_output_rows(log_path, True)
@@ -254,7 +254,7 @@ def check_case(root: Path, case: ProofCase) -> CaseMetrics:
 
 
 def main() -> int:
-    root = Path("engine/out/visual_proofs/lower_body_2p_select_family_20260715")
+    root = Path("engine/out/visual_proofs/lower_body_2p_select_family_animate_20260715")
     cases = make_cases()
     try:
         require(
@@ -270,7 +270,7 @@ def main() -> int:
         "PASS lower_body_2p_select_family_proofs "
         "characters=rock1,rock2,funk1,deathmetal1 players=p1,p2 "
         "screen=multi_sel_character_screen panel=char_multi "
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true "
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true "
         "camera_views=side frames=30,40 cases=16 "
         "individual_proofs=true both_2p_placers=true "
         "source_family_rock2_uses_rock1_ui_anim=true "

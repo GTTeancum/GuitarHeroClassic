@@ -34736,16 +34736,16 @@ int run_contract() {
                  "Thereisthereforenoseparatestock2Pclipnamefoundhere",
                  "document records no separate 2P clip name");
   ok &= contains(doc,
-                 "`engine/out/visual_proofs/lower_body_2p_select_event_20260715/`",
+                 "`engine/out/visual_proofs/lower_body_2p_select_animate_20260715/`",
                  "document records 2P select proof folder");
   ok &= contains(doc,
-                 "`engine/out/visual_proofs/lower_body_2p_select_slot_sweep_20260715/`",
+                 "`engine/out/visual_proofs/lower_body_2p_select_slot_animate_20260715/`",
                  "document records 2P select slot-sweep proof folder");
   ok &= contains(doc,
-                 "`engine/out/visual_proofs/lower_body_2p_select_context_20260715/`",
+                 "`engine/out/visual_proofs/lower_body_2p_select_context_animate_20260715/`",
                  "document records corrected 2P select context proof folder");
   ok &= contains(doc,
-                 "`engine/out/visual_proofs/lower_body_2p_select_family_20260715/`",
+                 "`engine/out/visual_proofs/lower_body_2p_select_family_animate_20260715/`",
                  "document records corrected 2P select family proof folder");
   ok &= contains(doc,
                  "`two_player_select=true`",
@@ -34757,8 +34757,8 @@ int run_contract() {
                  "`no_singleplayer_geometry=true`",
                  "document records corrected 2P context status");
   ok &= contains(compact(doc),
-                 "staleappbinaryanddefaultXplorerprop",
-                 "document records rejected stale/no-placer capture");
+                 "usedtheoutfit-focus`select`event,soitwasdemoted",
+                 "document records rejected outfit-focus select capture");
   ok &= contains(doc,
                  "`source_family_rock2_uses_rock1_ui_anim=true`",
                  "document records Rock2 shared UI animation family proof");
@@ -34856,12 +34856,16 @@ int run_contract() {
       "2P select manifest records applied placer diagnostic option");
   ok &= contains(
       lower_body_2p_select_source_manifest,
-      "\"diagnostic_event_option\":\"--char-2p-select-eventselect\"",
+      "\"diagnostic_event_option\":\"--char-2p-select-eventanimate\"",
       "2P select manifest records applied event diagnostic option");
   ok &= contains(
       lower_body_2p_select_source_manifest,
-      "\"event\":\"select\"",
-      "2P select manifest records select proof event");
+      "\"event\":\"animate\"",
+      "2P select manifest records animate proof event");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"proof_event_rationale\":\"Thestock2Pcharacter-selectscreendisplayscharactersthrough{char_multichar_event$playerNumanimate};theselecteventisonlytheoutfitfocus/loadpath.Proofcapturesthereforeuseanimateandmustlogreset_hair=true.\"",
+      "2P select manifest records animate proof rationale");
   ok &= contains(
       lower_body_2p_select_source_manifest,
       "\"reference_base\":\"livetoe-rowfloorwhentoebonesexist\"",
@@ -34878,7 +34882,7 @@ int run_contract() {
       "2P select manifest records P2 placer matrix");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "lower_body_2p_select_event_20260715",
+      "lower_body_2p_select_animate_20260715",
       "2P select proof checker pins proof folder");
   ok &= contains(
       lower_body_2p_select_proofs,
@@ -34890,8 +34894,8 @@ int run_contract() {
       "2P select proof checker pins char_multi panel");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "event=select",
-      "2P select proof checker pins select event");
+      "event=animate",
+      "2P select proof checker pins animate event");
   ok &= contains(
       lower_body_2p_select_proofs,
       "skips_ui_enter=true",
@@ -34902,8 +34906,8 @@ int run_contract() {
       "2P select proof checker pins char_objects source");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "reset_hair=false",
-      "2P select proof checker pins select reset-hair rule");
+      "reset_hair=true",
+      "2P select proof checker pins animate reset-hair rule");
   ok &= contains(
       lower_body_2p_select_proofs,
       "applied_placer={case.placer}",
@@ -34914,7 +34918,7 @@ int run_contract() {
       "2P select proof checker reports live reference base");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
-      "lower_body_2p_select_slot_sweep_20260715",
+      "lower_body_2p_select_slot_animate_20260715",
       "2P slot sweep checker pins proof folder");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
@@ -34934,23 +34938,23 @@ int run_contract() {
       "2P slot sweep checker reports eight proof cases");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
-      "glam1_p1_2p_select_ui_loop_f030_side",
+      "glam1_p1_2p_animate_ui_loop_f030_side",
       "2P slot sweep checker pins Glam1 P1 frame 30 PNG");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
-      "glam1_p2_2p_select_ui_loop_f030_side",
+      "glam1_p2_2p_animate_ui_loop_f030_side",
       "2P slot sweep checker pins Glam1 P2 frame 30 PNG");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
-      "metal1_p1_2p_select_ui_loop_f030_side",
+      "metal1_p1_2p_animate_ui_loop_f030_side",
       "2P slot sweep checker pins Metal1 P1 frame 30 PNG");
   ok &= contains(
       lower_body_2p_select_slot_sweep,
-      "metal1_p2_2p_select_ui_loop_f030_side",
+      "metal1_p2_2p_animate_ui_loop_f030_side",
       "2P slot sweep checker pins Metal1 P2 frame 30 PNG");
   ok &= contains(
       lower_body_2p_select_context_proofs,
-      "lower_body_2p_select_context_20260715",
+      "lower_body_2p_select_context_animate_20260715",
       "2P context checker pins proof folder");
   ok &= contains(
       lower_body_2p_select_context_proofs,
@@ -34970,15 +34974,15 @@ int run_contract() {
       "2P context checker rejects stale CLI captures");
   ok &= contains(
       lower_body_2p_select_context_proofs,
-      "glam1_p1_2p_select_ui_loop_f030_front",
+      "glam1_p1_2p_animate_ui_loop_f030_front",
       "2P context checker pins Glam1 P1 front PNG");
   ok &= contains(
       lower_body_2p_select_context_proofs,
-      "metal1_p1_2p_select_ui_loop_f030_side",
+      "metal1_p1_2p_animate_ui_loop_f030_side",
       "2P context checker pins Metal1 P1 side PNG");
   ok &= contains(
       lower_body_2p_select_family_proofs,
-      "lower_body_2p_select_family_20260715",
+      "lower_body_2p_select_family_animate_20260715",
       "2P family checker pins proof folder");
   ok &= contains(
       lower_body_2p_select_family_proofs,
@@ -34994,15 +34998,15 @@ int run_contract() {
       "2P family checker keeps select-pose toe bound separate");
   ok &= contains(
       lower_body_2p_select_family_proofs,
-      "rock2_p1_2p_select_ui_loop_f030_side",
+      "rock2_p1_2p_animate_ui_loop_f030_side",
       "2P family checker pins Rock2 P1 side PNG");
   ok &= contains(
       lower_body_2p_select_family_proofs,
-      "funk1_p1_2p_select_ui_loop_f030_side",
+      "funk1_p1_2p_animate_ui_loop_f030_side",
       "2P family checker pins Funk1 P1 side PNG");
   ok &= contains(
       lower_body_2p_select_family_proofs,
-      "deathmetal1_p1_2p_select_ui_loop_f030_side",
+      "deathmetal1_p1_2p_animate_ui_loop_f030_side",
       "2P family checker pins Deathmetal1 P1 side PNG");
   ok &= contains(
       lower_body_2p_select_source_assets,
@@ -35054,11 +35058,11 @@ int run_contract() {
       "2P app placer checker requires event option");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "glam1_2p_select_ui_loop_f030_front.png",
+      "glam1_2p_animate_ui_loop_f030_front.png",
       "2P select proof checker pins Glam1 frame 30 PNG");
   ok &= contains(
       lower_body_2p_select_proofs,
-      "metal1_2p_select_ui_loop_f040_front.png",
+      "metal1_2p_animate_ui_loop_f040_front.png",
       "2P select proof checker pins Metal1 frame 40 PNG");
   ok &= contains(
       lower_body_completion_audit,

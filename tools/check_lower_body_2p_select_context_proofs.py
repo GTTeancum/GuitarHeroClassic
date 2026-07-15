@@ -2,7 +2,7 @@
 """Verify the 2P select lower-body context proof batch.
 
 This is the corrected character-select visual oracle: the stock two-player
-select event, both 2P placers, two frames about ten frames apart, and both
+animate event, both 2P placers, two frames about ten frames apart, and both
 front-camera and side-camera views.  It intentionally rejects treating the old
 single-player select geometry read as lower-body evidence.
 """
@@ -38,22 +38,22 @@ LOWER_BODY_BONES = (
 )
 
 EXPECTED_PROOF_STEMS = (
-    "glam1_p1_2p_select_ui_loop_f030_front",
-    "glam1_p1_2p_select_ui_loop_f030_side",
-    "glam1_p1_2p_select_ui_loop_f040_front",
-    "glam1_p1_2p_select_ui_loop_f040_side",
-    "glam1_p2_2p_select_ui_loop_f030_front",
-    "glam1_p2_2p_select_ui_loop_f030_side",
-    "glam1_p2_2p_select_ui_loop_f040_front",
-    "glam1_p2_2p_select_ui_loop_f040_side",
-    "metal1_p1_2p_select_ui_loop_f030_front",
-    "metal1_p1_2p_select_ui_loop_f030_side",
-    "metal1_p1_2p_select_ui_loop_f040_front",
-    "metal1_p1_2p_select_ui_loop_f040_side",
-    "metal1_p2_2p_select_ui_loop_f030_front",
-    "metal1_p2_2p_select_ui_loop_f030_side",
-    "metal1_p2_2p_select_ui_loop_f040_front",
-    "metal1_p2_2p_select_ui_loop_f040_side",
+    "glam1_p1_2p_animate_ui_loop_f030_front",
+    "glam1_p1_2p_animate_ui_loop_f030_side",
+    "glam1_p1_2p_animate_ui_loop_f040_front",
+    "glam1_p1_2p_animate_ui_loop_f040_side",
+    "glam1_p2_2p_animate_ui_loop_f030_front",
+    "glam1_p2_2p_animate_ui_loop_f030_side",
+    "glam1_p2_2p_animate_ui_loop_f040_front",
+    "glam1_p2_2p_animate_ui_loop_f040_side",
+    "metal1_p1_2p_animate_ui_loop_f030_front",
+    "metal1_p1_2p_animate_ui_loop_f030_side",
+    "metal1_p1_2p_animate_ui_loop_f040_front",
+    "metal1_p1_2p_animate_ui_loop_f040_side",
+    "metal1_p2_2p_animate_ui_loop_f030_front",
+    "metal1_p2_2p_animate_ui_loop_f030_side",
+    "metal1_p2_2p_animate_ui_loop_f040_front",
+    "metal1_p2_2p_animate_ui_loop_f040_side",
 )
 
 
@@ -74,7 +74,7 @@ class ProofCase:
     @property
     def stem(self) -> str:
         return (
-            f"{self.character}_{self.slot}_2p_select_ui_loop_"
+            f"{self.character}_{self.slot}_2p_animate_ui_loop_"
             f"f{self.frame:03d}_{self.view}"
         )
 
@@ -187,10 +187,10 @@ def check_case(root: Path, case: ProofCase) -> CaseMetrics:
     require_text(text, "owner=multi_sel_character_panel target=spot_ui.mesh", log_path, "2P target")
     require_text(text, "[2p-select] script=ui/gen/multiplayer.dtb", log_path, "2P script")
     require_text(text, "screen=multi_sel_character_screen", log_path, "2P screen")
-    require_text(text, "panel=char_multi event=select", log_path, "2P select event")
+    require_text(text, "panel=char_multi event=animate", log_path, "2P animate event")
     require_text(text, "clip=ui_loop skips_ui_enter=true", log_path, "2P clip rule")
     require_text(text, "char_objects=char/gen/char_objects.dtb", log_path, "char_objects source")
-    require_text(text, "reset_hair=false", log_path, "2P select reset hair rule")
+    require_text(text, "reset_hair=true", log_path, "2P animate reset hair rule")
     require_text(text, "placers=char_multi0.placer,char_multi1.placer", log_path, "2P placers")
     require("prop 'xplorer' attached" not in text, f"{log_path}: guitar prop should be absent")
 
@@ -261,7 +261,7 @@ def check_case(root: Path, case: ProofCase) -> CaseMetrics:
 
 
 def main() -> int:
-    root = Path("engine/out/visual_proofs/lower_body_2p_select_context_20260715")
+    root = Path("engine/out/visual_proofs/lower_body_2p_select_context_animate_20260715")
     cases = make_cases()
     try:
         require(
@@ -277,7 +277,7 @@ def main() -> int:
         "PASS lower_body_2p_select_context_proofs "
         "characters=glam1,metal1 players=p1,p2 "
         "screen=multi_sel_character_screen panel=char_multi "
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true "
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true "
         "camera_views=front,side frames=30,40 cases=16 "
         "individual_proofs=true both_2p_placers=true no_singleplayer_geometry=true "
         f"max_abs_toe_z={max(item.max_abs_toe_z for item in metrics):.4f} "

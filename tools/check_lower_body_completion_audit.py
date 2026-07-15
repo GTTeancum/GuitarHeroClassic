@@ -503,19 +503,19 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     ):
         require_contains(active_ui_select_output, marker, f"active UI/select output marker {marker}")
     for marker in (
-        "lower_body_2p_select_event_20260715",
+        "lower_body_2p_select_animate_20260715",
         "multi_sel_character_screen",
         "panel=char_multi",
-        "event=select",
+        "event=animate",
         "skips_ui_enter=true",
         "char_objects=char/gen/char_objects.dtb",
-        "reset_hair=false",
+        "reset_hair=true",
         "char_multi0.placer",
         "char_multi1.placer",
-        "glam1_2p_select_ui_loop_f030_front.png",
-        "glam1_2p_select_ui_loop_f040_front.png",
-        "metal1_2p_select_ui_loop_f030_front.png",
-        "metal1_2p_select_ui_loop_f040_front.png",
+        "glam1_2p_animate_ui_loop_f030_front.png",
+        "glam1_2p_animate_ui_loop_f040_front.png",
+        "metal1_2p_animate_ui_loop_f030_front.png",
+        "metal1_2p_animate_ui_loop_f040_front.png",
     ):
         require_contains(two_player_select, marker, f"2P select proof marker {marker}")
     for marker in (
@@ -529,8 +529,9 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "\"select\": \"play ui_loop | kPlayLast kPlayGraphLoop\"",
         "\"target_mesh\": \"spot_ui.mesh\"",
         "\"diagnostic_option\": \"--char-2p-select-placer\"",
-        "\"diagnostic_event_option\": \"--char-2p-select-event select\"",
-        "\"event\": \"select\"",
+        "\"diagnostic_event_option\": \"--char-2p-select-event animate\"",
+        "\"event\": \"animate\"",
+        "\"proof_event_rationale\": \"The stock 2P character-select screen displays characters through {char_multi char_event $playerNum animate}; the select event is only the outfit focus/load path. Proof captures therefore use animate and must log reset_hair=true.\"",
         "\"reference_base\": \"live toe-row floor when toe bones exist\"",
     ):
         require_contains(two_player_select_manifest, marker, f"2P select manifest marker {marker}")
@@ -538,7 +539,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "PASS lower_body_2p_select_proofs",
         "characters=glam1,metal1",
         "screen=multi_sel_character_screen panel=char_multi",
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
         "char_objects=char/gen/char_objects.dtb",
         "placers=char_multi0.placer,char_multi1.placer",
         "applied_placers=char_multi0.placer,char_multi1.placer",
@@ -551,15 +552,15 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
     ):
         require_contains(two_player_select_output, marker, f"2P select output marker {marker}")
     for marker in (
-        "lower_body_2p_select_slot_sweep_20260715",
+        "lower_body_2p_select_slot_animate_20260715",
         "players=p1,p2",
         "side_profile=true",
         "frames=30,40",
         "both_2p_placers=true",
-        "glam1_p1_2p_select_ui_loop_f030_side",
-        "glam1_p2_2p_select_ui_loop_f030_side",
-        "metal1_p1_2p_select_ui_loop_f030_side",
-        "metal1_p2_2p_select_ui_loop_f030_side",
+        "glam1_p1_2p_animate_ui_loop_f030_side",
+        "glam1_p2_2p_animate_ui_loop_f030_side",
+        "metal1_p1_2p_animate_ui_loop_f030_side",
+        "metal1_p2_2p_animate_ui_loop_f030_side",
     ):
         require_contains(
             two_player_select_slot_sweep,
@@ -570,7 +571,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "PASS lower_body_2p_select_slot_sweep",
         "characters=glam1,metal1 players=p1,p2",
         "screen=multi_sel_character_screen panel=char_multi",
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
         "side_profile=true frames=30,40 cases=8",
         "individual_proofs=true both_2p_placers=true",
         "max_abs_toe_z=0.4526",
@@ -582,15 +583,15 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
             f"2P select slot-sweep output marker {marker}",
         )
     for marker in (
-        "lower_body_2p_select_context_20260715",
+        "lower_body_2p_select_context_animate_20260715",
         "camera_views=front,side",
         "frames=30,40",
         "both_2p_placers=true",
         "no_singleplayer_geometry=true",
-        "glam1_p1_2p_select_ui_loop_f030_front",
-        "glam1_p1_2p_select_ui_loop_f030_side",
-        "metal1_p1_2p_select_ui_loop_f030_front",
-        "metal1_p1_2p_select_ui_loop_f030_side",
+        "glam1_p1_2p_animate_ui_loop_f030_front",
+        "glam1_p1_2p_animate_ui_loop_f030_side",
+        "metal1_p1_2p_animate_ui_loop_f030_front",
+        "metal1_p1_2p_animate_ui_loop_f030_side",
     ):
         require_contains(
             two_player_select_context,
@@ -601,7 +602,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "PASS lower_body_2p_select_context_proofs",
         "characters=glam1,metal1 players=p1,p2",
         "screen=multi_sel_character_screen panel=char_multi",
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
         "camera_views=front,side frames=30,40 cases=16",
         "individual_proofs=true both_2p_placers=true no_singleplayer_geometry=true",
         "max_abs_toe_z=0.4526",
@@ -613,15 +614,15 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
             f"2P select context output marker {marker}",
         )
     for marker in (
-        "lower_body_2p_select_family_20260715",
+        "lower_body_2p_select_family_animate_20260715",
         "characters=rock1,rock2,funk1,deathmetal1",
         "camera_views=side",
         "frames=30,40",
         "source_family_rock2_uses_rock1_ui_anim=true",
-        "rock1_p1_2p_select_ui_loop_f030_side",
-        "rock2_p1_2p_select_ui_loop_f030_side",
-        "funk1_p1_2p_select_ui_loop_f030_side",
-        "deathmetal1_p1_2p_select_ui_loop_f030_side",
+        "rock1_p1_2p_animate_ui_loop_f030_side",
+        "rock2_p1_2p_animate_ui_loop_f030_side",
+        "funk1_p1_2p_animate_ui_loop_f030_side",
+        "deathmetal1_p1_2p_animate_ui_loop_f030_side",
     ):
         require_contains(
             two_player_select_family,
@@ -632,7 +633,7 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "PASS lower_body_2p_select_family_proofs",
         "characters=rock1,rock2,funk1,deathmetal1 players=p1,p2",
         "screen=multi_sel_character_screen panel=char_multi",
-        "event=select multiplayer_clip=ui_loop skips_ui_enter=true",
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
         "camera_views=side frames=30,40 cases=16",
         "source_family_rock2_uses_rock1_ui_anim=true",
         "max_abs_toe_z=1.8758",
