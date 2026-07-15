@@ -12878,6 +12878,19 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_warn=\\\"Noacceptablecamerashot\\\"",
                  "regular camera diagnostics mirror CameraManager PickCameraShot warning");
+  ok &= contains(gameplay_c,
+                 "source_manager=CameraManager::PickCameraShot"
+                 "category=%smode=%sfilters=\\\"%s\\\"filter_count=%zu",
+                 "regular camera no-acceptable-shot diagnostics include the source filter vector");
+  ok &= contains(gameplay_c,
+                 "conststd::vector<CameraShotSourceFilter>source_filters="
+                 "camera_source_script_filters(",
+                 "regular camera selector reuses the exact source filter vector for matching and warning proof");
+  ok &= contains(gameplay_c,
+                 "camera_source_no_acceptable_shot("
+                 "camera_source_pick_shot_category(mode),mode,low_excitement,"
+                 "walking,starpower,source_filters);",
+                 "regular camera selector reports the same filters passed to CameraManager::PickCameraShot");
   ok &= absent(gameplay_c,
                "returncamera_state_filter_ok(key,low_excitement,walking,",
                "regular camera selector must not relax transition filters after source pick_shot fails");

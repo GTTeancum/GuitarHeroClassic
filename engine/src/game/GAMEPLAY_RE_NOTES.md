@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay PickCameraShot failure proof:
+  ihatecompvir `CameraManager::PickCameraShot` warns with the requested
+  category plus every source property filter when no acceptable CamShot is
+  found. Native normal gameplay camera selection now carries the exact
+  `camera_source_script_filters(...)` vector into the no-acceptable-shot
+  diagnostic, so failed regular/solo/jump/lighter picks expose the same filter
+  list used by `ShotMatches(...)` instead of only coarse low/walk/star-power
+  flags. This is source-proof parity only; it does not invent `BuildTransform`,
+  `cam_shot_ok`, `cam_check_shot`, `CharWalk`, or FreeCam behavior.
 - 2026-07-15 gameplay lighter camera live multiplayer gate:
   GH2 `world_objects_worldbase.dta::pick_lighter_shot` wraps the LIGHTER
   camera force in `{if {! {game multiplayer}} ...}`, while still leaving the

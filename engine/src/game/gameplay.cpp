@@ -16902,12 +16902,17 @@ void camera_source_no_acceptable_shot(std::string_view category,
                                       CameraShotMode mode,
                                       bool low_excitement,
                                       bool walking,
-                                      bool starpower) {
+                                      bool starpower,
+                                      const std::vector<CameraShotSourceFilter>&
+                                          source_filters) {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const std::string source_filter_label =
+            camera_source_filter_list_label(source_filters);
         std::fprintf(
             stderr,
-            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot\" category=%s mode=%s low_excitement=%d walking=%d starpower=%d result=0\n",
+            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot\" source_manager=CameraManager::PickCameraShot category=%s mode=%s filters=\"%s\" filter_count=%zu low_excitement=%d walking=%d starpower=%d result=0\n",
             std::string(category).c_str(), camera_shot_mode_label(mode),
+            source_filter_label.c_str(), source_filters.size(),
             low_excitement ? 1 : 0, walking ? 1 : 0, starpower ? 1 : 0);
     }
 }
@@ -17012,11 +17017,13 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
     const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
+    const std::vector<CameraShotSourceFilter> source_filters =
+        camera_source_script_filters(mode, source_previous, low_excitement,
+                                     walking, starpower, source_multi_vs,
+                                     source_faceoff_players);
     auto source_filter = [&](const Gameplay::CameraKey& key) {
-        return regular_camera_filter_ok(key, source_previous,
-                                        low_excitement, walking, starpower,
-                                        mode, source_multi_vs,
-                                        source_faceoff_players);
+        return camera_category_filter_ok(key, mode) &&
+               camera_shot_matches_source_filters(key, source_filters);
     };
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const std::string_view source_category =
@@ -17038,7 +17045,7 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     if (!selected) {
         camera_source_no_acceptable_shot(camera_source_pick_shot_category(mode),
                                          mode, low_excitement, walking,
-                                         starpower);
+                                         starpower, source_filters);
         return nullptr;
     }
     const size_t selected_index = *selected;
