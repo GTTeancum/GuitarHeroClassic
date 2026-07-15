@@ -33553,6 +33553,14 @@ int run_contract() {
   ok &= contains(doc,
                  "the logged publisher gap is\nnot Rockabill-specific",
                  "document answers whether leg issue is Rockabill-only");
+  ok &= contains(doc,
+                 "Rockabill2 reports `max_abs_z_gap=3.726`, Glam1 reports\n"
+                 "`max_abs_z_gap=2.849`, and Rock1/Rock2 report "
+                 "`max_abs_z_gap=2.432`",
+                 "document records cross-character leg severity ranking");
+  ok &= contains(doc,
+                 "does not authorize a Rockabill-only leg fix",
+                 "document rejects character-specific leg shortcut");
   ok &= contains(charhair_log_compare,
                  "SCREENSHOT_MARKERS=(\"screenshotsaved\",\"screenshot->\")",
                  "CharHair log verifier stops at screenshot proof markers");

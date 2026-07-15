@@ -5930,7 +5930,11 @@ compact-pose logs. Rock1 and Rock2 both use the source-routed
 publisher body list, missing `bone_L-foot` / `bone_R-foot` compact rows, and
 decoded `driven=1 live=0` lower-body output rows. The visual severity is most
 obvious on Rockabill2 in the current proof set, but the logged publisher gap is
-not Rockabill-specific.
+not Rockabill-specific. The current verifier output makes the visual-severity
+split explicit: Rockabill2 reports `max_abs_z_gap=3.726`, Glam1 reports
+`max_abs_z_gap=2.849`, and Rock1/Rock2 report `max_abs_z_gap=2.432`. That
+supports "Rockabill2 is easiest to see" rather than "Rockabill2 is the only
+affected character", and it does not authorize a Rockabill-only leg fix.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
