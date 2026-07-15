@@ -129,6 +129,18 @@
   scan found no authored `radio` messages, so this is a source-backed state
   boundary for future script routing, not a visible camera-angle solver and
   not a dependency change.
+- 2026-07-15 CamShot crowd message bridge:
+  ihatecompvir registers `set_3d_crowd`, `add_3d_crowd`, and
+  `clear_3d_crowd` as `CamShot::OnSetCrowdChars`,
+  `CamShot::OnAddCrowdChars`, and `CamShot::OnClearCrowdChars`, each taking a
+  crowd index from message arg 2 and returning `DataNode(0)`. Native now
+  exposes the same decoded-shot message bridge for the GH2 crowd selection
+  payload already used by world-crowd drawing: index `0` maps to the flattened
+  decoded CamShot crowd entry, Set replaces the selected pairs, Add unions the
+  decoded pairs, and Clear keeps the source crowd ref with an empty selected
+  list. This is regular gameplay/venue camera state plumbing; it does not
+  synthesize hidden `BuildTransform` or FreeCamera behavior, and it adds no
+  dependency.
 - 2026-07-15 CamShot no-op handler boundary:
   ihatecompvir `CamShot::OnGetOccluded` and `CamShot::OnSetAllCrowdChars3D`
   both return `DataNode(0)`. Native now names those source handler values in

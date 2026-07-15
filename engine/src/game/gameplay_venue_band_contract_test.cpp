@@ -12694,6 +12694,47 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_msg=radiosource_handler=CamShot::OnRadio",
                  "camera radio diagnostics name the ihatecompvir handler");
+  ok &= contains(gameplay_h_c,
+                 "boolapply_camshot_crowd_message_like_source("
+                 "std::string_viewshot_name,std::string_viewsource_msg,"
+                 "intcrowd_index);",
+                 "native camera exposes CamShot crowd message handlers for decoded shots");
+  ok &= contains(gameplay_c,
+                 "source_msg==\"set_3d_crowd\"",
+                 "CamShot crowd bridge accepts the source set_3d_crowd message");
+  ok &= contains(gameplay_c,
+                 "source_handler=\"CamShot::OnSetCrowdChars\"",
+                 "CamShot crowd bridge names ihatecompvir OnSetCrowdChars");
+  ok &= contains(gameplay_c,
+                 "source_msg==\"add_3d_crowd\"",
+                 "CamShot crowd bridge accepts the source add_3d_crowd message");
+  ok &= contains(gameplay_c,
+                 "source_handler=\"CamShot::OnAddCrowdChars\"",
+                 "CamShot crowd bridge names ihatecompvir OnAddCrowdChars");
+  ok &= contains(gameplay_c,
+                 "source_msg==\"clear_3d_crowd\"",
+                 "CamShot crowd bridge accepts the source clear_3d_crowd message");
+  ok &= contains(gameplay_c,
+                 "source_handler=\"CamShot::OnClearCrowdChars\"",
+                 "CamShot crowd bridge names ihatecompvir OnClearCrowdChars");
+  ok &= contains(gameplay_c,
+                 "constboolsource_index_ok=crowd_index==0&&has_source_crowd;",
+                 "CamShot crowd bridge keeps native decoded crowd entries bounded to source index zero");
+  ok &= contains(gameplay_c,
+                 "venue_camera_has_crowd_selection_=true;"
+                 "venue_camera_crowd_selection_ref_=crowd_ref;"
+                 "venue_camera_crowd_selection_pairs_.clear();",
+                 "CamShot clear_3d_crowd mirrors source ClearCrowdChars with an empty selected list");
+  ok &= contains(gameplay_c,
+                 "venue_camera_crowd_selection_pairs_="
+                 "key.crowd_selection_pairs;",
+                 "CamShot set_3d_crowd replaces the active decoded crowd selection");
+  ok &= contains(gameplay_c,
+                 "venue_camera_crowd_selection_pairs_.push_back(pair);",
+                 "CamShot add_3d_crowd appends decoded selected members without duplicating pairs");
+  ok &= contains(gameplay_c,
+                 "source_return=DataNode(0)",
+                 "CamShot crowd bridge preserves the source handler return shape");
   ok &= contains(gameplay_c,
                  "filters.push_back(camera_bool_filter(\"special\",false));",
                  "regular/solo camera modes mirror the source special FALSE filter");

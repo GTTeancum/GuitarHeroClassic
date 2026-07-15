@@ -24930,6 +24930,87 @@ bool Gameplay::apply_camshot_radio_message_like_source(
     return false;
 }
 
+bool Gameplay::apply_camshot_crowd_message_like_source(
+    std::string_view shot_name, std::string_view source_msg, int crowd_index) {
+    enum class CrowdMessage { Set, Add, Clear };
+    CrowdMessage message = CrowdMessage::Set;
+    const char* source_handler = "CamShot::OnSetCrowdChars";
+    if (source_msg == "set_3d_crowd") {
+        message = CrowdMessage::Set;
+        source_handler = "CamShot::OnSetCrowdChars";
+    } else if (source_msg == "add_3d_crowd") {
+        message = CrowdMessage::Add;
+        source_handler = "CamShot::OnAddCrowdChars";
+    } else if (source_msg == "clear_3d_crowd") {
+        message = CrowdMessage::Clear;
+        source_handler = "CamShot::OnClearCrowdChars";
+    } else {
+        return false;
+    }
+
+    for (const auto& key : regular_camera_keys_) {
+        if (key.name != shot_name) continue;
+        const bool has_source_crowd =
+            key.has_crowd_selection || !key.crowd_selection_ref.empty() ||
+            !key.crowd_selection_pairs.empty();
+        const bool source_index_ok = crowd_index == 0 && has_source_crowd;
+        const bool before_has_selection = venue_camera_has_crowd_selection_;
+        const std::string before_ref = venue_camera_crowd_selection_ref_;
+        const auto before_pair_list = venue_camera_crowd_selection_pairs_;
+        const size_t before_pairs = venue_camera_crowd_selection_pairs_.size();
+        bool changed = false;
+        if (source_index_ok) {
+            const std::string crowd_ref =
+                canonical_milo_ref(key.crowd_selection_ref.empty()
+                                       ? key.source_ref
+                                       : key.crowd_selection_ref);
+            if (message == CrowdMessage::Clear) {
+                venue_camera_has_crowd_selection_ = true;
+                venue_camera_crowd_selection_ref_ = crowd_ref;
+                venue_camera_crowd_selection_pairs_.clear();
+            } else if (!key.crowd_selection_pairs.empty()) {
+                venue_camera_has_crowd_selection_ = true;
+                if (message == CrowdMessage::Set ||
+                    (!venue_camera_crowd_selection_ref_.empty() &&
+                     venue_camera_crowd_selection_ref_ != crowd_ref)) {
+                    venue_camera_crowd_selection_ref_ = crowd_ref;
+                    venue_camera_crowd_selection_pairs_ =
+                        key.crowd_selection_pairs;
+                } else {
+                    if (venue_camera_crowd_selection_ref_.empty())
+                        venue_camera_crowd_selection_ref_ = crowd_ref;
+                    for (const auto& pair : key.crowd_selection_pairs) {
+                        if (std::find(venue_camera_crowd_selection_pairs_.begin(),
+                                      venue_camera_crowd_selection_pairs_.end(),
+                                      pair) ==
+                            venue_camera_crowd_selection_pairs_.end()) {
+                            venue_camera_crowd_selection_pairs_.push_back(pair);
+                        }
+                    }
+                }
+            }
+            changed =
+                before_has_selection != venue_camera_has_crowd_selection_ ||
+                before_ref != venue_camera_crowd_selection_ref_ ||
+                before_pair_list != venue_camera_crowd_selection_pairs_;
+        }
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera crowd message: source_msg=%s source_handler=%s shot=%s crowd_index=%d source_index_ok=%d source_crowds=%d ref_before=%s pairs_before=%zu ref_after=%s pairs_after=%zu has_after=%d changed=%d source_return=DataNode(0)\n",
+                std::string(source_msg).c_str(), source_handler,
+                key.name.c_str(), crowd_index, source_index_ok ? 1 : 0,
+                has_source_crowd ? 1 : 0, before_ref.c_str(), before_pairs,
+                venue_camera_crowd_selection_ref_.c_str(),
+                venue_camera_crowd_selection_pairs_.size(),
+                venue_camera_has_crowd_selection_ ? 1 : 0,
+                changed ? 1 : 0);
+        }
+        return changed;
+    }
+    return false;
+}
+
 void Gameplay::camera_manager_update_free_cam_from_camera_like_source() {
     camera_manager_free_cam_.snapshot_valid = false;
     if (!world_) return;

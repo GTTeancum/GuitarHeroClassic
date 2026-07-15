@@ -828,6 +828,9 @@ class Gameplay {
   bool apply_camshot_radio_message_like_source(std::string_view shot_name,
                                                int set_mask,
                                                int clear_mask);
+  bool apply_camshot_crowd_message_like_source(std::string_view shot_name,
+                                               std::string_view source_msg,
+                                               int crowd_index);
   bool camera_manager_get_free_cam_like_source(int padnum,
                                                const char* source_handler);
   bool camera_manager_has_free_cam_like_source() const;
