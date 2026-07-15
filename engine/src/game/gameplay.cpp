@@ -17204,6 +17204,24 @@ bool camera_source_one_bar_to_camera_beat_gate_open(
         camera_source_beat_for_trigger_tick(chart, trigger_tick));
 }
 
+const char* camera_source_one_bar_to_solo_switch_label(
+    std::string_view upcoming_section) {
+    if (upcoming_section == "solo") return "solo_true";
+    if (upcoming_section == "verse" || upcoming_section == "chorus") {
+        return "verse_chorus_false";
+    }
+    return "default_preserve";
+}
+
+bool camera_source_one_bar_to_solo_state_after_section(
+    bool current, std::string_view upcoming_section) {
+    if (upcoming_section == "solo") return true;
+    if (upcoming_section == "verse" || upcoming_section == "chorus") {
+        return false;
+    }
+    return current;
+}
+
 size_t camera_source_one_bar_to_cursor_at(const ghogx::chart::Chart& chart,
                                           double song_time) {
     size_t index = 0;
@@ -17248,7 +17266,9 @@ bool camera_source_one_bar_to_solo_state_at(
                                                             trigger_tick)) {
             continue;
         }
-        camera_solo = *section == "solo";
+        camera_solo =
+            camera_source_one_bar_to_solo_state_after_section(camera_solo,
+                                                              *section);
     }
     return camera_solo;
 }
@@ -34641,7 +34661,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 continue;
             }
-            camera_solo_active_ = *upcoming_section == "solo";
+            const bool camera_solo_before = camera_solo_active_;
+            camera_solo_active_ =
+                camera_source_one_bar_to_solo_state_after_section(
+                    camera_solo_active_, *upcoming_section);
+            const char* camera_solo_switch =
+                camera_source_one_bar_to_solo_switch_label(*upcoming_section);
             const bool cue_forced_camera =
                 authored_gameplay_cameras_active && !in_intro_camera_window;
             if (cue_forced_camera) {
@@ -34652,9 +34677,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
-                    "[world] camera one_bar_to: source_msg=one_bar_to source_action=get_shot_duration+pick_new_shot upcoming=%s event_tick=%u trigger_tick=%u camera_solo=%d force=%d\n",
+                    "[world] camera one_bar_to: source_msg=one_bar_to source_action=get_shot_duration+pick_new_shot upcoming=%s event_tick=%u trigger_tick=%u camera_solo=%d camera_solo_before=%d camera_solo_after=%d camera_solo_switch=%s force=%d\n",
                     std::string(*upcoming_section).c_str(), ev.tick,
                     trigger_tick, camera_solo_active_ ? 1 : 0,
+                    camera_solo_before ? 1 : 0,
+                    camera_solo_active_ ? 1 : 0, camera_solo_switch,
                     cue_forced_camera ? 1 : 0);
             }
         }

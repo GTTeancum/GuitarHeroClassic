@@ -6543,6 +6543,15 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolcamera_solo_active_=false;",
                  "runtime carries the source camera_solo latch");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_one_bar_to_solo_state_after_section("
+                 "boolcurrent,std::string_viewupcoming_section)",
+                 "camera one_bar_to exposes the source camera_solo switch helper");
+  ok &= contains(gameplay_c,
+                 "if(upcoming_section==\"solo\")returntrue;"
+                 "if(upcoming_section==\"verse\"||upcoming_section==\"chorus\")"
+                 "{returnfalse;}returncurrent;",
+                 "camera_solo helper mirrors world_objects one_bar_to solo/verse/chorus switch");
   ok &= contains(gameplay_h_c, "uint32_tcamera_beat_state_=0;",
                  "runtime carries the world_objects_worldbase.dta camera_beat latch");
   ok &= contains(gameplay_c,
@@ -6594,7 +6603,9 @@ int main() {
                  "last_camera_beat_=UINT32_MAX;camera_beat_state_=0;",
                  "intro_start_msg/reset_camera clears source camera_beat before normal one_bar_to work");
   ok &= contains(gameplay_c,
-                 "camera_solo_active_=*upcoming_section==\"solo\";",
+                 "camera_solo_active_="
+                 "camera_source_one_bar_to_solo_state_after_section("
+                 "camera_solo_active_,*upcoming_section);",
                  "world_objects_worldbase.dta one_bar_to updates camera_solo before picking");
   ok &= contains(gameplay_c,
                  "constdoubleforced_camera_event_window=std::max(0.001,dt*1.5);",
@@ -12278,7 +12289,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]cameraone_bar_to:source_msg=one_bar_to"
                  "source_action=get_shot_duration+pick_new_shot"
-                 "upcoming=%sevent_tick=%utrigger_tick=%ucamera_solo=%dforce=%d\\n\"",
+                 "upcoming=%sevent_tick=%utrigger_tick=%ucamera_solo=%d"
+                 "camera_solo_before=%dcamera_solo_after=%d"
+                 "camera_solo_switch=%sforce=%d\\n\"",
                  "camera diagnostics expose source one_bar_to state changes");
   ok &= contains(gameplay_c,
                  "\"[world]cameraone_bar_to:source_msg=one_bar_to"

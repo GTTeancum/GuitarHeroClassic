@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera one_bar_to solo switch proof:
+  GH2 `world_objects_worldbase.dta::one_bar_to` updates `camera_solo` through
+  an explicit source `switch`: `solo` sets it true, `verse` / `chorus` set it
+  false, and other sections preserve the prior latch. Native now routes both
+  diagnostic seek restoration and live one-bar-early section handling through
+  a source-shaped helper, and the gameplay proof line reports the before/after
+  latch plus the selected switch branch. This only affects normal gameplay
+  camera selection proof/state, keeps FreeCam deferred last, and adds no
+  dependency surface.
 - 2026-07-15 gameplay camera active blocker scope:
   ihatecompvir `CameraManager::Poll` samples the current shot through
   `CamShot::SetFrame`, whose visible `CamShotFrame::Interp` order still reaches
