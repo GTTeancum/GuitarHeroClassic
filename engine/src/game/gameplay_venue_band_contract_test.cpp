@@ -13060,8 +13060,10 @@ int main() {
                  "regular camera selector preserves the source pick_shot category token");
   ok &= contains(gameplay_c,
                  "\"[world]camerafirst_shot_ok:source_msg=first_shot_ok"
-                 "category=%ssource_return=discardedresult=ignored\\n\"",
-                 "regular camera diagnostics expose ignored source first_shot_ok return");
+                 "source_handler=BandDirector::OnFirstShotOK"
+                 "category=%scoop_category=%dhandler_return=%s"
+                 "source_return=discardedresult=ignored\\n\"",
+                 "regular camera diagnostics expose ignored BandDirector first_shot_ok return class");
   ok &= contains(gameplay_c,
                  "if(!camera_source_shot_ok(key,previous,current_walkspot))continue;",
                  "regular camera selector runs source shot_ok after ShotMatches filters");

@@ -16857,13 +16857,18 @@ std::string camera_source_script_filter_label(
 void camera_source_first_shot_ok(std::string_view category) {
     // ihatecompvir CameraManager::FindCameraShot sends first_shot_ok(category)
     // once before scanning the category list, but CameraManager::FirstShotOk
-    // discards the HandleType return. Keep this as call-order proof rather
-    // than inventing a selection predicate from the returned DataNode.
+    // discards the HandleType return. BandDirector::OnFirstShotOK returns
+    // DataNode(0) for non-coop categories and a frame-distance for coop ones,
+    // so keep the return class as proof rather than as a selection predicate.
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const bool coop_category = category.rfind("coop_", 0) == 0;
+        const char* handler_return =
+            coop_category ? "frame_distance" : "DataNode(0)";
         std::fprintf(
             stderr,
-            "[world] camera first_shot_ok: source_msg=first_shot_ok category=%s source_return=discarded result=ignored\n",
-            std::string(category).c_str());
+            "[world] camera first_shot_ok: source_msg=first_shot_ok source_handler=BandDirector::OnFirstShotOK category=%s coop_category=%d handler_return=%s source_return=discarded result=ignored\n",
+            std::string(category).c_str(), coop_category ? 1 : 0,
+            handler_return);
     }
 }
 

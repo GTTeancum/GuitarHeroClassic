@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay `first_shot_ok` return proof:
+  ihatecompvir `CameraManager::FindCameraShot` sends `first_shot_ok(category)`
+  before scanning, and `CameraManager::FirstShotOk` discards the handler
+  return. Native now logs the visible `BandDirector::OnFirstShotOK` return
+  class (`DataNode(0)` for non-`coop_` categories, `frame_distance` for coop
+  categories) beside the discarded result, keeping normal gameplay selection
+  proof source-shaped without turning the return into a hidden predicate.
+  FreeCam remains deferred.
 - 2026-07-15 gameplay CamShot started latch:
   ihatecompvir exposes `CamShot::CheckShotStarted()` as a runtime bit
   (`unk120p4`), while the bit is not serialized in the audited MILO payload.
