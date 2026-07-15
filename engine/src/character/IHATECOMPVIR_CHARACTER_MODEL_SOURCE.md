@@ -5918,6 +5918,20 @@ diagnostic rows. Treat this as evidence that the native fixed-frame viewer path
 still has a normal-pose leg/foot publisher gap, not as permission to invent a
 foot offset or revive broad output live writes.
 
+The follow-up cross-character check in
+`engine/out/visual_proofs/standard_leg_crosschar_20260714/` asks whether this
+is Rockabill-only. It captures Rock1, Rock2, and Glam1 with the same soft-green
+full-body reference-base setup, `stand_fast_03` frame 70, and output-map /
+compact-pose logs. Rock1 and Rock2 both use the source-routed
+`char/rock1/anims/gen/rock1_main.milo_ps2` clip, while Glam1 uses
+`char/glam1/anims/gen/glam1_main.milo_ps2`. All three still show
+`source_publisher=fenced`, the same missing
+`CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes`
+publisher body list, missing `bone_L-foot` / `bone_R-foot` compact rows, and
+decoded `driven=1 live=0` lower-body output rows. The visual severity is most
+obvious on Rockabill2 in the current proof set, but the logged publisher gap is
+not Rockabill-specific.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

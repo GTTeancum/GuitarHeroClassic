@@ -153,6 +153,12 @@ int run_contract() {
   const std::string arm_pose_diff_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "arm_pose_diff_manifest.json"));
+  const std::string charbone_output_map_compare = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "compare_charbone_output_map.py"));
+  const std::string charbone_output_map_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "charbone_output_map_manifest.json"));
   const std::string charhair_log_compare = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "compare_charhair_logs.py"));
@@ -33506,6 +33512,47 @@ int run_contract() {
   ok &= contains(arm_pose_diff_manifest,
                  "\"finger_hold_ring_hi@f4:w=1.000\"",
                  "arm pose diff manifest requires screenshot-frame fret layer");
+  ok &= contains(charbone_output_map_compare,
+                 "OUT_MAP_RE=re.compile(",
+                 "CharBone output-map verifier parses decoded output rows");
+  ok &= contains(charbone_output_map_compare,
+                 "ARM_WORLD_RE=re.compile(",
+                 "CharBone output-map verifier parses visible armw rows");
+  ok &= contains(charbone_output_map_compare,
+                 "visible_minus_output_z_min",
+                 "CharBone output-map verifier checks visible/output z gaps");
+  ok &= contains(charbone_output_map_compare,
+                 "parser.add_argument(\"--character\",default=\"rockabill2\")",
+                 "CharBone output-map verifier supports character selection");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"rockabill2_stand_fast03_f70_front_output_gap\"",
+                 "CharBone output-map manifest keeps Rockabill2 control proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"rock1_stand_fast03_f70_front_output_gap\"",
+                 "CharBone output-map manifest records Rock1 standard-pose proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"rock2_stand_fast03_f70_front_output_gap\"",
+                 "CharBone output-map manifest records Rock2 standard-pose proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"glam1_stand_fast03_f70_front_output_gap\"",
+                 "CharBone output-map manifest records Glam1 standard-pose proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"[clip]'stand_fast_03'fromchar/rock1/anims/gen/"
+                 "rock1_main.milo_ps2\"",
+                 "CharBone output-map manifest records Rock2 shared Rock1 clip route");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"visible_minus_output_z_min\"",
+                 "CharBone output-map manifest pins visible/output z gaps");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/standard_leg_crosschar_20260714/`",
+                 "document records standard-pose cross-character proof folder");
+  ok &= contains(doc,
+                 "Rock1 and Rock2 both use the source-routed\n"
+                 "`char/rock1/anims/gen/rock1_main.milo_ps2` clip",
+                 "document records Rock1/Rock2 shared source clip route");
+  ok &= contains(doc,
+                 "the logged publisher gap is\nnot Rockabill-specific",
+                 "document answers whether leg issue is Rockabill-only");
   ok &= contains(charhair_log_compare,
                  "SCREENSHOT_MARKERS=(\"screenshotsaved\",\"screenshot->\")",
                  "CharHair log verifier stops at screenshot proof markers");
