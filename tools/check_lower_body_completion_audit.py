@@ -124,6 +124,8 @@ REQUIRED_FILES = (
     "tools/check_lower_body_glam1_metal1_ingame_proofs.py",
     "tools/check_lower_body_metal1_ui_select_proofs.py",
     "tools/check_lower_body_active_ui_select_proofs.py",
+    "tools/check_lower_body_2p_select_proofs.py",
+    "tools/lower_body_2p_select_source_manifest.json",
     "tools/check_lower_body_pcsx2_row_trace.py",
     "tools/lower_body_pcsx2_row_trace_manifest.json",
     "tools/check_lower_body_rexglue_trace_manifest.py",
@@ -332,6 +334,13 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "tools/check_lower_body_active_ui_select_proofs.py",
         "active Glam1/Metal1 UI/select proof checker",
     )
+    two_player_select = read(root / "tools/check_lower_body_2p_select_proofs.py")
+    two_player_select_manifest = read(root / "tools/lower_body_2p_select_source_manifest.json")
+    two_player_select_output = run_checker(
+        root,
+        "tools/check_lower_body_2p_select_proofs.py",
+        "two-player character-select proof checker",
+    )
     pose_manifest = load_json(root / "tools/lower_body_glam1_metal1_ingame_pose_manifest.json")
     output_manifest = load_json(root / "tools/charbone_output_map_manifest.json")
     arm_manifest = load_json(root / "tools/arm_pose_diff_manifest.json")
@@ -434,6 +443,41 @@ def check_visual_and_stock_coverage(root: Path, doc: str) -> None:
         "max_lr_toe_delta_z=0.5101",
     ):
         require_contains(active_ui_select_output, marker, f"active UI/select output marker {marker}")
+    for marker in (
+        "lower_body_2p_select_20260715",
+        "multi_sel_character_screen",
+        "panel=char_multi",
+        "event=animate",
+        "skips_ui_enter=true",
+        "char_multi0.placer",
+        "char_multi1.placer",
+        "glam1_2p_animate_ui_loop_f030_front.png",
+        "glam1_2p_animate_ui_loop_f040_front.png",
+        "metal1_2p_animate_ui_loop_f030_front.png",
+        "metal1_2p_animate_ui_loop_f040_front.png",
+    ):
+        require_contains(two_player_select, marker, f"2P select proof marker {marker}")
+    for marker in (
+        "\"screen_script\": \"ui/gen/multiplayer.dtb\"",
+        "\"screen\": \"multi_sel_character_screen\"",
+        "\"scroll_event\": \"{char_multi char_event $playerNum animate}\"",
+        "\"single_player\": \"play ui_enter kPlayNoBlend, then ui_loop | kPlayLast kPlayGraphLoop\"",
+        "\"multiplayer\": \"play ui_loop | kPlayLast kPlayGraphLoop\"",
+        "\"target_mesh\": \"spot_ui.mesh\"",
+    ):
+        require_contains(two_player_select_manifest, marker, f"2P select manifest marker {marker}")
+    for marker in (
+        "PASS lower_body_2p_select_proofs",
+        "characters=glam1,metal1",
+        "screen=multi_sel_character_screen panel=char_multi",
+        "event=animate multiplayer_clip=ui_loop skips_ui_enter=true",
+        "placers=char_multi0.placer,char_multi1.placer frames=30,40",
+        "cases=4",
+        "two_player_select=true",
+        "max_abs_toe_z=0.4526",
+        "max_lr_toe_delta_z=0.5101",
+    ):
+        require_contains(two_player_select_output, marker, f"2P select output marker {marker}")
     cases = pose_manifest.get("cases")
     require(isinstance(cases, list) and len(cases) == 2, "Glam1/Metal1 manifest must have two cases")
     characters = {case.get("character") for case in cases if isinstance(case, dict)}
@@ -524,6 +568,7 @@ def main() -> int:
         "proof_min_resolution=1280x720 stock_visuals=true "
         "stock_checker_passed=true stock_linked_proof_pngs=true "
         "metal1_ui_select_flat_foot=true active_ui_select_flat_foot=true "
+        "two_player_select=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

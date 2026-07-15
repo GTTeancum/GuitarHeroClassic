@@ -6394,17 +6394,19 @@ a lower-body bridge regression. This remains leg-only proof; it does not sign
 off Metal1's visible right shoulder/hand concern.
 
 2026-07-15 Metal1 UI/select flat-foot reference:
-The stock archive contains the two-player character-select screen
-`ui/gen/multi_sel_character.milo_ps2`, and Metal1's UI character source data is
-split into `char/metal1/og/gen/metal1_ui.milo_ps2` plus
+Metal1's isolated UI character source data is split into
+`char/metal1/og/gen/metal1_ui.milo_ps2` plus
 `char/metal1/anims/gen/metal1_ui.milo_ps2`. `ghogx_character_clip_audit`
-reports that UI animation MILO as `dir=metal_ui` with the two source clips
+reports that animation MILO as `dir=metal_ui` with the two source clips
 `ui_enter` and `ui_loop`. `engine/out/visual_proofs/lower_body_metal1_ui_select_20260715/`
 captures individual front and side screenshots of `ui_loop` frame 30 with the
 guitar prop disabled and the soft-green character background enabled. This is
-the current source-backed answer to the raised-left-leg question: the in-game
-`stand_fast_04` frame is an authored active-stage pose, while the UI/select
-`ui_loop` frame provides a flat-foot reference. The proof checker
+an isolated UI-clip flat-foot reference only; it is not complete two-player
+character-select proof by itself because the stock two-player screen
+`ui/gen/multi_sel_character.milo_ps2` supplies separate `char_multi` placement
+state. It still answers the raised-left-leg question: the in-game
+`stand_fast_04` frame is an authored active-stage pose, while the isolated
+UI/select `ui_loop` frame provides a flat-foot reference. The proof checker
 `tools/check_lower_body_metal1_ui_select_proofs.py` passes with
 `character=metal1`, `source_model=metal1_ui`, `source_clip=ui_loop`,
 `ui_select_flat_foot=true`, `max_abs_toe_z=0.2227`,
@@ -6426,6 +6428,33 @@ soft-green background, reference base, and output-map diagnostics enabled.
 `min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`. This is
 still UI/select lower-body evidence only; it does not close the broader
 source-publisher gap or sign off Metal1's open right shoulder/hand issue.
+
+2026-07-15 two-player character-select animate branch proof:
+The stock `ui/gen/multiplayer.dtb` script drives the actual two-player
+character-select path, not the single-player `char_single` screen alone. On
+`multi_sel_character_screen`, `multi_sel_character_panel` loads
+`ui/gen/multi_sel_character.milo_ps2`, `char_multi` loads
+`ui/gen/char_multi.milo_ps2`, scrolling a player calls
+`{char_multi char_event $playerNum animate}`, and transition completion sets
+`char_multi0.placer` / `char_multi1.placer` from the multiplayer screen. The
+decoded placer evidence in `tools/lower_body_2p_select_source_manifest.json`
+records `char_multi0.placer` at about X=`-35` and `char_multi1.placer` at about
+X=`+35`, both targeting `spot_ui.mesh` under `mgs_camerafix.grp`. The
+`char_objects_ps2` rule for `animate` means multiplayer skips `ui_enter` and
+loops `ui_loop | kPlayLast kPlayGraphLoop`; single-player is the branch that
+plays `ui_enter` before `ui_loop`.
+
+`engine/out/visual_proofs/lower_body_2p_select_20260715/` captures individual
+front full-body screenshots for Glam1 and Metal1 at `ui_loop` frames 30 and 40,
+with guitar disabled, soft-green background, reference base, and output-map
+diagnostics enabled. `tools/check_lower_body_2p_select_proofs.py` passes with
+`characters=glam1,metal1`, `screen=multi_sel_character_screen`,
+`panel=char_multi`, `event=animate`, `multiplayer_clip=ui_loop`,
+`skips_ui_enter=true`, `placers=char_multi0.placer,char_multi1.placer`,
+`frames=30,40`, `cases=4`, `two_player_select=true`,
+`max_abs_toe_z=0.4526`, `max_lr_toe_delta_z=0.5101`,
+`min_pelvis_to_toe_z=32.9791`, and `max_output_visible_gap=0.000500`. This
+supersedes treating isolated `_ui` screenshots as complete 2P select proof.
 
 2026-07-15 lower-body source row authority:
 ihatecompvir `rb3-latest/src/system/char/CharBone.cpp` shows

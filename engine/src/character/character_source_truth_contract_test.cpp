@@ -192,6 +192,12 @@ int run_contract() {
   const std::string lower_body_active_ui_select_proofs = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "check_lower_body_active_ui_select_proofs.py"));
+  const std::string lower_body_2p_select_proofs = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_lower_body_2p_select_proofs.py"));
+  const std::string lower_body_2p_select_source_manifest = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "lower_body_2p_select_source_manifest.json"));
   const std::string lower_body_current_commit_pose_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "lower_body_current_commit_pose_manifest.json"));
@@ -34625,6 +34631,81 @@ int run_contract() {
       lower_body_active_ui_select_proofs,
       "active_ui_select_flat_foot=true",
       "active UI/select proof checker reports flat-foot status");
+  ok &= contains(doc,
+                 "2026-07-15 two-player character-select animate branch proof:",
+                 "document records two-player select animate branch proof");
+  ok &= contains(compact(doc),
+                 "`ui/gen/multiplayer.dtb`scriptdrivestheactualtwo-player"
+                 "character-selectpath",
+                 "document records multiplayer script as 2P driver");
+  ok &= contains(doc,
+                 "`{char_multi char_event $playerNum animate}`",
+                 "document records char_multi animate event");
+  ok &= contains(compact(doc),
+                 "multiplayerskips`ui_enter`andloops`ui_loop|"
+                 "kPlayLastkPlayGraphLoop`",
+                 "document records 2P skips ui_enter");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/lower_body_2p_select_20260715/`",
+                 "document records 2P select proof folder");
+  ok &= contains(doc,
+                 "`two_player_select=true`",
+                 "document records 2P select checker status");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"screen_script\":\"ui/gen/multiplayer.dtb\"",
+      "2P select manifest pins multiplayer.dtb");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"scroll_event\":\"{char_multichar_event$playerNumanimate}\"",
+      "2P select manifest pins char_multi animate event");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"single_player\":\"playui_enterkPlayNoBlend,thenui_loop|"
+      "kPlayLastkPlayGraphLoop\"",
+      "2P select manifest records single-player ui_enter branch");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"multiplayer\":\"playui_loop|kPlayLastkPlayGraphLoop\"",
+      "2P select manifest records 2P ui_loop branch");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"char_multi0.placer\":{\"matrix0\":[-0.8189,-0.5734,0.0,"
+      "0.5734,-0.8189,0.0,0.0,0.0,1.0,-35.0,-30.0,0.0]",
+      "2P select manifest records P1 placer matrix");
+  ok &= contains(
+      lower_body_2p_select_source_manifest,
+      "\"char_multi1.placer\":{\"matrix0\":[-0.8190,0.5734,0.0,"
+      "-0.5734,-0.8190,0.0,0.0,0.0,1.0,35.0,-30.0,0.0]",
+      "2P select manifest records P2 placer matrix");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "lower_body_2p_select_20260715",
+      "2P select proof checker pins proof folder");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "multi_sel_character_screen",
+      "2P select proof checker pins screen");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "panel=char_multi",
+      "2P select proof checker pins char_multi panel");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "skips_ui_enter=true",
+      "2P select proof checker pins skip-ui-enter branch");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "glam1_2p_animate_ui_loop_f030_front.png",
+      "2P select proof checker pins Glam1 frame 30 PNG");
+  ok &= contains(
+      lower_body_2p_select_proofs,
+      "metal1_2p_animate_ui_loop_f040_front.png",
+      "2P select proof checker pins Metal1 frame 40 PNG");
+  ok &= contains(
+      lower_body_completion_audit,
+      "two_player_select=true",
+      "completion audit reports 2P select proof status");
   ok &= contains(compact(doc),
                  "doesnotsignoffMetal1'svisiblerightshoulder/handconcern",
                  "document keeps focused Glam1/Metal1 proof scoped to legs");

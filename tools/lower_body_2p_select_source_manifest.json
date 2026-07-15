@@ -1,0 +1,36 @@
+{
+  "source": "stock GH2 PS2 assets",
+  "screen_script": "ui/gen/multiplayer.dtb",
+  "screen": "multi_sel_character_screen",
+  "panel": "char_multi",
+  "screen_milo": "ui/gen/multi_sel_character.milo_ps2",
+  "character_panel_milo": "ui/gen/char_multi.milo_ps2",
+  "scroll_event": "{char_multi char_event $playerNum animate}",
+  "transition_placers": [
+    "{char_multi set_placer 0 {multi_sel_character_panel find char_multi0.placer}}",
+    "{char_multi set_placer 1 {multi_sel_character_panel find char_multi1.placer}}"
+  ],
+  "char_objects_rule": {
+    "event": "animate",
+    "multiplayer": "play ui_loop | kPlayLast kPlayGraphLoop",
+    "single_player": "play ui_enter kPlayNoBlend, then ui_loop | kPlayLast kPlayGraphLoop",
+    "select": "play ui_loop | kPlayLast kPlayGraphLoop"
+  },
+  "placers": {
+    "char_multi0.placer": {
+      "matrix0": [-0.8189, -0.5734, 0.0, 0.5734, -0.8189, 0.0, 0.0, 0.0, 1.0, -35.0, -30.0, 0.0],
+      "matrix1": [-0.8189, -0.5734, 0.0, 0.5734, -0.8189, 0.0, 0.0, 0.0, 1.0, -35.0, -636.0, -47.5],
+      "owner": "multi_sel_character_panel",
+      "target_group": "mgs_camerafix.grp",
+      "target_mesh": "spot_ui.mesh"
+    },
+    "char_multi1.placer": {
+      "matrix0": [-0.8190, 0.5734, 0.0, -0.5734, -0.8190, 0.0, 0.0, 0.0, 1.0, 35.0, -30.0, 0.0],
+      "matrix1": [-0.8190, 0.5734, 0.0, -0.5734, -0.8190, 0.0, 0.0, 0.0, 1.0, 35.0, -636.0, -47.5],
+      "owner": "multi_sel_character_panel",
+      "target_group": "mgs_camerafix.grp",
+      "target_mesh": "spot_ui.mesh"
+    }
+  },
+  "isolated_ui_clip_caveat": "char/*/anims/gen/*_ui.milo_ps2:ui_loop is the 2P animate clip, but isolated viewer captures are not complete 2P select proof unless paired with char_multi script and placer evidence."
+}
