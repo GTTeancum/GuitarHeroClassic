@@ -6444,11 +6444,10 @@ int main() {
                  "regular camera PrePoll consumption computes mCamStartTime from the consume-time clock");
   ok &= contains(gameplay_c,
                  "previous_regular_camera_=previous_current;"
-                 "previous_camera_position_index_=active_camera_position_index_;"
                  "active_regular_camera_=next_shot;"
                  "active_regular_camera_start_=source_start_time;"
-                 "active_camera_position_start_=song_time_;"
-                 "active_camera_position_index_=0;",
+                 "pending_regular_camera_start_=0.0;"
+                 "pending_regular_camera_local_frame_=0.0;",
                  "regular camera pending mNextShot always restarts source shot timing");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_=false;",
@@ -6503,13 +6502,20 @@ int main() {
                  "regular gameplay cameras suppress Poll/SetFrame sampling when MiloCamera preview is active");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
-                 "constCameraKeycurrent_position=",
+                 "std::vector<CameraKey>selected_camera;",
                  "regular gameplay cameras enter StartAnim before source-shaped camera row sampling");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
-                 "constCameraKeycurrent_position="
-                 "camera_position_for(*key,active_camera_position_index_);",
+                 "std::vector<CameraKey>selected_camera;"
+                 "constfloatsource_setpreframe_blend=1.0f;"
+                 "constfloatsource_setframe_blend=1.0f;",
                  "regular gameplay cameras mirror CameraManager PrePoll StartShot before SetPreFrame");
+  ok &= contains(gameplay_c,
+                 "if(selected_camera.empty()){"
+                 "CameraKeynull_frame=*key;"
+                 "null_frame.source_frame_null_frame=true;"
+                 "selected_camera.push_back(std::move(null_frame));}",
+                 "regular gameplay cameras use CamShot::SetFrame nullFrame fallback instead of a native previous-shot sweep");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(camera_keys_.front());"
                  "apply_camera_keys(world_->camera(),camera_keys_,",
@@ -11243,9 +11249,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_lerp_result_rows(result_a,result_b,interp_t);",
                  "camera submitted result rows use the source-shaped eased blend");
-  ok &= contains(gameplay_c,
-                 "doubleauthored_camshot_blend_seconds(",
-                 "same-shot camera transitions can use authored CamShot blend timing");
+  ok &= absent(gameplay_c,
+               "doubleauthored_camshot_blend_seconds(",
+               "normal gameplay cameras must not synthesize a native previous-position blend helper");
   ok &= contains(gameplay_c,
                  "key.camshot_looping=shot.looping;"
                  "key.camshot_loop_keyframe=shot.loop_keyframe;",
@@ -11260,9 +11266,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "force_char_lod=%dnext_shot=%s",
                  "regular CamShot diagnostics expose decoded source next_shot refs");
-  ok &= contains(gameplay_c,
-                 "same_shot?authored_camshot_blend_seconds(*previous,kSweepSeconds)",
-                 "authored CamShot blend timing is limited to same-shot position transitions");
+  ok &= absent(gameplay_c,
+               "regular_camera_sweep_keys(",
+               "normal gameplay cameras must not synthesize a native previous-shot sweep");
+  ok &= absent(gameplay_c,
+               "camera_position_for(",
+               "normal gameplay cameras must not select host-side previous camera-position slots");
   ok &= contains(gameplay_c,
                  "floatsource_camshot_frame_span(constGameplay::CameraKey&key)",
                  "runtime evaluates source CamShot duration plus blend spans");
@@ -11613,9 +11622,9 @@ int main() {
   ok &= absent(gameplay_c,
                "\"[world]post_switch_cam:",
                "old discrete post_switch camera stepping is removed");
-  ok &= contains(gameplay_c,
-                 "constboolsame_shot=previous&&previous->name==current.name;",
-                 "regular camera sweeps only blend same-shot position changes");
+  ok &= absent(gameplay_c,
+               "constboolsame_shot=previous&&previous->name==current.name;",
+               "regular gameplay cameras must not branch into old same-shot sweep blending");
   ok &= contains(gameplay_c,
                  "conststd::stringsolo=prop_symbol(decoded_shot->props,"
                  "\"solo\",\"ok\");",
@@ -13910,9 +13919,9 @@ int main() {
   ok &= absent(gameplay_c,
                "authored_camshot_position_seconds(",
                "old external position timer helper is removed from regular CamShot playback");
-  ok &= contains(gameplay_c,
-                 "!same_shot",
-                 "start_shot camera changes cut between authored shot families");
+  ok &= absent(gameplay_c,
+               "!same_shot",
+               "start_shot camera changes must not use the old authored-shot-family cut branch");
   ok &= absent(gameplay_c,
                "constexprdoublekPostSwitchSeconds=2.06;",
                "regular CamShot frame cadence is no longer a fixed native constant");

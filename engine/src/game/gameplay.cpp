@@ -17303,24 +17303,6 @@ const Gameplay::CameraKey* find_camera_key_by_name(
     return nullptr;
 }
 
-Gameplay::CameraKey camera_position_for(const Gameplay::CameraKey& shot,
-                                        size_t index) {
-    if (shot.positions.empty()) return shot;
-    Gameplay::CameraKey out =
-        shot.positions[index % shot.positions.size()];
-    out.positions = shot.positions;
-    return out;
-}
-
-double authored_camshot_blend_seconds(const Gameplay::CameraKey& from,
-                                      double fallback_seconds) {
-    if (!from.has_timing || !std::isfinite(from.blend_frames) ||
-        from.blend_frames <= 0.0f) {
-        return fallback_seconds;
-    }
-    return static_cast<double>(from.blend_frames) / 30.0;
-}
-
 float source_camshot_frame_span(const Gameplay::CameraKey& key) {
     if (!key.has_timing || !std::isfinite(key.duration_frames) ||
         !std::isfinite(key.blend_frames) || key.duration_frames < 0.0f ||
@@ -20530,32 +20512,6 @@ void apply_camera_result_frame(ghogx::render::OrbitCamera& cam,
         cam.result_frame.custom_view[i] = rows.custom_view[i];
         cam.result_frame.custom_projection[i] = rows.custom_projection[i];
     }
-}
-
-std::vector<Gameplay::CameraKey> regular_camera_sweep_keys(
-    const Gameplay::CameraKey& current,
-    const Gameplay::CameraKey* previous,
-    double song_time,
-    double start_time) {
-    constexpr double kSweepSeconds = 1.25;
-    const bool same_shot = previous && previous->name == current.name;
-    const double sweep_seconds =
-        same_shot ? authored_camshot_blend_seconds(*previous, kSweepSeconds)
-                  : kSweepSeconds;
-    std::vector<Gameplay::CameraKey> keys;
-    if (!previous || song_time < start_time ||
-        !same_shot ||
-        song_time >= start_time + sweep_seconds) {
-        keys.push_back(current);
-        return keys;
-    }
-    Gameplay::CameraKey a = *previous;
-    Gameplay::CameraKey b = current;
-    a.frame = static_cast<float>(start_time * 30.0);
-    b.frame = static_cast<float>((start_time + sweep_seconds) * 30.0);
-    keys.push_back(a);
-    keys.push_back(b);
-    return keys;
 }
 
 std::vector<Gameplay::CameraKey> regular_camera_path_keys(
@@ -23914,9 +23870,6 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     pending_regular_camera_start_ = 0.0;
     pending_regular_camera_local_frame_ = 0.0;
     active_regular_camera_start_ = 0.0;
-    active_camera_position_start_ = 0.0;
-    active_camera_position_index_ = 0;
-    previous_camera_position_index_ = 0;
     intro_camera_seconds_ = 0.0;
     camera_duration_bars_.clear();
     camera_duration_bars_["kExcitementOkay"] = {2, 4};
@@ -24861,9 +24814,6 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     pending_regular_camera_start_ = 0.0;
     pending_regular_camera_local_frame_ = 0.0;
     active_regular_camera_start_ = 0.0;
-    active_camera_position_start_ = song_time_;
-    active_camera_position_index_ = 0;
-    previous_camera_position_index_ = 0;
     active_camera_anim_event_.clear();
     active_camera_anim_target_.clear();
     active_camera_fov_anim_refs_.clear();
@@ -25569,11 +25519,8 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     // is set, even if it points to the same CamShot. Preserve that restart so
     // source-local frame timing and StartAnim state reset on repeated picks.
     previous_regular_camera_ = previous_current;
-    previous_camera_position_index_ = active_camera_position_index_;
     active_regular_camera_ = next_shot;
     active_regular_camera_start_ = source_start_time;
-    active_camera_position_start_ = song_time_;
-    active_camera_position_index_ = 0;
     pending_regular_camera_start_ = 0.0;
     pending_regular_camera_local_frame_ = 0.0;
     active_camera_shot_started_ = false;
@@ -35016,17 +34963,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         : find_camera_key_by_name(regular_camera_keys_,
                                                   active_regular_camera_)) {
                 start_camera_shot_runtime(*key, source_restarted_shot);
-                const CameraKey current_position =
-                    camera_position_for(*key, active_camera_position_index_);
-                const CameraKey* previous_shot =
-                    find_camera_key_by_name(regular_camera_keys_,
-                                            previous_regular_camera_);
-                std::optional<CameraKey> previous_position;
-                if (previous_shot) {
-                    previous_position =
-                        camera_position_for(*previous_shot,
-                                            previous_camera_position_index_);
-                }
                 std::vector<CameraKey> selected_camera;
                 const float source_setpreframe_blend = 1.0f;
                 const float source_setframe_blend = 1.0f;
@@ -35043,10 +34979,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     selected_camera = regular_camera_source_frame_keys(
                         *key, song_time_, active_regular_camera_start_, &chart_);
                     if (selected_camera.empty()) {
-                        selected_camera = regular_camera_sweep_keys(
-                            current_position,
-                            previous_position ? &*previous_position : nullptr,
-                            song_time_, active_camera_position_start_);
+                        CameraKey null_frame = *key;
+                        null_frame.source_frame_null_frame = true;
+                        selected_camera.push_back(std::move(null_frame));
                     }
                 }
                 const float source_shot_local_frame = camera_source_local_frame(
@@ -35637,7 +35572,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
                 const CameraKey& visibility_key =
-                    selected_camera.empty() ? current_position
+                    selected_camera.empty() ? *key
                                             : selected_camera.front();
                 active_force_char_lod_ = visibility_key.force_char_lod;
                 apply_camera_keys(world_->camera(), selected_camera, song_time_,

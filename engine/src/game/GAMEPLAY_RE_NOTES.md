@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera no native sweep fallback:
+  ihatecompvir `CameraManager` consumes `mNextShot` through `StartShot_` and
+  samples the active CamShot with `SetPreFrame` / `SetFrame`; it does not keep a
+  separate host-side previous camera-position index or synthesize a native
+  previous-shot sweep. Native regular gameplay cameras now stay on the decoded
+  source frame-key route, fall back to the rb2 `nullFrame` boundary when a
+  CamShot has no timing keys, and keep path-backed shots on their authored
+  TransAnim route. This does not invent `BuildTransform`, `SetPos`, `Shake`, or
+  FreeCam behavior, and it adds no dependency surface.
 - 2026-07-15 gameplay camera PrePoll consumption proof:
   ihatecompvir `CameraManager::PrePoll` calls `StartShot_(mNextShot)`, clears
   `mNextShot`, then calls `mCurrentShot->SetPreFrame(CalcFrame(), 1.0f)`.
