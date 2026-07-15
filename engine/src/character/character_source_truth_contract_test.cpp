@@ -34117,8 +34117,12 @@ int run_contract() {
                  "document records source publisher fenced proof log");
   ok &= contains(doc, "`SUMMARY pass=12`",
                  "document records updated source-gap verifier pass count");
-  ok &= contains(doc, "`SUMMARY pass=18`",
+  ok &= contains(doc, "`SUMMARY pass=19`",
                  "document records RB2 empty-row source-gap verifier pass count");
+  ok &= contains(doc,
+                 "the generic\n  `CharBones::ScaleAdd()` range names the "
+                 "expected compression/local buffers",
+                 "document records RB2 generic CharBones ScaleAdd range boundary");
   ok &= contains(doc, "RB2 empty-row guards",
                  "document records RB2 empty-row verifier guards");
   ok &= contains(pose_publisher_source_gaps,
@@ -34148,6 +34152,9 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gaps,
                  "rb2-charclipdriver-evaluate-range-local-map",
                  "pose publisher verifier records CharClipDriver Evaluate dump boundary");
+  ok &= contains(pose_publisher_source_gaps,
+                 "rb2-charbones-scaleadd-range-local-map",
+                 "pose publisher verifier records generic CharBones ScaleAdd dump boundary");
   ok &= contains(pose_publisher_source_gaps,
                  "rb2-charbones-scaleadd-delegate-stub-empty",
                  "pose publisher verifier records empty RB2 CharBones ScaleAdd row");

@@ -296,6 +296,16 @@ def main(argv: list[str]) -> int:
         )
         record(
             results,
+            "rb2-charbones-scaleadd-range-local-map",
+            "voidCharBones::ScaleAdd()" in c_dump_bones
+            and "structShortVector3*sp;" in c_dump_bones
+            and "conststructByteQuat*bq;" in c_dump_bones
+            and "conststructShortQuat*qs;" in c_dump_bones
+            and "floataweight;" in c_dump_bones,
+            "RB2 dump names CharBones ScaleAdd compression/local buffers but not a portable statement body",
+        )
+        record(
+            results,
             "rb2-charbones-scaleadd-delegate-stub-empty",
             "voidCharBones::ScaleAdd(classCharBones*constthis/*r0*/){}" in c_dump_bones,
             "RB2 dump maps the CharBones delegate overload as an empty/bodyless row",
