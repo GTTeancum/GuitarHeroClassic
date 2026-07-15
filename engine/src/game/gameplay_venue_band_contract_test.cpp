@@ -12024,6 +12024,7 @@ int main() {
                  "filter_source=ShotMatches"
                  "source_category=%ssource_filters=\\\"%s\\\""
                  "source_previous=%s"
+                 "source_previous_context=%s"
                  "source_current=%ssource_next_before=%ssource_next_after=%s"
                  "source_walking=%dsource_walking_gate=%s"
                  "source_starpower=%d"
@@ -13133,9 +13134,27 @@ int main() {
                  "returnsource_previous_fallback;",
                  "regular camera selector uses the active regular shot before fallback metadata");
   ok &= contains(gameplay_c,
-                 "active_regular_camera_.empty()&&!camera_keys_.empty()"
-                 "?&camera_keys_.front():nullptr;",
-                 "first regular camera pick uses the intro CamShot as source previous context");
+                 "constGameplay::CameraKey*Gameplay::"
+                 "camera_source_intro_previous_key()const{"
+                 "returnhas_source_intro_camera_previous_?"
+                 "&source_intro_camera_previous_:nullptr;}",
+                 "first regular camera pick uses explicit intro camera source previous context");
+  ok &= contains(gameplay_c,
+                 "source_intro_camera_previous_.distance="
+                 "intro_camera.distance;"
+                 "source_intro_camera_previous_.facing="
+                 "intro_camera.facing;",
+                 "intro camera previous context mirrors world get intro_camera distance/facing");
+  ok &= contains(gameplay_c,
+                 "active_regular_camera_.empty()?"
+                 "camera_source_intro_previous_key():nullptr;",
+                 "regular camera selection falls back to source intro metadata only when no current shot exists");
+  ok &= contains(gameplay_c,
+                 "source_previous=%ssource_previous_context=%s",
+                 "regular camera sweep diagnostics expose whether previous context is world current shot or intro metadata");
+  ok &= contains(gameplay_c,
+                 "\"world_intro_camera_facing_distance\"",
+                 "regular camera sweep diagnostics label the intro distance/facing fallback from world_objects_worldbase.dta");
   ok &= contains(gameplay_c,
                  "std::stringcamera_source_script_filter_label(",
                  "regular camera diagnostics expose the recovered GH2 script filter list");

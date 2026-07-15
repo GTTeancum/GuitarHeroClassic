@@ -23859,6 +23859,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     facefx_animation_.reset();
     camera_keys_.clear();
     regular_camera_keys_.clear();
+    source_intro_camera_previous_ = CameraKey{};
+    has_source_intro_camera_previous_ = false;
     pending_regular_camera_.clear();
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
@@ -25275,12 +25277,16 @@ std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     return best ? best->name : std::string{};
 }
 
+const Gameplay::CameraKey* Gameplay::camera_source_intro_previous_key() const {
+    return has_source_intro_camera_previous_ ? &source_intro_camera_previous_
+                                             : nullptr;
+}
+
 bool Gameplay::queue_source_category_camera_shot(
     std::string_view category, const char* source_message) {
     const CameraKey* source_previous_fallback =
-        active_regular_camera_.empty() && !camera_keys_.empty()
-            ? &camera_keys_.front()
-            : nullptr;
+        active_regular_camera_.empty() ? camera_source_intro_previous_key()
+                                       : nullptr;
     const std::string current_walkspot =
         camera_source_guitarist0_nearest_walkspot();
     const CameraKey* key = choose_camera_key_source_category(
@@ -32784,6 +32790,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const IntroCameraSelection intro_camera =
                     select_intro_camera_anim(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
+                source_intro_camera_previous_ = CameraKey{};
+                source_intro_camera_previous_.name = intro_camera.shot;
+                source_intro_camera_previous_.distance =
+                    intro_camera.distance;
+                source_intro_camera_previous_.facing = intro_camera.facing;
+                has_source_intro_camera_previous_ =
+                    !intro_camera.distance.empty() ||
+                    !intro_camera.facing.empty() ||
+                    !intro_camera.shot.empty();
                 camera_keys_ = load_camera_position_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     intro_camera.anim);
@@ -34861,13 +34876,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     camera_source_guitarist0_nearest_walkspot();
                 const CameraKey* key = nullptr;
                 const CameraKey* source_previous_fallback =
-                    active_regular_camera_.empty() && !camera_keys_.empty()
-                        ? &camera_keys_.front()
+                    active_regular_camera_.empty()
+                        ? camera_source_intro_previous_key()
                         : nullptr;
                 const CameraKey* source_previous_for_log =
                     camera_source_previous_key_for_selection(
                         regular_camera_keys_, active_regular_camera_,
                         source_previous_fallback);
+                const char* source_previous_context =
+                    !active_regular_camera_.empty()
+                        ? "world_current_shot"
+                        : source_previous_fallback
+                        ? "world_intro_camera_facing_distance"
+                        : "none";
                 const std::string source_previous_name_for_log =
                     source_previous_for_log ? source_previous_for_log->name
                                             : "";
@@ -34927,7 +34948,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         camera_manager_next_shot_like_source();
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0 hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\n",
+                        "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0 hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -34943,6 +34964,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? "diagnostic"
                             : source_filters_for_log.c_str(),
                         source_previous_name_for_log.c_str(),
+                        source_previous_context,
                         source_current_after_queue
                             ? source_current_after_queue->name.c_str()
                             : "",

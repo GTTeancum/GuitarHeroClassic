@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera intro previous context:
+  GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` and
+  `pick_solo_camera_shot` read `world current_shot` for previous facing, and
+  regular shots also read previous distance; when there is no current shot they
+  fall back to `world get intro_camera_facing` /
+  `world get intro_camera_distance`. Native now stores an explicit
+  `source_intro_camera_previous_` from the decoded intro CamShot and uses it
+  only while `active_regular_camera_` is empty, instead of relying on
+  `camera_keys_.front()` list position as an indirect stand-in. The regular
+  camera proof row now reports `source_previous_context=` so first gameplay
+  picks can be audited as `world_intro_camera_facing_distance` versus
+  `world_current_shot`. This is normal gameplay camera selection parity only;
+  FreeCam remains deferred last and no dependency surface changes.
 - 2026-07-15 gameplay camera visible BuildTransform pair:
   ihatecompvir `CamShotFrame::Interp` sets the frustum, then calls
   `BuildTransform(cam, tfd0, !sameTargets)` and

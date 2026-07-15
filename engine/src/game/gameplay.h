@@ -848,6 +848,7 @@ class Gameplay {
   void free_camera_set_frozen_like_source(bool frozen,
                                           const char* source_handler);
   std::string camera_source_guitarist0_nearest_walkspot() const;
+  const CameraKey* camera_source_intro_previous_key() const;
   bool queue_source_category_camera_shot(std::string_view category,
                                          const char* source_message);
   void update_source_game_over_camera_messages(
@@ -1045,6 +1046,8 @@ class Gameplay {
   bool world_init_attempted_ = false;
   std::vector<CameraKey> camera_keys_;
   std::vector<CameraKey> regular_camera_keys_;
+  CameraKey source_intro_camera_previous_;
+  bool has_source_intro_camera_previous_ = false;
   std::string pending_regular_camera_;
   std::string active_regular_camera_;
   std::string previous_regular_camera_;
