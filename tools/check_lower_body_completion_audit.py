@@ -904,6 +904,8 @@ def main() -> int:
         "two_player_select_slot_sweep=true two_player_select_context=true "
         "two_player_select_start_loop=true "
         "two_player_select_family=true "
+        f"source_gap_still_fenced={len(EXPECTED_FENCED)} "
+        "source_gap_completion_blocker=true "
         "source_boundary_active=true goal_active=true"
     )
     return 0

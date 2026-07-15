@@ -34380,6 +34380,14 @@ int run_contract() {
       "lower-body completion audit reports minimum proof resolution");
   ok &= contains(
       lower_body_completion_audit,
+      "source_gap_still_fenced={len(EXPECTED_FENCED)}",
+      "lower-body completion audit reports still-fenced source gap count");
+  ok &= contains(
+      lower_body_completion_audit,
+      "source_gap_completion_blocker=true",
+      "lower-body completion audit reports source gap as completion blocker");
+  ok &= contains(
+      lower_body_completion_audit,
       "source_boundary_active=truegoal_active=true",
       "lower-body completion audit keeps source boundary and goal status active");
   ok &= contains(
@@ -34472,7 +34480,8 @@ int run_contract() {
                  "document records active source boundary and goal status");
   ok &= contains(doc,
                  "`two_player_select_char_events=true`,\n  "
-                 "`two_player_select_app_placer=true`, `source_boundary_active=true`, and\n"
+                 "`two_player_select_app_placer=true`, `source_gap_still_fenced=5`,\n"
+                 "  `source_gap_completion_blocker=true`, `source_boundary_active=true`, and\n"
                  "  `goal_active=true`",
                  "document records 2P select audit guard status");
   ok &= contains(doc,

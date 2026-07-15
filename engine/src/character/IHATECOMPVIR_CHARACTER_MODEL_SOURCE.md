@@ -6766,7 +6766,8 @@ Lower-body evidence audit:
   `active_ui_select_flat_foot=true`, `two_player_select=true`,
   `two_player_select_source_assets=true`,
   `two_player_select_char_events=true`,
-  `two_player_select_app_placer=true`, `source_boundary_active=true`, and
+  `two_player_select_app_placer=true`, `source_gap_still_fenced=5`,
+  `source_gap_completion_blocker=true`, `source_boundary_active=true`, and
   `goal_active=true`. The eight artifact checks cover the four isolated
   Glam1/Metal1 viewer PNG/log pairs and the four current in-game/viewer PNG/log
   pairs as individual high-resolution frames, not contact sheets, while the
