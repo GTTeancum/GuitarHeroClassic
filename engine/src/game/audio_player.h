@@ -37,6 +37,16 @@ class AudioPlayer {
   void stop();   // pause the voice; position is retained
   bool seek(double seconds);  // seek the compressed VGS stream to a song time
 
+  // GH2 gameplay feedback routed through sfx/gen/ingame_bank.milo_ps2:
+  // miss_gtr for bad picks, stem mute on missed notes, sp_gemhit on star gems,
+  // and sp_awarded when a clean star phrase awards meter.
+  void note_hit_feedback(bool star_note);
+  void note_miss_feedback();
+  void overstrum_feedback();
+  void star_phrase_complete_feedback();
+  void set_whammy_state(bool active, double song_time_sec);
+  void reset_gameplay_feedback();
+
   // Elapsed song time in seconds, sample-accurate (derived from the number of
   // samples the mixer has actually played). This is the song clock.
   double position_sec() const;

@@ -633,9 +633,9 @@ int run_mats(const Args& a) {
     std::printf("\nScene  name=%s  dir_type=%s  mat=%zu\n",
                 scene.dir_name.c_str(), scene.dir_type.c_str(), scene.mats.size());
     std::printf("%s\n", std::string(112, '-').c_str());
-    std::printf("  %-28s %-24s %-5s %-5s %-9s %-25s %-22s %s\n",
-                "material", "diffuse", "blend", "zmode", "flags",
-                "color rgba", "uv scale", "uv offset");
+    std::printf("  %-28s %-24s %-5s %-5s %-6s %-5s %-9s %-25s %-22s %s\n",
+                "material", "diffuse", "blend", "zmode", "texgen", "wrap",
+                "flags", "color rgba", "uv scale", "uv offset");
 
     int shown = 0;
     for (const auto& m : scene.mats) {
@@ -653,11 +653,13 @@ int run_mats(const Args& a) {
                       m.alpha_cut ? 'C' : '-',
                       m.alpha_write ? 'W' : '-',
                       m.cull ? 'B' : '-');
-        std::printf("  %-28s %-24s %-5u %-5u %-9s [%.3f %.3f %.3f %.3f] [%.4f %.4f] [%.4f %.4f]\n",
+        std::printf("  %-28s %-24s %-5u %-5u %-6u %-5u %-9s [%.3f %.3f %.3f %.3f] [%.4f %.4f] [%.4f %.4f]\n",
                     m.name.substr(0, 28).c_str(),
                     (m.diffuse_tex.empty() ? "(none)" : m.diffuse_tex).substr(0, 24).c_str(),
                     static_cast<unsigned>(m.blend),
                     static_cast<unsigned>(m.z_mode),
+                    static_cast<unsigned>(m.tex_gen),
+                    static_cast<unsigned>(m.tex_wrap),
                     flags,
                     m.color[0], m.color[1], m.color[2], m.color[3],
                     m.tex_scale[0], m.tex_scale[1],

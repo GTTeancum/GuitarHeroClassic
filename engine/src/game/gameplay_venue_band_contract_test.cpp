@@ -583,6 +583,29 @@ int main() {
                  "ark_dir.c_str());return2;",
                  "explicit bad --ark-dir stops before placeholder visual captures");
   ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--hdr\")==0&&i+1<argc){"
+                 "explicit_hdr=argv[++i];}",
+                 "app accepts explicit main.hdr paths for proof captures");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--ark\")==0&&i+1<argc){"
+                 "explicit_ark=argv[++i];}",
+                 "app accepts explicit main_0.ark paths for proof captures");
+  ok &= contains(app_main_c,
+                 "if(!explicit_hdr.empty()||!explicit_ark.empty()){"
+                 "if(explicit_hdr.empty()||explicit_ark.empty()){"
+                 "std::fprintf(stderr,\"[ghogx]--hdrand--arkmustbesuppliedtogether\\n\");"
+                 "return2;}",
+                 "explicit ARK proof paths fail loudly when only one side is supplied");
+  ok &= contains(app_main_c,
+                 "if(!ark_dir.empty()){std::fprintf(stderr,"
+                 "\"[ghogx]useeither--ark-dirorexplicit--hdr/--ark,notboth\\n\");"
+                 "return2;}",
+                 "app refuses ambiguous archive path sources during proof captures");
+  ok &= contains(app_main_c,
+                 "else{std::fprintf(stderr,"
+                 "\"[ghogx]unknownorincompleteoption:%s\\n\",argv[i]);return2;}",
+                 "unknown app options stop instead of silently producing invalid proof screenshots");
+  ok &= contains(app_main_c,
                  "elseif(std::strcmp(argv[i],\"--diagnostic-character\")==0&&"
                  "i+1<argc){diagnostic_character=argv[++i];}",
                  "app exposes a scoped diagnostic character override for highway validation");
@@ -895,25 +918,29 @@ int main() {
                  "frame+kFrameEpsilon>=keys[key_index+1].frame)",
                  "HUD MatAnim sampler handles duplicate instant-step source frames");
   ok &= contains(hud_renderer_c,
-                 "active_light_index==0?&native_rock_light_red_base_:"
-                 "active_light_index==1?&native_rock_light_yellow_base_:"
-                 "&native_rock_light_green_base_;",
-                 "ROCK meter emits only the selected source base pane by authored identity");
+                 "constQuad*base_lamps[3]={&native_rock_light_red_base_,"
+                 "&native_rock_light_yellow_base_,"
+                 "&native_rock_light_green_base_};",
+                 "ROCK meter keeps all three source base panes behind the glass");
   ok &= contains(hud_renderer_c,
-                 "q.color=rock_light_base_color_keys_[active_light_index].empty()"
-                 "?q.color:sample_hud_mat_anim_color_frame("
-                 "rock_light_base_color_keys_[active_light_index],"
-                 "active_light_frame);",
-                 "ROCK meter selected base pane uses its authored absolute-frame MatAnim color");
+                 "for(intlamp_index=0;lamp_index<3;++lamp_index)"
+                 "{Quadq=*base_lamps[lamp_index];",
+                 "ROCK meter emits every source base pane so inactive panes still cover the meter");
+  ok &= contains(hud_renderer_c,
+                 "rock_light_base_color_keys_[lamp_index].empty()?"
+                 "rock_lamp_override_color(lamp_index,"
+                 "lamp_index==active_light_index):"
+                 "sample_hud_mat_anim_color_frame("
+                 "rock_light_base_color_keys_[lamp_index],active_light_frame);",
+                 "ROCK meter base panes use their authored absolute-frame MatAnim colors");
   ok &= contains(hud_renderer_c,
                  "active_light_index==0?&native_rock_light_red_:"
                  "active_light_index==1?&native_rock_light_yellow_:"
                  "&native_rock_light_green_;",
                  "ROCK meter emits only the selected source front alpha glow by authored identity");
   ok &= absent(hud_renderer_c,
-               "out.push_back(yellow);out.push_back(red);"
-               "out.push_back(green);",
-               "ROCK meter must not draw all three base lamps as active panes");
+               "constQuad*active_base=",
+               "ROCK meter must not leave inactive source base panes uncovered");
   ok &= absent(hud_renderer_c,
                "out.push_back(red);out.push_back(green);"
                "out.push_back(yellow);",
@@ -923,7 +950,7 @@ int main() {
                        "if(have_native_lights){",
                        "ROCK meter draws translucent lamp fronts over rock_face_2d");
   ok &= appears_before(hud_renderer_c,
-                       "if(have_native_light_bases){constQuad*active_base=",
+                       "if(have_native_light_bases){constQuad*base_lamps[3]=",
                        "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
                        "ROCK meter draws source base lights behind rock_face_2d");
   ok &= absent(hud_renderer_h_c,
@@ -1961,6 +1988,83 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "floatsurface_flash=0.0f",
                  "highway renderer accepts live multiplier surface-flash state");
+  ok &= contains(highway_renderer_c,
+                 "constHighwayAspectProfilehighway_profile="
+                 "pcsx2_measured_highway_profile_for_aspect(aspect);",
+                 "highway frame selects a measured root/camera profile for the active 4:3/16:9 aspect");
+  ok &= contains(highway_renderer_c,
+                 "constHighwayRootSpacehighway_root{"
+                 "highway_profile.track_x_scale,"
+                 "lane_spacing_*highway_profile.track_x_scale,"
+                 "board_half_x_*highway_profile.track_x_scale};",
+                 "highway frame owns a single measured aspect root space for all child geometry");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredTrackXScale4x3=1.02769107f;",
+                 "highway 4:3 root X scale is pinned to the measured 4:3 PCSX2 aspect-profile fit");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredTrackXScale16x9=1.35005774f;",
+                 "highway 16:9 root X scale preserves the prior PCSX2 frame_16 rail trace");
+  ok &= contains(highway_renderer_c,
+                 "std::fabs(aspect-kAspect4x3)<="
+                 "std::fabs(aspect-kAspect16x9)",
+                 "highway aspect profile selector snaps only between 4:3 and 16:9 measured presets");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredCamX4x3=-0.04188884f;",
+                 "highway 4:3 camera X offset is pinned to the measured PCSX2 aspect-profile fit");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredCamYawDeg4x3=0.21988230f;",
+                 "highway 4:3 camera yaw is pinned to the measured PCSX2 aspect-profile fit");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredCamX16x9=0.197f;",
+                 "highway 16:9 camera X preserves the prior PCSX2 frame_16 rail trace");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredCamYawDeg16x9=0.0f;",
+                 "highway 16:9 camera yaw stays unchanged from the prior PCSX2 frame_16 rail trace");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredFadeTopY=164.47972f;",
+                 "highway fade horizon is pinned to the PCSX2 frame_16 fade trace");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcsx2MeasuredFadeAlphaDist=71.67506f;",
+                 "highway fade band length is pinned to the PCSX2 frame_16 fade trace");
+  ok &= contains(highway_renderer_c,
+                 "constexprstd::array<TailWidthSample,19>"
+                 "kPcsx2WhammyBodyWidthProfile4x3",
+                 "active whammy sustain body width is pinned to the measured PCSX2 body profile");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkNativeWhammyLineResponseA4x3=-0.59653887f;",
+                 "active whammy sustain compensation records the measured native line-texture response intercept");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkNativeWhammyLineResponseB4x3=0.79456448f;",
+                 "active whammy sustain compensation records the measured native line-texture response slope");
+  ok &= absent(highway_renderer_c,
+               "kPcsx2MeasuredTailBodyTightScale",
+               "highway sustain body width must come from the authored broad/tight tail fields");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkCamPos[3]={kPcsx2MeasuredCamX16x9,-63.22f,"
+                 "17.33562394f};",
+                 "highway camera height is pinned to the PCSX2 rail/strikeline trace");
+  ok &= contains(highway_renderer_c,
+                 "ghogx::render::Mat4highway_camera_view("
+                 "constHighwayAspectProfile&profile){",
+                 "highway camera view is derived from the active aspect profile");
+  ok &= contains(highway_renderer_c,
+                 "returnhighway_root.lane_x(lane);",
+                 "lane child positions are derived from the highway root");
+  ok &= contains(highway_renderer_c,
+                 "transform.scale[0]=highway_root.scale_x(transform.scale[0]);",
+                 "animated highway child meshes inherit root X scale");
+  ok &= contains(highway_renderer_c,
+                 "constMat4view_proj=view*proj;",
+                 "measured whammy tail widths are solved through the active highway camera");
+  ok &= contains(highway_renderer_c,
+                 "autolocal_tail_half_for_screen_width=[&](intlane,floaty,",
+                 "whammy tail body sections convert PCSX2 screen-width data back into root-space width");
+  ok &= contains(highway_renderer_c,
+                 "sample_compensated_tail_width_px_720(rel)",
+                 "whammy tail body width uses PCSX2 visible targets after measured native line-response inversion");
+  ok &= contains(highway_renderer_h_c,
+                 "boolone_shot=false,floatx_scale=1.0f",
+                 "highway particles can inherit the root X scale instead of using ad-hoc offsets");
   ok &= contains(highway_renderer_h_c,
                  "conststd::vector<uint8_t>*consumed_notes=nullptr",
                  "highway renderer accepts the FoFiX consumed-note ledger");
@@ -2059,6 +2163,12 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "alpha_dist_=keyed_float(tree,\"alpha_dist\",alpha_dist_);",
                  "highway fade distance comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "top_y_=kPcsx2MeasuredFadeTopY;",
+                 "highway applies the PCSX2-measured fade horizon after loading authored config");
+  ok &= contains(highway_renderer_c,
+                 "alpha_dist_=kPcsx2MeasuredFadeAlphaDist;",
+                 "highway applies the PCSX2-measured fade band after loading authored config");
   ok &= contains(highway_renderer_c,
                  "tail_glow_width_=keyed_float(tree,\"tail_glow_width\","
                  "tail_glow_width_);",
@@ -2190,7 +2300,10 @@ int main() {
                  "parent_override.empty()?mesh->parent:parent_override;",
                  "highway runtime meshes can instantiate hidden variants in a live source group frame");
   ok &= contains(highway_renderer_c,
-                 "dst.u=src.u*mat->tex_scale[0]+mat->tex_offset[0];",
+                 "mesh_name==\"tail02.mesh\"&&source_x_span>0.001f",
+                 "highway only reconstructs cross-tail U coordinates for the native sustain-tail mesh");
+  ok &= contains(highway_renderer_c,
+                 "dst.u=source_u*mat->tex_scale[0]+mat->tex_offset[0];",
                  "highway runtime meshes apply authored MILO material U transforms");
   ok &= contains(highway_renderer_c,
                  "dst.v=src.v*mat->tex_scale[1]+mat->tex_offset[1];",
@@ -2285,16 +2398,70 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "burn_castlight_mesh_=convert_mesh(\"burn_castlight.mesh\");",
                  "highway loads the native burn-tail castlight mesh");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(burn_tail_particles_,\"burn_tail_base.part\","
+                 "\"burn_tail.view\");",
+                 "highway loads both authored burn-tail ParticleSys children");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(burn_tail_particles_,\"burn_tail_big.part\","
+                 "\"burn_tail.view\");",
+                 "highway loads the authored large burn-tail ParticleSys child");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(smash_normal_particles_,\"smash_normal_1.part\","
+                 "\"smash_normal.view\");",
+                 "highway loads authored normal hit-smash particles");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(smash_bonus_particles_,\"smash_bonus_4.part\","
+                 "\"smash_bonus.view\");",
+                 "highway loads authored bonus hit-smash particles");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(smash_star_particles_,\"smash_star_0.part\","
+                 "\"smash_star.view\");",
+                 "highway loads authored star-hit particles");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(smash_combo_particles_,\"smash_combo_burst.part\","
+                 "\"smash_combo.view\");",
+                 "highway loads authored combo-hit particles");
+  ok &= contains(highway_renderer_c,
+                 "append_particle(track_explode_particles_,\"track_explode_01.part\","
+                 "\"track_explode.view\");",
+                 "highway loads authored track-explode particle systems");
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshheld_tight_tail_mesh_;",
                  "highway stores the authored tight held sustain core mesh");
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshburn_castlight_mesh_;",
                  "highway stores the native burn-tail castlight mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeParticleSystem>burn_tail_particles_;",
+                 "highway stores the authored burn-tail particle systems");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeParticleSystem>smash_normal_particles_;",
+                 "highway stores the authored normal hit-smash particle systems");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeParticleSystem>smash_bonus_particles_;",
+                 "highway stores the authored bonus hit-smash particle systems");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeParticleSystem>smash_star_particles_;",
+                 "highway stores the authored star-hit particle systems");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeParticleSystem>smash_combo_particles_;",
+                 "highway stores the authored combo-hit particle systems");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeParticleSystem>track_explode_particles_;",
+                 "highway stores the authored track-explode particle systems");
   ok &= contains(highway_renderer_c,
                  "star_tail_mesh_=convert_mesh(\"tail02.mesh\","
                  "\"tail_glow_star.mat\");",
                  "highway loads the native star-power sustain-tail glow material");
+  ok &= contains(highway_renderer_c,
+                 "whammy_tail_mesh_=convert_mesh(\"tail02.mesh\","
+                 "\"tail_glow_whammy.mat\");",
+                 "highway loads the native whammy sustain-tail glow material");
+  ok &= contains(highway_renderer_c,
+                 "whammy_tail_line_material_=convert_line_material("
+                 "\"tail_glow_whammy.mat\");",
+                 "highway loads the source whammy sustain-tail RndLine material");
   ok &= contains(highway_renderer_c,
                  "star_phrase_tail_mesh_=convert_mesh(\"tail02.mesh\","
                  "\"tail_star.mat\");",
@@ -2305,9 +2472,22 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "log_runtime_mesh(\"star_held_tail\",star_tail_mesh_);",
                  "highway asset diagnostics expose held star sustain tail UV/material bounds");
+  ok &= contains(highway_renderer_c,
+                 "log_runtime_mesh(\"whammy_held_tail\",whammy_tail_mesh_);",
+                 "highway asset diagnostics expose held whammy sustain tail UV/material bounds");
+  ok &= contains(highway_renderer_c,
+                 "log_runtime_line_material(\"whammy_tail\","
+                 "whammy_tail_line_material_);",
+                 "highway asset diagnostics expose the source whammy RndLine material");
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshstar_phrase_tail_mesh_;",
                  "highway stores incoming star-phrase sustain tails separately from held star glow tails");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshwhammy_tail_mesh_;",
+                 "highway stores held whammy sustain tails separately from held star glow tails");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeLineMaterialwhammy_tail_line_material_;",
+                 "highway stores active whammy sustain glow as a runtime line material");
   ok &= contains(highway_renderer_c,
                  "bonus_tail_mesh_=convert_mesh(\"tail02.mesh\","
                  "\"tail_bonus.mat\");",
@@ -2447,6 +2627,16 @@ int main() {
                  "side_rail_d3d_color(side_rail_color)",
                  "highway draws side rails with the authored live MatAnim state");
   ok &= contains(highway_renderer_c,
+                 "constinta=std::clamp(static_cast<int>(color.a*255.0f),0,255);",
+                 "highway preserves authored side-rail MatAnim alpha");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh_scaled_with_texture("
+                 "track_side_rails_mesh_,track_side_rails_mesh_.texture_name,"
+                 "0.0f,0.0f,side_rail_d3d_color(side_rail_color),"
+                 "highway_root.x_scale,1.0f,1.0f,false,0.0f,0.0f,true,0.0f,false,"
+                 "0.0f,true,top_y_,alpha_dist_);",
+                 "highway fades native side rails through the source alpha-distance band");
+  ok &= contains(highway_renderer_c,
                  "surface_flash_2x_=mat_anim_color_curve("
                  "side_rail_anims,\"surface_flash_2x.mnm\");",
                  "highway resolves the authored 2x track-surface flash curve");
@@ -2523,6 +2713,13 @@ int main() {
                  "track_lane_lines_mesh_=convert_mesh(\"track_lane_lines5.mesh\");",
                  "highway loads native track lane-line geometry");
   ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh_scaled_with_texture("
+                 "track_lane_lines_mesh_,track_lane_lines_mesh_.texture_name,"
+                 "0.0f,0.0f,D3DCOLOR_ARGB(48,32,32,32),"
+                 "highway_root.x_scale,1.0f,1.0f,true,0.0f,0.0f,true,0.0f,false,"
+                 "0.0f,true,top_y_,alpha_dist_);",
+                 "GH2 highway lane divisions stay dark, translucent, and horizon-faded instead of bold white center stripes");
+  ok &= contains(highway_renderer_c,
                  "star_power_track_glow_mesh_=convert_mesh("
                  "\"lightning_trackglow.mesh\");",
                  "highway loads the native star-power track glow mesh");
@@ -2553,9 +2750,13 @@ int main() {
                  "star_power_flash*175.0f),0,255);",
                  "highway scales native star-power track-glow alpha from FoFiX event pulse state");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(star_power_track_glow_mesh_,0.0f,0.0f,"
-                 "D3DCOLOR_ARGB(glow_alpha,255,255,255),1.0f,true);",
-                 "highway draws the authored star-power track glow mesh additively");
+                 "draw_runtime_mesh_scaled_with_texture("
+                 "star_power_track_glow_mesh_,star_power_track_glow_mesh_.texture_name,"
+                 "0.0f,0.0f,D3DCOLOR_ARGB(glow_alpha,255,255,255),"
+                 "highway_root.x_scale,1.0f,1.0f,true,0.0f,0.0f,true,"
+                 "0.0f,false,0.0f,true,source_fade_top_y,"
+                 "source_fade_alpha_dist);",
+                 "highway fades the authored star-power track glow through the same measured horizon band as the road");
   ok &= contains(highway_renderer_c,
                  "bar_line_mesh_=convert_mesh(\"bar_line5.mesh\");",
                  "highway loads native downbeat bar-line geometry");
@@ -2689,13 +2890,21 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "\"[highway-bad-feedback]t=%.3fflash=%.3fside=%.3f\""
                  "\"explode=%denabled=%dforced=%ddisabled=%dmeshes=%zu\""
-                 "\"alpha=%dmiss_mesh=%d\\n\"",
-                 "highway exposes focused bad-feedback proof rows");
+                 "\"particles=%zuparticles_enabled=%dfade_top=%.3f\""
+                 "\"fade_dist=%.3falpha=%dmiss_mesh=%d\\n\"",
+                 "highway exposes focused bad-feedback proof rows with far-fade trace data");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(mesh,0.0f,0.0f,"
+                 "constbooltrack_explode_particles_enabled="
+                 "env_enabled(\"GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE_PARTICLES\")&&"
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE_PARTICLES\");",
+                 "unresolved track-explode ParticleSys debris is opt-in until traced");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh_scaled_with_texture(mesh,mesh.texture_name,0.0f,0.0f,"
                  "D3DCOLOR_ARGB(track_explode_alpha,255,255,255),"
-                 "1.0f,true);",
-                 "highway draws native track-explode meshes only through the explicit proof gate");
+                 "highway_root.x_scale,1.0f,1.0f,true,0.0f,0.0f,true,"
+                 "0.0f,false,0.0f,true,source_fade_top_y,"
+                 "source_fade_alpha_dist);",
+                 "highway draws native track-explode meshes through the measured far-fade band");
   ok &= contains(highway_renderer_c,
                  "starcollect=%d",
                  "highway logs native star-collect hit-flame availability");
@@ -2712,25 +2921,30 @@ int main() {
                  "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d\"",
                  "highway tail diagnostics label active FoFiX sustains and whammy state");
   ok &= contains(highway_renderer_c,
+                 "\"hy=%.3ffade=%.3f..%.3fmesh=%dtex=%stex_ok=%d",
+                 "highway tail diagnostics expose measured far-fade factors for proof captures");
+  ok &= contains(highway_renderer_c,
                  "if(active_sustains){for(constauto&sustain:*active_sustains){",
                  "highway iterates live FoFiX active sustain exports");
   ok &= contains(highway_renderer_c,
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_lane\",lane_held_tail,held_tail,tail_glow_width_,",
-                 "held FoFiX sustains draw the native per-lane held-tail mesh");
+                 "\"held_lane\",lane_held_tail,held_tail,"
+                 "tail_glow_width_,",
+                 "held FoFiX sustains draw the native per-lane held-tail mesh at the authored broad glow width");
   ok &= contains(highway_renderer_c,
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
                  "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
                  "tail_glow_tight_width_,",
-                 "held FoFiX sustains layer the native tight-tail highlight");
+                 "held FoFiX sustains layer the authored tight-tail highlight");
   ok &= contains(highway_renderer_c,
-                 "draw_authored_runtime_mesh(burn_castlight_mesh_,lane_x(lane),"
-                 "kStrikeY,D3DCOLOR_ARGB(255,255,255,255),1.0f,true);",
-                 "held FoFiX sustains draw the native burn castlight at the strikeline");
+                 "constfloatburn_y=kStrikeY+(bonus_highway_active?"
+                 "burn_bonus_y_:(sustain_whammy_tail?burn_whammy_y_:"
+                 "burn_normal_y_));",
+                 "held FoFiX sustains choose the source track_graphics burn offset");
   ok &= contains(highway_renderer_c,
-                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_star\",&star_tail_mesh_,held_tail,tail_glow_width_,",
-                 "held FoFiX star sustains layer the native star held-tail mesh");
+                 "sustain_whammy_tail?whammy_tail_line_material_.ok:"
+                 "active_star_tail!=nullptr",
+                 "held FoFiX star sustains select the source runtime whammy line only during active whammy");
   ok &= contains(highway_renderer_c,
                  "smasher_normal_texture_name_=material_texture("
                  "\"gem_smasher.mat\");",
@@ -2764,16 +2978,30 @@ int main() {
                  "bonus_smasher_rim_mesh_=convert_mesh_with_material_fallback("
                  "\"smasher_rim.mesh\",\"now_ring_bonus.mat\");",
                  "active star power decodes the native bonus smasher ring material into the rim mesh");
+  ok &= absent(highway_renderer_c,
+               "if(selected_surface_loaded_){draw_track_surface_quad();}",
+               "selected guitarist surface no longer bypasses the native track_surface5 mesh");
   ok &= contains(highway_renderer_c,
-                 "if(selected_surface_loaded_){draw_track_surface_quad();}",
-                 "selected guitarist surface uses the known-good projected highway surface path");
+                 "constfloatsurface_v_per_y=track_surface_v_per_y();",
+                 "highway samples native track-surface V density once for scroll and proof rows");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(track_surface_mesh_,0.0f,0.0f,"
-                 "track_surface_tint,1.0f,false);",
-                 "default track surface draws through the native track_surface5 mesh UVs");
+                 "constfloatsurface_scroll_v=std::fmod("
+                 "static_cast<float>(song_time)*speed*surface_v_per_y,"
+                 "2048.0f);",
+                 "native highway surface scrolls at the same signed pace as the notes");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(track_mask_mesh_,0.0f,0.0f,"
-                 "D3DCOLOR_ARGB(255,255,255,255),1.0f,false);",
+                 "\"uv_v=%.6fnote_dy=%.3fsurface_dy=%.3fsame_pace=%d\"",
+                 "surface-scroll diagnostics prove the road texture moves with the notes");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh_scaled_with_texture(track_surface_mesh_,"
+                 "track_surface_mesh_.texture_name,0.0f,0.0f,"
+                 "track_surface_tint,highway_root.x_scale,1.0f,1.0f,"
+                 "false,0.0f,surface_scroll_v",
+                 "selected and default track surfaces draw through the native track_surface5 mesh UV path");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh_scaled_with_texture(track_mask_mesh_,"
+                 "track_mask_mesh_.texture_name,0.0f,0.0f,"
+                 "D3DCOLOR_ARGB(255,255,255,255),highway_root.x_scale,",
                  "highway draws the native track mask from the authored surface group");
   ok &= contains(highway_renderer_c,
                  "GHOGX_DISABLE_HIGHWAY_TRACK_MASK",
@@ -2809,7 +3037,7 @@ int main() {
                  "smasher_top_z-gem_smasher_mesh_.max_z;",
                  "fret targets are vertically positioned from native smasher mesh bounds");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh_with_texture(gem_smasher_mesh_,"
+                 "draw_centered_root_mesh_with_texture(gem_smasher_mesh_,"
                  "smasher_texture,x,kStrikeY,base,1.0f,true,"
                  "smasher_z_offset,true,kSmasherClipZ);",
                  "native fret targets draw clipped authored smasher textures");
@@ -2830,7 +3058,7 @@ int main() {
                  "ring_mesh=&bonus_smasher_rim_mesh_;}",
                  "active star power swaps target rings to the native bonus rim material");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(*ring_mesh,x,kStrikeY,",
+                 "draw_centered_root_mesh(*ring_mesh,x,kStrikeY,",
                  "native fret-target rings draw through decoded 3D rim meshes with material color intact");
   ok &= contains(highway_renderer_c,
                  "if(smasher_pressed){draw_smasher_ring();"
@@ -2838,7 +3066,7 @@ int main() {
                  "draw_smasher_ring();}",
                  "active smasher caps render over the ring while inactive rings remain visible");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh_with_texture(gem_smasher_mesh_,"
+                 "draw_centered_root_mesh_with_texture(gem_smasher_mesh_,"
                  "smasher_add_texture,x,kStrikeY,",
                  "held fret targets layer lane-colored additive smasher textures");
   ok &= contains(highway_renderer_c,
@@ -2889,9 +3117,13 @@ int main() {
                  "draw_centered_runtime_mesh_scaled",
                  "highway renderer can scale native sustain-tail meshes by segment length");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh_scaled(*mesh,lane_x(lane),cy,"
-                 "color,half_width/mesh_hx,hy/mesh_hy,1.0f);",
-                 "sustain tails stretch native tail geometry instead of only flat quads");
+                 "draw_runtime_mesh_scaled_with_texture(*mesh,mesh->texture_name,"
+                 "lane_x(lane)-mesh->center_x*(root_half_width/mesh_hx),"
+                 "cy-mesh->center_y*(hy/mesh_hy),color,"
+                 "root_half_width/mesh_hx,hy/mesh_hy,1.0f,true,0.0f,"
+                 "0.0f,true,0.0f,false,0.0f,true,source_fade_top_y,"
+                 "source_fade_alpha_dist);",
+                 "sustain tails stretch native tail geometry through the far-fade-aware path instead of only flat quads");
   ok &= contains(highway_renderer_c,
                  "constHighwayBlendStatetail_blend_state="
                  "highway_blend_state_for(mesh->blend);",
@@ -2913,7 +3145,7 @@ int main() {
                  "tail_glow_width_,"
                  "mesh?D3DCOLOR_ARGB(225,255,255,255):"
                  "slot_lane_colors_[lane],false,n.star_power,false);",
-                 "visible sustain tails carry authored width and star-phrase tags into diagnostics");
+                 "visible sustain tails carry the authored broad glow width and star-phrase tags into diagnostics");
   ok &= contains(highway_renderer_c,
                  "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d",
                  "tail diagnostics identify active star sustain whammy windows");
@@ -2926,7 +3158,7 @@ int main() {
                  "incoming star-power sustains use the authored star phrase tail before ordinary lane tails");
   ok &= contains(highway_renderer_c,
                  "\"flat_held\",nullptr,held_tail,tail_glow_tight_width_,",
-                 "flat held sustain fallback uses authored tail_glow_tight_width as a half-width");
+                 "flat held sustain fallback uses the authored tight tail width");
   ok &= contains(highway_renderer_c,
                  "casekHighwayBlendSrcAlphaAdd:",
                  "highway treats GH2 SrcAlphaAdd materials as additive glows");
@@ -2935,49 +3167,98 @@ int main() {
                  "held_tail_mesh_[lane].ok?&held_tail_mesh_[lane]:nullptr;",
                  "active held sustains pick the authored lane-specific glow tail before overlays");
   ok &= contains(highway_renderer_c,
-                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_lane\",lane_held_tail,held_tail,tail_glow_width_,"
-                 "D3DCOLOR_ARGB(245,255,255,255),"
-                 "true,sustain_star_tail,sustain_whammy_tail);",
-                 "active held sustains draw the authored wide lane glow mesh and report whammy-tagged star tails");
+                 "constbooldebug_whammy_line_only=sustain_whammy_tail&&"
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_WHAMMY_LINE_ONLY\");",
+                 "active whammy sustain diagnostics can isolate the source line without changing normal play");
   ok &= contains(highway_renderer_c,
-                 "if(held_tight_tail_mesh_.ok){draw_tail_segment("
+                 "if(!debug_whammy_line_only){"
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_lane\",lane_held_tail,held_tail,"
+                 "tail_glow_width_,"
+                 "D3DCOLOR_ARGB(245,255,255,255),"
+                 "true,sustain_star_tail,sustain_whammy_tail,"
+                 "sustain_whammy_tail);}",
+                 "active held sustains draw the authored broad lane glow mesh and report whammy-tagged star tails");
+  ok &= contains(highway_renderer_c,
+                 "if(held_tight_tail_mesh_.ok&&!debug_whammy_line_only){"
+                 "draw_tail_segment("
                  "lane,sustain.start_time,sustain.end_time,"
                  "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
                  "tail_glow_tight_width_,"
                  "D3DCOLOR_ARGB(255,255,255,255),"
                  "true,sustain_star_tail,sustain_whammy_tail);}",
-                 "active held sustains layer the authored tight core over the lane glow at source width");
+                 "active held sustains layer the authored tight core over the lane glow");
   ok &= contains(highway_renderer_c,
                  "constHighwayBlendStateburn_blend_state="
                  "highway_blend_state_for(burn_castlight_mesh_.blend);",
                  "active held sustains use the authored burn-tail castlight blend");
   ok &= contains(highway_renderer_c,
-                 "draw_authored_runtime_mesh(burn_castlight_mesh_,lane_x(lane),"
-                 "kStrikeY,D3DCOLOR_ARGB(255,255,255,255),1.0f,true);",
-                 "active held sustains draw the native burn-tail castlight at the nowbar");
+                 "draw_runtime_particles(burn_tail_particles_,lane_x(lane),"
+                 "burn_y,song_time,1.0f,false,highway_root.x_scale);",
+                 "active held sustains draw authored burn-tail particles as root-space children");
   ok &= contains(highway_renderer_c,
-                 "if(!lane_held_tail){draw_flat_tail_fallback("
+                 "draw_authored_root_mesh(burn_castlight_mesh_,lane_x(lane),"
+                 "burn_y,D3DCOLOR_ARGB(255,255,255,255),1.0f,true,0.0f,"
+                 "false,0.0f,true);",
+                 "active held sustains draw the native burn-tail castlight in root space");
+  ok &= contains(highway_renderer_c,
+                 "if(!lane_held_tail&&!debug_whammy_line_only){"
+                 "draw_flat_tail_fallback("
                  "slot_lane_colors_[lane]);}",
                  "active held sustains only use the flat color fallback when native lane tails are absent");
   ok &= contains(highway_renderer_c,
-                 "if(sustain.star_power_tail&&star_tail_mesh_.ok){"
-                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_star\",&star_tail_mesh_,held_tail,tail_glow_width_,"
-                 "D3DCOLOR_ARGB(245,150,225,255),true,true,"
-                 "sustain_whammy_tail);}",
-                 "active star sustains layer the authored star tail over the lane mesh and expose whammy timing");
+                 "draw_runtime_particles(hit_particles,lane_x(lane),"
+                 "kStrikeY,song_time,f,true,highway_root.x_scale);",
+                 "hit feedback draws authored normal/bonus ParticleSys children in root space");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_particles(smash_star_particles_,lane_x(lane),"
+                 "kStrikeY,song_time,star_f,true,highway_root.x_scale);",
+                 "star-hit feedback draws authored star ParticleSys children in root space");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_particles(smash_combo_particles_,lane_x(lane),"
+                 "kStrikeY,song_time,f,true,highway_root.x_scale);",
+                 "combo feedback draws the authored combo ParticleSys child in root space");
+  ok &= contains(highway_renderer_c,
+                 "constfloatparticle_depth_fade=apply_depth_fade?"
+                 "depth_fade_for(world_y,depth_fade_top_y,"
+                 "depth_fade_alpha_dist):1.0f;",
+                 "runtime ParticleSys quads can share the highway far-depth fade");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_particles(track_explode_particles_,0.0f,0.0f,"
+                 "song_time,track_explode_f,true,highway_root.x_scale,true,"
+                 "source_fade_top_y,source_fade_alpha_dist);",
+                 "bad-feedback track explode ParticleSys children use the measured far-fade band");
+  ok &= contains(highway_renderer_c,
+                 "draw_whammy_tail_segment(lane,sustain.start_time,"
+                 "sustain.end_time,&whammy_tail_line_material_,"
+                 "tail_glow_width_,star_tail_color);",
+                 "active whammy star sustains use the source RndLine material without guessed width changes");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_line_y(lane,y0,y1,\"held_whammy_source_line\","
+                 "material,half_width,color,true,true,true,on,off,true);",
+                 "whammy sustain rendering is isolated on the source runtime line path for PCSX2 data-derived width tracing");
   ok &= contains(highway_renderer_c,
                  "constfloattail_near_y=kStrikeY+nowbar_tail_clip_;",
                  "sustain tails use the authored nowbar clip as their near clamp");
   ok &= contains(highway_renderer_c,
-                 "constfloattail_far_y=top_y_-horizon_tail_clip_;",
-                 "sustain tails use the authored horizon clip as their far clamp");
+                 "constfloattail_far_y=std::max(tail_near_y+1.0f,"
+                 "source_fade_top_y-std::max(horizon_tail_clip_,"
+                 "alpha_dist_*0.5f));",
+                 "sustain tails clamp before the traced horizon instead of drawing through it");
   ok &= contains(highway_renderer_c,
-                 "floaty0=std::max(note_y(on),tail_near_y);",
+                 "autofaded_tail_color=[&](D3DCOLORcolor,floaty)",
+                 "sustain flat-tail fallback computes endpoint alpha from the measured far fade");
+  ok &= contains(highway_renderer_c,
+                 "true,source_fade_top_y,source_fade_alpha_dist);",
+                 "sustain tail meshes use the same measured far-fade band as the track surface");
+  ok &= absent(highway_renderer_c,
+               "kPcsx2MeasuredTailBodyTightScale",
+               "sustain tails must not collapse authored broad/tight widths into a tight-width fudge factor");
+  ok &= contains(highway_renderer_c,
+                 "constfloaty0=std::max(note_y(on),tail_near_y);",
                  "sustain tail start clamps to the authored nowbar tail clip");
   ok &= contains(highway_renderer_c,
-                 "floaty1=std::min(note_y(off),tail_far_y);",
+                 "constfloaty1=std::min(note_y(off),tail_far_y);",
                  "sustain tail end clamps to the authored horizon tail clip");
   ok &= contains(highway_renderer_c,
                  "bonus_highway_active&&bonus_tail_mesh_.ok",
@@ -3043,9 +3324,9 @@ int main() {
                  "native hit-flame meshes preserve authored absolute TransAnim scale");
   ok &= contains(highway_renderer_c,
                  "draw_authored_runtime_mesh_transformed("
-                 "mesh,lane_x(lane),kStrikeY,tint.color,transform,true,0.0f,"
-                 "!tint.color_anim_used);",
-                 "native hit-flame mesh keeps authored placement and MatAnim color at the strikeline");
+                 "mesh,lane_x(lane),kStrikeY,tint.color,"
+                 "root_transform(transform),true,0.0f,!tint.color_anim_used);",
+                 "native hit-flame mesh keeps authored placement and MatAnim color in root space");
   ok &= contains(highway_renderer_c,
                  "constintcombo_tier=force_combo_lightning?3:"
                  "std::clamp(combo_multiplier-1,0,3);",
@@ -3078,9 +3359,9 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "draw_centered_runtime_mesh_transformed("
                  "combo_lightning_mesh_[i],lane_x(lane),kStrikeY,"
-                 "combo_tint.color,combo_transform,true,0.0f,"
+                 "combo_tint.color,root_transform(combo_transform),true,0.0f,"
                  "!combo_tint.color_anim_used);",
-                 "native combo lightning uses transformed MatAnim-colored mesh playback at the strikeline");
+                 "native combo lightning uses transformed MatAnim-colored mesh playback in root space");
   ok &= contains(highway_renderer_c,
                  "combo_color_anim=%d/%d/%d",
                  "hit feedback diagnostics report combo-lightning MatAnim availability");
@@ -3193,8 +3474,8 @@ int main() {
                "star-note top cap must not borrow the star_base.mesh TransAnim");
   ok &= contains(highway_renderer_c,
                  "draw_authored_runtime_mesh_transformed("
-                 "mesh,x,g.y,tint,transform);",
-                 "star-note base still draws through the authored-origin full transform path");
+                 "mesh,x,g.y,tint,root_transform(transform));",
+                 "star-note base still draws through the authored-origin full transform path in root space");
   ok &= contains(highway_renderer_c,
                  "if(moving_note_star_prefers_black_top_&&"
                  "star_black_top_mesh_.ok){star_top=&star_black_top_mesh_;}",
@@ -3458,8 +3739,9 @@ int main() {
                "constfloatmiss_half_y=mesh_half_y(miss_mesh_,",
                "miss feedback must not bbox-center the authored source mesh above the strikeline");
   ok &= contains(highway_renderer_c,
-                 "constfloatsz_x=lane_gem_half_x(lane)*(1.5f+0.9f*f);",
-                 "flat hit-flame fallback width follows native gem bounds");
+                 "constfloatsz_x=highway_root.scale_x("
+                 "lane_gem_half_x(lane)*(1.5f+0.9f*f));",
+                 "flat hit-flame fallback width follows native gem bounds in root space");
   ok &= contains(highway_renderer_c,
                  "constfloatsz_y=lane_gem_half_y(lane)*(1.5f+0.9f*f);",
                  "flat hit-flame fallback depth follows native gem bounds");
@@ -3468,9 +3750,9 @@ int main() {
                  "hit feedback diagnostics prove native flame meshes keep authored source placement");
   ok &= contains(highway_renderer_c,
                  "draw_authored_runtime_mesh_transformed(mesh,lane_x(lane),"
-                 "kStrikeY,tint.color,transform,true,0.0f,"
+                 "kStrikeY,tint.color,root_transform(transform),true,0.0f,"
                  "!tint.color_anim_used);",
-                 "native hit flames draw from their authored smash view origin with source animation");
+                 "native hit flames draw from their authored smash view origin with source animation in root space");
   ok &= absent(highway_renderer_c,
                "draw_centered_runtime_mesh_scaled(mesh,lane_x(lane),"
                "kStrikeY,D3DCOLOR_ARGB(alpha,255,255,255),",
@@ -3600,6 +3882,60 @@ int main() {
                  "impl_=std::make_unique<Impl>();"
                  "if(hdr_path.empty()||ark_path.empty())",
                  "loading a VGS tears down any previous streaming voice first");
+  ok &= contains(audio_player_c,
+                 "load_gameplay_sfx_bank(hdr_path,ark_path);",
+                 "audio player loads GH2 ingame bank gameplay feedback sounds with the song stream");
+  ok &= contains(audio_player_c,
+                 "load_beatmatcher_config(hdr_path,ark_path);",
+                 "audio player loads GH2 beatmatcher whammy pitch settings with the song stream");
+  ok &= contains(audio_player_c,
+                 "pitch_bend_range_semitones",
+                 "audio player stores the GH2 pitch_bend_range source value");
+  ok &= contains(audio_player_c,
+                 "pitch_bend_ms_to_full",
+                 "audio player stores the GH2 ms_to_full_pitch_bend source value");
+  ok &= contains(audio_player_c,
+                 "guitar_stem_split=1",
+                 "audio player splits the playable guitar stem before whammy pitch or miss mute");
+  ok &= contains(audio_player_c,
+                 "StreamingPitchShifterwhammy_pitch_shifter;",
+                 "audio player owns a zero-dependency streaming whammy pitch shifter");
+  ok &= contains(audio_player_c,
+                 "whammy_pitch_shifter.process_stereo(",
+                 "audio player pitch-shifts the isolated guitar stem without changing buffer length");
+  ok &= contains(audio_player_c,
+                 "whammy_pitch_ratio.store(ratio",
+                 "audio player forwards source beatmatcher pitch ratio into the streaming pitch shifter");
+  ok &= contains(audio_player_c,
+                 "mode=streaming_delay_pitch_shifttime_preserving=1",
+                 "audio whammy diagnostics identify the time-preserving pitch path");
+  ok &= absent(audio_player_c,
+               "guitar_source->SetFrequencyRatio(ratio);",
+               "audio whammy must not change the isolated guitar voice playback rate");
+  ok &= contains(audio_player_c,
+                 "play_route(\"miss_gtr\",\"bad_pick\",",
+                 "audio player routes wrong-time picks through the GH2 miss_gtr bank group");
+  ok &= contains(audio_player_c,
+                 "play_route(\"sp_awarded\",\"star_phrase_complete\",",
+                 "audio player routes clean star phrases through the GH2 sp_awarded bank group");
+  ok &= contains(audio_player_c,
+                 "guitar_stem_muted.exchange(muted",
+                 "audio player can mute the playable guitar stem after missed notes");
+  ok &= contains(gameplay_c,
+                 "audio_.note_hit_feedback(star_collect);",
+                 "FoFiX hit events restore guitar audio and play source star-gem feedback");
+  ok &= contains(gameplay_c,
+                 "audio_.note_miss_feedback();",
+                 "FoFiX miss events mute the playable guitar stem");
+  ok &= contains(gameplay_c,
+                 "audio_.overstrum_feedback();",
+                 "FoFiX overstrum events play the bad-pick source sound");
+  ok &= contains(gameplay_c,
+                 "audio_.star_phrase_complete_feedback();",
+                 "FoFiX star phrase completion plays the source awarded stinger");
+  ok &= contains(gameplay_c,
+                 "audio_.set_whammy_state(raw_whammy&&sustain_active,song_time_);",
+                 "live gameplay gates source-configured audio whammy pitch to an active held sustain");
   ok &= contains(gameplay_c,
                  "score_=gameplay_session_mirror_->score();",
                  "live gameplay score is adopted from the FoFiX session");
@@ -3626,8 +3962,8 @@ int main() {
                  "current_signature!=gameplay_session_sustain_log_signature_",
                  "active sustain diagnostics log only when exported sustain state changes");
   ok &= contains(gameplay_session_c,
-                 "kFoFiXDigitalWhammyStarPowerPerSecond=0.05*60.0;",
-                 "FoFiX whammy star-power gain uses the source digital chunk at a deterministic 60 Hz rate");
+                 "kGh2WhammyStarPowerPerSecond=0.034*100.0;",
+                 "FoFiX whammy star-power gain follows the GH2 source whammy rate");
   ok &= contains(gameplay_session_c,
                  "FoFiXSessionEventType::StarPowerWhammy",
                  "FoFiX whammy star-power gain emits a native session event");
@@ -11769,8 +12105,9 @@ int main() {
                  "venue_chars_scene_for_load);",
                  "venue renderer receives decoded WorldCrowd placement meshes as the authored crowd floor");
   ok &= contains(gameplay_c,
-                 "for(constchar*name:{\"floor.mat\",\"tile_dark.mat\"})",
-                 "WorldCrowd floor cleanup prefers RedOctane's grey floor material before tile trim");
+                 "for(constchar*name:{\"floor.mat\",\"tile_dark.mat\","
+                 "\"street_asphalt.mat\"})",
+                 "WorldCrowd floor cleanup prefers RedOctane's grey floor material before tile trim and arena asphalt");
   ok &= contains(gameplay_c,
                  "if(constautofloor_mat=dst_floor_mat()){"
                  "conststd::stringoriginal_material=draw_mesh.material;"

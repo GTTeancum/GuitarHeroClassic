@@ -20,15 +20,15 @@ int main() {
   using namespace ghogx::game;
 
   const FoFiXHitWindow window = fofix_hit_window_for_bpm(120.0);
-  CHECK(window.early_sec > 0.141 && window.early_sec < 0.143,
-        "FoFiX standard 120 BPM early margin is about 142 ms");
-  CHECK(window.late_sec > 0.141 && window.late_sec < 0.143,
-        "FoFiX standard 120 BPM late margin is about 142 ms");
-  CHECK(fofix_note_in_window(10.0, 10.142, window),
+  CHECK(window.early_sec > 0.099 && window.early_sec < 0.101,
+        "GH2 watcher slop gives a 100 ms early margin");
+  CHECK(window.late_sec > 0.099 && window.late_sec < 0.101,
+        "GH2 watcher slop gives a 100 ms late margin");
+  CHECK(fofix_note_in_window(10.0, 10.100, window),
         "note at positive edge is hittable");
-  CHECK(!fofix_note_in_window(10.0, 10.143, window),
+  CHECK(!fofix_note_in_window(10.0, 10.101, window),
         "note beyond positive edge is too early");
-  CHECK(fofix_note_missed(10.143, 10.0, window),
+  CHECK(fofix_note_missed(10.101, 10.0, window),
         "note beyond late edge is missed");
 
   CHECK(fofix_match_frets(0b00001, 0b00001), "green matches green");
@@ -100,11 +100,11 @@ int main() {
   CHECK(fofix_activate_star_power(star), "can activate at or above half meter");
   CHECK(fofix_star_power_score_multiplier(star) == 2,
         "active star power doubles scoring");
-  fofix_update_star_power(star, 10.0);
+  fofix_update_star_power(star, 4.0);
   CHECK(star.active && fofix_star_power_fill(star) > 0.499 &&
             fofix_star_power_fill(star) < 0.501,
-        "star power drains at five percent per second");
-  fofix_update_star_power(star, 10.0);
+        "star power drains at the GH2 deploy rate");
+  fofix_update_star_power(star, 4.0);
   CHECK(!star.active && fofix_star_power_fill(star) == 0.0,
         "star power deactivates when drained");
 

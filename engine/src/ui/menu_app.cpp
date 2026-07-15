@@ -703,7 +703,7 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
 
 int run_menu_mode(const std::string& hdr, const std::string& ark,
                   const std::string& screenshot_path, int screenshot_frame,
-                  int max_frames) {
+                  int max_frames, int window_width, int window_height) {
   // 1. Boot the menu logic engine: classes, all screens (verbatim), game-side.
   register_ui_classes();
   ScreenManager mgr;
@@ -729,7 +729,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   mgr.goto_screen(Symbol("main_screen"));
 
   // 2. Window + scene renderer.
-  auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX — menu");
+  auto win = ghogx::render::Window::create(window_width, window_height,
+                                           "GuitarHeroOGX — menu");
   if (!win) { std::fprintf(stderr, "[menu] window/device create failed\n"); return 1; }
   ghogx::render::MiloSceneRenderer renderer(*win);
 

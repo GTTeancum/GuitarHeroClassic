@@ -156,6 +156,51 @@ class HighwayRenderer {
     uint8_t blend = 0;
     bool ok = false;
   };
+  struct RuntimeLineMaterial {
+    std::string material_name;
+    std::string texture_name;
+    std::array<float, 4> color = {1.0f, 1.0f, 1.0f, 1.0f};
+    uint8_t blend = 0;
+    bool ok = false;
+  };
+  struct RuntimeParticleSystem {
+    std::string name;
+    std::string texture_name;
+    uint8_t blend = 0;
+    uint32_t max_particles = 0;
+    std::array<float, 3> local_pos = {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> box_extent_min = {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> box_extent_max = {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> force_dir = {0.0f, 0.0f, 0.0f};
+    std::array<float, 4> mat_color = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> start_color_low = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> start_color_high = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> mid_color_low = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> mid_color_high = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> end_color_low = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> end_color_high = {1.0f, 1.0f, 1.0f, 1.0f};
+    float speed_min = 0.0f;
+    float speed_max = 0.0f;
+    float pitch_min = 0.0f;
+    float pitch_max = 0.0f;
+    float yaw_min = 0.0f;
+    float yaw_max = 0.0f;
+    float start_size_min = 1.0f;
+    float start_size_max = 1.0f;
+    float delta_size_min = 0.0f;
+    float delta_size_max = 0.0f;
+    float lifetime_min = 1.0f;
+    float lifetime_max = 1.0f;
+    float grow_ratio = 0.0f;
+    float shrink_ratio = 1.0f;
+    float mid_color_ratio = 0.0f;
+    bool bubble = false;
+    float bubble_period_min = 10.0f;
+    float bubble_period_max = 10.0f;
+    float bubble_size_min = 1.0f;
+    float bubble_size_max = 1.0f;
+    bool ok = false;
+  };
 
   void draw_impl(double song_time, const ghogx::chart::Chart& chart,
                  int difficulty, uint32_t fret_held_mask,
@@ -198,7 +243,8 @@ class HighwayRenderer {
       bool use_texture_alpha = true, float uv_u_offset = 0.0f,
       float uv_v_offset = 0.0f, bool use_vertex_color = true,
       float z_offset = 0.0f, bool clip_to_z_min = false,
-      float z_min = 0.0f) const;
+      float z_min = 0.0f, bool apply_depth_fade = false,
+      float depth_fade_top_y = 0.0f, float depth_fade_alpha_dist = 0.0f) const;
   void draw_centered_runtime_mesh(const RuntimeMesh& mesh, float cx, float cy,
                                   uint32_t tint, float scale = 1.0f,
                                   bool use_texture_alpha = true,
@@ -250,6 +296,12 @@ class HighwayRenderer {
       float cy, uint32_t tint, float scale = 1.0f,
       bool use_texture_alpha = true, float z_offset = 0.0f,
       bool clip_to_z_min = false, float z_min = 0.0f) const;
+  void draw_runtime_particles(
+      const std::vector<RuntimeParticleSystem>& particles, float origin_x,
+      float origin_y, double song_time, float intensity = 1.0f,
+      bool one_shot = false, float x_scale = 1.0f,
+      bool apply_depth_fade = false, float depth_fade_top_y = 0.0f,
+      float depth_fade_alpha_dist = 0.0f) const;
   void load_track_graphics_config(const std::string& hdr_path,
                                   const std::string& ark_path);
 
@@ -268,6 +320,11 @@ class HighwayRenderer {
   float nowbar_tail_clip_ = 1.5f;
   float cam_near_ = 50.0f;
   float cam_far_ = 200.0f;
+  float cam_z_start_ = 0.0f;
+  float cam_z_end_ = 0.1f;
+  float burn_normal_y_ = 0.0f;
+  float burn_whammy_y_ = 10.0f;
+  float burn_bonus_y_ = 20.0f;
   std::array<std::string, 5> slot_color_names_ = {
       "green", "red", "yellow", "blue", "orange"};
   std::array<uint32_t, 5> slot_lane_colors_ = {
@@ -282,6 +339,12 @@ class HighwayRenderer {
   std::array<RuntimeMesh, 5> held_tail_mesh_;
   RuntimeMesh held_tight_tail_mesh_;
   RuntimeMesh burn_castlight_mesh_;
+  std::vector<RuntimeParticleSystem> burn_tail_particles_;
+  std::vector<RuntimeParticleSystem> smash_normal_particles_;
+  std::vector<RuntimeParticleSystem> smash_bonus_particles_;
+  std::vector<RuntimeParticleSystem> smash_star_particles_;
+  std::vector<RuntimeParticleSystem> smash_combo_particles_;
+  std::vector<RuntimeParticleSystem> track_explode_particles_;
   RuntimeMesh star_base_mesh_;
   RuntimeMesh star_overlay_mesh_;
   RuntimeMesh star_black_top_mesh_;
@@ -295,6 +358,8 @@ class HighwayRenderer {
   RuntimeMesh gem_glow_mesh_;
   RuntimeMesh star_phrase_tail_mesh_;
   RuntimeMesh star_tail_mesh_;
+  RuntimeMesh whammy_tail_mesh_;
+  RuntimeLineMaterial whammy_tail_line_material_;
   RuntimeMesh bonus_tail_mesh_;
   RuntimeMesh bonus_gem_mesh_;
   RuntimeMesh bonus_gem_overlay_mesh_;

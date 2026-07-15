@@ -11,6 +11,8 @@
 //   ghogx_app                         interactive window (Esc or close to quit)
 //   ghogx_app --frames N              run N frames headlessly-ish then exit
 //   ghogx_app --ark-dir <dir>         load splash + gameplay from PS2 ARK
+//   ghogx_app --hdr <main.hdr> --ark <main_0.ark>
+//                                      load splash + gameplay from explicit ARK paths
 //   ghogx_app --song <shortname>      which song to play (default: shoutatthedevil)
 //   ghogx_app --difficulty <0-3>      chart difficulty (default: 1 = Medium)
 //   ghogx_app --diagnostic-song-start <sec>
@@ -29,6 +31,7 @@
 //   ghogx_app --diagnostic-guitar-script-whammy
 //                                      hold whammy on generated star sustains
 //   ghogx_app --debug-note-counter     show note count + next STANDARD/STAR/HOPO
+//   ghogx_app --aspect <4:3|16:9>      render aspect preset (default: 4:3)
 //   ghogx_app --diagnostic-character <c>
 //                                      route guitarist/highway art through character c
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
@@ -103,11 +106,29 @@ namespace {
 
 using ScreenshotSequence = std::map<uint64_t, std::string>;
 
+struct RenderSize {
+  int width = 960;
+  int height = 720;
+};
+
 bool env_flag(const char* name) {
   char value[16] = {};
   const DWORD len = GetEnvironmentVariableA(name, value,
                                             static_cast<DWORD>(sizeof(value)));
   return len > 0 && (len >= sizeof(value) || std::strcmp(value, "0") != 0);
+}
+
+bool set_render_aspect_preset(const char* text, RenderSize& out) {
+  if (!text) return false;
+  if (std::strcmp(text, "4:3") == 0) {
+    out = RenderSize{960, 720};
+    return true;
+  }
+  if (std::strcmp(text, "16:9") == 0) {
+    out = RenderSize{1280, 720};
+    return true;
+  }
+  return false;
 }
 
 // A timed fade-through-black sequence of splash images (boot logos -> title).
@@ -794,7 +815,10 @@ class AppEngine : public ghogx::Engine {
   }
 
   void draw_gameplay_hud() {
-    if (env_flag("GHOGX_DEBUG_VENUE_ONLY_CAPTURE")) return;
+    if (env_flag("GHOGX_DEBUG_VENUE_ONLY_CAPTURE") ||
+        env_flag("GHOGX_HIDE_GAMEPLAY_HUD")) {
+      return;
+    }
     ensure_hud_loaded();
     if (!hud_ready_) return;
 
@@ -1254,7 +1278,8 @@ bool viewer_auto_hand_overlays_enabled() {
 int run_scene_mode(const std::string& hdr, const std::string& ark,
                    const std::string& milo_path,
                    const std::string& screenshot_path, int screenshot_frame,
-                   int max_frames, const CamOverride& cam_ovr) {
+                   int max_frames, const CamOverride& cam_ovr,
+                   const RenderSize& render_size) {
   using Action = ghogx::render::Window::Action;
 
   // Decode the scene (runtime-native: read .milo_ps2 from the ARK, decode in
@@ -1274,7 +1299,9 @@ int run_scene_mode(const std::string& hdr, const std::string& ark,
   std::map<std::string, ghogx::asset::Image> textures =
       ghogx::asset::load_milo_textures(hdr, ark, milo_path, names);
 
-  auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX — scene");
+  auto win = ghogx::render::Window::create(render_size.width,
+                                           render_size.height,
+                                           "GuitarHeroOGX — scene");
   if (!win) {
     std::fprintf(stderr, "[scene3d] failed to create window/device\n");
     return 1;
@@ -1372,8 +1399,11 @@ struct HudTestOptions {
 
 int run_hud_test_mode(const std::string& hdr, const std::string& ark,
                       const std::string& screenshot_path, int screenshot_frame,
-                      int max_frames, const HudTestOptions& options) {
-  auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX — HUD test");
+                      int max_frames, const HudTestOptions& options,
+                      const RenderSize& render_size) {
+  auto win = ghogx::render::Window::create(render_size.width,
+                                           render_size.height,
+                                           "GuitarHeroOGX — HUD test");
   if (!win) {
     std::fprintf(stderr, "[hud-test] failed to create window/device\n");
     return 1;
@@ -1554,7 +1584,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& fret_clip_arg = "",
                   const std::string& face_clip_arg = "",
                   const std::string& char_scene_milo = "",
-                  const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f}) {
+                  const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
+                  const RenderSize& render_size = RenderSize{}) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -1604,7 +1635,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   std::fprintf(stderr, "[char] loaded %zu/%zu textures\n",
                textures.size(), tex_names.size());
 
-  auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX — character");
+  auto win = ghogx::render::Window::create(render_size.width,
+                                           render_size.height,
+                                           "GuitarHeroOGX — character");
   if (!win) { std::fprintf(stderr, "[char] window failed\n"); return 1; }
 
   ghogx::character::CharRenderer renderer(*win);
@@ -1987,6 +2020,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
 int main(int argc, char** argv) {
   int max_frames = 0;
   std::string ark_dir;
+  std::string explicit_hdr;
+  std::string explicit_ark;
   std::string milo;
   std::string scene_milo;  // --scene: render a MILO's 3-D geometry directly
   std::string char_milo;   // --char: render a BandCharacter MILO in bind pose
@@ -2027,6 +2062,7 @@ int main(int argc, char** argv) {
   std::optional<double> diagnostic_rock_fill;
   std::optional<double> diagnostic_star_power_fill;
   bool diagnostic_star_power_active = false;
+  RenderSize render_size;
   bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
@@ -2035,6 +2071,10 @@ int main(int argc, char** argv) {
       max_frames = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--ark-dir") == 0 && i + 1 < argc) {
       ark_dir = argv[++i];
+    } else if (std::strcmp(argv[i], "--hdr") == 0 && i + 1 < argc) {
+      explicit_hdr = argv[++i];
+    } else if (std::strcmp(argv[i], "--ark") == 0 && i + 1 < argc) {
+      explicit_ark = argv[++i];
     } else if (std::strcmp(argv[i], "--milo") == 0 && i + 1 < argc) {
       milo = argv[++i];
     } else if (std::strcmp(argv[i], "--scene") == 0 && i + 1 < argc) {
@@ -2122,6 +2162,14 @@ int main(int argc, char** argv) {
       diagnostic_chart_script_window->whammy_star_sustains = true;
     } else if (std::strcmp(argv[i], "--debug-note-counter") == 0) {
       debug_note_counter = true;
+    } else if ((std::strcmp(argv[i], "--aspect") == 0 ||
+                std::strcmp(argv[i], "--render-aspect") == 0) &&
+               i + 1 < argc) {
+      if (!set_render_aspect_preset(argv[++i], render_size)) {
+        std::fprintf(stderr,
+                     "[ghogx] --aspect expects 4:3 or 16:9\n");
+        return 2;
+      }
     } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
                i + 1 < argc) {
       diagnostic_character = argv[++i];
@@ -2199,6 +2247,9 @@ int main(int argc, char** argv) {
       cam_ovr.target[1] = static_cast<float>(std::atof(argv[++i]));
       cam_ovr.target[2] = static_cast<float>(std::atof(argv[++i]));
       cam_ovr.has_target = true;
+    } else {
+      std::fprintf(stderr, "[ghogx] unknown or incomplete option: %s\n", argv[i]);
+      return 2;
     }
   }
 
@@ -2223,6 +2274,9 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  std::fprintf(stderr, "[ghogx] render size: %dx%d\n",
+               render_size.width, render_size.height);
+
   if (capture_enabled && !show_window) {
     _putenv_s("GHOGX_HIDE_WINDOW", "1");
   }
@@ -2230,8 +2284,23 @@ int main(int argc, char** argv) {
   // Resolve ARK paths.
   std::string hdr;
   std::string ark;
-  if (!ark_dir.empty()) {
-    namespace fs = std::filesystem;
+  namespace fs = std::filesystem;
+  if (!explicit_hdr.empty() || !explicit_ark.empty()) {
+    if (explicit_hdr.empty() || explicit_ark.empty()) {
+      std::fprintf(stderr, "[ghogx] --hdr and --ark must be supplied together\n");
+      return 2;
+    }
+    if (!ark_dir.empty()) {
+      std::fprintf(stderr, "[ghogx] use either --ark-dir or explicit --hdr/--ark, not both\n");
+      return 2;
+    }
+    if (!fs::exists(explicit_hdr) || !fs::exists(explicit_ark)) {
+      std::fprintf(stderr, "[ghogx] --hdr/--ark path not found\n");
+      return 2;
+    }
+    hdr = explicit_hdr;
+    ark = explicit_ark;
+  } else if (!ark_dir.empty()) {
     for (const char* n : {"main.hdr", "MAIN.HDR"}) {
       if (fs::exists(fs::path(ark_dir) / n)) { hdr = (fs::path(ark_dir) / n).string(); break; }
     }
@@ -2255,7 +2324,9 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "[ghogx] --menu requires --ark-dir\n");
       return 2;
     }
-    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame, max_frames);
+    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame,
+                                    max_frames, render_size.width,
+                                    render_size.height);
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).
@@ -2265,7 +2336,7 @@ int main(int argc, char** argv) {
       return 2;
     }
     return run_scene_mode(hdr, ark, scene_milo, screenshot_path,
-                          screenshot_frame, max_frames, cam_ovr);
+                          screenshot_frame, max_frames, cam_ovr, render_size);
   }
 
   // --char: dedicated BandCharacter viewer (bind-pose skinned mesh).
@@ -2278,7 +2349,7 @@ int main(int argc, char** argv) {
                          screenshot_frame, max_frames, cam_ovr, char_clip_arg,
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
-                         char_offset);
+                         char_offset, render_size);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).
@@ -2288,7 +2359,7 @@ int main(int argc, char** argv) {
       return 2;
     }
     return run_hud_test_mode(hdr, ark, screenshot_path, screenshot_frame,
-                             max_frames, hud_test_options);
+                             max_frames, hud_test_options, render_size);
   }
 
   ghogx::asset::Image image;
@@ -2314,7 +2385,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX");
+  auto win = ghogx::render::Window::create(render_size.width,
+                                           render_size.height,
+                                           "GuitarHeroOGX");
   if (!win) {
     std::fprintf(stderr, "[ghogx] failed to create window/device\n");
     return 1;

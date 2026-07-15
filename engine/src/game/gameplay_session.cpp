@@ -10,7 +10,7 @@ namespace ghogx::game {
 
 namespace {
 
-constexpr double kFoFiXDigitalWhammyStarPowerPerSecond = 0.05 * 60.0;
+constexpr double kGh2WhammyStarPowerPerSecond = 0.034 * 100.0;
 
 int popcount5(uint32_t mask) {
   int count = 0;
@@ -254,8 +254,8 @@ void FoFiXGameplaySession::update_sustains(double song_time,
       const double before = star_power_.value;
       star_power_.value =
           std::clamp(star_power_.value +
-                         std::max(0.0, dt_seconds) *
-                             kFoFiXDigitalWhammyStarPowerPerSecond,
+                             std::max(0.0, dt_seconds) *
+                             kGh2WhammyStarPowerPerSecond,
                      0.0, 100.0);
       if (star_power_.value > before) {
         whammy_awarded = true;

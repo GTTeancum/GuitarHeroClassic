@@ -12010,7 +12010,8 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
                            });
     };
     auto dst_floor_mat = [&]() -> std::optional<std::string> {
-        for (const char* name : {"floor.mat", "tile_dark.mat"}) {
+        for (const char* name :
+             {"floor.mat", "tile_dark.mat", "street_asphalt.mat"}) {
             if (dst_has_mat(name)) return std::string(name);
         }
         return std::nullopt;
@@ -29225,6 +29226,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
     active_sustains_.clear();
     active_session_sustains_.clear();
+    audio_.reset_gameplay_feedback();
     hit_flash_mask_ = 0;
     miss_flash_mask_ = 0;
     for (float& flash : lane_flash_) flash = 0.0f;
@@ -30438,6 +30440,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                 multiplier_surface_flash_ = 1.0f;
             }
             const bool star_collect = source_group_has_star_power(event);
+            if (!diagnostic_autoplay_) audio_.note_hit_feedback(star_collect);
             for (int lane = 0; lane < 5; ++lane) {
                 if ((event.mask & (1u << lane)) == 0) continue;
                 lane_hit_[lane] = true;
@@ -30472,6 +30475,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                     if (star_miss) star_miss_flash_[lane] = 1.0f;
                 }
                 bad_gameplay_feedback = true;
+                audio_.note_miss_feedback();
                 std::fprintf(stderr,
                              "[gameplay] miss tick=%u mask=0x%02x star=%d streak reset rock=%.2f\n",
                              event.source_tick, event.mask & 0x1fu,
@@ -30490,6 +30494,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                 if ((event.mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
             }
             bad_gameplay_feedback = true;
+            audio_.overstrum_feedback();
             std::fprintf(stderr,
                          "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
                          event.mask & 0x1fu, event.rock_fill);
@@ -30508,6 +30513,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             break;
         case FoFiXSessionEventType::StarPhraseComplete:
             star_power_highway_flash_ = std::max(star_power_highway_flash_, 0.75f);
+            if (!diagnostic_autoplay_) audio_.star_phrase_complete_feedback();
             std::fprintf(stderr,
                          "[gameplay] star phrase complete sp=%.2f\n",
                          event.star_power_fill);
@@ -30621,6 +30627,29 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         song_time_ = audio_.position_sec();
     else
         song_time_ += static_cast<double>(dt);
+
+    auto update_audio_whammy_state = [&]() {
+        const bool raw_whammy = (fret_mask & (1u << 7)) != 0;
+        bool sustain_active = false;
+        if (gameplay_session_mirror_) {
+            for (const auto& sustain : active_session_sustains_) {
+                if (song_time_ >= sustain.start_time &&
+                    song_time_ < sustain.end_time) {
+                    sustain_active = true;
+                    break;
+                }
+            }
+        } else {
+            for (const auto& sustain : active_sustains_) {
+                if (song_time_ >= sustain.start_time &&
+                    song_time_ < sustain.end_time) {
+                    sustain_active = true;
+                    break;
+                }
+            }
+        }
+        audio_.set_whammy_state(raw_whammy && sustain_active, song_time_);
+    };
 
     if (!gameplay_session_mirror_ && (fret_mask & (1u << 6)) != 0) {
         if (fofix_activate_star_power(star_power_)) {
@@ -30767,6 +30796,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     bool bad_gameplay_feedback_this_frame = false;
 
     auto update_presentation_after_gameplay = [&]() {
+        update_audio_whammy_state();
         if (!diagnostic_autoplay_ &&
             (bad_gameplay_feedback_this_frame || miss_flash_mask_ != 0)) {
             bad_highway_flash_ = 1.0f;

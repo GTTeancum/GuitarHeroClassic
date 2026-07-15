@@ -407,8 +407,8 @@ int main() {
     session.tick(1.25, kGreen | kRed | kWhammy);
     std::vector<FoFiXSessionSustain> sustains;
     session.copy_active_sustains(sustains);
-    CHECK(session.star_power_fill() > 0.007 &&
-              session.star_power_fill() < 0.008 && sustains.size() == 1,
+    CHECK(session.star_power_fill() > 0.008 &&
+              session.star_power_fill() < 0.009 && sustains.size() == 1,
           "extra frets do not block FoFiX whammy gain on a held star sustain");
   }
 
@@ -823,7 +823,7 @@ int main() {
               session.last_events()[0].source_index == 1 &&
               session.last_events()[0].source_tick == 240,
           "chart-backed session reports source tick for HOPO presentation");
-    session.tick(0.847, kYellow | kStrum);
+    session.tick(0.9, kYellow | kStrum);
     session.tick(2.0, kYellow);
     CHECK(session.last_events().size() == 1 &&
               session.last_events()[0].type ==
