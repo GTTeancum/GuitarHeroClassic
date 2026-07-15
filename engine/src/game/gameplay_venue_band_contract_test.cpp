@@ -6453,6 +6453,11 @@ int main() {
                  "returnvenue_excitement_level(venue_event)>=3;",
                  "great and peak both count as high excitement for cues");
   ok &= contains(gameplay_c,
+                 "boolcamera_low_excitement_like_source("
+                 "std::string_viewvenue_event){returnvenue_excitement_level("
+                 "venue_event)<=1;}",
+                 "camera low-excitement gate mirrors GH2 kExcitementBoot/Bad numeric values");
+  ok &= contains(gameplay_c,
                  "choose_lighting_preset(lighting_presets_,lighting_request,"
                  "lighting_excitement)",
                  "lighting preset selection consumes active venue excitement");
@@ -12380,6 +12385,14 @@ int main() {
                  "conststd::stringsource_filters_for_log="
                  "camera_source_script_filter_label(",
                  "regular camera sweep rows stamp the active source filter list");
+  ok &= contains(gameplay_c,
+                 "constboollow_excitement="
+                 "camera_low_excitement_like_source(active_venue_event_);",
+                 "regular camera selection uses the source numeric low-excitement gate");
+  ok &= absent(gameplay_c,
+               "active_venue_event_.find(\"bad\")!=std::string_view::npos||"
+               "active_venue_event_.find(\"boot\")!=std::string_view::npos",
+               "regular camera selection must not infer low excitement from event-name substrings");
   ok &= contains(gameplay_c,
                  "gamecfg_mode=%sfaceoff_active_players=%d"
                  "filter_source=ShotMatchessource_category=%s"

@@ -575,6 +575,14 @@ Open work:
   `source_walking_gate=guitarist0::actually_walking(native_deferred)`. This is
   proof/status plumbing only; it prevents an inline hard-coded false from
   masquerading as a completed camera filter.
+- 2026-07-14 camera low-excitement predicate:
+  GH2 `world_objects_worldbase.dta::pick_regular_camera_shot` and
+  `pick_solo_camera_shot` add `(low_excitement_ok TRUE)` when
+  `{world get excitement_level} <= 1`, where `macros.dta` defines
+  `kExcitementBoot=0` and `kExcitementBad=1`. Native camera selection now
+  routes that check through `camera_low_excitement_like_source(...)` and the
+  shared numeric `venue_excitement_level(...)` mapper instead of rechecking
+  event-name substrings at the camera call site.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
   `camera_bars_left <= 0`; it does not retry every frame just because

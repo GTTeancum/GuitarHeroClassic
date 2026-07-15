@@ -8081,6 +8081,10 @@ bool venue_excitement_is_high(std::string_view venue_event) {
     return venue_excitement_level(venue_event) >= 3;
 }
 
+bool camera_low_excitement_like_source(std::string_view venue_event) {
+    return venue_excitement_level(venue_event) <= 1;
+}
+
 bool is_peak_excitement_event(std::string_view venue_event) {
     return venue_event == "excitement_peak";
 }
@@ -33566,8 +33570,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         *duration_random_draw);
                 }
                 const bool low_excitement =
-                    active_venue_event_.find("bad") != std::string::npos ||
-                    active_venue_event_.find("boot") != std::string::npos;
+                    camera_low_excitement_like_source(active_venue_event_);
                 CameraShotMode camera_mode =
                     camera_solo_active_ ? CameraShotMode::Solo
                                         : CameraShotMode::Regular;
