@@ -693,6 +693,45 @@ bool facefx_neutral_enabled() {
 #endif
 }
 
+bool face_debug_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_FACE") == 0 && value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_FACE");
+  return value && value[0];
+#endif
+}
+
+void dump_facefx_lip_sync_servos(
+    const ghogx::character::Character& character) {
+  if (!face_debug_enabled()) return;
+  std::fprintf(stderr,
+               "[facefx-servo] stock FaceFxLipSyncServo rows=%zu "
+               "source=GH2-compat decoder boundary=not-CharFaceServo\n",
+               character.lip_sync_servos.size());
+  for (size_t i = 0; i < character.lip_sync_servos.size(); ++i) {
+    const auto& servo = character.lip_sync_servos[i];
+    std::fprintf(stderr,
+                 "[facefx-servo] row=%zu name=%s facefx=%s viseme_milo=%s "
+                 "targets=%zu\n",
+                 i, servo.name.c_str(), servo.facefx_path.c_str(),
+                 servo.viseme_milo.c_str(), servo.targets.size());
+    for (size_t t = 0; t < servo.targets.size(); ++t) {
+      const auto& target = servo.targets[t];
+      std::fprintf(stderr,
+                   "[facefx-servo]   target=%zu object=%s prop_type=%d "
+                   "property=%s\n",
+                   t, target.object.c_str(), target.prop_type,
+                   target.property.c_str());
+    }
+  }
+}
+
 std::optional<int> env_int(const char* name) {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1207,6 +1246,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (facefx_neutral_loaded) {
     ghogx::character::apply_facefx_pose(*facefx_neutral, 1.0f, character);
   }
+  dump_facefx_lip_sync_servos(character);
   const std::vector<std::string> facefx_viseme_milos =
       facefx_viseme_milo_candidates(milo_path, character);
   const std::vector<ghogx::character::CharDriver> character_drivers =

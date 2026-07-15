@@ -6758,6 +6758,31 @@ Lower-body evidence audit:
   the root-cause proof, source-authored lower-body bridge boundary, active
   Glam1/Metal1 proof subjects, full stock visual coverage, RexGlue/PCSX2
   evidence roles, and the five still-fenced publisher bodies in one status
+
+2026-07-15 focused Metal1 mouth proof:
+- The focused proof folder is
+  `engine/out/visual_proofs/metal1_mouth_20260715`.
+- Current front and three-quarter proofs show Metal1's mouth as a hard
+  downturned/pinched shape. A separate `--face-clip none` proof looks the same
+  as the default proof, and its log shows jaw/lip output rows with `driven=0`.
+  A reference-base proof also keeps the same visible mouth shape. That
+  combination means the visible Metal1 mouth issue is not explained by the
+  viewer applying the authored `neutral` viseme clip alone.
+- `GHOGX_DEBUG_FACE=1` now prints each stock `FaceFxLipSyncServo` row in the
+  viewer. For Metal1, the row count is `1`, the authored viseme reference is
+  `../../anims/metal1_viseme.milo`, and the log explicitly labels this as a
+  `FaceFxLipSyncServo` compatibility boundary, not a `CharFaceServo` source
+  port.
+- This does not authorize a fabricated mouth offset or a synthetic
+  `CharFaceServo` bridge. ihatecompvir's available source remains concrete for
+  `CharFaceServo::Poll` and `CharClip::PoseMeshes`, while GH2 PS2 stock rows
+  are `FaceFxLipSyncServo`. The native proof should therefore keep the
+  mouth/viseme evidence separate from any future runtime bridge until a
+  source-backed `FaceFxLipSyncServo` behavior or runtime trace is available.
+- `tools/check_metal1_mouth_proofs.py` verifies the proof images, the logged
+  stock face-servo row, the authored viseme MILO reference, the neutral face
+  clip load in the default proof, and the undriven jaw/lip rows when
+  `--face-clip none` is used.
   gate. It passes with `root_cause=true`, `source_bridge=true`,
   `active_subjects=glam1,metal1`, `proof_artifacts=8`,
   `individual_proofs=true`, `proof_min_resolution=1280x720`,
