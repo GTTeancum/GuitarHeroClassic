@@ -81,6 +81,7 @@ class CompareRequest:
     visible_minus_output_x_min: dict[str, float]
     visible_minus_output_y_min: dict[str, float]
     visible_minus_output_z_min: dict[str, float]
+    visible_bone_aliases: dict[str, str]
     max_abs_xyz_gap: float | None
     require_screenshot_marker: bool
 
@@ -191,6 +192,19 @@ def z_gap_map_from_manifest(value: object) -> dict[str, float]:
     return result
 
 
+def string_map_from_manifest(value: object, field: str) -> dict[str, str]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise RuntimeError(f"manifest field '{field}' must be an object")
+    result: dict[str, str] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not isinstance(item, str):
+            raise RuntimeError(f"manifest field '{field}' keys/values must be strings")
+        result[key] = item
+    return result
+
+
 def requests_from_manifest(path: Path) -> list[CompareRequest]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -232,6 +246,9 @@ def requests_from_manifest(path: Path) -> list[CompareRequest]:
                 ),
                 visible_minus_output_x_min=z_gap_map_from_manifest(
                     case.get("visible_minus_output_x_min")
+                ),
+                visible_bone_aliases=string_map_from_manifest(
+                    case.get("visible_bone_aliases"), "visible_bone_aliases"
                 ),
                 max_abs_xyz_gap=(
                     float(case["max_abs_xyz_gap"])
@@ -276,6 +293,7 @@ def request_from_args(args: argparse.Namespace) -> CompareRequest:
         visible_minus_output_x_min={},
         visible_minus_output_y_min={},
         visible_minus_output_z_min={},
+        visible_bone_aliases={},
         max_abs_xyz_gap=args.max_abs_xyz_gap,
         require_screenshot_marker=not args.allow_no_screenshot_marker,
     )
@@ -321,10 +339,12 @@ def run_request(request: CompareRequest) -> int:
             messages.append(f"DRIVEN {bone}: got={int(row.driven)}")
         if row.live != request.require_live:
             messages.append(f"LIVE {bone}: got={int(row.live)}")
-        visible = visible_rows.get((request.character, request.tag, bone))
+        visible_bone = request.visible_bone_aliases.get(bone, bone)
+        visible = visible_rows.get((request.character, request.tag, visible_bone))
         if visible is None:
             messages.append(
-                f"VISIBLE {bone}: missing [legw]/[armw] c={request.character} t={request.tag}"
+                f"VISIBLE {bone}: missing [legw]/[armw] c={request.character} "
+                f"t={request.tag} b={visible_bone}"
             )
             continue
         if "outPoseW" not in row.vectors:

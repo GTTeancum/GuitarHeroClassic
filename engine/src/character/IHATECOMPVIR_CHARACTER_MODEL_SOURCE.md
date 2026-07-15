@@ -6208,6 +6208,29 @@ shared-driver `main.drv` route to the sibling/base animation MILO. Punk1 and
 Punk2 both publish compact pose rows under the runtime short label `punk`,
 converting the earlier Punk visual-only proof into row-backed coverage.
 
+2026-07-15 support-character lower-body proof:
+`engine/out/visual_proofs/lower_body_support_stock_20260715/` adds leg-only
+direct viewer captures for the remaining stock support/base MILOs not covered
+by the guitarist gameplay proof batches: `female_singer`, `grim`, `metal_bass`,
+`metal_drummer`, `metal_keyboard`, and `metal_singer`. These captures use stock
+ARK assets, no guitar, no face clip, no character controllers, soft-green
+reference base, and frame 70 of each character's source-routed role clip. The
+manifest cases
+`female_singer_support_lower_body_f70_live_match`,
+`grim_support_lower_body_f70_live_match`,
+`metal_bass_support_lower_body_f70_live_match`,
+`metal_drummer_support_lower_body_f70_live_match`,
+`metal_keyboard_support_lower_body_f70_live_match`, and
+`metal_singer_support_lower_body_f70_live_match` verify the post-bridge
+`lower-output` rows against visible `[legw]` rows at
+`max_abs_xyz_gap=0.001` or better. The metal bass clip uses authored
+`bone_L/R-foot` output rows instead of the generic guitarist ankle rows. The
+metal drummer clip uses authored `bone_L/R-toe0` output rows; the verifier maps
+those only for diagnostic comparison to the visible `bone_L/R-toe` rows through
+the same `-toe0` to `-toe` equivalence already used by the native
+`channel_matches_bone` source-name matcher. This is not a runtime pose fix or a
+new bone-name guess.
+
 Current lower-body root-cause summary: the bad "standing but floating with legs
 forward" frame came from applying decoded sampled channels straight onto the
 visible mesh skeleton after the source `CharBones::ScaleAdd` /

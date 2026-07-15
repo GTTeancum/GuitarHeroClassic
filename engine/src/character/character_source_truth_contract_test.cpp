@@ -33831,6 +33831,10 @@ int run_contract() {
   ok &= contains(charbone_output_map_compare,
                  "max_abs_xyz_gap",
                  "CharBone output-map verifier reports largest axis gap");
+  ok &= contains(
+      charbone_output_map_compare,
+      "visible_bone_aliases",
+      "CharBone output-map verifier supports diagnostic visible bone aliases");
   ok &= contains(charbone_output_map_compare,
                  "parser.add_argument(\"--require-live\",action=\"store_true\")",
                  "CharBone output-map verifier can require live output rows");
@@ -33874,6 +33878,23 @@ int run_contract() {
   ok &= contains(charbone_output_map_manifest,
                  "\"metal1_output_bridge_f70_side_live_match\"",
                  "CharBone output-map manifest records current Metal1 live bridge proof");
+  ok &= contains(
+      charbone_output_map_manifest,
+      "\"female_singer_support_lower_body_f70_live_match\"",
+      "CharBone output-map manifest records female singer support lower-body proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"metal_bass_support_lower_body_f70_live_match\"",
+                 "CharBone output-map manifest records metal bass authored foot rows");
+  ok &= contains(
+      charbone_output_map_manifest,
+      "\"metal_drummer_support_lower_body_f70_live_match\"",
+      "CharBone output-map manifest records metal drummer support lower-body proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"visible_bone_aliases\"",
+                 "CharBone output-map manifest records metal drummer toe0/toe diagnostic alias");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"bone_L-toe0\":\"bone_L-toe\"",
+                 "CharBone output-map manifest uses source-backed toe0 visible alias");
   ok &= contains(charbone_output_map_manifest,
                  "\"require_live\":true",
                  "CharBone output-map manifest requires live lower-output bridge rows");
@@ -34243,6 +34264,18 @@ int run_contract() {
   ok &= contains(doc,
                  "Punk1 and\nPunk2 both publish compact pose rows under the runtime short label `punk`",
                  "document records Punk runtime row label");
+  ok &= contains(
+      doc,
+      "`engine/out/visual_proofs/lower_body_support_stock_20260715/`",
+      "document records support-character lower-body proof folder");
+  ok &= contains(doc,
+                 "`metal_drummer_support_lower_body_f70_live_match`",
+                 "document records metal drummer support lower-body contract");
+  ok &= contains(
+      doc,
+      "the verifier maps\nthose only for diagnostic comparison to the visible "
+      "`bone_L/R-toe` rows",
+      "document limits toe0 alias to diagnostic comparison");
   ok &= contains(doc,
                  "Current lower-body root-cause summary:",
                  "document records lower-body root-cause summary");

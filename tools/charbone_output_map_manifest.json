@@ -293,6 +293,124 @@
         "reference base enabled",
         "clip-frame override enabled: 70"
       ]
+    },
+    {
+      "label": "female_singer_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/female_singer/viewer_female_singer_f070_lower_body.log",
+      "character": "female_singer",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'female_singer'",
+        "[clip] 'singer_idle' from char/female_singer/anims/gen/singer_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "grim_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/grim/viewer_grim_f070_lower_body.log",
+      "character": "grim",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'grim'",
+        "[clip] 'stand_fast_03' from char/grim/anims/gen/grim_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "metal_bass_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_bass/viewer_metal_bass_f070_lower_body.log",
+      "character": "metal_bass",
+      "tag": "lower-output",
+      "bones": [
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-foot",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-foot",
+        "bone_R-toe"
+      ],
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_bass'",
+        "[clip] 'bassist_idle_medium_01' from char/metal_bass/anims/gen/bass_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[out-map] bone_L-foot",
+        "[out-map] bone_R-foot"
+      ]
+    },
+    {
+      "label": "metal_drummer_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_drummer/viewer_metal_drummer_f070_lower_body.log",
+      "character": "metal_drummer",
+      "tag": "lower-output",
+      "bones": [
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe0",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe0"
+      ],
+      "visible_bone_aliases": {
+        "bone_L-toe0": "bone_L-toe",
+        "bone_R-toe0": "bone_R-toe"
+      },
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_drummer'",
+        "[clip] 'drummer_idle' from char/metal_drummer/anims/gen/drummer_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[out-map] bone_L-toe0",
+        "[out-map] bone_R-toe0"
+      ]
+    },
+    {
+      "label": "metal_keyboard_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_keyboard/viewer_metal_keyboard_f070_lower_body.log",
+      "character": "metal_keyboard",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_keyboard'",
+        "[clip] 'keyboard_idle' from char/metal_keyboard/anims/gen/keyboard_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "metal_singer_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_singer/viewer_metal_singer_f070_lower_body.log",
+      "character": "metal_singer",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_singer'",
+        "[clip] 'singer_idle_medium_01' from char/metal_singer/anims/gen/singer_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
     }
   ]
 }
