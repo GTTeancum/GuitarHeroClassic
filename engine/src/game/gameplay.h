@@ -720,6 +720,7 @@ class Gameplay {
     diagnostic_camera_path_offset_frames_ = frames;
   }
   bool cycle_camera_shot_like_source();
+  size_t iterate_camera_shots_like_source() const;
   void set_diagnostic_rock_fill(double fill);
   void set_diagnostic_star_power_fill(double fill);
   void set_diagnostic_star_power_active(bool active);

@@ -41,6 +41,8 @@
 //                                      alias: --diagnostic-camera-path-offset-frames
 //   ghogx_app --diagnostic-camera-cycle-shot-frame <frame>
 //                                      dispatch source {world cycle_shot} once
+//   ghogx_app --diagnostic-camera-iterate-shot-frame <frame>
+//                                      dispatch source {world iterate_shot} once
 //   ghogx_app --diagnostic-rock <0..1>
 //                                      force initial rock meter fill for capture
 //   ghogx_app --diagnostic-star-power <0..1>
@@ -732,6 +734,9 @@ class AppEngine : public ghogx::Engine {
   }
   bool cycle_camera_shot_like_source() {
     return gameplay_.cycle_camera_shot_like_source();
+  }
+  size_t iterate_camera_shots_like_source() {
+    return gameplay_.iterate_camera_shots_like_source();
   }
 
   void set_diagnostic_rock_fill(double fill) {
@@ -2024,6 +2029,7 @@ int main(int argc, char** argv) {
   std::string diagnostic_camera_shot;
   double diagnostic_camera_path_offset_frames = 0.0;
   int diagnostic_camera_cycle_shot_frame = -1;
+  int diagnostic_camera_iterate_shot_frame = -1;
   std::optional<double> diagnostic_rock_fill;
   std::optional<double> diagnostic_star_power_fill;
   bool diagnostic_star_power_active = false;
@@ -2142,6 +2148,12 @@ int main(int argc, char** argv) {
                            "--diagnostic-camera-cycle-shot-frame") == 0 &&
                i + 1 < argc) {
       diagnostic_camera_cycle_shot_frame = std::atoi(argv[++i]);
+    } else if ((std::strcmp(argv[i],
+                            "--diagnostic-camera-iterate-shot-frame") == 0 ||
+                std::strcmp(argv[i],
+                            "--diagnostic-camera-iterate-shots-frame") == 0) &&
+               i + 1 < argc) {
+      diagnostic_camera_iterate_shot_frame = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--diagnostic-rock") == 0 &&
                i + 1 < argc) {
       diagnostic_rock_fill = std::atof(argv[++i]);
@@ -2355,6 +2367,11 @@ int main(int argc, char** argv) {
                  "[ghogx] diagnostic camera cycle_shot frame: %d\n",
                  diagnostic_camera_cycle_shot_frame);
   }
+  if (diagnostic_camera_iterate_shot_frame >= 0) {
+    std::fprintf(stderr,
+                 "[ghogx] diagnostic camera iterate_shot frame: %d\n",
+                 diagnostic_camera_iterate_shot_frame);
+  }
   if (diagnostic_autoplay) {
     engine.set_diagnostic_autoplay(true);
     std::fprintf(stderr, "[ghogx] diagnostic autoplay enabled\n");
@@ -2465,6 +2482,7 @@ int main(int argc, char** argv) {
   std::fprintf(stderr, "[ghogx] Keyboard: A/S/D/F/G = frets; Space=strum; Shift/H=star power; K=whammy; Enter=Start/confirm\n");
 
   bool diagnostic_camera_cycle_shot_dispatched = false;
+  bool diagnostic_camera_iterate_shot_dispatched = false;
   while (!win->should_close()) {
     win->pump();
     if (win->should_close()) break;
@@ -2489,6 +2507,18 @@ int main(int argc, char** argv) {
           "[ghogx] diagnostic camera cycle_shot dispatched frame=%llu queued=%d\n",
           static_cast<unsigned long long>(engine.frame_count()),
           queued ? 1 : 0);
+    }
+    if (diagnostic_camera_iterate_shot_frame >= 0 &&
+        !diagnostic_camera_iterate_shot_dispatched &&
+        engine.frame_count() >=
+            static_cast<uint64_t>(diagnostic_camera_iterate_shot_frame)) {
+      diagnostic_camera_iterate_shot_dispatched = true;
+      const size_t visited = engine.iterate_camera_shots_like_source();
+      std::fprintf(
+          stderr,
+          "[ghogx] diagnostic camera iterate_shot dispatched frame=%llu visited=%zu\n",
+          static_cast<unsigned long long>(engine.frame_count()),
+          visited);
     }
 
     engine.tick(dt);

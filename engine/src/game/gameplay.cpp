@@ -24373,6 +24373,48 @@ bool Gameplay::cycle_camera_shot_like_source() {
     return true;
 }
 
+size_t Gameplay::iterate_camera_shots_like_source() const {
+    std::vector<std::string> categories;
+    categories.reserve(regular_camera_keys_.size());
+    for (const auto& key : regular_camera_keys_) {
+        if (key.category.empty()) continue;
+        if (std::find(categories.begin(), categories.end(), key.category) ==
+            categories.end()) {
+            categories.push_back(key.category);
+        }
+    }
+
+    size_t total = 0;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera iterate_shot: source_msg=iterate_shot source_manager=CameraManager::OnIterateShot phase=begin categories=%zu saved_var=1 command_start=3\n",
+            categories.size());
+    }
+    for (const auto& category : categories) {
+        size_t category_index = 0;
+        for (const auto& key : regular_camera_keys_) {
+            if (key.category != category) continue;
+            if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] camera iterate_shot: source_msg=iterate_shot source_manager=CameraManager::OnIterateShot category=%s category_index=%zu global_index=%zu shot=%s var_write=CamShot command_exec=native_diagnostic_only\n",
+                    category.c_str(), category_index, total,
+                    key.name.c_str());
+            }
+            ++category_index;
+            ++total;
+        }
+    }
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera iterate_shot: source_msg=iterate_shot source_manager=CameraManager::OnIterateShot phase=end visited=%zu restore_saved_var=1 result=0\n",
+            total);
+    }
+    return total;
+}
+
 bool Gameplay::consume_pending_regular_camera_shot() {
     if (pending_regular_camera_.empty()) return false;
     const std::string next_shot = std::move(pending_regular_camera_);

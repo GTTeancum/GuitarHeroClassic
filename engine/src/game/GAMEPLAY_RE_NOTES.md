@@ -11437,6 +11437,15 @@ Rejected native probe:
   starts `intro_encore1`; screenshots at frames `170` and `220` capture the
   before/after camera views. The contract executable still reports only the
   known unrelated ROCK/star-power HUD backlog.
+- 2026-07-14 source iterate-shot bridge: ihatecompvir
+  `CameraManager::OnIterateShot` saves `da->Var(2)`, walks every
+  `mCameraShotCategories` bucket and each contained CamShot, assigns the script
+  var before executing command slots `3..Size-1`, then restores the saved var
+  and returns `0`. Native now exposes an opt-in diagnostic
+  `iterate_camera_shots_like_source()` bridge and app frame trigger that walks
+  decoded source category buckets in the same category-before-shot shape,
+  logging var-write/restore boundaries without changing the live selected
+  camera or inventing script command execution.
 - 2026-07-14 follow-up: ihatecompvir `CameraManager::StartShot_` runs
   `CamShot::StartAnim`, records `mCamStartTime`, then, when `venue_test != 1`,
   calls `TheWiiRnd.SetTriFrameRendering(true)` and resets `gCooldown = 0`.

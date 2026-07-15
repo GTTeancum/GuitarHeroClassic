@@ -198,6 +198,8 @@ int main() {
       function_body(gameplay, "Gameplay::start_camera_shot_runtime"));
   const std::string end_camera_shot_runtime_c = compact(
       function_body(gameplay, "Gameplay::end_camera_shot_runtime"));
+  const std::string iterate_camera_shots_c = compact(
+      function_body(gameplay, "Gameplay::iterate_camera_shots_like_source"));
   const std::string event_track_c =
       compact(function_body(gameplay, "performer_event_track_for_role"));
   const std::string classify_roles_c =
@@ -12725,6 +12727,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolcycle_camera_shot_like_source();",
                  "gameplay exposes a native CameraManager cycle_shot bridge");
+  ok &= contains(gameplay_h_c,
+                 "size_titerate_camera_shots_like_source()const;",
+                 "gameplay exposes a native CameraManager iterate_shot bridge");
   ok &= contains(gameplay_c,
                  "key.source_object_order=c.order;",
                  "regular camera loader preserves source object order before category randomization");
@@ -12747,6 +12752,28 @@ int main() {
   ok &= contains(gameplay_c,
                  "queue_regular_camera_shot(*after,\"CameraManager::OnCycleShot\");",
                  "source cycle_shot queues through CameraManager ForceCameraShot/mNextShot");
+  ok &= contains(iterate_camera_shots_c,
+                 "source_manager=CameraManager::OnIterateShot",
+                 "camera runtime exposes source OnIterateShot");
+  ok &= contains(iterate_camera_shots_c,
+                 "phase=begincategories=%zusaved_var=1command_start=3",
+                 "source iterate_shot saves the script var before command index 3");
+  ok &= appears_before(iterate_camera_shots_c,
+                       "for(constauto&category:categories)",
+                       "if(key.category!=category)continue;",
+                       "source iterate_shot walks category buckets before shot lists");
+  ok &= contains(iterate_camera_shots_c,
+                 "var_write=CamShotcommand_exec=native_diagnostic_only",
+                 "source iterate_shot writes each CamShot var before command execution");
+  ok &= contains(iterate_camera_shots_c,
+                 "phase=endvisited=%zurestore_saved_var=1result=0",
+                 "source iterate_shot restores the saved var after enumeration");
+  ok &= contains(app_main_c,
+                 "--diagnostic-camera-iterate-shot-frame",
+                 "app exposes a diagnostic source iterate_shot frame trigger");
+  ok &= contains(app_main_c,
+                 "engine.iterate_camera_shots_like_source();",
+                 "diagnostic source iterate_shot trigger calls the gameplay bridge");
   ok &= absent(gameplay_c, "regular_camera_selection_weight(",
                "regular camera selection must not consume the legacy CamShot category float as a weight");
   ok &= absent(gameplay_c, "choose_weighted_regular_camera_key(",
