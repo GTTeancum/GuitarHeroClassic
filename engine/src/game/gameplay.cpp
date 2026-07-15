@@ -21935,6 +21935,16 @@ void apply_camera_keys(
                 : source_build_transform_order
                 ? "CamShotFrame::BuildTransform"
                 : "CamShot::SetPos/BuildTransform";
+        const char* active_hidden_gameplay_blockers =
+            submitted_result_from_ps2_trace
+                ? "cam_shot_ok|cam_check_shot|CharWalk"
+                : "BuildTransform|cam_shot_ok|cam_check_shot|CharWalk";
+        const char* active_blocker_scope =
+            submitted_result_from_ps2_trace
+                ? "selection_only_retained_pose"
+                : source_build_transform_order
+                ? "pose_and_selection"
+                : "native_seed_or_path_boundary";
         std::fprintf(
             stderr,
             "[world] camera Shake: source_class=CamShot source_call=CamShot::Shake "
@@ -23066,7 +23076,7 @@ void apply_camera_keys(
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
             "freecam_priority=deferred_last freecam_affects_gameplay=0 "
-            "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk "
+            "hidden_gameplay_blockers=%s active_blocker_scope=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
@@ -23094,6 +23104,7 @@ void apply_camera_keys(
             "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
             "targetDist,v",
             source_pose_coverage, hidden_pose_boundary,
+            active_hidden_gameplay_blockers, active_blocker_scope,
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             a_target_update.has_targets ? 1 : 0,

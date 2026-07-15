@@ -9573,8 +9573,20 @@ int main() {
                  "\"pose_coverage=%shidden_pose_boundary=%s\""
                  "\"pipeline_scope=normal_gameplay_camera\""
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\""
-                 "\"hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\"",
+                 "\"hidden_gameplay_blockers=%sactive_blocker_scope=%s\"",
                  "camera solver diagnostics keep gameplay camera pose triage separate from deferred FreeCam work");
+  ok &= contains(gameplay_c,
+                 "submitted_result_from_ps2_trace?"
+                 "\"cam_shot_ok|cam_check_shot|CharWalk\":"
+                 "\"BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\"",
+                 "camera solver diagnostics remove BuildTransform from active blockers when a retained PS2 pose payload supplies the submitted frame");
+  ok &= contains(gameplay_c,
+                 "submitted_result_from_ps2_trace?"
+                 "\"selection_only_retained_pose\":"
+                 "source_build_transform_order?"
+                 "\"pose_and_selection\":"
+                 "\"native_seed_or_path_boundary\"",
+                 "camera solver diagnostics classify whether the active proof is pose-blocked or selection-only");
   ok &= contains(gameplay_c,
                  "\"visible_Interp_order_unrecovered_BuildTransform\"",
                  "camera debug logs identify source-visible Interp order with unrecovered BuildTransform math");

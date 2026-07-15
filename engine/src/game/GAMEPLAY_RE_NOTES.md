@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera active blocker scope:
+  ihatecompvir `CameraManager::Poll` samples the current shot through
+  `CamShot::SetFrame`, whose visible `CamShotFrame::Interp` order still reaches
+  the hidden `BuildTransform` pose math, while GH2 `camshot.dta` routes
+  selection through `shot_ok` / `check_shot`. Native normal gameplay camera
+  diagnostics now separate those blockers per proof frame: retained PS2 trace
+  pose payloads report only the remaining selection predicates as active, while
+  native-seeded/source-path frames still report `BuildTransform` as active pose
+  work. This is gameplay camera triage only, keeps FreeCam deferred last, and
+  adds no dependency surface.
 - 2026-07-15 gameplay camera beat state latch:
   `world_objects_worldbase.dta` stores a `camera_beat` script variable in the
   `beat` handler, gates `one_bar_to` on `camera_beat > 0`, and resets it in
