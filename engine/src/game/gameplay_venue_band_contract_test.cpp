@@ -10882,9 +10882,17 @@ int main() {
                  "camera_source_dof_point_for_key(",
                  "CamShot DOF support resolves source focus/target points");
   ok &= contains(gameplay_c,
+                 "CameraSourceDofPointContext"
+                 "camera_source_dof_point_context_for_key(",
+                 "CamShot DOF point resolution keeps source branch provenance");
+  ok &= contains(gameplay_c,
                  "if(constautofocus=camera_focus_target_for_key(key,targets)){"
-                 "returnmat4_position_game(focus->world);}",
+                 "context.point=mat4_position_game(focus->world);"
+                 "context.source=\"focus_target\";",
                  "CamShot DOF point resolution uses the source focus ObjPtr path before target fallback");
+  ok &= contains(gameplay_c,
+                 "context.source=\"target_centroid\";",
+                 "CamShot DOF point resolution labels the target-centroid fallback");
   ok &= contains(gameplay_c,
                  "structCameraSourceDofResult",
                  "CamShot DOF support records source A/B focus distances");
@@ -10922,6 +10930,9 @@ int main() {
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f"
                  "source_dof=(a:%s%.3fb:%s%.3fselected=%scamera=pre_setframe_blend)",
                  "camera diagnostics distinguish active source DOF from decoded blur fields");
+  ok &= contains(gameplay_c,
+                 "source_dof_branch=(a:%sb:%ssource_gate=focus_target_before_target)",
+                 "camera diagnostics expose the source DOF focus-before-target branch");
   ok &= contains(gameplay_c,
                  "cam.shake_active=has_shake_fields;"
                  "cam.shake_noise_amp=shake_noise_amp;",

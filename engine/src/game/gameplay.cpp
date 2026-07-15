@@ -20477,17 +20477,32 @@ std::optional<CameraTarget> camera_focus_target_for_key(
     return CameraTarget{it->second.world};
 }
 
+struct CameraSourceDofPointContext {
+    std::optional<std::array<float, 3>> point;
+    const char* source = "none";
+};
+
+CameraSourceDofPointContext camera_source_dof_point_context_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets) {
+    CameraSourceDofPointContext context;
+    if (const auto focus = camera_focus_target_for_key(key, targets)) {
+        context.point = mat4_position_game(focus->world);
+        context.source = "focus_target";
+        return context;
+    }
+    if (const auto centroid = camera_target_centroid_for_key(key, targets)) {
+        context.point = *centroid;
+        context.source = "target_centroid";
+        return context;
+    }
+    return context;
+}
+
 std::optional<std::array<float, 3>> camera_source_dof_point_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets) {
-    if (const auto focus = camera_focus_target_for_key(key, targets)) {
-        return mat4_position_game(focus->world);
-    }
-    if (const auto centroid = camera_target_centroid_for_key(key, targets))
-        return centroid;
-    if (const auto target = camera_target_for_key(key, targets))
-        return mat4_position_game(target->world);
-    return std::nullopt;
+    return camera_source_dof_point_context_for_key(key, targets).point;
 }
 
 struct CameraSourceDofResult {
@@ -21391,16 +21406,17 @@ void apply_camera_keys(
             ? b->use_depth_of_field
             : (a->has_use_depth_of_field ? a->use_depth_of_field : false);
     const auto a_source_dof_point =
-        camera_source_dof_point_for_key(*a, targets);
+        camera_source_dof_point_context_for_key(*a, targets);
     const auto b_source_dof_point =
-        camera_source_dof_point_for_key(*b, targets);
+        camera_source_dof_point_context_for_key(*b, targets);
     // CamShotFrame::Interp computes DOF distances from tf130 before blending
     // tf130 with the previous camera WorldXfm through the SetFrame blend.
     const std::array<float, 3> source_dof_camera_pos =
         source_pre_setframe_blend_result.position;
     const CameraSourceDofResult source_dof = camera_source_dof_result(
-        source_use_depth_of_field, a_source_dof_point, b_source_dof_point,
-        source_dof_camera_pos, focus_blur_multiplier);
+        source_use_depth_of_field, a_source_dof_point.point,
+        b_source_dof_point.point, source_dof_camera_pos,
+        focus_blur_multiplier);
     cam.dof_blur_depth = blur_depth;
     cam.dof_max_blur = max_blur;
     cam.dof_min_blur = min_blur;
@@ -22540,6 +22556,7 @@ void apply_camera_keys(
             "up=(%.3f %.3f %.3f) fov=%.3f screen_fov=%.3f clip=(%.3f %.3f) "
             "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
             "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f source_dof=(a:%s%.3f b:%s%.3f selected=%s camera=pre_setframe_blend) "
+            "source_dof_branch=(a:%s b:%s source_gate=focus_target_before_target) "
             "blur=(%.3f %.3f %.3f %.3f) "
             "shake=%d(%.3f %.3f %.3f %.3f) shake_runtime=%d "
             "a_target=(%.2f %.2f %.2f) a_parent=(%.2f %.2f %.2f) "
@@ -22563,6 +22580,7 @@ void apply_camera_keys(
             source_dof.has_b_distance ? "" : "none/",
             source_dof.has_b_distance ? source_dof.b_distance : 0.0f,
             source_dof.selected_source,
+            a_source_dof_point.source, b_source_dof_point.source,
             blur_depth, max_blur, min_blur, focus_blur_multiplier,
             has_shake_fields ? 1 : 0,
             shake_noise_amp, shake_noise_freq, max_angular_offset_x,

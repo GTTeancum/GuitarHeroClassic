@@ -21,6 +21,14 @@
   rows. This is source-provenance proof for `CamShotFrame::Interp` DOF
   distance selection; it does not synthesize `BuildTransform` / `SetPos` math
   or add runtime dependencies.
+- 2026-07-15 CamShot DOF branch provenance:
+  the visible ihatecompvir `CamShotFrame::Interp` DOF block picks
+  `mFocusTarget` first and falls back to the resolved target centroid before
+  feeding next-frame distance into `DOFProc::Set`. Native now carries that
+  branch label beside the resolved DOF point and logs
+  `source_dof_branch=(a:... b:... source_gate=focus_target_before_target)`.
+  This is proof surface only; submitted camera transforms and dependency
+  boundaries are unchanged.
 - 2026-07-15 retained writer bridge source-frame scope:
   the accepted `balcony_lft04` writer bridge evidence is tied to the stock
   path-backed diagnostic frame `source_path_local_frame=255.000`, matching the
