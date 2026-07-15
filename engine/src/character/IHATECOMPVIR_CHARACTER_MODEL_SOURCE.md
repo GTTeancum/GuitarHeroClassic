@@ -5216,13 +5216,19 @@ note, and all report `unreadBytes=0`.
   `CharBones::ScaleAdd(CharBones&,float)`,
   `CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`,
   `CharClipSamples::ScaleAdd`, or `CharClipDriver::Evaluate`.
+  A 2026-07-14/15 reread of the RB2 dump tightens that fence: the
+  `CharBones::ScaleAdd(class CharBones * const this)` row is literally an
+  empty/bodyless `{}` row, and the sample-index
+  `CharClipSamples::ScaleAdd(..., int sample, float frac, int lastSample,
+  float lastFrac)` writer row is also empty/bodyless. Those rows are useful
+  absence evidence, not source bodies to port.
   Fresh proof logs in
   `engine/out/visual_proofs/source_publisher_gap_20260715/` pair that source
   gate with current Rockabill2 viewer and in-game frames; the viewer and
   gameplay logs both print `source_publisher=fenced` before the screenshot
   while the saved verifier log reports `SUMMARY pass=12`. The expanded mirror
-  scope verifier now reports `SUMMARY pass=16` when the glTFMilo/Grim/re-notes
-  checks are included.
+  scope verifier now reports `SUMMARY pass=18` when the glTFMilo/Grim/re-notes
+  checks and the RB2 empty-row guards are included.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.

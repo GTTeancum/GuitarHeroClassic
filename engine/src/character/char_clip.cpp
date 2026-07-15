@@ -4504,6 +4504,8 @@ source_char_pose_publisher_source_refresh_20260714() {
   refresh.char_bones_meshes_pose_meshes_statement_body = false;
   refresh.char_bones_meshes_latest_pose_meshes_stub_only = true;
   refresh.rb2_dump_is_range_local_map = true;
+  refresh.rb2_char_bones_scale_add_delegate_stub_empty = true;
+  refresh.rb2_char_clip_samples_scale_add_sample_writer_empty = true;
   refresh.still_fenced = {
       "CharBones::ScaleAdd",
       "CharBonesSamples::EvaluateChannel",

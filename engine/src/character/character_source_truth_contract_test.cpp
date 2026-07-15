@@ -33772,8 +33772,10 @@ int run_contract() {
                  "document records source publisher fenced proof log");
   ok &= contains(doc, "`SUMMARY pass=12`",
                  "document records updated source-gap verifier pass count");
-  ok &= contains(doc, "`SUMMARY pass=16`",
-                 "document records expanded source-gap verifier pass count");
+  ok &= contains(doc, "`SUMMARY pass=18`",
+                 "document records RB2 empty-row source-gap verifier pass count");
+  ok &= contains(doc, "RB2 empty-row guards",
+                 "document records RB2 empty-row verifier guards");
   ok &= contains(pose_publisher_source_gaps,
                  "charclip-posemeshes-call-order",
                  "pose publisher verifier checks CharClip PoseMeshes call order");
@@ -33801,6 +33803,12 @@ int run_contract() {
   ok &= contains(pose_publisher_source_gaps,
                  "rb2-charclipdriver-evaluate-range-local-map",
                  "pose publisher verifier records CharClipDriver Evaluate dump boundary");
+  ok &= contains(pose_publisher_source_gaps,
+                 "rb2-charbones-scaleadd-delegate-stub-empty",
+                 "pose publisher verifier records empty RB2 CharBones ScaleAdd row");
+  ok &= contains(pose_publisher_source_gaps,
+                 "rb2-charclipsamples-scaleadd-sample-writer-empty",
+                 "pose publisher verifier records empty RB2 CharClipSamples writer row");
   ok &= contains(pose_publisher_source_gaps,
                  "CharClipDriver::Evaluate",
                  "pose publisher verifier summary includes CharClipDriver Evaluate");

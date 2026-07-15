@@ -1560,6 +1560,8 @@ struct SourceCharPosePublisherSourceRefresh {
   bool char_bones_meshes_pose_meshes_statement_body = false;
   bool char_bones_meshes_latest_pose_meshes_stub_only = false;
   bool rb2_dump_is_range_local_map = false;
+  bool rb2_char_bones_scale_add_delegate_stub_empty = false;
+  bool rb2_char_clip_samples_scale_add_sample_writer_empty = false;
   std::vector<std::string> still_fenced;
 };
 

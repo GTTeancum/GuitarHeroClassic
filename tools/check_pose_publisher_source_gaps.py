@@ -62,8 +62,9 @@ def git_short_head(path: Path) -> str | None:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            timeout=10,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     return result.stdout.strip() or None
 
@@ -76,8 +77,9 @@ def git_short_ref(path: Path, ref: str) -> str | None:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            timeout=10,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     return result.stdout.strip() or None
 
@@ -266,10 +268,12 @@ def main(argv: list[str]) -> int:
     )
     if rb2_dump_available:
         dump_meshes = read_text(dump_char / "CharBonesMeshes.cpp")
+        dump_bones = read_text(dump_char / "CharBones.cpp")
         dump_samples = read_text(dump_char / "CharBonesSamples.cpp")
         dump_clip_samples = read_text(dump_char / "CharClipSamples.cpp")
         dump_clip_driver = read_text(dump_char / "CharClipDriver.cpp")
         c_dump_meshes = compact(dump_meshes)
+        c_dump_bones = compact(dump_bones)
         c_dump_samples = compact(dump_samples)
         c_dump_clip_samples = compact(dump_clip_samples)
         c_dump_clip_driver = compact(dump_clip_driver)
@@ -292,11 +296,24 @@ def main(argv: list[str]) -> int:
         )
         record(
             results,
+            "rb2-charbones-scaleadd-delegate-stub-empty",
+            "voidCharBones::ScaleAdd(classCharBones*constthis/*r0*/){}" in c_dump_bones,
+            "RB2 dump maps the CharBones delegate overload as an empty/bodyless row",
+        )
+        record(
+            results,
             "rb2-charclipsamples-scaleadd-bodyless",
             "voidCharClipSamples::ScaleAdd(classCharClipSamples*constthis" in c_dump_clip_samples
             and "intlastSample" in c_dump_clip_samples
             and "floatlastFrac" in c_dump_clip_samples,
             "RB2 dump maps CharClipSamples ScaleAdd overloads but leaves the sample writer body empty/bodyless",
+        )
+        record(
+            results,
+            "rb2-charclipsamples-scaleadd-sample-writer-empty",
+            "voidCharClipSamples::ScaleAdd(classCharClipSamples*constthis/*r28*/,classCharBones&bones/*r29*/,floatweight/*f29*/,intsample/*r30*/,floatfrac/*f30*/,intlastSample/*r31*/,floatlastFrac/*f31*/){}"
+            in c_dump_clip_samples,
+            "RB2 dump maps the sample-index CharClipSamples ScaleAdd writer as an empty/bodyless row",
         )
         record(
             results,

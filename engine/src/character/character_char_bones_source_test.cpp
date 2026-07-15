@@ -1472,6 +1472,13 @@ int main() {
       1, "pose publisher latest PoseMeshes body is stub only");
   ok &= expect_int(publisher_refresh.rb2_dump_is_range_local_map ? 1 : 0, 1,
                    "pose publisher RB2 dump is range/local map");
+  ok &= expect_int(
+      publisher_refresh.rb2_char_bones_scale_add_delegate_stub_empty ? 1 : 0,
+      1, "pose publisher RB2 CharBones ScaleAdd delegate row is empty");
+  ok &= expect_int(
+      publisher_refresh.rb2_char_clip_samples_scale_add_sample_writer_empty ? 1
+                                                                            : 0,
+      1, "pose publisher RB2 CharClipSamples sample writer row is empty");
   ok &= expect_size(publisher_refresh.still_fenced.size(), 5,
                     "pose publisher still-fenced count");
   ok &= expect_string(publisher_refresh.still_fenced.front(),
