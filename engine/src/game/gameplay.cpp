@@ -21545,6 +21545,7 @@ void apply_camera_keys(
     bool result_filter_state_seeded = false;
     bool result_filter_branch = false;
     bool source_build_transform_order = false;
+    const char* source_visible_build_transform_pair = "none";
     if (a_target_centroid && b_target_centroid) {
         blended_target_centroid = {
             (*a_target_centroid)[0] +
@@ -21591,57 +21592,35 @@ void apply_camera_keys(
             CameraResultBuilderState* source_order_state_ptr =
                 result_builder_state ? &source_order_state : nullptr;
             float source_order_filter_step_a = 1.0f;
-            float source_order_filter_step_b = 1.0f;
             float source_order_projected_delta_a = 1.0f;
-            float source_order_projected_delta_b = 1.0f;
             Gameplay::CameraKey build_key_a = *a;
-            Gameplay::CameraKey build_key_b = *b;
             build_key_a.has_fov = true;
-            build_key_b.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
-            build_key_b.fov = source_screen_offset_fov;
             std::optional<CameraResultRows> build_rows_a;
-            std::optional<CameraResultRows> build_rows_b;
             if (a_target_centroid) {
                 build_rows_a = camera_target_list_result_rows_from_seed(
                     source_seed_a, build_key_a, *a_target_centroid,
                     source_order_state_ptr, &source_order_filter_step_a,
                     &source_order_projected_delta_a);
             }
-            if (b_target_centroid) {
-                build_rows_b = camera_target_list_result_rows_from_seed(
-                    source_seed_b, build_key_b, *b_target_centroid,
-                    source_order_state_ptr, &source_order_filter_step_b,
-                    &source_order_projected_delta_b);
+            source_build_transform_result =
+                build_rows_a ? *build_rows_a : source_seed_a;
+            source_build_transform_result->source =
+                "source_visible_current_build_transform_twice(" +
+                source_build_transform_result->source + ")";
+            submitted_result = *source_build_transform_result;
+            source_build_transform_order = true;
+            source_visible_build_transform_pair = "current_frame_twice";
+            if (build_rows_a && result_builder_state) {
+                *result_builder_state = source_order_state;
+                if (result_builder_state->has_filtered_target) {
+                    filtered_target_centroid =
+                        result_builder_state->filtered_target;
+                }
             }
-            if (build_rows_a || build_rows_b) {
-                const CameraResultRows& build_a =
-                    build_rows_a ? *build_rows_a : result_a;
-                const CameraResultRows& build_b =
-                    build_rows_b ? *build_rows_b : result_b;
-                source_build_transform_result =
-                    camera_lerp_result_rows(build_a, build_b, interp_t);
-                source_build_transform_result->source =
-                    "source_build_transform_lerp(" +
-                    source_build_transform_result->source + ")";
-                submitted_result = *source_build_transform_result;
-                source_build_transform_order = true;
-                if (result_builder_state) {
-                    *result_builder_state = source_order_state;
-                    if (result_builder_state->has_filtered_target) {
-                        filtered_target_centroid =
-                            result_builder_state->filtered_target;
-                    }
-                }
-                if (build_rows_b) {
-                    result_filter_step = source_order_filter_step_b;
-                    result_filter_projected_delta =
-                        source_order_projected_delta_b;
-                } else {
-                    result_filter_step = source_order_filter_step_a;
-                    result_filter_projected_delta =
-                        source_order_projected_delta_a;
-                }
+            if (build_rows_a) {
+                result_filter_step = source_order_filter_step_a;
+                result_filter_projected_delta = source_order_projected_delta_a;
             }
         } else {
             CameraResultBuilderState same_target_filter_state =
@@ -21671,81 +21650,68 @@ void apply_camera_keys(
                 }
             }
             Gameplay::CameraKey build_key_a = *a;
-            Gameplay::CameraKey build_key_b = *b;
             build_key_a.has_fov = true;
-            build_key_b.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
-            build_key_b.fov = source_screen_offset_fov;
             std::optional<CameraResultRows> build_rows_a;
-            std::optional<CameraResultRows> build_rows_b;
             if (a_target_centroid) {
                 build_rows_a = camera_target_list_result_rows_from_seed(
                     source_seed_a, build_key_a, *a_target_centroid, nullptr,
                     nullptr, nullptr, false);
             }
-            if (b_target_centroid) {
-                build_rows_b = camera_target_list_result_rows_from_seed(
-                    source_seed_b, build_key_b, *b_target_centroid, nullptr,
-                    nullptr, nullptr, false);
+            CameraResultRows same_target_pre_lookat_result =
+                build_rows_a ? *build_rows_a : source_seed_a;
+            same_target_pre_lookat_result.source =
+                "source_same_target_pre_lookat_current_build(" +
+                same_target_pre_lookat_result.source + ")";
+            source_build_transform_result =
+                camera_source_same_target_look_at_rows(
+                    same_target_pre_lookat_result, a_target_centroid,
+                    b_target_centroid, interp_t)
+                    .value_or(same_target_pre_lookat_result);
+            source_build_transform_result->source =
+                "source_same_target_current_build_twice(" +
+                source_build_transform_result->source + ")";
+            submitted_result = *source_build_transform_result;
+            source_build_transform_order = true;
+            source_visible_build_transform_pair = "current_frame_twice";
+            const float distance_a =
+                a_target_centroid
+                    ? camera_point_distance(
+                          *a_target_centroid,
+                          source_build_transform_result->position)
+                    : std::numeric_limits<float>::quiet_NaN();
+            const float distance_b =
+                b_target_centroid
+                    ? camera_point_distance(
+                          *b_target_centroid,
+                          source_build_transform_result->position)
+                    : distance_a;
+            float source_same_target_distance = distance_a;
+            if (std::isfinite(distance_a) && std::isfinite(distance_b)) {
+                source_same_target_distance =
+                    distance_a + (distance_b - distance_a) * interp_t;
+            } else if (std::isfinite(distance_b)) {
+                source_same_target_distance = distance_b;
             }
-            if (build_rows_a || build_rows_b) {
-                const CameraResultRows& build_a =
-                    build_rows_a ? *build_rows_a : source_seed_a;
-                const CameraResultRows& build_b =
-                    build_rows_b ? *build_rows_b : source_seed_b;
-                CameraResultRows same_target_pre_lookat_result =
-                    camera_lerp_result_rows(build_a, build_b, interp_t);
-                same_target_pre_lookat_result.source =
-                    "source_same_target_pre_lookat_lerp(" +
-                    same_target_pre_lookat_result.source + ")";
-                source_build_transform_result =
-                    camera_source_same_target_look_at_rows(
-                        same_target_pre_lookat_result, a_target_centroid,
-                        b_target_centroid, interp_t)
-                        .value_or(same_target_pre_lookat_result);
-                source_build_transform_result->source =
-                    "source_same_target_build_lerp(" +
-                    source_build_transform_result->source + ")";
-                submitted_result = *source_build_transform_result;
-                source_build_transform_order = true;
-                const float distance_a =
-                    a_target_centroid
-                        ? camera_point_distance(
-                              *a_target_centroid,
-                              source_build_transform_result->position)
-                        : std::numeric_limits<float>::quiet_NaN();
-                const float distance_b =
-                    b_target_centroid
-                        ? camera_point_distance(
-                              *b_target_centroid,
-                              source_build_transform_result->position)
-                        : distance_a;
-                float source_same_target_distance = distance_a;
-                if (std::isfinite(distance_a) && std::isfinite(distance_b)) {
-                    source_same_target_distance =
-                        distance_a + (distance_b - distance_a) * interp_t;
-                } else if (std::isfinite(distance_b)) {
-                    source_same_target_distance = distance_b;
-                }
-                // CamShotFrame::Interp disables BuildTransform screen-offset
-                // filtering for SameTargets, reorients with unk34/frame.unk34,
-                // then offsets the blended transform in local space.
-                source_screen_offset_translate_result =
-                    camera_source_screen_offset_translate_distance_result_rows(
-                        *source_build_transform_result, result_key,
-                        source_same_target_distance, false);
-                if (source_screen_offset_translate_result) {
-                    submitted_result = *source_screen_offset_translate_result;
-                }
+            // CamShotFrame::Interp disables BuildTransform screen-offset
+            // filtering for SameTargets, reorients with unk34/frame.unk34,
+            // then offsets the blended transform in local space.
+            source_screen_offset_translate_result =
+                camera_source_screen_offset_translate_distance_result_rows(
+                    *source_build_transform_result, result_key,
+                    source_same_target_distance, false);
+            if (source_screen_offset_translate_result) {
+                submitted_result = *source_screen_offset_translate_result;
             }
         }
     } else if (!submitted_result_from_ps2_trace && !source_has_any_targets) {
-        source_build_transform_result = source_seed_result;
+        source_build_transform_result = source_seed_a;
         source_build_transform_result->source =
-            "source_no_target_build_lerp(" +
+            "source_no_target_current_build_twice(" +
             source_build_transform_result->source + ")";
         submitted_result = *source_build_transform_result;
         source_build_transform_order = true;
+        source_visible_build_transform_pair = "current_frame_twice";
     }
     const CameraResultRows source_pre_setframe_blend_result = submitted_result;
     const float source_current_far_z = cam.far_z;
@@ -23090,6 +23056,7 @@ void apply_camera_keys(
             stderr,
             "[camera-solver] frame=%.2f shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
+            "source_visible_build_pair=%s "
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_locals=%s "
@@ -23103,9 +23070,10 @@ void apply_camera_keys(
             "state_valid=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\n",
             frame, result_filter_branch ? 1 : 0,
-            source_build_transform_order ? "per_key_then_lerp"
+            source_build_transform_order ? "current_frame_twice"
                                          : "blended_seed",
             same_targets_like_camshot ? 0 : 1,
+            source_visible_build_transform_pair,
             !source_has_any_targets
                 ? "NoTargets:BuildTransform(applyScreenOffset=1)"
                 : same_targets_like_camshot

@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera visible BuildTransform pair:
+  ihatecompvir `CamShotFrame::Interp` sets the frustum, then calls
+  `BuildTransform(cam, tfd0, !sameTargets)` and
+  `BuildTransform(cam, tf100, !sameTargets)` on the current frame before
+  interpolating those transforms. Native normal gameplay camera rows now mirror
+  that visible current-frame-twice shape instead of blending separate current
+  and next `BuildTransform` solves. Same-target handling still redoes the
+  source `LookAt` with `unk34` / `frame.unk34`, no-target shots use the current
+  frame seed, and the solver proof row reports
+  `source_visible_build_pair=current_frame_twice`. This is source text parity
+  for regular gameplay cameras; FreeCam remains deferred last and no dependency
+  surface changes.
 - 2026-07-15 gameplay camera one_bar_to solo switch proof:
   GH2 `world_objects_worldbase.dta::one_bar_to` updates `camera_solo` through
   an explicit source `switch`: `solo` sets it true, `verse` / `chorus` set it
@@ -160,11 +172,11 @@
   bodies. FreeCam remains deferred.
 - 2026-07-15 gameplay CamShot no-target BuildTransform route:
   ihatecompvir `CamShotFrame::Interp` always calls
-  `BuildTransform(cam, ..., !sameTargets)` for the current and next key before
-  lerping them, even when neither key has resolved targets. Native no-target
-  gameplay shots now submit the per-key source seed lerp
-  (`source_no_target_build_lerp(...)`) instead of falling through to the
-  generic no-target fallback, while still leaving the hidden
+  `BuildTransform(cam, ..., !sameTargets)` twice on the current frame before
+  lerping those two visible transform slots, even when neither key has resolved
+  targets. Native no-target gameplay shots now submit the current-frame source
+  seed (`source_no_target_current_build_twice(...)`) instead of falling through
+  to the generic no-target fallback, while still leaving the hidden
   `BuildTransform` body marked `rb2_dump_locals_only`. The solver proof row
   now separates `NoTargets:BuildTransform(applyScreenOffset=1)` from
   `NonSameTargets` and prints A/B `HasTargets` state, so sketchy angles can be
@@ -12025,14 +12037,13 @@ Rejected native probe:
   `filter` local inside `CamShotFrame::BuildTransform`; `Interp` calls
   `BuildTransform(cam, ..., !sameTargets)`, so that screen-offset/filter
   branch is explicitly disabled for same-target blends before the direct-target
-  local-space offset block runs. Native now builds the same-target A/B rows
-  from their per-key source seeds with BuildTransform screen offset disabled,
-  interpolates those rows as `source_same_target_pre_lookat_lerp(...)`, then
-  redoes the source SameTargets `LookAt` from that blended transform position
-  using `unk34` and `frame.unk34`. It submits the final
-  `source_same_target_build_lerp(...)` rows before applying the local-space
-  screen-offset translation with the interpolated target distance. The old
-  shot-filtered target version remains only as
+  local-space offset block runs. Native now builds the same-target current row
+  from the current source seed with BuildTransform screen offset disabled,
+  reuses that visible current-frame result for the two transform slots, then
+  redoes the source SameTargets `LookAt` using `unk34` and `frame.unk34`. It
+  submits the final `source_same_target_current_build_twice(...)` rows before
+  applying the local-space screen-offset translation with the interpolated
+  target distance. The old shot-filtered target version remains only as
   `source_screen_offset_filtered_target_candidate` diagnostics. This keeps the
   traced `shot_filter` state available for target-list/non-same-target work
   without applying it to the source same-target screen-offset translation.
@@ -12054,17 +12065,17 @@ Rejected native probe:
   as `screen_offset_consumed`, preventing venue/character projection from
   applying the same CamShot `screen_offset` a second time.
 - 2026-07-14 non-SameTargets BuildTransform order:
-  the visible ihatecompvir `CamShotFrame::Interp` order builds the current and
-  next key transforms with `BuildTransform(cam, ..., !sameTargets)` before
-  interpolating the two transforms. Native no longer submits a single
-  non-SameTargets target-list solve from an already interpolated source seed.
-  It now builds the A/B target-list rows from their per-key source seeds using
-  the pre-zoom CamShot frustum, then submits
-  `source_build_transform_lerp(...)`. Same-target blends follow the same
-  per-key build-before-interp order, but with `applyScreenOffset=false`; after
-  the row interpolation they re-run the direct-target `LookAt` from the blended
-  transform position before applying the separately audited local-space
-  screen-offset path.
+  the visible ihatecompvir `CamShotFrame::Interp` order calls
+  `BuildTransform(cam, ..., !sameTargets)` twice on the current frame before
+  interpolating those two transform slots. Native no longer submits a single
+  non-SameTargets target-list solve from an already interpolated source seed,
+  and it also no longer blends a separate next-key `BuildTransform` solve. It
+  now builds the current target-list row from the current source seed using the
+  pre-zoom CamShot frustum, then submits
+  `source_visible_current_build_transform_twice(...)`. Same-target blends
+  follow that same visible current-frame pair, but with
+  `applyScreenOffset=false`; after that they re-run the direct-target `LookAt`
+  before applying the separately audited local-space screen-offset path.
 - 2026-07-14 BuildTransform branch proof: debug camera solver rows now name the
   selected source branch (`SameTargets:BuildTransform(applyScreenOffset=0)` or
   `NonSameTargets:BuildTransform(applyScreenOffset=1)`) and label the `filter`

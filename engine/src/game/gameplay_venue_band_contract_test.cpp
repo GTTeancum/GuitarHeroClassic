@@ -9511,15 +9511,14 @@ int main() {
                  "camera target-list rows can run from an already blended source seed");
   ok &= contains(gameplay_c,
                  "source_build_transform_result="
-                 "camera_lerp_result_rows(build_a,build_b,interp_t);",
-                 "non-same-target CamShot rows build each transform before interpolation");
+                 "build_rows_a?*build_rows_a:source_seed_a;",
+                 "non-same-target CamShot rows mirror the visible current-frame BuildTransform pair");
   ok &= contains(gameplay_c,
                  "source_build_transform_result->source="
-                 "\"source_build_transform_lerp(\"+",
-                 "source BuildTransform interpolation rows label their provenance");
+                 "\"source_visible_current_build_transform_twice(\"+",
+                 "source BuildTransform rows label the visible current-frame twice provenance");
   ok &= contains(gameplay_c,
-                 "build_key_a.fov=source_screen_offset_fov;"
-                 "build_key_b.fov=source_screen_offset_fov;",
+                 "build_key_a.fov=source_screen_offset_fov;",
                  "source BuildTransform rows use the pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
                  "camera_target_list_result_rows_from_seed("
@@ -9527,25 +9526,20 @@ int main() {
                  "nullptr,nullptr,false);",
                  "same-target CamShot builds the current transform without BuildTransform screen offset");
   ok &= contains(gameplay_c,
-                 "camera_target_list_result_rows_from_seed("
-                 "source_seed_b,build_key_b,*b_target_centroid,nullptr,"
-                 "nullptr,nullptr,false);",
-                 "same-target CamShot builds the next transform without BuildTransform screen offset");
-  ok &= contains(gameplay_c,
-                 "\"source_same_target_build_lerp(\"+",
-                 "same-target CamShot labels its cached-target BuildTransform interpolation");
-  ok &= contains(gameplay_c,
                  "same_target_pre_lookat_result="
-                 "camera_lerp_result_rows(build_a,build_b,interp_t);",
-                 "same-target CamShot first interpolates the BuildTransform rows");
+                 "build_rows_a?*build_rows_a:source_seed_a;",
+                 "same-target CamShot reuses the visible current-frame BuildTransform result");
   ok &= contains(gameplay_c,
-                 "\"source_same_target_pre_lookat_lerp(\"+",
-                 "same-target CamShot labels the pre-LookAt blended transform");
+                 "\"source_same_target_pre_lookat_current_build(\"+",
+                 "same-target CamShot labels the current-frame pre-LookAt transform");
+  ok &= contains(gameplay_c,
+                 "\"source_same_target_current_build_twice(\"+",
+                 "same-target CamShot labels its visible current-frame BuildTransform pair");
   ok &= contains(gameplay_c,
                  "camera_source_same_target_look_at_rows("
                  "same_target_pre_lookat_result,a_target_centroid,"
                  "b_target_centroid,interp_t)",
-                 "same-target CamShot redoes LookAt from the blended transform position");
+                 "same-target CamShot redoes LookAt from the current transform position");
   ok &= contains(gameplay_c,
                  "out.position=rows.position;",
                  "same-target LookAt keeps CamShotFrame::Interp blended position");
@@ -9563,8 +9557,15 @@ int main() {
                  "(BuildTransform,applyScreenOffset)\\n\"",
                  "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
-                 "\"source_no_target_build_lerp(\"",
-                 "no-target CamShots still use the source BuildTransform per-key lerp shape");
+                 "\"source_no_target_current_build_twice(\"",
+                 "no-target CamShots use the visible current-frame BuildTransform pair");
+  ok &= contains(gameplay_c,
+                 "\"source_visible_build_pair=%s\"",
+                 "camera debug logs expose the visible BuildTransform frame pair");
+  ok &= contains(gameplay_c,
+                 "source_build_transform_order?"
+                 "\"current_frame_twice\":\"blended_seed\"",
+                 "camera debug logs name the visible current-frame BuildTransform order");
   ok &= contains(gameplay_c,
                  "\"source_branch=%ssource_filter_scope=%s\"",
                  "camera debug logs expose the source BuildTransform branch and filter scope");
