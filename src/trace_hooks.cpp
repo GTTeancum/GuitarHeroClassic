@@ -407,6 +407,41 @@ std::string describe_anim_table_memory_header(uint8_t* base,
     return buf;
 }
 
+std::string describe_known_table_pointer(uint8_t* base, const char* label,
+                                         uint32_t owner, uint32_t field_offset,
+                                         int words) {
+    std::string out(label);
+    const uint32_t ptr = owner ? REX_LOAD_U32(owner + field_offset) : 0;
+    out += "@+";
+    char off[12];
+    std::snprintf(off, sizeof off, "0x%X", field_offset);
+    out += off;
+    out += "=";
+    out += fmt_ptr(ptr);
+    if (looks_like_guest_pointer(ptr)) {
+        out += ":";
+        out += raw_u32_words(base, ptr, words);
+    }
+    return out;
+}
+
+std::string describe_anim_table_neighborhood(uint8_t* base,
+                                             uint32_t table_obj) {
+    if (!table_obj) return "null";
+    std::string out = "table=" + fmt_ptr(table_obj);
+    out += " words0=";
+    out += raw_u32_words(base, table_obj, 32);
+    out += " ";
+    out += describe_known_table_pointer(base, "channels", table_obj, 12, 16);
+    out += " ";
+    out += describe_known_table_pointer(base, "pos_values", table_obj, 108, 16);
+    out += " ";
+    out += describe_known_table_pointer(base, "quat_values", table_obj, 116, 16);
+    out += " ";
+    out += describe_known_table_pointer(base, "rot_values", table_obj, 120, 16);
+    return out;
+}
+
 std::string describe_anim_channel_memory(uint8_t* base, uint32_t table_obj,
                                          const char* channel_name) {
     const int index = find_channel_index(base, table_obj, channel_name);
@@ -516,6 +551,27 @@ void log_lower_body_memory_dump(uint8_t* base, const char* apply_kind,
     detail += " dst_rows=";
     detail += describe_lower_body_memory_rows(base, dst);
     trace360::LogEvent("anim.lower_body.memory", detail);
+}
+
+void log_lower_body_neighborhood_dump(uint8_t* base, const char* apply_kind,
+                                      const char* phase, uint32_t seq,
+                                      uint32_t src, uint32_t dst,
+                                      float weight, uint32_t lr) {
+    std::string detail = "seq=" + std::to_string(seq);
+    detail += " apply=";
+    detail += apply_kind;
+    detail += " phase=";
+    detail += phase;
+    detail += " lr=";
+    detail += fmt_ptr(lr);
+    detail += " weight=";
+    detail += fmt_f(weight);
+    detail += " src_nb=[";
+    detail += describe_anim_table_neighborhood(base, src);
+    detail += "] dst_nb=[";
+    detail += describe_anim_table_neighborhood(base, dst);
+    detail += "]";
+    trace360::LogEvent("anim.lower_body.neighborhood", detail);
 }
 
 std::string capture_selected_anim_values(uint8_t* base, uint32_t src,
@@ -1049,12 +1105,19 @@ REX_HOOK_RAW(sub_8215DF28) {
         if (lower_body_dump) {
             log_lower_body_memory_dump(base, "weighted", "before",
                                        lower_body_dump_seq, src, dst, weight);
+            log_lower_body_neighborhood_dump(base, "weighted", "before",
+                                             lower_body_dump_seq, src, dst,
+                                             weight,
+                                             static_cast<uint32_t>(ctx.lr));
         }
     }
     __imp__sub_8215DF28(ctx, base);
     if (lower_body_dump) {
         log_lower_body_memory_dump(base, "weighted", "after",
                                    lower_body_dump_seq, src, dst, weight);
+        log_lower_body_neighborhood_dump(base, "weighted", "after",
+                                         lower_body_dump_seq, src, dst, weight,
+                                         static_cast<uint32_t>(ctx.lr));
     }
 
     static std::atomic<uint32_t> s_count{0};
@@ -1112,12 +1175,19 @@ REX_HOOK_RAW(sub_8215E6A0) {
         if (lower_body_dump) {
             log_lower_body_memory_dump(base, "unweighted", "before",
                                        lower_body_dump_seq, src, dst, 1.0f);
+            log_lower_body_neighborhood_dump(base, "unweighted", "before",
+                                             lower_body_dump_seq, src, dst,
+                                             1.0f,
+                                             static_cast<uint32_t>(ctx.lr));
         }
     }
     __imp__sub_8215E6A0(ctx, base);
     if (lower_body_dump) {
         log_lower_body_memory_dump(base, "unweighted", "after",
                                    lower_body_dump_seq, src, dst, 1.0f);
+        log_lower_body_neighborhood_dump(base, "unweighted", "after",
+                                         lower_body_dump_seq, src, dst, 1.0f,
+                                         static_cast<uint32_t>(ctx.lr));
     }
 
     static std::atomic<uint32_t> s_count{0};

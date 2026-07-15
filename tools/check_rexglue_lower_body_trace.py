@@ -26,6 +26,7 @@ LOWER_BODY_CHANNELS = (
 
 KINDS = (
     "anim.lower_body.memory",
+    "anim.lower_body.neighborhood",
     "anim.lower_body.runtime_memory",
     "anim.apply.weighted",
     "anim.apply.unweighted",
@@ -97,6 +98,7 @@ def main() -> int:
     parser.add_argument("--require-runtime-memory", action="store_true")
     parser.add_argument("--require-clip-apply", action="store_true")
     parser.add_argument("--require-lower-body-rows", action="store_true")
+    parser.add_argument("--require-neighborhood", action="store_true")
     parser.add_argument("--require-in-song-route", action="store_true")
     parser.add_argument("--require-scripted-nav-polls", action="store_true")
     parser.add_argument("--require-guitar-input-edge", action="store_true")
@@ -133,6 +135,8 @@ def main() -> int:
     )
     if args.require_lower_body_rows and not found_channels:
         failures.append("missing named lower-body channel rows")
+    if args.require_neighborhood and counts["anim.lower_body.neighborhood"] <= 0:
+        failures.append("missing lower-body pose-table neighborhood dumps")
 
     summary = {
         "trace": str(args.trace),
@@ -144,6 +148,9 @@ def main() -> int:
         "scripted_nav_polls": counts["input.scripted_nav.poll"],
         "input_guitar_edges": counts["input.guitar_edge"],
         "lower_body_channels": found_channels,
+        "first_lower_body_neighborhood": (
+            detail_text(events, "anim.lower_body.neighborhood") or [""]
+        )[0][:300],
         "first_scripted_nav_poll": (
             detail_text(events, "input.scripted_nav.poll") or [""]
         )[0][:300],
@@ -168,6 +175,7 @@ def main() -> int:
         f"events={len(events)} "
         f"invalid={invalid_lines} "
         f"runtime={counts['anim.lower_body.runtime_memory']} "
+        f"neighborhood={counts['anim.lower_body.neighborhood']} "
         f"apply={counts['anim.apply.weighted'] + counts['anim.apply.unweighted']} "
         f"rows={len(found_channels)} "
         f"insong={strong_in_song_events} "
