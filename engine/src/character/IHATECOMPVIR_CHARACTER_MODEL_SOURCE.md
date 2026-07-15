@@ -5936,6 +5936,20 @@ split explicit: Rockabill2 reports `max_abs_z_gap=3.726`, Glam1 reports
 supports "Rockabill2 is easiest to see" rather than "Rockabill2 is the only
 affected character", and it does not authorize a Rockabill-only leg fix.
 
+2026-07-14 `3c08c86` regression reread: user review correctly remembered
+that some captures around `3c08c86` looked more leg-normal than the current
+standard-pose reference-base proofs. The stored evidence does not prove those
+older visuals were source-correct, though. In
+`fractosample_fence_20260714/rockabill2-special02-frame070-fractosample-fence`,
+the Rockabill2 proof logs `special_02` as `141 frames` with `61 output bones`,
+while later/current source-routed Rockabill2 proofs resolve the body clip
+through `char/rockabill1/anims/gen/rockabill1_main.milo_ps2` and log
+`special_02` as `191 frames` with `82 output bones` or `stand_fast_03` as
+`197 frames` with `82 output bones`. Treat the old view as a useful regression
+clue, not as a known-good target: the bad current leg read must be fixed in the
+shared source publisher path, not by restoring an older wrong-clip or
+non-equivalent proof setup.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final

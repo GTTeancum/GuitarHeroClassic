@@ -33561,6 +33561,20 @@ int run_contract() {
   ok &= contains(doc,
                  "does not authorize a Rockabill-only leg fix",
                  "document rejects character-specific leg shortcut");
+  ok &= contains(doc,
+                 "2026-07-14 `3c08c86` regression reread",
+                 "document records user-reported 3c08c86 leg regression check");
+  ok &= contains(doc,
+                 "logs `special_02` as `141 frames` with `61 output bones`",
+                 "document records old non-equivalent Rockabill2 clip evidence");
+  ok &= contains(doc,
+                 "`special_02` as `191 frames` with `82 output bones` or "
+                 "`stand_fast_03` as\n`197 frames` with `82 output bones`",
+                 "document records current source-routed Rockabill2 clip evidence");
+  ok &= contains(doc,
+                 "not by restoring an older wrong-clip or\nnon-equivalent "
+                 "proof setup",
+                 "document rejects old visual false-good target");
   ok &= contains(charhair_log_compare,
                  "SCREENSHOT_MARKERS=(\"screenshotsaved\",\"screenshot->\")",
                  "CharHair log verifier stops at screenshot proof markers");
