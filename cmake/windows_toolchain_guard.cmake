@@ -28,3 +28,35 @@ if(WIN32)
     unset(_ghogx_windows_uses_non_msvc_compiler)
     unset(_ghogx_windows_toolchain_text)
 endif()
+
+function(ghogx_add_windows_import_guard target_name)
+    if(NOT WIN32)
+        return()
+    endif()
+    if(NOT TARGET ${target_name})
+        message(FATAL_ERROR "ghogx_add_windows_import_guard called for unknown target: ${target_name}")
+    endif()
+
+    get_property(_ghogx_guarded TARGET ${target_name} PROPERTY GHOGX_WINDOWS_IMPORT_GUARDED)
+    if(_ghogx_guarded)
+        return()
+    endif()
+
+    get_target_property(_ghogx_target_type ${target_name} TYPE)
+    if(NOT _ghogx_target_type STREQUAL "EXECUTABLE")
+        return()
+    endif()
+
+    find_program(GHOGX_POWERSHELL powershell.exe)
+    if(GHOGX_POWERSHELL)
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND ${GHOGX_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
+                    -File "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../tools/check_windows_imports.ps1"
+                    "$<TARGET_FILE:${target_name}>"
+            COMMENT "Checking ${target_name} for forbidden runtime DLL imports")
+        set_property(TARGET ${target_name} PROPERTY GHOGX_WINDOWS_IMPORT_GUARDED TRUE)
+    endif()
+
+    unset(_ghogx_target_type)
+    unset(_ghogx_guarded)
+endfunction()

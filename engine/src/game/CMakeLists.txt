@@ -57,6 +57,7 @@ endif()
 # character module.
 add_executable(audio_smoke audio_smoke.cpp)
 target_link_libraries(audio_smoke PRIVATE ghogx_game)
+ghogx_add_windows_import_guard(audio_smoke)
 
 add_executable(ghogx_gameplay_venue_band_contract_test
     gameplay_venue_band_contract_test.cpp)
@@ -88,6 +89,9 @@ add_test(NAME ghogx_gameplay_rules_test COMMAND ghogx_gameplay_rules_test)
 add_executable(ghogx_gameplay_session_test gameplay_session_test.cpp)
 target_link_libraries(ghogx_gameplay_session_test PRIVATE ghogx_gameplay_rules)
 add_test(NAME ghogx_gameplay_session_test COMMAND ghogx_gameplay_session_test)
+ghogx_add_windows_import_guard(ghogx_gameplay_venue_band_contract_test)
+ghogx_add_windows_import_guard(ghogx_gameplay_rules_test)
+ghogx_add_windows_import_guard(ghogx_gameplay_session_test)
 
 if(MSVC)
     target_compile_options(ghogx_gameplay_venue_band_contract_test PRIVATE /W4)

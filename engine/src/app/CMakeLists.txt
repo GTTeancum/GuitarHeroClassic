@@ -19,6 +19,7 @@ if(MSVC)
 else()
     target_compile_options(ghogx_app PRIVATE -Wall -Wextra)
 endif()
+ghogx_add_windows_import_guard(ghogx_app)
 
 if(WIN32)
     find_program(GHOGX_POWERSHELL powershell.exe)

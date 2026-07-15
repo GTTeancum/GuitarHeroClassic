@@ -87,6 +87,7 @@ if(MSVC)
 else()
     target_compile_options(ghogx PRIVATE -Wall -Wextra)
 endif()
+ghogx_add_windows_import_guard(ghogx)
 
 # ---- Win32 audiovisual viewer ---------------------------------------------
 
@@ -101,6 +102,7 @@ if(WIN32)
     else()
         target_compile_options(ghogx_viewer PRIVATE -Wall -Wextra)
     endif()
+    ghogx_add_windows_import_guard(ghogx_viewer)
 endif()
 
 if(WIN32)
