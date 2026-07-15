@@ -33896,23 +33896,28 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             song_time_, active_camera_position_start_);
                     }
                 }
+                const float source_shot_local_frame = camera_source_local_frame(
+                    *key, song_time_, active_regular_camera_start_, &chart_);
+                const bool source_shot_started =
+                    active_camera_shot_started_reported_ != key->name;
+                if (source_shot_started) {
+                    active_camera_shot_started_reported_ = key->name;
+                    apply_venue_event("post_switch_cam", false);
+                }
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-                    const float local_frame = camera_source_local_frame(
-                        *key, song_time_, active_regular_camera_start_, &chart_);
-                    if (active_camera_shot_started_reported_ != key->name) {
-                        active_camera_shot_started_reported_ = key->name;
+                    if (source_shot_started) {
                         std::fprintf(
                             stderr,
                             "[world] camera PrePoll SetPreFrame: source_manager=PrePoll source_call=CamShot::SetPreFrame shot=%s local_frame=%.3f source_setpreframe_blend=%.3f base_noop=1 source_order=after_mNextShot_before_Poll_SetFrame\n",
-                            key->name.c_str(), local_frame,
+                            key->name.c_str(), source_shot_local_frame,
                             source_setpreframe_blend);
                         std::fprintf(
                             stderr,
-                            "[world] camera shot_started dispatch: source_msg=shot_started source_script=world/camshot.dta source_action=handle(world post_switch_cam) native_handler=post_switch_cam_deferred pose_body=not_synthesized\n");
+                            "[world] camera shot_started dispatch: source_msg=shot_started source_script=world/camshot.dta source_action=handle(world post_switch_cam) native_handler=apply_venue_event(post_switch_cam) pose_body=not_synthesized\n");
                         std::fprintf(
                             stderr,
                             "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=%.3f\n",
-                            key->name.c_str(), local_frame,
+                            key->name.c_str(), source_shot_local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),
                             camera_source_duration_seconds_source(*key),
@@ -33961,7 +33966,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         std::fprintf(
                             stderr,
                             "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f report_key=%s source_report_scope=key_pair_change route=regular_camera_source_frame_keys source_locals=CamShot::SetFrame(prev,next,keyBlend)\n",
-                            key->name.c_str(), local_frame,
+                            key->name.c_str(), source_shot_local_frame,
                             selected_camera.size(), a_key.frame,
                             b_key.frame, frame_mapping_prefix(),
                             has_frame_mapping
@@ -34055,7 +34060,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         std::fprintf(
                             stderr,
                             "[world] camera source frame hold: shot=%s local_frame=%.3f keys=%zu frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f report_key=%s source_report_scope=key_pair_change source_phase=hold_before_blend route=regular_camera_source_frame_keys source_nullFrame=%d source_locals=%s\n",
-                            key->name.c_str(), local_frame,
+                            key->name.c_str(), source_shot_local_frame,
                             selected_camera.size(), hold_key.frame,
                             frame_mapping_prefix(),
                             has_frame_mapping
@@ -34169,7 +34174,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         std::fprintf(
                             stderr,
                             "[world] camera source path frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f a_transanim_frame=%s%.3f b_transanim_frame=%s%.3f first_transanim_frame=%s%.3f source_local_frame=%s%.3f a_submitted_frame=%s%.3f b_submitted_frame=%s%.3f a_path_frame=%s%.3f b_path_frame=%s%.3f a_legacy_path_frame=%s%.3f b_legacy_path_frame=%s%.3f source_start_frame=%s%.3f source_end_frame=%s%.3f source_sample_frames=%s%zu added_source_frames=%s%zu source_key_pages=%strans:%zu rot:%zu scale:%zu a_path_scale=%s(%.3f %.3f %.3f) b_path_scale=%s(%.3f %.3f %.3f) a_path_base_translation=%d b_path_base_translation=%d source_path_flags=%strans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d source_path_frame_load=CamShot::Load_legacy_float_ignored route=regular_camera_path_keys path=%s path_trans_target=%s source_gate=RndTransAnim::SetFrame_mTrans source_trans_target_resolved=%d mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only native_path_submit=decoded_trans_rot_scale_pages path_timing=CameraManager::CalcFrame_to_RndTransAnim_SetFrame\n",
-                            key->name.c_str(), local_frame,
+                            key->name.c_str(), source_shot_local_frame,
                             selected_camera.size(), a_key.frame, b_key.frame,
                             path_mapping_prefix(a_key),
                             a_key.has_source_path_frame_mapping
@@ -34284,7 +34289,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             stderr,
                             "[world] camera RndTransAnim SetFrame: source_call=RndTransAnim::SetFrame source_order=RndAnimatable::SetFrame_before_mTrans_gate shot=%s path=%s frame=%.3f blend=%.3f mTrans=%s target_resolved=%d mtrans_gate_scope=standalone_RndTransAnim_SetFrame camshot_path_body=CamShot::SetPos(pathXfm)_rb2_locals_only submitted=a:%s%.3f b:%s%.3f make_transform_body=locals_only native_path_math=decoded_trans_rot_scale_pages\n",
                             key->name.c_str(), key->path_anim.c_str(),
-                            local_frame, source_setframe_blend,
+                            source_shot_local_frame, source_setframe_blend,
                             path_trans_target_label(path_target_key),
                             path_target_key.has_path_trans_target &&
                                     !path_target_key.path_trans_target.empty()

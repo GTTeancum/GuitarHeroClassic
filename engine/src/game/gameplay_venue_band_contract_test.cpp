@@ -11048,9 +11048,12 @@ int main() {
                  "\"[world]camerashot_starteddispatch:"
                  "source_msg=shot_startedsource_script=world/camshot.dta"
                  "source_action=handle(worldpost_switch_cam)"
-                 "native_handler=post_switch_cam_deferred"
+                 "native_handler=apply_venue_event(post_switch_cam)"
                  "pose_body=not_synthesized\\n\"",
-                 "shot_started diagnostics expose the GH2 camshot.dta post_switch_cam dispatch without reviving hidden pose math");
+                 "shot_started diagnostics expose the GH2 camshot.dta post_switch_cam dispatch through the native venue event bridge without reviving hidden pose math");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(\"post_switch_cam\",false);",
+                 "shot_started applies GH2's world post_switch_cam event through the existing dependency-free venue router");
   ok &= contains(gameplay_c,
                  "source_prep=CameraManager::PrePoll->CamShot::SetPreFrame"
                  "base_noop=1source_setframe_blend=%.3f\\n\"",
@@ -11081,9 +11084,9 @@ int main() {
                  "&regular_camera_keys_,source_setframe_blend);",
                  "CameraManager::Poll supplies source SetFrame blend 1.0 to native camera application");
   ok &= contains(gameplay_c,
-                 "if(debug_camera_enabled()||debug_venue_filters_enabled()){"
-                 "constfloatlocal_frame=",
-                 "regular camera SetFrame diagnostics are not gated to one native camera route");
+                 "constfloatsource_shot_local_frame=camera_source_local_frame("
+                 "*key,song_time_,active_regular_camera_start_,&chart_);",
+                 "regular camera SetFrame source local frame is computed outside the diagnostic-only logging gate");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframepair:shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"

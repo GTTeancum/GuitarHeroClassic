@@ -686,10 +686,18 @@ Open work:
   stock `world/camshot.dta` routes `shot_started` to
   `handle (world post_switch_cam)`. The public ihatecompvir materials expose
   the message boundary and old traces identify a native `post_switch_cam`
-  handler, but the safe GH2 handler body is not recovered. Native now logs a
-  `camera shot_started dispatch` row at the source `SetFrame` shot-start point
-  and marks the handler `post_switch_cam_deferred` / `pose_body=not_synthesized`,
-  while keeping the old broad `[world] post_switch_cam:` stepping forbidden.
+  handler, but the safe GH2 pose-body math is not recovered. The 2026-07-15
+  bridge now applies the existing dependency-free venue event router with
+  `apply_venue_event("post_switch_cam", false)` once per active source
+  `shot_started` runtime bit, and the diagnostic row marks
+  `native_handler=apply_venue_event(post_switch_cam)` /
+  `pose_body=not_synthesized`. This keeps authored venue routes live while
+  keeping the old broad `[world] post_switch_cam:` camera stepping forbidden.
+  Validation proof `proofs/camera_post_switch_cam_debug_20260715_001709.log`
+  records `venue event post_switch_cam` MatAnim/visibility rows followed by the
+  camera dispatch row, and
+  `proofs/camera_post_switch_cam_debug_20260715_001709.png` is the matching
+  rendered frame.
 - 2026-07-13 CamShot `mShotOver` one-shot bridge: ihatecompvir
   `CamShot::CheckShotOver` returns true only when `!mShotOver`, the shot is not
   looping, and the local frame reaches the cached duration; `SetShotOver` then
