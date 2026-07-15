@@ -6355,7 +6355,8 @@ Lower-body evidence audit:
   cross-checks the committed manifest against that raw PCSX2 JSON, requires
   the direct before/after PCSX2 screenshots to exist, verifies that each sampled
   source/controller and stable mesh-wrapper row is labeled with the expected
-  `bone_*.mesh` string at the sampled base address, and reports
+  `bone_*.mesh` string at the sampled base address, verifies the raw changed
+  offsets recorded for the seven moving rows (`0x4c..0xcc`), and reports
   `stable_mesh_wrappers=9`, `moving_source_rows=7`, and
   `source_json_checked=true`.
   If a future visual proof contradicts the current result, the next RexGlue

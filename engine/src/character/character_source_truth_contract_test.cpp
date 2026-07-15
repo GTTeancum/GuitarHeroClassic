@@ -34536,6 +34536,12 @@ int run_contract() {
   ok &= contains(lower_body_pcsx2_row_trace_manifest,
                  "\"rock_mesh_R_thigh\"",
                  "PCSX2 lower-body manifest records stable mesh wrapper row");
+  ok &= contains(lower_body_pcsx2_row_trace_manifest,
+                 "\"raw_change_offsets\"",
+                 "PCSX2 lower-body manifest records raw changed offsets");
+  ok &= contains(lower_body_pcsx2_row_trace_manifest,
+                 "\"offsets\":[\"0x4c\",\"0x50\",\"0x54\"",
+                 "PCSX2 lower-body manifest pins row offset summary");
   ok &= contains(lower_body_pcsx2_row_trace,
                  "stable_mesh_wrappers=",
                  "PCSX2 lower-body checker reports stable mesh wrappers");
@@ -34546,6 +34552,9 @@ int run_contract() {
                  "require_raw_row_label",
                  "PCSX2 lower-body checker requires raw bone labels");
   ok &= contains(lower_body_pcsx2_row_trace,
+                 "changed_offsets(raw_entry)",
+                 "PCSX2 lower-body checker cross-checks raw changed offsets");
+  ok &= contains(lower_body_pcsx2_row_trace,
                  "rawbefore-samplescreenshot",
                  "PCSX2 lower-body checker requires direct raw screenshots");
   ok &= contains(lower_body_pcsx2_row_trace,
@@ -34554,6 +34563,9 @@ int run_contract() {
   ok &= contains(doc,
                  "row is labeled with the expected\n  `bone_*.mesh` string",
                  "document records raw PCSX2 bone-label requirement");
+  ok &= contains(doc,
+                 "verifies the raw changed\n  offsets recorded for the seven moving rows",
+                 "document records raw PCSX2 changed-offset requirement");
   ok &= contains(lower_body_rexglue_trace_manifest,
                  "\"trace_commit\":\"580e405\"",
                  "RexGlue lower-body manifest records trace scaffold commit");

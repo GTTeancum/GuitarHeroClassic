@@ -55,6 +55,21 @@ def require_raw_change_detail(raw_entry: dict[str, Any], row_name: str) -> None:
             require(key in change, f"{row_name}: changed row missing {key}")
 
 
+def changed_offsets(raw_entry: dict[str, Any]) -> list[str]:
+    base = int(str(raw_entry["addr"]), 16)
+    return [
+        hex(int(str(change["addr"]), 16) - base)
+        for change in raw_entry.get("changed", [])
+    ]
+
+
+def max_unique_count(raw_entry: dict[str, Any]) -> int:
+    return max(
+        (int(change.get("unique_count", 0)) for change in raw_entry.get("changed", [])),
+        default=0,
+    )
+
+
 def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, int, bool]:
     manifest = load_json(manifest_path)
     require(
@@ -125,6 +140,11 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
     if source_json is not None:
         raw = load_json(source_json)
         raw_targets = {target["name"]: target for target in raw.get("targets", [])}
+        raw_change_offsets = manifest.get("raw_change_offsets", {})
+        require(
+            set(raw_change_offsets) == required_moving,
+            "raw change-offset summary must match required moving rows",
+        )
         require(raw.get("seconds") == runtime["seconds"], "raw duration mismatch")
         require(raw.get("interval") == 0.25, "raw interval mismatch")
         require_file(Path(raw["before_sample_screenshot"]), "raw before-sample screenshot")
@@ -149,6 +169,19 @@ def check_manifest(manifest_path: Path, source_json: Path | None) -> tuple[int, 
                     require(raw_entry.get("changed") == [], f"{entry['name']}: mesh wrapper changed")
                 elif entry["name"] in required_moving:
                     require_raw_change_detail(raw_entry, entry["name"])
+                    summary = raw_change_offsets[entry["name"]]
+                    require(
+                        summary.get("changed_count") == raw_entry.get("changed_count"),
+                        f"{entry['name']}: raw summary changed_count mismatch",
+                    )
+                    require(
+                        summary.get("max_unique_count") == max_unique_count(raw_entry),
+                        f"{entry['name']}: raw summary max_unique_count mismatch",
+                    )
+                    require(
+                        summary.get("offsets") == changed_offsets(raw_entry),
+                        f"{entry['name']}: raw summary changed offsets mismatch",
+                    )
         checked_raw = True
 
     return stable_mesh, moving_desc, checked_raw
