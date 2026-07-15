@@ -32,6 +32,21 @@ CHAR_CLIP_REQUIRED = (
         "shared stack fallback lower-body bridge",
     ),
     (
+        "apply_lower_body_output_layer(clip.frames[(size_t)fi],1.0f,"
+        "character,clip.relative,clip.output_bones);",
+        "direct frame fallback lower-body bridge",
+    ),
+    (
+        "apply_lower_body_output_layer(clip.frames[(size_t)fi],weight,"
+        "character,clip.relative,clip.output_bones);",
+        "weighted frame fallback lower-body bridge",
+    ),
+    (
+        "apply_lower_body_output_layer(frame,weight,character,relative,"
+        "current->output_bones);",
+        "live player fallback lower-body bridge",
+    ),
+    (
         "voidapply_clip_layer_stack(",
         "shared pose-stack application helper",
     ),
@@ -177,6 +192,12 @@ def check_char_clip(text: str) -> None:
     body = compact(text)
     for needle, label in CHAR_CLIP_REQUIRED:
         require_contains(body, needle, label)
+    require_count(
+        body,
+        "apply_lower_body_output_layer(",
+        5,
+        "char_clip lower-body bridge definition plus call-site count",
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -217,7 +238,7 @@ def main() -> int:
     print(
         "PASS lower_body_shared_path "
         "viewer_shared=true gameplay_shared=true "
-        "local_filters=hand_overlay_only"
+        "fallback_call_sites=4 local_filters=hand_overlay_only"
     )
     return 0
 

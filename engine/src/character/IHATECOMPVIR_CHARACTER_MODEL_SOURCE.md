@@ -6277,15 +6277,18 @@ through decoded source `OutputBone` keys rather than character names, offsets,
 or one-off foot/ankle/toe fixups. It also forbids sampled-direct fallback,
 direct bone writes, and extra publisher calls inside that lower-body bridge.
 `tools/check_lower_body_shared_path.py` passes with `viewer_shared=true`,
-`gameplay_shared=true`, and `local_filters=hand_overlay_only`. That audit keeps
-the current viewer/in-game lower-body route tied to the shared `char_clip`
-stack/controller helpers: the direct viewer feeds its pose stack through
-`apply_character_pose_controller_frame`, gameplay feeds the same layer stack
-through `apply_character_pose_stack_frame` before controllers, and neither app
-owns a local lower-body publisher or `lower-output` proof path. The only
-viewer/gameplay lower-body name filters are the hand-overlay strip filters,
-which prevent strum/fret overlays from carrying pelvis/thigh/knee/ankle/foot/toe
-rows over the body pose.
+`gameplay_shared=true`, `fallback_call_sites=4`, and
+`local_filters=hand_overlay_only`. That audit keeps the current viewer/in-game
+lower-body route tied to the shared `char_clip` stack/controller helpers: the
+direct viewer feeds its pose stack through `apply_character_pose_controller_frame`,
+gameplay feeds the same layer stack through `apply_character_pose_stack_frame`
+before controllers, and neither app owns a local lower-body publisher or
+`lower-output` proof path. It also requires the four sampled-fallback surfaces
+to re-enter `apply_lower_body_output_layer` with the source clip `OutputBone`
+map: direct frame fallback, weighted frame fallback, blended layer-stack fallback,
+and live-player sampled fallback. The only viewer/gameplay lower-body name
+filters are the hand-overlay strip filters, which prevent strum/fret overlays
+from carrying pelvis/thigh/knee/ankle/foot/toe rows over the body pose.
 
 2026-07-15 current-commit in-game lower-body proof:
 `engine/out/visual_proofs/lower_body_current_commit_20260715/` recaptures
@@ -6321,7 +6324,9 @@ Lower-body evidence audit:
   names after the sampled fallback. `check_lower_body_bridge_boundary.py`
   forbids character-name, foot/ankle/toe offset, and other shortcut fixes, while
   `check_lower_body_shared_path.py` keeps viewer and gameplay routed through
-  the same shared character clip path.
+  the same shared character clip path and requires all four direct/weighted/
+  layer-stack/live-player sampled fallbacks to pass through the same lower-body
+  output bridge.
 - Current runtime proof: `check_lower_body_stock_coverage.py` covers 18
   playable in-game/viewer lower-body cases plus six support/base viewer cases,
   and the current-commit Rockabill2/Rock2 proof pair repeats the in-game and

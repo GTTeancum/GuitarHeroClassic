@@ -34026,6 +34026,30 @@ int run_contract() {
       "lower-body shared-path audit reports shared gameplay routing");
   ok &= contains(
       lower_body_shared_path,
+      "fallback_call_sites=4",
+      "lower-body shared-path audit reports all fallback bridge call sites");
+  ok &= contains(
+      lower_body_shared_path,
+      "directframefallbacklower-bodybridge",
+      "lower-body shared-path audit guards direct frame fallback bridge");
+  ok &= contains(
+      lower_body_shared_path,
+      "weightedframefallbacklower-bodybridge",
+      "lower-body shared-path audit guards weighted frame fallback bridge");
+  ok &= contains(
+      lower_body_shared_path,
+      "sharedstackfallbacklower-bodybridge",
+      "lower-body shared-path audit guards layer stack fallback bridge");
+  ok &= contains(
+      lower_body_shared_path,
+      "liveplayerfallbacklower-bodybridge",
+      "lower-body shared-path audit guards live player fallback bridge");
+  ok &= contains(
+      lower_body_shared_path,
+      "char_cliplower-bodybridgedefinitionpluscall-sitecount",
+      "lower-body shared-path audit counts bridge function and call sites");
+  ok &= contains(
+      lower_body_shared_path,
       "local_filters=hand_overlay_only",
       "lower-body shared-path audit reports app-local filter boundary");
   ok &= contains(
@@ -34530,6 +34554,14 @@ int run_contract() {
       doc,
       "check_lower_body_shared_path.py",
       "document records lower-body shared viewer/gameplay path audit");
+  ok &= contains(
+      doc,
+      "`fallback_call_sites=4`",
+      "document records lower-body shared fallback call-site count");
+  ok &= contains(
+      doc,
+      "four sampled-fallback surfaces",
+      "document records the lower-body sampled-fallback surfaces");
   ok &= contains(
       doc,
       "lower_body_current_commit_20260715",
