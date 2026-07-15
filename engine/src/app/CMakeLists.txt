@@ -19,3 +19,13 @@ if(MSVC)
 else()
     target_compile_options(ghogx_app PRIVATE -Wall -Wextra)
 endif()
+
+if(WIN32)
+    find_program(GHOGX_POWERSHELL powershell.exe)
+    if(GHOGX_POWERSHELL)
+        add_test(NAME ghogx_app_imports
+                 COMMAND ${GHOGX_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
+                         -File "${CMAKE_SOURCE_DIR}/../tools/check_windows_imports.ps1"
+                         $<TARGET_FILE:ghogx_app>)
+    endif()
+endif()
