@@ -78,6 +78,8 @@ class CompareRequest:
     require_driven: bool
     require_live: bool
     require_fragments: tuple[str, ...]
+    visible_minus_output_x_min: dict[str, float]
+    visible_minus_output_y_min: dict[str, float]
     visible_minus_output_z_min: dict[str, float]
     require_screenshot_marker: bool
 
@@ -224,6 +226,12 @@ def requests_from_manifest(path: Path) -> list[CompareRequest]:
                         case.get("mesh_minus_output_z_min"),
                     )
                 ),
+                visible_minus_output_y_min=z_gap_map_from_manifest(
+                    case.get("visible_minus_output_y_min")
+                ),
+                visible_minus_output_x_min=z_gap_map_from_manifest(
+                    case.get("visible_minus_output_x_min")
+                ),
                 require_screenshot_marker=not bool(
                     case.get("allow_no_screenshot_marker", False)
                 ),
@@ -257,6 +265,8 @@ def request_from_args(args: argparse.Namespace) -> CompareRequest:
         require_driven=True,
         require_live=False,
         require_fragments=(),
+        visible_minus_output_x_min={},
+        visible_minus_output_y_min={},
         visible_minus_output_z_min={},
         require_screenshot_marker=not args.allow_no_screenshot_marker,
     )
@@ -286,7 +296,12 @@ def run_request(request: CompareRequest) -> int:
         return 2
 
     messages: list[str] = []
+    max_abs_x_gap = 0.0
+    max_abs_y_gap = 0.0
     max_abs_z_gap = 0.0
+    max_abs_xyz_gap = 0.0
+    min_x_gap: float | None = None
+    min_y_gap: float | None = None
     min_z_gap: float | None = None
     for bone in request.bones:
         row = rows.get(bone)
@@ -306,20 +321,38 @@ def run_request(request: CompareRequest) -> int:
         if "outPoseW" not in row.vectors:
             messages.append(f"VECTORS {bone}: missing outPoseW")
             continue
+        x_gap = visible.world[0] - row.vectors["outPoseW"][0]
+        y_gap = visible.world[1] - row.vectors["outPoseW"][1]
         z_gap = visible.world[2] - row.vectors["outPoseW"][2]
+        min_x_gap = x_gap if min_x_gap is None else min(min_x_gap, x_gap)
+        min_y_gap = y_gap if min_y_gap is None else min(min_y_gap, y_gap)
         min_z_gap = z_gap if min_z_gap is None else min(min_z_gap, z_gap)
+        max_abs_x_gap = max(max_abs_x_gap, abs(x_gap))
+        max_abs_y_gap = max(max_abs_y_gap, abs(y_gap))
         max_abs_z_gap = max(max_abs_z_gap, abs(z_gap))
-        required_gap = request.visible_minus_output_z_min.get(bone)
-        if required_gap is not None and z_gap < required_gap:
+        max_abs_xyz_gap = max(max_abs_xyz_gap, abs(x_gap), abs(y_gap), abs(z_gap))
+        required_x_gap = request.visible_minus_output_x_min.get(bone)
+        if required_x_gap is not None and x_gap < required_x_gap:
             messages.append(
-                f"Z-GAP {bone}: visible_minus_output={z_gap:.3f} required={required_gap:.3f}"
+                f"X-GAP {bone}: visible_minus_output={x_gap:.3f} required={required_x_gap:.3f}"
+            )
+        required_y_gap = request.visible_minus_output_y_min.get(bone)
+        if required_y_gap is not None and y_gap < required_y_gap:
+            messages.append(
+                f"Y-GAP {bone}: visible_minus_output={y_gap:.3f} required={required_y_gap:.3f}"
+            )
+        required_z_gap = request.visible_minus_output_z_min.get(bone)
+        if required_z_gap is not None and z_gap < required_z_gap:
+            messages.append(
+                f"Z-GAP {bone}: visible_minus_output={z_gap:.3f} required={required_z_gap:.3f}"
             )
 
     if messages:
         print(
             f"FAIL label={request.label} rows={len(rows)} checked={len(request.bones)} "
-            f"visible_rows={len(visible_rows)} min_z_gap={min_z_gap} "
-            f"max_abs_z_gap={max_abs_z_gap:.3f} screenshot_line={screenshot_line}"
+            f"visible_rows={len(visible_rows)} min_gap=({min_x_gap},{min_y_gap},{min_z_gap}) "
+            f"max_abs_gap=({max_abs_x_gap:.3f},{max_abs_y_gap:.3f},{max_abs_z_gap:.3f}) "
+            f"max_abs_xyz_gap={max_abs_xyz_gap:.3f} screenshot_line={screenshot_line}"
         )
         for message in messages[:40]:
             print(message)
@@ -327,11 +360,14 @@ def run_request(request: CompareRequest) -> int:
             print(f"... {len(messages) - 40} more failures")
         return 1
 
+    min_x_gap_text = f"{min_x_gap:.3f}" if min_x_gap is not None else "n/a"
+    min_y_gap_text = f"{min_y_gap:.3f}" if min_y_gap is not None else "n/a"
     min_z_gap_text = f"{min_z_gap:.3f}" if min_z_gap is not None else "n/a"
     print(
         f"PASS label={request.label} rows={len(rows)} checked={len(request.bones)} "
-        f"visible_rows={len(visible_rows)} min_z_gap={min_z_gap_text} "
-        f"max_abs_z_gap={max_abs_z_gap:.3f} screenshot_line={screenshot_line}"
+        f"visible_rows={len(visible_rows)} min_gap=({min_x_gap_text},{min_y_gap_text},{min_z_gap_text}) "
+        f"max_abs_gap=({max_abs_x_gap:.3f},{max_abs_y_gap:.3f},{max_abs_z_gap:.3f}) "
+        f"max_abs_xyz_gap={max_abs_xyz_gap:.3f} screenshot_line={screenshot_line}"
     )
     return 0
 

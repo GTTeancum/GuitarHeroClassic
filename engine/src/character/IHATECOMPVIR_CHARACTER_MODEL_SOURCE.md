@@ -6091,9 +6091,13 @@ floating. The paired logs contain `[legw]` rows, `source_publisher=fenced`,
 and decoded lower-body output rows still logged as `driven=1 live=0`.
 `tools/compare_charbone_output_map.py` passes on both posed front/side logs
 with 64 output rows, 8 lower-body rows checked, 9 visible leg rows, and
-`max_abs_z_gap=3.726`. This is current evidence that the visible lower-body
-problem localizes to sampled pose publishing / output-to-visible row mapping,
-not static mesh bind, hand overlays, controllers, hair, or props.
+`max_abs_gap=(3.051,8.310,3.726)`, making the forward/Y ankle-toe offset the
+largest measured error. Thighs and knees match the decoded output pose at this
+frame, while both ankles and toes are displaced forward in the visible direct
+pose by roughly 7-8 units and toes also sit 2-4 units high. This is current
+evidence that the visible lower-body problem localizes to sampled pose
+publishing / output-to-visible row mapping for the distal leg chain, not static
+mesh bind, hand overlays, controllers, hair, or props.
 
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current

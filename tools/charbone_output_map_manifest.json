@@ -45,6 +45,52 @@
       }
     },
     {
+      "label": "rockabill2_legw_f70_front_forward_output_gap",
+      "log": "../engine/out/visual_proofs/lower_body_legw_20260715/rockabill2_stand_fast03_f070_front_legw.log",
+      "tag": "clip",
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03'",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[legw] c=rockabill2 t=clip b=bone_L-toe",
+        "source_publisher=fenced"
+      ],
+      "visible_minus_output_y_min": {
+        "bone_L-ankle": 6.0,
+        "bone_L-toe": 7.0,
+        "bone_R-ankle": 6.0,
+        "bone_R-toe": 8.0
+      },
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 3.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rockabill2_legw_f70_side_forward_output_gap",
+      "log": "../engine/out/visual_proofs/lower_body_legw_20260715/rockabill2_stand_fast03_f070_side_legw.log",
+      "tag": "clip",
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03'",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[legw] c=rockabill2 t=clip b=bone_L-toe",
+        "source_publisher=fenced"
+      ],
+      "visible_minus_output_y_min": {
+        "bone_L-ankle": 6.0,
+        "bone_L-toe": 7.0,
+        "bone_R-ankle": 6.0,
+        "bone_R-toe": 8.0
+      },
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 3.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
       "label": "rock1_stand_fast03_f70_front_output_gap",
       "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/rock1_stand_fast03_f070_front_fullbody.log",
       "character": "rock1",

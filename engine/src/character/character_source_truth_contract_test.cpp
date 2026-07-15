@@ -33679,6 +33679,12 @@ int run_contract() {
                  "visible_minus_output_z_min",
                  "CharBone output-map verifier checks visible/output z gaps");
   ok &= contains(charbone_output_map_compare,
+                 "visible_minus_output_y_min",
+                 "CharBone output-map verifier checks visible/output forward gaps");
+  ok &= contains(charbone_output_map_compare,
+                 "max_abs_xyz_gap",
+                 "CharBone output-map verifier reports largest axis gap");
+  ok &= contains(charbone_output_map_compare,
                  "parser.add_argument(\"--character\",default=\"rockabill2\")",
                  "CharBone output-map verifier supports character selection");
   ok &= contains(charbone_output_map_manifest,
@@ -33700,6 +33706,12 @@ int run_contract() {
   ok &= contains(charbone_output_map_manifest,
                  "\"visible_minus_output_z_min\"",
                  "CharBone output-map manifest pins visible/output z gaps");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"rockabill2_legw_f70_side_forward_output_gap\"",
+                 "CharBone output-map manifest records leg-only forward proof");
+  ok &= contains(charbone_output_map_manifest,
+                 "\"visible_minus_output_y_min\"",
+                 "CharBone output-map manifest pins visible/output forward gaps");
   ok &= contains(doc,
                  "intentionally\nnot a current bad-arm proof",
                  "document prevents stale viewer control from being reused as proof");
@@ -33952,7 +33964,16 @@ int run_contract() {
                  "character/camera with\n`stand_fast_03` frame 70",
                  "document records posed leg-forward proof");
   ok &= contains(doc,
-                 "localizes to sampled pose publishing / output-to-visible row "
+                 "`max_abs_gap=(3.051,8.310,3.726)`",
+                 "document records measured lower-body axis gap");
+  ok &= contains(doc,
+                 "forward/Y ankle-toe offset",
+                 "document names forward lower-body gap");
+  ok &= contains(doc,
+                 "distal leg chain",
+                 "document localizes lower-body gap to distal chain");
+  ok &= contains(doc,
+                 "localizes to sampled pose\npublishing / output-to-visible row "
                  "mapping",
                  "document localizes current lower-body issue");
   ok &= contains(doc,
