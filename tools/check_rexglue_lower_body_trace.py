@@ -44,6 +44,11 @@ KINDS = (
     "input.scripted_nav",
     "input.scripted_nav.poll",
     "input.guitar_edge",
+    "input.capabilities",
+    "input.guitar_port.poll",
+    "input.guitar_input.poll",
+    "input.extract_state",
+    "input.joypad.scan",
 )
 
 POSE_APPLY_ROUTE_MARKERS = (
@@ -190,6 +195,11 @@ def main() -> int:
         "final_event": final_event_kind(events),
         "scripted_nav_polls": counts["input.scripted_nav.poll"],
         "input_guitar_edges": counts["input.guitar_edge"],
+        "input_capabilities": counts["input.capabilities"],
+        "input_guitar_port_polls": counts["input.guitar_port.poll"],
+        "input_guitar_input_polls": counts["input.guitar_input.poll"],
+        "input_extract_state": counts["input.extract_state"],
+        "input_joypad_scans": counts["input.joypad.scan"],
         "lower_body_channels": found_channels,
         "first_lower_body_neighborhood": (
             detail_text(events, "anim.lower_body.neighborhood") or [""]
@@ -198,6 +208,21 @@ def main() -> int:
             detail_text(events, "input.scripted_nav.poll") or [""]
         )[0][:300],
         "first_guitar_edge": (detail_text(events, "input.guitar_edge") or [""])[0][:300],
+        "first_capabilities": (detail_text(events, "input.capabilities") or [""])[0][
+            :300
+        ],
+        "first_guitar_port_poll": (
+            detail_text(events, "input.guitar_port.poll") or [""]
+        )[0][:300],
+        "first_guitar_input_poll": (
+            detail_text(events, "input.guitar_input.poll") or [""]
+        )[0][:300],
+        "first_extract_state": (detail_text(events, "input.extract_state") or [""])[
+            0
+        ][:300],
+        "first_joypad_scan": (detail_text(events, "input.joypad.scan") or [""])[
+            0
+        ][:300],
         "first_controller_gate_file": (
             [path for path in opened_paths if "pause_controller.milo" in path.replace("\\", "/")]
             or [""]
@@ -231,6 +256,11 @@ def main() -> int:
         f"scripted_nav={counts['input.scripted_nav']} "
         f"scripted_nav_polls={counts['input.scripted_nav.poll']} "
         f"guitar_edges={counts['input.guitar_edge']} "
+        f"capabilities={counts['input.capabilities']} "
+        f"guitar_port_polls={counts['input.guitar_port.poll']} "
+        f"guitar_input_polls={counts['input.guitar_input.poll']} "
+        f"extract_state={counts['input.extract_state']} "
+        f"joypad_scans={counts['input.joypad.scan']} "
         f"route_status={status} "
         f"result={summary['result']}"
     )

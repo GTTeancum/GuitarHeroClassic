@@ -68,6 +68,18 @@ bool trace_scripted_nav_enabled() {
     return enabled;
 }
 
+bool trace_input_gate_enabled() {
+    static const bool enabled = trace_scripted_nav_enabled() ||
+                                trace_cmdline_has_flag("--trace_input_gate");
+    return enabled;
+}
+
+bool trace_force_guitar_capabilities_enabled() {
+    static const bool enabled =
+        trace_cmdline_has_flag("--trace_force_guitar_capabilities");
+    return enabled;
+}
+
 uint16_t scripted_nav_buttons_ms(uint64_t elapsed_ms) {
     static constexpr uint16_t kA = 0x1000;
     static constexpr uint16_t kDown = 0x0002;
@@ -203,6 +215,85 @@ std::string fmt_u16(uint16_t v) {
     char buf[8];
     std::snprintf(buf, sizeof buf, "0x%04X", static_cast<unsigned>(v));
     return buf;
+}
+
+std::string fmt_u32(uint32_t v) {
+    char buf[16];
+    std::snprintf(buf, sizeof buf, "0x%08X", v);
+    return buf;
+}
+
+std::string describe_guest_bytes(uint8_t* base, uint32_t addr, int count) {
+    if (!addr) return "null";
+    std::string out;
+    for (int i = 0; i < count; ++i) {
+        if (i) out += ' ';
+        char buf[8];
+        std::snprintf(buf, sizeof buf, "%02X",
+                      static_cast<unsigned>(REX_LOAD_U8(addr + i)));
+        out += buf;
+    }
+    return out;
+}
+
+std::string describe_guest_words(uint8_t* base, uint32_t addr, int count) {
+    (void)base;
+    if (!addr) return "null";
+    std::string out;
+    for (int i = 0; i < count; ++i) {
+        if (i) out += ",";
+        out += fmt_u32(REX_LOAD_U32(addr + static_cast<uint32_t>(i) * 4u));
+    }
+    return out;
+}
+
+std::string describe_xinput_state(uint8_t* base, uint32_t state) {
+    (void)base;
+    if (!state) return "state=null";
+    const uint32_t packet = REX_LOAD_U32(state + 0);
+    const uint16_t buttons = REX_LOAD_U16(state + 4);
+    const uint8_t lt = REX_LOAD_U8(state + 6);
+    const uint8_t rt = REX_LOAD_U8(state + 7);
+    const int16_t lx = static_cast<int16_t>(REX_LOAD_U16(state + 8));
+    const int16_t ly = static_cast<int16_t>(REX_LOAD_U16(state + 10));
+    const int16_t rx = static_cast<int16_t>(REX_LOAD_U16(state + 12));
+    const int16_t ry = static_cast<int16_t>(REX_LOAD_U16(state + 14));
+    char detail[192];
+    std::snprintf(detail, sizeof detail,
+                  "state=%s packet=%u buttons=%s lt=%u rt=%u "
+                  "thumbs=(%d,%d,%d,%d)",
+                  fmt_ptr(state).c_str(), packet, fmt_u16(buttons).c_str(), lt,
+                  rt, lx, ly, rx, ry);
+    return detail;
+}
+
+std::string describe_xinput_caps(uint8_t* base, uint32_t caps) {
+    (void)base;
+    if (!caps) return "caps=null";
+    const uint8_t type = REX_LOAD_U8(caps + 0);
+    const uint8_t subtype = REX_LOAD_U8(caps + 1);
+    const uint16_t flags = REX_LOAD_U16(caps + 2);
+    const uint16_t buttons = REX_LOAD_U16(caps + 4);
+    const uint8_t lt = REX_LOAD_U8(caps + 6);
+    const uint8_t rt = REX_LOAD_U8(caps + 7);
+    char detail[192];
+    std::snprintf(detail, sizeof detail,
+                  "caps=%s type=%u subtype=%u flags=%s gamepad_buttons=%s "
+                  "lt=%u rt=%u raw=%s",
+                  fmt_ptr(caps).c_str(), type, subtype, fmt_u16(flags).c_str(),
+                  fmt_u16(buttons).c_str(), lt, rt,
+                  describe_guest_bytes(base, caps, 20).c_str());
+    return detail;
+}
+
+void log_input_gate_event(const char* kind, std::atomic<uint32_t>& counter,
+                          const std::string& detail) {
+    const uint32_t n = counter.fetch_add(1, std::memory_order_relaxed);
+    if (n < 32 || (n < 4096 && (n % 128u) == 0) || (n % 512u) == 0) {
+        trace360::LogEvent(kind,
+                           "n=" + std::to_string(n) + " " + detail);
+    }
+    if (n < 2) trace360::LogStackSample(kind);
 }
 
 std::string fmt_vec3(float x, float y, float z) {
@@ -1476,6 +1567,117 @@ REX_HOOK_RAW(hmx_CharIK_Update) {
     log_periodic_call("char.ik.update", s_count, self, arg0, arg1);
 }
 
+// --- Trace-only guitar/controller route gate -------------------------------
+//
+// Generated source evidence in sub_8227B538:
+//   XamInputGetState(controller_idx, &state)
+//   XamInputGetCapabilities(controller_idx, 0, &caps)
+//   if (caps[1] == 7) guitar_controller = true
+//
+// The lower-body RexGlue scaffold currently sees scripted button edges but
+// opens pause_controller.milo_xbox before any CharClip/pose apply rows. These
+// pass-through hooks capture the input classification route so the next step
+// can be source-backed instead of guessed.
+
+extern "C" void __imp__sub_82272F98(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_Joypad_ScanControllers) {
+    const uint32_t self = ctx.r3.u32;
+    const uint32_t before_connected = self ? REX_LOAD_U32(self + 24) : 0;
+    const uint32_t before_changed = self ? REX_LOAD_U32(self + 28) : 0;
+    __imp__sub_82272F98(ctx, base);
+    if (!trace_input_gate_enabled() || !self) return;
+
+    const uint32_t after_connected = REX_LOAD_U32(self + 24);
+    const uint32_t after_changed = REX_LOAD_U32(self + 28);
+    static std::atomic<uint32_t> s_count{0};
+    char detail[192];
+    std::snprintf(detail, sizeof detail,
+                  "self=%s connected_before=%s changed_before=%s "
+                  "connected_after=%s changed_after=%s",
+                  fmt_ptr(self).c_str(), fmt_u32(before_connected).c_str(),
+                  fmt_u32(before_changed).c_str(),
+                  fmt_u32(after_connected).c_str(),
+                  fmt_u32(after_changed).c_str());
+    log_input_gate_event("input.joypad.scan", s_count, detail);
+}
+
+extern "C" void __imp__sub_8227CC98(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_GuitarInput_Poll) {
+    static constexpr uint32_t kGuard = 0x82785790u;
+    static constexpr uint32_t kEnabledBytes = 0x82785780u;
+    static constexpr uint32_t kPortTable = 0x82785798u;
+    const uint8_t guard_before = REX_LOAD_U8(kGuard);
+    const std::string enabled_before = describe_guest_bytes(base, kEnabledBytes, 8);
+    const std::string table_before = describe_guest_words(base, kPortTable, 16);
+    __imp__sub_8227CC98(ctx, base);
+    if (!trace_input_gate_enabled()) return;
+
+    const uint8_t guard_after = REX_LOAD_U8(kGuard);
+    const std::string enabled_after = describe_guest_bytes(base, kEnabledBytes, 8);
+    const std::string table_after = describe_guest_words(base, kPortTable, 16);
+    static std::atomic<uint32_t> s_count{0};
+    std::string detail = "guard_before=" + std::to_string(guard_before) +
+                         " guard_after=" + std::to_string(guard_after) +
+                         " enabled_before=" + enabled_before +
+                         " enabled_after=" + enabled_after +
+                         " table_before=" + table_before +
+                         " table_after=" + table_after;
+    log_input_gate_event("input.guitar_input.poll", s_count, detail);
+}
+
+extern "C" void __imp__sub_8227B538(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_GuitarPort_Poll) {
+    const uint32_t controller_idx = ctx.r3.u32;
+    const uint32_t out_buttons = ctx.r4.u32;
+    const uint32_t out_axis0 = ctx.r5.u32;
+    const uint32_t out_axis1 = ctx.r6.u32;
+    const uint32_t out_axis2 = ctx.r7.u32;
+    const uint32_t out_axis3 = ctx.r8.u32;
+    const uint32_t out_bytes = ctx.r9.u32;
+    __imp__sub_8227B538(ctx, base);
+    if (!trace_input_gate_enabled()) return;
+
+    const uint32_t result = ctx.r3.u32;
+    static std::atomic<uint32_t> s_count{0};
+    char detail[384];
+    std::snprintf(detail, sizeof detail,
+                  "controller=%u result=%u out_buttons=%s:%s "
+                  "out_axis0=%s:%s out_axis1=%s:%s out_axis2=%s:%s "
+                  "out_axis3=%s:%s out_bytes=%s:%s",
+                  controller_idx, result, fmt_ptr(out_buttons).c_str(),
+                  out_buttons ? fmt_u32(REX_LOAD_U32(out_buttons)).c_str() : "null",
+                  fmt_ptr(out_axis0).c_str(),
+                  out_axis0 ? fmt_u32(REX_LOAD_U32(out_axis0)).c_str() : "null",
+                  fmt_ptr(out_axis1).c_str(),
+                  out_axis1 ? fmt_u32(REX_LOAD_U32(out_axis1)).c_str() : "null",
+                  fmt_ptr(out_axis2).c_str(),
+                  out_axis2 ? fmt_u32(REX_LOAD_U32(out_axis2)).c_str() : "null",
+                  fmt_ptr(out_axis3).c_str(),
+                  out_axis3 ? fmt_u32(REX_LOAD_U32(out_axis3)).c_str() : "null",
+                  fmt_ptr(out_bytes).c_str(),
+                  out_bytes ? describe_guest_bytes(base, out_bytes, 24).c_str()
+                            : "null");
+    log_input_gate_event("input.guitar_port.poll", s_count, detail);
+}
+
+extern "C" void __imp__sub_8227C690(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_Input_ExtractState) {
+    const uint32_t out = ctx.r3.u32;
+    const uint32_t controller_idx = ctx.r4.u32;
+    const uint32_t before = out ? REX_LOAD_U32(out) : 0;
+    __imp__sub_8227C690(ctx, base);
+    if (!trace_input_gate_enabled()) return;
+
+    const uint32_t after = out ? REX_LOAD_U32(out) : 0;
+    static std::atomic<uint32_t> s_count{0};
+    char detail[160];
+    std::snprintf(detail, sizeof detail,
+                  "controller=%u out=%s before=%s after=%s return=%s",
+                  controller_idx, fmt_ptr(out).c_str(), fmt_u32(before).c_str(),
+                  fmt_u32(after).c_str(), fmt_ptr(ctx.r3.u32).c_str());
+    log_input_gate_event("input.extract_state", s_count, detail);
+}
+
 // --- Trace-only scripted navigation ----------------------------------------
 //
 // Hidden-window PostMessage input is not reliable enough for focused leg
@@ -1483,24 +1685,56 @@ REX_HOOK_RAW(hmx_CharIK_Update) {
 // into the returned state, but only when --trace_scripted_nav is present.
 // It is confined to the RexGlue trace build and does not touch native code.
 
+extern "C" void __imp__sub_823B5B60(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_XamInputGetCapabilities) {
+    const uint32_t user = ctx.r3.u32;
+    const uint32_t flags = ctx.r4.u32;
+    const uint32_t caps = ctx.r5.u32;
+    __imp__sub_823B5B60(ctx, base);
+    bool forced = false;
+    if (trace_force_guitar_capabilities_enabled() && caps && user == 0) {
+        // Generated GH2 source checks caps[1] == 7 in GuitarPort_Poll.
+        // This is a trace-harness bridge only, used to reach live in-song
+        // lower-body rows under RexGlue without changing native behavior.
+        REX_STORE_U8(caps + 0, 1);
+        REX_STORE_U8(caps + 1, 7);
+        REX_STORE_U16(caps + 2, 0);
+        ctx.r3.u64 = 0;
+        forced = true;
+    }
+    if (!trace_input_gate_enabled()) return;
+
+    static std::atomic<uint32_t> s_count{0};
+    std::string detail = "user=" + std::to_string(user) +
+                         " flags=" + fmt_u32(flags) +
+                         " result=" + fmt_u32(ctx.r3.u32) +
+                         " forced=" + (forced ? std::string("1") : std::string("0")) +
+                         " " +
+                         describe_xinput_caps(base, caps);
+    log_input_gate_event("input.capabilities", s_count, detail);
+}
+
 extern "C" void __imp__sub_823B5B68(PPCContext& ctx, uint8_t* base);
 REX_HOOK_RAW(hmx_XamInputGetState) {
     const uint32_t user = ctx.r3.u32;
     const uint32_t state = ctx.r4.u32;
     __imp__sub_823B5B68(ctx, base);
     if (!trace_scripted_nav_enabled() || !state) return;
+    if (trace_force_guitar_capabilities_enabled() && user != 0) return;
 
 #if REX_PLATFORM_WIN32
     static const ULONGLONG s_start = GetTickCount64();
     const uint64_t elapsed_ms = GetTickCount64() - s_start;
     const uint16_t buttons = scripted_nav_buttons_ms(elapsed_ms);
+    const uint8_t scripted_strum_dn =
+        trace_force_guitar_capabilities_enabled() && buttons ? 0xFF : 0x00;
 
     static std::atomic<uint32_t> s_packet{1};
     const uint32_t packet = s_packet.fetch_add(1, std::memory_order_relaxed);
     REX_STORE_U32(state + 0, packet);
     REX_STORE_U16(state + 4, buttons);
     REX_STORE_U8(state + 6, 0);
-    REX_STORE_U8(state + 7, 0);
+    REX_STORE_U8(state + 7, scripted_strum_dn);
     REX_STORE_U16(state + 8, 0);
     REX_STORE_U16(state + 10, 0);
     REX_STORE_U16(state + 12, 0);
@@ -1514,9 +1748,10 @@ REX_HOOK_RAW(hmx_XamInputGetState) {
         char detail[192];
         std::snprintf(detail, sizeof detail,
                       "poll=%u elapsed_ms=%llu user=%u state=0x%08X "
-                      "buttons=0x%04X packet=%u",
+                      "buttons=0x%04X strum_dn=%u packet=%u %s",
                       poll, static_cast<unsigned long long>(elapsed_ms), user,
-                      state, buttons, packet);
+                      state, buttons, scripted_strum_dn, packet,
+                      describe_xinput_state(base, state).c_str());
         trace360::LogEvent("input.scripted_nav.poll", detail);
     }
 
