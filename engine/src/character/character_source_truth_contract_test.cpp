@@ -159,6 +159,9 @@ int run_contract() {
   const std::string charbone_output_map_manifest = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "charbone_output_map_manifest.json"));
+  const std::string pose_publisher_source_gaps = compact(
+      read_file(engine_dir.parent_path() / "tools" /
+                "check_pose_publisher_source_gaps.py"));
   const std::string charhair_log_compare = compact(
       read_file(engine_dir.parent_path() / "tools" /
                 "compare_charhair_logs.py"));
@@ -33575,6 +33578,57 @@ int run_contract() {
                  "not by restoring an older wrong-clip or\nnon-equivalent "
                  "proof setup",
                  "document rejects old visual false-good target");
+  ok &= contains(doc,
+                 "`engine/out/visual_proofs/bind_vs_pose_leg_boundary_20260714/`",
+                 "document records bind-vs-pose leg boundary proof folder");
+  ok &= contains(doc,
+                 "avoid treating animation identity as the evidence",
+                 "document records animation identity is not the leg evidence");
+  ok &= contains(doc,
+                 "explicit `--clip none`, `--face-clip none`, `--guitar none`, and\n"
+                 "`--no-character-controllers`",
+                 "document records no-body-clip leg baseline");
+  ok &= contains(doc,
+                 "`stand_fast_03` frame 70",
+                 "document records posed leg comparison frame");
+  ok &= contains(doc,
+                 "`--clip none` base stance does not show the same gross "
+                 "forward-leg read",
+                 "document records static/base leg read differs from posed read");
+  ok &= contains(doc,
+                 "points away from a static mesh/bind/skinning regression and "
+                 "toward pose\napplication/publishing",
+                 "document records bind-vs-pose diagnostic conclusion");
+  ok &= contains(doc,
+                 "does not authorize invented foot offsets",
+                 "document rejects invented leg offset fixes");
+  ok &= contains(doc,
+                 "`tools/check_pose_publisher_source_gaps.py`",
+                 "document records pose publisher source-gap verifier");
+  ok &= contains(doc,
+                 "`CharBones::ScaleAdd(CharBones&,float)`,\n"
+                 "`CharBonesSamples::EvaluateChannel`, "
+                 "`CharBonesMeshes::PoseMeshes`, and\n"
+                 "`CharClipSamples::ScaleAdd`",
+                 "document records still-fenced pose publisher bodies");
+  ok &= contains(pose_publisher_source_gaps,
+                 "charclip-posemeshes-call-order",
+                 "pose publisher verifier checks CharClip PoseMeshes call order");
+  ok &= contains(pose_publisher_source_gaps,
+                 "samples-scaleaddsample-visible",
+                 "pose publisher verifier checks ScaleAddSample body");
+  ok &= contains(pose_publisher_source_gaps,
+                 "charbones-bones-scaleadd-body-missing",
+                 "pose publisher verifier requires missing CharBones ScaleAdd body");
+  ok &= contains(pose_publisher_source_gaps,
+                 "samples-evaluatechannel-body-missing",
+                 "pose publisher verifier requires missing EvaluateChannel body");
+  ok &= contains(pose_publisher_source_gaps,
+                 "posemeshes-latest-source-stub",
+                 "pose publisher verifier records latest PoseMeshes stub");
+  ok &= contains(pose_publisher_source_gaps,
+                 "SOURCE-GAPstill-fenced=",
+                 "pose publisher verifier reports still-fenced source boundary");
   ok &= contains(charhair_log_compare,
                  "SCREENSHOT_MARKERS=(\"screenshotsaved\",\"screenshot->\")",
                  "CharHair log verifier stops at screenshot proof markers");

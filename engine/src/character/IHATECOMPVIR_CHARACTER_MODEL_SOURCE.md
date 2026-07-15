@@ -5950,6 +5950,29 @@ clue, not as a known-good target: the bad current leg read must be fixed in the
 shared source publisher path, not by restoring an older wrong-clip or
 non-equivalent proof setup.
 
+2026-07-14 bind-vs-pose leg boundary: the fresh captures in
+`engine/out/visual_proofs/bind_vs_pose_leg_boundary_20260714/` intentionally
+avoid treating animation identity as the evidence. They compare Rockabill2 with
+explicit `--clip none`, `--face-clip none`, `--guitar none`, and
+`--no-character-controllers` against the same character with `stand_fast_03`
+frame 70, both on the soft-green reference base and from front/side views. The
+`--clip none` base stance does not show the same gross forward-leg read, while
+the decoded posed frame still does. This is only a layer-localization result:
+it points away from a static mesh/bind/skinning regression and toward pose
+application/publishing, but it does not authorize invented foot offsets,
+animation-specific fixes, or revived broad lower-body live writes.
+
+The deterministic source boundary for that conclusion is
+`tools/check_pose_publisher_source_gaps.py`. It verifies the visible
+ihatecompvir call flow (`CharClip::PoseMeshes`, `CharBonesSamples::ScaleAddSample`,
+and the `CharBones::ScaleAdd(CharClip*)` delegate) while requiring the remaining
+publisher bodies to stay explicitly fenced:
+`CharBones::ScaleAdd(CharBones&,float)`,
+`CharBonesSamples::EvaluateChannel`, `CharBonesMeshes::PoseMeshes`, and
+`CharClipSamples::ScaleAdd`. Passing this script means native still has source
+call-flow evidence and dump/range maps, not a complete source-backed transform
+publisher implementation.
+
 The compact arm proof rows are intentionally filterable with
 `GHOGX_DEBUG_ARM_POSE_CHAR` and `GHOGX_DEBUG_ARM_POSE_TAG`; current
 viewer/gameplay diffs should use `rockabill2` and `post` to compare the final
