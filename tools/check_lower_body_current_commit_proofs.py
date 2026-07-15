@@ -6,8 +6,13 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+import struct
 import sys
 
+
+MIN_PROOF_WIDTH = 1280
+MIN_PROOF_HEIGHT = 720
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 FORBIDDEN_LOG_MARKERS = (
     "ARK error",
@@ -78,26 +83,39 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
+def png_dimensions(path: Path) -> tuple[int, int]:
+    try:
+        with path.open("rb") as in_file:
+            header = in_file.read(24)
+    except OSError as exc:
+        raise RuntimeError(f"{path}: {exc}") from exc
+    require(header.startswith(PNG_SIGNATURE), f"{path}: not a PNG file")
+    require(len(header) >= 24, f"{path}: truncated PNG header")
+    return struct.unpack(">II", header[16:24])
+
+
+def require_inspectable_png(path: Path, label: str) -> None:
+    require(path.is_file(), f"missing {label} PNG {path}")
+    require(path.stat().st_size > 10_000, f"{label} PNG too small")
+    width, height = png_dimensions(path)
+    require(
+        width >= MIN_PROOF_WIDTH and height >= MIN_PROOF_HEIGHT,
+        f"{label} PNG resolution too small: {width}x{height}",
+    )
+
+
 def check_case(root: Path, case: ProofCase) -> None:
     log_path = root / case.ingame_log
     png_path = root / case.ingame_png
     viewer_log_path = root / case.viewer_log
     viewer_png_path = root / case.viewer_png
     require(log_path.is_file(), f"{case.character}: missing in-game log {log_path}")
-    require(png_path.is_file(), f"{case.character}: missing in-game PNG {png_path}")
+    require_inspectable_png(png_path, f"{case.character}: in-game")
     require(
         viewer_log_path.is_file(),
         f"{case.character}: missing viewer log {viewer_log_path}",
     )
-    require(
-        viewer_png_path.is_file(),
-        f"{case.character}: missing viewer PNG {viewer_png_path}",
-    )
-    require(png_path.stat().st_size > 10_000, f"{case.character}: in-game PNG too small")
-    require(
-        viewer_png_path.stat().st_size > 10_000,
-        f"{case.character}: viewer PNG too small",
-    )
+    require_inspectable_png(viewer_png_path, f"{case.character}: viewer")
 
     text = log_path.read_text(encoding="utf-8", errors="replace")
     viewer_text = viewer_log_path.read_text(encoding="utf-8", errors="replace")
@@ -177,6 +195,7 @@ def main() -> int:
         "PASS lower_body_current_commit_proofs "
         f"ingame_cases={len(PROOF_CASES)} "
         f"viewer_cases={len(PROOF_CASES)} "
+        f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT} "
         "hud_hidden=true highway_hidden=true source_publisher_fenced=true"
     )
     return 0

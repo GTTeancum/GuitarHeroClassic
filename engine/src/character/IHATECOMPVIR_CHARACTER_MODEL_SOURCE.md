@@ -6246,8 +6246,9 @@ viewer live-stack playable proofs in `tools/arm_pose_diff_manifest.json` to the
 six support/base direct-viewer output proofs in
 `tools/charbone_output_map_manifest.json`, requires screenshot-bearing logs and
 individual PNG visual proofs, enforces each manifest case's required log
-fragments before accepting coverage, and preserves the source-authored Metal
-Bass foot rows plus Metal Drummer `toe0` diagnostic alias.
+fragments before accepting coverage, requires every linked proof PNG to be at
+least `1280x720`, and preserves the source-authored Metal Bass foot rows plus
+Metal Drummer `toe0` diagnostic alias.
 
 Current lower-body root-cause summary: the bad "standing but floating with legs
 forward" frame came from applying decoded sampled channels straight onto the
@@ -6300,7 +6301,8 @@ through `char/rock1/anims/gen/rock1_main.milo_ps2`. The logs record
 they also reject the earlier accidental unsupported-ARK checkerboard run.
 `tools/check_lower_body_current_commit_proofs.py` passes with `ingame_cases=2`,
 `viewer_cases=2`, `hud_hidden=true`, `highway_hidden=true`, and
-`source_publisher_fenced=true`. `tools/lower_body_current_commit_pose_manifest.json`
+`source_publisher_fenced=true`, with a `proof_min_resolution=1280x720` gate.
+`tools/lower_body_current_commit_pose_manifest.json`
 then compares those current in-game and viewer logs for pelvis, both thighs,
 both knees, both ankles, and both toes; both
 `rockabill2_current_commit_lower_body_match` and

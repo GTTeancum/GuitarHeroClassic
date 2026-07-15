@@ -33946,6 +33946,14 @@ int run_contract() {
       "lower-body stock coverage audit reports support count");
   ok &= contains(
       lower_body_stock_coverage,
+      "MIN_PROOF_WIDTH=1280",
+      "lower-body stock coverage audit requires proof width");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT}",
+      "lower-body stock coverage audit reports proof resolution");
+  ok &= contains(
+      lower_body_stock_coverage,
       "require_fragments(",
       "lower-body stock coverage audit enforces required log fragments");
   ok &= contains(
@@ -33953,6 +33961,9 @@ int run_contract() {
       "enforces each manifest case's required log\nfragments before accepting "
       "coverage",
       "document records stock proof required-fragment enforcement");
+  ok &= contains(doc,
+                 "requires every linked proof PNG to be at\nleast `1280x720`",
+                 "document records stock proof resolution gate");
   ok &= contains(
       lower_body_root_cause,
       "BAD_FORWARD_Y_MIN",
@@ -34013,6 +34024,14 @@ int run_contract() {
       lower_body_current_commit_proofs,
       "source_publisher_fenced=true",
       "lower-body current-commit proof reports source publisher fence");
+  ok &= contains(
+      lower_body_current_commit_proofs,
+      "MIN_PROOF_WIDTH=1280",
+      "lower-body current-commit proof requires proof width");
+  ok &= contains(
+      lower_body_current_commit_proofs,
+      "proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT}",
+      "lower-body current-commit proof reports proof resolution");
   ok &= contains(
       lower_body_current_commit_proofs,
       "viewer_cases={len(PROOF_CASES)}",

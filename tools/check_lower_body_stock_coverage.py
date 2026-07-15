@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import struct
 import sys
 
 
@@ -75,6 +76,9 @@ SUPPORT_OUTPUT_BONES = {
 }
 
 SCREENSHOT_MARKERS = ("screenshot saved", "saved screenshot", "screenshot ->")
+MIN_PROOF_WIDTH = 1280
+MIN_PROOF_HEIGHT = 720
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 def detect_text_encoding(path: Path) -> str:
@@ -151,12 +155,35 @@ def require_log_with_screenshot(path: Path) -> None:
         raise RuntimeError(f"{path}: no screenshot marker found")
 
 
+def png_dimensions(path: Path) -> tuple[int, int]:
+    try:
+        with path.open("rb") as in_file:
+            header = in_file.read(24)
+    except OSError as exc:
+        raise RuntimeError(f"{path}: {exc}") from exc
+    if not header.startswith(PNG_SIGNATURE):
+        raise RuntimeError(f"{path}: not a PNG file")
+    if len(header) < 24:
+        raise RuntimeError(f"{path}: truncated PNG header")
+    return struct.unpack(">II", header[16:24])
+
+
+def require_inspectable_png(path: Path) -> None:
+    if not path.is_file():
+        raise RuntimeError(f"{path}: visual proof missing")
+    width, height = png_dimensions(path)
+    if width < MIN_PROOF_WIDTH or height < MIN_PROOF_HEIGHT:
+        raise RuntimeError(f"{path}: visual proof resolution too small {width}x{height}")
+
+
 def require_png_in_folder(folder: Path, prefix: str) -> None:
     if not folder.is_dir():
         raise RuntimeError(f"{folder}: proof folder missing")
     matches = [item for item in folder.glob("*.png") if item.name.startswith(prefix)]
     if not matches:
         raise RuntimeError(f"{folder}: no {prefix}*.png visual proof found")
+    for match in matches:
+        require_inspectable_png(match)
 
 
 def require(condition: bool, message: str) -> None:
@@ -224,7 +251,7 @@ def check_support(output_manifest_path: Path, output_cases: dict[str, dict]) -> 
         require_log_with_screenshot(log_path)
         require_fragments(log_path, case.get("require_contains"), f"{label}: proof log")
         png_path = log_path.with_suffix(".png")
-        require(png_path.is_file(), f"{label}: missing visual proof {png_path}")
+        require_inspectable_png(png_path)
 
 
 def parse_args() -> argparse.Namespace:
@@ -257,7 +284,8 @@ def main() -> int:
         "PASS lower_body_stock_coverage "
         f"playable_ingame={len(PLAYABLE_INGAME_LABELS)} "
         f"support_viewer={len(SUPPORT_VIEWER_LABELS)} "
-        f"stock_total={len(PLAYABLE_INGAME_LABELS) + len(SUPPORT_VIEWER_LABELS)}"
+        f"stock_total={len(PLAYABLE_INGAME_LABELS) + len(SUPPORT_VIEWER_LABELS)} "
+        f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT}"
     )
     return 0
 
