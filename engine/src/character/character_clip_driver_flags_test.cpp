@@ -1293,6 +1293,42 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  ghogx::character::Character weighted_lower_output_character;
+  ghogx::milo_scene::TransObj weighted_lower_output_toe;
+  weighted_lower_output_toe.name = "bone_R-toe.mesh";
+  weighted_lower_output_toe.local.pos[0] = 90.0f;
+  weighted_lower_output_toe.local.pos[1] = 91.0f;
+  weighted_lower_output_toe.local.pos[2] = 92.0f;
+  weighted_lower_output_character.bones.push_back(weighted_lower_output_toe);
+  ghogx::character::CharClip weighted_lower_output_clip;
+  weighted_lower_output_clip.loaded = true;
+  weighted_lower_output_clip.name = "weighted_lower_output_test";
+  weighted_lower_output_clip.frames.resize(1);
+  ghogx::character::ClipChannel weighted_lower_pos;
+  weighted_lower_pos.type = ghogx::character::ClipChannel::kPos;
+  weighted_lower_pos.bone_name = "bone_R-toe.mesh";
+  weighted_lower_pos.pos[0] = 10.0f;
+  weighted_lower_pos.pos[1] = 20.0f;
+  weighted_lower_pos.pos[2] = 30.0f;
+  weighted_lower_output_clip.frames[0].push_back(weighted_lower_pos);
+  ghogx::character::CharClip::OutputBone weighted_lower_output_bone;
+  weighted_lower_output_bone.name = "bone_R-toe.trans";
+  weighted_lower_output_bone.local.pos[0] = 4.0f;
+  weighted_lower_output_bone.local.pos[1] = 5.0f;
+  weighted_lower_output_bone.local.pos[2] = 6.0f;
+  weighted_lower_output_clip.output_bones.push_back(weighted_lower_output_bone);
+  ghogx::character::apply_clip_frame_weighted(weighted_lower_output_clip, 0,
+                                              0.25f,
+                                              weighted_lower_output_character);
+  const auto& weighted_lower_output_local =
+      weighted_lower_output_character.bones[0].local;
+  if (!nearf(weighted_lower_output_local.pos[0], 5.5f) ||
+      !nearf(weighted_lower_output_local.pos[1], 8.75f) ||
+      !nearf(weighted_lower_output_local.pos[2], 12.0f)) {
+    std::cerr << "weighted lower-body output bridge did not blend from authored output local\n";
+    ok = false;
+  }
+
   ghogx::character::CharClip stack_base_clip;
   stack_base_clip.loaded = true;
   stack_base_clip.frames.resize(30);

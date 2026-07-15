@@ -6408,7 +6408,11 @@ Lower-body evidence audit:
   the authored `OutputBone.local.pos=(4,5,6)` before checking the rotz row, so
   the deterministic test now proves the lower-body bridge is using source
   output graph locals rather than merely relying on direct sampled fallback
-  rotation.
+  rotation. The same test covers `apply_clip_frame_weighted`: a weighted
+  lower-body position channel at 25% must blend from authored
+  `OutputBone.local.pos=(4,5,6)` toward `(10,20,30)` and produce
+  `(5.5,8.75,12)`, proving the weighted fallback path is source-output-local
+  based too.
 - Current runtime proof: `check_lower_body_stock_coverage.py` covers 18
   playable in-game/viewer lower-body cases plus six support/base viewer cases,
   and the current-commit Rockabill2/Rock2 proof pair repeats the in-game and

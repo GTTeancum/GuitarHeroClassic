@@ -33888,6 +33888,16 @@ int run_contract() {
       clip_driver_flags_test,
       "lower-bodyoutputbridgedidnotpreserveauthoredoutputlocalposition",
       "focused clip test fails if lower-body output local is bypassed");
+  ok &= contains(clip_driver_flags_test,
+                 "weighted_lower_output_clip.name=\"weighted_lower_output_test\";",
+                 "focused clip test constructs weighted lower-body output case");
+  ok &= contains(clip_driver_flags_test,
+                 "apply_clip_frame_weighted(weighted_lower_output_clip,0,0.25f,",
+                 "focused clip test exercises weighted lower-body output bridge");
+  ok &= contains(
+      clip_driver_flags_test,
+      "weightedlower-bodyoutputbridgedidnotblendfromauthoredoutputlocal",
+      "focused clip test fails if weighted lower-body output local is bypassed");
   ok &= contains(
       clip_driver_flags_test,
       "lower-bodyoutputbridgedidnotrebuildaxisrowfromauthoredoutputgraph",
@@ -34899,6 +34909,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`OutputBone.local.pos=(4,5,6)`",
                  "document records deterministic authored output local test");
+  ok &= contains(doc,
+                 "covers `apply_clip_frame_weighted`",
+                 "document records deterministic weighted lower-body test");
+  ok &= contains(doc,
+                 "produce\n  `(5.5,8.75,12)`",
+                 "document records deterministic weighted lower-body output");
   ok &= contains(
       doc,
       "lower_body_current_commit_20260715",
