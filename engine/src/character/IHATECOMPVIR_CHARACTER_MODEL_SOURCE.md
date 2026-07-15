@@ -6259,7 +6259,12 @@ rows to require leg-chain sanity across all 18 playable cases: knees below
 thighs, ankles below knees, toes not above ankles, and at least one toe in a
 near-floor band. The current stock run reports
 `playable_max_lowest_toe_z=0.5136` and
-`playable_min_pelvis_to_lowest_toe_z=31.0644`. The same audit preserves the
+`playable_min_pelvis_to_lowest_toe_z=31.0644`. For the six support/base proofs,
+the audit uses a support-safe distal-chain guard instead of a standing-thigh
+guard: each ankle/foot row must sit below its knee, each toe must sit below its
+ankle/foot, and toes must stay bounded near the stage plane. The current support
+run reports `support_max_toe_z=3.0301` and
+`support_min_distal_drop_z=13.0479`. The same audit preserves the
 source-authored Metal Bass foot rows plus Metal Drummer `toe0` diagnostic alias.
 
 Current lower-body root-cause summary: the bad "standing but floating with legs

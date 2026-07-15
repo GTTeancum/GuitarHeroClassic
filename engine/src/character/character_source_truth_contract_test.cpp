@@ -33990,6 +33990,18 @@ int run_contract() {
       "lower-body stock coverage audit reports playable leg-chain sanity");
   ok &= contains(
       lower_body_stock_coverage,
+      "MAX_SUPPORT_TOE_Z=4.0",
+      "lower-body stock coverage audit guards support toe height");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "MIN_SUPPORT_DISTAL_Z_DROP=10.0",
+      "lower-body stock coverage audit guards support distal drop");
+  ok &= contains(
+      lower_body_stock_coverage,
+      "support_distal_chain_sane=true",
+      "lower-body stock coverage audit reports support distal-chain sanity");
+  ok &= contains(
+      lower_body_stock_coverage,
       "require_fragments(",
       "lower-body stock coverage audit enforces required log fragments");
   ok &= contains(
@@ -34727,6 +34739,15 @@ int run_contract() {
   ok &= contains(doc,
                  "`playable_min_pelvis_to_lowest_toe_z=31.0644`",
                  "document records all-playable pelvis-to-toe metric");
+  ok &= contains(doc,
+                 "the audit uses a support-safe distal-chain guard",
+                 "document records support-safe distal-chain guard");
+  ok &= contains(doc,
+                 "`support_max_toe_z=3.0301`",
+                 "document records support toe-height metric");
+  ok &= contains(doc,
+                 "`support_min_distal_drop_z=13.0479`",
+                 "document records support distal-drop metric");
   ok &= contains(doc,
                  "Current lower-body root-cause summary:",
                  "document records lower-body root-cause summary");

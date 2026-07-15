@@ -10,6 +10,7 @@ import struct
 import sys
 
 from compare_arm_pose_logs import RowKey, read_pose_rows
+from compare_charbone_output_map import parse_output_rows
 
 
 LOWER_BODY_BONES = {
@@ -84,6 +85,8 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_PLAYABLE_LOWEST_TOE_Z = 1.0
 MIN_PLAYABLE_PELVIS_TO_LOWEST_TOE_Z = 30.0
 MIN_PLAYABLE_CHAIN_Z_DROP = 8.0
+MAX_SUPPORT_TOE_Z = 4.0
+MIN_SUPPORT_DISTAL_Z_DROP = 10.0
 
 
 def detect_text_encoding(path: Path) -> str:
@@ -247,6 +250,59 @@ def playable_leg_chain_metrics(log_path: Path, character: str, tag: str) -> tupl
     return lowest_toe_z, pelvis_to_lowest_toe_z
 
 
+def support_leg_chain_metrics(
+    log_path: Path, case: dict, expected_bones: set[str]
+) -> tuple[float, float]:
+    _, visible_rows, _ = parse_output_rows(log_path, True)
+    character = str(case.get("character", ""))
+    tag = str(case.get("tag", "lower-output"))
+    aliases = case.get("visible_bone_aliases", {})
+    if not isinstance(aliases, dict):
+        aliases = {}
+
+    def visible_world(output_bone: str) -> tuple[float, float, float]:
+        visible_bone = aliases.get(output_bone, output_bone)
+        row = visible_rows.get((character, tag, visible_bone))
+        require(
+            row is not None,
+            f"{log_path}: missing support visible row {output_bone} as {visible_bone}",
+        )
+        return row.world
+
+    max_toe_z = float("-inf")
+    min_distal_drop = float("inf")
+    for side in ("L", "R"):
+        knee = f"bone_{side}-knee"
+        distal = f"bone_{side}-ankle"
+        if distal not in expected_bones:
+            distal = f"bone_{side}-foot"
+        toe = f"bone_{side}-toe"
+        if toe not in expected_bones:
+            toe = f"bone_{side}-toe0"
+
+        knee_z = visible_world(knee)[2]
+        distal_z = visible_world(distal)[2]
+        toe_z = visible_world(toe)[2]
+        distal_drop = knee_z - distal_z
+        min_distal_drop = min(min_distal_drop, distal_drop)
+        max_toe_z = max(max_toe_z, toe_z)
+        require(
+            distal_drop >= MIN_SUPPORT_DISTAL_Z_DROP,
+            f"{log_path}: {side} distal row is not below knee enough "
+            f"({distal_z:.4f} vs {knee_z:.4f})",
+        )
+        require(
+            toe_z <= distal_z,
+            f"{log_path}: {side} toe is above distal row ({toe_z:.4f} vs {distal_z:.4f})",
+        )
+
+    require(
+        max_toe_z <= MAX_SUPPORT_TOE_Z,
+        f"{log_path}: support toe z {max_toe_z:.4f} > {MAX_SUPPORT_TOE_Z:.4f}",
+    )
+    return max_toe_z, min_distal_drop
+
+
 def check_playable(
     arm_manifest_path: Path, arm_cases: dict[str, dict], default_character: str
 ) -> tuple[float, float]:
@@ -292,7 +348,9 @@ def check_playable(
     return max_lowest_toe_z, min_pelvis_to_lowest_toe_z
 
 
-def check_support(output_manifest_path: Path, output_cases: dict[str, dict]) -> None:
+def check_support(output_manifest_path: Path, output_cases: dict[str, dict]) -> tuple[float, float]:
+    max_toe_z = float("-inf")
+    min_distal_drop = float("inf")
     for character, label in SUPPORT_VIEWER_LABELS.items():
         case = output_cases.get(label)
         require(case is not None, f"missing support lower-body case {label}")
@@ -319,6 +377,12 @@ def check_support(output_manifest_path: Path, output_cases: dict[str, dict]) -> 
         require_fragments(log_path, case.get("require_contains"), f"{label}: proof log")
         png_path = log_path.with_suffix(".png")
         require_inspectable_png(png_path)
+        case_max_toe_z, case_min_distal_drop = support_leg_chain_metrics(
+            log_path, case, expected_bones
+        )
+        max_toe_z = max(max_toe_z, case_max_toe_z)
+        min_distal_drop = min(min_distal_drop, case_min_distal_drop)
+    return max_toe_z, min_distal_drop
 
 
 def parse_args() -> argparse.Namespace:
@@ -345,7 +409,9 @@ def main() -> int:
         max_lowest_toe_z, min_pelvis_to_lowest_toe_z = check_playable(
             args.arm_manifest, arm_cases, str(arm_manifest.get("character", "rockabill2"))
         )
-        check_support(args.output_manifest, output_cases)
+        max_support_toe_z, min_support_distal_drop = check_support(
+            args.output_manifest, output_cases
+        )
     except RuntimeError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
@@ -357,7 +423,10 @@ def main() -> int:
         f"proof_min_resolution={MIN_PROOF_WIDTH}x{MIN_PROOF_HEIGHT} "
         f"playable_max_lowest_toe_z={max_lowest_toe_z:.4f} "
         f"playable_min_pelvis_to_lowest_toe_z={min_pelvis_to_lowest_toe_z:.4f} "
-        "playable_leg_chain_sane=true"
+        "playable_leg_chain_sane=true "
+        f"support_max_toe_z={max_support_toe_z:.4f} "
+        f"support_min_distal_drop_z={min_support_distal_drop:.4f} "
+        "support_distal_chain_sane=true"
     )
     return 0
 
