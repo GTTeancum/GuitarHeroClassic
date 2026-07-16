@@ -16835,15 +16835,47 @@ bool camera_source_check_shot(const Gameplay::CameraKey& key,
     return true;
 }
 
+enum class CameraSourceCharWalkState {
+    kStateNone = 0,
+    kStateGoing = 1,
+    kStateStopping = 2,
+};
+
+CameraSourceCharWalkState camera_source_guitarist0_charwalk_state() {
+    // RB2 CompositeCharacter exposes CharWalk::mState with None/Going/Stopping.
+    // Native has not loaded a CharWalk runtime object yet, so keep the bridge
+    // pinned to the source "none" state instead of hiding that as an inline
+    // false in the camera picker.
+    return CameraSourceCharWalkState::kStateNone;
+}
+
+const char* camera_source_charwalk_state_label(
+    CameraSourceCharWalkState state) {
+    switch (state) {
+    case CameraSourceCharWalkState::kStateNone:
+        return "kStateNone";
+    case CameraSourceCharWalkState::kStateGoing:
+        return "kStateGoing";
+    case CameraSourceCharWalkState::kStateStopping:
+        return "kStateStopping";
+    }
+    return "unknown";
+}
+
 bool camera_source_guitarist0_actually_walking() {
     // GH2 world_objects_worldbase.dta gates walk_ok through
-    // {guitarist0 actually_walking}. Keep this named until the native CharWalk
-    // state is bridged instead of hiding the missing source predicate inline.
+    // {guitarist0 actually_walking}. The native CharWalk message body remains
+    // unrecovered, so the source mState bridge is proof/context only for now.
+    (void)camera_source_guitarist0_charwalk_state();
     return false;
 }
 
-const char* camera_source_guitarist0_actually_walking_source() {
-    return "guitarist0::actually_walking(native_deferred:CharWalk_body_unrecovered)";
+std::string camera_source_guitarist0_actually_walking_source() {
+    return std::string("guitarist0::actually_walking(") +
+           "CharWalk::mState=" +
+           camera_source_charwalk_state_label(
+               camera_source_guitarist0_charwalk_state()) +
+           " native_bridge_missing body_unrecovered)";
 }
 
 bool camera_source_guitarist0_playing_starpower(
@@ -35308,6 +35340,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 const bool kGuitaristWalking =
                     camera_source_guitarist0_actually_walking();
+                const std::string source_walking_gate =
+                    camera_source_guitarist0_actually_walking_source();
                 const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
                 const int source_faceoff_players =
                     camera_faceoff_active_players_;
@@ -35414,7 +35448,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? source_next_after_queue->name.c_str()
                             : "",
                         kGuitaristWalking ? 1 : 0,
-                        camera_source_guitarist0_actually_walking_source(),
+                        source_walking_gate.c_str(),
                         guitarist_starpower ? 1 : 0,
                         camera_source_guitarist0_playing_starpower_source(),
                         static_cast<unsigned int>(key->flags),

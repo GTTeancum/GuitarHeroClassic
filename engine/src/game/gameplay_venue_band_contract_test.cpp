@@ -13203,13 +13203,31 @@ int main() {
                  "boolcamera_source_guitarist0_actually_walking(){",
                  "regular camera runtime exposes the source guitarist0 actually_walking predicate");
   ok &= contains(gameplay_c,
-                 "return\"guitarist0::actually_walking("
-                 "native_deferred:CharWalk_body_unrecovered)\";",
-                 "regular camera diagnostics label the deferred CharWalk walking gate without implying a proven stationary state");
+                 "enumclassCameraSourceCharWalkState{"
+                 "kStateNone=0,kStateGoing=1,kStateStopping=2,};",
+                 "regular camera walking proof names the source CharWalk::mState enum boundary");
+  ok &= contains(gameplay_c,
+                 "CameraSourceCharWalkState"
+                 "camera_source_guitarist0_charwalk_state(){",
+                 "regular camera walking bridge exposes a source CharWalk::mState helper");
+  ok &= contains(gameplay_c,
+                 "returnCameraSourceCharWalkState::kStateNone;",
+                 "regular camera walking bridge stays pinned to source CharWalk::mState none until a native CharWalk object exists");
+  ok &= contains(gameplay_c,
+                 "returnstd::string(\"guitarist0::actually_walking(\")+"
+                 "\"CharWalk::mState=\"+"
+                 "camera_source_charwalk_state_label("
+                 "camera_source_guitarist0_charwalk_state())+"
+                 "\"native_bridge_missingbody_unrecovered)\";",
+                 "regular camera diagnostics label the deferred CharWalk mState gate without implying a proven moving state");
   ok &= contains(gameplay_c,
                  "constboolkGuitaristWalking="
                  "camera_source_guitarist0_actually_walking();",
                  "regular camera selection uses the named source walking gate");
+  ok &= contains(gameplay_c,
+                 "conststd::stringsource_walking_gate="
+                 "camera_source_guitarist0_actually_walking_source();",
+                 "regular camera selection snapshots the source walking proof string before logging");
   ok &= absent(gameplay_c,
               "constexprboolkGuitaristWalking=false;",
               "regular camera selection must not hide the source walking gate as an inline constant");

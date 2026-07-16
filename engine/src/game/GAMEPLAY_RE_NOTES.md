@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay `actually_walking` CharWalk state boundary:
+  GH2 `world_objects_worldbase.dta` gates `walk_ok` filters through
+  `{guitarist0 actually_walking}`. The native picker still cannot claim a
+  recovered `CharWalk` body, but the proof now names the visible RB2 source
+  boundary, `CharWalk::mState` (`kStateNone`, `kStateGoing`,
+  `kStateStopping`), and reports the current bridge as `kStateNone` because no
+  native CharWalk runtime object is loaded. This keeps the walk gate
+  conservative, keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay CamShot EndAnim shake teardown split:
   ihatecompvir `CamShot::EndAnim()` restores visibility, sends `stop_shot`,
   and ends linked `mAnims`; it does not run the no-current camera shake clear.
