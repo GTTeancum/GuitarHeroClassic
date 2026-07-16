@@ -16438,6 +16438,16 @@ CameraShotSourceFilter camera_symbol_filter(
     return filter;
 }
 
+CameraShotSourceFilter camera_symbol_filter(
+    std::initializer_list<std::string_view> prop_path,
+    std::initializer_list<std::string_view> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::SymbolAny;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
+    filter.symbol_matches.assign(matches.begin(), matches.end());
+    return filter;
+}
+
 CameraShotSourceFilter camera_flags_any_filter(int mask) {
     CameraShotSourceFilter filter;
     filter.kind = CameraShotSourceFilterKind::FlagsAny;
@@ -16474,6 +16484,17 @@ const Gameplay::CameraKey* camera_filter_keyframe_path(
     const Gameplay::CameraKey& key,
     const std::vector<std::string_view>& prop_path) {
     if (prop_path.size() != 3 || prop_path[0] != "keyframes") return nullptr;
+    const auto index = camera_filter_prop_path_index(prop_path[1]);
+    if (!index) return nullptr;
+    const auto& frames = source_camshot_timing_frames(key);
+    if (*index >= frames.size()) return nullptr;
+    return &frames[*index];
+}
+
+const Gameplay::CameraKey* camera_filter_keyframe_path_base(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    if (prop_path.size() < 3 || prop_path[0] != "keyframes") return nullptr;
     const auto index = camera_filter_prop_path_index(prop_path[1]);
     if (!index) return nullptr;
     const auto& frames = source_camshot_timing_frames(key);
@@ -16586,6 +16607,29 @@ std::optional<std::string_view> camera_filter_symbol_property(
     return std::nullopt;
 }
 
+std::optional<std::string_view> camera_filter_symbol_property_path(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    const Gameplay::CameraKey* frame =
+        camera_filter_keyframe_path_base(key, prop_path);
+    if (!frame) return std::nullopt;
+    if (prop_path.size() == 4 && prop_path[2] == "parent") {
+        if (prop_path[3] == "entity") return std::string_view(frame->parent_entity);
+        if (prop_path[3] == "subpart")
+            return std::string_view(frame->parent_subpart);
+    }
+    if (prop_path.size() == 5 && prop_path[2] == "targets") {
+        const auto target_index = camera_filter_prop_path_index(prop_path[3]);
+        if (!target_index || *target_index >= frame->target_refs.size()) {
+            return std::nullopt;
+        }
+        const auto& ref = frame->target_refs[*target_index];
+        if (prop_path[4] == "entity") return std::string_view(ref.entity);
+        if (prop_path[4] == "subpart") return std::string_view(ref.subpart);
+    }
+    return std::nullopt;
+}
+
 bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
                                        const CameraShotSourceFilter& filter) {
     switch (filter.kind) {
@@ -16620,7 +16664,10 @@ bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
                              *value) != filter.float_matches.end();
         }
         case CameraShotSourceFilterKind::SymbolAny: {
-            const auto value = camera_filter_symbol_property(key, filter.prop);
+            const auto value =
+                filter.prop_path.empty()
+                    ? camera_filter_symbol_property(key, filter.prop)
+                    : camera_filter_symbol_property_path(key, filter.prop_path);
             if (!value) return false;
             return string_in(*value, filter.symbol_matches);
         }

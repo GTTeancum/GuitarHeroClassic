@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches nested target/parent paths:
+  ihatecompvir `CameraManager::ShotMatches` evaluates a filter whose `prop` is a
+  `DataArray` by calling `shot->Property(array, true)`, not by limiting the
+  query to top-level CamShot fields. GH2 `world_objects_ps2.dta` exposes
+  CamShotFrame `targets` as indexed `entity` / `subpart` structs and `parent`
+  as `entity` / `subpart`. Native symbol filters can now evaluate paths such as
+  `(keyframes N targets M entity)`, `(keyframes N targets M subpart)`,
+  `(keyframes N parent entity)`, and `(keyframes N parent subpart)` from the
+  decoded source CamShot keyframes. This is normal gameplay selector parity
+  only: no pose math, FreeCam priority change, under-venue masking, or
+  dependency surface change.
 - 2026-07-16 CameraManager ShotMatches field_of_view property units:
   ihatecompvir `CamShotFrame::Load` stores keyframe FOV through
   `SetFieldOfView`, `CamShotFrame::Interp` consumes `FieldOfView()` radians for

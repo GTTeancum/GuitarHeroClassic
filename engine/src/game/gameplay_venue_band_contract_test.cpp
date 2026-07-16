@@ -13339,6 +13339,30 @@ int main() {
                  "returnstd::string_view(key.glow_spot_ref);",
                  "regular camera symbol filters expose decoded CamShot glow_spot object refs");
   ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_symbol_filter("
+                 "std::initializer_list<std::string_view>prop_path,"
+                 "std::initializer_list<std::string_view>matches)",
+                 "regular camera symbol filters can carry source property arrays");
+  ok &= contains(gameplay_c,
+                 "std::optional<std::string_view>"
+                 "camera_filter_symbol_property_path(",
+                 "regular camera symbol filters can evaluate keyframe property arrays");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()==4&&prop_path[2]==\"parent\"){"
+                 "if(prop_path[3]==\"entity\")returnstd::string_view("
+                 "frame->parent_entity);if(prop_path[3]==\"subpart\")"
+                 "returnstd::string_view(frame->parent_subpart);}",
+                 "regular camera symbol property paths expose CamShotFrame parent entity/subpart refs");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()==5&&prop_path[2]==\"targets\"){"
+                 "constautotarget_index="
+                 "camera_filter_prop_path_index(prop_path[3]);",
+                 "regular camera symbol property paths expose CamShotFrame target array refs");
+  ok &= contains(gameplay_c,
+                 "if(prop_path[4]==\"entity\")returnstd::string_view(ref.entity);"
+                 "if(prop_path[4]==\"subpart\")returnstd::string_view(ref.subpart);",
+                 "regular camera symbol property paths expose CamShotFrame target entity/subpart refs");
+  ok &= contains(gameplay_c,
                  "std::find(filter.bool_matches.begin(),"
                  "filter.bool_matches.end(),*value)!="
                  "filter.bool_matches.end();",
@@ -13358,6 +13382,11 @@ int main() {
                  "camera_filter_float_property(key,filter.prop):"
                  "camera_filter_float_property_path(key,filter.prop_path);",
                  "regular camera ShotMatches dispatches float filters through source property arrays");
+  ok &= contains(gameplay_c,
+                 "filter.prop_path.empty()?"
+                 "camera_filter_symbol_property(key,filter.prop):"
+                 "camera_filter_symbol_property_path(key,filter.prop_path);",
+                 "regular camera ShotMatches dispatches symbol filters through source property arrays");
   ok &= contains(gameplay_c,
                  "std::stringcamera_source_filter_prop_label(",
                  "regular camera diagnostics can print source property arrays");
