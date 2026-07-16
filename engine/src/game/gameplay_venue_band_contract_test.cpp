@@ -3055,6 +3055,18 @@ int main() {
                  "\"ring_top=%.3fbody_mesh=%dring_mesh=%dshadow=%d\"",
                  "smasher diagnostics prove the ring stays fixed from native mesh state");
   ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_ALIGNMENT\")",
+                 "highway exposes a focused screen-space alignment trace for lane-root proof captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-align]lane=%daspect=%.6froot_x=%.3fhit=%.3f\"",
+                 "alignment trace reports each lane root with hit and held state");
+  ok &= contains(highway_renderer_c,
+                 "strike_px=(%.2f,%.2f)smasher_px=(%.2f,%.2f)",
+                 "alignment trace compares the note/hit strike point against the fret-target smasher point");
+  ok &= contains(highway_renderer_c,
+                 "root_shared=1\\n",
+                 "alignment trace marks that notes, hit effects, and fret targets share one highway root");
+  ok &= contains(highway_renderer_c,
                  "constboolbonus_highway_active=("
                  "star_power_active||env_enabled(\"GHOGX_FORCE_HIGHWAY_BONUS\"))&&"
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_BONUS\");",

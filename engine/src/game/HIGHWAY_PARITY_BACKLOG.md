@@ -19,6 +19,9 @@ should only be checked against one of the supported aspect modes.
 
 - Verify the highway root/camera rig keeps the surface, notes, rails, hit
   effects, flames, and fret buttons in one shared coordinate space.
+  Current hook: `GHOGX_DEBUG_HIGHWAY_ALIGNMENT=1` emits 4:3 screen-space lane
+  root rows for the strike point, fret-target smasher point, far-end point,
+  hit flash, and held-fret state.
 - Lock 4:3 as the primary proof mode, with 16:9 as the only secondary mode.
 - Re-check note, sustain, rail, fret-button, and hit-effect alignment in 4:3.
 - Re-check the far-end fade and highway angle/perspective against captured GH2

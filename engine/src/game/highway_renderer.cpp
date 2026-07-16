@@ -3713,19 +3713,34 @@ void HighwayRenderer::draw_impl(double song_time,
     draw_viewport.MaxZ = 1.0f;
   }
   const Mat4 view_proj = view * proj;
-  auto project_screen_x = [&](float x, float y, float z) -> std::optional<float> {
+  auto project_screen = [&](float x, float y,
+                            float z) -> std::optional<std::array<float, 2>> {
     const float cx = x * view_proj.m[0][0] + y * view_proj.m[1][0] +
                      z * view_proj.m[2][0] + view_proj.m[3][0];
+    const float cy = x * view_proj.m[0][1] + y * view_proj.m[1][1] +
+                     z * view_proj.m[2][1] + view_proj.m[3][1];
     const float cw = x * view_proj.m[0][3] + y * view_proj.m[1][3] +
                      z * view_proj.m[2][3] + view_proj.m[3][3];
-    if (!std::isfinite(cx) || !std::isfinite(cw) ||
+    if (!std::isfinite(cx) || !std::isfinite(cy) || !std::isfinite(cw) ||
         std::abs(cw) <= 0.00001f) {
       return std::nullopt;
     }
     const float ndc_x = cx / cw;
-    if (!std::isfinite(ndc_x)) return std::nullopt;
-    return static_cast<float>(draw_viewport.X) +
-           (ndc_x * 0.5f + 0.5f) * static_cast<float>(draw_viewport.Width);
+    const float ndc_y = cy / cw;
+    if (!std::isfinite(ndc_x) || !std::isfinite(ndc_y)) {
+      return std::nullopt;
+    }
+    return std::array<float, 2>{
+        static_cast<float>(draw_viewport.X) +
+            (ndc_x * 0.5f + 0.5f) * static_cast<float>(draw_viewport.Width),
+        static_cast<float>(draw_viewport.Y) +
+            (-ndc_y * 0.5f + 0.5f) * static_cast<float>(draw_viewport.Height)};
+  };
+  auto project_screen_x = [&](float x, float y,
+                              float z) -> std::optional<float> {
+    const auto p = project_screen(x, y, z);
+    if (!p) return std::nullopt;
+    return (*p)[0];
   };
   auto local_tail_half_for_screen_width = [&](int lane, float y,
                                              float width_px_720,
@@ -3745,6 +3760,52 @@ void HighwayRenderer::draw_impl(double song_time,
     const float half = (target_width_px * 0.5f) / px_per_local_x;
     return std::clamp(half, 0.05f, std::max(6.0f, fallback_half * 4.0f));
   };
+  const bool debug_alignment =
+      env_enabled("GHOGX_DEBUG_HIGHWAY_ALIGNMENT");
+  if (debug_alignment) {
+    static int idle_budget = 0;
+    static int hit_budget = 0;
+    bool any_hit = false;
+    for (int lane = 0; lane < 5; ++lane) {
+      const float hit =
+          hit_flash ? std::clamp(hit_flash[lane], 0.0f, 1.0f) : 0.0f;
+      if (hit > 0.01f) any_hit = true;
+    }
+    const bool log_frame =
+        any_hit ? (hit_budget < 24) : (idle_budget < 3);
+    if (log_frame) {
+      const float aspect_log = win_->bb_height() > 0
+          ? static_cast<float>(win_->bb_width()) /
+                static_cast<float>(win_->bb_height())
+          : 0.0f;
+      for (int lane = 0; lane < 5; ++lane) {
+        const float x = lane_x(lane);
+        const float hit =
+            hit_flash ? std::clamp(hit_flash[lane], 0.0f, 1.0f) : 0.0f;
+        const bool held = (fret_held_mask >> lane) & 1;
+        const auto strike = project_screen(x, kStrikeY, kGemZ);
+        const auto smasher = project_screen(x, kStrikeY, kSmasherFixedRingTopZ);
+        const auto far_point = project_screen(x, top_y_, kBoardZ);
+        std::fprintf(
+            stderr,
+            "[highway-align] lane=%d aspect=%.6f root_x=%.3f hit=%.3f "
+            "held=%d strike_px=(%.2f,%.2f) smasher_px=(%.2f,%.2f) "
+            "dx=%.2f far_px=(%.2f,%.2f) root_shared=1\n",
+            lane, aspect_log, x, hit, held ? 1 : 0,
+            strike ? (*strike)[0] : -1.0f, strike ? (*strike)[1] : -1.0f,
+            smasher ? (*smasher)[0] : -1.0f,
+            smasher ? (*smasher)[1] : -1.0f,
+            (strike && smasher) ? ((*strike)[0] - (*smasher)[0]) : 0.0f,
+            far_point ? (*far_point)[0] : -1.0f,
+            far_point ? (*far_point)[1] : -1.0f);
+      }
+      if (any_hit) {
+        ++hit_budget;
+      } else {
+        ++idle_budget;
+      }
+    }
+  }
   auto root_transform = [&](MeshTransformSample transform) {
     if (!transform.has_scale) {
       transform.has_scale = true;
