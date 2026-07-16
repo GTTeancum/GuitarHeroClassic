@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay BuildTransform scalar proof:
+  RB2 exposes `CamShotFrame::BuildTransform` locals named `targetDist` and
+  `height`, but not the trusted body. Native normal gameplay camera solver rows
+  now report native estimates for those two scalars from the cached target and
+  current source BuildTransform result, with the source still labelled
+  `rb2_dump_locals_only`. This improves gameplay-camera angle triage without
+  changing camera math, promoting FreeCam, or adding dependencies.
 - 2026-07-15 gameplay pose/target proof ordering:
   the per-frame `CamShot::Shake` and `CamShotFrame::UpdateTarget` diagnostics
   now lead with `pipeline_scope=normal_gameplay_camera` and

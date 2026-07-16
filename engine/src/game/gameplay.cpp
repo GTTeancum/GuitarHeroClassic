@@ -21970,6 +21970,28 @@ void apply_camera_keys(
                 : source_build_transform_order
                 ? "pose_and_selection"
                 : "native_seed_or_path_boundary";
+        float buildtransform_target_dist_estimate =
+            std::numeric_limits<float>::quiet_NaN();
+        float buildtransform_height_estimate =
+            std::numeric_limits<float>::quiet_NaN();
+        const char* buildtransform_estimate_source = "none";
+        if (source_build_transform_result && blended_target_centroid) {
+            buildtransform_target_dist_estimate = camera_point_distance(
+                *blended_target_centroid,
+                source_build_transform_result->position);
+            buildtransform_height_estimate =
+                source_build_transform_result->position[2] -
+                (*blended_target_centroid)[2];
+            buildtransform_estimate_source =
+                "source_build_transform_result";
+        } else if (blended_target_centroid) {
+            buildtransform_target_dist_estimate =
+                camera_point_distance(*blended_target_centroid,
+                                      submitted_result.position);
+            buildtransform_height_estimate =
+                submitted_result.position[2] - (*blended_target_centroid)[2];
+            buildtransform_estimate_source = "submitted_result";
+        }
         std::fprintf(
             stderr,
             "[world] camera Shake: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_class=CamShot source_call=CamShot::Shake "
@@ -23112,6 +23134,8 @@ void apply_camera_keys(
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
             "hidden_gameplay_blockers=%s active_blocker_scope=%s "
+            "buildtransform_estimate=targetDist,height "
+            "estimate_source=%s targetDist=%.3f height=%.3f "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
@@ -23143,6 +23167,9 @@ void apply_camera_keys(
             kCamShotLocalProjectSource, kCamShotSourceFrustumAspect,
             source_pose_coverage, hidden_pose_boundary,
             active_hidden_gameplay_blockers, active_blocker_scope,
+            buildtransform_estimate_source,
+            buildtransform_target_dist_estimate,
+            buildtransform_height_estimate,
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             a_target_update.has_targets ? 1 : 0,

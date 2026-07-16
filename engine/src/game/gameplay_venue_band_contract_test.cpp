@@ -9656,6 +9656,10 @@ int main() {
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
                  "camera debug logs include audited RB2 BuildTransform locals");
   ok &= contains(gameplay_c,
+                 "\"buildtransform_estimate=targetDist,height\""
+                 "\"estimate_source=%stargetDist=%.3fheight=%.3f\"",
+                 "camera debug logs expose native estimates for the audited BuildTransform targetDist/height locals");
+  ok &= contains(gameplay_c,
                  "\"diagnostic_only_same_targets\"",
                  "same-target CamShot filter scope stays diagnostic-only");
   ok &= contains(gameplay_c,
