@@ -376,6 +376,16 @@ bool env_enabled(const char* name) {
   return enabled;
 }
 
+std::optional<std::string> env_string_nonempty(const char* name) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return std::nullopt;
+  std::string text(value);
+  std::free(value);
+  if (text.empty() || text == "0") return std::nullopt;
+  return text;
+}
+
 void append_debug_rect(std::vector<V2>& out, float x, float y, float w, float h,
                        D3DCOLOR color) {
   const float x0 = x;
@@ -4250,6 +4260,13 @@ void HighwayRenderer::draw_impl(double song_time,
         tail_near_y + 1.0f,
         source_fade_top_y - std::max(horizon_tail_clip_, alpha_dist_ * 0.5f));
     const bool debug_tails = env_enabled("GHOGX_DEBUG_HIGHWAY_TAILS");
+    const std::optional<std::string> tail_layer_only =
+        env_string_nonempty("GHOGX_HIGHWAY_TAIL_LAYER_ONLY");
+    auto tail_layer_visible = [&](const char* source_label) {
+      return !tail_layer_only ||
+             (*tail_layer_only ==
+              (source_label && source_label[0] ? source_label : "<unknown>"));
+    };
     static int tail_debug_budget = 0;
     auto draw_tail_segment_y = [&](int lane, float y0, float y1,
                                    const char* source_label,
@@ -4261,6 +4278,7 @@ void HighwayRenderer::draw_impl(double song_time,
                                    double off, bool measured_body_width) {
       if (lane < 0 || lane >= 5) return;
       if (y1 <= y0) return;
+      if (!tail_layer_visible(source_label)) return;
       if (debug_tails && tail_debug_budget < 96) {
         const char* tex_name = mesh && mesh->ok ? mesh->texture_name.c_str()
                                                 : "<flat>";
@@ -4375,6 +4393,7 @@ void HighwayRenderer::draw_impl(double song_time,
                                 bool measured_body_width) {
       if (lane < 0 || lane >= 5) return false;
       if (y1 <= y0 || !material || !material->ok) return false;
+      if (!tail_layer_visible(source_label)) return false;
       IDirect3DTexture9* texture = tex(material->texture_name);
       if (!texture) return false;
       if (debug_tails && tail_debug_budget < 96) {
@@ -4595,12 +4614,14 @@ void HighwayRenderer::draw_impl(double song_time,
               (bonus_highway_active
                    ? burn_bonus_y_
                    : (sustain_whammy_tail ? burn_whammy_y_ : burn_normal_y_));
-          if (!burn_tail_particles_.empty()) {
+          const bool draw_burn_layer =
+              !tail_layer_only || *tail_layer_only == "burn";
+          if (draw_burn_layer && !burn_tail_particles_.empty()) {
             draw_runtime_particles(burn_tail_particles_, lane_x(lane),
                                    burn_y, song_time, 1.0f, false,
                                    highway_root.x_scale);
           }
-          if (burn_castlight_mesh_.ok) {
+          if (draw_burn_layer && burn_castlight_mesh_.ok) {
             const HighwayBlendState burn_blend_state =
                 highway_blend_state_for(burn_castlight_mesh_.blend);
             DWORD prev_burn_src_blend = D3DBLEND_SRCALPHA;

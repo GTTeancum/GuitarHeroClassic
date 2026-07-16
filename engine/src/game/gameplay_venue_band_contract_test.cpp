@@ -3129,6 +3129,15 @@ int main() {
                  "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d",
                  "tail diagnostics identify active star sustain whammy windows");
   ok &= contains(highway_renderer_c,
+                 "env_string_nonempty(\"GHOGX_HIGHWAY_TAIL_LAYER_ONLY\")",
+                 "tail layer isolation is an explicit diagnostic-only source-label filter");
+  ok &= contains(highway_renderer_c,
+                 "tail_layer_visible(source_label)",
+                 "tail layer isolation filters native tail draws by their source label");
+  ok &= contains(highway_renderer_c,
+                 "*tail_layer_only==\"burn\"",
+                 "tail layer isolation can separate burn-tail overlays from solid tail bodies");
+  ok &= contains(highway_renderer_c,
                  "\"star_phrase\"",
                  "tail diagnostics label incoming star-phrase sustain tails");
   ok &= contains(highway_renderer_c,

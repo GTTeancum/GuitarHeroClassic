@@ -14,6 +14,9 @@ should only be checked against one of the supported aspect modes.
   down the tail rather than globally changing tail width.
 - Before touching this again, isolate which native tail layer owns the visible
   solid core, then derive the ripple deformation from PCSX2 trace data.
+  Current hook: `GHOGX_HIGHWAY_TAIL_LAYER_ONLY=<source>` isolates labels such
+  as `held_lane`, `held_tight`, `held_star`, `held_whammy_source_line`, and
+  `burn` for 4:3 screenshot tracing.
 
 ## Small Wins First
 
