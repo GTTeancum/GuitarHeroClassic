@@ -9600,6 +9600,12 @@ int main() {
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0",
                  "camera solver diagnostics leave deferred FreeCam status at the end");
   ok &= contains(gameplay_c,
+                 "\"candidate_valid=%dstate_valid=%dstate_scope=%s\"",
+                 "camera solver diagnostics split diagnostic filtered-target candidates from persistent source state");
+  ok &= contains(gameplay_c,
+                 "\"diagnostic_candidate_same_targets\"",
+                 "same-target CamShot filtered-target rows stay diagnostic-only instead of becoming persistent BuildTransform state");
+  ok &= contains(gameplay_c,
                  "submitted_result_from_ps2_trace?"
                  "\"cam_shot_ok|cam_check_shot|CharWalk\":"
                  "\"BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\"",

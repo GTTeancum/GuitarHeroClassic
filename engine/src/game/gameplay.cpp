@@ -21580,6 +21580,7 @@ void apply_camera_keys(
     float result_filter_projected_delta = 1.0f;
     bool result_filter_state_seeded = false;
     bool result_filter_branch = false;
+    bool result_filter_candidate_valid = false;
     bool source_build_transform_order = false;
     const char* source_visible_build_transform_pair = "none";
     if (a_target_centroid && b_target_centroid) {
@@ -21652,6 +21653,7 @@ void apply_camera_keys(
                 if (result_builder_state->has_filtered_target) {
                     filtered_target_centroid =
                         result_builder_state->filtered_target;
+                    result_filter_candidate_valid = true;
                 }
             }
             if (build_rows_a) {
@@ -21673,6 +21675,7 @@ void apply_camera_keys(
                             same_target_filter_state_ptr->has_filtered_target
                         ? same_target_filter_state_ptr->filtered_target
                         : *blended_target_centroid;
+                result_filter_candidate_valid = true;
                 const auto& filtered_screen_target =
                     filtered_target_centroid ? *filtered_target_centroid
                                              : *blended_target_centroid;
@@ -23111,7 +23114,7 @@ void apply_camera_keys(
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
-            "state_valid=%d "
+            "candidate_valid=%d state_valid=%d state_scope=%s "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, result_filter_branch ? 1 : 0,
@@ -23149,9 +23152,14 @@ void apply_camera_keys(
             filtered_target_centroid ? (*filtered_target_centroid)[0] : 0.0f,
             filtered_target_centroid ? (*filtered_target_centroid)[1] : 0.0f,
             filtered_target_centroid ? (*filtered_target_centroid)[2] : 0.0f,
+            result_filter_candidate_valid ? 1 : 0,
             result_builder_state && result_builder_state->has_filtered_target
                 ? 1
-                : 0);
+                : 0,
+            same_targets_like_camshot
+                ? "diagnostic_candidate_same_targets"
+                : (result_builder_state ? "persistent_buildtransform"
+                                        : "stateless_buildtransform"));
         std::fprintf(
             stderr,
             "[camera-solver] frame=%.2f raw_a_eye=(%.3f %.3f %.3f) "

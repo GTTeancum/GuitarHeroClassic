@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera filtered-target proof split:
+  normal gameplay camera solver rows now separate `candidate_valid` from
+  persistent `state_valid` and label `state_scope`. Same-target CamShot rows can
+  still expose a filtered-target diagnostic candidate, but the row now makes
+  clear that source `CamShotFrame::Interp` keeps that path diagnostic-only while
+  `BuildTransform(..., applyScreenOffset=false)` owns the submitted
+  same-target result. This is proof clarity only; it does not alter camera math,
+  promote FreeCam, or add dependencies.
 - 2026-07-15 gameplay camera lighter cue source gate:
   GH2 `crowd.dta::crowd_lighters_slow/fast` calls
   `world pick_lighter_shot` only when the old `[lighter]` state was `off` and
