@@ -4683,6 +4683,13 @@ void HighwayRenderer::draw_impl(double song_time,
                         mesh ? D3DCOLOR_ARGB(225, 255, 255, 255)
                              : slot_lane_colors_[lane],
                         false, n.star_power, false);
+      if (!bonus_highway_active && held_tight_tail_mesh_.ok) {
+        draw_tail_segment(lane, on, off, "incoming_tight",
+                          &held_tight_tail_mesh_, held_tail,
+                          tail_glow_tight_width_,
+                          D3DCOLOR_ARGB(225, 255, 255, 255), false,
+                          n.star_power, false);
+      }
     }
     if (active_sustains) {
       for (const auto& sustain : *active_sustains) {

@@ -32,6 +32,9 @@ should only be checked against one of the supported aspect modes.
   hit flash, and held-fret state.
 - Lock 4:3 as the primary proof mode, with 16:9 as the only secondary mode.
 - Re-check note, sustain, rail, fret-button, and hit-effect alignment in 4:3.
+- Incoming sustain core pass: normal/star-phrase incoming tails now stack the
+  authored tight `tail_glow_tight.mat`/`tail_tight.tex` core over the broad
+  lane/star phrase layer, without enabling whammy deformation guesswork.
 - Far-end fade/angle pass: track surface, side rails, lane lines, and star-power
   glow now fit their far edge to the PCSX2-measured fade-top world row while the
   track mask remains un-stretched. Proof:

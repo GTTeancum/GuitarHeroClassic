@@ -3174,6 +3174,12 @@ int main() {
                  "slot_lane_colors_[lane],false,n.star_power,false);",
                  "visible sustain tails carry the authored broad glow width and star-phrase tags into diagnostics");
   ok &= contains(highway_renderer_c,
+                 "if(!bonus_highway_active&&held_tight_tail_mesh_.ok){"
+                 "draw_tail_segment(lane,on,off,\"incoming_tight\","
+                 "&held_tight_tail_mesh_,held_tail,tail_glow_tight_width_,"
+                 "D3DCOLOR_ARGB(225,255,255,255),false,n.star_power,false);}",
+                 "incoming normal sustains layer the authored tight tail core over the broad lane/star phrase tail");
+  ok &= contains(highway_renderer_c,
                  "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d",
                  "tail diagnostics identify active star sustain whammy windows");
   ok &= contains(highway_renderer_c,
