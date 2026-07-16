@@ -12040,7 +12040,10 @@ int main() {
                  "\"[char3d]min_lodactive:%d\\n\"",
                  "character LOD changes are debug-verifiable");
   ok &= contains(gameplay_c,
-                 "\"[world]regularcamerasweep:%s->%scategory=%s"
+                 "\"[world]regularcamerasweep:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "%s->%scategory=%s"
                  "bars_left=%d"
                  "duration=%s[%d,%d]duration_source=%sduration_draw=%s%zu"
                  "mode=%sgamecfg_mode=%sfaceoff_active_players=%d"
@@ -13255,11 +13258,14 @@ int main() {
                  "source_next_after_queue?1:0",
                  "regular camera sweep source_next flag is derived from queued mNextShot instead of a hard-coded proof value");
   ok &= contains(gameplay_c,
-                 "pipeline_scope=normal_gameplay_camera"
                  "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0",
                  "regular camera sweep diagnostics report gameplay blockers before deferred FreeCam status");
+  ok &= appears_before(gameplay_c,
+                       "priority=gameplay_camera",
+                       "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk",
+                       "regular camera sweep diagnostics lead with gameplay priority before blockers and deferred FreeCam status");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
                  "constGameplay::CameraKey*previous,"
@@ -14032,7 +14038,9 @@ int main() {
                  "camera state keeps the script did_lighter_cam guard");
   ok &= appears_before(gameplay_c,
                        "source_random_int_camera_duration_bars(",
-                       "\"[world]regularcamerasweep:",
+                       "\"[world]regularcamerasweep:"
+                       "pipeline_scope=normal_gameplay_camera"
+                       "priority=gameplay_camera",
                        "camera duration is selected before logging sweep");
   ok &= absent(gameplay_c,
                "authored_camshot_position_seconds(",
