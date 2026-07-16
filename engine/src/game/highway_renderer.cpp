@@ -3911,6 +3911,41 @@ void HighwayRenderer::draw_impl(double song_time,
   const float source_fade_top_y = std::max(kStrikeY + 1.0f, top_y_);
   const float source_fade_alpha_dist =
       std::max(alpha_dist_, horizon_tail_clip_ * 4.0f);
+  struct TrackHorizonFit {
+    float origin_y = 0.0f;
+    float scale_y = 1.0f;
+    float min_world_y = 0.0f;
+    float max_world_y = 0.0f;
+    bool active = false;
+  };
+  auto track_horizon_fit_for = [&](const RuntimeMesh& mesh,
+                                   bool fit_to_horizon) {
+    TrackHorizonFit fit;
+    fit.min_world_y = mesh.min_y;
+    fit.max_world_y = mesh.max_y;
+    const float source_span = mesh.max_y - mesh.min_y;
+    const float target_span = source_fade_top_y - mesh.min_y;
+    if (fit_to_horizon && mesh.ok && std::isfinite(source_span) &&
+        std::isfinite(target_span) && source_span > 0.001f &&
+        target_span > source_span + 0.001f) {
+      fit.scale_y = target_span / source_span;
+      fit.origin_y = mesh.min_y - mesh.min_y * fit.scale_y;
+      fit.min_world_y = fit.origin_y + mesh.min_y * fit.scale_y;
+      fit.max_world_y = fit.origin_y + mesh.max_y * fit.scale_y;
+      fit.active = true;
+    }
+    return fit;
+  };
+  const TrackHorizonFit track_surface_horizon_fit =
+      track_horizon_fit_for(track_surface_mesh_, true);
+  const TrackHorizonFit track_mask_horizon_fit =
+      track_horizon_fit_for(track_mask_mesh_, false);
+  const TrackHorizonFit track_side_rails_horizon_fit =
+      track_horizon_fit_for(track_side_rails_mesh_, true);
+  const TrackHorizonFit track_lane_lines_horizon_fit =
+      track_horizon_fit_for(track_lane_lines_mesh_, true);
+  const TrackHorizonFit star_power_track_glow_horizon_fit =
+      track_horizon_fit_for(star_power_track_glow_mesh_, true);
   auto faded_tail_color = [&](D3DCOLOR color, float y) {
     const int a = static_cast<int>(((color >> 24) & 0xff) *
                                    depth_fade_for(y, source_fade_top_y,
@@ -3918,6 +3953,88 @@ void HighwayRenderer::draw_impl(double song_time,
     return D3DCOLOR_ARGB(std::clamp(a, 0, 255), (color >> 16) & 0xff,
                          (color >> 8) & 0xff, color & 0xff);
   };
+  static int fade_profile_debug_budget = 0;
+  if (env_enabled("GHOGX_DEBUG_HIGHWAY_FADE_PROFILE") &&
+      fade_profile_debug_budget < 6) {
+    const float fade_start_y = source_fade_top_y - source_fade_alpha_dist;
+    const float aspect_log = win_->bb_height() > 0
+        ? static_cast<float>(win_->bb_width()) /
+              static_cast<float>(win_->bb_height())
+        : 0.0f;
+    auto log_width_sample = [&](const char* label, float left_x, float right_x,
+                                float y, float z) {
+      const float center_x = (left_x + right_x) * 0.5f;
+      const auto left = project_screen(left_x, y, z);
+      const auto center = project_screen(center_x, y, z);
+      const auto right = project_screen(right_x, y, z);
+      const float width =
+          (left && right) ? ((*right)[0] - (*left)[0]) : 0.0f;
+      std::fprintf(
+          stderr,
+          "[highway-fade-profile] sample=%s y=%.3f z=%.3f fade=%.3f "
+          "left_px=(%.2f,%.2f) center_px=(%.2f,%.2f) "
+          "right_px=(%.2f,%.2f) width_px=%.2f\n",
+          label, y, z, depth_fade_for(y, source_fade_top_y,
+                                      source_fade_alpha_dist),
+          left ? (*left)[0] : -1.0f, left ? (*left)[1] : -1.0f,
+          center ? (*center)[0] : -1.0f, center ? (*center)[1] : -1.0f,
+          right ? (*right)[0] : -1.0f, right ? (*right)[1] : -1.0f,
+          width);
+    };
+    auto log_mesh_profile = [&](const char* label, const RuntimeMesh& mesh,
+                                const TrackHorizonFit& fit) {
+      std::fprintf(
+          stderr,
+          "[highway-fade-profile] mesh=%s ok=%d verts=%zu tris=%zu "
+          "tex=%s x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f "
+          "world_y=%.3f..%.3f y_origin=%.3f y_scale=%.6f fit=%d "
+          "fade_min=%.3f fade_max=%.3f\n",
+          label, mesh.ok ? 1 : 0, mesh.verts.size(), mesh.indices.size() / 3,
+          mesh.texture_name.c_str(), highway_root.scale_x(mesh.min_x),
+          highway_root.scale_x(mesh.max_x), mesh.min_y, mesh.max_y,
+          mesh.min_z, mesh.max_z, fit.min_world_y, fit.max_world_y,
+          fit.origin_y, fit.scale_y, fit.active ? 1 : 0,
+          depth_fade_for(fit.min_world_y, source_fade_top_y,
+                         source_fade_alpha_dist),
+          depth_fade_for(fit.max_world_y, source_fade_top_y,
+                         source_fade_alpha_dist));
+      if (mesh.ok) {
+        log_width_sample(label, highway_root.scale_x(mesh.min_x),
+                         highway_root.scale_x(mesh.max_x), fit.min_world_y,
+                         mesh.min_z);
+        log_width_sample(label, highway_root.scale_x(mesh.min_x),
+                         highway_root.scale_x(mesh.max_x), fit.max_world_y,
+                         mesh.min_z);
+      }
+    };
+    std::fprintf(
+        stderr,
+        "[highway-fade-profile] frame=%d aspect=%.6f viewport=%ux%u "
+        "root_x_scale=%.6f cam_x=%.6f cam_yaw_deg=%.6f "
+        "fade_top_y=%.3f fade_alpha_dist=%.3f fade_start_y=%.3f "
+        "remove_y=%.3f horizon_tail_clip=%.3f nowbar_tail_clip=%.3f\n",
+        fade_profile_debug_budget, aspect_log, draw_viewport.Width,
+        draw_viewport.Height, highway_profile.track_x_scale,
+        highway_profile.cam_x, highway_profile.cam_yaw_deg,
+        source_fade_top_y, source_fade_alpha_dist, fade_start_y, remove_y_,
+        horizon_tail_clip_, nowbar_tail_clip_);
+    log_width_sample("board_remove", -highway_root.board_half_x,
+                     highway_root.board_half_x, remove_y_, kBoardZ);
+    log_width_sample("board_strike", -highway_root.board_half_x,
+                     highway_root.board_half_x, kStrikeY, kBoardZ);
+    log_width_sample("board_fade_start", -highway_root.board_half_x,
+                     highway_root.board_half_x, fade_start_y, kBoardZ);
+    log_width_sample("board_fade_top", -highway_root.board_half_x,
+                     highway_root.board_half_x, source_fade_top_y, kBoardZ);
+    log_mesh_profile("track_surface", track_surface_mesh_,
+                     track_surface_horizon_fit);
+    log_mesh_profile("track_mask", track_mask_mesh_, track_mask_horizon_fit);
+    log_mesh_profile("track_side_rails", track_side_rails_mesh_,
+                     track_side_rails_horizon_fit);
+    log_mesh_profile("track_lane_lines", track_lane_lines_mesh_,
+                     track_lane_lines_horizon_fit);
+    ++fade_profile_debug_budget;
+  }
   auto track_surface_v_per_y = [&]() {
     if (!track_surface_mesh_.ok || track_surface_mesh_.verts.size() < 2) {
       return 1.0f / std::max(1.0f, top_y_ - remove_y_);
@@ -3964,7 +4081,10 @@ void HighwayRenderer::draw_impl(double song_time,
     }
     return 1.0f / std::max(1.0f, top_y_ - remove_y_);
   };
-  const float surface_v_per_y = track_surface_v_per_y();
+  const float source_surface_v_per_y = track_surface_v_per_y();
+  const float surface_v_per_y =
+      source_surface_v_per_y /
+      std::max(0.001f, track_surface_horizon_fit.scale_y);
   const float surface_scroll_v =
       std::fmod(static_cast<float>(song_time) * speed * surface_v_per_y,
                 2048.0f);
@@ -3978,12 +4098,13 @@ void HighwayRenderer::draw_impl(double song_time,
         std::abs(note_world_dy_per_sec - surface_feature_dy_per_sec) < 0.001f;
     std::fprintf(stderr,
                  "[highway-surface-scroll] t=%.3f speed=%.3f v_per_y=%.6f "
-                 "uv_v=%.6f note_dy=%.3f surface_dy=%.3f same_pace=%d "
-                 "mesh=%d selected=%d\n",
-                 song_time, speed, surface_v_per_y, surface_scroll_v,
+                 "source_v_per_y=%.6f y_scale=%.6f uv_v=%.6f "
+                 "note_dy=%.3f surface_dy=%.3f same_pace=%d mesh=%d "
+                 "selected=%d\n",
+                 song_time, speed, surface_v_per_y, source_surface_v_per_y,
+                 track_surface_horizon_fit.scale_y, surface_scroll_v,
                  note_world_dy_per_sec, surface_feature_dy_per_sec,
-                 same_pace ? 1 : 0,
-                 track_surface_mesh_.ok ? 1 : 0,
+                 same_pace ? 1 : 0, track_surface_mesh_.ok ? 1 : 0,
                  selected_surface_loaded_ ? 1 : 0);
     ++surface_scroll_debug_budget;
   }
@@ -4067,9 +4188,10 @@ void HighwayRenderer::draw_impl(double song_time,
   }
   if (native_track_enabled && track_surface_mesh_.ok) {
     draw_runtime_mesh_scaled_with_texture(
-        track_surface_mesh_, track_surface_mesh_.texture_name, 0.0f, 0.0f,
-        track_surface_tint, highway_root.x_scale, 1.0f, 1.0f, false, 0.0f,
-        surface_scroll_v, true, 0.0f, false, 0.0f, true,
+        track_surface_mesh_, track_surface_mesh_.texture_name, 0.0f,
+        track_surface_horizon_fit.origin_y, track_surface_tint,
+        highway_root.x_scale, track_surface_horizon_fit.scale_y, 1.0f,
+        false, 0.0f, surface_scroll_v, true, 0.0f, false, 0.0f, true,
         source_fade_top_y, source_fade_alpha_dist);
     if (track_mask_mesh_.ok &&
         !env_enabled("GHOGX_DISABLE_HIGHWAY_TRACK_MASK")) {
@@ -4082,16 +4204,20 @@ void HighwayRenderer::draw_impl(double song_time,
     if (track_side_rails_mesh_.ok) {
       draw_runtime_mesh_scaled_with_texture(
           track_side_rails_mesh_, track_side_rails_mesh_.texture_name, 0.0f,
-          0.0f, side_rail_d3d_color(side_rail_color),
-          highway_root.x_scale, 1.0f, 1.0f, false, 0.0f, 0.0f,
-          true, 0.0f, false, 0.0f, true, top_y_, alpha_dist_);
+          track_side_rails_horizon_fit.origin_y,
+          side_rail_d3d_color(side_rail_color), highway_root.x_scale,
+          track_side_rails_horizon_fit.scale_y, 1.0f, false, 0.0f,
+          0.0f, true, 0.0f, false, 0.0f, true, source_fade_top_y,
+          source_fade_alpha_dist);
     }
     if (track_lane_lines_mesh_.ok) {
       draw_runtime_mesh_scaled_with_texture(
           track_lane_lines_mesh_, track_lane_lines_mesh_.texture_name, 0.0f,
-          0.0f, D3DCOLOR_ARGB(48, 32, 32, 32),
-          highway_root.x_scale, 1.0f, 1.0f, true, 0.0f, 0.0f, true,
-          0.0f, false, 0.0f, true, top_y_, alpha_dist_);
+          track_lane_lines_horizon_fit.origin_y,
+          D3DCOLOR_ARGB(48, 32, 32, 32), highway_root.x_scale,
+          track_lane_lines_horizon_fit.scale_y, 1.0f, true, 0.0f,
+          0.0f, true, 0.0f, false, 0.0f, true, source_fade_top_y,
+          source_fade_alpha_dist);
     }
   } else {
     draw_track_surface_quad();
@@ -4163,9 +4289,10 @@ void HighwayRenderer::draw_impl(double song_time,
     dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
     draw_runtime_mesh_scaled_with_texture(
         star_power_track_glow_mesh_, star_power_track_glow_mesh_.texture_name,
-        0.0f, 0.0f, D3DCOLOR_ARGB(glow_alpha, 255, 255, 255),
-        highway_root.x_scale, 1.0f, 1.0f, true, 0.0f, 0.0f, true,
-        0.0f, false, 0.0f, true, source_fade_top_y,
+        0.0f, star_power_track_glow_horizon_fit.origin_y,
+        D3DCOLOR_ARGB(glow_alpha, 255, 255, 255), highway_root.x_scale,
+        star_power_track_glow_horizon_fit.scale_y, 1.0f, true, 0.0f,
+        0.0f, true, 0.0f, false, 0.0f, true, source_fade_top_y,
         source_fade_alpha_dist);
     dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
   }

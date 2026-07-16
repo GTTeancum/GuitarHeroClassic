@@ -32,8 +32,10 @@ should only be checked against one of the supported aspect modes.
   hit flash, and held-fret state.
 - Lock 4:3 as the primary proof mode, with 16:9 as the only secondary mode.
 - Re-check note, sustain, rail, fret-button, and hit-effect alignment in 4:3.
-- Re-check the far-end fade and highway angle/perspective against captured GH2
-  evidence.
+- Far-end fade/angle pass: track surface, side rails, lane lines, and star-power
+  glow now fit their far edge to the PCSX2-measured fade-top world row while the
+  track mask remains un-stretched. Proof:
+  `proofs/native_4x3_fade_profile_horizon_fit_20260716_01`.
 - Keep the broken track-explode mesh/particle debris purged from the highway.
   It produced large tan spike/square artifacts and must not be exposed by
   runtime flags until a source-true replacement is traced and rebuilt.

@@ -2027,6 +2027,22 @@ int main() {
                  "constexprfloatkPcsx2MeasuredFadeAlphaDist=71.67506f;",
                  "highway fade band length is pinned to the PCSX2 frame_16 fade trace");
   ok &= contains(highway_renderer_c,
+                 "structTrackHorizonFit{floatorigin_y=0.0f;"
+                 "floatscale_y=1.0f;",
+                 "highway has a per-mesh Y fit for source track children");
+  ok &= contains(highway_renderer_c,
+                 "constfloattarget_span=source_fade_top_y-mesh.min_y;",
+                 "track horizon fit targets the PCSX2-measured fade-top world row");
+  ok &= contains(highway_renderer_c,
+                 "fit.origin_y=mesh.min_y-mesh.min_y*fit.scale_y;",
+                 "track horizon fit preserves each source mesh near edge while stretching the far edge");
+  ok &= contains(highway_renderer_c,
+                 "track_horizon_fit_for(track_surface_mesh_,true);",
+                 "track surface is fitted to the measured fade horizon");
+  ok &= contains(highway_renderer_c,
+                 "track_horizon_fit_for(track_mask_mesh_,false);",
+                 "track mask is traced but not blindly stretched over the whole highway");
+  ok &= contains(highway_renderer_c,
                  "constexprstd::array<TailWidthSample,19>"
                  "kPcsx2WhammyBodyWidthProfile4x3",
                  "parked whammy sustain width trace keeps the measured PCSX2 body profile");
@@ -2633,10 +2649,10 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh_scaled_with_texture("
                  "track_side_rails_mesh_,track_side_rails_mesh_.texture_name,"
-                 "0.0f,0.0f,side_rail_d3d_color(side_rail_color),"
-                 "highway_root.x_scale,1.0f,1.0f,false,0.0f,0.0f,true,0.0f,false,"
-                 "0.0f,true,top_y_,alpha_dist_);",
-                 "highway fades native side rails through the source alpha-distance band");
+                 "0.0f,track_side_rails_horizon_fit.origin_y,"
+                 "side_rail_d3d_color(side_rail_color),highway_root.x_scale,"
+                 "track_side_rails_horizon_fit.scale_y,1.0f,false",
+                 "highway fits and fades native side rails through the measured horizon band");
   ok &= contains(highway_renderer_c,
                  "surface_flash_2x_=mat_anim_color_curve("
                  "side_rail_anims,\"surface_flash_2x.mnm\");",
@@ -2716,10 +2732,10 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh_scaled_with_texture("
                  "track_lane_lines_mesh_,track_lane_lines_mesh_.texture_name,"
-                 "0.0f,0.0f,D3DCOLOR_ARGB(48,32,32,32),"
-                 "highway_root.x_scale,1.0f,1.0f,true,0.0f,0.0f,true,0.0f,false,"
-                 "0.0f,true,top_y_,alpha_dist_);",
-                 "GH2 highway lane divisions stay dark, translucent, and horizon-faded instead of bold white center stripes");
+                 "0.0f,track_lane_lines_horizon_fit.origin_y,"
+                 "D3DCOLOR_ARGB(48,32,32,32),highway_root.x_scale,"
+                 "track_lane_lines_horizon_fit.scale_y,1.0f,true",
+                 "GH2 highway lane divisions stay dark, translucent, and fitted to the measured horizon instead of bold white center stripes");
   ok &= contains(highway_renderer_c,
                  "star_power_track_glow_mesh_=convert_mesh("
                  "\"lightning_trackglow.mesh\");",
@@ -2753,11 +2769,13 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh_scaled_with_texture("
                  "star_power_track_glow_mesh_,star_power_track_glow_mesh_.texture_name,"
-                 "0.0f,0.0f,D3DCOLOR_ARGB(glow_alpha,255,255,255),"
-                 "highway_root.x_scale,1.0f,1.0f,true,0.0f,0.0f,true,"
+                 "0.0f,star_power_track_glow_horizon_fit.origin_y,"
+                 "D3DCOLOR_ARGB(glow_alpha,255,255,255),"
+                 "highway_root.x_scale,star_power_track_glow_horizon_fit.scale_y,"
+                 "1.0f,true,0.0f,0.0f,true,"
                  "0.0f,false,0.0f,true,source_fade_top_y,"
                  "source_fade_alpha_dist);",
-                 "highway fades the authored star-power track glow through the same measured horizon band as the road");
+                 "highway fits and fades the authored star-power track glow through the same measured horizon band as the road");
   ok &= contains(highway_renderer_c,
                  "bar_line_mesh_=convert_mesh(\"bar_line5.mesh\");",
                  "highway loads native downbeat bar-line geometry");
@@ -2957,22 +2975,28 @@ int main() {
                "if(selected_surface_loaded_){draw_track_surface_quad();}",
                "selected guitarist surface no longer bypasses the native track_surface5 mesh");
   ok &= contains(highway_renderer_c,
-                 "constfloatsurface_v_per_y=track_surface_v_per_y();",
-                 "highway samples native track-surface V density once for scroll and proof rows");
+                 "constfloatsource_surface_v_per_y=track_surface_v_per_y();",
+                 "highway samples native track-surface V density once before horizon fitting");
+  ok &= contains(highway_renderer_c,
+                 "constfloatsurface_v_per_y=source_surface_v_per_y/"
+                 "std::max(0.001f,track_surface_horizon_fit.scale_y);",
+                 "highway surface scroll compensates for the measured horizon Y fit");
   ok &= contains(highway_renderer_c,
                  "constfloatsurface_scroll_v=std::fmod("
                  "static_cast<float>(song_time)*speed*surface_v_per_y,"
                  "2048.0f);",
                  "native highway surface scrolls at the same signed pace as the notes");
   ok &= contains(highway_renderer_c,
-                 "\"uv_v=%.6fnote_dy=%.3fsurface_dy=%.3fsame_pace=%d\"",
+                 "\"source_v_per_y=%.6fy_scale=%.6fuv_v=%.6f\"",
                  "surface-scroll diagnostics prove the road texture moves with the notes");
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh_scaled_with_texture(track_surface_mesh_,"
-                 "track_surface_mesh_.texture_name,0.0f,0.0f,"
-                 "track_surface_tint,highway_root.x_scale,1.0f,1.0f,"
+                 "track_surface_mesh_.texture_name,0.0f,"
+                 "track_surface_horizon_fit.origin_y,track_surface_tint,"
+                 "highway_root.x_scale,track_surface_horizon_fit.scale_y,"
+                 "1.0f,"
                  "false,0.0f,surface_scroll_v",
-                 "selected and default track surfaces draw through the native track_surface5 mesh UV path");
+                 "selected and default track surfaces draw through the native track_surface5 mesh UV path fitted to the measured horizon");
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh_scaled_with_texture(track_mask_mesh_,"
                  "track_mask_mesh_.texture_name,0.0f,0.0f,"
@@ -3074,6 +3098,22 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "root_shared=1\\n",
                  "alignment trace marks that notes, hit effects, and fret targets share one highway root");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_FADE_PROFILE\")",
+                 "highway exposes a focused far-fade and perspective trace for proof captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-fade-profile]frame=%daspect=%.6fviewport=%ux%u",
+                 "fade profile trace reports active aspect, viewport, and root camera state");
+  ok &= contains(highway_renderer_c,
+                 "fade_start_y=source_fade_top_y-source_fade_alpha_dist;",
+                 "fade profile trace derives the visible fade-start row from measured fade constants");
+  ok &= contains(highway_renderer_c,
+                 "\"world_y=%.3f..%.3fy_origin=%.3fy_scale=%.6ffit=%d\"",
+                 "fade profile trace reports fitted world-Y extents and scale");
+  ok &= contains(highway_renderer_c,
+                 "log_mesh_profile(\"track_surface\",track_surface_mesh_,"
+                 "track_surface_horizon_fit);",
+                 "fade profile trace includes native track-surface horizon fit");
   ok &= contains(highway_renderer_c,
                  "constboolbonus_highway_active=("
                  "star_power_active||env_enabled(\"GHOGX_FORCE_HIGHWAY_BONUS\"))&&"
