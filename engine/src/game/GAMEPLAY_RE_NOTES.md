@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches property-array path parity:
+  ihatecompvir `CameraManager::ShotMatches` treats a filter whose `prop` is a
+  `DataArray` by evaluating `shot->Property(array, true)` before comparing the
+  result. Native `ShotMatches` filters now carry array property paths and can
+  evaluate decoded CamShot keyframe paths such as `(keyframes 0 duration)`,
+  `(keyframes 0 blend_ease_mode)`, `(keyframes 0 parent_first_frame)`, and
+  `(keyframes 0 field_of_view)` through the same source timing frame list used
+  by `CamShot::SetFrame` diagnostics. This is selector/property parity only:
+  no pose math, FreeCam priority change, under-venue masking, or dependency
+  surface change.
 - 2026-07-16 CameraManager ShotMatches scalar array match parity:
   ihatecompvir `CameraManager::ShotMatches` accepts a filter whose `match`
   value is a `DataArray` by comparing the evaluated CamShot property against

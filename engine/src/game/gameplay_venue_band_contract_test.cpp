@@ -13208,20 +13208,71 @@ int main() {
                  "std::vector<float>float_matches;",
                  "regular camera filters can carry source DataArray scalar matches");
   ok &= contains(gameplay_c,
+                 "std::vector<std::string_view>prop_path;",
+                 "regular camera filters can carry source DataArray property paths");
+  ok &= contains(gameplay_c,
                  "CameraShotSourceFiltercamera_int_filter(std::string_viewprop,intmatch)",
                  "regular camera filters expose source-shaped integer property filters");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_bool_filter("
+                 "std::initializer_list<std::string_view>prop_path,boolmatch)",
+                 "regular camera filters expose source-shaped bool property-path filters");
   ok &= contains(gameplay_c,
                  "CameraShotSourceFiltercamera_bool_filter("
                  "std::string_viewprop,std::initializer_list<bool>matches)",
                  "regular camera filters expose source-shaped bool array match filters");
   ok &= contains(gameplay_c,
                  "CameraShotSourceFiltercamera_int_filter("
+                 "std::initializer_list<std::string_view>prop_path,intmatch)",
+                 "regular camera filters expose source-shaped integer property-path filters");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_int_filter("
                  "std::string_viewprop,std::initializer_list<int>matches)",
                  "regular camera filters expose source-shaped integer array match filters");
   ok &= contains(gameplay_c,
                  "CameraShotSourceFiltercamera_float_filter("
+                 "std::initializer_list<std::string_view>prop_path,floatmatch)",
+                 "regular camera filters expose source-shaped float property-path filters");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_float_filter("
                  "std::string_viewprop,std::initializer_list<float>matches)",
                  "regular camera filters expose source-shaped float array match filters");
+  ok &= contains(gameplay_c,
+                 "conststd::vector<Gameplay::CameraKey>&"
+                 "source_camshot_timing_frames("
+                 "constGameplay::CameraKey&shot);",
+                 "regular camera filter property paths use the same source CamShot timing frame list");
+  ok &= contains(gameplay_c,
+                 "constGameplay::CameraKey*camera_filter_keyframe_path(",
+                 "regular camera filters expose a source-shaped keyframes property-path resolver");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()!=3||prop_path[0]!=\"keyframes\")"
+                 "returnnullptr;",
+                 "regular camera keyframe property-path resolver keeps non-keyframe arrays unsupported");
+  ok &= contains(gameplay_c,
+                 "constauto&frames=source_camshot_timing_frames(key);",
+                 "regular camera keyframe property-path resolver reads decoded source keyframes");
+  ok &= contains(gameplay_c,
+                 "std::optional<bool>camera_filter_bool_property_path(",
+                 "regular camera filters can evaluate bool keyframe property paths");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"parent_first_frame\"){"
+                 "returnframe->has_parent_first_frame?"
+                 "frame->parent_first_frame:false;}",
+                 "regular camera bool property paths expose CamShotFrame parent_first_frame default");
+  ok &= contains(gameplay_c,
+                 "std::optional<int>camera_filter_int_property_path(",
+                 "regular camera filters can evaluate integer keyframe property paths");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"blend_ease_mode\")returnframe->blend_ease_mode;",
+                 "regular camera integer property paths expose CamShotFrame blend_ease_mode");
+  ok &= contains(gameplay_c,
+                 "std::optional<float>camera_filter_float_property_path(",
+                 "regular camera filters can evaluate float keyframe property paths");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"field_of_view\"){"
+                 "returnframe->has_fov?frame->fov:0.0f;}",
+                 "regular camera float property paths expose CamShotFrame field_of_view");
   ok &= contains(gameplay_c,
                  "std::optional<int>camera_filter_int_property(",
                  "regular camera filters can evaluate integer CamShot properties");
@@ -13296,6 +13347,18 @@ int main() {
                  "filter.float_matches.end(),*value)!="
                  "filter.float_matches.end();",
                  "regular camera float filters mirror CameraManager DataArray match-any equality");
+  ok &= contains(gameplay_c,
+                 "filter.prop_path.empty()?"
+                 "camera_filter_float_property(key,filter.prop):"
+                 "camera_filter_float_property_path(key,filter.prop_path);",
+                 "regular camera ShotMatches dispatches float filters through source property arrays");
+  ok &= contains(gameplay_c,
+                 "std::stringcamera_source_filter_prop_label(",
+                 "regular camera diagnostics can print source property arrays");
+  ok &= contains(gameplay_c,
+                 "std::stringlabel=\"(\";for(size_ti=0;"
+                 "i<filter.prop_path.size();++i){",
+                 "regular camera diagnostics format property arrays like DataNode::Print");
   ok &= contains(gameplay_c,
                  "append_bool_matches();",
                  "regular camera diagnostics can print source bool DataArray matches");

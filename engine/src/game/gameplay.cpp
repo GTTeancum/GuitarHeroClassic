@@ -16244,6 +16244,8 @@ const Gameplay::CameraKey* choose_regular_camera_key_by_counter(
     return &keys[counter % keys.size()];
 }
 
+const std::vector<Gameplay::CameraKey>& source_camshot_timing_frames(
+    const Gameplay::CameraKey& shot);
 float source_camshot_duration_frames(const Gameplay::CameraKey& shot);
 
 bool string_in(std::string_view value,
@@ -16274,6 +16276,7 @@ enum class CameraShotSourceFilterKind {
 struct CameraShotSourceFilter {
     CameraShotSourceFilterKind kind = CameraShotSourceFilterKind::Bool;
     std::string_view prop;
+    std::vector<std::string_view> prop_path;
     std::vector<bool> bool_matches;
     std::vector<int> int_matches;
     std::vector<float> float_matches;
@@ -16294,6 +16297,16 @@ CameraShotSourceFilter camera_bool_filter(std::string_view prop, bool match) {
 }
 
 CameraShotSourceFilter camera_bool_filter(
+    std::initializer_list<std::string_view> prop_path, bool match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Bool;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
+    filter.bool_match = match;
+    filter.bool_matches.push_back(match);
+    return filter;
+}
+
+CameraShotSourceFilter camera_bool_filter(
     std::string_view prop,
     std::initializer_list<bool> matches) {
     CameraShotSourceFilter filter;
@@ -16306,10 +16319,33 @@ CameraShotSourceFilter camera_bool_filter(
     return filter;
 }
 
+CameraShotSourceFilter camera_bool_filter(
+    std::initializer_list<std::string_view> prop_path,
+    std::initializer_list<bool> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Bool;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
+    filter.bool_matches.assign(matches.begin(), matches.end());
+    if (!filter.bool_matches.empty()) {
+        filter.bool_match = filter.bool_matches.front();
+    }
+    return filter;
+}
+
 CameraShotSourceFilter camera_int_filter(std::string_view prop, int match) {
     CameraShotSourceFilter filter;
     filter.kind = CameraShotSourceFilterKind::Int;
     filter.prop = prop;
+    filter.int_match = match;
+    filter.int_matches.push_back(match);
+    return filter;
+}
+
+CameraShotSourceFilter camera_int_filter(
+    std::initializer_list<std::string_view> prop_path, int match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Int;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
     filter.int_match = match;
     filter.int_matches.push_back(match);
     return filter;
@@ -16328,6 +16364,19 @@ CameraShotSourceFilter camera_int_filter(
     return filter;
 }
 
+CameraShotSourceFilter camera_int_filter(
+    std::initializer_list<std::string_view> prop_path,
+    std::initializer_list<int> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Int;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
+    filter.int_matches.assign(matches.begin(), matches.end());
+    if (!filter.int_matches.empty()) {
+        filter.int_match = filter.int_matches.front();
+    }
+    return filter;
+}
+
 CameraShotSourceFilter camera_float_filter(std::string_view prop,
                                            float match) {
     CameraShotSourceFilter filter;
@@ -16339,11 +16388,34 @@ CameraShotSourceFilter camera_float_filter(std::string_view prop,
 }
 
 CameraShotSourceFilter camera_float_filter(
+    std::initializer_list<std::string_view> prop_path, float match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Float;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
+    filter.float_match = match;
+    filter.float_matches.push_back(match);
+    return filter;
+}
+
+CameraShotSourceFilter camera_float_filter(
     std::string_view prop,
     std::initializer_list<float> matches) {
     CameraShotSourceFilter filter;
     filter.kind = CameraShotSourceFilterKind::Float;
     filter.prop = prop;
+    filter.float_matches.assign(matches.begin(), matches.end());
+    if (!filter.float_matches.empty()) {
+        filter.float_match = filter.float_matches.front();
+    }
+    return filter;
+}
+
+CameraShotSourceFilter camera_float_filter(
+    std::initializer_list<std::string_view> prop_path,
+    std::initializer_list<float> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Float;
+    filter.prop_path.assign(prop_path.begin(), prop_path.end());
     filter.float_matches.assign(matches.begin(), matches.end());
     if (!filter.float_matches.empty()) {
         filter.float_match = filter.float_matches.front();
@@ -16379,6 +16451,31 @@ CameraShotSourceFilter camera_flags_exact_filter(int mask, int match) {
     return filter;
 }
 
+std::optional<size_t> camera_filter_prop_path_index(std::string_view text) {
+    if (text.empty()) return std::nullopt;
+    size_t value = 0;
+    for (const char ch : text) {
+        if (ch < '0' || ch > '9') return std::nullopt;
+        const size_t digit = static_cast<size_t>(ch - '0');
+        if (value > (std::numeric_limits<size_t>::max() - digit) / 10u) {
+            return std::nullopt;
+        }
+        value = value * 10u + digit;
+    }
+    return value;
+}
+
+const Gameplay::CameraKey* camera_filter_keyframe_path(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    if (prop_path.size() != 3 || prop_path[0] != "keyframes") return nullptr;
+    const auto index = camera_filter_prop_path_index(prop_path[1]);
+    if (!index) return nullptr;
+    const auto& frames = source_camshot_timing_frames(key);
+    if (*index >= frames.size()) return nullptr;
+    return &frames[*index];
+}
+
 std::optional<bool> camera_filter_bool_property(
     const Gameplay::CameraKey& key,
     std::string_view prop) {
@@ -16398,6 +16495,19 @@ std::optional<bool> camera_filter_bool_property(
     return std::nullopt;
 }
 
+std::optional<bool> camera_filter_bool_property_path(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    const Gameplay::CameraKey* frame = camera_filter_keyframe_path(key, prop_path);
+    if (!frame) return std::nullopt;
+    const std::string_view prop = prop_path[2];
+    if (prop == "use_parent_rotation") return frame->use_parent_rotation;
+    if (prop == "parent_first_frame") {
+        return frame->has_parent_first_frame ? frame->parent_first_frame : false;
+    }
+    return std::nullopt;
+}
+
 std::optional<int> camera_filter_int_property(
     const Gameplay::CameraKey& key,
     std::string_view prop) {
@@ -16410,6 +16520,16 @@ std::optional<int> camera_filter_int_property(
         return key.has_camshot_looping ? key.camshot_loop_keyframe : 0;
     if (prop == "rate")
         return key.has_camshot_anim_rate ? key.camshot_anim_rate : 0;
+    return std::nullopt;
+}
+
+std::optional<int> camera_filter_int_property_path(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    const Gameplay::CameraKey* frame = camera_filter_keyframe_path(key, prop_path);
+    if (!frame) return std::nullopt;
+    const std::string_view prop = prop_path[2];
+    if (prop == "blend_ease_mode") return frame->blend_ease_mode;
     return std::nullopt;
 }
 
@@ -16427,6 +16547,21 @@ std::optional<float> camera_filter_float_property(
     if (prop == "path_frame")
         return key.has_path_frame ? key.path_frame : -1.0f;
     if (prop == "duration") return source_camshot_duration_frames(key);
+    return std::nullopt;
+}
+
+std::optional<float> camera_filter_float_property_path(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    const Gameplay::CameraKey* frame = camera_filter_keyframe_path(key, prop_path);
+    if (!frame) return std::nullopt;
+    const std::string_view prop = prop_path[2];
+    if (prop == "duration") return frame->duration_frames;
+    if (prop == "blend") return frame->blend_frames;
+    if (prop == "blend_ease") return frame->blend_ease;
+    if (prop == "field_of_view") {
+        return frame->has_fov ? frame->fov : 0.0f;
+    }
     return std::nullopt;
 }
 
@@ -16448,21 +16583,30 @@ bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
                                        const CameraShotSourceFilter& filter) {
     switch (filter.kind) {
         case CameraShotSourceFilterKind::Bool: {
-            const auto value = camera_filter_bool_property(key, filter.prop);
+            const auto value =
+                filter.prop_path.empty()
+                    ? camera_filter_bool_property(key, filter.prop)
+                    : camera_filter_bool_property_path(key, filter.prop_path);
             return value &&
                    std::find(filter.bool_matches.begin(),
                              filter.bool_matches.end(),
                              *value) != filter.bool_matches.end();
         }
         case CameraShotSourceFilterKind::Int: {
-            const auto value = camera_filter_int_property(key, filter.prop);
+            const auto value =
+                filter.prop_path.empty()
+                    ? camera_filter_int_property(key, filter.prop)
+                    : camera_filter_int_property_path(key, filter.prop_path);
             return value &&
                    std::find(filter.int_matches.begin(),
                              filter.int_matches.end(),
                              *value) != filter.int_matches.end();
         }
         case CameraShotSourceFilterKind::Float: {
-            const auto value = camera_filter_float_property(key, filter.prop);
+            const auto value =
+                filter.prop_path.empty()
+                    ? camera_filter_float_property(key, filter.prop)
+                    : camera_filter_float_property_path(key, filter.prop_path);
             return value &&
                    std::find(filter.float_matches.begin(),
                              filter.float_matches.end(),
@@ -16670,8 +16814,20 @@ std::vector<CameraShotSourceFilter> camera_source_script_filters(
     return filters;
 }
 
+std::string camera_source_filter_prop_label(
+    const CameraShotSourceFilter& filter) {
+    if (filter.prop_path.empty()) return std::string(filter.prop);
+    std::string label = "(";
+    for (size_t i = 0; i < filter.prop_path.size(); ++i) {
+        if (i) label += " ";
+        label += std::string(filter.prop_path[i]);
+    }
+    label += ")";
+    return label;
+}
+
 std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
-    std::string label = "(" + std::string(filter.prop) + " ";
+    std::string label = "(" + camera_source_filter_prop_label(filter) + " ";
     auto append_bool = [&label](bool value) {
         label += value ? "TRUE" : "FALSE";
     };
