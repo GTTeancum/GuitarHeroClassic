@@ -25905,7 +25905,7 @@ std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera current_walkspot: source_call=Waypoint::FindNearest actor=guitarist0 flags=walk|solo_walk mask=0x%08x coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu decoded_waypoints=%zu candidate_count=%zu\n",
+            "[world] camera current_walkspot: source_call=Waypoint::FindNearest source_body=rb2_dump_locals_only source_locals=dist,best,it metric=native_world_position_distance2 actor=guitarist0 flags=walk|solo_walk mask=0x%08x coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu decoded_waypoints=%zu candidate_count=%zu\n",
             static_cast<unsigned int>(kWalkSpot | kSoloWalkSpot),
             px, py, pz, best ? best->name.c_str() : "",
             best ? best_dist2 : 0.0f, venue_chars_scene_.waypoints.size(),

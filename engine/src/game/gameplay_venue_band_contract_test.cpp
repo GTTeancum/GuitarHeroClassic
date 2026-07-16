@@ -13786,6 +13786,11 @@ int main() {
                  "\"[world]cameracurrent_walkspot:source_call=Waypoint::FindNearest",
                  "regular camera diagnostics expose the source current-walkspot lookup");
   ok &= contains(gameplay_c,
+                 "source_body=rb2_dump_locals_only"
+                 "source_locals=dist,best,it"
+                 "metric=native_world_position_distance2",
+                 "regular camera current-walkspot diagnostics do not overclaim the unrecovered Waypoint FindNearest body");
+  ok &= contains(gameplay_c,
                  "mask=0x%08xcoordinate=world_stored",
                  "regular camera current-walkspot diagnostics expose the source walk/solo-walk flag mask");
   ok &= contains(gameplay_c,

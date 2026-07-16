@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay current-walkspot FindNearest boundary:
+  ihatecompvir registers `waypoint_nearest`, and the RB2 dump for
+  `Waypoint::FindNearest(position, flags)` exposes only `dist`, `best`, and
+  the waypoint iterator locals. Native keeps the existing world-position
+  nearest-walkspot bridge for the recovered `bad_waypoints` `shot_ok` rule, but
+  the runtime row now labels that body as `rb2_dump_locals_only` and the metric
+  as `native_world_position_distance2`. This is selector-proof accuracy only:
+  no camera placement math, ShotOk policy, FreeCam behavior, or dependency
+  surface changes.
 - 2026-07-16 gameplay trace-complete writer bridge proof scope:
   The retained PS2 writer bridge is still gated by complete writer-builder-pair
   evidence plus the path-frame match when the trace is frame-scoped. Native
