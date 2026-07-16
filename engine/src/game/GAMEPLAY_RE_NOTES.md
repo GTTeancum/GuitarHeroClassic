@@ -66,10 +66,12 @@
   any normal gameplay camera resolving below or inside the venue as invalid
   until the source-backed transform path explains it; no GH2 normal gameplay
   camera should intentionally be positioned under the level. Keep this as an
-  open correctness concern for a later source-backed fix; do not paper it over
-  with a one-off camera offset. The current suspect remains unrecovered
-  `RndCam::UpdateLocal` / `LocalProjectXfm.m.z.x` sign or hidden
-  `BuildTransform` pose math, not FreeCam.
+  user-confirmed open correctness concern for a later source-backed fix; do
+  not paper it over with a one-off camera offset, and do not treat it as
+  acceptable parity just because other camera routing pieces are far along.
+  The current suspect remains unrecovered `RndCam::UpdateLocal` /
+  `LocalProjectXfm.m.z.x` sign or hidden `BuildTransform` pose math, not
+  FreeCam.
 - 2026-07-16 gameplay CamShot LocalProjectXfm yRatio:
   ihatecompvir `Rnd::Rnd` defaults `mAspect` to `kWidescreen`, and
   `Rnd::YRatio()` returns `0.5625f` for widescreen. Because
