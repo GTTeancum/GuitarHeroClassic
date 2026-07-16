@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay lighter camera state latch:
+  GH2 `world/crowd.dta::crowd_lighters_slow/fast` reaches
+  `world_objects_worldbase.dta::pick_lighter_shot`, which sets
+  `[did_lighter_cam] TRUE` when the old lighter state was off, the latch was
+  still false, and the game is not multiplayer. Native normal gameplay camera
+  cues now latch `did_lighter_cam_` at that source gate before checking whether
+  the current native camera pipeline can visibly force the LIGHTER shot, and
+  the proof row reports `source_pick_lighter_shot` plus the before/after latch
+  state. This preserves source script state without adding camera placement
+  hacks, FreeCam work, or dependencies.
 - 2026-07-16 gameplay CameraManager filter mask proof:
   ihatecompvir `CameraManager::PickCameraShot` warnings print
   `flags_any` / `flags_exact` filters as `(prop match 0xmask)`, appending the

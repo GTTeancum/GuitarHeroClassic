@@ -35332,6 +35332,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const uint32_t excitement =
                     venue_excitement_level(active_venue_event_);
                 const bool did_lighter_cam_before = did_lighter_cam_;
+                bool source_pick_lighter_shot = false;
                 int lighter_was_off = -1;
                 if (ev.text == "[band_jump]") {
                     cue_forced_camera = authored_gameplay_cameras_active &&
@@ -35351,12 +35352,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_worldcrowd_lighter_group_ =
                         ev.text == "[crowd_lighters_slow]" ? "lighter_slow"
                                                             : "lighter_fast";
-                    cue_forced_camera = authored_gameplay_cameras_active &&
-                                        camera_source_lighter_forces_camera(
-                                            source_multiplayer,
-                                            did_lighter_cam_, was_off);
-                    if (cue_forced_camera) {
+                    source_pick_lighter_shot =
+                        camera_source_lighter_forces_camera(
+                            source_multiplayer, did_lighter_cam_, was_off);
+                    if (source_pick_lighter_shot) {
                         did_lighter_cam_ = true;
+                    }
+                    cue_forced_camera = authored_gameplay_cameras_active &&
+                                        source_pick_lighter_shot;
+                    if (cue_forced_camera) {
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Lighter;
                         forced_camera_bars = kSourceLighterShotDurationBars;
@@ -35392,7 +35396,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     "text=%s tick=%u t=%.3f "
                     "force=%d mode=%s bars=%d excitement=%u "
                     "source_gate=%s source_multiplayer=%d "
-                    "did_lighter_cam_before=%d "
+                    "did_lighter_cam_before=%d did_lighter_cam_after=%d "
+                    "source_pick_lighter_shot=%d "
                     "was_off=%d crowd_group=%s "
                     "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                     camera_source_script_cue_message(ev.text),
@@ -35405,7 +35410,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     forced_camera_bars.value_or(0), excitement,
                     camera_source_script_cue_gate(ev.text),
                     source_multiplayer ? 1 : 0,
-                    did_lighter_cam_before ? 1 : 0, lighter_was_off,
+                    did_lighter_cam_before ? 1 : 0,
+                    did_lighter_cam_ ? 1 : 0,
+                    source_pick_lighter_shot ? 1 : 0, lighter_was_off,
                     active_worldcrowd_lighter_group_.empty()
                         ? "-"
                         : active_worldcrowd_lighter_group_.c_str());

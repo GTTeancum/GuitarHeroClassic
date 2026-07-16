@@ -14537,13 +14537,16 @@ int main() {
                  "\"lighter_fast\";",
                  "crowd lighter messages select the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
-                 "cue_forced_camera=authored_gameplay_cameras_active&&"
-                 "camera_source_lighter_forces_camera("
+                 "source_pick_lighter_shot=camera_source_lighter_forces_camera("
                  "source_multiplayer,did_lighter_cam_,was_off);",
                  "GH2 crowd_lighters_* and pick_lighter_shot combine the old-lighter, did_lighter_cam, and multiplayer gates");
   ok &= contains(gameplay_c,
+                 "if(source_pick_lighter_shot){did_lighter_cam_=true;}",
+                 "live crowd lighter routing latches did_lighter_cam when the source pick_lighter_shot gate passes");
+  ok &= contains(gameplay_c,
                  "\"source_gate=%ssource_multiplayer=%d\""
-                 "\"did_lighter_cam_before=%d\""
+                 "\"did_lighter_cam_before=%ddid_lighter_cam_after=%d\""
+                 "\"source_pick_lighter_shot=%d\""
                  "\"was_off=%dcrowd_group=%s\""
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\\n\"",
                  "camera script cue diagnostics expose the source gate inputs and active WorldCrowd crowd group");
