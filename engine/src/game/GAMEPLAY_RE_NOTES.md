@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay BuildTransform current-frame pair execution:
+  ihatecompvir `CamShotFrame::Interp` calls
+  `BuildTransform(cam, ..., !sameTargets)` twice on the current frame before
+  interpolating those two transform outputs. Native non-same-target gameplay
+  cameras now execute the target-list / `shot_filter` solve twice from the
+  current source seed, blend the two rows with the source eased key blend, and
+  commit the second call's filter state. Solver proof rows now report
+  `source_build_calls=2`. This is normal gameplay camera behavior parity; it
+  does not recover the hidden `BuildTransform` body, promote FreeCam, add
+  clamps or offsets, or add dependencies.
 - 2026-07-16 gameplay current-walkspot FindNearest boundary:
   ihatecompvir registers `waypoint_nearest`, and the RB2 dump for
   `Waypoint::FindNearest(position, flags)` exposes only `dist`, `best`, and

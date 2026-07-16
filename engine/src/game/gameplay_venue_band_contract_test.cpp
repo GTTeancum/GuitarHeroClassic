@@ -9620,9 +9620,33 @@ int main() {
                  "camera_target_list_result_rows_from_seed(",
                  "camera target-list rows can run from an already blended source seed");
   ok &= contains(gameplay_c,
-                 "source_build_transform_result="
-                 "build_rows_a?*build_rows_a:source_seed_a;",
-                 "non-same-target CamShot rows mirror the visible current-frame BuildTransform pair");
+                 "std::optional<CameraResultRows>build_rows_a_first;"
+                 "std::optional<CameraResultRows>build_rows_a_second;",
+                 "non-same-target CamShot rows keep separate current-frame BuildTransform calls");
+  ok &= contains(gameplay_c,
+                 "build_rows_a_first=camera_target_list_result_rows_from_seed("
+                 "source_seed_a,build_key_a,*a_target_centroid,"
+                 "source_order_state_ptr,&source_order_filter_step_a,"
+                 "&source_order_projected_delta_a);",
+                 "non-same-target CamShot runs the first visible current-frame BuildTransform call");
+  ok &= contains(gameplay_c,
+                 "build_rows_a_second=camera_target_list_result_rows_from_seed("
+                 "source_seed_a,build_key_a,*a_target_centroid,"
+                 "source_order_state_ptr,&source_order_filter_step_b,"
+                 "&source_order_projected_delta_b);",
+                 "non-same-target CamShot runs the second visible current-frame BuildTransform call");
+  ok &= contains(gameplay_c,
+                 "source_build_transform_result=camera_lerp_result_rows("
+                 "*build_rows_a_first,*build_rows_a_second,interp_t);",
+                 "non-same-target CamShot interpolates the two current-frame BuildTransform outputs");
+  ok &= contains(gameplay_c,
+                 "result_filter_step=source_order_filter_step_b;"
+                 "result_filter_projected_delta="
+                 "source_order_projected_delta_b;",
+                 "non-same-target CamShot keeps the second BuildTransform filter state for diagnostics");
+  ok &= contains(gameplay_c,
+                 "*result_builder_state=source_order_state;",
+                 "non-same-target CamShot commits state after the visible current-frame BuildTransform pair");
   ok &= contains(gameplay_c,
                  "source_build_transform_result->source="
                  "\"source_visible_current_build_transform_twice(\"+",
@@ -9702,8 +9726,11 @@ int main() {
                  "\"source_no_target_current_build_twice(\"",
                  "no-target CamShots use the visible current-frame BuildTransform pair");
   ok &= contains(gameplay_c,
-                 "\"source_visible_build_pair=%s\"",
-                 "camera debug logs expose the visible BuildTransform frame pair");
+                 "\"source_visible_build_pair=%ssource_build_calls=%d\"",
+                 "camera debug logs expose the visible BuildTransform frame pair and call count");
+  ok &= contains(gameplay_c,
+                 "source_build_transform_order?2:0",
+                 "camera debug logs report the visible current-frame BuildTransform pair as two calls");
   ok &= contains(gameplay_c,
                  "source_build_transform_order?"
                  "\"current_frame_twice\":\"blended_seed\"",

@@ -21987,22 +21987,38 @@ void apply_camera_keys(
             Gameplay::CameraKey build_key_a = *a;
             build_key_a.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
-            std::optional<CameraResultRows> build_rows_a;
+            std::optional<CameraResultRows> build_rows_a_first;
+            std::optional<CameraResultRows> build_rows_a_second;
             if (a_target_centroid) {
-                build_rows_a = camera_target_list_result_rows_from_seed(
+                build_rows_a_first = camera_target_list_result_rows_from_seed(
                     source_seed_a, build_key_a, *a_target_centroid,
                     source_order_state_ptr, &source_order_filter_step_a,
                     &source_order_projected_delta_a);
+                float source_order_filter_step_b = 1.0f;
+                float source_order_projected_delta_b = 1.0f;
+                build_rows_a_second = camera_target_list_result_rows_from_seed(
+                    source_seed_a, build_key_a, *a_target_centroid,
+                    source_order_state_ptr, &source_order_filter_step_b,
+                    &source_order_projected_delta_b);
+                result_filter_step = source_order_filter_step_b;
+                result_filter_projected_delta = source_order_projected_delta_b;
             }
-            source_build_transform_result =
-                build_rows_a ? *build_rows_a : source_seed_a;
+            if (build_rows_a_first && build_rows_a_second) {
+                source_build_transform_result = camera_lerp_result_rows(
+                    *build_rows_a_first, *build_rows_a_second, interp_t);
+            } else if (build_rows_a_first) {
+                source_build_transform_result = *build_rows_a_first;
+            } else {
+                source_build_transform_result = source_seed_a;
+            }
             source_build_transform_result->source =
                 "source_visible_current_build_transform_twice(" +
                 source_build_transform_result->source + ")";
             submitted_result = *source_build_transform_result;
             source_build_transform_order = true;
             source_visible_build_transform_pair = "current_frame_twice";
-            if (build_rows_a && result_builder_state) {
+            if ((build_rows_a_first || build_rows_a_second) &&
+                result_builder_state) {
                 *result_builder_state = source_order_state;
                 if (result_builder_state->has_filtered_target) {
                     filtered_target_centroid =
@@ -22010,7 +22026,7 @@ void apply_camera_keys(
                     result_filter_candidate_valid = true;
                 }
             }
-            if (build_rows_a) {
+            if (build_rows_a_first && !build_rows_a_second) {
                 result_filter_step = source_order_filter_step_a;
                 result_filter_projected_delta = source_order_projected_delta_a;
             }
@@ -23516,7 +23532,7 @@ void apply_camera_keys(
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
             "priority=gameplay_camera frame=%.2f shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
-            "source_visible_build_pair=%s "
+            "source_visible_build_pair=%s source_build_calls=%d "
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_locals=%s "
@@ -23554,6 +23570,7 @@ void apply_camera_keys(
                                          : "blended_seed",
             same_targets_like_camshot ? 0 : 1,
             source_visible_build_transform_pair,
+            source_build_transform_order ? 2 : 0,
             !source_has_any_targets
                 ? "NoTargets:BuildTransform(applyScreenOffset=1)"
                 : same_targets_like_camshot
