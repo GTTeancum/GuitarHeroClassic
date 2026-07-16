@@ -24413,6 +24413,12 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     source_game_won_camera_dispatched_ = false;
     source_game_won_message_time_ = 0.0;
     source_game_won_camera_categories_.clear();
+    source_game_won_outro_complete_scheduled_ = false;
+    source_game_won_outro_complete_dispatched_ = false;
+    source_game_won_outro_complete_time_ = 0.0;
+    source_game_won_outro_complete_delay_ = 0.0f;
+    source_game_won_outro_complete_shot_.clear();
+    source_game_won_outro_complete_duration_source_.clear();
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
     active_worldcrowd_lighter_group_.clear();
@@ -25988,7 +25994,29 @@ void Gameplay::update_source_game_over_camera_messages(
         }
     }
 
-    if (source_game_won_camera_dispatched_) return;
+    auto dispatch_outro_complete_task = [&]() {
+        if (!source_game_won_outro_complete_scheduled_ ||
+            source_game_won_outro_complete_dispatched_ ||
+            song_time_ + 1e-6 < source_game_won_outro_complete_time_) {
+            return;
+        }
+        source_game_won_outro_complete_dispatched_ = true;
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera game_won_msg set_outro_complete: source_msg=game_won_msg source_task=\"game set_outro_complete\" categories=%s shot=%s elapsed=%.3f scheduled_delay=%.3f duration_source=%s result=dispatched\n",
+                join_log_names(source_game_won_camera_categories_).c_str(),
+                source_game_won_outro_complete_shot_.c_str(),
+                song_time_ - source_game_won_message_time_,
+                source_game_won_outro_complete_delay_,
+                source_game_won_outro_complete_duration_source_.c_str());
+        }
+    };
+
+    if (source_game_won_camera_dispatched_) {
+        dispatch_outro_complete_task();
+        return;
+    }
     if (song_time_ + 1e-6 <
         source_game_won_message_time_ + kSourceWinCameraDelaySeconds) {
         return;
@@ -26016,20 +26044,29 @@ void Gameplay::update_source_game_over_camera_messages(
     const bool outro_complete_branch =
         camera_source_game_won_outro_complete_branch(
             source_game_won_camera_categories_);
+    const float outro_delay =
+        outro_complete_branch
+            ? (queued_game_won_key
+                   ? camera_source_duration_seconds(*queued_game_won_key)
+                   : 20.0f)
+            : 0.0f;
+    const char* duration_source =
+        !outro_complete_branch
+            ? "not_scheduled"
+            : (queued_game_won_key
+                   ? camera_source_duration_seconds_source(
+                         *queued_game_won_key)
+                   : "source_fallback_20_seconds");
+    if (outro_complete_branch) {
+        source_game_won_outro_complete_scheduled_ = true;
+        source_game_won_outro_complete_dispatched_ = false;
+        source_game_won_outro_complete_time_ = song_time_ + outro_delay;
+        source_game_won_outro_complete_delay_ = outro_delay;
+        source_game_won_outro_complete_shot_ =
+            queued_game_won_key ? queued_game_won_key->name : "";
+        source_game_won_outro_complete_duration_source_ = duration_source;
+    }
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-        const float outro_delay =
-            outro_complete_branch
-                ? (queued_game_won_key ? camera_source_duration_seconds(
-                                             *queued_game_won_key)
-                                       : 20.0f)
-                : 0.0f;
-        const char* duration_source =
-            !outro_complete_branch
-                ? "not_scheduled"
-                : (queued_game_won_key
-                       ? camera_source_duration_seconds_source(
-                             *queued_game_won_key)
-                       : "source_fallback_20_seconds");
         std::fprintf(
             stderr,
             "[world] camera game_won_msg outro_complete: source_msg=game_won_msg source_branch=\"category==WIN_ENCORE||category==WIN_GAME\" categories=%s branch=%d shot=%s delay=%.3f duration_source=%s fallback_20s=%d result=%s\n",
@@ -26041,6 +26078,7 @@ void Gameplay::update_source_game_over_camera_messages(
             outro_complete_branch ? "schedule_game_set_outro_complete"
                                   : "no_source_task");
     }
+    dispatch_outro_complete_task();
     if (!queued && (debug_camera_enabled() || debug_venue_filters_enabled())) {
         std::fprintf(
             stderr,

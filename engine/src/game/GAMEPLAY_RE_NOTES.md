@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay `game_won_msg` outro-complete task:
+  Native now keeps the source `game set_outro_complete` task as gameplay-camera
+  state after the delayed `WIN_ENCORE` or `WIN_GAME` pick, using the picked
+  CamShot duration or the source 20-second no-shot fallback as its wake time.
+  The per-frame game-over camera update continues polling that task after the
+  win camera has already been dispatched and logs the later source task
+  dispatch when due. This is normal gameplay/outro state parity only; it does
+  not change camera placement math, promote FreeCam, or add dependencies.
 - 2026-07-16 open gameplay camera placement concern:
   A recent normal gameplay proof screenshot showed a suspiciously low/possibly
   under-level framing. Treat this as an unresolved gameplay camera correctness

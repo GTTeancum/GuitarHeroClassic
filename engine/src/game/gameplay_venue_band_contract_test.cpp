@@ -13484,6 +13484,22 @@ int main() {
                  "categories=%sbranch=%dshot=%sdelay=%.3fduration_source=%s"
                  "fallback_20s=%dresult=%s\\n\"",
                  "game_won_msg diagnostics expose the picked-shot duration or 20-second fallback branch");
+  ok &= contains(gameplay_h_c,
+                 "boolsource_game_won_outro_complete_scheduled_=false;",
+                 "game_won_msg stores whether the source outro-complete task was scheduled");
+  ok &= contains(gameplay_c,
+                 "source_game_won_outro_complete_time_=song_time_+outro_delay;",
+                 "game_won_msg stores the source set_outro_complete task wake time");
+  ok &= contains(gameplay_c,
+                 "if(source_game_won_camera_dispatched_){"
+                 "dispatch_outro_complete_task();return;}",
+                 "game_won_msg keeps polling the scheduled outro-complete task after delayed pick_shot");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameragame_won_msgset_outro_complete:"
+                 "source_msg=game_won_msgsource_task=\\\"gameset_outro_complete\\\""
+                 "categories=%sshot=%selapsed=%.3fscheduled_delay=%.3f"
+                 "duration_source=%sresult=dispatched\\n\"",
+                 "game_won_msg dispatches the delayed source game set_outro_complete task");
   ok &= contains(gameplay_c,
                  "constboolsource_game_over_camera_hold="
                  "source_game_lost_camera_dispatched_||"
