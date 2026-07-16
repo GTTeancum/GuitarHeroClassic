@@ -17657,6 +17657,109 @@ bool camera_source_category_uses_banddirector_findnext(
            source_message == "BandDirector::FindNextShot";
 }
 
+int camera_source_count_bits(int value) {
+    int bits = 0;
+    const uint32_t source_value = static_cast<uint32_t>(value);
+    for (uint32_t bit = 0; bit < 32; ++bit) {
+        if (source_value & (uint32_t{1} << bit)) ++bits;
+    }
+    return bits;
+}
+
+int camera_source_banddirector_filter_shot_mask_like_source(
+    int mask, std::string_view current_category) {
+    if (current_category.find("_behind") != std::string_view::npos) {
+        mask |= 0x10;
+    } else if ((mask & 0x20) == 0 &&
+               current_category.find("_far") != std::string_view::npos) {
+        mask |= 0x100;
+    }
+    return mask;
+}
+
+std::string camera_source_banddirector_pickdist_like_source(
+    const std::array<float, 4>& weights,
+    std::string_view band,
+    float distance_random_unit,
+    float closeup_random_unit) {
+    static constexpr const char* dist_names[] = {"closeup", "near", "far",
+                                                 "behind"};
+    float total = 0.0f;
+    for (float weight : weights) total += weight;
+    float unit = distance_random_unit;
+    if (!std::isfinite(unit)) unit = 0.0f;
+    if (unit < 0.0f) unit = 0.0f;
+    if (unit > 1.0f) unit = 1.0f;
+    float draw = unit * total;
+    int dist = 0;
+    for (; dist < 3; ++dist) {
+        draw -= weights[dist];
+        if (draw < 0.0f) break;
+    }
+
+    std::string suffix;
+    if (dist == 0 && (band.empty() || band.front() != 'v')) {
+        float closeup = closeup_random_unit;
+        if (!std::isfinite(closeup)) closeup = 0.0f;
+        suffix = closeup > 0.30f ? "_hand" : "_head";
+    }
+    return std::string(dist_names[dist]) + suffix;
+}
+
+std::string camera_source_banddirector_midi_shot_category_like_source(
+    int source_mask,
+    std::string_view current_category,
+    size_t random_fs_index,
+    float distance_random_unit,
+    float closeup_random_unit) {
+    static constexpr int fs[] = {1, 2, 4, 8, 3, 5, 9, 6, 0xA, 0xC, 0xD, 0xF};
+    int mask = source_mask;
+    int bits = camera_source_count_bits(mask & 0xF);
+    if (bits == 3 && (mask & 2)) {
+        mask &= ~2;
+        bits = 2;
+    }
+    if (bits == 0) {
+        mask |= fs[random_fs_index % 12];
+        bits = camera_source_count_bits(mask & 0xF);
+    }
+    if ((mask & 0x40) && bits != 1) mask &= ~0x40;
+
+    std::array<float, 4> weights = {4.0f, 3.0f, 4.0f, 1.0f};
+    mask =
+        camera_source_banddirector_filter_shot_mask_like_source(mask,
+                                                                current_category);
+    if (bits == 4 && (mask & 0x100)) {
+        mask &= ~2;
+        bits = 3;
+    }
+    if ((mask & 0x10) || (bits == 2 && (mask & 2))) weights[3] = 0.0f;
+    if ((mask & 0x20) || bits == 4) {
+        bits = 4;
+        mask |= 0x2F;
+    } else {
+        weights[2] = 0.0f;
+    }
+    if (bits != 1) mask |= 0x80;
+    if (mask & 0x80) weights[0] = 0.0f;
+    if (mask & 0x60) weights[1] = 0.0f;
+
+    std::string band;
+    if (bits == 4) {
+        band = "all";
+    } else if (bits == 3) {
+        band = "front";
+    } else {
+        if (mask & 1) band += 'b';
+        if (mask & 2) band += 'd';
+        if (mask & 4) band += 'g';
+        if (mask & 8) band += 'v';
+    }
+    return "coop_" + band + "_" +
+           camera_source_banddirector_pickdist_like_source(
+               weights, band, distance_random_unit, closeup_random_unit);
+}
+
 void camera_source_no_acceptable_shot(std::string_view category,
                                       CameraShotMode mode,
                                       bool low_excitement,

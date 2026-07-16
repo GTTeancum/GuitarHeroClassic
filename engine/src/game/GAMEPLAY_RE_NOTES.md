@@ -234,6 +234,16 @@
   `coop_` category name alone does not inherit the BandDirector filter. This is
   proof/provenance only: no camera selection result, pose math, FreeCam
   priority, under-venue concern, or dependency surface changes.
+- 2026-07-16 gameplay BandDirector `midi_shot_cat` category helper:
+  ihatecompvir `BandDirector::OnMidiShotCategory` is source-visible even
+  though the extracted GH2 asset set does not currently call `midi_shot_cat`.
+  Native now mirrors its mask shaping as a bounded helper: the `fs[]` fallback
+  table, three-bit drum collapse, `FilterShot` current-shot `_behind`/`_far`
+  flags, distance weights, closeup hand/head suffix, and final
+  `coop_<band>_<distance>` token are represented without changing ordinary
+  `CameraManager::FindCameraShot` gameplay picks. This is selection-parity
+  plumbing only; it does not synthesize hidden pose math, promote FreeCam, mask
+  under-venue results, or add dependencies.
 - 2026-07-16 gameplay BuildTransform current-frame pair execution:
   ihatecompvir `CamShotFrame::Interp` calls
   `BuildTransform(cam, ..., !sameTargets)` twice on the current frame before

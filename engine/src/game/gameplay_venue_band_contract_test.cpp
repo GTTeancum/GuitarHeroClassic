@@ -13903,6 +13903,34 @@ int main() {
                  "std::vector<CameraShotSourceFilter>{}",
                  "direct source category picks do not inherit BandDirector filters");
   ok &= contains(gameplay_c,
+                 "std::stringcamera_source_banddirector_midi_shot_category_like_source(",
+                 "native camera exposes the source BandDirector midi_shot_cat category resolver");
+  ok &= contains(gameplay_c,
+                 "staticconstexprintfs[]={1,2,4,8,3,5,9,6,0xA,0xC,0xD,0xF};",
+                 "BandDirector midi_shot_cat helper keeps the source zero-bit fallback table");
+  ok &= contains(gameplay_c,
+                 "if(bits==3&&(mask&2)){mask&=~2;bits=2;}",
+                 "BandDirector midi_shot_cat helper mirrors the source three-bit drum mask collapse");
+  ok &= contains(gameplay_c,
+                 "mask=camera_source_banddirector_filter_shot_mask_like_source("
+                 "mask,current_category);",
+                 "BandDirector midi_shot_cat helper routes through source FilterShot");
+  ok &= contains(gameplay_c,
+                 "if((mask&0x20)||bits==4){bits=4;mask|=0x2F;}else{"
+                 "weights[2]=0.0f;}",
+                 "BandDirector midi_shot_cat helper mirrors the all/far distance weight gate");
+  ok &= contains(gameplay_c,
+                 "if(bits!=1)mask|=0x80;if(mask&0x80)weights[0]=0.0f;"
+                 "if(mask&0x60)weights[1]=0.0f;",
+                 "BandDirector midi_shot_cat helper mirrors the source closeup/near suppression bits");
+  ok &= contains(gameplay_c,
+                 "suffix=closeup>0.30f?\"_hand\":\"_head\";",
+                 "BandDirector PickDist helper mirrors the source closeup hand/head suffix split");
+  ok &= contains(gameplay_c,
+                 "return\"coop_\"+band+\"_\"+"
+                 "camera_source_banddirector_pickdist_like_source(",
+                 "BandDirector midi_shot_cat helper returns the source coop category token");
+  ok &= contains(gameplay_c,
                  "source_warn=\\\"Noacceptablecamerashot:\\\""
                  "source_warn_cat=%ssource_manager=CameraManager::PickCameraShot"
                  "source_category_caller=%scategory=%s"
