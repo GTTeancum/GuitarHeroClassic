@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches RndAnimatable frame:
+  ihatecompvir `CamShot` syncs `RndAnimatable` as a superclass, and
+  `RndAnimatable` property sync exposes both `rate` and `frame`. Native
+  already decoded the CamShot animatable header rate; it now also preserves the
+  decoded `mFrame` and exposes top-level `(frame ...)` / `frame` property
+  filters through source-shaped `CameraManager::ShotMatches`. This is normal
+  gameplay selector parity only: no pose math, FreeCam priority change,
+  under-venue masking, runtime dependency, or OG Xbox portability change.
 - 2026-07-16 CamShot load hidden lifecycle proof:
   ihatecompvir `CamShot::Load` saves `mHidden`, calls `UnHide()` before
   reading fields when needed, runs `CacheFrames()`, then calls `DoHide()` if

@@ -12105,6 +12105,10 @@ int main() {
                  "std::vector<std::string>camera_anim_refs;"
                  "std::stringglow_spot_ref;",
                  "CameraKey keeps authored CamShot anim and glow refs");
+  ok &= contains(gameplay_h_c,
+                 "floatcamshot_anim_frame=0.0f;"
+                 "boolhas_camshot_anim_frame=false;",
+                 "CameraKey keeps the inherited RndAnimatable frame for CamShot filters");
   ok &= contains(gameplay_c,
                  "for(uint32_ti=0;i<hide_count;++i)"
                  "shot.hide_list.push_back(r.symbol());",
@@ -12153,6 +12157,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.postprocess_ref=prop_ref(shot.props,\"postprocess\");",
                  "regular CamShot loader decodes the camshot.dta postprocess object ref");
+  ok &= contains(gameplay_c,
+                 "shot.anim_frame=anim_header.frame;",
+                 "CamShot loader decodes inherited RndAnimatable mFrame from source");
+  ok &= contains(gameplay_c,
+                 "key.camshot_anim_frame=shot.anim_frame;"
+                 "key.has_camshot_anim_frame=true;",
+                 "regular CamShot keys preserve inherited RndAnimatable mFrame");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"frame\")returnkey.has_camshot_anim_frame?"
+                 "key.camshot_anim_frame:0.0f;",
+                 "ShotMatches exposes CamShot's inherited RndAnimatable frame property");
   ok &= contains(gameplay_c,
                  "structIntroCameraSelection{std::stringshot;"
                  "std::stringanim=\"Intro.tnm\";"

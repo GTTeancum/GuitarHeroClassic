@@ -1606,6 +1606,7 @@ struct DecodedCamShot {
     uint16_t revision = 0;
     uint16_t anim_revision = 0;
     int anim_rate = 0;
+    float anim_frame = 0.0f;
     std::unordered_map<std::string, MiloValue> props;
     std::vector<std::pair<Gameplay::CameraKey, size_t>> frames;
     bool looping = true;
@@ -2329,6 +2330,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         const auto anim_header = read_rnd_animatable_like_miloeditor(r);
         shot.anim_revision = anim_header.revision;
         shot.anim_rate = anim_header.rate;
+        shot.anim_frame = anim_header.frame;
         if (shot.revision <= 0x0c) {
             throw std::runtime_error("CamShot legacy revision <= 12 is not ported");
         }
@@ -2497,6 +2499,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_camshot_looping = true;
             key.camshot_anim_rate = shot.anim_rate;
             key.has_camshot_anim_rate = true;
+            key.camshot_anim_frame = shot.anim_frame;
+            key.has_camshot_anim_frame = true;
             key.source_ref = shot.old_crowd_sym;
             key.has_crowd_selection = !shot.old_crowd_sym.empty();
             key.crowd_selection_ref = shot.old_crowd_sym;
@@ -2722,6 +2726,8 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.has_camshot_looping = from.has_camshot_looping;
     to.camshot_anim_rate = from.camshot_anim_rate;
     to.has_camshot_anim_rate = from.has_camshot_anim_rate;
+    to.camshot_anim_frame = from.camshot_anim_frame;
+    to.has_camshot_anim_frame = from.has_camshot_anim_frame;
     to.source_ref = from.source_ref;
     to.has_crowd_selection = from.has_crowd_selection;
     to.crowd_selection_ref = from.crowd_selection_ref;
@@ -2846,6 +2852,8 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
         from.has_legacy_path_frame_ignored;
     to.camshot_anim_rate = from.camshot_anim_rate;
     to.has_camshot_anim_rate = from.has_camshot_anim_rate;
+    to.camshot_anim_frame = from.camshot_anim_frame;
+    to.has_camshot_anim_frame = from.has_camshot_anim_frame;
     if (!to.has_path_base_pose && from.has_path_base_pose) {
         for (int axis = 0; axis < 3; ++axis) {
             to.path_base_eye[axis] = from.path_base_eye[axis];
@@ -16619,6 +16627,8 @@ std::optional<float> camera_filter_float_property(
         return key.has_clip_planes ? key.far_plane : 1000.0f;
     if (prop == "path_frame")
         return key.has_path_frame ? key.path_frame : -1.0f;
+    if (prop == "frame")
+        return key.has_camshot_anim_frame ? key.camshot_anim_frame : 0.0f;
     if (prop == "duration") return source_camshot_duration_frames(key);
     return std::nullopt;
 }

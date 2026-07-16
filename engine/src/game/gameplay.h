@@ -187,6 +187,8 @@ class Gameplay {
     bool has_camshot_looping = false;
     int camshot_anim_rate = 0;
     bool has_camshot_anim_rate = false;
+    float camshot_anim_frame = 0.0f;
+    bool has_camshot_anim_frame = false;
     float screen_offset[2] = {0.0f, 0.0f};
     bool has_screen_offset = false;
     float blur_depth = 0.35f;
