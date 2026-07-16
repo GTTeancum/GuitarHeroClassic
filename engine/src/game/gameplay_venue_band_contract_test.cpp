@@ -13398,16 +13398,22 @@ int main() {
                "regular camera selector must not pre-reject the active shot before source shot_ok");
   ok &= contains(gameplay_c,
                  "boolcamera_source_check_shot(constGameplay::CameraKey&key,"
-                 "uint32_tbeat,constchar*source_caller)",
+                 "uint32_tcamera_beat_state,constchar*source_caller)",
                  "regular camera runtime exposes GH2 cam_check_shot hook");
   ok &= contains(gameplay_c,
                  "\"[world]cameracheck_shot:source_msg=check_shot"
-                 "source_caller=%sshot=%sbeat=%u"
+                 "source_script=world/camshot.dta::check_shot"
+                 "source_caller=%ssource_script_args=none"
+                 "native_call=cam_check_shot($this)"
+                 "shot=%scamera_beat_state=%u"
+                 "native_beat_arg_visible=0"
                  "source_action=pick_new_shot_on_reject"
                  "cam_check_shot=native_deferredresult=accept"
                  "hidden_gameplay_blocker=cam_check_shot"
-                 "pipeline_scope=normal_gameplay_camera\\n\"",
-                 "regular camera diagnostics expose deferred source check_shot hook");
+                 "pipeline_scope=normal_gameplay_camera"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0\\n\"",
+                 "regular camera diagnostics expose deferred source check_shot hook and native argument boundary");
   ok &= contains(gameplay_h_c, "uint32_tlast_camera_beat_=UINT32_MAX;",
                  "regular camera runtime tracks source beat cadence");
   ok &= contains(gameplay_h_c, "uint32_tcamera_beat_state_=0;",

@@ -44,10 +44,13 @@
   `camera_bars_left <= 0`. Native normal gameplay camera diagnostics now log
   that duration gate and whether the downbeat holds the current shot or reaches
   `get_shot_duration+pick_new_shot`. The active beat `check_shot` row now also
-  names `world_objects_worldbase.dta::beat` and the source rejection route
-  `pick_new_shot_on_reject` while keeping `cam_check_shot` native-deferred.
-  This changes only proof/status output; it does not invent `cam_check_shot`
-  behavior, alter camera cadence, touch FreeCam, or add dependencies.
+  names `world_objects_worldbase.dta::beat`, the source rejection route
+  `pick_new_shot_on_reject`, and the recovered native boundary:
+  `world/camshot.dta::check_shot` calls `cam_check_shot($this)` with no explicit
+  beat argument. This keeps `cam_check_shot` native-deferred and makes the beat
+  value proof context only. This changes only proof/status output; it does not
+  invent `cam_check_shot` behavior, alter camera cadence, touch FreeCam, or add
+  dependencies.
 - 2026-07-15 gameplay camera priority reporting:
   Normal gameplay camera diagnostics now lead with source shot state, pose
   boundaries, and hidden gameplay blockers, with FreeCam status left at the end

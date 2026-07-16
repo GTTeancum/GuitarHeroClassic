@@ -16811,16 +16811,19 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     return accepted;
 }
 
-bool camera_source_check_shot(const Gameplay::CameraKey& key, uint32_t beat,
+bool camera_source_check_shot(const Gameplay::CameraKey& key,
+                              uint32_t camera_beat_state,
                               const char* source_caller) {
-    // GH2 camshot.dta routes check_shot to native cam_check_shot. Keep the
-    // beat-time hook observable, but do not invent rejection rules while the
-    // GH2-specific native body is still unrecovered.
+    // GH2 world_objects_worldbase.dta::beat updates [camera_beat], then
+    // world/camshot.dta::check_shot calls native cam_check_shot with only
+    // $this. Keep the beat-time context observable without promoting it to a
+    // native message argument while the GH2-specific body is still unrecovered.
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera check_shot: source_msg=check_shot source_caller=%s shot=%s beat=%u source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept hidden_gameplay_blocker=cam_check_shot pipeline_scope=normal_gameplay_camera\n",
-            source_caller ? source_caller : "", key.name.c_str(), beat);
+            "[world] camera check_shot: source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept hidden_gameplay_blocker=cam_check_shot pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            source_caller ? source_caller : "", key.name.c_str(),
+            camera_beat_state);
     }
     return true;
 }
