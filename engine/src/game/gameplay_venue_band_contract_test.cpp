@@ -14026,12 +14026,33 @@ int main() {
                  "camera_source_frames_per_unit(key),"
                  "pending_regular_camera_.c_str(),"
                  "source_next_during_start?source_next_during_start->"
-                 "name.c_str():\"\");",
+                 "name.c_str():\"\","
+                 "camera_manager_tri_frame_requested_?1:0,"
+                 "camera_manager_source_cooldown_);",
                  "camera StartShot_ diagnostics use the source mCamStartTime, frames-per-unit, and live mNextShot equivalent");
   ok &= contains(start_camera_shot_runtime_c,
-                 "tri_frame_reset=source_wii_onlycooldown_reset=0"
+                 "source_gate=venue_test!=1tri_frame_reset="
+                 "source_WiiRnd_SetTriFrameRendering"
+                 "tri_frame_requested=%dcooldown_reset="
+                 "source_global_gCooldowncooldown_value=%d"
                  "native_renderer_side_effect=not_applied",
-                 "camera StartShot_ diagnostics mark Wii tri-frame reset as non-native renderer state");
+                 "camera StartShot_ diagnostics carry source tri-frame and gCooldown side effects without applying renderer behavior");
+  ok &= contains(gameplay_h_c,
+                 "voidcamera_manager_startshot_side_effects_like_source();",
+                 "native camera exposes a source-shaped CameraManager::StartShot_ side-effect helper");
+  ok &= contains(gameplay_h_c,
+                 "boolcamera_manager_tri_frame_requested_=false;"
+                 "intcamera_manager_source_cooldown_=0;",
+                 "native camera manager carries source StartShot_ side-effect state");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::camera_manager_startshot_side_effects_like_source(){"
+                 "camera_manager_tri_frame_requested_=true;"
+                 "camera_manager_source_cooldown_=0;}",
+                 "native camera manager mirrors StartShot_ venue_test side-effect state");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "if(source_restart){"
+                 "camera_manager_startshot_side_effects_like_source();}",
+                 "CameraManager::StartShot_ side effects run on source-driven shot starts");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "start_camera_shot_anims(key,active_camera_runtime_shot_);",
@@ -14043,11 +14064,12 @@ int main() {
       "camera lifecycle exposes a source-shaped CameraManager::Enter reset helper");
   ok &= contains(gameplay_c,
                  "end_camera_shot_runtime();"
+                 "camera_manager_startshot_side_effects_like_source();"
                  "camera_manager_delete_free_cam_like_source("
                  "\"CameraManager::Enter\");"
                  "active_regular_camera_.clear();"
                  "previous_regular_camera_.clear();",
-                 "CameraManager::Enter reset clears the current CamShot after EndAnim and DeleteFreeCam");
+                 "CameraManager::Enter reset clears the current CamShot after EndAnim, source StartShot_(0) side effects, and DeleteFreeCam");
   ok &= absent(reset_camera_manager_like_source_enter_c,
                "pending_regular_camera_.clear();",
                "CameraManager::Enter must preserve source mNextShot until PrePoll clears it");
@@ -14066,7 +14088,9 @@ int main() {
                  "camera diagnostics expose source Enter mNextShot preservation before wrapped lifecycle details");
   ok &= contains(gameplay_c,
                  "\"[world]cameraEnter:source_manager=CameraManager::Enter"
-                 "source_call=StartShot_(0)delete_free_cam=1"
+                 "source_call=StartShot_(0)startshot_side_effects=1"
+                 "tri_frame_requested=%dcooldown_value=%d"
+                 "delete_free_cam=1"
                  "context=%scurrent=%shad_current=%dhad_pending=%d"
                  "pending_preserved=%shad_free_cam=%d"
                  "result=current_cleared_next_preserved"

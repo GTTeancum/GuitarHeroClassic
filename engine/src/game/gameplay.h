@@ -837,6 +837,7 @@ class Gameplay {
   bool camera_manager_delete_free_cam_like_source(const char* source_handler);
   void camera_manager_update_free_cam_from_camera_like_source();
   void camera_manager_poll_free_cam_like_source(const char* source_context);
+  void camera_manager_startshot_side_effects_like_source();
   void free_camera_set_pos_like_source(float x, float y, float z,
                                        const char* source_handler);
   void free_camera_set_rot_like_source(float x_degrees, float y_degrees,
@@ -1350,6 +1351,8 @@ class Gameplay {
   bool active_camera_skip_next_crowd_update_ = false;
   int camera_manager_random_seed_ = 0;
   std::string camera_manager_random_seed_source_ = "static_default";
+  bool camera_manager_tri_frame_requested_ = false;
+  int camera_manager_source_cooldown_ = 0;
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       active_camera_glow_spot_;
   std::string active_venue_event_;

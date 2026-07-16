@@ -12449,6 +12449,12 @@ Rejected native probe:
   the tri-frame reset as `source_wii_only` / `not_applied` so future angle
   audits do not mistake a renderer-specific Wii side effect for hidden
   CamShot transform math.
+- 2026-07-16 CameraManager StartShot side-effect state: the source
+  `StartShot_` side effects are now carried as native manager state
+  (`tri_frame_requested` and `cooldown_value`) after `CamShot::StartAnim` and
+  through `CameraManager::Enter`'s `StartShot_(0)` route. This preserves the
+  source lifecycle boundary without applying Wii renderer behavior, changing
+  camera pose math, promoting FreeCam, or adding dependencies.
 - Validation:
   `engine/out/camera_startshot_post_start_20260714_003/` builds
   `ghogx_app` plus `ghogx_gameplay_venue_band_contract_test`, seeks stock

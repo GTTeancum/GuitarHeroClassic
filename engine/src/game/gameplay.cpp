@@ -25456,6 +25456,11 @@ void Gameplay::restore_camera_script_state_for_diagnostic_seek_like_source(
     }
 }
 
+void Gameplay::camera_manager_startshot_side_effects_like_source() {
+    camera_manager_tri_frame_requested_ = true;
+    camera_manager_source_cooldown_ = 0;
+}
+
 void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     const bool had_current = !active_regular_camera_.empty();
     const bool had_pending = !pending_regular_camera_.empty();
@@ -25463,6 +25468,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     const std::string previous_current = active_regular_camera_;
     const std::string source_next_preserved = pending_regular_camera_;
     end_camera_shot_runtime();
+    camera_manager_startshot_side_effects_like_source();
     camera_manager_delete_free_cam_like_source("CameraManager::Enter");
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
@@ -25498,8 +25504,10 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
             source_next_preserved.c_str(), had_pending ? 1 : 0);
         std::fprintf(
             stderr,
-            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) delete_free_cam=1 context=%s current=%s had_current=%d had_pending=%d pending_preserved=%s had_free_cam=%d result=current_cleared_next_preserved source_next_clear_owner=CameraManager::PrePoll\n",
-            context ? context : "unknown", previous_current.c_str(),
+            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) startshot_side_effects=1 tri_frame_requested=%d cooldown_value=%d delete_free_cam=1 context=%s current=%s had_current=%d had_pending=%d pending_preserved=%s had_free_cam=%d result=current_cleared_next_preserved source_next_clear_owner=CameraManager::PrePoll\n",
+            camera_manager_tri_frame_requested_ ? 1 : 0,
+            camera_manager_source_cooldown_, context ? context : "unknown",
+            previous_current.c_str(),
             had_current ? 1 : 0, had_pending ? 1 : 0,
             source_next_preserved.c_str(), had_free_cam ? 1 : 0);
         std::fprintf(
@@ -26461,18 +26469,23 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             key.crowd_selection_pairs.size(),
             key.crowd_face_camera ? 1 : 0);
     }
+    if (source_restart) {
+        camera_manager_startshot_side_effects_like_source();
+    }
     if (source_restart &&
         (debug_camera_enabled() || debug_venue_filters_enabled())) {
         const CameraKey* source_next_during_start =
             camera_manager_next_shot_like_source();
         std::fprintf(
             stderr,
-            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f units=%d fpu=%.1f next_during_start=%s source_next_during_start=%s venue_test=0 tri_frame_reset=source_wii_only cooldown_reset=0 native_renderer_side_effect=not_applied\n",
+            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f units=%d fpu=%.1f next_during_start=%s source_next_during_start=%s venue_test=0 source_gate=venue_test!=1 tri_frame_reset=source_WiiRnd_SetTriFrameRendering tri_frame_requested=%d cooldown_reset=source_global_gCooldown cooldown_value=%d native_renderer_side_effect=not_applied\n",
             active_camera_runtime_shot_.c_str(), active_regular_camera_start_,
             camera_source_anim_rate(key), camera_source_frames_per_unit(key),
             pending_regular_camera_.c_str(),
             source_next_during_start ? source_next_during_start->name.c_str()
-                                     : "");
+                                     : "",
+            camera_manager_tri_frame_requested_ ? 1 : 0,
+            camera_manager_source_cooldown_);
     }
     set_camera_glow_spot_ref(key.glow_spot_ref);
 }
