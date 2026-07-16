@@ -16710,6 +16710,10 @@ std::optional<std::string_view> camera_filter_symbol_property_path(
             return camera_filter_symbol_list_item(key.postproc_override_refs,
                                                   prop_path[1]);
         }
+        if (prop_path[0] == "bad_waypoints") {
+            return camera_filter_symbol_list_item(key.bad_waypoint_refs,
+                                                  prop_path[1]);
+        }
     }
     const Gameplay::CameraKey* frame =
         camera_filter_keyframe_path_base(key, prop_path);

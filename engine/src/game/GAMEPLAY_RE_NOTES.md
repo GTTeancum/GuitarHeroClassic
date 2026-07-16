@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches bad_waypoints paths:
+  ihatecompvir `Hmx::Object::Property(DataArray*)` falls back to object/type
+  props and, for two-node property arrays, returns indexed items from
+  list-valued `DataArray` props. Native already decodes GH2 CamShot
+  `bad_waypoints`; source-shaped symbol filters can now evaluate
+  `(bad_waypoints N)` against those decoded refs. This is selector/property
+  parity only; it does not recover the hidden `cam_shot_ok` predicate, change
+  camera pose math, promote FreeCam, mask under-venue results, or add
+  dependencies.
 - 2026-07-16 CameraManager ShotMatches object-field filters:
   ihatecompvir `CameraManager::ShotMatches` evaluates ordinary filter props
   through `shot->Property(..., true)->Evaluate()`, and `Hmx::Object::Property`

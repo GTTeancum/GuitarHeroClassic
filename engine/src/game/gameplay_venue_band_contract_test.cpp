@@ -13442,6 +13442,11 @@ int main() {
                  "key.postproc_override_refs,prop_path[1]);}",
                  "regular camera symbol property paths expose CamShot postproc_overrides object lists");
   ok &= contains(gameplay_c,
+                 "if(prop_path[0]==\"bad_waypoints\"){"
+                 "returncamera_filter_symbol_list_item("
+                 "key.bad_waypoint_refs,prop_path[1]);}",
+                 "regular camera symbol property paths expose CamShot bad_waypoints object lists");
+  ok &= contains(gameplay_c,
                  "if(prop_path.size()==3&&prop_path[2]==\"parent\"){"
                  "returncamera_filter_direct_object_label("
                  "frame->parent_entity,frame->parent_subpart,"
