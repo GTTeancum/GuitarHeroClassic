@@ -212,6 +212,9 @@ int main() {
       function_body(gameplay, "Gameplay::start_camera_shot_runtime"));
   const std::string end_camera_shot_runtime_c = compact(
       function_body(gameplay, "Gameplay::end_camera_shot_runtime"));
+  const std::string reset_camera_manager_like_source_enter_c = compact(
+      function_body(gameplay,
+                    "Gameplay::reset_camera_manager_like_source_enter"));
   const std::string consume_pending_camera_c = compact(
       function_body(gameplay, "Gameplay::consume_pending_regular_camera_shot"));
   const std::string force_camera_shot_c = compact(
@@ -6343,6 +6346,9 @@ int main() {
   ok &= absent(start_camera_shot_runtime_c,
                "active_camera_shots_over_.clear();",
                "camera StartAnim must not clear source per-CamShot mShotOver latches");
+  ok &= absent(end_camera_shot_runtime_c,
+               "active_camera_shots_over_.clear();",
+               "camera EndAnim must not clear source per-CamShot mShotOver latches");
   ok &= contains(start_camera_shot_runtime_c,
                  "camera_unset_shake_like_no_current_camshot(world_->camera());",
                  "camera StartAnim resets source shake accumulators");
@@ -13558,6 +13564,9 @@ int main() {
                  "context=%scurrent=%shad_current=%dhad_pending=%d"
                  "had_free_cam=%dresult=cleared\\n\"",
                  "camera diagnostics expose source Enter StartShot_(0) and DeleteFreeCam reset");
+  ok &= absent(reset_camera_manager_like_source_enter_c,
+               "active_camera_shots_over_.clear();",
+               "CameraManager::Enter must not clear source per-CamShot mShotOver latches");
   ok &= contains(gameplay_h_c,
                  "boolcamera_manager_get_free_cam_like_source("
                  "intpadnum,constchar*source_handler);",

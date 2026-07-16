@@ -24870,7 +24870,6 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
-    active_camera_shots_over_.clear();
     active_camera_skip_next_crowd_update_ = false;
 }
 
@@ -24904,7 +24903,6 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
-    active_camera_shots_over_.clear();
     active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
     if (world_) {
