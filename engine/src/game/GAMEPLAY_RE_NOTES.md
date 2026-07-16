@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay camera proof priority:
+  Normal gameplay camera proof rows now put `pipeline_scope=normal_gameplay_camera`
+  and `priority=gameplay_camera` before the active selector, frame, and
+  shot-over details, with deferred FreeCam status left at the tail. This is
+  proof/status ordering for source-backed camera triage only; it does not
+  synthesize hidden `CamShot::SetPos` / `BuildTransform` math, promote FreeCam,
+  or add dependencies.
 - 2026-07-16 gameplay `actually_walking` CharWalk state boundary:
   GH2 `world_objects_worldbase.dta` gates `walk_ok` filters through
   `{guitarist0 actually_walking}`. The native picker still cannot claim a

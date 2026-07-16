@@ -10957,7 +10957,8 @@ int main() {
                  "\"ps2_result_builder=0x00267008\"",
                  "camera debug logs expose the PS2 CamShot result-builder bridge");
   ok &= contains(gameplay_c,
-                 "\"[camera-solver]frame=%.2fshot_filter_branch=%d\"",
+                 "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
+                 "\"priority=gameplay_cameraframe=%.2fshot_filter_branch=%d\"",
                  "camera debug logs expose shot_filter branch state");
   ok &= contains(renderer_h_c,
                  "structCameraResultFrame{boolvalid=false;std::stringsource;",
@@ -11674,14 +11675,19 @@ int main() {
                  "*key,song_time_,active_regular_camera_start_,&chart_);",
                  "regular camera SetFrame source local frame is computed outside the diagnostic-only logging gate");
   ok &= contains(gameplay_c,
-                 "\"[world]camerasourceframepair:shot=%slocal_frame=%.3f"
+                 "\"[world]camerasourceframepair:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camerahidden_pose_boundary=CamShot::SetFrame"
+                 "shot=%slocal_frame=%.3f"
                  "keys=%zua_frame=%.3fb_frame=%.3f"
                  "source_local_frame=%s%.3fsource_key_start=%s%.3f"
                  "source_duration=%s%.3fsource_blend=%s%.3f"
                  "key_blend=%s%.3feased_key_blend=%s%.3f"
                  "report_key=%ssource_report_scope=key_pair_change"
                  "route=regular_camera_source_frame_keys"
-                 "source_locals=CamShot::SetFrame(prev,next,keyBlend)\\n\"",
+                 "source_locals=CamShot::SetFrame(prev,next,keyBlend)"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0\\n\"",
                  "regular camera diagnostics prove source frame-pair keyBlend submission");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_last_prev_key_;"
@@ -13236,7 +13242,10 @@ int main() {
                  "source_starpower=%dsource_starpower_gate=%s",
                  "regular camera diagnostics expose walking/starpower source gate state");
   ok &= contains(gameplay_c,
-                 "\"[world]cameradownbeat:source_msg=downbeat",
+                 "\"[world]cameradownbeat:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_msg=downbeat",
                  "camera diagnostics expose the source downbeat gate");
   ok &= contains(gameplay_c,
                  "source_script=world_objects_worldbase.dta::downbeat",
@@ -13245,7 +13254,8 @@ int main() {
                  "source_starpower_gate=%scheck_camera_shot=%d"
                  "duration_gate=camera_bars_left<=0duration_expired=%d"
                  "pick_new_shot=%dsource_action=%s"
-                 "pipeline_scope=normal_gameplay_camera",
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0",
                  "camera downbeat diagnostics expose the source star-power, duration, and pick_new_shot gates");
   ok &= contains(gameplay_c,
                  "\"check_camera_shot:get_shot_duration+pick_new_shot\"",
@@ -13604,7 +13614,11 @@ int main() {
                  "if(!camera_source_shot_ok(key,previous,current_walkspot))continue;",
                  "regular camera selector runs source shot_ok after ShotMatches filters");
   ok &= contains(gameplay_c,
-                 "\"[world]camerashot_ok:source_msg=shot_ok"
+                 "\"[world]camerashot_ok:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "hidden_gameplay_blocker=cam_shot_ok"
+                 "source_msg=shot_ok"
                  "source_script=world/camshot.dta::shot_ok"
                  "source_call=CamShot::ShotOk(prev_shot)"
                  "source_script_args=prev_shot"
@@ -13614,8 +13628,6 @@ int main() {
                  "result=%scurrent_walkspot=%s"
                  "bad_waypoint_match=%sbad_waypoints=%zu"
                  "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s"
-                 "hidden_gameplay_blocker=cam_shot_ok"
-                 "pipeline_scope=normal_gameplay_camera"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",
                  "regular camera diagnostics expose deferred source shot_ok hook before deferred FreeCam status");
@@ -13627,7 +13639,11 @@ int main() {
                  "uint32_tcamera_beat_state,constchar*source_caller)",
                  "regular camera runtime exposes GH2 cam_check_shot hook");
   ok &= contains(gameplay_c,
-                 "\"[world]cameracheck_shot:source_msg=check_shot"
+                 "\"[world]cameracheck_shot:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "hidden_gameplay_blocker=cam_check_shot"
+                 "source_msg=check_shot"
                  "source_script=world/camshot.dta::check_shot"
                  "source_caller=%ssource_script_args=none"
                  "native_call=cam_check_shot($this)"
@@ -13635,8 +13651,6 @@ int main() {
                  "native_beat_arg_visible=0"
                  "source_action=pick_new_shot_on_reject"
                  "cam_check_shot=native_deferredresult=accept"
-                 "hidden_gameplay_blocker=cam_check_shot"
-                 "pipeline_scope=normal_gameplay_camera"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",
                  "regular camera diagnostics expose deferred source check_shot hook and native argument boundary");
@@ -13690,7 +13704,10 @@ int main() {
                  "source_camshot_over_latched,&chart_);",
                  "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
   ok &= contains(gameplay_c,
-                 "\"[world]camerashot_overgate:source_msg=shot_over"
+                 "\"[world]camerashot_overgate:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_msg=shot_over"
                  "source_check=CamShot::CheckShotOver",
                  "source shot_over diagnostics expose the CheckShotOver gate before the handler fires");
   ok &= contains(gameplay_c,

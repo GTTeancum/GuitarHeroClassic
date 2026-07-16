@@ -16805,7 +16805,7 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s hidden_gameplay_blocker=cam_shot_ok pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_shot_ok source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
             cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
@@ -16828,7 +16828,7 @@ bool camera_source_check_shot(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera check_shot: source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept hidden_gameplay_blocker=cam_check_shot pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera check_shot: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_check_shot source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             source_caller ? source_caller : "", key.name.c_str(),
             camera_beat_state);
     }
@@ -23309,7 +23309,8 @@ void apply_camera_keys(
             b->camshot_shot_fields_decoded ? 1 : 0);
         std::fprintf(
             stderr,
-            "[camera-solver] frame=%.2f shot_filter_branch=%d "
+            "[camera-solver] pipeline_scope=normal_gameplay_camera "
+            "priority=gameplay_camera frame=%.2f shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
             "source_visible_build_pair=%s "
             "source_branch=%s source_filter_scope=%s "
@@ -35202,7 +35203,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             : "check_camera_shot:duration_hold_no_pick";
                     std::fprintf(
                         stderr,
-                        "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d source_starpower_gate=%s check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
+                        "[world] camera downbeat: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d source_starpower_gate=%s check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                         bar, bars_elapsed, camera_bars_left_,
                         guitarist_starpower ? 1 : 0,
                         camera_source_guitarist0_playing_starpower_source(),
@@ -35671,7 +35672,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             frame_pair_report_key;
                         std::fprintf(
                             stderr,
-                            "[world] camera source frame pair: shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f report_key=%s source_report_scope=key_pair_change route=regular_camera_source_frame_keys source_locals=CamShot::SetFrame(prev,next,keyBlend)\n",
+                            "[world] camera source frame pair: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_pose_boundary=CamShot::SetFrame shot=%s local_frame=%.3f keys=%zu a_frame=%.3f b_frame=%.3f source_local_frame=%s%.3f source_key_start=%s%.3f source_duration=%s%.3f source_blend=%s%.3f key_blend=%s%.3f eased_key_blend=%s%.3f report_key=%s source_report_scope=key_pair_change route=regular_camera_source_frame_keys source_locals=CamShot::SetFrame(prev,next,keyBlend) freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                             key->name.c_str(), source_shot_local_frame,
                             selected_camera.size(), a_key.frame,
                             b_key.frame, frame_mapping_prefix(),
@@ -36145,7 +36146,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 shot_over_gate_report_key;
                             std::fprintf(
                                 stderr,
-                                "[world] camera shot_over gate: source_msg=shot_over source_check=CamShot::CheckShotOver shot=%s local_frame=%.3f duration_frames=%.3f mShotOver=%d mLooping=%d duration_valid=%d local_at_duration=%d result=%s source_expr=!mShotOver&&!mLooping&&frame>=mDuration report_key=%s\n",
+                                "[world] camera shot_over gate: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_msg=shot_over source_check=CamShot::CheckShotOver shot=%s local_frame=%.3f duration_frames=%.3f mShotOver=%d mLooping=%d duration_valid=%d local_at_duration=%d result=%s source_expr=!mShotOver&&!mLooping&&frame>=mDuration report_key=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                                 key->name.c_str(),
                                 shot_over_status.local_frame,
                                 shot_over_status.duration_frames,
