@@ -13889,9 +13889,13 @@ int main() {
                  "std::string_viewcategory,std::string_viewsource_message)",
                  "source category picker distinguishes direct script picks from BandDirector FindNextShot");
   ok &= contains(gameplay_c,
-                 "source_message==\"BandDirector::FindNextShot\"||"
-                 "camera_source_banddirector_facing_camera(category)",
-                 "source category picker reserves BandDirector provenance for explicit FindNextShot or facing coop categories");
+                 "return!category.empty()&&"
+                 "source_message==\"BandDirector::FindNextShot\";",
+                 "source category picker reserves BandDirector provenance for the explicit FindNextShot caller");
+  ok &= absent(gameplay_c,
+               "source_message==\"BandDirector::FindNextShot\"||"
+               "camera_source_banddirector_facing_camera(category)",
+               "facing coop category names alone must not inherit BandDirector FindNextShot filters");
   ok &= contains(gameplay_c,
                  "source_banddirector_findnext?"
                  "camera_source_banddirector_findnext_filters("

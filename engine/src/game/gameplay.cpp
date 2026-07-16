@@ -17653,8 +17653,8 @@ std::vector<CameraShotSourceFilter> camera_source_banddirector_findnext_filters(
 
 bool camera_source_category_uses_banddirector_findnext(
     std::string_view category, std::string_view source_message) {
-    return source_message == "BandDirector::FindNextShot" ||
-           camera_source_banddirector_facing_camera(category);
+    return !category.empty() &&
+           source_message == "BandDirector::FindNextShot";
 }
 
 void camera_source_no_acceptable_shot(std::string_view category,

@@ -230,7 +230,8 @@
   `BandDirector::FindNextShot` adds provenance-specific filters only for the
   facing `coop_` route. Native diagnostics now label those direct category
   picks as `CameraManager::FindCameraShot` and reserve
-  `BandDirector::FindNextShot` for explicit/facing-coop routes. This is
+  `BandDirector::FindNextShot` for that explicit source caller; a facing
+  `coop_` category name alone does not inherit the BandDirector filter. This is
   proof/provenance only: no camera selection result, pose math, FreeCam
   priority, under-venue concern, or dependency surface changes.
 - 2026-07-16 gameplay BuildTransform current-frame pair execution:
@@ -368,11 +369,12 @@
   `CameraManager::PropertyFilter` when the requested category is a facing
   `coop_` category and the current shot is not a `_behind` category:
   `flags_any TRUE` with mask `~mCurShot->Flags() & 0x7000`. Native
-  source-category camera picks now derive and apply that exact filter before
-  `CamShot::ShotOk`, and the prescan/no-acceptable-shot diagnostics report the
-  `BandDirector::FindNextShot` filter list. This does not reorder GH2's normal
-  gameplay camera category list, does not infer hidden `cam_shot_ok` or
-  `cam_check_shot`, keeps FreeCam last, and adds no dependencies.
+  source-category camera picks derive and apply that exact filter only when
+  the route is explicitly `BandDirector::FindNextShot`; direct
+  `CameraManager::FindCameraShot` picks stay unfiltered unless their script
+  supplied filters. This does not reorder GH2's normal gameplay camera
+  category list, does not infer hidden `cam_shot_ok` or `cam_check_shot`, keeps
+  FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay BandCamShot shot-over wrapper:
   ihatecompvir gameplay cameras are `BandCamShot`s, whose
   `CheckShotStarted()` / `CheckShotOver(float)` wrap the base `CamShot` gates
