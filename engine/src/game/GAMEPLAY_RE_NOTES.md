@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay camera under-venue diagnostic:
+  Normal gameplay camera solver rows now report the submitted target-relative
+  height and the Z delta introduced after the current source BuildTransform
+  result. If a submitted pose is below both world zero and its active target,
+  the row marks `under_venue_concern=1` with basis
+  `submitted_below_world_zero_and_target`. This is proof only for the Big
+  `flr_near_lft2x1` concern: it changes no submitted camera transform, does
+  not add offsets or clamps, keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay CamShot same-target axis proof:
   ihatecompvir `CamShotFrame::Interp` exposes the same-target local offset as
   `v1c0.x = -screenOffset.x * distance / LocalProjectXfm.m.x.x` and

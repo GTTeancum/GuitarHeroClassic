@@ -22224,6 +22224,28 @@ void apply_camera_keys(
                 submitted_result.position[2] - (*blended_target_centroid)[2];
             buildtransform_estimate_source = "submitted_result";
         }
+        float submitted_height_estimate =
+            std::numeric_limits<float>::quiet_NaN();
+        float submitted_vs_build_z_delta =
+            std::numeric_limits<float>::quiet_NaN();
+        bool under_venue_concern = false;
+        const char* under_venue_basis = "none";
+        if (blended_target_centroid) {
+            submitted_height_estimate =
+                submitted_result.position[2] - (*blended_target_centroid)[2];
+            if (std::isfinite(submitted_height_estimate) &&
+                std::isfinite(submitted_result.position[2]) &&
+                submitted_result.position[2] < -0.001f &&
+                submitted_height_estimate < -0.001f) {
+                under_venue_concern = true;
+                under_venue_basis = "submitted_below_world_zero_and_target";
+            }
+        }
+        if (source_build_transform_result) {
+            submitted_vs_build_z_delta =
+                submitted_result.position[2] -
+                source_build_transform_result->position[2];
+        }
         std::fprintf(
             stderr,
             "[world] camera Shake: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_class=CamShot source_call=CamShot::Shake "
@@ -23383,6 +23405,8 @@ void apply_camera_keys(
             "hidden_gameplay_blockers=%s active_blocker_scope=%s "
             "buildtransform_estimate=targetDist,height "
             "estimate_source=%s targetDist=%.3f height=%.3f "
+            "submitted_height=%.3f submitted_vs_build_z_delta=%.3f "
+            "under_venue_concern=%d under_venue_basis=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
@@ -23428,6 +23452,8 @@ void apply_camera_keys(
             buildtransform_estimate_source,
             buildtransform_target_dist_estimate,
             buildtransform_height_estimate,
+            submitted_height_estimate, submitted_vs_build_z_delta,
+            under_venue_concern ? 1 : 0, under_venue_basis,
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             a_target_update.has_targets ? 1 : 0,

@@ -9763,6 +9763,15 @@ int main() {
                  "\"estimate_source=%stargetDist=%.3fheight=%.3f\"",
                  "camera debug logs expose native estimates for the audited BuildTransform targetDist/height locals");
   ok &= contains(gameplay_c,
+                 "\"submitted_height=%.3fsubmitted_vs_build_z_delta=%.3f\"",
+                 "camera debug logs expose submitted target-relative height beside BuildTransform height");
+  ok &= contains(gameplay_c,
+                 "\"under_venue_concern=%dunder_venue_basis=%s\"",
+                 "camera debug logs flag submitted normal gameplay cameras that resolve below the target and world zero");
+  ok &= contains(gameplay_c,
+                 "\"submitted_below_world_zero_and_target\"",
+                 "camera under-venue concern remains a diagnostic classification instead of a submitted offset fix");
+  ok &= contains(gameplay_c,
                  "\"diagnostic_only_same_targets\"",
                  "same-target CamShot filter scope stays diagnostic-only");
   ok &= contains(gameplay_c,
