@@ -13209,6 +13209,10 @@ int main() {
                  "returnkey.has_camshot_looping?key.camshot_loop_keyframe:0;",
                  "regular camera integer filters expose ihatecompvir loop_keyframe default");
   ok &= contains(gameplay_c,
+                 "if(prop==\"rate\")"
+                 "returnkey.has_camshot_anim_rate?key.camshot_anim_rate:0;",
+                 "regular camera integer filters expose inherited RndAnimatable rate");
+  ok &= contains(gameplay_c,
                  "CameraShotSourceFilterKind::Float",
                  "regular camera filters can mirror float DataNode property comparisons");
   ok &= contains(gameplay_c,

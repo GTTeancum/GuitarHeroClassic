@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches inherited rate property coverage:
+  ihatecompvir `CamShot` includes `SYNC_SUPERCLASS(RndAnimatable)`, and
+  `RndAnimatable` exposes `rate` as an integer property. Native `ShotMatches`
+  integer filters now evaluate the decoded CamShot anim rate with the source
+  `k30_fps` default for partially decoded keys. This is selector parity only:
+  no pose math, FreeCam priority, under-venue masking, or dependency surface
+  changes.
 - 2026-07-16 CameraManager ShotMatches loop_keyframe property coverage:
   ihatecompvir exposes `loop_keyframe` as `SYNC_PROP(loop_keyframe,
   mLoopKeyframe)` and constructs it with default `0`. Native `ShotMatches`

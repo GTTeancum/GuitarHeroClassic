@@ -16356,6 +16356,8 @@ std::optional<int> camera_filter_int_property(
     if (prop == "force_char_lod") return key.force_char_lod;
     if (prop == "loop_keyframe")
         return key.has_camshot_looping ? key.camshot_loop_keyframe : 0;
+    if (prop == "rate")
+        return key.has_camshot_anim_rate ? key.camshot_anim_rate : 0;
     return std::nullopt;
 }
 
