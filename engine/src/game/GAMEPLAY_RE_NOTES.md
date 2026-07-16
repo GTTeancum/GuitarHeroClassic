@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches object-ref symbol coverage:
+  ihatecompvir `CamShot` exposes `path` and `glow_spot` via `SYNC_PROP`, and
+  `CameraManager::ShotMatches` reads non-special filters through
+  `shot->Property(...)->Evaluate()` before applying direct DataNode equality.
+  GH2 CamShot bodies serialize those two single refs as symbols, and native
+  `ShotMatches` now evaluates non-empty decoded `path` / `glow_spot` refs
+  through the symbol filter carrier. This is selector parity only: list-valued
+  ObjPtr fields, null object equality, pose math, FreeCam priority,
+  under-venue masking, and dependency surface are unchanged.
 - 2026-07-16 CameraManager ShotMatches inherited rate property coverage:
   ihatecompvir `CamShot` includes `SYNC_SUPERCLASS(RndAnimatable)`, and
   `RndAnimatable` exposes `rate` as an integer property. Native `ShotMatches`

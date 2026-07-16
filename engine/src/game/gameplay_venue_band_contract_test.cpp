@@ -13242,6 +13242,14 @@ int main() {
                  "if(prop==\"duration\")returnsource_camshot_duration_frames(key);",
                  "regular camera float filters expose ihatecompvir static duration property");
   ok &= contains(gameplay_c,
+                 "if(prop==\"path\"&&!key.path_anim.empty())"
+                 "returnstd::string_view(key.path_anim);",
+                 "regular camera symbol filters expose decoded CamShot path object refs");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"glow_spot\"&&!key.glow_spot_ref.empty())"
+                 "returnstd::string_view(key.glow_spot_ref);",
+                 "regular camera symbol filters expose decoded CamShot glow_spot object refs");
+  ok &= contains(gameplay_c,
                  "caseCameraShotSourceFilterKind::Float:{"
                  "constautovalue=camera_filter_float_property(key,filter.prop);"
                  "returnvalue&&*value==filter.float_match;}",

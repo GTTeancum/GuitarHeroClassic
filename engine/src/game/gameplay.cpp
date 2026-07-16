@@ -16385,6 +16385,10 @@ std::optional<std::string_view> camera_filter_symbol_property(
     if (prop == "distance") return std::string_view(key.distance);
     if (prop == "facing") return std::string_view(key.facing);
     if (prop == "category") return std::string_view(key.category);
+    if (prop == "path" && !key.path_anim.empty())
+        return std::string_view(key.path_anim);
+    if (prop == "glow_spot" && !key.glow_spot_ref.empty())
+        return std::string_view(key.glow_spot_ref);
     return std::nullopt;
 }
 
