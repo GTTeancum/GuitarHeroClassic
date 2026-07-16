@@ -6575,10 +6575,10 @@ int main() {
                  "null_frame.source_frame_null_frame=true;"
                  "selected_camera.push_back(std::move(null_frame));}",
                  "regular gameplay cameras use CamShot::SetFrame nullFrame fallback instead of a native previous-shot sweep");
-  ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(camera_keys_.front());"
-                 "apply_camera_keys(world_->camera(),camera_keys_,",
-                 "intro cameras enter StartAnim before evaluating source-shaped camera rows");
+  ok &= appears_before(gameplay_c,
+                       "start_camera_shot_runtime(camera_keys_.front());",
+                       "apply_camera_keys(world_->camera(),camera_keys_,",
+                       "intro cameras enter StartAnim before evaluating source-shaped camera rows");
   ok &= absent(gameplay_c,
                "apply_camera_crowd_visibility(visibility_key);",
                "camera visibility must not be driven from the interpolated per-frame pose");
@@ -9857,6 +9857,15 @@ int main() {
                  "\"submitted_height=%.3fsubmitted_vs_build_z_delta=%.3f\"",
                  "camera debug logs expose submitted target-relative height beside BuildTransform height");
   ok &= contains(gameplay_c,
+                 "\"venue_crowd_bounds=%dvenue_crowd_placements=%zu\"",
+                 "camera debug logs expose decoded WorldCrowd bounds availability beside submitted pose");
+  ok &= contains(gameplay_c,
+                 "\"venue_crowd_min_z=%s%.3fvenue_crowd_max_z=%s%.3f\"",
+                 "camera debug logs expose decoded WorldCrowd vertical bounds for under-venue proof");
+  ok &= contains(gameplay_c,
+                 "\"submitted_vs_crowd_min_z=%s%.3f\"",
+                 "camera debug logs compare submitted normal gameplay camera height to decoded WorldCrowd min Z");
+  ok &= contains(gameplay_c,
                  "\"under_venue_concern=%dunder_venue_basis=%s\"",
                  "camera debug logs flag submitted normal gameplay cameras that resolve below the target and world zero");
   ok &= contains(gameplay_c,
@@ -9871,6 +9880,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"submitted_below_world_zero_and_target\"",
                  "camera under-venue concern remains a diagnostic classification instead of a submitted offset fix");
+  ok &= contains(gameplay_c,
+                 "\"submitted_below_world_zero_target_and_crowd_min\"",
+                 "camera under-venue concern can include decoded WorldCrowd placement bounds without offsetting the camera");
   ok &= contains(gameplay_c,
                  "\"diagnostic_only_same_targets\"",
                  "same-target CamShot filter scope stays diagnostic-only");
@@ -11869,7 +11881,8 @@ int main() {
                  "source_previous_frame,submitted_result,source_poll_blend);",
                  "CamShotFrame::Interp blends the submitted transform from the current camera world transform");
   ok &= contains(gameplay_c,
-                 "&regular_camera_keys_,source_setframe_blend);",
+                 "&regular_camera_keys_,source_setframe_blend,"
+                 "&venue_crowd_bounds);",
                  "CameraManager::Poll supplies source SetFrame blend 1.0 to native camera application");
   ok &= contains(gameplay_c,
                  "constfloatsource_shot_local_frame=camera_source_local_frame("

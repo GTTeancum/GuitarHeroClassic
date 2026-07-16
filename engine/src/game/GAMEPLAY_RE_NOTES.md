@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 normal gameplay camera under-venue bounds proof:
+  The venue loader now preserves decoded WorldCrowd placement min/max data
+  outside debug-only logging and passes it into the normal gameplay CamShot
+  solver as proof data. Solver rows now compare the submitted camera Z against
+  that decoded crowd-placement min Z, so under-level-looking shots can be
+  classified against actual venue placement data instead of only world zero and
+  the blended target. This is diagnostic proof only: no pose clamps, offsets,
+  FreeCam priority changes, selector changes, or dependency surface changes.
 - 2026-07-16 CameraManager ShotMatches object-ref symbol coverage:
   ihatecompvir `CamShot` exposes `path` and `glow_spot` via `SYNC_PROP`, and
   `CameraManager::ShotMatches` reads non-special filters through

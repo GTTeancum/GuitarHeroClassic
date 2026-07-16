@@ -3389,6 +3389,13 @@ struct CameraTarget {
                                    0.0f, 0.0f, 0.0f, 1.0f};
 };
 
+struct CameraVenueCrowdBoundsProof {
+    bool valid = false;
+    size_t placements = 0;
+    std::array<float, 3> min = {};
+    std::array<float, 3> max = {};
+};
+
 std::array<float, 3> mat4_position_game(const std::array<float, 16>& m) {
     return {m[12], m[13], m[14]};
 }
@@ -21702,7 +21709,8 @@ void apply_camera_keys(
         nullptr,
     const std::vector<std::string>* source_record_member_table = nullptr,
     const std::vector<Gameplay::CameraKey>* source_record_key_table = nullptr,
-    float source_setframe_blend = 1.0f) {
+    float source_setframe_blend = 1.0f,
+    const CameraVenueCrowdBoundsProof* venue_crowd_bounds = nullptr) {
     if (keys.empty()) {
         camera_unset_dof_proc_like_source(cam);
         camera_unset_shake_like_no_current_camshot(cam);
@@ -22452,6 +22460,30 @@ void apply_camera_keys(
                 submitted_height_estimate < -0.001f) {
                 under_venue_concern = true;
                 under_venue_basis = "submitted_below_world_zero_and_target";
+            }
+        }
+        const bool venue_crowd_bounds_valid =
+            venue_crowd_bounds && venue_crowd_bounds->valid;
+        const size_t venue_crowd_placements =
+            venue_crowd_bounds ? venue_crowd_bounds->placements : 0;
+        float venue_crowd_min_z = std::numeric_limits<float>::quiet_NaN();
+        float venue_crowd_max_z = std::numeric_limits<float>::quiet_NaN();
+        float submitted_vs_crowd_min_z =
+            std::numeric_limits<float>::quiet_NaN();
+        if (venue_crowd_bounds_valid) {
+            venue_crowd_min_z = venue_crowd_bounds->min[2];
+            venue_crowd_max_z = venue_crowd_bounds->max[2];
+            submitted_vs_crowd_min_z =
+                submitted_result.position[2] - venue_crowd_min_z;
+            if (std::isfinite(submitted_vs_crowd_min_z) &&
+                submitted_vs_crowd_min_z < -0.001f) {
+                if (under_venue_concern) {
+                    under_venue_basis =
+                        "submitted_below_world_zero_target_and_crowd_min";
+                } else {
+                    under_venue_concern = true;
+                    under_venue_basis = "submitted_below_world_crowd_min";
+                }
             }
         }
         if (source_build_transform_result) {
@@ -23652,6 +23684,9 @@ void apply_camera_keys(
             "buildtransform_estimate=targetDist,height "
             "estimate_source=%s targetDist=%.3f height=%.3f "
             "submitted_height=%.3f submitted_vs_build_z_delta=%.3f "
+            "venue_crowd_bounds=%d venue_crowd_placements=%zu "
+            "venue_crowd_min_z=%s%.3f venue_crowd_max_z=%s%.3f "
+            "submitted_vs_crowd_min_z=%s%.3f "
             "under_venue_concern=%d under_venue_basis=%s "
             "normal_gameplay_pose_concern=%s source_fix_required=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
@@ -23705,6 +23740,15 @@ void apply_camera_keys(
             buildtransform_target_dist_estimate,
             buildtransform_height_estimate,
             submitted_height_estimate, submitted_vs_build_z_delta,
+            venue_crowd_bounds_valid ? 1 : 0, venue_crowd_placements,
+            std::isfinite(venue_crowd_min_z) ? "" : "none/",
+            std::isfinite(venue_crowd_min_z) ? venue_crowd_min_z : 0.0f,
+            std::isfinite(venue_crowd_max_z) ? "" : "none/",
+            std::isfinite(venue_crowd_max_z) ? venue_crowd_max_z : 0.0f,
+            std::isfinite(submitted_vs_crowd_min_z) ? "" : "none/",
+            std::isfinite(submitted_vs_crowd_min_z)
+                ? submitted_vs_crowd_min_z
+                : 0.0f,
             under_venue_concern ? 1 : 0, under_venue_basis,
             under_venue_concern ? "under_venue_open" : "none",
             under_venue_concern ? "recover_BuildTransform_or_RndCam_UpdateLocal"
@@ -24744,6 +24788,10 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_mesh_names_.clear();
     venue_group_meshes_.clear();
     venue_camera_target_worlds_.clear();
+    venue_camera_world_crowd_bounds_valid_ = false;
+    venue_camera_world_crowd_placements_ = 0;
+    venue_camera_world_crowd_min_ = {};
+    venue_camera_world_crowd_max_ = {};
     venue_chars_scene_ = ghogx::milo_scene::Scene{};
     venue_chars_scene_loaded_ = false;
     worldcrowd_actor_scenes_.clear();
@@ -33963,6 +34011,39 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_camera_target_worlds_.size();
                 merge_venue_camera_target_worlds(venue_camera_target_worlds_,
                                                  venue_chars_scene_);
+                venue_camera_world_crowd_bounds_valid_ = false;
+                venue_camera_world_crowd_placements_ = 0;
+                venue_camera_world_crowd_min_ = {};
+                venue_camera_world_crowd_max_ = {};
+                for (const auto& crowd : venue_chars_scene_.world_crowds) {
+                    if (!crowd.decoded) continue;
+                    for (const auto& set : crowd.placement_sets) {
+                        venue_camera_world_crowd_placements_ +=
+                            set.placements.size();
+                        for (const auto& placement : set.placements) {
+                            if (!venue_camera_world_crowd_bounds_valid_) {
+                                for (int axis = 0; axis < 3; ++axis) {
+                                    venue_camera_world_crowd_min_[axis] =
+                                        placement.pos[axis];
+                                    venue_camera_world_crowd_max_[axis] =
+                                        placement.pos[axis];
+                                }
+                                venue_camera_world_crowd_bounds_valid_ = true;
+                            } else {
+                                for (int axis = 0; axis < 3; ++axis) {
+                                    venue_camera_world_crowd_min_[axis] =
+                                        std::min(
+                                            venue_camera_world_crowd_min_[axis],
+                                            placement.pos[axis]);
+                                    venue_camera_world_crowd_max_[axis] =
+                                        std::max(
+                                            venue_camera_world_crowd_max_[axis],
+                                            placement.pos[axis]);
+                                }
+                            }
+                        }
+                    }
+                }
                 if (debug_camera_enabled()) {
                     const size_t actor_source_targets =
                         merge_worldcrowd_actor_source_targets(
@@ -34039,36 +34120,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     const auto crowd_placement =
                         venue_camera_target_worlds_.find(
                             "crowd_placement_centroid");
-                    size_t world_crowd_placements = 0;
-                    bool has_world_crowd_bounds = false;
-                    std::array<float, 3> world_crowd_min = {};
-                    std::array<float, 3> world_crowd_max = {};
-                    for (const auto& crowd : venue_chars_scene_.world_crowds) {
-                        if (!crowd.decoded) continue;
-                        for (const auto& set : crowd.placement_sets) {
-                            world_crowd_placements += set.placements.size();
-                            for (const auto& placement : set.placements) {
-                                if (!has_world_crowd_bounds) {
-                                    for (int axis = 0; axis < 3; ++axis) {
-                                        world_crowd_min[axis] =
-                                            placement.pos[axis];
-                                        world_crowd_max[axis] =
-                                            placement.pos[axis];
-                                    }
-                                    has_world_crowd_bounds = true;
-                                } else {
-                                    for (int axis = 0; axis < 3; ++axis) {
-                                        world_crowd_min[axis] = std::min(
-                                            world_crowd_min[axis],
-                                            placement.pos[axis]);
-                                        world_crowd_max[axis] = std::max(
-                                            world_crowd_max[axis],
-                                            placement.pos[axis]);
-                                    }
-                                }
-                            }
-                        }
-                    }
                     std::fprintf(
                         stderr,
                         "[world] venue camera char targets: +%zu "
@@ -34092,7 +34143,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? crowd_area->second[14]
                             : 0.0f,
                         venue_chars_scene_.world_crowds.size(),
-                        world_crowd_placements,
+                        venue_camera_world_crowd_placements_,
                         actor_source_targets,
                         crowd_placement != venue_camera_target_worlds_.end()
                             ? 1
@@ -34106,13 +34157,25 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         crowd_placement != venue_camera_target_worlds_.end()
                             ? crowd_placement->second[14]
                             : 0.0f,
-                        has_world_crowd_bounds ? 1 : 0,
-                        has_world_crowd_bounds ? world_crowd_min[0] : 0.0f,
-                        has_world_crowd_bounds ? world_crowd_min[1] : 0.0f,
-                        has_world_crowd_bounds ? world_crowd_min[2] : 0.0f,
-                        has_world_crowd_bounds ? world_crowd_max[0] : 0.0f,
-                        has_world_crowd_bounds ? world_crowd_max[1] : 0.0f,
-                        has_world_crowd_bounds ? world_crowd_max[2] : 0.0f);
+                        venue_camera_world_crowd_bounds_valid_ ? 1 : 0,
+                        venue_camera_world_crowd_bounds_valid_
+                            ? venue_camera_world_crowd_min_[0]
+                            : 0.0f,
+                        venue_camera_world_crowd_bounds_valid_
+                            ? venue_camera_world_crowd_min_[1]
+                            : 0.0f,
+                        venue_camera_world_crowd_bounds_valid_
+                            ? venue_camera_world_crowd_min_[2]
+                            : 0.0f,
+                        venue_camera_world_crowd_bounds_valid_
+                            ? venue_camera_world_crowd_max_[0]
+                            : 0.0f,
+                        venue_camera_world_crowd_bounds_valid_
+                            ? venue_camera_world_crowd_max_[1]
+                            : 0.0f,
+                        venue_camera_world_crowd_bounds_valid_
+                            ? venue_camera_world_crowd_max_[2]
+                            : 0.0f);
                 }
                 rebuild_worldcrowd_actor_runtime(win);
             }
@@ -36651,12 +36714,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     selected_camera.empty() ? *key
                                             : selected_camera.front();
                 active_force_char_lod_ = visibility_key.force_char_lod;
+                const CameraVenueCrowdBoundsProof venue_crowd_bounds{
+                    venue_camera_world_crowd_bounds_valid_,
+                    venue_camera_world_crowd_placements_,
+                    venue_camera_world_crowd_min_,
+                    venue_camera_world_crowd_max_};
                 apply_camera_keys(world_->camera(), selected_camera, song_time_,
                                   camera_targets,
                                   &camera_result_builder_state_,
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
-                                  &regular_camera_keys_, source_setframe_blend);
+                                  &regular_camera_keys_, source_setframe_blend,
+                                  &venue_crowd_bounds);
                 apply_active_camera_fov_anims(world_->camera(), *key);
                 if (diagnostic_camera_shot_.empty()) {
                     const bool source_camshot_over_latched =
@@ -36754,12 +36823,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                    in_intro_camera_window && !camera_keys_.empty()) {
             active_force_char_lod_ = camera_keys_.front().force_char_lod;
             start_camera_shot_runtime(camera_keys_.front());
+            const CameraVenueCrowdBoundsProof venue_crowd_bounds{
+                venue_camera_world_crowd_bounds_valid_,
+                venue_camera_world_crowd_placements_,
+                venue_camera_world_crowd_min_,
+                venue_camera_world_crowd_max_};
             apply_camera_keys(world_->camera(), camera_keys_, song_time_,
                               camera_targets,
                               &camera_result_builder_state_,
                               &venue_camera_target_worlds_,
                               &source_record_member_table,
-                              &regular_camera_keys_, 1.0f);
+                              &regular_camera_keys_, 1.0f,
+                              &venue_crowd_bounds);
             apply_active_camera_fov_anims(world_->camera(),
                                           camera_keys_.front());
         } else {

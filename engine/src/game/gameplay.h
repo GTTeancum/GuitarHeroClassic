@@ -1328,6 +1328,10 @@ class Gameplay {
   bool venue_camera_has_crowd_selection_ = false;
   std::string venue_camera_crowd_selection_ref_;
   std::vector<std::pair<int, int>> venue_camera_crowd_selection_pairs_;
+  bool venue_camera_world_crowd_bounds_valid_ = false;
+  size_t venue_camera_world_crowd_placements_ = 0;
+  std::array<float, 3> venue_camera_world_crowd_min_ = {};
+  std::array<float, 3> venue_camera_world_crowd_max_ = {};
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
   std::string active_camera_anim_target_;
