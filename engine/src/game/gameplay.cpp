@@ -25843,13 +25843,23 @@ bool Gameplay::cycle_camera_shot_like_source() {
 }
 
 size_t Gameplay::iterate_camera_shots_like_source() const {
-    std::vector<std::string> categories;
-    categories.reserve(regular_camera_keys_.size());
+    std::vector<const CameraKey*> source_ordered;
+    source_ordered.reserve(regular_camera_keys_.size());
     for (const auto& key : regular_camera_keys_) {
-        if (key.category.empty()) continue;
-        if (std::find(categories.begin(), categories.end(), key.category) ==
+        source_ordered.push_back(&key);
+    }
+    std::stable_sort(source_ordered.begin(), source_ordered.end(),
+                     [](const CameraKey* a, const CameraKey* b) {
+                         return a->source_object_order < b->source_object_order;
+                     });
+
+    std::vector<std::string> categories;
+    categories.reserve(source_ordered.size());
+    for (const CameraKey* key : source_ordered) {
+        if (key->category.empty()) continue;
+        if (std::find(categories.begin(), categories.end(), key->category) ==
             categories.end()) {
-            categories.push_back(key.category);
+            categories.push_back(key->category);
         }
     }
 
@@ -25857,7 +25867,7 @@ size_t Gameplay::iterate_camera_shots_like_source() const {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera iterate_shot: source_msg=iterate_shot source_manager=CameraManager::OnIterateShot phase=begin categories=%zu saved_var=1 command_start=3\n",
+            "[world] camera iterate_shot: source_msg=iterate_shot source_manager=CameraManager::OnIterateShot phase=begin categories=%zu category_order=SyncObjects_ObjDirItr saved_var=1 command_start=3\n",
             categories.size());
     }
     for (const auto& category : categories) {

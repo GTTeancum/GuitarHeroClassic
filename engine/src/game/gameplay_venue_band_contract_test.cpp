@@ -14171,7 +14171,17 @@ int main() {
                  "source_manager=CameraManager::OnIterateShot",
                  "camera runtime exposes source OnIterateShot");
   ok &= contains(iterate_camera_shots_c,
-                 "phase=begincategories=%zusaved_var=1command_start=3",
+                 "std::stable_sort(source_ordered.begin(),source_ordered.end(),",
+                 "source iterate_shot derives category order from ObjDirItr order");
+  ok &= contains(iterate_camera_shots_c,
+                 "for(constCameraKey*key:source_ordered)",
+                 "source iterate_shot bucket discovery uses source object order");
+  ok &= appears_before(iterate_camera_shots_c,
+                       "for(constCameraKey*key:source_ordered)",
+                       "for(constauto&category:categories)",
+                       "source iterate_shot freezes category vector before walking buckets");
+  ok &= contains(iterate_camera_shots_c,
+                 "phase=begincategories=%zucategory_order=SyncObjects_ObjDirItrsaved_var=1command_start=3",
                  "source iterate_shot saves the script var before command index 3");
   ok &= appears_before(iterate_camera_shots_c,
                        "for(constauto&category:categories)",

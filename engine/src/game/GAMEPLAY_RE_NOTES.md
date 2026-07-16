@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CameraManager iterate-shot category order:
+  ihatecompvir `CameraManager::SyncObjects()` fills `mCameraShotCategories`
+  while walking `ObjDirItr<CamShot>` and only then calls `Randomize()`;
+  `CameraManager::OnIterateShot()` later walks that category vector and each
+  current bucket. Native `iterate_camera_shots_like_source()` now derives its
+  category vector from decoded source object order, while still walking the
+  current per-category shot order for randomized / moved shots. This is normal
+  gameplay camera manager parity only, leaves FreeCam deferred, and adds no
+  dependencies.
 - 2026-07-16 gameplay CameraManager ShotAfter order tie:
   ihatecompvir `CameraManager::ShotAfter()` walks `ObjDirItr<CamShot>` and
   returns the next object, wrapping to the first object when the current shot
