@@ -26425,7 +26425,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1 shot_over_latch=per_camshot_member reset_shake=1\n",
+            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s source_fields=unk10c,unk110,unkc4,unkdc,unkf4,unkd0,unke8,unk100 scalar_resets=2 vector_resets=6 reset_result_builder=1 shot_over_latch=per_camshot_member reset_shake=1\n",
             active_camera_runtime_shot_.c_str());
         std::fprintf(
             stderr,

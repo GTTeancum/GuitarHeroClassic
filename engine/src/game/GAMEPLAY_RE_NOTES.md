@@ -1123,12 +1123,13 @@
   reports `WorldDir::SetCrowds` unconditionally during venue validation and
   treats decoded crowd-selection pairs as source crowd entries for the
   per-crowd proof row, without inventing additional crowd draw behavior.
-- 2026-07-14 CamShot StartAnim reset fields:
-  the same source reset clears `mShotOver` plus the shake accumulator vectors
-  before linked `mAnims` start. Native now resets the shot-over latch and
-  carried shake runtime at that StartAnim reset point, and the proof row names
-  `reset_shot_over` / `reset_shake` beside the result-builder reset. This is
-  source lifecycle plumbing, not a synthesized `CamShot::Shake` motion body.
+- 2026-07-16 CamShot StartAnim reset-field proof: ihatecompvir
+  `CamShot::StartAnim()` clears exactly the scalar fields `unk10c`/`unk110`
+  and vectors `unkc4`/`unkdc`/`unkf4`/`unkd0`/`unke8`/`unk100` before linked
+  `mAnims` start. Native now stamps those source field names in the proof row
+  while preserving the decoded per-CamShot shot-over latch; this is audit
+  coverage for source lifecycle plumbing, not a synthesized pose fix or
+  `CamShot::Shake` motion body.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level

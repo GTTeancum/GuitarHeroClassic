@@ -6272,9 +6272,11 @@ int main() {
                  "camera StartAnim diagnostics expose the post-SetCrowds source reset phase");
   ok &= contains(gameplay_c,
                  "source_state_reset=CamShot::StartAnimshot=%s"
+                 "source_fields=unk10c,unk110,unkc4,unkdc,unkf4,unkd0,"
+                 "unke8,unk100scalar_resets=2vector_resets=6"
                  "reset_result_builder=1shot_over_latch=per_camshot_member"
                  "reset_shake=1",
-                 "camera StartAnim diagnostics expose source reset fields without claiming StartAnim clears mShotOver");
+                 "camera StartAnim diagnostics expose ihatecompvir reset fields without claiming StartAnim clears mShotOver");
   ok &= contains(camshot_get_occluded_c,
                  "return0;",
                  "CamShot OnGetOccluded mirrors ihatecompvir DataNode(0)");
@@ -6377,6 +6379,8 @@ int main() {
       "start_camera_shot_anims(key,active_camera_runtime_shot_);",
       "camera StartAnim resets source shake accumulators before linked mAnims");
   ok &= contains(gameplay_c,
+                 "source_fields=unk10c,unk110,unkc4,unkdc,unkf4,unkd0,"
+                 "unke8,unk100scalar_resets=2vector_resets=6"
                  "reset_result_builder=1shot_over_latch=per_camshot_member"
                  "reset_shake=1",
                  "camera StartAnim diagnostics expose the source-shaped state reset");
