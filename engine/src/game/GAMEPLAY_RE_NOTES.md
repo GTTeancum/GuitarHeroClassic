@@ -2,15 +2,15 @@
 
 ## Venue Camera
 
-- 2026-07-16 gameplay CamShot blend-ease mode reader:
-  ihatecompvir `MiloEditor/MiloLib/Assets/World/CamShot.cs` reads
-  `CamShotFrame::blendEaseMode` as a 32-bit integer when `camRev > 0x2D`.
-  Native normal gameplay camera parsing now consumes that field with the same
-  integer width instead of a one-byte bool, so rev 46+ CamShot frame payloads
-  keep FOV, transform, screen offset, DOF, target, parent, shake, zoom, and
-  parent-first-frame fields aligned. This is parser-layout parity only; it
-  does not change FreeCam, add dependencies, or paper over the under-level
-  camera concern.
+- 2026-07-16 gameplay CamShot blend-ease mode runtime reader:
+  ihatecompvir runtime `CameraShot.cpp::CamShotFrame::Load` reads
+  `mBlendEaseMode` through `BinStream >> bool` when `gRev > 0x2D`, and
+  `BinStream.h` defines that bool load as a single byte. Native normal gameplay
+  camera parsing now follows the runtime source width for this field. The
+  MiloEditor C# reader records a wider `ReadInt32()` here, so keep this noted
+  as an editor/runtime discrepancy and prefer the runtime camera path for
+  gameplay behavior. This is parser-layout parity only; it does not change
+  FreeCam, add dependencies, or paper over the under-level camera concern.
 - 2026-07-16 gameplay camera active blocker scope:
   GH2 only adds the regular/solo `walk_ok` filter when
   `{guitarist0 actually_walking}` is true. Native still keeps the
