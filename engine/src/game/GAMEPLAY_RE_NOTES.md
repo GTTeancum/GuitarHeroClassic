@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera proof ordering:
+  Normal gameplay camera debug rows now lead with
+  `pipeline_scope=normal_gameplay_camera`, `priority=gameplay_camera`,
+  current A/B CamShot names, and source categories before per-frame math. The
+  solver projection row now also starts with the gameplay-camera scope while
+  keeping `freecam_priority=deferred_last freecam_affects_gameplay=0` at the
+  row tail. This is proof readability only; it does not alter camera selection,
+  camera math, controls, FreeCam behavior, or dependency surface.
 - 2026-07-15 gameplay camera `shot_ok` blocker proof:
   ihatecompvir `CamShot::ShotOk(prev_shot)` sends the GH2
   `world/camshot.dta::shot_ok` message and accepts only unhandled/true returns;

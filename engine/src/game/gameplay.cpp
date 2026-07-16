@@ -22967,7 +22967,10 @@ void apply_camera_keys(
             "bone_neck.mesh");
         std::fprintf(
             stderr,
-            "[camera] frame=%.2f t=%.3f eased_t=%.3f setframe_blend=%.3f "
+            "[camera] pipeline_scope=normal_gameplay_camera "
+            "priority=gameplay_camera gameplay_shot=a:%s b:%s "
+            "source_category=a:%s b:%s "
+            "frame=%.2f t=%.3f eased_t=%.3f setframe_blend=%.3f "
             "blend_ease=%.3f mode=%d a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f screen_fov=%.3f clip=(%.3f %.3f) "
@@ -22981,6 +22984,9 @@ void apply_camera_keys(
             "a_target_eye=(%.2f %.2f %.2f) a_parent_eye=(%.2f %.2f %.2f) "
             "b_target_eye=(%.2f %.2f %.2f) b_parent_eye=(%.2f %.2f %.2f) "
             "targets=%zu\n",
+            a->name.c_str(), b->name.c_str(),
+            a->category.empty() ? "none" : a->category.c_str(),
+            b->category.empty() ? "none" : b->category.c_str(),
             frame, t, interp_t, source_poll_blend, a->blend_ease,
             a->blend_ease_mode,
             a->name.c_str(), a->frame, b->name.c_str(), b->frame,
@@ -23029,7 +23035,9 @@ void apply_camera_keys(
             targets.size());
         std::fprintf(
             stderr,
-            "[camera-solver] frame=%.2f ps2_result_builder=0x00267008 "
+            "[camera-solver] pipeline_scope=normal_gameplay_camera "
+            "priority=gameplay_camera frame=%.2f "
+            "ps2_result_builder=0x00267008 "
             "screen_norm=(%.6f %.6f) a_screen_norm=(%.6f %.6f) "
             "b_screen_norm=(%.6f %.6f) raw_screen_offset=(%.6f %.6f) "
             "clip=(%.3f %.3f) path_frame=a:%s%.3f b:%s%.3f "

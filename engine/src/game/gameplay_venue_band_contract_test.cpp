@@ -9558,6 +9558,11 @@ int main() {
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\\n\"",
                  "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
+                 "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
+                 "\"priority=gameplay_cameraframe=%.2f\""
+                 "\"ps2_result_builder=0x00267008",
+                 "camera solver rows lead with gameplay camera scope before projection details");
+  ok &= contains(gameplay_c,
                  "\"source_no_target_current_build_twice(\"",
                  "no-target CamShots use the visible current-frame BuildTransform pair");
   ok &= contains(gameplay_c,
@@ -10860,7 +10865,9 @@ int main() {
                  "camera_result_builder_state_.reset();",
                  "camera result-builder state resets on song load, diagnostic seek, and CamShot StartAnim");
   ok &= contains(gameplay_c,
-                 "\"[camera-solver]frame=%.2fps2_result_builder=0x00267008\"",
+                 "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
+                 "\"priority=gameplay_cameraframe=%.2f\""
+                 "\"ps2_result_builder=0x00267008\"",
                  "camera debug logs expose the PS2 CamShot result-builder bridge");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]frame=%.2fshot_filter_branch=%d\"",
@@ -11243,6 +11250,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_dof_branch=(a:%sb:%ssource_gate=focus_target_before_target)",
                  "camera diagnostics expose the source DOF focus-before-target branch");
+  ok &= contains(gameplay_c,
+                 "\"[camera]pipeline_scope=normal_gameplay_camera\""
+                 "\"priority=gameplay_cameragameplay_shot=a:%sb:%s\""
+                 "\"source_category=a:%sb:%s\""
+                 "\"frame=%.2f",
+                 "camera debug rows lead with normal gameplay shot/category info");
   ok &= contains(gameplay_c,
                  "cam.shake_active=has_shake_fields;"
                  "cam.shake_noise_amp=shake_noise_amp;",
