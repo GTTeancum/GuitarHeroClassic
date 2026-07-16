@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches looping default:
+  ihatecompvir `CamShot::CamShot` initializes `mLooping(1)`. Native
+  `ShotMatches` now uses that same fallback for the `looping` property when a
+  synthetic or partially decoded camera key has no explicit decoded looping
+  metadata. Loaded GH2 CamShots still carry the authored value. This is
+  selector parity only: no pose math, FreeCam priority, under-venue masking, or
+  dependency surface changes.
 - 2026-07-16 CameraManager ShotMatches float property coverage:
   ihatecompvir exposes `filter`, `clamp_height`, `near_plane`, `far_plane`,
   and `path_frame` through `CamShot` PropSync and `CameraManager::ShotMatches`

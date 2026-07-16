@@ -16336,7 +16336,7 @@ std::optional<bool> camera_filter_bool_property(
     if (prop == "far_starpower_ok") return key.far_starpower_ok;
     if (prop == "low_excitement_ok") return key.low_excitement_ok;
     if (prop == "looping")
-        return key.has_camshot_looping ? key.camshot_looping : false;
+        return key.has_camshot_looping ? key.camshot_looping : true;
     if (prop == "use_depth_of_field") {
         return key.has_use_depth_of_field ? key.use_depth_of_field : false;
     }

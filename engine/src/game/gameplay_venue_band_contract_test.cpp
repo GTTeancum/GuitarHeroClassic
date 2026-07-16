@@ -13160,8 +13160,8 @@ int main() {
                  "CameraManager ShotMatches can evaluate authored far_starpower_ok filters");
   ok &= contains(gameplay_c,
                  "if(prop==\"looping\")"
-                 "returnkey.has_camshot_looping?key.camshot_looping:false;",
-                 "CameraManager ShotMatches can evaluate authored looping filters");
+                 "returnkey.has_camshot_looping?key.camshot_looping:true;",
+                 "CameraManager ShotMatches can evaluate looping filters with ihatecompvir default");
   ok &= contains(gameplay_c,
                  "if(prop==\"use_depth_of_field\"){"
                  "returnkey.has_use_depth_of_field?"
