@@ -17639,6 +17639,65 @@ bool camera_source_banddirector_facing_camera(std::string_view category) {
     return !camera_source_banddirector_behind_camera(category);
 }
 
+bool camera_source_banddirector_directed_cut(std::string_view category) {
+    static constexpr std::string_view kDirected = "directed_";
+    return category.size() >= kDirected.size() &&
+           category.substr(0, kDirected.size()) == kDirected;
+}
+
+bool camera_source_banddirector_bftb(std::string_view category) {
+    static constexpr std::string_view kBftb = "BFTB_";
+    return category.size() >= kBftb.size() &&
+           category.substr(0, kBftb.size()) == kBftb;
+}
+
+struct CameraSourceBandDirectorSetShotResult {
+    bool writes_shot_category = false;
+    bool sets_pick_pending = false;
+    bool asserts_bftb = false;
+    bool remap_requested = false;
+    std::string category;
+    const char* reason = "ignored";
+};
+
+CameraSourceBandDirectorSetShotResult
+camera_source_banddirector_set_shot_like_source(
+    std::string_view category,
+    std::string_view shot_track,
+    bool wardrobe_present,
+    bool wardrobe_play_shot5,
+    std::string_view wardrobe_play_mode,
+    std::string_view remapped_category) {
+    CameraSourceBandDirectorSetShotResult result;
+    result.category = std::string(category);
+    if (!wardrobe_present ||
+        camera_source_banddirector_directed_cut(category)) {
+        result.reason = "source_gate_false";
+        return result;
+    }
+
+    result.asserts_bftb = camera_source_banddirector_bftb(category);
+    const bool shot5 = shot_track == "shot_5";
+    if (shot5 != wardrobe_play_shot5) {
+        result.reason = "wardrobe_play_shot5_mismatch";
+        return result;
+    }
+    if (shot5) {
+        result.remap_requested = true;
+        if (!remapped_category.empty()) {
+            result.category = std::string(remapped_category);
+        }
+    } else if (shot_track != wardrobe_play_mode) {
+        result.reason = "wardrobe_play_mode_mismatch";
+        return result;
+    }
+
+    result.writes_shot_category = true;
+    result.sets_pick_pending = true;
+    result.reason = shot5 ? "shot_5_remap" : "play_mode_match";
+    return result;
+}
+
 std::vector<CameraShotSourceFilter> camera_source_banddirector_findnext_filters(
     std::string_view category, const Gameplay::CameraKey* current_shot) {
     std::vector<CameraShotSourceFilter> filters;

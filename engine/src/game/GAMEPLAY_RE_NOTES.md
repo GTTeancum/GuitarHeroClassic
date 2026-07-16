@@ -234,6 +234,17 @@
   `coop_` category name alone does not inherit the BandDirector filter. This is
   proof/provenance only: no camera selection result, pose math, FreeCam
   priority, under-venue concern, or dependency surface changes.
+- 2026-07-16 gameplay BandDirector `SetShot` property route:
+  ihatecompvir maps `shot_5`, `shot_bg`, `shot_bk`, and `shot_gk` property
+  writes through `BandDirector::SetShot(cat, track)`. Native now carries a
+  source-shaped helper for that gate: no wardrobe or directed-cut categories do
+  not assign `mShotCategory`, BFTB remains an assertion boundary, `shot_5`
+  assignment requires `PlayShot5()` and requests the wardrobe remap, and
+  play-mode tracks assign only when the property track matches the current
+  wardrobe play mode. This is future route support for authored band camera
+  keys; it does not change ordinary `CameraManager::FindCameraShot` gameplay
+  selection, synthesize pose math, promote FreeCam, mask under-venue results,
+  or add dependencies.
 - 2026-07-16 gameplay BandDirector `midi_shot_cat` category helper:
   ihatecompvir `BandDirector::OnMidiShotCategory` is source-visible even
   though the extracted GH2 asset set does not currently call `midi_shot_cat`.

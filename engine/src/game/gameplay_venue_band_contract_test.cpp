@@ -13879,6 +13879,44 @@ int main() {
                  "std::string_viewcategory)",
                  "source category picker exposes BandDirector::BehindCamera");
   ok &= contains(gameplay_c,
+                 "boolcamera_source_banddirector_directed_cut("
+                 "std::string_viewcategory)",
+                 "source camera exposes BandDirector::DirectedCut");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_banddirector_bftb("
+                 "std::string_viewcategory)",
+                 "source camera exposes BandDirector::BFTB");
+  ok &= contains(gameplay_c,
+                 "structCameraSourceBandDirectorSetShotResult",
+                 "native camera carries a source-shaped BandDirector SetShot result");
+  ok &= contains(gameplay_c,
+                 "CameraSourceBandDirectorSetShotResult"
+                 "camera_source_banddirector_set_shot_like_source(",
+                 "native camera exposes the source BandDirector SetShot route");
+  ok &= contains(gameplay_c,
+                 "if(!wardrobe_present||"
+                 "camera_source_banddirector_directed_cut(category)){"
+                 "result.reason=\"source_gate_false\";returnresult;}",
+                 "BandDirector SetShot helper keeps the source wardrobe/directed gate");
+  ok &= contains(gameplay_c,
+                 "result.asserts_bftb="
+                 "camera_source_banddirector_bftb(category);",
+                 "BandDirector SetShot helper preserves the source BFTB assertion boundary");
+  ok &= contains(gameplay_c,
+                 "constboolshot5=shot_track==\"shot_5\";"
+                 "if(shot5!=wardrobe_play_shot5){",
+                 "BandDirector SetShot helper mirrors the shot_5 PlayShot5 gate");
+  ok &= contains(gameplay_c,
+                 "if(shot5){result.remap_requested=true;"
+                 "if(!remapped_category.empty()){"
+                 "result.category=std::string(remapped_category);}}"
+                 "elseif(shot_track!=wardrobe_play_mode){",
+                 "BandDirector SetShot helper keeps shot_5 remap separate from play-mode track matching");
+  ok &= contains(gameplay_c,
+                 "result.writes_shot_category=true;"
+                 "result.sets_pick_pending=true;",
+                 "BandDirector SetShot helper mirrors mShotCategory plus pending-pick side effects");
+  ok &= contains(gameplay_c,
                  "camera_source_banddirector_findnext_filters(",
                  "source category picker derives BandDirector::FindNextShot filters");
   ok &= contains(gameplay_c,
