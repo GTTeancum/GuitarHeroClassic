@@ -23510,6 +23510,7 @@ void apply_camera_keys(
             "estimate_source=%s targetDist=%.3f height=%.3f "
             "submitted_height=%.3f submitted_vs_build_z_delta=%.3f "
             "under_venue_concern=%d under_venue_basis=%s "
+            "normal_gameplay_pose_concern=%s source_fix_required=%s "
             "state_seeded=%d filter_step=%.6f projected_delta=%.6f "
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
@@ -23560,6 +23561,9 @@ void apply_camera_keys(
             buildtransform_height_estimate,
             submitted_height_estimate, submitted_vs_build_z_delta,
             under_venue_concern ? 1 : 0, under_venue_basis,
+            under_venue_concern ? "under_venue_open" : "none",
+            under_venue_concern ? "recover_BuildTransform_or_RndCam_UpdateLocal"
+                                : "none",
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             a_target_update.has_targets ? 1 : 0,

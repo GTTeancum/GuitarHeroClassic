@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay under-venue pose guard:
+  Normal gameplay camera solver rows now label an under-venue result as
+  `normal_gameplay_pose_concern=under_venue_open` and name the required source
+  evidence as `recover_BuildTransform_or_RndCam_UpdateLocal`. This is a
+  source-audit guard for the user-confirmed low-camera concern: it does not
+  move submitted camera poses, add clamps or offsets, promote FreeCam, or add
+  dependencies.
 - 2026-07-16 gameplay CamShot blend-ease mode runtime reader:
   ihatecompvir runtime `CameraShot.cpp::CamShotFrame::Load` reads
   `mBlendEaseMode` through `BinStream >> bool` when `gRev > 0x2D`, and

@@ -9779,6 +9779,15 @@ int main() {
                  "\"under_venue_concern=%dunder_venue_basis=%s\"",
                  "camera debug logs flag submitted normal gameplay cameras that resolve below the target and world zero");
   ok &= contains(gameplay_c,
+                 "\"normal_gameplay_pose_concern=%ssource_fix_required=%s\"",
+                 "camera debug logs keep under-venue gameplay camera poses as open source-audit concerns");
+  ok &= contains(gameplay_c,
+                 "under_venue_concern?\"under_venue_open\":\"none\"",
+                 "under-venue gameplay camera poses are labelled as open concerns, not accepted parity");
+  ok &= contains(gameplay_c,
+                 "\"recover_BuildTransform_or_RndCam_UpdateLocal\"",
+                 "under-venue gameplay camera poses require recovered BuildTransform or RndCam UpdateLocal evidence");
+  ok &= contains(gameplay_c,
                  "\"submitted_below_world_zero_and_target\"",
                  "camera under-venue concern remains a diagnostic classification instead of a submitted offset fix");
   ok &= contains(gameplay_c,
