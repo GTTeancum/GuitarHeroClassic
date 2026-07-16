@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay BuildTransform/UpdateLocal audit precision:
+  Rechecked the ihatecompvir camera audit tree directly. Public
+  `CameraShot.cpp::CamShotFrame::Interp` proves the two visible
+  `BuildTransform(...)` calls and the same-target `LocalProjectXfm`
+  expression; the RB2 dump for `CamShotFrame::BuildTransform` exposes only
+  the signature, locals, and refs. Public `RndCam::UpdateLocal` is still empty,
+  and the RB2 dump exposes only `yRatio`, `t`, and `TheRnd`. Native solver rows
+  now carry `buildtransform_audit=rb2_dump_signature_locals_refs_no_body` and
+  `update_local_audit=public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body`
+  so low/sketchy gameplay camera angles stay source-audit concerns until the
+  missing body or equivalent proof is recovered. This is proof hardening only:
+  no camera pose, selection, FreeCam priority, under-venue masking, or
+  dependency changes.
 - 2026-07-16 gameplay source-category caller proof:
   GH2 `world_objects_worldbase.dta` direct `pick_shot` routes such as
   `game_lost`, `game_won_msg`, and `pick_lighter_shot` go through

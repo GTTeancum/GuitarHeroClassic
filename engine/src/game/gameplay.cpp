@@ -18141,10 +18141,14 @@ constexpr float kNativeValidationAspect = 16.0f / 9.0f;
 // translation uses the reciprocal x/y ratio.
 constexpr float kCamShotSourceYRatio = 0.5625f;
 constexpr float kCamShotSourceFrustumAspect = 1.0f / kCamShotSourceYRatio;
+constexpr const char* kCamShotBuildTransformAuditStatus =
+    "rb2_dump_signature_locals_refs_no_body";
 constexpr const char* kCamShotLocalProjectSource =
     "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
 constexpr const char* kCamShotLocalProjectAuditStatus =
     "public_Cam.cpp_empty;rb2_dump_UpdateLocal_locals_only;symbols_no_body";
+constexpr const char* kCamShotUpdateLocalAuditStatus =
+    "public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body";
 
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
@@ -23565,8 +23569,10 @@ void apply_camera_keys(
             "source_visible_build_pair=%s source_build_calls=%d "
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
-            "buildtransform_body=%s buildtransform_locals=%s "
+            "buildtransform_body=%s buildtransform_audit=%s "
+            "buildtransform_locals=%s "
             "source_projection=%s local_project_audit=%s local_project_aspect=%.3f "
+            "update_local_audit=%s "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
             "hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s "
@@ -23615,11 +23621,13 @@ void apply_camera_keys(
             source_screen_offset_filtered_target_candidate ? "diagnostic_only"
                                                            : "none",
             "rb2_dump_locals_only",
+            kCamShotBuildTransformAuditStatus,
             "parent,targetPos,targetScreenPos,filter,iframe,"
             "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
             "targetDist,v",
             kCamShotLocalProjectSource, kCamShotLocalProjectAuditStatus,
             kCamShotSourceFrustumAspect,
+            kCamShotUpdateLocalAuditStatus,
             source_pose_coverage, hidden_pose_boundary,
             active_hidden_gameplay_blockers.c_str(),
             deferred_hidden_gameplay_blockers, active_blocker_scope,

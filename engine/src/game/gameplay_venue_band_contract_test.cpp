@@ -9812,18 +9812,28 @@ int main() {
                  "\"filtered_candidate_scope=%s\"",
                  "camera debug logs separate same-target filtered candidates from submitted rows");
   ok &= contains(gameplay_c,
-                 "\"buildtransform_body=%sbuildtransform_locals=%s\"",
+                 "\"buildtransform_body=%sbuildtransform_audit=%s\""
+                 "\"buildtransform_locals=%s\"",
                  "camera debug logs expose the audited RB2 BuildTransform boundary");
   ok &= contains(gameplay_c,
                  "\"source_projection=%slocal_project_audit=%s"
                  "local_project_aspect=%.3f\"",
                  "camera debug logs expose the audited RndCam local projection boundary");
   ok &= contains(gameplay_c,
+                 "\"update_local_audit=%s\"",
+                 "camera debug logs expose the audited RndCam::UpdateLocal body boundary");
+  ok &= contains(gameplay_c,
                  "\"rb2_dump_locals_only\"",
                  "camera debug logs avoid claiming a recovered BuildTransform body");
   ok &= contains(gameplay_c,
+                 "\"rb2_dump_signature_locals_refs_no_body\"",
+                 "camera debug logs identify the RB2 BuildTransform audit as signature/locals/refs only");
+  ok &= contains(gameplay_c,
                  "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
                  "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
+  ok &= contains(gameplay_c,
+                 "\"public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body\"",
+                 "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs only");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
                  "camera debug logs include audited RB2 BuildTransform locals");
