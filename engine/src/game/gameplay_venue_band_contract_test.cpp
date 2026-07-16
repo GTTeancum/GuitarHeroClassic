@@ -8856,6 +8856,13 @@ int main() {
                  "boolhide_crowd=false;",
                  "CameraKey preserves CamShot platform_only/ps3_per_pixel/disabled/flags beside source shot filters");
   ok &= contains(gameplay_h_c,
+                 "structCrowdRef{std::stringref;introtate=0;"
+                 "std::vector<std::pair<int,int>>pairs;};",
+                 "CameraKey preserves full decoded CamShotCrowd entries for source-shaped filters");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<CrowdRef>crowd_refs;",
+                 "CameraKey keeps every CamShotCrowd entry, not only the runtime first selection");
+  ok &= contains(gameplay_h_c,
                  "structCameraResultBuilderState{"
                  "boolhas_filtered_target=false;"
                  "std::array<float,3>filtered_target",
@@ -8929,6 +8936,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.source_ref=shot.old_crowd_sym;",
                  "CamShot source refs are copied into CameraKey shot fields");
+  ok &= contains(gameplay_c,
+                 "key.crowd_refs.clear();for(constauto&crowd:shot.crowds){"
+                 "key.crowd_refs.push_back({crowd.ref,crowd.rotate,crowd.pairs});",
+                 "CamShot reader preserves the full source CamShotCrowd list for property filters");
   ok &= contains(camshot_reader_c,
                  "key.platform_only=shot.platform_only;",
                  "CamShot platform_only is copied into CameraKey shot fields");
@@ -8969,6 +8980,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "to.flags=from.flags;",
                  "TransAnim-backed camera keys inherit source CamShot flags");
+  ok &= contains(gameplay_c,
+                 "to.crowd_refs=from.crowd_refs;",
+                 "TransAnim-backed camera keys inherit full source CamShotCrowd property-filter refs");
   ok &= contains(gameplay_c,
                  "to.blur_depth=from.blur_depth;"
                  "to.max_blur=from.max_blur;"
@@ -13253,6 +13267,17 @@ int main() {
                  "constauto&frames=source_camshot_timing_frames(key);",
                  "regular camera keyframe property-path resolver reads decoded source keyframes");
   ok &= contains(gameplay_c,
+                 "constGameplay::CameraKey::CrowdRef*"
+                 "camera_filter_crowd_property_path(",
+                 "regular camera filters expose a source-shaped CamShotCrowd property-path resolver");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()!=3||prop_path[0]!=\"crowds\")"
+                 "returnnullptr;",
+                 "regular camera crowd property-path resolver keeps non-crowd arrays unsupported");
+  ok &= contains(gameplay_c,
+                 "if(!index||*index>=key.crowd_refs.size())returnnullptr;",
+                 "regular camera crowd property-path resolver reads decoded source crowd refs");
+  ok &= contains(gameplay_c,
                  "std::optional<bool>camera_filter_bool_property_path(",
                  "regular camera filters can evaluate bool keyframe property paths");
   ok &= contains(gameplay_c,
@@ -13263,6 +13288,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "std::optional<int>camera_filter_int_property_path(",
                  "regular camera filters can evaluate integer keyframe property paths");
+  ok &= contains(gameplay_c,
+                 "if(constauto*crowd=camera_filter_crowd_property_path(key,prop_path)){"
+                 "if(prop_path[2]==\"crowd_rotate\")returncrowd->rotate;"
+                 "returnstd::nullopt;}",
+                 "regular camera integer property paths expose CamShotCrowd crowd_rotate");
   ok &= contains(gameplay_c,
                  "if(prop==\"blend_ease_mode\")returnframe->blend_ease_mode;",
                  "regular camera integer property paths expose CamShotFrame blend_ease_mode");
@@ -13363,6 +13393,11 @@ int main() {
                  "std::optional<std::string_view>"
                  "camera_filter_symbol_property_path(",
                  "regular camera symbol filters can evaluate keyframe property arrays");
+  ok &= contains(gameplay_c,
+                 "if(constauto*crowd=camera_filter_crowd_property_path(key,prop_path)){"
+                 "if(prop_path[2]==\"crowd\"&&!crowd->ref.empty()){"
+                 "returnstd::string_view(crowd->ref);}returnstd::nullopt;}",
+                 "regular camera symbol property paths expose CamShotCrowd crowd refs");
   ok &= contains(gameplay_c,
                  "std::string_viewcamera_filter_direct_object_label("
                  "conststd::string&entity,conststd::string&subpart,"

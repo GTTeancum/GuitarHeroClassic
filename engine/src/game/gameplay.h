@@ -160,6 +160,11 @@ class Gameplay {
       std::string owner_entity;
       std::string member;
     };
+    struct CrowdRef {
+      std::string ref;
+      int rotate = 0;
+      std::vector<std::pair<int, int>> pairs;
+    };
     std::string name;
     size_t source_object_order = 0;
     float frame = 0.0f;
@@ -306,6 +311,7 @@ class Gameplay {
     bool has_crowd_selection = false;
     std::string crowd_selection_ref;
     std::vector<std::pair<int, int>> crowd_selection_pairs;
+    std::vector<CrowdRef> crowd_refs;
     std::vector<std::string> hide_list_refs;
     std::vector<std::string> show_list_refs;
     std::vector<std::string> gen_hide_list_refs;

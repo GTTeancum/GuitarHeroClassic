@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches CamShotCrowd paths:
+  ihatecompvir `CamShot` property sync exposes `crowds`, and
+  `CamShotCrowd` property sync exposes `crowd` / `crowd_rotate`. Native now
+  preserves every decoded CamShotCrowd entry in `CameraKey` and evaluates
+  `(crowds N crowd)` / `(crowds N crowd_rotate)` for source-shaped
+  `ShotMatches` property filters. This is selector/property parity only; it
+  does not change crowd rendering, pose solving, FreeCam priority, or
+  dependencies.
 - 2026-07-16 CameraManager ShotMatches top-level object-list paths:
   ihatecompvir `CamShot` property sync exposes `draw_overrides`,
   `postproc_overrides`, and `anims` as CamShot object lists, and

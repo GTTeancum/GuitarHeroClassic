@@ -2501,7 +2501,10 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_crowd_selection = !shot.old_crowd_sym.empty();
             key.crowd_selection_ref = shot.old_crowd_sym;
             key.crowd_selection_pairs = shot.old_crowd_pairs;
+            key.crowd_refs.clear();
             for (const auto& crowd : shot.crowds) {
+                key.crowd_refs.push_back(
+                    {crowd.ref, crowd.rotate, crowd.pairs});
                 if (crowd.ref.empty()) continue;
                 key.source_ref = crowd.ref;
                 key.has_crowd_selection = !crowd.pairs.empty();
@@ -2723,6 +2726,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.has_crowd_selection = from.has_crowd_selection;
     to.crowd_selection_ref = from.crowd_selection_ref;
     to.crowd_selection_pairs = from.crowd_selection_pairs;
+    to.crowd_refs = from.crowd_refs;
     to.hide_list_refs = from.hide_list_refs;
     to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
@@ -2793,6 +2797,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.has_crowd_selection = from.has_crowd_selection;
     to.crowd_selection_ref = from.crowd_selection_ref;
     to.crowd_selection_pairs = from.crowd_selection_pairs;
+    to.crowd_refs = from.crowd_refs;
     to.hide_list_refs = from.hide_list_refs;
     to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
@@ -16529,6 +16534,15 @@ const Gameplay::CameraKey* camera_filter_keyframe_path_base(
     return &frames[*index];
 }
 
+const Gameplay::CameraKey::CrowdRef* camera_filter_crowd_property_path(
+    const Gameplay::CameraKey& key,
+    const std::vector<std::string_view>& prop_path) {
+    if (prop_path.size() != 3 || prop_path[0] != "crowds") return nullptr;
+    const auto index = camera_filter_prop_path_index(prop_path[1]);
+    if (!index || *index >= key.crowd_refs.size()) return nullptr;
+    return &key.crowd_refs[*index];
+}
+
 std::optional<bool> camera_filter_bool_property(
     const Gameplay::CameraKey& key,
     std::string_view prop) {
@@ -16579,6 +16593,10 @@ std::optional<int> camera_filter_int_property(
 std::optional<int> camera_filter_int_property_path(
     const Gameplay::CameraKey& key,
     const std::vector<std::string_view>& prop_path) {
+    if (const auto* crowd = camera_filter_crowd_property_path(key, prop_path)) {
+        if (prop_path[2] == "crowd_rotate") return crowd->rotate;
+        return std::nullopt;
+    }
     const Gameplay::CameraKey* frame = camera_filter_keyframe_path(key, prop_path);
     if (!frame) return std::nullopt;
     const std::string_view prop = prop_path[2];
@@ -16667,6 +16685,12 @@ std::optional<std::string_view> camera_filter_symbol_list_item(
 std::optional<std::string_view> camera_filter_symbol_property_path(
     const Gameplay::CameraKey& key,
     const std::vector<std::string_view>& prop_path) {
+    if (const auto* crowd = camera_filter_crowd_property_path(key, prop_path)) {
+        if (prop_path[2] == "crowd" && !crowd->ref.empty()) {
+            return std::string_view(crowd->ref);
+        }
+        return std::nullopt;
+    }
     if (prop_path.size() == 2) {
         if (prop_path[0] == "anims") {
             return camera_filter_symbol_list_item(key.camera_anim_refs,
