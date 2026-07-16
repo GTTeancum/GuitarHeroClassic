@@ -9751,8 +9751,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"same_target_vertical_flip_candidate=(%s%.3f%s%.3f%s%.3f)\""
                  "\"same_target_vertical_flip_candidate_only=%d\""
-                 "\"local_project_z_sign=unrecovered\"",
-                 "same-target vertical projection sign stays a labelled diagnostic candidate");
+                 "\"local_project_z_sign=unrecovered"
+                 "local_project_z_source_required=%s\"",
+                 "same-target vertical projection sign stays diagnostic-only and names the required source proof");
+  ok &= contains(gameplay_c,
+                 "same_target_vertical_flip_resolves_under_venue?"
+                 "\"RndCam::UpdateLocal(LocalProjectXfm.m.z.x)\":\"none\"",
+                 "same-target under-venue diagnostics require LocalProjectXfm m.z.x sign evidence");
   ok &= contains(gameplay_c,
                  "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
                  "same-target screen-offset diagnostics cite the source yRatio owner for LocalProjectXfm");
@@ -9906,8 +9911,8 @@ int main() {
                  "under_venue_concern?\"under_venue_open\":\"none\"",
                  "under-venue gameplay camera poses are labelled as open concerns, not accepted parity");
   ok &= contains(gameplay_c,
-                 "\"recover_BuildTransform_or_RndCam_UpdateLocal\"",
-                 "under-venue gameplay camera poses require recovered BuildTransform or RndCam UpdateLocal evidence");
+                 "\"recover_RndCam_UpdateLocal_LocalProjectXfm_mzx_sign\"",
+                 "same-target under-venue gameplay camera poses require recovered LocalProjectXfm sign evidence");
   ok &= contains(gameplay_c,
                  "\"submitted_below_world_zero_and_target\"",
                  "camera under-venue concern remains a diagnostic classification instead of a submitted offset fix");

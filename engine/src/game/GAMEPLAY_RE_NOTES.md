@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay same-target under-venue proof target:
+  A short `GHOGX_DEBUG_CAMERA=1` gameplay probe on `big` /
+  `shoutatthedevil` selected `flr_near_lft2x1` with `guitarist0` resolved as
+  the source target and reproduced the open under-venue concern through the
+  visible `CamShotFrame::Interp` same-target screen-offset branch. The
+  diagnostic row already proves that flipping the vertical screen-offset
+  contribution would place the camera above the target/crowd floor, but
+  ihatecompvir still exposes only the expression
+  `v1c0.z = screenOffset.y * distance / LocalProjectXfm.m.z.x`; the missing
+  proof is `RndCam::UpdateLocal`'s `LocalProjectXfm.m.z.x` sign. Native now
+  names that specific required source evidence in under-venue diagnostics
+  instead of a generic pose fix. This is proof targeting only: no camera pose
+  clamp, sign flip, FreeCam priority change, dependency change, or OG Xbox
+  portability change.
 - 2026-07-16 CameraManager ShotMatches RndAnimatable frame:
   ihatecompvir `CamShot` syncs `RndAnimatable` as a superclass, and
   `RndAnimatable` property sync exposes both `rate` and `frame`. Native

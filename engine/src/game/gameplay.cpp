@@ -24326,6 +24326,12 @@ void apply_camera_keys(
                 same_target_axis_proof->vertical_flip_candidate_position[2] >=
                     -0.001f;
         }
+        const char* under_venue_source_fix_required =
+            !under_venue_concern
+                ? "none"
+                : same_target_vertical_flip_resolves_under_venue
+                ? "recover_RndCam_UpdateLocal_LocalProjectXfm_mzx_sign"
+                : "recover_BuildTransform_or_RndCam_UpdateLocal";
         const char* source_pose_branch =
             !source_has_any_targets
                 ? "NoTargets:BuildTransform(applyScreenOffset=1)"
@@ -24373,7 +24379,7 @@ void apply_camera_keys(
             "same_target_axis_z_delta=(right:%s%.6f up:%s%.6f total:%s%.6f) "
             "same_target_vertical_flip_candidate=(%s%.3f %s%.3f %s%.3f) "
             "same_target_vertical_flip_candidate_only=%d "
-            "local_project_z_sign=unrecovered "
+            "local_project_z_sign=unrecovered local_project_z_source_required=%s "
             "same_target_height=(submitted:%s%.3f vertical_flip:%s%.3f) "
             "same_target_vertical_flip_resolves_under_venue=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
@@ -24421,8 +24427,7 @@ void apply_camera_keys(
                 : 0.0f,
             under_venue_concern ? 1 : 0, under_venue_basis,
             under_venue_concern ? "under_venue_open" : "none",
-            under_venue_concern ? "recover_BuildTransform_or_RndCam_UpdateLocal"
-                                : "none",
+            under_venue_source_fix_required,
             result_filter_state_seeded ? 1 : 0, result_filter_step,
             result_filter_projected_delta,
             a_target_update.has_targets ? 1 : 0,
@@ -24499,6 +24504,9 @@ void apply_camera_keys(
                 ? same_target_axis_proof->vertical_flip_candidate_position[2]
                 : 0.0f,
             same_target_axis_proof ? 1 : 0,
+            same_target_vertical_flip_resolves_under_venue
+                ? "RndCam::UpdateLocal(LocalProjectXfm.m.z.x)"
+                : "none",
             std::isfinite(same_target_submitted_height) ? "" : "none/",
             std::isfinite(same_target_submitted_height)
                 ? same_target_submitted_height
