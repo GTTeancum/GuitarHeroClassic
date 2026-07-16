@@ -16796,17 +16796,24 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
         source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
             ? "bad_waypoints"
             : "native_deferred";
+    const char* cam_shot_ok_recovered =
+        bad_waypoint_match ? "bad_waypoints" : "none";
+    const char* cam_shot_ok_unrecovered =
+        source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
+            ? "native_bypassed_after_bad_waypoints"
+            : "native_deferred_rest";
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu hidden_gameplay_blocker=cam_shot_ok pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera shot_ok: source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s hidden_gameplay_blocker=cam_shot_ok pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
             cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
             accepted ? "accept" : "reject",
             std::string(current_walkspot).c_str(),
             bad_waypoint_match ? bad_waypoint_match->c_str() : "",
-            key.bad_waypoint_refs.size());
+            key.bad_waypoint_refs.size(), cam_shot_ok_recovered,
+            cam_shot_ok_unrecovered);
     }
     return accepted;
 }

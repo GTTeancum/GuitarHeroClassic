@@ -13367,6 +13367,15 @@ int main() {
                  "bad_waypoint_match=%sbad_waypoints=%zu",
                  "regular camera shot_ok diagnostics include the matching bad_waypoint ref");
   ok &= contains(gameplay_c,
+                 "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s",
+                 "regular camera shot_ok diagnostics split recovered bad_waypoints from the unrecovered native predicate");
+  ok &= contains(gameplay_c,
+                 "bad_waypoint_match?\"bad_waypoints\":\"none\"",
+                 "regular camera shot_ok recovery label is tied only to the authored bad_waypoints rule");
+  ok &= contains(gameplay_c,
+                 "\"native_deferred_rest\"",
+                 "regular camera shot_ok diagnostics keep the unrecovered cam_shot_ok remainder explicit");
+  ok &= contains(gameplay_c,
                  "std::stringGameplay::camera_source_guitarist0_nearest_walkspot()const",
                  "regular camera shot_ok bridge uses the current guitarist0 walkspot source context");
   ok &= contains(gameplay_c,
@@ -13415,6 +13424,7 @@ int main() {
                  "cam_shot_ok=%ssource_return=%s"
                  "result=%scurrent_walkspot=%s"
                  "bad_waypoint_match=%sbad_waypoints=%zu"
+                 "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s"
                  "hidden_gameplay_blocker=cam_shot_ok"
                  "pipeline_scope=normal_gameplay_camera"
                  "freecam_priority=deferred_last"

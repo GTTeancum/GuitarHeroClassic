@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay `shot_ok` recovered/native split:
+  GH2 `world/camshot.dta::shot_ok` still routes through native
+  `cam_shot_ok($this)`, but the authored `bad_waypoints` field is a
+  recovered source-pinned rejection rule from `world_objects.dta`. Native
+  normal gameplay camera `shot_ok` diagnostics now split
+  `cam_shot_ok_recovered=bad_waypoints|none` from
+  `cam_shot_ok_unrecovered=native_deferred_rest`, so selector proof can tell
+  the implemented current-walkspot gate from the remaining hidden native body.
+  This is normal gameplay camera selector evidence only; it does not invent
+  the rest of `cam_shot_ok`, change camera math, promote FreeCam, or add
+  dependencies.
 - 2026-07-15 gameplay BuildTransform scalar proof:
   RB2 exposes `CamShotFrame::BuildTransform` locals named `targetDist` and
   `height`, but not the trusted body. Native normal gameplay camera solver rows
