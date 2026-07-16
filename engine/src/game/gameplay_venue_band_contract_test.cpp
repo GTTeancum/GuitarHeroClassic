@@ -212,6 +212,8 @@ int main() {
       function_body(gameplay, "Gameplay::start_camera_shot_runtime"));
   const std::string end_camera_shot_runtime_c = compact(
       function_body(gameplay, "Gameplay::end_camera_shot_runtime"));
+  const std::string consume_pending_camera_c = compact(
+      function_body(gameplay, "Gameplay::consume_pending_regular_camera_shot"));
   const std::string force_camera_shot_c = compact(
       function_body(gameplay, "Gameplay::force_camera_shot_like_source"));
   const std::string iterate_camera_shots_c = compact(
@@ -6248,8 +6250,9 @@ int main() {
                  "camera StartAnim diagnostics expose the post-SetCrowds source reset phase");
   ok &= contains(gameplay_c,
                  "source_state_reset=CamShot::StartAnimshot=%s"
-                 "reset_result_builder=1reset_shot_over=1reset_shake=1",
-                 "camera StartAnim diagnostics expose source reset fields");
+                 "reset_result_builder=1shot_over_latch=per_camshot_member"
+                 "reset_shake=1",
+                 "camera StartAnim diagnostics expose source reset fields without claiming StartAnim clears mShotOver");
   ok &= contains(camshot_get_occluded_c,
                  "return0;",
                  "CamShot OnGetOccluded mirrors ihatecompvir DataNode(0)");
@@ -6337,10 +6340,9 @@ int main() {
       "camera_result_builder_state_.reset();",
       "start_camera_shot_anims(key,active_camera_runtime_shot_);",
       "camera StartAnim resets source camera state before linked mAnims");
-  ok &= contains(start_camera_shot_runtime_c,
-                 "active_camera_shot_over_=false;"
-                 "active_camera_shot_over_reported_.clear();",
-                 "camera StartAnim resets the source mShotOver latch");
+  ok &= absent(start_camera_shot_runtime_c,
+               "active_camera_shots_over_.clear();",
+               "camera StartAnim must not clear source per-CamShot mShotOver latches");
   ok &= contains(start_camera_shot_runtime_c,
                  "camera_unset_shake_like_no_current_camshot(world_->camera());",
                  "camera StartAnim resets source shake accumulators");
@@ -6350,7 +6352,8 @@ int main() {
       "start_camera_shot_anims(key,active_camera_runtime_shot_);",
       "camera StartAnim resets source shake accumulators before linked mAnims");
   ok &= contains(gameplay_c,
-                 "reset_result_builder=1reset_shot_over=1reset_shake=1",
+                 "reset_result_builder=1shot_over_latch=per_camshot_member"
+                 "reset_shake=1",
                  "camera StartAnim diagnostics expose the source-shaped state reset");
   ok &= appears_before(
       start_camera_shot_runtime_c,
@@ -6449,9 +6452,9 @@ int main() {
                  "pending_regular_camera_start_=0.0;"
                  "pending_regular_camera_local_frame_=0.0;",
                  "regular camera pending mNextShot always restarts source shot timing");
-  ok &= contains(gameplay_c,
-                 "active_camera_shot_over_=false;",
-                 "regular camera pending mNextShot returns consumed even for same-shot restarts");
+  ok &= absent(consume_pending_camera_c,
+               "active_camera_shots_over_.clear();",
+               "regular camera pending mNextShot must not clear source per-CamShot mShotOver latches");
   ok &= contains(gameplay_c,
                  "constCameraKey*source_current_after="
                  "camera_manager_current_shot_like_source();"
@@ -11368,8 +11371,8 @@ int main() {
                  "boolcamera_source_check_shot_over(constGameplay::CameraKey&shot",
                  "runtime exposes a source-shaped CamShot CheckShotOver helper");
   ok &= contains(gameplay_h_c,
-                 "boolactive_camera_shot_over_=false;",
-                 "regular camera runtime carries CamShot mShotOver state");
+                 "std::unordered_set<std::string>active_camera_shots_over_;",
+                 "regular camera runtime carries source per-CamShot mShotOver state");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_shot_over_gate_reported_;",
                  "regular camera runtime bounds CamShot CheckShotOver gate diagnostics");
@@ -13400,6 +13403,9 @@ int main() {
                  "regular camera runtime routes rejected check_shot results to a new pick");
   ok &= contains(gameplay_c,
                  "if(diagnostic_camera_shot_.empty()){"
+                 "constboolsource_camshot_over_latched="
+                 "active_camera_shots_over_.find(key->name)!="
+                 "active_camera_shots_over_.end();"
                  "constCameraSourceShotOverStatusshot_over_status=",
                  "source shot_over bridge does not disturb diagnostic camera proofs");
   ok &= contains(gameplay_c,
@@ -13407,8 +13413,13 @@ int main() {
                  "active_regular_camera_start_",
                  "source shot_over bridge uses decoded CamShot local frame duration");
   ok &= contains(gameplay_c,
-                 "active_regular_camera_start_,active_camera_shot_over_,"
-                 "&chart_);",
+                 "constboolsource_camshot_over_latched="
+                 "active_camera_shots_over_.find(key->name)!="
+                 "active_camera_shots_over_.end();",
+                 "source shot_over bridge reads the active CamShot object's mShotOver latch");
+  ok &= contains(gameplay_c,
+                 "active_regular_camera_start_,"
+                 "source_camshot_over_latched,&chart_);",
                  "source shot_over bridge passes the active CamShot mShotOver flag and chart clock");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_overgate:source_msg=shot_over"
@@ -13424,7 +13435,7 @@ int main() {
   ok &= appears_before(
       gameplay_c,
       "force_camera_shot_like_source(*next_key,\"ForceCameraShot\");",
-      "active_camera_shot_over_=true;",
+      "active_camera_shots_over_.insert(key->name);",
       "source shot_over force_shot queues before mShotOver flips");
   ok &= contains(gameplay_c,
                  "constboolhas_next_shot=!key->next_shot_ref.empty();",
@@ -13448,7 +13459,7 @@ int main() {
   ok &= appears_before(
       gameplay_c,
       "\"[world]camerashot_over:source_msg=shot_overshot=%s",
-      "active_camera_shot_over_=true;",
+      "active_camera_shots_over_.insert(key->name);",
       "source shot_over diagnostics preserve SetShotOver message-before-latch order");
   ok &= contains(gameplay_c,
                  "active_camera_skip_next_crowd_update_=true;"
@@ -13688,8 +13699,8 @@ int main() {
       "consume_pending_regular_camera_shot();",
       "CameraManager::MiloCamera gate is evaluated before PrePoll consumes mNextShot");
   ok &= contains(gameplay_c,
-                 "active_camera_shot_over_=false;",
-                 "source shot_over state resets with the active CamShot lifecycle");
+                 "active_camera_shots_over_.clear();",
+                 "source shot_over state resets when native loads a new camera object set");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_gate_reported_.clear();",
                  "source shot_over gate diagnostics reset with the active CamShot lifecycle");

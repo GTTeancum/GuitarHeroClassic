@@ -1207,20 +1207,21 @@ Open work:
   camera dispatch row, and
   `proofs/camera_post_switch_cam_debug_20260715_001709.png` is the matching
   rendered frame.
-- 2026-07-13 CamShot `mShotOver` one-shot bridge: ihatecompvir
+- 2026-07-15 CamShot `mShotOver` object latch: ihatecompvir
   `CamShot::CheckShotOver` returns true only when `!mShotOver`, the shot is not
   looping, and the local frame reaches the cached duration; `SetShotOver` then
-  sends `shot_over` and flips `mShotOver`. Native now carries
-  `active_camera_shot_over_` for the regular CamShot lifetime so the source
-  `shot_over` point is observed once per active shot; authored `next_shot`
-  chains still force only once, while empty-`next_shot` handlers latch without
-  a forced handoff.
+  sends `shot_over` and flips the CamShot object's `mShotOver` bit. The visible
+  `CamShot::StartAnim` body does not clear that bit, so native now carries
+  `active_camera_shots_over_` by shot name for the loaded camera object set
+  instead of resetting a single active-shot flag on every restart. Authored
+  `next_shot` chains still force only once per CamShot object, while
+  empty-`next_shot` handlers latch without a forced handoff.
 - 2026-07-13 CamShot `SetShotOver` dispatch order: ihatecompvir
   `CamShot::SetShotOver()` calls `HandleType(shot_over_msg)` before assigning
   `mShotOver = true`. Native now logs the handler result, resolves/queues the
   authored `next_shot` handoff, and sets the `camshot_skip_next_update` latch
-  before flipping
-  `active_camera_shot_over_`, preserving the source message-before-latch order.
+  before inserting the active shot into `active_camera_shots_over_`, preserving
+  the source message-before-latch order.
 - 2026-07-13 `camshot_skip_next_update` bridge: GH2 `camshot.dta` sets
   `$camshot_skip_next_update TRUE` before `world do_force_shot [next_shot]`;
   the next `start_shot` skips the script-level `[crowd] crowd_update` /

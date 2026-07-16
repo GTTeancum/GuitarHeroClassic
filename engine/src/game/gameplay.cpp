@@ -23896,7 +23896,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
-    active_camera_shot_over_ = false;
+    active_camera_shots_over_.clear();
     active_camera_skip_next_crowd_update_ = false;
     pending_regular_camera_start_ = 0.0;
     pending_regular_camera_local_frame_ = 0.0;
@@ -24829,7 +24829,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
-    active_camera_shot_over_ = false;
+    active_camera_shots_over_.clear();
     active_camera_skip_next_crowd_update_ = false;
 }
 
@@ -24863,7 +24863,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
-    active_camera_shot_over_ = false;
+    active_camera_shots_over_.clear();
     active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
     if (world_) {
@@ -25569,7 +25569,6 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_last_pair_null_frame_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
-    active_camera_shot_over_ = false;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const CameraKey* source_current_after =
             camera_manager_current_shot_like_source();
@@ -25668,7 +25667,6 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             skip_script_crowd_update ? 1 : 0);
     }
     camera_result_builder_state_.reset();
-    active_camera_shot_over_ = false;
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     if (world_) {
@@ -25677,7 +25675,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1 reset_shot_over=1 reset_shake=1\n",
+            "[world] camera StartAnim: source_state_reset=CamShot::StartAnim shot=%s reset_result_builder=1 shot_over_latch=per_camshot_member reset_shake=1\n",
             active_camera_runtime_shot_.c_str());
         std::fprintf(
             stderr,
@@ -32582,7 +32580,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_fov_anim_refs_.clear();
                 active_camera_anim_start_time_ = 0.0;
                 active_camera_fov_anim_reported_.clear();
-                active_camera_shot_over_ = false;
+                active_camera_shots_over_.clear();
                 active_camera_shot_over_gate_reported_.clear();
                 active_camera_last_prev_key_.clear();
                 active_camera_last_next_key_.clear();
@@ -35665,10 +35663,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &regular_camera_keys_, source_setframe_blend);
                 apply_active_camera_fov_anims(world_->camera(), *key);
                 if (diagnostic_camera_shot_.empty()) {
+                    const bool source_camshot_over_latched =
+                        active_camera_shots_over_.find(key->name) !=
+                        active_camera_shots_over_.end();
                     const CameraSourceShotOverStatus shot_over_status =
                         camera_source_shot_over_status(
                             *key, song_time_, active_regular_camera_start_,
-                            active_camera_shot_over_, &chart_);
+                            source_camshot_over_latched, &chart_);
                     const char* shot_over_gate =
                         camera_source_shot_over_gate_label(shot_over_status);
                     if (debug_camera_enabled() ||
@@ -35743,7 +35744,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     *next_key, "ForceCameraShot");
                             }
                         }
-                        active_camera_shot_over_ = true;
+                        active_camera_shots_over_.insert(key->name);
                     }
                 }
             }

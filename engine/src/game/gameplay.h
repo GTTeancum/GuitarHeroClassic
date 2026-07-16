@@ -1333,7 +1333,7 @@ class Gameplay {
   bool active_camera_last_pair_null_frame_ = false;
   std::string active_camera_shot_over_reported_;
   std::string active_camera_shot_over_gate_reported_;
-  bool active_camera_shot_over_ = false;
+  std::unordered_set<std::string> active_camera_shots_over_;
   bool active_camera_skip_next_crowd_update_ = false;
   int camera_manager_random_seed_ = 0;
   std::string camera_manager_random_seed_source_ = "static_default";
