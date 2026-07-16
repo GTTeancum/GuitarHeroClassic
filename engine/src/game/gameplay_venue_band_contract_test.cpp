@@ -9823,6 +9823,9 @@ int main() {
                  "\"update_local_audit=%s\"",
                  "camera debug logs expose the audited RndCam::UpdateLocal body boundary");
   ok &= contains(gameplay_c,
+                 "\"update_local_source_search=%s\"",
+                 "camera debug logs expose the RndCam::UpdateLocal source-search boundary");
+  ok &= contains(gameplay_c,
                  "\"rb2_dump_locals_only\"",
                  "camera debug logs avoid claiming a recovered BuildTransform body");
   ok &= contains(gameplay_c,
@@ -9834,6 +9837,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body\"",
                  "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs only");
+  ok &= contains(gameplay_c,
+                 "\"public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;\""
+                 "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body\"",
+                 "camera debug logs identify the full RndCam::UpdateLocal source-search boundary");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
                  "camera debug logs include audited RB2 BuildTransform locals");

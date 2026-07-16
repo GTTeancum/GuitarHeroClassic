@@ -18149,6 +18149,9 @@ constexpr const char* kCamShotLocalProjectAuditStatus =
     "public_Cam.cpp_empty;rb2_dump_UpdateLocal_locals_only;symbols_no_body";
 constexpr const char* kCamShotUpdateLocalAuditStatus =
     "public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body";
+constexpr const char* kCamShotUpdateLocalSourceSearch =
+    "public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;"
+    "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body";
 
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
@@ -23573,6 +23576,7 @@ void apply_camera_keys(
             "buildtransform_locals=%s "
             "source_projection=%s local_project_audit=%s local_project_aspect=%.3f "
             "update_local_audit=%s "
+            "update_local_source_search=%s "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
             "hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s "
@@ -23628,6 +23632,7 @@ void apply_camera_keys(
             kCamShotLocalProjectSource, kCamShotLocalProjectAuditStatus,
             kCamShotSourceFrustumAspect,
             kCamShotUpdateLocalAuditStatus,
+            kCamShotUpdateLocalSourceSearch,
             source_pose_coverage, hidden_pose_boundary,
             active_hidden_gameplay_blockers.c_str(),
             deferred_hidden_gameplay_blockers, active_blocker_scope,

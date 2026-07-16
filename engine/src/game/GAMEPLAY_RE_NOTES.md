@@ -8,9 +8,12 @@
   `BuildTransform(...)` calls and the same-target `LocalProjectXfm`
   expression; the RB2 dump for `CamShotFrame::BuildTransform` exposes only
   the signature, locals, and refs. Public `RndCam::UpdateLocal` is still empty,
-  and the RB2 dump exposes only `yRatio`, `t`, and `TheRnd`. Native solver rows
-  now carry `buildtransform_audit=rb2_dump_signature_locals_refs_no_body` and
-  `update_local_audit=public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body`
+  `doc/src-old/rb3/Rnd/rndcam.cpp` is an incomplete/stub source, and the RB2
+  dump exposes only `yRatio`, `t`, and `TheRnd`. Native solver rows now carry
+  `buildtransform_audit=rb2_dump_signature_locals_refs_no_body`,
+  `update_local_audit=public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body`,
+  and
+  `update_local_source_search=public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body`
   so low/sketchy gameplay camera angles stay source-audit concerns until the
   missing body or equivalent proof is recovered. This is proof hardening only:
   no camera pose, selection, FreeCam priority, under-venue masking, or
