@@ -16884,6 +16884,19 @@ std::string camera_source_guitarist0_actually_walking_source() {
            " native_bridge_missing body_unrecovered)";
 }
 
+std::string camera_hidden_gameplay_blockers(bool build_transform_active,
+                                           bool charwalk_gate_active) {
+    std::string blockers;
+    if (build_transform_active) blockers += "BuildTransform|";
+    blockers += "cam_shot_ok|cam_check_shot";
+    if (charwalk_gate_active) blockers += "|CharWalk";
+    return blockers;
+}
+
+const char* camera_deferred_gameplay_blockers(bool charwalk_gate_active) {
+    return charwalk_gate_active ? "none" : "CharWalk";
+}
+
 bool camera_source_guitarist0_playing_starpower(
     bool native_player0_star_power_active) {
     // GH2 world_objects_worldbase.dta gates both downbeat check_camera_shot and
@@ -22257,10 +22270,13 @@ void apply_camera_keys(
                 : source_build_transform_order
                 ? "CamShotFrame::BuildTransform"
                 : "CamShot::SetPos/BuildTransform";
-        const char* active_hidden_gameplay_blockers =
-            submitted_result_from_ps2_trace
-                ? "cam_shot_ok|cam_check_shot|CharWalk"
-                : "BuildTransform|cam_shot_ok|cam_check_shot|CharWalk";
+        const bool charwalk_gate_active =
+            camera_source_guitarist0_actually_walking();
+        const std::string active_hidden_gameplay_blockers =
+            camera_hidden_gameplay_blockers(!submitted_result_from_ps2_trace,
+                                            charwalk_gate_active);
+        const char* deferred_hidden_gameplay_blockers =
+            camera_deferred_gameplay_blockers(charwalk_gate_active);
         const char* active_blocker_scope =
             submitted_result_from_ps2_trace
                 ? "selection_only_retained_pose"
@@ -23488,7 +23504,8 @@ void apply_camera_keys(
             "source_projection=%s local_project_aspect=%.3f "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
-            "hidden_gameplay_blockers=%s active_blocker_scope=%s "
+            "hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s "
+            "active_blocker_scope=%s "
             "buildtransform_estimate=targetDist,height "
             "estimate_source=%s targetDist=%.3f height=%.3f "
             "submitted_height=%.3f submitted_vs_build_z_delta=%.3f "
@@ -23536,7 +23553,8 @@ void apply_camera_keys(
             "targetDist,v",
             kCamShotLocalProjectSource, kCamShotSourceFrustumAspect,
             source_pose_coverage, hidden_pose_boundary,
-            active_hidden_gameplay_blockers, active_blocker_scope,
+            active_hidden_gameplay_blockers.c_str(),
+            deferred_hidden_gameplay_blockers, active_blocker_scope,
             buildtransform_estimate_source,
             buildtransform_target_dist_estimate,
             buildtransform_height_estimate,
@@ -35748,9 +35766,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         camera_manager_current_shot_like_source();
                     const CameraKey* source_next_after_queue =
                         camera_manager_next_shot_like_source();
+                    const std::string active_gameplay_blockers =
+                        camera_hidden_gameplay_blockers(
+                            true, kGuitaristWalking);
+                    const char* deferred_gameplay_blockers =
+                        camera_deferred_gameplay_blockers(kGuitaristWalking);
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d source_starpower_gate=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+                        "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d source_starpower_gate=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -35785,7 +35808,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                                                          : 0,
                         shot_changed ? 1 : 0,
                         source_next_after_queue ? 1 : 0, key->force_char_lod, bar,
-                        song_time_);
+                        song_time_, active_gameplay_blockers.c_str(),
+                        deferred_gameplay_blockers);
                     if (diagnostic_camera_shot_matched) {
                         std::fprintf(
                             stderr,

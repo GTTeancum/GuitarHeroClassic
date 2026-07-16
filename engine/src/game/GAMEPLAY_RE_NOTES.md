@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay camera active blocker scope:
+  GH2 only adds the regular/solo `walk_ok` filter when
+  `{guitarist0 actually_walking}` is true. Native still keeps the
+  ihatecompvir `CharWalk::mState` body marked unrecovered and pinned to
+  `kStateNone`, so proof rows now keep `CharWalk` in
+  `deferred_gameplay_blockers` instead of listing it as active on normal
+  non-walking gameplay frames. This changes diagnostics only: camera
+  selection, pose math, FreeCam, and dependency surface are unchanged.
 - 2026-07-16 gameplay `game_won_msg` outro-complete task:
   Native now keeps the source `game set_outro_complete` task as gameplay-camera
   state after the delayed `WIN_ENCORE` or `WIN_GAME` pick, using the picked

@@ -9716,7 +9716,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"pose_coverage=%shidden_pose_boundary=%s\""
                  "\"pipeline_scope=normal_gameplay_camera\""
-                 "\"hidden_gameplay_blockers=%sactive_blocker_scope=%s\"",
+                 "\"hidden_gameplay_blockers=%s"
+                 "deferred_gameplay_blockers=%s\""
+                 "\"active_blocker_scope=%s\"",
                  "camera solver diagnostics lead with gameplay camera pose triage");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\""
@@ -9729,10 +9731,12 @@ int main() {
                  "\"diagnostic_candidate_same_targets\"",
                  "same-target CamShot filtered-target rows stay diagnostic-only instead of becoming persistent BuildTransform state");
   ok &= contains(gameplay_c,
-                 "submitted_result_from_ps2_trace?"
-                 "\"cam_shot_ok|cam_check_shot|CharWalk\":"
-                 "\"BuildTransform|cam_shot_ok|cam_check_shot|CharWalk\"",
-                 "camera solver diagnostics remove BuildTransform from active blockers when a retained PS2 pose payload supplies the submitted frame");
+                 "camera_hidden_gameplay_blockers(!submitted_result_from_ps2_trace,"
+                 "charwalk_gate_active)",
+                 "camera solver diagnostics remove BuildTransform and inactive CharWalk from active blockers when source gates do not use them");
+  ok &= contains(gameplay_c,
+                 "camera_deferred_gameplay_blockers(charwalk_gate_active)",
+                 "camera solver diagnostics keep inactive CharWalk visible as deferred gameplay-camera work");
   ok &= contains(gameplay_c,
                  "submitted_result_from_ps2_trace?"
                  "\"selection_only_retained_pose\":"
@@ -13665,13 +13669,21 @@ int main() {
                  "source_next_after_queue?1:0",
                  "regular camera sweep source_next flag is derived from queued mNextShot instead of a hard-coded proof value");
   ok &= contains(gameplay_c,
-                 "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk"
+                 "hidden_gameplay_blockers=%s"
+                 "deferred_gameplay_blockers=%s"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0",
-                 "regular camera sweep diagnostics report gameplay blockers before deferred FreeCam status");
+                 "regular camera sweep diagnostics split active gameplay blockers from deferred CharWalk before FreeCam status");
+  ok &= contains(gameplay_c,
+                 "camera_hidden_gameplay_blockers("
+                 "true,kGuitaristWalking)",
+                 "regular camera sweep derives active blocker scope from the source actually_walking gate");
+  ok &= contains(gameplay_c,
+                 "camera_deferred_gameplay_blockers(kGuitaristWalking)",
+                 "regular camera sweep keeps inactive CharWalk visible as deferred gameplay-camera work");
   ok &= appears_before(gameplay_c,
                        "priority=gameplay_camera",
-                       "hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk",
+                       "hidden_gameplay_blockers=%sdeferred_gameplay_blockers=%s",
                        "regular camera sweep diagnostics lead with gameplay priority before blockers and deferred FreeCam status");
   ok &= contains(gameplay_c,
                  "boolcamera_source_shot_ok(constGameplay::CameraKey&key,"
