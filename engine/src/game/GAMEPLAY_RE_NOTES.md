@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches scalar array match parity:
+  ihatecompvir `CameraManager::ShotMatches` accepts a filter whose `match`
+  value is a `DataArray` by comparing the evaluated CamShot property against
+  every node in that array. Native regular-camera filters already used this
+  shape for symbol filters such as `(facing (right null))`; the filter carrier
+  now supports the same match-any shape for bool, int, and float properties
+  too, with diagnostics printing scalar arrays in source script form. This is
+  normal gameplay selector parity only: no pose math, FreeCam priority change,
+  under-venue masking, or dependency surface change.
 - 2026-07-16 normal gameplay camera under-venue bounds proof:
   The venue loader now preserves decoded WorldCrowd placement min/max data
   outside debug-only logging and passes it into the normal gameplay CamShot

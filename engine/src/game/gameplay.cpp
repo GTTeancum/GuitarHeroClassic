@@ -16274,6 +16274,9 @@ enum class CameraShotSourceFilterKind {
 struct CameraShotSourceFilter {
     CameraShotSourceFilterKind kind = CameraShotSourceFilterKind::Bool;
     std::string_view prop;
+    std::vector<bool> bool_matches;
+    std::vector<int> int_matches;
+    std::vector<float> float_matches;
     std::vector<std::string_view> symbol_matches;
     bool bool_match = false;
     float float_match = 0.0f;
@@ -16286,6 +16289,20 @@ CameraShotSourceFilter camera_bool_filter(std::string_view prop, bool match) {
     filter.kind = CameraShotSourceFilterKind::Bool;
     filter.prop = prop;
     filter.bool_match = match;
+    filter.bool_matches.push_back(match);
+    return filter;
+}
+
+CameraShotSourceFilter camera_bool_filter(
+    std::string_view prop,
+    std::initializer_list<bool> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Bool;
+    filter.prop = prop;
+    filter.bool_matches.assign(matches.begin(), matches.end());
+    if (!filter.bool_matches.empty()) {
+        filter.bool_match = filter.bool_matches.front();
+    }
     return filter;
 }
 
@@ -16294,6 +16311,20 @@ CameraShotSourceFilter camera_int_filter(std::string_view prop, int match) {
     filter.kind = CameraShotSourceFilterKind::Int;
     filter.prop = prop;
     filter.int_match = match;
+    filter.int_matches.push_back(match);
+    return filter;
+}
+
+CameraShotSourceFilter camera_int_filter(
+    std::string_view prop,
+    std::initializer_list<int> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Int;
+    filter.prop = prop;
+    filter.int_matches.assign(matches.begin(), matches.end());
+    if (!filter.int_matches.empty()) {
+        filter.int_match = filter.int_matches.front();
+    }
     return filter;
 }
 
@@ -16303,6 +16334,20 @@ CameraShotSourceFilter camera_float_filter(std::string_view prop,
     filter.kind = CameraShotSourceFilterKind::Float;
     filter.prop = prop;
     filter.float_match = match;
+    filter.float_matches.push_back(match);
+    return filter;
+}
+
+CameraShotSourceFilter camera_float_filter(
+    std::string_view prop,
+    std::initializer_list<float> matches) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Float;
+    filter.prop = prop;
+    filter.float_matches.assign(matches.begin(), matches.end());
+    if (!filter.float_matches.empty()) {
+        filter.float_match = filter.float_matches.front();
+    }
     return filter;
 }
 
@@ -16404,15 +16449,24 @@ bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
     switch (filter.kind) {
         case CameraShotSourceFilterKind::Bool: {
             const auto value = camera_filter_bool_property(key, filter.prop);
-            return value && *value == filter.bool_match;
+            return value &&
+                   std::find(filter.bool_matches.begin(),
+                             filter.bool_matches.end(),
+                             *value) != filter.bool_matches.end();
         }
         case CameraShotSourceFilterKind::Int: {
             const auto value = camera_filter_int_property(key, filter.prop);
-            return value && *value == filter.int_match;
+            return value &&
+                   std::find(filter.int_matches.begin(),
+                             filter.int_matches.end(),
+                             *value) != filter.int_matches.end();
         }
         case CameraShotSourceFilterKind::Float: {
             const auto value = camera_filter_float_property(key, filter.prop);
-            return value && *value == filter.float_match;
+            return value &&
+                   std::find(filter.float_matches.begin(),
+                             filter.float_matches.end(),
+                             *value) != filter.float_matches.end();
         }
         case CameraShotSourceFilterKind::SymbolAny: {
             const auto value = camera_filter_symbol_property(key, filter.prop);
@@ -16618,21 +16672,60 @@ std::vector<CameraShotSourceFilter> camera_source_script_filters(
 
 std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
     std::string label = "(" + std::string(filter.prop) + " ";
+    auto append_bool = [&label](bool value) {
+        label += value ? "TRUE" : "FALSE";
+    };
     auto append_source_hex_mask = [&label](int mask) {
         char buf[32];
         std::snprintf(buf, sizeof(buf), "0x%x",
                       static_cast<unsigned int>(mask));
         label += buf;
     };
+    auto append_bool_matches = [&]() {
+        if (filter.bool_matches.size() <= 1) {
+            append_bool(filter.bool_match);
+            return;
+        }
+        label += "(";
+        for (size_t i = 0; i < filter.bool_matches.size(); ++i) {
+            if (i) label += " ";
+            append_bool(filter.bool_matches[i]);
+        }
+        label += ")";
+    };
+    auto append_int_matches = [&]() {
+        if (filter.int_matches.size() <= 1) {
+            label += std::to_string(filter.int_match);
+            return;
+        }
+        label += "(";
+        for (size_t i = 0; i < filter.int_matches.size(); ++i) {
+            if (i) label += " ";
+            label += std::to_string(filter.int_matches[i]);
+        }
+        label += ")";
+    };
+    auto append_float_matches = [&]() {
+        if (filter.float_matches.size() <= 1) {
+            label += std::to_string(filter.float_match);
+            return;
+        }
+        label += "(";
+        for (size_t i = 0; i < filter.float_matches.size(); ++i) {
+            if (i) label += " ";
+            label += std::to_string(filter.float_matches[i]);
+        }
+        label += ")";
+    };
     switch (filter.kind) {
     case CameraShotSourceFilterKind::Bool:
-        label += filter.bool_match ? "TRUE" : "FALSE";
+        append_bool_matches();
         break;
     case CameraShotSourceFilterKind::Int:
-        label += std::to_string(filter.int_match);
+        append_int_matches();
         break;
     case CameraShotSourceFilterKind::Float:
-        label += std::to_string(filter.float_match);
+        append_float_matches();
         break;
     case CameraShotSourceFilterKind::SymbolAny:
         if (filter.symbol_matches.size() == 1) {
@@ -16647,7 +16740,7 @@ std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
         }
         break;
     case CameraShotSourceFilterKind::FlagsAny:
-        label += filter.bool_match ? "TRUE" : "FALSE";
+        append_bool(filter.bool_match);
         label += " ";
         append_source_hex_mask(filter.mask);
         break;

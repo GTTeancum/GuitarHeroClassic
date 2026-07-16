@@ -13201,8 +13201,27 @@ int main() {
                  "CameraShotSourceFilterKind::Int",
                  "regular camera filters can mirror scalar DataNode property comparisons");
   ok &= contains(gameplay_c,
+                 "std::vector<bool>bool_matches;",
+                 "regular camera filters can carry source DataArray bool matches");
+  ok &= contains(gameplay_c,
+                 "std::vector<int>int_matches;"
+                 "std::vector<float>float_matches;",
+                 "regular camera filters can carry source DataArray scalar matches");
+  ok &= contains(gameplay_c,
                  "CameraShotSourceFiltercamera_int_filter(std::string_viewprop,intmatch)",
                  "regular camera filters expose source-shaped integer property filters");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_bool_filter("
+                 "std::string_viewprop,std::initializer_list<bool>matches)",
+                 "regular camera filters expose source-shaped bool array match filters");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_int_filter("
+                 "std::string_viewprop,std::initializer_list<int>matches)",
+                 "regular camera filters expose source-shaped integer array match filters");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_float_filter("
+                 "std::string_viewprop,std::initializer_list<float>matches)",
+                 "regular camera filters expose source-shaped float array match filters");
   ok &= contains(gameplay_c,
                  "std::optional<int>camera_filter_int_property(",
                  "regular camera filters can evaluate integer CamShot properties");
@@ -13263,10 +13282,29 @@ int main() {
                  "returnstd::string_view(key.glow_spot_ref);",
                  "regular camera symbol filters expose decoded CamShot glow_spot object refs");
   ok &= contains(gameplay_c,
-                 "caseCameraShotSourceFilterKind::Float:{"
-                 "constautovalue=camera_filter_float_property(key,filter.prop);"
-                 "returnvalue&&*value==filter.float_match;}",
-                 "regular camera float filters mirror CameraManager DataNode equality");
+                 "std::find(filter.bool_matches.begin(),"
+                 "filter.bool_matches.end(),*value)!="
+                 "filter.bool_matches.end();",
+                 "regular camera bool filters mirror CameraManager DataArray match-any equality");
+  ok &= contains(gameplay_c,
+                 "std::find(filter.int_matches.begin(),"
+                 "filter.int_matches.end(),*value)!="
+                 "filter.int_matches.end();",
+                 "regular camera integer filters mirror CameraManager DataArray match-any equality");
+  ok &= contains(gameplay_c,
+                 "std::find(filter.float_matches.begin(),"
+                 "filter.float_matches.end(),*value)!="
+                 "filter.float_matches.end();",
+                 "regular camera float filters mirror CameraManager DataArray match-any equality");
+  ok &= contains(gameplay_c,
+                 "append_bool_matches();",
+                 "regular camera diagnostics can print source bool DataArray matches");
+  ok &= contains(gameplay_c,
+                 "append_int_matches();",
+                 "regular camera diagnostics can print source integer DataArray matches");
+  ok &= contains(gameplay_c,
+                 "append_float_matches();",
+                 "regular camera diagnostics can print source float DataArray matches");
   ok &= contains(gameplay_c,
                  "caseCameraShotSourceFilterKind::FlagsExact:",
                  "regular camera filters mirror CameraManager flags_exact semantics");
