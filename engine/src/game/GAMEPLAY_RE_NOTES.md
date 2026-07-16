@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 CamShot load hidden lifecycle proof:
+  ihatecompvir `CamShot::Load` saves `mHidden`, calls `UnHide()` before
+  reading fields when needed, runs `CacheFrames()`, then calls `DoHide()` if
+  the shot was hidden. Native regular camera diagnostics now distinguish the
+  ignored rev2-44 legacy path-frame float from that visible load lifecycle with
+  `legacy_path_frame_load=ignored`,
+  `source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden)`,
+  and `source_cache=CacheFrames_before_rehide`. This is source-audit proof only:
+  no pose math, visibility hack, FreeCam priority change, under-venue masking,
+  or dependency surface change.
 - 2026-07-16 gameplay LocalProjectXfm denominator proof:
   Normal gameplay camera projection and screen-offset math now share one
   source-shaped local-project scale helper, derived from the recovered

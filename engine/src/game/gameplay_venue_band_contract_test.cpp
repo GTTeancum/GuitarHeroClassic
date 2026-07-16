@@ -12372,6 +12372,14 @@ int main() {
                  "legacy_scanner=0",
                  "regular CamShot diagnostics prove source-shaped reader use instead of legacy pose scanners");
   ok &= contains(gameplay_c,
+                 "legacy_path_frame_load=ignored"
+                 "source_load_lifecycle=CamShot::Load(UnHide_if_hidden,"
+                 "read_fields,CacheFrames,DoHide_if_hidden)"
+                 "source_cache=CacheFrames_before_rehide",
+                 "regular CamShot diagnostics distinguish the ignored legacy path-frame float from the source load hide/cache/rehide lifecycle");
+  ok &= absent(gameplay_c, "source_load=ignored",
+               "regular CamShot diagnostics must not describe the whole source load lifecycle as ignored");
+  ok &= contains(gameplay_c,
                  "size_tcamshot_authored_target_ref_count("
                  "constGameplay::CameraKey&key){"
                  "if(!key.target_refs.empty())returnkey.target_refs.size();",
