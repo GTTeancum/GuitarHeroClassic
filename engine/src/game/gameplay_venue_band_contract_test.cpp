@@ -14271,10 +14271,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"source_gate=%ssource_multiplayer=%d\""
                  "\"did_lighter_cam_before=%d\""
-                 "\"was_off=%dcrowd_group=%s\\n\"",
+                 "\"was_off=%dcrowd_group=%s\""
+                 "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\\n\"",
                  "camera script cue diagnostics expose the source gate inputs and active WorldCrowd crowd group");
   ok &= contains(gameplay_c,
-                 "\"[world]camerascriptcue:source_msg=%ssource_action=%s\"",
+                 "\"[world]camerascriptcue:pipeline_scope=normal_gameplay_camera\""
+                 "\"priority=gameplay_camerasource_msg=%ssource_action=%s\"",
                  "camera script cue diagnostics expose the recovered source message/action");
   ok &= contains(gameplay_c,
                  "return\"crowd_lighter_was_off&&!did_lighter_cam&&"
@@ -14294,7 +14296,7 @@ int main() {
                  "return\"pick_shot(NORMAL_CAMSHOT_CATEGORIES,jump_ok)\";",
                  "band_jump diagnostics expose the source pick_shot jump route");
   ok &= contains(gameplay_c,
-                 "return\"get_shot_duration+pick_new_shot\";",
+                 "return\"force_pick_shot->get_shot_duration+pick_new_shot\";",
                  "force_pick_shot diagnostics expose the source duration refresh and normal pick");
   ok &= contains(gameplay_c,
                  "ev.text==\"[crowd_lighters_off]\"",

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay forced-cue proof priority:
+  GH2 `world_objects_worldbase.dta::force_pick_shot` refreshes
+  `[camera_bars_left]` through `get_shot_duration` and then calls
+  `pick_new_shot`; the chart `crowd_lighters_off` route reaches it through
+  `world/crowd.dta`. Native normal gameplay forced-cue diagnostics now lead
+  with `pipeline_scope=normal_gameplay_camera priority=gameplay_camera`, name
+  that full `force_pick_shot` route, and leave FreeCam status at the row tail.
+  This is proof/status ordering only; it does not change camera selection,
+  camera math, FreeCam behavior, or dependency surface.
 - 2026-07-16 gameplay `reset_camera` source state:
   GH2 `world_objects_worldbase.dta::intro_start_msg` calls `reset_camera`
   before setting `[camera_bars_left]` to six, and the shared `reset_camera`

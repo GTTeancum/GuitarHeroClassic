@@ -16426,7 +16426,7 @@ const char* camera_source_script_cue_action(std::string_view event_text) {
         return "pick_shot(LIGHTER)";
     }
     if (event_text == "[crowd_lighters_off]") {
-        return "get_shot_duration+pick_new_shot";
+        return "force_pick_shot->get_shot_duration+pick_new_shot";
     }
     if (event_text == "[sync_wag]" || event_text == "[sync_head_bang]") {
         return "pick_new_shot";
@@ -35064,12 +35064,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
                 std::fprintf(
                     stderr,
-                    "[world] camera script cue: source_msg=%s source_action=%s "
+                    "[world] camera script cue: pipeline_scope=normal_gameplay_camera "
+                    "priority=gameplay_camera source_msg=%s source_action=%s "
                     "text=%s tick=%u t=%.3f "
                     "force=%d mode=%s bars=%d excitement=%u "
                     "source_gate=%s source_multiplayer=%d "
                     "did_lighter_cam_before=%d "
-                    "was_off=%d crowd_group=%s\n",
+                    "was_off=%d crowd_group=%s "
+                    "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                     camera_source_script_cue_message(ev.text),
                     camera_source_script_cue_action(ev.text),
                     ev.text.c_str(), ev.tick, song_time_,
