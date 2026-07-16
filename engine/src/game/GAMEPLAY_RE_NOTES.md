@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay `playing_starpower` camera gate:
+  GH2 `world_objects_worldbase.dta` asks `guitarist0 playing_starpower` in two
+  normal gameplay camera paths: `downbeat` skips `check_camera_shot` while it
+  is true, and regular/solo camera filter construction appends
+  `(starpower_ok TRUE)` while it is true. Native now routes both call sites
+  through one source-named `guitarist0::playing_starpower` bridge backed by the
+  current player0 star-power state, and proof rows name that bridge beside the
+  downbeat and regular sweep state. This keeps FreeCam last, does not claim the
+  hidden performer object body is recovered, and adds no dependencies.
 - 2026-07-16 gameplay diagnostic seek camera restore after venue load:
   Mid-song diagnostic starts restore the GH2 script-visible camera latches for
   the requested song time, but loading the venue then runs the

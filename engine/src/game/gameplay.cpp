@@ -16846,6 +16846,19 @@ const char* camera_source_guitarist0_actually_walking_source() {
     return "guitarist0::actually_walking(native_deferred:CharWalk_body_unrecovered)";
 }
 
+bool camera_source_guitarist0_playing_starpower(
+    bool native_player0_star_power_active) {
+    // GH2 world_objects_worldbase.dta gates both downbeat check_camera_shot and
+    // regular/solo starpower_ok filters through {guitarist0 playing_starpower}.
+    // Native currently has a single player0 star-power state for that source
+    // object, so keep the bridge named instead of scattering star_power_.active.
+    return native_player0_star_power_active;
+}
+
+const char* camera_source_guitarist0_playing_starpower_source() {
+    return "guitarist0::playing_starpower(native_player0_star_power_active)";
+}
+
 const char* camera_source_gamecfg_mode() {
     const char* mode = env_value("GHOGX_CAMERA_GAMECFG_MODE");
     return mode && mode[0] ? mode : "quickplay";
@@ -35120,6 +35133,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (authored_gameplay_cameras_active && !in_intro_camera_window &&
             !regular_camera_keys_.empty()) {
             const uint32_t bar = camera_bar_at(chart_, song_time_);
+            const bool guitarist_starpower =
+                camera_source_guitarist0_playing_starpower(
+                    star_power_.active);
             bool camera_check_shot_due = false;
             bool source_check_camera_shot_pick_due = false;
             if (last_camera_bar_ == UINT32_MAX) {
@@ -35136,7 +35152,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         std::max(0, camera_bars_left_ -
                                         static_cast<int>(bars_elapsed));
                 }
-                camera_check_shot_due = !star_power_.active;
+                camera_check_shot_due = !guitarist_starpower;
                 source_check_camera_shot_pick_due =
                     camera_check_shot_due && camera_bars_left_ <= 0;
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
@@ -35149,9 +35165,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             : "check_camera_shot:duration_hold_no_pick";
                     std::fprintf(
                         stderr,
-                        "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
+                        "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d source_starpower_gate=%s check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
                         bar, bars_elapsed, camera_bars_left_,
-                        star_power_.active ? 1 : 0,
+                        guitarist_starpower ? 1 : 0,
+                        camera_source_guitarist0_playing_starpower_source(),
                         camera_check_shot_due ? 1 : 0,
                         duration_expired ? 1 : 0,
                         source_check_camera_shot_pick_due ? 1 : 0,
@@ -35286,7 +35303,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 const bool kGuitaristWalking =
                     camera_source_guitarist0_actually_walking();
-                const bool guitarist_starpower = star_power_.active;
                 const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
                 const int source_faceoff_players =
                     camera_faceoff_active_players_;
@@ -35366,7 +35382,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         camera_manager_next_shot_like_source();
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+                        "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d source_starpower_gate=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=BuildTransform|cam_shot_ok|cam_check_shot|CharWalk freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -35395,6 +35411,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         kGuitaristWalking ? 1 : 0,
                         camera_source_guitarist0_actually_walking_source(),
                         guitarist_starpower ? 1 : 0,
+                        camera_source_guitarist0_playing_starpower_source(),
                         static_cast<unsigned int>(key->flags),
                         (force_camera || diagnostic_camera_shot_matched) ? 1
                                                                          : 0,

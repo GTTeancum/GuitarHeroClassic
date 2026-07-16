@@ -12171,7 +12171,7 @@ int main() {
                  "source_previous_context=%s"
                  "source_current=%ssource_next_before=%ssource_next_after=%s"
                  "source_walking=%dsource_walking_gate=%s"
-                 "source_starpower=%d"
+                 "source_starpower=%dsource_starpower_gate=%s"
                  "flags=0x%08xforced=%dchanged=%dsource_next=%d"
                  "force_char_lod=%d",
                  "regular camera sweep logs source matcher provenance, pending source shot state, and selected character LOD");
@@ -13165,8 +13165,21 @@ int main() {
                  "boolsource_check_camera_shot_pick_due=false;",
                  "regular camera cadence separates the source downbeat message from the check_camera_shot pick gate");
   ok &= contains(gameplay_c,
-                 "camera_check_shot_due=!star_power_.active;",
-                 "world_objects_worldbase.dta skips check_camera_shot during star mode");
+                 "boolcamera_source_guitarist0_playing_starpower("
+                 "boolnative_player0_star_power_active)",
+                 "regular camera runtime exposes the source guitarist0 playing_starpower predicate");
+  ok &= contains(gameplay_c,
+                 "return\"guitarist0::playing_starpower("
+                 "native_player0_star_power_active)\";",
+                 "regular camera diagnostics label the native player0 bridge for the source star-power gate");
+  ok &= contains(gameplay_c,
+                 "constboolguitarist_starpower="
+                 "camera_source_guitarist0_playing_starpower("
+                 "star_power_.active);",
+                 "regular camera cadence and selection share the named source star-power gate");
+  ok &= contains(gameplay_c,
+                 "camera_check_shot_due=!guitarist_starpower;",
+                 "world_objects_worldbase.dta skips check_camera_shot during guitarist0 star mode");
   ok &= contains(gameplay_c,
                  "source_check_camera_shot_pick_due="
                  "camera_check_shot_due&&camera_bars_left_<=0;",
@@ -13187,7 +13200,7 @@ int main() {
               "regular camera selection must not hide the source walking gate as an inline constant");
   ok &= contains(gameplay_c,
                  "source_walking=%dsource_walking_gate=%s"
-                 "source_starpower=%d",
+                 "source_starpower=%dsource_starpower_gate=%s",
                  "regular camera diagnostics expose walking/starpower source gate state");
   ok &= contains(gameplay_c,
                  "\"[world]cameradownbeat:source_msg=downbeat",
@@ -13196,10 +13209,11 @@ int main() {
                  "source_script=world_objects_worldbase.dta::downbeat",
                  "camera downbeat diagnostics cite the recovered source script");
   ok &= contains(gameplay_c,
+                 "source_starpower_gate=%scheck_camera_shot=%d"
                  "duration_gate=camera_bars_left<=0duration_expired=%d"
                  "pick_new_shot=%dsource_action=%s"
                  "pipeline_scope=normal_gameplay_camera",
-                 "camera downbeat diagnostics expose the source duration and pick_new_shot gates");
+                 "camera downbeat diagnostics expose the source star-power, duration, and pick_new_shot gates");
   ok &= contains(gameplay_c,
                  "\"check_camera_shot:get_shot_duration+pick_new_shot\"",
                  "camera downbeat diagnostics label the source duration-expired pick route");
