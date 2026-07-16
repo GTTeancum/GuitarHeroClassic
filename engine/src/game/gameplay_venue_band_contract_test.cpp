@@ -9622,13 +9622,27 @@ int main() {
                  "same-target LookAt keeps CamShotFrame::Interp blended position");
   ok &= contains(gameplay_c,
                  "source_same_target_distance="
-                 "distance_a+(distance_b-distance_a)*interp_t;",
+                 "source_same_target_distance_a+"
+                 "(source_same_target_distance_b-"
+                 "source_same_target_distance_a)*interp_t;",
                  "same-target CamShot interpolates source target distances before local screen offset");
   ok &= contains(gameplay_c,
                  "camera_source_screen_offset_translate_distance_result_rows("
                  "*source_build_transform_result,result_key,"
                  "source_same_target_distance,false);",
                  "same-target CamShot screen offset preserves the cached-target blended transform");
+  ok &= contains(gameplay_c,
+                 "\"same_target_direct_screen_offset=%d\""
+                 "\"same_target_distance=(a:%s%.6fb:%s%.6finterp:%s%.6f)\""
+                 "\"same_target_screen_offset=(%.6f%.6f)\"",
+                 "camera solver diagnostics expose same-target screen-offset source locals");
+  ok &= contains(gameplay_c,
+                 "\"source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,\""
+                 "\"v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x\"",
+                 "same-target screen-offset diagnostics cite the ihatecompvir local-project expression");
+  ok &= contains(gameplay_c,
+                 "\"source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum\"",
+                 "same-target screen-offset diagnostics preserve the visible CamShotFrame::Interp order");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp"
                  "(BuildTransform,applyScreenOffset)\""

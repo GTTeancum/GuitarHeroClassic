@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot same-target screen-offset proof:
+  ihatecompvir `CamShotFrame::Interp` applies the same-target local-space
+  screen-offset translation after `SameTargets` `LookAt`, using the
+  interpolated target distance and `LocalProjectXfm` scale before the final
+  zoom `SetFrustum`. Native already followed that source-shaped branch; the
+  debug row now exposes whether the direct same-target offset ran, the A/B and
+  interpolated distances, the active `screen_offset`, the source expression,
+  and the visible ordering. This is normal gameplay camera triage/proof only:
+  it does not synthesize the hidden `BuildTransform` body, promote FreeCam, or
+  add dependencies.
 - 2026-07-16 gameplay CameraManager iterate-shot category order:
   ihatecompvir `CameraManager::SyncObjects()` fills `mCameraShotCategories`
   while walking `ObjDirItr<CamShot>` and only then calls `Randomize()`;

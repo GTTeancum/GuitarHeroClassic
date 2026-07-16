@@ -21798,6 +21798,13 @@ void apply_camera_keys(
     bool result_filter_candidate_valid = false;
     bool source_build_transform_order = false;
     const char* source_visible_build_transform_pair = "none";
+    float source_same_target_distance_a =
+        std::numeric_limits<float>::quiet_NaN();
+    float source_same_target_distance_b =
+        std::numeric_limits<float>::quiet_NaN();
+    float source_same_target_distance =
+        std::numeric_limits<float>::quiet_NaN();
+    bool source_same_target_direct_screen_offset_applied = false;
     if (a_target_centroid && b_target_centroid) {
         blended_target_centroid = {
             (*a_target_centroid)[0] +
@@ -21928,24 +21935,28 @@ void apply_camera_keys(
             submitted_result = *source_build_transform_result;
             source_build_transform_order = true;
             source_visible_build_transform_pair = "current_frame_twice";
-            const float distance_a =
+            source_same_target_distance_a =
                 a_target_centroid
                     ? camera_point_distance(
                           *a_target_centroid,
                           source_build_transform_result->position)
                     : std::numeric_limits<float>::quiet_NaN();
-            const float distance_b =
+            source_same_target_distance_b =
                 b_target_centroid
                     ? camera_point_distance(
                           *b_target_centroid,
                           source_build_transform_result->position)
-                    : distance_a;
-            float source_same_target_distance = distance_a;
-            if (std::isfinite(distance_a) && std::isfinite(distance_b)) {
+                    : source_same_target_distance_a;
+            source_same_target_distance = source_same_target_distance_a;
+            if (std::isfinite(source_same_target_distance_a) &&
+                std::isfinite(source_same_target_distance_b)) {
                 source_same_target_distance =
-                    distance_a + (distance_b - distance_a) * interp_t;
-            } else if (std::isfinite(distance_b)) {
-                source_same_target_distance = distance_b;
+                    source_same_target_distance_a +
+                    (source_same_target_distance_b -
+                     source_same_target_distance_a) *
+                        interp_t;
+            } else if (std::isfinite(source_same_target_distance_b)) {
+                source_same_target_distance = source_same_target_distance_b;
             }
             // CamShotFrame::Interp disables BuildTransform screen-offset
             // filtering for SameTargets, reorients with unk34/frame.unk34,
@@ -21956,6 +21967,7 @@ void apply_camera_keys(
                     source_same_target_distance, false);
             if (source_screen_offset_translate_result) {
                 submitted_result = *source_screen_offset_translate_result;
+                source_same_target_direct_screen_offset_applied = true;
             }
         }
     } else if (!submitted_result_from_ps2_trace && !source_has_any_targets) {
@@ -23326,6 +23338,12 @@ void apply_camera_keys(
             "has_targets=a:%d b:%d "
             "target=(%.3f %.3f %.3f) filtered_target=(%.3f %.3f %.3f) "
             "candidate_valid=%d state_valid=%d state_scope=%s "
+            "same_target_direct_screen_offset=%d "
+            "same_target_distance=(a:%s%.6f b:%s%.6f interp:%s%.6f) "
+            "same_target_screen_offset=(%.6f %.6f) "
+            "source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,"
+            "v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x "
+            "source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, result_filter_branch ? 1 : 0,
@@ -23373,7 +23391,21 @@ void apply_camera_keys(
             same_targets_like_camshot
                 ? "diagnostic_candidate_same_targets"
                 : (result_builder_state ? "persistent_buildtransform"
-                                        : "stateless_buildtransform"));
+                                        : "stateless_buildtransform"),
+            source_same_target_direct_screen_offset_applied ? 1 : 0,
+            std::isfinite(source_same_target_distance_a) ? "" : "none/",
+            std::isfinite(source_same_target_distance_a)
+                ? source_same_target_distance_a
+                : 0.0f,
+            std::isfinite(source_same_target_distance_b) ? "" : "none/",
+            std::isfinite(source_same_target_distance_b)
+                ? source_same_target_distance_b
+                : 0.0f,
+            std::isfinite(source_same_target_distance) ? "" : "none/",
+            std::isfinite(source_same_target_distance)
+                ? source_same_target_distance
+                : 0.0f,
+            cam.screen_offset[0], cam.screen_offset[1]);
         std::fprintf(
             stderr,
             "[camera-solver] frame=%.2f raw_a_eye=(%.3f %.3f %.3f) "
