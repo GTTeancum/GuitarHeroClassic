@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay BandCamShot shot-over wrapper:
+  ihatecompvir gameplay cameras are `BandCamShot`s, whose
+  `CheckShotStarted()` / `CheckShotOver(float)` wrap the base `CamShot` gates
+  with the runtime `unk168` SetFrameEx guard and the `unk164` minimum-frame
+  gate before `mShotOver`, `mLooping`, and `mDuration` are considered. Native
+  normal gameplay camera diagnostics now name the `BandCamShot` wrapper and
+  expose `bandcam_setframeex_guard`, `bandcam_min_frame`,
+  `bandcam_min_frame_met`, and `bandcam_gate_clear` beside the base CamShot
+  lifetime fields. The visible source defaults keep the submitted behavior
+  unchanged for current GH2 assets; the hidden `BandCamShot::SetFrame` body
+  remains unrecovered, no one-off camera placement fix is added, FreeCam
+  remains last, and no dependencies are added.
 - 2026-07-16 gameplay same-target vertical-sign triage:
   The same-target solver row now compares the submitted screen-offset height
   against the diagnostic vertical-flip candidate height, and marks whether that

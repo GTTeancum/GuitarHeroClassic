@@ -17634,8 +17634,12 @@ double camera_source_start_time_for_local_frame(
 struct CameraSourceShotOverStatus {
     float local_frame = 0.0f;
     float duration_frames = 0.0f;
+    float bandcam_min_frame = 0.0f;
     bool mshot_over = false;
     bool looping = false;
+    bool bandcam_setframe_ex_guard = false;
+    bool bandcam_min_frame_met = true;
+    bool bandcam_gate_clear = true;
     bool duration_valid = false;
     bool local_at_duration = false;
     bool fired = false;
@@ -17653,17 +17657,28 @@ CameraSourceShotOverStatus camera_source_shot_over_status(
         camera_source_local_frame(shot, song_time, start_time, chart);
     status.mshot_over = shot_over;
     status.looping = shot.has_camshot_looping && shot.camshot_looping;
+    // ihatecompvir BandCamShot::CheckShotOver wraps CamShot::CheckShotOver
+    // with runtime SetFrameEx and chained-shot gates. Their default state is
+    // visible in source; the hidden BandCamShot::SetFrame body is still not.
+    status.bandcam_setframe_ex_guard = false;
+    status.bandcam_min_frame = 0.0f;
+    status.bandcam_min_frame_met = status.local_frame >= status.bandcam_min_frame;
+    status.bandcam_gate_clear =
+        !status.bandcam_setframe_ex_guard && status.bandcam_min_frame_met;
     status.duration_valid =
         std::isfinite(status.duration_frames) && status.duration_frames >= 0.0f;
     status.local_at_duration =
         status.duration_valid && status.local_frame >= status.duration_frames;
-    status.fired = !status.mshot_over && !status.looping &&
+    status.fired = status.bandcam_gate_clear &&
+                   !status.mshot_over && !status.looping &&
                    status.duration_valid && status.local_at_duration;
     return status;
 }
 
 const char* camera_source_shot_over_gate_label(
     const CameraSourceShotOverStatus& status) {
+    if (status.bandcam_setframe_ex_guard) return "bandcam_setframeex_guard";
+    if (!status.bandcam_min_frame_met) return "before_bandcam_min_frame";
     if (status.mshot_over) return "mShotOver_latched";
     if (status.looping) return "mLooping";
     if (!status.duration_valid) return "invalid_duration";
@@ -35824,7 +35839,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             "[world] camera shot_started dispatch: source_msg=shot_started source_script=world/camshot.dta source_action=handle(world post_switch_cam) native_handler=apply_venue_event(post_switch_cam) pose_body=not_synthesized\n");
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setpreframe_calls=%zu source_setframe_blend=%.3f\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_check=BandCamShot::CheckShotStarted source_base_check=CamShot::CheckShotStarted bandcam_setframeex_guard=0 runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setpreframe_calls=%zu source_setframe_blend=%.3f\n",
                             key->name.c_str(), source_shot_local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),
@@ -36341,10 +36356,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 shot_over_gate_report_key;
                             std::fprintf(
                                 stderr,
-                                "[world] camera shot_over gate: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_msg=shot_over source_check=CamShot::CheckShotOver shot=%s local_frame=%.3f duration_frames=%.3f mShotOver=%d mLooping=%d duration_valid=%d local_at_duration=%d result=%s source_expr=!mShotOver&&!mLooping&&frame>=mDuration report_key=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+                                "[world] camera shot_over gate: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_msg=shot_over source_check=BandCamShot::CheckShotOver source_base_check=CamShot::CheckShotOver shot=%s local_frame=%.3f duration_frames=%.3f bandcam_min_frame=%.3f bandcam_setframeex_guard=%d bandcam_min_frame_met=%d bandcam_gate_clear=%d mShotOver=%d mLooping=%d duration_valid=%d local_at_duration=%d result=%s source_expr=!unk168&&frame>=unk164&&!mShotOver&&!mLooping&&frame>=mDuration report_key=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                                 key->name.c_str(),
                                 shot_over_status.local_frame,
                                 shot_over_status.duration_frames,
+                                shot_over_status.bandcam_min_frame,
+                                shot_over_status.bandcam_setframe_ex_guard ? 1
+                                                                           : 0,
+                                shot_over_status.bandcam_min_frame_met ? 1
+                                                                       : 0,
+                                shot_over_status.bandcam_gate_clear ? 1 : 0,
                                 shot_over_status.mshot_over ? 1 : 0,
                                 shot_over_status.looping ? 1 : 0,
                                 shot_over_status.duration_valid ? 1 : 0,
