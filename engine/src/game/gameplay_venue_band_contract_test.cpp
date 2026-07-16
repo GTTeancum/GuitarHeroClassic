@@ -9732,9 +9732,9 @@ int main() {
                  "camera debug logs expose the source BuildTransform order");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
-                 "\"priority=gameplay_cameraframe=%.2f\""
+                 "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
                  "\"ps2_result_builder=0x00267008",
-                 "camera solver rows lead with gameplay camera scope before projection details");
+                 "camera solver rows lead with gameplay camera scope and source CamShot pair before projection details");
   ok &= contains(gameplay_c,
                  "\"source_no_target_current_build_twice(\"",
                  "no-target CamShots use the visible current-frame BuildTransform pair");
@@ -9753,8 +9753,14 @@ int main() {
                  "\"current_frame_twice\":\"blended_seed\"",
                  "camera debug logs name the visible current-frame BuildTransform order");
   ok &= contains(gameplay_c,
-                 "\"source_branch=%ssource_filter_scope=%s\"",
-                 "camera debug logs expose the source BuildTransform branch and filter scope");
+                 "constchar*source_pose_branch=",
+                 "camera solver computes the source BuildTransform branch once for diagnostics");
+  ok &= contains(gameplay_c,
+                 "\"source_branch=%ssource_pose_branch=%ssource_filter_scope=%s\"",
+                 "camera debug logs expose the source BuildTransform branch, stable pose-branch token, and filter scope");
+  ok &= contains(gameplay_c,
+                 "source_pose_branch,source_pose_branch,",
+                 "camera debug logs keep source_branch and source_pose_branch tied to the same source-visible branch");
   ok &= contains(gameplay_c,
                  "\"NoTargets:BuildTransform(applyScreenOffset=1)\"",
                  "camera debug logs distinguish no-target BuildTransform from non-same-target shots");
@@ -11114,12 +11120,13 @@ int main() {
                  "camera result-builder state resets on song load, diagnostic seek, and CamShot StartAnim");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
-                 "\"priority=gameplay_cameraframe=%.2f\""
+                 "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
                  "\"ps2_result_builder=0x00267008\"",
                  "camera debug logs expose the PS2 CamShot result-builder bridge");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
-                 "\"priority=gameplay_cameraframe=%.2fshot_filter_branch=%d\"",
+                 "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
+                 "\"shot_filter_branch=%d\"",
                  "camera debug logs expose shot_filter branch state");
   ok &= contains(renderer_h_c,
                  "structCameraResultFrame{boolvalid=false;std::stringsource;",

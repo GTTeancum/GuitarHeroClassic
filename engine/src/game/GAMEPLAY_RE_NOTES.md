@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay BuildTransform branch proof row:
+  A bounded gameplay probe on `stone` / `surrender` selected `singer01` and
+  stayed on the source-visible no-target branch,
+  `NoTargets:BuildTransform(applyScreenOffset=1)`, with
+  `under_venue_concern=0` for that captured slice. The solver row now prints
+  the active A/B CamShot names and a stable `source_pose_branch` token beside
+  `source_branch`, making it easier to tell whether a sketchy angle is a
+  branch/routing problem or the still-unrecovered `BuildTransform` /
+  `RndCam::UpdateLocal` body. This is proof hardening only: no camera pose
+  math, target fallback, FreeCam priority, under-venue masking, or dependency
+  surface changes.
 - 2026-07-16 gameplay target-ref proof wording:
   ihatecompvir `CamShotFrame::Load` can successfully decode the target-ref field
   while the source `mTargets` list is empty, and `HasTargets()` only returns

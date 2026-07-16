@@ -23515,7 +23515,7 @@ void apply_camera_keys(
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
-            "priority=gameplay_camera frame=%.2f "
+            "priority=gameplay_camera frame=%.2f shot=a:%s b:%s "
             "ps2_result_builder=0x00267008 "
             "screen_norm=(%.6f %.6f) a_screen_norm=(%.6f %.6f) "
             "b_screen_norm=(%.6f %.6f) raw_screen_offset=(%.6f %.6f) "
@@ -23523,7 +23523,8 @@ void apply_camera_keys(
             "legacy_path_frame=a:%s%.3f b:%s%.3f "
             "category=a:%s b:%s "
             "shot_fields=a:%d b:%d\n",
-            frame, screen_norm[0], screen_norm[1], a_screen_norm[0],
+            frame, a->name.c_str(), b->name.c_str(),
+            screen_norm[0], screen_norm[1], a_screen_norm[0],
             a_screen_norm[1], b_screen_norm[0], b_screen_norm[1],
             cam.screen_offset[0], cam.screen_offset[1], cam.near_z,
             cam.far_z, a->has_path_frame ? "" : "none/",
@@ -23573,13 +23574,20 @@ void apply_camera_keys(
                 same_target_axis_proof->vertical_flip_candidate_position[2] >=
                     -0.001f;
         }
+        const char* source_pose_branch =
+            !source_has_any_targets
+                ? "NoTargets:BuildTransform(applyScreenOffset=1)"
+                : same_targets_like_camshot
+                ? "SameTargets:BuildTransform(applyScreenOffset=0)+direct_screen_offset"
+                : "NonSameTargets:BuildTransform(applyScreenOffset=1)";
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
-            "priority=gameplay_camera frame=%.2f shot_filter_branch=%d "
+            "priority=gameplay_camera frame=%.2f shot=a:%s b:%s "
+            "shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
             "source_visible_build_pair=%s source_build_calls=%d "
-            "source_branch=%s source_filter_scope=%s "
+            "source_branch=%s source_pose_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_audit=%s "
             "buildtransform_locals=%s "
@@ -23614,17 +23622,14 @@ void apply_camera_keys(
             "same_target_vertical_flip_resolves_under_venue=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
-            frame, result_filter_branch ? 1 : 0,
+            frame, a->name.c_str(), b->name.c_str(),
+            result_filter_branch ? 1 : 0,
             source_build_transform_order ? "current_frame_twice"
                                          : "blended_seed",
             same_targets_like_camshot ? 0 : 1,
             source_visible_build_transform_pair,
             source_build_transform_order ? 2 : 0,
-            !source_has_any_targets
-                ? "NoTargets:BuildTransform(applyScreenOffset=1)"
-                : same_targets_like_camshot
-                ? "SameTargets:BuildTransform(applyScreenOffset=0)+direct_screen_offset"
-                : "NonSameTargets:BuildTransform(applyScreenOffset=1)",
+            source_pose_branch, source_pose_branch,
             !source_has_any_targets
                 ? "none_no_targets"
                 : same_targets_like_camshot
