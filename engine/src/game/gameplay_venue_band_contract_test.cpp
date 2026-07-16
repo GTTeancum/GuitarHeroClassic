@@ -13152,8 +13152,15 @@ int main() {
                  "boolcamera_check_shot_due=false;",
                  "regular camera cadence tracks the source check_camera_shot edge");
   ok &= contains(gameplay_c,
+                 "boolsource_check_camera_shot_pick_due=false;",
+                 "regular camera cadence separates the source downbeat message from the check_camera_shot pick gate");
+  ok &= contains(gameplay_c,
                  "camera_check_shot_due=!star_power_.active;",
                  "world_objects_worldbase.dta skips check_camera_shot during star mode");
+  ok &= contains(gameplay_c,
+                 "source_check_camera_shot_pick_due="
+                 "camera_check_shot_due&&camera_bars_left_<=0;",
+                 "world_objects_worldbase.dta::check_camera_shot only picks when camera_bars_left has expired");
   ok &= contains(gameplay_c,
                  "boolcamera_source_guitarist0_actually_walking(){",
                  "regular camera runtime exposes the source guitarist0 actually_walking predicate");
@@ -13182,17 +13189,17 @@ int main() {
                  "duration_gate=camera_bars_left<=0duration_expired=%d"
                  "pick_new_shot=%dsource_action=%s"
                  "pipeline_scope=normal_gameplay_camera",
-                 "camera downbeat diagnostics expose the source duration gate without suppressing pick_new_shot");
+                 "camera downbeat diagnostics expose the source duration and pick_new_shot gates");
   ok &= contains(gameplay_c,
                  "\"check_camera_shot:get_shot_duration+pick_new_shot\"",
                  "camera downbeat diagnostics label the source duration-expired pick route");
   ok &= contains(gameplay_c,
-                 "\"check_camera_shot:pick_new_shot+duration_hold\"",
-                 "camera downbeat diagnostics label the source pick route when duration is held");
+                 "\"check_camera_shot:duration_hold_no_pick\"",
+                 "camera downbeat diagnostics label the source duration-held no-pick route");
   ok &= contains(gameplay_c,
                  "if(!source_game_over_camera_hold&&"
-                 "(force_camera||camera_check_shot_due)){",
-                 "regular camera selection follows source downbeat check_camera_shot pick cadence while preserving game-over picks");
+                 "(force_camera||source_check_camera_shot_pick_due)){",
+                 "regular camera selection follows the source check_camera_shot pick gate while preserving forced picks");
   ok &= contains(gameplay_c,
                  "if(camera_bars_left_<=0){"
                  "duration_random_draw=camera_shot_counter_++;",

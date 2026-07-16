@@ -35096,10 +35096,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
             !regular_camera_keys_.empty()) {
             const uint32_t bar = camera_bar_at(chart_, song_time_);
             bool camera_check_shot_due = false;
+            bool source_check_camera_shot_pick_due = false;
             if (last_camera_bar_ == UINT32_MAX) {
                 last_camera_bar_ = bar;
                 camera_bars_left_ = 0;
                 camera_check_shot_due = active_regular_camera_.empty();
+                source_check_camera_shot_pick_due =
+                    camera_check_shot_due && camera_bars_left_ <= 0;
             } else if (bar != last_camera_bar_) {
                 const uint32_t bars_elapsed = bar - last_camera_bar_;
                 last_camera_bar_ = bar;
@@ -35109,6 +35112,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                         static_cast<int>(bars_elapsed));
                 }
                 camera_check_shot_due = !star_power_.active;
+                source_check_camera_shot_pick_due =
+                    camera_check_shot_due && camera_bars_left_ <= 0;
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                     const bool duration_expired = camera_bars_left_ <= 0;
                     const char* downbeat_source_action =
@@ -35116,7 +35121,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? "skip_star_mode"
                             : duration_expired
                             ? "check_camera_shot:get_shot_duration+pick_new_shot"
-                            : "check_camera_shot:pick_new_shot+duration_hold";
+                            : "check_camera_shot:duration_hold_no_pick";
                     std::fprintf(
                         stderr,
                         "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
@@ -35124,7 +35129,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         star_power_.active ? 1 : 0,
                         camera_check_shot_due ? 1 : 0,
                         duration_expired ? 1 : 0,
-                        camera_check_shot_due ? 1 : 0,
+                        source_check_camera_shot_pick_due ? 1 : 0,
                         downbeat_source_action);
                 }
             }
@@ -35177,7 +35182,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
 
             if (!source_game_over_camera_hold &&
-                (force_camera || camera_check_shot_due)) {
+                (force_camera || source_check_camera_shot_pick_due)) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);
