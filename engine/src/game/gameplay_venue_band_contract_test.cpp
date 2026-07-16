@@ -13186,6 +13186,11 @@ int main() {
                  "if(prop==\"far_starpower_ok\")returnkey.far_starpower_ok;",
                  "CameraManager ShotMatches can evaluate authored far_starpower_ok filters");
   ok &= contains(gameplay_c,
+                 "if(prop==\"hide_crowd\")returnkey.hide_crowd;"
+                 "if(prop==\"crowd_face_camera\")"
+                 "returnkey.crowd_face_camera;",
+                 "CameraManager ShotMatches can evaluate CamShot object bool fields");
+  ok &= contains(gameplay_c,
                  "if(prop==\"looping\")"
                  "returnkey.has_camshot_looping?key.camshot_looping:true;",
                  "CameraManager ShotMatches can evaluate looping filters with ihatecompvir default");
@@ -13380,6 +13385,14 @@ int main() {
                  "if(prop==\"path\"&&!key.path_anim.empty())"
                  "returnstd::string_view(key.path_anim);",
                  "regular camera symbol filters expose decoded CamShot path object refs");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"next_shot\"&&!key.next_shot_ref.empty())"
+                 "returnstd::string_view(key.next_shot_ref);",
+                 "regular camera symbol filters expose decoded CamShot next_shot object refs");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"postprocess\"&&!key.postprocess_ref.empty())"
+                 "returnstd::string_view(key.postprocess_ref);",
+                 "regular camera symbol filters expose decoded CamShot postprocess object refs");
   ok &= contains(gameplay_c,
                  "if(prop==\"glow_spot\"&&!key.glow_spot_ref.empty())"
                  "returnstd::string_view(key.glow_spot_ref);",

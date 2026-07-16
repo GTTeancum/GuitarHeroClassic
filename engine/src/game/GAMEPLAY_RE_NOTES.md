@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches object-field filters:
+  ihatecompvir `CameraManager::ShotMatches` evaluates ordinary filter props
+  through `shot->Property(..., true)->Evaluate()`, and `Hmx::Object::Property`
+  falls back from class PropSync to object/type properties. Native already
+  decodes GH2 CamShot object fields such as `hide_crowd`,
+  `crowd_face_camera`, `next_shot`, and `postprocess`; source-shaped
+  `ShotMatches` filters now expose those decoded values. This is selector
+  parity only; it does not change StartShot postprocess lifecycle, crowd
+  rendering, camera pose math, FreeCam priority, under-venue handling, or
+  dependencies.
 - 2026-07-16 CameraManager ShotMatches CamShotCrowd paths:
   ihatecompvir `CamShot` property sync exposes `crowds`, and
   `CamShotCrowd` property sync exposes `crowd` / `crowd_rotate`. Native now

@@ -16553,6 +16553,8 @@ std::optional<bool> camera_filter_bool_property(
     if (prop == "starpower_ok") return key.starpower_ok;
     if (prop == "far_starpower_ok") return key.far_starpower_ok;
     if (prop == "low_excitement_ok") return key.low_excitement_ok;
+    if (prop == "hide_crowd") return key.hide_crowd;
+    if (prop == "crowd_face_camera") return key.crowd_face_camera;
     if (prop == "looping")
         return key.has_camshot_looping ? key.camshot_looping : true;
     if (prop == "use_depth_of_field") {
@@ -16658,6 +16660,10 @@ std::optional<std::string_view> camera_filter_symbol_property(
     if (prop == "distance") return std::string_view(key.distance);
     if (prop == "facing") return std::string_view(key.facing);
     if (prop == "category") return std::string_view(key.category);
+    if (prop == "next_shot" && !key.next_shot_ref.empty())
+        return std::string_view(key.next_shot_ref);
+    if (prop == "postprocess" && !key.postprocess_ref.empty())
+        return std::string_view(key.postprocess_ref);
     if (prop == "path" && !key.path_anim.empty())
         return std::string_view(key.path_anim);
     if (prop == "glow_spot" && !key.glow_spot_ref.empty())
