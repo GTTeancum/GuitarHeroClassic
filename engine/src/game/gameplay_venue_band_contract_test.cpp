@@ -12110,12 +12110,19 @@ int main() {
                  "for(constauto&raw_ref:key.show_list_refs){",
                  "camera visibility applies authored CamShot show_list refs");
   ok &= contains(gameplay_c,
-                 "for(constauto&mesh:next_shown)next_hidden.erase(mesh);",
-                 "camera show_list subtracts from camera-hidden venue meshes");
+                 "for(constauto&raw_ref:key.show_list_refs){"
+                 "collect_camera_visibility_ref(raw_ref,true);}",
+                 "camera show_list follows ihatecompvir DoHide by entering the hidden/restored vector");
+  ok &= absent(gameplay_c,
+               "for(constauto&raw_ref:key.show_list_refs){"
+               "collect_camera_visibility_ref(raw_ref,false);}",
+               "camera show_list must not be treated as a native force-visible override");
+  ok &= contains(gameplay_c, "show_list_source_hidden=1",
+                 "camera visibility diagnostics expose source-hidden show_list semantics");
   ok &= contains(gameplay_c, "source_visibility=CamShot::DoHide/UnHide",
                  "camera visibility diagnostics expose ihatecompvir CamShot DoHide/UnHide lifecycle");
   ok &= contains(gameplay_c,
-                 "source_vectors=hide_list:unk5c,show_list:unk6c,",
+                 "source_vectors=hide_list:unk5c,show_list:unk6c(hidden),",
                  "camera visibility diagnostics name ihatecompvir hide/show vectors");
   ok &= contains(gameplay_c,
                  "gen_hide_list:unk64source_hidden_restore=unkbc",
@@ -12227,11 +12234,11 @@ int main() {
                  "camera visibility also tracks hidden meshes for separate RndDir proxy renderers");
   ok &= contains(gameplay_h_c,
                  "std::unordered_set<std::string>venue_camera_shown_meshes_;",
-                 "camera visibility tracks source show_list meshes separately");
+                 "camera visibility keeps a native force-visible override bucket separate from source show_list hiding");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::unordered_set<std::string>>"
                  "venue_camera_shown_proxy_meshes_;",
-                 "camera visibility also tracks source show_list proxy meshes");
+                 "camera visibility keeps proxy force-visible overrides separate from source show_list hiding");
   ok &= contains(gameplay_c,
                  "boolnext_hide_crowd=key.hide_crowd;",
                  "camera visibility tracks authored hide_crowd for skinned WorldCrowd actors");

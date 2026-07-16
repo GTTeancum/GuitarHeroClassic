@@ -24543,8 +24543,10 @@ void Gameplay::apply_camera_crowd_visibility(
     for (const auto& raw_ref : key.gen_hide_list_refs) {
         collect_camera_visibility_ref(raw_ref, true);
     }
+    // ihatecompvir CamShot::DoHide hides both unk5c and unk6c; the editor
+    // calls unk6c show_list, but runtime restores it through UnHide.
     for (const auto& raw_ref : key.show_list_refs) {
-        collect_camera_visibility_ref(raw_ref, false);
+        collect_camera_visibility_ref(raw_ref, true);
     }
     for (const auto& mesh : next_shown) next_hidden.erase(mesh);
     for (const auto& [object_name, shown_meshes] : next_shown_proxy_meshes) {
@@ -24594,12 +24596,13 @@ void Gameplay::apply_camera_crowd_visibility(
                      "hide_list=%zu gen_hide=%zu show_list=%zu meshes=%zu "
                      "shown_meshes=%zu proxy_objects=%zu proxy_meshes=%zu "
                      "shown_proxy_objects=%zu shown_proxy_meshes=%zu "
+                     "show_list_source_hidden=1 "
                      "actor_hide=%d face_camera=%d face_meshes=%zu "
                      "script_crowd_update_skipped=%d "
                      "crowd_select=%d crowd_ref=%s crowd_pairs=%zu "
                      "draw_overrides=%zu postproc=%zu anims=%zu glow=%s "
                      "source_visibility=CamShot::DoHide/UnHide "
-                     "source_vectors=hide_list:unk5c,show_list:unk6c,"
+                     "source_vectors=hide_list:unk5c,show_list:unk6c(hidden),"
                      "gen_hide_list:unk64 source_hidden_restore=unkbc "
                      "source_disable_restore=unkb4\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
