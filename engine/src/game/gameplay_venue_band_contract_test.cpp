@@ -6096,15 +6096,20 @@ int main() {
                  "apply_venue_event(active,true,true);",
                  "resend_excitement force-reapplies persistent routes without clearing active state");
   ok &= contains(gameplay_c,
-                 "should_resend_excitement_=false;"
-                 "resend_active_venue_event();",
-                 "regular camera shot start consumes the resend-excitement latch");
+                 "constboolsource_should_resend_excitement="
+                 "should_resend_excitement_;",
+                 "regular camera shot start snapshots the source resend-excitement latch");
+  ok &= contains(gameplay_c,
+                 "if(source_should_resend_excitement){"
+                 "resend_active_venue_event();}"
+                 "should_resend_excitement_=false;",
+                 "regular camera shot start gates the replay and then clears the resend-excitement latch");
   ok &= contains(gameplay_c,
                  "constboolshot_changed=active_regular_camera_!=key->name;",
                  "regular camera shot change is tracked separately from shot-start effects");
   ok &= contains(
       start_camera_shot_runtime_c,
-      "if(should_resend_excitement_){",
+      "constboolsource_should_resend_excitement=should_resend_excitement_;",
       "resend-excitement latch is consumed by CamShot::StartAnim/start_shot");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_runtime_shot_;",
@@ -13684,26 +13689,38 @@ int main() {
                  "start_shot mirrors camshot.dta world set_min_lod before crowd routing");
   ok &= contains(
       start_camera_shot_runtime_c,
-      "if(should_resend_excitement_){"
-      "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
+      "constboolsource_should_resend_excitement="
+      "should_resend_excitement_;"
+      "if(debug_venue_filters_enabled()||debug_camera_enabled()){"
+      "std::fprintf(stderr,"
       "\"[world]camerastart_shotresend_excitement:"
-      "source_msg=world_resend_excitementsource_flag=should_resend_excitement"
-      "shot=%sevent=%s\\n\",active_camera_runtime_shot_.c_str(),"
-      "active_venue_event_.c_str());}"
-      "should_resend_excitement_=false;resend_active_venue_event();}",
-      "start_shot invokes the gated world_objects_worldbase.dta resend_excitement handler");
+      "source_msg=world_resend_excitement"
+      "source_script=world_objects_worldbase.dta::resend_excitement"
+      "source_call=alwayshandler_gate=should_resend_excitement"
+      "gate=%dshot=%sevent=%saction=%s\\n\","
+      "source_should_resend_excitement?1:0,"
+      "active_camera_runtime_shot_.c_str(),active_venue_event_.c_str(),"
+      "source_should_resend_excitement?\"replay_active_event\":"
+      "\"clear_latch_only\");}",
+      "start_shot always invokes the world_objects_worldbase.dta resend_excitement handler route");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "if(source_should_resend_excitement){"
+                 "resend_active_venue_event();}"
+                 "should_resend_excitement_=false;",
+                 "start_shot gates resend_excitement replay and then clears the source latch");
   ok &= appears_before(
       start_camera_shot_runtime_c, "active_force_char_lod_=key.force_char_lod;",
-      "if(should_resend_excitement_){",
+      "constboolsource_should_resend_excitement=should_resend_excitement_;",
       "camshot.dta handles world set_min_lod before world resend_excitement");
   ok &= appears_before(
-      start_camera_shot_runtime_c, "if(should_resend_excitement_){",
+      start_camera_shot_runtime_c,
+      "constboolsource_should_resend_excitement=should_resend_excitement_;",
       "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
       "camshot.dta resend_excitement runs before crowd_update/crowd_rotate");
   ok &= absent(gameplay_c,
-               "if(should_resend_excitement_){"
-               "should_resend_excitement_=false;"
+               "if(source_should_resend_excitement){"
                "resend_active_venue_event();}"
+               "should_resend_excitement_=false;"
                "}}}constboolsource_restarted_shot=",
                "regular camera selection must not consume resend_excitement before CamShot::StartAnim");
   ok &= contains(

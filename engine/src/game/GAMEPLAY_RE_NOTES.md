@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay `start_shot` resend-excitement route:
+  GH2 `world/camshot.dta::start_shot` always sends
+  `world resend_excitement` after `world set_min_lod` and before the
+  crowd-update/rotate gate; `world_objects_worldbase.dta::resend_excitement`
+  gates the actual event replay on `[should_resend_excitement]` and then
+  clears that latch. Native normal gameplay now mirrors that route explicitly:
+  every CamShot start enters the source handler path, only a true latch
+  replays the active venue event, and the latch is cleared afterward. This is
+  normal gameplay camera script parity only; it does not touch FreeCam, camera
+  pose math, or dependencies.
 - 2026-07-16 gameplay forced-cue proof priority:
   GH2 `world_objects_worldbase.dta::force_pick_shot` refreshes
   `[camera_bars_left]` through `get_shot_duration` and then calls

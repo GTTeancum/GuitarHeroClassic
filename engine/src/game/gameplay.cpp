@@ -25907,17 +25907,20 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             "[world] camera start_shot set_min_lod: source_msg=world_set_min_lod shot=%s force_char_lod=%d\n",
             active_camera_runtime_shot_.c_str(), active_force_char_lod_);
     }
-    if (should_resend_excitement_) {
-        if (debug_venue_filters_enabled()) {
-            std::fprintf(
-                stderr,
-                "[world] camera start_shot resend_excitement: source_msg=world_resend_excitement source_flag=should_resend_excitement shot=%s event=%s\n",
-                active_camera_runtime_shot_.c_str(),
-                active_venue_event_.c_str());
-        }
-        should_resend_excitement_ = false;
+    const bool source_should_resend_excitement = should_resend_excitement_;
+    if (debug_venue_filters_enabled() || debug_camera_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera start_shot resend_excitement: source_msg=world_resend_excitement source_script=world_objects_worldbase.dta::resend_excitement source_call=always handler_gate=should_resend_excitement gate=%d shot=%s event=%s action=%s\n",
+            source_should_resend_excitement ? 1 : 0,
+            active_camera_runtime_shot_.c_str(), active_venue_event_.c_str(),
+            source_should_resend_excitement ? "replay_active_event"
+                                            : "clear_latch_only");
+    }
+    if (source_should_resend_excitement) {
         resend_active_venue_event();
     }
+    should_resend_excitement_ = false;
     apply_camera_crowd_visibility(key, skip_script_crowd_update);
     const bool has_source_crowd =
         key.has_crowd_selection || !key.crowd_selection_ref.empty() ||
