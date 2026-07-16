@@ -863,7 +863,8 @@ class Gameplay {
   void clear_pending_regular_camera_after_start_like_source();
   void start_camera_shot_runtime(const CameraKey& key,
                                  bool source_restart = false);
-  void end_camera_shot_runtime(bool skip_script_crowd_update = false);
+  void end_camera_shot_runtime(bool skip_script_crowd_update = false,
+                               bool source_no_current_teardown = true);
   void reset_world_camera_script_state_like_source(const char* source_caller);
   void restore_camera_script_state_for_diagnostic_seek_like_source(
       const char* source_caller);

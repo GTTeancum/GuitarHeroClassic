@@ -6143,7 +6143,8 @@ int main() {
                  "camera-linked anim filters can live until CamShot EndAnim");
   ok &= contains(gameplay_c,
                  "voidGameplay::end_camera_shot_runtime("
-                 "boolskip_script_crowd_update){"
+                 "boolskip_script_crowd_update,"
+                 "boolsource_no_current_teardown){"
                  "if(active_camera_runtime_shot_.empty())return;",
                  "camera EndAnim path is explicit");
   ok &= contains(gameplay_c,
@@ -6194,6 +6195,7 @@ int main() {
       end_camera_shot_runtime_c,
       "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
+      "no_current_teardown=%d"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
       "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
       "active_glow=%s\\n\"",
@@ -6201,6 +6203,7 @@ int main() {
   ok &= appears_before(
       end_camera_shot_runtime_c,
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
+      "no_current_teardown=%d"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
       "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
       "active_glow=%s\\n\"",
@@ -6210,6 +6213,11 @@ int main() {
                  "voidstart_camera_shot_runtime(constCameraKey&key,"
                  "boolsource_restart=false);",
                  "camera StartAnim path accepts source StartShot restarts");
+  ok &= contains(gameplay_h_c,
+                 "voidend_camera_shot_runtime("
+                 "boolskip_script_crowd_update=false,"
+                 "boolsource_no_current_teardown=true);",
+                 "camera EndAnim distinguishes CamShot transitions from no-current manager teardown");
   ok &= contains(gameplay_c,
                  "voidGameplay::start_camera_shot_runtime("
                  "constCameraKey&key,boolsource_restart)",
@@ -6316,9 +6324,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "constboolskip_script_crowd_update="
                  "active_camera_skip_next_crowd_update_;"
-                 "end_camera_shot_runtime(skip_script_crowd_update);"
+                 "end_camera_shot_runtime(skip_script_crowd_update,false);"
                  "active_camera_runtime_shot_=runtime_name;",
-                 "camera StartAnim establishes the active CamShot before source payload");
+                 "camera StartAnim ends the previous CamShot without no-current manager teardown before source payload");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "active_camera_runtime_shot_=runtime_name;",
@@ -11391,8 +11399,15 @@ int main() {
                  "camera_unset_shake_like_no_current_camshot(cam);",
                  "empty camera key path clears stale source DOF and shake state");
   ok &= contains(end_camera_shot_runtime_c,
-                 "camera_unset_shake_like_no_current_camshot(world_->camera());",
-                 "camera EndAnim clears stale source shake state when no CamShot remains current");
+                 "constboolclear_no_current_shake="
+                 "source_no_current_teardown&&world_;"
+                 "if(clear_no_current_shake){"
+                 "camera_unset_shake_like_no_current_camshot(world_->camera());"
+                 "}",
+                 "camera EndAnim only clears stale source shake state for no-current manager teardown");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "end_camera_shot_runtime(skip_script_crowd_update,false);",
+                 "ordinary source StartShot_ transitions do not run the no-current shake clear");
   ok &= contains(gameplay_c,
                  "cameraEndAnimclear_shake:source_manager="
                  "CameraManager::StartShot_(0)",

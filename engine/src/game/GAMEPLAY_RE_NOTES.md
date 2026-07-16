@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot EndAnim shake teardown split:
+  ihatecompvir `CamShot::EndAnim()` restores visibility, sends `stop_shot`,
+  and ends linked `mAnims`; it does not run the no-current camera shake clear.
+  Native normal gameplay now keeps ordinary shot-to-shot EndAnim on that path
+  and leaves shake accumulator reset to the following `CamShot::StartAnim`,
+  while full `CameraManager::StartShot_(0)` / Enter-style teardown still clears
+  stale no-current shake state. This is a source lifecycle fix, not a visual
+  one-off, keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay `playing_starpower` camera gate:
   GH2 `world_objects_worldbase.dta` asks `guitarist0 playing_starpower` in two
   normal gameplay camera paths: `downbeat` skips `check_camera_shot` while it

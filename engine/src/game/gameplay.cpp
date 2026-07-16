@@ -25019,27 +25019,32 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
     }
 }
 
-void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
+void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
+                                       bool source_no_current_teardown) {
     if (active_camera_runtime_shot_.empty()) return;
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
-    if (world_) {
+    const bool clear_no_current_shake = source_no_current_teardown && world_;
+    if (clear_no_current_shake) {
         camera_unset_shake_like_no_current_camshot(world_->camera());
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1 postprocess_lifecycle=preserved_until_start_shot_reset active_postprocess=%s glow_lifecycle=preserved_until_start_shot_or_manager_clear active_glow=%s\n",
+                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1 no_current_teardown=%d postprocess_lifecycle=preserved_until_start_shot_reset active_postprocess=%s glow_lifecycle=preserved_until_start_shot_or_manager_clear active_glow=%s\n",
                      active_camera_runtime_shot_.c_str(),
+                     source_no_current_teardown ? 1 : 0,
                      active_camera_postprocess_ref_.empty()
                          ? "<none>"
                          : active_camera_postprocess_ref_.c_str(),
                      active_camera_glow_spot_ref_.empty()
                          ? "<none>"
                          : active_camera_glow_spot_ref_.c_str());
-        std::fprintf(stderr,
-                     "[world] camera EndAnim clear_shake: source_manager=CameraManager::StartShot_(0) shot=%s result=cleared\n",
-                     active_camera_runtime_shot_.c_str());
+        if (clear_no_current_shake) {
+            std::fprintf(stderr,
+                         "[world] camera EndAnim clear_shake: source_manager=CameraManager::StartShot_(0) shot=%s result=cleared\n",
+                         active_camera_runtime_shot_.c_str());
+        }
     }
     end_camera_shot_anims();
     active_camera_runtime_shot_.clear();
@@ -25930,7 +25935,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     if (!source_restart && active_camera_runtime_shot_ == runtime_name) return;
     const bool skip_script_crowd_update =
         active_camera_skip_next_crowd_update_;
-    end_camera_shot_runtime(skip_script_crowd_update);
+    end_camera_shot_runtime(skip_script_crowd_update, false);
     active_camera_runtime_shot_ = runtime_name;
     active_camera_shot_started_ = false;
     if (debug_venue_filters_enabled()) {
