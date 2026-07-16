@@ -16994,6 +16994,13 @@ std::vector<std::string> camera_source_game_won_camera_categories(
     return {"WIN"};
 }
 
+bool camera_source_game_won_outro_complete_branch(
+    const std::vector<std::string>& categories) {
+    return categories.size() == 1 &&
+           (categories.front() == "WIN_ENCORE" ||
+            categories.front() == "WIN_GAME");
+}
+
 const char* camera_source_game_won_category_source(
     bool encore_arg,
     bool win_campaign_song,
@@ -25865,7 +25872,10 @@ const Gameplay::CameraKey* Gameplay::camera_source_intro_previous_key() const {
 }
 
 bool Gameplay::queue_source_category_camera_shot(
-    std::string_view category, const char* source_message) {
+    std::string_view category,
+    const char* source_message,
+    const CameraKey** queued_key_out) {
+    if (queued_key_out) *queued_key_out = nullptr;
     const CameraKey* source_previous_fallback =
         active_regular_camera_.empty() ? camera_source_intro_previous_key()
                                        : nullptr;
@@ -25888,6 +25898,7 @@ bool Gameplay::queue_source_category_camera_shot(
         return false;
     }
     queue_regular_camera_shot(*key, "PickCameraShot");
+    if (queued_key_out) *queued_key_out = key;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -25994,11 +26005,41 @@ void Gameplay::update_source_game_over_camera_messages(
             kSourceWinCameraDelaySeconds);
     }
     bool queued = false;
+    const CameraKey* queued_game_won_key = nullptr;
     for (const auto& category : source_game_won_camera_categories_) {
-        if (queue_source_category_camera_shot(category, "game_won_msg")) {
+        if (queue_source_category_camera_shot(category, "game_won_msg",
+                                              &queued_game_won_key)) {
             queued = true;
             break;
         }
+    }
+    const bool outro_complete_branch =
+        camera_source_game_won_outro_complete_branch(
+            source_game_won_camera_categories_);
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const float outro_delay =
+            outro_complete_branch
+                ? (queued_game_won_key ? camera_source_duration_seconds(
+                                             *queued_game_won_key)
+                                       : 20.0f)
+                : 0.0f;
+        const char* duration_source =
+            !outro_complete_branch
+                ? "not_scheduled"
+                : (queued_game_won_key
+                       ? camera_source_duration_seconds_source(
+                             *queued_game_won_key)
+                       : "source_fallback_20_seconds");
+        std::fprintf(
+            stderr,
+            "[world] camera game_won_msg outro_complete: source_msg=game_won_msg source_branch=\"category==WIN_ENCORE||category==WIN_GAME\" categories=%s branch=%d shot=%s delay=%.3f duration_source=%s fallback_20s=%d result=%s\n",
+            join_log_names(source_game_won_camera_categories_).c_str(),
+            outro_complete_branch ? 1 : 0,
+            queued_game_won_key ? queued_game_won_key->name.c_str() : "",
+            outro_delay, duration_source,
+            outro_complete_branch && !queued_game_won_key ? 1 : 0,
+            outro_complete_branch ? "schedule_game_set_outro_complete"
+                                  : "no_source_task");
     }
     if (!queued && (debug_camera_enabled() || debug_venue_filters_enabled())) {
         std::fprintf(

@@ -2,6 +2,21 @@
 
 ## Venue Camera
 
+- 2026-07-16 open gameplay camera placement concern:
+  A recent normal gameplay proof screenshot showed a suspiciously low/possibly
+  under-level framing. Treat this as an unresolved gameplay camera correctness
+  concern for later source audit work; no GH2 normal camera should be
+  positioned under the level, and this should not be hidden with clamps,
+  offsets, FreeCam behavior, or one-off venue fixes.
+- 2026-07-16 gameplay `game_won_msg` outro-complete timing proof:
+  GH2 `world_objects_worldbase.dta::game_won_msg` waits
+  `WIN_CAMERA_DELAY`, performs the delayed `pick_shot`, then schedules
+  `game set_outro_complete` only when the source camera category is the single
+  symbol `WIN_ENCORE` or `WIN_GAME`. Native now exposes that branch beside the
+  delayed camera pick, using the picked CamShot's source
+  `GetDurationSeconds()` value or the script's 20-second fallback when no shot
+  is accepted. This is normal gameplay/outro CameraManager route proof; it
+  does not change camera placement math, promote FreeCam, or add dependencies.
 - 2026-07-16 gameplay lighter camera state latch:
   GH2 `world/crowd.dta::crowd_lighters_slow/fast` reaches
   `world_objects_worldbase.dta::pick_lighter_shot`, which sets

@@ -13419,7 +13419,8 @@ int main() {
                  "source category picker runs CamShot::ShotOk before accepting a WIN/LOSE shot");
   ok &= contains(gameplay_c,
                  "boolGameplay::queue_source_category_camera_shot("
-                 "std::string_viewcategory,constchar*source_message)",
+                 "std::string_viewcategory,constchar*source_message,"
+                 "constCameraKey**queued_key_out)",
                  "gameplay exposes a reusable source category camera queue");
   ok &= contains(gameplay_c,
                  "constCameraKey*key=choose_camera_key_source_category("
@@ -13466,8 +13467,23 @@ int main() {
                  "game_won_msg preserves WIN_CAMERA_DELAY before pick_shot");
   ok &= contains(gameplay_c,
                  "for(constauto&category:source_game_won_camera_categories_){"
-                 "if(queue_source_category_camera_shot(category,\"game_won_msg\")){",
+                 "if(queue_source_category_camera_shot(category,\"game_won_msg\","
+                 "&queued_game_won_key)){",
                  "world_objects_worldbase.dta::game_won_msg tries delayed pick_shot categories in source order");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_game_won_outro_complete_branch("
+                 "conststd::vector<std::string>&categories)",
+                 "game_won_msg exposes the source category==WIN_ENCORE||WIN_GAME outro-complete branch");
+  ok &= contains(gameplay_c,
+                 "categories.size()==1&&(categories.front()==\"WIN_ENCORE\"||"
+                 "categories.front()==\"WIN_GAME\")",
+                 "game_won_msg schedules source outro completion only for single WIN_ENCORE/WIN_GAME categories");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameragame_won_msgoutro_complete:"
+                 "source_msg=game_won_msgsource_branch=\\\"category==WIN_ENCORE||category==WIN_GAME\\\""
+                 "categories=%sbranch=%dshot=%sdelay=%.3fduration_source=%s"
+                 "fallback_20s=%dresult=%s\\n\"",
+                 "game_won_msg diagnostics expose the picked-shot duration or 20-second fallback branch");
   ok &= contains(gameplay_c,
                  "constboolsource_game_over_camera_hold="
                  "source_game_lost_camera_dispatched_||"
