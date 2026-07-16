@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches duration property coverage:
+  ihatecompvir exposes `duration` as `SYNC_PROP_STATIC(duration, mDuration)`,
+  and `CamShot::CacheFrames` computes `mDuration` by summing each keyframe's
+  duration plus blend. Native `ShotMatches` float filters now read `duration`
+  through the existing source duration mirror, using preserved CamShot
+  keyframes before any path-sample fallback. This is selector parity only: no
+  camera pose math, FreeCam priority, under-venue masking, or dependency
+  surface changes.
 - 2026-07-16 CameraManager ShotMatches looping default:
   ihatecompvir `CamShot::CamShot` initializes `mLooping(1)`. Native
   `ShotMatches` now uses that same fallback for the `looping` property when a

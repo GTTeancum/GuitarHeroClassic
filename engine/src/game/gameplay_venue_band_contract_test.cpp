@@ -13231,6 +13231,9 @@ int main() {
                  "key.path_frame:-1.0f;",
                  "regular camera float filters expose ihatecompvir path_frame default");
   ok &= contains(gameplay_c,
+                 "if(prop==\"duration\")returnsource_camshot_duration_frames(key);",
+                 "regular camera float filters expose ihatecompvir static duration property");
+  ok &= contains(gameplay_c,
                  "caseCameraShotSourceFilterKind::Float:{"
                  "constautovalue=camera_filter_float_property(key,filter.prop);"
                  "returnvalue&&*value==filter.float_match;}",

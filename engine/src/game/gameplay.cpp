@@ -16237,6 +16237,8 @@ const Gameplay::CameraKey* choose_regular_camera_key_by_counter(
     return &keys[counter % keys.size()];
 }
 
+float source_camshot_duration_frames(const Gameplay::CameraKey& shot);
+
 bool string_in(std::string_view value,
                std::initializer_list<std::string_view> allowed) {
     for (std::string_view s : allowed) {
@@ -16368,6 +16370,7 @@ std::optional<float> camera_filter_float_property(
         return key.has_clip_planes ? key.far_plane : 1000.0f;
     if (prop == "path_frame")
         return key.has_path_frame ? key.path_frame : -1.0f;
+    if (prop == "duration") return source_camshot_duration_frames(key);
     return std::nullopt;
 }
 
