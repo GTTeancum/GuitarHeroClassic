@@ -9506,9 +9506,22 @@ int main() {
                  "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
                  "source-shaped screen-offset translation uses the CamShot local-project aspect");
   ok &= contains(gameplay_c,
+                 "structCameraSourceScreenOffsetTranslateProof{"
+                 "floatright_offset=0.0f;floatup_offset=0.0f;",
+                 "same-target screen-offset axis proof records current source-shaped local offsets");
+  ok &= contains(gameplay_c,
+                 "std::optional<CameraSourceScreenOffsetTranslateProof>"
+                 "camera_source_screen_offset_translate_proof(",
+                 "same-target screen-offset diagnostics use a shared source-shaped proof helper");
+  ok &= contains(gameplay_c,
                  "constfloatright_offset=-key.screen_offset[0]*distance*tan_x;"
                  "constfloatup_offset=key.screen_offset[1]*distance*tan_y;",
                  "source-shaped screen-offset result moves camera position in local right/up space");
+  ok &= contains(gameplay_c,
+                 "proof.vertical_flip_candidate_position[axis]="
+                 "rows.position[axis]+proof.right_delta[axis]-"
+                 "proof.up_delta[axis];",
+                 "same-target vertical flip remains diagnostic-only until LocalProjectXfm sign is recovered");
   ok &= contains(gameplay_c,
                  "rows.screen_offset_consumed=true;",
                  "source-shaped screen-offset result marks the projection offset consumed");
@@ -9647,6 +9660,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum\"",
                  "same-target screen-offset diagnostics preserve the visible CamShotFrame::Interp order");
+  ok &= contains(gameplay_c,
+                 "\"same_target_axis_offsets=(right:%s%.6fup:%s%.6f)\""
+                 "\"same_target_axis_z_delta=(right:%s%.6fup:%s%.6ftotal:%s%.6f)\"",
+                 "same-target screen-offset diagnostics expose the current right/up axis contributions");
+  ok &= contains(gameplay_c,
+                 "\"same_target_vertical_flip_candidate=(%s%.3f%s%.3f%s%.3f)\""
+                 "\"same_target_vertical_flip_candidate_only=%d\""
+                 "\"local_project_z_sign=unrecovered\"",
+                 "same-target vertical projection sign stays a labelled diagnostic candidate");
   ok &= contains(gameplay_c,
                  "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
                  "same-target screen-offset diagnostics cite the source yRatio owner for LocalProjectXfm");

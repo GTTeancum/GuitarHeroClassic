@@ -2,6 +2,24 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot same-target axis proof:
+  ihatecompvir `CamShotFrame::Interp` exposes the same-target local offset as
+  `v1c0.x = -screenOffset.x * distance / LocalProjectXfm.m.x.x` and
+  `v1c0.z = screenOffset.y * distance / LocalProjectXfm.m.z.x`, but the
+  hidden `RndCam::UpdateLocal` body still does not prove the vertical
+  `LocalProjectXfm.m.z.x` sign. Native now logs the current right/up offsets,
+  their submitted Z contribution, and a candidate-only vertical-flip position
+  beside normal gameplay camera rows. This changes proof only: the submitted
+  camera transform is unchanged, the vertical sign remains marked
+  `unrecovered`, FreeCam stays last, and no dependencies are added.
+- 2026-07-16 gameplay camera under-venue concern:
+  Runtime proof for Big venue `flr_near_lft2x1` still places a normal gameplay
+  camera under/inside venue geometry after the source y-ratio correction. Treat
+  any normal gameplay camera resolving below or inside the venue as an open
+  correctness concern for a later source-backed fix; do not paper it over with
+  a one-off camera offset. The current suspect remains unrecovered
+  `RndCam::UpdateLocal` / `LocalProjectXfm.m.z.x` sign or hidden
+  `BuildTransform` pose math, not FreeCam.
 - 2026-07-16 gameplay CamShot LocalProjectXfm yRatio:
   ihatecompvir `Rnd::Rnd` defaults `mAspect` to `kWidescreen`, and
   `Rnd::YRatio()` returns `0.5625f` for widescreen. Because

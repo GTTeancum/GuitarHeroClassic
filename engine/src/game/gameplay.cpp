@@ -20327,12 +20327,20 @@ float camera_point_distance(const std::array<float, 3>& a,
     return std::sqrt(dist2);
 }
 
-std::optional<CameraResultRows>
-camera_source_screen_offset_translate_distance_result_rows(
+struct CameraSourceScreenOffsetTranslateProof {
+    float right_offset = 0.0f;
+    float up_offset = 0.0f;
+    std::array<float, 3> right_delta{};
+    std::array<float, 3> up_delta{};
+    std::array<float, 3> current_position{};
+    std::array<float, 3> vertical_flip_candidate_position{};
+};
+
+std::optional<CameraSourceScreenOffsetTranslateProof>
+camera_source_screen_offset_translate_proof(
     CameraResultRows rows,
     const Gameplay::CameraKey& key,
-    float distance,
-    bool target_filtered) {
+    float distance) {
     if (!key.has_screen_offset || !key.has_fov ||
         !std::isfinite(key.screen_offset[0]) ||
         !std::isfinite(key.screen_offset[1]) ||
@@ -20345,18 +20353,39 @@ camera_source_screen_offset_translate_distance_result_rows(
     const float tan_y = std::tan(key.fov * 0.5f);
     if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
     const float tan_x = tan_y * kCamShotSourceFrustumAspect;
+    camera_orthonormalize_result_rows(rows);
+    CameraSourceScreenOffsetTranslateProof proof;
+    const float right_offset = -key.screen_offset[0] * distance * tan_x;
+    const float up_offset = key.screen_offset[1] * distance * tan_y;
+    proof.right_offset = right_offset;
+    proof.up_offset = up_offset;
+    for (int axis = 0; axis < 3; ++axis) {
+        proof.right_delta[axis] = rows.right[axis] * proof.right_offset;
+        proof.up_delta[axis] = rows.up[axis] * proof.up_offset;
+        proof.current_position[axis] =
+            rows.position[axis] + proof.right_delta[axis] +
+            proof.up_delta[axis];
+        proof.vertical_flip_candidate_position[axis] =
+            rows.position[axis] + proof.right_delta[axis] -
+            proof.up_delta[axis];
+    }
+    return proof;
+}
+
+std::optional<CameraResultRows>
+camera_source_screen_offset_translate_distance_result_rows(
+    CameraResultRows rows,
+    const Gameplay::CameraKey& key,
+    float distance,
+    bool target_filtered) {
+    const auto proof =
+        camera_source_screen_offset_translate_proof(rows, key, distance);
+    if (!proof) return std::nullopt;
     rows.source += "+target_list";
     if (target_filtered) rows.source += "+shot_filter";
     rows.source += "+source_screen_offset_translate";
     camera_orthonormalize_result_rows(rows);
-    // CamShotFrame::Interp offsets tf130.v in camera local space by
-    // screen_offset * target distance / LocalProjectXfm scale.
-    const float right_offset = -key.screen_offset[0] * distance * tan_x;
-    const float up_offset = key.screen_offset[1] * distance * tan_y;
-    for (int axis = 0; axis < 3; ++axis) {
-        rows.position[axis] += rows.right[axis] * right_offset +
-                               rows.up[axis] * up_offset;
-    }
+    rows.position = proof->current_position;
     camera_orthonormalize_result_rows(rows);
     rows.screen_offset_consumed = true;
     return rows;
@@ -21808,6 +21837,8 @@ void apply_camera_keys(
         std::numeric_limits<float>::quiet_NaN();
     float source_same_target_distance =
         std::numeric_limits<float>::quiet_NaN();
+    std::optional<CameraSourceScreenOffsetTranslateProof>
+        source_same_target_screen_offset_proof;
     bool source_same_target_direct_screen_offset_applied = false;
     if (a_target_centroid && b_target_centroid) {
         blended_target_centroid = {
@@ -21965,6 +21996,10 @@ void apply_camera_keys(
             // CamShotFrame::Interp disables BuildTransform screen-offset
             // filtering for SameTargets, reorients with unk34/frame.unk34,
             // then offsets the blended transform in local space.
+            source_same_target_screen_offset_proof =
+                camera_source_screen_offset_translate_proof(
+                    *source_build_transform_result, result_key,
+                    source_same_target_distance);
             source_screen_offset_translate_result =
                 camera_source_screen_offset_translate_distance_result_rows(
                     *source_build_transform_result, result_key,
@@ -23323,6 +23358,16 @@ void apply_camera_keys(
             b->category.empty() ? "none" : b->category.c_str(),
             a->camshot_shot_fields_decoded ? 1 : 0,
             b->camshot_shot_fields_decoded ? 1 : 0);
+        const CameraSourceScreenOffsetTranslateProof*
+            same_target_axis_proof =
+                source_same_target_screen_offset_proof
+                    ? &*source_same_target_screen_offset_proof
+                    : nullptr;
+        const float same_target_axis_z_total =
+            same_target_axis_proof
+                ? same_target_axis_proof->right_delta[2] +
+                      same_target_axis_proof->up_delta[2]
+                : std::numeric_limits<float>::quiet_NaN();
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
@@ -23348,6 +23393,11 @@ void apply_camera_keys(
             "source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,"
             "v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x "
             "source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum "
+            "same_target_axis_offsets=(right:%s%.6f up:%s%.6f) "
+            "same_target_axis_z_delta=(right:%s%.6f up:%s%.6f total:%s%.6f) "
+            "same_target_vertical_flip_candidate=(%s%.3f %s%.3f %s%.3f) "
+            "same_target_vertical_flip_candidate_only=%d "
+            "local_project_z_sign=unrecovered "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, result_filter_branch ? 1 : 0,
@@ -23409,7 +23459,34 @@ void apply_camera_keys(
             std::isfinite(source_same_target_distance)
                 ? source_same_target_distance
                 : 0.0f,
-            cam.screen_offset[0], cam.screen_offset[1]);
+            cam.screen_offset[0], cam.screen_offset[1],
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->right_offset
+                                   : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->up_offset : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->right_delta[2]
+                                   : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->up_delta[2]
+                                   : 0.0f,
+            std::isfinite(same_target_axis_z_total) ? "" : "none/",
+            std::isfinite(same_target_axis_z_total) ? same_target_axis_z_total
+                                                    : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->vertical_flip_candidate_position[0]
+                : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->vertical_flip_candidate_position[1]
+                : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->vertical_flip_candidate_position[2]
+                : 0.0f,
+            same_target_axis_proof ? 1 : 0);
         std::fprintf(
             stderr,
             "[camera-solver] frame=%.2f raw_a_eye=(%.3f %.3f %.3f) "
