@@ -16549,6 +16549,12 @@ std::vector<CameraShotSourceFilter> camera_source_script_filters(
 
 std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
     std::string label = "(" + std::string(filter.prop) + " ";
+    auto append_source_hex_mask = [&label](int mask) {
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "0x%x",
+                      static_cast<unsigned int>(mask));
+        label += buf;
+    };
     switch (filter.kind) {
     case CameraShotSourceFilterKind::Bool:
         label += filter.bool_match ? "TRUE" : "FALSE";
@@ -16571,12 +16577,12 @@ std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
     case CameraShotSourceFilterKind::FlagsAny:
         label += filter.bool_match ? "TRUE" : "FALSE";
         label += " ";
-        label += std::to_string(filter.mask);
+        append_source_hex_mask(filter.mask);
         break;
     case CameraShotSourceFilterKind::FlagsExact:
         label += std::to_string(filter.int_match);
         label += " ";
-        label += std::to_string(filter.mask);
+        append_source_hex_mask(filter.mask);
         break;
     }
     label += ")";

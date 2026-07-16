@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CameraManager filter mask proof:
+  ihatecompvir `CameraManager::PickCameraShot` warnings print
+  `flags_any` / `flags_exact` filters as `(prop match 0xmask)`, appending the
+  mask in hex after the match value. Native normal gameplay camera filter
+  diagnostics now use the same hex-mask spelling for source filter labels, so
+  `BandDirector::FindNextShot` and no-acceptable-shot proofs can be compared
+  directly against source warning semantics. This changes proof text only:
+  selection logic, hidden `cam_shot_ok` / `cam_check_shot`, pose math,
+  FreeCam, and dependencies are unchanged.
 - 2026-07-16 gameplay `check_camera_shot` pick cadence correction:
   The recovered GH2 `world_objects_worldbase.dta::check_camera_shot` script
   gates only the `[camera_bars_left] = {get_shot_duration}` refresh on

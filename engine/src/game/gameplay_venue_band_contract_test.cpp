@@ -13080,6 +13080,13 @@ int main() {
                  "return(key.flags&filter.mask)==filter.int_match;",
                  "regular camera filters mirror CameraManager flags_exact result");
   ok &= contains(gameplay_c,
+                 "std::snprintf(buf,sizeof(buf),\"0x%x\","
+                 "static_cast<unsignedint>(mask));",
+                 "CameraManager filter diagnostics print flags masks like ihatecompvir PickCameraShot warnings");
+  ok &= contains(gameplay_c,
+                 "append_source_hex_mask(filter.mask);",
+                 "flags_any/flags_exact diagnostics share the source hex-mask formatter");
+  ok &= contains(gameplay_c,
                  "intcamshot_radio_flags_like_source("
                  "intflags,intset_mask,intclear_mask){"
                  "if((flags&set_mask)!=0){"
