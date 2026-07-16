@@ -11270,11 +11270,19 @@ int main() {
                  "structCameraSourceDofResult",
                  "CamShot DOF support records source A/B focus distances");
   ok &= contains(gameplay_c,
+                 "boolhas_interpolated_distance=false;"
+                 "floatinterpolated_distance=0.0f;",
+                 "CamShot DOF support records the visible-but-unused interpolated source distance");
+  ok &= contains(gameplay_c,
                  "result.active=use_depth_of_field&&(a_point||b_point);",
                  "CamShot DOF activates only when the source shot flag and focus/target are present");
   ok &= contains(gameplay_c,
                  "booluse_depth_of_field=false;",
                  "decoded CamShot default mirrors ihatecompvir mUseDepthOfField constructor state");
+  ok &= contains(gameplay_c,
+                 "result.interpolated_distance="
+                 "result.a_distance+(result.b_distance-result.a_distance)*t;",
+                 "CamShot DOF proof computes the source interp9 distance without using it as the submitted focus");
   ok &= contains(gameplay_c,
                  "result.focus_distance=result.b_distance*"
                  "(1.0f+focus_blur_multiplier);",
@@ -11310,7 +11318,8 @@ int main() {
       "camera EndAnim must not clear native DOF; ihatecompvir EndAnim only restores visibility, sends stop_shot, and ends mAnims");
   ok &= contains(gameplay_c,
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f"
-                 "source_dof=(a:%s%.3fb:%s%.3fselected=%scamera=pre_setframe_blend)",
+                 "source_dof=(a:%s%.3fb:%s%.3finterp:%s%.3fselected=%s"
+                 "camera=pre_setframe_blendsource_set=d9*(1+focus_blur_multiplier))",
                  "camera diagnostics distinguish active source DOF from decoded blur fields");
   ok &= contains(gameplay_c,
                  "source_dof_branch=(a:%sb:%ssource_gate=focus_target_before_target)",

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot DOF interp proof:
+  ihatecompvir `CamShotFrame::Interp` computes
+  `interp9 = Interp(d10, d9, d11)` in the DOF branch, but the visible
+  `DOFProc::Set` call submits `d9 * (1 + mFocusBlurMultiplier)` rather than
+  that interpolated value. Native normal gameplay camera diagnostics now carry
+  both the A/B source distances and the unused interpolated distance, while the
+  submitted focus value remains the source `d9` formula. This is DOF pipeline
+  proof only; it does not synthesize hidden `BuildTransform`/`SetPos` angle
+  math, promote FreeCam, or add dependencies.
 - 2026-07-16 gameplay CamShot base frustum order:
   ihatecompvir `CamShotFrame::Interp` calls the base
   `RndCam::SetFrustum(... source_screen_offset_fov ...)` before

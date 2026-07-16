@@ -20954,6 +20954,8 @@ struct CameraSourceDofResult {
     bool has_b_distance = false;
     float a_distance = 0.0f;
     float b_distance = 0.0f;
+    bool has_interpolated_distance = false;
+    float interpolated_distance = 0.0f;
     float focus_distance = 0.0f;
     const char* selected_source = "none";
 };
@@ -20963,7 +20965,8 @@ CameraSourceDofResult camera_source_dof_result(
     const std::optional<std::array<float, 3>>& a_point,
     const std::optional<std::array<float, 3>>& b_point,
     const std::array<float, 3>& camera_pos,
-    float focus_blur_multiplier) {
+    float focus_blur_multiplier,
+    float source_key_blend) {
     CameraSourceDofResult result;
     result.active = use_depth_of_field && (a_point || b_point);
     if (!result.active) return result;
@@ -21006,6 +21009,18 @@ CameraSourceDofResult camera_source_dof_result(
         return result;
     }
 
+    if (result.has_a_distance) {
+        const float t =
+            std::isfinite(source_key_blend)
+                ? std::clamp(source_key_blend, 0.0f, 1.0f)
+                : 0.0f;
+        result.interpolated_distance =
+            result.a_distance + (result.b_distance - result.a_distance) * t;
+        result.has_interpolated_distance = true;
+    }
+
+    // ihatecompvir computes interp9 = Interp(d10, d9, d11), but the visible
+    // DOFProc::Set call feeds d9 scaled by the focus blur multiplier.
     result.focus_distance =
         result.b_distance * (1.0f + focus_blur_multiplier);
     result.selected_source = b_point ? "b_focus_or_target" : "a_fallback";
@@ -21899,7 +21914,7 @@ void apply_camera_keys(
     const CameraSourceDofResult source_dof = camera_source_dof_result(
         source_use_depth_of_field, a_source_dof_point.point,
         b_source_dof_point.point, source_dof_camera_pos,
-        focus_blur_multiplier);
+        focus_blur_multiplier, interp_t);
     cam.dof_blur_depth = blur_depth;
     cam.dof_max_blur = max_blur;
     cam.dof_min_blur = min_blur;
@@ -23124,7 +23139,7 @@ void apply_camera_keys(
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
             "up=(%.3f %.3f %.3f) fov=%.3f screen_fov=%.3f clip=(%.3f %.3f) "
             "zoom_fov=%s%.3f screen_offset=(%.6f %.6f) "
-            "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f source_dof=(a:%s%.3f b:%s%.3f selected=%s camera=pre_setframe_blend) "
+            "dof=%d dof_fields=%d use_dof=%d focus_dist=%.3f source_dof=(a:%s%.3f b:%s%.3f interp:%s%.3f selected=%s camera=pre_setframe_blend source_set=d9*(1+focus_blur_multiplier)) "
             "source_dof_branch=(a:%s b:%s source_gate=focus_target_before_target) "
             "blur=(%.3f %.3f %.3f %.3f) "
             "shake=%d(%.3f %.3f %.3f %.3f) shake_runtime=%d "
@@ -23151,6 +23166,10 @@ void apply_camera_keys(
             source_dof.has_a_distance ? source_dof.a_distance : 0.0f,
             source_dof.has_b_distance ? "" : "none/",
             source_dof.has_b_distance ? source_dof.b_distance : 0.0f,
+            source_dof.has_interpolated_distance ? "" : "none/",
+            source_dof.has_interpolated_distance
+                ? source_dof.interpolated_distance
+                : 0.0f,
             source_dof.selected_source,
             a_source_dof_point.source, b_source_dof_point.source,
             blur_depth, max_blur, min_blur, focus_blur_multiplier,
