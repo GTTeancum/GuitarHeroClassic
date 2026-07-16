@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches top-level object-list paths:
+  ihatecompvir `CamShot` property sync exposes `draw_overrides`,
+  `postproc_overrides`, and `anims` as CamShot object lists, and
+  `CameraManager::ShotMatches` evaluates a `DataArray` property path through
+  `shot->Property(array, true)`. Native symbol filters can now evaluate
+  `(anims N)`, `(draw_overrides N)`, and `(postproc_overrides N)` against the
+  decoded source refs. This is normal gameplay selector parity only: it does
+  not change camera placement, FreeCam priority, or dependency surface.
 - 2026-07-16 CameraManager ShotMatches direct object paths:
   ihatecompvir `CamShotFrame::Load` reads post-0x2B `mTargets`,
   `mFocusTarget`, and `mParent` as object refs, and `CamShotFrame` property

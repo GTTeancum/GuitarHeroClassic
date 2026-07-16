@@ -16656,9 +16656,31 @@ std::string_view camera_filter_direct_object_label(
     return std::string_view(entity);
 }
 
+std::optional<std::string_view> camera_filter_symbol_list_item(
+    const std::vector<std::string>& refs,
+    std::string_view index_text) {
+    const auto index = camera_filter_prop_path_index(index_text);
+    if (!index || *index >= refs.size()) return std::nullopt;
+    return std::string_view(refs[*index]);
+}
+
 std::optional<std::string_view> camera_filter_symbol_property_path(
     const Gameplay::CameraKey& key,
     const std::vector<std::string_view>& prop_path) {
+    if (prop_path.size() == 2) {
+        if (prop_path[0] == "anims") {
+            return camera_filter_symbol_list_item(key.camera_anim_refs,
+                                                  prop_path[1]);
+        }
+        if (prop_path[0] == "draw_overrides") {
+            return camera_filter_symbol_list_item(key.draw_override_refs,
+                                                  prop_path[1]);
+        }
+        if (prop_path[0] == "postproc_overrides") {
+            return camera_filter_symbol_list_item(key.postproc_override_refs,
+                                                  prop_path[1]);
+        }
+    }
     const Gameplay::CameraKey* frame =
         camera_filter_keyframe_path_base(key, prop_path);
     if (!frame) return std::nullopt;

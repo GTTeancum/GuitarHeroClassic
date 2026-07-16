@@ -13372,6 +13372,28 @@ int main() {
                  "returnstd::string_view(entity);}",
                  "regular camera symbol property paths prefer decoded ObjPtr source labels");
   ok &= contains(gameplay_c,
+                 "std::optional<std::string_view>"
+                 "camera_filter_symbol_list_item("
+                 "conststd::vector<std::string>&refs,"
+                 "std::string_viewindex_text)",
+                 "regular camera symbol property paths can index decoded source object lists");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()==2){"
+                 "if(prop_path[0]==\"anims\"){"
+                 "returncamera_filter_symbol_list_item("
+                 "key.camera_anim_refs,prop_path[1]);}",
+                 "regular camera symbol property paths expose CamShot anim object lists");
+  ok &= contains(gameplay_c,
+                 "if(prop_path[0]==\"draw_overrides\"){"
+                 "returncamera_filter_symbol_list_item("
+                 "key.draw_override_refs,prop_path[1]);}",
+                 "regular camera symbol property paths expose CamShot draw_overrides object lists");
+  ok &= contains(gameplay_c,
+                 "if(prop_path[0]==\"postproc_overrides\"){"
+                 "returncamera_filter_symbol_list_item("
+                 "key.postproc_override_refs,prop_path[1]);}",
+                 "regular camera symbol property paths expose CamShot postproc_overrides object lists");
+  ok &= contains(gameplay_c,
                  "if(prop_path.size()==3&&prop_path[2]==\"parent\"){"
                  "returncamera_filter_direct_object_label("
                  "frame->parent_entity,frame->parent_subpart,"
