@@ -9725,6 +9725,9 @@ int main() {
                  "\"active_blocker_scope=%s\"",
                  "camera solver diagnostics lead with gameplay camera pose triage");
   ok &= contains(gameplay_c,
+                 "\"cam_shot_ok_native|cam_check_shot_native\"",
+                 "camera solver blocker labels name the unrecovered native predicates instead of the recovered ShotOk dispatcher");
+  ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\""
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0",
                  "camera solver diagnostics leave deferred FreeCam status at the end");
@@ -13795,7 +13798,8 @@ int main() {
                  "\"[world]camerashot_ok:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
-                 "hidden_gameplay_blocker=cam_shot_ok"
+                 "source_dispatch_recovered=CamShot::ShotOk"
+                 "hidden_gameplay_blocker=cam_shot_ok_native"
                  "source_msg=shot_ok"
                  "source_script=world/camshot.dta::shot_ok"
                  "source_call=CamShot::ShotOk(prev_shot)"
@@ -13820,7 +13824,7 @@ int main() {
                  "\"[world]cameracheck_shot:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
-                 "hidden_gameplay_blocker=cam_check_shot"
+                 "hidden_gameplay_blocker=cam_check_shot_native"
                  "source_msg=check_shot"
                  "source_script=world/camshot.dta::check_shot"
                  "source_caller=%ssource_script_args=none"

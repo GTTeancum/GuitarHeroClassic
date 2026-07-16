@@ -16811,7 +16811,7 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_shot_ok source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_native source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
             cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
@@ -16834,7 +16834,7 @@ bool camera_source_check_shot(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera check_shot: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_check_shot source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera check_shot: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_check_shot_native source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             source_caller ? source_caller : "", key.name.c_str(),
             camera_beat_state);
     }
@@ -16888,7 +16888,7 @@ std::string camera_hidden_gameplay_blockers(bool build_transform_active,
                                            bool charwalk_gate_active) {
     std::string blockers;
     if (build_transform_active) blockers += "BuildTransform|";
-    blockers += "cam_shot_ok|cam_check_shot";
+    blockers += "cam_shot_ok_native|cam_check_shot_native";
     if (charwalk_gate_active) blockers += "|CharWalk";
     return blockers;
 }

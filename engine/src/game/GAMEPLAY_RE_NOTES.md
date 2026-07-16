@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay ShotOk/native predicate split:
+  ihatecompvir `CamShot::ShotOk(prev_shot)` is source-visible and recovered as
+  the dispatcher that sends `shot_ok`, interprets unhandled/true returns as
+  accept, and rejects string/false returns. The hidden GH2 side is the native
+  `cam_shot_ok($this)` predicate behind `world/camshot.dta`, not the dispatcher
+  itself. Normal gameplay camera diagnostics now say
+  `source_dispatch_recovered=CamShot::ShotOk` and label blockers as
+  `cam_shot_ok_native` / `cam_check_shot_native`. This is proof/status parity
+  only: no camera selection, pose math, FreeCam priority, or dependency change.
 - 2026-07-16 gameplay LocalProjectXfm audit status:
   The audit tree gives ihatecompvir `CamShotFrame::Interp` and symbols for
   `RndCam::UpdateLocal`, but the public `Cam.cpp` body is empty and the RB2
@@ -410,8 +419,7 @@
   ihatecompvir `CamShot::ShotOk(prev_shot)` sends the GH2
   `world/camshot.dta::shot_ok` message and accepts only unhandled/true returns;
   GH2 still routes that script to native `cam_shot_ok`. Native normal gameplay
-  `shot_ok` diagnostics now name the source script/call, stamp
-  `hidden_gameplay_blocker=cam_shot_ok`, and leave
+  `shot_ok` diagnostics now name the source script/call and leave
   `freecam_priority=deferred_last freecam_affects_gameplay=0` at the end of the
   row. This is proof hardening only: it does not invent `cam_shot_ok`, change
   camera selection, touch FreeCam behavior, or add dependencies.
