@@ -2219,7 +2219,7 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     key.blend_ease = r.f32();
     key.has_timing = true;
     if (camshot_revision > 0x2d) {
-        key.blend_ease_mode = r.boolean() ? 1 : 0;
+        key.blend_ease_mode = r.i32();
     }
     key.fov = camshot_source_field_of_view(r.f32());
     key.has_fov = true;
