@@ -18126,6 +18126,8 @@ constexpr float kCamShotSourceYRatio = 0.5625f;
 constexpr float kCamShotSourceFrustumAspect = 1.0f / kCamShotSourceYRatio;
 constexpr const char* kCamShotLocalProjectSource =
     "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
+constexpr const char* kCamShotLocalProjectAuditStatus =
+    "public_Cam.cpp_empty;rb2_dump_UpdateLocal_locals_only;symbols_no_body";
 
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
@@ -23501,7 +23503,7 @@ void apply_camera_keys(
             "source_branch=%s source_filter_scope=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_locals=%s "
-            "source_projection=%s local_project_aspect=%.3f "
+            "source_projection=%s local_project_audit=%s local_project_aspect=%.3f "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "pipeline_scope=normal_gameplay_camera "
             "hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s "
@@ -23552,7 +23554,8 @@ void apply_camera_keys(
             "parent,targetPos,targetScreenPos,filter,iframe,"
             "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
             "targetDist,v",
-            kCamShotLocalProjectSource, kCamShotSourceFrustumAspect,
+            kCamShotLocalProjectSource, kCamShotLocalProjectAuditStatus,
+            kCamShotSourceFrustumAspect,
             source_pose_coverage, hidden_pose_boundary,
             active_hidden_gameplay_blockers.c_str(),
             deferred_hidden_gameplay_blockers, active_blocker_scope,

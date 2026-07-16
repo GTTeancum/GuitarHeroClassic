@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay LocalProjectXfm audit status:
+  The audit tree gives ihatecompvir `CamShotFrame::Interp` and symbols for
+  `RndCam::UpdateLocal`, but the public `Cam.cpp` body is empty and the RB2
+  dump exposes only `yRatio`, `t`, and `TheRnd` locals. Native solver rows now
+  state `local_project_audit=public_Cam.cpp_empty;rb2_dump_UpdateLocal_locals_only;symbols_no_body`
+  so the same-target vertical flip stays diagnostic-only until the missing
+  projection body or equivalent sign proof is recovered. This changes proof
+  only: no camera pose, clamp, offset, FreeCam priority, or dependency changes.
 - 2026-07-16 gameplay under-venue pose guard:
   Normal gameplay camera solver rows now label an under-venue result as
   `normal_gameplay_pose_concern=under_venue_open` and name the required source

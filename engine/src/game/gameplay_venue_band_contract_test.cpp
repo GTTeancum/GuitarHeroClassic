@@ -9564,6 +9564,10 @@ int main() {
                  "constfloatsource_desired_screen_offset_fov=cam.fov;",
                  "source-shaped screen-offset result captures the decoded pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
+                 "\"public_Cam.cpp_empty;"
+                 "rb2_dump_UpdateLocal_locals_only;symbols_no_body\"",
+                 "same-target LocalProjectXfm audit does not claim a recovered RndCam::UpdateLocal body");
+  ok &= contains(gameplay_c,
                  "result_key.fov=source_screen_offset_fov;",
                  "source-shaped screen-offset result uses CamShot pre-zoom FOV like ihatecompvir Interp");
   ok &= contains(gameplay_c,
@@ -9757,7 +9761,8 @@ int main() {
                  "\"buildtransform_body=%sbuildtransform_locals=%s\"",
                  "camera debug logs expose the audited RB2 BuildTransform boundary");
   ok &= contains(gameplay_c,
-                 "\"source_projection=%slocal_project_aspect=%.3f\"",
+                 "\"source_projection=%slocal_project_audit=%s"
+                 "local_project_aspect=%.3f\"",
                  "camera debug logs expose the audited RndCam local projection boundary");
   ok &= contains(gameplay_c,
                  "\"rb2_dump_locals_only\"",
