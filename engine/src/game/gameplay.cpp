@@ -16859,6 +16859,55 @@ int camera_source_initial_faceoff_active_players() {
     return std::clamp(env_int("GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS", 0), 0, 2);
 }
 
+struct CameraSourceActivePlayersChangeEvent {
+    double time = 0.0;
+    int players = 0;
+};
+
+std::optional<CameraSourceActivePlayersChangeEvent>
+camera_diagnostic_active_players_change_event(int fallback_players) {
+    if (!env_value("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME")) {
+        return std::nullopt;
+    }
+    CameraSourceActivePlayersChangeEvent event;
+    event.time = static_cast<double>(env_float(
+        "GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME", 0.0f));
+    event.players = std::clamp(
+        env_int("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_PLAYERS",
+                fallback_players),
+        0, 2);
+    return event;
+}
+
+struct CameraSourceActivePlayersSeekState {
+    int initial_faceoff_active_players = 0;
+    int faceoff_active_players = 0;
+    bool diagnostic_change_present = false;
+    bool diagnostic_change_applied = false;
+    double diagnostic_change_time = 0.0;
+    int diagnostic_change_players = 0;
+};
+
+CameraSourceActivePlayersSeekState camera_source_active_players_state_at(
+    double song_time) {
+    CameraSourceActivePlayersSeekState state;
+    state.initial_faceoff_active_players =
+        camera_source_initial_faceoff_active_players();
+    state.faceoff_active_players = state.initial_faceoff_active_players;
+    state.diagnostic_change_players = state.initial_faceoff_active_players;
+    const auto event = camera_diagnostic_active_players_change_event(
+        state.initial_faceoff_active_players);
+    if (!event) return state;
+    state.diagnostic_change_present = true;
+    state.diagnostic_change_time = event->time;
+    state.diagnostic_change_players = event->players;
+    if (song_time + 1e-6 >= event->time) {
+        state.faceoff_active_players = event->players;
+        state.diagnostic_change_applied = true;
+    }
+    return state;
+}
+
 bool camera_source_game_multiplayer(int source_faceoff_active_players) {
     const int diagnostic_multiplayer =
         env_int("GHOGX_CAMERA_GAME_MULTIPLAYER", -1);
@@ -25456,18 +25505,12 @@ bool Gameplay::handle_camera_active_players_changed_like_source(int players) {
 std::optional<int> Gameplay::consume_diagnostic_camera_active_players_changed(
     double song_time) {
     if (diagnostic_camera_active_players_change_applied_) return std::nullopt;
-    if (!env_value("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME")) {
-        return std::nullopt;
-    }
-    const double trigger_time =
-        static_cast<double>(env_float("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_TIME",
-                                      0.0f));
-    if (song_time + 1e-6 < trigger_time) return std::nullopt;
+    const auto event = camera_diagnostic_active_players_change_event(
+        camera_faceoff_active_players_);
+    if (!event) return std::nullopt;
+    if (song_time + 1e-6 < event->time) return std::nullopt;
     diagnostic_camera_active_players_change_applied_ = true;
-    return std::clamp(
-        env_int("GHOGX_CAMERA_ACTIVE_PLAYERS_CHANGED_PLAYERS",
-                camera_faceoff_active_players_),
-        0, 2);
+    return event->players;
 }
 
 void Gameplay::update_source_game_over_camera_messages(
@@ -30641,6 +30684,12 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
         camera_source_one_bar_to_cursor_at(chart_, song_time_);
     camera_solo_active_ =
         camera_source_one_bar_to_solo_state_at(chart_, song_time_);
+    const CameraSourceActivePlayersSeekState source_active_players_seek_state =
+        camera_source_active_players_state_at(song_time_);
+    camera_faceoff_active_players_ =
+        source_active_players_seek_state.faceoff_active_players;
+    diagnostic_camera_active_players_change_applied_ =
+        source_active_players_seek_state.diagnostic_change_applied;
     const CameraSourceLighterSeekState source_lighter_seek_state =
         camera_source_lighter_state_at(
             chart_, song_time_,
@@ -30655,6 +30704,17 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     active_worldcrowd_lighter_group_ =
         source_lighter_seek_state.lighter_group;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera diagnostic seek active_players state: source_script=world_objects_worldbase.dta::active_players_changed initial=%d change_present=%d change_time=%.3f change_players=%d applied=%d faceoff_active_players=%d source_multiplayer=%d\n",
+            source_active_players_seek_state.initial_faceoff_active_players,
+            source_active_players_seek_state.diagnostic_change_present ? 1 : 0,
+            source_active_players_seek_state.diagnostic_change_time,
+            source_active_players_seek_state.diagnostic_change_players,
+            source_active_players_seek_state.diagnostic_change_applied ? 1 : 0,
+            camera_faceoff_active_players_,
+            camera_source_game_multiplayer(camera_faceoff_active_players_) ? 1
+                                                                           : 0);
         std::fprintf(
             stderr,
             "[world] camera diagnostic seek lighter state: source_scripts=world/crowd.dta::crowd_lighters_* source_world=world_objects_worldbase.dta::pick_lighter_shot events=%zu did_lighter_cam=%d lighter=%s crowd_group=%s source_multiplayer=%d\n",

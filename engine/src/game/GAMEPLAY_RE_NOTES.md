@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay diagnostic seek active-player replay:
+  GH2 `world_objects_worldbase.dta::active_players_changed` stores
+  `[faceoff_active_players]`, sets `[camera_bars_left]` to 4, and routes to
+  `pick_new_shot`. Diagnostic seeks now restore the source-visible faceoff
+  state, and mark already-elapsed diagnostic active-player events as consumed,
+  before replaying `crowd_lighters_*` state. This keeps mid-song proof seeks
+  from using stale single-player/multiplayer filters or an incorrect
+  `pick_lighter_shot` multiplayer gate. It does not replay hidden camera pose
+  math, promote FreeCam, or add dependencies.
 - 2026-07-15 gameplay diagnostic seek lighter-state replay:
   GH2 `world/crowd.dta::crowd_lighters_slow/fast/off` mutates the local
   `[lighter]` state, and the slow/fast handlers call

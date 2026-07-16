@@ -12965,6 +12965,30 @@ int main() {
                  "\"GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS\",0),0,2);",
                  "regular camera diagnostics can seed initial source faceoff_active_players");
   ok &= contains(gameplay_c,
+                 "structCameraSourceActivePlayersSeekState{",
+                 "regular camera seek restoration carries source faceoff_active_players state");
+  ok &= contains(gameplay_c,
+                 "state.initial_faceoff_active_players="
+                 "camera_source_initial_faceoff_active_players();"
+                 "state.faceoff_active_players="
+                 "state.initial_faceoff_active_players;",
+                 "diagnostic seek active-player state starts from the source initial faceoff value");
+  ok &= contains(gameplay_c,
+                 "constautoevent="
+                 "camera_diagnostic_active_players_change_event("
+                 "state.initial_faceoff_active_players);",
+                 "diagnostic seek active-player replay uses the same source diagnostic event parser");
+  ok &= contains(gameplay_c,
+                 "if(song_time+1e-6>=event->time){"
+                 "state.faceoff_active_players=event->players;"
+                 "state.diagnostic_change_applied=true;}",
+                 "diagnostic seek active-player replay consumes elapsed source active_players_changed events");
+  ok &= contains(gameplay_c,
+                 "constautoevent="
+                 "camera_diagnostic_active_players_change_event("
+                 "camera_faceoff_active_players_);",
+                 "live active_players_changed consumption reuses the shared source event parser");
+  ok &= contains(gameplay_c,
                  "boolGameplay::handle_camera_active_players_changed_like_source("
                  "intplayers){camera_faceoff_active_players_=std::clamp("
                  "players,0,2);camera_bars_left_=4;",
@@ -13758,6 +13782,26 @@ int main() {
   ok &= contains(gameplay_c,
                  "reset_camera_manager_like_source_enter(\"diagnostic_seek\");",
                  "diagnostic seek mirrors CameraManager::Enter instead of preserving current_shot");
+  ok &= contains(gameplay_c,
+                 "constCameraSourceActivePlayersSeekState"
+                 "source_active_players_seek_state="
+                 "camera_source_active_players_state_at(song_time_);"
+                 "camera_faceoff_active_players_="
+                 "source_active_players_seek_state.faceoff_active_players;"
+                 "diagnostic_camera_active_players_change_applied_="
+                 "source_active_players_seek_state.diagnostic_change_applied;",
+                 "diagnostic seek restores source faceoff_active_players before camera selection state");
+  ok &= appears_before(gameplay_c,
+                       "camera_source_active_players_state_at(song_time_);",
+                       "constCameraSourceLighterSeekState"
+                       "source_lighter_seek_state="
+                       "camera_source_lighter_state_at(",
+                       "diagnostic seek restores active_players_changed state before replaying lighter gates");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameradiagnosticseekactive_playersstate:"
+                 "source_script=world_objects_worldbase.dta::"
+                 "active_players_changed",
+                 "diagnostic seek active-player diagnostics cite the source script");
   ok &= contains(gameplay_c,
                  "CameraSourceLighterSeekStatesource_lighter_seek_state="
                  "camera_source_lighter_state_at("
