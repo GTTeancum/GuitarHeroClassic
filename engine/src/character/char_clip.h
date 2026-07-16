@@ -996,9 +996,10 @@ struct CharClip {
   };
   // Animation MILOs carry CharBone output records beside CharClipSamples.
   // The public ihatecompvir snapshot used by this worktree does not include
-  // the full runtime pose publisher. Broad body and face output publishing stay
+  // the full runtime pose publisher. Broad body output publishing stays
   // diagnostic; the native path only bridges source-authored lower-body rows
-  // needed to avoid distal leg drift from the direct fallback.
+  // and source-authored face rows whose flow is backed by CharFaceServo::Poll
+  // -> CharClip::PoseMeshes.
   std::vector<OutputBone> output_bones;
   // Raw header channel counts are diagnostic evidence for the source-backed
   // decode boundary. `.scale`, `.rotx`, and `.roty` are consumed but not

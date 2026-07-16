@@ -18,6 +18,7 @@ REQUIRED_IMAGES = (
     "metal1_mouth_current_three_quarter_face.png",
     "metal1_mouth_faceclip_none_front.png",
     "metal1_mouth_reference_base_front.png",
+    "metal1_mouth_faceoutput_disabled_front.png",
 )
 
 
@@ -60,6 +61,9 @@ def main() -> int:
     current = read_text(proof_dir / "metal1_mouth_current_front_face.log")
     face_none = read_text(proof_dir / "metal1_mouth_faceclip_none_front.log")
     reference = read_text(proof_dir / "metal1_mouth_reference_base_front.log")
+    disabled = read_text(
+        proof_dir / "metal1_mouth_faceoutput_disabled_front.log"
+    )
 
     require(
         "[facefx-servo] stock FaceFxLipSyncServo rows=1" in current,
@@ -99,6 +103,15 @@ def main() -> int:
         "current proof does not log the fenced source publisher boundary",
     )
     require(
+        "[face-output] live=1 source_publisher=CharFaceServo::Poll/"
+        "CharClip::PoseMeshes" in current,
+        "current proof does not live-publish the source-backed face output rows",
+    )
+    require(
+        "drivenFaceOutputBones=15" in current,
+        "current proof does not drive all decoded Metal1 face output rows",
+    )
+    require(
         "[clip] 'neutral' from" not in face_none,
         "--face-clip none proof still loaded neutral face clip",
     )
@@ -110,10 +123,16 @@ def main() -> int:
         "[facefx-servo] stock FaceFxLipSyncServo rows=1" in reference,
         "reference proof does not log stock FaceFxLipSyncServo row count",
     )
+    require(
+        "[face-output] live=1 source_publisher=CharFaceServo::Poll/"
+        "CharClip::PoseMeshes" not in disabled,
+        "disabled proof unexpectedly live-published face output rows",
+    )
 
     print(
-        "metal1 mouth proof ok: images=4 source_boundary=FaceFxLipSyncServo "
-        "neutral_face_clip_logged=true face_clip_none_jaw_driven=false"
+        "metal1 mouth proof ok: images=5 source_boundary=FaceFxLipSyncServo "
+        "neutral_face_clip_logged=true face_output_live=true "
+        "face_clip_none_jaw_driven=false"
     )
     return 0
 

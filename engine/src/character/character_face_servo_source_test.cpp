@@ -1,3 +1,4 @@
+#include "character/char_clip.h"
 #include "character/char_mesh.h"
 
 #include <cmath>
@@ -331,6 +332,57 @@ int main() {
   ok &= expect_bool(result.accepted, false, "negative weight rejected");
   ok &= near(rejected.left, state.left, "negative left unchanged");
   ok &= near(rejected.right, state.right, "negative right unchanged");
+
+  ghogx::character::Character face_character;
+  face_character.dir_name = "face-output-contract";
+  ghogx::milo_scene::TransObj head;
+  head.name = "bone_head.mesh";
+  ghogx::milo_scene::TransObj jaw;
+  jaw.name = "bone_jaw.mesh";
+  jaw.parent = "bone_head.mesh";
+  ghogx::milo_scene::TransObj upper_arm;
+  upper_arm.name = "bone_R-upperArm.mesh";
+  upper_arm.parent = "bone_head.mesh";
+  face_character.bones = {head, jaw, upper_arm};
+  face_character.bind_bone_local = {head.local, jaw.local, upper_arm.local};
+
+  ghogx::character::CharClip face_output_clip;
+  face_output_clip.name = "face_output_contract";
+  face_output_clip.loaded = true;
+  face_output_clip.relative = false;
+  ghogx::character::CharClip::OutputBone jaw_output;
+  jaw_output.name = "bone_jaw.trans";
+  jaw_output.parent = "bone_head.trans";
+  ghogx::character::CharClip::OutputBone arm_output;
+  arm_output.name = "bone_R-upperArm.trans";
+  arm_output.parent = "bone_head.trans";
+  face_output_clip.output_bones = {jaw_output, arm_output};
+  ghogx::character::ClipChannel jaw_pos;
+  jaw_pos.type = ghogx::character::ClipChannel::kPos;
+  jaw_pos.bone_name = "bone_jaw.trans";
+  jaw_pos.pos[0] = 2.5f;
+  jaw_pos.pos[1] = 3.5f;
+  jaw_pos.pos[2] = 4.5f;
+  ghogx::character::ClipChannel arm_pos = jaw_pos;
+  arm_pos.bone_name = "bone_R-upperArm.trans";
+  arm_pos.pos[0] = 9.0f;
+  arm_pos.pos[1] = 8.0f;
+  arm_pos.pos[2] = 7.0f;
+  face_output_clip.frames = {{jaw_pos, arm_pos}};
+
+  ghogx::character::apply_clip_frame(face_output_clip, 0, face_character);
+  ok &= near(face_character.bones[1].local.pos[0], 2.5f,
+             "face output jaw x live-published");
+  ok &= near(face_character.bones[1].local.pos[1], 3.5f,
+             "face output jaw y live-published");
+  ok &= near(face_character.bones[1].local.pos[2], 4.5f,
+             "face output jaw z live-published");
+  ok &= near(face_character.bones[2].local.pos[0], 0.0f,
+             "broad non-face output x remains fenced");
+  ok &= near(face_character.bones[2].local.pos[1], 0.0f,
+             "broad non-face output y remains fenced");
+  ok &= near(face_character.bones[2].local.pos[2], 0.0f,
+             "broad non-face output z remains fenced");
 
   return ok ? 0 : 1;
 }

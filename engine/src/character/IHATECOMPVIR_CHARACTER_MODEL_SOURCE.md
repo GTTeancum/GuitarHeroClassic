@@ -6779,6 +6779,19 @@ Lower-body evidence audit:
   face output rows after filtering. The runtime now logs
   `[face-output] live=0 source_publisher=fenced ... missing=CharBonesMeshes::PoseMeshes`
   whenever those rows are evaluated without the missing source publisher.
+- The native viewer now has a bounded face-output bridge: only decoded face
+  output rows are selected for live writes, using ihatecompvir's
+  `CharFaceServo::Poll` -> `CharClip::PoseMeshes` call flow as the source
+  authority. Broad body output remains fenced, and a deterministic
+  `ghogx_character_face_servo_source_test` contract verifies that a
+  `bone_jaw.trans` row updates `bone_jaw.mesh` while a non-face
+  `bone_R-upperArm.trans` row remains untouched.
+- The proof set now includes `metal1_mouth_faceoutput_disabled_front.png`.
+  The enabled log shows `[face-output] live=1 source_publisher=CharFaceServo::Poll/CharClip::PoseMeshes`
+  with 15 driven face rows, while the disabled log has no live face output.
+  The visible front-frame delta is small, so this is not a full Metal1 mouth
+  sign-off; it narrows the remaining problem to why the authored face rows have
+  only a subtle visible effect on the current mouth surface.
 - This does not authorize a fabricated mouth offset or a synthetic
   `CharFaceServo` bridge. ihatecompvir's available source remains concrete for
   `CharFaceServo::Poll` and `CharClip::PoseMeshes`, while GH2 PS2 stock rows
@@ -6788,8 +6801,9 @@ Lower-body evidence audit:
 - `tools/check_metal1_mouth_proofs.py` verifies the proof images, the logged
   stock face-servo row, the authored viseme MILO reference, decoded face
   inventory, neutral face clip inventory, the source-publisher fence, the
-  neutral face clip load in the default proof, and the undriven jaw/lip rows
-  when `--face-clip none` is used.
+  bounded live face-output bridge, the disabled A/B proof, the neutral face
+  clip load in the default proof, and the undriven jaw/lip rows when
+  `--face-clip none` is used.
   gate. It passes with `root_cause=true`, `source_bridge=true`,
   `active_subjects=glam1,metal1`, `proof_artifacts=8`,
   `individual_proofs=true`, `proof_min_resolution=1280x720`,

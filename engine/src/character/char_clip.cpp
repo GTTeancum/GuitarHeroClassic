@@ -9335,6 +9335,21 @@ static bool hand_output_layer_disabled() {
 #endif
 }
 
+static bool face_output_layer_disabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool disabled =
+      _dupenv_s(&value, &len, "GHOGX_DISABLE_FACE_OUTPUT_LAYER") == 0 &&
+      value && value[0];
+  std::free(value);
+  return disabled;
+#else
+  const char* value = std::getenv("GHOGX_DISABLE_FACE_OUTPUT_LAYER");
+  return value && value[0];
+#endif
+}
+
 static bool is_hand_driver_root_key(const std::string& key) {
   return key == "bone_strum" || key == "bone_strum_hand" ||
          key == "bone_fret" || key == "bone_fret_hand";
@@ -9603,6 +9618,26 @@ static bool apply_clip_pose_output_layer(
   dump_charbone_output_map(character, nodes, by_key, node_driven,
                            force_selected_output);
 
+  if (force_selected_output && debug_face_enabled() &&
+      output_bones_have_face_output(output_bones)) {
+    size_t face_outputs = 0;
+    size_t driven_face_outputs = 0;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+      if (!output_key_is_face(nodes[i].key)) continue;
+      ++face_outputs;
+      if (node_driven[i]) ++driven_face_outputs;
+    }
+    std::fprintf(
+        stderr,
+        "[face-output] live=1 source_publisher=CharFaceServo::Poll/"
+        "CharClip::PoseMeshes outputBones=%zu faceOutputBones=%zu "
+        "drivenFaceOutputBones=%zu directChannels=%zu "
+        "source=CharFaceServo::Poll(TryScaleDown,ScaleAddIdentity,"
+        "RotateBy,PoseMeshes)\n",
+        output_bones.size(), face_outputs, driven_face_outputs,
+        direct_channels.size());
+  }
+
   if (!force_selected_output) {
     if (debug_face_enabled() && output_bones_have_face_output(output_bones)) {
       size_t face_outputs = 0;
@@ -9652,8 +9687,8 @@ static bool apply_clip_pose_output_layer(
             });
   for (const auto& update : updates) {
     auto& target = character.bones[static_cast<size_t>(update.target_index)];
-    // Only explicitly selected hand output writes this reconstructed CharBone
-    // output graph until the source runtime publisher is known.
+    // Only explicitly selected source-backed output groups write this
+    // reconstructed CharBone graph while the broad publisher remains fenced.
     target.local = update.desired_local;
   }
 
@@ -9735,6 +9770,43 @@ static void apply_lower_body_output_layer(
       debug_leg_pose_enabled()) {
     dump_leg_pose(character, "lower-output");
   }
+}
+
+static void apply_face_output_layer(
+    const std::vector<ClipChannel>& frame, float weight, Character& character,
+    bool relative,
+    const std::vector<CharClip::OutputBone>& source_output_bones) {
+  if (face_output_layer_disabled() || frame.empty() ||
+      source_output_bones.empty()) {
+    return;
+  }
+
+  std::vector<CharClip::OutputBone> face_output_bones;
+  std::unordered_set<std::string> face_keys;
+  for (const auto& out : source_output_bones) {
+    const std::string key = strip_transform_suffix(out.name);
+    if (!output_key_is_face(key)) continue;
+    if (!face_keys.insert(key).second) continue;
+    face_output_bones.push_back(out);
+  }
+  if (face_output_bones.empty()) return;
+
+  std::vector<ClipChannel> face_channels;
+  face_channels.reserve(frame.size());
+  for (const auto& ch : frame) {
+    if (face_keys.find(strip_transform_suffix(ch.bone_name)) ==
+        face_keys.end()) {
+      continue;
+    }
+    face_channels.push_back(ch);
+  }
+  if (face_channels.empty()) return;
+
+  // ihatecompvir's CharFaceServo::Poll applies face clips through
+  // CharBonesMeshes::PoseMeshes; keep this bridge strictly to decoded face
+  // rows and leave the broad CharBonesMeshes publisher fenced.
+  apply_clip_pose_output_layer(face_channels, weight, character, relative,
+                               face_output_bones, true);
 }
 
 static void apply_hand_driver_output_layers(
@@ -10091,6 +10163,8 @@ void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character)
                                    clip.relative);
     apply_lower_body_output_layer(clip.frames[(size_t)fi], 1.0f, character,
                                   clip.relative, clip.output_bones);
+    apply_face_output_layer(clip.frames[(size_t)fi], 1.0f, character,
+                            clip.relative, clip.output_bones);
   }
   dump_arm_pose(character, "clip-frame-post");
 }
@@ -10105,6 +10179,8 @@ void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
                                    clip.relative);
     apply_lower_body_output_layer(clip.frames[(size_t)fi], weight, character,
                                   clip.relative, clip.output_bones);
+    apply_face_output_layer(clip.frames[(size_t)fi], weight, character,
+                            clip.relative, clip.output_bones);
   }
   dump_arm_pose(character, "clip-frame-weighted-post");
 }
@@ -10537,6 +10613,7 @@ void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
   }
   apply_clip_pose_sampled_direct(frame, 1.0f, character, relative);
   apply_lower_body_output_layer(frame, 1.0f, character, relative, output_bones);
+  apply_face_output_layer(frame, 1.0f, character, relative, output_bones);
   apply_hand_driver_output_layers(frame, character, relative, layers);
 }
 
@@ -10906,6 +10983,8 @@ void CharClipPlayer::apply(Character& character, float weight) const {
   if (current) {
     apply_lower_body_output_layer(frame, weight, character, relative,
                                   current->output_bones);
+    apply_face_output_layer(frame, weight, character, relative,
+                            current->output_bones);
     apply_hand_driver_output_layer(frame, character, relative,
                                    current->output_bones);
   }
