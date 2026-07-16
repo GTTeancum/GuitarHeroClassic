@@ -4260,6 +4260,8 @@ void HighwayRenderer::draw_impl(double song_time,
         tail_near_y + 1.0f,
         source_fade_top_y - std::max(horizon_tail_clip_, alpha_dist_ * 0.5f));
     const bool debug_tails = env_enabled("GHOGX_DEBUG_HIGHWAY_TAILS");
+    const bool whammy_tail_deformation_enabled =
+        env_enabled("GHOGX_DEBUG_HIGHWAY_WHAMMY_TAIL_DEFORMATION");
     const std::optional<std::string> tail_layer_only =
         env_string_nonempty("GHOGX_HIGHWAY_TAIL_LAYER_ONLY");
     auto tail_layer_visible = [&](const char* source_label) {
@@ -4591,13 +4593,18 @@ void HighwayRenderer::draw_impl(double song_time,
           const bool debug_whammy_line_only =
               sustain_whammy_tail &&
               env_enabled("GHOGX_DEBUG_HIGHWAY_WHAMMY_LINE_ONLY");
+          const bool allow_whammy_source_line =
+              sustain_whammy_tail &&
+              (whammy_tail_deformation_enabled || debug_whammy_line_only);
+          const bool draw_measured_whammy_body =
+              sustain_whammy_tail && whammy_tail_deformation_enabled;
           if (!debug_whammy_line_only) {
             draw_tail_segment(lane, sustain.start_time, sustain.end_time,
                               "held_lane", lane_held_tail, held_tail,
                               tail_glow_width_,
                               D3DCOLOR_ARGB(245, 255, 255, 255),
                               true, sustain_star_tail, sustain_whammy_tail,
-                              sustain_whammy_tail);
+                              draw_measured_whammy_body);
           }
           if (!lane_held_tail && !debug_whammy_line_only) {
             draw_flat_tail_fallback(slot_lane_colors_[lane]);
@@ -4644,12 +4651,12 @@ void HighwayRenderer::draw_impl(double song_time,
           const RuntimeMesh* active_star_tail =
               star_tail_mesh_.ok ? &star_tail_mesh_ : nullptr;
           if (sustain.star_power_tail &&
-              (sustain_whammy_tail
+              (allow_whammy_source_line
                    ? whammy_tail_line_material_.ok
                    : active_star_tail != nullptr)) {
             const D3DCOLOR star_tail_color =
                 D3DCOLOR_ARGB(245, 55, 225, 255);
-            if (sustain_whammy_tail && whammy_tail_line_material_.ok) {
+            if (allow_whammy_source_line && whammy_tail_line_material_.ok) {
               draw_whammy_tail_segment(lane, sustain.start_time,
                                         sustain.end_time,
                                         &whammy_tail_line_material_,

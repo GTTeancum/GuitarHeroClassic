@@ -2029,7 +2029,7 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "constexprstd::array<TailWidthSample,19>"
                  "kPcsx2WhammyBodyWidthProfile4x3",
-                 "active whammy sustain body width is pinned to the measured PCSX2 body profile");
+                 "parked whammy sustain width trace keeps the measured PCSX2 body profile");
   ok &= contains(highway_renderer_c,
                  "constexprfloatkNativeWhammyLineResponseA4x3=-0.59653887f;",
                  "active whammy sustain compensation records the measured native line-texture response intercept");
@@ -2055,13 +2055,21 @@ int main() {
                  "animated highway child meshes inherit root X scale");
   ok &= contains(highway_renderer_c,
                  "constMat4view_proj=view*proj;",
-                 "measured whammy tail widths are solved through the active highway camera");
+                 "parked whammy tail width trace is solved through the active highway camera");
   ok &= contains(highway_renderer_c,
                  "autolocal_tail_half_for_screen_width=[&](intlane,floaty,",
-                 "whammy tail body sections convert PCSX2 screen-width data back into root-space width");
+                 "parked whammy trace can convert PCSX2 screen-width data back into root-space width");
   ok &= contains(highway_renderer_c,
                  "sample_compensated_tail_width_px_720(rel)",
-                 "whammy tail body width uses PCSX2 visible targets after measured native line-response inversion");
+                 "parked whammy trace keeps PCSX2 visible targets after measured native line-response inversion");
+  ok &= contains(highway_renderer_c,
+                 "constboolwhammy_tail_deformation_enabled="
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_WHAMMY_TAIL_DEFORMATION\");",
+                 "unverified whammy sustain deformation is diagnostic-only");
+  ok &= contains(highway_renderer_c,
+                 "constbooldraw_measured_whammy_body="
+                 "sustain_whammy_tail&&whammy_tail_deformation_enabled;",
+                 "normal whammy sustain bodies stay source-solid until PCSX2 ripple data is derived");
   ok &= contains(highway_renderer_h_c,
                  "boolone_shot=false,floatx_scale=1.0f",
                  "highway particles can inherit the root X scale instead of using ad-hoc offsets");
@@ -2909,9 +2917,9 @@ int main() {
                  "burn_normal_y_));",
                  "held FoFiX sustains choose the source track_graphics burn offset");
   ok &= contains(highway_renderer_c,
-                 "sustain_whammy_tail?whammy_tail_line_material_.ok:"
+                 "allow_whammy_source_line?whammy_tail_line_material_.ok:"
                  "active_star_tail!=nullptr",
-                 "held FoFiX star sustains select the source runtime whammy line only during active whammy");
+                 "held FoFiX star sustains select the source runtime whammy line only for diagnostic whammy deformation");
   ok &= contains(highway_renderer_c,
                  "smasher_normal_texture_name_=material_texture("
                  "\"gem_smasher.mat\");",
@@ -3165,8 +3173,8 @@ int main() {
                  "tail_glow_width_,"
                  "D3DCOLOR_ARGB(245,255,255,255),"
                  "true,sustain_star_tail,sustain_whammy_tail,"
-                 "sustain_whammy_tail);}",
-                 "active held sustains draw the authored broad lane glow mesh and report whammy-tagged star tails");
+                 "draw_measured_whammy_body);}",
+                 "active held sustains keep authored broad lane glow unless diagnostic whammy deformation is enabled");
   ok &= contains(highway_renderer_c,
                  "if(held_tight_tail_mesh_.ok&&!debug_whammy_line_only){"
                  "draw_tail_segment("
@@ -3215,7 +3223,7 @@ int main() {
                  "draw_whammy_tail_segment(lane,sustain.start_time,"
                  "sustain.end_time,&whammy_tail_line_material_,"
                  "tail_glow_width_,star_tail_color);",
-                 "active whammy star sustains use the source RndLine material without guessed width changes");
+                 "diagnostic whammy star sustains can use the source RndLine material without changing normal play");
   ok &= contains(highway_renderer_c,
                  "draw_tail_line_y(lane,y0,y1,\"held_whammy_source_line\","
                  "material,half_width,color,true,true,true,on,off,true);",

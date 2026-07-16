@@ -17,6 +17,11 @@ should only be checked against one of the supported aspect modes.
   Current hook: `GHOGX_HIGHWAY_TAIL_LAYER_ONLY=<source>` isolates labels such
   as `held_lane`, `held_tight`, `held_star`, `held_whammy_source_line`, and
   `burn` for 4:3 screenshot tracing.
+- Normal gameplay keeps the authored solid sustain body during whammy. The
+  unverified global whammy-width deformation is parked behind
+  `GHOGX_DEBUG_HIGHWAY_WHAMMY_TAIL_DEFORMATION` or
+  `GHOGX_DEBUG_HIGHWAY_WHAMMY_LINE_ONLY` until the local blob/ripple formula is
+  derived from PCSX2 trace data.
 
 ## Small Wins First
 
