@@ -13836,16 +13836,33 @@ int main() {
                  "end_camera_shot_runtime();"
                  "camera_manager_delete_free_cam_like_source("
                  "\"CameraManager::Enter\");"
-                 "pending_regular_camera_.clear();"
                  "active_regular_camera_.clear();"
                  "previous_regular_camera_.clear();",
-                 "CameraManager::Enter reset clears current and pending CamShots after EndAnim and DeleteFreeCam");
+                 "CameraManager::Enter reset clears the current CamShot after EndAnim and DeleteFreeCam");
+  ok &= absent(reset_camera_manager_like_source_enter_c,
+               "pending_regular_camera_.clear();",
+               "CameraManager::Enter must preserve source mNextShot until PrePoll clears it");
+  ok &= absent(reset_camera_manager_like_source_enter_c,
+               "pending_regular_camera_start_=0.0;",
+               "CameraManager::Enter must not wipe native pending-shot timing diagnostics before PrePoll");
+  ok &= absent(reset_camera_manager_like_source_enter_c,
+               "pending_regular_camera_local_frame_=0.0;",
+               "CameraManager::Enter must preserve pending local-frame diagnostics until PrePoll");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraEntermNextShot:"
+                 "pending_preserved=%shad_pending=%d"
+                 "source_next_clear_owner=CameraManager::PrePoll"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera\\n\"",
+                 "camera diagnostics expose source Enter mNextShot preservation before wrapped lifecycle details");
   ok &= contains(gameplay_c,
                  "\"[world]cameraEnter:source_manager=CameraManager::Enter"
                  "source_call=StartShot_(0)delete_free_cam=1"
                  "context=%scurrent=%shad_current=%dhad_pending=%d"
-                 "had_free_cam=%dresult=cleared\\n\"",
-                 "camera diagnostics expose source Enter StartShot_(0) and DeleteFreeCam reset");
+                 "pending_preserved=%shad_free_cam=%d"
+                 "result=current_cleared_next_preserved"
+                 "source_next_clear_owner=CameraManager::PrePoll\\n\"",
+                 "camera diagnostics expose source Enter preserving mNextShot until PrePoll");
   ok &= absent(reset_camera_manager_like_source_enter_c,
                "active_camera_shots_over_.clear();",
                "CameraManager::Enter must not clear source per-CamShot mShotOver latches");

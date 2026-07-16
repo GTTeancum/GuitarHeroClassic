@@ -25175,13 +25175,11 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     const bool had_pending = !pending_regular_camera_.empty();
     const bool had_free_cam = camera_manager_has_free_cam_like_source();
     const std::string previous_current = active_regular_camera_;
+    const std::string source_next_preserved = pending_regular_camera_;
     end_camera_shot_runtime();
     camera_manager_delete_free_cam_like_source("CameraManager::Enter");
-    pending_regular_camera_.clear();
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
-    pending_regular_camera_start_ = 0.0;
-    pending_regular_camera_local_frame_ = 0.0;
     active_regular_camera_start_ = 0.0;
     active_camera_anim_event_.clear();
     active_camera_anim_target_.clear();
@@ -25209,10 +25207,14 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) delete_free_cam=1 context=%s current=%s had_current=%d had_pending=%d had_free_cam=%d result=cleared\n",
+            "[world] camera Enter mNextShot: pending_preserved=%s had_pending=%d source_next_clear_owner=CameraManager::PrePoll pipeline_scope=normal_gameplay_camera priority=gameplay_camera\n",
+            source_next_preserved.c_str(), had_pending ? 1 : 0);
+        std::fprintf(
+            stderr,
+            "[world] camera Enter: source_manager=CameraManager::Enter source_call=StartShot_(0) delete_free_cam=1 context=%s current=%s had_current=%d had_pending=%d pending_preserved=%s had_free_cam=%d result=current_cleared_next_preserved source_next_clear_owner=CameraManager::PrePoll\n",
             context ? context : "unknown", previous_current.c_str(),
             had_current ? 1 : 0, had_pending ? 1 : 0,
-            had_free_cam ? 1 : 0);
+            source_next_preserved.c_str(), had_free_cam ? 1 : 0);
         std::fprintf(
             stderr,
             "[world] camera Enter clear_shake: source_manager=CameraManager::Enter result=cleared\n");

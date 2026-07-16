@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CameraManager Enter pending-shot preservation:
+  ihatecompvir `CameraManager::Enter()` calls `StartShot_(0)` and
+  `DeleteFreeCam()`, but the visible source does not clear `mNextShot`; the
+  only visible owner that clears it is `CameraManager::PrePoll()` after
+  `StartShot_(mNextShot)`. Native Enter/reset now ends the current shot while
+  preserving the pending normal gameplay CamShot bridge for PrePoll to consume.
+  This is camera manager scheduling parity only; it does not promote FreeCam
+  work, synthesize hidden pose math, or add dependencies.
 - 2026-07-16 gameplay camera proof priority:
   Normal gameplay camera proof rows now put `pipeline_scope=normal_gameplay_camera`
   and `priority=gameplay_camera` before the active selector, frame, and
@@ -1386,9 +1394,10 @@ Open work:
   `CameraManager::Enter()` calls `StartShot_(0)`, which ends the current shot
   instead of preserving it as previous-camera context. Native diagnostic seeks
   now route through a source-named `CameraManager::Enter` reset helper that
-  runs EndAnim cleanup, clears the `mCurrentShot`/`mNextShot` mirrors, and
-  resets source clock and shot-over state before the first post-seek regular
-  pick.
+  runs EndAnim cleanup, clears the `mCurrentShot` mirror, and resets source
+  clock and shot-over diagnostic state before the first post-seek regular
+  pick. A later audit corrected the pending-shot side: source Enter does not
+  clear `mNextShot`; native now leaves that pending bridge for PrePoll.
 - 2026-07-13 follow-up: the current ihatecompvir `CameraManager::PickCameraShot`
   source does not special-case "same current shot but not started"; after
   `FindCameraShot` returns a shot, the source writes `mNextShot = shot`.
