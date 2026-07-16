@@ -215,6 +215,10 @@ int main() {
   const std::string reset_camera_manager_like_source_enter_c = compact(
       function_body(gameplay,
                     "Gameplay::reset_camera_manager_like_source_enter"));
+  const std::string diagnostic_camera_seek_restore_c =
+      compact(function_body(
+          gameplay,
+          "Gameplay::restore_camera_script_state_for_diagnostic_seek_like_source"));
   const std::string consume_pending_camera_c = compact(
       function_body(gameplay, "Gameplay::consume_pending_regular_camera_shot"));
   const std::string force_camera_shot_c = compact(
@@ -13914,10 +13918,25 @@ int main() {
                  "cameraEnterclear_shake:source_manager="
                  "CameraManager::Enter",
                  "camera Enter diagnostics expose source no-current shake clear");
+  ok &= contains(gameplay_h_c,
+                 "voidrestore_camera_script_state_for_diagnostic_seek_like_source("
+                 "constchar*source_caller);",
+                 "gameplay exposes source-state restore for diagnostic camera seeks");
   ok &= contains(gameplay_c,
-                 "reset_camera_manager_like_source_enter(\"diagnostic_seek\");",
-                 "diagnostic seek mirrors CameraManager::Enter instead of preserving current_shot");
+                 "restore_camera_script_state_for_diagnostic_seek_like_source("
+                 "\"diagnostic_seek\");",
+                 "diagnostic seek uses the shared source-state restore helper");
   ok &= contains(gameplay_c,
+                 "if(song_time_>0.0){"
+                 "restore_camera_script_state_for_diagnostic_seek_like_source("
+                 "\"venue_load_after_intro_start_msg\");}",
+                 "mid-song diagnostic venue load reapplies source camera script state after intro reset");
+  ok &= contains(diagnostic_camera_seek_restore_c,
+                 "reset_camera_manager_like_source_enter("
+                 "source_caller&&source_caller[0]?source_caller:"
+                 "\"diagnostic_seek\");",
+                 "diagnostic seek restore mirrors CameraManager::Enter instead of preserving current_shot");
+  ok &= contains(diagnostic_camera_seek_restore_c,
                  "constCameraSourceActivePlayersSeekState"
                  "source_active_players_seek_state="
                  "camera_source_active_players_state_at(song_time_);"
@@ -13926,33 +13945,39 @@ int main() {
                  "diagnostic_camera_active_players_change_applied_="
                  "source_active_players_seek_state.diagnostic_change_applied;",
                  "diagnostic seek restores source faceoff_active_players before camera selection state");
-  ok &= appears_before(gameplay_c,
+  ok &= appears_before(diagnostic_camera_seek_restore_c,
                        "camera_source_active_players_state_at(song_time_);",
                        "constCameraSourceLighterSeekState"
                        "source_lighter_seek_state="
                        "camera_source_lighter_state_at(",
                        "diagnostic seek restores active_players_changed state before replaying lighter gates");
-  ok &= contains(gameplay_c,
+  ok &= contains(diagnostic_camera_seek_restore_c,
                  "\"[world]cameradiagnosticseekactive_playersstate:"
                  "source_script=world_objects_worldbase.dta::"
                  "active_players_changed",
                  "diagnostic seek active-player diagnostics cite the source script");
-  ok &= contains(gameplay_c,
+  ok &= contains(diagnostic_camera_seek_restore_c,
+                 "caller=%sinitial=%d",
+                 "diagnostic seek active-player diagnostics name the restore caller");
+  ok &= contains(diagnostic_camera_seek_restore_c,
                  "CameraSourceLighterSeekStatesource_lighter_seek_state="
                  "camera_source_lighter_state_at("
                  "chart_,song_time_,camera_source_game_multiplayer("
                  "camera_faceoff_active_players_));",
                  "diagnostic seek restores source crowd-lighter camera state from elapsed chart events");
-  ok &= contains(gameplay_c,
+  ok &= contains(diagnostic_camera_seek_restore_c,
                  "did_lighter_cam_=source_lighter_seek_state.did_lighter_cam;"
                  "crowd_lighter_on_=source_lighter_seek_state.lighter_on;"
                  "active_worldcrowd_lighter_group_="
                  "source_lighter_seek_state.lighter_group;",
                  "diagnostic seek does not reset did_lighter_cam/lighter state to source defaults mid-song");
-  ok &= contains(gameplay_c,
+  ok &= contains(diagnostic_camera_seek_restore_c,
                  "\"[world]cameradiagnosticseeklighterstate:"
                  "source_scripts=world/crowd.dta::crowd_lighters_*",
                  "diagnostic seek lighter-state diagnostics cite the source crowd scripts");
+  ok &= contains(diagnostic_camera_seek_restore_c,
+                 "caller=%sevents=%zu",
+                 "diagnostic seek lighter-state diagnostics name the restore caller");
   ok &= contains(gameplay_c,
                  "boolcamera_manager_milo_camera_active_like_source(){",
                  "camera runtime exposes the source CameraManager::MiloCamera gate");

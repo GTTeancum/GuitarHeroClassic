@@ -865,6 +865,8 @@ class Gameplay {
                                  bool source_restart = false);
   void end_camera_shot_runtime(bool skip_script_crowd_update = false);
   void reset_world_camera_script_state_like_source(const char* source_caller);
+  void restore_camera_script_state_for_diagnostic_seek_like_source(
+      const char* source_caller);
   void reset_camera_manager_like_source_enter(const char* context);
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       camera_glow_spot_state_for_ref(const std::string& raw_ref) const;

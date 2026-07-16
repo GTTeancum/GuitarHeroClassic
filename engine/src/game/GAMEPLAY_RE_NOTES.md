@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay diagnostic seek camera restore after venue load:
+  Mid-song diagnostic starts restore the GH2 script-visible camera latches for
+  the requested song time, but loading the venue then runs the
+  `intro_start_msg` / `reset_camera` route that clears `[did_lighter_cam]`,
+  `[camera_beat]`, and `[camera_solo]`. Native now reapplies the same
+  source-shaped seek restoration after venue camera data loads when
+  `song_time_` is already nonzero, so elapsed `one_bar_to` triggers stay
+  consumed and crowd-lighter camera state is not wiped by startup reset. Normal
+  starts from zero are unchanged; this stays in normal gameplay camera routing,
+  keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay forced-cue duration draw order:
   GH2 processes each `world_objects_worldbase.dta` / `world/crowd.dta`
   camera cue as its own script message. Native frames can coalesce cues such as

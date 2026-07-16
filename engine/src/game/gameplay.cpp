@@ -25062,6 +25062,63 @@ void Gameplay::reset_world_camera_script_state_like_source(
     }
 }
 
+void Gameplay::restore_camera_script_state_for_diagnostic_seek_like_source(
+    const char* source_caller) {
+    next_camera_one_bar_to_event_idx_ =
+        camera_source_one_bar_to_cursor_at(chart_, song_time_);
+    camera_solo_active_ =
+        camera_source_one_bar_to_solo_state_at(chart_, song_time_);
+    const CameraSourceActivePlayersSeekState source_active_players_seek_state =
+        camera_source_active_players_state_at(song_time_);
+    camera_faceoff_active_players_ =
+        source_active_players_seek_state.faceoff_active_players;
+    diagnostic_camera_active_players_change_applied_ =
+        source_active_players_seek_state.diagnostic_change_applied;
+    const CameraSourceLighterSeekState source_lighter_seek_state =
+        camera_source_lighter_state_at(
+            chart_, song_time_,
+            camera_source_game_multiplayer(camera_faceoff_active_players_));
+    last_camera_bar_ = UINT32_MAX;
+    last_camera_beat_ = UINT32_MAX;
+    camera_beat_state_ = camera_beat_at(chart_, song_time_);
+    camera_bars_left_ = 0;
+    reset_camera_manager_like_source_enter(
+        source_caller && source_caller[0] ? source_caller
+                                          : "diagnostic_seek");
+    did_lighter_cam_ = source_lighter_seek_state.did_lighter_cam;
+    crowd_lighter_on_ = source_lighter_seek_state.lighter_on;
+    active_worldcrowd_lighter_group_ =
+        source_lighter_seek_state.lighter_group;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera diagnostic seek active_players state: source_script=world_objects_worldbase.dta::active_players_changed caller=%s initial=%d change_present=%d change_time=%.3f change_players=%d applied=%d faceoff_active_players=%d source_multiplayer=%d\n",
+            source_caller && source_caller[0] ? source_caller
+                                              : "diagnostic_seek",
+            source_active_players_seek_state.initial_faceoff_active_players,
+            source_active_players_seek_state.diagnostic_change_present ? 1 : 0,
+            source_active_players_seek_state.diagnostic_change_time,
+            source_active_players_seek_state.diagnostic_change_players,
+            source_active_players_seek_state.diagnostic_change_applied ? 1 : 0,
+            camera_faceoff_active_players_,
+            camera_source_game_multiplayer(camera_faceoff_active_players_) ? 1
+                                                                           : 0);
+        std::fprintf(
+            stderr,
+            "[world] camera diagnostic seek lighter state: source_scripts=world/crowd.dta::crowd_lighters_* source_world=world_objects_worldbase.dta::pick_lighter_shot caller=%s events=%zu did_lighter_cam=%d lighter=%s crowd_group=%s source_multiplayer=%d\n",
+            source_caller && source_caller[0] ? source_caller
+                                              : "diagnostic_seek",
+            source_lighter_seek_state.events_replayed,
+            did_lighter_cam_ ? 1 : 0,
+            crowd_lighter_on_ ? "on" : "off",
+            active_worldcrowd_lighter_group_.empty()
+                ? "-"
+                : active_worldcrowd_lighter_group_.c_str(),
+            camera_source_game_multiplayer(camera_faceoff_active_players_) ? 1
+                                                                           : 0);
+    }
+}
+
 void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     const bool had_current = !active_regular_camera_.empty();
     const bool had_pending = !pending_regular_camera_.empty();
@@ -30801,53 +30858,8 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
                song_time_) {
         ++next_forced_camera_event_idx_;
     }
-    next_camera_one_bar_to_event_idx_ =
-        camera_source_one_bar_to_cursor_at(chart_, song_time_);
-    camera_solo_active_ =
-        camera_source_one_bar_to_solo_state_at(chart_, song_time_);
-    const CameraSourceActivePlayersSeekState source_active_players_seek_state =
-        camera_source_active_players_state_at(song_time_);
-    camera_faceoff_active_players_ =
-        source_active_players_seek_state.faceoff_active_players;
-    diagnostic_camera_active_players_change_applied_ =
-        source_active_players_seek_state.diagnostic_change_applied;
-    const CameraSourceLighterSeekState source_lighter_seek_state =
-        camera_source_lighter_state_at(
-            chart_, song_time_,
-            camera_source_game_multiplayer(camera_faceoff_active_players_));
-    last_camera_bar_ = UINT32_MAX;
-    last_camera_beat_ = UINT32_MAX;
-    camera_beat_state_ = camera_beat_at(chart_, song_time_);
-    camera_bars_left_ = 0;
-    reset_camera_manager_like_source_enter("diagnostic_seek");
-    did_lighter_cam_ = source_lighter_seek_state.did_lighter_cam;
-    crowd_lighter_on_ = source_lighter_seek_state.lighter_on;
-    active_worldcrowd_lighter_group_ =
-        source_lighter_seek_state.lighter_group;
-    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-        std::fprintf(
-            stderr,
-            "[world] camera diagnostic seek active_players state: source_script=world_objects_worldbase.dta::active_players_changed initial=%d change_present=%d change_time=%.3f change_players=%d applied=%d faceoff_active_players=%d source_multiplayer=%d\n",
-            source_active_players_seek_state.initial_faceoff_active_players,
-            source_active_players_seek_state.diagnostic_change_present ? 1 : 0,
-            source_active_players_seek_state.diagnostic_change_time,
-            source_active_players_seek_state.diagnostic_change_players,
-            source_active_players_seek_state.diagnostic_change_applied ? 1 : 0,
-            camera_faceoff_active_players_,
-            camera_source_game_multiplayer(camera_faceoff_active_players_) ? 1
-                                                                           : 0);
-        std::fprintf(
-            stderr,
-            "[world] camera diagnostic seek lighter state: source_scripts=world/crowd.dta::crowd_lighters_* source_world=world_objects_worldbase.dta::pick_lighter_shot events=%zu did_lighter_cam=%d lighter=%s crowd_group=%s source_multiplayer=%d\n",
-            source_lighter_seek_state.events_replayed,
-            did_lighter_cam_ ? 1 : 0,
-            crowd_lighter_on_ ? "on" : "off",
-            active_worldcrowd_lighter_group_.empty()
-                ? "-"
-                : active_worldcrowd_lighter_group_.c_str(),
-            camera_source_game_multiplayer(camera_faceoff_active_players_) ? 1
-                                                                           : 0);
-    }
+    restore_camera_script_state_for_diagnostic_seek_like_source(
+        "diagnostic_seek");
     intro_end_dispatched_ = false;
     should_resend_excitement_ = false;
     active_lighting_preset_.clear();
@@ -33171,6 +33183,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 std::fprintf(stderr,
                              "[world] intro camera window: %.3fs (6 bars)\n",
                              intro_camera_seconds_);
+                if (song_time_ > 0.0) {
+                    restore_camera_script_state_for_diagnostic_seek_like_source(
+                        "venue_load_after_intro_start_msg");
+                }
             }
             const std::string lighting_milo = venue_assembly.lighting_milo;
             ghogx::milo_scene::Scene lighting_scene;
