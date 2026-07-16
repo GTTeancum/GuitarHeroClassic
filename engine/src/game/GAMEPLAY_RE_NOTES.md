@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot LocalProjectXfm yRatio:
+  ihatecompvir `Rnd::Rnd` defaults `mAspect` to `kWidescreen`, and
+  `Rnd::YRatio()` returns `0.5625f` for widescreen. Because
+  `CamShotFrame::Interp` divides the same-target screen-offset translation by
+  `cam->LocalProjectXfm()` after the base `SetFrustum`, native now uses the
+  reciprocal source y-ratio for the local x projection scale instead of the old
+  provisional `1.0f`. This is normal gameplay camera math only: it keeps the
+  hidden `RndCam::UpdateLocal` matrix body marked unrecovered, leaves vertical
+  sign unchanged until source/audit proof exists, keeps FreeCam last, and adds
+  no dependencies.
 - 2026-07-16 gameplay CamShot same-target screen-offset proof:
   ihatecompvir `CamShotFrame::Interp` applies the same-target local-space
   screen-offset translation after `SameTargets` `LookAt`, using the
@@ -282,7 +292,8 @@
   `cam->LocalProjectXfm()`, and the RB2 dump for `RndCam::UpdateLocal` exposes
   only the `yRatio` / `t` locals rather than the projection body. Native normal
   gameplay camera diagnostics now stamp
-  `source_projection=RndCam::UpdateLocal(yRatio,t)_body_unrecovered` beside the
+  `source_projection=RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered`
+  beside the
   current neutral local-project aspect, so sketchy angles can be audited as
   either recovered script/shot selection work or still-hidden projection/pose
   math. This is proof/status plumbing only: it does not change gameplay camera
@@ -12365,9 +12376,9 @@ Rejected native probe:
   without applying it to the source same-target screen-offset translation.
 - 2026-07-13 CamShot local-project aspect for screen offset:
   the same ihatecompvir block builds `cam->LocalProjectXfm()` from
-  `cam->SetFrustum(..., 1.0f)` before dividing the local screen-offset
-  translation by that projection scale. Native now uses a dedicated
-  `kCamShotSourceFrustumAspect = 1.0f` for source-shaped CamShot screen math
+  `cam->SetFrustum(..., 1.0f)` / `RndCam::UpdateLocal()` before dividing the
+  local screen-offset translation by that projection scale. Native now uses a
+  dedicated `kCamShotSourceFrustumAspect` for source-shaped CamShot screen math
   instead of the provisional 16:9 validation aspect: the same-target
   `camera_source_screen_offset_translate_result_rows(...)` branch uses it for
   local camera translation, while the non-SameTargets target-list path uses it

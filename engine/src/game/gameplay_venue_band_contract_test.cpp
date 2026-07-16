@@ -9496,8 +9496,12 @@ int main() {
                  "camera_source_screen_offset_translate_result_rows(",
                  "camera result rows expose source-shaped CamShot screen-offset translation rows");
   ok &= contains(gameplay_c,
-                 "constexprfloatkCamShotSourceFrustumAspect=1.0f;",
-                 "CamShot source local-project screen offset uses ihatecompvir SetFrustum aspect");
+                 "constexprfloatkCamShotSourceYRatio=0.5625f;",
+                 "CamShot source local-project screen offset uses Rnd::YRatio's widescreen source ratio");
+  ok &= contains(gameplay_c,
+                 "constexprfloatkCamShotSourceFrustumAspect=1.0f/"
+                 "kCamShotSourceYRatio;",
+                 "CamShot source local-project screen offset uses the reciprocal yRatio aspect");
   ok &= contains(gameplay_c,
                  "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
                  "source-shaped screen-offset translation uses the CamShot local-project aspect");
@@ -9644,6 +9648,9 @@ int main() {
                  "\"source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum\"",
                  "same-target screen-offset diagnostics preserve the visible CamShotFrame::Interp order");
   ok &= contains(gameplay_c,
+                 "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
+                 "same-target screen-offset diagnostics cite the source yRatio owner for LocalProjectXfm");
+  ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp"
                  "(BuildTransform,applyScreenOffset)\""
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\\n\"",
@@ -9724,7 +9731,7 @@ int main() {
                  "\"rb2_dump_locals_only\"",
                  "camera debug logs avoid claiming a recovered BuildTransform body");
   ok &= contains(gameplay_c,
-                 "\"RndCam::UpdateLocal(yRatio,t)_body_unrecovered\"",
+                 "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
                  "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",

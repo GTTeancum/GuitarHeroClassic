@@ -18041,9 +18041,13 @@ struct CameraResultRows {
 };
 
 constexpr float kNativeValidationAspect = 16.0f / 9.0f;
-constexpr float kCamShotSourceFrustumAspect = 1.0f;
+// Rnd::Rnd defaults to kWidescreen and Rnd::YRatio() returns 0.5625 for that
+// source aspect. LocalProjectXfm stores projection scale, so local screen-offset
+// translation uses the reciprocal x/y ratio.
+constexpr float kCamShotSourceYRatio = 0.5625f;
+constexpr float kCamShotSourceFrustumAspect = 1.0f / kCamShotSourceYRatio;
 constexpr const char* kCamShotLocalProjectSource =
-    "RndCam::UpdateLocal(yRatio,t)_body_unrecovered";
+    "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
 
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
