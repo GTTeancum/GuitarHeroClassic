@@ -21972,17 +21972,17 @@ void apply_camera_keys(
                 : "native_seed_or_path_boundary";
         std::fprintf(
             stderr,
-            "[world] camera Shake: source_class=CamShot source_call=CamShot::Shake "
+            "[world] camera Shake: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_class=CamShot source_call=CamShot::Shake "
             "source_order=after_SetFrame_blend_before_SetLocalXfm shot_a=%s shot_b=%s "
             "local_frame=%.3f key_blend=%.3f eased_key_blend=%.3f active=%d "
             "amp=%.3f freq=%.3f max_ang=(%.3f %.3f) source_outputs=output,eulerOutput "
-            "rb2_dump=locals_only native_motion=not_synthesized\n",
+            "rb2_dump=locals_only native_motion=not_synthesized freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             a->name.c_str(), b->name.c_str(), frame, t, interp_t,
             cam.shake_active ? 1 : 0, shake_noise_amp, shake_noise_freq,
             max_angular_offset_x, max_angular_offset_y);
         std::fprintf(
             stderr,
-            "[world] camera UpdateTarget: source_class=CamShotFrame "
+            "[world] camera UpdateTarget: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_class=CamShotFrame "
             "source_call=UpdateTarget/GetCurrentTargetPosition "
             "shot_a=%s shot_b=%s local_frame=%.3f "
             "a_resolved=%zu b_resolved=%zu "
@@ -21992,7 +21992,8 @@ void apply_camera_keys(
             "target_cache=a:%d b:%d "
             "cache_source=CamShotFrame::UpdateTarget "
             "cached_fields=unk34,unk44 callsite=not_recovered "
-            "source_rule=average_non_null_targets,parent_world_xfm\n",
+            "source_rule=average_non_null_targets,parent_world_xfm "
+            "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             a->name.c_str(), b->name.c_str(), frame,
             a_target_update.resolved_count, b_target_update.resolved_count,
             a_target_update.centroid[0], a_target_update.centroid[1],

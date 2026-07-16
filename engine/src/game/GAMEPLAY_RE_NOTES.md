@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay pose/target proof ordering:
+  the per-frame `CamShot::Shake` and `CamShotFrame::UpdateTarget` diagnostics
+  now lead with `pipeline_scope=normal_gameplay_camera` and
+  `priority=gameplay_camera`, then leave
+  `freecam_priority=deferred_last freecam_affects_gameplay=0` at the row tail.
+  This keeps screenshot/debug evidence centered on normal gameplay pose and
+  target state while preserving FreeCam as a deferred tail status. It changes
+  proof output only; it does not alter camera math, selection, FreeCam behavior,
+  or dependencies.
 - 2026-07-15 gameplay PickCameraShot warning format:
   ihatecompvir `CameraManager::PickCameraShot` builds the failure warning as
   `No acceptable camera shot:` plus `cat:` and then prints every requested

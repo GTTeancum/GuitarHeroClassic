@@ -8438,6 +8438,12 @@ int main() {
                  "source_call=UpdateTarget/GetCurrentTargetPosition",
                  "camera diagnostics expose the source target update boundary");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraUpdateTarget:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_class=CamShotFrame",
+                 "camera UpdateTarget diagnostics lead with normal gameplay camera scope");
+  ok &= contains(gameplay_c,
                  "constautoa_frame_target_cache="
                  "camera_update_frame_target_cache_like_source(*a,targets);"
                  "constautob_frame_target_cache="
@@ -8450,8 +8456,10 @@ int main() {
                  "b_frame_target_cache.last_target_pos;",
                  "regular camera Interp target centroids come from cached unk34 fields");
   ok &= contains(gameplay_c,
-                 "source_rule=average_non_null_targets",
-                 "camera diagnostics expose GetCurrentTargetPosition averaging");
+                 "source_rule=average_non_null_targets,parent_world_xfm"
+                 "\"\"freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0",
+                 "camera diagnostics expose GetCurrentTargetPosition averaging before deferred FreeCam status");
   ok &= contains(gameplay_c,
                  "cache_source=CamShotFrame::UpdateTarget",
                  "camera diagnostics expose the cached UpdateTarget source");
@@ -11295,11 +11303,19 @@ int main() {
                  "source_call=CamShot::Shake",
                  "camera Shake diagnostics expose the source call");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraShake:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_class=CamShot",
+                 "camera Shake diagnostics lead with normal gameplay camera scope");
+  ok &= contains(gameplay_c,
                  "source_order=after_SetFrame_blend_before_SetLocalXfm",
                  "camera Shake diagnostics expose the source call order");
   ok &= contains(gameplay_c,
-                 "rb2_dump=locals_onlynative_motion=not_synthesized",
-                 "camera Shake diagnostics avoid fabricating hidden motion math");
+                 "rb2_dump=locals_onlynative_motion=not_synthesized"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0",
+                 "camera Shake diagnostics avoid fabricating hidden motion math before deferred FreeCam status");
   ok &= contains(gameplay_c,
                  "voidcamera_unset_shake_like_no_current_camshot("
                  "ghogx::render::OrbitCamera&cam)",
