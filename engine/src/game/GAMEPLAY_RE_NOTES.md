@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches field_of_view property units:
+  ihatecompvir `CamShotFrame::Load` stores keyframe FOV through
+  `SetFieldOfView`, `CamShotFrame::Interp` consumes `FieldOfView()` radians for
+  `RndCam::SetFrustum`, and the `CamShotFrame` property sync exposes
+  `field_of_view` as `FieldOfView() * RAD2DEG`. Native `ShotMatches` property
+  paths now keep runtime camera math in radians but compare
+  `(keyframes N field_of_view)` in source property degrees. This is normal
+  gameplay camera selection parity only: no pose math, FreeCam priority change,
+  under-venue masking, or dependency surface change.
 - 2026-07-16 CameraManager ShotMatches property-array path parity:
   ihatecompvir `CameraManager::ShotMatches` treats a filter whose `prop` is a
   `DataArray` by evaluating `shot->Property(array, true)` before comparing the

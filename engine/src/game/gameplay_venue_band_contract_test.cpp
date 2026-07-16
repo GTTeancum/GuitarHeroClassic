@@ -13271,8 +13271,14 @@ int main() {
                  "regular camera filters can evaluate float keyframe property paths");
   ok &= contains(gameplay_c,
                  "if(prop==\"field_of_view\"){"
-                 "returnframe->has_fov?frame->fov:0.0f;}",
-                 "regular camera float property paths expose CamShotFrame field_of_view");
+                 "returnframe->has_fov?"
+                 "camshot_source_radians_to_degrees(frame->fov):0.0f;}",
+                 "regular camera float property paths expose CamShotFrame field_of_view in source property degrees");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_radians_to_degrees(floatvalue){"
+                 "constexprfloatkRadToDeg=180.0f/3.14159265358979323846f;"
+                 "returnvalue*kRadToDeg;}",
+                 "regular camera field_of_view filter mirrors ihatecompvir FieldOfView RAD2DEG property sync");
   ok &= contains(gameplay_c,
                  "std::optional<int>camera_filter_int_property(",
                  "regular camera filters can evaluate integer CamShot properties");

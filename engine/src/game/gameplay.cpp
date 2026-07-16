@@ -1764,6 +1764,11 @@ float camshot_source_blur_field(float value) {
                                     kCamShotBlurByteInv);
 }
 
+float camshot_source_radians_to_degrees(float value) {
+    constexpr float kRadToDeg = 180.0f / 3.14159265358979323846f;
+    return value * kRadToDeg;
+}
+
 int camshot_source_platform_for_ok() {
     int platform = kGh2SourceMiloPlatform;
     if (platform == kMiloPlatformPC) platform = kMiloPlatformXBox;
@@ -16560,7 +16565,9 @@ std::optional<float> camera_filter_float_property_path(
     if (prop == "blend") return frame->blend_frames;
     if (prop == "blend_ease") return frame->blend_ease;
     if (prop == "field_of_view") {
-        return frame->has_fov ? frame->fov : 0.0f;
+        return frame->has_fov
+                   ? camshot_source_radians_to_degrees(frame->fov)
+                   : 0.0f;
     }
     return std::nullopt;
 }
