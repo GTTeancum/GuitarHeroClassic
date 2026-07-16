@@ -22061,14 +22061,26 @@ void apply_camera_keys(
             Gameplay::CameraKey build_key_a = *a;
             build_key_a.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
-            std::optional<CameraResultRows> build_rows_a;
+            std::optional<CameraResultRows> same_target_build_rows_first;
+            std::optional<CameraResultRows> same_target_build_rows_second;
             if (a_target_centroid) {
-                build_rows_a = camera_target_list_result_rows_from_seed(
-                    source_seed_a, build_key_a, *a_target_centroid, nullptr,
-                    nullptr, nullptr, false);
+                same_target_build_rows_first =
+                    camera_target_list_result_rows_from_seed(
+                        source_seed_a, build_key_a, *a_target_centroid,
+                        nullptr, nullptr, nullptr, false);
+                same_target_build_rows_second =
+                    camera_target_list_result_rows_from_seed(
+                        source_seed_a, build_key_a, *a_target_centroid,
+                        nullptr, nullptr, nullptr, false);
             }
-            CameraResultRows same_target_pre_lookat_result =
-                build_rows_a ? *build_rows_a : source_seed_a;
+            CameraResultRows same_target_pre_lookat_result = source_seed_a;
+            if (same_target_build_rows_first && same_target_build_rows_second) {
+                same_target_pre_lookat_result = camera_lerp_result_rows(
+                    *same_target_build_rows_first,
+                    *same_target_build_rows_second, interp_t);
+            } else if (same_target_build_rows_first) {
+                same_target_pre_lookat_result = *same_target_build_rows_first;
+            }
             same_target_pre_lookat_result.source =
                 "source_same_target_pre_lookat_current_build(" +
                 same_target_pre_lookat_result.source + ")";
@@ -22123,7 +22135,8 @@ void apply_camera_keys(
             }
         }
     } else if (!submitted_result_from_ps2_trace && !source_has_any_targets) {
-        source_build_transform_result = source_seed_a;
+        source_build_transform_result =
+            camera_lerp_result_rows(source_seed_a, source_seed_a, interp_t);
         source_build_transform_result->source =
             "source_no_target_current_build_twice(" +
             source_build_transform_result->source + ")";

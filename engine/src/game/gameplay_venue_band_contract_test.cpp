@@ -9655,14 +9655,28 @@ int main() {
                  "build_key_a.fov=source_screen_offset_fov;",
                  "source BuildTransform rows use the pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
+                 "std::optional<CameraResultRows>"
+                 "same_target_build_rows_first;"
+                 "std::optional<CameraResultRows>"
+                 "same_target_build_rows_second;",
+                 "same-target CamShot rows keep separate current-frame BuildTransform calls");
+  ok &= contains(gameplay_c,
+                 "same_target_build_rows_first="
                  "camera_target_list_result_rows_from_seed("
                  "source_seed_a,build_key_a,*a_target_centroid,nullptr,"
                  "nullptr,nullptr,false);",
-                 "same-target CamShot builds the current transform without BuildTransform screen offset");
+                 "same-target CamShot runs the first current transform without BuildTransform screen offset");
   ok &= contains(gameplay_c,
-                 "same_target_pre_lookat_result="
-                 "build_rows_a?*build_rows_a:source_seed_a;",
-                 "same-target CamShot reuses the visible current-frame BuildTransform result");
+                 "same_target_build_rows_second="
+                 "camera_target_list_result_rows_from_seed("
+                 "source_seed_a,build_key_a,*a_target_centroid,nullptr,"
+                 "nullptr,nullptr,false);",
+                 "same-target CamShot runs the second current transform without BuildTransform screen offset");
+  ok &= contains(gameplay_c,
+                 "same_target_pre_lookat_result=camera_lerp_result_rows("
+                 "*same_target_build_rows_first,"
+                 "*same_target_build_rows_second,interp_t);",
+                 "same-target CamShot interpolates the two visible current-frame BuildTransform outputs");
   ok &= contains(gameplay_c,
                  "\"source_same_target_pre_lookat_current_build(\"+",
                  "same-target CamShot labels the current-frame pre-LookAt transform");
@@ -9725,6 +9739,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"source_no_target_current_build_twice(\"",
                  "no-target CamShots use the visible current-frame BuildTransform pair");
+  ok &= contains(gameplay_c,
+                 "source_build_transform_result=camera_lerp_result_rows("
+                 "source_seed_a,source_seed_a,interp_t);",
+                 "no-target CamShots explicitly represent the source current-frame BuildTransform pair");
   ok &= contains(gameplay_c,
                  "\"source_visible_build_pair=%ssource_build_calls=%d\"",
                  "camera debug logs expose the visible BuildTransform frame pair and call count");
