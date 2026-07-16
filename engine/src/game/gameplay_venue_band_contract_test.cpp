@@ -13375,15 +13375,38 @@ int main() {
                  "constGameplay::CameraKey*choose_camera_key_source_category(",
                  "source category pick_shot uses the shared CameraManager::FindCameraShot route");
   ok &= contains(gameplay_c,
+                 "boolcamera_source_banddirector_facing_camera("
+                 "std::string_viewcategory)",
+                 "source category picker exposes BandDirector::FacingCamera");
+  ok &= contains(gameplay_c,
+                 "boolcamera_source_banddirector_behind_camera("
+                 "std::string_viewcategory)",
+                 "source category picker exposes BandDirector::BehindCamera");
+  ok &= contains(gameplay_c,
+                 "camera_source_banddirector_findnext_filters(",
+                 "source category picker derives BandDirector::FindNextShot filters");
+  ok &= contains(gameplay_c,
+                 "camera_flags_any_filter((~current_shot->flags)&0x7000)",
+                 "BandDirector::FindNextShot coop facing filter mirrors the source 0x7000 flag mask");
+  ok &= contains(gameplay_c,
                  "source_warn=\\\"Noacceptablecamerashot:\\\""
                  "source_warn_cat=%ssource_manager=CameraManager::PickCameraShot"
-                 "category=%smode=source_categoryfilters=\\\"\\\""
-                 "filter_count=0source_msg=%sresult=0",
-                 "source category no-acceptable-shot diagnostics mirror PickCameraShot empty-filter warnings");
+                 "category=%smode=source_categoryfilters=\\\"%s\\\""
+                 "filter_count=%zusource_msg=%sresult=0",
+                 "source category no-acceptable-shot diagnostics mirror PickCameraShot warnings with BandDirector filters");
+  ok &= contains(gameplay_c,
+                 "source_director=BandDirector::FindNextShotfilters=\\\"%s\\\""
+                 "filter_count=%zu",
+                 "source category prescan diagnostics expose BandDirector FindNextShot filters");
   ok &= contains(gameplay_c,
                  "if(key.category!=category)continue;"
                  "if(key.disabled_flags!=0){",
                  "source category picker scans one authored category and preserves Disabled gate ordering");
+  ok &= appears_before(
+      gameplay_c,
+      "if(!camera_shot_matches_source_filters(key,source_filters))continue;",
+      "if(!camera_source_shot_ok(key,source_previous,current_walkspot))continue;",
+      "source category picker applies BandDirector filters before CamShot::ShotOk");
   ok &= contains(gameplay_c,
                  "if(!camera_source_shot_ok(key,source_previous,current_walkspot))continue;"
                  "selected=i;",

@@ -17066,6 +17066,35 @@ void camera_source_first_shot_ok(std::string_view category) {
     }
 }
 
+bool camera_source_banddirector_behind_camera(std::string_view category) {
+    static constexpr std::string_view kBehind = "_behind";
+    return category.size() > kBehind.size() &&
+           category.substr(category.size() - kBehind.size()) == kBehind;
+}
+
+bool camera_source_banddirector_facing_camera(std::string_view category) {
+    static constexpr std::string_view kCoop = "coop_";
+    if (category.size() < kCoop.size()) return false;
+    for (size_t i = 0; i < kCoop.size(); ++i) {
+        const unsigned char a = static_cast<unsigned char>(category[i]);
+        const unsigned char b = static_cast<unsigned char>(kCoop[i]);
+        if (std::tolower(a) != std::tolower(b)) return false;
+    }
+    return !camera_source_banddirector_behind_camera(category);
+}
+
+std::vector<CameraShotSourceFilter> camera_source_banddirector_findnext_filters(
+    std::string_view category, const Gameplay::CameraKey* current_shot) {
+    std::vector<CameraShotSourceFilter> filters;
+    if (!camera_source_banddirector_facing_camera(category)) return filters;
+    if (!current_shot ||
+        camera_source_banddirector_behind_camera(current_shot->category)) {
+        return filters;
+    }
+    filters.push_back(camera_flags_any_filter((~current_shot->flags) & 0x7000));
+    return filters;
+}
+
 void camera_source_no_acceptable_shot(std::string_view category,
                                       CameraShotMode mode,
                                       bool low_excitement,
@@ -17250,11 +17279,13 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
 size_t camera_source_category_prescan_count(
     const std::vector<Gameplay::CameraKey>& keys,
     std::string_view category,
+    const std::vector<CameraShotSourceFilter>& source_filters,
     std::string_view current_walkspot) {
     size_t count = 0;
     for (const auto& key : keys) {
         if (key.category != category) continue;
         if (key.disabled_flags != 0) continue;
+        if (!camera_shot_matches_source_filters(key, source_filters)) continue;
         const CameraSourceShotOkReturn source_return =
             camera_source_cam_shot_ok_return(key, current_walkspot);
         if (!camera_source_shot_ok_accepts(source_return)) continue;
@@ -17274,15 +17305,19 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
+    const std::vector<CameraShotSourceFilter> source_filters =
+        camera_source_banddirector_findnext_filters(category, source_previous);
+    const std::string source_filter_label =
+        camera_source_filter_list_label(source_filters);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const size_t num_shots = camera_source_category_prescan_count(
-            keys, category, current_walkspot);
+            keys, category, source_filters, current_walkspot);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_director=BandDirector::FindNextShot filters=\"%s\" filter_count=%zu source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(category).c_str(),
             source_previous ? source_previous->name.c_str() : "",
-            num_shots);
+            num_shots, source_filter_label.c_str(), source_filters.size());
     }
     camera_source_first_shot_ok(category);
 
@@ -17300,6 +17335,7 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
             }
             continue;
         }
+        if (!camera_shot_matches_source_filters(key, source_filters)) continue;
         if (!camera_source_shot_ok(key, source_previous, current_walkspot)) continue;
         selected = i;
         break;
@@ -17309,8 +17345,9 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s mode=source_category filters=\"\" filter_count=0 source_msg=%s result=0\n",
+                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s mode=source_category filters=\"%s\" filter_count=%zu source_msg=%s result=0\n",
                 std::string(category).c_str(), std::string(category).c_str(),
+                source_filter_label.c_str(), source_filters.size(),
                 std::string(source_message).c_str());
         }
         return nullptr;

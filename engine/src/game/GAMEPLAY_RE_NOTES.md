@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay BandDirector facing-camera filter:
+  ihatecompvir `BandDirector::FindNextShot` adds one
+  `CameraManager::PropertyFilter` when the requested category is a facing
+  `coop_` category and the current shot is not a `_behind` category:
+  `flags_any TRUE` with mask `~mCurShot->Flags() & 0x7000`. Native
+  source-category camera picks now derive and apply that exact filter before
+  `CamShot::ShotOk`, and the prescan/no-acceptable-shot diagnostics report the
+  `BandDirector::FindNextShot` filter list. This does not reorder GH2's normal
+  gameplay camera category list, does not infer hidden `cam_shot_ok` or
+  `cam_check_shot`, keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay BandCamShot shot-over wrapper:
   ihatecompvir gameplay cameras are `BandCamShot`s, whose
   `CheckShotStarted()` / `CheckShotOver(float)` wrap the base `CamShot` gates
