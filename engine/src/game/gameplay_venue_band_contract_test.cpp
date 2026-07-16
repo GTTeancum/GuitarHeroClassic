@@ -13158,6 +13158,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(prop==\"far_starpower_ok\")returnkey.far_starpower_ok;",
                  "CameraManager ShotMatches can evaluate authored far_starpower_ok filters");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"looping\")"
+                 "returnkey.has_camshot_looping?key.camshot_looping:false;",
+                 "CameraManager ShotMatches can evaluate authored looping filters");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"use_depth_of_field\"){"
+                 "returnkey.has_use_depth_of_field?"
+                 "key.use_depth_of_field:false;}",
+                 "CameraManager ShotMatches can evaluate authored use_depth_of_field filters");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"ps3_per_pixel\")returnkey.ps3_per_pixel;",
+                 "CameraManager ShotMatches can evaluate authored ps3_per_pixel bool filters");
   ok &= absent(camera_source_script_filters_c, "\"far_starpower_ok\"",
                "source script filters must not promote far_starpower_ok into regular/solo star-power selection");
   ok &= contains(gameplay_c,

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches boolean property coverage:
+  ihatecompvir `CameraManager::ShotMatches` evaluates each non-special
+  `PropertyFilter` by reading the CamShot property and comparing the returned
+  `DataNode`. Native already decoded the source `looping`,
+  `use_depth_of_field`, and `ps3_per_pixel` fields, and now exposes those
+  booleans through the same source-shaped filter evaluator. This is normal
+  gameplay camera selector parity only: it does not synthesize hidden
+  `cam_shot_ok` / `cam_check_shot`, change pose math, promote FreeCam, mask
+  under-venue results, or add dependencies.
 - 2026-07-16 CamShot crowd index assertion proof:
   ihatecompvir `CamShot::OnClearCrowdChars`, `OnAddCrowdChars`, and
   `OnSetCrowdChars` read the message crowd index and assert
