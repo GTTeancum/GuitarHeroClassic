@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches float property coverage:
+  ihatecompvir exposes `filter`, `clamp_height`, `near_plane`, `far_plane`,
+  and `path_frame` through `CamShot` PropSync and `CameraManager::ShotMatches`
+  compares the returned `DataNode` directly against the script filter match.
+  Native already decodes those fields and now exposes them through the
+  source-shaped selector with the ihatecompvir constructor defaults
+  (`0.9`, `-1`, `1`, `1000`, `-1`) for non-loaded fallback keys. This is
+  normal gameplay selector parity only: it does not change pose math, promote
+  FreeCam, hide under-venue camera results, or add dependencies.
 - 2026-07-16 CameraManager ShotMatches boolean property coverage:
   ihatecompvir `CameraManager::ShotMatches` evaluates each non-special
   `PropertyFilter` by reading the CamShot property and comparing the returned

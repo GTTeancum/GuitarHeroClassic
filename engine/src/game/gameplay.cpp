@@ -16256,6 +16256,7 @@ bool string_in(std::string_view value,
 enum class CameraShotSourceFilterKind {
     Bool,
     Int,
+    Float,
     SymbolAny,
     FlagsAny,
     FlagsExact,
@@ -16266,6 +16267,7 @@ struct CameraShotSourceFilter {
     std::string_view prop;
     std::vector<std::string_view> symbol_matches;
     bool bool_match = false;
+    float float_match = 0.0f;
     int mask = -1;
     int int_match = 0;
 };
@@ -16283,6 +16285,15 @@ CameraShotSourceFilter camera_int_filter(std::string_view prop, int match) {
     filter.kind = CameraShotSourceFilterKind::Int;
     filter.prop = prop;
     filter.int_match = match;
+    return filter;
+}
+
+CameraShotSourceFilter camera_float_filter(std::string_view prop,
+                                           float match) {
+    CameraShotSourceFilter filter;
+    filter.kind = CameraShotSourceFilterKind::Float;
+    filter.prop = prop;
+    filter.float_match = match;
     return filter;
 }
 
@@ -16344,6 +16355,22 @@ std::optional<int> camera_filter_int_property(
     return std::nullopt;
 }
 
+std::optional<float> camera_filter_float_property(
+    const Gameplay::CameraKey& key,
+    std::string_view prop) {
+    if (prop == "filter")
+        return key.has_shot_filter ? key.shot_filter : 0.9f;
+    if (prop == "clamp_height")
+        return key.has_clamp_height ? key.clamp_height : -1.0f;
+    if (prop == "near_plane")
+        return key.has_clip_planes ? key.near_plane : 1.0f;
+    if (prop == "far_plane")
+        return key.has_clip_planes ? key.far_plane : 1000.0f;
+    if (prop == "path_frame")
+        return key.has_path_frame ? key.path_frame : -1.0f;
+    return std::nullopt;
+}
+
 std::optional<std::string_view> camera_filter_symbol_property(
     const Gameplay::CameraKey& key,
     std::string_view prop) {
@@ -16364,6 +16391,10 @@ bool camera_shot_matches_source_filter(const Gameplay::CameraKey& key,
         case CameraShotSourceFilterKind::Int: {
             const auto value = camera_filter_int_property(key, filter.prop);
             return value && *value == filter.int_match;
+        }
+        case CameraShotSourceFilterKind::Float: {
+            const auto value = camera_filter_float_property(key, filter.prop);
+            return value && *value == filter.float_match;
         }
         case CameraShotSourceFilterKind::SymbolAny: {
             const auto value = camera_filter_symbol_property(key, filter.prop);
@@ -16581,6 +16612,9 @@ std::string camera_source_filter_label(const CameraShotSourceFilter& filter) {
         break;
     case CameraShotSourceFilterKind::Int:
         label += std::to_string(filter.int_match);
+        break;
+    case CameraShotSourceFilterKind::Float:
+        label += std::to_string(filter.float_match);
         break;
     case CameraShotSourceFilterKind::SymbolAny:
         if (filter.symbol_matches.size() == 1) {

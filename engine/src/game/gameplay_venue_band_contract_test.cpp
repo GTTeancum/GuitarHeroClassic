@@ -13205,6 +13205,37 @@ int main() {
                  "if(prop==\"force_char_lod\")returnkey.force_char_lod;",
                  "regular camera integer filters expose decoded force_char_lod");
   ok &= contains(gameplay_c,
+                 "CameraShotSourceFilterKind::Float",
+                 "regular camera filters can mirror float DataNode property comparisons");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_float_filter(std::string_viewprop,"
+                 "floatmatch)",
+                 "regular camera filters expose source-shaped float property filters");
+  ok &= contains(gameplay_c,
+                 "std::optional<float>camera_filter_float_property(",
+                 "regular camera filters can evaluate float CamShot properties");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"filter\")returnkey.has_shot_filter?"
+                 "key.shot_filter:0.9f;"
+                 "if(prop==\"clamp_height\")returnkey.has_clamp_height?"
+                 "key.clamp_height:-1.0f;",
+                 "regular camera float filters expose ihatecompvir filter/clamp defaults");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"near_plane\")returnkey.has_clip_planes?"
+                 "key.near_plane:1.0f;"
+                 "if(prop==\"far_plane\")returnkey.has_clip_planes?"
+                 "key.far_plane:1000.0f;",
+                 "regular camera float filters expose ihatecompvir near/far defaults");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"path_frame\")returnkey.has_path_frame?"
+                 "key.path_frame:-1.0f;",
+                 "regular camera float filters expose ihatecompvir path_frame default");
+  ok &= contains(gameplay_c,
+                 "caseCameraShotSourceFilterKind::Float:{"
+                 "constautovalue=camera_filter_float_property(key,filter.prop);"
+                 "returnvalue&&*value==filter.float_match;}",
+                 "regular camera float filters mirror CameraManager DataNode equality");
+  ok &= contains(gameplay_c,
                  "caseCameraShotSourceFilterKind::FlagsExact:",
                  "regular camera filters mirror CameraManager flags_exact semantics");
   ok &= contains(gameplay_c,
