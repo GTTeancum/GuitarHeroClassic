@@ -15,9 +15,11 @@
 - 2026-07-16 gameplay camera under-venue concern:
   Runtime proof for Big venue `flr_near_lft2x1` still places a normal gameplay
   camera under/inside venue geometry after the source y-ratio correction. Treat
-  any normal gameplay camera resolving below or inside the venue as an open
-  correctness concern for a later source-backed fix; do not paper it over with
-  a one-off camera offset. The current suspect remains unrecovered
+  any normal gameplay camera resolving below or inside the venue as invalid
+  until the source-backed transform path explains it; no GH2 normal gameplay
+  camera should intentionally be positioned under the level. Keep this as an
+  open correctness concern for a later source-backed fix; do not paper it over
+  with a one-off camera offset. The current suspect remains unrecovered
   `RndCam::UpdateLocal` / `LocalProjectXfm.m.z.x` sign or hidden
   `BuildTransform` pose math, not FreeCam.
 - 2026-07-16 gameplay CamShot LocalProjectXfm yRatio:
