@@ -10759,8 +10759,23 @@ int main() {
                  "GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE",
                  "trace-complete writer bridge submission is default-on only behind the shared evidence gate and keeps an explicit A/B disable");
   ok &= contains(gameplay_c,
+                 "std::stringsource_gate="
+                 "\"source_gate=complete_writer_builder_pair\";",
+                 "default trace-complete writer bridge submitted rows name the complete-pair source gate");
+  ok &= contains(gameplay_c,
+                 "source_gate+=\"source_scope=path_frame_scoped\";",
+                 "default trace-complete writer bridge submitted rows expose path-frame scoping");
+  ok &= contains(gameplay_c,
+                 "source_gate+=\"trace_source_path_frame=\"+"
+                 "camera_format_metric_float(",
+                 "default trace-complete writer bridge submitted rows include the retained trace source path frame");
+  ok &= contains(gameplay_c,
+                 "source_gate+=\"runtime_source_path_frame=\"+"
+                 "camera_format_metric_float(",
+                 "default trace-complete writer bridge submitted rows include the live runtime source path frame");
+  ok &= contains(gameplay_c,
                  "writer_rows->source=\"trace_complete_default(\"+"
-                 "writer_rows->source+\")\";",
+                 "writer_rows->source+source_gate+\")\";",
                  "default trace-complete writer bridge submitted rows are visibly tagged as source-gated promotion");
   ok &= contains(gameplay_c,
                  "ps2_writer_bridge_builder_projection(",

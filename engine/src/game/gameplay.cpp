@@ -20668,8 +20668,25 @@ std::optional<CameraResultRows> camera_trace_complete_writer_bridge_rows(
     auto writer_rows =
         camera_ps2_writer_bridge_from_builder_rows(key, targets, builder_rows);
     if (!writer_rows) return std::nullopt;
+    std::string source_gate =
+        " source_gate=complete_writer_builder_pair";
+    if (evaluation->has_trace_source_path_local_frame) {
+        source_gate += " source_scope=path_frame_scoped";
+        source_gate += " trace_source_path_frame=" +
+                       camera_format_metric_float(
+                           evaluation->trace_source_path_local_frame);
+        source_gate += " runtime_source_path_frame=" +
+                       camera_format_metric_float(
+                           evaluation->runtime_source_path_local_frame);
+        source_gate += " source_path_frame_tolerance=" +
+                       camera_format_metric_float(
+                           evaluation
+                               ->trace_source_path_local_frame_tolerance);
+    } else {
+        source_gate += " source_scope=trace_complete_unscoped";
+    }
     writer_rows->source =
-        "trace_complete_default(" + writer_rows->source + ")";
+        "trace_complete_default(" + writer_rows->source + source_gate + ")";
     return writer_rows;
 }
 

@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay trace-complete writer bridge proof scope:
+  The retained PS2 writer bridge is still gated by complete writer-builder-pair
+  evidence plus the path-frame match when the trace is frame-scoped. Native
+  submitted rows now carry that gate in the row source as
+  `source_gate=complete_writer_builder_pair`, with live and retained
+  `source_path_frame` values when applicable. This changes proof/provenance
+  text only: no camera math, trace promotion rules, FreeCam priority, or
+  dependency surface changes.
 - 2026-07-16 gameplay start_shot postprocess lifecycle split:
   GH2 `world/camshot.dta::start_shot` on Xbox selects `[postprocess]` when
   present and otherwise calls `rnd reset_postproc`; ihatecompvir exposes the
