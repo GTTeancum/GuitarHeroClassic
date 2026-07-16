@@ -13137,11 +13137,10 @@ int main() {
                  "if(key.disabled_flags!=0)continue;"
                  "if(!predicate(key))continue;"
                  "constCameraSourceShotOkReturnsource_return="
-                 "camera_source_cam_shot_ok_return(key,previous,"
-                 "current_walkspot);"
+                 "camera_source_cam_shot_ok_return(key,current_walkspot);"
                  "if(!camera_source_shot_ok_accepts(source_return))continue;"
                  "++count;",
-                 "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and pure ShotOk acceptance");
+                 "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and current-shot native ShotOk acceptance");
   ok &= contains(gameplay_c,
                  "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
                  "category=%smode=%sprevious=%scount=%zu"
@@ -13320,6 +13319,13 @@ int main() {
                  "returnCameraSourceShotOkReturn::kNativeDeferredAccept;",
                  "regular camera shot_ok bridge keeps unrecovered GH2 cam_shot_ok permissive");
   ok &= contains(gameplay_c,
+                 "CameraSourceShotOkReturncamera_source_cam_shot_ok_return("
+                 "constGameplay::CameraKey&key,std::string_viewcurrent_walkspot)",
+                 "native cam_shot_ok bridge is current-shot scoped like world/camshot.dta");
+  ok &= absent(gameplay_c,
+               "camera_source_cam_shot_ok_return(key,previous,",
+               "native cam_shot_ok bridge must not consume the previous-shot pointer");
+  ok &= contains(gameplay_c,
                  "kNativeBadWaypointReject",
                  "regular camera shot_ok bridge names the recovered bad_waypoints native rejection");
   ok &= contains(gameplay_c,
@@ -13376,7 +13382,10 @@ int main() {
                  "\"[world]camerashot_ok:source_msg=shot_ok"
                  "source_script=world/camshot.dta::shot_ok"
                  "source_call=CamShot::ShotOk(prev_shot)"
-                 "shot=%sprevious=%scam_shot_ok=%ssource_return=%s"
+                 "source_script_args=prev_shot"
+                 "native_call=cam_shot_ok($this)"
+                 "shot=%sprevious=%snative_prev_shot_visible=0"
+                 "cam_shot_ok=%ssource_return=%s"
                  "result=%scurrent_walkspot=%s"
                  "bad_waypoint_match=%sbad_waypoints=%zu"
                  "hidden_gameplay_blocker=cam_shot_ok"
