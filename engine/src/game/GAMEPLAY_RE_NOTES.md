@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot base frustum order:
+  ihatecompvir `CamShotFrame::Interp` calls the base
+  `RndCam::SetFrustum(... source_screen_offset_fov ...)` before
+  `BuildTransform`, `LookAt`, and same-target screen-offset translation, then
+  calls the zoomed `SetFrustum` before DOF/shake/final `SetLocalXfm`. Native
+  normal gameplay cameras now apply the base source frustum before the
+  BuildTransform/screen-offset branch instead of waiting until after it, so
+  `LocalProjectXfm`-shaped screen-offset math is ordered against the same
+  source projection state. This does not recover hidden BuildTransform math,
+  promote FreeCam, or add dependencies.
 - 2026-07-16 gameplay CamShot DOF EndAnim source boundary:
   ihatecompvir `CamShot::EndAnim()` only runs `UnHide()`, sends
   `stop_shot_msg`, and ends linked `mAnims`; DOF clearing is visible in
@@ -12157,12 +12167,14 @@ Rejected native probe:
   ordering.
 - 2026-07-14 CamShot SetFrustum/SetLocalXfm order:
   the same ihatecompvir block performs both source `RndCam::SetFrustum` calls
-  before `cam->SetLocalXfm(tf130)`. Native now routes decoded CamShot
-  near/far through the source frustum bridge twice in that order: first with
-  the pre-zoom `source_screen_offset_fov`, then with the preserved final FOV
-  and the far plane left by the base call, before submitting the final result
-  frame. This keeps source projection state and source transform submission in
-  the same order as `CamShotFrame::Interp`.
+  before `cam->SetLocalXfm(tf130)`, and the base frustum call precedes the
+  BuildTransform/same-target screen-offset branch. Native routes decoded
+  CamShot near/far through the source frustum bridge twice in that order:
+  first with the pre-zoom `source_screen_offset_fov` before the source
+  transform branch, then with the preserved final FOV and the far plane left by
+  the base call before submitting the final result frame. This keeps source
+  projection state and source transform submission in the same order as
+  `CamShotFrame::Interp`.
 - 2026-07-13 RndCam frustum plane-ratio clamp: ihatecompvir
   `RndCam::SetFrustum` clamps extreme near/far plane ratios before storing
   the camera frustum (`far - 0.0001 > near * 1000`). Native now routes

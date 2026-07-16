@@ -8925,10 +8925,12 @@ int main() {
                  "TransAnim-backed camera keys inherit zoom FOV");
   ok &= contains(gameplay_c,
                  "constboolhas_zoom_fov=a->has_zoom_fov||b->has_zoom_fov;"
-                 "floatzoom_fov=0.0f;if(has_zoom_fov)",
+                 "floatzoom_fov=0.0f;"
+                 "floatsource_final_fov=source_screen_offset_fov;"
+                 "if(has_zoom_fov)",
                  "camera interpolation evaluates CamShot zoom FOV");
   ok &= contains(gameplay_c,
-                 "cam.fov=source_screen_offset_fov+zoom_fov;",
+                 "source_final_fov=source_screen_offset_fov+zoom_fov;",
                  "camera interpolation adds CamShot zoom FOV after preserving the source screen-offset frustum");
   ok &= contains(gameplay_c,
                  "source_ref=%s",
@@ -9484,7 +9486,7 @@ int main() {
                  "result_key.fov=source_screen_offset_fov;",
                  "source-shaped screen-offset result uses CamShot pre-zoom FOV like ihatecompvir Interp");
   ok &= contains(gameplay_c,
-                 "cam.fov=source_screen_offset_fov+zoom_fov;",
+                 "source_final_fov=source_screen_offset_fov+zoom_fov;",
                  "runtime applies CamShot zoom FOV after preserving the screen-offset frustum");
   ok &= contains(gameplay_c,
                  "if(!same_targets_like_camshot){",
@@ -11969,36 +11971,49 @@ int main() {
                  "constfloatsource_current_far_z=cam.far_z;",
                  "runtime camera preserves the previous source far plane for SetFrustum");
   ok &= contains(gameplay_c,
-                 "constfloatsource_final_fov=cam.fov;",
-                 "runtime camera preserves the post-zoom source FOV before base SetFrustum");
+                 "floatsource_final_fov=source_screen_offset_fov;",
+                 "runtime camera preserves the post-zoom source FOV separately from the base frustum");
   ok &= contains(gameplay_c,
                  "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,near_z,far_z,source_screen_offset_fov,"
+                 "cam,source_requested_near_z,source_requested_far_z,"
+                 "source_screen_offset_fov,"
                  "source_current_far_z);",
                  "runtime camera submits the base CamShot frustum through the source bridge");
   ok &= contains(gameplay_c,
-                 "constfloatsource_after_base_far_z=cam.far_z;",
+                 "source_after_base_far_z=cam.far_z;",
                  "runtime camera preserves the base SetFrustum far plane for the zoom SetFrustum call");
   ok &= contains(gameplay_c,
                  "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,near_z,far_z,source_final_fov,"
+                 "cam,source_requested_near_z,source_requested_far_z,"
+                 "source_final_fov,"
                  "source_after_base_far_z);",
                  "runtime camera submits the zoomed CamShot frustum through the source bridge");
   ok &= contains(gameplay_c,
-                 "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,kCamShotSourceDefaultNearPlane,"
-                 "kCamShotSourceDefaultFarPlane,source_screen_offset_fov,"
-                 "source_current_far_z);",
-                 "missing CamShot clip planes use source constructor defaults through base SetFrustum");
-  ok &= contains(gameplay_c,
-                 "camera_apply_rndcam_set_frustum_like_source("
-                 "cam,kCamShotSourceDefaultNearPlane,"
-                 "kCamShotSourceDefaultFarPlane,source_final_fov,"
-                 "source_after_default_base_far_z);",
-                 "missing CamShot clip planes use source constructor defaults through zoom SetFrustum");
+                 "floatsource_requested_near_z="
+                 "kCamShotSourceDefaultNearPlane;"
+                 "floatsource_requested_far_z="
+                 "kCamShotSourceDefaultFarPlane;",
+                 "missing CamShot clip planes use source constructor defaults through the shared SetFrustum request");
   ok &= appears_before(gameplay_c,
                        "camera_apply_rndcam_set_frustum_like_source("
-                       "cam,near_z,far_z,source_final_fov,"
+                       "cam,source_requested_near_z,"
+                       "source_requested_far_z,source_screen_offset_fov,"
+                       "source_current_far_z);",
+                       "if(!submitted_result_from_ps2_trace&&"
+                       "blended_target_centroid){",
+                       "CamShot base SetFrustum runs before BuildTransform like ihatecompvir Interp");
+  ok &= appears_before(gameplay_c,
+                       "camera_apply_rndcam_set_frustum_like_source("
+                       "cam,source_requested_near_z,"
+                       "source_requested_far_z,source_screen_offset_fov,"
+                       "source_current_far_z);",
+                       "source_screen_offset_translate_result="
+                       "camera_source_screen_offset_translate_distance_result_rows(",
+                       "CamShot base SetFrustum runs before same-target LocalProjectXfm screen-offset translation");
+  ok &= appears_before(gameplay_c,
+                       "camera_apply_rndcam_set_frustum_like_source("
+                       "cam,source_requested_near_z,"
+                       "source_requested_far_z,source_final_fov,"
                        "source_after_base_far_z);",
                        "apply_camera_result_frame(cam,submitted_result);",
                        "CamShot SetFrustum calls run before source SetLocalXfm/result submission");

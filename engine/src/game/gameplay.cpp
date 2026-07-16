@@ -21485,13 +21485,46 @@ void apply_camera_keys(
     cam.fov = source_screen_offset_fov;
     const bool has_zoom_fov = a->has_zoom_fov || b->has_zoom_fov;
     float zoom_fov = 0.0f;
+    float source_final_fov = source_screen_offset_fov;
     if (has_zoom_fov) {
         const float zoom_a = a->has_zoom_fov ? a->zoom_fov : 0.0f;
         const float zoom_b = b->has_zoom_fov ? b->zoom_fov : zoom_a;
         zoom_fov = zoom_a + (zoom_b - zoom_a) * interp_t;
         if (std::isfinite(zoom_fov)) {
-            cam.fov = source_screen_offset_fov + zoom_fov;
+            source_final_fov = source_screen_offset_fov + zoom_fov;
         }
+    }
+    float source_requested_near_z = kCamShotSourceDefaultNearPlane;
+    float source_requested_far_z = kCamShotSourceDefaultFarPlane;
+    bool source_frustum_valid = false;
+    if (a->has_clip_planes || b->has_clip_planes) {
+        const float near_a =
+            a->has_clip_planes
+                ? a->near_plane
+                : (b->has_clip_planes ? b->near_plane : cam.near_z);
+        const float near_b = b->has_clip_planes ? b->near_plane : near_a;
+        const float far_a =
+            a->has_clip_planes
+                ? a->far_plane
+                : (b->has_clip_planes ? b->far_plane : cam.far_z);
+        const float far_b = b->has_clip_planes ? b->far_plane : far_a;
+        source_requested_near_z = near_a + (near_b - near_a) * interp_t;
+        source_requested_far_z = far_a + (far_b - far_a) * interp_t;
+        source_frustum_valid =
+            std::isfinite(source_requested_near_z) &&
+            std::isfinite(source_requested_far_z) &&
+            source_requested_near_z > 0.0f &&
+            source_requested_far_z > source_requested_near_z;
+    } else {
+        source_frustum_valid = true;
+    }
+    const float source_current_far_z = cam.far_z;
+    float source_after_base_far_z = source_current_far_z;
+    if (source_frustum_valid) {
+        camera_apply_rndcam_set_frustum_like_source(
+            cam, source_requested_near_z, source_requested_far_z,
+            source_screen_offset_fov, source_current_far_z);
+        source_after_base_far_z = cam.far_z;
     }
     const auto lerp_camshot_frame_field =
         [interp_t](bool has_a, float a_value, bool has_b, float b_value,
@@ -21844,44 +21877,10 @@ void apply_camera_keys(
         source_visible_build_transform_pair = "current_frame_twice";
     }
     const CameraResultRows source_pre_setframe_blend_result = submitted_result;
-    const float source_current_far_z = cam.far_z;
-    const float source_final_fov = cam.fov;
-    if (a->has_clip_planes || b->has_clip_planes) {
-        const float near_a =
-            a->has_clip_planes
-                ? a->near_plane
-                : (b->has_clip_planes ? b->near_plane : cam.near_z);
-        const float near_b = b->has_clip_planes ? b->near_plane : near_a;
-        const float far_a =
-            a->has_clip_planes
-                ? a->far_plane
-                : (b->has_clip_planes ? b->far_plane : cam.far_z);
-        const float far_b = b->has_clip_planes ? b->far_plane : far_a;
-        const float near_z = near_a + (near_b - near_a) * interp_t;
-        const float far_z = far_a + (far_b - far_a) * interp_t;
-        if (std::isfinite(near_z) && std::isfinite(far_z) &&
-            near_z > 0.0f && far_z > near_z) {
-            camera_apply_rndcam_set_frustum_like_source(
-                cam, near_z, far_z, source_screen_offset_fov,
-                source_current_far_z);
-            const float source_after_base_far_z = cam.far_z;
-            camera_apply_rndcam_set_frustum_like_source(
-                cam, near_z, far_z, source_final_fov,
-                source_after_base_far_z);
-        }
-    } else {
-        // ihatecompvir CamShot constructor defaults mNear/mFar to 1/1000.
-        // Keep missing decoded planes on the same SetFrustum path as authored
-        // planes instead of widening the host renderer frustum.
+    if (source_frustum_valid) {
         camera_apply_rndcam_set_frustum_like_source(
-            cam, kCamShotSourceDefaultNearPlane,
-            kCamShotSourceDefaultFarPlane, source_screen_offset_fov,
-            source_current_far_z);
-        const float source_after_default_base_far_z = cam.far_z;
-        camera_apply_rndcam_set_frustum_like_source(
-            cam, kCamShotSourceDefaultNearPlane,
-            kCamShotSourceDefaultFarPlane, source_final_fov,
-            source_after_default_base_far_z);
+            cam, source_requested_near_z, source_requested_far_z,
+            source_final_fov, source_after_base_far_z);
     }
     const bool source_use_depth_of_field =
         b->has_use_depth_of_field
