@@ -6454,35 +6454,52 @@ int main() {
   ok &= contains(gameplay_c,
                  "previous_regular_camera_=previous_current;"
                  "active_regular_camera_=next_shot;"
-                 "active_regular_camera_start_=source_start_time;"
+                 "active_regular_camera_start_=source_start_time;",
+                 "regular camera pending mNextShot always restarts source shot timing");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::clear_pending_regular_camera_after_start_like_source(){"
+                 "if(pending_regular_camera_.empty())return;"
+                 "conststd::stringsource_next_before_clear="
+                 "pending_regular_camera_;"
+                 "pending_regular_camera_.clear();"
                  "pending_regular_camera_start_=0.0;"
                  "pending_regular_camera_local_frame_=0.0;",
-                 "regular camera pending mNextShot always restarts source shot timing");
+                 "regular camera mNextShot clears only after source StartShot runtime");
   ok &= absent(consume_pending_camera_c,
                "active_camera_shots_over_.clear();",
                "regular camera pending mNextShot must not clear source per-CamShot mShotOver latches");
   ok &= contains(gameplay_c,
-                 "constCameraKey*source_current_after="
+                 "constCameraKey*source_current_during_start="
                  "camera_manager_current_shot_like_source();"
-                 "constCameraKey*source_next_after="
+                 "constCameraKey*source_next_during_start="
                  "camera_manager_next_shot_like_source();",
-                 "regular camera PrePoll reads source current_shot and next_shot after consumption");
+                 "regular camera PrePoll keeps source current_shot and next_shot live into StartShot");
   ok &= contains(gameplay_c,
-                 "\"[world]cameraPrePollconsumed:"
+                 "\"[world]cameraPrePollstaged:"
                  "source_manager=PrePoll"
                  "source_call=StartShot_(mNextShot)"
                  "source_field=mCurrentShot,mNextShot"
-                 "source_order=after_StartShot_before_SetPreFrame",
-                 "regular camera PrePoll consumed diagnostics mirror ihatecompvir StartShot then mNextShot clear order");
+                 "source_order=before_CamShot_StartAnim_mNextShot_live",
+                 "regular camera PrePoll staged diagnostics mirror ihatecompvir live mNextShot during StartShot");
   ok &= contains(gameplay_c,
-                 "source_current_after=%s"
-                 "source_next_after=%s"
+                 "source_current_during_start=%s"
+                 "source_next_during_start=%s"
                  "local_frame=%.3fstart_time=%.3f"
-                 "result=SetPreFrame_ready"
                  "pipeline_scope=normal_gameplay_camera"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0",
-                 "regular camera PrePoll consumed diagnostics keep gameplay camera state ahead of deferred FreeCam");
+                 "regular camera PrePoll staged diagnostics keep gameplay camera state ahead of deferred FreeCam");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraPrePollmNextShotclear:"
+                 "source_manager=PrePollsource_call=mNextShot=0"
+                 "source_order=after_StartShot_before_SetPreFrame"
+                 "previous=%scurrent=%snext_before_clear=%snext_after=%s"
+                 "source_current_after=%ssource_next_after=%s"
+                 "result=SetPreFrame_ready"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0\\n\"",
+                 "regular camera PrePoll clear diagnostics prove source mNextShot clears after StartShot and before SetPreFrame");
   ok &= absent(gameplay_c,
                "camera_source_check_shot_started(",
                "CameraManager::PickCameraShot has no native same-current/unstarted CheckShotStarted guard");
@@ -6506,19 +6523,29 @@ int main() {
                  "consume_pending_regular_camera_shot();",
                  "regular gameplay cameras suppress mNextShot consumption when MiloCamera preview is active");
   ok &= contains(gameplay_c,
-                 "if(constauto*key=source_milo_camera_active?nullptr:"
+                 "constCameraKey*source_active_regular_camera_key="
+                 "source_milo_camera_active?nullptr:"
                  "find_camera_key_by_name(",
                  "regular gameplay cameras suppress Poll/SetFrame sampling when MiloCamera preview is active");
   ok &= contains(gameplay_c,
+                 "if(source_active_regular_camera_key==nullptr&&"
+                 "source_restarted_shot){"
+                 "clear_pending_regular_camera_after_start_like_source();}",
+                 "regular gameplay cameras clear mNextShot even if a decoded key is missing");
+  ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
+                 "if(source_restarted_shot){"
+                 "clear_pending_regular_camera_after_start_like_source();}"
                  "std::vector<CameraKey>selected_camera;",
                  "regular gameplay cameras enter StartAnim before source-shaped camera row sampling");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
+                 "if(source_restarted_shot){"
+                 "clear_pending_regular_camera_after_start_like_source();}"
                  "std::vector<CameraKey>selected_camera;"
                  "constfloatsource_setpreframe_blend=1.0f;"
                  "constfloatsource_setframe_blend=1.0f;",
-                 "regular gameplay cameras mirror CameraManager PrePoll StartShot before SetPreFrame");
+                 "regular gameplay cameras mirror CameraManager PrePoll StartShot then mNextShot clear before SetPreFrame");
   ok &= contains(gameplay_c,
                  "if(selected_camera.empty()){"
                  "CameraKeynull_frame=*key;"
@@ -11532,7 +11559,7 @@ int main() {
                  "source_manager=PrePollsource_call=CamShot::SetPreFrame"
                  "shot=%slocal_frame=%.3fsource_setpreframe_blend=%.3f"
                  "base_noop=1"
-                 "source_order=after_mNextShot_before_Poll_SetFrame\\n\"",
+                 "source_order=after_mNextShot_clear_before_Poll_SetFrame\\n\"",
                  "regular camera diagnostics expose ihatecompvir PrePoll SetPreFrame before Poll SetFrame");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
@@ -13629,13 +13656,18 @@ int main() {
   ok &= contains(
       start_camera_shot_runtime_c,
       "if(source_restart&&(debug_camera_enabled()||debug_venue_filters_enabled())){"
+      "constCameraKey*source_next_during_start="
+      "camera_manager_next_shot_like_source();"
       "std::fprintf(stderr,\"[world]cameraStartShot_:source_manager="
       "CameraManager::StartShot_source_order=after_CamShot_StartAnim",
       "camera StartShot_ diagnostics expose the source post-StartAnim manager step");
   ok &= contains(start_camera_shot_runtime_c,
                  "active_regular_camera_start_,camera_source_anim_rate(key),"
-                 "camera_source_frames_per_unit(key));",
-                 "camera StartShot_ diagnostics use the source mCamStartTime equivalent and frames-per-unit");
+                 "camera_source_frames_per_unit(key),"
+                 "pending_regular_camera_.c_str(),"
+                 "source_next_during_start?source_next_during_start->"
+                 "name.c_str():\"\");",
+                 "camera StartShot_ diagnostics use the source mCamStartTime, frames-per-unit, and live mNextShot equivalent");
   ok &= contains(start_camera_shot_runtime_c,
                  "tri_frame_reset=source_wii_onlycooldown_reset=0"
                  "native_renderer_side_effect=not_applied",

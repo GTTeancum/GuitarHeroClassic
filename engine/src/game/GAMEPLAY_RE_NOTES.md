@@ -212,6 +212,14 @@
   CamShot has no timing keys, and keep path-backed shots on their authored
   TransAnim route. This does not invent `BuildTransform`, `SetPos`, `Shake`, or
   FreeCam behavior, and it adds no dependency surface.
+- 2026-07-16 gameplay camera PrePoll mNextShot clear order:
+  ihatecompvir `CameraManager::PrePoll` calls `StartShot_(mNextShot)`, leaves
+  `mNextShot` visible while the CamShot `start_shot` / `StartAnim` work runs,
+  then clears `mNextShot` before `mCurrentShot->SetPreFrame(...)`. Native
+  regular gameplay cameras now keep the pending shot live through the StartShot
+  runtime proof row, then clear the pending slot immediately before SetPreFrame
+  sampling. This is source lifetime parity for normal gameplay camera scripts;
+  FreeCam remains deferred last, and no dependency surface changes.
 - 2026-07-15 gameplay camera PrePoll consumption proof:
   ihatecompvir `CameraManager::PrePoll` calls `StartShot_(mNextShot)`, clears
   `mNextShot`, then calls `mCurrentShot->SetPreFrame(CalcFrame(), 1.0f)`.

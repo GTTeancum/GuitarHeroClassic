@@ -25687,8 +25687,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     const double queued_start_preview = pending_regular_camera_start_;
     const double source_local_frame = pending_regular_camera_local_frame_;
     const std::string previous_current = active_regular_camera_;
-    const std::string next_shot = std::move(pending_regular_camera_);
-    pending_regular_camera_.clear();
+    const std::string next_shot = pending_regular_camera_;
     const bool shot_changed = previous_current != next_shot;
     const CameraKey* next_key =
         find_camera_key_by_name(regular_camera_keys_, next_shot);
@@ -25709,8 +25708,6 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     previous_regular_camera_ = previous_current;
     active_regular_camera_ = next_shot;
     active_regular_camera_start_ = source_start_time;
-    pending_regular_camera_start_ = 0.0;
-    pending_regular_camera_local_frame_ = 0.0;
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_frame_pair_reported_.clear();
@@ -25722,20 +25719,44 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_shot_over_reported_.clear();
     active_camera_shot_over_gate_reported_.clear();
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const CameraKey* source_current_during_start =
+            camera_manager_current_shot_like_source();
+        const CameraKey* source_next_during_start =
+            camera_manager_next_shot_like_source();
+        std::fprintf(
+            stderr,
+            "[world] camera PrePoll staged: source_manager=PrePoll source_call=StartShot_(mNextShot) source_field=mCurrentShot,mNextShot source_order=before_CamShot_StartAnim_mNextShot_live previous=%s current=%s next_during_start=%s source_current_during_start=%s source_next_during_start=%s local_frame=%.3f start_time=%.3f pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            previous_current.c_str(), active_regular_camera_.c_str(),
+            pending_regular_camera_.c_str(),
+            source_current_during_start
+                ? source_current_during_start->name.c_str()
+                : "",
+            source_next_during_start ? source_next_during_start->name.c_str()
+                                     : "",
+            source_local_frame, source_start_time);
+    }
+    return true;
+}
+
+void Gameplay::clear_pending_regular_camera_after_start_like_source() {
+    if (pending_regular_camera_.empty()) return;
+    const std::string source_next_before_clear = pending_regular_camera_;
+    pending_regular_camera_.clear();
+    pending_regular_camera_start_ = 0.0;
+    pending_regular_camera_local_frame_ = 0.0;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const CameraKey* source_current_after =
             camera_manager_current_shot_like_source();
         const CameraKey* source_next_after =
             camera_manager_next_shot_like_source();
         std::fprintf(
             stderr,
-            "[world] camera PrePoll consumed: source_manager=PrePoll source_call=StartShot_(mNextShot) source_field=mCurrentShot,mNextShot source_order=after_StartShot_before_SetPreFrame previous=%s current=%s next_after=%s source_current_after=%s source_next_after=%s local_frame=%.3f start_time=%.3f result=SetPreFrame_ready pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
-            previous_current.c_str(), active_regular_camera_.c_str(),
-            pending_regular_camera_.c_str(),
+            "[world] camera PrePoll mNextShot clear: source_manager=PrePoll source_call=mNextShot=0 source_order=after_StartShot_before_SetPreFrame previous=%s current=%s next_before_clear=%s next_after=%s source_current_after=%s source_next_after=%s result=SetPreFrame_ready pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            previous_regular_camera_.c_str(), active_regular_camera_.c_str(),
+            source_next_before_clear.c_str(), pending_regular_camera_.c_str(),
             source_current_after ? source_current_after->name.c_str() : "",
-            source_next_after ? source_next_after->name.c_str() : "",
-            source_local_frame, source_start_time);
+            source_next_after ? source_next_after->name.c_str() : "");
     }
-    return true;
 }
 
 void Gameplay::start_camera_shot_runtime(const CameraKey& key,
@@ -25865,11 +25886,16 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     }
     if (source_restart &&
         (debug_camera_enabled() || debug_venue_filters_enabled())) {
+        const CameraKey* source_next_during_start =
+            camera_manager_next_shot_like_source();
         std::fprintf(
             stderr,
-            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f units=%d fpu=%.1f venue_test=0 tri_frame_reset=source_wii_only cooldown_reset=0 native_renderer_side_effect=not_applied\n",
+            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f units=%d fpu=%.1f next_during_start=%s source_next_during_start=%s venue_test=0 tri_frame_reset=source_wii_only cooldown_reset=0 native_renderer_side_effect=not_applied\n",
             active_camera_runtime_shot_.c_str(), active_regular_camera_start_,
-            camera_source_anim_rate(key), camera_source_frames_per_unit(key));
+            camera_source_anim_rate(key), camera_source_frames_per_unit(key),
+            pending_regular_camera_.c_str(),
+            source_next_during_start ? source_next_during_start->name.c_str()
+                                     : "");
     }
     set_camera_glow_spot_ref(key.glow_spot_ref);
 }
@@ -35234,12 +35260,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 source_milo_camera_active
                     ? false
                     : consume_pending_regular_camera_shot();
-            if (const auto* key =
-                    source_milo_camera_active
-                        ? nullptr
-                        : find_camera_key_by_name(regular_camera_keys_,
-                                                  active_regular_camera_)) {
+            const CameraKey* source_active_regular_camera_key =
+                source_milo_camera_active
+                    ? nullptr
+                    : find_camera_key_by_name(regular_camera_keys_,
+                                              active_regular_camera_);
+            if (source_active_regular_camera_key == nullptr &&
+                source_restarted_shot) {
+                clear_pending_regular_camera_after_start_like_source();
+            }
+            if (const auto* key = source_active_regular_camera_key) {
                 start_camera_shot_runtime(*key, source_restarted_shot);
+                if (source_restarted_shot) {
+                    clear_pending_regular_camera_after_start_like_source();
+                }
                 std::vector<CameraKey> selected_camera;
                 const float source_setpreframe_blend = 1.0f;
                 const float source_setframe_blend = 1.0f;
@@ -35357,7 +35391,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (source_shot_started) {
                         std::fprintf(
                             stderr,
-                            "[world] camera PrePoll SetPreFrame: source_manager=PrePoll source_call=CamShot::SetPreFrame shot=%s local_frame=%.3f source_setpreframe_blend=%.3f base_noop=1 source_order=after_mNextShot_before_Poll_SetFrame\n",
+                            "[world] camera PrePoll SetPreFrame: source_manager=PrePoll source_call=CamShot::SetPreFrame shot=%s local_frame=%.3f source_setpreframe_blend=%.3f base_noop=1 source_order=after_mNextShot_clear_before_Poll_SetFrame\n",
                             key->name.c_str(), source_shot_local_frame,
                             source_setpreframe_blend);
                         std::fprintf(

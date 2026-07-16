@@ -860,6 +860,7 @@ class Gameplay {
   const CameraKey* camera_manager_source_shot_after(
       const std::string& current_name) const;
   bool consume_pending_regular_camera_shot();
+  void clear_pending_regular_camera_after_start_like_source();
   void start_camera_shot_runtime(const CameraKey& key,
                                  bool source_restart = false);
   void end_camera_shot_runtime(bool skip_script_crowd_update = false);
