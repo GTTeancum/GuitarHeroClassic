@@ -25043,6 +25043,25 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     active_camera_skip_next_crowd_update_ = false;
 }
 
+void Gameplay::reset_world_camera_script_state_like_source(
+    const char* source_caller) {
+    const bool did_lighter_before = did_lighter_cam_;
+    const uint32_t camera_beat_before = camera_beat_state_;
+    const bool camera_solo_before = camera_solo_active_;
+    did_lighter_cam_ = false;
+    camera_beat_state_ = 0;
+    camera_solo_active_ = false;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera reset_camera: source_msg=reset_camera source_script=world_objects_worldbase.dta::reset_camera caller=%s did_lighter_cam_before=%d did_lighter_cam_after=%d camera_beat_before=%u camera_beat_after=%u camera_solo_before=%d camera_solo_after=%d pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            source_caller && source_caller[0] ? source_caller : "unknown",
+            did_lighter_before ? 1 : 0, did_lighter_cam_ ? 1 : 0,
+            camera_beat_before, camera_beat_state_,
+            camera_solo_before ? 1 : 0, camera_solo_active_ ? 1 : 0);
+    }
+}
+
 void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     const bool had_current = !active_regular_camera_.empty();
     const bool had_pending = !pending_regular_camera_.empty();
@@ -33080,12 +33099,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     load_venue_camera_policy(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
                 camera_duration_bars_ = camera_policy.duration_bars;
+                reset_world_camera_script_state_like_source(
+                    "world_objects_worldbase.dta::intro_start_msg");
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
                 last_camera_beat_ = UINT32_MAX;
-                camera_beat_state_ = 0;
                 next_camera_one_bar_to_event_idx_ = 0;
-                camera_solo_active_ = false;
                 active_camera_skip_next_crowd_update_ = false;
                 const IntroCameraSelection intro_camera =
                     select_intro_camera_anim(hdr_path_, ark_path_,

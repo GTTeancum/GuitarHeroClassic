@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay `reset_camera` source state:
+  GH2 `world_objects_worldbase.dta::intro_start_msg` calls `reset_camera`
+  before setting `[camera_bars_left]` to six, and the shared `reset_camera`
+  handler clears `[did_lighter_cam]`, `[camera_beat]`, and `[camera_solo]`.
+  Native normal gameplay now routes intro-start camera state through a named
+  source bridge and logs the before/after values, instead of leaving that
+  source handler as scattered startup assignments. This keeps regular, solo,
+  and lighter camera state aligned for later gameplay picks, keeps FreeCam
+  last, and adds no dependencies.
 - 2026-07-16 gameplay downbeat camera pick cadence:
   Re-reading GH2 `world_objects_worldbase.dta` shows `downbeat` always calls
   `check_camera_shot` while `player0` is not in star mode; inside

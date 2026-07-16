@@ -6635,9 +6635,23 @@ int main() {
                  "if(!camera_source_one_bar_to_camera_beat_gate_open(camera_beat_state_)){",
                  "runtime camera one_bar_to mirrors the stored source camera_beat > 0 guard");
   ok &= contains(gameplay_c,
+                 "voidGameplay::reset_world_camera_script_state_like_source("
+                 "constchar*source_caller)",
+                 "runtime exposes the world_objects reset_camera state bridge");
+  ok &= contains(gameplay_c,
+                 "did_lighter_cam_=false;camera_beat_state_=0;"
+                 "camera_solo_active_=false;",
+                 "reset_camera clears did_lighter_cam, camera_beat, and camera_solo like source");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerareset_camera:source_msg=reset_camera"
+                 "source_script=world_objects_worldbase.dta::reset_camera",
+                 "reset_camera diagnostics cite the source script handler");
+  ok &= contains(gameplay_c,
+                 "reset_world_camera_script_state_like_source("
+                 "\"world_objects_worldbase.dta::intro_start_msg\");"
                  "camera_bars_left_=6;last_camera_bar_=UINT32_MAX;"
-                 "last_camera_beat_=UINT32_MAX;camera_beat_state_=0;",
-                 "intro_start_msg/reset_camera clears source camera_beat before normal one_bar_to work");
+                 "last_camera_beat_=UINT32_MAX;",
+                 "intro_start_msg calls reset_camera before setting the source six-bar intro hold");
   ok &= contains(gameplay_c,
                  "camera_solo_active_="
                  "camera_source_one_bar_to_solo_state_after_section("
