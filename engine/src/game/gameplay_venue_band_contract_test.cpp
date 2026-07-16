@@ -13205,6 +13205,10 @@ int main() {
                  "if(prop==\"force_char_lod\")returnkey.force_char_lod;",
                  "regular camera integer filters expose decoded force_char_lod");
   ok &= contains(gameplay_c,
+                 "if(prop==\"loop_keyframe\")"
+                 "returnkey.has_camshot_looping?key.camshot_loop_keyframe:0;",
+                 "regular camera integer filters expose ihatecompvir loop_keyframe default");
+  ok &= contains(gameplay_c,
                  "CameraShotSourceFilterKind::Float",
                  "regular camera filters can mirror float DataNode property comparisons");
   ok &= contains(gameplay_c,

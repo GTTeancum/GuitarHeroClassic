@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches loop_keyframe property coverage:
+  ihatecompvir exposes `loop_keyframe` as `SYNC_PROP(loop_keyframe,
+  mLoopKeyframe)` and constructs it with default `0`. Native `ShotMatches`
+  integer filters now evaluate the decoded CamShot loop keyframe with that
+  source default for partially decoded keys. This is selector parity only: no
+  pose math, FreeCam priority, under-venue masking, or dependency surface
+  changes.
 - 2026-07-16 CameraManager ShotMatches duration property coverage:
   ihatecompvir exposes `duration` as `SYNC_PROP_STATIC(duration, mDuration)`,
   and `CamShot::CacheFrames` computes `mDuration` by summing each keyframe's

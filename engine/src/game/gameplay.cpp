@@ -16354,6 +16354,8 @@ std::optional<int> camera_filter_int_property(
     if (prop == "ps3_per_pixel") return key.ps3_per_pixel ? 1 : 0;
     if (prop == "disabled") return key.disabled_flags;
     if (prop == "force_char_lod") return key.force_char_lod;
+    if (prop == "loop_keyframe")
+        return key.has_camshot_looping ? key.camshot_loop_keyframe : 0;
     return std::nullopt;
 }
 
