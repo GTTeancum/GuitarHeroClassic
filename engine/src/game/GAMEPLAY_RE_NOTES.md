@@ -12154,6 +12154,13 @@ Rejected native probe:
   `CamShot::SetPreFrame(CalcFrame(), 1.0f)` before `CameraManager::Poll`
   calls `SetFrame(CalcFrame(), 1.0f)`. Because base `SetPreFrame` is empty,
   this is proof plumbing only, not a camera pose change.
+- 2026-07-16 follow-up: the native regular camera runtime now carries a
+  per-active-shot `SetPreFrame` call counter and emits bounded cadence samples
+  on the first call and every 60th call. ihatecompvir `CameraManager::PrePoll`
+  calls base `CamShot::SetPreFrame(CalcFrame(), 1.0f)` every frame, even
+  though the base body is an empty inline override. The new state keeps that
+  manager cadence auditable without changing gameplay camera pose math,
+  promoting FreeCam, or adding any dependency surface.
 - 2026-07-14 follow-up: the same shot-start proof row now prints the
   `source_setframe_blend` value passed into `apply_camera_keys()` instead of a
   hard-coded diagnostic literal. Stock `CameraManager::Poll` still supplies

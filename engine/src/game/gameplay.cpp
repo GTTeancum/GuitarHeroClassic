@@ -24143,6 +24143,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_postprocess_ref_.clear();
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
+    active_camera_setpreframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -25083,6 +25084,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
     active_camera_runtime_shot_.clear();
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
+    active_camera_setpreframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -25190,6 +25192,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     set_camera_glow_spot_ref({});
     active_camera_shot_started_reported_.clear();
     active_camera_shot_started_ = false;
+    active_camera_setpreframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -25922,6 +25925,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_regular_camera_start_ = source_start_time;
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
+    active_camera_setpreframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -25980,6 +25984,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     end_camera_shot_runtime(skip_script_crowd_update, false);
     active_camera_runtime_shot_ = runtime_name;
     active_camera_shot_started_ = false;
+    active_camera_setpreframe_calls_ = 0;
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -32963,6 +32968,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_fov_anim_refs_.clear();
                 active_camera_anim_start_time_ = 0.0;
                 active_camera_fov_anim_reported_.clear();
+                active_camera_setpreframe_calls_ = 0;
                 active_camera_shots_over_.clear();
                 active_camera_shot_over_gate_reported_.clear();
                 active_camera_last_prev_key_.clear();
@@ -35539,6 +35545,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     *key, song_time_, active_regular_camera_start_, &chart_);
                 const bool source_shot_started =
                     !active_camera_shot_started_;
+                const size_t source_setpreframe_call =
+                    ++active_camera_setpreframe_calls_;
                 if (source_shot_started) {
                     active_camera_shot_started_ = true;
                     active_camera_shot_started_reported_ = key->name;
@@ -35628,18 +35636,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_camera_last_pair_null_frame_ = false;
                 }
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-                    if (source_shot_started) {
+                    const bool source_setpreframe_sample =
+                        source_shot_started ||
+                        (source_setpreframe_call % 60u) == 0u;
+                    if (source_setpreframe_sample) {
                         std::fprintf(
                             stderr,
-                            "[world] camera PrePoll SetPreFrame: source_manager=PrePoll source_call=CamShot::SetPreFrame shot=%s local_frame=%.3f source_setpreframe_blend=%.3f base_noop=1 source_order=after_mNextShot_clear_before_Poll_SetFrame\n",
+                            "[world] camera PrePoll SetPreFrame: source_manager=PrePoll source_call=CamShot::SetPreFrame shot=%s local_frame=%.3f source_setpreframe_blend=%.3f base_noop=1 source_order=after_mNextShot_clear_before_Poll_SetFrame source_cadence=per_frame source_call_count=%zu sample_stride=60\n",
                             key->name.c_str(), source_shot_local_frame,
-                            source_setpreframe_blend);
+                            source_setpreframe_blend,
+                            source_setpreframe_call);
+                    }
+                    if (source_shot_started) {
                         std::fprintf(
                             stderr,
                             "[world] camera shot_started dispatch: source_msg=shot_started source_script=world/camshot.dta source_action=handle(world post_switch_cam) native_handler=apply_venue_event(post_switch_cam) pose_body=not_synthesized\n");
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setframe_blend=%.3f\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setpreframe_calls=%zu source_setframe_blend=%.3f\n",
                             key->name.c_str(), source_shot_local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),
@@ -35648,6 +35662,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             camera_source_frames_per_unit(*key),
                             selected_camera.size(),
                             source_camshot_timing_frames(*key).size(),
+                            source_setpreframe_call,
                             source_setframe_blend);
                     }
                     if (source_frame_key_route && selected_camera.size() >= 2) {

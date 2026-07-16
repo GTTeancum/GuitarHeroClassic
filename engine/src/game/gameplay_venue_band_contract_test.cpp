@@ -11607,7 +11607,10 @@ int main() {
                  "source_manager=PrePollsource_call=CamShot::SetPreFrame"
                  "shot=%slocal_frame=%.3fsource_setpreframe_blend=%.3f"
                  "base_noop=1"
-                 "source_order=after_mNextShot_clear_before_Poll_SetFrame\\n\"",
+                 "source_order=after_mNextShot_clear_before_Poll_SetFrame"
+                 "source_cadence=per_frame"
+                 "source_call_count=%zu"
+                 "sample_stride=60\\n\"",
                  "regular camera diagnostics expose ihatecompvir PrePoll SetPreFrame before Poll SetFrame");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
@@ -11619,6 +11622,7 @@ int main() {
                  "source_frame_keys=%zusource_camshot_keyframes=%zu"
                  "source_prep=CameraManager::PrePoll->"
                  "CamShot::SetPreFramebase_noop=1"
+                 "source_setpreframe_calls=%zu"
                  "source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence and base SetPreFrame no-op");
   ok &= contains(gameplay_c,
@@ -11627,10 +11631,23 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolactive_camera_shot_started_=false;",
                  "regular camera runtime carries a source-shaped CheckShotStarted latch separate from diagnostics");
+  ok &= contains(gameplay_h_c,
+                 "size_tactive_camera_setpreframe_calls_=0;",
+                 "regular camera runtime carries source PrePoll SetPreFrame cadence state");
   ok &= contains(gameplay_c,
-                 "constboolsource_shot_started=!active_camera_shot_started_;"
+                 "constboolsource_shot_started=!active_camera_shot_started_;",
+                 "shot_started dispatch computes the source runtime latch, not the proof-report string");
+  ok &= contains(gameplay_c,
                  "if(source_shot_started){active_camera_shot_started_=true;",
                  "shot_started dispatch is driven by the source runtime latch, not the proof-report string");
+  ok &= contains(gameplay_c,
+                 "constsize_tsource_setpreframe_call="
+                 "++active_camera_setpreframe_calls_;",
+                 "regular camera PrePoll SetPreFrame cadence increments outside diagnostic-only logging");
+  ok &= contains(gameplay_c,
+                 "source_shot_started||"
+                 "(source_setpreframe_call%60u)==0u;",
+                 "regular camera SetPreFrame cadence proof stays bounded after the first source call");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_starteddispatch:"
                  "source_msg=shot_startedsource_script=world/camshot.dta"
@@ -11643,7 +11660,8 @@ int main() {
                  "shot_started applies GH2's world post_switch_cam event through the existing dependency-free venue router");
   ok &= contains(gameplay_c,
                  "source_prep=CameraManager::PrePoll->CamShot::SetPreFrame"
-                 "base_noop=1source_setframe_blend=%.3f\\n\"",
+                 "base_noop=1source_setpreframe_calls=%zu"
+                 "source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose ihatecompvir Poll SetFrame cadence after base CamShot SetPreFrame no-op");
   ok &= contains(gameplay_c,
                  "\"[world]camerasourceframeloop:shot=%s"

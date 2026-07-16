@@ -1330,6 +1330,7 @@ class Gameplay {
   std::string active_camera_postprocess_ref_;
   bool active_camera_shot_started_ = false;
   std::string active_camera_shot_started_reported_;
+  size_t active_camera_setpreframe_calls_ = 0;
   std::string active_camera_frame_pair_reported_;
   std::string active_camera_last_prev_key_;
   std::string active_camera_last_next_key_;
