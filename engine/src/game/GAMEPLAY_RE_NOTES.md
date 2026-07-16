@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay start_shot postprocess lifecycle split:
+  GH2 `world/camshot.dta::start_shot` on Xbox selects `[postprocess]` when
+  present and otherwise calls `rnd reset_postproc`; ihatecompvir exposes the
+  corresponding `RndPostProc::Select()` / `Reset()` lifecycle. Native already
+  stores the active CamShot postprocess ref at start-shot time, and diagnostics
+  now label that lifecycle as recovered while keeping
+  `render_effect=postprocessor_pipeline_deferred` for the renderer-side visual
+  effect. This is camera start-shot state parity only: no camera pose, FreeCam
+  priority, dependency, or synthetic postprocess rendering change.
 - 2026-07-16 gameplay ShotOk/native predicate split:
   ihatecompvir `CamShot::ShotOk(prev_shot)` is source-visible and recovered as
   the dispatcher that sends `shot_ok`, interprets unhandled/true returns as

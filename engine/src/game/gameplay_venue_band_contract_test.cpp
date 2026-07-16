@@ -6239,9 +6239,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]camerastart_shotpostprocess:"
                  "source_script=world/camshot.dtasource_platform=HX_XBOX"
-                 "shot=%spostprocess=%saction=%sresult=%s"
-                 "postproc_overrides=%zurender_effect=native_deferred\\n\"",
-                 "camera StartAnim mirrors the Xbox postprocess select/reset branch without claiming rendering");
+                 "source_lifecycle_recovered=RndPostProc::Select/Reset"
+                 "shot=%spostprocess=%ssource_call=%saction=%sresult=%s"
+                 "active_postprocess=%spostproc_overrides=%zu"
+                 "render_effect=postprocessor_pipeline_deferred\\n\"",
+                 "camera StartAnim mirrors the Xbox postprocess select/reset lifecycle while leaving renderer effects deferred");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "active_camera_postprocess_ref_=canonical_milo_ref(key.postprocess_ref);",

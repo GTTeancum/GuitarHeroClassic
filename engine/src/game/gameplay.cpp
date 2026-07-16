@@ -26336,16 +26336,23 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     }
     active_camera_postprocess_ref_ = canonical_milo_ref(key.postprocess_ref);
     if (debug_venue_filters_enabled() || debug_camera_enabled()) {
+        const bool source_selects_postprocess =
+            !active_camera_postprocess_ref_.empty();
         std::fprintf(
             stderr,
-            "[world] camera start_shot postprocess: source_script=world/camshot.dta source_platform=HX_XBOX shot=%s postprocess=%s action=%s result=%s postproc_overrides=%zu render_effect=native_deferred\n",
+            "[world] camera start_shot postprocess: source_script=world/camshot.dta source_platform=HX_XBOX source_lifecycle_recovered=RndPostProc::Select/Reset shot=%s postprocess=%s source_call=%s action=%s result=%s active_postprocess=%s postproc_overrides=%zu render_effect=postprocessor_pipeline_deferred\n",
             active_camera_runtime_shot_.c_str(),
             active_camera_postprocess_ref_.empty()
                 ? "<none>"
                 : active_camera_postprocess_ref_.c_str(),
-            active_camera_postprocess_ref_.empty() ? "rnd reset_postproc"
-                                                   : "postprocess select",
-            active_camera_postprocess_ref_.empty() ? "cleared" : "selected",
+            source_selects_postprocess ? "RndPostProc::Select"
+                                       : "RndPostProc::Reset",
+            source_selects_postprocess ? "postprocess select"
+                                       : "rnd reset_postproc",
+            source_selects_postprocess ? "selected" : "cleared",
+            active_camera_postprocess_ref_.empty()
+                ? "<none>"
+                : active_camera_postprocess_ref_.c_str(),
             key.postproc_override_refs.size());
     }
     if (key.category == "LOSE" &&
