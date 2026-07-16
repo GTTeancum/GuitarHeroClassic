@@ -9456,6 +9456,30 @@ static bool output_map_interesting_bone(const std::string& key) {
          key.find("eye") != std::string::npos;
 }
 
+static bool output_key_is_face(const std::string& key) {
+  std::string lower = key;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return lower.find("face") != std::string::npos ||
+         lower.find("mouth") != std::string::npos ||
+         lower.find("lip") != std::string::npos ||
+         lower.find("jaw") != std::string::npos ||
+         lower.find("teeth") != std::string::npos ||
+         lower.find("tongue") != std::string::npos ||
+         lower.find("tounge") != std::string::npos ||
+         lower.find("brow") != std::string::npos ||
+         lower.find("lid") != std::string::npos ||
+         lower.find("eye") != std::string::npos;
+}
+
+static bool output_bones_have_face_output(
+    const std::vector<CharClip::OutputBone>& output_bones) {
+  for (const auto& out : output_bones) {
+    if (output_key_is_face(strip_transform_suffix(out.name))) return true;
+  }
+  return false;
+}
+
 static void dump_charbone_output_map(
     const Character& character, const std::vector<OutputPoseNode>& nodes,
     const std::unordered_map<std::string, size_t>& by_key,
@@ -9580,6 +9604,23 @@ static bool apply_clip_pose_output_layer(
                            force_selected_output);
 
   if (!force_selected_output) {
+    if (debug_face_enabled() && output_bones_have_face_output(output_bones)) {
+      size_t face_outputs = 0;
+      size_t driven_face_outputs = 0;
+      for (size_t i = 0; i < nodes.size(); ++i) {
+        if (!output_key_is_face(nodes[i].key)) continue;
+        ++face_outputs;
+        if (node_driven[i]) ++driven_face_outputs;
+      }
+      std::fprintf(
+          stderr,
+          "[face-output] live=0 source_publisher=fenced outputBones=%zu "
+          "faceOutputBones=%zu drivenFaceOutputBones=%zu directChannels=%zu "
+          "source=CharClip::PoseMeshes(tmp_viseme_bones,ScaleDown,ScaleAdd,"
+          "PoseMeshes) missing=CharBonesMeshes::PoseMeshes\n",
+          output_bones.size(), face_outputs, driven_face_outputs,
+          direct_channels.size());
+    }
     return false;
   }
 

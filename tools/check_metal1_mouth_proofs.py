@@ -22,7 +22,12 @@ REQUIRED_IMAGES = (
 
 
 def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+    data = path.read_bytes()
+    if data.startswith(b"\xff\xfe"):
+        return data.decode("utf-16le", errors="replace")
+    if data.startswith(b"\xfe\xff"):
+        return data.decode("utf-16be", errors="replace")
+    return data.decode("utf-8", errors="replace")
 
 
 def require(condition: bool, message: str) -> None:
@@ -69,6 +74,14 @@ def main() -> int:
         "current proof does not log Metal1's authored viseme MILO reference",
     )
     require(
+        "[face-inventory] character=metal1" in current,
+        "current proof does not log Metal1's decoded face asset inventory",
+    )
+    require(
+        "[face-inventory] bone=bone_jaw.mesh" in current,
+        "current proof does not inventory Metal1's jaw bone",
+    )
+    require(
         "[clip] 'neutral' from char/metal1/anims/gen/metal1_viseme.milo_ps2"
         in current,
         "current proof does not load the authored neutral viseme clip",
@@ -76,6 +89,14 @@ def main() -> int:
     require(
         "[char] face-filtered 'neutral': kept 15/17 channels" in current,
         "current proof does not show the face-channel filter for neutral",
+    )
+    require(
+        "[face-clip] label=face_base clip=neutral" in current,
+        "current proof does not inventory the neutral face clip",
+    )
+    require(
+        "[face-output] live=0 source_publisher=fenced" in current,
+        "current proof does not log the fenced source publisher boundary",
     )
     require(
         "[clip] 'neutral' from" not in face_none,

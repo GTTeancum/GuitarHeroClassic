@@ -63,6 +63,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <cctype>
 #include <cstring>
 #include <cstdlib>
 #include <filesystem>
@@ -732,6 +733,87 @@ void dump_facefx_lip_sync_servos(
   }
 }
 
+std::string lower_ascii(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return s;
+}
+
+bool is_face_asset_name(const std::string& name) {
+  const std::string lower = lower_ascii(name);
+  return lower.find("mouth") != std::string::npos ||
+         lower.find("lip") != std::string::npos ||
+         lower.find("jaw") != std::string::npos ||
+         lower.find("teeth") != std::string::npos ||
+         lower.find("tongue") != std::string::npos ||
+         lower.find("tounge") != std::string::npos ||
+         lower.find("eye") != std::string::npos ||
+         lower.find("lid") != std::string::npos ||
+         lower.find("brow") != std::string::npos;
+}
+
+void dump_face_asset_inventory(
+    const ghogx::character::Character& character) {
+  if (!face_debug_enabled()) return;
+  std::fprintf(stderr,
+               "[face-inventory] character=%s bones=%zu meshes=%zu "
+               "source=stock-milo decoded-runtime\n",
+               character.dir_name.c_str(), character.bones.size(),
+               character.meshes.size());
+  for (const auto& b : character.bones) {
+    if (!is_face_asset_name(b.name)) continue;
+    std::fprintf(stderr,
+                 "[face-inventory] bone=%s parent=%s local=(%.3f %.3f %.3f)\n",
+                 b.name.c_str(), b.parent.empty() ? "<none>" : b.parent.c_str(),
+                 b.local.pos[0], b.local.pos[1], b.local.pos[2]);
+  }
+  for (const auto& m : character.meshes) {
+    if (!is_face_asset_name(m.name) && !is_face_asset_name(m.parent)) continue;
+    std::fprintf(stderr,
+                 "[face-inventory] mesh=%s parent=%s material=%s palette=%zu "
+                 "local=(%.3f %.3f %.3f)\n",
+                 m.name.c_str(), m.parent.empty() ? "<none>" : m.parent.c_str(),
+                 m.material.empty() ? "<none>" : m.material.c_str(),
+                 m.bone_palette.size(), m.local.pos[0], m.local.pos[1],
+                 m.local.pos[2]);
+  }
+}
+
+void dump_face_clip_inventory(const char* label,
+                              const ghogx::character::CharClip& clip) {
+  if (!face_debug_enabled() || !clip.loaded) return;
+  size_t channels = 0;
+  std::unordered_set<std::string> face_rows;
+  for (const auto& frame : clip.frames) {
+    channels += frame.size();
+    for (const auto& ch : frame) {
+      if (is_face_asset_name(ch.bone_name)) face_rows.insert(ch.bone_name);
+    }
+  }
+  size_t face_output_bones = 0;
+  for (const auto& out : clip.output_bones) {
+    if (is_face_asset_name(out.name)) ++face_output_bones;
+  }
+  std::fprintf(stderr,
+               "[face-clip] label=%s clip=%s frames=%zu channels=%zu "
+               "faceRows=%zu outputBones=%zu faceOutputBones=%zu "
+               "relative=%d source=CharClip decoded from stock MILO\n",
+               label, clip.name.c_str(), clip.frames.size(), channels,
+               face_rows.size(), clip.output_bones.size(), face_output_bones,
+               clip.relative ? 1 : 0);
+  for (const auto& out : clip.output_bones) {
+    if (!is_face_asset_name(out.name)) continue;
+    std::fprintf(stderr,
+                 "[face-clip]   output=%s parent=%s local=(%.3f %.3f %.3f) "
+                 "worldStored=(%.3f %.3f %.3f)\n",
+                 out.name.c_str(),
+                 out.parent.empty() ? "<none>" : out.parent.c_str(),
+                 out.local.pos[0], out.local.pos[1], out.local.pos[2],
+                 out.world_stored.pos[0], out.world_stored.pos[1],
+                 out.world_stored.pos[2]);
+  }
+}
+
 std::optional<int> env_int(const char* name) {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1247,6 +1329,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     ghogx::character::apply_facefx_pose(*facefx_neutral, 1.0f, character);
   }
   dump_facefx_lip_sync_servos(character);
+  dump_face_asset_inventory(character);
   const std::vector<std::string> facefx_viseme_milos =
       facefx_viseme_milo_candidates(milo_path, character);
   const std::vector<ghogx::character::CharDriver> character_drivers =
@@ -1564,6 +1647,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   keep_face_channels_only(face_base_clip);
   keep_face_channels_only(face_clip);
   keep_face_channels_only(facefx_viseme_clip);
+  dump_face_clip_inventory("face_base", face_base_clip);
+  dump_face_clip_inventory("face", face_clip);
+  dump_face_clip_inventory("facefx_visemes", facefx_viseme_clip);
   const bool viewer_hand_ik_weights_active =
       right_hand_weight_override || left_hand_weight_override ||
       ((!guitar_milo.empty() && guitar_milo != "none") &&

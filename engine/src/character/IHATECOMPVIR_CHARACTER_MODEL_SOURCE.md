@@ -6773,6 +6773,12 @@ Lower-body evidence audit:
   `../../anims/metal1_viseme.milo`, and the log explicitly labels this as a
   `FaceFxLipSyncServo` compatibility boundary, not a `CharFaceServo` source
   port.
+- The refreshed proof logs also dump the decoded stock face asset inventory and
+  filtered face clip inventory. Metal1 has decoded jaw/lip/brow/upperlid bones,
+  including `bone_jaw.mesh`, and its `neutral` / `visemes` clips carry 15
+  face output rows after filtering. The runtime now logs
+  `[face-output] live=0 source_publisher=fenced ... missing=CharBonesMeshes::PoseMeshes`
+  whenever those rows are evaluated without the missing source publisher.
 - This does not authorize a fabricated mouth offset or a synthetic
   `CharFaceServo` bridge. ihatecompvir's available source remains concrete for
   `CharFaceServo::Poll` and `CharClip::PoseMeshes`, while GH2 PS2 stock rows
@@ -6780,9 +6786,10 @@ Lower-body evidence audit:
   mouth/viseme evidence separate from any future runtime bridge until a
   source-backed `FaceFxLipSyncServo` behavior or runtime trace is available.
 - `tools/check_metal1_mouth_proofs.py` verifies the proof images, the logged
-  stock face-servo row, the authored viseme MILO reference, the neutral face
-  clip load in the default proof, and the undriven jaw/lip rows when
-  `--face-clip none` is used.
+  stock face-servo row, the authored viseme MILO reference, decoded face
+  inventory, neutral face clip inventory, the source-publisher fence, the
+  neutral face clip load in the default proof, and the undriven jaw/lip rows
+  when `--face-clip none` is used.
   gate. It passes with `root_cause=true`, `source_bridge=true`,
   `active_subjects=glam1,metal1`, `proof_artifacts=8`,
   `individual_proofs=true`, `proof_min_resolution=1280x720`,
