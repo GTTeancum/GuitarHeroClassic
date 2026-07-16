@@ -11243,6 +11243,14 @@ int main() {
                  "cam.dof_focus_distance=source_dof.focus_distance;"
                  "}else{camera_unset_dof_proc_like_source(cam);}",
                  "runtime camera submits or unsets source-gated CamShot DOF state");
+  ok &= appears_before(
+      gameplay_c,
+      "if(source_dof.active){cam.dof_active=true;"
+      "cam.dof_focus_distance=source_dof.focus_distance;"
+      "}else{camera_unset_dof_proc_like_source(cam);}",
+      "submitted_result=camera_source_setframe_blend_result_rows("
+      "source_previous_frame,submitted_result,source_poll_blend);",
+      "CamShot DOFProc state follows source order before SetFrame blend and SetLocalXfm");
   ok &= contains(end_camera_shot_runtime_c,
                  "camera_unset_dof_proc_like_source(world_->camera());",
                  "camera EndAnim clears native DOF state like CameraManager teardown");

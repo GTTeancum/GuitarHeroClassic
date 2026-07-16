@@ -21789,6 +21789,34 @@ void apply_camera_keys(
             kCamShotSourceDefaultFarPlane, source_final_fov,
             source_after_default_base_far_z);
     }
+    const bool source_use_depth_of_field =
+        b->has_use_depth_of_field
+            ? b->use_depth_of_field
+            : (a->has_use_depth_of_field ? a->use_depth_of_field : false);
+    const auto a_source_dof_point =
+        camera_source_dof_point_context_for_key(*a, targets,
+                                                a_target_centroid);
+    const auto b_source_dof_point =
+        camera_source_dof_point_context_for_key(*b, targets,
+                                                b_target_centroid);
+    // CamShotFrame::Interp computes and submits DOF from tf130 before blending
+    // tf130 with the previous camera WorldXfm and before SetLocalXfm.
+    const std::array<float, 3> source_dof_camera_pos =
+        source_pre_setframe_blend_result.position;
+    const CameraSourceDofResult source_dof = camera_source_dof_result(
+        source_use_depth_of_field, a_source_dof_point.point,
+        b_source_dof_point.point, source_dof_camera_pos,
+        focus_blur_multiplier);
+    cam.dof_blur_depth = blur_depth;
+    cam.dof_max_blur = max_blur;
+    cam.dof_min_blur = min_blur;
+    cam.dof_focus_blur_multiplier = focus_blur_multiplier;
+    if (source_dof.active) {
+        cam.dof_active = true;
+        cam.dof_focus_distance = source_dof.focus_distance;
+    } else {
+        camera_unset_dof_proc_like_source(cam);
+    }
     submitted_result = camera_source_setframe_blend_result_rows(
         source_previous_frame, submitted_result, source_poll_blend);
     camera_apply_camshot_shake_boundary_like_source(
@@ -21823,34 +21851,6 @@ void apply_camera_keys(
                 cam.far_z = far_z;
             }
         }
-    }
-    const bool source_use_depth_of_field =
-        b->has_use_depth_of_field
-            ? b->use_depth_of_field
-            : (a->has_use_depth_of_field ? a->use_depth_of_field : false);
-    const auto a_source_dof_point =
-        camera_source_dof_point_context_for_key(*a, targets,
-                                                a_target_centroid);
-    const auto b_source_dof_point =
-        camera_source_dof_point_context_for_key(*b, targets,
-                                                b_target_centroid);
-    // CamShotFrame::Interp computes DOF distances from tf130 before blending
-    // tf130 with the previous camera WorldXfm through the SetFrame blend.
-    const std::array<float, 3> source_dof_camera_pos =
-        source_pre_setframe_blend_result.position;
-    const CameraSourceDofResult source_dof = camera_source_dof_result(
-        source_use_depth_of_field, a_source_dof_point.point,
-        b_source_dof_point.point, source_dof_camera_pos,
-        focus_blur_multiplier);
-    cam.dof_blur_depth = blur_depth;
-    cam.dof_max_blur = max_blur;
-    cam.dof_min_blur = min_blur;
-    cam.dof_focus_blur_multiplier = focus_blur_multiplier;
-    if (source_dof.active) {
-        cam.dof_active = true;
-        cam.dof_focus_distance = source_dof.focus_distance;
-    } else {
-        camera_unset_dof_proc_like_source(cam);
     }
     if (debug_camera_enabled()) {
         auto debug_ref_world =

@@ -12414,6 +12414,13 @@ Rejected native probe:
   labeling `camera=pre_setframe_blend`. This keeps non-1 SetFrame blend support
   aligned with source order without changing normal Poll rows where blend is
   `1.0f`.
+- 2026-07-15 CamShot DOF state order:
+  the same visible source block calls `TheDOFProc->Set/UnSet` before the later
+  SetFrame world-transform blend, `CamShot::Shake`, and `cam->SetLocalXfm`.
+  Native now applies the source-gated DOF state before
+  `camera_source_setframe_blend_result_rows(...)` and before the final camera
+  result frame is submitted. This is normal gameplay camera ordering only; it
+  does not touch FreeCam or add any runtime dependency surface.
 - 2026-07-15 CamShot DOF cached target position:
   ihatecompvir `CamShotFrame::UpdateTarget` stores the averaged live target in
   `unk34`, and the later DOF branch in `CamShotFrame::Interp` falls back to that
