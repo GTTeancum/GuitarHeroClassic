@@ -16381,6 +16381,10 @@ bool camera_shot_matches_source_filters(
 enum class CameraShotMode { Regular, Solo, Jump, Lighter };
 
 constexpr double kSourceWinCameraDelaySeconds = 1.75;
+constexpr uint32_t kSourceExcitementBad = 1;
+constexpr uint32_t kSourceExcitementOkay = 2;
+constexpr int kSourceJumpShotDurationBars = 4;
+constexpr int kSourceLighterShotDurationBars = 5;
 
 constexpr std::array<std::string_view, 9> kNormalCamShotCategoryOrder = {
     "flr_near_lft", "flr_near_rt", "flr_far_lft",
@@ -16428,6 +16432,35 @@ const char* camera_source_script_cue_action(std::string_view event_text) {
         return "pick_new_shot";
     }
     return "unknown";
+}
+
+const char* camera_source_script_cue_gate(std::string_view event_text) {
+    if (event_text == "[band_jump]") {
+        return "excitement_level>kExcitementBad";
+    }
+    if (event_text == "[crowd_lighters_slow]" ||
+        event_text == "[crowd_lighters_fast]") {
+        return "crowd_lighter_was_off&&!did_lighter_cam&&!game_multiplayer";
+    }
+    if (event_text == "[crowd_lighters_off]") return "always";
+    if (event_text == "[sync_wag]" || event_text == "[sync_head_bang]") {
+        return "excitement_level>kExcitementOkay";
+    }
+    return "unknown";
+}
+
+bool camera_source_band_jump_forces_camera(uint32_t excitement_level) {
+    return excitement_level > kSourceExcitementBad;
+}
+
+bool camera_source_sync_pose_forces_camera(uint32_t excitement_level) {
+    return excitement_level > kSourceExcitementOkay;
+}
+
+bool camera_source_lighter_forces_camera(bool source_multiplayer,
+                                         bool did_lighter_cam,
+                                         bool lighter_was_off) {
+    return lighter_was_off && !did_lighter_cam && !source_multiplayer;
 }
 
 bool camera_category_filter_ok(const Gameplay::CameraKey& key,
@@ -34705,29 +34738,34 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     camera_source_game_multiplayer(camera_faceoff_active_players_);
                 const uint32_t excitement =
                     venue_excitement_level(active_venue_event_);
+                const bool did_lighter_cam_before = did_lighter_cam_;
+                int lighter_was_off = -1;
                 if (ev.text == "[band_jump]") {
-                    cue_forced_camera =
-                        authored_gameplay_cameras_active && excitement > 1;
+                    cue_forced_camera = authored_gameplay_cameras_active &&
+                                        camera_source_band_jump_forces_camera(
+                                            excitement);
                     if (cue_forced_camera) {
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Jump;
-                        forced_camera_bars = 4;
+                        forced_camera_bars = kSourceJumpShotDurationBars;
                     }
                 } else if (ev.text == "[crowd_lighters_slow]" ||
                            ev.text == "[crowd_lighters_fast]") {
                     const bool was_off = !crowd_lighter_on_;
+                    lighter_was_off = was_off ? 1 : 0;
                     crowd_lighter_on_ = true;
                     active_worldcrowd_lighter_group_ =
                         ev.text == "[crowd_lighters_slow]" ? "lighter_slow"
                                                             : "lighter_fast";
                     cue_forced_camera = authored_gameplay_cameras_active &&
-                                        !source_multiplayer &&
-                                        !did_lighter_cam_ && was_off;
+                                        camera_source_lighter_forces_camera(
+                                            source_multiplayer,
+                                            did_lighter_cam_, was_off);
                     if (cue_forced_camera) {
                         did_lighter_cam_ = true;
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Lighter;
-                        forced_camera_bars = 5;
+                        forced_camera_bars = kSourceLighterShotDurationBars;
                     }
                 } else if (ev.text == "[crowd_lighters_off]") {
                     crowd_lighter_on_ = false;
@@ -34739,12 +34777,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         forced_camera_bars.reset();
                     }
                 } else {
-                    cue_forced_camera =
-                        authored_gameplay_cameras_active && excitement > 2;
+                    cue_forced_camera = authored_gameplay_cameras_active &&
+                                        camera_source_sync_pose_forces_camera(
+                                            excitement);
                     if (cue_forced_camera) {
                         force_camera = true;
                         forced_camera_mode.reset();
-                        forced_camera_bars = 4;
+                        forced_camera_bars = kSourceJumpShotDurationBars;
                     }
                 }
 
@@ -34753,7 +34792,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     "[world] camera script cue: source_msg=%s source_action=%s "
                     "text=%s tick=%u t=%.3f "
                     "force=%d mode=%s bars=%d excitement=%u "
-                    "source_multiplayer=%d crowd_group=%s\n",
+                    "source_gate=%s source_multiplayer=%d "
+                    "did_lighter_cam_before=%d "
+                    "was_off=%d crowd_group=%s\n",
                     camera_source_script_cue_message(ev.text),
                     camera_source_script_cue_action(ev.text),
                     ev.text.c_str(), ev.tick, song_time_,
@@ -34762,7 +34803,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ? camera_shot_mode_label(*forced_camera_mode)
                         : "regular",
                     forced_camera_bars.value_or(0), excitement,
+                    camera_source_script_cue_gate(ev.text),
                     source_multiplayer ? 1 : 0,
+                    did_lighter_cam_before ? 1 : 0, lighter_was_off,
                     active_worldcrowd_lighter_group_.empty()
                         ? "-"
                         : active_worldcrowd_lighter_group_.c_str());

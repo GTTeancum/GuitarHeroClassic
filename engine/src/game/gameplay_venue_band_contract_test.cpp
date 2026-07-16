@@ -13899,10 +13899,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(ev.text==\"[band_jump]\"){"
                  "cue_forced_camera=authored_gameplay_cameras_active&&"
-                 "excitement>1;"
+                 "camera_source_band_jump_forces_camera(excitement);"
                  "if(cue_forced_camera){force_camera=true;"
                  "forced_camera_mode=CameraShotMode::Jump;",
-                 "band_jump camera forces only above bad excitement when authored cameras are active");
+                 "band_jump camera forces only above kExcitementBad through the source-named helper");
   ok &= contains(gameplay_h_c,
                  "ghogx::character::CharClipband_jump_clip;",
                  "performers carry the traced sync_jump/band_jump clip");
@@ -14002,8 +14002,15 @@ int main() {
                  "forced_camera_mode=CameraShotMode::Lighter;",
                  "crowd lighter messages force the LIGHTER camera category");
   ok &= contains(gameplay_c,
-                 "forced_camera_bars=5;",
+                 "constexprintkSourceLighterShotDurationBars=5;",
                  "crowd lighter camera uses LIGHTER_SHOT_DURATION");
+  ok &= contains(gameplay_c,
+                 "constexpruint32_tkSourceExcitementBad=1;"
+                 "constexpruint32_tkSourceExcitementOkay=2;",
+                 "camera forced-cue gates use the GH2 excitement constants");
+  ok &= contains(gameplay_c,
+                 "constexprintkSourceJumpShotDurationBars=4;",
+                 "band_jump and sync forced camera holds use the source 4-bar duration");
   ok &= contains(gameplay_c,
                  "active_worldcrowd_lighter_group_=ev.text=="
                  "\"[crowd_lighters_slow]\"?\"lighter_slow\":"
@@ -14011,14 +14018,21 @@ int main() {
                  "crowd lighter messages select the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
                  "cue_forced_camera=authored_gameplay_cameras_active&&"
-                 "!source_multiplayer&&!did_lighter_cam_&&was_off;",
-                 "GH2 pick_lighter_shot only forces LIGHTER cameras when source game multiplayer is false");
+                 "camera_source_lighter_forces_camera("
+                 "source_multiplayer,did_lighter_cam_,was_off);",
+                 "GH2 crowd_lighters_* and pick_lighter_shot combine the old-lighter, did_lighter_cam, and multiplayer gates");
   ok &= contains(gameplay_c,
-                 "\"source_multiplayer=%dcrowd_group=%s\\n\"",
-                 "camera script cue diagnostics expose the source multiplayer gate and active WorldCrowd crowd group");
+                 "\"source_gate=%ssource_multiplayer=%d\""
+                 "\"did_lighter_cam_before=%d\""
+                 "\"was_off=%dcrowd_group=%s\\n\"",
+                 "camera script cue diagnostics expose the source gate inputs and active WorldCrowd crowd group");
   ok &= contains(gameplay_c,
                  "\"[world]camerascriptcue:source_msg=%ssource_action=%s\"",
                  "camera script cue diagnostics expose the recovered source message/action");
+  ok &= contains(gameplay_c,
+                 "return\"crowd_lighter_was_off&&!did_lighter_cam&&"
+                 "!game_multiplayer\";",
+                 "crowd lighter diagnostics name the exact caller-plus-pick_lighter_shot gate");
   ok &= contains(gameplay_c,
                  "return\"pick_shot(NORMAL_CAMSHOT_CATEGORIES,jump_ok)\";",
                  "band_jump diagnostics expose the source pick_shot jump route");
@@ -14040,9 +14054,10 @@ int main() {
                  "crowd_lighters_off clears the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
                  "}else{cue_forced_camera=authored_gameplay_cameras_active&&"
-                 "excitement>2;"
+                 "camera_source_sync_pose_forces_camera(excitement);"
                  "if(cue_forced_camera){force_camera=true;"
-                 "forced_camera_mode.reset();forced_camera_bars=4;}}",
+                 "forced_camera_mode.reset();"
+                 "forced_camera_bars=kSourceJumpShotDurationBars;}}",
                  "sync_wag/head_bang camera forces only above okay excitement");
   ok &= contains(gameplay_h_c,
                  "booldid_lighter_cam_=false;",

@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera lighter cue source gate:
+  GH2 `crowd.dta::crowd_lighters_slow/fast` calls
+  `world pick_lighter_shot` only when the old `[lighter]` state was `off` and
+  `[did_lighter_cam]` is false; then
+  `world_objects_worldbase.dta::pick_lighter_shot` adds the
+  `{game multiplayer}` false gate before forcing the `LIGHTER` category.
+  Native now names that combined source gate in one helper and logs the caller
+  `was_off`, `did_lighter_cam`, and multiplayer inputs beside forced cue rows.
+  This affects normal gameplay camera selection proof/state only, keeps FreeCam
+  deferred last, and adds no dependency surface.
 - 2026-07-15 gameplay camera proof ordering:
   Normal gameplay camera debug rows now lead with
   `pipeline_scope=normal_gameplay_camera`, `priority=gameplay_camera`,
