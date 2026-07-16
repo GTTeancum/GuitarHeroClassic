@@ -13454,10 +13454,14 @@ int main() {
                  "regular camera symbol property paths expose direct CamShotFrame parent refs");
   ok &= contains(gameplay_c,
                  "if(prop_path.size()==3&&prop_path[2]==\"focal_target\"){"
+                 "//ihatecompvirexposesfocal_targetasaterminalObjPtrproperty."
                  "returncamera_filter_direct_object_label("
                  "frame->focus_target_entity,frame->focus_target_subpart,"
                  "frame->focus_target_source_object);}",
                  "regular camera symbol property paths expose CamShotFrame focal_target refs");
+  ok &= absent(gameplay_c,
+               "prop_path.size()==4&&prop_path[2]==\"focal_target\"",
+               "regular camera symbol property paths must not invent focal_target entity/subpart paths");
   ok &= contains(gameplay_c,
                  "if(prop_path.size()==4&&prop_path[2]==\"parent\"){"
                  "if(prop_path[3]==\"entity\")returnstd::string_view("

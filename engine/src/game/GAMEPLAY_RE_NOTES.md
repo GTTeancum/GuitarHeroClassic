@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches focal_target ObjPtr guard:
+  ihatecompvir `CamShotFrame` property sync exposes `focal_target` through the
+  generic `ObjPtr<RndTransformable>` path, whose property sync asserts the
+  property path ends at that object pointer. Native keeps
+  `(keyframes N focal_target)` as the source-shaped selector path and now
+  guards against inventing synthetic `(keyframes N focal_target entity)` /
+  `(keyframes N focal_target subpart)` filters from decoded bookkeeping. This
+  is a source-audit guardrail only: no camera pose math, `cam_shot_ok`,
+  FreeCam priority, under-venue masking, or dependency surface changes.
 - 2026-07-16 CameraManager ShotMatches bad_waypoints paths:
   ihatecompvir `Hmx::Object::Property(DataArray*)` falls back to object/type
   props and, for two-node property arrays, returns indexed items from

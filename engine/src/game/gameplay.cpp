@@ -16724,6 +16724,7 @@ std::optional<std::string_view> camera_filter_symbol_property_path(
                                                  frame->parent_source_object);
     }
     if (prop_path.size() == 3 && prop_path[2] == "focal_target") {
+        // ihatecompvir exposes focal_target as a terminal ObjPtr property.
         return camera_filter_direct_object_label(
             frame->focus_target_entity, frame->focus_target_subpart,
             frame->focus_target_source_object);
