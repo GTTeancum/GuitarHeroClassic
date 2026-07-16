@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches screen_offset vector path:
+  ihatecompvir `CamShotFrame` property sync exposes `screen_offset` directly as
+  `o.mScreenOffset`, and `CameraManager::ShotMatches` compares the evaluated
+  property `DataNode` against scalar or array match values. Native
+  `ShotMatches` now carries a vector2 filter kind and can evaluate
+  `(keyframes N screen_offset)` from decoded source CamShot keyframes, including
+  source-style match-any comparisons and diagnostics. This is normal gameplay
+  selector/property parity only: it does not change submitted camera poses,
+  synthesize `BuildTransform`, promote FreeCam, mask under-venue results, or add
+  dependencies.
 - 2026-07-16 CameraManager ShotMatches nested target/parent paths:
   ihatecompvir `CameraManager::ShotMatches` evaluates a filter whose `prop` is a
   `DataArray` by calling `shot->Property(array, true)`, not by limiting the

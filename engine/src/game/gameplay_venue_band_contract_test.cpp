@@ -13270,6 +13270,22 @@ int main() {
                  "std::optional<float>camera_filter_float_property_path(",
                  "regular camera filters can evaluate float keyframe property paths");
   ok &= contains(gameplay_c,
+                 "CameraShotSourceFilterKind::Vector2",
+                 "regular camera filters can mirror vector DataNode property comparisons");
+  ok &= contains(gameplay_c,
+                 "CameraShotSourceFiltercamera_vector2_filter("
+                 "std::initializer_list<std::string_view>prop_path,"
+                 "std::array<float,2>match)",
+                 "regular camera vector filters can carry source property arrays");
+  ok &= contains(gameplay_c,
+                 "std::optional<std::array<float,2>>"
+                 "camera_filter_vector2_property_path(",
+                 "regular camera filters can evaluate vector keyframe property paths");
+  ok &= contains(gameplay_c,
+                 "if(prop==\"screen_offset\"){returnstd::array<float,2>{"
+                 "frame->screen_offset[0],frame->screen_offset[1]};}",
+                 "regular camera vector property paths expose CamShotFrame screen_offset");
+  ok &= contains(gameplay_c,
                  "if(prop==\"field_of_view\"){"
                  "returnframe->has_fov?"
                  "camshot_source_radians_to_degrees(frame->fov):0.0f;}",
@@ -13378,10 +13394,18 @@ int main() {
                  "filter.float_matches.end();",
                  "regular camera float filters mirror CameraManager DataArray match-any equality");
   ok &= contains(gameplay_c,
+                 "std::find(filter.vector2_matches.begin(),"
+                 "filter.vector2_matches.end(),*value)!="
+                 "filter.vector2_matches.end();",
+                 "regular camera vector filters mirror CameraManager DataArray match-any equality");
+  ok &= contains(gameplay_c,
                  "filter.prop_path.empty()?"
                  "camera_filter_float_property(key,filter.prop):"
                  "camera_filter_float_property_path(key,filter.prop_path);",
                  "regular camera ShotMatches dispatches float filters through source property arrays");
+  ok &= contains(gameplay_c,
+                 "camera_filter_vector2_property_path(key,filter.prop_path);",
+                 "regular camera ShotMatches dispatches vector filters through source property arrays");
   ok &= contains(gameplay_c,
                  "filter.prop_path.empty()?"
                  "camera_filter_symbol_property(key,filter.prop):"
@@ -13403,6 +13427,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "append_float_matches();",
                  "regular camera diagnostics can print source float DataArray matches");
+  ok &= contains(gameplay_c,
+                 "append_vector2_matches();",
+                 "regular camera diagnostics can print source vector DataArray matches");
   ok &= contains(gameplay_c,
                  "caseCameraShotSourceFilterKind::FlagsExact:",
                  "regular camera filters mirror CameraManager flags_exact semantics");
