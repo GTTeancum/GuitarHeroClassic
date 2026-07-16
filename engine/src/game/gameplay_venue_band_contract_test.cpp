@@ -12433,8 +12433,14 @@ int main() {
                  "camera selection switches to solo mode from the source camera_solo latch");
   ok &= contains(gameplay_c,
                  "if(cue_forced_camera){force_camera=true;"
-                 "forced_camera_mode.reset();forced_camera_bars.reset();}",
+                 "forced_camera_mode.reset();forced_camera_bars.reset();"
+                 "++source_forced_duration_refreshes;"
+                 "source_final_forced_pick_refreshes_duration=true;}",
                  "world_objects_worldbase.dta one_bar_to forces a normal pick with source duration");
+  ok &= contains(gameplay_c,
+                 "size_tsource_forced_duration_refreshes=0;"
+                 "boolsource_final_forced_pick_refreshes_duration=false;",
+                 "normal gameplay camera tracks which coalesced forced cues call source get_shot_duration");
   ok &= contains(gameplay_c,
                  "\"[world]cameraone_bar_to:source_msg=one_bar_to"
                  "source_action=get_shot_duration+pick_new_shot"
@@ -14332,6 +14338,12 @@ int main() {
                  "if(cue_forced_camera){force_camera=true;",
                  "crowd_lighters_off clears WorldCrowd state and can force the default authored camera path");
   ok &= contains(gameplay_c,
+                 "forced_camera_mode.reset();"
+                 "forced_camera_bars.reset();"
+                 "++source_forced_duration_refreshes;"
+                 "source_final_forced_pick_refreshes_duration=true;",
+                 "crowd_lighters_off mirrors force_pick_shot by refreshing source camera duration");
+  ok &= contains(gameplay_c,
                  "crowd_lighter_on_=false;"
                  "active_worldcrowd_lighter_group_.clear();",
                  "crowd_lighters_off clears the authored WorldCrowd lighter play_group");
@@ -14340,8 +14352,24 @@ int main() {
                  "camera_source_sync_pose_forces_camera(excitement);"
                  "if(cue_forced_camera){force_camera=true;"
                  "forced_camera_mode.reset();"
-                 "forced_camera_bars=kSourceJumpShotDurationBars;}}",
+                 "forced_camera_bars=kSourceJumpShotDurationBars;"
+                 "source_final_forced_pick_refreshes_duration=false;}}",
                  "sync_wag/head_bang camera forces only above okay excitement");
+  ok &= contains(gameplay_c,
+                 "constboolfinal_forced_refreshes_duration="
+                 "!forced_camera_bars&&"
+                 "source_final_forced_pick_refreshes_duration;",
+                 "coalesced forced camera picks only leave one final get_shot_duration call live");
+  ok &= contains(gameplay_c,
+                 "camera_shot_counter_+=duration_refreshes_to_burn;",
+                 "coalesced forced camera picks burn overwritten source duration draws");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraforceddurationburn:"
+                 "source_action=get_shot_durationcoalesced_picks=%zu",
+                 "forced camera duration-draw burn is diagnosable");
+  ok &= contains(gameplay_c,
+                 "duration_source=\"source_pick_new_shot_duration_unchanged\";",
+                 "plain source pick_new_shot routes do not invent a duration refresh");
   ok &= contains(gameplay_h_c,
                  "booldid_lighter_cam_=false;",
                  "camera state keeps the script did_lighter_cam guard");

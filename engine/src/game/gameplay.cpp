@@ -34936,6 +34936,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;
+        size_t source_forced_duration_refreshes = 0;
+        bool source_final_forced_pick_refreshes_duration = false;
         camera_beat_state_ = camera_beat_at(chart_, song_time_);
         while (next_camera_one_bar_to_event_idx_ < chart_.text_events.size()) {
             const auto& ev =
@@ -34978,6 +34980,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 force_camera = true;
                 forced_camera_mode.reset();
                 forced_camera_bars.reset();
+                ++source_forced_duration_refreshes;
+                source_final_forced_pick_refreshes_duration = true;
             }
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 std::fprintf(
@@ -35026,6 +35030,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Jump;
                         forced_camera_bars = kSourceJumpShotDurationBars;
+                        source_final_forced_pick_refreshes_duration = false;
                     }
                 } else if (ev.text == "[crowd_lighters_slow]" ||
                            ev.text == "[crowd_lighters_fast]") {
@@ -35044,6 +35049,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Lighter;
                         forced_camera_bars = kSourceLighterShotDurationBars;
+                        source_final_forced_pick_refreshes_duration = false;
                     }
                 } else if (ev.text == "[crowd_lighters_off]") {
                     crowd_lighter_on_ = false;
@@ -35053,6 +35059,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         force_camera = true;
                         forced_camera_mode.reset();
                         forced_camera_bars.reset();
+                        ++source_forced_duration_refreshes;
+                        source_final_forced_pick_refreshes_duration = true;
                     }
                 } else {
                     cue_forced_camera = authored_gameplay_cameras_active &&
@@ -35062,6 +35070,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         force_camera = true;
                         forced_camera_mode.reset();
                         forced_camera_bars = kSourceJumpShotDurationBars;
+                        source_final_forced_pick_refreshes_duration = false;
                     }
                 }
 
@@ -35145,6 +35154,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             force_camera = true;
                             forced_camera_mode.reset();
                             forced_camera_bars.reset();
+                            source_final_forced_pick_refreshes_duration = false;
                         }
                     }
                 }
@@ -35178,6 +35188,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     force_camera = true;
                     forced_camera_mode.reset();
                     forced_camera_bars = 4;
+                    source_final_forced_pick_refreshes_duration = false;
                 }
             }
 
@@ -35189,6 +35200,29 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const char* duration_source = "source_random_int";
                 std::optional<size_t> duration_random_draw;
                 if (force_camera) {
+                    const bool final_forced_refreshes_duration =
+                        !forced_camera_bars &&
+                        source_final_forced_pick_refreshes_duration;
+                    const size_t duration_refreshes_to_burn =
+                        source_forced_duration_refreshes >
+                                (final_forced_refreshes_duration ? 1u : 0u)
+                            ? source_forced_duration_refreshes -
+                                  (final_forced_refreshes_duration ? 1u : 0u)
+                            : 0u;
+                    if (duration_refreshes_to_burn > 0) {
+                        const size_t first_burned_draw = camera_shot_counter_;
+                        camera_shot_counter_ += duration_refreshes_to_burn;
+                        if (debug_camera_enabled() ||
+                            debug_venue_filters_enabled()) {
+                            std::fprintf(
+                                stderr,
+                                "[world] camera forced duration burn: source_action=get_shot_duration coalesced_picks=%zu burns=%zu first_draw=%zu next_draw=%zu final_refresh=%d pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+                                source_forced_duration_refreshes,
+                                duration_refreshes_to_burn, first_burned_draw,
+                                camera_shot_counter_,
+                                final_forced_refreshes_duration ? 1 : 0);
+                        }
+                    }
                     if (forced_camera_bars) {
                         camera_bars_left_ = *forced_camera_bars;
                         duration = {camera_shot_mode_label(
@@ -35197,10 +35231,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     {*forced_camera_bars, *forced_camera_bars}};
                         duration_source = "fixed_script";
                     } else {
-                        duration_random_draw = camera_shot_counter_++;
-                        camera_bars_left_ = source_random_int_camera_duration_bars(
-                            duration.second.first, duration.second.second,
-                            *duration_random_draw);
+                        if (!source_final_forced_pick_refreshes_duration) {
+                            duration = {"existing_bars",
+                                        {camera_bars_left_,
+                                         camera_bars_left_}};
+                            duration_source =
+                                "source_pick_new_shot_duration_unchanged";
+                        } else {
+                            duration_random_draw = camera_shot_counter_++;
+                            camera_bars_left_ =
+                                source_random_int_camera_duration_bars(
+                                    duration.second.first,
+                                    duration.second.second,
+                                    *duration_random_draw);
+                        }
                     }
                 } else {
                     if (camera_bars_left_ <= 0) {

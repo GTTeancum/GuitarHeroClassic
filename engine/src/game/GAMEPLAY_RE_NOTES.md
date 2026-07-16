@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay forced-cue duration draw order:
+  GH2 processes each `world_objects_worldbase.dta` / `world/crowd.dta`
+  camera cue as its own script message. Native frames can coalesce cues such as
+  `crowd_lighters_off` followed by `sync_wag`, but the earlier
+  `force_pick_shot` still ran `get_shot_duration` in source before the later
+  fixed-duration cue overwrote the pending shot. Native normal gameplay now
+  tracks which forced cues refresh `[camera_bars_left]`, burns overwritten
+  source duration draws, and keeps plain `pick_new_shot` routes from inventing
+  a duration refresh. This preserves the CameraManager duration RNG stream
+  without changing hidden pose math, FreeCam, or dependencies.
 - 2026-07-16 gameplay `start_shot` resend-excitement route:
   GH2 `world/camshot.dta::start_shot` always sends
   `world resend_excitement` after `world set_min_lod` and before the
