@@ -9496,15 +9496,18 @@ int main() {
                  "rows.source+=\"+clamp_height\";",
                  "camera clamp_height mutates source position and labels provenance");
   ok &= contains(gameplay_c,
-                 "rows.forward[0]-rows.right[0]*key.screen_offset[0]*tan_x-"
-                 "rows.up[0]*key.screen_offset[1]*tan_y",
+                 "rows.forward[0]-rows.right[0]*key.screen_offset[0]*"
+                 "project->tan_x-rows.up[0]*key.screen_offset[1]*"
+                 "project->tan_y",
                  "screen offset correction adjusts submitted result forward vector");
   ok &= contains(camera_project_target_screen_norm_c,
-                 "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
-                 "shot-filter target projection uses the CamShot source frustum aspect");
+                 "constautoproject="
+                 "camera_source_local_project_scale_for_fov(key.fov);",
+                 "shot-filter target projection uses the shared CamShot source local-project scale");
   ok &= contains(camera_screen_offset_result_c,
-                 "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
-                 "screen offset correction uses the CamShot source frustum aspect");
+                 "constautoproject="
+                 "camera_source_local_project_scale_for_fov(key.fov);",
+                 "screen offset correction uses the shared CamShot source local-project scale");
   ok &= contains(gameplay_c,
                  "camera_orthonormalize_result_rows(rows);"
                  "rows.screen_offset_consumed=true;"
@@ -9525,6 +9528,14 @@ int main() {
                  "constfloattan_x=tan_y*kCamShotSourceFrustumAspect;",
                  "source-shaped screen-offset translation uses the CamShot local-project aspect");
   ok &= contains(gameplay_c,
+                 "std::optional<CameraSourceLocalProjectScale>"
+                 "camera_source_local_project_scale_for_fov(floaty_fov)",
+                 "CamShot local-project scale is centralized for projection and screen-offset math");
+  ok &= contains(gameplay_c,
+                 "scale.local_project_m_x_x=1.0f/tan_x;"
+                 "scale.local_project_m_z_x=1.0f/tan_y;",
+                 "CamShot local-project proof exposes the denominators used by the ihatecompvir expression");
+  ok &= contains(gameplay_c,
                  "structCameraSourceScreenOffsetTranslateProof{"
                  "floatright_offset=0.0f;floatup_offset=0.0f;",
                  "same-target screen-offset axis proof records current source-shaped local offsets");
@@ -9533,9 +9544,11 @@ int main() {
                  "camera_source_screen_offset_translate_proof(",
                  "same-target screen-offset diagnostics use a shared source-shaped proof helper");
   ok &= contains(gameplay_c,
-                 "constfloatright_offset=-key.screen_offset[0]*distance*tan_x;"
-                 "constfloatup_offset=key.screen_offset[1]*distance*tan_y;",
-                 "source-shaped screen-offset result moves camera position in local right/up space");
+                 "constfloatright_offset=(-key.screen_offset[0]*distance)/"
+                 "project->local_project_m_x_x;"
+                 "constfloatup_offset=(key.screen_offset[1]*distance)/"
+                 "project->local_project_m_z_x;",
+                 "source-shaped screen-offset result applies the ihatecompvir LocalProjectXfm denominator form");
   ok &= contains(gameplay_c,
                  "proof.vertical_flip_candidate_position[axis]="
                  "rows.position[axis]+proof.right_delta[axis]-"
@@ -9724,6 +9737,10 @@ int main() {
                  "\"source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,\""
                  "\"v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x\"",
                  "same-target screen-offset diagnostics cite the ihatecompvir local-project expression");
+  ok &= contains(gameplay_c,
+                 "\"same_target_local_project=(mxx:%s%.6fmzx:%s%.6f"
+                 "tan_x:%s%.6ftan_y:%s%.6fy_ratio=%.6f)\"",
+                 "same-target diagnostics expose the active LocalProjectXfm-scale proof values");
   ok &= contains(gameplay_c,
                  "\"source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum\"",
                  "same-target screen-offset diagnostics preserve the visible CamShotFrame::Interp order");

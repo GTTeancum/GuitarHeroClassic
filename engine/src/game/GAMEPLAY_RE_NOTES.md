@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay LocalProjectXfm denominator proof:
+  Normal gameplay camera projection and screen-offset math now share one
+  source-shaped local-project scale helper, derived from the recovered
+  widescreen `Rnd::YRatio()` value and active CamShot FOV. The same-target
+  screen-offset branch now applies the ihatecompvir denominator expression
+  explicitly as `screenOffset * distance / LocalProjectXfm` and logs the
+  active `m.x.x` / `m.z.x` proof values beside `tan_x`, `tan_y`, and
+  `y_ratio`. This is proof/trace hardening only: the hidden
+  `RndCam::UpdateLocal` matrix body and vertical sign remain unrecovered, the
+  under-venue concern stays open, FreeCam remains deferred last, and no
+  dependencies are added.
 - 2026-07-16 CameraManager ShotMatches focal_target ObjPtr guard:
   ihatecompvir `CamShotFrame` property sync exposes `focal_target` through the
   generic `ObjPtr<RndTransformable>` path, whose property sync asserts the

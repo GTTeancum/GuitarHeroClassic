@@ -18683,6 +18683,38 @@ constexpr const char* kCamShotUpdateLocalSourceSearch =
     "public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;"
     "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body";
 
+struct CameraSourceLocalProjectScale {
+    float tan_x = 0.0f;
+    float tan_y = 0.0f;
+    float local_project_m_x_x = 0.0f;
+    float local_project_m_z_x = 0.0f;
+};
+
+std::optional<CameraSourceLocalProjectScale>
+camera_source_local_project_scale_for_fov(float y_fov) {
+    if (!std::isfinite(y_fov) || y_fov <= 0.05f || y_fov >= 2.5f) {
+        return std::nullopt;
+    }
+    const float tan_y = std::tan(y_fov * 0.5f);
+    if (!std::isfinite(tan_y) || tan_y <= 0.000001f) {
+        return std::nullopt;
+    }
+    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
+    if (!std::isfinite(tan_x) || tan_x <= 0.000001f) {
+        return std::nullopt;
+    }
+    CameraSourceLocalProjectScale scale;
+    scale.tan_x = tan_x;
+    scale.tan_y = tan_y;
+    scale.local_project_m_x_x = 1.0f / tan_x;
+    scale.local_project_m_z_x = 1.0f / tan_y;
+    if (!std::isfinite(scale.local_project_m_x_x) ||
+        !std::isfinite(scale.local_project_m_z_x)) {
+        return std::nullopt;
+    }
+    return scale;
+}
+
 float camera_dot_axis(const std::array<float, 3>& a,
                       const std::array<float, 3>& b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -20846,13 +20878,9 @@ std::optional<std::array<float, 2>> camera_project_target_screen_norm(
     CameraResultRows rows,
     const Gameplay::CameraKey& key,
     const std::array<float, 3>& target) {
-    if (!key.has_fov || !std::isfinite(key.fov) || key.fov <= 0.05f ||
-        key.fov >= 2.5f) {
-        return std::nullopt;
-    }
-    const float tan_y = std::tan(key.fov * 0.5f);
-    if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
-    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
+    if (!key.has_fov) return std::nullopt;
+    const auto project = camera_source_local_project_scale_for_fov(key.fov);
+    if (!project) return std::nullopt;
     camera_orthonormalize_result_rows(rows);
     const std::array<float, 3> delta = {
         target[0] - rows.position[0], target[1] - rows.position[1],
@@ -20861,8 +20889,10 @@ std::optional<std::array<float, 2>> camera_project_target_screen_norm(
     if (!std::isfinite(depth) || std::abs(depth) <= 0.000001f) {
         return std::nullopt;
     }
-    const float x = camera_dot_axis(delta, rows.right) / (depth * tan_x);
-    const float y = camera_dot_axis(delta, rows.up) / (depth * tan_y);
+    const float x =
+        camera_dot_axis(delta, rows.right) / (depth * project->tan_x);
+    const float y =
+        camera_dot_axis(delta, rows.up) / (depth * project->tan_y);
     if (!std::isfinite(x) || !std::isfinite(y)) return std::nullopt;
     return std::array<float, 2>{(x + 1.0f) * 0.5f, (1.0f - y) * 0.5f};
 }
@@ -20928,21 +20958,22 @@ bool camera_apply_screen_offset_to_result_rows(
         (!std::isfinite(key.screen_offset[0]) ||
          !std::isfinite(key.screen_offset[1])) ||
         (std::abs(key.screen_offset[0]) <= 0.0001f &&
-         std::abs(key.screen_offset[1]) <= 0.0001f) ||
-        !std::isfinite(key.fov) || key.fov <= 0.05f || key.fov >= 2.5f) {
+         std::abs(key.screen_offset[1]) <= 0.0001f)) {
         return false;
     }
-    const float tan_y = std::tan(key.fov * 0.5f);
-    if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return false;
-    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
+    const auto project = camera_source_local_project_scale_for_fov(key.fov);
+    if (!project) return false;
     camera_orthonormalize_result_rows(rows);
     rows.forward = {
-        rows.forward[0] - rows.right[0] * key.screen_offset[0] * tan_x -
-            rows.up[0] * key.screen_offset[1] * tan_y,
-        rows.forward[1] - rows.right[1] * key.screen_offset[0] * tan_x -
-            rows.up[1] * key.screen_offset[1] * tan_y,
-        rows.forward[2] - rows.right[2] * key.screen_offset[0] * tan_x -
-            rows.up[2] * key.screen_offset[1] * tan_y,
+        rows.forward[0] - rows.right[0] * key.screen_offset[0] *
+                              project->tan_x -
+            rows.up[0] * key.screen_offset[1] * project->tan_y,
+        rows.forward[1] - rows.right[1] * key.screen_offset[0] *
+                              project->tan_x -
+            rows.up[1] * key.screen_offset[1] * project->tan_y,
+        rows.forward[2] - rows.right[2] * key.screen_offset[0] *
+                              project->tan_x -
+            rows.up[2] * key.screen_offset[1] * project->tan_y,
     };
     camera_orthonormalize_result_rows(rows);
     rows.screen_offset_consumed = true;
@@ -20964,6 +20995,10 @@ float camera_point_distance(const std::array<float, 3>& a,
 struct CameraSourceScreenOffsetTranslateProof {
     float right_offset = 0.0f;
     float up_offset = 0.0f;
+    float local_project_m_x_x = 0.0f;
+    float local_project_m_z_x = 0.0f;
+    float local_project_tan_x = 0.0f;
+    float local_project_tan_y = 0.0f;
     std::array<float, 3> right_delta{};
     std::array<float, 3> up_delta{};
     std::array<float, 3> current_position{};
@@ -20980,19 +21015,23 @@ camera_source_screen_offset_translate_proof(
         !std::isfinite(key.screen_offset[1]) ||
         (std::abs(key.screen_offset[0]) <= 0.0001f &&
          std::abs(key.screen_offset[1]) <= 0.0001f) ||
-        !std::isfinite(key.fov) || key.fov <= 0.05f || key.fov >= 2.5f ||
         !std::isfinite(distance) || distance <= 0.000001f) {
         return std::nullopt;
     }
-    const float tan_y = std::tan(key.fov * 0.5f);
-    if (!std::isfinite(tan_y) || tan_y <= 0.000001f) return std::nullopt;
-    const float tan_x = tan_y * kCamShotSourceFrustumAspect;
+    const auto project = camera_source_local_project_scale_for_fov(key.fov);
+    if (!project) return std::nullopt;
     camera_orthonormalize_result_rows(rows);
     CameraSourceScreenOffsetTranslateProof proof;
-    const float right_offset = -key.screen_offset[0] * distance * tan_x;
-    const float up_offset = key.screen_offset[1] * distance * tan_y;
+    const float right_offset =
+        (-key.screen_offset[0] * distance) / project->local_project_m_x_x;
+    const float up_offset =
+        (key.screen_offset[1] * distance) / project->local_project_m_z_x;
     proof.right_offset = right_offset;
     proof.up_offset = up_offset;
+    proof.local_project_m_x_x = project->local_project_m_x_x;
+    proof.local_project_m_z_x = project->local_project_m_z_x;
+    proof.local_project_tan_x = project->tan_x;
+    proof.local_project_tan_y = project->tan_y;
     for (int axis = 0; axis < 3; ++axis) {
         proof.right_delta[axis] = rows.right[axis] * proof.right_offset;
         proof.up_delta[axis] = rows.up[axis] * proof.up_offset;
@@ -24156,6 +24195,7 @@ void apply_camera_keys(
             "same_target_screen_offset=(%.6f %.6f) "
             "source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,"
             "v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x "
+            "same_target_local_project=(mxx:%s%.6f mzx:%s%.6f tan_x:%s%.6f tan_y:%s%.6f y_ratio=%.6f) "
             "source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum "
             "same_target_axis_offsets=(right:%s%.6f up:%s%.6f) "
             "same_target_axis_z_delta=(right:%s%.6f up:%s%.6f total:%s%.6f) "
@@ -24243,6 +24283,23 @@ void apply_camera_keys(
                 ? source_same_target_distance
                 : 0.0f,
             cam.screen_offset[0], cam.screen_offset[1],
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->local_project_m_x_x
+                : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->local_project_m_z_x
+                : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->local_project_tan_x
+                : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof
+                ? same_target_axis_proof->local_project_tan_y
+                : 0.0f,
+            kCamShotSourceYRatio,
             same_target_axis_proof ? "" : "none/",
             same_target_axis_proof ? same_target_axis_proof->right_offset
                                    : 0.0f,
