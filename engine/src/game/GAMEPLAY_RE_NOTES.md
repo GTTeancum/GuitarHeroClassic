@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot DOF EndAnim source boundary:
+  ihatecompvir `CamShot::EndAnim()` only runs `UnHide()`, sends
+  `stop_shot_msg`, and ends linked `mAnims`; DOF clearing is visible in
+  `CamShotFrame::Interp` for inactive DOF frames and in `CameraManager`
+  teardown, not ordinary EndAnim or `CameraManager::Enter()`. Native normal
+  gameplay camera lifecycle no longer clears DOF during EndAnim/Enter reset,
+  while the per-frame inactive-DOF branch still calls the source-shaped
+  `DOFProc::UnSet`. This is gameplay camera lifecycle parity only; it does not
+  promote FreeCam or add dependencies.
 - 2026-07-15 gameplay diagnostic seek active-player replay:
   GH2 `world_objects_worldbase.dta::active_players_changed` stores
   `[faceoff_active_players]`, sets `[camera_bars_left]` to 4, and routes to
@@ -741,9 +750,10 @@
 - 2026-07-14 CamShot DOF unset lifecycle: ihatecompvir
   `CamShotFrame::Interp` calls `TheDOFProc->UnSet()` when the shot/frame does
   not activate depth of field, and `CameraManager` unsets DOF during teardown.
-  Native now routes inactive source DOF frames and CamShot EndAnim through an
-  explicit source-named DOF clear so stale focus distance cannot survive after
-  the source camera lifecycle has ended.
+  Native routes inactive source DOF frames through an explicit source-named DOF
+  clear. Ordinary CamShot EndAnim is not treated as DOF teardown because the
+  visible source body only restores visibility, sends `stop_shot`, and ends
+  linked anims.
 - 2026-07-13 CameraManager category randomization RNG: ihatecompvir's RB2
   `CameraManager::SyncObjects` dump shows a temporary CamShot array, a `which`
   draw, and static `sRand` while `Rand::Seed` / `Rand::Int` are recovered in

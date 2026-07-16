@@ -24963,7 +24963,6 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update) {
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
     if (world_) {
-        camera_unset_dof_proc_like_source(world_->camera());
         camera_unset_shake_like_no_current_camshot(world_->camera());
     }
     if (debug_venue_filters_enabled()) {
@@ -25028,7 +25027,6 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_skip_next_crowd_update_ = false;
     camera_result_builder_state_.reset();
     if (world_) {
-        camera_unset_dof_proc_like_source(world_->camera());
         camera_unset_shake_like_no_current_camshot(world_->camera());
     }
     active_force_char_lod_ = -1;

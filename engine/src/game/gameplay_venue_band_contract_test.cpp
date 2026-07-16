@@ -11275,9 +11275,10 @@ int main() {
       "submitted_result=camera_source_setframe_blend_result_rows("
       "source_previous_frame,submitted_result,source_poll_blend);",
       "CamShot DOFProc state follows source order before SetFrame blend and SetLocalXfm");
-  ok &= contains(end_camera_shot_runtime_c,
-                 "camera_unset_dof_proc_like_source(world_->camera());",
-                 "camera EndAnim clears native DOF state like CameraManager teardown");
+  ok &= absent(
+      end_camera_shot_runtime_c,
+      "camera_unset_dof_proc_like_source(world_->camera());",
+      "camera EndAnim must not clear native DOF; ihatecompvir EndAnim only restores visibility, sends stop_shot, and ends mAnims");
   ok &= contains(gameplay_c,
                  "dof=%ddof_fields=%duse_dof=%dfocus_dist=%.3f"
                  "source_dof=(a:%s%.3fb:%s%.3fselected=%scamera=pre_setframe_blend)",
@@ -13650,6 +13651,10 @@ int main() {
   ok &= absent(reset_camera_manager_like_source_enter_c,
                "active_camera_shots_over_.clear();",
                "CameraManager::Enter must not clear source per-CamShot mShotOver latches");
+  ok &= absent(
+      reset_camera_manager_like_source_enter_c,
+      "camera_unset_dof_proc_like_source(world_->camera());",
+      "CameraManager::Enter mirrors StartShot_(0)+DeleteFreeCam and leaves DOF clearing to inactive CamShotFrame interpolation or manager teardown");
   ok &= contains(gameplay_h_c,
                  "boolcamera_manager_get_free_cam_like_source("
                  "intpadnum,constchar*source_handler);",
