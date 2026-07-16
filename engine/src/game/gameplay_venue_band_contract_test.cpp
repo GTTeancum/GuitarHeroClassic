@@ -13482,15 +13482,30 @@ int main() {
                  "camera_flags_any_filter((~current_shot->flags)&0x7000)",
                  "BandDirector::FindNextShot coop facing filter mirrors the source 0x7000 flag mask");
   ok &= contains(gameplay_c,
+                 "boolcamera_source_category_uses_banddirector_findnext("
+                 "std::string_viewcategory,std::string_viewsource_message)",
+                 "source category picker distinguishes direct script picks from BandDirector FindNextShot");
+  ok &= contains(gameplay_c,
+                 "source_message==\"BandDirector::FindNextShot\"||"
+                 "camera_source_banddirector_facing_camera(category)",
+                 "source category picker reserves BandDirector provenance for explicit FindNextShot or facing coop categories");
+  ok &= contains(gameplay_c,
+                 "source_banddirector_findnext?"
+                 "camera_source_banddirector_findnext_filters("
+                 "category,source_previous):"
+                 "std::vector<CameraShotSourceFilter>{}",
+                 "direct source category picks do not inherit BandDirector filters");
+  ok &= contains(gameplay_c,
                  "source_warn=\\\"Noacceptablecamerashot:\\\""
                  "source_warn_cat=%ssource_manager=CameraManager::PickCameraShot"
-                 "category=%smode=source_categoryfilters=\\\"%s\\\""
+                 "source_category_caller=%scategory=%s"
+                 "mode=source_categoryfilters=\\\"%s\\\""
                  "filter_count=%zusource_msg=%sresult=0",
-                 "source category no-acceptable-shot diagnostics mirror PickCameraShot warnings with BandDirector filters");
+                 "source category no-acceptable-shot diagnostics mirror PickCameraShot warnings with route provenance");
   ok &= contains(gameplay_c,
-                 "source_director=BandDirector::FindNextShotfilters=\\\"%s\\\""
+                 "source_category_caller=%sfilters=\\\"%s\\\""
                  "filter_count=%zu",
-                 "source category prescan diagnostics expose BandDirector FindNextShot filters");
+                 "source category prescan diagnostics expose direct CameraManager versus BandDirector routing");
   ok &= contains(gameplay_c,
                  "if(key.category!=category)continue;"
                  "if(key.disabled_flags!=0){",

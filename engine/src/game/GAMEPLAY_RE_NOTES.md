@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay source-category caller proof:
+  GH2 `world_objects_worldbase.dta` direct `pick_shot` routes such as
+  `game_lost`, `game_won_msg`, and `pick_lighter_shot` go through
+  `CameraManager::FindCameraShot`, while ihatecompvir
+  `BandDirector::FindNextShot` adds provenance-specific filters only for the
+  facing `coop_` route. Native diagnostics now label those direct category
+  picks as `CameraManager::FindCameraShot` and reserve
+  `BandDirector::FindNextShot` for explicit/facing-coop routes. This is
+  proof/provenance only: no camera selection result, pose math, FreeCam
+  priority, under-venue concern, or dependency surface changes.
 - 2026-07-16 gameplay BuildTransform current-frame pair execution:
   ihatecompvir `CamShotFrame::Interp` calls
   `BuildTransform(cam, ..., !sameTargets)` twice on the current frame before

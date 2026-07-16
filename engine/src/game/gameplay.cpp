@@ -17121,6 +17121,12 @@ std::vector<CameraShotSourceFilter> camera_source_banddirector_findnext_filters(
     return filters;
 }
 
+bool camera_source_category_uses_banddirector_findnext(
+    std::string_view category, std::string_view source_message) {
+    return source_message == "BandDirector::FindNextShot" ||
+           camera_source_banddirector_facing_camera(category);
+}
+
 void camera_source_no_acceptable_shot(std::string_view category,
                                       CameraShotMode mode,
                                       bool low_excitement,
@@ -17331,8 +17337,17 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
+    const bool source_banddirector_findnext =
+        camera_source_category_uses_banddirector_findnext(category,
+                                                          source_message);
     const std::vector<CameraShotSourceFilter> source_filters =
-        camera_source_banddirector_findnext_filters(category, source_previous);
+        source_banddirector_findnext
+            ? camera_source_banddirector_findnext_filters(category,
+                                                          source_previous)
+            : std::vector<CameraShotSourceFilter>{};
+    const char* source_category_caller =
+        source_banddirector_findnext ? "BandDirector::FindNextShot"
+                                     : "CameraManager::FindCameraShot";
     const std::string source_filter_label =
         camera_source_filter_list_label(source_filters);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
@@ -17340,10 +17355,11 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
             keys, category, source_filters, current_walkspot);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_director=BandDirector::FindNextShot filters=\"%s\" filter_count=%zu source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_category_caller=%s filters=\"%s\" filter_count=%zu source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(category).c_str(),
             source_previous ? source_previous->name.c_str() : "",
-            num_shots, source_filter_label.c_str(), source_filters.size());
+            num_shots, source_category_caller, source_filter_label.c_str(),
+            source_filters.size());
     }
     camera_source_first_shot_ok(category);
 
@@ -17371,10 +17387,10 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s mode=source_category filters=\"%s\" filter_count=%zu source_msg=%s result=0\n",
-                std::string(category).c_str(), std::string(category).c_str(),
-                source_filter_label.c_str(), source_filters.size(),
-                std::string(source_message).c_str());
+                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot source_category_caller=%s category=%s mode=source_category filters=\"%s\" filter_count=%zu source_msg=%s result=0\n",
+                std::string(category).c_str(), source_category_caller,
+                std::string(category).c_str(), source_filter_label.c_str(),
+                source_filters.size(), std::string(source_message).c_str());
         }
         return nullptr;
     }
@@ -17398,7 +17414,8 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
             camera_category_bucket_order_for_log(keys, selected_category);
         std::fprintf(
             stderr,
-            "[world] camera FindCameraShot move: source_manager=CameraManager::FindCameraShot shot=%s category=%s bucket_index=%zu source_move=MoveItem(end) source_msg=%s before=%s after=%s\n",
+            "[world] camera FindCameraShot move: source_manager=CameraManager::FindCameraShot source_category_caller=%s shot=%s category=%s bucket_index=%zu source_move=MoveItem(end) source_msg=%s before=%s after=%s\n",
+            source_category_caller,
             selected_name.c_str(), selected_category.c_str(),
             selected_bucket_index, std::string(source_message).c_str(),
             before_order.c_str(), after_order.c_str());
