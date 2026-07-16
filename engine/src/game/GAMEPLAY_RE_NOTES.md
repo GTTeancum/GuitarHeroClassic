@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay downbeat camera pick cadence:
+  Re-reading GH2 `world_objects_worldbase.dta` shows `downbeat` always calls
+  `check_camera_shot` while `player0` is not in star mode; inside
+  `check_camera_shot`, `camera_bars_left <= 0` only gates the
+  `get_shot_duration` refresh, not the following `pick_new_shot`. Native normal
+  gameplay now preserves that source cadence: a positive duration counter is
+  held, but the downbeat still routes through the normal source picker. This
+  corrects the previous duration-hold interpretation, stays inside normal
+  gameplay camera selection, does not synthesize hidden `cam_check_shot` /
+  `cam_shot_ok` / `BuildTransform` bodies, keeps FreeCam last, and adds no
+  dependencies.
 - 2026-07-16 gameplay `game_won_msg` camera categories:
   GH2 `world_objects_worldbase.dta::game_won_msg` resolves the delayed win
   camera category from the source encore argument, `gamecfg win_campaign_song`,
@@ -133,17 +144,14 @@
 - 2026-07-15 gameplay camera check-shot gate proof:
   GH2 `world_objects_worldbase.dta::downbeat` decrements
   `camera_bars_left`, skips `check_camera_shot` during star mode, and
-  `check_camera_shot` only refreshes duration / calls `pick_new_shot` when
-  `camera_bars_left <= 0`. Native normal gameplay camera diagnostics now log
-  that duration gate and whether the downbeat holds the current shot or reaches
-  `get_shot_duration+pick_new_shot`. The active beat `check_shot` row now also
-  names `world_objects_worldbase.dta::beat`, the source rejection route
-  `pick_new_shot_on_reject`, and the recovered native boundary:
-  `world/camshot.dta::check_shot` calls `cam_check_shot($this)` with no explicit
-  beat argument. This keeps `cam_check_shot` native-deferred and makes the beat
-  value proof context only. This changes only proof/status output; it does not
-  invent `cam_check_shot` behavior, alter camera cadence, touch FreeCam, or add
-  dependencies.
+  `check_camera_shot` refreshes duration only when `camera_bars_left <= 0`.
+  Follow-up on 2026-07-16 corrected the important second half: source still
+  calls `pick_new_shot` after that duration gate on every non-star downbeat.
+  The active beat `check_shot` row names `world_objects_worldbase.dta::beat`,
+  the source rejection route `pick_new_shot_on_reject`, and the native
+  boundary: `world/camshot.dta::check_shot` calls `cam_check_shot($this)` with
+  no explicit beat argument. This keeps `cam_check_shot` native-deferred and
+  makes the beat value proof context only.
 - 2026-07-15 gameplay camera priority reporting:
   Normal gameplay camera diagnostics now lead with source shot state, pose
   boundaries, and hidden gameplay blockers, with FreeCam status left at the end
@@ -1272,12 +1280,10 @@ Open work:
   path follows the source numeric world state instead of maintaining its own
   event-name substring ladder.
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
-  drives `check_camera_shot` from downbeats and only calls `pick_new_shot` when
-  `camera_bars_left <= 0`; it does not retry every frame just because
-  `world current_shot` is empty. Native no longer treats an empty
-  `active_regular_camera_` as a per-frame pick trigger. After a source-shaped
-  no-acceptable-shot result, the selected bar duration is honored before the
-  next pick attempt.
+  drives `check_camera_shot` from downbeats rather than per-frame retries just
+  because `world current_shot` is empty. Follow-up on 2026-07-16 corrected the
+  source cadence detail: `camera_bars_left <= 0` gates only
+  `get_shot_duration`; `pick_new_shot` still runs once per non-star downbeat.
 - 2026-07-13 regular CamShot PrePoll lifecycle order: ihatecompvir
   `CameraManager::PrePoll` consumes `mNextShot` with `StartShot_`, which runs
   `StartAnim` and records `mCamStartTime`, before calling `SetPreFrame` on the

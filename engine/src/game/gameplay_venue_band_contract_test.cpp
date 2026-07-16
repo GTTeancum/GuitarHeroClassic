@@ -13161,19 +13161,26 @@ int main() {
                  "camera downbeat diagnostics cite the recovered source script");
   ok &= contains(gameplay_c,
                  "duration_gate=camera_bars_left<=0duration_expired=%d"
-                 "source_action=%spipeline_scope=normal_gameplay_camera",
-                 "camera downbeat diagnostics expose the source duration gate before pick_new_shot");
+                 "pick_new_shot=%dsource_action=%s"
+                 "pipeline_scope=normal_gameplay_camera",
+                 "camera downbeat diagnostics expose the source duration gate without suppressing pick_new_shot");
   ok &= contains(gameplay_c,
                  "\"check_camera_shot:get_shot_duration+pick_new_shot\"",
                  "camera downbeat diagnostics label the source duration-expired pick route");
   ok &= contains(gameplay_c,
-                 "\"check_camera_shot:duration_hold\"",
-                 "camera downbeat diagnostics label the source hold-current route");
+                 "\"check_camera_shot:pick_new_shot+duration_hold\"",
+                 "camera downbeat diagnostics label the source pick route when duration is held");
   ok &= contains(gameplay_c,
                  "if(!source_game_over_camera_hold&&"
-                 "(force_camera||(camera_check_shot_due&&"
-                 "camera_bars_left_<=0))){",
-                 "regular camera selection follows source downbeat check_camera_shot cadence while preserving game-over picks");
+                 "(force_camera||camera_check_shot_due)){",
+                 "regular camera selection follows source downbeat check_camera_shot pick cadence while preserving game-over picks");
+  ok &= contains(gameplay_c,
+                 "if(camera_bars_left_<=0){"
+                 "duration_random_draw=camera_shot_counter_++;",
+                 "check_camera_shot refreshes duration only when the source duration gate has expired");
+  ok &= contains(gameplay_c,
+                 "duration_source=\"source_check_camera_shot_duration_hold\";",
+                 "check_camera_shot keeps existing camera_bars_left when the source duration gate is still positive");
   ok &= absent(gameplay_c,
                "if(force_camera||camera_bars_left_<=0){",
                "regular camera selection must not retry every frame after a source duration expires");

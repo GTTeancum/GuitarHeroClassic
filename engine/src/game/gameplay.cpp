@@ -35092,14 +35092,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ? "skip_star_mode"
                             : duration_expired
                             ? "check_camera_shot:get_shot_duration+pick_new_shot"
-                            : "check_camera_shot:duration_hold";
+                            : "check_camera_shot:pick_new_shot+duration_hold";
                     std::fprintf(
                         stderr,
-                        "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
+                        "[world] camera downbeat: source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s pipeline_scope=normal_gameplay_camera\n",
                         bar, bars_elapsed, camera_bars_left_,
                         star_power_.active ? 1 : 0,
                         camera_check_shot_due ? 1 : 0,
-                        duration_expired ? 1 : 0, downbeat_source_action);
+                        duration_expired ? 1 : 0,
+                        camera_check_shot_due ? 1 : 0,
+                        downbeat_source_action);
                 }
             }
 
@@ -35151,8 +35153,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
 
             if (!source_game_over_camera_hold &&
-                (force_camera ||
-                 (camera_check_shot_due && camera_bars_left_ <= 0))) {
+                (force_camera || camera_check_shot_due)) {
                 auto duration =
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);
@@ -35173,10 +35174,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             *duration_random_draw);
                     }
                 } else {
-                    duration_random_draw = camera_shot_counter_++;
-                    camera_bars_left_ = source_random_int_camera_duration_bars(
-                        duration.second.first, duration.second.second,
-                        *duration_random_draw);
+                    if (camera_bars_left_ <= 0) {
+                        duration_random_draw = camera_shot_counter_++;
+                        camera_bars_left_ =
+                            source_random_int_camera_duration_bars(
+                                duration.second.first, duration.second.second,
+                                *duration_random_draw);
+                    } else {
+                        duration = {"existing_bars",
+                                    {camera_bars_left_, camera_bars_left_}};
+                        duration_source =
+                            "source_check_camera_shot_duration_hold";
+                    }
                 }
                 const bool low_excitement =
                     camera_low_excitement_like_source(active_venue_event_);
