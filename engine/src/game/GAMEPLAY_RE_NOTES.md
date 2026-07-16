@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CameraManager ShotAfter order tie:
+  ihatecompvir `CameraManager::ShotAfter()` walks `ObjDirItr<CamShot>` and
+  returns the next object, wrapping to the first object when the current shot
+  is missing or last. Native already keeps decoded source object order for this
+  gameplay camera manager path; it now removes the invented alphabetical
+  tie-breaker when order evidence ties, preserving stable decoded order instead.
+  This affects `cycle_shot` / diagnostic gameplay camera handoffs only, keeps
+  FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay CameraManager Enter pending-shot preservation:
   ihatecompvir `CameraManager::Enter()` calls `StartShot_(0)` and
   `DeleteFreeCam()`, but the visible source does not clear `mNextShot`; the

@@ -14149,6 +14149,12 @@ int main() {
                  "std::stable_sort(source_ordered.begin(),source_ordered.end(),",
                  "CameraManager::ShotAfter walks source object order instead of randomized buckets");
   ok &= contains(gameplay_c,
+                 "returna->source_object_order<b->source_object_order;",
+                 "CameraManager::ShotAfter comparator uses only source ObjDirItr order");
+  ok &= absent(gameplay_c,
+               "returna->name<b->name;",
+               "CameraManager::ShotAfter must not invent an alphabetical tie-breaker");
+  ok &= contains(gameplay_c,
                  "constCameraKey*after=source_ordered.front();",
                  "CameraManager::ShotAfter starts with the first source object for null/missing/current-last cases");
   ok &= contains(gameplay_c,

@@ -25796,10 +25796,7 @@ const Gameplay::CameraKey* Gameplay::camera_manager_source_shot_after(
     std::stable_sort(
         source_ordered.begin(), source_ordered.end(),
         [](const CameraKey* a, const CameraKey* b) {
-            if (a->source_object_order != b->source_object_order) {
-                return a->source_object_order < b->source_object_order;
-            }
-            return a->name < b->name;
+            return a->source_object_order < b->source_object_order;
         });
 
     const CameraKey* after = source_ordered.front();
