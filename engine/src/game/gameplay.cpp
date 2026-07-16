@@ -16855,6 +16855,18 @@ bool camera_source_gamecfg_mode_multi_vs() {
     return std::string_view(camera_source_gamecfg_mode()) == "multi_vs";
 }
 
+bool camera_source_gamecfg_win_campaign_song() {
+    return env_int("GHOGX_CAMERA_WIN_CAMPAIGN_SONG", 0) != 0;
+}
+
+bool camera_source_game_want_encore_fx() {
+    return env_int("GHOGX_CAMERA_WANT_ENCORE_FX", 0) != 0;
+}
+
+bool camera_source_game_won_msg_encore_arg() {
+    return env_int("GHOGX_CAMERA_GAME_WON_ENCORE", 0) != 0;
+}
+
 int camera_source_initial_faceoff_active_players() {
     return std::clamp(env_int("GHOGX_CAMERA_FACEOFF_ACTIVE_PLAYERS", 0), 0, 2);
 }
@@ -16919,6 +16931,25 @@ bool camera_source_game_multiplayer(int source_faceoff_active_players) {
 bool camera_source_game_multiplayer() {
     return camera_source_game_multiplayer(
         camera_source_initial_faceoff_active_players());
+}
+
+std::vector<std::string> camera_source_game_won_camera_categories(
+    bool encore_arg,
+    bool win_campaign_song,
+    bool want_encore_fx) {
+    if (win_campaign_song) return {"WIN_GAME"};
+    if (want_encore_fx) return {"WIN_ENCORE_SONG", "WIN"};
+    if (encore_arg) return {"WIN_ENCORE"};
+    return {"WIN"};
+}
+
+const char* camera_source_game_won_category_source(
+    bool encore_arg,
+    bool win_campaign_song,
+    bool want_encore_fx) {
+    if (win_campaign_song) return "gamecfg_win_campaign_song";
+    if (want_encore_fx) return "game_want_encore_fx";
+    return encore_arg ? "encore_arg" : "quickplay_non_campaign_non_encore";
 }
 
 std::string_view camera_source_pick_shot_category(CameraShotMode mode) {
@@ -24098,7 +24129,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     source_game_won_message_dispatched_ = false;
     source_game_won_camera_dispatched_ = false;
     source_game_won_message_time_ = 0.0;
-    source_game_won_camera_category_.clear();
+    source_game_won_camera_categories_.clear();
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
     active_worldcrowd_lighter_group_.clear();
@@ -25559,16 +25590,29 @@ void Gameplay::update_source_game_over_camera_messages(
     if (!source_game_won_message_dispatched_) {
         source_game_won_message_dispatched_ = true;
         source_game_won_message_time_ = song_time_;
-        // Quickplay has no campaign/encore gamecfg branch in this native path,
-        // so world_objects_worldbase.dta resolves game_won_msg to WIN.
-        source_game_won_camera_category_ = "WIN";
+        const bool source_encore_arg = camera_source_game_won_msg_encore_arg();
+        const bool source_win_campaign =
+            camera_source_gamecfg_win_campaign_song();
+        const bool source_want_encore_fx =
+            camera_source_game_want_encore_fx();
+        source_game_won_camera_categories_ =
+            camera_source_game_won_camera_categories(source_encore_arg,
+                                                     source_win_campaign,
+                                                     source_want_encore_fx);
+        const std::string source_categories =
+            join_log_names(source_game_won_camera_categories_);
         camera_bars_left_ = 100;
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera game_won_msg: source_msg=game_won_msg source_script=\"set camera_bars_left 100; script_task delay WIN_CAMERA_DELAY\" category=%s category_source=quickplay_non_campaign_non_encore delay=%.3f bars_left=%d\n",
-                source_game_won_camera_category_.c_str(),
-                kSourceWinCameraDelaySeconds, camera_bars_left_);
+                "[world] camera game_won_msg: source_msg=game_won_msg source_script=\"set camera_bars_left 100; script_task delay WIN_CAMERA_DELAY\" categories=%s category_source=%s encore_arg=%d win_campaign_song=%d want_encore_fx=%d delay=%.3f bars_left=%d\n",
+                source_categories.c_str(),
+                camera_source_game_won_category_source(
+                    source_encore_arg, source_win_campaign,
+                    source_want_encore_fx),
+                source_encore_arg ? 1 : 0, source_win_campaign ? 1 : 0,
+                source_want_encore_fx ? 1 : 0, kSourceWinCameraDelaySeconds,
+                camera_bars_left_);
         }
     }
 
@@ -25579,15 +25623,28 @@ void Gameplay::update_source_game_over_camera_messages(
     }
     source_game_won_camera_dispatched_ = true;
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        const std::string source_categories =
+            join_log_names(source_game_won_camera_categories_);
         std::fprintf(
             stderr,
-            "[world] camera game_won_msg pick: source_msg=game_won_msg source_action=\"pick_shot $category\" category=%s elapsed=%.3f delay=%.3f\n",
-            source_game_won_camera_category_.c_str(),
+            "[world] camera game_won_msg pick: source_msg=game_won_msg source_action=\"pick_shot $category\" categories=%s elapsed=%.3f delay=%.3f\n",
+            source_categories.c_str(),
             song_time_ - source_game_won_message_time_,
             kSourceWinCameraDelaySeconds);
     }
-    queue_source_category_camera_shot(source_game_won_camera_category_,
-                                      "game_won_msg");
+    bool queued = false;
+    for (const auto& category : source_game_won_camera_categories_) {
+        if (queue_source_category_camera_shot(category, "game_won_msg")) {
+            queued = true;
+            break;
+        }
+    }
+    if (!queued && (debug_camera_enabled() || debug_venue_filters_enabled())) {
+        std::fprintf(
+            stderr,
+            "[world] camera game_won_msg pick: source_msg=game_won_msg result=none categories=%s\n",
+            join_log_names(source_game_won_camera_categories_).c_str());
+    }
 }
 
 const Gameplay::CameraKey* Gameplay::camera_manager_source_shot_after(

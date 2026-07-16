@@ -13215,16 +13215,39 @@ int main() {
   ok &= contains(gameplay_c,
                  "queue_source_category_camera_shot(\"LOSE\",\"game_lost\");",
                  "world_objects_worldbase.dta::game_lost routes pick_shot LOSE");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>source_game_won_camera_categories_;",
+                 "game_won_msg preserves the source category list for delayed pick_shot");
   ok &= contains(gameplay_c,
-                 "source_game_won_camera_category_=\"WIN\";",
-                 "quickplay game_won_msg resolves the non-campaign non-encore WIN category");
+                 "\"GHOGX_CAMERA_WIN_CAMPAIGN_SONG\"",
+                 "game_won_msg exposes the source win_campaign_song branch for diagnostics");
+  ok &= contains(gameplay_c,
+                 "\"GHOGX_CAMERA_WANT_ENCORE_FX\"",
+                 "game_won_msg exposes the source want_encore_fx category-list branch for diagnostics");
+  ok &= contains(gameplay_c,
+                 "\"GHOGX_CAMERA_GAME_WON_ENCORE\"",
+                 "game_won_msg exposes the source encore argument branch for diagnostics");
+  ok &= contains(gameplay_c,
+                 "if(win_campaign_song)return{\"WIN_GAME\"};",
+                 "game_won_msg campaign branch resolves to WIN_GAME");
+  ok &= contains(gameplay_c,
+                 "if(want_encore_fx)return{\"WIN_ENCORE_SONG\",\"WIN\"};",
+                 "game_won_msg encore-FX branch keeps WIN_ENCORE_SONG with WIN fallback");
+  ok &= contains(gameplay_c,
+                 "if(encore_arg)return{\"WIN_ENCORE\"};"
+                 "return{\"WIN\"};",
+                 "game_won_msg default/encore branches match world_objects_worldbase.dta");
+  ok &= contains(gameplay_c,
+                 "source_game_won_camera_categories_="
+                 "camera_source_game_won_camera_categories(",
+                 "game_won_msg stores the source category list before WIN_CAMERA_DELAY");
   ok &= contains(gameplay_c,
                  "source_game_won_message_time_+kSourceWinCameraDelaySeconds",
                  "game_won_msg preserves WIN_CAMERA_DELAY before pick_shot");
   ok &= contains(gameplay_c,
-                 "queue_source_category_camera_shot("
-                 "source_game_won_camera_category_,\"game_won_msg\");",
-                 "world_objects_worldbase.dta::game_won_msg routes delayed pick_shot through the source category picker");
+                 "for(constauto&category:source_game_won_camera_categories_){"
+                 "if(queue_source_category_camera_shot(category,\"game_won_msg\")){",
+                 "world_objects_worldbase.dta::game_won_msg tries delayed pick_shot categories in source order");
   ok &= contains(gameplay_c,
                  "constboolsource_game_over_camera_hold="
                  "source_game_lost_camera_dispatched_||"

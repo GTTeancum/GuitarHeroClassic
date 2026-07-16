@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay `game_won_msg` camera categories:
+  GH2 `world_objects_worldbase.dta::game_won_msg` resolves the delayed win
+  camera category from the source encore argument, `gamecfg win_campaign_song`,
+  and `game want_encore_fx`; the encore-FX path can pass
+  `(WIN_ENCORE_SONG WIN)` instead of a single category. Native now keeps that
+  source category list through the `WIN_CAMERA_DELAY` task and tries the
+  delayed `pick_shot` categories in order, while quickplay still defaults to
+  `WIN`. This is normal gameplay/outro CameraManager routing parity only; it
+  does not synthesize hidden `BuildTransform`/`SetPos` angle math, promote
+  FreeCam, or add dependencies.
 - 2026-07-16 gameplay CamShot DOF interp proof:
   ihatecompvir `CamShotFrame::Interp` computes
   `interp9 = Interp(d10, d9, d11)` in the DOF branch, but the visible

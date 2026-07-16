@@ -1074,7 +1074,7 @@ class Gameplay {
   bool source_game_won_message_dispatched_ = false;
   bool source_game_won_camera_dispatched_ = false;
   double source_game_won_message_time_ = 0.0;
-  std::string source_game_won_camera_category_;
+  std::vector<std::string> source_game_won_camera_categories_;
   bool did_lighter_cam_ = false;
   bool crowd_lighter_on_ = false;
   std::string active_worldcrowd_lighter_group_;
