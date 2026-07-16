@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CamShot crowd index assertion proof:
+  ihatecompvir `CamShot::OnClearCrowdChars`, `OnAddCrowdChars`, and
+  `OnSetCrowdChars` read the message crowd index and assert
+  `idx < mCrowds.size()` before dispatching to the selected `CamShotCrowd`.
+  Native still maps GH2's flattened decoded crowd payload to index `0`, but
+  the bridge now reports the decoded source crowd count and visible assertion
+  result separately from the native bounded index gate. This is regular
+  gameplay camera proof plumbing only: no synthetic crowd slots, camera pose
+  math, FreeCam priority change, under-venue masking, or dependency change.
 - 2026-07-16 gameplay BuildTransform branch proof row:
   A bounded gameplay probe on `stone` / `surrender` selected `singer01` and
   stayed on the source-visible no-target branch,

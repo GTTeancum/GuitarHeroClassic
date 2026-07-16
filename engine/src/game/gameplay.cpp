@@ -25695,6 +25695,9 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
         const bool has_source_crowd =
             key.has_crowd_selection || !key.crowd_selection_ref.empty() ||
             !key.crowd_selection_pairs.empty();
+        const int source_crowd_count = has_source_crowd ? 1 : 0;
+        const bool source_assert_idx_lt_size =
+            crowd_index < source_crowd_count;
         const bool source_index_ok = crowd_index == 0 && has_source_crowd;
         const bool before_has_selection = venue_camera_has_crowd_selection_;
         const std::string before_ref = venue_camera_crowd_selection_ref_;
@@ -25739,9 +25742,10 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera crowd message: source_msg=%s source_handler=%s shot=%s crowd_index=%d source_index_ok=%d source_crowds=%d ref_before=%s pairs_before=%zu ref_after=%s pairs_after=%zu has_after=%d changed=%d source_return=DataNode(0)\n",
+                "[world] camera crowd message: source_msg=%s source_handler=%s source_assert=idx<mCrowds.size() shot=%s crowd_index=%d source_index_ok=%d source_crowd_count=%d source_assert_idx_lt_size=%d source_crowds=%d ref_before=%s pairs_before=%zu ref_after=%s pairs_after=%zu has_after=%d changed=%d source_return=DataNode(0)\n",
                 std::string(source_msg).c_str(), source_handler,
                 key.name.c_str(), crowd_index, source_index_ok ? 1 : 0,
+                source_crowd_count, source_assert_idx_lt_size ? 1 : 0,
                 has_source_crowd ? 1 : 0, before_ref.c_str(), before_pairs,
                 venue_camera_crowd_selection_ref_.c_str(),
                 venue_camera_crowd_selection_pairs_.size(),

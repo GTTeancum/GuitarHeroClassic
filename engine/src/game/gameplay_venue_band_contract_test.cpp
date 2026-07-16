@@ -13249,6 +13249,14 @@ int main() {
                  "constboolsource_index_ok=crowd_index==0&&has_source_crowd;",
                  "CamShot crowd bridge keeps native decoded crowd entries bounded to source index zero");
   ok &= contains(gameplay_c,
+                 "constintsource_crowd_count=has_source_crowd?1:0;"
+                 "constboolsource_assert_idx_lt_size="
+                 "crowd_index<source_crowd_count;",
+                 "CamShot crowd bridge exposes ihatecompvir idx < mCrowds.size assertion state");
+  ok &= contains(gameplay_c,
+                 "source_assert=idx<mCrowds.size()",
+                 "CamShot crowd diagnostics name the ihatecompvir crowd index assertion");
+  ok &= contains(gameplay_c,
                  "venue_camera_has_crowd_selection_=true;"
                  "venue_camera_crowd_selection_ref_=crowd_ref;"
                  "venue_camera_crowd_selection_pairs_.clear();",
