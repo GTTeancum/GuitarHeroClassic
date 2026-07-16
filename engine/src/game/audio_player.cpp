@@ -47,10 +47,42 @@
 namespace ghogx::game {
 
 namespace {
-constexpr uint32_t kChunkFrames = 2048;  // sample-frames per submitted buffer
-constexpr int      kRingBuffers = 8;     // ~0.5 s queued at 32 kHz
+constexpr uint32_t kChunkFrames = 1024;  // sample-frames per submitted buffer
+constexpr int      kRingBuffers = 8;     // ~0.25 s queued at 32 kHz
+constexpr float    kGuitarMuteRampMs = 8.0f;
+constexpr UINT32   kStreamOperationSet = 1;
 inline int16_t clamp16(int32_t v) {
   return v > 32767 ? 32767 : (v < -32768 ? -32768 : static_cast<int16_t>(v));
+}
+
+struct SongStemMixPlan {
+  int guitar_pair = -1;
+  int contributor_count = 1;
+  const char* label = "stereo";
+};
+
+SongStemMixPlan stem_mix_plan_for_channels(int channels) {
+  SongStemMixPlan plan;
+  if (channels <= 2) {
+    plan.contributor_count = 1;
+    return plan;
+  }
+
+  const int stereo_pairs = channels / 2;
+  const bool has_mono = (channels & 1) != 0;
+  plan.guitar_pair = stereo_pairs >= 2 ? 1 : -1;
+  plan.contributor_count = std::max(1, stereo_pairs + (has_mono ? 1 : 0));
+
+  if (channels == 4) {
+    plan.label = "band_guitar";
+  } else if (channels == 5) {
+    plan.label = "band_guitar_bass";
+  } else if (channels == 6) {
+    plan.label = "band_lead_rhythm";
+  } else {
+    plan.label = "generic_pairs";
+  }
+  return plan;
 }
 
 class StreamingPitchShifter {
@@ -58,22 +90,31 @@ class StreamingPitchShifter {
   void reset(int sample_rate) {
     const int sr = sample_rate > 0 ? sample_rate : 44100;
     window_frames_ = std::clamp(sr / 25, 1024, 4096);
+    crossfade_frames_ = std::clamp(sr / 50, 256, 2048);
     ring_l_.assign(static_cast<size_t>(window_frames_) + 4, 0.0f);
     ring_r_.assign(static_cast<size_t>(window_frames_) + 4, 0.0f);
     write_index_ = 0;
     primed_frames_ = 0;
     phase_ = 0.0f;
+    wet_level_ = 0.0f;
+    last_shift_ratio_ = 1.0f;
   }
 
   void process_stereo(int16_t* samples, uint32_t frames, float ratio) {
     if (!samples || frames == 0) return;
     if (ring_l_.empty()) reset(44100);
     ratio = std::clamp(std::isfinite(ratio) ? ratio : 1.0f, 0.5f, 2.0f);
-    const bool shifting = std::abs(ratio - 1.0f) > 0.001f;
+    const bool target_shifting = std::abs(ratio - 1.0f) > 0.001f;
+    if (target_shifting) last_shift_ratio_ = ratio;
+    const bool process_shift = target_shifting || wet_level_ > 0.0001f;
+    const float effective_ratio =
+        target_shifting ? ratio : last_shift_ratio_;
     const float phase_step =
-        shifting ? std::abs(1.0f - ratio) /
-                       static_cast<float>(std::max(1, window_frames_))
-                 : 0.0f;
+        process_shift ? std::abs(1.0f - effective_ratio) /
+                            static_cast<float>(std::max(1, window_frames_))
+                      : 0.0f;
+    const float wet_step =
+        1.0f / static_cast<float>(std::max(1, crossfade_frames_));
 
     for (uint32_t f = 0; f < frames; ++f) {
       const size_t sample = static_cast<size_t>(f) * 2;
@@ -82,9 +123,10 @@ class StreamingPitchShifter {
       ring_l_[write_index_] = in_l;
       ring_r_[write_index_] = in_r;
 
-      float out_l = in_l;
-      float out_r = in_r;
-      if (shifting && primed_frames_ >= window_frames_) {
+      float shifted_l = in_l;
+      float shifted_r = in_r;
+      const bool can_shift = process_shift && primed_frames_ >= window_frames_;
+      if (can_shift) {
         const float delay_a = phase_ * static_cast<float>(window_frames_);
         const float delay_b =
             std::fmod(phase_ + 0.5f, 1.0f) *
@@ -93,14 +135,23 @@ class StreamingPitchShifter {
             0.5f - 0.5f *
                        std::cos(phase_ * 6.2831853071795864769f);
         const float weight_b = 1.0f - weight_a;
-        out_l = read_delay(ring_l_, delay_a) * weight_a +
-                read_delay(ring_l_, delay_b) * weight_b;
-        out_r = read_delay(ring_r_, delay_a) * weight_a +
-                read_delay(ring_r_, delay_b) * weight_b;
+        shifted_l = read_delay(ring_l_, delay_a) * weight_a +
+                    read_delay(ring_l_, delay_b) * weight_b;
+        shifted_r = read_delay(ring_r_, delay_a) * weight_a +
+                    read_delay(ring_r_, delay_b) * weight_b;
         phase_ += phase_step;
         if (phase_ >= 1.0f) phase_ -= std::floor(phase_);
       }
 
+      const float target_wet = (target_shifting && can_shift) ? 1.0f : 0.0f;
+      if (wet_level_ < target_wet) {
+        wet_level_ = std::min(target_wet, wet_level_ + wet_step);
+      } else if (wet_level_ > target_wet) {
+        wet_level_ = std::max(target_wet, wet_level_ - wet_step);
+      }
+      const float dry = 1.0f - wet_level_;
+      const float out_l = in_l * dry + shifted_l * wet_level_;
+      const float out_r = in_r * dry + shifted_r * wet_level_;
       samples[sample + 0] = clamp16(static_cast<int32_t>(std::lround(out_l)));
       samples[sample + 1] = clamp16(static_cast<int32_t>(std::lround(out_r)));
       write_index_ = (write_index_ + 1) % ring_l_.size();
@@ -125,8 +176,11 @@ class StreamingPitchShifter {
   std::vector<float> ring_r_;
   size_t write_index_ = 0;
   int window_frames_ = 0;
+  int crossfade_frames_ = 0;
   int primed_frames_ = 0;
   float phase_ = 0.0f;
+  float wet_level_ = 0.0f;
+  float last_shift_ratio_ = 1.0f;
 };
 
 uint16_t rd_u16(const uint8_t* p) {
@@ -157,6 +211,19 @@ float db_to_linear(float db) {
   if (!std::isfinite(db)) return 1.0f;
   if (db <= -96.0f) return 0.0f;
   return std::pow(10.0f, db / 20.0f);
+}
+
+bool env_enabled(const char* name) {
+  char value[16] = {};
+  const DWORD len =
+      GetEnvironmentVariableA(name, value, static_cast<DWORD>(sizeof(value)));
+  return len > 0 && (len >= sizeof(value) || std::strcmp(value, "0") != 0);
+}
+
+bool audio_output_muted() {
+  return env_enabled("GHOGX_MUTE_AUDIO") ||
+         env_enabled("GHOGX_DISABLE_AUDIO_OUTPUT") ||
+         env_enabled("GHOGX_HIDE_WINDOW");
 }
 
 std::optional<float> keyed_dtb_number(const gh::dtb::Tree& tree,
@@ -393,6 +460,9 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   std::vector<StreamBuffer> ring;          // kRingBuffers stereo chunks
   std::vector<int16_t> scratch;            // N-channel interleaved decode scratch
   std::atomic<bool> guitar_stem_muted{false};
+  std::atomic<float> guitar_gain_target{1.0f};
+  float guitar_gain_current = 1.0f;
+  SongStemMixPlan stem_mix_plan;
   std::mutex mu;
   std::condition_variable cv;
   std::vector<int> free_list;              // indices of free ring buffers
@@ -400,6 +470,18 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   std::atomic<bool> running{false};
   std::atomic<bool> started{false};        // play() called at least once
   std::atomic<bool> eos{false};
+  std::atomic<uint64_t> queue_depth_samples{0};
+  std::atomic<uint64_t> mix_zero_queue_samples{0};
+  std::atomic<uint64_t> mix_low_queue_samples{0};
+  std::atomic<uint64_t> guitar_zero_queue_samples{0};
+  std::atomic<uint64_t> guitar_low_queue_samples{0};
+  std::atomic<uint64_t> bytes_required_passes{0};
+  std::atomic<uint32_t> max_bytes_required{0};
+  std::atomic<uint32_t> min_mix_buffers_queued{UINT32_MAX};
+  std::atomic<uint32_t> max_mix_buffers_queued{0};
+  std::atomic<uint32_t> min_guitar_buffers_queued{UINT32_MAX};
+  std::atomic<uint32_t> max_guitar_buffers_queued{0};
+  std::atomic<bool> stream_health_logged{false};
 
   // --- GH2 sfx/gen/ingame_bank.milo_ps2 feedback ---
   std::unordered_map<std::string, BankSample> bank_samples;
@@ -421,8 +503,109 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   double last_whammy_log_sec = -1000.0;
   std::atomic<float> whammy_pitch_ratio{1.0f};
   StreamingPitchShifter whammy_pitch_shifter;
+  std::atomic<uint32_t> submit_error_count{0};
 
   ~Impl() { teardown(); }
+
+  static void atomic_min(std::atomic<uint32_t>& target, uint32_t value) {
+    uint32_t current = target.load(std::memory_order_relaxed);
+    while (value < current &&
+           !target.compare_exchange_weak(current, value,
+                                         std::memory_order_relaxed,
+                                         std::memory_order_relaxed)) {
+    }
+  }
+
+  static void atomic_max(std::atomic<uint32_t>& target, uint32_t value) {
+    uint32_t current = target.load(std::memory_order_relaxed);
+    while (value > current &&
+           !target.compare_exchange_weak(current, value,
+                                         std::memory_order_relaxed,
+                                         std::memory_order_relaxed)) {
+    }
+  }
+
+  void reset_stream_health() {
+    queue_depth_samples.store(0, std::memory_order_relaxed);
+    mix_zero_queue_samples.store(0, std::memory_order_relaxed);
+    mix_low_queue_samples.store(0, std::memory_order_relaxed);
+    guitar_zero_queue_samples.store(0, std::memory_order_relaxed);
+    guitar_low_queue_samples.store(0, std::memory_order_relaxed);
+    bytes_required_passes.store(0, std::memory_order_relaxed);
+    max_bytes_required.store(0, std::memory_order_relaxed);
+    min_mix_buffers_queued.store(UINT32_MAX, std::memory_order_relaxed);
+    max_mix_buffers_queued.store(0, std::memory_order_relaxed);
+    min_guitar_buffers_queued.store(UINT32_MAX, std::memory_order_relaxed);
+    max_guitar_buffers_queued.store(0, std::memory_order_relaxed);
+    submit_error_count.store(0, std::memory_order_relaxed);
+    stream_health_logged.store(false, std::memory_order_relaxed);
+  }
+
+  void record_voice_queue_depth(
+      UINT32 queued, std::atomic<uint32_t>& min_queued,
+      std::atomic<uint32_t>& max_queued, std::atomic<uint64_t>& zero_samples,
+      std::atomic<uint64_t>& low_samples) {
+    atomic_min(min_queued, queued);
+    atomic_max(max_queued, queued);
+    if (!eos.load(std::memory_order_relaxed)) {
+      if (queued == 0) zero_samples.fetch_add(1, std::memory_order_relaxed);
+      if (queued <= 1) low_samples.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+
+  void observe_queue_depth(const XAUDIO2_VOICE_STATE& mix_state) {
+    if (!source || !started.load(std::memory_order_relaxed)) return;
+    queue_depth_samples.fetch_add(1, std::memory_order_relaxed);
+    record_voice_queue_depth(mix_state.BuffersQueued, min_mix_buffers_queued,
+                             max_mix_buffers_queued, mix_zero_queue_samples,
+                             mix_low_queue_samples);
+    if (guitar_source) {
+      XAUDIO2_VOICE_STATE guitar_state = {};
+      guitar_source->GetState(&guitar_state, XAUDIO2_VOICE_NOSAMPLESPLAYED);
+      record_voice_queue_depth(
+          guitar_state.BuffersQueued, min_guitar_buffers_queued,
+          max_guitar_buffers_queued, guitar_zero_queue_samples,
+          guitar_low_queue_samples);
+    }
+  }
+
+  void log_stream_health_summary() {
+    if (stream_health_logged.exchange(true, std::memory_order_relaxed)) return;
+    if (!started.load(std::memory_order_relaxed) &&
+        queue_depth_samples.load(std::memory_order_relaxed) == 0 &&
+        submit_error_count.load(std::memory_order_relaxed) == 0) {
+      return;
+    }
+    const uint32_t min_mix =
+        min_mix_buffers_queued.load(std::memory_order_relaxed) == UINT32_MAX
+            ? 0
+            : min_mix_buffers_queued.load(std::memory_order_relaxed);
+    const uint32_t min_guitar =
+        min_guitar_buffers_queued.load(std::memory_order_relaxed) == UINT32_MAX
+            ? 0
+            : min_guitar_buffers_queued.load(std::memory_order_relaxed);
+    std::fprintf(
+        stderr,
+        "[audio] stream health: samples=%llu mix_queue=%u..%u zero=%llu low=%llu "
+        "guitar_queue=%u..%u zero=%llu low=%llu bytes_required=%llu "
+        "max_bytes_required=%u submit_errors=%u\n",
+        static_cast<unsigned long long>(
+            queue_depth_samples.load(std::memory_order_relaxed)),
+        min_mix, max_mix_buffers_queued.load(std::memory_order_relaxed),
+        static_cast<unsigned long long>(
+            mix_zero_queue_samples.load(std::memory_order_relaxed)),
+        static_cast<unsigned long long>(
+            mix_low_queue_samples.load(std::memory_order_relaxed)),
+        min_guitar, max_guitar_buffers_queued.load(std::memory_order_relaxed),
+        static_cast<unsigned long long>(
+            guitar_zero_queue_samples.load(std::memory_order_relaxed)),
+        static_cast<unsigned long long>(
+            guitar_low_queue_samples.load(std::memory_order_relaxed)),
+        static_cast<unsigned long long>(
+            bytes_required_passes.load(std::memory_order_relaxed)),
+        max_bytes_required.load(std::memory_order_relaxed),
+        submit_error_count.load(std::memory_order_relaxed));
+  }
 
   // IXAudio2VoiceCallback — keep these tiny; they run on the audio thread.
   void STDMETHODCALLTYPE OnBufferEnd(void* ctx) override {
@@ -447,7 +630,13 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     }
     if (ready) cv.notify_one();
   }
-  void STDMETHODCALLTYPE OnVoiceProcessingPassStart(UINT32) override {}
+  void STDMETHODCALLTYPE OnVoiceProcessingPassStart(UINT32 bytes_required) override {
+    if (started.load(std::memory_order_relaxed) &&
+        !eos.load(std::memory_order_relaxed) && bytes_required > 0) {
+      bytes_required_passes.fetch_add(1, std::memory_order_relaxed);
+      atomic_max(max_bytes_required, bytes_required);
+    }
+  }
   void STDMETHODCALLTYPE OnVoiceProcessingPassEnd() override {}
   void STDMETHODCALLTYPE OnStreamEnd() override {}
   void STDMETHODCALLTYPE OnBufferStart(void*) override {}
@@ -459,6 +648,11 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) return false;
     if (FAILED(XAudio2Create(&xaudio2, 0, XAUDIO2_DEFAULT_PROCESSOR))) return false;
     if (FAILED(xaudio2->CreateMasteringVoice(&master))) return false;
+    if (audio_output_muted()) {
+      master->SetVolume(0.0f);
+      std::fprintf(stderr,
+                   "[audio] output muted for diagnostic/headless run\n");
+    }
     return true;
   }
 
@@ -471,27 +665,39 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     StreamBuffer& buffer = ring[static_cast<size_t>(idx)];
     auto& mix = buffer.mix;
     auto& guitar = buffer.guitar;
-    // Stereo downmix. GH2 VGS stems are STEREO PAIRS (even channel = left, odd =
-    // right; verified by channel correlation), plus an optional trailing mono
-    // stem when the channel count is odd. So sum the left channels into L and
-    // the right channels into R (NOT a flat mono average, which collapses the
-    // stereo image and sounded wrong). Average each side's contributors so the
-    // mix is bounded by the loudest stem and never clips.
+    // Stereo downmix. GH2 VGS stems are authored as stereo pairs, with documented
+    // song layouts of band/guitar, band/guitar/bass, and band/lead/rhythm.
     const int npairs = channels / 2;
     const bool has_mono = (channels & 1) != 0;
-    const int per_side = npairs + (has_mono ? 1 : 0);
-    const int denom = per_side > 0 ? per_side : 1;
-    const int guitar_pair = npairs >= 2 ? (npairs - 1) : -1;
+    const int denom = stem_mix_plan.contributor_count;
+    const int guitar_pair =
+        stem_mix_plan.guitar_pair >= 0 && stem_mix_plan.guitar_pair < npairs
+            ? stem_mix_plan.guitar_pair
+            : -1;
     const bool split_guitar = guitar_source != nullptr && guitar_pair >= 0;
-    const float guitar_gain =
-        guitar_stem_muted.load(std::memory_order_relaxed) ? 0.0f : 1.0f;
+    const float guitar_target =
+        std::clamp(guitar_gain_target.load(std::memory_order_relaxed), 0.0f,
+                   1.0f);
+    float guitar_gain = guitar_gain_current;
+    const float ramp_frames =
+        std::max(1.0f, static_cast<float>(sample_rate) * kGuitarMuteRampMs /
+                           1000.0f);
+    const float ramp_step = 1.0f / ramp_frames;
+    auto step_guitar_gain = [&]() {
+      if (guitar_gain < guitar_target) {
+        guitar_gain = std::min(guitar_target, guitar_gain + ramp_step);
+      } else if (guitar_gain > guitar_target) {
+        guitar_gain = std::max(guitar_target, guitar_gain - ramp_step);
+      }
+      return guitar_gain;
+    };
     for (uint32_t f = 0; f < got; ++f) {
       const int16_t* src = scratch.data() + static_cast<size_t>(f) * channels;
+      const float frame_guitar_gain = step_guitar_gain();
       int32_t l = 0, r = 0;
       for (int p = 0; p < npairs; ++p) {
         if (split_guitar && p == guitar_pair) continue;
-        const float gain = (!split_guitar && p == guitar_pair) ? guitar_gain
-                                                               : 1.0f;
+        const float gain = p == guitar_pair ? frame_guitar_gain : 1.0f;
         l += static_cast<int32_t>(std::lround(src[2 * p] * gain));
         r += static_cast<int32_t>(std::lround(src[2 * p + 1] * gain));
       }
@@ -500,11 +706,16 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
       mix[static_cast<size_t>(f) * 2 + 1] = clamp16(r / denom);
       if (split_guitar) {
         guitar[static_cast<size_t>(f) * 2 + 0] =
-            clamp16(src[2 * guitar_pair] / denom);
+            clamp16(static_cast<int32_t>(
+                std::lround(src[2 * guitar_pair] * frame_guitar_gain)) /
+                    denom);
         guitar[static_cast<size_t>(f) * 2 + 1] =
-            clamp16(src[2 * guitar_pair + 1] / denom);
+            clamp16(static_cast<int32_t>(
+                std::lround(src[2 * guitar_pair + 1] * frame_guitar_gain)) /
+                    denom);
       }
     }
+    guitar_gain_current = guitar_gain;
     if (split_guitar) {
       whammy_pitch_shifter.process_stereo(
           guitar.data(), got, whammy_pitch_ratio.load(std::memory_order_relaxed));
@@ -512,18 +723,47 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     return got;
   }
 
+  void release_stream_buffer(int idx) {
+    bool ready = false;
+    {
+      std::lock_guard<std::mutex> lk(mu);
+      if (idx >= 0 && idx < static_cast<int>(ring.size())) {
+        StreamBuffer& buffer = ring[static_cast<size_t>(idx)];
+        buffer.expected_mask = 0;
+        buffer.ended_mask = 0;
+        free_list.push_back(idx);
+        ready = true;
+      }
+    }
+    if (ready) cv.notify_one();
+  }
+
+  void log_submit_error(const char* voice, HRESULT hr) {
+    const uint32_t n = submit_error_count.fetch_add(1, std::memory_order_relaxed);
+    if (n < 8) {
+      std::fprintf(stderr,
+                   "[audio] SubmitSourceBuffer failed voice=%s hr=0x%08lX\n",
+                   voice, static_cast<unsigned long>(hr));
+    }
+  }
+
   void submit(int idx, uint32_t frames, bool end) {
     StreamBuffer& buffer = ring[static_cast<size_t>(idx)];
     buffer.ended_mask = 0;
-    buffer.expected_mask = 0x1u;
-    if (guitar_source) buffer.expected_mask |= 0x2u;
+    buffer.expected_mask = 0;
 
     XAUDIO2_BUFFER buf = {};
     buf.AudioBytes = frames * 2 * sizeof(int16_t);
     buf.pAudioData = reinterpret_cast<const BYTE*>(buffer.mix.data());
     buf.pContext = &buffer.mix_context;
     if (end) buf.Flags = XAUDIO2_END_OF_STREAM;
-    source->SubmitSourceBuffer(&buf);
+    uint32_t expected_mask = 0;
+    HRESULT hr = source->SubmitSourceBuffer(&buf);
+    if (SUCCEEDED(hr)) {
+      expected_mask |= 0x1u;
+    } else {
+      log_submit_error("mix", hr);
+    }
     if (guitar_source) {
       XAUDIO2_BUFFER guitar_buf = {};
       guitar_buf.AudioBytes = frames * 2 * sizeof(int16_t);
@@ -531,11 +771,23 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
           reinterpret_cast<const BYTE*>(buffer.guitar.data());
       guitar_buf.pContext = &buffer.guitar_context;
       if (end) guitar_buf.Flags = XAUDIO2_END_OF_STREAM;
-      guitar_source->SubmitSourceBuffer(&guitar_buf);
+      hr = guitar_source->SubmitSourceBuffer(&guitar_buf);
+      if (SUCCEEDED(hr)) {
+        expected_mask |= 0x2u;
+      } else {
+        log_submit_error("guitar", hr);
+      }
     }
+
+    if (expected_mask == 0) {
+      release_stream_buffer(idx);
+      return;
+    }
+    buffer.expected_mask = expected_mask;
   }
 
   void decode_loop() {
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
     while (running.load(std::memory_order_relaxed)) {
       int idx = -1;
       {
@@ -548,9 +800,12 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
       uint32_t frames = fill_chunk(idx);
       if (frames == 0) {
         // End of stream: hand the buffer back and idle until reset/teardown.
-        std::lock_guard<std::mutex> lk(mu);
-        free_list.push_back(idx);
-        eos.store(true, std::memory_order_relaxed);
+        {
+          std::lock_guard<std::mutex> lk(mu);
+          free_list.push_back(idx);
+          eos.store(true, std::memory_order_relaxed);
+        }
+        cv.notify_one();
         // Wait to avoid busy-spinning at EOF.
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         continue;
@@ -559,10 +814,27 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     }
   }
 
+  void wait_for_preroll() {
+    if (!source) return;
+    const UINT32 min_buffers =
+        static_cast<UINT32>(std::min(3, kRingBuffers));
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+    while (running.load(std::memory_order_relaxed) &&
+           !eos.load(std::memory_order_relaxed)) {
+      XAUDIO2_VOICE_STATE state = {};
+      source->GetState(&state);
+      if (state.BuffersQueued >= min_buffers) return;
+      if (std::chrono::steady_clock::now() >= deadline) return;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  }
+
   void teardown() {
     running.store(false, std::memory_order_relaxed);
     cv.notify_all();
     if (decoder.joinable()) decoder.join();
+    log_stream_health_summary();
     for (auto& shot : active_one_shots) {
       if (shot.voice) {
         shot.voice->Stop(0);
@@ -869,15 +1141,15 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     }
     const bool previous =
         guitar_stem_muted.exchange(muted, std::memory_order_relaxed);
-    if (guitar_source) {
-      guitar_source->SetVolume(muted ? 0.0f : 1.0f);
-    }
+    guitar_gain_target.store(muted ? 0.0f : 1.0f,
+                             std::memory_order_relaxed);
     if (previous != muted) {
       std::fprintf(stderr,
                    "[audio-gameplay] guitar_mute=%d reason=%s "
-                   "pair=last_stereo_pair channels=%d split=%d\n",
-                   muted ? 1 : 0, reason, channels,
-                   guitar_source ? 1 : 0);
+                   "pair=%d channels=%d split=%d ramp_ms=%.1f\n",
+                   muted ? 1 : 0, reason, stem_mix_plan.guitar_pair, channels,
+                   guitar_source ? 1 : 0,
+                   kGuitarMuteRampMs);
     }
   }
 
@@ -1017,6 +1289,7 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
 
   bool setup_streaming_voice(uint32_t start_frame, const char* vgs_path) {
     teardown();
+    reset_stream_health();
     stream = gh::vgs::Stream{};
     if (raw_vgs.empty()) {
       std::fprintf(stderr, "[audio] VGS empty\n");
@@ -1031,11 +1304,14 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     sample_rate = stream.sample_rate();
     channels = stream.channels();
     total_frames = stream.total_frames();
+    stem_mix_plan = stem_mix_plan_for_channels(channels);
     const uint32_t clamped_frame = std::min(start_frame, total_frames);
     stream.seek(clamped_frame);
     base_position_sec =
         sample_rate > 0 ? clamped_frame / static_cast<double>(sample_rate) : 0.0;
     guitar_stem_muted.store(false, std::memory_order_relaxed);
+    guitar_gain_target.store(1.0f, std::memory_order_relaxed);
+    guitar_gain_current = 1.0f;
     whammy_active = false;
     whammy_transition_sec = base_position_sec;
     last_whammy_ratio = 1.0f;
@@ -1064,11 +1340,11 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     if (channels >= 4) {
       if (SUCCEEDED(xaudio2->CreateSourceVoice(
               &guitar_source, &wfx, 0, XAUDIO2_DEFAULT_FREQ_RATIO, this))) {
-        guitar_source->SetVolume(
-            guitar_stem_muted.load(std::memory_order_relaxed) ? 0.0f : 1.0f);
         std::fprintf(stderr,
-                     "[audio-gameplay] guitar_stem_split=1 pair=last_stereo_pair channels=%d mode=separate_voice\n",
-                     channels);
+                     "[audio-gameplay] guitar_stem_split=1 pair=%d channels=%d "
+                     "map=%s mode=separate_voice mute_ramp_ms=%.1f\n",
+                     stem_mix_plan.guitar_pair, channels, stem_mix_plan.label,
+                     kGuitarMuteRampMs);
       } else {
         guitar_source = nullptr;
         std::fprintf(stderr,
@@ -1147,15 +1423,18 @@ bool AudioPlayer::load_vgs(const std::string& hdr_path, const std::string& ark_p
 
 void AudioPlayer::play() {
   if (!impl_->source) return;
+  impl_->wait_for_preroll();
   impl_->started.store(true, std::memory_order_relaxed);
-  impl_->source->Start(0);
-  if (impl_->guitar_source) impl_->guitar_source->Start(0);
+  impl_->source->Start(0, kStreamOperationSet);
+  if (impl_->guitar_source) impl_->guitar_source->Start(0, kStreamOperationSet);
+  if (impl_->xaudio2) impl_->xaudio2->CommitChanges(kStreamOperationSet);
 }
 
 void AudioPlayer::stop() {
   if (!impl_->source) return;
-  impl_->source->Stop(0);
-  if (impl_->guitar_source) impl_->guitar_source->Stop(0);
+  impl_->source->Stop(0, kStreamOperationSet);
+  if (impl_->guitar_source) impl_->guitar_source->Stop(0, kStreamOperationSet);
+  if (impl_->xaudio2) impl_->xaudio2->CommitChanges(kStreamOperationSet);
 }
 
 bool AudioPlayer::seek(double seconds) {
@@ -1181,6 +1460,7 @@ double AudioPlayer::position_sec() const {
     return impl_->base_position_sec;
   XAUDIO2_VOICE_STATE st = {};
   impl_->source->GetState(&st);
+  impl_->observe_queue_depth(st);
   // SamplesPlayed counts sample-frames at the source rate — exact song time.
   return impl_->base_position_sec + static_cast<double>(st.SamplesPlayed) /
          static_cast<double>(impl_->sample_rate);

@@ -57,6 +57,7 @@
 //                                       state for diagnostic screenshots)
 //   ghogx_app --hud-tune <file>       load saved HUD layout in gameplay/capture
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
+//   ghogx_app --mute-audio            keep the audio graph running silently
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
 //   ghogx_app --sparse-screenshots    long-run validation: tick every frame but
@@ -83,6 +84,7 @@
 #endif
 #include <windows.h>
 #include <d3d9.h>
+#include <mmsystem.h>
 
 #include <algorithm>
 #include <array>
@@ -117,6 +119,19 @@ bool env_flag(const char* name) {
                                             static_cast<DWORD>(sizeof(value)));
   return len > 0 && (len >= sizeof(value) || std::strcmp(value, "0") != 0);
 }
+
+class ScopedTimerResolution {
+ public:
+  ScopedTimerResolution() {
+    active_ = timeBeginPeriod(1) == TIMERR_NOERROR;
+  }
+  ~ScopedTimerResolution() {
+    if (active_) timeEndPeriod(1);
+  }
+
+ private:
+  bool active_ = false;
+};
 
 bool set_render_aspect_preset(const char* text, RenderSize& out) {
   if (!text) return false;
@@ -303,10 +318,26 @@ std::optional<DiagnosticChartScriptWindow> parse_diagnostic_chart_script_window(
 class AppEngine : public ghogx::Engine {
  public:
   explicit AppEngine(ghogx::render::Window* win)
-      : win_(win), scene_(*win), pixels_(static_cast<std::size_t>(kTexW) * kTexH * 4) {}
+      : win_(win), scene_(*win), pixels_(static_cast<std::size_t>(kTexW) * kTexH * 4) {
+    profile_frame_times_ = env_flag("GHOGX_PROFILE_FRAME_TIMES");
+  }
   ~AppEngine() override {
     if (fail_overlay_tex_) fail_overlay_tex_->Release();
     if (finish_overlay_tex_) finish_overlay_tex_->Release();
+  }
+
+  void log_profile_summary() const {
+    if (!profile_frame_times_ || profile_frames_ == 0) return;
+    const double inv = 1.0 / static_cast<double>(profile_frames_);
+    std::fprintf(
+        stderr,
+        "[profile] frames=%llu pre=%.3fms render=%.3fms gameplay_draw=%.3fms hud=%.3fms present=%.3fms\n",
+        static_cast<unsigned long long>(profile_frames_),
+        profile_pre_seconds_ * inv * 1000.0,
+        profile_render_seconds_ * inv * 1000.0,
+        profile_gameplay_draw_seconds_ * inv * 1000.0,
+        profile_hud_seconds_ * inv * 1000.0,
+        profile_present_seconds_ * inv * 1000.0);
   }
 
   // A single static image (shown if no sequence is set).
@@ -331,6 +362,7 @@ class AppEngine : public ghogx::Engine {
 
  protected:
   void on_pre_frame(float dt) override {
+    const auto profile_start = std::chrono::steady_clock::now();
     const bool confirm = win_->action_pressed(Action::Confirm) ||
                          win_->action_pressed(Action::Start);
 
@@ -410,23 +442,56 @@ class AppEngine : public ghogx::Engine {
         started_ = false;
       }
     }
+    if (profile_frame_times_) {
+      profile_pre_seconds_ +=
+          std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                        profile_start)
+              .count();
+    }
   }
 
   void on_render(float /*dt*/) override {
+    const auto profile_start = std::chrono::steady_clock::now();
     rendered_this_frame_ = true;
     if (sparse_screenshots_ && !should_render_this_frame()) {
       rendered_this_frame_ = false;
+      if (profile_frame_times_) {
+        profile_render_seconds_ +=
+            std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                          profile_start)
+                .count();
+      }
       return;
     }
 
     if (state_ == AppState::Playing || state_ == AppState::Failed ||
         state_ == AppState::Finished) {
+      const auto gameplay_draw_start = std::chrono::steady_clock::now();
       gameplay_.draw(*win_);
+      if (profile_frame_times_) {
+        profile_gameplay_draw_seconds_ +=
+            std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                          gameplay_draw_start)
+                .count();
+      }
+      const auto hud_start = std::chrono::steady_clock::now();
       draw_gameplay_hud();
+      if (profile_frame_times_) {
+        profile_hud_seconds_ +=
+            std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                          hud_start)
+                .count();
+      }
       if (state_ == AppState::Failed) {
         draw_fail_overlay();
       } else if (state_ == AppState::Finished) {
         draw_finish_overlay();
+      }
+      if (profile_frame_times_) {
+        profile_render_seconds_ +=
+            std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                          profile_start)
+                .count();
       }
       return;
     }
@@ -478,6 +543,7 @@ class AppEngine : public ghogx::Engine {
   }
 
   void on_present() override {
+    const auto profile_start = std::chrono::steady_clock::now();
     if (!rendered_this_frame_) return;
 
     // Dev self-verification: capture the rendered frame before presenting.
@@ -494,6 +560,13 @@ class AppEngine : public ghogx::Engine {
                    static_cast<unsigned long long>(frame));
     }
     win_->present();
+    if (profile_frame_times_) {
+      profile_present_seconds_ +=
+          std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                        profile_start)
+              .count();
+      ++profile_frames_;
+    }
   }
 
  private:
@@ -638,6 +711,13 @@ class AppEngine : public ghogx::Engine {
   std::vector<DiagnosticGuitarScriptEvent> diagnostic_guitar_script_;
   std::optional<DiagnosticChartScriptWindow> diagnostic_chart_script_window_;
   std::optional<ghogx::hud::HudState> diagnostic_hud_override_;
+  bool profile_frame_times_ = false;
+  uint64_t profile_frames_ = 0;
+  double profile_pre_seconds_ = 0.0;
+  double profile_render_seconds_ = 0.0;
+  double profile_gameplay_draw_seconds_ = 0.0;
+  double profile_hud_seconds_ = 0.0;
+  double profile_present_seconds_ = 0.0;
 
   bool should_render_this_frame() const {
     const uint64_t frame = frame_count();
@@ -816,6 +896,7 @@ class AppEngine : public ghogx::Engine {
 
   void draw_gameplay_hud() {
     if (env_flag("GHOGX_DEBUG_VENUE_ONLY_CAPTURE") ||
+        env_flag("GHOGX_DEBUG_HIGHWAY_ONLY_CAPTURE") ||
         env_flag("GHOGX_HIDE_GAMEPLAY_HUD")) {
       return;
     }
@@ -2018,6 +2099,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
 #include "ui/menu_app.h"  // ghogx::ui::run_menu_mode (windowed menu system)
 
 int main(int argc, char** argv) {
+  ScopedTimerResolution timer_resolution;
   int max_frames = 0;
   std::string ark_dir;
   std::string explicit_hdr;
@@ -2064,6 +2146,7 @@ int main(int argc, char** argv) {
   bool diagnostic_star_power_active = false;
   RenderSize render_size;
   bool show_window = false;
+  bool mute_audio = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
   for (int i = 1; i < argc; ++i) {
@@ -2202,6 +2285,8 @@ int main(int argc, char** argv) {
       auto_start = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
       show_window = true;
+    } else if (std::strcmp(argv[i], "--mute-audio") == 0) {
+      mute_audio = true;
     } else if (std::strcmp(argv[i], "--char") == 0 && i + 1 < argc) {
       char_milo = argv[++i];
     } else if (std::strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {
@@ -2279,6 +2364,10 @@ int main(int argc, char** argv) {
 
   if (capture_enabled && !show_window) {
     _putenv_s("GHOGX_HIDE_WINDOW", "1");
+  }
+  if (mute_audio) {
+    _putenv_s("GHOGX_MUTE_AUDIO", "1");
+    std::fprintf(stderr, "[ghogx] audio muted for diagnostic run\n");
   }
 
   // Resolve ARK paths.
@@ -2578,6 +2667,7 @@ int main(int argc, char** argv) {
 
   std::fprintf(stderr, "[ghogx] exited after %llu frames, %.2fs engine time\n",
                static_cast<unsigned long long>(engine.frame_count()), engine.time());
+  engine.log_profile_summary();
   engine.log_final_gameplay_summary();
   return 0;
 }

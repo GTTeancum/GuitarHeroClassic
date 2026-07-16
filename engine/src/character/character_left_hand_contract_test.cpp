@@ -149,10 +149,10 @@ int main() {
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");
   ok &= contains(gameplay_c,
-                 "if(cue.tick>now_tick)break;",
+                 "std::upper_bound(cues.begin(),cues.end(),now_tick,",
                  "player*_fret_pos target waits for the authored cue tick");
   ok &= contains(gameplay_c,
-                 "if(!chosen)returnstate;",
+                 "if(it==cues.begin())returnstate;",
                  "fret-position IK target has no future-cue fallback");
   ok &= contains(gameplay_c,
                  "std::strcmp(wanted,\"bone_L-pinky03\")==0;",

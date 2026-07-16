@@ -24,6 +24,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -990,6 +991,9 @@ class Gameplay {
   bool world_init_attempted_ = false;
   std::vector<CameraKey> camera_keys_;
   std::vector<CameraKey> regular_camera_keys_;
+  std::vector<std::string> regular_camera_source_record_member_table_;
+  std::unordered_map<std::string, std::unordered_set<std::string>>
+      camera_performer_targets_;
   std::string pending_regular_camera_;
   std::string active_regular_camera_;
   std::string previous_regular_camera_;
@@ -1024,6 +1028,10 @@ class Gameplay {
   bool should_resend_excitement_ = false;
   std::vector<LightingPreset> lighting_presets_;
   std::vector<LightingSpotlight> lighting_spotlights_;
+  std::unordered_map<std::string, const LightingSpotlight*>
+      lighting_spots_by_name_;
+  std::unordered_map<std::string, std::vector<const LightingSpotlight*>>
+      lighting_spots_by_target_;
   std::string active_lighting_preset_;
   std::string active_lighting_keyframe_;
   size_t active_lighting_keyframe_index_ = SIZE_MAX;
@@ -1037,6 +1045,7 @@ class Gameplay {
   double lighting_transition_start_ = 0.0;
   double lighting_transition_duration_ = 0.0;
   bool lighting_transition_active_ = false;
+  bool lighting_spot_renderer_dirty_ = true;
   LightPresetEnvLightStateSnapshot lighting_preset_env_light_transition_from_;
   LightPresetEnvLightStateSnapshot lighting_preset_env_light_transition_to_;
   double lighting_preset_env_light_transition_start_ = 0.0;

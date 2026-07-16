@@ -118,6 +118,63 @@ constexpr std::array<TailWidthSample, 19> kPcsx2WhammyBodyWidthProfile4x3 = {{
     {0.71311f, 27.000f},
     {0.80055f, 28.286f},
 }};
+// Normal non-whammy held body rows from the corrected 4:3 PCSX2 red sustain
+// trace, lane_body layer, scaled from 480px to 720px height:
+// proofs/pcsx2_4x3_red_normal_tail_corrected_20260716_01/
+// pcsx2_4x3_frame17_red_normal_tubed_normal_tail_trace.json
+// Rows after rel_y ~= 0.80 intersect the near note cap/effect and are not used
+// as the steady tail body. The separate held_tight core carries the cyan/white
+// center.
+constexpr std::array<TailWidthSample, 13> kPcsx2NormalBodyWidthProfile4x3 = {{
+    {0.00000f, 7.500f},
+    {0.10088f, 9.000f},
+    {0.17105f, 10.500f},
+    {0.24123f, 10.500f},
+    {0.31140f, 11.250f},
+    {0.38158f, 12.000f},
+    {0.45175f, 12.000f},
+    {0.52193f, 13.500f},
+    {0.59211f, 13.500f},
+    {0.66228f, 15.000f},
+    {0.73246f, 15.000f},
+    {0.80263f, 16.500f},
+    {1.00000f, 16.500f},
+}};
+// The same PCSX2 trace also separates the full visible silhouette. GH2's normal
+// held tail reads as a single ribbon because the textured/detail layer occupies
+// this broader silhouette while the lane-colored body stays visible through the
+// center; using the lane_body width for both layers collapses the tail into thin
+// rails in motion.
+constexpr std::array<TailWidthSample, 12> kPcsx2NormalSilhouetteWidthProfile4x3 = {{
+    {0.00000f, 7.500f},
+    {0.10088f, 12.750f},
+    {0.17105f, 15.000f},
+    {0.24123f, 15.000f},
+    {0.31140f, 16.500f},
+    {0.38158f, 18.000f},
+    {0.45175f, 18.000f},
+    {0.52193f, 21.750f},
+    {0.59211f, 33.000f},
+    {0.66228f, 28.500f},
+    {0.73246f, 34.500f},
+    {1.00000f, 34.500f},
+}};
+// Corrected 4:3 PCSX2 red normal sustain trace:
+// proofs/pcsx2_4x3_red_normal_tail_corrected_20260716_01/
+// The cyan/white tight core is only a thin highlight over the lane-colored
+// body, not the broad active held glow used by star/whammy tails.
+constexpr float kNormalHeldTightCoreWidthScale4x3 = 0.18f;
+// The corrected 4:3 tubed trace is the visible filled-body target. The active
+// held detail mesh contributes some lane color at the edges, so the solid
+// center fill is slightly compensated to land on the traced visible lane body:
+// proofs/native_4x3_normal_tail_held_detail_mesh_patch_20260716_01/
+constexpr float kNormalHeldBodyFillWidthScale4x3 = 0.88f;
+constexpr float kNormalHeldBodyDetailWidthScale4x3 = 1.0f;
+constexpr uint8_t kNormalHeldBodyFillAlpha4x3 = 245u;
+// The incoming ordinary tail keeps the authored broad mesh width. Its flat
+// center fill is narrowed to the same-ROI yellow incoming proof width so it
+// closes the middle without widening the source lane-tail silhouette.
+constexpr float kIncomingNormalBodyFillWidthScale4x3 = 0.74f;
 // The profile above is the PCSX2 visible silhouette target. This fit only
 // inverts the native D3D line-texture response measured in
 // proofs/whammy_tail_body_width_compensation_20260715_01.json so the rendered
@@ -262,7 +319,8 @@ float sample_particle_grow_shrink(float grow_ratio, float shrink_ratio,
 
 // Camera (track.cam, decoded) with PCSX2 rail/strikeline corrections applied.
 // Harmonix cams look down local +Y, up = local +Z.
-constexpr float kCamPos[3] = { kPcsx2MeasuredCamX16x9, -63.22f, 17.33562394f };
+constexpr float kCamY = -63.22f;
+constexpr float kCamZ = 17.33562394f;
 constexpr float kCamFwd[3] = { 0.0f, 0.9954675f, -0.0951024f };
 constexpr float kCamUp [3] = { 0.0f, 0.0951024f,  0.9954675f };
 constexpr float kCamFov    = 0.4102f;    // vertical fov, radians
@@ -367,7 +425,7 @@ uint32_t sample_lane_color_from_gem(const ghogx::asset::Image& img,
   return D3DCOLOR_ARGB(alpha, r, g, b);
 }
 
-bool env_enabled(const char* name) {
+bool read_env_enabled(const char* name) {
   char* value = nullptr;
   size_t len = 0;
   const bool enabled =
@@ -376,7 +434,7 @@ bool env_enabled(const char* name) {
   return enabled;
 }
 
-std::optional<std::string> env_string_nonempty(const char* name) {
+std::optional<std::string> read_env_string_nonempty(const char* name) {
   char* value = nullptr;
   size_t len = 0;
   if (_dupenv_s(&value, &len, name) != 0 || !value) return std::nullopt;
@@ -384,6 +442,29 @@ std::optional<std::string> env_string_nonempty(const char* name) {
   std::free(value);
   if (text.empty() || text == "0") return std::nullopt;
   return text;
+}
+
+bool env_enabled(const char* name) {
+  const std::string key(name ? name : "");
+  static std::vector<std::pair<std::string, bool>> cached_values;
+  for (const auto& entry : cached_values) {
+    if (entry.first == key) return entry.second;
+  }
+  const bool value = read_env_enabled(name);
+  cached_values.emplace_back(key, value);
+  return value;
+}
+
+std::optional<std::string> env_string_nonempty(const char* name) {
+  const std::string key(name ? name : "");
+  static std::vector<std::pair<std::string, std::optional<std::string>>>
+      cached_values;
+  for (const auto& entry : cached_values) {
+    if (entry.first == key) return entry.second;
+  }
+  std::optional<std::string> value = read_env_string_nonempty(name);
+  cached_values.emplace_back(key, value);
+  return value;
 }
 
 void append_debug_rect(std::vector<V2>& out, float x, float y, float w, float h,
@@ -1006,11 +1087,18 @@ struct HighwayRootSpace {
   }
 };
 
+enum class TailWidthProfileKind {
+  kNone,
+  kWhammyBody,
+  kNormalBodyFill,
+  kNormalBodyDetail,
+};
+
 struct HighwayAspectProfile {
   float track_x_scale = kPcsx2MeasuredTrackXScale4x3;
   float cam_x = kPcsx2MeasuredCamX4x3;
-  float cam_y = kCamPos[1];
-  float cam_z = kCamPos[2];
+  float cam_y = kCamY;
+  float cam_z = kCamZ;
   float cam_yaw_deg = kPcsx2MeasuredCamYawDeg4x3;
 };
 
@@ -1026,14 +1114,14 @@ HighwayAspectProfile pcsx2_measured_highway_profile_for_aspect(float aspect) {
   if (highway_aspect_is_4x3(aspect)) {
     return {kPcsx2MeasuredTrackXScale4x3,
             kPcsx2MeasuredCamX4x3,
-            kCamPos[1],
-            kCamPos[2],
+            kCamY,
+            kCamZ,
             kPcsx2MeasuredCamYawDeg4x3};
   }
   return {kPcsx2MeasuredTrackXScale16x9,
           kPcsx2MeasuredCamX16x9,
-          kCamPos[1],
-          kCamPos[2],
+          kCamY,
+          kCamZ,
           kPcsx2MeasuredCamYawDeg16x9};
 }
 
@@ -1421,9 +1509,10 @@ inline float depth_fade_for(float y, float top_y, float alpha_dist) {
   return 1.0f - (y - start) / dist;
 }
 
-float sample_tail_width_px_720(float rel_y) {
+template <size_t N>
+float sample_width_profile_px_720(
+    const std::array<TailWidthSample, N>& profile, float rel_y) {
   const float rel = std::clamp(rel_y, 0.0f, 1.0f);
-  const auto& profile = kPcsx2WhammyBodyWidthProfile4x3;
   if (rel <= profile.front().rel_y) return profile.front().width_px_720;
   for (size_t i = 1; i < profile.size(); ++i) {
     if (rel <= profile[i].rel_y) {
@@ -1435,6 +1524,29 @@ float sample_tail_width_px_720(float rel_y) {
     }
   }
   return profile.back().width_px_720;
+}
+
+float sample_tail_width_px_720(float rel_y) {
+  return sample_width_profile_px_720(kPcsx2WhammyBodyWidthProfile4x3, rel_y);
+}
+
+float sample_normal_body_width_px_720(float rel_y) {
+  return sample_width_profile_px_720(kPcsx2NormalBodyWidthProfile4x3, rel_y);
+}
+
+float sample_normal_silhouette_width_px_720(float rel_y) {
+  return sample_width_profile_px_720(kPcsx2NormalSilhouetteWidthProfile4x3,
+                                     rel_y);
+}
+
+float sample_normal_body_fill_width_px_720(float rel_y) {
+  return sample_normal_body_width_px_720(rel_y) *
+         kNormalHeldBodyFillWidthScale4x3;
+}
+
+float sample_normal_body_detail_width_px_720(float rel_y) {
+  return sample_normal_silhouette_width_px_720(rel_y) *
+         kNormalHeldBodyDetailWidthScale4x3;
 }
 
 float compensated_tail_width_px_720(float visible_target_px_720) {
@@ -1452,6 +1564,25 @@ float sample_held_body_geometry_width_px_720(float rel_y) {
   const float visible_fraction =
       std::clamp(kNativeHeldLineVisibleFraction4x3, 0.05f, 1.0f);
   return sample_tail_width_px_720(rel_y) / visible_fraction;
+}
+
+float sample_mesh_body_geometry_width_px_720(TailWidthProfileKind profile,
+                                             float rel_y) {
+  if (profile == TailWidthProfileKind::kNormalBodyFill) {
+    return sample_normal_body_fill_width_px_720(rel_y);
+  }
+  if (profile == TailWidthProfileKind::kNormalBodyDetail) {
+    return sample_normal_body_detail_width_px_720(rel_y);
+  }
+  if (profile == TailWidthProfileKind::kWhammyBody) {
+    return sample_held_body_geometry_width_px_720(rel_y);
+  }
+  return 0.0f;
+}
+
+float normal_held_tight_core_width(float authored_half_width) {
+  return std::max(0.001f,
+                  authored_half_width * kNormalHeldTightCoreWidthScale4x3);
 }
 
 }  // namespace
@@ -4404,10 +4535,18 @@ void HighwayRenderer::draw_impl(double song_time,
                                    float half_width, D3DCOLOR color,
                                    bool active_segment, bool star_tail,
                                    bool whammy_tail, double on,
-                                   double off, bool measured_body_width) {
+                                   double off,
+                                   TailWidthProfileKind width_profile) {
       if (lane < 0 || lane >= 5) return;
       if (y1 <= y0) return;
       if (!tail_layer_visible(source_label)) return;
+      if (active_segment && source_label &&
+          std::strcmp(source_label, "held_lane") == 0 && !star_tail &&
+          !whammy_tail) {
+        return;
+      }
+      const bool measured_body_width =
+          width_profile != TailWidthProfileKind::kNone;
       if (debug_tails && tail_debug_budget < 96) {
         const char* tex_name = mesh && mesh->ok ? mesh->texture_name.c_str()
                                                 : "<flat>";
@@ -4431,16 +4570,18 @@ void HighwayRenderer::draw_impl(double song_time,
                      tex_name, has_mesh_tex ? 1 : (texture ? 1 : 0),
                      mesh && mesh->ok ? static_cast<unsigned>(mesh->blend) : 0,
                      half_width, measured_body_width ? 1 : 0,
-                     measured_body_width
-                         ? sample_tail_width_px_720(0.5f)
-                         : 0.0f,
-                     measured_body_width
-                         ? local_tail_half_for_screen_width(
-                               lane, (y0 + y1) * 0.5f,
-                               sample_held_body_geometry_width_px_720(0.5f),
-                               half_width)
-                         : 0.0f,
-                     static_cast<unsigned>(color));
+                      measured_body_width
+                          ? sample_mesh_body_geometry_width_px_720(
+                                width_profile, 0.5f)
+                          : 0.0f,
+                      measured_body_width
+                          ? local_tail_half_for_screen_width(
+                                lane, (y0 + y1) * 0.5f,
+                                sample_mesh_body_geometry_width_px_720(
+                                    width_profile, 0.5f),
+                                half_width)
+                          : 0.0f,
+                      static_cast<unsigned>(color));
         ++tail_debug_budget;
       }
       auto draw_tail_section = [&](float sy0, float sy1,
@@ -4492,7 +4633,8 @@ void HighwayRenderer::draw_impl(double song_time,
         };
         auto section_half_at = [&](float rel, float y) {
           return local_tail_half_for_screen_width(
-              lane, y, sample_held_body_geometry_width_px_720(rel),
+              lane, y,
+              sample_mesh_body_geometry_width_px_720(width_profile, rel),
               half_width);
         };
         auto draw_profile_section = [&](float rel_far, float rel_near) {
@@ -4500,15 +4642,22 @@ void HighwayRenderer::draw_impl(double song_time,
           const float sy_near = world_y_at(rel_near);
           const float rel_mid = (rel_far + rel_near) * 0.5f;
           const float y_mid = (sy_far + sy_near) * 0.5f;
-          draw_tail_section(sy_far, sy_near,
+          draw_tail_section(sy_near, sy_far,
                             section_half_at(rel_mid, y_mid));
         };
-        for (size_t i = 1; i < kPcsx2WhammyBodyWidthProfile4x3.size(); ++i) {
-          draw_profile_section(kPcsx2WhammyBodyWidthProfile4x3[i - 1].rel_y,
-                               kPcsx2WhammyBodyWidthProfile4x3[i].rel_y);
+        const auto draw_profile = [&](const auto& profile) {
+          for (size_t i = 1; i < profile.size(); ++i) {
+            draw_profile_section(profile[i - 1].rel_y, profile[i].rel_y);
+          }
+          draw_profile_section(profile.back().rel_y, 1.0f);
+        };
+        if (width_profile == TailWidthProfileKind::kNormalBodyFill) {
+          draw_profile(kPcsx2NormalBodyWidthProfile4x3);
+        } else if (width_profile == TailWidthProfileKind::kNormalBodyDetail) {
+          draw_profile(kPcsx2NormalSilhouetteWidthProfile4x3);
+        } else {
+          draw_profile(kPcsx2WhammyBodyWidthProfile4x3);
         }
-        draw_profile_section(kPcsx2WhammyBodyWidthProfile4x3.back().rel_y,
-                             1.0f);
       } else {
         draw_tail_section(y0, y1, half_width);
       }
@@ -4631,17 +4780,18 @@ void HighwayRenderer::draw_impl(double song_time,
                                  const char* source_label,
                                  const RuntimeMesh* mesh,
                                  IDirect3DTexture9* texture,
-                                 float half_width, D3DCOLOR color,
-                                 bool active_segment, bool star_tail,
-                                 bool whammy_tail,
-                                 bool measured_body_width = false) {
+                                  float half_width, D3DCOLOR color,
+                                  bool active_segment, bool star_tail,
+                                  bool whammy_tail,
+                                  TailWidthProfileKind width_profile =
+                                      TailWidthProfileKind::kNone) {
       if (off < song_time - trail) return;
       if (on > song_time + lead) return;
       const float y0 = std::max(note_y(on), tail_near_y);
       const float y1 = std::min(note_y(off), tail_far_y);
       draw_tail_segment_y(lane, y0, y1, source_label, mesh, texture,
                           half_width, color, active_segment, star_tail,
-                          whammy_tail, on, off, measured_body_width);
+                          whammy_tail, on, off, width_profile);
     };
     auto draw_whammy_tail_segment = [&](int lane, double on, double off,
                                         const RuntimeLineMaterial* material,
@@ -4678,15 +4828,35 @@ void HighwayRenderer::draw_impl(double song_time,
         mesh = &tail_mesh_[lane];
         source_label = "lane";
       }
-      draw_tail_segment(lane, on, off, source_label, mesh, raw_tail,
-                        tail_glow_width_,
-                        mesh ? D3DCOLOR_ARGB(225, 255, 255, 255)
-                             : slot_lane_colors_[lane],
-                        false, n.star_power, false);
+      const bool draw_incoming_normal_body =
+          !bonus_highway_active && !n.star_power && tail_mesh_[lane].ok;
+      if (draw_incoming_normal_body) {
+        const D3DCOLOR incoming_body_solid_tint =
+            (slot_lane_colors_[lane] & 0x00ffffffu) |
+            (static_cast<D3DCOLOR>(185u) << 24);
+        draw_tail_segment(lane, on, off, "incoming_body", &tail_mesh_[lane],
+                          raw_tail, tail_glow_width_,
+                          D3DCOLOR_ARGB(225, 255, 255, 255), false, false,
+                          false);
+        draw_tail_segment(lane, on, off, "incoming_body", nullptr, nullptr,
+                          tail_glow_width_ *
+                              kIncomingNormalBodyFillWidthScale4x3,
+                          incoming_body_solid_tint, false, false, false);
+      } else {
+        draw_tail_segment(lane, on, off, source_label, mesh, raw_tail,
+                          tail_glow_width_,
+                          mesh ? D3DCOLOR_ARGB(225, 255, 255, 255)
+                               : slot_lane_colors_[lane],
+                          false, n.star_power, false);
+      }
       if (!bonus_highway_active && held_tight_tail_mesh_.ok) {
+        const float incoming_tight_half_width =
+            n.star_power ? tail_glow_tight_width_
+                         : normal_held_tight_core_width(
+                               tail_glow_tight_width_);
         draw_tail_segment(lane, on, off, "incoming_tight",
                           &held_tight_tail_mesh_, held_tail,
-                          tail_glow_tight_width_,
+                          incoming_tight_half_width,
                           D3DCOLOR_ARGB(225, 255, 255, 255), false,
                           n.star_power, false);
       }
@@ -4722,8 +4892,12 @@ void HighwayRenderer::draw_impl(double song_time,
             continue;
           }
 
+          const RuntimeMesh* lane_body_tail =
+              tail_mesh_[lane].ok ? &tail_mesh_[lane] : nullptr;
           const RuntimeMesh* lane_held_tail =
               held_tail_mesh_[lane].ok ? &held_tail_mesh_[lane] : nullptr;
+          const RuntimeMesh* lane_normal_body_tail =
+              lane_held_tail ? lane_held_tail : lane_body_tail;
           const bool debug_whammy_line_only =
               sustain_whammy_tail &&
               env_enabled("GHOGX_DEBUG_HIGHWAY_WHAMMY_LINE_ONLY");
@@ -4732,21 +4906,46 @@ void HighwayRenderer::draw_impl(double song_time,
               (whammy_tail_deformation_enabled || debug_whammy_line_only);
           const bool draw_measured_whammy_body =
               sustain_whammy_tail && whammy_tail_deformation_enabled;
-          if (!debug_whammy_line_only) {
+          const bool draw_normal_held_body =
+              !sustain_star_tail && !sustain_whammy_tail &&
+              lane_normal_body_tail;
+          if (!debug_whammy_line_only && draw_normal_held_body) {
+            const D3DCOLOR normal_body_solid_tint =
+                (slot_lane_colors_[lane] & 0x00ffffffu) |
+                (static_cast<D3DCOLOR>(kNormalHeldBodyFillAlpha4x3) << 24);
+            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
+                              "held_body", lane_normal_body_tail, held_tail,
+                              tail_glow_width_,
+                              D3DCOLOR_ARGB(245, 255, 255, 255), true, false,
+                              false,
+                              TailWidthProfileKind::kNormalBodyDetail);
+            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
+                              "held_body", nullptr, nullptr, tail_glow_width_,
+                              normal_body_solid_tint, true, false, false,
+                              TailWidthProfileKind::kNormalBodyFill);
+          }
+          if (!debug_whammy_line_only && !draw_normal_held_body) {
             draw_tail_segment(lane, sustain.start_time, sustain.end_time,
                               "held_lane", lane_held_tail, held_tail,
                               tail_glow_width_,
                               D3DCOLOR_ARGB(245, 255, 255, 255),
                               true, sustain_star_tail, sustain_whammy_tail,
-                              draw_measured_whammy_body);
+                              draw_measured_whammy_body
+                                  ? TailWidthProfileKind::kWhammyBody
+                                  : TailWidthProfileKind::kNone);
           }
-          if (!lane_held_tail && !debug_whammy_line_only) {
+          if (!lane_held_tail && !draw_normal_held_body &&
+              !debug_whammy_line_only) {
             draw_flat_tail_fallback(slot_lane_colors_[lane]);
           }
           if (held_tight_tail_mesh_.ok && !debug_whammy_line_only) {
+            const float active_tight_half_width =
+                (!sustain_star_tail && !sustain_whammy_tail)
+                    ? normal_held_tight_core_width(tail_glow_tight_width_)
+                    : tail_glow_tight_width_;
             draw_tail_segment(lane, sustain.start_time, sustain.end_time,
                               "held_tight", &held_tight_tail_mesh_, held_tail,
-                              tail_glow_tight_width_,
+                              active_tight_half_width,
                               D3DCOLOR_ARGB(255, 255, 255, 255),
                               true, sustain_star_tail, sustain_whammy_tail);
           }

@@ -2047,6 +2047,13 @@ int main() {
                  "kPcsx2WhammyBodyWidthProfile4x3",
                  "parked whammy sustain width trace keeps the measured PCSX2 body profile");
   ok &= contains(highway_renderer_c,
+                  "constexprstd::array<TailWidthSample,13>"
+                  "kPcsx2NormalBodyWidthProfile4x3",
+                  "normal held sustain body width is pinned to the corrected 4:3 PCSX2 normal-tail trace");
+  ok &= contains(highway_renderer_c,
+                 "{0.80263f,16.500f}",
+                 "normal held sustain body excludes the near cap/effect flare from the corrected PCSX2 trace");
+  ok &= contains(highway_renderer_c,
                  "constexprfloatkNativeWhammyLineResponseA4x3=-0.59653887f;",
                  "active whammy sustain compensation records the measured native line-texture response intercept");
   ok &= contains(highway_renderer_c,
@@ -2056,9 +2063,11 @@ int main() {
                "kPcsx2MeasuredTailBodyTightScale",
                "highway sustain body width must come from the authored broad/tight tail fields");
   ok &= contains(highway_renderer_c,
-                 "constexprfloatkCamPos[3]={kPcsx2MeasuredCamX16x9,-63.22f,"
-                 "17.33562394f};",
-                 "highway camera height is pinned to the PCSX2 rail/strikeline trace");
+                 "constexprfloatkCamY=-63.22f;",
+                 "highway camera Y is pinned to the PCSX2 rail/strikeline trace without carrying an aspect-specific X");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkCamZ=17.33562394f;",
+                 "highway camera height is pinned to the PCSX2 rail/strikeline trace without carrying an aspect-specific X");
   ok &= contains(highway_renderer_c,
                  "ghogx::render::Mat4highway_camera_view("
                  "constHighwayAspectProfile&profile){",
@@ -2925,10 +2934,13 @@ int main() {
                  "tail_glow_width_,",
                  "held FoFiX sustains draw the native per-lane held-tail mesh at the authored broad glow width");
   ok &= contains(highway_renderer_c,
+                 "constfloatactive_tight_half_width=(!sustain_star_tail&&"
+                 "!sustain_whammy_tail)?normal_held_tight_core_width("
+                 "tail_glow_tight_width_):tail_glow_tight_width_;"
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
                  "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
-                 "tail_glow_tight_width_,",
-                 "held FoFiX sustains layer the authored tight-tail highlight");
+                 "active_tight_half_width,",
+                 "held FoFiX sustains use the traced thin normal tight core while star/whammy keep the authored highlight");
   ok &= contains(highway_renderer_c,
                  "constfloatburn_y=kStrikeY+(bonus_highway_active?"
                  "burn_bonus_y_:(sustain_whammy_tail?burn_whammy_y_:"
@@ -3168,17 +3180,44 @@ int main() {
                  "dev_->SetRenderState(D3DRS_BLENDOP,prev_tail_blend_op);",
                  "native sustain tails restore the previous blend operation");
   ok &= contains(highway_renderer_c,
+                 "constbooldraw_incoming_normal_body="
+                 "!bonus_highway_active&&!n.star_power&&tail_mesh_[lane].ok;",
+                 "incoming ordinary sustains route through the authored broad lane-tail path");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,on,off,\"incoming_body\","
+                 "&tail_mesh_[lane],raw_tail,tail_glow_width_,"
+                 "D3DCOLOR_ARGB(225,255,255,255),false,false,false);",
+                 "incoming ordinary sustains keep the authored broad source lane-tail width instead of the active-held measured profile");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkIncomingNormalBodyFillWidthScale4x3="
+                 "0.74f;",
+                 "incoming ordinary sustain fill is narrowed from same-ROI trace data so it does not over-widen the source lane-tail body");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,on,off,\"incoming_body\",nullptr,"
+                 "nullptr,tail_glow_width_*"
+                 "kIncomingNormalBodyFillWidthScale4x3,"
+                 "incoming_body_solid_tint,false,false,false);",
+                 "incoming ordinary sustains close the middle with a broad lane-colored fill, not the active-held measured profile");
+  ok &= absent(highway_renderer_c,
+               "\"incoming_body\",nullptr,nullptr,tail_glow_width_,"
+               "incoming_body_solid_tint,false,false,false,"
+               "TailWidthProfileKind::kNormalBodyFill",
+               "incoming ordinary sustains must not collapse to the active-held measured solid-fill profile");
+  ok &= contains(highway_renderer_c,
                  "draw_tail_segment(lane,on,off,source_label,mesh,raw_tail,"
                  "tail_glow_width_,"
                  "mesh?D3DCOLOR_ARGB(225,255,255,255):"
                  "slot_lane_colors_[lane],false,n.star_power,false);",
-                 "visible sustain tails carry the authored broad glow width and star-phrase tags into diagnostics");
+                 "incoming bonus/star/fallback sustain tails keep the authored broad path and star-phrase tags");
   ok &= contains(highway_renderer_c,
                  "if(!bonus_highway_active&&held_tight_tail_mesh_.ok){"
+                 "constfloatincoming_tight_half_width=n.star_power?"
+                 "tail_glow_tight_width_:normal_held_tight_core_width("
+                 "tail_glow_tight_width_);"
                  "draw_tail_segment(lane,on,off,\"incoming_tight\","
-                 "&held_tight_tail_mesh_,held_tail,tail_glow_tight_width_,"
+                 "&held_tight_tail_mesh_,held_tail,incoming_tight_half_width,"
                  "D3DCOLOR_ARGB(225,255,255,255),false,n.star_power,false);}",
-                 "incoming normal sustains layer the authored tight tail core over the broad lane/star phrase tail");
+                 "incoming normal sustains use the traced thin tight core while star sustains keep the authored width");
   ok &= contains(highway_renderer_c,
                  "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d",
                  "tail diagnostics identify active star sustain whammy windows");
@@ -3213,23 +3252,99 @@ int main() {
                  "env_enabled(\"GHOGX_DEBUG_HIGHWAY_WHAMMY_LINE_ONLY\");",
                  "active whammy sustain diagnostics can isolate the source line without changing normal play");
   ok &= contains(highway_renderer_c,
-                 "if(!debug_whammy_line_only){"
+                 "constRuntimeMesh*lane_normal_body_tail="
+                 "lane_held_tail?lane_held_tail:lane_body_tail;",
+                 "normal active held sustains prefer the authored held-tail detail material while the measured fill closes the center");
+  ok &= contains(highway_renderer_c,
+                 "\"held_body\",lane_normal_body_tail,held_tail,"
+                 "tail_glow_width_,D3DCOLOR_ARGB(245,255,255,255),true,"
+                 "false,false,TailWidthProfileKind::kNormalBodyDetail);"
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_lane\",lane_held_tail,held_tail,"
-                 "tail_glow_width_,"
-                 "D3DCOLOR_ARGB(245,255,255,255),"
-                 "true,sustain_star_tail,sustain_whammy_tail,"
-                 "draw_measured_whammy_body);}",
-                 "active held sustains keep authored broad lane glow unless diagnostic whammy deformation is enabled");
+                 "\"held_body\",nullptr,nullptr,tail_glow_width_,"
+                 "normal_body_solid_tint,true,false,false,"
+                 "TailWidthProfileKind::kNormalBodyFill);",
+                 "normal active held sustains draw PCSX2 silhouette/detail before the lane-colored center");
+  ok &= contains(highway_renderer_c,
+                  "constexprfloatkNormalHeldBodyFillWidthScale4x3="
+                  "0.88f;",
+                  "normal active held sustain solid fill compensates for lane detail edge color to land on the traced PCSX2 lane-body width");
+  ok &= contains(highway_renderer_c,
+                  "constexprfloatkNormalHeldBodyDetailWidthScale4x3="
+                  "1.0f;",
+                  "normal active held sustain material detail uses the traced PCSX2 silhouette width without an extra shrink scale");
+  ok &= contains(highway_renderer_c,
+                 "constexpruint8_tkNormalHeldBodyFillAlpha4x3=245u;",
+                 "normal active held sustain solid fill uses a PCSX2-like occupied center instead of a hollow rail underlay");
+  ok &= contains(highway_renderer_c,
+                 "returnsample_normal_body_width_px_720(rel_y)*"
+                 "kNormalHeldBodyFillWidthScale4x3;",
+                 "normal active held sustain solid fill applies the measured 4:3 lane-body profile before projection");
+  ok &= contains(highway_renderer_c,
+                 "returnsample_normal_silhouette_width_px_720(rel_y)*"
+                 "kNormalHeldBodyDetailWidthScale4x3;",
+                 "normal active held sustain material detail applies the 4:3 silhouette profile before local geometry projection");
+  ok &= contains(highway_renderer_c,
+                 "kPcsx2NormalSilhouetteWidthProfile4x3",
+                 "normal active held sustain detail has a separate PCSX2 traced silhouette profile");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_body\",lane_normal_body_tail,held_tail,tail_glow_width_,"
+                 "D3DCOLOR_ARGB(245,255,255,255),true,false,false,"
+                 "TailWidthProfileKind::kNormalBodyDetail);",
+                 "normal active held sustains use the PCSX2 normal silhouette width profile on the source-shaped lane detail");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_section(sy_near,sy_far,"
+                 "section_half_at(rel_mid,y_mid));",
+                 "measured normal tail body sections preserve near-to-far draw order");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORnormal_body_solid_tint="
+                 "(slot_lane_colors_[lane]&0x00ffffffu)|"
+                 "(static_cast<D3DCOLOR>(kNormalHeldBodyFillAlpha4x3)<<24);",
+                 "normal active held sustains use the named measured solid-center tint");
+  ok &= contains(highway_renderer_c,
+                 "\"held_body\",lane_normal_body_tail,held_tail,",
+                 "normal active held sustain silhouette/detail is drawn before the solid center so opaque detail pixels cannot reopen a hollow middle");
+  ok &= contains(highway_renderer_c,
+                 "\"held_body\",lane_normal_body_tail,held_tail,"
+                 "tail_glow_width_,D3DCOLOR_ARGB(245,255,255,255),true,"
+                 "false,false,TailWidthProfileKind::kNormalBodyDetail);"
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_body\",nullptr,nullptr,tail_glow_width_,"
+                 "normal_body_solid_tint,true,false,false,"
+                 "TailWidthProfileKind::kNormalBodyFill);",
+                 "normal active held sustain solid center is drawn over the source-shaped detail to close the visible middle");
+  ok &= absent(highway_renderer_c,
+               "\"held_body\",nullptr,raw_tail,tail_glow_width_,",
+               "normal active held sustains must not use the banded tail2 texture as the body fill");
+  ok &= absent(highway_renderer_c,
+               "\"held_body\",nullptr,nullptr,tail_glow_width_,"
+               "normal_body_fill",
+               "normal active held sustains must not restore the untextured flat body fill");
+  ok &= contains(highway_renderer_c,
+                 "std::strcmp(source_label,\"held_lane\")==0&&!star_tail&&"
+                 "!whammy_tail){return;}",
+                 "active normal held sustains hard-gate the broad held-lane glow");
+  ok &= contains(highway_renderer_c,
+                 "if(!debug_whammy_line_only&&!draw_normal_held_body){"
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_lane\",lane_held_tail,held_tail,tail_glow_width_,"
+                 "D3DCOLOR_ARGB(245,255,255,255),true,"
+                 "sustain_star_tail,sustain_whammy_tail,"
+                 "draw_measured_whammy_body?TailWidthProfileKind::kWhammyBody:"
+                 "TailWidthProfileKind::kNone);}",
+                 "normal active held sustains suppress broad held-lane glow while star/whammy keep it");
   ok &= contains(highway_renderer_c,
                  "if(held_tight_tail_mesh_.ok&&!debug_whammy_line_only){"
+                 "constfloatactive_tight_half_width=(!sustain_star_tail&&"
+                 "!sustain_whammy_tail)?normal_held_tight_core_width("
+                 "tail_glow_tight_width_):tail_glow_tight_width_;"
                  "draw_tail_segment("
                  "lane,sustain.start_time,sustain.end_time,"
                  "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
-                 "tail_glow_tight_width_,"
+                 "active_tight_half_width,"
                  "D3DCOLOR_ARGB(255,255,255,255),"
                  "true,sustain_star_tail,sustain_whammy_tail);}",
-                 "active held sustains layer the authored tight core over the lane glow");
+                 "active normal held sustains use the traced thin tight core while star/whammy keep the authored width");
   ok &= contains(highway_renderer_c,
                  "constHighwayBlendStateburn_blend_state="
                  "highway_blend_state_for(burn_castlight_mesh_.blend);",
@@ -3244,10 +3359,11 @@ int main() {
                  "false,0.0f,true);",
                  "active held sustains draw the native burn-tail castlight in root space");
   ok &= contains(highway_renderer_c,
-                 "if(!lane_held_tail&&!debug_whammy_line_only){"
+                 "if(!lane_held_tail&&!draw_normal_held_body&&"
+                 "!debug_whammy_line_only){"
                  "draw_flat_tail_fallback("
                  "slot_lane_colors_[lane]);}",
-                 "active held sustains only use the flat color fallback when native lane tails are absent");
+                 "active held sustains only use the flat color fallback when native lane tails are absent and normal body did not draw");
   ok &= contains(highway_renderer_c,
                  "draw_runtime_particles(hit_particles,lane_x(lane),"
                  "kStrikeY,song_time,f,true,highway_root.x_scale);",
@@ -3825,8 +3941,32 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->draw();",
                  "venue draw path still renders the 3D world before overlays");
+  ok &= contains(gameplay_c,
+                 "returnenv_value(\"GHOGX_DEBUG_HIGHWAY_ONLY_CAPTURE\")!=nullptr;",
+                 "diagnostic highway-only capture flag is available for clean tail traces");
+  ok &= contains(gameplay_c,
+                 "if(debug_highway_only_capture_enabled()){"
+                 "win.clear(0.0f,0.0f,0.0f);",
+                 "diagnostic highway-only capture clears the venue clutter before tracing");
+  ok &= appears_before(gameplay_c,
+                       "if(debug_highway_only_capture_enabled()){",
+                       "world_->draw();",
+                       "diagnostic highway-only capture branches before venue drawing");
+  ok &= contains(app_main_c,
+                 "env_flag(\"GHOGX_DEBUG_HIGHWAY_ONLY_CAPTURE\")||"
+                 "env_flag(\"GHOGX_HIDE_GAMEPLAY_HUD\")",
+                 "diagnostic highway-only capture suppresses the app HUD overlay");
   ok &= appears_before(gameplay_c,
                        "world_->draw();",
+                       "if(debug_venue_only_capture_enabled()){"
+                       "log_profile();"
+                       "return;}",
+                       "3D venue path draws the 3D world before the venue-only capture gate");
+  ok &= appears_before(gameplay_c,
+                       "if(debug_venue_only_capture_enabled()){"
+                       "log_profile();"
+                       "return;}",
+                       "profile_phase_start=profile_now();"
                        "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
                        "3D venue path composites the playable highway before returning");
   ok &= contains(gameplay_c,
@@ -3934,6 +4074,21 @@ int main() {
   ok &= contains(audio_player_c,
                  "guitar_stem_split=1",
                  "audio player splits the playable guitar stem before whammy pitch or miss mute");
+  ok &= contains(audio_player_c,
+                 "plan.guitar_pair=stereo_pairs>=2?1:-1;",
+                 "audio player uses the documented GH2 playable guitar pair instead of guessing the last pair");
+  ok &= contains(audio_player_c,
+                 "plan.label=\"band_guitar_bass\";",
+                 "audio player recognizes the GH2 five-channel band/guitar/bass VGS map");
+  ok &= contains(audio_player_c,
+                 "plan.label=\"band_lead_rhythm\";",
+                 "audio player recognizes the GH2 six-channel band/lead/rhythm VGS map");
+  ok &= contains(audio_player_c,
+                 "guitar_gain_target.store(muted?0.0f:1.0f",
+                 "audio player ramps guitar mute targets in PCM instead of hard-stepping the voice");
+  ok &= absent(audio_player_c,
+               "guitar_source->SetVolume(muted?0.0f:1.0f);",
+               "miss and hit feedback must not hard-step guitar source volume");
   ok &= contains(audio_player_c,
                  "StreamingPitchShifterwhammy_pitch_shifter;",
                  "audio player owns a zero-dependency streaming whammy pitch shifter");
@@ -5062,7 +5217,7 @@ int main() {
                  "for(constauto&mesh:spot.instance_meshes)",
                  "spotlight instance meshes are owned by the Spotlight pass");
   ok &= contains(renderer_c,
-                 "spotlight_template_meshes.insert(mesh);",
+                 "spotlight_template_meshes_.insert(mesh);",
                  "regular overlay pass skips Spotlight-owned instance meshes");
   ok &= contains(renderer_h_c,
                  "set_environment_color_overrides",
@@ -6352,7 +6507,7 @@ int main() {
                  "apply_lighting_event(event_name,persistent);"
                  "if(has_decoded_route_entry&&!venue_route_applied&&"
                  "!lighting_route_applied&&"
-                 "debug_venue_filters_enabled())",
+                 "debug_venue)",
                  "venue diagnostics wait for decoded route ownership on both route families");
   ok &= contains(gameplay_c,
                  "active_anim.persistent=persistent;",
@@ -6417,7 +6572,7 @@ int main() {
                  "unsupported lighting MatAnim channels stay logged instead of guessed");
   ok &= contains(gameplay_c,
                  "constboolcurrent_visibility_applied="
-                 "apply_venue_event_visibility(event_name,true);",
+                 "apply_venue_event_visibility(event_name,debug_venue);",
                  "current venue EventTrigger visibility still applies through the latching path");
   ok &= contains(gameplay_c,
                  "apply_venue_event(\"start\",false);",
@@ -6687,10 +6842,12 @@ int main() {
                  "regular gameplay cameras suppress Poll/SetFrame sampling when MiloCamera preview is active");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
+                 "refresh_worldcrowd_actor_source_targets_for_camera();"
                  "constCameraKeycurrent_position=",
                  "regular gameplay cameras enter StartAnim before source-shaped camera row sampling");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);"
+                 "refresh_worldcrowd_actor_source_targets_for_camera();"
                  "constCameraKeycurrent_position="
                  "camera_position_for(*key,active_camera_position_index_);",
                  "regular gameplay cameras mirror CameraManager PrePoll StartShot before SetPreFrame");
@@ -7015,7 +7172,8 @@ int main() {
                  "\"[world]LightPresetstatetransition:",
                  "LightPreset Environ/Light transition emits runtime proof rows");
   ok &= contains(gameplay_c,
-                 "update_lighting_preset_env_light_state();world_->draw();",
+                 "update_lighting_preset_env_light_state();"
+                 "autoprofile_phase_start=profile_now();world_->draw();",
                  "world geometry samples in-progress LightPreset Environ/Light fades before drawing");
   ok &= contains(gameplay_c,
                  "\"[world]LightPresetstateapplied:preset=%skeyframe=%s"
@@ -7043,7 +7201,7 @@ int main() {
                  "spotlight fallback inference accepts PS2 _spotlight object names");
   ok &= contains(gameplay_c,
                  "for(constauto&target:keyframe.mesh_targets){constauto"
-                 "target_it=spots_by_target.find(target);",
+                 "target_it=lighting_spots_by_target_.find(target);",
                  "LightPreset mesh targets are an authored spotlight activation route");
   ok &= contains(gameplay_c,
                  "++mesh_target_spots;push_spot(*spot,state_it=="
@@ -9887,9 +10045,9 @@ int main() {
                  "(material&&material->use_environ));",
                  "scene-lighting character composites honor source material use-environment flags");
   ok &= contains(char_renderer_c,
-                 "dev->SetRenderState(D3DRS_LIGHTING,"
+                 "d3d_state.render(D3DRS_LIGHTING,"
                  "scene_lit_mesh?TRUE:FALSE);",
-                 "source use-environment materials inherit active venue lighting");
+                 "source use-environment materials inherit active venue lighting through the cached D3D state path");
   ok &= absent(char_renderer_c,
                "impl.use_scene_lighting?FALSE:(eye_mesh?FALSE:TRUE)",
                "scene-lighting character composites must not disable inherited venue lights");
@@ -9899,9 +10057,9 @@ int main() {
                  "(prop_material&&prop_material->use_environ);",
                  "attached performer props honor source material use-environment flags");
   ok &= contains(char_renderer_c,
-                 "dev->SetRenderState(D3DRS_LIGHTING,"
+                 "d3d_state.render(D3DRS_LIGHTING,"
                  "prop_scene_lit?TRUE:FALSE);",
-                 "attached performer props inherit active venue lighting when source materials request it");
+                 "attached performer props inherit active venue lighting through the cached D3D state path when source materials request it");
   ok &= contains(char_renderer_c,
                  "char_camera_aspect_preset_or(\"GHOGX_CAMERA_ASPECT\","
                  "backbuffer_aspect)",
@@ -10092,15 +10250,15 @@ int main() {
                  "WorldCrowd actors draw after active lighting preset/keyframe selection and before the lighting overlay");
   ok &= appears_before(gameplay_c,
                        "drum_kit_->draw_over_scene(world_->camera());",
-                       "lighting_->draw_over_scene(world_->camera());"
-                       "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
-                       "\"[world]lightingoverlaycomposite:order=after_band",
+                       "if(lighting_&&late_lighting_overlay_enabled()){"
+                       "profile_phase_start=profile_now();"
+                       "lighting_->draw_over_scene(world_->camera());",
                        "drum kit draws before the late lighting overlay");
   ok &= appears_before(gameplay_c,
                        "perf.renderer->draw_over_scene(world_->camera());",
-                       "lighting_->draw_over_scene(world_->camera());"
-                       "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
-                       "\"[world]lightingoverlaycomposite:order=after_band",
+                       "if(lighting_&&late_lighting_overlay_enabled()){"
+                       "profile_phase_start=profile_now();"
+                       "lighting_->draw_over_scene(world_->camera());",
                        "performers draw before the late lighting overlay");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "runtime.renderer->draw_over_scene(cam);",
@@ -10115,7 +10273,8 @@ int main() {
                  "constbooldebug_camera=debug_camera_enabled();",
                  "WorldCrowd source refresh keeps debug logging separate from sampling");
   ok &= contains(refresh_worldcrowd_sources_c,
-                 "canonical_milo_ref(key.source_ref)==\"crowd\"",
+                 "autois_crowd_ref=[](conststd::string&ref){"
+                 "returncanonical_milo_ref(ref)==\"crowd\";};",
                  "WorldCrowd source refresh is gated by authored crowd source refs when debug is off");
   ok &= absent(refresh_worldcrowd_sources_c,
                "!debug_camera_enabled()||!venue_chars_scene_loaded_",
