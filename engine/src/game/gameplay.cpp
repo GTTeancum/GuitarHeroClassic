@@ -16647,16 +16647,44 @@ std::optional<std::string_view> camera_filter_symbol_property(
     return std::nullopt;
 }
 
+std::string_view camera_filter_direct_object_label(
+    const std::string& entity,
+    const std::string& subpart,
+    const std::string& source_object) {
+    if (!source_object.empty()) return std::string_view(source_object);
+    if (!subpart.empty()) return std::string_view(subpart);
+    return std::string_view(entity);
+}
+
 std::optional<std::string_view> camera_filter_symbol_property_path(
     const Gameplay::CameraKey& key,
     const std::vector<std::string_view>& prop_path) {
     const Gameplay::CameraKey* frame =
         camera_filter_keyframe_path_base(key, prop_path);
     if (!frame) return std::nullopt;
+    if (prop_path.size() == 3 && prop_path[2] == "parent") {
+        return camera_filter_direct_object_label(frame->parent_entity,
+                                                 frame->parent_subpart,
+                                                 frame->parent_source_object);
+    }
+    if (prop_path.size() == 3 && prop_path[2] == "focal_target") {
+        return camera_filter_direct_object_label(
+            frame->focus_target_entity, frame->focus_target_subpart,
+            frame->focus_target_source_object);
+    }
     if (prop_path.size() == 4 && prop_path[2] == "parent") {
         if (prop_path[3] == "entity") return std::string_view(frame->parent_entity);
         if (prop_path[3] == "subpart")
             return std::string_view(frame->parent_subpart);
+    }
+    if (prop_path.size() == 4 && prop_path[2] == "targets") {
+        const auto target_index = camera_filter_prop_path_index(prop_path[3]);
+        if (!target_index || *target_index >= frame->target_refs.size()) {
+            return std::nullopt;
+        }
+        const auto& ref = frame->target_refs[*target_index];
+        return camera_filter_direct_object_label(ref.entity, ref.subpart,
+                                                 ref.source_object);
     }
     if (prop_path.size() == 5 && prop_path[2] == "targets") {
         const auto target_index = camera_filter_prop_path_index(prop_path[3]);

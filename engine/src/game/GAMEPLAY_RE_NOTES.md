@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 CameraManager ShotMatches direct object paths:
+  ihatecompvir `CamShotFrame::Load` reads post-0x2B `mTargets`,
+  `mFocusTarget`, and `mParent` as object refs, and `CamShotFrame` property
+  sync exposes `targets`, `parent`, and `focal_target` directly. Native
+  `ShotMatches` property paths now expose `(keyframes N targets M)`,
+  `(keyframes N parent)`, and `(keyframes N focal_target)` from decoded source
+  object labels, preferring the direct ObjPtr label and falling back to legacy
+  subpart/entity labels. This is selector parity only; camera pose solving is
+  unchanged.
 - 2026-07-16 CameraManager ShotMatches screen_offset vector path:
   ihatecompvir `CamShotFrame` property sync exposes `screen_offset` directly as
   `o.mScreenOffset`, and `CameraManager::ShotMatches` compares the evaluated

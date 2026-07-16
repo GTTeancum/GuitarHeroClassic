@@ -13364,11 +13364,40 @@ int main() {
                  "camera_filter_symbol_property_path(",
                  "regular camera symbol filters can evaluate keyframe property arrays");
   ok &= contains(gameplay_c,
+                 "std::string_viewcamera_filter_direct_object_label("
+                 "conststd::string&entity,conststd::string&subpart,"
+                 "conststd::string&source_object){"
+                 "if(!source_object.empty())returnstd::string_view(source_object);"
+                 "if(!subpart.empty())returnstd::string_view(subpart);"
+                 "returnstd::string_view(entity);}",
+                 "regular camera symbol property paths prefer decoded ObjPtr source labels");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()==3&&prop_path[2]==\"parent\"){"
+                 "returncamera_filter_direct_object_label("
+                 "frame->parent_entity,frame->parent_subpart,"
+                 "frame->parent_source_object);}",
+                 "regular camera symbol property paths expose direct CamShotFrame parent refs");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()==3&&prop_path[2]==\"focal_target\"){"
+                 "returncamera_filter_direct_object_label("
+                 "frame->focus_target_entity,frame->focus_target_subpart,"
+                 "frame->focus_target_source_object);}",
+                 "regular camera symbol property paths expose CamShotFrame focal_target refs");
+  ok &= contains(gameplay_c,
                  "if(prop_path.size()==4&&prop_path[2]==\"parent\"){"
                  "if(prop_path[3]==\"entity\")returnstd::string_view("
                  "frame->parent_entity);if(prop_path[3]==\"subpart\")"
                  "returnstd::string_view(frame->parent_subpart);}",
                  "regular camera symbol property paths expose CamShotFrame parent entity/subpart refs");
+  ok &= contains(gameplay_c,
+                 "if(prop_path.size()==4&&prop_path[2]==\"targets\"){"
+                 "constautotarget_index="
+                 "camera_filter_prop_path_index(prop_path[3]);",
+                 "regular camera symbol property paths expose direct CamShotFrame target refs");
+  ok &= contains(gameplay_c,
+                 "returncamera_filter_direct_object_label(ref.entity,"
+                 "ref.subpart,ref.source_object);",
+                 "regular camera direct target property paths prefer decoded ObjPtr source labels");
   ok &= contains(gameplay_c,
                  "if(prop_path.size()==5&&prop_path[2]==\"targets\"){"
                  "constautotarget_index="
