@@ -13759,6 +13759,22 @@ int main() {
                  "reset_camera_manager_like_source_enter(\"diagnostic_seek\");",
                  "diagnostic seek mirrors CameraManager::Enter instead of preserving current_shot");
   ok &= contains(gameplay_c,
+                 "CameraSourceLighterSeekStatesource_lighter_seek_state="
+                 "camera_source_lighter_state_at("
+                 "chart_,song_time_,camera_source_game_multiplayer("
+                 "camera_faceoff_active_players_));",
+                 "diagnostic seek restores source crowd-lighter camera state from elapsed chart events");
+  ok &= contains(gameplay_c,
+                 "did_lighter_cam_=source_lighter_seek_state.did_lighter_cam;"
+                 "crowd_lighter_on_=source_lighter_seek_state.lighter_on;"
+                 "active_worldcrowd_lighter_group_="
+                 "source_lighter_seek_state.lighter_group;",
+                 "diagnostic seek does not reset did_lighter_cam/lighter state to source defaults mid-song");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameradiagnosticseeklighterstate:"
+                 "source_scripts=world/crowd.dta::crowd_lighters_*",
+                 "diagnostic seek lighter-state diagnostics cite the source crowd scripts");
+  ok &= contains(gameplay_c,
                  "boolcamera_manager_milo_camera_active_like_source(){",
                  "camera runtime exposes the source CameraManager::MiloCamera gate");
   ok &= contains(gameplay_c,
@@ -14115,6 +14131,16 @@ int main() {
                  "return\"crowd_lighter_was_off&&!did_lighter_cam&&"
                  "!game_multiplayer\";",
                  "crowd lighter diagnostics name the exact caller-plus-pick_lighter_shot gate");
+  ok &= contains(gameplay_c,
+                 "CameraSourceLighterSeekStatecamera_source_lighter_state_at(",
+                 "camera runtime exposes a source-shaped crowd lighter seek-state replay helper");
+  ok &= contains(gameplay_c,
+                 "camera_source_lighter_forces_camera("
+                 "source_multiplayer,state.did_lighter_cam,was_off)",
+                 "crowd lighter seek replay reuses the source pick_lighter_shot gate");
+  ok &= contains(gameplay_c,
+                 "state.did_lighter_cam=true;",
+                 "crowd lighter seek replay latches did_lighter_cam after the first source-accepted LIGHTER pick");
   ok &= contains(gameplay_c,
                  "return\"pick_shot(NORMAL_CAMSHOT_CATEGORIES,jump_ok)\";",
                  "band_jump diagnostics expose the source pick_shot jump route");

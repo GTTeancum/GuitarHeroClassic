@@ -17314,6 +17314,41 @@ bool camera_source_one_bar_to_solo_state_at(
     return camera_solo;
 }
 
+struct CameraSourceLighterSeekState {
+    bool did_lighter_cam = false;
+    bool lighter_on = false;
+    std::string lighter_group;
+    size_t events_replayed = 0;
+};
+
+CameraSourceLighterSeekState camera_source_lighter_state_at(
+    const ghogx::chart::Chart& chart,
+    double song_time,
+    bool source_multiplayer) {
+    CameraSourceLighterSeekState state;
+    for (const auto& ev : chart.text_events) {
+        if (chart.tick_to_sec(ev.tick) >= song_time) break;
+        if (ev.text == "[crowd_lighters_slow]" ||
+            ev.text == "[crowd_lighters_fast]") {
+            const bool was_off = !state.lighter_on;
+            state.lighter_on = true;
+            state.lighter_group = ev.text == "[crowd_lighters_slow]"
+                                      ? "lighter_slow"
+                                      : "lighter_fast";
+            if (camera_source_lighter_forces_camera(
+                    source_multiplayer, state.did_lighter_cam, was_off)) {
+                state.did_lighter_cam = true;
+            }
+            ++state.events_replayed;
+        } else if (ev.text == "[crowd_lighters_off]") {
+            state.lighter_on = false;
+            state.lighter_group.clear();
+            ++state.events_replayed;
+        }
+    }
+    return state;
+}
+
 uint32_t camera_bar_at(const ghogx::chart::Chart& chart, double song_time) {
     if (chart.ticks_per_beat == 0) return 0;
     const uint32_t ticks_per_bar = chart.ticks_per_beat * 4u;
@@ -30606,14 +30641,32 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
         camera_source_one_bar_to_cursor_at(chart_, song_time_);
     camera_solo_active_ =
         camera_source_one_bar_to_solo_state_at(chart_, song_time_);
+    const CameraSourceLighterSeekState source_lighter_seek_state =
+        camera_source_lighter_state_at(
+            chart_, song_time_,
+            camera_source_game_multiplayer(camera_faceoff_active_players_));
     last_camera_bar_ = UINT32_MAX;
     last_camera_beat_ = UINT32_MAX;
     camera_beat_state_ = camera_beat_at(chart_, song_time_);
     camera_bars_left_ = 0;
     reset_camera_manager_like_source_enter("diagnostic_seek");
-    did_lighter_cam_ = false;
-    crowd_lighter_on_ = false;
-    active_worldcrowd_lighter_group_.clear();
+    did_lighter_cam_ = source_lighter_seek_state.did_lighter_cam;
+    crowd_lighter_on_ = source_lighter_seek_state.lighter_on;
+    active_worldcrowd_lighter_group_ =
+        source_lighter_seek_state.lighter_group;
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera diagnostic seek lighter state: source_scripts=world/crowd.dta::crowd_lighters_* source_world=world_objects_worldbase.dta::pick_lighter_shot events=%zu did_lighter_cam=%d lighter=%s crowd_group=%s source_multiplayer=%d\n",
+            source_lighter_seek_state.events_replayed,
+            did_lighter_cam_ ? 1 : 0,
+            crowd_lighter_on_ ? "on" : "off",
+            active_worldcrowd_lighter_group_.empty()
+                ? "-"
+                : active_worldcrowd_lighter_group_.c_str(),
+            camera_source_game_multiplayer(camera_faceoff_active_players_) ? 1
+                                                                           : 0);
+    }
     intro_end_dispatched_ = false;
     should_resend_excitement_ = false;
     active_lighting_preset_.clear();

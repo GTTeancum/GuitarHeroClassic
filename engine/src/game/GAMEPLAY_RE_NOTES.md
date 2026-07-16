@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay diagnostic seek lighter-state replay:
+  GH2 `world/crowd.dta::crowd_lighters_slow/fast/off` mutates the local
+  `[lighter]` state, and the slow/fast handlers call
+  `world pick_lighter_shot` only when the previous lighter state was `off` and
+  `[did_lighter_cam]` is still false; `world_objects_worldbase.dta` then adds
+  the multiplayer gate before setting `[did_lighter_cam]` true. Diagnostic
+  seeks now replay those source-visible events up to the seek time, restoring
+  `did_lighter_cam`, lighter on/off state, and the active lighter crowd group
+  instead of resetting them to defaults. This prevents mid-song proof runs from
+  selecting extra LIGHTER gameplay cameras that source GH2 would suppress; it
+  does not touch hidden camera pose math, promote FreeCam, or add dependencies.
 - 2026-07-15 gameplay `shot_ok` recovered/native split:
   GH2 `world/camshot.dta::shot_ok` still routes through native
   `cam_shot_ok($this)`, but the authored `bad_waypoints` field is a
