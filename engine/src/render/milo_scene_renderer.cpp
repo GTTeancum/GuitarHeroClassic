@@ -1020,6 +1020,34 @@ float env_float_or(const char* name, float fallback, float min_value,
   return parsed;
 }
 
+float env_camera_aspect_preset_or(const char* name, float fallback) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return fallback;
+
+  constexpr float kAspect4x3 = 4.0f / 3.0f;
+  constexpr float kAspect16x9 = 16.0f / 9.0f;
+  constexpr float kAspectEpsilon = 0.002f;
+  float aspect = fallback;
+  if (std::strcmp(value, "4:3") == 0) {
+    aspect = kAspect4x3;
+  } else if (std::strcmp(value, "16:9") == 0) {
+    aspect = kAspect16x9;
+  } else {
+    char* end = nullptr;
+    const float parsed = std::strtof(value, &end);
+    if (end != value && std::isfinite(parsed)) {
+      if (std::fabs(parsed - kAspect4x3) <= kAspectEpsilon) {
+        aspect = kAspect4x3;
+      } else if (std::fabs(parsed - kAspect16x9) <= kAspectEpsilon) {
+        aspect = kAspect16x9;
+      }
+    }
+  }
+  std::free(value);
+  return aspect;
+}
+
 size_t mesh_anim_log_stride() {
   return static_cast<size_t>(
       std::max(1.0f, env_float_or("GHOGX_LOG_MESH_ANIM_STRIDE", 30.0f, 1.0f,
@@ -2974,7 +3002,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                                   static_cast<float>(win_->bb_height())
                             : 16.0f / 9.0f;
   const float aspect =
-      env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
+      env_camera_aspect_preset_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect);
 
   DebugVenueInspectorState* debug_venue = nullptr;
   if (draw_scene && debug_venue_inspector_enabled() &&

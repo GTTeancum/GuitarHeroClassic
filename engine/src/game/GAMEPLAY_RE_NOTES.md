@@ -909,12 +909,11 @@ Open work:
   PS2-comparable final-row surface while preserving the current camera behavior;
   it confirms that the remaining visual mismatch is still upstream in the
   CamShot result/path/source bridge.
-- 2026-06-29 PS2 projection/aspect validation diagnostic:
-  `GHOGX_CAMERA_ASPECT=<float>` overrides the submitted venue-camera projection
-  aspect while preserving the accepted camera row, fov, screen offset, and all
-  venue visibility/event state. This is an evidence-only diagnostic for checking
-  whether the current 16:9 native backbuffer exposes geometry that the accepted
-  PS2 trace's 4:3-ish viewport cropped out; it is not a mesh visibility hack.
+- 2026-06-29 PS2 projection/aspect validation diagnostic, tightened 2026-07-15:
+  `GHOGX_CAMERA_ASPECT` may only select the supported `4:3` or `16:9` camera
+  aspect presets, including near-equivalent float values. Arbitrary projection
+  aspects are ignored so venue/character projection cannot drift away from the
+  highway while validating console-shaped captures.
 - 2026-06-29 additive Mat alpha bridge:
   the accepted balcony validation showed `searchlight_glows_off.mnm` sampling
   `light_glow.mat` down to alpha `0.035`, but the native frame still rendered a

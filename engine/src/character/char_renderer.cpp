@@ -61,6 +61,34 @@ float char_env_float_or(const char* name, float fallback, float min_value,
   return parsed;
 }
 
+float char_camera_aspect_preset_or(const char* name, float fallback) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return fallback;
+
+  constexpr float kAspect4x3 = 4.0f / 3.0f;
+  constexpr float kAspect16x9 = 16.0f / 9.0f;
+  constexpr float kAspectEpsilon = 0.002f;
+  float aspect = fallback;
+  if (std::strcmp(value, "4:3") == 0) {
+    aspect = kAspect4x3;
+  } else if (std::strcmp(value, "16:9") == 0) {
+    aspect = kAspect16x9;
+  } else {
+    char* end = nullptr;
+    const float parsed = std::strtof(value, &end);
+    if (end != value && std::isfinite(parsed)) {
+      if (std::fabs(parsed - kAspect4x3) <= kAspectEpsilon) {
+        aspect = kAspect4x3;
+      } else if (std::fabs(parsed - kAspect16x9) <= kAspectEpsilon) {
+        aspect = kAspect16x9;
+      }
+    }
+  }
+  std::free(value);
+  return aspect;
+}
+
 struct Bounds3 {
   float mn[3] = {0, 0, 0};
   float mx[3] = {0, 0, 0};
@@ -1736,7 +1764,7 @@ void CharRenderer::draw_impl(bool clear_target) {
                 static_cast<float>(win->bb_height())
           : 16.0f / 9.0f;
   const float aspect =
-      char_env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
+      char_camera_aspect_preset_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect);
 
   float eye[3];
   cam.eye(eye);

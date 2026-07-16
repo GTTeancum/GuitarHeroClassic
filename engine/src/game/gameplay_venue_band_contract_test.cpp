@@ -5038,8 +5038,8 @@ int main() {
                  "clear_target&&env_enabled(\"GHOGX_LOG_CAMERA_MATRIX\")",
                  "renderer keeps the native camera matrix diagnostic opt-in on the submitted world pass");
   ok &= contains(renderer_c,
-                 "env_float_or(\"GHOGX_CAMERA_ASPECT\",backbuffer_aspect,0.5f,3.0f)",
-                 "renderer exposes an opt-in camera aspect diagnostic for PS2 projection validation");
+                 "env_camera_aspect_preset_or(\"GHOGX_CAMERA_ASPECT\",backbuffer_aspect)",
+                 "renderer camera aspect diagnostic is locked to 4:3/16:9 presets");
   ok &= contains(renderer_c,
                  "cam_.result_frame.has_custom_view",
                  "renderer applies custom camera matrices only from explicit result-frame diagnostics");
@@ -9828,9 +9828,9 @@ int main() {
                  "prop_scene_lit?TRUE:FALSE);",
                  "attached performer props inherit active venue lighting when source materials request it");
   ok &= contains(char_renderer_c,
-                 "char_env_float_or(\"GHOGX_CAMERA_ASPECT\","
-                 "backbuffer_aspect,0.5f,3.0f)",
-                 "character renderer composites use the same PS2 camera aspect override as venue geometry");
+                 "char_camera_aspect_preset_or(\"GHOGX_CAMERA_ASPECT\","
+                 "backbuffer_aspect)",
+                 "character renderer composites use the same locked 4:3/16:9 camera aspect override as venue geometry");
   ok &= contains(char_renderer_c,
                  "result_at[k]=cam.result_frame.position[k]+"
                  "cam.result_frame.forward[k]*100.0f;",
