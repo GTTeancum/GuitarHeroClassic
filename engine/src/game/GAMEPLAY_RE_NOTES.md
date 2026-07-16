@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay target-ref proof wording:
+  ihatecompvir `CamShotFrame::Load` can successfully decode the target-ref field
+  while the source `mTargets` list is empty, and `HasTargets()` only returns
+  true for resolved non-null target objects. Native CamShot load diagnostics now
+  split those facts as `refs_decoded` and `target_ref_count`, so rows like
+  `target_refs=none` no longer look like they authored one target. This changes
+  proof wording only: no submitted camera transform, target fallback, FreeCam
+  priority, under-venue handling, or dependency surface changes.
 - 2026-07-16 gameplay BuildTransform/UpdateLocal audit precision:
   Rechecked the ihatecompvir camera audit tree directly. Public
   `CameraShot.cpp::CamShotFrame::Interp` proves the two visible

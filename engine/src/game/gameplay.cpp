@@ -2586,6 +2586,14 @@ bool camshot_target_ref_empty(const Gameplay::CameraKey::TargetRef& ref) {
            ref.source_object.empty();
 }
 
+size_t camshot_authored_target_ref_count(const Gameplay::CameraKey& key) {
+    if (!key.target_refs.empty()) return key.target_refs.size();
+    return (!key.target_entity.empty() || !key.target_subpart.empty() ||
+            !key.target_source_object.empty())
+               ? 1u
+               : 0u;
+}
+
 std::string camshot_source_object_debug(std::string_view source_object) {
     return source_object.empty() ? std::string("none")
                                  : std::string(source_object);
@@ -15817,9 +15825,11 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                             key.focus_target_source_object);
                     const std::string target_refs_debug =
                         camshot_target_refs_load_debug_string(key);
+                    const size_t target_ref_count =
+                        camshot_authored_target_ref_count(key);
                     std::fprintf(
                         stderr,
-                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) zero_xfm_reset=%d fov=%s%.3f timing=%s(%.3f %.3f %.3f) target=%s:%s parent=%s:%s parent_rot=%d refs=%d target_source_object=%s parent_source_object=%s target_refs=%s\n",
+                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) zero_xfm_reset=%d fov=%s%.3f timing=%s(%.3f %.3f %.3f) target=%s:%s parent=%s:%s parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s target_refs=%s\n",
                         de.name.c_str(), pose.second, key.eye[0], key.eye[1],
                         key.eye[2], key.forward[0], key.forward[1],
                         key.forward[2], key.up[0], key.up[1], key.up[2],
@@ -15833,6 +15843,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         key.parent_entity.c_str(), key.parent_subpart.c_str(),
                         key.use_parent_rotation ? 1 : 0,
                         key.camshot_refs_decoded ? 1 : 0,
+                        target_ref_count,
                         target_source_object.c_str(),
                         parent_source_object.c_str(),
                         target_refs_debug.c_str());
@@ -16109,8 +16120,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 camshot_source_object_debug(key.focus_target_source_object);
             const std::string target_refs_debug =
                 camshot_target_refs_load_debug_string(key);
+            const size_t target_ref_count =
+                camshot_authored_target_ref_count(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs=%d target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f source_load=ignored source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -16120,6 +16133,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.parent_first_frame ? 1 : 0,
                          key.use_parent_rotation ? 1 : 0,
                          key.camshot_refs_decoded ? 1 : 0,
+                         target_ref_count,
                          target_source_object.c_str(),
                          parent_source_object.c_str(),
                          focus_source_object.c_str(),
@@ -21360,12 +21374,7 @@ camera_entity_only_target_alias_world_copy_candidate_rows_for_key(
 }
 
 size_t camera_target_ref_count_for_key(const Gameplay::CameraKey& key) {
-    return !key.target_refs.empty()
-               ? key.target_refs.size()
-               : ((!key.target_entity.empty() || !key.target_subpart.empty() ||
-                   !key.target_source_object.empty())
-                      ? 1u
-                      : 0u);
+    return camshot_authored_target_ref_count(key);
 }
 
 std::string camera_target_refs_debug_string(const Gameplay::CameraKey& key) {

@@ -8577,9 +8577,8 @@ int main() {
                "returnstd::nullopt;",
                "CamShot parent lookup must not drop direct ObjPtr source objects");
   ok &= contains(gameplay_c,
-                 "((!key.target_entity.empty()||!key.target_subpart.empty()||"
-                 "!key.target_source_object.empty())"
-                 "?1u:0u)",
+                 "return(!key.target_entity.empty()||!key.target_subpart.empty()||"
+                 "!key.target_source_object.empty())?1u:0u;",
                  "camera target debug counts direct object-pointer refs");
   ok &= contains(gameplay_c,
                  "autoprop_world=perf.renderer->attached_prop_world(subpart);",
@@ -12301,7 +12300,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]regularCamShot%sdistance=%sfacing=%starget=%s:%s"
                  "parent=%s:%sfocal_target=%s:%sparent_first_frame=%s%d"
-                 "parent_rot=%drefs=%dtarget_source_object=%s"
+                 "parent_rot=%drefs_decoded=%dtarget_ref_count=%zu"
+                 "target_source_object=%s"
                  "parent_source_object=%sfocal_source_object=%s"
                  "target_refs=%sposes=%zuloop=%d"
                  "loop_keyframe=%danim_rate=%dfpu=%.1fposebody+0x%zX"
@@ -12320,6 +12320,14 @@ int main() {
                  "source_reader=CamShot::Load/MiloEditorexact_reader=1"
                  "legacy_scanner=0",
                  "regular CamShot diagnostics prove source-shaped reader use instead of legacy pose scanners");
+  ok &= contains(gameplay_c,
+                 "size_tcamshot_authored_target_ref_count("
+                 "constGameplay::CameraKey&key){"
+                 "if(!key.target_refs.empty())returnkey.target_refs.size();",
+                 "regular CamShot diagnostics separate decoded refs from authored target refs");
+  ok &= contains(gameplay_c,
+                 "refs_decoded=%dtarget_ref_count=%zu",
+                 "camera load logs do not report decoded empty target lists as target refs");
   ok &= contains(gameplay_c,
                  "key.hide_crowd=intro_camera.hide_crowd;",
                  "intro TransAnim camera keys inherit selected hide_crowd");
