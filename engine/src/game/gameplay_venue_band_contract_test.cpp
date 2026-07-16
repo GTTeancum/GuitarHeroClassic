@@ -13324,11 +13324,17 @@ int main() {
                  "if(!camera_source_shot_ok(key,previous,current_walkspot))continue;",
                  "regular camera selector runs source shot_ok after ShotMatches filters");
   ok &= contains(gameplay_c,
-                 "\"[world]camerashot_ok:source_msg=shot_okshot=%s"
-                 "previous=%scam_shot_ok=%ssource_return=%s"
+                 "\"[world]camerashot_ok:source_msg=shot_ok"
+                 "source_script=world/camshot.dta::shot_ok"
+                 "source_call=CamShot::ShotOk(prev_shot)"
+                 "shot=%sprevious=%scam_shot_ok=%ssource_return=%s"
                  "result=%scurrent_walkspot=%s"
-                 "bad_waypoint_match=%sbad_waypoints=%zu\\n\"",
-                 "regular camera diagnostics expose deferred source shot_ok hook");
+                 "bad_waypoint_match=%sbad_waypoints=%zu"
+                 "hidden_gameplay_blocker=cam_shot_ok"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0\\n\"",
+                 "regular camera diagnostics expose deferred source shot_ok hook before deferred FreeCam status");
   ok &= absent(gameplay_c,
                "if(previous&&key.name==previous->name)continue;",
                "regular camera selector must not pre-reject the active shot before source shot_ok");

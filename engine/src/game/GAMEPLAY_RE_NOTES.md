@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay camera `shot_ok` blocker proof:
+  ihatecompvir `CamShot::ShotOk(prev_shot)` sends the GH2
+  `world/camshot.dta::shot_ok` message and accepts only unhandled/true returns;
+  GH2 still routes that script to native `cam_shot_ok`. Native normal gameplay
+  `shot_ok` diagnostics now name the source script/call, stamp
+  `hidden_gameplay_blocker=cam_shot_ok`, and leave
+  `freecam_priority=deferred_last freecam_affects_gameplay=0` at the end of the
+  row. This is proof hardening only: it does not invent `cam_shot_ok`, change
+  camera selection, touch FreeCam behavior, or add dependencies.
 - 2026-07-15 gameplay camera check-shot gate proof:
   GH2 `world_objects_worldbase.dta::downbeat` decrements
   `camera_bars_left`, skips `check_camera_shot` during star mode, and

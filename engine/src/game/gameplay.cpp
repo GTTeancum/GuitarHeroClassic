@@ -16767,7 +16767,7 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: source_msg=shot_ok shot=%s previous=%s cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu\n",
+            "[world] camera shot_ok: source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) shot=%s previous=%s cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu hidden_gameplay_blocker=cam_shot_ok pipeline_scope=normal_gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
             cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
