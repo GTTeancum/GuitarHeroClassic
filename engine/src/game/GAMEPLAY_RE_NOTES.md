@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay same-target vertical-sign triage:
+  The same-target solver row now compares the submitted screen-offset height
+  against the diagnostic vertical-flip candidate height, and marks whether that
+  candidate would resolve an active under-venue diagnostic. On the Big
+  `flr_near_lft2x1` proof this isolates the large Z drop to the unrecovered
+  `LocalProjectXfm.m.z.x` sign path without promoting the candidate to runtime
+  behavior. This is still proof only: no submitted camera transform changes,
+  no clamps or offsets are added, FreeCam remains last, and dependency surface
+  is unchanged.
 - 2026-07-16 gameplay camera under-venue diagnostic:
   Normal gameplay camera solver rows now report the submitted target-relative
   height and the Z delta introduced after the current source BuildTransform

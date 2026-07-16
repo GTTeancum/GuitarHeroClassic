@@ -23390,6 +23390,27 @@ void apply_camera_keys(
                 ? same_target_axis_proof->right_delta[2] +
                       same_target_axis_proof->up_delta[2]
                 : std::numeric_limits<float>::quiet_NaN();
+        float same_target_submitted_height =
+            std::numeric_limits<float>::quiet_NaN();
+        float same_target_vertical_flip_height =
+            std::numeric_limits<float>::quiet_NaN();
+        bool same_target_vertical_flip_resolves_under_venue = false;
+        if (same_target_axis_proof && blended_target_centroid) {
+            same_target_submitted_height =
+                same_target_axis_proof->current_position[2] -
+                (*blended_target_centroid)[2];
+            same_target_vertical_flip_height =
+                same_target_axis_proof->vertical_flip_candidate_position[2] -
+                (*blended_target_centroid)[2];
+            same_target_vertical_flip_resolves_under_venue =
+                under_venue_concern &&
+                std::isfinite(same_target_vertical_flip_height) &&
+                same_target_vertical_flip_height >= -0.001f &&
+                std::isfinite(same_target_axis_proof
+                                  ->vertical_flip_candidate_position[2]) &&
+                same_target_axis_proof->vertical_flip_candidate_position[2] >=
+                    -0.001f;
+        }
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
@@ -23422,6 +23443,8 @@ void apply_camera_keys(
             "same_target_vertical_flip_candidate=(%s%.3f %s%.3f %s%.3f) "
             "same_target_vertical_flip_candidate_only=%d "
             "local_project_z_sign=unrecovered "
+            "same_target_height=(submitted:%s%.3f vertical_flip:%s%.3f) "
+            "same_target_vertical_flip_resolves_under_venue=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, result_filter_branch ? 1 : 0,
@@ -23512,7 +23535,16 @@ void apply_camera_keys(
             same_target_axis_proof
                 ? same_target_axis_proof->vertical_flip_candidate_position[2]
                 : 0.0f,
-            same_target_axis_proof ? 1 : 0);
+            same_target_axis_proof ? 1 : 0,
+            std::isfinite(same_target_submitted_height) ? "" : "none/",
+            std::isfinite(same_target_submitted_height)
+                ? same_target_submitted_height
+                : 0.0f,
+            std::isfinite(same_target_vertical_flip_height) ? "" : "none/",
+            std::isfinite(same_target_vertical_flip_height)
+                ? same_target_vertical_flip_height
+                : 0.0f,
+            same_target_vertical_flip_resolves_under_venue ? 1 : 0);
         std::fprintf(
             stderr,
             "[camera-solver] frame=%.2f raw_a_eye=(%.3f %.3f %.3f) "

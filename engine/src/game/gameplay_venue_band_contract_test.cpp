@@ -9523,6 +9523,12 @@ int main() {
                  "proof.up_delta[axis];",
                  "same-target vertical flip remains diagnostic-only until LocalProjectXfm sign is recovered");
   ok &= contains(gameplay_c,
+                 "\"same_target_height=(submitted:%s%.3fvertical_flip:%s%.3f)\"",
+                 "same-target screen-offset diagnostics compare submitted and vertical-flip target-relative heights");
+  ok &= contains(gameplay_c,
+                 "\"same_target_vertical_flip_resolves_under_venue=%d\"",
+                 "same-target diagnostics flag whether the vertical LocalProjectXfm sign candidate resolves under-venue placement");
+  ok &= contains(gameplay_c,
                  "rows.screen_offset_consumed=true;",
                  "source-shaped screen-offset result marks the projection offset consumed");
   ok &= contains(gameplay_c,
