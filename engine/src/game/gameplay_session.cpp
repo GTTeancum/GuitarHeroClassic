@@ -338,6 +338,7 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   last_events_.clear();
   last_time_ = std::max(0.0, song_time);
   prev_fret_mask_ = 0;
+  diagnostic_autoplay_release_strum_ = false;
   active_sustains_.clear();
   star_phrase_active_ = false;
   star_phrase_missed_ = false;
@@ -360,8 +361,7 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   }
 }
 
-uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
-    double song_time) const {
+uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(double song_time) {
   uint32_t sustain_mask = 0;
   for (const ActiveSustain& sustain : active_sustains_) {
     if (song_time >= sustain.start_time && song_time <= sustain.end_time) {
@@ -379,11 +379,20 @@ uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
     target = i;
     break;
   }
-  if (target >= notes_.size()) return sustain_mask;
+  if (target >= notes_.size()) {
+    diagnostic_autoplay_release_strum_ = false;
+    return sustain_mask;
+  }
 
   const size_t end = group_end(target);
   const uint32_t mask = group_mask(target, end);
-  return sustain_mask | mask | (1u << 5);
+  const uint32_t frets = sustain_mask | mask;
+  if (diagnostic_autoplay_release_strum_) {
+    diagnostic_autoplay_release_strum_ = false;
+    return frets;
+  }
+  diagnostic_autoplay_release_strum_ = true;
+  return frets | (1u << 5);
 }
 
 void FoFiXGameplaySession::copy_source_consumed(
@@ -528,6 +537,41 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     apply_overstrum(held_frets);
   }
   prev_fret_mask_ = fret_mask;
+}
+
+void FoFiXGameplaySession::tick_diagnostic_autoplay(double song_time) {
+  last_events_.clear();
+  const double dt = std::max(0.0, song_time - last_time_);
+  last_time_ = std::max(last_time_, song_time);
+  diagnostic_autoplay_release_strum_ = false;
+
+  fofix_update_star_power(star_power_, dt);
+
+  uint32_t held_frets = 0;
+  for (const ActiveSustain& sustain : active_sustains_) {
+    if (song_time >= sustain.start_time && song_time <= sustain.end_time) {
+      held_frets |= sustain.mask;
+    }
+  }
+  update_sustains(song_time, dt, held_frets, false);
+
+  while (next_note_ < notes_.size()) {
+    if (next_note_ < consumed_.size() && consumed_[next_note_]) {
+      ++next_note_;
+      continue;
+    }
+    const size_t end = group_end(next_note_);
+    const FoFiXHitWindow window = window_for_note(next_note_);
+    if (notes_[next_note_].time > song_time + window.early_sec) break;
+    apply_hit(next_note_, end, song_time);
+    next_note_ = end;
+  }
+  while (next_note_ < notes_.size() && next_note_ < consumed_.size() &&
+         consumed_[next_note_]) {
+    ++next_note_;
+  }
+  if (next_note_ >= notes_.size()) finish_star_phrase();
+  prev_fret_mask_ = held_frets;
 }
 
 }  // namespace ghogx::game

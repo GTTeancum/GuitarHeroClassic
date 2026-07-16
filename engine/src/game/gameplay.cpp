@@ -18004,7 +18004,11 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
 bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                                               bool emit_presentation) {
     if (!gameplay_session_mirror_) return false;
-    gameplay_session_mirror_->tick(song_time_, fret_mask);
+    if (diagnostic_autoplay_) {
+        gameplay_session_mirror_->tick_diagnostic_autoplay(song_time_);
+    } else {
+        gameplay_session_mirror_->tick(song_time_, fret_mask);
+    }
 
     bool bad_gameplay_feedback = false;
     auto mark_source_group_consumed = [&](const FoFiXSessionEvent& event) {

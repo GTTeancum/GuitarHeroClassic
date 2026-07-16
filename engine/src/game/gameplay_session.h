@@ -69,8 +69,9 @@ class FoFiXGameplaySession {
                                         int difficulty);
 
   void tick(double song_time, uint32_t fret_mask);
+  void tick_diagnostic_autoplay(double song_time);
   void seek_without_scoring(double song_time);
-  uint32_t diagnostic_autoplay_mask(double song_time) const;
+  uint32_t diagnostic_autoplay_mask(double song_time);
   void copy_source_consumed(std::vector<uint8_t>& out) const;
   void copy_active_sustains(std::vector<FoFiXSessionSustain>& out) const;
 
@@ -135,6 +136,7 @@ class FoFiXGameplaySession {
   double beat_seconds_ = 0.5;
   double last_time_ = 0.0;
   uint32_t prev_fret_mask_ = 0;
+  bool diagnostic_autoplay_release_strum_ = false;
   size_t next_note_ = 0;
   FoFiXScoreState score_;
   FoFiXRockState rock_;

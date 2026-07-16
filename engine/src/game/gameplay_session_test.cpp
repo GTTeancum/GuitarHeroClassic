@@ -200,6 +200,40 @@ int main() {
 
   {
     FoFiXGameplaySession session({
+        {1.00, 1.00, kGreen, false, false},
+        {1.03, 1.03, kRed, false, false},
+    });
+    uint32_t mask = session.diagnostic_autoplay_mask(0.95);
+    CHECK(mask == (kGreen | kStrum),
+          "FoFiX diagnostic autoplay starts close-note strum pulse");
+    session.tick(0.95, mask);
+    mask = session.diagnostic_autoplay_mask(0.96);
+    CHECK(mask == kRed,
+          "FoFiX diagnostic autoplay releases strum before next close group");
+    session.tick(0.96, mask);
+    mask = session.diagnostic_autoplay_mask(0.98);
+    CHECK(mask == (kRed | kStrum),
+          "FoFiX diagnostic autoplay restrums close next group");
+    session.tick(0.98, mask);
+    CHECK(session.hits() == 2 && session.misses() == 0 &&
+              session.overstrums() == 0,
+          "FoFiX diagnostic autoplay hits close note groups cleanly");
+  }
+
+  {
+    FoFiXGameplaySession session({
+        {0.50, 0.50, kGreen, false, false},
+        {0.75, 0.75, kRed, false, false},
+        {1.00, 1.00, kYellow, false, false},
+    });
+    session.tick_diagnostic_autoplay(2.0);
+    CHECK(session.hits() == 3 && session.misses() == 0 &&
+              session.overstrums() == 0 && !session.failed(),
+          "FoFiX diagnostic autoplay catch-up consumes due notes as hits");
+  }
+
+  {
+    FoFiXGameplaySession session({
         {1.0, 2.0, kGreen, false, true, 0.5, 0.0, 0.0, 7, 480},
     });
     std::vector<FoFiXSessionSustain> sustains;
