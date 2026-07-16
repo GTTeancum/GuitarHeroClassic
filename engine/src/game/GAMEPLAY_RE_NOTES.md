@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-15 gameplay PickCameraShot warning format:
+  ihatecompvir `CameraManager::PickCameraShot` builds the failure warning as
+  `No acceptable camera shot:` plus `cat:` and then prints every requested
+  property filter. Native gameplay camera diagnostics now preserve the colon
+  form and explicit source category token on both scripted regular picks and
+  forced source-category picks, with forced WIN/LOSE-style categories stamped
+  as `filters="" filter_count=0`. This is proof/status parity only; it does
+  not change camera selection, camera math, FreeCam behavior, or dependencies.
 - 2026-07-15 gameplay camera filtered-target proof split:
   normal gameplay camera solver rows now separate `candidate_valid` from
   persistent `state_valid` and label `state_scope`. Same-target CamShot rows can

@@ -13008,10 +13008,11 @@ int main() {
                  "camera_source_pick_shot_category(mode),",
                  "regular camera selector warns instead of relaxing source filters");
   ok &= contains(gameplay_c,
-                 "source_warn=\\\"Noacceptablecamerashot\\\"",
-                 "regular camera diagnostics mirror CameraManager PickCameraShot warning");
+                 "source_warn=\\\"Noacceptablecamerashot:\\\""
+                 "source_warn_cat=%s",
+                 "regular camera diagnostics mirror CameraManager PickCameraShot warning and cat token");
   ok &= contains(gameplay_c,
-                 "source_manager=CameraManager::PickCameraShot"
+                 "source_warn_cat=%ssource_manager=CameraManager::PickCameraShot"
                  "category=%smode=%sfilters=\\\"%s\\\"filter_count=%zu",
                  "regular camera no-acceptable-shot diagnostics include the source filter vector");
   ok &= contains(gameplay_c,
@@ -13086,6 +13087,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "constGameplay::CameraKey*choose_camera_key_source_category(",
                  "source category pick_shot uses the shared CameraManager::FindCameraShot route");
+  ok &= contains(gameplay_c,
+                 "source_warn=\\\"Noacceptablecamerashot:\\\""
+                 "source_warn_cat=%ssource_manager=CameraManager::PickCameraShot"
+                 "category=%smode=source_categoryfilters=\\\"\\\""
+                 "filter_count=0source_msg=%sresult=0",
+                 "source category no-acceptable-shot diagnostics mirror PickCameraShot empty-filter warnings");
   ok &= contains(gameplay_c,
                  "if(key.category!=category)continue;"
                  "if(key.disabled_flags!=0){",

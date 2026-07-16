@@ -16946,8 +16946,9 @@ void camera_source_no_acceptable_shot(std::string_view category,
             camera_source_filter_list_label(source_filters);
         std::fprintf(
             stderr,
-            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot\" source_manager=CameraManager::PickCameraShot category=%s mode=%s filters=\"%s\" filter_count=%zu low_excitement=%d walking=%d starpower=%d result=0\n",
-            std::string(category).c_str(), camera_shot_mode_label(mode),
+            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s mode=%s filters=\"%s\" filter_count=%zu low_excitement=%d walking=%d starpower=%d result=0\n",
+            std::string(category).c_str(), std::string(category).c_str(),
+            camera_shot_mode_label(mode),
             source_filter_label.c_str(), source_filters.size(),
             low_excitement ? 1 : 0, walking ? 1 : 0, starpower ? 1 : 0);
     }
@@ -17176,8 +17177,8 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot\" category=%s mode=source_category source_msg=%s result=0\n",
-                std::string(category).c_str(),
+                "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s mode=source_category filters=\"\" filter_count=0 source_msg=%s result=0\n",
+                std::string(category).c_str(), std::string(category).c_str(),
                 std::string(source_message).c_str());
         }
         return nullptr;
