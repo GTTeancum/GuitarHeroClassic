@@ -10048,7 +10048,7 @@ int main() {
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotVisiblePoseUnits="
-                 "\"CameraManager,GetKey,Interp_order,SetFrustum,DOF,Shake_tail\";",
+                 "\"CameraManager,GetKey,Interp_order,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail\";",
                  "camera pose proof labels the visible source-covered runtime units");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotHiddenPoseBodies="
@@ -14900,8 +14900,15 @@ int main() {
                  "camera_same_target_screen_offset,"
                  "camera_camshot_dofproc,"
                  "camera_camshot_shake_tail,"
+                 "camera_camshot_setlocalxfm_tail,"
                  "camera_visibility",
                  "camera implementation status counts audited CameraManager PrePoll/Poll order and source-visible CamShotFrame::Interp pieces");
+  ok &= contains(gameplay_c,
+                 "source_visible_pose_units=%s",
+                 "camera debug rows expose visible CamShotFrame::Interp pose units");
+  ok &= contains(gameplay_c,
+                 "SetFrustum,DOF,Shake_tail,SetLocalXfm_tail",
+                 "camera visible pose-unit status counts the source SetLocalXfm tail without claiming hidden BuildTransform math");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"

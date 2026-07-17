@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay SetLocalXfm tail status:
+  ihatecompvir `CamShotFrame::Interp` visibly blends `cam->WorldXfm()` into
+  `tf130`, applies `CamShot::Shake`, and then submits
+  `cam->SetLocalXfm(tf130)`. Native already emits solver proof rows with
+  `source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm` and
+  `final_setlocalxfm=applied`; the compact status now counts
+  `camera_camshot_setlocalxfm_tail`, and the visible pose-unit list now includes
+  `SetLocalXfm_tail`. This is source-visible tail accounting only: no hidden
+  `BuildTransform`, `SetPos`, or `RndCam::UpdateLocal` body is synthesized, no
+  under-venue result is masked, FreeCam remains deferred last, and no dependency
+  surface changed.
 - 2026-07-17 gameplay CheckShot status split:
   the compact normal-gameplay camera status now counts
   `camera_camshot_check_shot_probe_boundary` for the recovered script/message
