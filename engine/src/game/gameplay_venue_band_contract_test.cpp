@@ -15008,6 +15008,7 @@ int main() {
                  "camera_manager_force_shot_pending,"
                  "camera_manager_force_shot_action_return_bridge,"
                  "camera_manager_shotafter_order_bridge,"
+                 "camera_manager_shotafter_expr_return_bridge,"
                  "camera_manager_cycle_shot_pending_bridge,"
                  "camera_manager_cycle_shot_return_bridge,"
                  "camera_manager_current_next_state,"
@@ -15017,7 +15018,7 @@ int main() {
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, cycle_shot pending handoff, cycle_shot DataNode(0) return, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, ShotAfter HANDLE_EXPR return, cycle_shot pending handoff, cycle_shot DataNode(0) return, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15087,25 +15088,28 @@ int main() {
                  "camera_manager_force_shot_pending,"
                  "camera_manager_force_shot_action_return_bridge,"
                  "camera_manager_shotafter_order_bridge,"
+                 "camera_manager_shotafter_expr_return_bridge,"
                  "camera_manager_cycle_shot_pending_bridge,"
                  "camera_manager_cycle_shot_return_bridge,"
                  "camera_manager_current_next_state,"
                  "camera_manager_current_next_expr_return_bridge,"
                  "camera_manager_iterate_shot_bridge,"
                  "camera_manager_randomize_category_noop,",
-                 "camera implementation status keeps source CameraManager same-shot restart, ForceCameraShot action return, ShotAfter, cycle_shot pending and return, current/next HANDLE_EXPR returns, iterate_shot, and current_shot/next_shot state beside pending Pick/Force handoffs");
+                 "camera implementation status keeps source CameraManager same-shot restart, ForceCameraShot action return, ShotAfter, ShotAfter HANDLE_EXPR return, cycle_shot pending and return, current/next HANDLE_EXPR returns, iterate_shot, and current_shot/next_shot state beside pending Pick/Force handoffs");
   ok &= contains(gameplay_c,
                  "camera_manager_force_shot_pending,"
                  "camera_manager_force_shot_action_return_bridge,"
                  "camera_manager_shotafter_order_bridge,"
+                 "camera_manager_shotafter_expr_return_bridge,"
                  "camera_manager_cycle_shot_pending_bridge,"
                  "camera_manager_cycle_shot_return_bridge,"
                  "camera_manager_current_next_state,",
-                 "camera implementation status keeps ForceCameraShot action return and ShotAfter object-order bridge beside OnCycleShot pending/return bridges between ForceCameraShot and current/next state accounting");
+                 "camera implementation status keeps ForceCameraShot action return and ShotAfter object-order and HANDLE_EXPR return bridges beside OnCycleShot pending/return bridges between ForceCameraShot and current/next state accounting");
   ok &= contains(gameplay_c,
                  "camera_manager_shotafter_order_bridge,"
+                 "camera_manager_shotafter_expr_return_bridge,"
                  "camera_manager_cycle_shot_pending_bridge,",
-                 "camera implementation status keeps CameraManager::ShotAfter immediately before cycle_shot pending accounting");
+                 "camera implementation status keeps CameraManager::ShotAfter object-order and HANDLE_EXPR return immediately before cycle_shot pending accounting");
   ok &= contains(gameplay_c,
                  "camera_manager_cycle_shot_pending_bridge,"
                  "camera_manager_cycle_shot_return_bridge,"
@@ -16085,11 +16089,24 @@ int main() {
                  "CameraManager::ShotAfter starts with the first source object for null/missing/current-last cases");
   ok &= contains(gameplay_c,
                  "\"[world]cameraShotAfter:source_expr=shot_after"
+                 "source_handle=HANDLE_EXPR"
                  "source_manager=CameraManager::ShotAfter",
-                 "camera diagnostics expose source ShotAfter routing");
+                 "camera diagnostics expose source ShotAfter HANDLE_EXPR routing");
+  ok &= contains(gameplay_c,
+                 "source_manager=CameraManager::ShotAfter"
+                 "current=%scount=0result=nonesource_return=DataNode(0)",
+                 "camera ShotAfter empty branch exposes source HANDLE_EXPR DataNode(0) return");
+  ok &= contains(gameplay_c,
+                 "source_manager=CameraManager::ShotAfter"
+                 "current=%scurrent_found=%dfirst=%safter=%safter_order=%zu"
+                 "object_order=ObjDirItrresult=%ssource_return=DataNode(CamShot)",
+                 "camera ShotAfter object branch exposes source HANDLE_EXPR CamShot return");
   ok &= contains(gameplay_c,
                  "camera_manager_shotafter_order_bridge,",
                  "camera implementation status counts the source CameraManager::ShotAfter object-order bridge");
+  ok &= contains(gameplay_c,
+                 "camera_manager_shotafter_expr_return_bridge,",
+                 "camera implementation status counts the source CameraManager::ShotAfter HANDLE_EXPR return bridge");
   ok &= contains(gameplay_c,
                  "boolGameplay::cycle_camera_shot_like_source(){",
                  "camera runtime exposes source OnCycleShot");

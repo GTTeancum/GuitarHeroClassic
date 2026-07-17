@@ -161,6 +161,17 @@
   `camera_manager_cycle_shot_pending_bridge`. This is return/proof parity only:
   no camera pose math, FreeCam priority, dependency, under-venue masking, or OG
   Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager shot_after HANDLE_EXPR return status:
+  ihatecompvir exposes `shot_after` as
+  `HANDLE_EXPR(shot_after, ShotAfter(_msg->Obj<CamShot>(2)))`, so the source
+  route returns either `DataNode(CamShot)` or `DataNode(0)` after the
+  `CameraManager::ShotAfter` object-order walk. Native ShotAfter diagnostics
+  now stamp `source_handle=HANDLE_EXPR` and `source_return=...` on both
+  branches, and the compact normal gameplay camera status counts
+  `camera_manager_shotafter_expr_return_bridge` immediately after
+  `camera_manager_shotafter_order_bridge`. This is handler return proof only:
+  no live camera selection invention, pose math, FreeCam priority, dependency,
+  under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager ShotAfter order status:
   ihatecompvir `CameraManager::ShotAfter(CamShot*)` walks
   `ObjDirItr<CamShot>` in source object order, keeps the first CamShot as the
