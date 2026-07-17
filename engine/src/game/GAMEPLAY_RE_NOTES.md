@@ -86,6 +86,17 @@
   rejection, no hidden `cam_shot_ok` / `cam_check_shot` invention, no pose
   math, no FreeCam priority change, no dependency, no under-venue masking, and
   no OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot Disable bitmask status:
+  ihatecompvir `CamShot::Disable(bool disable, int mask)` mutates
+  `mDisabled` with `mDisabled |= mask` when disabling and
+  `mDisabled &= ~mask` when clearing, while `Disabled()` returns that field to
+  the selector gate. Native already routes decoded WorldDir CamShot overrides
+  through `camshot_disable_like_source(...)` and preserves disabled bits on
+  copied camera keys; the compact status now counts
+  `camera_camshot_disable_bitmask_bridge` immediately before
+  `camera_manager_findshot_disabled_gate`. This is source state mutation
+  accounting only: no loader-side rejection, pose math, FreeCam priority,
+  dependency, under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot ShotOk previous argument status:
   ihatecompvir `CamShot::ShotOk(prevShot)` writes the previous/current manager
   shot into the `shot_ok` message before applying the visible return-type
