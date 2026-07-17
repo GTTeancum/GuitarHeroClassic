@@ -1,0 +1,648 @@
+{
+  "method": "Sample middle body rows of traced red normal sustain tail spans. Rows use relative y 0.20..0.75 of each traced component bbox to avoid far cap and strikeline/cap effects.",
+  "caveats": [
+    "PCSX2 samples are final framebuffer pixels and include venue lighting/background.",
+    "Native tail contribution and isolated layer samples are contribution images, so they diagnose renderer layers but are not direct final-frame color matches.",
+    "This pass does not infer whammy ripple behavior."
+  ],
+  "body_relative_y_range": [
+    0.2,
+    0.75
+  ],
+  "cases": {
+    "pcsx2_final": {
+      "label": "PCSX2 final frame",
+      "trace": "proofs/pcsx2_4x3_red_normal_tail_corrected_20260716_01/pcsx2_4x3_frame17_red_normal_tubed_normal_tail_trace.json",
+      "image": "proofs/pcsx2_4x3_red_normal_tail_corrected_20260716_01/pcsx2_4x3_frame17_red_normal_tubed_source.png",
+      "image_sha1": "c3d7a8453f8b5d213cae7af3c550f3be7587673e",
+      "image_size": [
+        640,
+        480
+      ],
+      "sample_semantics": "final framebuffer pixels selected by PCSX2 trace spans",
+      "layers": {
+        "silhouette": {
+          "sample_count": 961,
+          "row_count": 63,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            155.006,
+            93.27,
+            102.357
+          ],
+          "median_rgb": [
+            152.0,
+            64.0,
+            68.0
+          ],
+          "mean_luma": 107.051,
+          "median_luma": 92.948,
+          "mean_saturation": 0.6679,
+          "median_saturation": 0.7922,
+          "mean_red_dominance": 49.844,
+          "median_red_dominance": 105.0,
+          "mean_blue_dominance": -84.416,
+          "mean_green_dominance": -99.724,
+          "bbox": {
+            "min_x": 251,
+            "max_x": 295,
+            "min_y": 240,
+            "max_y": 353,
+            "width_px": 45,
+            "height_px": 114
+          }
+        },
+        "lane_body": {
+          "sample_count": 541,
+          "row_count": 63,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            204.797,
+            45.238,
+            55.115
+          ],
+          "median_rgb": [
+            216.0,
+            39.0,
+            48.0
+          ],
+          "mean_luma": 79.874,
+          "median_luma": 77.42,
+          "mean_saturation": 0.7775,
+          "median_saturation": 0.8224,
+          "mean_red_dominance": 149.682,
+          "median_red_dominance": 166.0,
+          "mean_blue_dominance": -149.682,
+          "mean_green_dominance": -159.558,
+          "bbox": {
+            "min_x": 251,
+            "max_x": 293,
+            "min_y": 240,
+            "max_y": 353,
+            "width_px": 43,
+            "height_px": 114
+          }
+        },
+        "core": {
+          "sample_count": 118,
+          "row_count": 52,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            66.398,
+            195.924,
+            222.186
+          ],
+          "median_rgb": [
+            52.0,
+            201.0,
+            242.5
+          ],
+          "mean_luma": 170.283,
+          "median_luma": 169.909,
+          "mean_saturation": 0.6904,
+          "median_saturation": 0.7576,
+          "mean_red_dominance": -155.805,
+          "median_red_dominance": -163.0,
+          "mean_blue_dominance": 26.263,
+          "mean_green_dominance": -26.263,
+          "bbox": {
+            "min_x": 252,
+            "max_x": 286,
+            "min_y": 246,
+            "max_y": 343,
+            "width_px": 35,
+            "height_px": 98
+          }
+        }
+      }
+    },
+    "native_final": {
+      "label": "Native final frame",
+      "trace": "proofs/native_4x3_post_cap_ground_tail_profile_20260717_01/trace_layers_red/post_cap_ground_red_tail_diff_normal_tail_trace.json",
+      "image": "proofs/native_4x3_post_cap_ground_tail_profile_20260717_01/full/frame_00060.png",
+      "image_sha1": "20058aae595e760c731af07e3bf0412287ea0d0a",
+      "image_size": [
+        960,
+        720
+      ],
+      "sample_semantics": "final native framebuffer pixels sampled through current native trace spans",
+      "layers": {
+        "silhouette": {
+          "sample_count": 3187,
+          "row_count": 152,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            216.369,
+            89.297,
+            90.418
+          ],
+          "median_rgb": [
+            243.0,
+            56.0,
+            64.0
+          ],
+          "mean_luma": 116.394,
+          "median_luma": 96.116,
+          "mean_saturation": 0.6612,
+          "median_saturation": 0.7733,
+          "mean_red_dominance": 120.507,
+          "median_red_dominance": 180.0,
+          "mean_blue_dominance": -136.128,
+          "mean_green_dominance": -136.497,
+          "bbox": {
+            "min_x": 355,
+            "max_x": 440,
+            "min_y": 351,
+            "max_y": 625,
+            "width_px": 86,
+            "height_px": 275
+          }
+        },
+        "lane_body": {
+          "sample_count": 2461,
+          "row_count": 151,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            233.153,
+            61.316,
+            66.213
+          ],
+          "median_rgb": [
+            244.0,
+            55.0,
+            64.0
+          ],
+          "mean_luma": 98.202,
+          "median_luma": 95.831,
+          "mean_saturation": 0.7507,
+          "median_saturation": 0.7746,
+          "mean_red_dominance": 163.631,
+          "median_red_dominance": 180.0,
+          "mean_blue_dominance": -168.033,
+          "mean_green_dominance": -172.733,
+          "bbox": {
+            "min_x": 365,
+            "max_x": 440,
+            "min_y": 351,
+            "max_y": 624,
+            "width_px": 76,
+            "height_px": 274
+          }
+        },
+        "core": {
+          "sample_count": 620,
+          "row_count": 120,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            151.916,
+            188.792,
+            178.874
+          ],
+          "median_rgb": [
+            143.0,
+            207.0,
+            203.0
+          ],
+          "mean_luma": 180.236,
+          "median_luma": 191.336,
+          "mean_saturation": 0.3571,
+          "median_saturation": 0.3325,
+          "mean_red_dominance": -37.805,
+          "median_red_dominance": -60.0,
+          "mean_blue_dominance": -20.284,
+          "mean_green_dominance": -8.506,
+          "bbox": {
+            "min_x": 355,
+            "max_x": 421,
+            "min_y": 388,
+            "max_y": 624,
+            "width_px": 67,
+            "height_px": 237
+          }
+        }
+      }
+    },
+    "native_tail_contribution": {
+      "label": "Native tail contribution",
+      "trace": "proofs/native_4x3_post_cap_ground_tail_profile_20260717_01/trace_layers_red/post_cap_ground_red_tail_diff_normal_tail_trace.json",
+      "image": "proofs/native_4x3_post_cap_ground_tail_profile_20260717_01/trace_layers_red/post_cap_ground_red_tail_diff_source.png",
+      "image_sha1": "38cee25e754d24250864ccb52f6318e720940981",
+      "image_size": [
+        960,
+        720
+      ],
+      "sample_semantics": "tail-only contribution image generated by subtracting no-sustain capture from full capture",
+      "layers": {
+        "silhouette": {
+          "sample_count": 3187,
+          "row_count": 152,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            159.595,
+            60.015,
+            57.212
+          ],
+          "median_rgb": [
+            139.0,
+            40.0,
+            38.0
+          ],
+          "mean_luma": 80.984,
+          "median_luma": 65.972,
+          "mean_saturation": 0.7749,
+          "median_saturation": 0.8509,
+          "mean_red_dominance": 92.416,
+          "median_red_dominance": 110.0,
+          "mean_blue_dominance": -114.243,
+          "mean_green_dominance": -112.213,
+          "bbox": {
+            "min_x": 355,
+            "max_x": 440,
+            "min_y": 351,
+            "max_y": 625,
+            "width_px": 86,
+            "height_px": 275
+          }
+        },
+        "lane_body": {
+          "sample_count": 2461,
+          "row_count": 151,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            176.809,
+            37.684,
+            34.544
+          ],
+          "median_rgb": [
+            190.0,
+            35.0,
+            30.0
+          ],
+          "mean_luma": 67.035,
+          "median_luma": 58.409,
+          "mean_saturation": 0.8607,
+          "median_saturation": 0.8972,
+          "mean_red_dominance": 131.28,
+          "median_red_dominance": 159.0,
+          "mean_blue_dominance": -143.596,
+          "mean_green_dominance": -140.299,
+          "bbox": {
+            "min_x": 365,
+            "max_x": 440,
+            "min_y": 351,
+            "max_y": 624,
+            "width_px": 76,
+            "height_px": 274
+          }
+        },
+        "core": {
+          "sample_count": 620,
+          "row_count": 120,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            103.134,
+            146.652,
+            145.492
+          ],
+          "median_rgb": [
+            101.0,
+            168.0,
+            180.0
+          ],
+          "mean_luma": 137.316,
+          "median_luma": 154.92,
+          "mean_saturation": 0.4678,
+          "median_saturation": 0.4538,
+          "mean_red_dominance": -48.526,
+          "median_red_dominance": -69.0,
+          "mean_blue_dominance": -9.911,
+          "mean_green_dominance": -13.121,
+          "bbox": {
+            "min_x": 355,
+            "max_x": 421,
+            "min_y": 388,
+            "max_y": 624,
+            "width_px": 67,
+            "height_px": 237
+          }
+        }
+      }
+    },
+    "native_body_fill_only": {
+      "label": "Native held_body_fill only",
+      "trace": "proofs/native_4x3_post_cap_tail_layer_isolation_20260717_01/held_body_fill/trace_red/post_cap_held_body_fill_normal_tail_trace.json",
+      "image": "proofs/native_4x3_post_cap_tail_layer_isolation_20260717_01/held_body_fill/trace_red/post_cap_held_body_fill_source.png",
+      "image_sha1": "c0bc0828d51e9cb6550cffe0e38a4491921b4b2f",
+      "image_size": [
+        960,
+        720
+      ],
+      "sample_semantics": "isolated renderer layer contribution",
+      "layers": {
+        "silhouette": {
+          "sample_count": 2102,
+          "row_count": 144,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            182.698,
+            29.567,
+            29.058
+          ],
+          "median_rgb": [
+            196.0,
+            33.0,
+            25.0
+          ],
+          "mean_luma": 62.086,
+          "median_luma": 59.554,
+          "mean_saturation": 0.8914,
+          "median_saturation": 0.8915,
+          "mean_red_dominance": 144.399,
+          "median_red_dominance": 166.0,
+          "mean_blue_dominance": -153.64,
+          "mean_green_dominance": -153.131,
+          "bbox": {
+            "min_x": 364,
+            "max_x": 438,
+            "min_y": 362,
+            "max_y": 624,
+            "width_px": 75,
+            "height_px": 263
+          }
+        },
+        "lane_body": {
+          "sample_count": 2102,
+          "row_count": 144,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            182.698,
+            29.567,
+            29.058
+          ],
+          "median_rgb": [
+            196.0,
+            33.0,
+            25.0
+          ],
+          "mean_luma": 62.086,
+          "median_luma": 59.554,
+          "mean_saturation": 0.8914,
+          "median_saturation": 0.8915,
+          "mean_red_dominance": 144.399,
+          "median_red_dominance": 166.0,
+          "mean_blue_dominance": -153.64,
+          "mean_green_dominance": -153.131,
+          "bbox": {
+            "min_x": 364,
+            "max_x": 438,
+            "min_y": 362,
+            "max_y": 624,
+            "width_px": 75,
+            "height_px": 263
+          }
+        },
+        "core": null
+      }
+    },
+    "native_body_detail_only": {
+      "label": "Native held_body_detail only",
+      "trace": "proofs/native_4x3_post_cap_tail_layer_isolation_20260717_01/held_body_detail/trace_red/post_cap_held_body_detail_normal_tail_trace.json",
+      "image": "proofs/native_4x3_post_cap_tail_layer_isolation_20260717_01/held_body_detail/trace_red/post_cap_held_body_detail_source.png",
+      "image_sha1": "f2473d662c3792e6c3dc28521c242d2122b5be89",
+      "image_size": [
+        960,
+        720
+      ],
+      "sample_semantics": "isolated renderer layer contribution",
+      "layers": {
+        "silhouette": {
+          "sample_count": 2388,
+          "row_count": 114,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            112.557,
+            46.361,
+            11.459
+          ],
+          "median_rgb": [
+            113.0,
+            47.0,
+            12.0
+          ],
+          "mean_luma": 57.914,
+          "median_luma": 58.505,
+          "mean_saturation": 0.8982,
+          "median_saturation": 0.8983,
+          "mean_red_dominance": 66.196,
+          "median_red_dominance": 67.0,
+          "mean_blue_dominance": -101.099,
+          "mean_green_dominance": -66.196,
+          "bbox": {
+            "min_x": 357,
+            "max_x": 424,
+            "min_y": 419,
+            "max_y": 625,
+            "width_px": 68,
+            "height_px": 207
+          }
+        },
+        "lane_body": {
+          "sample_count": 2388,
+          "row_count": 114,
+          "body_relative_y_range": [
+            0.2,
+            0.75
+          ],
+          "mean_rgb": [
+            112.557,
+            46.361,
+            11.459
+          ],
+          "median_rgb": [
+            113.0,
+            47.0,
+            12.0
+          ],
+          "mean_luma": 57.914,
+          "median_luma": 58.505,
+          "mean_saturation": 0.8982,
+          "median_saturation": 0.8983,
+          "mean_red_dominance": 66.196,
+          "median_red_dominance": 67.0,
+          "mean_blue_dominance": -101.099,
+          "mean_green_dominance": -66.196,
+          "bbox": {
+            "min_x": 357,
+            "max_x": 424,
+            "min_y": 419,
+            "max_y": 625,
+            "width_px": 68,
+            "height_px": 207
+          }
+        },
+        "core": null
+      }
+    }
+  },
+  "comparisons": {
+    "native_final_minus_pcsx2_final": {
+      "silhouette": {
+        "mean_rgb_delta": [
+          61.363,
+          -3.973,
+          -11.939
+        ],
+        "mean_luma_delta": 9.343,
+        "mean_saturation_delta": -0.007,
+        "mean_red_dominance_delta": 70.663,
+        "mean_blue_dominance_delta": -51.712,
+        "mean_green_dominance_delta": -36.773
+      },
+      "lane_body": {
+        "mean_rgb_delta": [
+          28.356,
+          16.078,
+          11.098
+        ],
+        "mean_luma_delta": 18.328,
+        "mean_saturation_delta": -0.027,
+        "mean_red_dominance_delta": 13.949,
+        "mean_blue_dominance_delta": -18.351,
+        "mean_green_dominance_delta": -13.175
+      },
+      "core": {
+        "mean_rgb_delta": [
+          85.518,
+          -7.132,
+          -43.312
+        ],
+        "mean_luma_delta": 9.953,
+        "mean_saturation_delta": -0.333,
+        "mean_red_dominance_delta": 118.0,
+        "mean_blue_dominance_delta": -46.547,
+        "mean_green_dominance_delta": 17.757
+      }
+    },
+    "native_tail_contribution_minus_pcsx2_final": {
+      "silhouette": {
+        "mean_rgb_delta": [
+          4.589,
+          -33.255,
+          -45.145
+        ],
+        "mean_luma_delta": -26.067,
+        "mean_saturation_delta": 0.107,
+        "mean_red_dominance_delta": 42.572,
+        "mean_blue_dominance_delta": -29.827,
+        "mean_green_dominance_delta": -12.489
+      },
+      "lane_body": {
+        "mean_rgb_delta": [
+          -27.988,
+          -7.554,
+          -20.571
+        ],
+        "mean_luma_delta": -12.839,
+        "mean_saturation_delta": 0.083,
+        "mean_red_dominance_delta": -18.402,
+        "mean_blue_dominance_delta": 6.086,
+        "mean_green_dominance_delta": 19.259
+      },
+      "core": {
+        "mean_rgb_delta": [
+          36.736,
+          -49.272,
+          -76.694
+        ],
+        "mean_luma_delta": -32.967,
+        "mean_saturation_delta": -0.223,
+        "mean_red_dominance_delta": 107.279,
+        "mean_blue_dominance_delta": -36.174,
+        "mean_green_dominance_delta": 13.142
+      }
+    },
+    "native_body_detail_minus_body_fill_contribution": {
+      "silhouette": {
+        "mean_rgb_delta": [
+          -70.141,
+          16.794,
+          -17.599
+        ],
+        "mean_luma_delta": -4.172,
+        "mean_saturation_delta": 0.007,
+        "mean_red_dominance_delta": -78.203,
+        "mean_blue_dominance_delta": 52.541,
+        "mean_green_dominance_delta": 86.935
+      },
+      "lane_body": {
+        "mean_rgb_delta": [
+          -70.141,
+          16.794,
+          -17.599
+        ],
+        "mean_luma_delta": -4.172,
+        "mean_saturation_delta": 0.007,
+        "mean_red_dominance_delta": -78.203,
+        "mean_blue_dominance_delta": 52.541,
+        "mean_green_dominance_delta": 86.935
+      },
+      "core": null
+    }
+  },
+  "findings": [
+    "Current native material inputs remain source-backed by track_graphics.dtb/MILO audit; this measurement is about visible pixel contribution, not authoring new colors.",
+    "The isolated held_body_detail contribution is measured separately because previous width isolation showed it is a large contributor to visible lane-body spread.",
+    "No renderer color/blend patch is justified by this artifact alone; a source-object/draw-state mapping is still needed before changing material color, alpha, or blend globally."
+  ],
+  "artifact_policy": {
+    "retained": [
+      "tail_color_contribution_summary.json",
+      "tail_color_contribution_contact_sheet.png",
+      "fresh_native_4x3_proof_sheet.png",
+      "fresh_native_4x3/fresh_capture_summary.json",
+      "fresh_native_4x3/frame_00060.png"
+    ],
+    "cleaned_after_summary": [
+      "untracked native full/no-sustain/tail-diff source folders from the prior post-cap measurement",
+      "untracked native tail layer isolation source folders",
+      "untracked rejected detail-profile experiment folder"
+    ],
+    "reason": "Keep the pass reproducible at the summary/proof level without retaining raw capture debris."
+  }
+}
