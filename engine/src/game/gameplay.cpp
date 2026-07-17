@@ -20863,10 +20863,6 @@ std::optional<CameraResultRows> camera_member_world_copy_candidate_rows_for_key(
             for (int axis = 0; axis < 3; ++axis) sum[axis] += pos[axis];
             ++count;
         }
-        if (count == 0) {
-            add_member(key.target_entity, key.target_subpart,
-                       key.target_source_object);
-        }
     } else {
         add_member(key.target_entity, key.target_subpart,
                    key.target_source_object);
@@ -21912,6 +21908,7 @@ std::optional<CameraTarget> camera_target_for_key(
         if (auto target = camera_target_for_ref(ref, targets))
             return target;
     }
+    if (!key.target_refs.empty()) return std::nullopt;
     return camera_target_for_ref(key.target_entity, key.target_subpart,
                                  key.target_source_object, targets);
 }
@@ -21938,10 +21935,6 @@ CameraSourceTargetUpdate camera_update_targets_like_camshot(
             for (int axis = 0; axis < 3; ++axis)
                 update.centroid[axis] += pos[axis];
             ++update.resolved_count;
-        }
-        if (update.resolved_count == 0) {
-            add_target(key.target_entity, key.target_subpart,
-                       key.target_source_object);
         }
     } else {
         add_target(key.target_entity, key.target_subpart,
@@ -22265,15 +22258,6 @@ std::vector<std::string> camera_resolved_target_signature_for_key(
         for (const auto& ref : key.target_refs) {
             if (auto id = camera_resolved_target_id_for_ref(
                     ref.entity, ref.subpart, ref.source_object, targets)) {
-                refs.push_back(std::move(*id));
-            }
-        }
-        if (refs.empty() &&
-            (!key.target_entity.empty() || !key.target_subpart.empty() ||
-             !key.target_source_object.empty())) {
-            if (auto id = camera_resolved_target_id_for_ref(
-                    key.target_entity, key.target_subpart,
-                    key.target_source_object, targets)) {
                 refs.push_back(std::move(*id));
             }
         }
@@ -23186,6 +23170,18 @@ void apply_camera_keys(
         const auto a_parent_eye = debug_ref_eye(*a, true);
         const auto b_target_eye = debug_ref_eye(*b, false);
         const auto b_parent_eye = debug_ref_eye(*b, true);
+        const size_t a_authored_target_refs =
+            camera_target_ref_count_for_key(*a);
+        const size_t b_authored_target_refs =
+            camera_target_ref_count_for_key(*b);
+        const size_t a_unresolved_target_refs =
+            a_authored_target_refs > a_target_update.resolved_count
+                ? a_authored_target_refs - a_target_update.resolved_count
+                : 0u;
+        const size_t b_unresolved_target_refs =
+            b_authored_target_refs > b_target_update.resolved_count
+                ? b_authored_target_refs - b_target_update.resolved_count
+                : 0u;
         const auto screen_norm =
             camshot_result_screen_norm_for_offset(cam.screen_offset[0],
                                                   cam.screen_offset[1]);
@@ -23298,6 +23294,8 @@ void apply_camera_keys(
             "source_call=UpdateTarget/GetCurrentTargetPosition "
             "shot_a=%s shot_b=%s local_frame=%.3f "
             "a_resolved=%zu b_resolved=%zu "
+            "a_authored=%zu b_authored=%zu "
+            "a_unresolved=%zu b_unresolved=%zu "
             "a_centroid=(%.3f %.3f %.3f) b_centroid=(%.3f %.3f %.3f) "
             "a_parent_cached=%d b_parent_cached=%d "
             "a_parent=(%.3f %.3f %.3f) b_parent=(%.3f %.3f %.3f) "
@@ -23305,9 +23303,13 @@ void apply_camera_keys(
             "cache_source=CamShotFrame::UpdateTarget "
             "cached_fields=unk34,unk44 callsite=not_recovered "
             "source_rule=average_non_null_targets,parent_world_xfm "
+            "null_target_rule=skip_no_legacy_fallback "
+            "target_list_source=CamShotFrame::mTargets "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             a->name.c_str(), b->name.c_str(), frame,
             a_target_update.resolved_count, b_target_update.resolved_count,
+            a_authored_target_refs, b_authored_target_refs,
+            a_unresolved_target_refs, b_unresolved_target_refs,
             a_target_update.centroid[0], a_target_update.centroid[1],
             a_target_update.centroid[2], b_target_update.centroid[0],
             b_target_update.centroid[1], b_target_update.centroid[2],

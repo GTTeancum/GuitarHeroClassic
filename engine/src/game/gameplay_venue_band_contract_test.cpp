@@ -8474,6 +8474,20 @@ int main() {
                  "CameraSourceTargetUpdatecamera_update_targets_like_camshot(",
                  "native camera has an ihatecompvir CamShotFrame target update helper");
   ok &= contains(gameplay_c,
+                 "if(!key.target_refs.empty())returnstd::nullopt;"
+                 "returncamera_target_for_ref(key.target_entity,"
+                 "key.target_subpart,key.target_source_object,targets);",
+                 "CamShot target lookup treats decoded target lists as authoritative");
+  ok &= absent(gameplay_c,
+               "if(update.resolved_count==0){add_target("
+               "key.target_entity,key.target_subpart,"
+               "key.target_source_object);}",
+               "CamShot UpdateTarget must not invent a legacy fallback when decoded target refs are all null");
+  ok &= absent(gameplay_c,
+               "if(count==0){add_member(key.target_entity,"
+               "key.target_subpart,key.target_source_object);}",
+               "diagnostic target-list member copy must not invent a legacy fallback when decoded refs are all null");
+  ok &= contains(gameplay_c,
                  "if(constautoparent=camera_parent_for_key(key,targets)){"
                  "update.has_parent=true;"
                  "update.parent_position=mat4_position_game(parent->world);"
@@ -8508,6 +8522,16 @@ int main() {
                  "source_class=CamShotFrame",
                  "camera UpdateTarget diagnostics lead with normal gameplay camera scope");
   ok &= contains(gameplay_c,
+                 "a_authored=%zub_authored=%zu"
+                 "\"\""
+                 "a_unresolved=%zub_unresolved=%zu",
+                 "camera UpdateTarget diagnostics expose unresolved decoded target-list refs");
+  ok &= contains(gameplay_c,
+                 "null_target_rule=skip_no_legacy_fallback"
+                 "\"\""
+                 "target_list_source=CamShotFrame::mTargets",
+                 "camera UpdateTarget diagnostics identify the source null-target rule");
+  ok &= contains(gameplay_c,
                  "constautoa_frame_target_cache="
                  "camera_update_frame_target_cache_like_source(*a,targets);"
                  "constautob_frame_target_cache="
@@ -8521,6 +8545,8 @@ int main() {
                  "regular camera Interp target centroids come from cached unk34 fields");
   ok &= contains(gameplay_c,
                  "source_rule=average_non_null_targets,parent_world_xfm"
+                 "\"\"null_target_rule=skip_no_legacy_fallback"
+                 "\"\"target_list_source=CamShotFrame::mTargets"
                  "\"\"freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0",
                  "camera diagnostics expose GetCurrentTargetPosition averaging before deferred FreeCam status");
@@ -8689,16 +8715,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"(source_object=\"",
                  "camera target-ref diagnostics expose direct CamShot ObjPtr source objects");
-  ok &= contains(gameplay_c,
-                 "if(update.resolved_count==0){add_target("
-                 "key.target_entity,key.target_subpart,"
-                 "key.target_source_object);}",
-                 "CamShot UpdateTarget falls back to the preserved direct source object when target refs do not resolve");
-  ok &= contains(gameplay_c,
-                 "if(refs.empty()&&(!key.target_entity.empty()||"
-                 "!key.target_subpart.empty()||"
-                 "!key.target_source_object.empty()))",
-                 "CamShot SameTargets falls back to the preserved direct source object when target refs do not resolve");
+  ok &= absent(gameplay_c,
+               "if(refs.empty()&&(!key.target_entity.empty()||"
+               "!key.target_subpart.empty()||"
+               "!key.target_source_object.empty()))",
+               "CamShot SameTargets must not invent a legacy fallback when decoded target refs are all null");
   ok &= contains(gameplay_c,
                  "\"a_parent=%s:%s(source_object=%s)\"",
                  "camera diagnostics expose direct CamShot parent ObjPtr source objects");

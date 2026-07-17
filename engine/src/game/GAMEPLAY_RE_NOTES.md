@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot target-list null rule:
+  ihatecompvir `CamShotFrame::HasTargets()` and
+  `GetCurrentTargetPosition()` iterate the decoded `mTargets` object-pointer
+  list, skip null targets, and average only the non-null target world
+  positions. Native no longer falls back to the legacy single target fields
+  when a decoded target list exists but resolves to zero native targets; those
+  frames now stay targetless just like the source. `UpdateTarget` diagnostics
+  print authored/resolved/unresolved target counts and
+  `null_target_rule=skip_no_legacy_fallback`. This is normal gameplay camera
+  source parity at the target-resolution boundary: no `BuildTransform`
+  synthesis, no vertical sign flip, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay current-walkspot match-mode proof:
   The normal gameplay camera `shot_ok` row now prints the current walkspot
   comparison key, the matched authored `bad_waypoints` key, and whether that
