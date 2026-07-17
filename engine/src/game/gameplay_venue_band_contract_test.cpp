@@ -11845,9 +11845,20 @@ int main() {
                  "shot_over,chart)",
                  "source CheckShotOver bridge refuses shots already marked over");
   ok &= contains(gameplay_c,
-                 "status.looping=shot.has_camshot_looping&&"
-                 "shot.camshot_looping;",
-                 "source CheckShotOver bridge refuses looping CamShots");
+                 "status.looping=shot.has_camshot_looping?"
+                 "shot.camshot_looping:true;",
+                 "source CheckShotOver bridge refuses looping CamShots with the source constructor default");
+  ok &= contains(gameplay_c,
+                 "constboolsource_looping=shot.has_camshot_looping?"
+                 "shot.camshot_looping:true;"
+                 "if(source_looping){",
+                 "source CamShot GetKey looping uses the source constructor default");
+  ok &= contains(gameplay_c,
+                 "constsize_twrap_index=source_looping?loop_start_index:i;",
+                 "source CamShot GetKey wrap decision uses the shared source looping value");
+  ok &= absent(gameplay_c,
+               "shot.has_camshot_looping&&shot.camshot_looping",
+               "source CamShot looping must not treat a missing decoded flag as false");
   ok &= contains(gameplay_c,
                  "returnstatus.fired;",
                  "source CheckShotOver bridge compares local frame to decoded CamShot duration");
@@ -11883,8 +11894,8 @@ int main() {
                  "shot,song_time,start_time,chart);",
                  "looping CamShot diagnostics preserve the pre-wrap source frame");
   ok &= contains(gameplay_c,
-                 "constsize_twrap_index=can_wrap?loop_start_index:i;",
-                 "looping CamShot final blends wrap to the decoded loop keyframe");
+                 "constsize_twrap_index=source_looping?loop_start_index:i;",
+                 "looping CamShot final blends wrap to the decoded loop keyframe through the source constructor default");
   ok &= contains(gameplay_c,
                  "std::vector<Gameplay::CameraKey>regular_camera_path_keys(",
                  "path-backed regular CamShots keep the authored TransAnim sequence");

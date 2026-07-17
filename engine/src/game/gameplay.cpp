@@ -18597,7 +18597,8 @@ CameraSourceShotOverStatus camera_source_shot_over_status(
     status.local_frame =
         camera_source_local_frame(shot, song_time, start_time, chart);
     status.mshot_over = shot_over;
-    status.looping = shot.has_camshot_looping && shot.camshot_looping;
+    status.looping =
+        shot.has_camshot_looping ? shot.camshot_looping : true;
     status.duration_valid =
         std::isfinite(status.duration_frames) && status.duration_frames >= 0.0f;
     status.local_at_duration =
@@ -18694,7 +18695,9 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
         return make_source_frame_hold(cur, 0.0f, timing_duration(cur),
                                       timing_blend(cur), 0);
     }
-    if (shot.has_camshot_looping && shot.camshot_looping) {
+    const bool source_looping =
+        shot.has_camshot_looping ? shot.camshot_looping : true;
+    if (source_looping) {
         loop_start_index = static_cast<size_t>(std::clamp(
             shot.camshot_loop_keyframe, 0,
             static_cast<int>(frames.size() - 1)));
@@ -18731,9 +18734,7 @@ std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
             if (in_key < duration || blend <= 0.001f) {
                 return make_source_frame_hold(cur, cursor, duration, blend, i);
             }
-            const bool can_wrap =
-                shot.has_camshot_looping && shot.camshot_looping;
-            const size_t wrap_index = can_wrap ? loop_start_index : i;
+            const size_t wrap_index = source_looping ? loop_start_index : i;
             const size_t next_index =
                 (i + 1 < frames.size()) ? i + 1 : wrap_index;
             if (next_index == i) {

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot looping default parity:
+  ihatecompvir `CamShot::CamShot()` initializes `mLooping(1)`, and
+  `CheckShotOver(float)` / `CamShot::GetKey` source behavior reads that field.
+  Native now treats a missing decoded loop flag as the source constructor
+  default `true` in the shot-over gate and source frame-loop selection, while
+  still honoring authored decoded loop values when present. This is normal
+  gameplay camera lifetime/timing parity only: no pose math, no
+  `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot blend-ease gate parity:
   ihatecompvir `CamShotFrame::Interp` enters the `ATanInterpolator` path with
   `if(mBlendEase)`, so any nonzero authored `mBlendEase` value is source-live.
