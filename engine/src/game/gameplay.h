@@ -185,7 +185,7 @@ class Gameplay {
     float blend_ease = 0.0f;
     int blend_ease_mode = 0;
     bool has_timing = false;
-    bool camshot_looping = false;
+    bool camshot_looping = true;
     int camshot_loop_keyframe = 0;
     bool has_camshot_looping = false;
     int camshot_anim_rate = 0;
@@ -211,12 +211,12 @@ class Gameplay {
     bool parent_first_frame = false;
     bool has_parent_first_frame = false;
     std::string category;
-    float shot_filter = 0.0f;
+    float shot_filter = 0.9f;
     bool has_shot_filter = false;
-    float clamp_height = 0.0f;
+    float clamp_height = -1.0f;
     bool has_clamp_height = false;
-    float near_plane = 0.0f;
-    float far_plane = 0.0f;
+    float near_plane = 1.0f;
+    float far_plane = 1000.0f;
     bool has_clip_planes = false;
     bool use_depth_of_field = false;
     bool has_use_depth_of_field = false;

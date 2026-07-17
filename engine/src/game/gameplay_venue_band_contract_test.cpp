@@ -8907,10 +8907,15 @@ int main() {
                  "boolhas_camshot_anim_rate=false;",
                  "CameraKey preserves CamShot RndAnimatable rate metadata");
   ok &= contains(gameplay_h_c,
-                 "std::stringcategory;floatshot_filter=0.0f;"
-                 "boolhas_shot_filter=false;floatclamp_height=0.0f;"
+                 "boolcamshot_looping=true;"
+                 "intcamshot_loop_keyframe=0;"
+                 "boolhas_camshot_looping=false;",
+                 "CameraKey defaults CamShot looping like ihatecompvir CamShot constructor");
+  ok &= contains(gameplay_h_c,
+                 "std::stringcategory;floatshot_filter=0.9f;"
+                 "boolhas_shot_filter=false;floatclamp_height=-1.0f;"
                  "boolhas_clamp_height=false;",
-                 "CameraKey preserves CamShot category/filter/clamp fields");
+                 "CameraKey defaults CamShot category/filter/clamp fields like ihatecompvir CamShot constructor");
   ok &= contains(gameplay_c,
                  "boollooping=true;",
                  "DecodedCamShot mirrors ihatecompvir CamShot constructor mLooping default");
@@ -8940,9 +8945,9 @@ int main() {
                  "venue_camera_target_worlds_;",
                  "venue camera diagnostics keep venue transforms separate from performer targets");
   ok &= contains(gameplay_h_c,
-                 "floatnear_plane=0.0f;floatfar_plane=0.0f;"
+                 "floatnear_plane=1.0f;floatfar_plane=1000.0f;"
                  "boolhas_clip_planes=false;",
-                 "CameraKey preserves CamShot authored clip planes");
+                 "CameraKey defaults CamShot clip planes like ihatecompvir CamShot constructor");
   ok &= contains(gameplay_h_c,
                  "booluse_depth_of_field=false;"
                  "boolhas_use_depth_of_field=false;"
