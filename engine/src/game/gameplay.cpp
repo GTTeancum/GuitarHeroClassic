@@ -18399,16 +18399,17 @@ uint32_t camera_source_beat_for_trigger_tick(
     return trigger_tick / chart.ticks_per_beat;
 }
 
-bool camera_source_one_bar_to_camera_beat_gate_open(
-    uint32_t camera_beat) {
-    return camera_beat > 0;
+uint32_t camera_source_one_bar_to_camera_beat_for_trigger(
+    const ghogx::chart::Chart& chart,
+    uint32_t trigger_tick) {
+    // world_objects_worldbase.dta::one_bar_to reads the stored [camera_beat]
+    // script variable; seek replay derives the same latch value at the trigger.
+    return camera_source_beat_for_trigger_tick(chart, trigger_tick);
 }
 
 bool camera_source_one_bar_to_camera_beat_gate_open(
-    const ghogx::chart::Chart& chart,
-    uint32_t trigger_tick) {
-    return camera_source_one_bar_to_camera_beat_gate_open(
-        camera_source_beat_for_trigger_tick(chart, trigger_tick));
+    uint32_t camera_beat) {
+    return camera_beat > 0;
 }
 
 const char* camera_source_one_bar_to_solo_switch_label(
@@ -18446,8 +18447,11 @@ size_t camera_source_one_bar_to_cursor_at(const ghogx::chart::Chart& chart,
         }
         const double trigger_time = chart.tick_to_sec(trigger_tick);
         if (trigger_time >= song_time) break;
-        if (!camera_source_one_bar_to_camera_beat_gate_open(chart,
-                                                            trigger_tick)) {
+        const uint32_t source_camera_beat =
+            camera_source_one_bar_to_camera_beat_for_trigger(chart,
+                                                             trigger_tick);
+        if (!camera_source_one_bar_to_camera_beat_gate_open(
+                source_camera_beat)) {
             ++index;
             continue;
         }
@@ -18469,8 +18473,11 @@ bool camera_source_one_bar_to_solo_state_at(
         const double trigger_time =
             chart.tick_to_sec(trigger_tick);
         if (trigger_time >= song_time) break;
-        if (!camera_source_one_bar_to_camera_beat_gate_open(chart,
-                                                            trigger_tick)) {
+        const uint32_t source_camera_beat =
+            camera_source_one_bar_to_camera_beat_for_trigger(chart,
+                                                             trigger_tick);
+        if (!camera_source_one_bar_to_camera_beat_gate_open(
+                source_camera_beat)) {
             continue;
         }
         camera_solo =
@@ -37529,7 +37536,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_manager_first_shot_ok_hook,camera_manager_shotmatches_filters,camera_manager_findshot_moveitem,camera_manager_pickshot_pending,camera_manager_force_shot_pending,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_lifecycle,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_startanim_state_reset,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_manager_calcframe_units,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_visibility,camera_shot_started_postswitch,camera_shot_over,camera_camshot_duration_seconds,camera_frame_pair_timing,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_one_bar_to_seek_latch_replay,camera_manager_first_shot_ok_hook,camera_manager_shotmatches_filters,camera_manager_findshot_moveitem,camera_manager_pickshot_pending,camera_manager_force_shot_pending,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_lifecycle,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_startanim_state_reset,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_manager_calcframe_units,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_visibility,camera_shot_started_postswitch,camera_shot_over,camera_camshot_duration_seconds,camera_frame_pair_timing,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }

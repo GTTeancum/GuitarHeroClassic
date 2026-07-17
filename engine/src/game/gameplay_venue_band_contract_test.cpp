@@ -6718,8 +6718,19 @@ int main() {
                  "if(trigger_tick==0){++next_camera_one_bar_to_event_idx_;continue;}",
                  "camera one_bar_to consumes impossible zero-bar triggers");
   ok &= contains(gameplay_c,
-                 "camera_source_one_bar_to_camera_beat_gate_open(chart,trigger_tick)",
-                 "camera one_bar_to cursor/seek helpers mirror the source camera_beat > 0 guard");
+                 "uint32_tcamera_source_one_bar_to_camera_beat_for_trigger("
+                 "constghogx::chart::Chart&chart,uint32_ttrigger_tick)",
+                 "camera one_bar_to seek replay derives the source camera_beat latch");
+  ok &= contains(gameplay_c,
+                 "constuint32_tsource_camera_beat="
+                 "camera_source_one_bar_to_camera_beat_for_trigger("
+                 "chart,trigger_tick);"
+                 "if(!camera_source_one_bar_to_camera_beat_gate_open("
+                 "source_camera_beat))",
+                 "camera one_bar_to cursor/seek helpers pass the stored source camera_beat latch to the gate");
+  ok &= absent(gameplay_c,
+               "camera_source_one_bar_to_camera_beat_gate_open(chart,trigger_tick)",
+               "camera one_bar_to seek replay must not hide the source latch behind a chart/trigger gate");
   ok &= contains(gameplay_c,
                  "if(!camera_source_one_bar_to_camera_beat_gate_open(camera_beat_state_)){",
                  "runtime camera one_bar_to mirrors the stored source camera_beat > 0 guard");
@@ -14907,6 +14918,7 @@ int main() {
                  "camera implementation status counts the CamShot OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
+                 "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_shotmatches_filters,"
                  "camera_manager_findshot_moveitem,"
@@ -14915,7 +14927,7 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CameraManager FirstShotOk, ShotMatches filters, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source one_bar_to seek-latch replay, CameraManager FirstShotOk, ShotMatches filters, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"

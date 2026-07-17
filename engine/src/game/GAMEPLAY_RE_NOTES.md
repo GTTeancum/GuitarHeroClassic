@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay one_bar_to seek camera-beat latch replay:
+  GH2 `world_objects_worldbase.dta::one_bar_to` gates section-driven camera
+  picks on the stored `[camera_beat]` script variable, not a hidden FreeCam or
+  pose-side condition. Live native gameplay already updated `camera_beat_state_`
+  before `one_bar_to` and `check_shot`; diagnostic seek replay now derives an
+  explicit source camera-beat latch for each elapsed `one_bar_to` trigger and
+  passes that latch to the same gate instead of hiding the behavior behind a
+  chart/trigger overload. The compact camera status counts
+  `camera_one_bar_to_seek_latch_replay` beside regular selection so seek-based
+  screenshots can be audited against source script state. This is normal
+  gameplay camera selector-state parity only: no `cam_shot_ok` /
+  `cam_check_shot` result invention, no pose math, no `BuildTransform` or
+  `RndCam::UpdateLocal` synthesis, no under-venue masking, no FreeCam priority
+  change, and no dependency or OG Xbox portability change.
 - 2026-07-17 gameplay camera submitted/source frame proof split:
   normal gameplay camera solver diagnostics previously printed the native
   renderer submission frame as `frame` / `local_frame` even though the actual
