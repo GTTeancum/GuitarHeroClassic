@@ -510,6 +510,18 @@
   warning/pending handoff accounting. This is success-return parity only: no
   fallback shot, hidden `cam_shot_ok` invention, pose math, FreeCam priority,
   dependency, under-venue masking, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager PickCameraShot return status:
+  ihatecompvir `CameraManager::PickCameraShot(...)` calls
+  `FindCameraShot(...)`, assigns the accepted `CamShot*` into `mNextShot`, and
+  returns that same `CamShot*`; the failure branch warns and returns `0`.
+  Native live `OnPickCameraShot` proof now distinguishes the inner
+  `PickCameraShot` success return from the wrapper `DataNode(CamShot)` return
+  while still showing the queued `mNextShot` handoff. The compact status counts
+  `camera_manager_pickshot_return_bridge` between the FindCameraShot return and
+  the separate PickCameraShot warning/pending accounting. This is return/proof
+  parity only: no fallback shot, hidden `cam_shot_ok` invention, pose math,
+  FreeCam priority, dependency, under-venue masking, or OG Xbox portability
+  surface changed.
 - 2026-07-17 gameplay CameraManager ShotMatches status:
   ihatecompvir `CameraManager::ShotMatches(...)` evaluates each authored
   filter by reading either the visible `flags_any` / `flags_exact` masks or the

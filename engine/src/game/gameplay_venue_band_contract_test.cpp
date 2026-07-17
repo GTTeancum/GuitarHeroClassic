@@ -14933,7 +14933,8 @@ int main() {
                  "source_manager=CameraManager::OnPickCameraShot"
                  "source_call=MakeCategoryAndFilters->PickCameraShot"
                  "category=%sfilters=\\\"%s\\\"filter_count=%zu"
-                 "result=%ssource_return=CamShotsource_field=mNextShot"
+                 "result=%ssource_pick_return=CamShotsource_return=DataNode(CamShot)"
+                 "source_field=mNextShot"
                  "current=%snext=%s\\n\"",
                  "regular camera diagnostics expose the source OnPickCameraShot wrapper return and queued mNextShot");
   ok &= contains(gameplay_c,
@@ -14985,6 +14986,7 @@ int main() {
                  "camera_camshot_radio_flags_bridge,"
                  "camera_manager_findshot_moveitem,"
                  "camera_manager_findshot_return_bridge,"
+                 "camera_manager_pickshot_return_bridge,"
                  "camera_manager_pickshot_no_acceptable_warning,"
                  "camera_manager_pickshot_pending,"
                  "camera_manager_pickshot_same_shot_restart_bridge,"
@@ -14997,7 +14999,7 @@ int main() {
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15051,14 +15053,16 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_manager_findshot_moveitem,"
                  "camera_manager_findshot_return_bridge,"
+                 "camera_manager_pickshot_return_bridge,"
                  "camera_manager_pickshot_no_acceptable_warning,"
                  "camera_manager_pickshot_pending,",
-                 "camera implementation status keeps FindCameraShot CamShot return before PickCameraShot no-acceptable warning and pending-shot handoff accounting");
+                 "camera implementation status keeps FindCameraShot CamShot return and PickCameraShot CamShot return before PickCameraShot no-acceptable warning and pending-shot handoff accounting");
   ok &= contains(gameplay_c,
                  "camera_manager_findshot_moveitem,"
                  "camera_manager_findshot_return_bridge,"
+                 "camera_manager_pickshot_return_bridge,"
                  "camera_manager_pickshot_no_acceptable_warning,",
-                 "camera implementation status keeps the source FindCameraShot return bridge immediately after MoveItem and before PickCameraShot failure accounting");
+                 "camera implementation status keeps the source FindCameraShot and PickCameraShot return bridges immediately after MoveItem and before PickCameraShot failure accounting");
   ok &= contains(gameplay_c,
                  "camera_manager_pickshot_pending,"
                  "camera_manager_pickshot_same_shot_restart_bridge,"
