@@ -16,6 +16,20 @@
   parity only: no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
   invention, no pose math, no FreeCam priority change, no dependency, no
   under-venue masking, and no OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot Copy runtime-field status:
+  ihatecompvir `CamShot::Copy` rebuilds keyframes/crowds, copies the owning
+  shot's runtime camera fields, then calls `CacheFrames()`. Native regular
+  camera pose variants already route through
+  `copy_camshot_runtime_fields(...)`, preserving source selection flags,
+  crowds, visibility refs, postprocess/glow, path metadata, FOV/frustum/DOF,
+  shake, loop state, and decoded CamShot ref fields before the shot enters the
+  normal gameplay lifecycle. The compact status now counts
+  `camera_camshot_copy_runtime_fields` between
+  `camera_worlddir_camshot_overrides_disable` and `camera_lifecycle`. This is
+  source field-propagation accounting only: no pose math, hidden `SetPos`,
+  `BuildTransform`, or `RndCam::UpdateLocal` body is synthesized, no FreeCam
+  priority changes, no dependency is added, and the under-venue concern remains
+  open.
 - 2026-07-17 gameplay CameraManager Handle route status:
   ihatecompvir `CameraManager::Handle(...)` dispatches `pick_shot` to
   `OnPickCameraShot`, `find_shot` to `OnFindCameraShot`, `force_shot` to

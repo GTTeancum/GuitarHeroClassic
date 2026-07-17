@@ -15039,9 +15039,10 @@ int main() {
                  "camera_manager_iterate_shot_bridge,"
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
+                 "camera_camshot_copy_runtime_fields,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, OnNumCameraShots return, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, ShotAfter HANDLE_EXPR return, cycle_shot pending handoff, cycle_shot DataNode(0) return, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, OnNumCameraShots return, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, ShotAfter HANDLE_EXPR return, cycle_shot pending handoff, cycle_shot DataNode(0) return, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, CamShot runtime-field copy bridge, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15155,6 +15156,14 @@ int main() {
                  "camera_camshot_radio_flags_bridge,"
                  "camera_manager_findshot_moveitem,",
                  "camera implementation status keeps CamShot::OnRadio flags between ShotMatches and FindCameraShot");
+  ok &= contains(gameplay_c,
+                 "camera_worlddir_camshot_overrides_disable,"
+                 "camera_camshot_copy_runtime_fields,"
+                 "camera_lifecycle,",
+                 "camera implementation status keeps source CamShot Copy-style runtime-field propagation before gameplay camera lifecycle work");
+  ok &= contains(gameplay_c,
+                 "copy_camshot_runtime_fields(c.key,pos);",
+                 "CamShot Copy bridge is backed by the runtime-field copy helper used by regular camera pose variants");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_manager_enter_reset_bridge,"
                  "camera_camshot_endanim_bridge,"
