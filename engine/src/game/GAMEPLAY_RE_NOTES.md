@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay UpdateLocal audit precision:
+  The same-target under-venue proof now distinguishes the available camera
+  evidence more tightly: ihatecompvir's public `RndCam::UpdateLocal()` body is
+  still empty, the RB2 dump still exposes only locals/refs, and the available
+  RB2/RB3 recomp symbols only prove non-empty function sizes
+  (`0x1D0`/`0x1C0`) rather than statement-level projection math. Native now
+  reports those symbol-size facts in `local_project_audit`,
+  `update_local_audit`, and `update_local_source_search` so a future fix has a
+  sharper proof target. This is audit/proof precision only: no camera pose
+  math, vertical sign flip, clamp, FreeCam priority change, dependency change,
+  or OG Xbox portability change.
 - 2026-07-16 gameplay same-target under-venue proof target:
   A short `GHOGX_DEBUG_CAMERA=1` gameplay probe on `big` /
   `shoutatthedevil` selected `flr_near_lft2x1` with `guitarist0` resolved as

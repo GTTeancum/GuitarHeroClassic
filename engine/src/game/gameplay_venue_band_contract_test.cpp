@@ -9597,8 +9597,11 @@ int main() {
                  "source-shaped screen-offset result captures the decoded pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
                  "\"public_Cam.cpp_empty;"
-                 "rb2_dump_UpdateLocal_locals_only;symbols_no_body\"",
-                 "same-target LocalProjectXfm audit does not claim a recovered RndCam::UpdateLocal body");
+                 "rb2_dump_UpdateLocal_locals_only;\""
+                 "\"rb2_UpdateLocal_size_0x1D0;"
+                 "rb3_recomp_UpdateLocal_size_0x1C0;\""
+                 "\"binary_symbol_sizes_no_body\"",
+                 "same-target LocalProjectXfm audit includes symbol-size evidence without claiming a recovered RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
                  "result_key.fov=source_screen_offset_fov;",
                  "source-shaped screen-offset result uses CamShot pre-zoom FOV like ihatecompvir Interp");
@@ -9876,12 +9879,16 @@ int main() {
                  "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
                  "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body\"",
-                 "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs only");
+                 "\"public_Cam.cpp_empty;"
+                 "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
+                 "\"rb2_size_0x1D0;"
+                 "rb3_recomp_size_0x1C0;body_unrecovered\"",
+                 "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs plus symbol-size proof only");
   ok &= contains(gameplay_c,
                  "\"public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;\""
-                 "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd_no_body\"",
-                 "camera debug logs identify the full RndCam::UpdateLocal source-search boundary");
+                 "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
+                 "\"band3_recomp_symbols_size_only_no_body\"",
+                 "camera debug logs identify the full RndCam::UpdateLocal source-search boundary without claiming a recovered body");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
                  "camera debug logs include audited RB2 BuildTransform locals");
