@@ -5951,13 +5951,12 @@ void HighwayRenderer::draw_impl(double song_time,
     }
   }
 
-  // --- 6) Diagnostic active sustain note-head/cap experiments ---
-  // ihatecompvir's GemRepTemplate keeps sustain cap geometry in the tail mesh
-  // via mCapVerts. Until Tail::UpdateVerts or a matching GH2 draw owner is
-  // recovered, the separate moving-note/smasher cap stack stays opt-in.
+  // --- 6) Active sustain held caps at the strikeline ---
+  // The source-backed default is the grounded gem_smasher body-only inner cap.
+  // The larger moving-note/gem-top fallback remains diagnostic until the exact
+  // tail cap owner is recovered.
   if (active_sustains && !bonus_highway_active &&
       !env_enabled("GHOGX_DISABLE_HIGHWAY_GEMS") &&
-      env_enabled("GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS") &&
       !env_enabled("GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_CAPS")) {
     DWORD prev_z_enable = FALSE;
     DWORD prev_z_write = FALSE;
@@ -6182,12 +6181,6 @@ void HighwayRenderer::draw_impl(double song_time,
           continue;
         }
 
-        const bool draw_normal_active_sustain_cap =
-            env_enabled("GHOGX_EXPERIMENT_HIGHWAY_NORMAL_ACTIVE_SUSTAIN_CAPS");
-        if (!draw_normal_active_sustain_cap) {
-          continue;
-        }
-
         const bool draw_smasher_cap =
             gem_smasher_mesh_.ok &&
             !smasher_texture_names_[lane].empty() &&
@@ -6245,6 +6238,13 @@ void HighwayRenderer::draw_impl(double song_time,
                 *cap_ring_mesh, cap_ring_texture, lane_x(lane),
                 active_sustain_cap_center_y, cap_scale, ring_z_offset, false);
           }
+          continue;
+        }
+
+        const bool draw_unproven_note_top_cap =
+            env_enabled("GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS") ||
+            env_enabled("GHOGX_EXPERIMENT_HIGHWAY_NORMAL_ACTIVE_SUSTAIN_CAPS");
+        if (!draw_unproven_note_top_cap) {
           continue;
         }
 

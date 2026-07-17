@@ -3650,21 +3650,21 @@ int main() {
                  "kNormalHeldTightEdgeOffsetPx720);",
                  "normal active held sustains redraw only the PCSX2-offset tight edge over the lane body");
   ok &= contains(highway_renderer_c,
-                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")&&"
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")",
-                 "active sustain note-head caps stay diagnostic-only until a source tail-cap owner is recovered");
+                 "active sustain held caps keep an A/B disable switch");
   ok &= contains(highway_renderer_c,
                  "draw_active_sustain_smasher_cap_layer(",
                  "normal active held sustain caps have a source smasher-stack draw helper");
   ok &= contains(highway_renderer_c,
-                 "constbooldraw_normal_active_sustain_cap="
+                 "constbooldraw_unproven_note_top_cap="
+                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")||"
                  "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_NORMAL_ACTIVE_SUSTAIN_CAPS\");"
-                 "if(!draw_normal_active_sustain_cap){continue;}",
-                 "normal active held sustain caps stay out of the default pressed-button path");
+                 "if(!draw_unproven_note_top_cap){continue;}",
+                 "larger moving-note/top fallback cap stays diagnostic-only");
   ok &= contains(highway_renderer_c,
                  "gem_smasher_mesh_.ok&&!smasher_texture_names_[lane].empty()"
                  "&&!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_CAP\")",
-                 "the opt-in normal active held sustain cap experiment uses the authored gem_smasher source stack over the round moving-gem fallback");
+                 "normal active held sustain inner cap uses the authored gem_smasher source stack over the round moving-gem fallback");
   ok &= contains(highway_renderer_c,
                  "constboolexperiment_smasher_rim="
                  "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_RIM\");",
