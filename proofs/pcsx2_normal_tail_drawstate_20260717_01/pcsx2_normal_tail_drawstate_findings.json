@@ -1,0 +1,22 @@
+﻿{
+  "pass": "pcsx2_normal_tail_drawstate_20260717_01",
+  "aspect": "4:3",
+  "source_dump": "proofs/pcsx2_highway_trace_20260715/active_gsdumps/frame_17_Guitar Hero II_SLUS-21447_20260715100717.gs.zst",
+  "parse": {
+    "complete": true,
+    "errors": 0,
+    "all_vertices": 225536,
+    "visible_vertices": 448
+  },
+  "roi_gs_px": {"x0": 220, "y0": 160, "x1": 330, "y1": 380},
+  "focus_roi_gs_px": {"x0": 235, "y0": 220, "x1": 315, "y1": 370},
+  "local_draw_groups": 16,
+  "small_focus_groups": 0,
+  "findings": [
+    "The only local draw-sized groups intersecting the normal-tail ROI are repeated upper strip passes at tbp0=12384 and tbp0=12448.",
+    "No small/local draw group covers the lower visible normal-tail body in the focus ROI, so the body cannot be patched from a simple local strip owner.",
+    "Broad clipped groups overlap the focus ROI, but remain rejected as a renderer patch basis without texture-alpha raster ownership or source-object mapping.",
+    "Current source materials show normal lane tails use tail_%s.mat -> gem_star.tex with texgen=5, while RuntimeMesh does not currently carry tex_gen; this is a follow-up investigation target, not a patch basis yet."
+  ],
+  "patch_promoted": false
+}
