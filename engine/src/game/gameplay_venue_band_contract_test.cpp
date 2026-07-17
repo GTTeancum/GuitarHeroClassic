@@ -14895,6 +14895,7 @@ int main() {
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle,"
+                 "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
@@ -14906,7 +14907,7 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_visibility",
-                 "camera implementation status counts source-visible postprocess, StartAnim reset, mAnims, glow_spot bridges, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
+                 "camera implementation status counts source-visible postprocess, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_startanim_state_reset,"
@@ -14916,8 +14917,9 @@ int main() {
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle,"
+                 "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge",
-                 "camera implementation status keeps postprocess, StartAnim reset, and mAnims ordered before the glow bridge");
+                 "camera implementation status keeps postprocess, StartAnim reset, mAnims, and source StartShot_ side effects ordered before the glow bridge");
   ok &= contains(gameplay_c,
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints",
@@ -14932,6 +14934,7 @@ int main() {
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle,"
+                 "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"

@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager StartShot_ side-effects status:
+  ihatecompvir `CameraManager::StartShot_()` ends the old shot, assigns
+  `mCurrentShot`, calls `CamShot::StartAnim()`, records `mCamStartTime`, then
+  applies the visible `venue_test != 1` side effects
+  `TheWiiRnd.SetTriFrameRendering(true)` and `gCooldown = 0`. Native already
+  mirrors these as source-shaped camera manager state after the CamShot start
+  path and contract-checks the order; the compact status now counts
+  `camera_manager_startshot_side_effects`. This is source-backed lifecycle
+  accounting only: no native renderer tri-frame effect, hidden pose body,
+  FreeCam priority, under-venue masking, dependency, or OG Xbox portability
+  surface changed.
 - 2026-07-17 gameplay CamShot StartAnim reset status:
   ihatecompvir `CamShot::StartAnim()` sends `start_shot`, calls
   `WorldDir::SetCrowds(mCrowds)`, clears `unk10c` / `unk110` and the six
