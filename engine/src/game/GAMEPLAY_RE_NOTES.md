@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay current-walkspot status:
+  ihatecompvir's `cam_shot_ok` path can reject CamShots through authored
+  `bad_waypoints`, and the visible/audited waypoint side is the current
+  guitarist0 walkspot lookup. Native already evaluates
+  `camera_source_guitarist0_nearest_walkspot()` from decoded walk and
+  solo-walk waypoints, logs the audited `Waypoint::FindNearest` boundary, and
+  feeds that current-walkspot key into the recovered bad-waypoints check. The
+  compact normal gameplay camera status now counts this as
+  `camera_current_walkspot_waypoint_bridge` between the visible `ShotOk`
+  type-switch and recovered bad-waypoints rule. This is selector-context
+  parity only: no hidden `cam_shot_ok` result invention, pose math,
+  `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay intro previous-context status:
   GH2 `world_objects_worldbase.dta` falls back to the venue
   `intro_camera_facing` / `intro_camera_distance` values when regular camera
