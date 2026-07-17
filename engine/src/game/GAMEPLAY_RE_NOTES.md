@@ -705,6 +705,17 @@
   math, no hidden `SetPos`, `BuildTransform`, or `RndCam::UpdateLocal`
   synthesis, no under-venue masking, no FreeCam priority change, no dependency
   change, and no OG Xbox portability change.
+- 2026-07-17 gameplay CamShot SetPreFrame no-op status:
+  ihatecompvir exposes base `CamShot::SetPreFrame(float, float){}` as an empty
+  inline override, while `CameraManager::PrePoll` still calls
+  `mCurrentShot->SetPreFrame(CalcFrame(), 1.0f)` after clearing `mNextShot`.
+  Native already carries the per-active-shot SetPreFrame call counter and
+  emits bounded proof rows with `base_noop=1`; the compact status now counts
+  `camera_camshot_setpreframe_noop` between `camera_manager_prepoll_poll_order`
+  and `camera_manager_calcframe_units`. This is source cadence/provenance only:
+  no pre-frame transform step, pose math, `BuildTransform`, `SetPos`,
+  under-venue masking, FreeCam priority, dependency, or OG Xbox portability
+  surface changed.
 - 2026-07-17 gameplay RndCamAnim AtFrame proof:
   ihatecompvir `RndCamAnim::SetFrame` starts from the camera `YFov`, samples
   `FovKeys().AtFrame(frame, ref)`, optionally blends only for non-1 blend

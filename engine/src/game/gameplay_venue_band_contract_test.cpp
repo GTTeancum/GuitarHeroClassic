@@ -15034,6 +15034,7 @@ int main() {
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order,"
+                 "camera_camshot_setpreframe_noop,"
                  "camera_manager_calcframe_units,"
                  "camera_camshot_update_target_cache,"
                  "camera_camshot_setfrustum,"
@@ -15054,7 +15055,7 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,",
@@ -15126,6 +15127,16 @@ int main() {
                  "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order",
                  "camera implementation status counts the CamShot crowd message handlers, AnimTarget bridge, ShotOk previous-shot argument, current-walkspot lookup, recovered bad_waypoints rejection, check_shot probe boundary, source MiloCamera gate, manager poll order, and CalcFrame timing before frame sampling");
+  ok &= contains(gameplay_c,
+                 "camera_manager_prepoll_poll_order,"
+                 "camera_camshot_setpreframe_noop,"
+                 "camera_manager_calcframe_units,",
+                 "camera implementation status keeps base CamShot SetPreFrame no-op between manager PrePoll/Poll order and CalcFrame timing");
+  ok &= contains(gameplay_c,
+                 "camera_camshot_setpreframe_noop,"
+                 "camera_manager_calcframe_units,"
+                 "camera_camshot_update_target_cache,",
+                 "camera implementation status keeps SetPreFrame no-op separate from later SetFrame sampling work");
   ok &= contains(gameplay_c,
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_rndcam_updatelocal_public_stub,"
