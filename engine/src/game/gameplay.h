@@ -317,6 +317,10 @@ class Gameplay {
     std::string crowd_selection_ref;
     std::vector<std::pair<int, int>> crowd_selection_pairs;
     std::vector<CrowdRef> crowd_refs;
+    int legacy_crowd_modify_stamp = -1;
+    bool has_legacy_crowd_modify_stamp = false;
+    bool legacy_crowd_pairs_cleared_by_modify_stamp = false;
+    bool legacy_crowd_modify_stamp_requires_resolved_crowd = false;
     std::vector<std::string> hide_list_refs;
     std::vector<std::string> show_list_refs;
     std::vector<std::string> gen_hide_list_refs;

@@ -9043,6 +9043,27 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.source_ref=shot.old_crowd_sym;",
                  "CamShot source refs are copied into CameraKey shot fields");
+  ok &= contains(camshot_reader_c,
+                 "shot.old_crowd_modify_stamp=r.i32();",
+                 "CamShot loader preserves the source legacy crowd modify stamp");
+  ok &= contains(camshot_reader_c,
+                 "if(shot.old_crowd_sym.empty()&&"
+                 "shot.old_crowd_modify_stamp!=-1){"
+                 "shot.old_crowd_pairs.clear();"
+                 "shot.old_crowd_pairs_cleared_by_modify_stamp=true;",
+                 "CamShot loader mirrors source stale legacy crowd-pair clearing when no crowd resolves");
+  ok &= contains(camshot_reader_c,
+                 "shot.old_crowd_modify_stamp_requires_resolved_crowd=true;",
+                 "CamShot loader marks unresolved WorldCrowd::GetModifyStamp comparisons instead of guessing");
+  ok &= contains(gameplay_h_c,
+                 "intlegacy_crowd_modify_stamp=-1;"
+                 "boolhas_legacy_crowd_modify_stamp=false;"
+                 "boollegacy_crowd_pairs_cleared_by_modify_stamp=false;"
+                 "boollegacy_crowd_modify_stamp_requires_resolved_crowd=false;",
+                 "CameraKey carries legacy crowd modify-stamp provenance");
+  ok &= contains(camshot_reader_c,
+                 "key.legacy_crowd_modify_stamp=shot.old_crowd_modify_stamp;",
+                 "CamShot loader copies legacy crowd modify-stamp provenance into CameraKey");
   ok &= contains(gameplay_c,
                  "key.crowd_refs.clear();for(constauto&crowd:shot.crowds){"
                  "key.crowd_refs.push_back({crowd.ref,crowd.rotate,crowd.pairs});",

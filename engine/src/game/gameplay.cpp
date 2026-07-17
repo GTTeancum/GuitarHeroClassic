@@ -1636,6 +1636,9 @@ struct DecodedCamShot {
     std::string old_crowd_sym;
     int old_crowd_rotate = 0;
     std::vector<std::pair<int, int>> old_crowd_pairs;
+    int old_crowd_modify_stamp = -1;
+    bool old_crowd_pairs_cleared_by_modify_stamp = false;
+    bool old_crowd_modify_stamp_requires_resolved_crowd = false;
     struct Crowd {
         std::string ref;
         int rotate = 0;
@@ -2436,7 +2439,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
                 shot.old_crowd_pairs.emplace_back(r.i32(), r.i32());
             }
         }
-        if (shot.revision >= 8 && shot.revision <= 41) (void)r.i32();
+        if (shot.revision >= 8 && shot.revision <= 41)
+            shot.old_crowd_modify_stamp = r.i32();
         if (shot.revision > 5) {
             shot.source_cached_stream =
                 camshot_source_cached_stream_like_miloeditor();
@@ -2462,6 +2466,16 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             shot.old_crowd_sym = r.symbol();
         if (shot.revision >= 33 && shot.revision <= 41)
             shot.old_crowd_rotate = r.i32();
+        if (shot.revision >= 8 && shot.revision <= 41) {
+            if (shot.old_crowd_sym.empty() &&
+                shot.old_crowd_modify_stamp != -1) {
+                shot.old_crowd_pairs.clear();
+                shot.old_crowd_pairs_cleared_by_modify_stamp = true;
+            } else if (!shot.old_crowd_sym.empty() &&
+                       shot.old_crowd_modify_stamp != -1) {
+                shot.old_crowd_modify_stamp_requires_resolved_crowd = true;
+            }
+        }
         if (shot.revision == 0x0e) {
             (void)r.f32();
             (void)r.f32();
@@ -2564,6 +2578,13 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_crowd_selection = !shot.old_crowd_sym.empty();
             key.crowd_selection_ref = shot.old_crowd_sym;
             key.crowd_selection_pairs = shot.old_crowd_pairs;
+            key.legacy_crowd_modify_stamp = shot.old_crowd_modify_stamp;
+            key.has_legacy_crowd_modify_stamp =
+                shot.old_crowd_modify_stamp != -1;
+            key.legacy_crowd_pairs_cleared_by_modify_stamp =
+                shot.old_crowd_pairs_cleared_by_modify_stamp;
+            key.legacy_crowd_modify_stamp_requires_resolved_crowd =
+                shot.old_crowd_modify_stamp_requires_resolved_crowd;
             key.crowd_refs.clear();
             for (const auto& crowd : shot.crowds) {
                 key.crowd_refs.push_back(
@@ -2798,6 +2819,12 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.crowd_selection_ref = from.crowd_selection_ref;
     to.crowd_selection_pairs = from.crowd_selection_pairs;
     to.crowd_refs = from.crowd_refs;
+    to.legacy_crowd_modify_stamp = from.legacy_crowd_modify_stamp;
+    to.has_legacy_crowd_modify_stamp = from.has_legacy_crowd_modify_stamp;
+    to.legacy_crowd_pairs_cleared_by_modify_stamp =
+        from.legacy_crowd_pairs_cleared_by_modify_stamp;
+    to.legacy_crowd_modify_stamp_requires_resolved_crowd =
+        from.legacy_crowd_modify_stamp_requires_resolved_crowd;
     to.hide_list_refs = from.hide_list_refs;
     to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
@@ -2875,6 +2902,12 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.crowd_selection_ref = from.crowd_selection_ref;
     to.crowd_selection_pairs = from.crowd_selection_pairs;
     to.crowd_refs = from.crowd_refs;
+    to.legacy_crowd_modify_stamp = from.legacy_crowd_modify_stamp;
+    to.has_legacy_crowd_modify_stamp = from.has_legacy_crowd_modify_stamp;
+    to.legacy_crowd_pairs_cleared_by_modify_stamp =
+        from.legacy_crowd_pairs_cleared_by_modify_stamp;
+    to.legacy_crowd_modify_stamp_requires_resolved_crowd =
+        from.legacy_crowd_modify_stamp_requires_resolved_crowd;
     to.hide_list_refs = from.hide_list_refs;
     to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;

@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay legacy CamShot crowd modify-stamp parity:
+  ihatecompvir `CamShot::Load` reads the legacy `CamShotCrowd` modify stamp
+  for revisions 8..41 and clears `csc.unk10` when no crowd is resolved and the
+  saved stamp is not `-1`. Native now stores that legacy stamp, clears stale
+  legacy pair lists in the same source-proven no-crowd case, and marks the
+  unresolved `WorldCrowd::GetModifyStamp()` comparison separately instead of
+  guessing. This is normal gameplay camera crowd-selection data parity only:
+  no pose math, no `BuildTransform` synthesis, no under-venue masking, no
+  FreeCam priority change, no dependency change, and no OG Xbox portability
+  change.
 - 2026-07-17 gameplay CameraManager destructor bridge:
   ihatecompvir `CameraManager::~CameraManager()` calls `StartShot_(0)`, then
   `TheDOFProc->UnSet()`, releases `mFreeCam`, and deletes category storage.
