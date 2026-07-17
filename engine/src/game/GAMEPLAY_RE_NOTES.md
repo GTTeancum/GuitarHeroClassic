@@ -31,6 +31,19 @@
   parity only: no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
   invention, no pose math, no FreeCam priority change, no dependency, no
   under-venue masking, and no OG Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager OnPickCameraShot return status:
+  ihatecompvir `CameraManager::OnPickCameraShot(...)` reserves the source
+  filter vector, calls `MakeCategoryAndFilters(...)`, then returns
+  `DataNode(PickCameraShot(sym, pvec))`. Native normal gameplay now emits a
+  source-shaped `OnPickCameraShot` proof row on live `pick_shot` selections:
+  it reuses the same source filter vector shown by the regular sweep, reports
+  the returned CamShot, and shows the queued `mNextShot` bridge. The compact
+  status now counts `camera_manager_onpick_return_bridge` between
+  `camera_manager_make_category_filters` and the later selection/prescan
+  stages. This is wrapper return/proof parity only: no extra `num_shots`
+  dispatch, no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
+  invention, no pose math, no FreeCam priority change, no dependency, no
+  under-venue masking, and no OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager iterate-shot bucket status:
   ihatecompvir `CameraManager::OnIterateShot(...)` saves the script variable,
   walks `mCameraShotCategories` bucket-by-bucket, writes each contained

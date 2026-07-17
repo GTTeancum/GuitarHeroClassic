@@ -14886,9 +14886,15 @@ int main() {
                        "{\"ok\",\"only\"}));",
                        "solo camera filters preserve source state-before-solo order");
   ok &= contains(gameplay_c,
+                 "conststd::vector<CameraShotSourceFilter>"
+                 "source_filters_vector_for_log="
+                 "camera_source_script_filters(",
+                 "regular camera sweep rows build the active source filter vector before logging");
+  ok &= contains(gameplay_c,
                  "conststd::stringsource_filters_for_log="
-                 "camera_source_script_filter_label(",
-                 "regular camera sweep rows stamp the active source filter list");
+                 "camera_source_filter_list_label("
+                 "source_filters_vector_for_log);",
+                 "regular camera sweep rows stamp the same source filter vector used by OnPickCameraShot proof");
   ok &= contains(gameplay_c,
                  "constboollow_excitement="
                  "camera_low_excitement_like_source(active_venue_event_);",
@@ -14916,6 +14922,19 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_current=%ssource_next_before=%ssource_next_after=%s",
                  "regular camera sweep diagnostics expose source current_shot and queued next_shot names");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraOnPickCameraShot:source_msg=pick_shot"
+                 "source_manager=CameraManager::OnPickCameraShot"
+                 "source_call=MakeCategoryAndFilters->PickCameraShot"
+                 "category=%sfilters=\\\"%s\\\"filter_count=%zu"
+                 "result=%ssource_return=CamShotsource_field=mNextShot"
+                 "current=%snext=%s\\n\"",
+                 "regular camera diagnostics expose the source OnPickCameraShot wrapper return and queued mNextShot");
+  ok &= contains(gameplay_c,
+                 "if(!diagnostic_camera_shot_matched){"
+                 "std::fprintf(stderr,"
+                 "\"[world]cameraOnPickCameraShot:",
+                 "regular camera OnPickCameraShot proof stays on source pick_shot paths, not diagnostic forced shots");
   ok &= contains(gameplay_c,
                  "source_next_after_queue?1:0",
                  "regular camera sweep source_next flag is derived from queued mNextShot instead of a hard-coded proof value");
@@ -14949,6 +14968,7 @@ int main() {
                  "camera_worldbase_script_filter_bridge,"
                  "camera_manager_handle_routes,"
                  "camera_manager_make_category_filters,"
+                 "camera_manager_onpick_return_bridge,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_numcamerashots_prescan_bridge,"
                  "camera_manager_first_shot_ok_hook,"
@@ -14970,7 +14990,7 @@ int main() {
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -14989,6 +15009,7 @@ int main() {
                  "camera_worldbase_script_filter_bridge,"
                  "camera_manager_handle_routes,"
                  "camera_manager_make_category_filters,"
+                 "camera_manager_onpick_return_bridge,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_numcamerashots_prescan_bridge,"
                  "camera_manager_first_shot_ok_hook,"
@@ -14996,12 +15017,17 @@ int main() {
                  "camera_camshot_disable_bitmask_bridge,"
                  "camera_manager_findshot_disabled_gate,"
                  "camera_manager_shotmatches_filters,",
-                 "camera implementation status keeps worldbase downbeat duration and script filters before CameraManager Handle routes, MakeCategoryAndFilters, NumCameraShots, and the CameraManager FirstShotOk/category/Disable/Disabled/ShotMatches scan");
+                 "camera implementation status keeps worldbase downbeat duration and script filters before CameraManager Handle routes, MakeCategoryAndFilters, OnPickCameraShot, NumCameraShots, and the CameraManager FirstShotOk/category/Disable/Disabled/ShotMatches scan");
   ok &= contains(gameplay_c,
                  "camera_worldbase_script_filter_bridge,"
                  "camera_manager_handle_routes,"
                  "camera_manager_make_category_filters,",
                  "camera implementation status keeps CameraManager Handle routing between world script filters and MakeCategoryAndFilters");
+  ok &= contains(gameplay_c,
+                 "camera_manager_make_category_filters,"
+                 "camera_manager_onpick_return_bridge,"
+                 "camera_banddirector_findnext_filter_bridge,",
+                 "camera implementation status keeps the OnPickCameraShot return bridge after MakeCategoryAndFilters and before BandDirector FindNextShot filters");
   ok &= contains(gameplay_c,
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_findshot_category_scan,"
