@@ -380,6 +380,26 @@ def contribution_metrics(
     return result
 
 
+def bbox_locality_class(bbox: dict[str, Any]) -> str:
+    width = float(bbox["width"])
+    height = float(bbox["height"])
+    if width <= 256.0 and height <= 256.0:
+        return "local"
+    if width <= 512.0 and height <= 512.0:
+        return "medium"
+    if width >= 600.0 and height >= 440.0:
+        return "screen_wide"
+    if width > 2000.0 or height > 2000.0:
+        return "full_surface"
+    if width > 1000.0 or height > 1000.0:
+        return "broad_page"
+    return "broad"
+
+
+def draw_order_key(item: dict[str, Any]) -> tuple[int, int]:
+    return int(item.get("transfer", -1)), int(item.get("draw_id", -1))
+
+
 def analyze(
     trace: dict[str, Any],
     frame: Image.Image,
@@ -490,8 +510,36 @@ def analyze(
                 "texture_sample": texture_sample,
                 "texture_point_sample": texture_points,
                 "contribution": contribution,
+                "order_visibility": {
+                    "draw_order_key": [int(group["transfer"]), int(group["draw_id"])],
+                    "bbox_locality_class": bbox_locality_class(group["bbox"]),
+                },
+                "_covered": covered,
             }
         )
+    last_owner: dict[tuple[int, int], tuple[int, int]] = {}
+    for item in results:
+        key = draw_order_key(item)
+        for pixel in item["_covered"]:
+            if pixel not in last_owner or key > last_owner[pixel]:
+                last_owner[pixel] = key
+    for item in results:
+        key = draw_order_key(item)
+        covered = item["_covered"]
+        last_count = sum(1 for pixel in covered if last_owner.get(pixel) == key)
+        covered_count = max(1, len(covered))
+        component_count = max(1, len(component))
+        order_visibility = item["order_visibility"]
+        order_visibility.update(
+            {
+                "last_cover_pixels": int(last_count),
+                "last_cover_component_frac": round(last_count / component_count, 6),
+                "last_cover_covered_frac": round(last_count / covered_count, 6),
+                "later_cover_covered_frac": round((covered_count - last_count) / covered_count, 6),
+                "note": "Geometry-only draw-order metric; GS alpha, blend, depth, and scissor effects are not replayed.",
+            }
+        )
+        del item["_covered"]
     results.sort(key=lambda item: item["score"], reverse=True)
     visibility_ranked = sorted(
         results,
@@ -501,6 +549,7 @@ def analyze(
     color_model_ranked = sorted(
         results,
         key=lambda item: (
+            item["component_coverage_frac"] < 0.25,
             item["contribution"].get("best_rgb_mae") is None,
             item["contribution"].get("best_rgb_mae")
             if item["contribution"].get("best_rgb_mae") is not None
@@ -509,6 +558,15 @@ def analyze(
             -item["component_coverage_frac"],
         ),
     )
+    order_visibility_ranked = sorted(
+        results,
+        key=lambda item: (
+            item["order_visibility"]["last_cover_component_frac"],
+            item["contribution"]["visibility_score"],
+            item["component_coverage_frac"],
+        ),
+        reverse=True,
+    )
     return {
         "selected_component": selected,
         "component_candidates": [{k: v for k, v in c.items() if not k.startswith("_")} for c in summaries[:8]],
@@ -516,6 +574,7 @@ def analyze(
         "top_ranked_groups": results[:24],
         "visibility_ranked_groups": visibility_ranked[:24],
         "color_model_ranked_groups": color_model_ranked[:24],
+        "order_visibility_ranked_groups": order_visibility_ranked[:24],
     }
 
 
@@ -574,6 +633,29 @@ def write_contact_sheet(frame: Image.Image, summary: dict[str, Any], out_path: P
         y += 14
         if y > 690:
             break
+    y += 12
+    if y < 660:
+        draw_sheet.text((text_x, y), "draw order rank", fill=(255, 210, 210, 255), font=font)
+        y += 18
+        for item in summary.get("order_visibility_ranked_groups", [])[:4]:
+            tex0 = item.get("tex0") or {}
+            order = item.get("order_visibility") or {}
+            draw_sheet.text(
+                (text_x, y),
+                f"draw {item['draw_id']} tbp0={tex0.get('tbp0')} last={order.get('last_cover_component_frac')}",
+                fill=(230, 230, 230, 255),
+                font=font,
+            )
+            y += 14
+            draw_sheet.text(
+                (text_x, y),
+                f"{order.get('bbox_locality_class')} later={order.get('later_cover_covered_frac')}",
+                fill=(255, 200, 200, 255),
+                font=font,
+            )
+            y += 14
+            if y > 690:
+                break
     y += 12
     if y < 660:
         draw_sheet.text((text_x, y), "color model rank", fill=(210, 210, 255, 255), font=font)
@@ -639,6 +721,7 @@ def main() -> int:
             **frame_size_info,
             "method": "Accepted PCSX2 red/cyan/white component mask plus exact GIF triangle coverage. Optional component-bbox pins selection to prior accepted raster components. Texture footprint sampling uses recovered VRAM pages when available; GS blending and depth are not emulated.",
             "color_model_note": "best_rgb_model is an approximate diagnostic over raw vertex RGB, raw texture RGB, and simple texture*vertex modulation candidates. It is not a full GS blend/depth replay.",
+            "order_visibility_note": "last_cover_component_frac is geometry-only draw-order evidence over the selected component pixels. It does not replay GS alpha, blend, depth, or scissor state.",
             "accepted_for": [
                 "narrowing lower active sustain cap/effect draw and texture candidates",
                 "rejecting renderer patches based on geometry-overlap alone",
@@ -711,6 +794,26 @@ def main() -> int:
                 local=contrib.get("local_bbox"),
                 broad=contrib.get("broad_penalty"),
                 models=contrib.get("rgb_model_mae"),
+            )
+        )
+    trace_lines.append("draw_order_rank:")
+    for item in summary.get("order_visibility_ranked_groups", [])[:12]:
+        tex0 = item.get("tex0") or {}
+        order = item.get("order_visibility") or {}
+        contrib = item.get("contribution") or {}
+        trace_lines.append(
+            "draw={draw} transfer={transfer} tbp0={tbp0} last_component={last_comp} "
+            "last_covered={last_cov} later_covered={later} locality={locality} "
+            "vis={vis} cover={cover}".format(
+                draw=item["draw_id"],
+                transfer=item["transfer"],
+                tbp0=tex0.get("tbp0"),
+                last_comp=order.get("last_cover_component_frac"),
+                last_cov=order.get("last_cover_covered_frac"),
+                later=order.get("later_cover_covered_frac"),
+                locality=order.get("bbox_locality_class"),
+                vis=contrib.get("visibility_score"),
+                cover=item["component_coverage_frac"],
             )
         )
     (out_dir / "lower_cap_owner_trace.txt").write_text("\n".join(trace_lines) + "\n", encoding="utf-8")

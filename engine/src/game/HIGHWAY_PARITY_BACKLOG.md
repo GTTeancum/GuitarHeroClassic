@@ -1831,3 +1831,26 @@ should only be checked against one of the supported aspect modes.
   `lower_cap_owner_contact_sheet.png`; trace:
   `lower_cap_owner_trace.txt`; full compact summary:
   `lower_cap_owner_summary.json`.
+- PCSX2 lower-cap draw-order visibility trace:
+  `proofs/pcsx2_lower_cap_order_visibility_trace_20260717_02` adds a
+  geometry-only draw-order `last_cover_component_frac` and bbox locality class
+  to `trace_pcsx2_lower_cap_owner.py`. The pass rebuilt a temporary
+  high-retention frame-17 GIF trace from the stock GH2 GS dump, reran the owner
+  trace on the accepted embedded 4:3 component (`[212,245,296,370]`, `1813`
+  pixels), then deleted the `193 MB` temporary vertex JSON after writing the
+  compact proof. With full retained draw groups, `88` draw groups touch the
+  component. The strongest visibility lead is still broad/screen-wide
+  `tbp0=14208` with full coverage (`vis=92.785`, best raw-texture MAE about
+  `92 px`), but it has `last_cover_component_frac=0.0` because later draws
+  geometrically cover those pixels. The meaningful-coverage color lead remains
+  broad/screen-wide `tbp0=14944` (`77.753 px` MAE) and is also fully covered
+  later. The draw-order lead is a late broad/screen-wide `tbp0=15616` pass
+  (`draw=7858`, `transfer=3457`) with `last_cover_component_frac=0.998345`,
+  but this is explicitly not a source-object owner because the trace still does
+  not replay GS alpha, blend, depth, or scissor state. No renderer patch was
+  promoted. Treat this as stronger guard evidence against another lower-cap,
+  cyan-flare, or smasher/tail geometry guess. Contact sheet:
+  `lower_cap_owner_contact_sheet.png`; compact trace:
+  `lower_cap_owner_trace.txt`; small findings:
+  `lower_cap_order_visibility_findings.json`; summary:
+  `lower_cap_owner_summary.json`.
