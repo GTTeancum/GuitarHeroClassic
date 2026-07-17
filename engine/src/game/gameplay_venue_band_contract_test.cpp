@@ -14934,6 +14934,7 @@ int main() {
                  "camera implementation status counts CamShot GetKey looping before the OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
+                 "camera_intro_previous_context_bridge,"
                  "camera_camshot_platform_ok_gate,"
                  "camera_manager_syncobjects_category_buckets,"
                  "camera_manager_random_seed_bridge,"
@@ -14953,7 +14954,12 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+  ok &= contains(gameplay_c,
+                 "camera_selection,"
+                 "camera_intro_previous_context_bridge,"
+                 "camera_camshot_platform_ok_gate,",
+                 "camera implementation status keeps the intro distance/facing previous-shot bridge before PlatformOk inventory accounting");
   ok &= contains(gameplay_c,
                  "camera_camshot_platform_ok_gate,"
                  "camera_manager_syncobjects_category_buckets,"

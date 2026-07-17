@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay intro previous-context status:
+  GH2 `world_objects_worldbase.dta` falls back to the venue
+  `intro_camera_facing` / `intro_camera_distance` values when regular camera
+  selection has no current shot yet. Native already stores the decoded intro
+  camera as `source_intro_camera_previous_`, uses it only while
+  `active_regular_camera_` is empty, and logs
+  `source_previous_context=world_intro_camera_facing_distance` on the first
+  gameplay sweep. The compact normal gameplay camera status now counts this
+  as `camera_intro_previous_context_bridge` between camera selection and
+  PlatformOk inventory admission. This is first-gameplay-pick selector parity
+  only: no hidden `cam_shot_ok` / `cam_check_shot` invention, pose math,
+  `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay worldbase downbeat duration status:
   GH2 `world_objects_worldbase.dta::downbeat` decrements
   `[camera_bars_left]`, skips `check_camera_shot` while guitarist0 is in
