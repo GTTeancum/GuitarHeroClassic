@@ -14892,7 +14892,8 @@ int main() {
                  "camera_lifecycle",
                  "camera implementation status counts source WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_glow_spot_bridge,"
+                 "camera_lifecycle,camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order,"
@@ -14903,7 +14904,11 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_visibility",
-                 "camera implementation status counts the source-visible glow_spot bridge, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
+                 "camera implementation status counts the source-visible postprocess/glow_spot bridges, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
+  ok &= contains(gameplay_c,
+                 "camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_glow_spot_bridge",
+                 "camera implementation status keeps the recovered postprocess select/reset lifecycle separate from renderer effects");
   ok &= contains(gameplay_c,
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints",
@@ -14915,7 +14920,8 @@ int main() {
                  "SetFrustum,DOF,Shake_tail,SetLocalXfm_tail",
                  "camera visible pose-unit status counts the source SetLocalXfm tail without claiming hidden BuildTransform math");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_glow_spot_bridge,"
+                 "camera_lifecycle,camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order",
@@ -14929,8 +14935,13 @@ int main() {
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
                  "cam_check_shot_native,CharWalk,SetPos,BuildTransform,"
                  "RndCam_UpdateLocal"
+                 "postprocess_render_effect=deferred"
                  "freecam_priority=deferred_last",
-                 "camera implementation status keeps hidden gameplay bodies ahead of deferred FreeCam work");
+                 "camera implementation status keeps hidden gameplay bodies and deferred postprocess rendering ahead of FreeCam work");
+  ok &= contains(gameplay_c,
+                 "postprocess_render_effect=deferred"
+                 "freecam_priority=deferred_last",
+                 "camera implementation status does not claim postprocess renderer effects while FreeCam stays deferred");
   ok &= contains(gameplay_c,
                  "under_venue_concern=open"
                  "no_dependency_change=1"

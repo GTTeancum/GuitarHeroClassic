@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot postprocess status:
+  GH2 `world/camshot.dta::start_shot` selects the authored `postprocess` object
+  or calls `rnd reset_postproc`, and the audited `RndPostProc::Select()` /
+  `Reset()` lifecycle owns `sCurrent`. Native already decodes the CamShot
+  `postprocess` ref, records the select/reset branch at camera start, and
+  preserves it through `CamShot::EndAnim()` until the next start-shot or
+  no-current manager clear; the compact status now counts
+  `camera_camshot_postprocess_select_reset` while explicitly keeping
+  `postprocess_render_effect=deferred`. This is source-backed lifecycle status
+  only: no postprocess renderer effect, hidden pose body, FreeCam priority,
+  under-venue masking, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot glow_spot bridge status:
   ihatecompvir `CamShot` constructs, copies, loads, and property-syncs
   `mGlowSpot`, while `CamShot::StartAnim()` / `EndAnim()` do not clear or
