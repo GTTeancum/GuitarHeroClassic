@@ -14835,6 +14835,9 @@ int main() {
                  "source_truth=ihatecompvir",
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
+                 "camera_frame_pair_timing,camera_path_transanim_timing",
+                 "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
+  ok &= contains(gameplay_c,
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
                  "cam_check_shot,CharWalk,SetPos,BuildTransform,"
                  "RndCam_UpdateLocal"

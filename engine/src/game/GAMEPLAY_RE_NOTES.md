@@ -6,13 +6,14 @@
   normal gameplay camera debug runs now emit one compact
   `[world] camera implementation status` row during the source-shaped
   `CameraManager::PickCameraShot` sweep. It names ihatecompvir as source of
-  truth, lists the recovered venue/camera-routing pieces, keeps the hidden
-  `cam_shot_ok`, `cam_check_shot`, `CharWalk`, `SetPos`, `BuildTransform`, and
-  `RndCam::UpdateLocal` bodies explicit, leaves FreeCam deferred last, and
-  carries the open under-venue concern plus no-dependency/OG-Xbox portability
-  stamps. This is proof/status only: no camera pose math, no hidden predicate
-  invention, no FreeCam priority change, no dependency change, and no runtime
-  asset behavior change.
+  truth, lists the recovered venue/camera-routing pieces, and now counts the
+  audited `RndTransAnim` path timing beside regular CamShot frame-pair timing.
+  It keeps the hidden `cam_shot_ok`, `cam_check_shot`, `CharWalk`, `SetPos`,
+  `BuildTransform`, and `RndCam::UpdateLocal` bodies explicit, leaves FreeCam
+  deferred last, and carries the open under-venue concern plus
+  no-dependency/OG-Xbox portability stamps. This is proof/status only: no
+  camera pose math, no hidden predicate invention, no FreeCam priority change,
+  no dependency change, and no runtime asset behavior change.
 - 2026-07-17 gameplay `crowd_face_camera` source gate:
   GH2 `world/camshot.dta::start_shot` nests both `[crowd] crowd_update` and
   the `[crowd] set rotate TRUE/FALSE` branch under `if [crowd]`. ihatecompvir
