@@ -439,13 +439,11 @@
   FreeCam, and dependencies are unchanged.
 - 2026-07-16 gameplay `check_camera_shot` pick cadence correction:
   The recovered GH2 `world_objects_worldbase.dta::check_camera_shot` script
-  gates only the `[camera_bars_left] = {get_shot_duration}` refresh on
-  `camera_bars_left <= 0`; the following `pick_new_shot` call is outside that
-  duration gate. Native normal gameplay cameras now run `pick_new_shot` on each
-  non-star downbeat `check_camera_shot`, while preserving the source rule that
-  duration RNG is refreshed only when bars have expired. This corrects the
-  earlier over-tightened cadence interpretation, keeps FreeCam last, and adds
-  no dependencies.
+  gates both `[camera_bars_left] = {get_shot_duration}` and the following
+  `pick_new_shot` on `camera_bars_left <= 0`. Native normal gameplay cameras
+  now let positive-duration shots hold across non-star downbeats instead of
+  repicking every bar. This corrects the earlier over-loose cadence
+  interpretation, keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay BandDirector facing-camera filter:
   ihatecompvir `BandDirector::FindNextShot` adds one
   `CameraManager::PropertyFilter` when the requested category is a facing
@@ -617,13 +615,12 @@
   pose math, or dependencies.
 - 2026-07-16 gameplay downbeat `check_camera_shot` pick gate:
   Re-reading GH2 `world_objects_worldbase.dta::check_camera_shot` as script
-  source, only the `get_shot_duration` refresh is inside the
-  `camera_bars_left <= 0` branch; `pick_new_shot` follows that branch and still
-  runs for every non-star `check_camera_shot`. Native normal gameplay now
-  separates the downbeat/star-mode message gate from the duration refresh gate:
-  positive `camera_bars_left` preserves the current duration count but still
-  permits the source pick route. This corrects the earlier over-tightened
-  downbeat cadence interpretation, stays inside normal gameplay camera
+  source, both `get_shot_duration` and `pick_new_shot` are inside the
+  `camera_bars_left <= 0` branch. Native normal gameplay now separates the
+  downbeat/star-mode message gate from the duration-expired pick gate:
+  positive `camera_bars_left` preserves the current shot and does not enter the
+  source pick route. This corrects the earlier over-loose downbeat cadence
+  interpretation, stays inside normal gameplay camera
   selection, keeps FreeCam last, and adds no dependencies.
 - 2026-07-16 gameplay forced-cue proof priority:
   GH2 `world_objects_worldbase.dta::force_pick_shot` refreshes
@@ -645,10 +642,10 @@
   last, and adds no dependencies.
 - 2026-07-16 gameplay downbeat camera cadence audit:
   This earlier pass rechecked the GH2 downbeat route, then a follow-up
-  over-tightened the picker cadence. The corrected source-backed behavior is
-  now recorded above: `check_camera_shot` always calls `pick_new_shot` when the
-  downbeat is not star-suppressed, while `camera_bars_left <= 0` only controls
-  whether `get_shot_duration` refreshes the duration.
+  loosened the picker cadence too far. The corrected source-backed behavior is
+  now recorded above: `check_camera_shot` calls `pick_new_shot` only when the
+  downbeat is not star-suppressed and `camera_bars_left <= 0`; the same branch
+  also refreshes the duration through `get_shot_duration`.
 - 2026-07-16 gameplay `game_won_msg` camera categories:
   GH2 `world_objects_worldbase.dta::game_won_msg` resolves the delayed win
   camera category from the source encore argument, `gamecfg win_campaign_song`,

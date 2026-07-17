@@ -13829,8 +13829,9 @@ int main() {
                  "camera_check_shot_due=!guitarist_starpower;",
                  "world_objects_worldbase.dta skips check_camera_shot during guitarist0 star mode");
   ok &= contains(gameplay_c,
-                 "source_check_camera_shot_pick_due=camera_check_shot_due;",
-                 "world_objects_worldbase.dta::check_camera_shot always runs pick_new_shot when the downbeat check is not star-suppressed");
+                 "source_check_camera_shot_pick_due="
+                 "camera_check_shot_due&&duration_expired;",
+                 "world_objects_worldbase.dta::check_camera_shot only runs pick_new_shot after the duration gate expires");
   ok &= contains(gameplay_c,
                  "boolcamera_source_guitarist0_actually_walking(){",
                  "regular camera runtime exposes the source guitarist0 actually_walking predicate");
@@ -13887,19 +13888,22 @@ int main() {
                  "\"check_camera_shot:get_shot_duration+pick_new_shot\"",
                  "camera downbeat diagnostics label the source duration-expired pick route");
   ok &= contains(gameplay_c,
-                 "\"check_camera_shot:duration_hold+pick_new_shot\"",
-                 "camera downbeat diagnostics label the source duration-held pick route");
+                 "\"check_camera_shot:duration_hold_no_pick\"",
+                 "camera downbeat diagnostics label the source duration-held no-pick route");
   ok &= contains(gameplay_c,
                  "if(!source_game_over_camera_hold&&"
                  "(force_camera||source_check_camera_shot_pick_due)){",
                  "regular camera selection follows the source check_camera_shot pick cadence while preserving forced picks");
   ok &= contains(gameplay_c,
-                 "if(camera_bars_left_<=0){"
-                 "duration_random_draw=camera_shot_counter_++;",
+                 "duration_random_draw=camera_shot_counter_++;"
+                 "camera_bars_left_=source_random_int_camera_duration_bars(",
                  "check_camera_shot refreshes duration only when the source duration gate has expired");
-  ok &= contains(gameplay_c,
-                 "duration_source=\"source_check_camera_shot_duration_hold\";",
-                 "check_camera_shot keeps existing camera_bars_left when the source duration gate is still positive");
+  ok &= absent(gameplay_c,
+               "duration_source=\"source_check_camera_shot_duration_hold\";",
+               "check_camera_shot duration hold must not enter the picker or report a selection duration");
+  ok &= absent(gameplay_c,
+               "\"check_camera_shot:duration_hold+pick_new_shot\"",
+               "check_camera_shot duration hold must not be labeled as a picker route");
   ok &= absent(gameplay_c,
                "if(force_camera||camera_bars_left_<=0){",
                "regular camera selection must not retry every frame after a source duration expires");

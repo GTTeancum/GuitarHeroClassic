@@ -36466,7 +36466,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 last_camera_bar_ = bar;
                 camera_bars_left_ = 0;
                 camera_check_shot_due = active_regular_camera_.empty();
-                source_check_camera_shot_pick_due = camera_check_shot_due;
+                source_check_camera_shot_pick_due =
+                    camera_check_shot_due && camera_bars_left_ <= 0;
             } else if (bar != last_camera_bar_) {
                 const uint32_t bars_elapsed = bar - last_camera_bar_;
                 last_camera_bar_ = bar;
@@ -36476,15 +36477,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                         static_cast<int>(bars_elapsed));
                 }
                 camera_check_shot_due = !guitarist_starpower;
-                source_check_camera_shot_pick_due = camera_check_shot_due;
+                const bool duration_expired = camera_bars_left_ <= 0;
+                source_check_camera_shot_pick_due =
+                    camera_check_shot_due && duration_expired;
                 if (debug_camera_enabled() || debug_venue_filters_enabled()) {
-                    const bool duration_expired = camera_bars_left_ <= 0;
                     const char* downbeat_source_action =
                         !camera_check_shot_due
                             ? "skip_star_mode"
                             : duration_expired
                             ? "check_camera_shot:get_shot_duration+pick_new_shot"
-                            : "check_camera_shot:duration_hold+pick_new_shot";
+                            : "check_camera_shot:duration_hold_no_pick";
                     std::fprintf(
                         stderr,
                         "[world] camera downbeat: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_msg=downbeat source_script=world_objects_worldbase.dta::downbeat bar=%u bars_elapsed=%u bars_left=%d star_mode=%d source_starpower_gate=%s check_camera_shot=%d duration_gate=camera_bars_left<=0 duration_expired=%d pick_new_shot=%d source_action=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
@@ -36602,18 +36604,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                     }
                 } else {
-                    if (camera_bars_left_ <= 0) {
-                        duration_random_draw = camera_shot_counter_++;
-                        camera_bars_left_ =
-                            source_random_int_camera_duration_bars(
-                                duration.second.first, duration.second.second,
-                                *duration_random_draw);
-                    } else {
-                        duration = {"existing_bars",
-                                    {camera_bars_left_, camera_bars_left_}};
-                        duration_source =
-                            "source_check_camera_shot_duration_hold";
-                    }
+                    duration_random_draw = camera_shot_counter_++;
+                    camera_bars_left_ =
+                        source_random_int_camera_duration_bars(
+                            duration.second.first, duration.second.second,
+                            *duration_random_draw);
                 }
                 const bool low_excitement =
                     camera_low_excitement_like_source(active_venue_event_);
