@@ -2,6 +2,21 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager Handle route status:
+  ihatecompvir `CameraManager::Handle(...)` dispatches `pick_shot` to
+  `OnPickCameraShot`, `find_shot` to `OnFindCameraShot`, `force_shot` to
+  `ForceCameraShot`, exposes `current_shot` / `next_shot`, and dispatches
+  `num_shots` to `OnNumCameraShots`. Native already routes normal gameplay
+  script camera picks through the same source-shaped family: world script
+  filters feed MakeCategory/ShotMatches, accepted picks queue `mNextShot`,
+  forced/diagnostic paths call the ForceCameraShot bridge, and regular sweep
+  diagnostics read `current_shot` / `next_shot` before and after queueing. The
+  compact normal gameplay camera status now counts
+  `camera_manager_handle_routes` between the worldbase script-filter bridge
+  and `camera_manager_make_category_filters`. This is source message-routing
+  parity only: no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
+  invention, no pose math, no FreeCam priority change, no dependency, no
+  under-venue masking, and no OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager iterate-shot bucket status:
   ihatecompvir `CameraManager::OnIterateShot(...)` saves the script variable,
   walks `mCameraShotCategories` bucket-by-bucket, writes each contained

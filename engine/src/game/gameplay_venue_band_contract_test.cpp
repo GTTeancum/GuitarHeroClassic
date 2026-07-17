@@ -14942,6 +14942,7 @@ int main() {
                  "camera_worldbase_beat_check_shot_bridge,"
                  "camera_worldbase_downbeat_duration_bridge,"
                  "camera_worldbase_script_filter_bridge,"
+                 "camera_manager_handle_routes,"
                  "camera_manager_make_category_filters,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_numcamerashots_prescan_bridge,"
@@ -14959,7 +14960,7 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -14976,6 +14977,7 @@ int main() {
                  "camera_worldbase_beat_check_shot_bridge,"
                  "camera_worldbase_downbeat_duration_bridge,"
                  "camera_worldbase_script_filter_bridge,"
+                 "camera_manager_handle_routes,"
                  "camera_manager_make_category_filters,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_numcamerashots_prescan_bridge,"
@@ -14983,7 +14985,12 @@ int main() {
                  "camera_manager_findshot_category_scan,"
                  "camera_manager_findshot_disabled_gate,"
                  "camera_manager_shotmatches_filters,",
-                 "camera implementation status keeps worldbase downbeat duration and script filters before MakeCategoryAndFilters, NumCameraShots, and the CameraManager FirstShotOk/category/Disabled/ShotMatches scan");
+                 "camera implementation status keeps worldbase downbeat duration and script filters before CameraManager Handle routes, MakeCategoryAndFilters, NumCameraShots, and the CameraManager FirstShotOk/category/Disabled/ShotMatches scan");
+  ok &= contains(gameplay_c,
+                 "camera_worldbase_script_filter_bridge,"
+                 "camera_manager_handle_routes,"
+                 "camera_manager_make_category_filters,",
+                 "camera implementation status keeps CameraManager Handle routing between world script filters and MakeCategoryAndFilters");
   ok &= contains(gameplay_c,
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_findshot_category_scan,"
