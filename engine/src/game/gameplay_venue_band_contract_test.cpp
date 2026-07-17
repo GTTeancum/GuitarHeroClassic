@@ -14995,11 +14995,13 @@ int main() {
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
                  "camera_camshot_getkey_looping,"
-                 "camera_frame_pair_timing,camera_camshot_onsetpos_boundary,"
+                 "camera_frame_pair_timing,"
+                 "camera_camshot_setframe_last_pair_bridge,"
+                 "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts CamShot GetKey looping before the OnSetPos and OnHasTargets boundaries and return bridge between frame-pair timing and audited RndTransAnim path timing");
+                 "camera implementation status counts CamShot GetKey looping and SetFrame mLastPrev/mLastNext accounting before the OnSetPos and OnHasTargets boundaries and return bridge between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15208,11 +15210,12 @@ int main() {
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
+                 "camera_camshot_setframe_last_pair_bridge,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, GetCam/RndCam bridge, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, Poll SetFrame bridge, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, the CheckShotOver predicate bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets handler returns");
+                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, GetCam/RndCam bridge, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, Poll SetFrame bridge, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, the CheckShotOver predicate bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, SetFrame mLastPrev/mLastNext accounting, and the source OnSetPos/OnHasTargets handler returns");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_manager_enter_reset_bridge,"
                  "camera_camshot_endanim_bridge,"
@@ -15375,11 +15378,12 @@ int main() {
                  "camera implementation status keeps CamShot EndFrame mDuration between CacheFrames and duration_seconds");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
+                 "camera_camshot_setframe_last_pair_bridge,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing,",
-                 "camera implementation status keeps OnSetPos/OnHasTargets handler returns after frame-pair timing and before path timing");
+                 "camera implementation status keeps SetFrame mLastPrev/mLastNext accounting and OnSetPos/OnHasTargets handler returns after frame-pair timing and before path timing");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,"
                  "camera_trace_complete_writer_bridge,"

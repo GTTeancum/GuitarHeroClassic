@@ -495,6 +495,17 @@
   timing. This is normal gameplay timing/proof alignment only: no pose math,
   `BuildTransform`, `RndCam::UpdateLocal`, under-venue masking, FreeCam
   priority, dependency, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot SetFrame last-pair status:
+  ihatecompvir's RB2 dump exposes `CamShot` fields `mLastPrev` / `mLastNext`
+  and the `CamShot::SetFrame` static `nullFrame` local. Native already kept
+  this normal gameplay state outside the diagnostic gate and printed
+  `[world] camera SetFrame last pair ...`; the compact implementation status
+  now also counts `camera_camshot_setframe_last_pair_bridge` between
+  `camera_frame_pair_timing` and the `OnSetPos` / `OnHasTargets` boundary
+  tokens. This is status/proof alignment for an already source-backed runtime
+  bridge: no hidden pose body, `SetPos`, `BuildTransform`,
+  `RndCam::UpdateLocal`, under-venue masking, FreeCam priority, dependency, or
+  OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot PlatformOk gate status:
   ihatecompvir `CameraManager::SyncObjects()` admits CamShots to category
   buckets only after `CamShot::PlatformOk()`. Native already filtered intro and
