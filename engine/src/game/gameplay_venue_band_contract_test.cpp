@@ -14875,8 +14875,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_manager_prepoll_poll_order,"
                  "camera_camshot_update_target_cache,"
+                 "camera_camshot_setfrustum,"
+                 "camera_same_target_screen_offset,"
+                 "camera_camshot_dofproc,"
+                 "camera_camshot_shake_tail,"
                  "camera_visibility",
-                 "camera implementation status counts audited CameraManager PrePoll/Poll order and CamShot UpdateTarget target cache");
+                 "camera implementation status counts audited CameraManager PrePoll/Poll order and source-visible CamShotFrame::Interp pieces");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,camera_fov_anim_atframe",
                  "camera implementation status counts audited RndCamAnim FovKeys::AtFrame sampling");

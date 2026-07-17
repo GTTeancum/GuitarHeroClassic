@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot Interp source-visible status proof:
+  ihatecompvir `CamShotFrame::Interp` visibly calls `RndCam::SetFrustum`,
+  handles the SameTargets direct screen-offset branch, submits DOF through
+  `DOFProc`, and tails through `CamShot::Shake` before `SetLocalXfm`. Native
+  already carries those source-visible runtime pieces and contract guards, so
+  the compact implementation status now counts `camera_camshot_setfrustum`,
+  `camera_same_target_screen_offset`, `camera_camshot_dofproc`, and
+  `camera_camshot_shake_tail` separately from the still-hidden pose bodies.
+  This is proof/status alignment only: no hidden `SetPos`, `BuildTransform`,
+  or `RndCam::UpdateLocal` synthesis, no under-venue masking, no FreeCam
+  priority change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot UpdateTarget status proof:
   ihatecompvir `CamShotFrame::UpdateTarget` refreshes the averaged target cache
   and parent `WorldXfm` cache before `CamShotFrame::Interp` consumes them for
