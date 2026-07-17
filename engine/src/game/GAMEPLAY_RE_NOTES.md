@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager MiloCamera poll-gate status:
+  ihatecompvir `CameraManager::PrePoll()` and `CameraManager::Poll()` both
+  skip normal `mNextShot` consumption, `SetPreFrame`, `SetFrame`, and
+  `FreeCamera::Poll()` while `CameraManager::MiloCamera()` returns the edit
+  preview `DataVariable("milo.anim")` CamShot. Native already evaluates that
+  source gate before normal gameplay camera polling, keeps it false until a real
+  edit-preview `milo.anim` bridge exists, and contract-checks the source order;
+  the compact status now counts `camera_manager_milocamera_poll_gate`. This does
+  not move FreeCam priority, synthesize hidden pose math, add dependencies, or
+  mask the open under-venue concern.
 - 2026-07-17 gameplay CamShot shot_started post-switch status:
   ihatecompvir `CamShot::CheckShotStarted()` returns the runtime `unk120p4`
   bit, and stock GH2 `world/camshot.dta` routes `shot_started` through

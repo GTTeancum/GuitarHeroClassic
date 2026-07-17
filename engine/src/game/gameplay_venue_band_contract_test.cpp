@@ -14902,6 +14902,7 @@ int main() {
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
+                 "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order,"
                  "camera_camshot_update_target_cache,"
                  "camera_camshot_setfrustum,"
@@ -14915,7 +14916,7 @@ int main() {
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, and the source OnSetPos boundary");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, and the source OnSetPos boundary");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -14952,8 +14953,9 @@ int main() {
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
+                 "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order",
-                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection and check_shot probe boundary before manager poll order");
+                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection, check_shot probe boundary, and source MiloCamera gate before manager poll order");
   ok &= contains(gameplay_c,
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
