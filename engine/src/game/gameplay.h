@@ -163,6 +163,7 @@ class Gameplay {
     struct CrowdRef {
       std::string ref;
       int rotate = 0;
+      int modify_stamp = -1;
       std::vector<std::pair<int, int>> pairs;
     };
     std::string name;

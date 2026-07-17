@@ -2589,7 +2589,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.crowd_refs.clear();
             for (const auto& crowd : shot.crowds) {
                 key.crowd_refs.push_back(
-                    {crowd.ref, crowd.rotate, crowd.pairs});
+                    {crowd.ref, crowd.rotate, crowd.modify_stamp,
+                     crowd.pairs});
                 if (crowd.ref.empty()) continue;
                 key.source_ref = crowd.ref;
                 key.has_crowd_selection = !crowd.pairs.empty();
@@ -26249,6 +26250,7 @@ std::vector<Gameplay::CameraKey::CrowdRef> camera_crowd_selections_like_source(
                                                    ? key.source_ref
                                                    : crowd.ref);
             selection.rotate = crowd.rotate;
+            selection.modify_stamp = crowd.modify_stamp;
             selection.pairs = crowd.pairs;
             if (selection.ref.empty() && selection.pairs.empty()) continue;
             out.push_back(std::move(selection));
@@ -26262,6 +26264,9 @@ std::vector<Gameplay::CameraKey::CrowdRef> camera_crowd_selections_like_source(
                                                ? key.source_ref
                                                : key.crowd_selection_ref);
         selection.rotate = key.crowd_face_camera ? 1 : 0;
+        selection.modify_stamp = key.has_legacy_crowd_modify_stamp
+                                     ? key.legacy_crowd_modify_stamp
+                                     : -1;
         selection.pairs = key.crowd_selection_pairs;
         if (!selection.ref.empty() || !selection.pairs.empty()) {
             out.push_back(std::move(selection));
@@ -26277,12 +26282,24 @@ size_t camera_crowd_selection_pair_count(
     return total;
 }
 
+std::string camera_crowd_selection_modify_stamps_for_log(
+    const std::vector<Gameplay::CameraKey::CrowdRef>& selections) {
+    if (selections.empty()) return "none";
+    std::string out;
+    for (size_t i = 0; i < selections.size(); ++i) {
+        if (i > 0) out += "|";
+        out += std::to_string(selections[i].modify_stamp);
+    }
+    return out;
+}
+
 bool camera_crowd_selections_equal(
     const std::vector<Gameplay::CameraKey::CrowdRef>& a,
     const std::vector<Gameplay::CameraKey::CrowdRef>& b) {
     if (a.size() != b.size()) return false;
     for (size_t i = 0; i < a.size(); ++i) {
         if (a[i].ref != b[i].ref || a[i].rotate != b[i].rotate ||
+            a[i].modify_stamp != b[i].modify_stamp ||
             a[i].pairs != b[i].pairs) {
             return false;
         }
@@ -27091,10 +27108,12 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
         const size_t before_total_pairs =
             camera_crowd_selection_pair_count(before_selections);
         bool changed = false;
+        int source_crowd_modify_stamp_for_log = -1;
         if (source_index_ok) {
             const auto crowd_idx = static_cast<size_t>(crowd_index);
             std::string crowd_ref;
             int crowd_rotate = 0;
+            int crowd_modify_stamp = -1;
             std::vector<std::pair<int, int>> crowd_pairs;
             if (!key.crowd_refs.empty()) {
                 const auto& source_crowd = key.crowd_refs[crowd_idx];
@@ -27102,34 +27121,48 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
                                                    ? key.source_ref
                                                    : source_crowd.ref);
                 crowd_rotate = source_crowd.rotate;
+                crowd_modify_stamp = source_crowd.modify_stamp;
                 crowd_pairs = source_crowd.pairs;
             } else {
                 crowd_ref = canonical_milo_ref(key.crowd_selection_ref.empty()
                                                    ? key.source_ref
                                                    : key.crowd_selection_ref);
                 crowd_rotate = key.crowd_face_camera ? 1 : 0;
+                crowd_modify_stamp = key.has_legacy_crowd_modify_stamp
+                                         ? key.legacy_crowd_modify_stamp
+                                         : -1;
                 crowd_pairs = key.crowd_selection_pairs;
             }
+            source_crowd_modify_stamp_for_log = crowd_modify_stamp;
             auto active_crowd_entry =
                 [&](const std::string& ref,
-                    int rotate) -> CameraKey::CrowdRef& {
+                    int rotate,
+                    int modify_stamp) -> CameraKey::CrowdRef& {
                 for (auto& selection : venue_camera_crowd_selections_) {
-                    if (selection.ref == ref) return selection;
+                    if (selection.ref == ref) {
+                        selection.modify_stamp = modify_stamp;
+                        return selection;
+                    }
                 }
                 CameraKey::CrowdRef selection;
                 selection.ref = ref;
                 selection.rotate = rotate;
+                selection.modify_stamp = modify_stamp;
                 venue_camera_crowd_selections_.push_back(
                     std::move(selection));
                 return venue_camera_crowd_selections_.back();
             };
             if (message == CrowdMessage::Clear) {
-                auto& active = active_crowd_entry(crowd_ref, crowd_rotate);
+                auto& active = active_crowd_entry(
+                    crowd_ref, crowd_rotate, crowd_modify_stamp);
                 active.rotate = crowd_rotate;
+                active.modify_stamp = crowd_modify_stamp;
                 active.pairs.clear();
             } else if (!crowd_pairs.empty()) {
-                auto& active = active_crowd_entry(crowd_ref, crowd_rotate);
+                auto& active = active_crowd_entry(
+                    crowd_ref, crowd_rotate, crowd_modify_stamp);
                 active.rotate = crowd_rotate;
+                active.modify_stamp = crowd_modify_stamp;
                 if (message == CrowdMessage::Set) {
                     active.pairs = crowd_pairs;
                 } else {
@@ -27157,11 +27190,12 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
         if (debug_camera_enabled() || debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] camera crowd message: source_msg=%s source_handler=%s source_assert=idx<mCrowds.size() shot=%s crowd_index=%d source_index_ok=%d source_crowd_count=%zu source_assert_idx_lt_size=%d source_crowds=%zu entries_before=%zu entries_after=%zu pairs_total_before=%zu pairs_total_after=%zu ref_before=%s pairs_before=%zu ref_after=%s pairs_after=%zu has_after=%d changed=%d source_return=DataNode(0)\n",
+                "[world] camera crowd message: source_msg=%s source_handler=%s source_assert=idx<mCrowds.size() shot=%s crowd_index=%d source_index_ok=%d source_crowd_count=%zu source_assert_idx_lt_size=%d source_crowd_modify_stamp=%d source_stamp_source=CamShotCrowd::Load_num source_stamp_compare=WorldCrowd::unk88_unrecovered source_crowds=%zu entries_before=%zu entries_after=%zu pairs_total_before=%zu pairs_total_after=%zu ref_before=%s pairs_before=%zu ref_after=%s pairs_after=%zu has_after=%d changed=%d source_return=DataNode(0)\n",
                 std::string(source_msg).c_str(), source_handler,
                 key.name.c_str(), crowd_index, source_index_ok ? 1 : 0,
                 source_crowd_count,
                 source_assert_idx_lt_size ? 1 : 0,
+                source_crowd_modify_stamp_for_log,
                 source_crowd_count, before_selections.size(),
                 venue_camera_crowd_selections_.size(), before_total_pairs,
                 camera_crowd_selection_pair_count(
@@ -27931,10 +27965,12 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             : source_crowd_selections.front().pairs.size();
     const size_t source_total_crowd_pairs =
         camera_crowd_selection_pair_count(source_crowd_selections);
+    const std::string source_crowd_modify_stamps =
+        camera_crowd_selection_modify_stamps_for_log(source_crowd_selections);
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_call=WorldDir::SetCrowds source_order=after_start_shot_before_state_reset shot=%s source_crowds=%zu crowd_select=%d crowd_entries=%zu crowd_ref=%s crowd_pairs=%zu crowd_total_pairs=%zu face_camera=%d script_crowd_update_skipped=%d\n",
+            "[world] camera StartAnim: source_call=WorldDir::SetCrowds source_order=after_start_shot_before_state_reset shot=%s source_crowds=%zu crowd_select=%d crowd_entries=%zu crowd_ref=%s crowd_pairs=%zu crowd_total_pairs=%zu crowd_modify_stamps=%s source_stamp_source=CamShotCrowd::Load_num source_stamp_compare=WorldCrowd::unk88_unrecovered face_camera=%d script_crowd_update_skipped=%d\n",
             active_camera_runtime_shot_.c_str(),
             source_crowd_count,
             source_crowd_selections.empty() ? 0 : 1,
@@ -27942,6 +27978,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             source_crowd_ref.c_str(),
             source_first_crowd_pairs,
             source_total_crowd_pairs,
+            source_crowd_modify_stamps.c_str(),
             key.crowd_face_camera ? 1 : 0,
             skip_script_crowd_update ? 1 : 0);
     }
@@ -27982,7 +28019,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     if (debug_venue_filters_enabled() && has_source_crowd) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_call=CamShotCrowd::Set3DCrowd source_order=after_linked_mAnims shot=%s source_crowds=%zu crowd_select=%d crowd_entries=%zu crowd_ref=%s crowd_pairs=%zu crowd_total_pairs=%zu face_camera=%d\n",
+            "[world] camera StartAnim: source_call=CamShotCrowd::Set3DCrowd source_order=after_linked_mAnims shot=%s source_crowds=%zu crowd_select=%d crowd_entries=%zu crowd_ref=%s crowd_pairs=%zu crowd_total_pairs=%zu crowd_modify_stamps=%s source_stamp_source=CamShotCrowd::Load_num source_stamp_compare=WorldCrowd::unk88_unrecovered face_camera=%d\n",
             active_camera_runtime_shot_.c_str(),
             source_crowd_count,
             source_crowd_selections.empty() ? 0 : 1,
@@ -27990,6 +28027,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             source_crowd_ref.c_str(),
             source_first_crowd_pairs,
             source_total_crowd_pairs,
+            source_crowd_modify_stamps.c_str(),
             key.crowd_face_camera ? 1 : 0);
     }
     if (source_restart) {

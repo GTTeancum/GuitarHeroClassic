@@ -6402,6 +6402,11 @@ int main() {
                  "camera_crowd_selections_like_source(key);",
                  "camera StartAnim derives a full source-shaped crowd list");
   ok &= contains(gameplay_c,
+                 "conststd::stringsource_crowd_modify_stamps="
+                 "camera_crowd_selection_modify_stamps_for_log("
+                 "source_crowd_selections);",
+                 "camera StartAnim preserves source CamShotCrowd load stamps in proof rows");
+  ok &= contains(gameplay_c,
                  "source_call=WorldDir::SetCrowds",
                  "camera StartAnim diagnostics expose the ihatecompvir WorldDir::SetCrowds phase");
   ok &= contains(start_camera_shot_runtime_c,
@@ -6410,6 +6415,11 @@ int main() {
                  "source_order=after_start_shot_before_state_resetshot=%s"
                  "source_crowds=%zu",
                  "camera StartAnim reports WorldDir::SetCrowds even when CamShot mCrowds is empty");
+  ok &= contains(gameplay_c,
+                 "crowd_modify_stamps=%s"
+                 "source_stamp_source=CamShotCrowd::Load_num"
+                 "source_stamp_compare=WorldCrowd::unk88_unrecovered",
+                 "camera StartAnim diagnostics expose preserved CamShotCrowd load stamps without guessing the WorldCrowd count comparison");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "apply_camera_crowd_visibility(key,skip_script_crowd_update);",
@@ -8988,8 +8998,9 @@ int main() {
                  "CameraKey preserves CamShot platform_only/ps3_per_pixel/disabled/flags beside source shot filters");
   ok &= contains(gameplay_h_c,
                  "structCrowdRef{std::stringref;introtate=0;"
+                 "intmodify_stamp=-1;"
                  "std::vector<std::pair<int,int>>pairs;};",
-                 "CameraKey preserves full decoded CamShotCrowd entries for source-shaped filters");
+                 "CameraKey preserves full decoded CamShotCrowd entries and source load stamp for source-shaped filters");
   ok &= contains(gameplay_h_c,
                  "std::vector<CrowdRef>crowd_refs;",
                  "CameraKey keeps every CamShotCrowd entry, not only the runtime first selection");
@@ -9090,8 +9101,9 @@ int main() {
                  "CamShot loader copies legacy crowd modify-stamp provenance into CameraKey");
   ok &= contains(gameplay_c,
                  "key.crowd_refs.clear();for(constauto&crowd:shot.crowds){"
-                 "key.crowd_refs.push_back({crowd.ref,crowd.rotate,crowd.pairs});",
-                 "CamShot reader preserves the full source CamShotCrowd list for property filters");
+                 "key.crowd_refs.push_back({crowd.ref,crowd.rotate,"
+                 "crowd.modify_stamp,crowd.pairs});",
+                 "CamShot reader preserves the full source CamShotCrowd list and load stamp for property filters");
   ok &= contains(camshot_reader_c,
                  "key.platform_only=shot.platform_only;",
                  "CamShot platform_only is copied into CameraKey shot fields");
@@ -14110,15 +14122,21 @@ int main() {
                  "crowd_pairs=source_crowd.pairs;",
                  "CamShot crowd bridge applies the indexed decoded selected-member list");
   ok &= contains(gameplay_c,
+                 "crowd_modify_stamp=source_crowd.modify_stamp;",
+                 "CamShot crowd bridge carries the indexed CamShotCrowd load stamp");
+  ok &= contains(gameplay_c,
                  "crowd_pairs=key.crowd_selection_pairs;",
                  "CamShot crowd bridge preserves the legacy single-crowd fallback");
   ok &= contains(gameplay_c,
                  "source_assert=idx<mCrowds.size()",
                  "CamShot crowd diagnostics name the ihatecompvir crowd index assertion");
   ok &= contains(gameplay_c,
-                 "auto&active=active_crowd_entry(crowd_ref,crowd_rotate);"
-                 "active.rotate=crowd_rotate;active.pairs.clear();",
-                 "CamShot clear_3d_crowd mirrors source ClearCrowdChars on the indexed active crowd entry");
+                 "auto&active=active_crowd_entry("
+                 "crowd_ref,crowd_rotate,crowd_modify_stamp);"
+                 "active.rotate=crowd_rotate;"
+                 "active.modify_stamp=crowd_modify_stamp;"
+                 "active.pairs.clear();",
+                 "CamShot clear_3d_crowd mirrors source ClearCrowdChars on the indexed active crowd entry and stamp");
   ok &= contains(gameplay_c,
                  "if(message==CrowdMessage::Set){"
                  "active.pairs=crowd_pairs;}",
@@ -14135,9 +14153,12 @@ int main() {
                  "CamShot crowd bridge syncs legacy diagnostics from the active mCrowds list");
   ok &= contains(gameplay_c,
                  "source_crowd_count=%zusource_assert_idx_lt_size=%d"
+                 "source_crowd_modify_stamp=%d"
+                 "source_stamp_source=CamShotCrowd::Load_num"
+                 "source_stamp_compare=WorldCrowd::unk88_unrecovered"
                  "source_crowds=%zuentries_before=%zuentries_after=%zu"
                  "pairs_total_before=%zupairs_total_after=%zu",
-                 "CamShot crowd diagnostics report source mCrowds count and aggregate active list changes");
+                 "CamShot crowd diagnostics report source mCrowds count, preserved load stamp, and aggregate active list changes");
   ok &= contains(gameplay_c,
                  "source_return=DataNode(0)",
                  "CamShot crowd bridge preserves the source handler return shape");

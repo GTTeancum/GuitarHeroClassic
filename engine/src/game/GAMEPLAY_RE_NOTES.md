@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShotCrowd load-stamp preservation:
+  ihatecompvir `CamShotCrowd::Load` reads the selected crowd member list, then
+  reads a saved count/stamp and compares it with `mCrowd->unk88` before keeping
+  or clearing the list. Native now preserves that per-`mCrowds` stamp through
+  `CameraKey::CrowdRef`, active crowd selections, indexed crowd messages, and
+  `StartAnim` proof rows. The `WorldCrowd::unk88` comparison remains explicitly
+  unrecovered instead of being guessed from nearby venue data. This is normal
+  gameplay camera crowd-state parity only: no camera pose movement, no
+  `BuildTransform` synthesis, no FreeCam priority change, no dependency
+  change, and no OG Xbox portability change.
 - 2026-07-17 gameplay camera blocker-scope proof:
   normal gameplay solver rows now separate active per-frame pose blockers from
   source selection/check-shot blockers. Per-frame solver diagnostics keep
