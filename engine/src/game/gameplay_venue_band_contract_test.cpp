@@ -14892,7 +14892,8 @@ int main() {
                  "camera_lifecycle",
                  "camera implementation status counts source WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
+                 "camera_lifecycle,camera_camshot_glow_spot_bridge,"
+                 "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order,"
                  "camera_camshot_update_target_cache,"
@@ -14902,7 +14903,11 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_visibility",
-                 "camera implementation status counts audited CameraManager PrePoll/Poll order and source-visible CamShotFrame::Interp pieces");
+                 "camera implementation status counts the source-visible glow_spot bridge, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
+  ok &= contains(gameplay_c,
+                 "camera_camshot_glow_spot_bridge,"
+                 "camera_camshot_shot_ok_bad_waypoints",
+                 "camera implementation status keeps the decoded CamShot glow_spot bridge separate from hidden ShotOk work");
   ok &= contains(gameplay_c,
                  "source_visible_pose_units=%s",
                  "camera debug rows expose visible CamShotFrame::Interp pose units");
@@ -14910,7 +14915,8 @@ int main() {
                  "SetFrustum,DOF,Shake_tail,SetLocalXfm_tail",
                  "camera visible pose-unit status counts the source SetLocalXfm tail without claiming hidden BuildTransform math");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
+                 "camera_lifecycle,camera_camshot_glow_spot_bridge,"
+                 "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order",
                  "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection and check_shot probe boundary before manager poll order");

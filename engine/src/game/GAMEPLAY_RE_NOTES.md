@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot glow_spot bridge status:
+  ihatecompvir `CamShot` constructs, copies, loads, and property-syncs
+  `mGlowSpot`, while `CamShot::StartAnim()` / `EndAnim()` do not clear or
+  otherwise hide that authored ref. Native already routes the decoded
+  `glow_spot` symbol into the active lighting spotlight renderer on regular
+  camera start and preserves it until the next CamShot or no-current manager
+  clear; the compact status now counts `camera_camshot_glow_spot_bridge`. This
+  is a source-backed renderer bridge/lifecycle count only: no hidden
+  `BuildTransform`, `SetPos`, `RndCam::UpdateLocal`, `ShotOk` remainder, or
+  `check_shot` body is synthesized, no under-venue result is masked, FreeCam
+  remains deferred last, and no dependency or OG Xbox portability surface
+  changed.
 - 2026-07-17 gameplay SetLocalXfm tail status:
   ihatecompvir `CamShotFrame::Interp` visibly blends `cam->WorldXfm()` into
   `tf130`, applies `CamShot::Shake`, and then submits
