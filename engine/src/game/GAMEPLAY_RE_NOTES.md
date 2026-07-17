@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot StartAnim reset status:
+  ihatecompvir `CamShot::StartAnim()` sends `start_shot`, calls
+  `WorldDir::SetCrowds(mCrowds)`, clears `unk10c` / `unk110` and the six
+  visible vector accumulators, then starts linked `mAnims`. Native already
+  keeps the reset proof row, resets the result-builder and shake accumulators
+  before linked camera anims, and preserves the per-CamShot `mShotOver` latch;
+  the compact status now counts `camera_camshot_startanim_state_reset` and
+  orders the lifecycle as postprocess handler, reset, then `mAnims`. This is
+  source-order/status alignment only: no hidden pose body, FreeCam priority,
+  under-venue masking, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot mAnims lifecycle status:
   ihatecompvir `CamShot::StartAnim()` starts each linked `mAnims` child after
   the source state reset and before `CamShotCrowd::Set3DCrowd()`, while
