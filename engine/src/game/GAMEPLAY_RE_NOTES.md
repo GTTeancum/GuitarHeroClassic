@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camera pose-tier proof:
+  normal gameplay camera diagnostics now label each active pose row with
+  `source_pose_impl_tier`, `source_pose_required_body`,
+  `source_visible_pose_units`, and `source_hidden_pose_bodies`. The labels
+  separate retained PS2 payload coverage from source-visible
+  `CamShotFrame::Interp` flow that still depends on hidden
+  `CamShotFrame::BuildTransform`, `CamShot::SetPos`, or
+  `RndCam::UpdateLocal` bodies. This is screenshot/proof triage only for
+  sketchy camera angles: no pose math, no vertical sign flip, no under-venue
+  masking, no FreeCam priority change, no dependency change, and no OG Xbox
+  portability change.
 - 2026-07-17 gameplay CamShot task-unit proof labels:
   ihatecompvir `RndAnimatable` maps rates through `gRateUnits`
   (`k30_fps`/`k30_fps_ui`/`k30_fps_tutorial` to seconds-like task clocks,

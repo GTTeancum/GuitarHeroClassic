@@ -10009,6 +10009,36 @@ int main() {
                  "\"pose_coverage=%shidden_pose_boundary=%s\"",
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
+                 "constexprconstchar*kCamShotVisiblePoseUnits="
+                 "\"CameraManager,GetKey,Interp_order,SetFrustum,DOF,Shake_tail\";",
+                 "camera pose proof labels the visible source-covered runtime units");
+  ok &= contains(gameplay_c,
+                 "constexprconstchar*kCamShotHiddenPoseBodies="
+                 "\"CamShotFrame::BuildTransform,CamShot::SetPos,"
+                 "RndCam::UpdateLocal\";",
+                 "camera pose proof labels the remaining hidden pose bodies");
+  ok &= contains(gameplay_c,
+                 "constchar*camera_source_pose_impl_tier("
+                 "boolretained_ps2_trace_payload,boolsource_build_transform_order)",
+                 "camera diagnostics classify active pose implementation tier");
+  ok &= contains(gameplay_c,
+                 "return\"visible_interp_hidden_buildtransform\";",
+                 "camera diagnostics name the source-visible Interp path with hidden BuildTransform");
+  ok &= contains(gameplay_c,
+                 "return\"native_seed_or_path_hidden_setpos_buildtransform\";",
+                 "camera diagnostics name the native seed/path path with hidden SetPos/BuildTransform");
+  ok &= contains(gameplay_c,
+                 "\"source_pose_impl_tier=%ssource_pose_required_body=%s\""
+                 "\"source_visible_pose_units=%s"
+                 "source_hidden_pose_bodies=%s\"",
+                 "camera solver diagnostics expose active pose tier and remaining source body requirement");
+  ok &= contains(gameplay_c,
+                 "\"source_pose_impl_tier=%ssource_pose_required_body=%s\""
+                 "\"source_visible_pose_units=%s"
+                 "source_hidden_pose_bodies=%s\""
+                 "\"frame=%.2f",
+                 "primary camera diagnostics expose pose tier before frame/FOV details");
+  ok &= contains(gameplay_c,
                  "\"submitted_kind=a:%sb:%s"
                  "skip_source_build_transform=%d\"",
                  "camera solver primary row exposes structured submit class and BuildTransform bypass proof");
@@ -11810,6 +11840,9 @@ int main() {
                  "\"[camera]pipeline_scope=normal_gameplay_camera\""
                  "\"priority=gameplay_cameragameplay_shot=a:%sb:%s\""
                  "\"source_category=a:%sb:%s\""
+                 "\"source_pose_impl_tier=%ssource_pose_required_body=%s\""
+                 "\"source_visible_pose_units=%s"
+                 "source_hidden_pose_bodies=%s\""
                  "\"frame=%.2f",
                  "camera debug rows lead with normal gameplay shot/category info");
   ok &= contains(gameplay_c,

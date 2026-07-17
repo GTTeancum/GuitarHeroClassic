@@ -19156,6 +19156,26 @@ constexpr const char* kCamShotUpdateLocalSourceSearch =
     "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
     "re_gh2_no_rndcam_body;band3_recomp_no_update_local_body;"
     "SZBE69_symbols_address_size_only;SZBE69_B8_symbols_address_size_only";
+constexpr const char* kCamShotVisiblePoseUnits =
+    "CameraManager,GetKey,Interp_order,SetFrustum,DOF,Shake_tail";
+constexpr const char* kCamShotHiddenPoseBodies =
+    "CamShotFrame::BuildTransform,CamShot::SetPos,RndCam::UpdateLocal";
+
+const char* camera_source_pose_impl_tier(bool retained_ps2_trace_payload,
+                                         bool source_build_transform_order) {
+    if (retained_ps2_trace_payload) return "retained_ps2_payload_pose";
+    if (source_build_transform_order) {
+        return "visible_interp_hidden_buildtransform";
+    }
+    return "native_seed_or_path_hidden_setpos_buildtransform";
+}
+
+const char* camera_source_pose_required_body(bool retained_ps2_trace_payload,
+                                             bool source_build_transform_order) {
+    if (retained_ps2_trace_payload) return "selection_predicates_only";
+    if (source_build_transform_order) return "CamShotFrame::BuildTransform";
+    return "CamShot::SetPos_or_CamShotFrame::BuildTransform";
+}
 
 struct CameraSourceLocalProjectScale {
     float tan_x = 0.0f;
@@ -23389,6 +23409,12 @@ void apply_camera_keys(
                 : source_build_transform_order
                 ? "CamShotFrame::BuildTransform"
                 : "CamShot::SetPos/BuildTransform";
+        const char* source_pose_impl_tier =
+            camera_source_pose_impl_tier(submitted_result_from_ps2_trace,
+                                         source_build_transform_order);
+        const char* source_pose_required_body =
+            camera_source_pose_required_body(submitted_result_from_ps2_trace,
+                                             source_build_transform_order);
         const bool charwalk_gate_active =
             camera_source_guitarist0_actually_walking();
         const std::string active_hidden_gameplay_blockers =
@@ -24520,6 +24546,8 @@ void apply_camera_keys(
             "[camera] pipeline_scope=normal_gameplay_camera "
             "priority=gameplay_camera gameplay_shot=a:%s b:%s "
             "source_category=a:%s b:%s "
+            "source_pose_impl_tier=%s source_pose_required_body=%s "
+            "source_visible_pose_units=%s source_hidden_pose_bodies=%s "
             "frame=%.2f t=%.3f eased_t=%.3f setframe_blend=%.3f "
             "blend_ease=%.3f mode=%d a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
@@ -24537,6 +24565,8 @@ void apply_camera_keys(
             a->name.c_str(), b->name.c_str(),
             a->category.empty() ? "none" : a->category.c_str(),
             b->category.empty() ? "none" : b->category.c_str(),
+            source_pose_impl_tier, source_pose_required_body,
+            kCamShotVisiblePoseUnits, kCamShotHiddenPoseBodies,
             frame, t, interp_t, source_poll_blend, a->blend_ease,
             a->blend_ease_mode,
             a->name.c_str(), a->frame, b->name.c_str(), b->frame,
@@ -24724,6 +24754,8 @@ void apply_camera_keys(
             "pipeline_scope=normal_gameplay_camera "
             "hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s "
             "active_blocker_scope=%s "
+            "source_pose_impl_tier=%s source_pose_required_body=%s "
+            "source_visible_pose_units=%s source_hidden_pose_bodies=%s "
             "buildtransform_estimate=targetDist,height "
             "estimate_source=%s targetDist=%.3f height=%.3f "
             "submitted_height=%.3f submitted_vs_build_z_delta=%.3f "
@@ -24786,6 +24818,8 @@ void apply_camera_keys(
             submitted_result_from_ps2_trace ? 1 : 0,
             active_hidden_gameplay_blockers.c_str(),
             deferred_hidden_gameplay_blockers, active_blocker_scope,
+            source_pose_impl_tier, source_pose_required_body,
+            kCamShotVisiblePoseUnits, kCamShotHiddenPoseBodies,
             buildtransform_estimate_source,
             buildtransform_target_dist_estimate,
             buildtransform_height_estimate,
