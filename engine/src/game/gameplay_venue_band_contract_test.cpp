@@ -12183,7 +12183,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]cameraPrePollSetPreFrame:"
                  "source_manager=PrePollsource_call=CamShot::SetPreFrame"
-                 "shot=%slocal_frame=%.3fsource_setpreframe_blend=%.3f"
+                 "shot=%slocal_frame=%.3f"
+                 "source_calc=CameraManager::CalcFrame"
+                 "source_setpreframe_blend=%.3f"
                  "base_noop=1"
                  "source_order=after_mNextShot_clear_before_Poll_SetFrame"
                  "source_cadence=per_frame"
@@ -12195,6 +12197,7 @@ int main() {
                  "source_check=CamShot::CheckShotStarted"
                  "runtime_flag=unk120p4serialized_flag=none"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
+                 "source_calc=CameraManager::CalcFrame"
                  "duration_frames=%.3fduration_seconds=%.3f"
                  "duration_source=%sanim_rate=%dtask_units=%sfpu=%.1f"
                  "source_frame_keys=%zusource_camshot_keyframes=%zu"
@@ -12241,7 +12244,9 @@ int main() {
                  "\"[world]cameraPollSetFrame:"
                  "source_manager=CameraManager::Poll"
                  "source_call=CamShot::SetFrame"
-                 "shot=%slocal_frame=%.3fsource_setframe_blend=%.3f"
+                 "shot=%slocal_frame=%.3f"
+                 "source_calc=CameraManager::CalcFrame"
+                 "source_setframe_blend=%.3f"
                  "source_order=after_PrePoll_SetPreFrame_before_FreeCamera_Poll"
                  "source_cadence=per_frame"
                  "source_call_count=%zu"
@@ -14911,6 +14916,7 @@ int main() {
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order,"
+                 "camera_manager_calcframe_units,"
                  "camera_camshot_update_target_cache,"
                  "camera_camshot_setfrustum,"
                  "camera_same_target_screen_offset,"
@@ -14964,7 +14970,7 @@ int main() {
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order",
-                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection, check_shot probe boundary, and source MiloCamera gate before manager poll order");
+                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection, check_shot probe boundary, source MiloCamera gate, manager poll order, and CalcFrame timing before frame sampling");
   ok &= contains(gameplay_c,
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"

@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager CalcFrame status:
+  ihatecompvir `CameraManager::CalcFrame()` samples
+  `TheTaskMgr.Time(mCurrentShot->Units())`, subtracts `mCamStartTime`, and
+  multiplies by `mCurrentShot->FramesPerUnit()` before PrePoll/Poll send the
+  frame to `CamShot::SetPreFrame` and `CamShot::SetFrame`. Native already uses
+  the same source-shaped units/FPU helper for normal gameplay camera local
+  frames and diagnostic path offsets; the runtime PrePoll, Poll, and
+  shot-start proof rows now name `source_calc=CameraManager::CalcFrame`, and
+  the compact status counts `camera_manager_calcframe_units` before frame
+  sampling. This is camera clock parity only: no hidden `SetFrame`, `SetPos`,
+  `BuildTransform`, or `RndCam::UpdateLocal` body is synthesized, no
+  under-venue result is masked, FreeCam remains deferred last, and no
+  dependency or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager PickCameraShot pending status:
   ihatecompvir `CameraManager::PickCameraShot(...)` calls
   `FindCameraShot(...)` and, on success, only assigns `mNextShot = shot`; the
