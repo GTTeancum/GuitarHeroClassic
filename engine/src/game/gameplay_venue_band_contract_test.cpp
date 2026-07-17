@@ -11558,6 +11558,11 @@ int main() {
                  "intblend_ease_mode)",
                  "CamShot interpolation has the ihatecompvir ATan blend-ease remap");
   ok &= contains(gameplay_c,
+                 "if(!std::isfinite(blend_ease)||blend_ease==0.0f)returnt;",
+                 "CamShot blend-ease gate mirrors ihatecompvir if(mBlendEase)");
+  ok &= absent(gameplay_c, "blend_ease<=0.001f",
+               "CamShot blend-ease must not use a non-source dead zone");
+  ok &= contains(gameplay_c,
                  "floatcamshot_source_atan_interpolator_eval(floatinput,"
                  "floaty0,floaty1,floatx0,floatx1,floatseverity)",
                  "CamShot blend-ease helper mirrors ihatecompvir ATanInterpolator::Eval");

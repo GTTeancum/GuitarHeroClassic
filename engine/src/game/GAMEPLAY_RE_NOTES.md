@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot blend-ease gate parity:
+  ihatecompvir `CamShotFrame::Interp` enters the `ATanInterpolator` path with
+  `if(mBlendEase)`, so any nonzero authored `mBlendEase` value is source-live.
+  Native no longer applies the old `<= 0.001f` dead zone and now falls back to
+  linear only for exact zero or non-finite native input. This is normal
+  gameplay camera interpolation parity only: no camera pose movement, no
+  `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot max blur default parity:
   ihatecompvir `CamShotFrame` constructs `mMaxBlur(0xFF)`, and older frame
   loads keep that back-compat maximum when no serialized max-blur field exists.

@@ -22449,7 +22449,7 @@ float camshot_source_atan_interpolator_eval(float input, float y0, float y1,
 float camshot_blend_ease_t(float raw_t, float blend_ease,
                            int blend_ease_mode) {
     const float t = std::clamp(raw_t, 0.0f, 1.0f);
-    if (!std::isfinite(blend_ease) || blend_ease <= 0.001f) return t;
+    if (!std::isfinite(blend_ease) || blend_ease == 0.0f) return t;
 
     float y0 = 0.0f;
     float y1 = 1.0f;
