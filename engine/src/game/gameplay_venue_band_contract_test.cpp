@@ -15178,6 +15178,7 @@ int main() {
                  "camera_manager_prepoll_poll_order,"
                  "camera_camshot_setpreframe_noop,"
                  "camera_manager_calcframe_units,"
+                 "camera_manager_poll_setframe_bridge,"
                  "camera_camshot_update_target_cache,"
                  "camera_camshot_setfrustum,"
                  "camera_same_target_screen_offset,"
@@ -15202,7 +15203,7 @@ int main() {
                  "camera_camshot_hastargets_boundary,"
                  "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, GetCam/RndCam bridge, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, the CheckShotOver predicate bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets handler returns");
+                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, GetCam/RndCam bridge, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, Poll SetFrame bridge, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, the CheckShotOver predicate bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets handler returns");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_manager_enter_reset_bridge,"
                  "camera_camshot_endanim_bridge,"
@@ -15288,8 +15289,14 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_camshot_setpreframe_noop,"
                  "camera_manager_calcframe_units,"
+                 "camera_manager_poll_setframe_bridge,"
                  "camera_camshot_update_target_cache,",
-                 "camera implementation status keeps SetPreFrame no-op separate from later SetFrame sampling work");
+                 "camera implementation status keeps SetPreFrame no-op and CalcFrame timing before Poll SetFrame and later SetFrame sampling work");
+  ok &= contains(gameplay_c,
+                 "camera_manager_calcframe_units,"
+                 "camera_manager_poll_setframe_bridge,"
+                 "camera_camshot_update_target_cache,",
+                 "camera implementation status keeps CameraManager::Poll SetFrame between CalcFrame timing and CamShotFrame target cache work");
   ok &= contains(gameplay_c,
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_rndcam_updatelocal_public_stub,"

@@ -897,6 +897,18 @@
   math, no hidden `SetPos`, `BuildTransform`, or `RndCam::UpdateLocal`
   synthesis, no under-venue masking, no FreeCam priority change, no dependency
   change, and no OG Xbox portability change.
+- 2026-07-17 gameplay CameraManager Poll SetFrame bridge status:
+  ihatecompvir `CameraManager::Poll()` calls
+  `mCurrentShot->SetFrame(CalcFrame(), 1.0f)` after the PrePoll/SetPreFrame
+  phase and before optional `FreeCamera::Poll()`. Native already emits the
+  bounded `[world] camera Poll SetFrame` row with `source_setframe_blend=1.0`;
+  the compact normal gameplay camera status now counts
+  `camera_manager_poll_setframe_bridge` between
+  `camera_manager_calcframe_units` and `camera_camshot_update_target_cache`.
+  This is source call/cadence accounting only: no hidden `CamShot::SetFrame`,
+  `SetPos`, `BuildTransform`, or `RndCam::UpdateLocal` body is synthesized, no
+  under-venue masking, FreeCam stays deferred last, and no dependency or OG
+  Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot SetPreFrame no-op status:
   ihatecompvir exposes base `CamShot::SetPreFrame(float, float){}` as an empty
   inline override, while `CameraManager::PrePoll` still calls
