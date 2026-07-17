@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay worldbase downbeat duration status:
+  GH2 `world_objects_worldbase.dta::downbeat` decrements
+  `[camera_bars_left]`, skips `check_camera_shot` while guitarist0 is in
+  star-power mode, and lets `check_camera_shot` call
+  `get_shot_duration + pick_new_shot` only when `camera_bars_left <= 0`.
+  Native already mirrors that cadence with a separate
+  `source_check_camera_shot_pick_due` gate, positive-duration holds, and
+  source `random_int` duration refreshes. The compact normal gameplay camera
+  status now counts this as `camera_worldbase_downbeat_duration_bridge`
+  between the beat/check_shot cadence and script-filter selection. This is
+  normal gameplay camera cadence parity only: no hidden `cam_check_shot`
+  result invention, pose math, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay worldbase script-filter status:
   GH2 `world_objects_worldbase.dta` builds regular and solo gameplay camera
   picks by sending `pick_shot` / `pick_solo_camera_shot` with source-authored
