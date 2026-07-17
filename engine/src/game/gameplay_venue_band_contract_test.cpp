@@ -6119,6 +6119,9 @@ int main() {
                  "std::stringactive_camera_runtime_shot_;",
                  "camera runtime tracks the active CamShot lifecycle");
   ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_source_current_shot_;",
+                 "camera runtime tracks ihatecompvir CamShot::sCurrent");
+  ok &= contains(gameplay_h_c,
                  "std::stringpending_regular_camera_;",
                  "regular camera runtime carries a CameraManager mNextShot-style pending shot");
   ok &= contains(gameplay_h_c,
@@ -6175,6 +6178,18 @@ int main() {
                  "clear.name=active_camera_runtime_shot_;"
                  "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
                  "camera EndAnim clears only camera-owned visibility state");
+  ok &= contains(end_camera_shot_runtime_c,
+                 "conststd::stringsource_current_before="
+                 "active_camera_source_current_shot_;",
+                 "camera EndAnim snapshots ihatecompvir CamShot::sCurrent before clearing it");
+  ok &= contains(end_camera_shot_runtime_c,
+                 "active_camera_runtime_shot_.clear();"
+                 "active_camera_source_current_shot_.clear();",
+                 "camera EndAnim clears ihatecompvir CamShot::sCurrent with the active lifecycle");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "active_camera_runtime_shot_=runtime_name;"
+                 "active_camera_source_current_shot_=runtime_name;",
+                 "camera StartAnim sets ihatecompvir CamShot::sCurrent to the started shot");
   ok &= contains(gameplay_c,
                  "postprocess_lifecycle=preserved_until_start_shot_reset",
                  "camera EndAnim diagnostics preserve RndPostProc current state until the next start_shot select/reset");
@@ -6196,6 +6211,8 @@ int main() {
       "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
       "no_current_teardown=%d"
+      "source_field=CamShot::sCurrentsource_current_before=%s"
+      "source_current_after=<cleared>"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
       "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
       "active_glow=%s\\n\"",
@@ -6204,6 +6221,8 @@ int main() {
       end_camera_shot_runtime_c,
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
       "no_current_teardown=%d"
+      "source_field=CamShot::sCurrentsource_current_before=%s"
+      "source_current_after=<cleared>"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
       "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
       "active_glow=%s\\n\"",
@@ -6229,6 +6248,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "cameraStartAnim:source_msg=start_shot",
                  "camera StartAnim diagnostics name ihatecompvir start_shot message");
+  ok &= contains(gameplay_c,
+                 "source_field=CamShot::sCurrentsource_current=%s",
+                 "camera StartAnim diagnostics expose ihatecompvir CamShot::sCurrent");
   ok &= contains(gameplay_c,
                  "force_char_lod=%dps3_per_pixel=%dhide_list=%zu",
                  "camera StartAnim diagnostics expose source ps3_per_pixel state");
