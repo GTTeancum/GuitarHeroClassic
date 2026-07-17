@@ -10068,13 +10068,13 @@ int main() {
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotVisiblePoseUnits="
-                 "\"CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail\";",
+                 "\"CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_public_stub\";",
                  "camera pose proof labels the visible source-covered runtime units");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotHiddenPoseBodies="
                  "\"CamShotFrame::BuildTransform,CamShot::SetPos,"
-                 "RndCam::UpdateLocal\";",
-                 "camera pose proof labels the remaining hidden pose bodies");
+                 "RndCam::UpdateLocal_binary_projection\";",
+                 "camera pose proof labels the remaining hidden pose bodies without hiding the public UpdateLocal stub");
   ok &= contains(gameplay_c,
                  "constchar*camera_source_pose_impl_tier("
                  "boolretained_ps2_trace_payload,boolsource_build_transform_order)",
@@ -10177,18 +10177,20 @@ int main() {
                  "\"binary_symbol_sizes_no_body\"",
                  "camera debug logs identify BuildTransform as visible calls plus locals/refs and symbol-size proof only");
   ok &= contains(gameplay_c,
-                 "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
-                 "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
+                 "\"RndCam::UpdateLocal(public_Cam.cpp_empty;\""
+                 "\"LocalProjectXfm_binary_projection_body_unrecovered)\"",
+                 "camera debug logs account for the public RndCam::UpdateLocal stub while keeping binary projection unresolved");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty;"
-                 "doc_src_old_rndcam_fn_805CD500_stub_only;\""
+                 "\"public_Cam.cpp_empty_source_stub;"
+                 "\"\"doc_src_old_rndcam_fn_805CD500_stub_only;\""
                  "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
                  "\"rb2_size_0x1D0;"
-                 "rb3_recomp_size_0x1E4;body_unrecovered\"",
+                 "rb3_recomp_size_0x1E4;\""
+                 "\"binary_projection_body_unrecovered\"",
                  "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs plus symbol-size proof only");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty;"
-                 "doc_src_old_rndcam_fn_805CD500_stub_only;\""
+                 "\"public_Cam.cpp_empty_source_stub;"
+                 "\"\"doc_src_old_rndcam_fn_805CD500_stub_only;\""
                  "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
                  "\"re_gh2_no_rndcam_body;"
                  "band3_recomp_no_update_local_body;\""
@@ -14960,6 +14962,7 @@ int main() {
                  "camera_camshot_dofproc,"
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
+                 "camera_rndcam_updatelocal_public_stub,"
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,"
@@ -15012,6 +15015,11 @@ int main() {
                  "camera_manager_prepoll_poll_order",
                  "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection, check_shot probe boundary, source MiloCamera gate, manager poll order, and CalcFrame timing before frame sampling");
   ok &= contains(gameplay_c,
+                 "camera_camshot_setlocalxfm_tail,"
+                 "camera_rndcam_updatelocal_public_stub,"
+                 "camera_visibility,",
+                 "camera implementation status accounts for the public RndCam::UpdateLocal empty source stub before visibility");
+  ok &= contains(gameplay_c,
                  "camera_source_shot_ok_return_class("
                  "CameraSourceShotOkReturnresult)",
                  "regular camera shot_ok diagnostics expose the source return class feeding CamShot::ShotOk");
@@ -15048,10 +15056,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
                  "cam_check_shot_native,CharWalk,SetPos,BuildTransform,"
-                 "RndCam_UpdateLocal"
+                 "RndCam_UpdateLocal_binary_projection"
                  "postprocess_render_effect=deferred"
                  "freecam_priority=deferred_last",
-                 "camera implementation status keeps hidden gameplay bodies and deferred postprocess rendering ahead of FreeCam work");
+                 "camera implementation status keeps only the unresolved RndCam binary projection body with hidden gameplay bodies ahead of FreeCam work");
+  ok &= contains(gameplay_c,
+                 "rndcam_updatelocal_public_source=empty_body",
+                 "camera implementation status names the recovered public RndCam::UpdateLocal source stub");
   ok &= contains(gameplay_c,
                  "postprocess_render_effect=deferred"
                  "freecam_priority=deferred_last",

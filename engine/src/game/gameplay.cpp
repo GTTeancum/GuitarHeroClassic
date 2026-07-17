@@ -19221,25 +19221,30 @@ constexpr const char* kCamShotBuildTransformAuditStatus =
     "rb2_BuildTransform_size_0x408;rb3_BuildTransform_size_0x7D8;"
     "binary_symbol_sizes_no_body";
 constexpr const char* kCamShotLocalProjectSource =
-    "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
+    "RndCam::UpdateLocal(public_Cam.cpp_empty;"
+    "LocalProjectXfm_binary_projection_body_unrecovered)";
 constexpr const char* kCamShotLocalProjectAuditStatus =
-    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
+    "public_Cam.cpp_empty_source_stub;"
+    "doc_src_old_rndcam_fn_805CD500_stub_only;"
     "rb2_dump_UpdateLocal_locals_only;"
     "rb2_UpdateLocal_size_0x1D0;rb3_recomp_UpdateLocal_size_0x1E4;"
     "binary_symbol_sizes_no_body";
 constexpr const char* kCamShotUpdateLocalAuditStatus =
-    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
+    "public_Cam.cpp_empty_source_stub;"
+    "doc_src_old_rndcam_fn_805CD500_stub_only;"
     "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
-    "rb2_size_0x1D0;rb3_recomp_size_0x1E4;body_unrecovered";
+    "rb2_size_0x1D0;rb3_recomp_size_0x1E4;"
+    "binary_projection_body_unrecovered";
 constexpr const char* kCamShotUpdateLocalSourceSearch =
-    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
+    "public_Cam.cpp_empty_source_stub;"
+    "doc_src_old_rndcam_fn_805CD500_stub_only;"
     "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
     "re_gh2_no_rndcam_body;band3_recomp_no_update_local_body;"
     "SZBE69_symbols_address_size_only;SZBE69_B8_symbols_address_size_only";
 constexpr const char* kCamShotVisiblePoseUnits =
-    "CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail";
+    "CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_public_stub";
 constexpr const char* kCamShotHiddenPoseBodies =
-    "CamShotFrame::BuildTransform,CamShot::SetPos,RndCam::UpdateLocal";
+    "CamShotFrame::BuildTransform,CamShot::SetPos,RndCam::UpdateLocal_binary_projection";
 
 const char* camera_source_pose_impl_tier(bool retained_ps2_trace_payload,
                                          bool source_build_transform_order) {
@@ -37575,7 +37580,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_camshot_platform_ok_gate,camera_one_bar_to_seek_latch_replay,camera_manager_first_shot_ok_hook,camera_manager_shotmatches_filters,camera_manager_findshot_moveitem,camera_manager_pickshot_pending,camera_manager_force_shot_pending,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_lifecycle,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_startanim_state_reset,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_manager_calcframe_units,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_visibility,camera_shot_started_postswitch,camera_shot_over,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_camshot_platform_ok_gate,camera_one_bar_to_seek_latch_replay,camera_manager_first_shot_ok_hook,camera_manager_shotmatches_filters,camera_manager_findshot_moveitem,camera_manager_pickshot_pending,camera_manager_force_shot_pending,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_lifecycle,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_startanim_state_reset,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_manager_calcframe_units,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_rndcam_updatelocal_public_stub,camera_visibility,camera_shot_started_postswitch,camera_shot_over,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/SetPos/RndCam_binary_projection rndcam_updatelocal_public_source=empty_body hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal_binary_projection postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay RndCam `UpdateLocal` public-stub boundary:
+  ihatecompvir's public `rndobj/Cam.cpp` source has an empty
+  `RndCam::UpdateLocal()` body. Native proof/status now accounts for that
+  source-visible stub as `camera_rndcam_updatelocal_public_stub` and prints
+  `rndcam_updatelocal_public_source=empty_body`, while still keeping the
+  older RB2/RB3 binary projection evidence unresolved as
+  `RndCam_UpdateLocal_binary_projection`. This is proof/status precision only:
+  no hidden projection math, `BuildTransform`, `SetPos`, under-venue masking,
+  FreeCam priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot ShotOk type-switch status:
   ihatecompvir `CamShot::ShotOk(prevShot)` sends `shot_ok(prevShot)` and then
   accepts unhandled / true integer handler returns while rejecting string /
