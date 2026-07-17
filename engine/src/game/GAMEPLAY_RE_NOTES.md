@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot shot_over next_shot status:
+  ihatecompvir `CamShot::CheckShotOver` gates `shot_over` on
+  `!mShotOver && !mLooping && frame >= mDuration`, and GH2
+  `world/camshot.dta` only follows that handler into the
+  `world_objects_worldbase.dta::do_force_shot` wrapper when an authored
+  `next_shot` ref exists. Native already mirrors that normal gameplay handoff:
+  it queues the forced shot through the source-shaped `CameraManager::ForceCameraShot`
+  pending path, refreshes `camera_bars_left` through the source duration draw,
+  and carries the one-shot crowd-update skip latch before setting the CamShot
+  shot-over state. The compact camera status now counts this as
+  `camera_camshot_shot_over_next_shot_bridge` immediately after
+  `camera_shot_over`. This is normal gameplay camera scheduling parity only:
+  no pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay RndCam yRatio owner proof:
   The same-target screen-offset diagnostics now name the exact unrecovered
   owner for the `LocalProjectXfm` vertical-scale evidence as

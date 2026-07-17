@@ -15000,6 +15000,7 @@ int main() {
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,"
+                 "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
@@ -15007,7 +15008,7 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -15076,16 +15077,18 @@ int main() {
                  "camera implementation status keeps the source shot_started post_switch_cam bridge before shot_over");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
+                 "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,",
-                 "camera implementation status keeps source CacheFrames, duration_seconds, and GetKey looping between shot_over timing and frame-pair timing");
+                 "camera implementation status keeps the shot_over next_shot handoff before CacheFrames, duration_seconds, and GetKey looping");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
+                 "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,",
-                 "camera implementation status counts CamShot::CacheFrames mDuration before duration_seconds");
+                 "camera implementation status counts shot_over next_shot bridge before CamShot::CacheFrames mDuration and duration_seconds");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
