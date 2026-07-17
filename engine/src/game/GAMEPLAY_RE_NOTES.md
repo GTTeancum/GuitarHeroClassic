@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay current-walkspot empty-bad-waypoints proof:
+  The normal gameplay camera `shot_ok` diagnostics now keep the current
+  walkspot comparison key even when the active CamShot has no authored
+  `bad_waypoints` list. This keeps source selector proof readable for the
+  common accept path observed in gameplay (`Waypoint::FindNearest` found a
+  walkspot, but no recovered bad-waypoint gate applied). This is proof/triage
+  only: no camera pose movement, no `shot_ok` behavior change, no under-venue
+  masking, no FreeCam priority change, no dependency change, and no OG Xbox
+  portability change.
 - 2026-07-17 gameplay CamShot focus prop target map:
   ihatecompvir `CamShotFrame` stores `mFocusTarget` as the same
   `RndTransformable` pointer class used by `mTargets` and `mParent`, and

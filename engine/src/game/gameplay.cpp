@@ -17398,8 +17398,9 @@ struct CameraSourceBadWaypointMatch {
 CameraSourceBadWaypointMatch camera_source_bad_waypoint_match(
     const Gameplay::CameraKey& key, std::string_view current_walkspot) {
     CameraSourceBadWaypointMatch out;
-    if (current_walkspot.empty() || key.bad_waypoint_refs.empty()) return out;
+    if (current_walkspot.empty()) return out;
     out.current_key = camera_waypoint_match_key(current_walkspot);
+    if (key.bad_waypoint_refs.empty()) return out;
     for (const auto& ref : key.bad_waypoint_refs) {
         const CameraWaypointMatchKind match_kind =
             camera_waypoint_match_kind(ref, current_walkspot);

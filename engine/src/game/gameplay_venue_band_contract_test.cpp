@@ -14450,6 +14450,11 @@ int main() {
                  "current_walkspot=%scurrent_walkspot_key=%s",
                  "regular camera shot_ok diagnostics expose the current walkspot canonical comparison key");
   ok &= contains(gameplay_c,
+                 "if(current_walkspot.empty())returnout;"
+                 "out.current_key=camera_waypoint_match_key(current_walkspot);"
+                 "if(key.bad_waypoint_refs.empty())returnout;",
+                 "regular camera shot_ok diagnostics preserve the current walkspot key even when no bad_waypoints are authored");
+  ok &= contains(gameplay_c,
                  "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s",
                  "regular camera shot_ok diagnostics split recovered bad_waypoints from the unrecovered native predicate");
   ok &= contains(gameplay_c,
