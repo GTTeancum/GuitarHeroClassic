@@ -8633,10 +8633,17 @@ int main() {
                  "performer prop diagnostics stamp role, source prop, and anchor");
   ok &= contains(gameplay_c,
                  "add_prop_camera_targets(camera_keys_);",
-                 "intro camera target refs include attached prop objects");
+                 "intro camera target/focus refs include attached prop objects");
   ok &= contains(gameplay_c,
                  "add_prop_camera_targets(regular_camera_keys_);",
-                 "regular camera target refs include attached prop objects");
+                 "regular camera target/focus refs include attached prop objects");
+  ok &= contains(gameplay_c,
+                 "add_ref(key.target_entity,key.target_subpart);"
+                 "for(constauto&ref:key.target_refs){"
+                 "add_ref(ref.entity,ref.subpart);}"
+                 "add_ref(key.focus_target_entity,key.focus_target_subpart);"
+                 "add_ref(key.parent_entity,key.parent_subpart);",
+                 "attached prop camera target map includes source focus refs between target and parent refs");
   ok &= contains(attached_prop_world_c,
                  "for(constauto&mesh:impl.prop_scene.meshes){"
                  "if(!mesh.decoded||!matches(mesh.name))continue;"

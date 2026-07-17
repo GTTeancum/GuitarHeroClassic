@@ -36375,6 +36375,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     for (const auto& ref : key.target_refs) {
                         add_ref(ref.entity, ref.subpart);
                     }
+                    add_ref(key.focus_target_entity, key.focus_target_subpart);
                     add_ref(key.parent_entity, key.parent_subpart);
                 }
             };

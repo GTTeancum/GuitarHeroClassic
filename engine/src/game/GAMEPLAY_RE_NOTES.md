@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot focus prop target map:
+  ihatecompvir `CamShotFrame` stores `mFocusTarget` as the same
+  `RndTransformable` pointer class used by `mTargets` and `mParent`, and
+  `CamShotFrame::Interp` consults it before target fallback in the DOF branch.
+  Native camera target-map population now adds attached performer prop
+  transforms for `focus_target` refs as well as target/parent refs, so
+  source-authored prop focus targets can resolve through the same live prop
+  transform path. This is DOF/focus target resolution parity only: no camera
+  pose movement, no `BuildTransform` synthesis, no vertical sign flip, no
+  FreeCam priority change, no dependency change, and no OG Xbox portability
+  change.
 - 2026-07-17 gameplay CamShot target-list null rule:
   ihatecompvir `CamShotFrame::HasTargets()` and
   `GetCurrentTargetPosition()` iterate the decoded `mTargets` object-pointer
