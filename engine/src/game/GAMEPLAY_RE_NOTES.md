@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot start/over GH2 boundary correction:
+  Stock GH2 venue camera inventory remains `CamShot`-based; the audited
+  `BandCamShot` wrapper belongs to later band-game source and is not a stock
+  GH2 normal-gameplay runtime requirement without matching data/source proof.
+  Native normal gameplay diagnostics now label `shot_started` and `shot_over`
+  against the visible ihatecompvir base gates,
+  `CamShot::CheckShotStarted()` and
+  `CamShot::CheckShotOver(float) == !mShotOver && !mLooping &&
+  frame >= mDuration`, and no longer print `BandCamShot` SetFrameEx/min-frame
+  guard fields on stock GH2 paths. This is source-boundary correction only:
+  no camera pose movement, no `BuildTransform` synthesis, no under-venue
+  masking, no FreeCam priority change, no dependency change, and no OG Xbox
+  portability change.
 - 2026-07-17 gameplay RndCam `UpdateLocal` source-search boundary:
   The same-target under-venue investigation checked ihatecompvir's public
   `RndCam` source, RB2 dump, older `doc/src-old` `rndcam` stub, `re-gh2`, and
@@ -557,18 +570,15 @@
   supplied filters. This does not reorder GH2's normal gameplay camera
   category list, does not infer hidden `cam_shot_ok` or `cam_check_shot`, keeps
   FreeCam last, and adds no dependencies.
-- 2026-07-16 gameplay BandCamShot shot-over wrapper:
-  ihatecompvir gameplay cameras are `BandCamShot`s, whose
+- 2026-07-16 later-band `BandCamShot` shot-over wrapper audit:
+  Later ihatecompvir gameplay cameras can be `BandCamShot`s, whose
   `CheckShotStarted()` / `CheckShotOver(float)` wrap the base `CamShot` gates
   with the runtime `unk168` SetFrameEx guard and the `unk164` minimum-frame
-  gate before `mShotOver`, `mLooping`, and `mDuration` are considered. Native
-  normal gameplay camera diagnostics now name the `BandCamShot` wrapper and
-  expose `bandcam_setframeex_guard`, `bandcam_min_frame`,
-  `bandcam_min_frame_met`, and `bandcam_gate_clear` beside the base CamShot
-  lifetime fields. The visible source defaults keep the submitted behavior
-  unchanged for current GH2 assets; the hidden `BandCamShot::SetFrame` body
-  remains unrecovered, no one-off camera placement fix is added, FreeCam
-  remains last, and no dependencies are added.
+  gate before `mShotOver`, `mLooping`, and `mDuration` are considered. That
+  audit remains dependency/source context only for stock GH2 because the stock
+  venue camera inventory is `CamShot`-based; native normal gameplay diagnostics
+  no longer report the `BandCamShot` wrapper as the active GH2 runtime gate
+  without matching stock data/source proof.
 - 2026-07-16 gameplay same-target vertical-sign triage:
   The same-target solver row now compares the submitted screen-offset height
   against the diagnostic vertical-flip candidate height, and marks whether that

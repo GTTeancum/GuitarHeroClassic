@@ -11783,7 +11783,7 @@ int main() {
                  "camera duration_seconds diagnostics expose the source seconds branch");
   ok &= contains(gameplay_c,
                  "boolcamera_source_check_shot_over(constGameplay::CameraKey&shot",
-                 "runtime exposes a source-shaped BandCamShot CheckShotOver helper");
+                 "runtime exposes a source-shaped CamShot CheckShotOver helper");
   ok &= contains(gameplay_h_c,
                  "std::unordered_set<std::string>active_camera_shots_over_;",
                  "regular camera runtime carries source per-CamShot mShotOver state");
@@ -11792,24 +11792,17 @@ int main() {
                  "regular camera runtime bounds CamShot CheckShotOver gate diagnostics");
   ok &= contains(gameplay_c,
                  "structCameraSourceShotOverStatus{",
-                 "runtime exposes BandCamShot CheckShotOver source gate inputs as a structured status");
+                 "runtime exposes CamShot CheckShotOver source gate inputs as a structured status");
   ok &= contains(gameplay_c,
-                 "status.bandcam_setframe_ex_guard=false;",
-                 "source BandCamShot CheckShotOver bridge carries the SetFrameEx guard");
-  ok &= contains(gameplay_c,
-                 "status.bandcam_min_frame=0.0f;",
-                 "source BandCamShot CheckShotOver bridge carries the unk164 minimum frame gate");
-  ok &= contains(gameplay_c,
-                 "status.fired=status.bandcam_gate_clear&&"
-                 "!status.mshot_over&&!status.looping&&"
+                 "status.fired=!status.mshot_over&&!status.looping&&"
                  "status.duration_valid&&status.local_at_duration;",
-                 "source CheckShotOver status mirrors the recovered BandCamShot wrapper gate");
-  ok &= contains(gameplay_c,
-                 "\"bandcam_setframeex_guard\"",
-                 "source CheckShotOver gate diagnostics distinguish the BandCamShot SetFrameEx guard");
-  ok &= contains(gameplay_c,
-                 "\"before_bandcam_min_frame\"",
-                 "source CheckShotOver gate diagnostics distinguish the BandCamShot unk164 gate");
+                 "source CheckShotOver status mirrors the recovered CamShot gate");
+  ok &= absent(gameplay_c,
+               "bandcam_setframeex_guard",
+               "normal gameplay CheckShotOver diagnostics do not claim a BandCamShot SetFrameEx guard");
+  ok &= absent(gameplay_c,
+               "before_bandcam_min_frame",
+               "normal gameplay CheckShotOver diagnostics do not claim a BandCamShot minimum-frame gate");
   ok &= contains(gameplay_c,
                  "\"mShotOver_latched\"",
                  "source CheckShotOver gate diagnostics distinguish the CamShot mShotOver latch");
@@ -11923,9 +11916,7 @@ int main() {
                  "regular camera diagnostics expose ihatecompvir PrePoll SetPreFrame before Poll SetFrame");
   ok &= contains(gameplay_c,
                  "\"[world]cameraSetFrame:source_msg=shot_started"
-                 "source_check=BandCamShot::CheckShotStarted"
-                 "source_base_check=CamShot::CheckShotStarted"
-                 "bandcam_setframeex_guard=0"
+                 "source_check=CamShot::CheckShotStarted"
                  "runtime_flag=unk120p4serialized_flag=none"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fduration_seconds=%.3f"
@@ -11937,8 +11928,8 @@ int main() {
                  "source_setframe_blend=%.3f\\n\"",
                  "regular camera diagnostics expose source runtime shot_started state beside Poll SetFrame cadence and base SetPreFrame no-op");
   ok &= contains(gameplay_c,
-                 "source_check=BandCamShot::CheckShotStartedsource_base_check=CamShot::CheckShotStarted",
-                 "shot_started bridge documents the gameplay BandCamShot wrapper around the runtime CamShot bit");
+                 "source_check=CamShot::CheckShotStarted",
+                 "shot_started bridge documents the source runtime CamShot bit");
   ok &= contains(gameplay_h_c,
                  "boolactive_camera_shot_started_=false;",
                  "regular camera runtime carries a source-shaped CheckShotStarted latch separate from diagnostics");
@@ -14629,12 +14620,11 @@ int main() {
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
                  "source_msg=shot_over"
-                 "source_check=BandCamShot::CheckShotOver"
-                 "source_base_check=CamShot::CheckShotOver",
-                 "source shot_over diagnostics expose the BandCamShot CheckShotOver gate before the handler fires");
+                 "source_check=CamShot::CheckShotOver",
+                 "source shot_over diagnostics expose the CamShot CheckShotOver gate before the handler fires");
   ok &= contains(gameplay_c,
-                 "source_expr=!unk168&&frame>=unk164&&!mShotOver&&!mLooping&&frame>=mDuration",
-                 "source shot_over gate diagnostics name the recovered BandCamShot wrapper expression");
+                 "source_expr=!mShotOver&&!mLooping&&frame>=mDuration",
+                 "source shot_over gate diagnostics name the recovered CamShot expression");
   ok &= contains(gameplay_c,
                  "active_camera_shot_over_gate_reported_!="
                  "shot_over_gate_report_key",
