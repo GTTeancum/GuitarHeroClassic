@@ -14891,11 +14891,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_manager_first_shot_ok_hook,"
+                 "camera_manager_shotmatches_filters,"
                  "camera_manager_force_shot_pending,"
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CameraManager FirstShotOk, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CameraManager FirstShotOk, ShotMatches filters, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"

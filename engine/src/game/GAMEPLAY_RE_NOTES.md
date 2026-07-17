@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager ShotMatches status:
+  ihatecompvir `CameraManager::ShotMatches(...)` evaluates each authored
+  filter by reading either the visible `flags_any` / `flags_exact` masks or the
+  requested CamShot property, then compares against a scalar or any member of a
+  match array before `FindCameraShot(...)` reaches `ShotOk(mCurrentShot)`.
+  Native already carries that source-shaped filter carrier through regular,
+  solo, jump, lighter, and diagnostic category selection; the compact status
+  now counts `camera_manager_shotmatches_filters` immediately after the
+  `FirstShotOk` hook. This is normal gameplay camera selector parity only: no
+  hidden `cam_shot_ok` result invention, pose math, `BuildTransform`
+  synthesis, under-venue masking, FreeCam priority change, dependency change,
+  or OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager FirstShotOk status:
   ihatecompvir `CameraManager::FindCameraShot(...)` calls
   `FirstShotOk(category)` once before scanning the category bucket, and
