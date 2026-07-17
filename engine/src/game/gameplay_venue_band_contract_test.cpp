@@ -6338,13 +6338,22 @@ int main() {
       "camera StartAnim applies the authored CamShot payload after naming the active shot");
   ok &= contains(gameplay_c,
                  "apply_camera_crowd_visibility(key,skip_script_crowd_update);"
-                 "constboolhas_source_crowd=",
+                 "constboolhas_legacy_source_crowd=",
                  "camera StartAnim applies the authored CamShot crowd payload before resetting carried state");
   ok &= contains(gameplay_c,
-                 "constboolhas_source_crowd=key.has_crowd_selection||"
+                 "constboolhas_legacy_source_crowd=key.has_crowd_selection||"
                  "!key.crowd_selection_ref.empty()||"
                  "!key.crowd_selection_pairs.empty();",
-                 "camera StartAnim treats decoded crowd pairs as source crowd entries");
+                 "camera StartAnim keeps the legacy single-crowd fallback explicit");
+  ok &= contains(gameplay_c,
+                 "constsize_tsource_crowd_count=!key.crowd_refs.empty()?"
+                 "key.crowd_refs.size():(has_legacy_source_crowd?1u:0u);",
+                 "camera StartAnim treats decoded mCrowds as the source crowd entry count");
+  ok &= contains(gameplay_c,
+                 "conststd::vector<CameraKey::CrowdRef>"
+                 "source_crowd_selections="
+                 "camera_crowd_selections_like_source(key);",
+                 "camera StartAnim derives a full source-shaped crowd list");
   ok &= contains(gameplay_c,
                  "source_call=WorldDir::SetCrowds",
                  "camera StartAnim diagnostics expose the ihatecompvir WorldDir::SetCrowds phase");
@@ -6352,7 +6361,7 @@ int main() {
                  "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
                  "\"[world]cameraStartAnim:source_call=WorldDir::SetCrowds"
                  "source_order=after_start_shot_before_state_resetshot=%s"
-                 "source_crowds=%d",
+                 "source_crowds=%zu",
                  "camera StartAnim reports WorldDir::SetCrowds even when CamShot mCrowds is empty");
   ok &= appears_before(
       start_camera_shot_runtime_c,
@@ -6406,7 +6415,7 @@ int main() {
                  "std::fprintf(stderr,"
                  "\"[world]cameraStartAnim:source_call=CamShotCrowd::Set3DCrowd"
                  "source_order=after_linked_mAnimsshot=%s"
-                 "source_crowds=%d",
+                 "source_crowds=%zu",
                  "camera StartAnim only reports CamShotCrowd::Set3DCrowd for source crowd entries");
   ok &= appears_before(
       start_camera_shot_runtime_c,
@@ -12610,6 +12619,31 @@ int main() {
                  "voidGameplay::apply_camera_crowd_visibility("
                  "constCameraKey&key,boolskip_script_crowd_update)",
                  "camera runtime owns source-backed crowd visibility");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<CameraKey::CrowdRef>"
+                 "venue_camera_crowd_selections_;",
+                 "camera runtime carries the full active CamShot mCrowds list");
+  ok &= contains(gameplay_c,
+                 "std::vector<Gameplay::CameraKey::CrowdRef>"
+                 "camera_crowd_selections_like_source("
+                 "constGameplay::CameraKey&key)",
+                 "camera crowd routing builds a source-shaped crowd selection list");
+  ok &= contains(gameplay_c,
+                 "if(!key.crowd_refs.empty()){"
+                 "out.reserve(key.crowd_refs.size());",
+                 "camera crowd routing prefers decoded mCrowds before legacy fallback");
+  ok &= contains(gameplay_c,
+                 "camera_sync_legacy_crowd_selection_fields("
+                 "next_crowd_selections,next_has_crowd_selection,",
+                 "camera crowd routing keeps legacy first-entry diagnostics derived from the full list");
+  ok &= contains(gameplay_c,
+                 "venue_camera_crowd_selections_="
+                 "std::move(next_crowd_selections);",
+                 "camera crowd routing stores every active CamShot crowd entry");
+  ok &= contains(gameplay_c,
+                 "crowd_select=%dcrowd_entries=%zucrowd_ref=%s"
+                 "crowd_pairs=%zucrowd_total_pairs=%zu",
+                 "camera crowd diagnostics expose active list and total selected members");
   ok &= contains(gameplay_c,
                  "if(key.hide_crowd)next_hidden=venue_crowd_meshes_;",
                  "hide_crowd selects only decoded crowd meshes");
@@ -13115,6 +13149,19 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(!venue_camera_has_crowd_selection_)returntrue;",
                  "missing CamShot crowd selection lets authored WorldCrowd draw by normal fullness/camera rules");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "for(constauto&selection:"
+                 "venue_camera_crowd_selections_){",
+                 "CamShot crowd selection draw uses every active mCrowds entry");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "placement_crowd_name!=selection.ref",
+                 "CamShot crowd selection matches WorldCrowd refs per active entry");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "for(constauto&pair:selection.pairs){",
+                 "CamShot crowd selection tests each selected actor/placement pair per entry");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "entries=%zutotal_pairs=%zu",
+                 "WorldCrowd draw diagnostics expose aggregate CamShot crowd selection state");
   ok &= contains(gameplay_c,
                  "if(!worldcrowd_actor_runtime_enabled())return;",
                  "WorldCrowd actor rebuild/update/draw share the same runtime gate");
@@ -13772,17 +13819,28 @@ int main() {
                  "source_assert=idx<mCrowds.size()",
                  "CamShot crowd diagnostics name the ihatecompvir crowd index assertion");
   ok &= contains(gameplay_c,
-                 "venue_camera_has_crowd_selection_=true;"
-                 "venue_camera_crowd_selection_ref_=crowd_ref;"
-                 "venue_camera_crowd_selection_pairs_.clear();",
-                 "CamShot clear_3d_crowd mirrors source ClearCrowdChars with an empty selected list");
+                 "auto&active=active_crowd_entry(crowd_ref,crowd_rotate);"
+                 "active.rotate=crowd_rotate;active.pairs.clear();",
+                 "CamShot clear_3d_crowd mirrors source ClearCrowdChars on the indexed active crowd entry");
   ok &= contains(gameplay_c,
-                 "venue_camera_crowd_selection_pairs_="
-                 "crowd_pairs;",
-                 "CamShot set_3d_crowd replaces the active decoded crowd selection");
+                 "if(message==CrowdMessage::Set){"
+                 "active.pairs=crowd_pairs;}",
+                 "CamShot set_3d_crowd replaces the indexed active decoded crowd selection");
   ok &= contains(gameplay_c,
-                 "venue_camera_crowd_selection_pairs_.push_back(pair);",
+                 "active.pairs.push_back(pair);",
                  "CamShot add_3d_crowd appends decoded selected members without duplicating pairs");
+  ok &= contains(gameplay_c,
+                 "camera_sync_legacy_crowd_selection_fields("
+                 "venue_camera_crowd_selections_,"
+                 "venue_camera_has_crowd_selection_,"
+                 "venue_camera_crowd_selection_ref_,"
+                 "venue_camera_crowd_selection_pairs_);",
+                 "CamShot crowd bridge syncs legacy diagnostics from the active mCrowds list");
+  ok &= contains(gameplay_c,
+                 "source_crowd_count=%zusource_assert_idx_lt_size=%d"
+                 "source_crowds=%zuentries_before=%zuentries_after=%zu"
+                 "pairs_total_before=%zupairs_total_after=%zu",
+                 "CamShot crowd diagnostics report source mCrowds count and aggregate active list changes");
   ok &= contains(gameplay_c,
                  "source_return=DataNode(0)",
                  "CamShot crowd bridge preserves the source handler return shape");

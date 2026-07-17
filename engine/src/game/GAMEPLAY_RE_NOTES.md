@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot StartAnim crowd list:
+  ihatecompvir `CamShot::StartAnim` calls
+  `WorldDir::SetCrowds(mCrowds)` before resetting camera state, then starts
+  linked `mAnims`, then loops every `mCrowds[i].Set3DCrowd()`.
+  Native now carries the full decoded active `CamShotCrowd` list through
+  `apply_camera_crowd_visibility`, WorldCrowd draw treats those entries as a
+  union of source-selected actor/placement pairs, and the older single-crowd
+  fields remain first-entry diagnostics/backcompat only. Indexed crowd
+  messages update the matching active entry and then resync the legacy
+  diagnostic fields from the list. This is normal gameplay camera crowd
+  parity only: no pose movement, no `BuildTransform` synthesis, no under-venue
+  masking, no FreeCam priority change, no dependency change, and no OG Xbox
+  portability change.
 - 2026-07-17 gameplay CamShot crowd-message indexing:
   ihatecompvir `CamShot::OnSetCrowdChars`,
   `CamShot::OnAddCrowdChars`, and `CamShot::OnClearCrowdChars` assert

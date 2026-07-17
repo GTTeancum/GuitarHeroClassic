@@ -1336,6 +1336,7 @@ class Gameplay {
       venue_camera_shown_proxy_meshes_;
   bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
+  std::vector<CameraKey::CrowdRef> venue_camera_crowd_selections_;
   bool venue_camera_has_crowd_selection_ = false;
   std::string venue_camera_crowd_selection_ref_;
   std::vector<std::pair<int, int>> venue_camera_crowd_selection_pairs_;
