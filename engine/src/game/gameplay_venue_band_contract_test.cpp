@@ -14938,6 +14938,7 @@ int main() {
                  "camera_manager_syncobjects_category_buckets,"
                  "camera_manager_random_seed_bridge,"
                  "camera_one_bar_to_seek_latch_replay,"
+                 "camera_worldbase_beat_check_shot_bridge,"
                  "camera_manager_make_category_filters,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_first_shot_ok_hook,"
@@ -14950,7 +14951,7 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_camshot_platform_ok_gate,"
                  "camera_manager_syncobjects_category_buckets,"
@@ -14959,11 +14960,12 @@ int main() {
                  "camera implementation status keeps source CameraManager::SyncObjects bucket admission and sSeed bridge after PlatformOk and before gameplay pick gates");
   ok &= contains(gameplay_c,
                  "camera_one_bar_to_seek_latch_replay,"
+                 "camera_worldbase_beat_check_shot_bridge,"
                  "camera_manager_make_category_filters,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_shotmatches_filters,",
-                 "camera implementation status keeps BandDirector FindNextShot filters between MakeCategoryAndFilters and CameraManager FirstShotOk/ShotMatches");
+                 "camera implementation status keeps worldbase beat check_shot scheduling before MakeCategoryAndFilters and the CameraManager FirstShotOk/ShotMatches scan");
   ok &= contains(gameplay_c,
                  "camera_manager_pickshot_pending,"
                  "camera_manager_force_shot_pending,"

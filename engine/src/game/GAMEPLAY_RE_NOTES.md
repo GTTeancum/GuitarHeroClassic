@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay worldbase beat check_shot status:
+  GH2 `world_objects_worldbase.dta::beat` stores `[camera_beat]` and sends
+  the current CamShot `check_shot`; `world/camshot.dta::check_shot` then calls
+  native `cam_check_shot($this)` without passing the beat as an explicit
+  argument. Native already mirrors the source-visible cadence by updating
+  `camera_beat_state_`, calling the active shot through
+  `camera_source_check_shot(...)`, and keeping the hidden native predicate
+  permissive/deferred. The compact normal gameplay camera status now counts
+  this as `camera_worldbase_beat_check_shot_bridge` between
+  `camera_one_bar_to_seek_latch_replay` and the CameraManager pick/filter
+  scan. This is normal gameplay camera cadence parity only: no
+  `cam_check_shot` result invention, pose math, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot shot_over next_shot status:
   ihatecompvir `CamShot::CheckShotOver` gates `shot_over` on
   `!mShotOver && !mLooping && frame >= mDuration`, and GH2
