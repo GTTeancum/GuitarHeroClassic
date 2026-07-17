@@ -15016,7 +15016,8 @@ int main() {
                  "camera_manager_findshot_moveitem,",
                  "camera implementation status keeps CamShot::OnRadio flags between ShotMatches and FindCameraShot");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_postprocess_select_reset,"
+                 "camera_lifecycle,camera_camshot_endanim_bridge,"
+                 "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"
@@ -15050,16 +15051,22 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
+                 "camera_lifecycle,camera_camshot_endanim_bridge,"
+                 "camera_camshot_postprocess_select_reset,",
+                 "camera implementation status keeps source CamShot EndAnim before the next start_shot postprocess reset/select");
+  ok &= contains(gameplay_c,
+                 "camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_startanim_handler_noops,"
                  "camera_camshot_manims_lifecycle",
-                 "camera implementation status follows source StartAnim order from start_shot handler through force LOD, crowd payload, reset, source no-op handlers, and linked mAnims");
+                 "camera implementation status follows source EndAnim and StartAnim order from old-shot shutdown through start_shot handler, force LOD, crowd payload, reset, source no-op handlers, and linked mAnims");
   ok &= contains(gameplay_c,
+                 "camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
@@ -15083,7 +15090,8 @@ int main() {
                  "SetFrustum,DOF,Shake_tail,SetLocalXfm_tail",
                  "camera visible pose-unit status counts the source SetLocalXfm tail without claiming hidden BuildTransform math");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_postprocess_select_reset,"
+                 "camera_lifecycle,camera_camshot_endanim_bridge,"
+                 "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"

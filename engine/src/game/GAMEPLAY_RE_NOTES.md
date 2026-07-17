@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot EndAnim bridge status:
+  ihatecompvir `CameraManager::StartShot_(...)` calls
+  `mCurrentShot->EndAnim()` before assigning the new current shot, and
+  `CamShot::EndAnim()` runs `UnHide()`, sends `stop_shot`, then ends each
+  linked `mAnims` child. Native already mirrors this old-shot shutdown through
+  `end_camera_shot_runtime(...)` / `end_camera_shot_anims()`: it restores
+  camera-owned visibility, logs the `stop_shot` path, clears shot-scoped
+  anim/FOV state, and leaves postprocess/glow lifetimes to the following
+  start-shot or manager-clear path. The compact normal gameplay camera status
+  now counts `camera_camshot_endanim_bridge` between `camera_lifecycle` and
+  the next start-shot postprocess/reset/select bridge. This is lifecycle
+  parity only: no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
+  invention, no pose math, no FreeCam priority change, no dependency, no
+  under-venue masking, and no OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager Handle route status:
   ihatecompvir `CameraManager::Handle(...)` dispatches `pick_shot` to
   `OnPickCameraShot`, `find_shot` to `OnFindCameraShot`, `force_shot` to
