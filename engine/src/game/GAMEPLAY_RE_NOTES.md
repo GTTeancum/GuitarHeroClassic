@@ -273,6 +273,17 @@
   This is normal gameplay selection inventory parity only: no pose math,
   `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
   dependency, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot AnimTarget status:
+  ihatecompvir `CamShot::AnimTarget()` returns the static
+  `CamShot::sAnimTarget`, and `CamShot::ListAnimChildren()` enumerates each
+  linked `mAnims` child. Native already carries the source-named target through
+  the linked CamShot animation start/end diagnostics; the compact normal
+  gameplay camera status now counts this as
+  `camera_camshot_animtarget_bridge` between the StartAnim no-op handler
+  boundary and `camera_camshot_manims_lifecycle`. This is source-backed
+  animation-target accounting only: no pose math, `BuildTransform`, `SetPos`,
+  under-venue masking, FreeCam priority, dependency, or OG Xbox portability
+  surface changed.
 - 2026-07-17 gameplay CamShot StartAnim no-op handler status:
   ihatecompvir's CamShot handler table registers `get_occluded`,
   `gen_hide_list`, `clear_hide_list`, and `set_all_to_3D` as source-visible
