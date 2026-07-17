@@ -8785,13 +8785,19 @@ int main() {
                  "constexprfloatkCamShotAngleByteScale=81.16902f;"
                  "constexprfloatkCamShotAngleByteInv=0.012319971f;"
                  "constexprfloatkCamShotBlurByteScale=255.0f;"
-                 "constexprfloatkCamShotBlurByteInv=0.0039215689f;",
+                 "constexprfloatkCamShotBlurByteInv=0.0039215689f;"
+                 "constexprfloatkCamShotFrameSourceDefaultFov=1.2217305f;",
                  "native CamShot runtime fields use ihatecompvir source byte scales");
   ok &= contains(gameplay_c,
                  "floatcamshot_source_field_of_view(floatvalue){"
                  "returncamshot_u8_runtime_field(value,kCamShotAngleByteScale,"
                  "kCamShotAngleByteInv);}",
                  "CamShot FOV mirrors source SetFieldOfView/FieldOfView byte storage");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_default_field_of_view(){"
+                 "returncamshot_source_field_of_view("
+                 "kCamShotFrameSourceDefaultFov);}",
+                 "CamShotFrame constructor FOV default is byte-backed like ihatecompvir source");
   ok &= contains(gameplay_c,
                  "floatcamshot_source_zoom_field_of_view(floatvalue){"
                  "returncamshot_s8_runtime_field(value,kCamShotAngleByteScale,"
@@ -9048,6 +9054,18 @@ int main() {
                  "floatsource_final_fov=source_screen_offset_fov;"
                  "if(has_zoom_fov)",
                  "camera interpolation evaluates CamShot zoom FOV");
+  ok &= contains(gameplay_c,
+                 "constfloatsource_default_fov="
+                 "camshot_source_default_field_of_view();"
+                 "constfloatfov_a=a->has_fov?a->fov:source_default_fov;"
+                 "constfloatfov_b=b->has_fov?b->fov:source_default_fov;"
+                 "cam.fov=fov_a+(fov_b-fov_a)*interp_t;",
+                 "camera interpolation falls back to the source CamShotFrame constructor FOV");
+  ok &= contains(gameplay_c,
+                 "Gameplay::CameraKeyresult_key=*a;"
+                 "result_key.has_fov=true;"
+                 "result_key.fov=source_screen_offset_fov;",
+                 "camera target projection treats defaulted CamShotFrame FOV as present");
   ok &= contains(gameplay_c,
                  "source_final_fov=source_screen_offset_fov+zoom_fov;",
                  "camera interpolation adds CamShot zoom FOV after preserving the source screen-offset frustum");
@@ -13557,8 +13575,9 @@ int main() {
                  "regular camera vector property paths expose CamShotFrame screen_offset");
   ok &= contains(gameplay_c,
                  "if(prop==\"field_of_view\"){"
-                 "returnframe->has_fov?"
-                 "camshot_source_radians_to_degrees(frame->fov):0.0f;}",
+                 "constfloatsource_fov=frame->has_fov?frame->fov:"
+                 "camshot_source_default_field_of_view();"
+                 "returncamshot_source_radians_to_degrees(source_fov);}",
                  "regular camera float property paths expose CamShotFrame field_of_view in source property degrees");
   ok &= contains(gameplay_c,
                  "floatcamshot_source_radians_to_degrees(floatvalue){"

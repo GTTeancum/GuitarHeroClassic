@@ -1724,6 +1724,7 @@ constexpr float kCamShotAngleByteScale = 81.16902f;
 constexpr float kCamShotAngleByteInv = 0.012319971f;
 constexpr float kCamShotBlurByteScale = 255.0f;
 constexpr float kCamShotBlurByteInv = 0.0039215689f;
+constexpr float kCamShotFrameSourceDefaultFov = 1.2217305f;
 constexpr float kCamShotSourceDefaultNearPlane = 1.0f;
 constexpr float kCamShotSourceDefaultFarPlane = 1000.0f;
 constexpr const char* kSourceCamShotAnimTarget = "CamShot::sAnimTarget";
@@ -1750,6 +1751,10 @@ float camshot_s8_runtime_field(float value, float scale, float inv_scale) {
 float camshot_source_field_of_view(float value) {
     return camshot_u8_runtime_field(value, kCamShotAngleByteScale,
                                     kCamShotAngleByteInv);
+}
+
+float camshot_source_default_field_of_view() {
+    return camshot_source_field_of_view(kCamShotFrameSourceDefaultFov);
 }
 
 float camshot_source_angular_offset(float value) {
@@ -16693,9 +16698,9 @@ std::optional<float> camera_filter_float_property_path(
     if (prop == "blend") return frame->blend_frames;
     if (prop == "blend_ease") return frame->blend_ease;
     if (prop == "field_of_view") {
-        return frame->has_fov
-                   ? camshot_source_radians_to_degrees(frame->fov)
-                   : 0.0f;
+        const float source_fov =
+            frame->has_fov ? frame->fov : camshot_source_default_field_of_view();
+        return camshot_source_radians_to_degrees(source_fov);
     }
     return std::nullopt;
 }
@@ -22603,11 +22608,10 @@ void apply_camera_keys(
     camera_authored_up_for_key(*b, targets, up_b, b_cached_parent_world);
     for (int i = 0; i < 3; ++i)
         cam.authored_up[i] = up_a[i] + (up_b[i] - up_a[i]) * interp_t;
-    if (a->has_fov || b->has_fov) {
-        const float fov_a = a->has_fov ? a->fov : (b->has_fov ? b->fov : cam.fov);
-        const float fov_b = b->has_fov ? b->fov : fov_a;
-        cam.fov = fov_a + (fov_b - fov_a) * interp_t;
-    }
+    const float source_default_fov = camshot_source_default_field_of_view();
+    const float fov_a = a->has_fov ? a->fov : source_default_fov;
+    const float fov_b = b->has_fov ? b->fov : source_default_fov;
+    cam.fov = fov_a + (fov_b - fov_a) * interp_t;
     const float source_desired_screen_offset_fov = cam.fov;
     const float source_screen_offset_fov =
         source_previous_fov +
@@ -22865,7 +22869,7 @@ void apply_camera_keys(
     }
     if (!submitted_result_from_ps2_trace && blended_target_centroid) {
         Gameplay::CameraKey result_key = *a;
-        result_key.has_fov = a->has_fov || b->has_fov;
+        result_key.has_fov = true;
         result_key.fov = source_screen_offset_fov;
         result_key.has_screen_offset =
             a->has_screen_offset || b->has_screen_offset;
@@ -24021,7 +24025,7 @@ void apply_camera_keys(
                 }
             }
             Gameplay::CameraKey result_key = *a;
-            result_key.has_fov = a->has_fov || b->has_fov;
+            result_key.has_fov = true;
             result_key.fov = source_screen_offset_fov;
             result_key.has_screen_offset =
                 a->has_screen_offset || b->has_screen_offset;
