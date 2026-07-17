@@ -14994,6 +14994,35 @@ int main() {
                  "source_truth=ihatecompvir",
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraprogress:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_truth=ihatecompvir"
+                 "recovered_runtime_count=97"
+                 "open_gameplay_blockers=4"
+                 "completion_basis=recovered_runtime/"
+                 "(recovered_runtime+open_gameplay_blockers)"
+                 "completion_percent=96.0",
+                 "regular camera proof emits the current percent basis beside the source-truth status row");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraprogress:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_truth=ihatecompvir"
+                 "recovered_runtime_count=97"
+                 "open_gameplay_blockers=4"
+                 "completion_basis=recovered_runtime/"
+                 "(recovered_runtime+open_gameplay_blockers)"
+                 "completion_percent=96.0"
+                 "active_hidden_gameplay_blockers=%s"
+                 "deferred_gameplay_blockers=%s"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0"
+                 "under_venue_concern=open"
+                 "no_dependency_change=1"
+                 "og_xbox_portability_preserved=1",
+                 "regular camera progress proof keeps FreeCam deferred, under-venue open, and dependency status explicit");
+  ok &= contains(gameplay_c,
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
                  "camera_camshot_setframe_last_pair_bridge,"

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camera progress proof row:
+  Runtime camera proofs now emit a separate `[world] camera progress` row with
+  the current normal-gameplay checklist basis: 97 recovered runtime items, 4
+  open gameplay blockers, and 96.0% completion under
+  `recovered_runtime/(recovered_runtime+open_gameplay_blockers)`. The row also
+  repeats the active/deferred blocker lists, FreeCam priority, under-venue
+  concern, dependency status, and OG Xbox portability status. This is progress
+  visibility only: no selector behavior, pose math, hidden predicate,
+  `CharWalk`, FreeCam, dependency, or under-venue behavior changes.
 - 2026-07-17 gameplay CamShot clamp_height bridge status:
   ihatecompvir exposes `CamShot::mClampHeight`, initializes it to `-1.0f`,
   loads and copies it with the other CamShot camera fields, and syncs it as
