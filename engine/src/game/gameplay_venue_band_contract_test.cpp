@@ -14884,8 +14884,9 @@ int main() {
                  "source_truth=ihatecompvir",
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
-                 "camera_frame_pair_timing,camera_path_transanim_timing",
-                 "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
+                 "camera_frame_pair_timing,camera_camshot_onsetpos_boundary,"
+                 "camera_path_transanim_timing",
+                 "camera implementation status counts the CamShot OnSetPos boundary between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_worlddir_camshot_overrides_disable,"
@@ -14908,8 +14909,12 @@ int main() {
                  "camera_camshot_dofproc,"
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
-                 "camera_visibility",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
+                 "camera_visibility,"
+                 "camera_shot_over,"
+                 "camera_frame_pair_timing,"
+                 "camera_camshot_onsetpos_boundary,"
+                 "camera_path_transanim_timing",
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, and the source OnSetPos boundary");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -14948,6 +14953,11 @@ int main() {
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order",
                  "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection and check_shot probe boundary before manager poll order");
+  ok &= contains(gameplay_c,
+                 "camera_frame_pair_timing,"
+                 "camera_camshot_onsetpos_boundary,"
+                 "camera_path_transanim_timing,",
+                 "camera implementation status keeps OnSetPos as a boundary after frame-pair timing and before path timing");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,"
                  "camera_trace_complete_writer_bridge,"

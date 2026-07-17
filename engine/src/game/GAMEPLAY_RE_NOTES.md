@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot OnSetPos boundary status:
+  ihatecompvir `CamShot::OnSetPos()` reads the authored keyframe index from the
+  script args and calls `SetPos(mKeyFrames[idx], RndCam::Current())`. Native
+  already carries source frame key indices through the regular camera frame-pair
+  route and logs both blend and hold `OnSetPos` boundary rows with
+  `native_pose_body=not_synthesized`; the compact status now counts
+  `camera_camshot_onsetpos_boundary` between frame-pair timing and path timing.
+  This is a source boundary for camera-angle audits only: the hidden
+  `CamShot::SetPos`, `BuildTransform`, and `RndCam::UpdateLocal` bodies remain
+  deferred, FreeCam stays last, and no dependency or under-venue masking changed.
 - 2026-07-17 gameplay CamShot crowd-payload bridge status:
   ihatecompvir `CamShot::StartAnim()` calls `WorldDir::SetCrowds(mCrowds)`
   before the camera state reset and later loops `mCrowds[i].Set3DCrowd()`,
