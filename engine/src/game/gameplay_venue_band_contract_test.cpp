@@ -14645,6 +14645,19 @@ int main() {
                  "filter_count=%zusource_msg=%sresult=0",
                  "source category no-acceptable-shot diagnostics mirror PickCameraShot warnings with route provenance");
   ok &= contains(gameplay_c,
+                 "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
+                 "source_handle=HANDLE"
+                 "source_handler=CameraManager::OnNumCameraShots"
+                 "category=%smode=source_categoryprevious=%scount=%zu"
+                 "shot_ok_probe=1shot_ok_source_call=CamShot::ShotOk"
+                 "source_prev_shot_visible=1native_prev_shot_visible=0"
+                 "source_call=CameraManager::NumCameraShots"
+                 "source_return=DataNode(int)"
+                 "source_category_caller=%sfilters=\\\"%s\\\""
+                 "filter_count=%zusource_first_shot_ok=omitted_non_mutating_diagnostic"
+                 "source_mutates_category=0\\n\"",
+                 "source category prescan diagnostics expose OnNumCameraShots return shape and direct CameraManager versus BandDirector routing");
+  ok &= contains(gameplay_c,
                  "source_category_caller=%sfilters=\\\"%s\\\""
                  "filter_count=%zu",
                  "source category prescan diagnostics expose direct CameraManager versus BandDirector routing");
@@ -14770,13 +14783,16 @@ int main() {
                  "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and source ShotOk acceptance");
   ok &= contains(gameplay_c,
                  "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
+                 "source_handle=HANDLE"
+                 "source_handler=CameraManager::OnNumCameraShots"
                  "category=%scategory_scan=%smode=%sprevious=%scount=%zu"
                  "shot_ok_probe=1shot_ok_source_call=CamShot::ShotOk"
                  "source_prev_shot_visible=1native_prev_shot_visible=0"
                  "source_call=CameraManager::NumCameraShots"
+                 "source_return=DataNode(int)"
                  "source_first_shot_ok=omitted_non_mutating_diagnostic"
                  "source_mutates_category=0\\n\"",
-                 "regular camera diagnostics label source-shaped NumCameraShots counts as non-mutating proof");
+                 "regular camera diagnostics label source-shaped OnNumCameraShots counts as non-mutating proof");
   ok &= contains(gameplay_c,
                  "structCameraSourceShotOkProbe",
                  "regular camera selector shares one source-shaped ShotOk probe record");
@@ -14993,6 +15009,7 @@ int main() {
                  "camera_manager_onpick_return_bridge,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_numcamerashots_prescan_bridge,"
+                 "camera_manager_onnum_return_bridge,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_findshot_category_scan,"
                  "camera_camshot_disable_bitmask_bridge,"
@@ -15018,7 +15035,7 @@ int main() {
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, ShotAfter HANDLE_EXPR return, cycle_shot pending handoff, cycle_shot DataNode(0) return, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, OnNumCameraShots return, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, ShotAfter HANDLE_EXPR return, cycle_shot pending handoff, cycle_shot DataNode(0) return, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15040,12 +15057,13 @@ int main() {
                  "camera_manager_onpick_return_bridge,"
                  "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_numcamerashots_prescan_bridge,"
+                 "camera_manager_onnum_return_bridge,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_findshot_category_scan,"
                  "camera_camshot_disable_bitmask_bridge,"
                  "camera_manager_findshot_disabled_gate,"
                  "camera_manager_shotmatches_filters,",
-                 "camera implementation status keeps worldbase downbeat duration and script filters before CameraManager Handle routes, MakeCategoryAndFilters, OnPickCameraShot, NumCameraShots, and the CameraManager FirstShotOk/category/Disable/Disabled/ShotMatches scan");
+                 "camera implementation status keeps worldbase downbeat duration and script filters before CameraManager Handle routes, MakeCategoryAndFilters, OnPickCameraShot, NumCameraShots, OnNumCameraShots return, and the CameraManager FirstShotOk/category/Disable/Disabled/ShotMatches scan");
   ok &= contains(gameplay_c,
                  "camera_worldbase_script_filter_bridge,"
                  "camera_manager_handle_routes,"

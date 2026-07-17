@@ -44,6 +44,21 @@
   dispatch, no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
   invention, no pose math, no FreeCam priority change, no dependency, no
   under-venue masking, and no OG Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager OnNumCameraShots return status:
+  ihatecompvir `CameraManager::OnNumCameraShots(...)` reserves the source
+  filter vector, calls `MakeCategoryAndFilters(...)`, then returns
+  `DataNode(NumCameraShots(sym, pvec))`. Native already uses a non-mutating
+  `NumCameraShots`-shaped prescan before live selection; those prescan rows
+  now stamp `source_handle=HANDLE`, `source_handler=CameraManager::OnNumCameraShots`,
+  and `source_return=DataNode(int)`, while still reporting
+  `source_first_shot_ok=omitted_non_mutating_diagnostic` so gameplay does not
+  receive an extra `num_shots` dispatch. The compact normal gameplay camera
+  status now counts `camera_manager_onnum_return_bridge` immediately after
+  `camera_manager_numcamerashots_prescan_bridge`. This is wrapper return proof
+  only: no live `find_shot` claim, no fallback shot, no hidden `cam_shot_ok` /
+  `cam_check_shot` invention, no pose math, no FreeCam priority change, no
+  dependency, no under-venue masking, and no OG Xbox portability surface
+  changed.
 - 2026-07-17 gameplay CameraManager iterate-shot bucket status:
   ihatecompvir `CameraManager::OnIterateShot(...)` saves the script variable,
   walks `mCameraShotCategories` bucket-by-bucket, writes each contained
