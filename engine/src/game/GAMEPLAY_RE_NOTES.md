@@ -676,6 +676,17 @@
   This is a source boundary for camera-angle audits only: the hidden
   `CamShot::SetPos`, `BuildTransform`, and `RndCam::UpdateLocal` bodies remain
   deferred, FreeCam stays last, and no dependency or under-venue masking changed.
+- 2026-07-17 gameplay CamShot position-handler return status:
+  ihatecompvir `CamShot::OnSetPos()` returns `DataNode(SetPos(...))`, while
+  `CamShot::OnHasTargets()` returns `DataNode(mKeyFrames[idx].HasTargets())`.
+  Native now stamps `source_return=DataNode(SetPos_result)` on the OnSetPos
+  boundary rows and `source_return=DataNode(bool)` on the OnHasTargets rows,
+  with the compact status counting
+  `camera_camshot_position_handler_return_bridge` between the OnSetPos /
+  OnHasTargets boundaries and the audited path timing row. This is handler
+  return proof only: the hidden `CamShot::SetPos`, `BuildTransform`, and
+  `RndCam::UpdateLocal` bodies remain deferred, FreeCam stays last, and no
+  dependency or under-venue masking changed.
 - 2026-07-17 gameplay CamShot crowd-payload bridge status:
   ihatecompvir `CamShot::StartAnim()` calls `WorldDir::SetCrowds(mCrowds)`
   before the camera state reset and later loops `mCrowds[i].Set3DCrowd()`,

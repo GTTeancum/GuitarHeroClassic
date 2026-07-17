@@ -14997,8 +14997,9 @@ int main() {
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
+                 "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts CamShot GetKey looping before the OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
+                 "camera implementation status counts CamShot GetKey looping before the OnSetPos and OnHasTargets boundaries and return bridge between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15198,8 +15199,9 @@ int main() {
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
+                 "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, GetCam/RndCam bridge, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, GetCam/RndCam bridge, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets handler returns");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_manager_enter_reset_bridge,"
                  "camera_camshot_endanim_bridge,"
@@ -15350,8 +15352,9 @@ int main() {
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
+                 "camera_camshot_position_handler_return_bridge,"
                  "camera_path_transanim_timing,",
-                 "camera implementation status keeps OnSetPos/OnHasTargets as boundaries after frame-pair timing and before path timing");
+                 "camera implementation status keeps OnSetPos/OnHasTargets handler returns after frame-pair timing and before path timing");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,"
                  "camera_trace_complete_writer_bridge,"
@@ -16076,6 +16079,7 @@ int main() {
                  "source_handler=CamShot::OnSetPosshot=%sa_index=%s%zu"
                  "b_index=%s%zusource_call=SetPos(mKeyFrames[idx],"
                  "RndCam::Current)source_current_rndcam=%s"
+                 "source_return=DataNode(SetPos_result)"
                  "rb2_setpos=locals_only"
                  "native_pose_body=not_synthesized"
                  "route=regular_camera_source_frame_keys\\n\"",
@@ -16085,6 +16089,7 @@ int main() {
                  "source_handler=CamShot::OnSetPosshot=%sindex=%s%zu"
                  "source_call=SetPos(mKeyFrames[idx],RndCam::Current)"
                  "source_current_rndcam=%s"
+                 "source_return=DataNode(SetPos_result)"
                  "rb2_setpos=locals_onlynative_pose_body=not_synthesized"
                  "source_phase=hold_before_blend"
                  "route=regular_camera_source_frame_keys\\n\"",
@@ -16238,6 +16243,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_expr=mKeyFrames[idx].HasTargets",
                  "CamShot OnHasTargets diagnostics name the audited source expression");
+  ok &= contains(gameplay_c,
+                 "source_return=a:DataNode(bool)b:DataNode(bool)",
+                 "CamShot OnHasTargets blend diagnostics expose source DataNode(bool) returns");
+  ok &= contains(gameplay_c,
+                 "source_return=DataNode(bool)"
+                 "source_phase=hold_before_blend",
+                 "CamShot OnHasTargets hold diagnostics expose source DataNode(bool) returns");
   ok &= contains(gameplay_c,
                  "boolcamera_apply_pose_span_source_basis(",
                  "source seed rows can derive the traced pose-span source basis");
