@@ -37463,6 +37463,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         source_next_after_queue ? 1 : 0, key->force_char_lod, bar,
                         song_time_, active_gameplay_blockers.c_str(),
                         deferred_gameplay_blockers.c_str());
+                    static bool logged_camera_impl_status = false;
+                    if (!logged_camera_impl_status) {
+                        logged_camera_impl_status = true;
+                        std::fprintf(
+                            stderr,
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_visibility,camera_shot_over,camera_frame_pair_timing active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            active_gameplay_blockers.c_str(),
+                            deferred_gameplay_blockers.c_str());
+                    }
                     if (diagnostic_camera_shot_matched) {
                         std::fprintf(
                             stderr,

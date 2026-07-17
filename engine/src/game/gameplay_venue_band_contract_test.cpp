@@ -14829,6 +14829,23 @@ int main() {
                  "freecam_affects_gameplay=0",
                  "regular camera sweep diagnostics split active gameplay blockers from deferred CharWalk before FreeCam status");
   ok &= contains(gameplay_c,
+                 "\"[world]cameraimplementationstatus:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_truth=ihatecompvir",
+                 "regular camera proof emits a compact source-truth implementation status row");
+  ok &= contains(gameplay_c,
+                 "hidden_bodies_deferred=cam_shot_ok_rest,"
+                 "cam_check_shot,CharWalk,SetPos,BuildTransform,"
+                 "RndCam_UpdateLocal"
+                 "freecam_priority=deferred_last",
+                 "camera implementation status keeps hidden gameplay bodies ahead of deferred FreeCam work");
+  ok &= contains(gameplay_c,
+                 "under_venue_concern=open"
+                 "no_dependency_change=1"
+                 "og_xbox_portability_preserved=1",
+                 "camera implementation status keeps under-venue and dependency risks explicit");
+  ok &= contains(gameplay_c,
                  "camera_hidden_gameplay_blockers("
                  "true,true,true,kGuitaristWalking)",
                  "regular camera sweep keeps pose, ShotOk, and check_shot blockers active during source selection");
