@@ -8842,13 +8842,23 @@ int main() {
                  "constfloatvalue_a=has_a?a_value:fallback;"
                  "constfloatvalue_b=has_b?b_value:fallback;",
                  "CamShot frame interpolation uses constructor/load defaults for each missing side independently");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_default_blur_depth(){"
+                 "returncamshot_source_blur_field("
+                 "kCamShotFrameSourceDefaultBlurDepth);}",
+                 "CamShot frame blur-depth default follows SetBlurDepth byte storage");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_default_max_blur(){"
+                 "returncamshot_source_blur_field("
+                 "kCamShotFrameSourceDefaultMaxBlur);}",
+                 "CamShot frame max-blur default follows SetMaxBlur byte storage");
   ok &= absent(gameplay_c,
                "constfloatvalue_a=has_a?a_value:(has_b?b_value:fallback);",
                "CamShot frame interpolation must not smear the authored side over a missing source-default side");
   ok &= contains(gameplay_c,
                  "constfloatmax_blur=lerp_camshot_frame_field("
                  "a->has_dof_fields,a->max_blur,b->has_dof_fields,"
-                 "b->max_blur,kCamShotFrameSourceDefaultMaxBlur);",
+                 "b->max_blur,camshot_source_default_max_blur());",
                  "CamShot frame interpolation falls back to source max blur default");
   ok &= contains(gameplay_c,
                  "key.focus_target_entity=std::move(focus.entity);"
@@ -9063,10 +9073,15 @@ int main() {
                  "camera interpolation evaluates CamShot zoom FOV");
   ok &= contains(gameplay_c,
                  "constfloatzoom_a=a->has_zoom_fov?a->zoom_fov:"
-                 "kCamShotFrameSourceDefaultZoomFov;"
+                 "camshot_source_default_zoom_field_of_view();"
                  "constfloatzoom_b=b->has_zoom_fov?b->zoom_fov:"
-                 "kCamShotFrameSourceDefaultZoomFov;",
+                 "camshot_source_default_zoom_field_of_view();",
                  "camera interpolation blends missing CamShot zoom FOV against the source constructor default");
+  ok &= contains(gameplay_c,
+                 "floatcamshot_source_default_angular_offset(){"
+                 "returncamshot_source_angular_offset("
+                 "kCamShotFrameSourceDefaultAngularOffset);}",
+                 "CamShot frame angular default follows MaxAngularOffset byte storage");
   ok &= contains(gameplay_c,
                  "constfloatsource_default_fov="
                  "camshot_source_default_field_of_view();"
