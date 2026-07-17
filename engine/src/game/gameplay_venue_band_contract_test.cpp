@@ -6123,8 +6123,8 @@ int main() {
                  "std::stringactive_camera_runtime_shot_;",
                  "camera runtime tracks the active CamShot lifecycle");
   ok &= contains(gameplay_h_c,
-                 "std::stringactive_camera_source_current_shot_;",
-                 "camera runtime tracks ihatecompvir CamShot::sCurrent");
+                 "std::stringactive_camera_native_current_shot_;",
+                 "camera runtime tracks its native active CamShot bridge");
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_source_current_rndcam_;",
                  "camera runtime tracks ihatecompvir RndCam::sCurrent for CamShot OnSetPos");
@@ -6186,20 +6186,20 @@ int main() {
                  "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
                  "camera EndAnim clears only camera-owned visibility state");
   ok &= contains(end_camera_shot_runtime_c,
-                 "conststd::stringsource_current_before="
-                 "active_camera_source_current_shot_;",
-                 "camera EndAnim snapshots ihatecompvir CamShot::sCurrent before clearing it");
+                 "conststd::stringnative_current_before="
+                 "active_camera_native_current_shot_;",
+                 "camera EndAnim snapshots the native active CamShot bridge before clearing it");
   ok &= contains(end_camera_shot_runtime_c,
                  "active_camera_runtime_shot_.clear();"
-                 "active_camera_source_current_shot_.clear();",
-                 "camera EndAnim clears ihatecompvir CamShot::sCurrent with the active lifecycle");
+                 "active_camera_native_current_shot_.clear();",
+                 "camera EndAnim clears the native active CamShot bridge with the active lifecycle");
   ok &= contains(start_camera_shot_runtime_c,
                  "active_camera_runtime_shot_=runtime_name;"
-                 "active_camera_source_current_shot_=runtime_name;",
-                 "camera StartAnim sets ihatecompvir CamShot::sCurrent to the started shot");
+                 "active_camera_native_current_shot_=runtime_name;",
+                 "camera StartAnim sets the native active CamShot bridge to the started shot");
   ok &= contains(start_camera_shot_runtime_c,
-                 "active_camera_source_current_rndcam_=\"WorldDir::mCam\";",
-                 "camera StartAnim selects the source world RndCam for RndCam::Current consumers");
+                 "active_camera_source_current_rndcam_=\"PanelDir::mCam\";",
+                 "camera StartAnim records the visible source PanelDir RndCam for RndCam::Current consumers");
   ok &= absent(end_camera_shot_runtime_c,
                "active_camera_source_current_rndcam_.clear();",
                "CamShot EndAnim must not clear RndCam::sCurrent; RndCam owns that static");
@@ -6224,8 +6224,8 @@ int main() {
       "apply_camera_crowd_visibility(clear,skip_script_crowd_update);",
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
       "no_current_teardown=%d"
-      "source_field=CamShot::sCurrentsource_current_before=%s"
-      "source_current_after=<cleared>"
+      "source_field=none_visiblenative_current_bridge_before=%s"
+      "native_current_bridge_after=<cleared>"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
       "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
       "active_glow=%s\\n\"",
@@ -6234,8 +6234,8 @@ int main() {
       end_camera_shot_runtime_c,
       "\"[world]cameraEndAnim:source_msg=stop_shotshot=%srestore_visibility=1"
       "no_current_teardown=%d"
-      "source_field=CamShot::sCurrentsource_current_before=%s"
-      "source_current_after=<cleared>"
+      "source_field=none_visiblenative_current_bridge_before=%s"
+      "native_current_bridge_after=<cleared>"
       "postprocess_lifecycle=preserved_until_start_shot_reset"
       "active_postprocess=%sglow_lifecycle=preserved_until_start_shot_or_manager_clear"
       "active_glow=%s\\n\"",
@@ -6262,11 +6262,20 @@ int main() {
                  "cameraStartAnim:source_msg=start_shot",
                  "camera StartAnim diagnostics name ihatecompvir start_shot message");
   ok &= contains(gameplay_c,
-                 "source_field=CamShot::sCurrentsource_current=%s",
-                 "camera StartAnim diagnostics expose ihatecompvir CamShot::sCurrent");
+                 "source_field=none_visiblenative_current_bridge=%s",
+                 "camera StartAnim diagnostics label the native current-shot bridge without claiming a source CamShot::sCurrent");
   ok &= contains(gameplay_c,
-                 "source_rndcam_current=%ssource_rndcam_select=RndCam::Select",
-                 "camera StartAnim diagnostics expose ihatecompvir RndCam::Select current camera state");
+                 "source_rndcam_owner=RndCam::sCurrent"
+                 "source_rndcam_visible_getter=CamShot::GetCam/PanelDir::mCam"
+                 "source_rndcam_current=%s"
+                 "source_rndcam_select=not_visible_in_CamShot_StartAnim",
+                 "camera StartAnim diagnostics expose only the visible ihatecompvir RndCam current/getter trail");
+  ok &= absent(gameplay_c,
+               "source_field=CamShot::sCurrent",
+               "camera diagnostics must not claim a non-visible ihatecompvir CamShot::sCurrent field");
+  ok &= absent(gameplay_c,
+               "source_rndcam_select=RndCam::Select",
+               "camera StartAnim diagnostics must not claim a non-visible RndCam::Select call");
   ok &= contains(gameplay_c,
                  "force_char_lod=%dps3_per_pixel=%dhide_list=%zu",
                  "camera StartAnim diagnostics expose source ps3_per_pixel state");

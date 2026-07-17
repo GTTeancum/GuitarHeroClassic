@@ -25697,7 +25697,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
-    active_camera_source_current_shot_.clear();
+    active_camera_native_current_shot_.clear();
     active_camera_source_current_rndcam_.clear();
     active_camera_anim_event_.clear();
     active_camera_anim_target_.clear();
@@ -26707,8 +26707,8 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
 void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
                                        bool source_no_current_teardown) {
     if (active_camera_runtime_shot_.empty()) return;
-    const std::string source_current_before =
-        active_camera_source_current_shot_;
+    const std::string native_current_before =
+        active_camera_native_current_shot_;
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear, skip_script_crowd_update);
@@ -26718,10 +26718,10 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1 no_current_teardown=%d source_field=CamShot::sCurrent source_current_before=%s source_current_after=<cleared> postprocess_lifecycle=preserved_until_start_shot_reset active_postprocess=%s glow_lifecycle=preserved_until_start_shot_or_manager_clear active_glow=%s\n",
+                     "[world] camera EndAnim: source_msg=stop_shot shot=%s restore_visibility=1 no_current_teardown=%d source_field=none_visible native_current_bridge_before=%s native_current_bridge_after=<cleared> postprocess_lifecycle=preserved_until_start_shot_reset active_postprocess=%s glow_lifecycle=preserved_until_start_shot_or_manager_clear active_glow=%s\n",
                      active_camera_runtime_shot_.c_str(),
                      source_no_current_teardown ? 1 : 0,
-                     source_current_before.c_str(),
+                     native_current_before.c_str(),
                      active_camera_postprocess_ref_.empty()
                          ? "<none>"
                          : active_camera_postprocess_ref_.c_str(),
@@ -26736,7 +26736,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
     }
     end_camera_shot_anims();
     active_camera_runtime_shot_.clear();
-    active_camera_source_current_shot_.clear();
+    active_camera_native_current_shot_.clear();
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_setpreframe_calls_ = 0;
@@ -26911,7 +26911,7 @@ void Gameplay::destroy_camera_manager_like_source(const char* context) {
     previous_regular_camera_.clear();
     active_regular_camera_start_ = 0.0;
     active_camera_runtime_shot_.clear();
-    active_camera_source_current_shot_.clear();
+    active_camera_native_current_shot_.clear();
     active_camera_source_current_rndcam_.clear();
     active_camera_anim_event_.clear();
     active_camera_anim_target_.clear();
@@ -27821,17 +27821,17 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
         active_camera_skip_next_crowd_update_;
     end_camera_shot_runtime(skip_script_crowd_update, false);
     active_camera_runtime_shot_ = runtime_name;
-    active_camera_source_current_shot_ = runtime_name;
-    active_camera_source_current_rndcam_ = "WorldDir::mCam";
+    active_camera_native_current_shot_ = runtime_name;
+    active_camera_source_current_rndcam_ = "PanelDir::mCam";
     active_camera_shot_started_ = false;
     active_camera_setpreframe_calls_ = 0;
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds source_field=CamShot::sCurrent source_current=%s source_rndcam_current=%s source_rndcam_select=RndCam::Select shot=%s hide_crowd=%d face_camera=%d "
+            "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds source_field=none_visible native_current_bridge=%s source_rndcam_owner=RndCam::sCurrent source_rndcam_visible_getter=CamShot::GetCam/PanelDir::mCam source_rndcam_current=%s source_rndcam_select=not_visible_in_CamShot_StartAnim shot=%s hide_crowd=%d face_camera=%d "
             "force_char_lod=%d ps3_per_pixel=%d hide_list=%zu show_list=%zu gen_hide=%zu "
             "draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s\n",
-            active_camera_source_current_shot_.c_str(),
+            active_camera_native_current_shot_.c_str(),
             active_camera_source_current_rndcam_.c_str(),
             active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
             key.crowd_face_camera ? 1 : 0, key.force_char_lod,
@@ -34847,7 +34847,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 pending_regular_camera_start_ = 0.0;
                 pending_regular_camera_local_frame_ = 0.0;
                 active_camera_runtime_shot_.clear();
-                active_camera_source_current_shot_.clear();
+                active_camera_native_current_shot_.clear();
                 active_camera_source_current_rndcam_.clear();
                 active_camera_anim_event_.clear();
                 active_camera_anim_target_.clear();

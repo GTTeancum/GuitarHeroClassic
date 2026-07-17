@@ -13,6 +13,16 @@
   sketchy camera angles: no pose math, no vertical sign flip, no under-venue
   masking, no FreeCam priority change, no dependency change, and no OG Xbox
   portability change.
+- 2026-07-17 gameplay camera current-provenance correction:
+  the visible ihatecompvir trail has `RndCam::sCurrent` /
+  `RndCam::Current()` and `CamShot::GetCam()` returning `PanelDir::mCam`; it
+  does not show a `CamShot::sCurrent` field or a `RndCam::Select()` call inside
+  `CamShot::StartAnim()`. Native therefore relabels its active-shot holder as
+  a native bridge, records the RndCam side as `RndCam::sCurrent` sourced
+  through `CamShot::GetCam/PanelDir::mCam`, and adds contract guards against
+  the older false StartAnim/RndCam select claim. This is provenance only: no
+  pose math, no `BuildTransform` synthesis, no under-venue masking, no FreeCam
+  priority change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot task-unit proof labels:
   ihatecompvir `RndAnimatable` maps rates through `gRateUnits`
   (`k30_fps`/`k30_fps_ui`/`k30_fps_tutorial` to seconds-like task clocks,
