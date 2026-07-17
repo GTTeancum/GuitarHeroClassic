@@ -10167,6 +10167,9 @@ int main() {
                  "\"update_local_source_search=%s\"",
                  "camera debug logs expose the RndCam::UpdateLocal source-search boundary");
   ok &= contains(gameplay_c,
+                 "\"update_local_y_ratio_owner=%s\"",
+                 "camera debug logs expose the unrecovered RndCam::UpdateLocal yRatio owner boundary");
+  ok &= contains(gameplay_c,
                  "\"rb2_dump_locals_only\"",
                  "camera debug logs avoid claiming a recovered BuildTransform body");
   ok &= contains(gameplay_c,

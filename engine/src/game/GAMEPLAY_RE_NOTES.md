@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay RndCam yRatio owner proof:
+  The same-target screen-offset diagnostics now name the exact unrecovered
+  owner for the `LocalProjectXfm` vertical-scale evidence as
+  `RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered`, while
+  `local_project_audit` uses the public `Cam.cpp` empty-body label plus the
+  RB2/RB3 symbol-size evidence. This closes the audit wording gap without
+  claiming a recovered projection body. No camera pose math, vertical sign
+  flip, clamp, under-venue masking, FreeCam priority, dependency, or OG Xbox
+  portability surface changed.
 - 2026-07-17 gameplay CameraManager random-seed status:
   ihatecompvir `CameraManager::OnRandomSeed` writes the static `sSeed`, and
   `CameraManager::Randomize()` consumes that seed before iterating the

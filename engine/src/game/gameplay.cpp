@@ -19224,11 +19224,12 @@ constexpr const char* kCamShotLocalProjectSource =
     "RndCam::UpdateLocal(public_Cam.cpp_empty;"
     "LocalProjectXfm_binary_projection_body_unrecovered)";
 constexpr const char* kCamShotLocalProjectAuditStatus =
-    "public_Cam.cpp_empty_source_stub;"
-    "doc_src_old_rndcam_fn_805CD500_stub_only;"
+    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
     "rb2_dump_UpdateLocal_locals_only;"
     "rb2_UpdateLocal_size_0x1D0;rb3_recomp_UpdateLocal_size_0x1E4;"
     "binary_symbol_sizes_no_body";
+constexpr const char* kCamShotUpdateLocalYRatioOwner =
+    "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
 constexpr const char* kCamShotUpdateLocalAuditStatus =
     "public_Cam.cpp_empty_source_stub;"
     "doc_src_old_rndcam_fn_805CD500_stub_only;"
@@ -24877,6 +24878,7 @@ void apply_camera_keys(
             "source_projection=%s local_project_audit=%s local_project_aspect=%.3f "
             "update_local_audit=%s "
             "update_local_source_search=%s "
+            "update_local_y_ratio_owner=%s "
             "pose_coverage=%s hidden_pose_boundary=%s "
             "submitted_kind=a:%s b:%s skip_source_build_transform=%d "
             "pipeline_scope=normal_gameplay_camera "
@@ -24946,6 +24948,7 @@ void apply_camera_keys(
             kCamShotSourceFrustumAspect,
             kCamShotUpdateLocalAuditStatus,
             kCamShotUpdateLocalSourceSearch,
+            kCamShotUpdateLocalYRatioOwner,
             source_pose_coverage, hidden_pose_boundary,
             camera_submitted_rows_kind_label(submitted_rows_a.kind),
             camera_submitted_rows_kind_label(submitted_rows_b.kind),
