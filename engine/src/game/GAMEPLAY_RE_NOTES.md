@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot GetKey loop status:
+  ihatecompvir `CamShot::SetFrame()` drives the active key pair through
+  `CamShot::GetKey(prev,next,keyBlend)`, and the RB2 dump exposes the GetKey
+  locals around `duration`, `fadeStart`, and key selection while the public
+  source shows `CacheFrames()` feeding `mDuration`. Native already routes
+  regular non-path CamShots through `regular_camera_source_frame_keys(...)`,
+  defaults missing `mLooping` to the source constructor value, wraps the final
+  authored blend to the decoded `mLoopKeyframe`, and logs
+  `source_locals=CamShot::GetKey(mLooping,mLoopKeyframe)` when the loop route
+  is active. The compact camera status now counts
+  `camera_camshot_getkey_looping` between `duration_seconds` and frame-pair
+  timing. This is normal gameplay timing/proof alignment only: no pose math,
+  `BuildTransform`, `RndCam::UpdateLocal`, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot PlatformOk gate status:
   ihatecompvir `CameraManager::SyncObjects()` admits CamShots to category
   buckets only after `CamShot::PlatformOk()`. Native already filtered intro and

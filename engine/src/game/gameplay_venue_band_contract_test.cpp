@@ -14922,10 +14922,11 @@ int main() {
                  "source_truth=ihatecompvir",
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
+                 "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts the CamShot OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
+                 "camera implementation status counts CamShot GetKey looping before the OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_camshot_platform_ok_gate,"
@@ -14962,11 +14963,12 @@ int main() {
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,"
                  "camera_camshot_duration_seconds,"
+                 "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, duration_seconds timing helper, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -15014,8 +15016,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
                  "camera_camshot_duration_seconds,"
+                 "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,",
-                 "camera implementation status keeps source CamShot duration_seconds between shot_over timing and frame-pair timing");
+                 "camera implementation status keeps source CamShot duration_seconds and GetKey looping between shot_over timing and frame-pair timing");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
