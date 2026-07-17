@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot force-char-LOD bridge status:
+  GH2 `world/camshot.dta::start_shot` sends `world set_min_lod
+  [force_char_lod]`, ihatecompvir `BandCamShot` exposes the authored
+  `force_lod` property, and ihatecompvir `Character` carries `SetMinLod()` /
+  `force_lod` through `mMinLod`. Native already decodes `force_char_lod`,
+  stamps it onto selected regular and intro camera keys, applies it to
+  performer and crowd character renderers, and contract-checks the order before
+  crowd routing; the compact status now counts
+  `camera_camshot_force_char_lod_bridge`. This is the source-backed
+  camera-to-character LOD handoff only: no hidden pose body, FreeCam priority,
+  under-venue masking, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager StartShot_ side-effects status:
   ihatecompvir `CameraManager::StartShot_()` ends the old shot, assigns
   `mCurrentShot`, calls `CamShot::StartAnim()`, records `mCamStartTime`, then

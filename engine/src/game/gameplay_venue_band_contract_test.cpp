@@ -14893,6 +14893,7 @@ int main() {
                  "camera implementation status counts source WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
@@ -14907,19 +14908,21 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_visibility",
-                 "camera implementation status counts source-visible postprocess, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, and CamShotFrame::Interp pieces");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle",
-                 "camera implementation status follows source StartAnim order from start_shot handler through reset to linked mAnims");
+                 "camera implementation status follows source StartAnim order from start_shot handler through force LOD, reset, and linked mAnims");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge",
-                 "camera implementation status keeps postprocess, StartAnim reset, mAnims, and source StartShot_ side effects ordered before the glow bridge");
+                 "camera implementation status keeps postprocess, force LOD, StartAnim reset, mAnims, and source StartShot_ side effects ordered before the glow bridge");
   ok &= contains(gameplay_c,
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints",
@@ -14932,6 +14935,7 @@ int main() {
                  "camera visible pose-unit status counts the source SetLocalXfm tail without claiming hidden BuildTransform math");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
+                 "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_startanim_state_reset,"
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
