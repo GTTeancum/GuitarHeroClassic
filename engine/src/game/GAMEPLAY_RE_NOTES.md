@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot crowd-message indexing:
+  ihatecompvir `CamShot::OnSetCrowdChars`,
+  `CamShot::OnAddCrowdChars`, and `CamShot::OnClearCrowdChars` assert
+  `idx < mCrowds.size()` and dispatch to `mCrowds[idx]`. Native already
+  preserves the full decoded `CamShotCrowd` list on each camera key; the
+  message bridge now resolves the requested crowd from that indexed list
+  instead of treating every decoded shot as a single crowd entry. Older
+  single-crowd decoded fields remain a fallback only when no full
+  `crowd_refs` list is present. This is normal gameplay camera crowd parity
+  only: no pose movement, no `BuildTransform` synthesis, no under-venue
+  masking, no FreeCam priority change, no dependency change, and no OG Xbox
+  portability change.
 - 2026-07-17 gameplay CamShot start/over GH2 boundary correction:
   Stock GH2 venue camera inventory remains `CamShot`-based; the audited
   `BandCamShot` wrapper belongs to later band-game source and is not a stock

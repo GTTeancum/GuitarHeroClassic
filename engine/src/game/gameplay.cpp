@@ -26663,39 +26663,53 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
 
     for (const auto& key : regular_camera_keys_) {
         if (key.name != shot_name) continue;
-        const bool has_source_crowd =
+        const bool has_legacy_source_crowd =
             key.has_crowd_selection || !key.crowd_selection_ref.empty() ||
             !key.crowd_selection_pairs.empty();
-        const int source_crowd_count = has_source_crowd ? 1 : 0;
+        const size_t source_crowd_count =
+            !key.crowd_refs.empty()
+                ? key.crowd_refs.size()
+                : (has_legacy_source_crowd ? 1u : 0u);
         const bool source_assert_idx_lt_size =
-            crowd_index < source_crowd_count;
-        const bool source_index_ok = crowd_index == 0 && has_source_crowd;
+            crowd_index >= 0 &&
+            static_cast<size_t>(crowd_index) < source_crowd_count;
+        const bool source_index_ok = source_assert_idx_lt_size;
         const bool before_has_selection = venue_camera_has_crowd_selection_;
         const std::string before_ref = venue_camera_crowd_selection_ref_;
         const auto before_pair_list = venue_camera_crowd_selection_pairs_;
         const size_t before_pairs = venue_camera_crowd_selection_pairs_.size();
         bool changed = false;
         if (source_index_ok) {
-            const std::string crowd_ref =
-                canonical_milo_ref(key.crowd_selection_ref.empty()
-                                       ? key.source_ref
-                                       : key.crowd_selection_ref);
+            const auto crowd_idx = static_cast<size_t>(crowd_index);
+            std::string crowd_ref;
+            std::vector<std::pair<int, int>> crowd_pairs;
+            if (!key.crowd_refs.empty()) {
+                const auto& source_crowd = key.crowd_refs[crowd_idx];
+                crowd_ref = canonical_milo_ref(source_crowd.ref.empty()
+                                                   ? key.source_ref
+                                                   : source_crowd.ref);
+                crowd_pairs = source_crowd.pairs;
+            } else {
+                crowd_ref = canonical_milo_ref(key.crowd_selection_ref.empty()
+                                                   ? key.source_ref
+                                                   : key.crowd_selection_ref);
+                crowd_pairs = key.crowd_selection_pairs;
+            }
             if (message == CrowdMessage::Clear) {
                 venue_camera_has_crowd_selection_ = true;
                 venue_camera_crowd_selection_ref_ = crowd_ref;
                 venue_camera_crowd_selection_pairs_.clear();
-            } else if (!key.crowd_selection_pairs.empty()) {
+            } else if (!crowd_pairs.empty()) {
                 venue_camera_has_crowd_selection_ = true;
                 if (message == CrowdMessage::Set ||
                     (!venue_camera_crowd_selection_ref_.empty() &&
                      venue_camera_crowd_selection_ref_ != crowd_ref)) {
                     venue_camera_crowd_selection_ref_ = crowd_ref;
-                    venue_camera_crowd_selection_pairs_ =
-                        key.crowd_selection_pairs;
+                    venue_camera_crowd_selection_pairs_ = crowd_pairs;
                 } else {
                     if (venue_camera_crowd_selection_ref_.empty())
                         venue_camera_crowd_selection_ref_ = crowd_ref;
-                    for (const auto& pair : key.crowd_selection_pairs) {
+                    for (const auto& pair : crowd_pairs) {
                         if (std::find(venue_camera_crowd_selection_pairs_.begin(),
                                       venue_camera_crowd_selection_pairs_.end(),
                                       pair) ==
@@ -26716,8 +26730,10 @@ bool Gameplay::apply_camshot_crowd_message_like_source(
                 "[world] camera crowd message: source_msg=%s source_handler=%s source_assert=idx<mCrowds.size() shot=%s crowd_index=%d source_index_ok=%d source_crowd_count=%d source_assert_idx_lt_size=%d source_crowds=%d ref_before=%s pairs_before=%zu ref_after=%s pairs_after=%zu has_after=%d changed=%d source_return=DataNode(0)\n",
                 std::string(source_msg).c_str(), source_handler,
                 key.name.c_str(), crowd_index, source_index_ok ? 1 : 0,
-                source_crowd_count, source_assert_idx_lt_size ? 1 : 0,
-                has_source_crowd ? 1 : 0, before_ref.c_str(), before_pairs,
+                static_cast<int>(source_crowd_count),
+                source_assert_idx_lt_size ? 1 : 0,
+                source_crowd_count > 0 ? 1 : 0, before_ref.c_str(),
+                before_pairs,
                 venue_camera_crowd_selection_ref_.c_str(),
                 venue_camera_crowd_selection_pairs_.size(),
                 venue_camera_has_crowd_selection_ ? 1 : 0,

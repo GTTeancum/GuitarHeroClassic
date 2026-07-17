@@ -13752,13 +13752,22 @@ int main() {
                  "source_handler=\"CamShot::OnClearCrowdChars\"",
                  "CamShot crowd bridge names ihatecompvir OnClearCrowdChars");
   ok &= contains(gameplay_c,
-                 "constboolsource_index_ok=crowd_index==0&&has_source_crowd;",
-                 "CamShot crowd bridge keeps native decoded crowd entries bounded to source index zero");
+                 "constsize_tsource_crowd_count="
+                 "!key.crowd_refs.empty()?key.crowd_refs.size():"
+                 "(has_legacy_source_crowd?1u:0u);",
+                 "CamShot crowd bridge counts the decoded source mCrowds list before legacy fallback");
   ok &= contains(gameplay_c,
-                 "constintsource_crowd_count=has_source_crowd?1:0;"
-                 "constboolsource_assert_idx_lt_size="
-                 "crowd_index<source_crowd_count;",
+                 "static_cast<size_t>(crowd_index)<source_crowd_count;",
                  "CamShot crowd bridge exposes ihatecompvir idx < mCrowds.size assertion state");
+  ok &= contains(gameplay_c,
+                 "constauto&source_crowd=key.crowd_refs[crowd_idx];",
+                 "CamShot crowd bridge resolves source mCrowds[idx] from decoded CrowdRef entries");
+  ok &= contains(gameplay_c,
+                 "crowd_pairs=source_crowd.pairs;",
+                 "CamShot crowd bridge applies the indexed decoded selected-member list");
+  ok &= contains(gameplay_c,
+                 "crowd_pairs=key.crowd_selection_pairs;",
+                 "CamShot crowd bridge preserves the legacy single-crowd fallback");
   ok &= contains(gameplay_c,
                  "source_assert=idx<mCrowds.size()",
                  "CamShot crowd diagnostics name the ihatecompvir crowd index assertion");
@@ -13769,7 +13778,7 @@ int main() {
                  "CamShot clear_3d_crowd mirrors source ClearCrowdChars with an empty selected list");
   ok &= contains(gameplay_c,
                  "venue_camera_crowd_selection_pairs_="
-                 "key.crowd_selection_pairs;",
+                 "crowd_pairs;",
                  "CamShot set_3d_crowd replaces the active decoded crowd selection");
   ok &= contains(gameplay_c,
                  "venue_camera_crowd_selection_pairs_.push_back(pair);",
