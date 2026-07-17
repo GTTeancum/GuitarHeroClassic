@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot duration_seconds status:
+  ihatecompvir `CamShot::GetDurationSeconds()` returns `0.0f` for beat-unit
+  shots and otherwise asserts seconds units before returning `mDuration / 30`.
+  Native already mirrors that branch in `camera_source_duration_seconds(...)`
+  and uses it in normal gameplay camera `SetFrame` diagnostics, `shot_over`
+  timing, and game-won outro scheduling. The compact status now counts
+  `camera_camshot_duration_seconds` between `camera_shot_over` and frame-pair
+  timing. This is source-visible camera timing parity only: no pose math,
+  `BuildTransform` synthesis, under-venue masking, FreeCam priority change,
+  dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager ForceCameraShot pending status:
   ihatecompvir `CameraManager::ForceCameraShot(CamShot*)` only assigns
   `mNextShot = shot`; the visible source does not start the shot immediately.
