@@ -139,6 +139,20 @@
   `camera_manager_current_next_state`. This is source manager scheduling parity
   only: no camera pose math, FreeCam priority, dependency, under-venue masking,
   or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager ShotAfter order status:
+  ihatecompvir `CameraManager::ShotAfter(CamShot*)` walks
+  `ObjDirItr<CamShot>` in source object order, keeps the first CamShot as the
+  wrap/default result, advances past the current shot when found, and returns
+  that object to both the `shot_after` handler and `OnCycleShot()` path.
+  Native already preserves decoded `source_object_order` in
+  `camera_manager_source_shot_after(...)`, logs the source `ShotAfter`
+  diagnostic, and forbids an invented alphabetical tie-breaker; the compact
+  normal gameplay camera status now counts
+  `camera_manager_shotafter_order_bridge` between
+  `camera_manager_force_shot_pending` and
+  `camera_manager_cycle_shot_pending_bridge`. This is source manager ordering
+  parity only: no live selection invention, pose math, FreeCam priority,
+  dependency, under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay NumCameraShots prescan status:
   ihatecompvir `CameraManager::NumCameraShots` is useful for source-shaped
   selection proof because it counts acceptable shots without mutating category
