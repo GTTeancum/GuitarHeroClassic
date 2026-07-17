@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay WorldDir CamShot override status proof:
+  ihatecompvir `WorldDir::PostLoad` loads `mCamShotOverrides` and
+  `WorldDir::SyncCamShots(true)` calls `CamShot::Disable(true, 1)` on each
+  override before `CameraManager::FindCameraShot` skips disabled candidates.
+  Native already mirrors that source route by decoding the WorldDir override
+  list, applying the source-shaped disable helper to matching CamShots and
+  copied frame keys, and leaving disabled shots in the category pool until the
+  selection-time skip. The compact implementation status now counts
+  `camera_worlddir_camshot_overrides_disable`; no loader-side pruning, pose
+  math, under-venue masking, FreeCam priority change, dependency change, or OG
+  Xbox portability change was added.
 - 2026-07-17 gameplay ShotOk recovered-status split:
   the compact normal-gameplay camera implementation status now counts
   `camera_camshot_shot_ok_bad_waypoints` for the recovered authored

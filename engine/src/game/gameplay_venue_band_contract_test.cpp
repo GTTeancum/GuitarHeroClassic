@@ -14887,6 +14887,11 @@ int main() {
                  "camera_frame_pair_timing,camera_path_transanim_timing",
                  "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
   ok &= contains(gameplay_c,
+                 "camera_selection,"
+                 "camera_worlddir_camshot_overrides_disable,"
+                 "camera_lifecycle",
+                 "camera implementation status counts source WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+  ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
                  "camera_manager_prepoll_poll_order,"
                  "camera_camshot_update_target_cache,"
