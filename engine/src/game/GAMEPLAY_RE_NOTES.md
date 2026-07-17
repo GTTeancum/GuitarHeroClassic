@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camera proof-row bounding:
+  normal gameplay `CamShotFrame::Interp` proof rows for SetFrustum, target
+  cache, Shake, and solver state now share a source key-pair report token.
+  Repeated frames in the same key pair no longer spam identical diagnostic rows,
+  while camera state submission remains unchanged. This keeps future screenshot
+  proof logs smaller and easier to audit without changing source camera
+  selection, target math, frustum state, DOF, Shake state, pose math, FreeCam
+  priority, dependencies, or OG Xbox portability.
 - 2026-07-17 gameplay CamShot Interp source-visible status proof:
   ihatecompvir `CamShotFrame::Interp` visibly calls `RndCam::SetFrustum`,
   handles the SameTargets direct screen-offset branch, submits DOF through

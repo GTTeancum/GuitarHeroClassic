@@ -12293,8 +12293,9 @@ int main() {
                  "CamShotFrame::Interp blends the submitted transform from the current camera world transform");
   ok &= contains(gameplay_c,
                  "&regular_camera_keys_,source_setframe_blend,"
-                 "&venue_crowd_bounds);",
-                 "CameraManager::Poll supplies source SetFrame blend 1.0 to native camera application");
+                 "&venue_crowd_bounds,"
+                 "&active_camera_interp_debug_reported_);",
+                 "CameraManager::Poll supplies source SetFrame blend 1.0 to native camera application with bounded Interp diagnostics");
   ok &= contains(gameplay_c,
                  "constfloatsource_shot_local_frame=camera_source_local_frame("
                  "*key,song_time_,active_regular_camera_start_,&chart_);",
@@ -12452,6 +12453,12 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_frame_pair_reported_;",
                  "camera runtime reports each source frame pair bridge by source key signature");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_interp_debug_reported_;",
+                 "camera runtime bounds verbose Interp proof rows by source key pair");
+  ok &= contains(gameplay_c,
+                 "active_camera_interp_debug_reported_.clear();",
+                 "camera Interp proof row bounds reset with source camera runtime state");
   ok &= contains(gameplay_h_c,
                  "boolhide_crowd=false;boolcrowd_face_camera=false;"
                  "intforce_char_lod=-1;",
@@ -12695,8 +12702,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidcamera_apply_rndcam_set_frustum_like_source("
                  "ghogx::render::OrbitCamera&cam,floatnear_z,floatfar_z,"
-                 "floaty_fov,floatsource_current_far_z)",
-                 "runtime camera exposes ihatecompvir RndCam::SetFrustum bridge with source YFov");
+                 "floaty_fov,floatsource_current_far_z,"
+                 "boolemit_debug_row=true)",
+                 "runtime camera exposes ihatecompvir RndCam::SetFrustum bridge with source YFov and bounded diagnostics");
+  ok &= contains(gameplay_c,
+                 "emit_debug_row&&"
+                 "(debug_camera_enabled()||debug_venue_filters_enabled())",
+                 "RndCam SetFrustum diagnostics can be bounded without changing source frustum state");
   ok &= contains(gameplay_c,
                  "if(far_z-0.0001f>near_z*1000.0f){"
                  "source_ratio_clamped=true;"
@@ -12772,7 +12784,8 @@ int main() {
                  "camera_apply_rndcam_set_frustum_like_source("
                  "cam,source_requested_near_z,source_requested_far_z,"
                  "source_screen_offset_fov,"
-                 "source_current_far_z);",
+                 "source_current_far_z,"
+                 "source_debug_report_due);",
                  "runtime camera submits the base CamShot frustum through the source bridge");
   ok &= contains(gameplay_c,
                  "source_after_base_far_z=cam.far_z;",
@@ -12781,7 +12794,8 @@ int main() {
                  "camera_apply_rndcam_set_frustum_like_source("
                  "cam,source_requested_near_z,source_requested_far_z,"
                  "source_final_fov,"
-                 "source_after_base_far_z);",
+                 "source_after_base_far_z,"
+                 "source_debug_report_due);",
                  "runtime camera submits the zoomed CamShot frustum through the source bridge");
   ok &= contains(gameplay_c,
                  "floatsource_requested_near_z="
@@ -12793,7 +12807,7 @@ int main() {
                        "camera_apply_rndcam_set_frustum_like_source("
                        "cam,source_requested_near_z,"
                        "source_requested_far_z,source_screen_offset_fov,"
-                       "source_current_far_z);",
+                       "source_current_far_z,source_debug_report_due);",
                        "if(!submitted_result_from_ps2_trace&&"
                        "blended_target_centroid){",
                        "CamShot base SetFrustum runs before BuildTransform like ihatecompvir Interp");
@@ -12801,7 +12815,7 @@ int main() {
                        "camera_apply_rndcam_set_frustum_like_source("
                        "cam,source_requested_near_z,"
                        "source_requested_far_z,source_screen_offset_fov,"
-                       "source_current_far_z);",
+                       "source_current_far_z,source_debug_report_due);",
                        "source_screen_offset_translate_result="
                        "camera_source_screen_offset_translate_distance_result_rows(",
                        "CamShot base SetFrustum runs before same-target LocalProjectXfm screen-offset translation");
@@ -12809,7 +12823,7 @@ int main() {
                        "camera_apply_rndcam_set_frustum_like_source("
                        "cam,source_requested_near_z,"
                        "source_requested_far_z,source_final_fov,"
-                       "source_after_base_far_z);",
+                       "source_after_base_far_z,source_debug_report_due);",
                        "apply_camera_result_frame(cam,submitted_result);",
                        "CamShot SetFrustum calls run before source SetLocalXfm/result submission");
   ok &= contains(gameplay_c,

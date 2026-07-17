@@ -18868,7 +18868,7 @@ std::array<float, 2> camshot_result_screen_norm_for_key(
 
 void camera_apply_rndcam_set_frustum_like_source(
     ghogx::render::OrbitCamera& cam, float near_z, float far_z,
-    float y_fov, float source_current_far_z) {
+    float y_fov, float source_current_far_z, bool emit_debug_row = true) {
     if (!std::isfinite(near_z) || !std::isfinite(far_z) ||
         !std::isfinite(y_fov) || near_z <= 0.0f || far_z <= near_z) {
         return;
@@ -18887,7 +18887,8 @@ void camera_apply_rndcam_set_frustum_like_source(
     cam.near_z = near_z;
     cam.far_z = far_z;
     cam.fov = y_fov;
-    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+    if (emit_debug_row &&
+        (debug_camera_enabled() || debug_venue_filters_enabled())) {
         std::fprintf(
             stderr,
             "[world] camera SetFrustum: source_class=RndCam requested=(%.3f %.3f %.6f) previous_far=%.3f stored=(%.3f %.3f %.6f) unknown=1.000 ratio_clamped=%d\n",
@@ -22730,7 +22731,8 @@ void apply_camera_keys(
     const std::vector<std::string>* source_record_member_table = nullptr,
     const std::vector<Gameplay::CameraKey>* source_record_key_table = nullptr,
     float source_setframe_blend = 1.0f,
-    const CameraVenueCrowdBoundsProof* venue_crowd_bounds = nullptr) {
+    const CameraVenueCrowdBoundsProof* venue_crowd_bounds = nullptr,
+    std::string* source_debug_reported_key = nullptr) {
     if (keys.empty()) {
         camera_unset_dof_proc_like_source(cam);
         camera_unset_shake_like_no_current_camshot(cam);
@@ -22758,6 +22760,34 @@ void apply_camera_keys(
     t = std::clamp(t, 0.0f, 1.0f);
     const float interp_t =
         camshot_blend_ease_t(t, a->blend_ease, a->blend_ease_mode);
+    const bool source_debug_rows_requested =
+        debug_camera_enabled() || debug_venue_filters_enabled();
+    std::string source_debug_report_key;
+    bool source_debug_report_due = true;
+    if (source_debug_reported_key && source_debug_rows_requested) {
+        auto source_frame_index_token =
+            [](const Gameplay::CameraKey& key) -> std::string {
+            return key.has_source_frame_key_index
+                       ? std::to_string(key.source_frame_key_index)
+                       : std::string("none");
+        };
+        auto source_path_frame_token =
+            [](const Gameplay::CameraKey& key) -> std::string {
+            return key.has_source_path_frame_mapping
+                       ? std::to_string(key.source_path_submitted_frame)
+                       : std::string("none");
+        };
+        source_debug_report_key =
+            a->name + ":" + source_frame_index_token(*a) + ":" +
+            source_path_frame_token(*a) + "->" + b->name + ":" +
+            source_frame_index_token(*b) + ":" +
+            source_path_frame_token(*b);
+        source_debug_report_due =
+            *source_debug_reported_key != source_debug_report_key;
+        if (source_debug_report_due) {
+            *source_debug_reported_key = source_debug_report_key;
+        }
+    }
     const auto a_frame_target_cache =
         camera_update_frame_target_cache_like_source(*a, targets);
     const auto b_frame_target_cache =
@@ -22859,7 +22889,8 @@ void apply_camera_keys(
     if (source_frustum_valid) {
         camera_apply_rndcam_set_frustum_like_source(
             cam, source_requested_near_z, source_requested_far_z,
-            source_screen_offset_fov, source_current_far_z);
+            source_screen_offset_fov, source_current_far_z,
+            source_debug_report_due);
         source_after_base_far_z = cam.far_z;
     }
     const auto lerp_camshot_frame_field =
@@ -23260,7 +23291,8 @@ void apply_camera_keys(
     if (source_frustum_valid) {
         camera_apply_rndcam_set_frustum_like_source(
             cam, source_requested_near_z, source_requested_far_z,
-            source_final_fov, source_after_base_far_z);
+            source_final_fov, source_after_base_far_z,
+            source_debug_report_due);
     }
     const bool source_use_depth_of_field =
         b->has_use_depth_of_field
@@ -23325,7 +23357,7 @@ void apply_camera_keys(
             }
         }
     }
-    if (debug_camera_enabled()) {
+    if (debug_camera_enabled() && source_debug_report_due) {
         auto debug_ref_world =
             [&](const Gameplay::CameraKey& key, bool parent)
             -> const std::array<float, 16>* {
@@ -25752,6 +25784,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_setpreframe_calls_ = 0;
     active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
+    active_camera_interp_debug_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
     active_camera_last_prev_index_ = SIZE_MAX;
@@ -26807,6 +26840,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
     active_camera_setpreframe_calls_ = 0;
     active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
+    active_camera_interp_debug_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
     active_camera_last_prev_index_ = SIZE_MAX;
@@ -26922,6 +26956,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_setpreframe_calls_ = 0;
     active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
+    active_camera_interp_debug_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
     active_camera_last_prev_index_ = SIZE_MAX;
@@ -26992,6 +27027,7 @@ void Gameplay::destroy_camera_manager_like_source(const char* context) {
     active_camera_setpreframe_calls_ = 0;
     active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
+    active_camera_interp_debug_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
     active_camera_last_prev_index_ = SIZE_MAX;
@@ -27851,6 +27887,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_setpreframe_calls_ = 0;
     active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
+    active_camera_interp_debug_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
     active_camera_last_prev_index_ = SIZE_MAX;
@@ -34947,6 +34984,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_fov_anim_reported_.clear();
                 active_camera_setpreframe_calls_ = 0;
                 active_camera_setframe_calls_ = 0;
+                active_camera_interp_debug_reported_.clear();
                 active_camera_shots_over_.clear();
                 active_camera_shot_over_gate_reported_.clear();
                 active_camera_last_prev_key_.clear();
@@ -38181,7 +38219,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
                                   &regular_camera_keys_, source_setframe_blend,
-                                  &venue_crowd_bounds);
+                                  &venue_crowd_bounds,
+                                  &active_camera_interp_debug_reported_);
                 apply_active_camera_fov_anims(world_->camera(), *key);
                 if (diagnostic_camera_shot_.empty()) {
                     const bool source_camshot_over_latched =

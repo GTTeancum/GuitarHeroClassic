@@ -1365,6 +1365,7 @@ class Gameplay {
   size_t active_camera_setpreframe_calls_ = 0;
   size_t active_camera_setframe_calls_ = 0;
   std::string active_camera_frame_pair_reported_;
+  std::string active_camera_interp_debug_reported_;
   std::string active_camera_last_prev_key_;
   std::string active_camera_last_next_key_;
   size_t active_camera_last_prev_index_ = SIZE_MAX;
