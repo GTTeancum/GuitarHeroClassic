@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot shot_started post-switch status:
+  ihatecompvir `CamShot::CheckShotStarted()` returns the runtime `unk120p4`
+  bit, and stock GH2 `world/camshot.dta` routes `shot_started` through
+  `handle (world post_switch_cam)`. Native already carries a per-active-shot
+  `active_camera_shot_started_` latch, applies the dependency-free
+  `post_switch_cam` venue event once on the source first-SetFrame boundary, and
+  logs the bridge as `pose_body=not_synthesized`; the compact status now counts
+  `camera_shot_started_postswitch`. This is a source event/lifecycle bridge
+  only: hidden `SetFrame`, `SetPos`, `BuildTransform`, and
+  `RndCam::UpdateLocal` math remain deferred, FreeCam stays last, and no
+  dependency or under-venue masking changed.
 - 2026-07-17 gameplay CamShot OnSetPos boundary status:
   ihatecompvir `CamShot::OnSetPos()` reads the authored keyframe index from the
   script args and calls `SetPos(mKeyFrames[idx], RndCam::Current())`. Native

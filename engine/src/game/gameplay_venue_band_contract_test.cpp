@@ -14910,11 +14910,12 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_visibility,"
+                 "camera_shot_started_postswitch,"
                  "camera_shot_over,"
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, and the source OnSetPos boundary");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, and the source OnSetPos boundary");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -14953,6 +14954,11 @@ int main() {
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order",
                  "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection and check_shot probe boundary before manager poll order");
+  ok &= contains(gameplay_c,
+                 "camera_visibility,"
+                 "camera_shot_started_postswitch,"
+                 "camera_shot_over,",
+                 "camera implementation status keeps the source shot_started post_switch_cam bridge before shot_over");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
