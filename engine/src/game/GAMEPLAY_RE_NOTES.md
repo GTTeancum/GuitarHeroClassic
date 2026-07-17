@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot StartAnim no-op handler status:
+  ihatecompvir's CamShot handler table registers `get_occluded`,
+  `gen_hide_list`, `clear_hide_list`, and `set_all_to_3D` as source-visible
+  zero-return / no-op-style boundaries during camera shot startup. Native
+  already logs those audited values during `StartAnim`; the compact normal
+  gameplay camera status now counts them as
+  `camera_camshot_startanim_handler_noops` between the StartAnim state reset
+  and linked `mAnims` lifecycle. This is handler provenance only: no pose math,
+  `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot OnRadio flags status:
   ihatecompvir `CamShot::OnRadio()` reads the set/clear masks from message
   args 2 and 3, mutates `mFlags` as `(mFlags & ~clear_mask) | set_mask` only

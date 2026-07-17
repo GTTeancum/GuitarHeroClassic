@@ -14953,6 +14953,7 @@ int main() {
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"
+                 "camera_camshot_startanim_handler_noops,"
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
@@ -14979,23 +14980,25 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"
+                 "camera_camshot_startanim_handler_noops,"
                  "camera_camshot_manims_lifecycle",
-                 "camera implementation status follows source StartAnim order from start_shot handler through force LOD, crowd payload, reset, and linked mAnims");
+                 "camera implementation status follows source StartAnim order from start_shot handler through force LOD, crowd payload, reset, source no-op handlers, and linked mAnims");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"
+                 "camera_camshot_startanim_handler_noops,"
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge",
-                 "camera implementation status keeps postprocess, force LOD, crowd payload, StartAnim reset, mAnims, and source StartShot_ side effects ordered before the glow bridge");
+                 "camera implementation status keeps postprocess, force LOD, crowd payload, StartAnim reset, no-op handlers, mAnims, and source StartShot_ side effects ordered before the glow bridge");
   ok &= contains(gameplay_c,
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shotok_typeswitch,"
@@ -15012,6 +15015,7 @@ int main() {
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
                  "camera_camshot_startanim_state_reset,"
+                 "camera_camshot_startanim_handler_noops,"
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
