@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot mAnims lifecycle status:
+  ihatecompvir `CamShot::StartAnim()` starts each linked `mAnims` child after
+  the source state reset and before `CamShotCrowd::Set3DCrowd()`, while
+  `CamShot::EndAnim()` sends `stop_shot` before ending those linked anims.
+  Native already routes decoded CamShot `mAnims` refs as shot-scoped venue
+  filters or linked `RndCamAnim` FOV tracks, clears them through the EndAnim
+  path, and contract-checks the source order; the compact status now counts
+  `camera_camshot_manims_lifecycle`. This is source-visible camera animation
+  lifecycle accounting only: no hidden pose body, FreeCam priority,
+  under-venue masking, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot postprocess status:
   GH2 `world/camshot.dta::start_shot` selects the authored `postprocess` object
   or calls `rnd reset_postproc`, and the audited `RndPostProc::Select()` /
