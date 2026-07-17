@@ -14639,6 +14639,11 @@ int main() {
                  "filter_count=%zu",
                  "source category prescan diagnostics expose direct CameraManager versus BandDirector routing");
   ok &= contains(gameplay_c,
+                 "source_category_caller=%sshot=%scategory=%s"
+                 "bucket_index=%zusource_move=MoveItem(end)"
+                 "source_return=CamShot",
+                 "source category FindCameraShot diagnostics expose the accepted CamShot return after MoveItem");
+  ok &= contains(gameplay_c,
                  "if(key.category!=category)continue;"
                  "if(key.disabled_flags!=0){",
                  "source category picker scans one authored category and preserves Disabled gate ordering");
@@ -14815,8 +14820,9 @@ int main() {
                  "\"[world]cameraFindCameraShotmove:source_manager="
                  "CameraManager::FindCameraShotshot=%scategory=%s"
                  "bucket_index=%zusource_move=MoveItem(end)"
+                 "source_return=CamShot"
                  "before=%safter=%s\\n\"",
-                 "regular camera diagnostics expose source accepted-shot move-to-end");
+                 "regular camera diagnostics expose source accepted-shot move-to-end and CamShot return");
   ok &= contains(gameplay_c,
                  "return&*inserted;",
                  "regular camera selector returns the category-rotated CamShot");
@@ -14978,6 +14984,7 @@ int main() {
                  "camera_manager_shotmatches_filters,"
                  "camera_camshot_radio_flags_bridge,"
                  "camera_manager_findshot_moveitem,"
+                 "camera_manager_findshot_return_bridge,"
                  "camera_manager_pickshot_no_acceptable_warning,"
                  "camera_manager_pickshot_pending,"
                  "camera_manager_pickshot_same_shot_restart_bridge,"
@@ -14990,7 +14997,7 @@ int main() {
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15043,9 +15050,15 @@ int main() {
                  "camera implementation status keeps CamShot Disable bitmask semantics before the source Disabled gate");
   ok &= contains(gameplay_c,
                  "camera_manager_findshot_moveitem,"
+                 "camera_manager_findshot_return_bridge,"
                  "camera_manager_pickshot_no_acceptable_warning,"
                  "camera_manager_pickshot_pending,",
-                 "camera implementation status keeps the source PickCameraShot no-acceptable warning before pending-shot handoff");
+                 "camera implementation status keeps FindCameraShot CamShot return before PickCameraShot no-acceptable warning and pending-shot handoff accounting");
+  ok &= contains(gameplay_c,
+                 "camera_manager_findshot_moveitem,"
+                 "camera_manager_findshot_return_bridge,"
+                 "camera_manager_pickshot_no_acceptable_warning,",
+                 "camera implementation status keeps the source FindCameraShot return bridge immediately after MoveItem and before PickCameraShot failure accounting");
   ok &= contains(gameplay_c,
                  "camera_manager_pickshot_pending,"
                  "camera_manager_pickshot_same_shot_restart_bridge,"

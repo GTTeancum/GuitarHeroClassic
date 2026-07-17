@@ -498,6 +498,18 @@
   normal gameplay camera picker ordering only: no hidden `cam_shot_ok` result
   invention, pose math, `BuildTransform` synthesis, under-venue masking,
   FreeCam priority change, dependency change, or OG Xbox portability change.
+- 2026-07-17 gameplay CameraManager FindCameraShot return status:
+  ihatecompvir `CameraManager::FindCameraShot(...)` returns the accepted
+  `CamShot*` immediately after the source `MoveItem(end)` rotation; the failure
+  branch returns `0` for `PickCameraShot(...)` warning handling. Native already
+  returns the category-rotated regular/source-category CamShot pointer after
+  reinsertion, and the live diagnostics now stamp `source_return=CamShot` on
+  both accepted-shot move rows. The compact status now counts
+  `camera_manager_findshot_return_bridge` immediately after
+  `camera_manager_findshot_moveitem` and before the separate PickCameraShot
+  warning/pending handoff accounting. This is success-return parity only: no
+  fallback shot, hidden `cam_shot_ok` invention, pose math, FreeCam priority,
+  dependency, under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager ShotMatches status:
   ihatecompvir `CameraManager::ShotMatches(...)` evaluates each authored
   filter by reading either the visible `flags_any` / `flags_exact` masks or the
