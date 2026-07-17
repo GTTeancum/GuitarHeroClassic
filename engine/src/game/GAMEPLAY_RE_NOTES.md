@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay worldbase script-filter status:
+  GH2 `world_objects_worldbase.dta` builds regular and solo gameplay camera
+  picks by sending `pick_shot` / `pick_solo_camera_shot` with source-authored
+  property filters: previous distance/facing context, `special FALSE`,
+  optional `low_excitement_ok`, optional `walk_ok`, and only
+  `starpower_ok TRUE` for star-power selection. Native already builds that
+  filter vector in script order through `camera_source_script_filters(...)`
+  and feeds it to the source-shaped `ShotMatches` scan; the compact normal
+  gameplay camera status now counts this as
+  `camera_worldbase_script_filter_bridge` before
+  `camera_manager_make_category_filters`. This is normal gameplay camera
+  selection parity only: no hidden `cam_shot_ok` / `cam_check_shot` invention,
+  pose math, under-venue masking, FreeCam priority, dependency, or OG Xbox
+  portability surface changed.
 - 2026-07-17 gameplay worldbase beat check_shot status:
   GH2 `world_objects_worldbase.dta::beat` stores `[camera_beat]` and sends
   the current CamShot `check_shot`; `world/camshot.dta::check_shot` then calls
