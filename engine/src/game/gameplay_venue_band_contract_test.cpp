@@ -2283,6 +2283,13 @@ int main() {
                  "std::array<uint32_t,5>slot_lane_colors_=",
                  "highway stores runtime-sampled native lane fallback colors");
   ok &= contains(highway_renderer_h_c,
+                 "std::array<float,4>material_color="
+                 "{1.0f,1.0f,1.0f,1.0f};",
+                 "runtime meshes carry authored MILO material color for source-backed tail fills");
+  ok &= contains(highway_renderer_h_c,
+                 "floatnx=0.0f,ny=0.0f,nz=1.0f;",
+                 "runtime highway vertices retain source normals for authored lighting");
+  ok &= contains(highway_renderer_h_c,
                  "std::array<std::string,5>slot_color_names_="
                  "{\"green\",\"red\",\"yellow\",\"blue\",\"orange\"};",
                  "highway stores runtime-loaded slot color names");
@@ -2328,19 +2335,156 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "out.blend=mat->blend;",
                  "highway runtime meshes copy authored MILO material blend");
+  ok &= contains(highway_renderer_h_c,
+                 "uint8_tz_mode=1;",
+                 "highway runtime meshes retain authored MILO z mode");
+  ok &= contains(highway_renderer_c,
+                 "out.z_mode=mat->z_mode;",
+                 "highway runtime meshes copy authored MILO z mode");
+  ok &= contains(highway_renderer_c,
+                 "out.use_environ=mat->use_environ;",
+                 "highway runtime meshes copy authored use-environment lighting state");
+  ok &= contains(highway_renderer_c,
+                 "out.prelit=mat->prelit;",
+                 "highway runtime meshes copy authored prelit lighting bypass state");
+  ok &= contains(highway_renderer_c,
+                 "out.point_lights=mat->point_lights;",
+                 "highway runtime meshes copy authored point-light material state");
+  ok &= contains(highway_renderer_h_c,
+                 "boolintensify=false;",
+                 "highway runtime meshes retain authored MILO intensify state");
+  ok &= contains(highway_renderer_h_c,
+                 "booltexture_wrap=false;",
+                 "highway runtime meshes retain the source sampler decision");
+  ok &= contains(highway_renderer_c,
+                 "out.intensify=mat->intensify;",
+                 "highway runtime meshes copy authored MILO intensify state");
+  ok &= contains(highway_renderer_c,
+                 "out.texture_wrap=mat->tex_wrap!=0||"
+                 "mat->tex_scale[0]>1.01f||"
+                 "mat->tex_scale[1]>1.01f;",
+                 "highway starts its sampler decision from authored material wrap before UV repeat fallback");
+  ok &= contains(highway_renderer_c,
+                 "min_u<-0.05f||min_v<-0.05f||max_u>1.05f||max_v>1.05f",
+                 "highway detects source UV ranges that require texture wrapping");
+  ok &= contains(highway_renderer_c,
+                 "texture_wrap?D3DTADDRESS_WRAP:D3DTADDRESS_CLAMP",
+                 "highway source meshes choose clamp or wrap per material instead of globally wrapping");
+  ok &= contains(highway_renderer_c,
+                 "intensify?D3DTOP_MODULATE2X:D3DTOP_MODULATE",
+                 "highway source meshes honor authored RndMat intensify as a 2x texture combine");
+  ok &= contains(highway_renderer_c,
+                 "RndMat.intensifydoublesthebasemap",
+                 "synthetic solid tail fills document that intensify belongs to the base texture combine");
+  ok &= absent(highway_renderer_c,
+               "source_scale=mesh->intensify?2.0f:1.0f",
+               "synthetic solid tail fills must not double authored material RGB through RndMat intensify");
+  ok &= contains(highway_renderer_c,
+                 "for(inti=0;i<4;++i)out.material_color[i]=mat->color[i];",
+                 "highway runtime meshes copy authored MILO material color");
+  ok &= contains(highway_renderer_c,
+                 "dst.nx=normal[0];dst.ny=normal[1];dst.nz=normal[2];",
+                 "highway runtime meshes transform source normals into highway space");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeLight>track_lights_;",
+                 "highway stores source track lights for material-driven note/button lighting");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<float,3>direction={0.0f,0.0f,-1.0f};",
+                 "highway source lights retain authored direction for approximate/directional lighting");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<float,4>track_environment_color_="
+                 "{1.0f,1.0f,1.0f,1.0f};",
+                 "highway stores decoded track environment ambient color for use-environ materials");
+  ok &= contains(highway_renderer_h_c,
+                 "booltrack_environment_color_ok_=false;",
+                 "highway tracks whether source environment ambient color was decoded");
+  ok &= contains(highway_renderer_c,
+                 "if(constauto*track_env=track_scene.find_environ(\"track.env\"))",
+                 "highway source lighting is seeded from the authored track environment");
+  ok &= contains(highway_renderer_c,
+                 "if(source_environment_color_sane(*track_env)){"
+                 "track_environment_color_={track_env->color_a[0],"
+                 "track_env->color_a[1],track_env->color_a[2],"
+                 "track_env->color_a[3]};",
+                 "highway copies source track.env ambient color before lighting notes/buttons");
+  ok &= contains(highway_renderer_c,
+                 "source_light_is_approx(light.type)",
+                 "highway detects authored approximate directional lights instead of treating every light as point");
+  ok &= contains(highway_renderer_c,
+                 "track_environment_color_[channel]=std::clamp("
+                 "track_environment_color_[channel]+approx_fill[channel]*"
+                 "inv_count*kHighwayApproxFillScale,0.0f,1.0f);",
+                 "highway folds approximate source light fill into environment ambient like the venue renderer");
+  ok &= contains(highway_renderer_c,
+                 "runtime_light.direction=source_light_direction(light);",
+                 "highway runtime lights preserve source transform direction");
+  ok &= contains(highway_renderer_c,
+                 "track_environment_color_ok_?"
+                 "highway_color_from_rgba(track_environment_color_):"
+                 "D3DCOLOR_XRGB(0,0,0)",
+                 "highway source lighting uses decoded track.env ambient color");
+  ok &= contains(highway_renderer_c,
+                 "if(source_light_is_approx(source.type)){",
+                 "highway renders source approximate lights as directional fill");
+  ok &= contains(highway_renderer_c,
+                 "light.Type=D3DLIGHT_DIRECTIONAL;",
+                 "highway source approximate lights use D3D directional light type");
+  ok &= contains(highway_renderer_c,
+                 "!source_light_is_real(source.type)||real_slot>=kLightSlots",
+                 "highway skips non-real source lights in point/spot slots");
+  ok &= contains(highway_renderer_c,
+                 "light.Type=D3DLIGHT_SPOT;",
+                 "highway preserves authored fake-spot source light type");
+  ok &= contains(highway_renderer_c,
+                 "light.Type=D3DLIGHT_POINT;",
+                 "highway preserves authored point source light type");
+  ok &= contains(highway_renderer_c,
+                 "boolhighway_mesh_uses_source_lighting(booluse_environ,"
+                 "boolprelit,boolpoint_lights){",
+                 "highway centralizes source-lighting eligibility for diagnostic A/B captures");
+  ok &= contains(highway_renderer_c,
+                 "use_environ&&point_lights&&!prelit",
+                 "highway source lighting requires the authored point-light material bit instead of inventing it from use-environ");
+  ok &= contains(highway_renderer_c,
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_SOURCE_LIGHTING\")",
+                 "highway source-lighting diagnostic can isolate note/button color darkening");
+  ok &= contains(highway_renderer_c,
+                 "highway_mesh_uses_source_lighting(mesh.use_environ,"
+                 "mesh.prelit,mesh.point_lights)?TRUE:FALSE);",
+                 "highway mesh draw path lights source materials that request environment lighting");
+  ok &= absent(highway_renderer_c,
+               "autosample_source_fill_color=[&](RuntimeMesh&mesh)",
+               "solid sustain pigment must not be averaged from source mask/profile textures");
   ok &= contains(highway_renderer_c,
                  "conststd::string&parent_name="
                  "parent_override.empty()?mesh->parent:parent_override;",
                  "highway runtime meshes can instantiate hidden variants in a live source group frame");
   ok &= contains(highway_renderer_c,
                  "mesh_name==\"tail02.mesh\"&&source_x_span>0.001f",
-                 "highway only reconstructs cross-tail U coordinates for the native sustain-tail mesh");
+                 "highway keeps any tail02 UV experiment scoped to the native sustain-tail mesh");
   ok &= contains(highway_renderer_c,
-                 "dst.u=source_u*mat->tex_scale[0]+mat->tex_offset[0];",
-                 "highway runtime meshes apply authored MILO material U transforms");
+                 "constboolsource_backed_tight_tail_cross_u="
+                 "mesh_name==\"tail02.mesh\"&&"
+                 "material_name==\"tail_glow_tight.mat\";",
+                 "tail_glow_tight promotes PCSX2-proven cross-tail ST without enabling broad texgen=5 body reconstruction");
   ok &= contains(highway_renderer_c,
-                 "dst.v=src.v*mat->tex_scale[1]+mat->tex_offset[1];",
-                 "highway runtime meshes apply authored MILO material V transforms");
+                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_TAIL_SYNTH_U\")",
+                 "broad tail02 synthetic-U reconstruction remains opt-in until texgen=5 ownership is proven");
+  ok &= contains(highway_renderer_c,
+                 "synthesize_tail_cross_u?std::clamp((src.px-"
+                 "mesh->bb_min[0])/source_x_span,0.0f,1.0f):src.u;",
+                 "tail02.mesh keeps decoded source UVs by default except for the source-backed tight-tail ST span");
+  ok &= contains(highway_renderer_c,
+                 "dst.u=source_u*mat->tex_xfm[0][0]+"
+                 "src.v*mat->tex_xfm[1][0]+mat->tex_xfm[2][0];",
+                 "highway runtime meshes apply the full authored MILO material U transform");
+  ok &= contains(highway_renderer_c,
+                 "dst.v=source_u*mat->tex_xfm[0][1]+"
+                 "src.v*mat->tex_xfm[1][1]+mat->tex_xfm[2][1];",
+                 "highway runtime meshes apply the full authored MILO material V transform");
+  ok &= absent(highway_renderer_c,
+               "dst.u=source_u*mat->tex_scale[0]+mat->tex_offset[0];",
+               "highway runtime meshes must not collapse source UV matrices to scale/offset only");
   ok &= contains(highway_renderer_c,
                  "hopo_mesh_[lane]=convert_mesh(name+\"_hopo.mesh\","
                  "std::string{},\"gem_template.view\");",
@@ -2650,6 +2794,9 @@ int main() {
                  "constexprintkRockWarningDebugBudget=900;",
                  "low-rock warning diagnostics keep enough rows to prove recovery fade-out");
   ok &= contains(highway_renderer_c,
+                 "constexprintkRockWarningHealthyDebugBudget=12;",
+                 "rock-warning diagnostics log initial healthy rows for clean-color proof captures");
+  ok &= contains(highway_renderer_c,
                  "side_rail_d3d_color(side_rail_color)",
                  "highway draws side rails with the authored live MatAnim state");
   ok &= contains(highway_renderer_c,
@@ -2940,12 +3087,24 @@ int main() {
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
                  "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
                  "active_tight_half_width,",
-                 "held FoFiX sustains use the traced thin normal tight core while star/whammy keep the authored highlight");
+                 "held FoFiX sustains keep the PCSX2-traced thin normal tight core while star/whammy keep the authored width");
   ok &= contains(highway_renderer_c,
                  "constfloatburn_y=kStrikeY+(bonus_highway_active?"
                  "burn_bonus_y_:(sustain_whammy_tail?burn_whammy_y_:"
                  "burn_normal_y_));",
                  "held FoFiX sustains choose the source track_graphics burn offset");
+  ok &= contains(highway_renderer_c,
+                 "constboolnormal_non_whammy_sustain="
+                 "!bonus_highway_active&&!sustain_star_tail&&"
+                 "!sustain_whammy_tail;",
+                 "active normal non-whammy sustains are separated for PCSX2 burn parity");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_NORMAL_SUSTAIN_BURN\")",
+                 "normal sustain burn can still be forced for isolated source diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "constbooldraw_burn_layer=source_burn_state_active&&"
+                 "(!tail_layer_only||*tail_layer_only==\"burn\");",
+                 "active normal sustains do not draw the intrusive burn layer by default");
   ok &= contains(highway_renderer_c,
                  "allow_whammy_source_line?whammy_tail_line_material_.ok:"
                  "active_star_tail!=nullptr",
@@ -2964,14 +3123,21 @@ int main() {
                  "std::array<RuntimeMesh,5>smasher_rim_meshes_;",
                  "highway stores lane-authored native smasher ring meshes with material colors");
   ok &= contains(highway_renderer_h_c,
+                 "std::array<RuntimeMesh,5>smasher_ring_add_meshes_;",
+                 "highway stores lane-authored pressed smasher ring add meshes with material colors");
+  ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshbonus_smasher_rim_mesh_;",
                  "highway stores the active-star-power bonus smasher ring mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_smasher_ring_add_mesh_;",
+                 "highway stores the active-star-power bonus pressed smasher ring add mesh");
   ok &= contains(highway_renderer_c,
                  "material_texture(\"gem_smasher_\"+name+\".mat\")",
                  "fret targets resolve lane-colored pressed smasher materials from track.milo");
   ok &= contains(highway_renderer_c,
-                 "material_texture(\"gem_smasher_\"+name+\"_1.mat\")",
-                 "fret targets resolve lane-colored additive smasher materials from track.milo");
+                 "smasher_add_texture(\"gem_smasher_\"+name+\"_1.mat\","
+                 "smasher_add_blends_[lane])",
+                 "fret targets resolve lane-colored additive smasher materials with source blend from track.milo");
   ok &= contains(highway_renderer_c,
                  "material_texture(\"now_ring_\"+name+\".mat\")",
                  "fret targets resolve lane-colored native ring materials from track.milo");
@@ -2980,9 +3146,17 @@ int main() {
                  "\"smasher_rim.mesh\",\"now_ring_\"+name+\".mat\");",
                  "fret targets decode lane-colored ring materials into native 3D rim meshes");
   ok &= contains(highway_renderer_c,
+                 "smasher_ring_add_meshes_[lane]=convert_mesh("
+                 "\"smasher_rim.mesh\",\"now_ring_\"+name+\"_1.mat\");",
+                 "pressed fret targets require the exact source ring add material instead of falling back");
+  ok &= contains(highway_renderer_c,
                  "bonus_smasher_rim_mesh_=convert_mesh_with_material_fallback("
                  "\"smasher_rim.mesh\",\"now_ring_bonus.mat\");",
                  "active star power decodes the native bonus smasher ring material into the rim mesh");
+  ok &= contains(highway_renderer_c,
+                 "bonus_smasher_ring_add_mesh_=convert_mesh("
+                 "\"smasher_rim.mesh\",\"now_ring_bonus_1.mat\");",
+                 "active star power decodes the native bonus smasher ring add material into the rim mesh");
   ok &= absent(highway_renderer_c,
                "if(selected_surface_loaded_){draw_track_surface_quad();}",
                "selected guitarist surface no longer bypasses the native track_surface5 mesh");
@@ -3065,21 +3239,102 @@ int main() {
                  "constRuntimeMesh*ring_mesh=&smasher_rim_meshes_[lane];",
                  "native fret-target rings select the lane-authored rim mesh");
   ok &= contains(highway_renderer_c,
+                 "constRuntimeMesh*ring_add_mesh="
+                 "&smasher_ring_add_meshes_[lane];",
+                 "native pressed fret-target rings select the lane-authored rim add mesh");
+  ok &= contains(highway_renderer_c,
                  "if(bonus_highway_active&&bonus_smasher_rim_mesh_.ok){"
                  "ring_mesh=&bonus_smasher_rim_mesh_;}",
                  "active star power swaps target rings to the native bonus rim material");
   ok &= contains(highway_renderer_c,
+                 "if(bonus_highway_active&&bonus_smasher_ring_add_mesh_.ok){"
+                 "ring_add_mesh=&bonus_smasher_ring_add_mesh_;}",
+                 "active star power swaps target ring add layer to the native bonus material");
+  ok &= contains(highway_renderer_c,
+                 "constboolring_add_draw=ring_add_mesh&&"
+                 "ring_add_mesh->ok&&"
+                 "(highway_blend_state_for(ring_add_mesh->blend).additive||"
+                 "ring_add_alpha_key_draw);",
+                 "pressed fret-target ring add layer draws source additive materials or traced source-alpha keyed masks");
+  ok &= contains(highway_renderer_c,
+                 "constexprconstchar*kSmasherRingAddAlphaKeySuffix="
+                 "\"#smasher_ring_add_black_key\";",
+                 "source-alpha pressed ring masks use a distinct keyed texture alias");
+  ok &= contains(highway_renderer_c,
+                 "mesh.texture_name=smasher_ring_add_alpha_key_alias("
+                 "mesh.texture_name);",
+                 "source-alpha pressed ring meshes are rebound to the keyed alias instead of mutating shared textures");
+  ok &= contains(highway_renderer_c,
+                 "textures_[alias]=t;",
+                 "source-alpha pressed ring aliases upload into a separate texture slot");
+  ok &= contains(highway_renderer_c,
+                 "HighwayTextureAlphaMode::RgbMask",
+                 "source-alpha pressed ring aliases derive alpha from the authored RGB mask");
+  ok &= contains(highway_renderer_c,
+                 "constexprconstchar*kSmasherAddAlphaKeySuffix="
+                 "\"#smasher_add_rgb_mask\";",
+                 "source-alpha pressed smasher body masks use a distinct keyed texture alias");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<uint8_t,5>smasher_add_blends_={};",
+                 "pressed smasher body add layers retain the decoded MILO blend per lane");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<RuntimeMesh,5>smasher_add_meshes_;",
+                 "pressed smasher body add layers retain the decoded MILO material state per lane");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_smasher_add_mesh_;",
+                 "active star power retains the decoded bonus smasher body add material state");
+  ok &= contains(highway_renderer_c,
+                 "smasher_add_texture(\"gem_smasher_\"+name+\"_1.mat\","
+                 "smasher_add_blends_[lane]);",
+                 "pressed smasher body add layers load source material blend and texture together");
+  ok &= contains(highway_renderer_c,
+                 "smasher_add_meshes_[lane]=convert_mesh("
+                 "\"gem_smasher.mesh\",\"gem_smasher_\"+name+\"_1.mat\");",
+                 "pressed smasher body add layers draw through source-bound meshes");
+  ok &= contains(highway_renderer_c,
+                 "bonus_smasher_add_mesh_=convert_mesh("
+                 "\"gem_smasher.mesh\",\"gem_smasher_bonus_1.mat\");",
+                 "active star power draws the bonus smasher body add through its source-bound mesh");
+  ok &= contains(highway_renderer_c,
+                 "smasher_add_alpha_key_sources.insert(mat->diffuse_tex);"
+                 "returnsmasher_add_alpha_key_alias(mat->diffuse_tex);",
+                 "source-alpha pressed smasher body masks are rebound to keyed aliases");
+  ok &= contains(highway_renderer_c,
+                 "mesh.texture_name=smasher_add_alpha_key_alias("
+                 "mesh.texture_name);",
+                 "source-bound smasher body add meshes are rebound to keyed aliases");
+  ok &= contains(highway_renderer_c,
                  "draw_centered_root_mesh(*ring_mesh,x,kStrikeY,",
                  "native fret-target rings draw through decoded 3D rim meshes with material color intact");
   ok &= contains(highway_renderer_c,
-                 "if(smasher_pressed){draw_smasher_ring();"
-                 "draw_smasher_body();}else{draw_smasher_body();"
-                 "draw_smasher_ring();}",
-                 "active smasher caps render over the ring while inactive rings remain visible");
+                 "constHighwayBlendStatering_add_blend_state="
+                 "highway_blend_state_for(ring_add_mesh->blend);",
+                 "pressed fret-target ring add layer uses the decoded MILO blend mode");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_root_mesh_with_texture(gem_smasher_mesh_,"
-                 "smasher_add_texture,x,kStrikeY,",
-                 "held fret targets layer lane-colored additive smasher textures");
+                 "draw_centered_root_mesh(*ring_add_mesh,x,kStrikeY,",
+                 "pressed fret-target ring add layer draws through the decoded source rim mesh");
+  ok &= contains(highway_renderer_c,
+                 "if(smasher_pressed){draw_smasher_ring();"
+                 "draw_smasher_body();draw_smasher_ring_add();"
+                 "draw_smasher_add();}"
+                 "else{draw_smasher_body();"
+                 "draw_smasher_ring();}",
+                 "active smasher caps render with the authored pressed ring add layer while inactive rings remain visible");
+  ok &= contains(highway_renderer_c,
+                 "constHighwayBlendStatesmasher_add_blend_state="
+                 "highway_blend_state_for(smasher_add_blend);",
+                 "pressed smasher body add layer uses the decoded MILO blend mode");
+  ok &= contains(highway_renderer_c,
+                 "D3DCOLOR_ARGB(255,255,255,255),1.0f,true,"
+                 "add_z_offset,true,kSmasherClipZ);",
+                 "pressed smasher body add layer keeps source mesh color unscaled by guessed alpha");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_ZWRITEENABLE,"
+                 "disable_add_z_write?FALSE:TRUE);",
+                 "pressed smasher body add layer honors decoded material z-write eligibility");
+  ok &= absent(highway_renderer_c,
+               "D3DCOLOR_ARGB(180,255,255,255)",
+               "pressed smasher body add layer must not use guessed 180 alpha");
   ok &= contains(highway_renderer_c,
                  "kSmasherIdleTopZ+(kSmasherHeldTopZ-kSmasherIdleTopZ)*press",
                  "native fret targets rise from buried idle height when pressed");
@@ -3096,8 +3351,11 @@ int main() {
                  "\"[highway-smasher]lane=%dheld=%dflash=%.3fpress=%.3f\"",
                  "smasher diagnostics split held input from hit-flash feedback");
   ok &= contains(highway_renderer_c,
-                 "\"ring_top=%.3fbody_mesh=%dring_mesh=%dshadow=%d\"",
-                 "smasher diagnostics prove the ring stays fixed from native mesh state");
+                 "\"ring_top=%.3fbody_mesh=%dring_mesh=%dring_add=%d\"",
+                 "smasher diagnostics prove base and pressed-add rings stay fixed from native mesh state");
+  ok &= contains(highway_renderer_c,
+                 "\"ring_add_blend=%uring_add_draw=%dshadow=%d\"",
+                 "smasher diagnostics expose source ring-add blend and draw gating");
   ok &= contains(highway_renderer_c,
                  "env_enabled(\"GHOGX_DEBUG_HIGHWAY_ALIGNMENT\")",
                  "highway exposes a focused screen-space alignment trace for lane-root proof captures");
@@ -3157,7 +3415,7 @@ int main() {
                  "highway renderer can scale native sustain-tail meshes by segment length");
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh_scaled_with_texture(*mesh,mesh->texture_name,"
-                 "lane_x(lane)-mesh->center_x*(root_half_width/mesh_hx),"
+                 "center_x-mesh->center_x*(root_half_width/mesh_hx),"
                  "cy-mesh->center_y*(hy/mesh_hy),color,"
                  "root_half_width/mesh_hx,hy/mesh_hy,1.0f,true,0.0f,"
                  "0.0f,true,0.0f,false,0.0f,true,source_fade_top_y,"
@@ -3184,10 +3442,21 @@ int main() {
                  "!bonus_highway_active&&!n.star_power&&tail_mesh_[lane].ok;",
                  "incoming ordinary sustains route through the authored broad lane-tail path");
   ok &= contains(highway_renderer_c,
+                 "constauto&source_color=mesh->material_color;",
+                 "ordinary sustain body fills use the decoded tail material pigment rather than averaging mask/profile texture pixels");
+  ok &= contains(highway_renderer_c,
                  "draw_tail_segment(lane,on,off,\"incoming_body\","
                  "&tail_mesh_[lane],raw_tail,tail_glow_width_,"
                  "D3DCOLOR_ARGB(225,255,255,255),false,false,false);",
                  "incoming ordinary sustains keep the authored broad source lane-tail width instead of the active-held measured profile");
+  ok &= contains(highway_renderer_c,
+                 "constexpruint8_tkIncomingNormalBodyFillAlpha4x3=185u;",
+                 "incoming ordinary sustain source-color fill uses a named alpha instead of ad hoc screenshot tinting");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORincoming_body_solid_tint="
+                 "material_fill_color(&tail_mesh_[lane],slot_lane_colors_[lane],"
+                 "kIncomingNormalBodyFillAlpha4x3);",
+                 "incoming ordinary sustain fill derives RGB from the authored tail_%s material");
   ok &= contains(highway_renderer_c,
                  "constexprfloatkIncomingNormalBodyFillWidthScale4x3="
                  "0.74f;",
@@ -3217,7 +3486,7 @@ int main() {
                  "draw_tail_segment(lane,on,off,\"incoming_tight\","
                  "&held_tight_tail_mesh_,held_tail,incoming_tight_half_width,"
                  "D3DCOLOR_ARGB(225,255,255,255),false,n.star_power,false);}",
-                 "incoming normal sustains use the traced thin tight core while star sustains keep the authored width");
+                 "incoming normal sustains keep the PCSX2-traced thin tight core while star sustains keep the authored width");
   ok &= contains(highway_renderer_c,
                  "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d",
                  "tail diagnostics identify active star sustain whammy windows");
@@ -3227,6 +3496,13 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "tail_layer_visible(source_label)",
                  "tail layer isolation filters native tail draws by their source label");
+  ok &= contains(highway_renderer_c,
+                 "*tail_layer_only==\"held_body\"",
+                 "tail layer isolation keeps a whole-body alias for split normal-tail diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "std::strcmp(label,\"held_body_detail\")==0||"
+                 "std::strcmp(label,\"held_body_fill\")==0",
+                 "tail layer isolation can separate normal-tail detail and solid fill sublayers");
   ok &= contains(highway_renderer_c,
                  "*tail_layer_only==\"burn\"",
                  "tail layer isolation can separate burn-tail overlays from solid tail bodies");
@@ -3254,27 +3530,53 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "constRuntimeMesh*lane_normal_body_tail="
                  "lane_held_tail?lane_held_tail:lane_body_tail;",
-                 "normal active held sustains prefer the authored held-tail detail material while the measured fill closes the center");
+                 "normal active held sustains prefer the authored active tail_glow_%s material over the pre-hit tail_%s material");
   ok &= contains(highway_renderer_c,
-                 "\"held_body\",lane_normal_body_tail,held_tail,"
-                 "tail_glow_width_,D3DCOLOR_ARGB(245,255,255,255),true,"
-                 "false,false,TailWidthProfileKind::kNormalBodyDetail);"
+                 "constRuntimeMesh*lane_normal_fill_tail="
+                 "lane_body_tail?lane_body_tail:lane_normal_body_tail;",
+                 "normal active held sustain solid fill keeps the lane material tint while detail uses tail_glow_%s");
+  ok &= contains(highway_renderer_c,
+                 "constbooluse_normal_tail_line_detail="
+                 "lane_held_line!=nullptr&&"
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_NORMAL_TAIL_SOURCE_LINE\");",
+                 "normal active held sustain detail uses the source tail_glow_%s RndLine path by default with an explicit mesh fallback");
+  ok &= contains(highway_renderer_c,
+                 "if(use_normal_tail_line_detail){"
+                 "draw_normal_tail_line_detail(lane,sustain.start_time,"
+                 "sustain.end_time,lane_held_line,tail_glow_width_,"
+                 "D3DCOLOR_ARGB(245,255,255,255));}else{"
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_body\",nullptr,nullptr,tail_glow_width_,"
+                 "\"held_body_detail\",lane_normal_body_tail,held_tail,"
+                 "tail_glow_width_,D3DCOLOR_ARGB(245,255,255,255),true,"
+                 "false,false,TailWidthProfileKind::kNormalBodyDetail);}"
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_body_fill\",nullptr,nullptr,tail_glow_width_,"
                  "normal_body_solid_tint,true,false,false,"
                  "TailWidthProfileKind::kNormalBodyFill);",
-                 "normal active held sustains draw PCSX2 silhouette/detail before the lane-colored center");
+                 "normal active held sustains draw split PCSX2 silhouette/detail before the lane-colored center fill");
   ok &= contains(highway_renderer_c,
                   "constexprfloatkNormalHeldBodyFillWidthScale4x3="
-                  "0.88f;",
-                  "normal active held sustain solid fill compensates for lane detail edge color to land on the traced PCSX2 lane-body width");
+                  "1.0f;",
+                  "normal active held sustain solid fill covers the authored tight-glow underlay with the traced PCSX2 lane-body width");
   ok &= contains(highway_renderer_c,
                   "constexprfloatkNormalHeldBodyDetailWidthScale4x3="
-                  "1.0f;",
-                  "normal active held sustain material detail uses the traced PCSX2 silhouette width without an extra shrink scale");
+                  "1.67f;",
+                  "normal active held sustain material detail compensates the measured tail_glow_%s line01 visible-width deficit");
   ok &= contains(highway_renderer_c,
-                 "constexpruint8_tkNormalHeldBodyFillAlpha4x3=245u;",
-                 "normal active held sustain solid fill uses a PCSX2-like occupied center instead of a hollow rail underlay");
+                  "constexpruint8_tkNormalHeldBodyFillAlpha4x3=245u;",
+                  "normal active held sustain solid fill uses a PCSX2-like occupied center instead of a hollow rail underlay");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkNormalHeldTightEdgeOffsetPx720=-8.5f;",
+                 "normal active held sustain tight edge uses the PCSX2-traced left-of-body offset");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkNormalHeldTightEdgeWidthScale4x3=0.6f;",
+                 "normal active held sustain tight edge width is reduced from the shifted-edge trace to the PCSX2 core width");
+  ok &= contains(highway_renderer_c,
+                 "constexpruint8_tkNormalHeldTightUnderlayAlpha4x3=196u;",
+                 "normal active held sustain tight underlay alpha is reduced from the PCSX2/native full-core luma ratio");
+  ok &= contains(highway_renderer_c,
+                 "constexpruint8_tkNormalHeldTightEdgeAlpha4x3=204u;",
+                 "normal active held sustain tight edge alpha is reduced from the PCSX2/native full-core luma ratio");
   ok &= contains(highway_renderer_c,
                  "returnsample_normal_body_width_px_720(rel_y)*"
                  "kNormalHeldBodyFillWidthScale4x3;",
@@ -3287,8 +3589,20 @@ int main() {
                  "kPcsx2NormalSilhouetteWidthProfile4x3",
                  "normal active held sustain detail has a separate PCSX2 traced silhouette profile");
   ok &= contains(highway_renderer_c,
+                 "}elseif(width_profile==TailWidthProfileKind::kNormalTightJoin){"
+                 "draw_profile(kPcsx2NormalTightJoinWidthProfile4x3,4);}",
+                 "normal active held sustain tight join sections use the PCSX2 normal near-cap profile with extra subdivision instead of the whammy body profile");
+  ok &= contains(highway_renderer_c,
+                 "kNormalTightJoinGeometryCompensationProfile4x3",
+                 "normal active held sustain tight join has a separate native texture-response compensation profile");
+  ok &= contains(highway_renderer_c,
+                 "returnsample_normal_tight_join_width_px_720(rel_y)*"
+                 "sample_width_profile_px_720("
+                 "kNormalTightJoinGeometryCompensationProfile4x3,rel_y);",
+                 "normal active held sustain tight join compensates source texture narrowing without changing the PCSX2 visible target profile");
+  ok &= contains(highway_renderer_c,
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_body\",lane_normal_body_tail,held_tail,tail_glow_width_,"
+                 "\"held_body_detail\",lane_normal_body_tail,held_tail,tail_glow_width_,"
                  "D3DCOLOR_ARGB(245,255,255,255),true,false,false,"
                  "TailWidthProfileKind::kNormalBodyDetail);",
                  "normal active held sustains use the PCSX2 normal silhouette width profile on the source-shaped lane detail");
@@ -3298,21 +3612,117 @@ int main() {
                  "measured normal tail body sections preserve near-to-far draw order");
   ok &= contains(highway_renderer_c,
                  "constD3DCOLORnormal_body_solid_tint="
-                 "(slot_lane_colors_[lane]&0x00ffffffu)|"
-                 "(static_cast<D3DCOLOR>(kNormalHeldBodyFillAlpha4x3)<<24);",
-                 "normal active held sustains use the named measured solid-center tint");
+                 "material_fill_color(lane_normal_fill_tail,"
+                 "slot_lane_colors_[lane],kNormalHeldBodyFillAlpha4x3);",
+                 "normal active held sustains use decoded lane material RGB for the solid center");
   ok &= contains(highway_renderer_c,
-                 "\"held_body\",lane_normal_body_tail,held_tail,",
-                 "normal active held sustain silhouette/detail is drawn before the solid center so opaque detail pixels cannot reopen a hollow middle");
+                 "if(held_tight_tail_mesh_.ok){"
+                 "draw_tail_segment(lane,sustain.start_time,"
+                 "sustain.end_time,\"held_tight_underlay\","
+                 "&held_tight_tail_mesh_,held_tail,tail_glow_tight_width_,"
+                 "D3DCOLOR_ARGB(kNormalHeldTightUnderlayAlpha4x3,"
+                 "255,255,255),true,false,false);}",
+                 "normal active held sustains keep the traced full underlay width but reduce its alpha from PCSX2/native luma");
   ok &= contains(highway_renderer_c,
-                 "\"held_body\",lane_normal_body_tail,held_tail,"
-                 "tail_glow_width_,D3DCOLOR_ARGB(245,255,255,255),true,"
-                 "false,false,TailWidthProfileKind::kNormalBodyDetail);"
+                 "local_tail_x_offset_for_screen_px(lane,cy,"
+                 "center_offset_px_720)",
+                 "tail segments can apply measured screen-space lateral offsets without moving the highway root");
+  ok &= contains(highway_renderer_c,
+                 "\"held_body_detail\",lane_normal_body_tail,held_tail,",
+                 "normal active held sustain silhouette/detail is separately labelable before the solid center");
+  ok &= contains(highway_renderer_c,
+                 "false,false,TailWidthProfileKind::kNormalBodyDetail);}"
                  "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
-                 "\"held_body\",nullptr,nullptr,tail_glow_width_,"
+                 "\"held_body_fill\",nullptr,nullptr,tail_glow_width_,"
                  "normal_body_solid_tint,true,false,false,"
                  "TailWidthProfileKind::kNormalBodyFill);",
                  "normal active held sustain solid center is drawn over the source-shaped detail to close the visible middle");
+  ok &= contains(highway_renderer_c,
+                 "\"held_tight_edge\",&held_tight_tail_mesh_,held_tail,"
+                 "normal_held_tight_core_width(tail_glow_tight_width_)*"
+                 "kNormalHeldTightEdgeWidthScale4x3,"
+                 "D3DCOLOR_ARGB(kNormalHeldTightEdgeAlpha4x3,255,255,255),"
+                 "true,false,false,"
+                 "TailWidthProfileKind::kNone,"
+                 "kNormalHeldTightEdgeOffsetPx720);",
+                 "normal active held sustains redraw only the PCSX2-offset tight edge over the lane body");
+  ok &= contains(highway_renderer_c,
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")",
+                 "normal active held sustains expose an A/B switch for source note-head caps");
+  ok &= contains(highway_renderer_c,
+                 "draw_active_sustain_smasher_cap_layer(",
+                 "normal active held sustain caps have a source smasher-stack draw helper");
+  ok &= contains(highway_renderer_c,
+                 "constbooldraw_normal_active_sustain_cap="
+                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_NORMAL_ACTIVE_SUSTAIN_CAPS\");"
+                 "if(!draw_normal_active_sustain_cap){continue;}",
+                 "normal active held sustain caps stay out of the default pressed-button path");
+  ok &= contains(highway_renderer_c,
+                 "gem_smasher_mesh_.ok&&!smasher_texture_names_[lane].empty()"
+                 "&&!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_CAP\")",
+                 "the opt-in normal active held sustain cap experiment uses the authored gem_smasher source stack over the round moving-gem fallback");
+  ok &= contains(highway_renderer_c,
+                 "constboolexperiment_smasher_rim="
+                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_RIM\");",
+                 "normal active held sustain smasher rims stay behind the rejected owner-trace experiment flag");
+  ok &= contains(highway_renderer_c,
+                 "constRuntimeMesh*cap_ring_mesh=nullptr;",
+                 "normal active held sustain caps do not draw the smasher rim by default");
+  ok &= contains(highway_renderer_c,
+                 "if(experiment_smasher_rim){cap_ring_mesh="
+                 "smasher_rim_meshes_[lane].ok?&smasher_rim_meshes_[lane]:"
+                 "(smasher_rim_mesh_.ok?&smasher_rim_mesh_:nullptr);",
+                 "normal active held sustain rim experiment is opt-in instead of default cap geometry");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkNormalActiveSustainSmasherCapYOffset=6.26f;",
+                 "opt-in normal active held sustain smasher cap vertical offset is preserved only for trace comparison");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkNormalActiveSustainSmasherCapScale=1.456f;",
+                 "opt-in normal active held sustain smasher cap scale is preserved only for trace comparison");
+  ok &= contains(highway_renderer_c,
+                 "smasher=1body=%dadd=0center_y=%.3flower_y=%.3f"
+                 "\"\"scale=%.3fmin_y=%.3f",
+                 "normal active held sustain caps do not use the pressed-button smasher add flash");
+  ok &= contains(highway_renderer_c,
+                 "active_sustain_cap_lower_y+(gem_smasher_mesh_.center_y-"
+                 "cap_min_local_y)*cap_scale",
+                 "normal active held sustain smasher caps anchor the scaled lower source edge to the measured cap fit");
+  ok &= contains(highway_renderer_c,
+                 "kSmasherFixedRingTopZ-gem_smasher_mesh_.max_z*cap_scale",
+                 "normal active held sustain smasher caps use the flatter source now-ring height instead of the raised pressed-button height");
+  ok &= contains(highway_renderer_c,
+                 "if(sustain.star_power_tail){",
+                 "active sustain note-head caps branch star sustains to the traced authored star stack");
+  ok &= contains(highway_renderer_c,
+                 "draw_active_sustain_cap_transformed_layer("
+                 "star_base_mesh_,lane,active_sustain_cap_y,"
+                 "active_star_transform);",
+                 "star active held sustain note-head caps animate the authored star_base layer");
+  ok &= contains(highway_renderer_c,
+                 "draw_active_sustain_cap_layer(star_mesh_[lane],lane,"
+                 "active_sustain_cap_y,false);",
+                 "star active held sustain note-head caps draw the lane star mesh with atlas color");
+  ok &= contains(highway_renderer_c,
+                 "draw_active_sustain_cap_layer(star_overlay_mesh_,lane,"
+                 "active_sustain_cap_y);",
+                 "star active held sustain note-head caps reuse the authored star2 overlay");
+  ok &= contains(highway_renderer_c,
+                 "draw_active_sustain_cap_layer(*star_top,lane,"
+                 "active_sustain_cap_y);",
+                 "star active held sustain note-head caps reuse the selected authored star top mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_active_sustain_cap_layer(gem_mesh_[lane],lane,"
+                 "active_sustain_cap_y);",
+                 "normal active held sustain note-head caps keep the authored lane gem mesh as a source fallback");
+  ok &= contains(highway_renderer_c,
+                 "if(moving_note_standard_has_top_&&gem_top_mesh_.ok){"
+                 "draw_active_sustain_cap_layer(gem_top_mesh_,lane,"
+                 "active_sustain_cap_y);}",
+                 "normal active held sustain note-head caps keep the authored standard top mesh as a source fallback");
+  ok &= contains(highway_renderer_c,
+                 "constfloatactive_sustain_cap_y="
+                 "kStrikeY+nowbar_tail_clip_-cap_min_local_y;",
+                 "normal active held sustain note-head caps place the authored note-head floor at the source nowbar tail clip instead of sinking it into the fret row");
   ok &= absent(highway_renderer_c,
                "\"held_body\",nullptr,raw_tail,tail_glow_width_,",
                "normal active held sustains must not use the banded tail2 texture as the body fill");
@@ -3320,6 +3730,9 @@ int main() {
                "\"held_body\",nullptr,nullptr,tail_glow_width_,"
                "normal_body_fill",
                "normal active held sustains must not restore the untextured flat body fill");
+  ok &= absent(highway_renderer_c,
+               "\"held_body_fill\",lane_normal_fill_tail",
+               "normal active held sustains must not reuse the source tail_%s texture as the center fill because it reopens the hollow two-rail body");
   ok &= contains(highway_renderer_c,
                  "std::strcmp(source_label,\"held_lane\")==0&&!star_tail&&"
                  "!whammy_tail){return;}",
@@ -3334,7 +3747,8 @@ int main() {
                  "TailWidthProfileKind::kNone);}",
                  "normal active held sustains suppress broad held-lane glow while star/whammy keep it");
   ok &= contains(highway_renderer_c,
-                 "if(held_tight_tail_mesh_.ok&&!debug_whammy_line_only){"
+                 "if(held_tight_tail_mesh_.ok&&!debug_whammy_line_only&&"
+                 "!draw_normal_held_body){"
                  "constfloatactive_tight_half_width=(!sustain_star_tail&&"
                  "!sustain_whammy_tail)?normal_held_tight_core_width("
                  "tail_glow_tight_width_):tail_glow_tight_width_;"
@@ -3344,7 +3758,7 @@ int main() {
                  "active_tight_half_width,"
                  "D3DCOLOR_ARGB(255,255,255,255),"
                  "true,sustain_star_tail,sustain_whammy_tail);}",
-                 "active normal held sustains use the traced thin tight core while star/whammy keep the authored width");
+                 "active normal held sustains do not redraw the old centered tight core over the lane-colored body");
   ok &= contains(highway_renderer_c,
                  "constHighwayBlendStateburn_blend_state="
                  "highway_blend_state_for(burn_castlight_mesh_.blend);",
@@ -3382,10 +3796,17 @@ int main() {
                  "depth_fade_alpha_dist):1.0f;",
                  "runtime ParticleSys quads can share the highway far-depth fade");
   ok &= contains(highway_renderer_c,
+                 "constexpruint8_tkActiveStarTailAlpha=245u;",
+                 "active star/whammy tail opacity is named separately from source material RGB");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORstar_tail_color="
+                 "D3DCOLOR_ARGB(kActiveStarTailAlpha,255,255,255);",
+                 "active star/whammy sustain tails keep neutral RGB so decoded source tail materials own the cyan color");
+  ok &= contains(highway_renderer_c,
                  "draw_whammy_tail_segment(lane,sustain.start_time,"
                  "sustain.end_time,&whammy_tail_line_material_,"
                  "tail_glow_width_,star_tail_color);",
-                 "diagnostic whammy star sustains can use the source RndLine material without changing normal play");
+                 "diagnostic whammy star sustains can use the source RndLine material color without changing normal play");
   ok &= contains(highway_renderer_c,
                  "draw_tail_line_y(lane,y0,y1,\"held_whammy_source_line\","
                  "material,half_width,color,true,true,true,on,off,true);",
@@ -3417,6 +3838,14 @@ int main() {
                  "bonus_highway_active&&bonus_tail_mesh_.ok",
                  "active star power swaps sustain tails to the native bonus tail mesh");
   ok &= contains(highway_renderer_c,
+                 "constexpruint8_tkActiveBonusTailAlpha=245u;",
+                 "active bonus sustain tail opacity is named separately from source material RGB");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORbonus_tail_color=bonus_tail?"
+                 "D3DCOLOR_ARGB(kActiveBonusTailAlpha,255,255,255):"
+                 "D3DCOLOR_ARGB(kActiveBonusTailAlpha,150,225,255);",
+                 "active bonus sustain tails keep neutral RGB when the decoded source bonus tail mesh is available");
+  ok &= contains(highway_renderer_c,
                  "env_enabled(\"GHOGX_DEBUG_HIGHWAY_HIT_FEEDBACK\")",
                  "hit feedback exposes a focused diagnostic switch for visual proof captures");
   ok &= contains(highway_renderer_c,
@@ -3447,6 +3876,9 @@ int main() {
                  "\"base_anim=%dbase_color_anim=%dstar_anim=%d\"",
                  "hit feedback diagnostics report source-backed flame animation state");
   ok &= contains(highway_renderer_c,
+                 "\"[highway-hit-anim]lane=%dlabel=%sintensity=%.3f\"",
+                 "hit feedback diagnostics expose sampled source animation frames");
+  ok &= contains(highway_renderer_c,
                  "base_flame_anim=&hit_flame_anim_",
                  "hit flashes keep the native base hit-flame mesh for star-note hits");
   ok &= contains(highway_renderer_c,
@@ -3464,13 +3896,13 @@ int main() {
                  "MeshTransformAnimstar_collect_flame_anim_;",
                  "highway stores the star-collect hit-flame TransAnim");
   ok &= contains(highway_renderer_c,
-                 "if(base_flame_mesh){draw_flame_mesh(*base_flame_mesh,a,",
+                 "if(base_flame_mesh){draw_flame_mesh(base_flame_label,*base_flame_mesh,a,",
                  "native base hit-flame geometry is drawn before star-collect overlays");
   ok &= contains(highway_renderer_c,
                  "if(star_f>0.01f&&star_collect_flame_mesh_.ok){",
                  "star-note hits layer the native star-collect flame over the base hit flame");
   ok &= contains(highway_renderer_c,
-                 "draw_flame_mesh(star_collect_flame_mesh_,star_a,",
+                 "draw_flame_mesh(\"star_collect\",star_collect_flame_mesh_,star_a,",
                  "star-collect flame overlay uses the native starcollect geometry");
   ok &= contains(highway_renderer_c,
                  "sample_transform_anim(anim,anim_duration,frame);",
@@ -3561,11 +3993,25 @@ int main() {
                  "draw_note_layer(hopo_mesh_[g.lane],false,false);",
                  "HOPO full top-card meshes draw as top-card overlays like top.mesh");
   ok &= contains(highway_renderer_c,
-                 "constbooldisable_zwrite=blend_state.additive||"
-                 "mesh.blend==kHighwayBlendSrcAlpha||"
+                 "boolhighway_z_mode_writes(uint8_tz_mode){",
+                 "highway renderer centralizes decoded RndMat z-mode write behavior");
+  ok &= contains(highway_renderer_c,
+                 "z_mode==kHighwayZModeNormal||z_mode==kHighwayZModeForce||"
+                 "z_mode==kHighwayZModeDecal",
+                 "highway z-write eligibility mirrors source RndMat Normal/Force/Decal modes");
+  ok &= contains(highway_renderer_c,
+                 "constbooldisable_zwrite=!highway_z_mode_writes(mesh.z_mode)||"
+                 "blend_state.additive||"
                  "mesh.blend==kHighwayBlendSubtract||"
-                 "mesh.blend==kHighwayBlendMultiply;",
-                 "moving note layers suppress z-writes for authored transparent/effect blends");
+                 "mesh.blend==kHighwayBlendMultiply||",
+                 "moving note layers suppress z-writes from decoded z-mode and authored effect blends");
+  ok &= contains(highway_renderer_c,
+                 "mesh.material_color[3]*(static_cast<float>(a)/255.0f)<"
+                 "0.999f;",
+                 "moving note depth-fade alpha still suppresses z-writes while near opaque bases can write depth");
+  ok &= absent(highway_renderer_c,
+               "mesh.blend==kHighwayBlendSrcAlpha||",
+               "source-alpha blend alone must not disable moving-note z-write");
   ok &= contains(highway_renderer_c,
                  "(write_depth&&!disable_zwrite)?TRUE:FALSE",
                  "moving note opaque base layers still write depth when the material allows it");
@@ -7267,6 +7713,12 @@ int main() {
                  "booluse_environ=false;boolprelit=false;",
                  "decoded materials retain environment/prelit flags");
   ok &= contains(milo_scene_h_c,
+                 "boolpoint_lights=false;",
+                 "decoded materials retain authored point-light intent separately from use_environ");
+  ok &= contains(milo_scene_h_c,
+                 "boolintensify=false;",
+                 "decoded materials retain authored RndMat intensify state");
+  ok &= contains(milo_scene_h_c,
                  "uint8_tz_mode=1;",
                  "decoded materials retain authored RndMat z-buffer mode");
   ok &= contains(milo_scene_h_c,
@@ -7442,8 +7894,9 @@ int main() {
                  "group.has_transform=true;",
                  "Group decoder preserves authored view transforms");
   ok &= contains(milo_scene_cpp_c,
-                 "m.use_environ=body[state++]!=0;",
-                 "Mat decoder preserves source-order use_environ flag");
+                 "m.use_environ=body[state++]!=0;"
+                 "m.prelit=body[state++]!=0;",
+                 "Mat decoder preserves ihatecompvir RndMat use_environ/prelit byte order");
   ok &= contains(milo_scene_cpp_c,
                  "constuint32_tblend=r.u32();",
                  "Mat decoder reads BLEND_ENUM before material color");

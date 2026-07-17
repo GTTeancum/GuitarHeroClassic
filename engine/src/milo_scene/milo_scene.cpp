@@ -1129,6 +1129,9 @@ MatObj decode_mat(const std::string& entry_name,
     m.use_environ = body[flag_pos] != 0;
     m.prelit = body[flag_pos + 1] != 0;
   }
+  // GH2 PS2 Mat rev 27 predates RndMat::mPointLights in the ihatecompvir
+  // source load order, so the constructor default remains the authored value.
+  // Newer revs can fill this once their post-texture fields are decoded.
   // Diffuse texcoord transform: 16 bytes of flags, then a 12-float source
   // matrix block. Renderers consume the 2-D UV rows as [u v 1] * a 3x3 matrix;
   // the source third-axis slot can carry non-UV scale, so force homogeneous

@@ -320,6 +320,7 @@ struct MatObj {
   float tex_offset[2] = {0.0f, 0.0f};
   bool use_environ = false;
   bool prelit = false;
+  bool point_lights = false;
   uint8_t z_mode = 1;        // RndMat::ZMode: Disable/Normal/Transparent/Force/Decal
   bool alpha_cut = false;
   bool alpha_write = false;
