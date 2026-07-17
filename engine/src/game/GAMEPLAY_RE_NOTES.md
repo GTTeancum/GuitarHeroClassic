@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot clamp_height bridge status:
+  ihatecompvir exposes `CamShot::mClampHeight`, initializes it to `-1.0f`,
+  loads and copies it with the other CamShot camera fields, and syncs it as
+  `clamp_height`. Native already decodes this field into camera keys and
+  applies the recovered one-resolved-target path as `target_z + clamp_height`,
+  preserving the negative/absent no-op case and provenance label. The compact
+  normal gameplay camera status now counts
+  `camera_camshot_clamp_height_bridge` between screen-offset target handling
+  and DOF/tail pose work. This is source-backed field and row accounting only:
+  it does not recover hidden `BuildTransform`, `SetPos`, `cam_shot_ok`,
+  `cam_check_shot`, `CharWalk`, `RndCam::UpdateLocal`, under-venue behavior,
+  FreeCam, or any dependency surface.
 - 2026-07-17 gameplay camshot.dtb native-hook boundary:
   Extracted only `world/gen/camshot.dtb` and
   `world/gen/world_objects_worldbase.dtb` from the local GH2 ARK with the
