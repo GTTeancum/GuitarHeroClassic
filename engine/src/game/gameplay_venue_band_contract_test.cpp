@@ -12055,6 +12055,11 @@ int main() {
                  "constauto&frames=source_camshot_timing_frames(shot);"
                  "if(!frames.empty())returnsource_camshot_frame_total(frames);",
                  "source CamShot duration reads preserved source timing frames");
+  ok &= contains(gameplay_c,
+                 "floatcamera_source_end_frame("
+                 "constGameplay::CameraKey&shot){"
+                 "returnsource_camshot_duration_frames(shot);}",
+                 "runtime mirrors CamShot::EndFrame returning the cached mDuration");
   ok &= absent(gameplay_c,
                "key.duration_frames>600.0f||key.blend_frames>600.0f",
                "source CamShot frame spans must not discard long authored blends");
@@ -12066,7 +12071,7 @@ int main() {
                  "constGameplay::CameraKey&shot){"
                  "if(rnd_animatable_rate_uses_beats("
                  "camera_source_anim_rate(shot))){return0.0f;}"
-                 "returnsource_camshot_duration_frames(shot)/30.0f;}",
+                 "returncamera_source_end_frame(shot)/30.0f;}",
                  "runtime mirrors CamShot::GetDurationSeconds beat-zero/seconds-div30 contract");
   ok &= contains(gameplay_c,
                  "\"CamShot::GetDurationSeconds(beats_zero)\"",
@@ -14016,8 +14021,8 @@ int main() {
                  "key.path_frame:-1.0f;",
                  "regular camera float filters expose ihatecompvir path_frame default");
   ok &= contains(gameplay_c,
-                 "if(prop==\"duration\")returnsource_camshot_duration_frames(key);",
-                 "regular camera float filters expose ihatecompvir static duration property");
+                 "if(prop==\"duration\")returncamera_source_end_frame(key);",
+                 "regular camera float filters expose ihatecompvir static duration property through CamShot::EndFrame mDuration");
   ok &= contains(gameplay_c,
                  "if(prop==\"path\"&&!key.path_anim.empty())"
                  "returnstd::string_view(key.path_anim);",
@@ -15059,13 +15064,14 @@ int main() {
                  "camera_camshot_setshotover_latch_bridge,"
                  "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
+                 "camera_camshot_endframe_duration_bridge,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,",
@@ -15188,17 +15194,24 @@ int main() {
                  "camera_camshot_setshotover_latch_bridge,"
                  "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
+                 "camera_camshot_endframe_duration_bridge,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,",
-                 "camera implementation status keeps CamShot SetShotOver HandleType-before-latch accounting before the shot_over next_shot handoff, CacheFrames, duration_seconds, and GetKey looping");
+                 "camera implementation status keeps CamShot SetShotOver HandleType-before-latch accounting before the shot_over next_shot handoff, CacheFrames, EndFrame, duration_seconds, and GetKey looping");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
                  "camera_camshot_setshotover_latch_bridge,"
                  "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
+                 "camera_camshot_endframe_duration_bridge,"
                  "camera_camshot_duration_seconds,",
-                 "camera implementation status counts SetShotOver dispatch/latch and shot_over next_shot bridge before CamShot::CacheFrames mDuration and duration_seconds");
+                 "camera implementation status counts SetShotOver dispatch/latch and shot_over next_shot bridge before CamShot::CacheFrames mDuration, EndFrame mDuration, and duration_seconds");
+  ok &= contains(gameplay_c,
+                 "camera_camshot_cacheframes_duration,"
+                 "camera_camshot_endframe_duration_bridge,"
+                 "camera_camshot_duration_seconds,",
+                 "camera implementation status keeps CamShot EndFrame mDuration between CacheFrames and duration_seconds");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"

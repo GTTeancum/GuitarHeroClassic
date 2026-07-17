@@ -16403,6 +16403,7 @@ const Gameplay::CameraKey* choose_regular_camera_key_by_counter(
 const std::vector<Gameplay::CameraKey>& source_camshot_timing_frames(
     const Gameplay::CameraKey& shot);
 float source_camshot_duration_frames(const Gameplay::CameraKey& shot);
+float camera_source_end_frame(const Gameplay::CameraKey& shot);
 
 bool string_in(std::string_view value,
                std::initializer_list<std::string_view> allowed) {
@@ -16768,7 +16769,7 @@ std::optional<float> camera_filter_float_property(
         return key.has_path_frame ? key.path_frame : -1.0f;
     if (prop == "frame")
         return key.has_camshot_anim_frame ? key.camshot_anim_frame : 0.0f;
-    if (prop == "duration") return source_camshot_duration_frames(key);
+    if (prop == "duration") return camera_source_end_frame(key);
     return std::nullopt;
 }
 
@@ -18660,6 +18661,10 @@ float source_camshot_duration_frames(const Gameplay::CameraKey& shot) {
     return source_camshot_frame_span(shot);
 }
 
+float camera_source_end_frame(const Gameplay::CameraKey& shot) {
+    return source_camshot_duration_frames(shot);
+}
+
 int camera_source_anim_rate(const Gameplay::CameraKey& shot) {
     return shot.has_camshot_anim_rate ? shot.camshot_anim_rate : 0;
 }
@@ -18672,7 +18677,7 @@ float camera_source_duration_seconds(const Gameplay::CameraKey& shot) {
     if (rnd_animatable_rate_uses_beats(camera_source_anim_rate(shot))) {
         return 0.0f;
     }
-    return source_camshot_duration_frames(shot) / 30.0f;
+    return camera_source_end_frame(shot) / 30.0f;
 }
 
 const char* camera_source_duration_seconds_source(
@@ -18735,7 +18740,7 @@ CameraSourceShotOverStatus camera_source_shot_over_status(
     bool shot_over,
     const ghogx::chart::Chart* chart) {
     CameraSourceShotOverStatus status;
-    status.duration_frames = source_camshot_duration_frames(shot);
+    status.duration_frames = camera_source_end_frame(shot);
     status.local_frame =
         camera_source_local_frame(shot, song_time, start_time, chart);
     status.mshot_over = shot_over;
@@ -37583,7 +37588,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_intro_previous_context_bridge,camera_camshot_platform_ok_gate,camera_manager_syncobjects_category_buckets,camera_manager_random_seed_bridge,camera_one_bar_to_seek_latch_replay,camera_worldbase_beat_check_shot_bridge,camera_worldbase_downbeat_duration_bridge,camera_worldbase_script_filter_bridge,camera_manager_handle_routes,camera_manager_make_category_filters,camera_banddirector_findnext_filter_bridge,camera_manager_numcamerashots_prescan_bridge,camera_manager_first_shot_ok_hook,camera_manager_findshot_category_scan,camera_camshot_disable_bitmask_bridge,camera_manager_findshot_disabled_gate,camera_manager_shotmatches_filters,camera_camshot_radio_flags_bridge,camera_manager_findshot_moveitem,camera_manager_pickshot_no_acceptable_warning,camera_manager_pickshot_pending,camera_manager_pickshot_same_shot_restart_bridge,camera_manager_force_shot_pending,camera_manager_current_next_state,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_lifecycle,camera_camshot_endanim_bridge,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_crowd_message_handlers,camera_camshot_startanim_state_reset,camera_camshot_startanim_handler_noops,camera_camshot_animtarget_bridge,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shotok_prev_arg_bridge,camera_current_walkspot_waypoint_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_camshot_setpreframe_noop,camera_manager_calcframe_units,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_rndcam_updatelocal_public_stub,camera_camshot_dohide_unhide_visibility,camera_visibility,camera_camshot_checkshotstarted_runtime_bridge,camera_shot_started_postswitch,camera_shot_over,camera_camshot_setshotover_latch_bridge,camera_camshot_shot_over_next_shot_bridge,camera_camshot_cacheframes_duration,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/SetPos/RndCam_binary_projection rndcam_updatelocal_public_source=empty_body hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal_binary_projection postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_intro_previous_context_bridge,camera_camshot_platform_ok_gate,camera_manager_syncobjects_category_buckets,camera_manager_random_seed_bridge,camera_one_bar_to_seek_latch_replay,camera_worldbase_beat_check_shot_bridge,camera_worldbase_downbeat_duration_bridge,camera_worldbase_script_filter_bridge,camera_manager_handle_routes,camera_manager_make_category_filters,camera_banddirector_findnext_filter_bridge,camera_manager_numcamerashots_prescan_bridge,camera_manager_first_shot_ok_hook,camera_manager_findshot_category_scan,camera_camshot_disable_bitmask_bridge,camera_manager_findshot_disabled_gate,camera_manager_shotmatches_filters,camera_camshot_radio_flags_bridge,camera_manager_findshot_moveitem,camera_manager_pickshot_no_acceptable_warning,camera_manager_pickshot_pending,camera_manager_pickshot_same_shot_restart_bridge,camera_manager_force_shot_pending,camera_manager_current_next_state,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_lifecycle,camera_camshot_endanim_bridge,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_crowd_message_handlers,camera_camshot_startanim_state_reset,camera_camshot_startanim_handler_noops,camera_camshot_animtarget_bridge,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shotok_prev_arg_bridge,camera_current_walkspot_waypoint_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_camshot_setpreframe_noop,camera_manager_calcframe_units,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_rndcam_updatelocal_public_stub,camera_camshot_dohide_unhide_visibility,camera_visibility,camera_camshot_checkshotstarted_runtime_bridge,camera_shot_started_postswitch,camera_shot_over,camera_camshot_setshotover_latch_bridge,camera_camshot_shot_over_next_shot_bridge,camera_camshot_cacheframes_duration,camera_camshot_endframe_duration_bridge,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/SetPos/RndCam_binary_projection rndcam_updatelocal_public_source=empty_body hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal_binary_projection postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }
@@ -37783,7 +37788,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             stderr,
                             "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f source_calc=CameraManager::CalcFrame duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d task_units=%s fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setpreframe_calls=%zu source_setframe_blend=%.3f\n",
                             key->name.c_str(), source_shot_local_frame,
-                            source_camshot_duration_frames(*key),
+                            camera_source_end_frame(*key),
                             camera_source_duration_seconds(*key),
                             camera_source_duration_seconds_source(*key),
                             camera_source_anim_rate(*key),

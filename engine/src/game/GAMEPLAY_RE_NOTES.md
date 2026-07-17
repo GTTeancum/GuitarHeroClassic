@@ -332,8 +332,19 @@
   running `frames` cursor and then adds `mDuration + mBlend` into the CamShot
   `mDuration`. Native already uses that same source-shaped timing span for
   `CheckShotOver`, `duration_seconds`, and `GetKey`; the compact camera status
-  now counts `camera_camshot_cacheframes_duration` between `camera_shot_over`
-  and `camera_camshot_duration_seconds`. This is normal gameplay timing proof
+  now counts `camera_camshot_cacheframes_duration` before the EndFrame and
+  duration-seconds timing helpers. This is normal gameplay timing proof only:
+  no pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot EndFrame duration status:
+  ihatecompvir `CamShot::EndFrame()` returns the cached `mDuration` produced by
+  `CacheFrames()`. Native now routes the script-visible `duration` property,
+  `CheckShotOver` duration gate, and `GetDurationSeconds()` seconds branch
+  through `camera_source_end_frame(...)`, which returns the decoded source
+  CamShot duration span. The compact camera status now counts
+  `camera_camshot_endframe_duration_bridge` between
+  `camera_camshot_cacheframes_duration` and
+  `camera_camshot_duration_seconds`. This is normal gameplay timing provenance
   only: no pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam
   priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay RndCam `UpdateLocal` public-stub boundary:
