@@ -985,6 +985,17 @@
   the older false StartAnim/RndCam select claim. This is provenance only: no
   pose math, no `BuildTransform` synthesis, no under-venue masking, no FreeCam
   priority change, no dependency change, and no OG Xbox portability change.
+- 2026-07-17 gameplay CamShot GetCam/RndCam bridge status:
+  ihatecompvir `CamShot::GetCam()` returns `PanelDir::mCam` when the owning
+  directory is a `PanelDir`, while `CamShot::OnSetPos()` calls
+  `SetPos(mKeyFrames[idx], RndCam::Current())`. Native already records the
+  visible RndCam side as `PanelDir::mCam`; the StartAnim diagnostic now stamps
+  `source_getcam_return=PanelDir::mCam`, and the compact status counts
+  `camera_camshot_getcam_rndcam_bridge` between the StartAnim no-op handler
+  surface and the AnimTarget/ListAnimChildren bridge. This is camera-object
+  provenance only: no hidden `SetPos`, `BuildTransform`, or
+  `RndCam::UpdateLocal` body is synthesized, no under-venue masking, no FreeCam
+  priority change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot task-unit proof labels:
   ihatecompvir `RndAnimatable` maps rates through `gRateUnits`
   (`k30_fps`/`k30_fps_ui`/`k30_fps_tutorial` to seconds-like task clocks,
