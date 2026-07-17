@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay NumCameraShots prescan status:
+  ihatecompvir `CameraManager::NumCameraShots` is useful for source-shaped
+  selection proof because it counts acceptable shots without mutating category
+  order or sending the real `FirstShotOk` hook. Native already emits the
+  non-mutating `diagnostic_prescan` row with the same filter vector and
+  `CamShot::ShotOk` probe used by the following pick scan, and the compact
+  normal gameplay camera status now counts this as
+  `camera_manager_numcamerashots_prescan_bridge` between
+  `BandDirector::FindNextShot` filter setup and `FirstShotOk`. This is
+  selector-proof parity only: no extra source message dispatch, no hidden
+  `cam_shot_ok` / `cam_check_shot` invention, no pose math, no FreeCam
+  priority change, no dependency, and no OG Xbox portability surface changed.
 - 2026-07-17 gameplay current-walkspot status:
   ihatecompvir's `cam_shot_ok` path can reject CamShots through authored
   `bad_waypoints`, and the visible/audited waypoint side is the current
