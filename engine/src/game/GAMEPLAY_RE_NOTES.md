@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager FirstShotOk status:
+  ihatecompvir `CameraManager::FindCameraShot(...)` calls
+  `FirstShotOk(category)` once before scanning the category bucket, and
+  `CameraManager::FirstShotOk` sends `first_shot_ok(category)` while discarding
+  the handler return. Native already logs that boundary before the
+  `ShotMatches(...)` / `ShotOk(mCurrentShot)` scan; the compact status now
+  counts `camera_manager_first_shot_ok_hook` next to regular selection. This is
+  normal gameplay camera selector parity only: no hidden `cam_shot_ok` result
+  invention, pose math, `BuildTransform` synthesis, under-venue masking,
+  FreeCam priority change, dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CamShot duration_seconds status:
   ihatecompvir `CamShot::GetDurationSeconds()` returns `0.0f` for beat-unit
   shots and otherwise asserts seconds units before returning `mDuration / 30`.
