@@ -13691,6 +13691,11 @@ int main() {
                  "if(debug_camera_enabled())",
                  "intro camera selector mirrors CameraManager PlatformOk before accepting CamShots");
   ok &= contains(intro_camera_selector_c,
+                 "source_call=CamShot::PlatformOk"
+                 "source_manager=CameraManager::SyncObjects"
+                 "result=skip_before_category",
+                 "intro camera platform diagnostics name the source PlatformOk gate");
+  ok &= contains(intro_camera_selector_c,
                  "c.distance=prop_symbol(decoded_shot->props,\"distance\","
                  "\"null\");",
                  "intro camera selector preserves source distance metadata with camshot.dta default");
@@ -13714,6 +13719,11 @@ int main() {
                  "decoded_shot->platform_only)){"
                  "if(debug_camera_enabled())",
                  "regular camera loader mirrors CameraManager PlatformOk before category buckets");
+  ok &= contains(regular_camera_loader_c,
+                 "source_call=CamShot::PlatformOk"
+                 "source_manager=CameraManager::SyncObjects"
+                 "result=skip_before_category",
+                 "regular camera platform diagnostics name the source PlatformOk gate");
   ok &= contains(gameplay_c,
                  "WorldDirCamShotOverridesdecode_worlddir_camshot_overrides(",
                  "WorldDir camera override list is decoded from the MILO root object body");
@@ -14918,6 +14928,7 @@ int main() {
                  "camera implementation status counts the CamShot OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
+                 "camera_camshot_platform_ok_gate,"
                  "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_shotmatches_filters,"
@@ -14927,7 +14938,7 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source one_bar_to seek-latch replay, CameraManager FirstShotOk, ShotMatches filters, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CamShot PlatformOk gating, one_bar_to seek-latch replay, CameraManager FirstShotOk, ShotMatches filters, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"

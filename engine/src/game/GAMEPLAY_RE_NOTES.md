@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot PlatformOk gate status:
+  ihatecompvir `CameraManager::SyncObjects()` admits CamShots to category
+  buckets only after `CamShot::PlatformOk()`. Native already filtered intro and
+  regular CamShots with the decoded `platform_only` field; the skip diagnostics
+  now name `source_call=CamShot::PlatformOk`,
+  `source_manager=CameraManager::SyncObjects`, and
+  `result=skip_before_category`, and the compact camera status counts
+  `camera_camshot_platform_ok_gate` immediately after camera selection. This is
+  selector provenance/proof only: no accepted-shot behavior, pose math,
+  `BuildTransform`, `RndCam::UpdateLocal`, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay one_bar_to seek camera-beat latch replay:
   GH2 `world_objects_worldbase.dta::one_bar_to` gates section-driven camera
   picks on the stored `[camera_beat]` script variable, not a hidden FreeCam or
