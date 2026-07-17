@@ -526,6 +526,18 @@
   the compact status now counts `camera_camshot_crowd_payload_bridge`. This
   does not claim the unrecovered public `WorldDir::SetCrowds` loop body, alter
   pose math, touch FreeCam, add dependencies, or mask the under-venue concern.
+- 2026-07-17 gameplay CamShot crowd-message handler status:
+  ihatecompvir registers `set_3d_crowd`, `add_3d_crowd`, and `clear_3d_crowd`
+  to `CamShot::OnSetCrowdChars`, `CamShot::OnAddCrowdChars`, and
+  `CamShot::OnClearCrowdChars`; each handler reads the message crowd index,
+  asserts `idx < mCrowds.size()`, dispatches to that indexed `CamShotCrowd`,
+  and returns `DataNode(0)`. Native already routes those messages through
+  `apply_camshot_crowd_message_like_source` with the decoded crowd list and
+  source assertion diagnostics; the compact status now counts
+  `camera_camshot_crowd_message_handlers` beside the decoded crowd payload.
+  This is source handler accounting only: no pose math, `BuildTransform`,
+  `SetPos`, under-venue masking, FreeCam priority, dependency, or OG Xbox
+  portability surface changed.
 - 2026-07-17 gameplay CamShot force-char-LOD bridge status:
   GH2 `world/camshot.dta::start_shot` sends `world set_min_lod
   [force_char_lod]`, ihatecompvir `BandCamShot` exposes the authored
