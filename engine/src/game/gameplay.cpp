@@ -26469,9 +26469,11 @@ void Gameplay::apply_camera_crowd_visibility(
         for (const auto& mesh : shown_meshes) hidden_it->second.erase(mesh);
         if (hidden_it->second.empty()) next_hidden_proxy_meshes.erase(hidden_it);
     }
+    const bool source_script_has_crowd = next_has_crowd_selection;
     const bool next_face_camera =
         skip_script_crowd_update ? venue_camera_crowd_face_camera_
-                                 : key.crowd_face_camera;
+                                 : (source_script_has_crowd &&
+                                    key.crowd_face_camera);
     if (next_hidden == venue_camera_hidden_meshes_ &&
         next_shown == venue_camera_shown_meshes_ &&
         next_hidden_proxy_meshes == venue_camera_hidden_proxy_meshes_ &&
@@ -26514,7 +26516,8 @@ void Gameplay::apply_camera_crowd_visibility(
                      "shown_meshes=%zu proxy_objects=%zu proxy_meshes=%zu "
                      "shown_proxy_objects=%zu shown_proxy_meshes=%zu "
                      "show_list_source_hidden=1 "
-                     "actor_hide=%d face_camera=%d face_meshes=%zu "
+                     "actor_hide=%d face_camera=%d source_crowd_gate=%d "
+                     "face_meshes=%zu "
                      "script_crowd_update_skipped=%d "
                      "crowd_select=%d crowd_entries=%zu crowd_ref=%s "
                      "crowd_pairs=%zu crowd_total_pairs=%zu "
@@ -26534,17 +26537,18 @@ void Gameplay::apply_camera_crowd_visibility(
                      shown_proxy_mesh_count,
                      venue_camera_hide_crowd_ ? 1 : 0,
                      venue_camera_crowd_face_camera_ ? 1 : 0,
-                      venue_camera_crowd_face_camera_
-                          ? venue_crowd_meshes_.size()
-                          : 0u,
-                      skip_script_crowd_update ? 1 : 0,
-                      venue_camera_has_crowd_selection_ ? 1 : 0,
-                      venue_camera_crowd_selections_.size(),
-                      venue_camera_crowd_selection_ref_.c_str(),
-                      venue_camera_crowd_selection_pairs_.size(),
-                      camera_crowd_selection_pair_count(
-                          venue_camera_crowd_selections_),
-                      key.draw_override_refs.size(),
+                     source_script_has_crowd ? 1 : 0,
+                     venue_camera_crowd_face_camera_
+                         ? venue_crowd_meshes_.size()
+                         : 0u,
+                     skip_script_crowd_update ? 1 : 0,
+                     venue_camera_has_crowd_selection_ ? 1 : 0,
+                     venue_camera_crowd_selections_.size(),
+                     venue_camera_crowd_selection_ref_.c_str(),
+                     venue_camera_crowd_selection_pairs_.size(),
+                     camera_crowd_selection_pair_count(
+                         venue_camera_crowd_selections_),
+                     key.draw_override_refs.size(),
                      key.postproc_override_refs.size(),
                      key.camera_anim_refs.size(), key.glow_spot_ref.c_str());
     }

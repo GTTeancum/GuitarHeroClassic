@@ -13138,9 +13138,17 @@ int main() {
                  "venue_camera_hide_crowd_=next_hide_crowd;",
                  "camera hide_crowd state is committed beside hidden mesh state");
   ok &= contains(gameplay_c,
+                 "constboolsource_script_has_crowd="
+                 "next_has_crowd_selection;",
+                 "camera crowd-facing route exposes the camshot.dta [crowd] gate");
+  ok &= contains(gameplay_c,
                  "constboolnext_face_camera=skip_script_crowd_update?"
-                 "venue_camera_crowd_face_camera_:key.crowd_face_camera;",
-                 "crowd_face_camera state follows the authored CamShot unless the source skip latch is active");
+                 "venue_camera_crowd_face_camera_:"
+                 "(source_script_has_crowd&&key.crowd_face_camera);",
+                 "crowd_face_camera rotation only runs when the source [crowd] branch exists");
+  ok &= contains(gameplay_c,
+                 "source_crowd_gate=%d",
+                 "camera crowd visibility diagnostics expose the source [crowd] gate for face-camera rotation");
   ok &= contains(gameplay_c,
                  "world_->set_face_camera_meshes(venue_camera_crowd_face_camera_",
                  "camera-facing crowd meshes are sent to the venue renderer");
@@ -15126,8 +15134,8 @@ int main() {
                  "camera crowd visibility exposes the source script crowd-update skip");
   ok &= contains(gameplay_c,
                  "skip_script_crowd_update?venue_camera_crowd_face_camera_"
-                 ":key.crowd_face_camera",
-                 "camshot_skip_next_update preserves the existing crowd rotate state");
+                 ":(source_script_has_crowd&&key.crowd_face_camera)",
+                 "camshot_skip_next_update preserves the existing crowd rotate state while normal starts require source [crowd]");
   ok &= contains(gameplay_c,
                  "\"[world]camerastart_shotcrowd_updateskipped:"
                  "source_var=camshot_skip_next_updateshot=%sresult=cleared\\n\"",

@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay `crowd_face_camera` source gate:
+  GH2 `world/camshot.dta::start_shot` nests both `[crowd] crowd_update` and
+  the `[crowd] set rotate TRUE/FALSE` branch under `if [crowd]`. ihatecompvir
+  exposes the C++ side as `CamShot::StartAnim -> WorldDir::SetCrowds(mCrowds)`
+  plus the `CamShotCrowd`/`crowds` property path. Native now keeps
+  `crowd_face_camera` from rotating the venue crowd mesh bridge unless the
+  CamShot also has a source crowd selection; the existing
+  `$camshot_skip_next_update` path still preserves the previous rotate state
+  for `next_shot` handoffs. This is normal gameplay camera start-shot parity
+  only: no pose math, no hidden `SetPos` / `BuildTransform` synthesis, no
+  FreeCam priority change, no dependency change, and no OG Xbox portability
+  change.
 - 2026-07-17 gameplay normal category scan proof:
   GH2 `world_objects.dta` defines `NORMAL_CAMSHOT_CATEGORIES` as the ordered
   `flr_near_lft` / `flr_near_rt` / `flr_far_lft` / `flr_far_rt` /
@@ -4284,15 +4296,15 @@ Rejected native probe:
   runtime visibility is applied, so the `.tnm` route no longer drops the
   metadata.
 - Because native does not yet instantiate the full crowd character system, the
-  current source-backed visual bridge applies the two CamShot crowd flags to
-  the generic authored crowd mesh set built from group names, mesh names, and
+  current source-backed visual bridge applies CamShot crowd visibility to the
+  generic authored crowd mesh set built from group names, mesh names, and
   material names containing `crowd`. `hide_crowd` composes that set into
-  `composed_venue_hidden_meshes()`. `crowd_face_camera` now sends the same
-  decoded set to the venue renderer, which yaws those meshes toward the active
-  camera after authored mesh transforms/animations are sampled. This layers with
-  EventTrigger visibility and material-alpha hiding instead of replacing those
-  routes, and remains a generic crowd-route bridge rather than a venue-specific
-  mesh hack.
+  `composed_venue_hidden_meshes()`. `crowd_face_camera` sends the same decoded
+  set to the venue renderer only when the source `[crowd]` branch exists, which
+  yaws those meshes toward the active camera after authored mesh
+  transforms/animations are sampled. This layers with EventTrigger visibility
+  and material-alpha hiding instead of replacing those routes, and remains a
+  generic crowd-route bridge rather than a venue-specific mesh hack.
 - Validation:
   `analysis/native_validation/camera_crowd_flags_shout_20260622_current/`
   reruns the existing stock `shoutatthedevil` lighter-camera window and proves
