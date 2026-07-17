@@ -3336,11 +3336,14 @@ int main() {
                "D3DCOLOR_ARGB(180,255,255,255)",
                "pressed smasher body add layer must not use guessed 180 alpha");
   ok &= contains(highway_renderer_c,
-                 "kSmasherIdleTopZ+(kSmasherHeldTopZ-kSmasherIdleTopZ)*press",
-                 "native fret targets rise from buried idle height when pressed");
+                 "constfloatsmasher_top_z=kSmasherBodyTopZ;",
+                 "native fret-target bodies stay grounded when pressed");
+  ok &= absent(highway_renderer_c,
+               "kSmasherHeldTopZ",
+               "pressed fret targets must not lift the button body away from the fixed ring");
   ok &= contains(highway_renderer_c,
-                 "constexprfloatkSmasherIdleTopZ=kBoardZ+0.20f;",
-                 "inactive native fret targets keep their dark tops visible above the highway");
+                 "constexprfloatkSmasherBodyTopZ=kBoardZ+0.20f;",
+                 "native fret-target bodies keep their dark tops visible above the highway");
   ok &= contains(highway_renderer_c,
                  "kSmasherFixedRingTopZ-smasher_rim_mesh_.max_z;",
                  "native fret-target rings stay fixed while the colored button moves");
@@ -3849,6 +3852,9 @@ int main() {
                  "env_enabled(\"GHOGX_DEBUG_HIGHWAY_HIT_FEEDBACK\")",
                  "hit feedback exposes a focused diagnostic switch for visual proof captures");
   ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DISABLE_HIGHWAY_HIT_FLAMES\")",
+                 "hit feedback exposes a flame-only suppression switch for cap/effect isolation proofs");
+  ok &= contains(highway_renderer_c,
                  "\"[highway-hit]lane=%df=%.3falpha=%dcombo_tier=%d\"",
                  "hit feedback diagnostics identify the live hit lane and combo tier");
   ok &= contains(highway_renderer_c,
@@ -3885,6 +3891,9 @@ int main() {
                  "base_flame_anim=&bonus_hit_flame_anim_",
                  "active star power swaps hit flashes to the native bonus hit-flame mesh");
   ok &= contains(highway_renderer_c,
+                 "!disable_hit_flames&&bonus_highway_active&&bonus_hit_flame_mesh_.ok",
+                 "hit-flame isolation preserves the authored bonus flame path unless explicitly disabled");
+  ok &= contains(highway_renderer_c,
                  "hit_flame_anim_=load_track_transanim_transform_anim("
                  "hdr_path,ark_path,\"smash_flamelight_normal.tnm\");",
                  "hit flames load the authored normal flame TransAnim");
@@ -3899,8 +3908,8 @@ int main() {
                  "if(base_flame_mesh){draw_flame_mesh(base_flame_label,*base_flame_mesh,a,",
                  "native base hit-flame geometry is drawn before star-collect overlays");
   ok &= contains(highway_renderer_c,
-                 "if(star_f>0.01f&&star_collect_flame_mesh_.ok){",
-                 "star-note hits layer the native star-collect flame over the base hit flame");
+                 "if(!disable_hit_flames&&star_f>0.01f&&star_collect_flame_mesh_.ok){",
+                 "star-note hits layer the native star-collect flame over the base hit flame unless the proof gate disables flames");
   ok &= contains(highway_renderer_c,
                  "draw_flame_mesh(\"star_collect\",star_collect_flame_mesh_,star_a,",
                  "star-collect flame overlay uses the native starcollect geometry");

@@ -242,8 +242,7 @@ constexpr float kNativeHeldLineVisibleFraction4x3 = 0.414f;
 constexpr uint8_t kActiveBonusTailAlpha = 245u;
 constexpr uint8_t kActiveStarTailAlpha = 245u;
 constexpr float kSmasherClipZ = kBoardZ + 0.02f;
-constexpr float kSmasherIdleTopZ = kBoardZ + 0.20f;
-constexpr float kSmasherHeldTopZ = kBoardZ + 1.05f;
+constexpr float kSmasherBodyTopZ = kBoardZ + 0.20f;
 constexpr float kSmasherFixedRingTopZ = kBoardZ + 0.22f;
 constexpr float kNormalActiveSustainSmasherCapYOffset = 6.26f;
 constexpr float kNormalActiveSustainSmasherCapScale = 1.456f;
@@ -5720,9 +5719,7 @@ void HighwayRenderer::draw_impl(double song_time,
         const float press_flash =
             hit_flash ? std::clamp(hit_flash[lane], 0.0f, 1.0f) : 0.0f;
         const float press = std::max(held ? 1.0f : 0.0f, press_flash);
-        const float smasher_top_z =
-            kSmasherIdleTopZ +
-            (kSmasherHeldTopZ - kSmasherIdleTopZ) * press;
+        const float smasher_top_z = kSmasherBodyTopZ;
         const float smasher_z_offset =
             smasher_top_z - gem_smasher_mesh_.max_z;
         const float rim_z_offset =
@@ -6774,6 +6771,8 @@ void HighwayRenderer::draw_impl(double song_time,
     IDirect3DTexture9* flame = tex("flame_part.tex");
     const bool debug_hit_feedback =
         env_enabled("GHOGX_DEBUG_HIGHWAY_HIT_FEEDBACK");
+    const bool disable_hit_flames =
+        env_enabled("GHOGX_DISABLE_HIGHWAY_HIT_FLAMES");
     constexpr int kHitDebugBudgetPerComboTier = 80;
     static std::array<int, 4> hit_debug_budget_by_combo_tier = {};
     const bool force_combo_lightning =
@@ -6886,24 +6885,29 @@ void HighwayRenderer::draw_impl(double song_time,
       float base_flame_anim_duration = 0.0f;
       const ColorAnimState* base_flame_color_anim = nullptr;
       const RuntimeMesh* base_flame_mesh =
-          bonus_highway_active && bonus_hit_flame_mesh_.ok
+          !disable_hit_flames && bonus_highway_active && bonus_hit_flame_mesh_.ok
               ? (base_flame_anim = &bonus_hit_flame_anim_,
                  base_flame_anim_duration =
                      bonus_hit_flame_anim_duration_frames_,
                  base_flame_color_anim = &bonus_hit_flame_color_anim_,
                  &bonus_hit_flame_mesh_)
-              : hit_flame_mesh_.ok
+              : !disable_hit_flames && hit_flame_mesh_.ok
                     ? (base_flame_anim = &hit_flame_anim_,
                        base_flame_anim_duration =
                            hit_flame_anim_duration_frames_,
                        base_flame_color_anim = &hit_flame_color_anim_,
                        &hit_flame_mesh_)
                     : nullptr;
-      const char* base_flame_label =
-          bonus_highway_active && bonus_hit_flame_mesh_.ok
-              ? "bonus_flame"
-              : hit_flame_mesh_.ok ? "hit_flame"
-                                   : flame ? "flat_flame" : "none";
+      const char* base_flame_label = "none";
+      if (disable_hit_flames) {
+        base_flame_label = "disabled";
+      } else if (bonus_highway_active && bonus_hit_flame_mesh_.ok) {
+        base_flame_label = "bonus_flame";
+      } else if (hit_flame_mesh_.ok) {
+        base_flame_label = "hit_flame";
+      } else if (flame) {
+        base_flame_label = "flat_flame";
+      }
       const int star_a =
           static_cast<int>(std::min(1.0f, star_f) * 255.0f);
       const int hit_debug_combo_slot = std::clamp(combo_tier, 0, 3);
@@ -6921,8 +6925,12 @@ void HighwayRenderer::draw_impl(double song_time,
                      lane, f, a, combo_tier, force_combo_lightning ? 1 : 0,
                      combo_layers, base_flame_label,
                      base_flame_mesh ? 1 : 0,
-                     (star_f > 0.01f && star_collect_flame_mesh_.ok) ? 1 : 0,
-                     star_a, (!base_flame_mesh && flame) ? 1 : 0,
+                     (!disable_hit_flames && star_f > 0.01f &&
+                      star_collect_flame_mesh_.ok)
+                         ? 1
+                         : 0,
+                     star_a,
+                     (!disable_hit_flames && !base_flame_mesh && flame) ? 1 : 0,
                      (base_flame_anim &&
                       !mesh_transform_anim_empty(*base_flame_anim))
                          ? 1
@@ -7003,7 +7011,7 @@ void HighwayRenderer::draw_impl(double song_time,
                         base_flame_color_anim ? *base_flame_color_anim
                                               : hit_flame_color_anim_,
                         f);
-      } else if (flame) {
+      } else if (!disable_hit_flames && flame) {
         const float sz_x =
             highway_root.scale_x(lane_gem_half_x(lane) * (1.5f + 0.9f * f));
         const float sz_y = lane_gem_half_y(lane) * (1.5f + 0.9f * f);
@@ -7011,7 +7019,7 @@ void HighwayRenderer::draw_impl(double song_time,
                            D3DCOLOR_ARGB(a, 255, 230, 180));
         draw_quad(dev_, flame, q);
       }
-      if (star_f > 0.01f && star_collect_flame_mesh_.ok) {
+      if (!disable_hit_flames && star_f > 0.01f && star_collect_flame_mesh_.ok) {
         draw_flame_mesh("star_collect", star_collect_flame_mesh_, star_a,
                         star_collect_flame_anim_,
                         star_collect_flame_anim_duration_frames_,

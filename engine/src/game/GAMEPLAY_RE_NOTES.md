@@ -7841,6 +7841,16 @@ Rejected native probe:
   run; it keeps the signed-off highway surface visible while showing inactive
   rings, raised colored press states, and the fixed ring outlines.
 
+2026-07-17 smasher/button grounding correction:
+- The 2026-07-03 raised-button interpretation is superseded for the highway
+  parity branch. A focused 4:3 no-hit-effects capture showed the pressed
+  smasher body itself jumping to `body_top=1.050` while the authored ring
+  stayed at `ring_top=0.220`, matching the floating-button artifact seen in
+  proof screenshots.
+- Pressed fret targets now keep the smasher body at the grounded source height
+  (`body_top=0.200`) and use pressed source textures/add/ring layers for the
+  visual state change instead of moving the body away from the ring.
+
 2026-07-03 current ROCK meter sweep validation:
 - The HUD renderer now has a bounded `GHOGX_DEBUG_HUD_ROCK_METER` proof row
   emitted from the native ROCK meter draw path. It logs fill, active light band,
