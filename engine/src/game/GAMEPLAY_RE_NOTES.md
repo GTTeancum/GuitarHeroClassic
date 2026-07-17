@@ -279,6 +279,15 @@
   scan. This is normal gameplay camera cadence parity only: no
   `cam_check_shot` result invention, pose math, under-venue masking, FreeCam
   priority, dependency, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot CheckShotOver predicate status:
+  ihatecompvir `CamShot::CheckShotOver(float)` returns true only for
+  `!mShotOver && !mLooping && f >= mDuration`. Native already evaluates the
+  same per-shot latch, decoded `mLooping` value, and decoded duration before
+  dispatching `shot_over`; the compact normal gameplay camera status now
+  counts this as `camera_camshot_checkshotover_predicate_bridge` between
+  `camera_shot_started_postswitch` and `camera_shot_over`. This is source
+  predicate accounting only: no pose math, FreeCam priority, dependency,
+  under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot SetShotOver latch status:
   ihatecompvir `CamShot::SetShotOver()` dispatches `shot_over` through
   `HandleType(shot_over_msg)` before assigning `mShotOver = true`, while
