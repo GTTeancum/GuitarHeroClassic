@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot crowd-payload bridge status:
+  ihatecompvir `CamShot::StartAnim()` calls `WorldDir::SetCrowds(mCrowds)`
+  before the camera state reset and later loops `mCrowds[i].Set3DCrowd()`,
+  whose visible body calls `WorldCrowd::Set3DCharList(unk10, unk18)` when the
+  crowd ref exists. Native already decodes every `CamShotCrowd` entry, applies
+  the active source-selected actor/placement pairs through
+  `apply_camera_crowd_visibility`, uses that active selection during WorldCrowd
+  drawing, and separately logs the source `SetCrowds` / `Set3DCrowd` phases;
+  the compact status now counts `camera_camshot_crowd_payload_bridge`. This
+  does not claim the unrecovered public `WorldDir::SetCrowds` loop body, alter
+  pose math, touch FreeCam, add dependencies, or mask the under-venue concern.
 - 2026-07-17 gameplay CamShot force-char-LOD bridge status:
   GH2 `world/camshot.dta::start_shot` sends `world set_min_lod
   [force_char_lod]`, ihatecompvir `BandCamShot` exposes the authored
