@@ -1,0 +1,51 @@
+{
+  "pass": "native_4x3_current_tail_status_after_smasher_20260717_01",
+  "aspect": "4:3",
+  "output_size": "960x720",
+  "song": "shoutatthedevil",
+  "difficulty": 3,
+  "diagnostic_song_start": 16.0,
+  "screenshot_frame": 60,
+  "variants": [
+    "full",
+    "no_active_caps",
+    "no_sustains",
+    "no_sustains_no_caps"
+  ],
+  "diffs": {
+    "full_minus_no_active_caps": {
+      "bbox": null,
+      "nonzero_pixels": 0,
+      "nonzero_percent": 0.0,
+      "preview": "diff_full_minus_no_active_caps_x4.png"
+    },
+    "full_minus_no_sustains": {
+      "bbox": [
+        317,
+        349,
+        633,
+        649
+      ],
+      "nonzero_pixels": 32375,
+      "nonzero_percent": 4.683883,
+      "preview": "diff_full_minus_no_sustains_x4.png"
+    },
+    "no_active_caps_minus_no_sustains_no_caps": {
+      "bbox": [
+        317,
+        349,
+        633,
+        649
+      ],
+      "nonzero_pixels": 32375,
+      "nonzero_percent": 4.683883,
+      "preview": "diff_sustain_without_caps_x4.png"
+    },
+    "no_sustains_minus_no_sustains_no_caps": {
+      "bbox": null,
+      "nonzero_pixels": 0,
+      "nonzero_percent": 0.0,
+      "preview": "diff_active_caps_only_x4.png"
+    }
+  }
+}

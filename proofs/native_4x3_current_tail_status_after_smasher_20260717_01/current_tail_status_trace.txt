@@ -1,0 +1,4 @@
+full_minus_no_active_caps: bbox=None nonzero=0 pct=0.0
+full_minus_no_sustains: bbox=[317, 349, 633, 649] nonzero=32375 pct=4.683883
+no_active_caps_minus_no_sustains_no_caps: bbox=[317, 349, 633, 649] nonzero=32375 pct=4.683883
+no_sustains_minus_no_sustains_no_caps: bbox=None nonzero=0 pct=0.0
