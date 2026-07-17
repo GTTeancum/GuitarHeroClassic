@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager ForceCameraShot pending status:
+  ihatecompvir `CameraManager::ForceCameraShot(CamShot*)` only assigns
+  `mNextShot = shot`; the visible source does not start the shot immediately.
+  Native already queues regular picks, diagnostic force-shot requests, and
+  authored `shot_over -> do_force_shot` handoffs through the same pending
+  bridge, preserving `CameraManager::PrePoll` as the consumer. The compact
+  status now counts `camera_manager_force_shot_pending` beside regular
+  selection. This is normal gameplay camera handoff parity only: no pose math,
+  `BuildTransform` synthesis, under-venue masking, FreeCam priority change,
+  dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager RandomizeCategory no-op status:
   ihatecompvir `CameraManager::SyncObjects()` builds category buckets from
   `ObjDirItr<CamShot>` and then calls `CameraManager::Randomize()`, but the

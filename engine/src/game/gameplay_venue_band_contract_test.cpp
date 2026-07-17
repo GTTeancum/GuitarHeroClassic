@@ -14890,10 +14890,11 @@ int main() {
                  "camera implementation status counts the CamShot OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
+                 "camera_manager_force_shot_pending,"
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CameraManager RandomizeCategory no-op and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CameraManager ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
