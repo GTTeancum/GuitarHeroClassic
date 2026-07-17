@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay PickCameraShot same-shot restart status:
+  ihatecompvir `CameraManager::PickCameraShot` writes the accepted
+  `FindCameraShot` result to `mNextShot` without a same-current / unstarted
+  `CheckShotStarted` guard. Native already queues every accepted regular
+  selection through `queue_regular_camera_shot(...)`, logs `changed=`, and
+  leaves PrePoll to consume the pending shot even when the selected name
+  matches the active camera. The compact normal gameplay camera status now
+  counts this as `camera_manager_pickshot_same_shot_restart_bridge` between
+  the generic PickCameraShot pending handoff and ForceCameraShot pending
+  handoff. This is source manager scheduling parity only: no extra selection
+  predicate, no hidden `cam_shot_ok` / `cam_check_shot` invention, no pose
+  math, FreeCam priority, dependency, under-venue masking, or OG Xbox
+  portability surface changed.
 - 2026-07-17 gameplay NumCameraShots prescan status:
   ihatecompvir `CameraManager::NumCameraShots` is useful for source-shaped
   selection proof because it counts acceptable shots without mutating category
