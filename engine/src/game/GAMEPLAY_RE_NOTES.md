@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager PickCameraShot pending status:
+  ihatecompvir `CameraManager::PickCameraShot(...)` calls
+  `FindCameraShot(...)` and, on success, only assigns `mNextShot = shot`; the
+  accepted shot is not made current until `CameraManager::PrePoll()` consumes
+  the pending value. Native already queues regular gameplay picks through the
+  same source-shaped `mNextShot` bridge and logs the before / after pending
+  shot beside the sweep row; the compact status now counts
+  `camera_manager_pickshot_pending` between the accepted-shot category rotation
+  and the separate `ForceCameraShot` pending handoff. This is normal gameplay
+  camera manager handoff parity only: no hidden `cam_shot_ok` result invention,
+  pose math, `BuildTransform` synthesis, under-venue masking, FreeCam priority
+  change, dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager FindCameraShot MoveItem status:
   ihatecompvir `CameraManager::FindCameraShot(...)` accepts a candidate only
   after `Disabled()`, `ShotMatches(...)`, and `ShotOk(mCurrentShot)` all pass,
