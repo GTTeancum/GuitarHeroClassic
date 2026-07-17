@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot drawable cached-stream branch proof:
+  ihatecompvir's `CamShot::Load` uses
+  `gRev <= 0x2F || (bs.Cached() && gRev < 0x32)` to choose the single
+  drawable list path versus separate hide/show lists. Native raw MILO reads are
+  non-cached, now route show-list reads through that exact predicate, carry
+  `source_cached_stream=0` onto camera keys, and print it in normal gameplay
+  camera diagnostics. This is loader proof only: no pose math, under-venue
+  clamp, FreeCam priority change, dependency change, or OG Xbox portability
+  change.
 - 2026-07-16 gameplay CamShot load revision proof:
   native now carries each decoded `CamShot::Load` source revision and alt
   revision onto `CameraKey`, copies that proof through path-backed keys, and

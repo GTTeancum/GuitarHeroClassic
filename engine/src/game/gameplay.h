@@ -169,6 +169,7 @@ class Gameplay {
     size_t source_object_order = 0;
     uint16_t camshot_revision = 0;
     uint16_t camshot_alt_revision = 0;
+    bool camshot_source_cached_stream = false;
     float frame = 0.0f;
     float eye[3] = {};
     float quat[4] = {0.0f, 0.0f, 0.0f, 1.0f};

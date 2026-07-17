@@ -1621,6 +1621,7 @@ struct DecodedCamShot {
     float path_frame = -1.0f;
     float legacy_path_frame_ignored = -1.0f;
     bool has_legacy_path_frame_ignored = false;
+    bool source_cached_stream = false;
     std::string category;
     int platform_only = 0;
     bool ps3_per_pixel = false;
@@ -1777,13 +1778,22 @@ int camshot_source_platform_for_ok() {
     return platform;
 }
 
-const char* camshot_source_drawable_load_branch_label(uint16_t revision) {
+bool camshot_source_cached_stream_like_miloeditor() {
+    return false;
+}
+
+bool camshot_source_split_hide_show_lists(uint16_t revision,
+                                          bool cached_stream) {
+    return revision > 0x2f && !(cached_stream && revision < 0x32);
+}
+
+const char* camshot_source_drawable_load_branch_label(uint16_t revision,
+                                                      bool cached_stream) {
     if (revision <= 5) return "none_gRev<=5";
     if (revision <= 0x2f) return "source_single_list_gRev<=0x2F";
-    if (revision < 0x32) {
-        return "source_cached_conditional_rev48_49_raw_reads_two_lists";
-    }
-    return "source_two_lists_gRev>=0x32";
+    if (cached_stream && revision < 0x32)
+        return "source_single_list_cached_gRev<0x32";
+    return "source_split_hide_show_lists";
 }
 
 bool camshot_platform_ok_for_source(int platform_only) {
@@ -2393,11 +2403,14 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         }
         if (shot.revision >= 8 && shot.revision <= 41) (void)r.i32();
         if (shot.revision > 5) {
+            shot.source_cached_stream =
+                camshot_source_cached_stream_like_miloeditor();
             const uint32_t hide_count = r.u32();
             if (hide_count > 128) throw std::runtime_error("CamShot hide count invalid");
             for (uint32_t i = 0; i < hide_count; ++i)
                 shot.hide_list.push_back(r.symbol());
-            if (shot.revision > 0x2f) {
+            if (camshot_source_split_hide_show_lists(
+                    shot.revision, shot.source_cached_stream)) {
                 const uint32_t show_count = r.u32();
                 if (show_count > 128) throw std::runtime_error("CamShot show count invalid");
                 for (uint32_t i = 0; i < show_count; ++i)
@@ -2562,6 +2575,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
                 canonical_milo_ref(prop_symbol(shot.props, "next_shot"));
             key.camshot_revision = shot.revision;
             key.camshot_alt_revision = shot.alt_revision;
+            key.camshot_source_cached_stream = shot.source_cached_stream;
             key.hide_list_refs = shot.hide_list;
             key.show_list_refs = shot.show_list;
             key.gen_hide_list_refs = shot.gen_hide_list;
@@ -2721,6 +2735,7 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.source_object_order = from.source_object_order;
     to.camshot_revision = from.camshot_revision;
     to.camshot_alt_revision = from.camshot_alt_revision;
+    to.camshot_source_cached_stream = from.camshot_source_cached_stream;
     to.category = from.category;
     to.shot_filter = from.shot_filter;
     to.has_shot_filter = from.has_shot_filter;
@@ -2774,6 +2789,7 @@ void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
                              Gameplay::CameraKey& to) {
     to.camshot_revision = from.camshot_revision;
     to.camshot_alt_revision = from.camshot_alt_revision;
+    to.camshot_source_cached_stream = from.camshot_source_cached_stream;
     to.target_entity = from.target_entity;
     to.target_subpart = from.target_subpart;
     to.target_source_object = from.target_source_object;
@@ -2801,6 +2817,7 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.source_object_order = from.source_object_order;
     to.camshot_revision = from.camshot_revision;
     to.camshot_alt_revision = from.camshot_alt_revision;
+    to.camshot_source_cached_stream = from.camshot_source_cached_stream;
     to.distance = from.distance;
     to.facing = from.facing;
     to.solo = from.solo;
@@ -15894,14 +15911,16 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     if (key.camshot_shot_fields_decoded) {
                         std::fprintf(
                             stderr,
-                            "[camera-candidate] shot=%s off=0x%zX category=%s revision=%u alt_revision=%u drawable_load_branch=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide ps3_per_pixel=%d disabled=0x%08x\n",
+                            "[camera-candidate] shot=%s off=0x%zX category=%s revision=%u alt_revision=%u source_cached_stream=%d drawable_load_branch=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide ps3_per_pixel=%d disabled=0x%08x\n",
                             de.name.c_str(), pose.second,
                             key.category.c_str(),
                             static_cast<unsigned int>(key.camshot_revision),
                             static_cast<unsigned int>(
                                 key.camshot_alt_revision),
+                            key.camshot_source_cached_stream ? 1 : 0,
                             camshot_source_drawable_load_branch_label(
-                                key.camshot_revision),
+                                key.camshot_revision,
+                                key.camshot_source_cached_stream),
                             key.has_shot_filter ? "" : "none/",
                             key.has_shot_filter ? key.shot_filter : 0.0f,
                             key.has_clamp_height ? "" : "none/",
@@ -16172,7 +16191,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             const size_t target_ref_count =
                 camshot_authored_target_ref_count(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s revision=%u alt_revision=%u drawable_load_branch=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s revision=%u alt_revision=%u source_cached_stream=%d drawable_load_branch=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -16221,8 +16240,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.category.c_str(),
                          static_cast<unsigned int>(key.camshot_revision),
                          static_cast<unsigned int>(key.camshot_alt_revision),
+                         key.camshot_source_cached_stream ? 1 : 0,
                          camshot_source_drawable_load_branch_label(
-                             key.camshot_revision),
+                             key.camshot_revision,
+                             key.camshot_source_cached_stream),
                          key.source_ref.c_str(),
                          key.has_shot_filter ? "" : "none/",
                          key.has_shot_filter ? key.shot_filter : 0.0f,

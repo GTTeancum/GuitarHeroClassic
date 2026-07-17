@@ -12126,6 +12126,25 @@ int main() {
                  "boolhas_camshot_anim_frame=false;",
                  "CameraKey keeps the inherited RndAnimatable frame for CamShot filters");
   ok &= contains(gameplay_c,
+                 "boolcamshot_source_cached_stream_like_miloeditor(){returnfalse;}",
+                 "CamShot source reader records raw non-cached BinStream behavior");
+  ok &= contains(gameplay_c,
+                 "boolcamshot_source_split_hide_show_lists("
+                 "uint16_trevision,boolcached_stream){"
+                 "returnrevision>0x2f&&!(cached_stream&&revision<0x32);}",
+                 "CamShot drawable list split uses the source Cached() predicate");
+  ok &= contains(gameplay_c,
+                 "shot.source_cached_stream="
+                 "camshot_source_cached_stream_like_miloeditor();",
+                 "CamShot loader records the source stream cached flag");
+  ok &= contains(gameplay_h_c,
+                 "boolcamshot_source_cached_stream=false;",
+                 "CameraKey carries the CamShot source cached-stream flag");
+  ok &= contains(gameplay_c,
+                 "if(camshot_source_split_hide_show_lists("
+                 "shot.revision,shot.source_cached_stream)){",
+                 "CamShot loader gates show_list reads through the source branch");
+  ok &= contains(gameplay_c,
                  "for(uint32_ti=0;i<hide_count;++i)"
                  "shot.hide_list.push_back(r.symbol());",
                  "CamShot loader decodes authored hide_list from the source field");
@@ -12397,25 +12416,32 @@ int main() {
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
                  "postproc_overrides=%zupostprocess=%sanims=%zuglow=%s"
                  "shot_fields=%dcategory=%srevision=%ualt_revision=%u"
-                 "drawable_load_branch=%ssource_ref=%s",
-                 "regular camera validation logs decoded shot-level fields including source flags and load revision proof");
+                 "source_cached_stream=%ddrawable_load_branch=%s"
+                 "source_ref=%s",
+                 "regular camera validation logs decoded shot-level fields including source flags, cached stream, and load revision proof");
   ok &= contains(gameplay_h_c,
                  "uint16_tcamshot_revision=0;"
                  "uint16_tcamshot_alt_revision=0;",
                  "CameraKey carries source CamShot revision and alt revision proof");
+  ok &= contains(gameplay_c,
+                 "key.camshot_source_cached_stream=shot.source_cached_stream;",
+                 "regular CamShot keys preserve source cached-stream flag");
+  ok &= contains(gameplay_c,
+                 "to.camshot_source_cached_stream=from.camshot_source_cached_stream;",
+                 "CamShot copy helpers preserve the source cached-stream flag");
   ok &= contains(camshot_reader_c,
                  "shot.alt_revision=static_cast<uint16_t>"
                  "(combined_revision>>16);",
                  "CamShot reader preserves the high-word alt revision beside the source revision");
   ok &= contains(gameplay_c,
                  "camshot_source_drawable_load_branch_label("
-                 "key.camshot_revision)",
+                 "key.camshot_revision,key.camshot_source_cached_stream)",
                  "regular CamShot diagnostics name the source drawable-list load branch");
   ok &= contains(gameplay_c,
                  "\"[camera-candidate]shot=%soff=0x%zXcategory=%s"
                  "revision=%ualt_revision=%u"
-                 "drawable_load_branch=%s",
-                 "camera candidate diagnostics expose source CamShot revision and drawable-list branch");
+                 "source_cached_stream=%ddrawable_load_branch=%s",
+                 "camera candidate diagnostics expose source CamShot revision, cached stream, and drawable-list branch");
   ok &= contains(gameplay_c,
                  "source_reader=CamShot::Load/MiloEditorexact_reader=1"
                  "legacy_scanner=0",
