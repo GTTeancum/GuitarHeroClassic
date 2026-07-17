@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager Poll order proof:
+  ihatecompvir `CameraManager::PrePoll` consumes `mNextShot`, clears it, then
+  calls `CamShot::SetPreFrame(CalcFrame(), 1.0f)`; `CameraManager::Poll`
+  later calls `CamShot::SetFrame(CalcFrame(), 1.0f)` before optional
+  `FreeCamera::Poll`. Native now carries a source-shaped Poll SetFrame cadence
+  counter beside the existing PrePoll counter, emits a bounded
+  `[world] camera Poll SetFrame` proof row, and counts
+  `camera_manager_prepoll_poll_order` in the compact implementation status.
+  This is normal gameplay CameraManager order parity/proof only: no camera pose
+  math, no hidden `SetPos`, `BuildTransform`, or `RndCam::UpdateLocal`
+  synthesis, no under-venue masking, no FreeCam priority change, no dependency
+  change, and no OG Xbox portability change.
 - 2026-07-17 gameplay RndCamAnim AtFrame proof:
   ihatecompvir `RndCamAnim::SetFrame` starts from the camera `YFov`, samples
   `FovKeys().AtFrame(frame, ref)`, optionally blends only for non-1 blend

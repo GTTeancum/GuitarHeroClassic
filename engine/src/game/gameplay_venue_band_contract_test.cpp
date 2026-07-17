@@ -12212,6 +12212,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "size_tactive_camera_setpreframe_calls_=0;",
                  "regular camera runtime carries source PrePoll SetPreFrame cadence state");
+  ok &= contains(gameplay_h_c,
+                 "size_tactive_camera_setframe_calls_=0;",
+                 "regular camera runtime carries source Poll SetFrame cadence state");
   ok &= contains(gameplay_c,
                  "constboolsource_shot_started=!active_camera_shot_started_;",
                  "shot_started dispatch computes the source runtime latch, not the proof-report string");
@@ -12223,9 +12226,34 @@ int main() {
                  "++active_camera_setpreframe_calls_;",
                  "regular camera PrePoll SetPreFrame cadence increments outside diagnostic-only logging");
   ok &= contains(gameplay_c,
+                 "constsize_tsource_setframe_call="
+                 "++active_camera_setframe_calls_;",
+                 "regular camera Poll SetFrame cadence increments outside diagnostic-only logging");
+  ok &= contains(gameplay_c,
                  "source_shot_started||"
                  "(source_setpreframe_call%60u)==0u;",
                  "regular camera SetPreFrame cadence proof stays bounded after the first source call");
+  ok &= contains(gameplay_c,
+                 "source_shot_started||"
+                 "(source_setframe_call%60u)==0u;",
+                 "regular camera Poll SetFrame cadence proof stays bounded after the first source call");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraPollSetFrame:"
+                 "source_manager=CameraManager::Poll"
+                 "source_call=CamShot::SetFrame"
+                 "shot=%slocal_frame=%.3fsource_setframe_blend=%.3f"
+                 "source_order=after_PrePoll_SetPreFrame_before_FreeCamera_Poll"
+                 "source_cadence=per_frame"
+                 "source_call_count=%zu"
+                 "source_setpreframe_calls=%zu"
+                 "fov_anim_refs=%zu"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0\\n\"",
+                 "regular camera diagnostics expose ihatecompvir Poll SetFrame before deferred FreeCamera Poll");
+  ok &= appears_before(gameplay_c,
+                       "source_order=after_mNextShot_clear_before_Poll_SetFrame",
+                       "source_order=after_PrePoll_SetPreFrame_before_FreeCamera_Poll",
+                       "regular camera diagnostics keep CameraManager PrePoll before Poll SetFrame");
   ok &= contains(gameplay_c,
                  "\"[world]camerashot_starteddispatch:"
                  "source_msg=shot_startedsource_script=world/camshot.dta"
@@ -14844,6 +14872,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,camera_path_transanim_timing",
                  "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
+  ok &= contains(gameplay_c,
+                 "camera_lifecycle,camera_manager_prepoll_poll_order,"
+                 "camera_visibility",
+                 "camera implementation status counts audited CameraManager PrePoll/Poll order");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,camera_fov_anim_atframe",
                  "camera implementation status counts audited RndCamAnim FovKeys::AtFrame sampling");

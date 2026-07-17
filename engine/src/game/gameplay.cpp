@@ -25750,6 +25750,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_setpreframe_calls_ = 0;
+    active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -26804,6 +26805,7 @@ void Gameplay::end_camera_shot_runtime(bool skip_script_crowd_update,
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_setpreframe_calls_ = 0;
+    active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -26918,6 +26920,7 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
     active_camera_shot_started_reported_.clear();
     active_camera_shot_started_ = false;
     active_camera_setpreframe_calls_ = 0;
+    active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -26987,6 +26990,7 @@ void Gameplay::destroy_camera_manager_like_source(const char* context) {
     active_camera_shot_started_reported_.clear();
     active_camera_shot_started_ = false;
     active_camera_setpreframe_calls_ = 0;
+    active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -27845,6 +27849,7 @@ bool Gameplay::consume_pending_regular_camera_shot() {
     active_camera_shot_started_ = false;
     active_camera_shot_started_reported_.clear();
     active_camera_setpreframe_calls_ = 0;
+    active_camera_setframe_calls_ = 0;
     active_camera_frame_pair_reported_.clear();
     active_camera_last_prev_key_.clear();
     active_camera_last_next_key_.clear();
@@ -27906,6 +27911,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     active_camera_source_current_rndcam_ = "PanelDir::mCam";
     active_camera_shot_started_ = false;
     active_camera_setpreframe_calls_ = 0;
+    active_camera_setframe_calls_ = 0;
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -34940,6 +34946,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_anim_start_time_ = 0.0;
                 active_camera_fov_anim_reported_.clear();
                 active_camera_setpreframe_calls_ = 0;
+                active_camera_setframe_calls_ = 0;
                 active_camera_shots_over_.clear();
                 active_camera_shot_over_gate_reported_.clear();
                 active_camera_last_prev_key_.clear();
@@ -37473,7 +37480,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_visibility,camera_shot_over,camera_frame_pair_timing,camera_path_transanim_timing,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_manager_prepoll_poll_order,camera_visibility,camera_shot_over,camera_frame_pair_timing,camera_path_transanim_timing,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }
@@ -37551,6 +37558,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     !active_camera_shot_started_;
                 const size_t source_setpreframe_call =
                     ++active_camera_setpreframe_calls_;
+                const size_t source_setframe_call =
+                    ++active_camera_setframe_calls_;
                 if (source_shot_started) {
                     active_camera_shot_started_ = true;
                     active_camera_shot_started_reported_ = key->name;
@@ -37650,6 +37659,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             key->name.c_str(), source_shot_local_frame,
                             source_setpreframe_blend,
                             source_setpreframe_call);
+                    }
+                    const bool source_setframe_sample =
+                        source_shot_started ||
+                        (source_setframe_call % 60u) == 0u;
+                    if (source_setframe_sample) {
+                        std::fprintf(
+                            stderr,
+                            "[world] camera Poll SetFrame: source_manager=CameraManager::Poll source_call=CamShot::SetFrame shot=%s local_frame=%.3f source_setframe_blend=%.3f source_order=after_PrePoll_SetPreFrame_before_FreeCamera_Poll source_cadence=per_frame source_call_count=%zu source_setpreframe_calls=%zu fov_anim_refs=%zu freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+                            key->name.c_str(), source_shot_local_frame,
+                            source_setframe_blend, source_setframe_call,
+                            source_setpreframe_call,
+                            active_camera_fov_anim_refs_.size());
                     }
                     if (source_shot_started) {
                         std::fprintf(
