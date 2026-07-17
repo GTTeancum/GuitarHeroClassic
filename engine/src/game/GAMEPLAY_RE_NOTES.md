@@ -38,13 +38,16 @@
   the saved value. Because `SyncObjects()` fills those buckets from
   `ObjDirItr<CamShot>` and recovered `RandomizeCategory(...)` is empty, the
   native diagnostic bridge now derives both the category order and each
-  category's shot walk from the decoded source object order. This is
-  CameraManager diagnostic script-surface parity only and is not counted as a
-  compact normal-gameplay recovered-runtime token until a non-empty live
-  `iterate_shot` dispatch is proven cleanly: no live gameplay selection
-  change, no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
-  invention, no pose math, no FreeCam priority change, no dependency, no
-  under-venue masking, and no OG Xbox portability surface changed.
+  category's shot walk from the decoded source object order. The compact normal
+  gameplay camera status now counts this as
+  `camera_manager_iterate_shot_bridge` between
+  `camera_manager_current_next_state` and
+  `camera_manager_randomize_category_noop`. This is CameraManager diagnostic
+  script-surface parity only: no live gameplay selection change, no native
+  command execution invention, no fallback shot, no hidden `cam_shot_ok` /
+  `cam_check_shot` invention, no pose math, no FreeCam priority change, no
+  dependency, no under-venue masking, and no OG Xbox portability surface
+  changed.
 - 2026-07-17 gameplay CameraManager category scan status:
   ihatecompvir `CameraManager::FindCameraShot(...)` calls `FirstShotOk(s)`,
   retrieves the category bucket with `FindOrAddCategory(s)`, then scans that
