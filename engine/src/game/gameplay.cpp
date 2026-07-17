@@ -17505,21 +17505,41 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     return probe.accepted;
 }
 
+struct CameraSourceCheckShotProbe {
+    bool accepted = true;
+    uint32_t camera_beat_state = 0;
+    const char* cam_check_shot = "native_deferred";
+    const char* source_return = "native_deferred_accept";
+    const char* source_reject_action = "pick_new_shot";
+};
+
+CameraSourceCheckShotProbe camera_source_check_shot_probe(
+    const Gameplay::CameraKey& key, uint32_t camera_beat_state) {
+    // GH2 world_objects_worldbase.dta::beat stores [camera_beat], then
+    // world/camshot.dta::check_shot calls native cam_check_shot $this. The
+    // hidden native body may read script state, but no beat is passed as an
+    // explicit argument, so native behavior stays deferred and permissive.
+    (void)key;
+    CameraSourceCheckShotProbe probe;
+    probe.camera_beat_state = camera_beat_state;
+    return probe;
+}
+
 bool camera_source_check_shot(const Gameplay::CameraKey& key,
                               uint32_t camera_beat_state,
                               const char* source_caller) {
-    // GH2 world_objects_worldbase.dta::beat updates [camera_beat], then
-    // world/camshot.dta::check_shot calls native cam_check_shot with only
-    // $this. Keep the beat-time context observable without promoting it to a
-    // native message argument while the GH2-specific body is still unrecovered.
+    const CameraSourceCheckShotProbe probe =
+        camera_source_check_shot_probe(key, camera_beat_state);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera check_shot: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_check_shot_native source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_action=pick_new_shot_on_reject cam_check_shot=native_deferred result=accept freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera check_shot: pipeline_scope=normal_gameplay_camera priority=gameplay_camera hidden_gameplay_blocker=cam_check_shot_native source_msg=check_shot source_script=world/camshot.dta::check_shot source_caller=%s source_script_args=none source_camera_beat_var_visible=1 native_call=cam_check_shot($this) shot=%s camera_beat_state=%u native_beat_arg_visible=0 source_reject_action=%s cam_check_shot=%s source_return=%s result=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             source_caller ? source_caller : "", key.name.c_str(),
-            camera_beat_state);
+            probe.camera_beat_state, probe.source_reject_action,
+            probe.cam_check_shot, probe.source_return,
+            probe.accepted ? "accept" : "reject");
     }
-    return true;
+    return probe.accepted;
 }
 
 enum class CameraSourceCharWalkState {

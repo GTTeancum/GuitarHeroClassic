@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot CheckShot probe boundary:
+  GH2 `world_objects_worldbase.dta::beat` stores `[camera_beat]`, then calls
+  `{world current_shot} check_shot`; `world/camshot.dta::check_shot` calls
+  native `cam_check_shot $this` with no explicit beat argument. Native now
+  keeps that distinction in a source-shaped `CheckShot` probe: the source beat
+  variable is visible, the native argument list remains current-shot-only, and
+  the hidden predicate is still `native_deferred_accept` until recovered. This
+  is normal gameplay camera check-shot proof parity only: no pose movement, no
+  `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot ShotOk probe threading:
   ihatecompvir `CameraManager::FindCameraShot` and `NumCameraShots` both
   filter candidates through `cur->ShotOk(mCurrentShot)`, and

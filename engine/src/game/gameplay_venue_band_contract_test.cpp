@@ -14641,6 +14641,18 @@ int main() {
                  "uint32_tcamera_beat_state,constchar*source_caller)",
                  "regular camera runtime exposes GH2 cam_check_shot hook");
   ok &= contains(gameplay_c,
+                 "structCameraSourceCheckShotProbe",
+                 "regular camera check_shot bridge carries a source-shaped probe record");
+  ok &= contains(gameplay_c,
+                 "CameraSourceCheckShotProbe"
+                 "camera_source_check_shot_probe("
+                 "constGameplay::CameraKey&key,"
+                 "uint32_tcamera_beat_state)",
+                 "regular camera check_shot probe captures source camera_beat state");
+  ok &= contains(gameplay_c,
+                 "probe.camera_beat_state=camera_beat_state;",
+                 "regular camera check_shot probe stores the source camera_beat script variable");
+  ok &= contains(gameplay_c,
                  "\"[world]cameracheck_shot:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
@@ -14648,11 +14660,13 @@ int main() {
                  "source_msg=check_shot"
                  "source_script=world/camshot.dta::check_shot"
                  "source_caller=%ssource_script_args=none"
+                 "source_camera_beat_var_visible=1"
                  "native_call=cam_check_shot($this)"
                  "shot=%scamera_beat_state=%u"
                  "native_beat_arg_visible=0"
-                 "source_action=pick_new_shot_on_reject"
-                 "cam_check_shot=native_deferredresult=accept"
+                 "source_reject_action=%s"
+                 "cam_check_shot=%ssource_return=%s"
+                 "result=%s"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",
                  "regular camera diagnostics expose deferred source check_shot hook and native argument boundary");
