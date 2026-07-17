@@ -13008,6 +13008,9 @@ int main() {
                  "source_previous=%s"
                  "source_previous_context=%s"
                  "source_current=%ssource_next_before=%ssource_next_after=%s"
+                 "source_current_handle=HANDLE_EXPRsource_current_return=%s"
+                 "source_next_handle=HANDLE_EXPR"
+                 "source_next_before_return=%ssource_next_after_return=%s"
                  "source_walking=%dsource_walking_gate=%s"
                  "source_starpower=%dsource_starpower_gate=%s"
                  "flags=0x%08xforced=%dchanged=%dsource_next=%d"
@@ -14936,6 +14939,11 @@ int main() {
                  "source_current=%ssource_next_before=%ssource_next_after=%s",
                  "regular camera sweep diagnostics expose source current_shot and queued next_shot names");
   ok &= contains(gameplay_c,
+                 "source_current_handle=HANDLE_EXPRsource_current_return=%s"
+                 "source_next_handle=HANDLE_EXPR"
+                 "source_next_before_return=%ssource_next_after_return=%s",
+                 "regular camera sweep diagnostics expose HANDLE_EXPR current_shot/next_shot returns");
+  ok &= contains(gameplay_c,
                  "\"[world]cameraOnPickCameraShot:source_msg=pick_shot"
                  "source_manager=CameraManager::OnPickCameraShot"
                  "source_call=MakeCategoryAndFilters->PickCameraShot"
@@ -15002,12 +15010,13 @@ int main() {
                  "camera_manager_shotafter_order_bridge,"
                  "camera_manager_cycle_shot_pending_bridge,"
                  "camera_manager_current_next_state,"
+                 "camera_manager_current_next_expr_return_bridge,"
                  "camera_manager_iterate_shot_bridge,"
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle,"
                  "camera_manager_enter_reset_bridge",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, OnPickCameraShot return, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, FindCameraShot CamShot return, PickCameraShot CamShot return, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ForceCameraShot HANDLE_ACTION return, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, current/next HANDLE_EXPR returns, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15079,9 +15088,10 @@ int main() {
                  "camera_manager_shotafter_order_bridge,"
                  "camera_manager_cycle_shot_pending_bridge,"
                  "camera_manager_current_next_state,"
+                 "camera_manager_current_next_expr_return_bridge,"
                  "camera_manager_iterate_shot_bridge,"
                  "camera_manager_randomize_category_noop,",
-                 "camera implementation status keeps source CameraManager same-shot restart, ForceCameraShot action return, ShotAfter, cycle_shot, iterate_shot, and current_shot/next_shot state beside pending Pick/Force handoffs");
+                 "camera implementation status keeps source CameraManager same-shot restart, ForceCameraShot action return, ShotAfter, cycle_shot, current/next HANDLE_EXPR returns, iterate_shot, and current_shot/next_shot state beside pending Pick/Force handoffs");
   ok &= contains(gameplay_c,
                  "camera_manager_force_shot_pending,"
                  "camera_manager_force_shot_action_return_bridge,"
@@ -15095,9 +15105,15 @@ int main() {
                  "camera implementation status keeps CameraManager::ShotAfter immediately before cycle_shot pending accounting");
   ok &= contains(gameplay_c,
                  "camera_manager_current_next_state,"
+                 "camera_manager_current_next_expr_return_bridge,"
+                 "camera_manager_iterate_shot_bridge,",
+                 "camera implementation status keeps current/next HANDLE_EXPR return accounting before OnIterateShot");
+  ok &= contains(gameplay_c,
+                 "camera_manager_current_next_state,"
+                 "camera_manager_current_next_expr_return_bridge,"
                  "camera_manager_iterate_shot_bridge,"
                  "camera_manager_randomize_category_noop,",
-                 "camera implementation status keeps OnIterateShot bucket walk accounting between current/next state and RandomizeCategory no-op");
+                 "camera implementation status keeps OnIterateShot bucket walk accounting between current/next expression returns and RandomizeCategory no-op");
   ok &= contains(gameplay_c,
                  "camera_manager_shotmatches_filters,"
                  "camera_camshot_radio_flags_bridge,"

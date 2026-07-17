@@ -328,6 +328,18 @@
   pick/force bridges. This is normal gameplay camera state parity only: no
   pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
   dependency, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager current/next HANDLE_EXPR return status:
+  ihatecompvir routes `current_shot` and `next_shot` through
+  `HANDLE_EXPR(current_shot, CurrentShot())` and
+  `HANDLE_EXPR(next_shot, NextShot())`, so script callers receive
+  `DataNode(mCurrentShot)` / `DataNode(mNextShot)` or `DataNode(0)` when the
+  pointer is empty. Native normal gameplay sweep proof now reports the
+  `HANDLE_EXPR` return class for the current shot, the pre-queue next shot, and
+  the queued next shot. The compact status counts
+  `camera_manager_current_next_expr_return_bridge` immediately after
+  `camera_manager_current_next_state`. This is expression-return proof only: no
+  pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager SyncObjects bucket status:
   ihatecompvir `CameraManager::SyncObjects()` clears the category vector,
   scans `ObjDirItr<CamShot>`, admits only `PlatformOk()` shots through
