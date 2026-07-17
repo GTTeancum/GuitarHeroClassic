@@ -9565,8 +9565,10 @@ int main() {
                  "CamShot local-project proof exposes the denominators used by the ihatecompvir expression");
   ok &= contains(gameplay_c,
                  "structCameraSourceScreenOffsetTranslateProof{"
-                 "floatright_offset=0.0f;floatup_offset=0.0f;",
-                 "same-target screen-offset axis proof records current source-shaped local offsets");
+                 "floatright_offset=0.0f;floatup_offset=0.0f;"
+                 "floatsource_v1c0_x=0.0f;floatsource_v1c0_y=0.0f;"
+                 "floatsource_v1c0_z=0.0f;",
+                 "same-target screen-offset axis proof records current source-shaped local offsets and source v1c0");
   ok &= contains(gameplay_c,
                  "std::optional<CameraSourceScreenOffsetTranslateProof>"
                  "camera_source_screen_offset_translate_proof(",
@@ -9577,6 +9579,11 @@ int main() {
                  "constfloatup_offset=(key.screen_offset[1]*distance)/"
                  "project->local_project_m_z_x;",
                  "source-shaped screen-offset result applies the ihatecompvir LocalProjectXfm denominator form");
+  ok &= contains(gameplay_c,
+                 "proof.source_v1c0_x=right_offset;"
+                 "proof.source_v1c0_y=0.0f;"
+                 "proof.source_v1c0_z=up_offset;",
+                 "source-shaped screen-offset proof preserves ihatecompvir CamShotFrame::Interp v1c0 locals");
   ok &= contains(gameplay_c,
                  "proof.vertical_flip_candidate_position[axis]="
                  "rows.position[axis]+proof.right_delta[axis]-"
@@ -9768,6 +9775,9 @@ int main() {
                  "\"source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,\""
                  "\"v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x\"",
                  "same-target screen-offset diagnostics cite the ihatecompvir local-project expression");
+  ok &= contains(gameplay_c,
+                 "\"same_target_source_v1c0=(x:%s%.6fy:%s%.6fz:%s%.6f)\"",
+                 "same-target screen-offset diagnostics expose the source CamShotFrame::Interp v1c0 local vector");
   ok &= contains(gameplay_c,
                  "\"same_target_local_project=(mxx:%s%.6fmzx:%s%.6f"
                  "tan_x:%s%.6ftan_y:%s%.6fy_ratio=%.6f)\"",

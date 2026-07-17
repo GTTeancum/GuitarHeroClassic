@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot same-target `v1c0` proof:
+  The normal gameplay camera solver now prints the exact local-space
+  `v1c0` vector that ihatecompvir `CamShotFrame::Interp` computes before
+  `Multiply(v1c0, tf130, tf130.v)` in the same-target screen-offset path.
+  This is proof/triage only: no camera pose movement, no vertical sign flip,
+  no `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay current-walkspot empty-bad-waypoints proof:
   The normal gameplay camera `shot_ok` diagnostics now keep the current
   walkspot comparison key even when the active CamShot has no authored

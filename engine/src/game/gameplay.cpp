@@ -21286,6 +21286,9 @@ float camera_point_distance(const std::array<float, 3>& a,
 struct CameraSourceScreenOffsetTranslateProof {
     float right_offset = 0.0f;
     float up_offset = 0.0f;
+    float source_v1c0_x = 0.0f;
+    float source_v1c0_y = 0.0f;
+    float source_v1c0_z = 0.0f;
     float local_project_m_x_x = 0.0f;
     float local_project_m_z_x = 0.0f;
     float local_project_tan_x = 0.0f;
@@ -21319,6 +21322,9 @@ camera_source_screen_offset_translate_proof(
         (key.screen_offset[1] * distance) / project->local_project_m_z_x;
     proof.right_offset = right_offset;
     proof.up_offset = up_offset;
+    proof.source_v1c0_x = right_offset;
+    proof.source_v1c0_y = 0.0f;
+    proof.source_v1c0_z = up_offset;
     proof.local_project_m_x_x = project->local_project_m_x_x;
     proof.local_project_m_z_x = project->local_project_m_z_x;
     proof.local_project_tan_x = project->tan_x;
@@ -24543,6 +24549,7 @@ void apply_camera_keys(
             "same_target_screen_offset=(%.6f %.6f) "
             "source_same_target_expr=v1c0.x=-screenOffset.x*distance/LocalProjectXfm.m.x.x,"
             "v1c0.z=screenOffset.y*distance/LocalProjectXfm.m.z.x "
+            "same_target_source_v1c0=(x:%s%.6f y:%s%.6f z:%s%.6f) "
             "same_target_local_project=(mxx:%s%.6f mzx:%s%.6f tan_x:%s%.6f tan_y:%s%.6f y_ratio=%.6f) "
             "source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum "
             "same_target_axis_offsets=(right:%s%.6f up:%s%.6f) "
@@ -24633,6 +24640,15 @@ void apply_camera_keys(
                 ? source_same_target_distance
                 : 0.0f,
             cam.screen_offset[0], cam.screen_offset[1],
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->source_v1c0_x
+                                   : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->source_v1c0_y
+                                   : 0.0f,
+            same_target_axis_proof ? "" : "none/",
+            same_target_axis_proof ? same_target_axis_proof->source_v1c0_z
+                                   : 0.0f,
             same_target_axis_proof ? "" : "none/",
             same_target_axis_proof
                 ? same_target_axis_proof->local_project_m_x_x
