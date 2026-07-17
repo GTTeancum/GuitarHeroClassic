@@ -17561,7 +17561,7 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_native source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_return_gate=CamShot::ShotOk_TypeSwitch source_script_args=prev_shot source_prev_shot_visible=1 native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s current_walkspot_key=%s bad_waypoint_match=%s bad_waypoint_match_mode=%s bad_waypoint_match_key=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_rest source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_return_gate=CamShot::ShotOk_TypeSwitch source_script_args=prev_shot source_prev_shot_visible=1 native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s current_walkspot_key=%s bad_waypoint_match=%s bad_waypoint_match_mode=%s bad_waypoint_match_key=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             key.name.c_str(), probe.source_previous_name.c_str(),
             probe.cam_shot_ok,
             camera_source_shot_ok_return_label(probe.source_return),
@@ -17670,7 +17670,7 @@ std::string camera_hidden_gameplay_blockers(bool build_transform_active,
         blockers += blocker;
     };
     if (build_transform_active) append("BuildTransform");
-    if (cam_shot_ok_active) append("cam_shot_ok_native");
+    if (cam_shot_ok_active) append("cam_shot_ok_rest");
     if (cam_check_shot_active) append("cam_check_shot_native");
     if (charwalk_gate_active) append("CharWalk");
     return blockers.empty() ? std::string("none") : blockers;
@@ -17684,7 +17684,7 @@ std::string camera_deferred_gameplay_blockers(bool cam_shot_ok_active,
         if (!blockers.empty()) blockers += "|";
         blockers += blocker;
     };
-    if (!cam_shot_ok_active) append("cam_shot_ok_native");
+    if (!cam_shot_ok_active) append("cam_shot_ok_rest");
     if (!cam_check_shot_active) append("cam_check_shot_native");
     if (!charwalk_gate_active) append("CharWalk");
     return blockers.empty() ? std::string("none") : blockers;
@@ -37518,7 +37518,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_manager_prepoll_poll_order,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_visibility,camera_shot_over,camera_frame_pair_timing,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,camera_manager_prepoll_poll_order,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_dofproc,camera_camshot_shake_tail,camera_visibility,camera_shot_over,camera_frame_pair_timing,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }

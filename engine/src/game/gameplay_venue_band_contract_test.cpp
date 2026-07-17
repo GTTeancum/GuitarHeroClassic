@@ -10090,8 +10090,8 @@ int main() {
                  "\"active_blocker_scope=%s\"",
                  "camera solver diagnostics lead with gameplay camera pose triage");
   ok &= contains(gameplay_c,
-                 "\"cam_shot_ok_native\"",
-                 "camera blocker labels name the unrecovered ShotOk native predicate instead of the recovered ShotOk dispatcher");
+                 "\"cam_shot_ok_rest\"",
+                 "camera blocker labels name only the unrecovered ShotOk remainder after the recovered bad_waypoints gate");
   ok &= contains(gameplay_c,
                  "\"cam_check_shot_native\"",
                  "camera blocker labels name the unrecovered native check-shot predicate separately");
@@ -14887,7 +14887,8 @@ int main() {
                  "camera_frame_pair_timing,camera_path_transanim_timing",
                  "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_manager_prepoll_poll_order,"
+                 "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
+                 "camera_manager_prepoll_poll_order,"
                  "camera_camshot_update_target_cache,"
                  "camera_camshot_setfrustum,"
                  "camera_same_target_screen_offset,"
@@ -14895,6 +14896,10 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_visibility",
                  "camera implementation status counts audited CameraManager PrePoll/Poll order and source-visible CamShotFrame::Interp pieces");
+  ok &= contains(gameplay_c,
+                 "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
+                 "camera_manager_prepoll_poll_order",
+                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection before manager poll order");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,"
                  "camera_trace_complete_writer_bridge,"
@@ -15045,7 +15050,7 @@ int main() {
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
                  "source_dispatch_recovered=CamShot::ShotOk"
-                 "hidden_gameplay_blocker=cam_shot_ok_native"
+                 "hidden_gameplay_blocker=cam_shot_ok_rest"
                  "source_msg=shot_ok"
                  "source_script=world/camshot.dta::shot_ok"
                  "source_call=CamShot::ShotOk(prev_shot)"
@@ -15064,7 +15069,7 @@ int main() {
                  "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",
-                 "regular camera diagnostics expose deferred source shot_ok hook before deferred FreeCam status");
+                 "regular camera diagnostics expose the unrecovered ShotOk remainder after recovered bad_waypoints before deferred FreeCam status");
   ok &= absent(gameplay_c,
                "if(previous&&key.name==previous->name)continue;",
                "regular camera selector must not pre-reject the active shot before source shot_ok");

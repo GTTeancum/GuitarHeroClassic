@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay ShotOk recovered-status split:
+  the compact normal-gameplay camera implementation status now counts
+  `camera_camshot_shot_ok_bad_waypoints` for the recovered authored
+  `bad_waypoints` rejection, and blocker diagnostics now name only
+  `cam_shot_ok_rest` as hidden. The actual selector behavior is unchanged:
+  native still runs the source-shaped `ShotOk(prev_shot)` probe, rejects only
+  source-pinned bad-waypoint matches, and keeps the unrecovered native
+  `cam_shot_ok($this)` remainder permissive/deferred. This does not synthesize
+  pose math, change `cam_check_shot`, mask under-venue results, promote
+  FreeCam, add dependencies, or change OG Xbox portability.
 - 2026-07-17 gameplay retained writer bridge status proof:
   the compact normal-gameplay camera implementation status now counts
   `camera_trace_complete_writer_bridge` beside the path timing and FOV anim
