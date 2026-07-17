@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot UpdateTarget status proof:
+  ihatecompvir `CamShotFrame::UpdateTarget` refreshes the averaged target cache
+  and parent `WorldXfm` cache before `CamShotFrame::Interp` consumes them for
+  target, DOF, and later transform work. Native was already running this
+  source-shaped cache handoff before camera key interpolation; the compact
+  implementation status now counts `camera_camshot_update_target_cache` beside
+  the CameraManager PrePoll/Poll order proof. This is proof/status alignment
+  only: no hidden `SetPos`, `BuildTransform`, or `RndCam::UpdateLocal`
+  synthesis, no under-venue masking, no FreeCam priority change, no dependency
+  change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager Poll order proof:
   ihatecompvir `CameraManager::PrePoll` consumes `mNextShot`, clears it, then
   calls `CamShot::SetPreFrame(CalcFrame(), 1.0f)`; `CameraManager::Poll`

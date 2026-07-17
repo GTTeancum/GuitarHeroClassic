@@ -14874,8 +14874,9 @@ int main() {
                  "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_manager_prepoll_poll_order,"
+                 "camera_camshot_update_target_cache,"
                  "camera_visibility",
-                 "camera implementation status counts audited CameraManager PrePoll/Poll order");
+                 "camera implementation status counts audited CameraManager PrePoll/Poll order and CamShot UpdateTarget target cache");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,camera_fov_anim_atframe",
                  "camera implementation status counts audited RndCamAnim FovKeys::AtFrame sampling");
