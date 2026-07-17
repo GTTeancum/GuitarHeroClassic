@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay BandDirector FindNextShot filter status:
+  ihatecompvir `BandDirector::FindNextShot` contributes the source
+  facing-coop filter before the CameraManager shot scan: only explicit
+  `BandDirector::FindNextShot` routes add the `flags_any TRUE` mask derived
+  from `~mCurShot->Flags() & 0x7000`, while direct
+  `CameraManager::FindCameraShot` category picks do not inherit it. Native
+  already carries that route-specific filter bridge and applies it before
+  `CamShot::ShotOk`; the compact normal gameplay camera status now counts it
+  as `camera_banddirector_findnext_filter_bridge` between
+  `camera_manager_make_category_filters` and `camera_manager_first_shot_ok_hook`.
+  This is normal gameplay selection provenance only: no pose math,
+  `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager MakeCategoryAndFilters status:
   ihatecompvir `CameraManager::MakeCategoryAndFilters()` reads the message
   category from arg 2, reserves filter storage in the pick/find/num handlers,

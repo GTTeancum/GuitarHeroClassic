@@ -14935,6 +14935,7 @@ int main() {
                  "camera_manager_syncobjects_category_buckets,"
                  "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_make_category_filters,"
+                 "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_shotmatches_filters,"
                  "camera_camshot_radio_flags_bridge,"
@@ -14945,7 +14946,7 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, one_bar_to seek-latch replay, CameraManager MakeCategoryAndFilters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, one_bar_to seek-latch replay, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_camshot_platform_ok_gate,"
                  "camera_manager_syncobjects_category_buckets,"
@@ -14954,9 +14955,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_make_category_filters,"
+                 "camera_banddirector_findnext_filter_bridge,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_shotmatches_filters,",
-                 "camera implementation status keeps MakeCategoryAndFilters between gameplay script pick gates and CameraManager FirstShotOk/ShotMatches");
+                 "camera implementation status keeps BandDirector FindNextShot filters between MakeCategoryAndFilters and CameraManager FirstShotOk/ShotMatches");
   ok &= contains(gameplay_c,
                  "camera_manager_pickshot_pending,"
                  "camera_manager_force_shot_pending,"
