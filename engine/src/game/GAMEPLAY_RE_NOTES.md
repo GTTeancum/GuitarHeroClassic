@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager random-seed status:
+  ihatecompvir `CameraManager::OnRandomSeed` writes the static `sSeed`, and
+  `CameraManager::Randomize()` consumes that seed before iterating the
+  source-discovered category buckets. Native already routes diagnostic and
+  legacy seed inputs through `handle_camera_random_seed_like_source`, passes
+  that state into regular CamShot loading, and still preserves source order
+  because the recovered `RandomizeCategory` body is empty. The compact normal
+  gameplay camera status now counts this as
+  `camera_manager_random_seed_bridge` between
+  `camera_manager_syncobjects_category_buckets` and the gameplay pick gates.
+  This is normal gameplay category/selection provenance only: no pose math,
+  `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay BandDirector FindNextShot filter status:
   ihatecompvir `BandDirector::FindNextShot` contributes the source
   facing-coop filter before the CameraManager shot scan: only explicit

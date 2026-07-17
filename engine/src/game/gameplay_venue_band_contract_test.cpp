@@ -14933,6 +14933,7 @@ int main() {
                  "camera_selection,"
                  "camera_camshot_platform_ok_gate,"
                  "camera_manager_syncobjects_category_buckets,"
+                 "camera_manager_random_seed_bridge,"
                  "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_make_category_filters,"
                  "camera_banddirector_findnext_filter_bridge,"
@@ -14946,12 +14947,13 @@ int main() {
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, one_bar_to seek-latch replay, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, current/next shot state, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_camshot_platform_ok_gate,"
                  "camera_manager_syncobjects_category_buckets,"
+                 "camera_manager_random_seed_bridge,"
                  "camera_one_bar_to_seek_latch_replay,",
-                 "camera implementation status keeps source CameraManager::SyncObjects bucket admission after PlatformOk and before gameplay pick gates");
+                 "camera implementation status keeps source CameraManager::SyncObjects bucket admission and sSeed bridge after PlatformOk and before gameplay pick gates");
   ok &= contains(gameplay_c,
                  "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_make_category_filters,"
