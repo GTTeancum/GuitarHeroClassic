@@ -15055,6 +15055,7 @@ int main() {
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,"
+                 "camera_camshot_setshotover_latch_bridge,"
                  "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,"
@@ -15063,7 +15064,7 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,",
@@ -15178,18 +15179,20 @@ int main() {
                  "camera implementation status keeps DoHide/UnHide visibility and the source shot_started post_switch_cam bridge before shot_over");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
+                 "camera_camshot_setshotover_latch_bridge,"
                  "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,",
-                 "camera implementation status keeps the shot_over next_shot handoff before CacheFrames, duration_seconds, and GetKey looping");
+                 "camera implementation status keeps CamShot SetShotOver HandleType-before-latch accounting before the shot_over next_shot handoff, CacheFrames, duration_seconds, and GetKey looping");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
+                 "camera_camshot_setshotover_latch_bridge,"
                  "camera_camshot_shot_over_next_shot_bridge,"
                  "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,",
-                 "camera implementation status counts shot_over next_shot bridge before CamShot::CacheFrames mDuration and duration_seconds");
+                 "camera implementation status counts SetShotOver dispatch/latch and shot_over next_shot bridge before CamShot::CacheFrames mDuration and duration_seconds");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"

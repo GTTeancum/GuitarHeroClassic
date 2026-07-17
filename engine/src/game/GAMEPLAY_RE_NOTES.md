@@ -201,6 +201,18 @@
   scan. This is normal gameplay camera cadence parity only: no
   `cam_check_shot` result invention, pose math, under-venue masking, FreeCam
   priority, dependency, or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CamShot SetShotOver latch status:
+  ihatecompvir `CamShot::SetShotOver()` dispatches `shot_over` through
+  `HandleType(shot_over_msg)` before assigning `mShotOver = true`, while
+  `CheckShotOver(float)` only passes when `!mShotOver && !mLooping &&
+  frame >= mDuration`. Native already mirrors that order with per-shot
+  `active_camera_shot_over_reported_` diagnostics naming
+  `source_order=SetFrame_HandleType_before_mShotOver`; the compact normal
+  gameplay camera status now counts
+  `camera_camshot_setshotover_latch_bridge` between `camera_shot_over` and
+  the existing `camera_camshot_shot_over_next_shot_bridge`. This is source
+  lifecycle accounting only: no pose math, FreeCam priority, dependency,
+  under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot shot_over next_shot status:
   ihatecompvir `CamShot::CheckShotOver` gates `shot_over` on
   `!mShotOver && !mLooping && frame >= mDuration`, and GH2
