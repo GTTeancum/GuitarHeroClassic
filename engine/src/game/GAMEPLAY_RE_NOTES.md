@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay current-walkspot match-mode proof:
+  The normal gameplay camera `shot_ok` row now prints the current walkspot
+  comparison key, the matched authored `bad_waypoints` key, and whether that
+  match was exact, canonical, or only a basename fallback. The
+  `Waypoint::FindNearest` row also names ihatecompvir's audited `sWaypoints`
+  container/iterator boundary while still marking the body as RB2
+  locals-only. This is proof/triage only: no camera pose movement, no
+  under-venue masking, no FreeCam priority change, no dependency change, and
+  no OG Xbox portability change.
 - 2026-07-16 gameplay CamShot submit-class proof:
   The normal gameplay camera solver's primary row now prints the structured
   A/B submitted-row class (`native`, retained trace, or debug PS2 payload) and

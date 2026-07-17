@@ -14410,13 +14410,22 @@ int main() {
                  "conststd::string*camera_source_bad_waypoint_match_ref(",
                  "regular camera shot_ok diagnostics expose the exact authored bad_waypoint ref that matched");
   ok &= contains(gameplay_c,
-                 "bad_waypoint_match=%sbad_waypoints=%zu",
-                 "regular camera shot_ok diagnostics include the matching bad_waypoint ref");
+                 "CameraWaypointMatchKindcamera_waypoint_match_kind("
+                 "std::string_viewauthored_ref,"
+                 "std::string_viewcurrent_waypoint)",
+                 "regular camera bad_waypoint matching keeps exact/canonical/fallback modes auditable");
+  ok &= contains(gameplay_c,
+                 "bad_waypoint_match=%sbad_waypoint_match_mode=%s"
+                 "bad_waypoint_match_key=%sbad_waypoints=%zu",
+                 "regular camera shot_ok diagnostics include the matching bad_waypoint ref and match mode");
+  ok &= contains(gameplay_c,
+                 "current_walkspot=%scurrent_walkspot_key=%s",
+                 "regular camera shot_ok diagnostics expose the current walkspot canonical comparison key");
   ok &= contains(gameplay_c,
                  "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s",
                  "regular camera shot_ok diagnostics split recovered bad_waypoints from the unrecovered native predicate");
   ok &= contains(gameplay_c,
-                 "bad_waypoint_match?\"bad_waypoints\":\"none\"",
+                 "bad_waypoint_match.ref?\"bad_waypoints\":\"none\"",
                  "regular camera shot_ok recovery label is tied only to the authored bad_waypoints rule");
   ok &= contains(gameplay_c,
                  "\"native_deferred_rest\"",
@@ -14431,8 +14440,14 @@ int main() {
                  "\"[world]cameracurrent_walkspot:source_call=Waypoint::FindNearest",
                  "regular camera diagnostics expose the source current-walkspot lookup");
   ok &= contains(gameplay_c,
+                 "source_container=sWaypoints"
+                 "source_iterator=sWaypoints_list_it"
+                 "source_body=rb2_dump_locals_only",
+                 "regular camera current-walkspot diagnostics expose the audited Waypoint source container");
+  ok &= contains(gameplay_c,
                  "source_body=rb2_dump_locals_only"
                  "source_locals=dist,best,it"
+                 "native_container=venue_chars_scene.waypoints"
                  "metric=native_world_position_distance2",
                  "regular camera current-walkspot diagnostics do not overclaim the unrecovered Waypoint FindNearest body");
   ok &= contains(gameplay_c,
@@ -14479,7 +14494,11 @@ int main() {
                  "shot=%sprevious=%snative_prev_shot_visible=0"
                  "cam_shot_ok=%ssource_return=%s"
                  "result=%scurrent_walkspot=%s"
-                 "bad_waypoint_match=%sbad_waypoints=%zu"
+                 "current_walkspot_key=%s"
+                 "bad_waypoint_match=%s"
+                 "bad_waypoint_match_mode=%s"
+                 "bad_waypoint_match_key=%s"
+                 "bad_waypoints=%zu"
                  "cam_shot_ok_recovered=%scam_shot_ok_unrecovered=%s"
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",

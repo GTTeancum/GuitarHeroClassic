@@ -17339,21 +17339,82 @@ std::string camera_waypoint_match_key(std::string_view ref) {
     return key;
 }
 
+enum class CameraWaypointMatchKind {
+    kNone,
+    kExact,
+    kCanonical,
+    kBasename,
+};
+
+const char* camera_waypoint_match_kind_label(
+    CameraWaypointMatchKind match_kind) {
+    switch (match_kind) {
+    case CameraWaypointMatchKind::kNone:
+        return "none";
+    case CameraWaypointMatchKind::kExact:
+        return "exact";
+    case CameraWaypointMatchKind::kCanonical:
+        return "canonical";
+    case CameraWaypointMatchKind::kBasename:
+        return "basename_fallback";
+    }
+    return "unknown";
+}
+
+CameraWaypointMatchKind camera_waypoint_match_kind(
+    std::string_view authored_ref, std::string_view current_waypoint) {
+    if (authored_ref.empty() || current_waypoint.empty()) {
+        return CameraWaypointMatchKind::kNone;
+    }
+    if (authored_ref == current_waypoint) return CameraWaypointMatchKind::kExact;
+    const std::string authored_canonical =
+        canonical_milo_ref(std::string(authored_ref));
+    const std::string current_canonical =
+        canonical_milo_ref(std::string(current_waypoint));
+    if (!authored_canonical.empty() &&
+        authored_canonical == current_canonical) {
+        return CameraWaypointMatchKind::kCanonical;
+    }
+    if (camera_waypoint_match_key(authored_ref) ==
+        camera_waypoint_match_key(current_waypoint)) {
+        return CameraWaypointMatchKind::kBasename;
+    }
+    return CameraWaypointMatchKind::kNone;
+}
+
 bool camera_waypoint_refs_match(std::string_view authored_ref,
                                 std::string_view current_waypoint) {
-    if (authored_ref.empty() || current_waypoint.empty()) return false;
-    if (authored_ref == current_waypoint) return true;
-    return camera_waypoint_match_key(authored_ref) ==
-           camera_waypoint_match_key(current_waypoint);
+    return camera_waypoint_match_kind(authored_ref, current_waypoint) !=
+           CameraWaypointMatchKind::kNone;
+}
+
+struct CameraSourceBadWaypointMatch {
+    const std::string* ref = nullptr;
+    CameraWaypointMatchKind match_kind = CameraWaypointMatchKind::kNone;
+    std::string authored_key;
+    std::string current_key;
+};
+
+CameraSourceBadWaypointMatch camera_source_bad_waypoint_match(
+    const Gameplay::CameraKey& key, std::string_view current_walkspot) {
+    CameraSourceBadWaypointMatch out;
+    if (current_walkspot.empty() || key.bad_waypoint_refs.empty()) return out;
+    out.current_key = camera_waypoint_match_key(current_walkspot);
+    for (const auto& ref : key.bad_waypoint_refs) {
+        const CameraWaypointMatchKind match_kind =
+            camera_waypoint_match_kind(ref, current_walkspot);
+        if (match_kind == CameraWaypointMatchKind::kNone) continue;
+        out.ref = &ref;
+        out.match_kind = match_kind;
+        out.authored_key = camera_waypoint_match_key(ref);
+        return out;
+    }
+    return out;
 }
 
 const std::string* camera_source_bad_waypoint_match_ref(
     const Gameplay::CameraKey& key, std::string_view current_walkspot) {
-    if (current_walkspot.empty() || key.bad_waypoint_refs.empty()) return nullptr;
-    for (const auto& ref : key.bad_waypoint_refs) {
-        if (camera_waypoint_refs_match(ref, current_walkspot)) return &ref;
-    }
-    return nullptr;
+    return camera_source_bad_waypoint_match(key, current_walkspot).ref;
 }
 
 bool camera_source_bad_waypoint_rejects(
@@ -17386,14 +17447,14 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     const CameraSourceShotOkReturn source_return =
         camera_source_cam_shot_ok_return(key, current_walkspot);
     const bool accepted = camera_source_shot_ok_accepts(source_return);
-    const std::string* bad_waypoint_match =
-        camera_source_bad_waypoint_match_ref(key, current_walkspot);
+    const CameraSourceBadWaypointMatch bad_waypoint_match =
+        camera_source_bad_waypoint_match(key, current_walkspot);
     const char* cam_shot_ok =
         source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
             ? "bad_waypoints"
             : "native_deferred";
     const char* cam_shot_ok_recovered =
-        bad_waypoint_match ? "bad_waypoints" : "none";
+        bad_waypoint_match.ref ? "bad_waypoints" : "none";
     const char* cam_shot_ok_unrecovered =
         source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
             ? "native_bypassed_after_bad_waypoints"
@@ -17401,13 +17462,17 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_native source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s bad_waypoint_match=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_native source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s current_walkspot_key=%s bad_waypoint_match=%s bad_waypoint_match_mode=%s bad_waypoint_match_key=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             key.name.c_str(), previous ? previous->name.c_str() : "",
             cam_shot_ok,
             camera_source_shot_ok_return_label(source_return),
             accepted ? "accept" : "reject",
             std::string(current_walkspot).c_str(),
-            bad_waypoint_match ? bad_waypoint_match->c_str() : "",
+            bad_waypoint_match.current_key.c_str(),
+            bad_waypoint_match.ref ? bad_waypoint_match.ref->c_str() : "",
+            camera_waypoint_match_kind_label(
+                bad_waypoint_match.match_kind),
+            bad_waypoint_match.authored_key.c_str(),
             key.bad_waypoint_refs.size(), cam_shot_ok_recovered,
             cam_shot_ok_unrecovered);
     }
@@ -26890,7 +26955,7 @@ std::string Gameplay::camera_source_guitarist0_nearest_walkspot() const {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera current_walkspot: source_call=Waypoint::FindNearest source_body=rb2_dump_locals_only source_locals=dist,best,it metric=native_world_position_distance2 actor=guitarist0 flags=walk|solo_walk mask=0x%08x coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu decoded_waypoints=%zu candidate_count=%zu\n",
+            "[world] camera current_walkspot: source_call=Waypoint::FindNearest source_container=sWaypoints source_iterator=sWaypoints_list_it source_body=rb2_dump_locals_only source_locals=dist,best,it native_container=venue_chars_scene.waypoints metric=native_world_position_distance2 actor=guitarist0 flags=walk|solo_walk mask=0x%08x coordinate=world_stored position=(%.3f %.3f %.3f) result=%s distance2=%.3f waypoints=%zu decoded_waypoints=%zu candidate_count=%zu\n",
             static_cast<unsigned int>(kWalkSpot | kSoloWalkSpot),
             px, py, pz, best ? best->name.c_str() : "",
             best ? best_dist2 : 0.0f, venue_chars_scene_.waypoints.size(),
