@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot ShotOk probe threading:
+  ihatecompvir `CameraManager::FindCameraShot` and `NumCameraShots` both
+  filter candidates through `cur->ShotOk(mCurrentShot)`, and
+  `CamShot::ShotOk` sends `shot_ok(prev_shot)` before applying its return-type
+  switch. GH2 `world/camshot.dta` still calls native `cam_shot_ok $this`, so
+  native keeps the hidden predicate current-shot scoped and permissive except
+  for the recovered authored `bad_waypoints` rejection. Selector prescans and
+  accepted-shot scans now share the same source-shaped `ShotOk` probe and log
+  the source previous-shot argument boundary separately from the native call.
+  This is normal gameplay camera selector/proof parity only: no pose movement,
+  no `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot StartAnim crowd list:
   ihatecompvir `CamShot::StartAnim` calls
   `WorldDir::SetCrowds(mCrowds)` before resetting camera state, then starts

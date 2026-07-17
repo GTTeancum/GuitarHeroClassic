@@ -14303,18 +14303,39 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(key.disabled_flags!=0)continue;"
                  "if(!predicate(key))continue;"
-                 "constCameraSourceShotOkReturnsource_return="
-                 "camera_source_cam_shot_ok_return(key,current_walkspot);"
-                 "if(!camera_source_shot_ok_accepts(source_return))continue;"
+                 "constCameraSourceShotOkProbeprobe="
+                 "camera_source_shot_ok_probe(key,previous,current_walkspot);"
+                 "if(!probe.accepted)continue;"
                  "++count;",
-                 "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and current-shot native ShotOk acceptance");
+                 "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and source ShotOk acceptance");
   ok &= contains(gameplay_c,
                  "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
                  "category=%smode=%sprevious=%scount=%zu"
-                 "shot_ok_probe=1source_call=CameraManager::NumCameraShots"
+                 "shot_ok_probe=1shot_ok_source_call=CamShot::ShotOk"
+                 "source_prev_shot_visible=1native_prev_shot_visible=0"
+                 "source_call=CameraManager::NumCameraShots"
                  "source_first_shot_ok=omitted_non_mutating_diagnostic"
                  "source_mutates_category=0\\n\"",
                  "regular camera diagnostics label source-shaped NumCameraShots counts as non-mutating proof");
+  ok &= contains(gameplay_c,
+                 "structCameraSourceShotOkProbe",
+                 "regular camera selector shares one source-shaped ShotOk probe record");
+  ok &= contains(gameplay_c,
+                 "CameraSourceShotOkProbecamera_source_shot_ok_probe("
+                 "constGameplay::CameraKey&key,"
+                 "constGameplay::CameraKey*previous,"
+                 "std::string_viewcurrent_walkspot)",
+                 "regular camera selector threads the source previous-shot argument through ShotOk probes");
+  ok &= contains(gameplay_c,
+                 "probe.source_return="
+                 "camera_source_cam_shot_ok_return(key,current_walkspot);"
+                 "probe.accepted="
+                 "camera_source_shot_ok_accepts(probe.source_return);",
+                 "regular camera ShotOk probe keeps the unrecovered native predicate current-shot scoped");
+  ok &= contains(gameplay_c,
+                 "probe.source_previous_name=previous?"
+                 "previous->name:std::string();",
+                 "regular camera ShotOk probe carries the source previous-shot argument for diagnostics");
   ok &= absent(gameplay_c,
                "camera_source_num_camera_shots_probe(",
                "regular camera selection must not dispatch an extra debug NumCameraShots message");
@@ -14596,7 +14617,9 @@ int main() {
                  "source_msg=shot_ok"
                  "source_script=world/camshot.dta::shot_ok"
                  "source_call=CamShot::ShotOk(prev_shot)"
+                 "source_return_gate=CamShot::ShotOk_TypeSwitch"
                  "source_script_args=prev_shot"
+                 "source_prev_shot_visible=1"
                  "native_call=cam_shot_ok($this)"
                  "shot=%sprevious=%snative_prev_shot_visible=0"
                  "cam_shot_ok=%ssource_return=%s"

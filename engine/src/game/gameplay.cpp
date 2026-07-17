@@ -17437,6 +17437,42 @@ CameraSourceShotOkReturn camera_source_cam_shot_ok_return(
     return camera_source_deferred_cam_shot_ok_return(key);
 }
 
+struct CameraSourceShotOkProbe {
+    CameraSourceShotOkReturn source_return =
+        CameraSourceShotOkReturn::kUnhandledAccept;
+    bool accepted = true;
+    CameraSourceBadWaypointMatch bad_waypoint_match;
+    std::string source_previous_name;
+    const char* cam_shot_ok = "native_deferred";
+    const char* cam_shot_ok_recovered = "none";
+    const char* cam_shot_ok_unrecovered = "native_deferred_rest";
+};
+
+CameraSourceShotOkProbe camera_source_shot_ok_probe(
+    const Gameplay::CameraKey& key, const Gameplay::CameraKey* previous,
+    std::string_view current_walkspot) {
+    // CamShot::ShotOk sends previous as the script arg to shot_ok, while
+    // GH2's world/camshot.dta native call remains cam_shot_ok $this.
+    CameraSourceShotOkProbe probe;
+    probe.source_previous_name = previous ? previous->name : std::string();
+    probe.source_return =
+        camera_source_cam_shot_ok_return(key, current_walkspot);
+    probe.accepted = camera_source_shot_ok_accepts(probe.source_return);
+    probe.bad_waypoint_match =
+        camera_source_bad_waypoint_match(key, current_walkspot);
+    probe.cam_shot_ok =
+        probe.source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
+            ? "bad_waypoints"
+            : "native_deferred";
+    probe.cam_shot_ok_recovered =
+        probe.bad_waypoint_match.ref ? "bad_waypoints" : "none";
+    probe.cam_shot_ok_unrecovered =
+        probe.source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
+            ? "native_bypassed_after_bad_waypoints"
+            : "native_deferred_rest";
+    return probe;
+}
+
 bool camera_source_shot_ok(const Gameplay::CameraKey& key,
                            const Gameplay::CameraKey* previous,
                            std::string_view current_walkspot) {
@@ -17445,39 +17481,28 @@ bool camera_source_shot_ok(const Gameplay::CameraKey& key,
     // cam_shot_ok with only $this, so keep previous-shot state diagnostic-only.
     // GH2's editor schema pins bad_waypoints as a native rejection rule; the
     // rest of cam_shot_ok remains explicit native_deferred_accept until recovered.
-    const CameraSourceShotOkReturn source_return =
-        camera_source_cam_shot_ok_return(key, current_walkspot);
-    const bool accepted = camera_source_shot_ok_accepts(source_return);
-    const CameraSourceBadWaypointMatch bad_waypoint_match =
-        camera_source_bad_waypoint_match(key, current_walkspot);
-    const char* cam_shot_ok =
-        source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
-            ? "bad_waypoints"
-            : "native_deferred";
-    const char* cam_shot_ok_recovered =
-        bad_waypoint_match.ref ? "bad_waypoints" : "none";
-    const char* cam_shot_ok_unrecovered =
-        source_return == CameraSourceShotOkReturn::kNativeBadWaypointReject
-            ? "native_bypassed_after_bad_waypoints"
-            : "native_deferred_rest";
+    const CameraSourceShotOkProbe probe =
+        camera_source_shot_ok_probe(key, previous, current_walkspot);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_native source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_script_args=prev_shot native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s current_walkspot_key=%s bad_waypoint_match=%s bad_waypoint_match_mode=%s bad_waypoint_match_key=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
-            key.name.c_str(), previous ? previous->name.c_str() : "",
-            cam_shot_ok,
-            camera_source_shot_ok_return_label(source_return),
-            accepted ? "accept" : "reject",
+            "[world] camera shot_ok: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_dispatch_recovered=CamShot::ShotOk hidden_gameplay_blocker=cam_shot_ok_native source_msg=shot_ok source_script=world/camshot.dta::shot_ok source_call=CamShot::ShotOk(prev_shot) source_return_gate=CamShot::ShotOk_TypeSwitch source_script_args=prev_shot source_prev_shot_visible=1 native_call=cam_shot_ok($this) shot=%s previous=%s native_prev_shot_visible=0 cam_shot_ok=%s source_return=%s result=%s current_walkspot=%s current_walkspot_key=%s bad_waypoint_match=%s bad_waypoint_match_mode=%s bad_waypoint_match_key=%s bad_waypoints=%zu cam_shot_ok_recovered=%s cam_shot_ok_unrecovered=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+            key.name.c_str(), probe.source_previous_name.c_str(),
+            probe.cam_shot_ok,
+            camera_source_shot_ok_return_label(probe.source_return),
+            probe.accepted ? "accept" : "reject",
             std::string(current_walkspot).c_str(),
-            bad_waypoint_match.current_key.c_str(),
-            bad_waypoint_match.ref ? bad_waypoint_match.ref->c_str() : "",
+            probe.bad_waypoint_match.current_key.c_str(),
+            probe.bad_waypoint_match.ref
+                ? probe.bad_waypoint_match.ref->c_str()
+                : "",
             camera_waypoint_match_kind_label(
-                bad_waypoint_match.match_kind),
-            bad_waypoint_match.authored_key.c_str(),
-            key.bad_waypoint_refs.size(), cam_shot_ok_recovered,
-            cam_shot_ok_unrecovered);
+                probe.bad_waypoint_match.match_kind),
+            probe.bad_waypoint_match.authored_key.c_str(),
+            key.bad_waypoint_refs.size(), probe.cam_shot_ok_recovered,
+            probe.cam_shot_ok_unrecovered);
     }
-    return accepted;
+    return probe.accepted;
 }
 
 bool camera_source_check_shot(const Gameplay::CameraKey& key,
@@ -18027,6 +18052,7 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
 template <typename Predicate>
 size_t camera_source_camera_shots_prescan_count(
     const std::vector<Gameplay::CameraKey>& keys,
+    const Gameplay::CameraKey* previous,
     CameraShotMode mode,
     std::string_view current_walkspot,
     Predicate&& predicate) {
@@ -18036,9 +18062,9 @@ size_t camera_source_camera_shots_prescan_count(
             if (key.category != category) continue;
             if (key.disabled_flags != 0) continue;
             if (!predicate(key)) continue;
-            const CameraSourceShotOkReturn source_return =
-                camera_source_cam_shot_ok_return(key, current_walkspot);
-            if (!camera_source_shot_ok_accepts(source_return)) continue;
+            const CameraSourceShotOkProbe probe =
+                camera_source_shot_ok_probe(key, previous, current_walkspot);
+            if (!probe.accepted) continue;
             ++count;
         }
         return count;
@@ -18081,10 +18107,10 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
         const std::string_view source_category =
             camera_source_pick_shot_category(mode);
         const size_t num_shots = camera_source_camera_shots_prescan_count(
-            keys, mode, current_walkspot, source_filter);
+            keys, source_previous, mode, current_walkspot, source_filter);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=%s previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=%s previous=%s count=%zu shot_ok_probe=1 shot_ok_source_call=CamShot::ShotOk source_prev_shot_visible=1 native_prev_shot_visible=0 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(source_category).c_str(),
             camera_shot_mode_label(mode),
             source_previous ? source_previous->name.c_str() : "",
@@ -18128,6 +18154,7 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
 
 size_t camera_source_category_prescan_count(
     const std::vector<Gameplay::CameraKey>& keys,
+    const Gameplay::CameraKey* previous,
     std::string_view category,
     const std::vector<CameraShotSourceFilter>& source_filters,
     std::string_view current_walkspot) {
@@ -18136,9 +18163,9 @@ size_t camera_source_category_prescan_count(
         if (key.category != category) continue;
         if (key.disabled_flags != 0) continue;
         if (!camera_shot_matches_source_filters(key, source_filters)) continue;
-        const CameraSourceShotOkReturn source_return =
-            camera_source_cam_shot_ok_return(key, current_walkspot);
-        if (!camera_source_shot_ok_accepts(source_return)) continue;
+        const CameraSourceShotOkProbe probe =
+            camera_source_shot_ok_probe(key, previous, current_walkspot);
+        if (!probe.accepted) continue;
         ++count;
     }
     return count;
@@ -18170,10 +18197,10 @@ const Gameplay::CameraKey* choose_camera_key_source_category(
         camera_source_filter_list_label(source_filters);
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const size_t num_shots = camera_source_category_prescan_count(
-            keys, category, source_filters, current_walkspot);
+            keys, source_previous, category, source_filters, current_walkspot);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 source_call=CameraManager::NumCameraShots source_category_caller=%s filters=\"%s\" filter_count=%zu source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=source_category previous=%s count=%zu shot_ok_probe=1 shot_ok_source_call=CamShot::ShotOk source_prev_shot_visible=1 native_prev_shot_visible=0 source_call=CameraManager::NumCameraShots source_category_caller=%s filters=\"%s\" filter_count=%zu source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(category).c_str(),
             source_previous ? source_previous->name.c_str() : "",
             num_shots, source_category_caller, source_filter_label.c_str(),
