@@ -564,6 +564,17 @@
   selection. This is normal gameplay camera handoff parity only: no pose math,
   `BuildTransform` synthesis, under-venue masking, FreeCam priority change,
   dependency change, or OG Xbox portability change.
+- 2026-07-17 gameplay CameraManager force_shot action return status:
+  ihatecompvir routes `force_shot` through
+  `HANDLE_ACTION(force_shot, ForceCameraShot(_msg->Obj<CamShot>(2)))`; the
+  audited `HANDLE_ACTION` macro executes the assignment path and then returns
+  `DataNode(0)`. Native force-shot proof now names `source_msg=force_shot`,
+  `source_handle=HANDLE_ACTION`, and `source_return=DataNode(0)` on the same
+  normal gameplay handoff used by authored `shot_over -> do_force_shot`. The
+  compact status counts `camera_manager_force_shot_action_return_bridge`
+  immediately after `camera_manager_force_shot_pending`. This is action-return
+  parity only: no pose math, `BuildTransform` synthesis, under-venue masking,
+  FreeCam priority change, dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager RandomizeCategory no-op status:
   ihatecompvir `CameraManager::SyncObjects()` builds category buckets from
   `ObjDirItr<CamShot>` and then calls `CameraManager::Randomize()`, but the
