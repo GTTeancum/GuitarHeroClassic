@@ -24454,6 +24454,7 @@ void apply_camera_keys(
             "update_local_audit=%s "
             "update_local_source_search=%s "
             "pose_coverage=%s hidden_pose_boundary=%s "
+            "submitted_kind=a:%s b:%s skip_source_build_transform=%d "
             "pipeline_scope=normal_gameplay_camera "
             "hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s "
             "active_blocker_scope=%s "
@@ -24511,6 +24512,9 @@ void apply_camera_keys(
             kCamShotUpdateLocalAuditStatus,
             kCamShotUpdateLocalSourceSearch,
             source_pose_coverage, hidden_pose_boundary,
+            camera_submitted_rows_kind_label(submitted_rows_a.kind),
+            camera_submitted_rows_kind_label(submitted_rows_b.kind),
+            submitted_result_from_ps2_trace ? 1 : 0,
             active_hidden_gameplay_blockers.c_str(),
             deferred_hidden_gameplay_blockers, active_blocker_scope,
             buildtransform_estimate_source,

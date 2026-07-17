@@ -9826,7 +9826,13 @@ int main() {
                  "\"pose_coverage=%shidden_pose_boundary=%s\"",
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
+                 "\"submitted_kind=a:%sb:%s"
+                 "skip_source_build_transform=%d\"",
+                 "camera solver primary row exposes structured submit class and BuildTransform bypass proof");
+  ok &= contains(gameplay_c,
                  "\"pose_coverage=%shidden_pose_boundary=%s\""
+                 "\"submitted_kind=a:%sb:%s"
+                 "skip_source_build_transform=%d\""
                  "\"pipeline_scope=normal_gameplay_camera\""
                  "\"hidden_gameplay_blockers=%s"
                  "deferred_gameplay_blockers=%s\""

@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot submit-class proof:
+  The normal gameplay camera solver's primary row now prints the structured
+  A/B submitted-row class (`native`, retained trace, or debug PS2 payload) and
+  whether that class bypassed the source `BuildTransform` route. This keeps
+  every screenshot proof tied to the active submit path instead of requiring a
+  secondary writer-bridge row to tell whether a suspicious angle is still
+  blocked on `CamShotFrame::BuildTransform` / `RndCam::UpdateLocal` or is using
+  retained PS2 payload evidence. This is proof/triage only: no pose math,
+  clamps, offsets, FreeCam priority change, dependency change, or OG Xbox
+  portability change.
 - 2026-07-16 gameplay CamShot solver frame-index proof:
   Normal gameplay camera solver rows now print the active source
   `mKeyFrames` index and source-local frame for both A/B keys beside the
