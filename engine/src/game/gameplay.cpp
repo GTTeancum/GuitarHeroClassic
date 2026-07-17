@@ -24595,6 +24595,8 @@ void apply_camera_keys(
             "same_target_height=(submitted:%s%.3f vertical_flip:%s%.3f) "
             "same_target_vertical_flip_resolves_under_venue=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
+            "source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm "
+            "final_setlocalxfm=applied "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, a->name.c_str(), b->name.c_str(),
             source_frame_index_prefix(*a), source_frame_index_value(*a),

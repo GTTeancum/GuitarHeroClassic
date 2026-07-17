@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot final SetLocalXfm tail proof:
+  ihatecompvir `CamShotFrame::Interp` blends `tf130` from the current
+  `cam->WorldXfm()`, applies the visible `CamShot::Shake` boundary, then calls
+  `cam->SetLocalXfm(tf130)`. Native already follows that runtime order; the
+  normal gameplay camera solver now prints
+  `source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm` and
+  `final_setlocalxfm=applied` beside the existing `BuildTransform`/screen
+  offset source locals. This is proof/readability only for suspicious gameplay
+  angles: no pose math, no `BuildTransform` synthesis, no vertical sign flip,
+  no under-venue masking, no FreeCam priority change, no dependency change, and
+  no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot CheckShot probe boundary:
   GH2 `world_objects_worldbase.dta::beat` stores `[camera_beat]`, then calls
   `{world current_shot} check_shot`; `world/camshot.dta::check_shot` calls

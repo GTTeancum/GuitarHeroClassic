@@ -9815,8 +9815,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp"
                  "(BuildTransform,applyScreenOffset)\""
+                 "\"source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm\""
+                 "\"final_setlocalxfm=applied\""
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0\\n\"",
-                 "camera debug logs expose the source BuildTransform order");
+                 "camera debug logs expose the source BuildTransform order and final SetLocalXfm tail");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
                  "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
@@ -9891,8 +9893,10 @@ int main() {
                  "camera solver blocker labels name the unrecovered native predicates instead of the recovered ShotOk dispatcher");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\""
+                 "\"source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm\""
+                 "\"final_setlocalxfm=applied\""
                  "\"freecam_priority=deferred_lastfreecam_affects_gameplay=0",
-                 "camera solver diagnostics leave deferred FreeCam status at the end");
+                 "camera solver diagnostics leave deferred FreeCam status after the source SetLocalXfm tail");
   ok &= contains(gameplay_c,
                  "\"candidate_valid=%dstate_valid=%dstate_scope=%s\"",
                  "camera solver diagnostics split diagnostic filtered-target candidates from persistent source state");
