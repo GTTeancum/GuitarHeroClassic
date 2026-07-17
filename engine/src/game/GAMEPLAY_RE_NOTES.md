@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager Disabled gate status:
+  ihatecompvir `CameraManager::FindCameraShot(...)` calls `FirstShotOk`,
+  scans the category list, and checks `!cur->Disabled()` before
+  `ShotMatches(...)` and `cur->ShotOk(mCurrentShot)`. `NumCameraShots(...)`
+  uses the same disabled-before-filter/probe ordering. Native already keeps
+  decoded disabled CamShots in the source category buckets, skips
+  `disabled_flags != 0` only during the source-shaped selection/prescan scan,
+  and logs skipped disabled candidates when diagnostics are enabled. The
+  compact normal gameplay camera status now counts this as
+  `camera_manager_findshot_disabled_gate` between the `FirstShotOk` hook and
+  `ShotMatches` filters. This is selector gate parity only: no loader-side
+  rejection, no hidden `cam_shot_ok` / `cam_check_shot` invention, no pose
+  math, no FreeCam priority change, no dependency, no under-venue masking, and
+  no OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot ShotOk previous argument status:
   ihatecompvir `CamShot::ShotOk(prevShot)` writes the previous/current manager
   shot into the `shot_ok` message before applying the visible return-type
