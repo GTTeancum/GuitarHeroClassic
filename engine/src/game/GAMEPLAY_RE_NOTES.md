@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay normal category scan proof:
+  GH2 `world_objects.dta` defines `NORMAL_CAMSHOT_CATEGORIES` as the ordered
+  `flr_near_lft` / `flr_near_rt` / `flr_far_lft` / `flr_far_rt` /
+  `band_POV` / `balcony_lft` / `balcony_rt` / `SOLO_NEAR` / `SOLO_FAR`
+  bucket list consumed by the `world_objects_worldbase.dta` regular, solo,
+  and jump `pick_shot` routes. Native already scans those buckets in that
+  order; normal gameplay camera proof rows now print the expanded
+  `category_scan` label beside the source macro name so selection mistakes can
+  be separated from the still-hidden `BuildTransform` / `SetPos` pose math.
+  This is proof/validation parity only: no pose math, no vertical sign flip,
+  no under-venue masking, no FreeCam priority change, no dependency change,
+  and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot BuildTransform pair proof:
   ihatecompvir's visible `CamShotFrame::Interp` body calls unqualified
   `BuildTransform(cam, ...)` twice from the current frame before interpolating

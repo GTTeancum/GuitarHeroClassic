@@ -16993,6 +16993,16 @@ constexpr std::array<std::string_view, 9> kNormalCamShotCategoryOrder = {
     "flr_far_rt",  "band_POV",    "balcony_lft",
     "balcony_rt",  "SOLO_NEAR",   "SOLO_FAR"};
 
+std::string camera_source_pick_shot_scan_scope(CameraShotMode mode) {
+    if (mode == CameraShotMode::Lighter) return "LIGHTER";
+    std::vector<std::string> categories;
+    categories.reserve(kNormalCamShotCategoryOrder.size());
+    for (const auto category : kNormalCamShotCategoryOrder) {
+        categories.emplace_back(category);
+    }
+    return "NORMAL_CAMSHOT_CATEGORIES->" + join_log_names(categories);
+}
+
 const char* camera_shot_mode_label(CameraShotMode mode) {
     switch (mode) {
         case CameraShotMode::Regular:
@@ -18081,11 +18091,13 @@ void camera_source_no_acceptable_shot(std::string_view category,
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const std::string source_filter_label =
             camera_source_filter_list_label(source_filters);
+        const std::string source_scan_scope =
+            camera_source_pick_shot_scan_scope(mode);
         std::fprintf(
             stderr,
-            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s mode=%s filters=\"%s\" filter_count=%zu low_excitement=%d walking=%d starpower=%d result=0\n",
+            "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s category_scan=%s mode=%s filters=\"%s\" filter_count=%zu low_excitement=%d walking=%d starpower=%d result=0\n",
             std::string(category).c_str(), std::string(category).c_str(),
-            camera_shot_mode_label(mode),
+            source_scan_scope.c_str(), camera_shot_mode_label(mode),
             source_filter_label.c_str(), source_filters.size(),
             low_excitement ? 1 : 0, walking ? 1 : 0, starpower ? 1 : 0);
     }
@@ -18207,13 +18219,15 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const std::string_view source_category =
             camera_source_pick_shot_category(mode);
+        const std::string source_scan_scope =
+            camera_source_pick_shot_scan_scope(mode);
         const size_t num_shots = camera_source_camera_shots_prescan_count(
             keys, source_previous, mode, current_walkspot, source_filter);
         std::fprintf(
             stderr,
-            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s mode=%s previous=%s count=%zu shot_ok_probe=1 shot_ok_source_call=CamShot::ShotOk source_prev_shot_visible=1 native_prev_shot_visible=0 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
+            "[world] camera num_shots: source_msg=diagnostic_prescan category=%s category_scan=%s mode=%s previous=%s count=%zu shot_ok_probe=1 shot_ok_source_call=CamShot::ShotOk source_prev_shot_visible=1 native_prev_shot_visible=0 source_call=CameraManager::NumCameraShots source_first_shot_ok=omitted_non_mutating_diagnostic source_mutates_category=0\n",
             std::string(source_category).c_str(),
-            camera_shot_mode_label(mode),
+            source_scan_scope.c_str(), camera_shot_mode_label(mode),
             source_previous ? source_previous->name.c_str() : "",
             num_shots);
     }

@@ -13499,6 +13499,17 @@ int main() {
                  "kNormalCamShotCategoryOrder",
                  "regular camera selection preserves the authored normal CamShot category order");
   ok &= contains(gameplay_c,
+                 "std::stringcamera_source_pick_shot_scan_scope("
+                 "CameraShotModemode)",
+                 "regular camera diagnostics can expose the expanded source category scan scope");
+  ok &= contains(gameplay_c,
+                 "return\"NORMAL_CAMSHOT_CATEGORIES->\"+"
+                 "join_log_names(categories);",
+                 "normal gameplay camera diagnostics label the GH2 category macro expansion");
+  ok &= contains(gameplay_c,
+                 "category_scan=%s",
+                 "camera pick-shot proof rows include the source category scan scope");
+  ok &= contains(gameplay_c,
                  "boolcamera_category_filter_ok(constGameplay::CameraKey&key,"
                  "CameraShotModemode)",
                  "camera selection validates category before mode-specific shot filters");
@@ -14285,7 +14296,8 @@ int main() {
                  "regular camera diagnostics mirror CameraManager PickCameraShot warning and cat token");
   ok &= contains(gameplay_c,
                  "source_warn_cat=%ssource_manager=CameraManager::PickCameraShot"
-                 "category=%smode=%sfilters=\\\"%s\\\"filter_count=%zu",
+                 "category=%scategory_scan=%smode=%sfilters=\\\"%s\\\""
+                 "filter_count=%zu",
                  "regular camera no-acceptable-shot diagnostics include the source filter vector");
   ok &= contains(gameplay_c,
                  "conststd::vector<CameraShotSourceFilter>source_filters="
@@ -14638,7 +14650,7 @@ int main() {
                  "regular camera diagnostic prescan mirrors Disabled, ShotMatches, and source ShotOk acceptance");
   ok &= contains(gameplay_c,
                  "\"[world]cameranum_shots:source_msg=diagnostic_prescan"
-                 "category=%smode=%sprevious=%scount=%zu"
+                 "category=%scategory_scan=%smode=%sprevious=%scount=%zu"
                  "shot_ok_probe=1shot_ok_source_call=CamShot::ShotOk"
                  "source_prev_shot_visible=1native_prev_shot_visible=0"
                  "source_call=CameraManager::NumCameraShots"
