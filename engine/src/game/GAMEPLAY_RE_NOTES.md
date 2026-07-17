@@ -9,6 +9,15 @@
   loader-triage proof only: it does not change placement, synthesize hidden
   `BuildTransform`/`RndCam::UpdateLocal` bodies, promote FreeCam, or add
   dependencies.
+- 2026-07-16 gameplay `shot_over` do_force_shot provenance:
+  GH2 `world/camshot.dta::shot_over` gates its handoff on non-empty
+  `next_shot`, then calls `world do_force_shot [next_shot]`; the world script
+  refreshes `camera_bars_left` through `get_shot_duration` before dispatching
+  `force_shot`. Native now names that exact gate and caller in the normal
+  gameplay camera proof path instead of collapsing the handoff to a generic
+  force-camera label. This is source provenance only: no pose math, FreeCam
+  priority change, under-venue masking, dependency change, or OG Xbox
+  portability change.
 - 2026-07-16 gameplay BuildTransform audit precision:
   The normal gameplay camera pose proof now labels the other active hidden
   angle blocker as sharply as `UpdateLocal`: public ihatecompvir
@@ -1922,8 +1931,9 @@ Open work:
 - 2026-07-13 camera pick retry cadence: GH2 `world_objects_worldbase.dta`
   drives `check_camera_shot` from downbeats rather than per-frame retries just
   because `world current_shot` is empty. Follow-up on 2026-07-16 corrected the
-  source cadence detail: `camera_bars_left <= 0` gates only
-  `get_shot_duration`; `pick_new_shot` still runs once per non-star downbeat.
+  source cadence detail: `camera_bars_left <= 0` gates both
+  `get_shot_duration` and `pick_new_shot`, so non-star downbeats hold the
+  current shot while an authored duration remains.
 - 2026-07-13 regular CamShot PrePoll lifecycle order: ihatecompvir
   `CameraManager::PrePoll` consumes `mNextShot` with `StartShot_`, which runs
   `StartAnim` and records `mCamStartTime`, before calling `SetPreFrame` on the

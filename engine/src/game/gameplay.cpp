@@ -37500,13 +37500,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             active_camera_shot_over_reported_ = key->name;
                             std::fprintf(
                                 stderr,
-                                "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s source_order=SetFrame_HandleType_before_mShotOver script_action=%s\n",
+                                "[world] camera shot_over: source_msg=shot_over shot=%s next_shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s source_order=SetFrame_HandleType_before_mShotOver source_script_gate=next_shot_nonempty script_action=%s\n",
                                 key->name.c_str(), key->next_shot_ref.c_str(),
                                 shot_over_status.local_frame,
                                 shot_over_status.duration_frames,
                                 camera_source_duration_seconds(*key),
                                 camera_source_duration_seconds_source(*key),
-                                has_next_shot ? "force_shot" : "none");
+                                has_next_shot
+                                    ? "world do_force_shot [next_shot]"
+                                    : "none");
                         }
                         if (has_next_shot) {
                             active_camera_skip_next_crowd_update_ = true;
@@ -37530,7 +37532,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             } else {
                                 std::fprintf(
                                     stderr,
-                                    "[world] camera shot_over do_force_shot: source_msg=do_force_shot shot=%s next_shot=%s bars_left=%d duration=%s[%d,%d] duration_source=source_random_int duration_draw=%zu result=pending\n",
+                                    "[world] camera shot_over do_force_shot: source_msg=do_force_shot source_script=world_objects_worldbase.dta::do_force_shot source_call=force_shot shot=%s next_shot=%s bars_left=%d duration=%s[%d,%d] duration_source=source_random_int duration_draw=%zu result=pending\n",
                                     key->name.c_str(),
                                     key->next_shot_ref.c_str(),
                                     camera_bars_left_, duration.first.c_str(),
@@ -37538,7 +37540,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                     duration.second.second,
                                     duration_random_draw);
                                 force_camera_shot_like_source(
-                                    *next_key, "ForceCameraShot");
+                                    *next_key,
+                                    "world_objects_worldbase.dta::do_force_shot");
                             }
                         }
                         active_camera_shots_over_.insert(key->name);
