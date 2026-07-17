@@ -9632,7 +9632,8 @@ int main() {
                  "source-shaped screen-offset result captures the decoded pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
                  "\"public_Cam.cpp_empty;"
-                 "rb2_dump_UpdateLocal_locals_only;\""
+                 "doc_src_old_rndcam_fn_805CD500_stub_only;\""
+                 "\"rb2_dump_UpdateLocal_locals_only;\""
                  "\"rb2_UpdateLocal_size_0x1D0;"
                  "rb3_recomp_UpdateLocal_size_0x1E4;\""
                  "\"binary_symbol_sizes_no_body\"",
@@ -9941,14 +9942,19 @@ int main() {
                  "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
                  "\"public_Cam.cpp_empty;"
-                 "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
+                 "doc_src_old_rndcam_fn_805CD500_stub_only;\""
+                 "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
                  "\"rb2_size_0x1D0;"
                  "rb3_recomp_size_0x1E4;body_unrecovered\"",
                  "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs plus symbol-size proof only");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;\""
+                 "\"public_Cam.cpp_empty;"
+                 "doc_src_old_rndcam_fn_805CD500_stub_only;\""
                  "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
-                 "\"band3_recomp_symbols_size_only_no_body\"",
+                 "\"re_gh2_no_rndcam_body;"
+                 "band3_recomp_no_update_local_body;\""
+                 "\"SZBE69_symbols_address_size_only;"
+                 "SZBE69_B8_symbols_address_size_only\"",
                  "camera debug logs identify the full RndCam::UpdateLocal source-search boundary without claiming a recovered body");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",

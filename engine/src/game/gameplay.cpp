@@ -18967,16 +18967,19 @@ constexpr const char* kCamShotBuildTransformAuditStatus =
 constexpr const char* kCamShotLocalProjectSource =
     "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
 constexpr const char* kCamShotLocalProjectAuditStatus =
-    "public_Cam.cpp_empty;rb2_dump_UpdateLocal_locals_only;"
+    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
+    "rb2_dump_UpdateLocal_locals_only;"
     "rb2_UpdateLocal_size_0x1D0;rb3_recomp_UpdateLocal_size_0x1E4;"
     "binary_symbol_sizes_no_body";
 constexpr const char* kCamShotUpdateLocalAuditStatus =
-    "public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
+    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
+    "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
     "rb2_size_0x1D0;rb3_recomp_size_0x1E4;body_unrecovered";
 constexpr const char* kCamShotUpdateLocalSourceSearch =
-    "public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;"
+    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
     "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
-    "band3_recomp_symbols_size_only_no_body";
+    "re_gh2_no_rndcam_body;band3_recomp_no_update_local_body;"
+    "SZBE69_symbols_address_size_only;SZBE69_B8_symbols_address_size_only";
 
 struct CameraSourceLocalProjectScale {
     float tan_x = 0.0f;

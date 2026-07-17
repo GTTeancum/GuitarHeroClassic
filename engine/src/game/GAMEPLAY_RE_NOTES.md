@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay RndCam `UpdateLocal` source-search boundary:
+  The same-target under-venue investigation checked ihatecompvir's public
+  `RndCam` source, RB2 dump, older `doc/src-old` `rndcam` stub, `re-gh2`, and
+  `band3_recomp` paths. Those sources expose only the `fn_805CD500` load-time
+  call, locals/refs, and SZBE69/SZBE69_B8 symbol sizes; they do not recover
+  the `LocalProjectXfm.m.z.x` sign. Native now names that exact search boundary
+  in camera diagnostics so the under-venue fix remains gated on real source
+  proof rather than a one-off vertical flip. This is proof/triage only: no
+  camera pose movement, no `BuildTransform` synthesis, no under-venue masking,
+  no FreeCam priority change, no dependency change, and no OG Xbox portability
+  change.
 - 2026-07-17 gameplay CamShot same-target `v1c0` proof:
   The normal gameplay camera solver now prints the exact local-space
   `v1c0` vector that ihatecompvir `CamShotFrame::Interp` computes before
