@@ -15042,6 +15042,7 @@ int main() {
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_rndcam_updatelocal_public_stub,"
+                 "camera_camshot_dohide_unhide_visibility,"
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,"
@@ -15053,7 +15054,7 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,",
@@ -15128,8 +15129,14 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_rndcam_updatelocal_public_stub,"
+                 "camera_camshot_dohide_unhide_visibility,"
                  "camera_visibility,",
-                 "camera implementation status accounts for the public RndCam::UpdateLocal empty source stub before visibility");
+                 "camera implementation status accounts for the public RndCam::UpdateLocal empty source stub before DoHide/UnHide visibility");
+  ok &= contains(gameplay_c,
+                 "camera_rndcam_updatelocal_public_stub,"
+                 "camera_camshot_dohide_unhide_visibility,"
+                 "camera_visibility,",
+                 "camera implementation status keeps CamShot DoHide/UnHide visibility separate from the RndCam projection boundary");
   ok &= contains(gameplay_c,
                  "camera_source_shot_ok_return_class("
                  "CameraSourceShotOkReturnresult)",
@@ -15145,10 +15152,11 @@ int main() {
                  "camera_camshot_shot_ok_bad_waypoints,",
                  "camera implementation status counts the visible CamShot::ShotOk type-switch and previous-shot argument before the current-walkspot lookup and recovered bad_waypoints rule");
   ok &= contains(gameplay_c,
+                 "camera_camshot_dohide_unhide_visibility,"
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,",
-                 "camera implementation status keeps the source shot_started post_switch_cam bridge before shot_over");
+                 "camera implementation status keeps DoHide/UnHide visibility and the source shot_started post_switch_cam bridge before shot_over");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
                  "camera_camshot_shot_over_next_shot_bridge,"

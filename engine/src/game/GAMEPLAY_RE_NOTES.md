@@ -614,6 +614,17 @@
   `BuildTransform`, `SetPos`, or `RndCam::UpdateLocal` body is synthesized, no
   under-venue result is masked, FreeCam remains deferred last, and no dependency
   surface changed.
+- 2026-07-17 gameplay CamShot DoHide/UnHide visibility status:
+  ihatecompvir `CamShot::DoHide()` hides authored `unk5c` and `unk6c`
+  drawables and records restorables in `unkbc`, while `CamShot::UnHide()`
+  restores `unkbc`, clears `unkb4` / `unkbc`, and drops `mHidden`. Native
+  already maps decoded `hide_list`, `show_list`, and `gen_hide_list` through
+  camera-owned venue visibility with `show_list` treated as source-hidden
+  rather than force-visible; the compact status now counts
+  `camera_camshot_dohide_unhide_visibility` beside `camera_visibility`. This is
+  source visibility lifecycle accounting only: no pose math, `BuildTransform`,
+  `SetPos`, under-venue masking, FreeCam priority, dependency, or OG Xbox
+  portability surface changed.
 - 2026-07-17 gameplay CheckShot status split:
   the compact normal-gameplay camera status now counts
   `camera_camshot_check_shot_probe_boundary` for the recovered script/message
