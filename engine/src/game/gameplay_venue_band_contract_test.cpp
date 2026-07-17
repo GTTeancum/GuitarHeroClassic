@@ -14948,6 +14948,7 @@ int main() {
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
+                 "camera_camshot_shotok_typeswitch,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_milocamera_poll_gate,"
@@ -14987,8 +14988,9 @@ int main() {
                  "camera implementation status keeps postprocess, force LOD, crowd payload, StartAnim reset, mAnims, and source StartShot_ side effects ordered before the glow bridge");
   ok &= contains(gameplay_c,
                  "camera_camshot_glow_spot_bridge,"
+                 "camera_camshot_shotok_typeswitch,"
                  "camera_camshot_shot_ok_bad_waypoints",
-                 "camera implementation status keeps the decoded CamShot glow_spot bridge separate from hidden ShotOk work");
+                 "camera implementation status keeps the decoded CamShot glow_spot bridge separate from the visible ShotOk type switch and recovered bad_waypoints work");
   ok &= contains(gameplay_c,
                  "source_visible_pose_units=%s",
                  "camera debug rows expose visible CamShotFrame::Interp pose units");
@@ -15003,11 +15005,24 @@ int main() {
                  "camera_camshot_manims_lifecycle,"
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
+                 "camera_camshot_shotok_typeswitch,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order",
                  "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection, check_shot probe boundary, source MiloCamera gate, manager poll order, and CalcFrame timing before frame sampling");
+  ok &= contains(gameplay_c,
+                 "camera_source_shot_ok_return_class("
+                 "CameraSourceShotOkReturnresult)",
+                 "regular camera shot_ok diagnostics expose the source return class feeding CamShot::ShotOk");
+  ok &= contains(gameplay_c,
+                 "camera_source_shot_ok_type_switch_effect("
+                 "CameraSourceShotOkReturnresult)",
+                 "regular camera shot_ok diagnostics expose the visible CamShot::ShotOk type-switch effect");
+  ok &= contains(gameplay_c,
+                 "camera_camshot_shotok_typeswitch,"
+                 "camera_camshot_shot_ok_bad_waypoints,",
+                 "camera implementation status counts the visible CamShot::ShotOk type-switch before the recovered bad_waypoints rule");
   ok &= contains(gameplay_c,
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
@@ -15185,6 +15200,8 @@ int main() {
                  "source_script=world/camshot.dta::shot_ok"
                  "source_call=CamShot::ShotOk(prev_shot)"
                  "source_return_gate=CamShot::ShotOk_TypeSwitch"
+                 "source_return_class=%s"
+                 "source_type_switch_effect=%s"
                  "source_script_args=prev_shot"
                  "source_prev_shot_visible=1"
                  "native_call=cam_shot_ok($this)"

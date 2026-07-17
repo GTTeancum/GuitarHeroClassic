@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot ShotOk type-switch status:
+  ihatecompvir `CamShot::ShotOk(prevShot)` sends `shot_ok(prevShot)` and then
+  accepts unhandled / true integer handler returns while rejecting string /
+  false integer returns. Native already models that visible dispatcher around
+  the recovered `bad_waypoints` native field rule and the still-deferred
+  `cam_shot_ok($this)` body; the `shot_ok` proof row now prints
+  `source_return_class` and `source_type_switch_effect`, and the compact
+  status counts `camera_camshot_shotok_typeswitch` immediately before
+  `camera_camshot_shot_ok_bad_waypoints`. This is selector proof/status only:
+  no hidden `cam_shot_ok` result invention, pose math, `BuildTransform`,
+  `RndCam::UpdateLocal`, under-venue masking, FreeCam priority, dependency, or
+  OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot GetKey loop status:
   ihatecompvir `CamShot::SetFrame()` drives the active key pair through
   `CamShot::GetKey(prev,next,keyBlend)`, and the RB2 dump exposes the GetKey
