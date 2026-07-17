@@ -12396,8 +12396,26 @@ int main() {
                  "next_shot=%s"
                  "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
                  "postproc_overrides=%zupostprocess=%sanims=%zuglow=%s"
-                 "shot_fields=%dcategory=%s",
-                 "regular camera validation logs decoded shot-level fields including source flags");
+                 "shot_fields=%dcategory=%srevision=%ualt_revision=%u"
+                 "drawable_load_branch=%ssource_ref=%s",
+                 "regular camera validation logs decoded shot-level fields including source flags and load revision proof");
+  ok &= contains(gameplay_h_c,
+                 "uint16_tcamshot_revision=0;"
+                 "uint16_tcamshot_alt_revision=0;",
+                 "CameraKey carries source CamShot revision and alt revision proof");
+  ok &= contains(camshot_reader_c,
+                 "shot.alt_revision=static_cast<uint16_t>"
+                 "(combined_revision>>16);",
+                 "CamShot reader preserves the high-word alt revision beside the source revision");
+  ok &= contains(gameplay_c,
+                 "camshot_source_drawable_load_branch_label("
+                 "key.camshot_revision)",
+                 "regular CamShot diagnostics name the source drawable-list load branch");
+  ok &= contains(gameplay_c,
+                 "\"[camera-candidate]shot=%soff=0x%zXcategory=%s"
+                 "revision=%ualt_revision=%u"
+                 "drawable_load_branch=%s",
+                 "camera candidate diagnostics expose source CamShot revision and drawable-list branch");
   ok &= contains(gameplay_c,
                  "source_reader=CamShot::Load/MiloEditorexact_reader=1"
                  "legacy_scanner=0",

@@ -2,6 +2,13 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot load revision proof:
+  native now carries each decoded `CamShot::Load` source revision and alt
+  revision onto `CameraKey`, copies that proof through path-backed keys, and
+  prints the source drawable-list branch used by the raw MILO reader. This is
+  loader-triage proof only: it does not change placement, synthesize hidden
+  `BuildTransform`/`RndCam::UpdateLocal` bodies, promote FreeCam, or add
+  dependencies.
 - 2026-07-16 gameplay BuildTransform audit precision:
   The normal gameplay camera pose proof now labels the other active hidden
   angle blocker as sharply as `UpdateLocal`: public ihatecompvir

@@ -1604,6 +1604,7 @@ std::string prop_ref(const std::unordered_map<std::string, MiloValue>& props,
 
 struct DecodedCamShot {
     uint16_t revision = 0;
+    uint16_t alt_revision = 0;
     uint16_t anim_revision = 0;
     int anim_rate = 0;
     float anim_frame = 0.0f;
@@ -1774,6 +1775,15 @@ int camshot_source_platform_for_ok() {
     int platform = kGh2SourceMiloPlatform;
     if (platform == kMiloPlatformPC) platform = kMiloPlatformXBox;
     return platform;
+}
+
+const char* camshot_source_drawable_load_branch_label(uint16_t revision) {
+    if (revision <= 5) return "none_gRev<=5";
+    if (revision <= 0x2f) return "source_single_list_gRev<=0x2F";
+    if (revision < 0x32) {
+        return "source_cached_conditional_rev48_49_raw_reads_two_lists";
+    }
+    return "source_two_lists_gRev>=0x32";
 }
 
 bool camshot_platform_ok_for_source(int platform_only) {
@@ -2323,6 +2333,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         DecodedCamShot shot;
         const uint32_t combined_revision = r.u32();
         shot.revision = static_cast<uint16_t>(combined_revision & 0xffff);
+        shot.alt_revision = static_cast<uint16_t>(combined_revision >> 16);
         if (shot.revision == 0) {
             throw std::runtime_error("CamShot revision 0 is not used by GH2 PS2 venues");
         }
@@ -2549,6 +2560,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.force_char_lod = prop_int(shot.props, "force_char_lod", -1);
             key.next_shot_ref =
                 canonical_milo_ref(prop_symbol(shot.props, "next_shot"));
+            key.camshot_revision = shot.revision;
+            key.camshot_alt_revision = shot.alt_revision;
             key.hide_list_refs = shot.hide_list;
             key.show_list_refs = shot.show_list;
             key.gen_hide_list_refs = shot.gen_hide_list;
@@ -2706,6 +2719,8 @@ void sync_camshot_source_record_hint(Gameplay::CameraKey& key) {
 void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
                               Gameplay::CameraKey& to) {
     to.source_object_order = from.source_object_order;
+    to.camshot_revision = from.camshot_revision;
+    to.camshot_alt_revision = from.camshot_alt_revision;
     to.category = from.category;
     to.shot_filter = from.shot_filter;
     to.has_shot_filter = from.has_shot_filter;
@@ -2757,6 +2772,8 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
 
 void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
                              Gameplay::CameraKey& to) {
+    to.camshot_revision = from.camshot_revision;
+    to.camshot_alt_revision = from.camshot_alt_revision;
     to.target_entity = from.target_entity;
     to.target_subpart = from.target_subpart;
     to.target_source_object = from.target_source_object;
@@ -2782,6 +2799,8 @@ void copy_camshot_ref_fields(const Gameplay::CameraKey& from,
 void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
                                  Gameplay::CameraKey& to) {
     to.source_object_order = from.source_object_order;
+    to.camshot_revision = from.camshot_revision;
+    to.camshot_alt_revision = from.camshot_alt_revision;
     to.distance = from.distance;
     to.facing = from.facing;
     to.solo = from.solo;
@@ -15875,9 +15894,14 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     if (key.camshot_shot_fields_decoded) {
                         std::fprintf(
                             stderr,
-                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide ps3_per_pixel=%d disabled=0x%08x\n",
+                            "[camera-candidate] shot=%s off=0x%zX category=%s revision=%u alt_revision=%u drawable_load_branch=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide ps3_per_pixel=%d disabled=0x%08x\n",
                             de.name.c_str(), pose.second,
                             key.category.c_str(),
+                            static_cast<unsigned int>(key.camshot_revision),
+                            static_cast<unsigned int>(
+                                key.camshot_alt_revision),
+                            camshot_source_drawable_load_branch_label(
+                                key.camshot_revision),
                             key.has_shot_filter ? "" : "none/",
                             key.has_shot_filter ? key.shot_filter : 0.0f,
                             key.has_clamp_height ? "" : "none/",
@@ -16148,7 +16172,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             const size_t target_ref_count =
                 camshot_authored_target_ref_count(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s revision=%u alt_revision=%u drawable_load_branch=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -16194,7 +16218,12 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.camera_anim_refs.size(),
                          key.glow_spot_ref.c_str(),
                          key.camshot_shot_fields_decoded ? 1 : 0,
-                         key.category.c_str(), key.source_ref.c_str(),
+                         key.category.c_str(),
+                         static_cast<unsigned int>(key.camshot_revision),
+                         static_cast<unsigned int>(key.camshot_alt_revision),
+                         camshot_source_drawable_load_branch_label(
+                             key.camshot_revision),
+                         key.source_ref.c_str(),
                          key.has_shot_filter ? "" : "none/",
                          key.has_shot_filter ? key.shot_filter : 0.0f,
                          key.has_clamp_height ? "" : "none/",
