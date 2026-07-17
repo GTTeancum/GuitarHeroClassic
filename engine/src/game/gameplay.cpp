@@ -18844,7 +18844,10 @@ constexpr float kNativeValidationAspect = 16.0f / 9.0f;
 constexpr float kCamShotSourceYRatio = 0.5625f;
 constexpr float kCamShotSourceFrustumAspect = 1.0f / kCamShotSourceYRatio;
 constexpr const char* kCamShotBuildTransformAuditStatus =
-    "rb2_dump_signature_locals_refs_no_body";
+    "public_CameraShot.cpp_decl_and_Interp_calls_only;"
+    "rb2_dump_signature_locals_refs;"
+    "rb2_BuildTransform_size_0x408;rb3_BuildTransform_size_0x7D8;"
+    "binary_symbol_sizes_no_body";
 constexpr const char* kCamShotLocalProjectSource =
     "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
 constexpr const char* kCamShotLocalProjectAuditStatus =

@@ -9873,8 +9873,12 @@ int main() {
                  "\"rb2_dump_locals_only\"",
                  "camera debug logs avoid claiming a recovered BuildTransform body");
   ok &= contains(gameplay_c,
-                 "\"rb2_dump_signature_locals_refs_no_body\"",
-                 "camera debug logs identify the RB2 BuildTransform audit as signature/locals/refs only");
+                 "\"public_CameraShot.cpp_decl_and_Interp_calls_only;\""
+                 "\"rb2_dump_signature_locals_refs;\""
+                 "\"rb2_BuildTransform_size_0x408;"
+                 "rb3_BuildTransform_size_0x7D8;\""
+                 "\"binary_symbol_sizes_no_body\"",
+                 "camera debug logs identify BuildTransform as visible calls plus locals/refs and symbol-size proof only");
   ok &= contains(gameplay_c,
                  "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
                  "camera debug logs avoid claiming a recovered RndCam::UpdateLocal body");
