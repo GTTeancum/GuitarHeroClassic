@@ -10061,8 +10061,11 @@ int main() {
                  "\"active_blocker_scope=%s\"",
                  "camera solver diagnostics lead with gameplay camera pose triage");
   ok &= contains(gameplay_c,
-                 "\"cam_shot_ok_native|cam_check_shot_native\"",
-                 "camera solver blocker labels name the unrecovered native predicates instead of the recovered ShotOk dispatcher");
+                 "\"cam_shot_ok_native\"",
+                 "camera blocker labels name the unrecovered ShotOk native predicate instead of the recovered ShotOk dispatcher");
+  ok &= contains(gameplay_c,
+                 "\"cam_check_shot_native\"",
+                 "camera blocker labels name the unrecovered native check-shot predicate separately");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset)\""
                  "\"source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm\""
@@ -10077,18 +10080,20 @@ int main() {
                  "same-target CamShot filtered-target rows stay diagnostic-only instead of becoming persistent BuildTransform state");
   ok &= contains(gameplay_c,
                  "camera_hidden_gameplay_blockers(!submitted_result_from_ps2_trace,"
+                 "false,false,"
                  "charwalk_gate_active)",
-                 "camera solver diagnostics remove BuildTransform and inactive CharWalk from active blockers when source gates do not use them");
+                 "camera solver diagnostics keep selection-only native predicates out of active per-frame pose blockers");
   ok &= contains(gameplay_c,
-                 "camera_deferred_gameplay_blockers(charwalk_gate_active)",
-                 "camera solver diagnostics keep inactive CharWalk visible as deferred gameplay-camera work");
+                 "camera_deferred_gameplay_blockers(false,false,"
+                 "charwalk_gate_active)",
+                 "camera solver diagnostics keep selection/check-shot bodies visible as deferred gameplay-camera work");
   ok &= contains(gameplay_c,
                  "submitted_result_from_ps2_trace?"
                  "\"selection_only_retained_pose\":"
                  "source_build_transform_order?"
-                 "\"pose_and_selection\":"
+                 "\"pose_current_frame\":"
                  "\"native_seed_or_path_boundary\"",
-                 "camera solver diagnostics classify whether the active proof is pose-blocked or selection-only");
+                 "camera solver diagnostics classify the active per-frame proof without mixing in selection-only blockers");
   ok &= contains(gameplay_c,
                  "\"visible_Interp_order_unrecovered_BuildTransform\"",
                  "camera debug logs identify source-visible Interp order with unrecovered BuildTransform math");
@@ -14774,10 +14779,11 @@ int main() {
                  "regular camera sweep diagnostics split active gameplay blockers from deferred CharWalk before FreeCam status");
   ok &= contains(gameplay_c,
                  "camera_hidden_gameplay_blockers("
-                 "true,kGuitaristWalking)",
-                 "regular camera sweep derives active blocker scope from the source actually_walking gate");
+                 "true,true,true,kGuitaristWalking)",
+                 "regular camera sweep keeps pose, ShotOk, and check_shot blockers active during source selection");
   ok &= contains(gameplay_c,
-                 "camera_deferred_gameplay_blockers(kGuitaristWalking)",
+                 "camera_deferred_gameplay_blockers("
+                 "true,true,kGuitaristWalking)",
                  "regular camera sweep keeps inactive CharWalk visible as deferred gameplay-camera work");
   ok &= appears_before(gameplay_c,
                        "priority=gameplay_camera",

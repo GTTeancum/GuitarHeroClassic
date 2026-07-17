@@ -17649,16 +17649,33 @@ std::string camera_source_guitarist0_actually_walking_source() {
 }
 
 std::string camera_hidden_gameplay_blockers(bool build_transform_active,
-                                           bool charwalk_gate_active) {
+                                            bool cam_shot_ok_active,
+                                            bool cam_check_shot_active,
+                                            bool charwalk_gate_active) {
     std::string blockers;
-    if (build_transform_active) blockers += "BuildTransform|";
-    blockers += "cam_shot_ok_native|cam_check_shot_native";
-    if (charwalk_gate_active) blockers += "|CharWalk";
-    return blockers;
+    auto append = [&](const char* blocker) {
+        if (!blockers.empty()) blockers += "|";
+        blockers += blocker;
+    };
+    if (build_transform_active) append("BuildTransform");
+    if (cam_shot_ok_active) append("cam_shot_ok_native");
+    if (cam_check_shot_active) append("cam_check_shot_native");
+    if (charwalk_gate_active) append("CharWalk");
+    return blockers.empty() ? std::string("none") : blockers;
 }
 
-const char* camera_deferred_gameplay_blockers(bool charwalk_gate_active) {
-    return charwalk_gate_active ? "none" : "CharWalk";
+std::string camera_deferred_gameplay_blockers(bool cam_shot_ok_active,
+                                              bool cam_check_shot_active,
+                                              bool charwalk_gate_active) {
+    std::string blockers;
+    auto append = [&](const char* blocker) {
+        if (!blockers.empty()) blockers += "|";
+        blockers += blocker;
+    };
+    if (!cam_shot_ok_active) append("cam_shot_ok_native");
+    if (!cam_check_shot_active) append("cam_check_shot_native");
+    if (!charwalk_gate_active) append("CharWalk");
+    return blockers.empty() ? std::string("none") : blockers;
 }
 
 bool camera_source_guitarist0_playing_starpower(
@@ -23419,14 +23436,16 @@ void apply_camera_keys(
             camera_source_guitarist0_actually_walking();
         const std::string active_hidden_gameplay_blockers =
             camera_hidden_gameplay_blockers(!submitted_result_from_ps2_trace,
+                                            false, false,
                                             charwalk_gate_active);
-        const char* deferred_hidden_gameplay_blockers =
-            camera_deferred_gameplay_blockers(charwalk_gate_active);
+        const std::string deferred_hidden_gameplay_blockers =
+            camera_deferred_gameplay_blockers(false, false,
+                                              charwalk_gate_active);
         const char* active_blocker_scope =
             submitted_result_from_ps2_trace
                 ? "selection_only_retained_pose"
                 : source_build_transform_order
-                ? "pose_and_selection"
+                ? "pose_current_frame"
                 : "native_seed_or_path_boundary";
         float buildtransform_target_dist_estimate =
             std::numeric_limits<float>::quiet_NaN();
@@ -24817,7 +24836,7 @@ void apply_camera_keys(
             camera_submitted_rows_kind_label(submitted_rows_b.kind),
             submitted_result_from_ps2_trace ? 1 : 0,
             active_hidden_gameplay_blockers.c_str(),
-            deferred_hidden_gameplay_blockers, active_blocker_scope,
+            deferred_hidden_gameplay_blockers.c_str(), active_blocker_scope,
             source_pose_impl_tier, source_pose_required_body,
             kCamShotVisiblePoseUnits, kCamShotHiddenPoseBodies,
             buildtransform_estimate_source,
@@ -37340,9 +37359,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         camera_manager_next_shot_like_source();
                     const std::string active_gameplay_blockers =
                         camera_hidden_gameplay_blockers(
-                            true, kGuitaristWalking);
-                    const char* deferred_gameplay_blockers =
-                        camera_deferred_gameplay_blockers(kGuitaristWalking);
+                            true, true, true, kGuitaristWalking);
+                    const std::string deferred_gameplay_blockers =
+                        camera_deferred_gameplay_blockers(
+                            true, true, kGuitaristWalking);
                     std::fprintf(
                         stderr,
                         "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_walking=%d source_walking_gate=%s source_starpower=%d source_starpower_gate=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
@@ -37381,7 +37401,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         shot_changed ? 1 : 0,
                         source_next_after_queue ? 1 : 0, key->force_char_lod, bar,
                         song_time_, active_gameplay_blockers.c_str(),
-                        deferred_gameplay_blockers);
+                        deferred_gameplay_blockers.c_str());
                     if (diagnostic_camera_shot_matched) {
                         std::fprintf(
                             stderr,

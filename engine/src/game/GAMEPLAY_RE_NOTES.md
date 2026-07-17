@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camera blocker-scope proof:
+  normal gameplay solver rows now separate active per-frame pose blockers from
+  source selection/check-shot blockers. Per-frame solver diagnostics keep
+  `BuildTransform` active when source pose still needs the hidden body, and
+  move `cam_shot_ok_native` / `cam_check_shot_native` into deferred status
+  unless the regular selection sweep is actually in a source pick/check path.
+  This is proof triage only: no camera pose movement, no hidden predicate
+  invention, no FreeCam priority change, no dependency change, and no OG Xbox
+  portability change.
 - 2026-07-17 gameplay camera pose-tier proof:
   normal gameplay camera diagnostics now label each active pose row with
   `source_pose_impl_tier`, `source_pose_required_body`,
