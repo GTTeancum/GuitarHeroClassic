@@ -24760,6 +24760,7 @@ void apply_camera_keys(
             "shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
             "source_visible_build_pair=%s source_build_calls=%d "
+            "source_build_pair_evidence=%s frame_buildtransform_not_claimed=%d "
             "source_branch=%s source_pose_branch=%s source_filter_scope=%s "
             "source_filter_state_submission=%s "
             "source_filter_state_source=%s "
@@ -24818,6 +24819,10 @@ void apply_camera_keys(
             same_targets_like_camshot ? 0 : 1,
             source_visible_build_transform_pair,
             source_build_transform_order ? 2 : 0,
+            source_build_transform_order
+                ? "ihatecompvir_CamShotFrame::Interp_unqualified_current_BuildTransform_twice"
+                : "not_on_source_BuildTransform_pair_path",
+            source_build_transform_order ? 1 : 0,
             source_pose_branch, source_pose_branch,
             source_filter_scope, source_filter_state_submission,
             source_filter_state_source,

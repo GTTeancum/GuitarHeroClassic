@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot BuildTransform pair proof:
+  ihatecompvir's visible `CamShotFrame::Interp` body calls unqualified
+  `BuildTransform(cam, ...)` twice from the current frame before interpolating
+  those results; the public source does not prove a `frame.BuildTransform(...)`
+  call for the next keyframe. Native solver diagnostics now name that evidence
+  directly and add a contract guard against silently inventing a next-frame
+  BuildTransform call. This is proof/source-boundary precision for suspicious
+  camera angles only: no pose math, no `BuildTransform` synthesis, no
+  under-venue masking, no FreeCam priority change, no dependency change, and
+  no OG Xbox portability change.
 - 2026-07-17 gameplay CamShotCrowd load-stamp preservation:
   ihatecompvir `CamShotCrowd::Load` reads the selected crowd member list, then
   reads a saved count/stamp and compares it with `mCrowd->unk88` before keeping

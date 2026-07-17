@@ -9989,6 +9989,16 @@ int main() {
                  "\"source_visible_build_pair=%ssource_build_calls=%d\"",
                  "camera debug logs expose the visible BuildTransform frame pair and call count");
   ok &= contains(gameplay_c,
+                 "\"source_build_pair_evidence=%s"
+                 "frame_buildtransform_not_claimed=%d\"",
+                 "camera debug logs distinguish the visible current-frame BuildTransform pair from an unproven next-frame BuildTransform call");
+  ok &= contains(gameplay_c,
+                 "\"ihatecompvir_CamShotFrame::Interp_unqualified_current_"
+                 "BuildTransform_twice\"",
+                 "camera diagnostics cite the source-visible unqualified current-frame BuildTransform calls");
+  ok &= absent(gameplay_c, "frame.BuildTransform",
+               "camera runtime must not invent a next-frame BuildTransform call absent from the audited ihatecompvir source");
+  ok &= contains(gameplay_c,
                  "source_build_transform_order?2:0",
                  "camera debug logs report the visible current-frame BuildTransform pair as two calls");
   ok &= contains(gameplay_c,
