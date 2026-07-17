@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager current/next state status:
+  ihatecompvir `CameraManager` exposes `CurrentShot()` / `NextShot()` as
+  direct `mCurrentShot` / `mNextShot` reads, while `PickCameraShot` and
+  `ForceCameraShot` queue into `mNextShot` and `PrePoll` later promotes it via
+  `StartShot_`. Native already carries source-shaped current and pending-shot
+  helpers for regular gameplay sweeps, force-shot diagnostics, `PrePoll`
+  staging, and `shot_over -> next_shot` handoffs; the compact camera status
+  now counts this as `camera_manager_current_next_state` beside the pending
+  pick/force bridges. This is normal gameplay camera state parity only: no
+  pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager SyncObjects bucket status:
   ihatecompvir `CameraManager::SyncObjects()` clears the category vector,
   scans `ObjDirItr<CamShot>`, admits only `PlatformOk()` shots through
