@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay retained writer bridge status proof:
+  the compact normal-gameplay camera implementation status now counts
+  `camera_trace_complete_writer_bridge` beside the path timing and FOV anim
+  pieces. This is only status/proof alignment for the already guarded retained
+  writer bridge: `balcony_lft04` remains scoped to the audited source path-local
+  frame, native still refuses missing or mismatched live path frames, and there
+  is no hidden `SetPos` / `BuildTransform` / `RndCam::UpdateLocal` synthesis,
+  no under-venue masking, no FreeCam priority change, no dependency change, and
+  no OG Xbox portability change.
 - 2026-07-17 gameplay camera proof-row bounding:
   normal gameplay `CamShotFrame::Interp` proof rows for SetFrustum, target
   cache, Shake, and solver state now share a source key-pair report token.

@@ -14896,8 +14896,10 @@ int main() {
                  "camera_visibility",
                  "camera implementation status counts audited CameraManager PrePoll/Poll order and source-visible CamShotFrame::Interp pieces");
   ok &= contains(gameplay_c,
-                 "camera_path_transanim_timing,camera_fov_anim_atframe",
-                 "camera implementation status counts audited RndCamAnim FovKeys::AtFrame sampling");
+                 "camera_path_transanim_timing,"
+                 "camera_trace_complete_writer_bridge,"
+                 "camera_fov_anim_atframe",
+                 "camera implementation status counts frame-scoped trace-complete writer bridge before audited RndCamAnim FovKeys::AtFrame sampling");
   ok &= contains(gameplay_c,
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
                  "cam_check_shot,CharWalk,SetPos,BuildTransform,"
