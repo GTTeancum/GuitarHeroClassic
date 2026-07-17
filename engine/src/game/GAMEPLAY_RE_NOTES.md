@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager MakeCategoryAndFilters status:
+  ihatecompvir `CameraManager::MakeCategoryAndFilters()` reads the message
+  category from arg 2, reserves filter storage in the pick/find/num handlers,
+  maps `flags_exact` to `(mask, explicit int match)`, maps `flags_any` to
+  `(mask, TRUE)`, and otherwise stores a generic evaluated match with
+  `mask=-1` before `ShotMatches` evaluates the CamShot property. Native
+  already carries those source-shaped filter kinds for regular gameplay camera
+  picks and BandDirector filters; the compact camera status now counts
+  `camera_manager_make_category_filters` before `FirstShotOk` and
+  `ShotMatches`. This is normal gameplay selection-filter parity only: no
+  pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager current/next state status:
   ihatecompvir `CameraManager` exposes `CurrentShot()` / `NextShot()` as
   direct `mCurrentShot` / `mNextShot` reads, while `PickCameraShot` and
