@@ -27899,14 +27899,14 @@ size_t Gameplay::iterate_camera_shots_like_source() const {
     }
     for (const auto& category : categories) {
         size_t category_index = 0;
-        for (const auto& key : regular_camera_keys_) {
-            if (key.category != category) continue;
+        for (const CameraKey* key : source_ordered) {
+            if (key->category != category) continue;
             if (debug_camera_enabled() || debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
                     "[world] camera iterate_shot: source_msg=iterate_shot source_manager=CameraManager::OnIterateShot category=%s category_index=%zu global_index=%zu shot=%s var_write=CamShot command_exec=native_diagnostic_only\n",
                     category.c_str(), category_index, total,
-                    key.name.c_str());
+                    key->name.c_str());
             }
             ++category_index;
             ++total;

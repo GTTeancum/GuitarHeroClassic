@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager iterate-shot bucket status:
+  ihatecompvir `CameraManager::OnIterateShot(...)` saves the script variable,
+  walks `mCameraShotCategories` bucket-by-bucket, writes each contained
+  `CamShot` into the variable before command slots `3..Size-1`, then restores
+  the saved value. Because `SyncObjects()` fills those buckets from
+  `ObjDirItr<CamShot>` and recovered `RandomizeCategory(...)` is empty, the
+  native diagnostic bridge now derives both the category order and each
+  category's shot walk from the decoded source object order. This is
+  CameraManager diagnostic script-surface parity only and is not counted as a
+  compact normal-gameplay recovered-runtime token until a non-empty live
+  `iterate_shot` dispatch is proven cleanly: no live gameplay selection
+  change, no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
+  invention, no pose math, no FreeCam priority change, no dependency, no
+  under-venue masking, and no OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager category scan status:
   ihatecompvir `CameraManager::FindCameraShot(...)` calls `FirstShotOk(s)`,
   retrieves the category bucket with `FindOrAddCategory(s)`, then scans that

@@ -15924,8 +15924,11 @@ int main() {
                  "source iterate_shot saves the script var before command index 3");
   ok &= appears_before(iterate_camera_shots_c,
                        "for(constauto&category:categories)",
-                       "if(key.category!=category)continue;",
+                       "if(key->category!=category)continue;",
                        "source iterate_shot walks category buckets before shot lists");
+  ok &= contains(iterate_camera_shots_c,
+                 "for(constCameraKey*key:source_ordered){if(key->category!=category)continue;",
+                 "source iterate_shot walks each category bucket in source object order");
   ok &= contains(iterate_camera_shots_c,
                  "var_write=CamShotcommand_exec=native_diagnostic_only",
                  "source iterate_shot writes each CamShot var before command execution");
