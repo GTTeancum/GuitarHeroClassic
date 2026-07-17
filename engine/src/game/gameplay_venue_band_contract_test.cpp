@@ -10048,7 +10048,7 @@ int main() {
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotVisiblePoseUnits="
-                 "\"CameraManager,GetKey,Interp_order,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail\";",
+                 "\"CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail\";",
                  "camera pose proof labels the visible source-covered runtime units");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotHiddenPoseBodies="
@@ -14885,8 +14885,9 @@ int main() {
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,camera_camshot_onsetpos_boundary,"
+                 "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts the CamShot OnSetPos boundary between frame-pair timing and audited RndTransAnim path timing");
+                 "camera implementation status counts the CamShot OnSetPos and OnHasTargets boundaries between frame-pair timing and audited RndTransAnim path timing");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_worlddir_camshot_overrides_disable,"
@@ -14915,8 +14916,9 @@ int main() {
                  "camera_shot_over,"
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
+                 "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, and the source OnSetPos boundary");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -14964,8 +14966,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"
+                 "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing,",
-                 "camera implementation status keeps OnSetPos as a boundary after frame-pair timing and before path timing");
+                 "camera implementation status keeps OnSetPos/OnHasTargets as boundaries after frame-pair timing and before path timing");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,"
                  "camera_trace_complete_writer_bridge,"

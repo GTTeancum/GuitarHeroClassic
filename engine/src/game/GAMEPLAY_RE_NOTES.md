@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot OnHasTargets boundary status:
+  ihatecompvir `CamShot::OnHasTargets()` returns
+  `mKeyFrames[idx].HasTargets()`, and `CamShotFrame::HasTargets()` checks the
+  resolved target object pointers for that indexed source keyframe. Native
+  already logs both blend and hold `OnHasTargets` rows beside the `OnSetPos`
+  boundary, using the same source keyframe index route and resolved-target
+  helper; the compact status now counts `camera_camshot_hastargets_boundary`
+  and the visible pose-unit label now names `OnHasTargets`. This is still a
+  source boundary for camera-angle audits only: hidden `CamShot::SetPos`,
+  `BuildTransform`, and `RndCam::UpdateLocal` remain deferred, FreeCam stays
+  last, and no dependency or under-venue masking changed.
 - 2026-07-17 gameplay CameraManager MiloCamera poll-gate status:
   ihatecompvir `CameraManager::PrePoll()` and `CameraManager::Poll()` both
   skip normal `mNextShot` consumption, `SetPreFrame`, `SetFrame`, and
