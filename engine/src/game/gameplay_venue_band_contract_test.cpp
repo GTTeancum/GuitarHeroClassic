@@ -13431,16 +13431,16 @@ int main() {
                  "voidrandomize_camera_category_order("
                  "std::vector<Gameplay::CameraKey>&keys,"
                  "intsource_seed,constchar*source_seed_source)",
-                 "regular camera loader mirrors CameraManager category-local randomization");
+                 "regular camera loader preserves the CameraManager Randomize call boundary");
   ok &= contains(gameplay_c,
                  "structCameraSourceRand",
-                 "regular camera randomization uses a local ihatecompvir Rand mirror");
+                 "camera source Rand mirror remains available for scripted duration random_int");
   ok &= contains(gameplay_c,
                  "seed_value*0x41C64E6Du+0x3039u",
-                 "camera source Rand seed step mirrors ihatecompvir Rand::Seed");
+                 "camera source Rand seed step mirrors ihatecompvir Rand::Seed for script random_int");
   ok &= contains(gameplay_c,
                  "if(0xF9u<=++index_a)index_a=0;",
-                 "camera source Rand index wrap mirrors ihatecompvir Rand::Int");
+                 "camera source Rand index wrap mirrors ihatecompvir Rand::Int for script random_int");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_camera_random_seed(intseed);",
                  "gameplay exposes a source-shaped camera_random_seed diagnostic hook");
@@ -13456,9 +13456,9 @@ int main() {
                  "source_msg=camera_random_seed"
                  "source_manager=CameraManager::OnRandomSeed",
                  "camera random-seed diagnostics name ihatecompvir OnRandomSeed");
-  ok &= contains(gameplay_c,
-                 "rand.seed(static_cast<uint32_t>(source_seed));",
-                 "regular camera randomization seeds source Rand from CameraManager sSeed state");
+  ok &= absent(gameplay_c,
+               "rand.seed(static_cast<uint32_t>(source_seed));",
+               "regular camera RandomizeCategory must not consume sSeed because the visible source body is empty");
   ok &= contains(gameplay_c,
                  "randomize_camera_category_order(out,camera_random_seed,"
                  "camera_random_seed_source);",
@@ -13466,29 +13466,30 @@ int main() {
   ok &= absent(gameplay_c,
                "rand.seed(0);",
                "regular camera randomization no longer hardcodes the source seed at the call site");
-  ok &= contains(gameplay_c,
-                 "constsize_tpicked=rand.int_range(remaining.size());",
-                 "regular camera randomization draws a source Rand index from the remaining category list");
-  ok &= contains(gameplay_c,
-                 "remaining[picked]=std::move(remaining.back());",
-                 "regular camera randomization mirrors SyncObjects remaining-list removal");
+  ok &= absent(gameplay_c,
+               "constsize_tpicked=rand.int_range(remaining.size());",
+               "regular camera RandomizeCategory must not draw a category shuffle index");
+  ok &= absent(gameplay_c,
+               "remaining[picked]=std::move(remaining.back());",
+               "regular camera RandomizeCategory must not remove from a temporary shuffle list");
   ok &= contains(gameplay_c,
                  "std::vector<std::string>categories;",
-                 "regular camera randomization tracks every first-seen CamShot category");
+                 "regular camera Randomize diagnostics track every first-seen CamShot category");
   ok &= contains(gameplay_c,
                  "if(std::find(categories.begin(),categories.end(),"
                  "key.category)==categories.end()){"
                  "categories.push_back(key.category);}",
-                 "regular camera randomization builds source-shaped category buckets from decoded CamShots");
-  ok &= contains(gameplay_c,
-                 "for(constauto&category:categories){"
-                 "shuffle_category(category);}",
-                 "regular camera category randomization randomizes every source category bucket");
+                 "regular camera Randomize diagnostics build source-shaped category buckets from decoded CamShots");
+  ok &= absent(gameplay_c,
+               "for(constauto&category:categories){"
+               "shuffle_category(category);}",
+               "regular camera RandomizeCategory leaves every source category bucket in decoded order");
   ok &= contains(gameplay_c,
                  "\"[world]cameraRandomize:source_manager=CameraManager::Randomize"
                  "categories=%zuscope=all_first_seen_category_bucketsorder=%s"
-                 "seed=%dsource_seed=sSeedseed_source=%s\\n\"",
-                 "regular camera randomization logs the source-shaped all-category bucket order and seed");
+                 "seed=%dsource_seed=sSeedseed_source=%ssource_call=RandomizeCategory"
+                 "source_body=empty_noopresult=source_order_preserved\\n\"",
+                 "regular camera Randomize logs the source empty RandomizeCategory body and preserved order");
   ok &= absent(gameplay_c,
                "for(constautocategory:kNormalCamShotCategoryOrder){"
                "shuffle_category(category);}",
@@ -13496,7 +13497,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "randomize_camera_category_order(out,camera_random_seed,"
                  "camera_random_seed_source);",
-                 "regular camera CamShots are category-randomized after MILO decode");
+                 "regular camera CamShots pass through source no-op Randomize after MILO decode");
   ok &= absent(gameplay_c,
                "returnenv_int(\"GHOGX_CAMERA_RANDOM_SEED\",0);",
                "regular camera randomizer must not read diagnostic environment state directly");

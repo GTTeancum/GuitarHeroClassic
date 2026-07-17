@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot category randomize no-op:
+  ihatecompvir `CameraManager::Randomize()` still seeds `sRand` and visits
+  each category bucket, but the visible `RandomizeCategory(...)` body is empty.
+  Native now preserves decoded CamShot source order through that call boundary
+  and labels the diagnostic as `source_body=empty_noop`, while leaving the
+  separate script `random_int` duration picker on its existing source Rand
+  mirror. This is normal gameplay camera selection parity only: no pose math,
+  no `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot max blur raw/runtime correction:
   ihatecompvir stores `CamShotFrame::mMaxBlur` as a byte-like raw field:
   constructor and old-load fallback set raw `0xFF`, while `MaxBlur()` returns

@@ -16337,7 +16337,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
         if (debug_camera_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] regular CamShot categories randomized category-local count=%zu\n",
+                "[world] regular CamShot categories source-preserved count=%zu randomize_category=empty_noop\n",
                 out.size());
         }
     } catch (const std::exception& ex) {
@@ -17292,13 +17292,9 @@ struct CameraSourceRand {
 void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys,
                                      int source_seed,
                                      const char* source_seed_source) {
-    // ihatecompvir CameraManager::SyncObjects seeds sRand and randomizes every
-    // first-seen category list before FindCameraShot starts moving accepted
-    // shots to the back. The RB2 dump shows a temporary shot array and "which"
-    // selection; mirror that remaining-list draw using the source Rand
-    // implementation.
-    CameraSourceRand rand;
-    rand.seed(static_cast<uint32_t>(source_seed));
+    // ihatecompvir's visible CameraManager::RandomizeCategory body is empty.
+    // Keep the Randomize call boundary for seed diagnostics, but preserve the
+    // source object order until FindCameraShot performs its MoveItem rotation.
     std::vector<std::string> categories;
     for (const auto& key : keys) {
         if (key.category.empty()) continue;
@@ -17311,30 +17307,10 @@ void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys,
         const std::string category_order = join_log_names(categories);
         std::fprintf(
             stderr,
-            "[world] camera Randomize: source_manager=CameraManager::Randomize categories=%zu scope=all_first_seen_category_buckets order=%s seed=%d source_seed=sSeed seed_source=%s\n",
+            "[world] camera Randomize: source_manager=CameraManager::Randomize categories=%zu scope=all_first_seen_category_buckets order=%s seed=%d source_seed=sSeed seed_source=%s source_call=RandomizeCategory source_body=empty_noop result=source_order_preserved\n",
             categories.size(), category_order.c_str(), source_seed,
             source_seed_source && source_seed_source[0] ? source_seed_source
                                                         : "static_default");
-    }
-    auto shuffle_category = [&](std::string_view category) {
-        std::vector<size_t> indices;
-        std::vector<Gameplay::CameraKey> remaining;
-        for (size_t i = 0; i < keys.size(); ++i) {
-            if (keys[i].category == category) {
-                indices.push_back(i);
-                remaining.push_back(keys[i]);
-            }
-        }
-        for (size_t out = 0; out < indices.size(); ++out) {
-            const size_t picked = rand.int_range(remaining.size());
-            keys[indices[out]] = std::move(remaining[picked]);
-            remaining[picked] = std::move(remaining.back());
-            remaining.pop_back();
-        }
-    };
-
-    for (const auto& category : categories) {
-        shuffle_category(category);
     }
 }
 
