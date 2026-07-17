@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager SyncObjects bucket status:
+  ihatecompvir `CameraManager::SyncObjects()` clears the category vector,
+  scans `ObjDirItr<CamShot>`, admits only `PlatformOk()` shots through
+  `FindOrAddCategory(...)->push_back(...)`, then calls `Randomize()`.
+  Native already keeps decoded regular CamShots in first-seen source category
+  buckets with the same PlatformOk skip point and empty `RandomizeCategory`
+  body; the compact camera status now counts that loader/selector bridge as
+  `camera_manager_syncobjects_category_buckets` beside the PlatformOk gate.
+  This is normal gameplay selection inventory parity only: no pose math,
+  `BuildTransform`, `SetPos`, under-venue masking, FreeCam priority,
+  dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot StartAnim no-op handler status:
   ihatecompvir's CamShot handler table registers `get_occluded`,
   `gen_hide_list`, `clear_hide_list`, and `set_all_to_3D` as source-visible
