@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager FindCameraShot MoveItem status:
+  ihatecompvir `CameraManager::FindCameraShot(...)` accepts a candidate only
+  after `Disabled()`, `ShotMatches(...)`, and `ShotOk(mCurrentShot)` all pass,
+  then calls `camlist->MoveItem(camlist->end(), *camlist, it)` before returning
+  the selected shot. Native already rotates the accepted regular and
+  source-category shot within its decoded category bucket and logs the before /
+  after source order; the compact status now counts
+  `camera_manager_findshot_moveitem` beside the selector filters. This is
+  normal gameplay camera picker ordering only: no hidden `cam_shot_ok` result
+  invention, pose math, `BuildTransform` synthesis, under-venue masking,
+  FreeCam priority change, dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CameraManager ShotMatches status:
   ihatecompvir `CameraManager::ShotMatches(...)` evaluates each authored
   filter by reading either the visible `flags_any` / `flags_exact` masks or the
