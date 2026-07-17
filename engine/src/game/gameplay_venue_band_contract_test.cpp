@@ -15545,6 +15545,8 @@ int main() {
                  "hidden_gameplay_blocker=cam_shot_ok_rest"
                  "source_msg=shot_ok"
                  "source_script=world/camshot.dta::shot_ok"
+                 "source_dtb=world/gen/camshot.dtb:77-78"
+                 "source_script_body=cam_shot_ok_this_no_prev_arg"
                  "source_call=CamShot::ShotOk(prev_shot)"
                  "source_return_gate=CamShot::ShotOk_TypeSwitch"
                  "source_return_class=%s"
@@ -15564,6 +15566,18 @@ int main() {
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",
                  "regular camera diagnostics expose the unrecovered ShotOk remainder after recovered bad_waypoints before deferred FreeCam status");
+  ok &= contains(gameplay_c,
+                 "source_dtb=world/gen/camshot.dtb:77-78"
+                 "source_script_body=cam_shot_ok_this_no_prev_arg"
+                 "source_call=CamShot::ShotOk(prev_shot)",
+                 "regular camera shot_ok diagnostics cite the extracted GH2 camshot.dtb native cam_shot_ok boundary");
+  ok &= contains(gameplay_c,
+                 "source_script_args=prev_shot"
+                 "source_prev_shot_visible=1"
+                 "native_call=cam_shot_ok($this)"
+                 "shot=%sprevious=%s"
+                 "native_prev_shot_visible=0",
+                 "regular camera shot_ok diagnostics prove GH2 camshot.dtb passes only $this to native cam_shot_ok while ihatecompvir CamShot::ShotOk still passes prev_shot to the script");
   ok &= absent(gameplay_c,
                "if(previous&&key.name==previous->name)continue;",
                "regular camera selector must not pre-reject the active shot before source shot_ok");
@@ -15590,6 +15604,8 @@ int main() {
                  "hidden_gameplay_blocker=cam_check_shot_native"
                  "source_msg=check_shot"
                  "source_script=world/camshot.dta::check_shot"
+                 "source_dtb=world/gen/camshot.dtb:72-73"
+                 "source_script_body=cam_check_shot_this_no_args"
                  "source_caller=%ssource_script_args=none"
                  "source_camera_beat_var_visible=1"
                  "native_call=cam_check_shot($this)"
@@ -15601,6 +15617,15 @@ int main() {
                  "freecam_priority=deferred_last"
                  "freecam_affects_gameplay=0\\n\"",
                  "regular camera diagnostics expose deferred source check_shot hook and native argument boundary");
+  ok &= contains(gameplay_c,
+                 "source_dtb=world/gen/camshot.dtb:72-73"
+                 "source_script_body=cam_check_shot_this_no_args"
+                 "source_caller=%ssource_script_args=none"
+                 "source_camera_beat_var_visible=1"
+                 "native_call=cam_check_shot($this)"
+                 "shot=%scamera_beat_state=%u"
+                 "native_beat_arg_visible=0",
+                 "regular camera check_shot diagnostics prove GH2 camshot.dtb passes only $this to native cam_check_shot while camera_beat remains script state");
   ok &= contains(gameplay_h_c, "uint32_tlast_camera_beat_=UINT32_MAX;",
                  "regular camera runtime tracks source beat cadence");
   ok &= contains(gameplay_h_c, "uint32_tcamera_beat_state_=0;",

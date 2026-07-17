@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camshot.dtb native-hook boundary:
+  Extracted only `world/gen/camshot.dtb` and
+  `world/gen/world_objects_worldbase.dtb` from the local GH2 ARK with the
+  repo's dependency-free ARK/DTB tools. The dumped script confirms
+  `check_shot` is just `{cam_check_shot $this}` at camshot lines 72-73 and
+  `shot_ok($prev_shot)` is just `{cam_shot_ok $this}` at lines 77-78. Runtime
+  diagnostics now print `source_dtb` and `source_script_body` for both rows so
+  proofs make the argument boundary explicit: `camera_beat` stays script state,
+  `prev_shot` is visible to ihatecompvir `CamShot::ShotOk`, and neither value
+  is passed into the hidden GH2 native calls. This does not recover
+  `cam_shot_ok_rest`, `cam_check_shot_native`, `CharWalk`, `SetPos`,
+  `BuildTransform`, `RndCam::UpdateLocal`, under-venue behavior, FreeCam, or
+  any dependency surface.
 - 2026-07-17 gameplay CamShot EndAnim bridge status:
   ihatecompvir `CameraManager::StartShot_(...)` calls
   `mCurrentShot->EndAnim()` before assigning the new current shot, and
