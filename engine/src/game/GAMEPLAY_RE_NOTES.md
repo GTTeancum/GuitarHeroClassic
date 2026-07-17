@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot max blur default parity:
+  ihatecompvir `CamShotFrame` constructs `mMaxBlur(0xFF)`, and older frame
+  loads keep that back-compat maximum when no serialized max-blur field exists.
+  Native now uses `255.0f` for `CameraKey::max_blur`, legacy CamShot frame
+  decode, and interpolation fallback. This is normal gameplay camera DOF
+  metadata parity only: no camera pose movement, no `BuildTransform`
+  synthesis, no under-venue masking, no FreeCam priority change, no dependency
+  change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot final SetLocalXfm tail proof:
   ihatecompvir `CamShotFrame::Interp` blends `tf130` from the current
   `cam->WorldXfm()`, applies the visible `CamShot::Shake` boundary, then calls
