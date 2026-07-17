@@ -8589,6 +8589,11 @@ int main() {
                  "source_call=UpdateTarget/GetCurrentTargetPosition",
                  "camera diagnostics expose the source target update boundary");
   ok &= contains(gameplay_c,
+                 "submitted_frame=%.3f"
+                 "\"\""
+                 "source_calc_frame=a:%s%.3fb:%s%.3f",
+                 "camera UpdateTarget diagnostics split native submitted frame from source CalcFrame local frame");
+  ok &= contains(gameplay_c,
                  "\"[world]cameraUpdateTarget:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
@@ -9982,9 +9987,13 @@ int main() {
                  "camera debug logs expose the source BuildTransform order and final SetLocalXfm tail");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
-                 "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
-                 "\"ps2_result_builder=0x00267008",
-                 "camera solver rows lead with gameplay camera scope and source CamShot pair before projection details");
+                 "\"priority=gameplay_cameraframe=%.2f"
+                 "frame_source=native_submitted\""
+                 "\""
+                 "source_calc_frame=a:%s%.3fb:%s%.3f"
+                 "shot=a:%sb:%s\""
+                 "\"source_key_index=a:%s%zub:%s%zu\"",
+                 "camera solver rows split native submitted frame from source CalcFrame before projection details");
   ok &= contains(gameplay_c,
                  "\"source_no_target_current_build_twice(\"",
                  "no-target CamShots use the visible current-frame BuildTransform pair");
@@ -11469,7 +11478,10 @@ int main() {
                  "camera debug logs expose the PS2 CamShot result-builder bridge");
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
-                 "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
+                 "\"priority=gameplay_cameraframe=%.2f"
+                 "frame_source=native_submitted\""
+                 "\"source_calc_frame=a:%s%.3fb:%s%.3f"
+                 "shot=a:%sb:%s\""
                  "\"source_key_index=a:%s%zub:%s%zu\""
                  "\"source_local_frame=a:%s%.3fb:%s%.3f\""
                  "\"shot_filter_branch=%d\"",

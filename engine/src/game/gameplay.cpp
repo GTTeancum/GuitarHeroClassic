@@ -22760,6 +22760,21 @@ void apply_camera_keys(
     t = std::clamp(t, 0.0f, 1.0f);
     const float interp_t =
         camshot_blend_ease_t(t, a->blend_ease, a->blend_ease_mode);
+    auto source_calc_frame_prefix =
+        [](const Gameplay::CameraKey& source_key) -> const char* {
+        return source_key.has_source_frame_mapping ||
+                       source_key.has_source_path_frame_mapping
+                   ? ""
+                   : "none/";
+    };
+    auto source_calc_frame_value =
+        [](const Gameplay::CameraKey& source_key) -> float {
+        if (source_key.has_source_frame_mapping)
+            return source_key.source_frame_local_frame;
+        if (source_key.has_source_path_frame_mapping)
+            return source_key.source_path_local_frame;
+        return 0.0f;
+    };
     const bool source_debug_rows_requested =
         debug_camera_enabled() || debug_venue_filters_enabled();
     std::string source_debug_report_key;
@@ -23584,7 +23599,8 @@ void apply_camera_keys(
             stderr,
             "[world] camera UpdateTarget: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_class=CamShotFrame "
             "source_call=UpdateTarget/GetCurrentTargetPosition "
-            "shot_a=%s shot_b=%s local_frame=%.3f "
+            "shot_a=%s shot_b=%s submitted_frame=%.3f "
+            "source_calc_frame=a:%s%.3f b:%s%.3f "
             "a_resolved=%zu b_resolved=%zu "
             "a_authored=%zu b_authored=%zu "
             "a_unresolved=%zu b_unresolved=%zu "
@@ -23599,6 +23615,8 @@ void apply_camera_keys(
             "target_list_source=CamShotFrame::mTargets "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             a->name.c_str(), b->name.c_str(), frame,
+            source_calc_frame_prefix(*a), source_calc_frame_value(*a),
+            source_calc_frame_prefix(*b), source_calc_frame_value(*b),
             a_target_update.resolved_count, b_target_update.resolved_count,
             a_authored_target_refs, b_authored_target_refs,
             a_unresolved_target_refs, b_unresolved_target_refs,
@@ -24788,20 +24806,11 @@ void apply_camera_keys(
                        ? source_key.source_frame_key_index
                        : size_t{0};
         };
-        auto source_frame_mapping_prefix =
-            [](const Gameplay::CameraKey& source_key) -> const char* {
-            return source_key.has_source_frame_mapping ? "" : "none/";
-        };
-        auto source_frame_local_value =
-            [](const Gameplay::CameraKey& source_key) -> float {
-            return source_key.has_source_frame_mapping
-                       ? source_key.source_frame_local_frame
-                       : 0.0f;
-        };
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
-            "priority=gameplay_camera frame=%.2f shot=a:%s b:%s "
+            "priority=gameplay_camera frame=%.2f frame_source=native_submitted "
+            "source_calc_frame=a:%s%.3f b:%s%.3f shot=a:%s b:%s "
             "source_key_index=a:%s%zu b:%s%zu "
             "source_local_frame=a:%s%.3f b:%s%.3f "
             "shot_filter_branch=%d "
@@ -24855,11 +24864,13 @@ void apply_camera_keys(
             "source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm "
             "final_setlocalxfm=applied "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
-            frame, a->name.c_str(), b->name.c_str(),
+            frame, source_calc_frame_prefix(*a), source_calc_frame_value(*a),
+            source_calc_frame_prefix(*b), source_calc_frame_value(*b),
+            a->name.c_str(), b->name.c_str(),
             source_frame_index_prefix(*a), source_frame_index_value(*a),
             source_frame_index_prefix(*b), source_frame_index_value(*b),
-            source_frame_mapping_prefix(*a), source_frame_local_value(*a),
-            source_frame_mapping_prefix(*b), source_frame_local_value(*b),
+            source_calc_frame_prefix(*a), source_calc_frame_value(*a),
+            source_calc_frame_prefix(*b), source_calc_frame_value(*b),
             result_filter_branch ? 1 : 0,
             source_build_transform_order ? "current_frame_twice"
                                          : "blended_seed",

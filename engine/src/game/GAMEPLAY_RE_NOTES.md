@@ -2,6 +2,18 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camera submitted/source frame proof split:
+  normal gameplay camera solver diagnostics previously printed the native
+  renderer submission frame as `frame` / `local_frame` even though the actual
+  source CamShot key-pair and path sampling were already driven by
+  `CameraManager::CalcFrame()` through `source_frame_local_frame` or
+  `source_path_local_frame`. The UpdateTarget and solver proof rows now split
+  `submitted_frame` / `frame_source=native_submitted` from
+  `source_calc_frame`, so future bad-angle screenshots can distinguish a
+  source clock problem from the still-hidden pose/projection bodies. This is
+  proof hardening only: no selector behavior, pose math, `BuildTransform`,
+  `RndCam::UpdateLocal`, under-venue masking, FreeCam priority, dependency, or
+  OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager CalcFrame status:
   ihatecompvir `CameraManager::CalcFrame()` samples
   `TheTaskMgr.Time(mCurrentShot->Units())`, subtracts `mCamStartTime`, and
