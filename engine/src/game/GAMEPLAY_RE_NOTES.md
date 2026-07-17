@@ -13,12 +13,19 @@
   body instead of a generic pose concern. This is proof precision only: no
   camera pose math, clamp, vertical sign flip, FreeCam priority change,
   dependency change, or OG Xbox portability change.
+- 2026-07-16 gameplay UpdateLocal symbol-size correction:
+  Rechecked the audited RB3 `SZBE69_B8` symbol file and corrected native proof
+  strings from the stale `0x1C0` value to the actual
+  `UpdateLocal__6RndCamFv` size of `0x1E4`. The RB2 size remains `0x1D0`, and
+  the boundary remains locals/refs plus symbol sizes only: this does not
+  recover projection math, apply a vertical sign change, add a clamp, promote
+  FreeCam, or change dependencies.
 - 2026-07-16 gameplay UpdateLocal audit precision:
   The same-target under-venue proof now distinguishes the available camera
   evidence more tightly: ihatecompvir's public `RndCam::UpdateLocal()` body is
   still empty, the RB2 dump still exposes only locals/refs, and the available
   RB2/RB3 recomp symbols only prove non-empty function sizes
-  (`0x1D0`/`0x1C0`) rather than statement-level projection math. Native now
+  (`0x1D0`/`0x1E4`) rather than statement-level projection math. Native now
   reports those symbol-size facts in `local_project_audit`,
   `update_local_audit`, and `update_local_source_search` so a future fix has a
   sharper proof target. This is audit/proof precision only: no camera pose
@@ -270,7 +277,7 @@
   `doc/src-old/rb3/Rnd/rndcam.cpp` is an incomplete/stub source, and the RB2
   dump exposes only `yRatio`, `t`, and `TheRnd`. Native solver rows now carry
   `buildtransform_audit=public_CameraShot.cpp_decl_and_Interp_calls_only;rb2_dump_signature_locals_refs;rb2_BuildTransform_size_0x408;rb3_BuildTransform_size_0x7D8;binary_symbol_sizes_no_body`,
-  `update_local_audit=public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;rb2_size_0x1D0;rb3_recomp_size_0x1C0;body_unrecovered`,
+  `update_local_audit=public_Cam.cpp_empty;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;rb2_size_0x1D0;rb3_recomp_size_0x1E4;body_unrecovered`,
   and
   `update_local_source_search=public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;band3_recomp_symbols_size_only_no_body`
   so low/sketchy gameplay camera angles stay source-audit concerns until the

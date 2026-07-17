@@ -9599,7 +9599,7 @@ int main() {
                  "\"public_Cam.cpp_empty;"
                  "rb2_dump_UpdateLocal_locals_only;\""
                  "\"rb2_UpdateLocal_size_0x1D0;"
-                 "rb3_recomp_UpdateLocal_size_0x1C0;\""
+                 "rb3_recomp_UpdateLocal_size_0x1E4;\""
                  "\"binary_symbol_sizes_no_body\"",
                  "same-target LocalProjectXfm audit includes symbol-size evidence without claiming a recovered RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
@@ -9886,7 +9886,7 @@ int main() {
                  "\"public_Cam.cpp_empty;"
                  "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
                  "\"rb2_size_0x1D0;"
-                 "rb3_recomp_size_0x1C0;body_unrecovered\"",
+                 "rb3_recomp_size_0x1E4;body_unrecovered\"",
                  "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs plus symbol-size proof only");
   ok &= contains(gameplay_c,
                  "\"public_Cam.cpp_empty;doc_src_old_rndcam_incomplete_stub;\""
