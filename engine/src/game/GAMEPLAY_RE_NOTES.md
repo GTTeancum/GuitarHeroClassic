@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay PickCameraShot no-acceptable warning status:
+  ihatecompvir `CameraManager::PickCameraShot(...)` calls
+  `FindCameraShot(...)`, formats `No acceptable camera shot:` plus the source
+  category and property filters when no shot is returned, and only writes
+  `mNextShot` on the success branch. Native already mirrors the warning
+  surface through `camera_source_no_acceptable_shot(...)` for regular and
+  source-category routes while preserving the existing pending-shot handoff
+  for accepted shots. The compact normal gameplay camera status now counts
+  `camera_manager_pickshot_no_acceptable_warning` between the FindCameraShot
+  MoveItem scan and the PickCameraShot pending handoff. This is warning/proof
+  parity only: no fallback shot, no hidden `cam_shot_ok` / `cam_check_shot`
+  invention, no pose math, no FreeCam priority change, no dependency, no
+  under-venue masking, and no OG Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager Disabled gate status:
   ihatecompvir `CameraManager::FindCameraShot(...)` calls `FirstShotOk`,
   scans the category list, and checks `!cur->Disabled()` before
