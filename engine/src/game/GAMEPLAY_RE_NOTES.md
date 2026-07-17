@@ -13215,6 +13215,15 @@ Rejected native probe:
   `camera_source_setframe_blend_result_rows(...)` and before the final camera
   result frame is submitted. This is normal gameplay camera ordering only; it
   does not touch FreeCam or add any runtime dependency surface.
+- 2026-07-16 same-target filter-state provenance:
+  ihatecompvir `CamShotFrame::Interp` passes `applyScreenOffset=false` into
+  `BuildTransform` when consecutive frames have the same resolved target list,
+  then applies the visible local-space screen-offset translation itself. Native
+  now labels that same-target shot-filter work as
+  `not_submitted_applyScreenOffset0_direct_offset` and keeps the filtered-target
+  candidate diagnostic-only until the hidden `BuildTransform` body proves
+  whether its target filter mutates persistent state under that flag. This is an
+  audit guard, not a visual camera offset.
 - 2026-07-15 CamShot DOF cached target position:
   ihatecompvir `CamShotFrame::UpdateTarget` stores the averaged live target in
   `unk34`, and the later DOF branch in `CamShotFrame::Interp` falls back to that

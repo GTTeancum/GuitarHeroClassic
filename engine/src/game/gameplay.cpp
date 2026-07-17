@@ -24395,6 +24395,26 @@ void apply_camera_keys(
                 : same_targets_like_camshot
                 ? "SameTargets:BuildTransform(applyScreenOffset=0)+direct_screen_offset"
                 : "NonSameTargets:BuildTransform(applyScreenOffset=1)";
+        const char* source_filter_scope =
+            !source_has_any_targets
+                ? "none_no_targets"
+                : same_targets_like_camshot
+                ? (result_filter_branch ? "diagnostic_only_same_targets"
+                                        : "disabled_same_targets")
+                : (result_filter_branch ? "BuildTransform_filter" : "none");
+        const char* source_filter_state_submission =
+            !source_has_any_targets
+                ? "none_no_targets"
+                : same_targets_like_camshot
+                ? "not_submitted_applyScreenOffset0_direct_offset"
+                : result_builder_state
+                ? "persistent_buildtransform_state"
+                : "stateless_buildtransform";
+        const char* source_filter_state_source =
+            same_targets_like_camshot
+                ? "CamShotFrame::Interp_sameTargets_applyScreenOffset0;"
+                  "filtered_candidate_diagnostic_until_BuildTransform_body"
+                : "CamShotFrame::BuildTransform_applyScreenOffset1";
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
@@ -24403,6 +24423,8 @@ void apply_camera_keys(
             "build_transform_order=%s apply_screen_offset=%d "
             "source_visible_build_pair=%s source_build_calls=%d "
             "source_branch=%s source_pose_branch=%s source_filter_scope=%s "
+            "source_filter_state_submission=%s "
+            "source_filter_state_source=%s "
             "filtered_candidate_scope=%s "
             "buildtransform_body=%s buildtransform_audit=%s "
             "buildtransform_locals=%s "
@@ -24449,12 +24471,8 @@ void apply_camera_keys(
             source_visible_build_transform_pair,
             source_build_transform_order ? 2 : 0,
             source_pose_branch, source_pose_branch,
-            !source_has_any_targets
-                ? "none_no_targets"
-                : same_targets_like_camshot
-                ? (result_filter_branch ? "diagnostic_only_same_targets"
-                                        : "disabled_same_targets")
-                : (result_filter_branch ? "BuildTransform_filter" : "none"),
+            source_filter_scope, source_filter_state_submission,
+            source_filter_state_source,
             source_screen_offset_filtered_target_candidate ? "diagnostic_only"
                                                            : "none",
             "rb2_dump_locals_only",

@@ -9798,6 +9798,19 @@ int main() {
                  "\"source_branch=%ssource_pose_branch=%ssource_filter_scope=%s\"",
                  "camera debug logs expose the source BuildTransform branch, stable pose-branch token, and filter scope");
   ok &= contains(gameplay_c,
+                 "constchar*source_filter_state_submission=",
+                 "camera solver computes whether shot-filter state is submitted or diagnostic-only");
+  ok &= contains(gameplay_c,
+                 "\"source_filter_state_submission=%s\""
+                 "\"source_filter_state_source=%s\"",
+                 "camera debug logs expose the shot-filter state submission boundary");
+  ok &= contains(gameplay_c,
+                 "\"not_submitted_applyScreenOffset0_direct_offset\"",
+                 "same-target camera filter diagnostics keep applyScreenOffset=0 state out of the persistent BuildTransform mirror");
+  ok &= contains(gameplay_c,
+                 "\"CamShotFrame::Interp_sameTargets_applyScreenOffset0;\"",
+                 "same-target camera filter diagnostics cite the visible Interp branch before hidden BuildTransform inference");
+  ok &= contains(gameplay_c,
                  "source_pose_branch,source_pose_branch,",
                  "camera debug logs keep source_branch and source_pose_branch tied to the same source-visible branch");
   ok &= contains(gameplay_c,
